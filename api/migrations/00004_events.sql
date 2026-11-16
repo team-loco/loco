@@ -100,6 +100,10 @@ CREATE TABLE webhook_deliveries (
     UNIQUE (webhook_id, event_seq)
 );
 
+CREATE VIEW webhook_delivery_results AS
+SELECT d.*, (status = 'failed' OR (status = 'pending' AND COALESCE(last_error, '') <> '')) AS failing
+FROM webhook_deliveries d;
+
 CREATE INDEX webhook_deliveries_event_seq_idx ON webhook_deliveries (event_seq);
 CREATE INDEX webhook_deliveries_due_idx ON webhook_deliveries (next_attempt_at) WHERE status = 'pending';
 CREATE INDEX webhook_deliveries_webhook_idx ON webhook_deliveries (webhook_id, created_at DESC, id DESC);
@@ -127,6 +131,7 @@ AFTER INSERT ON events
 FOR EACH ROW EXECUTE FUNCTION events_enqueue_webhooks();
 
 -- +goose Down
+DROP VIEW IF EXISTS webhook_delivery_results;
 DROP TABLE IF EXISTS webhook_deliveries;
 DROP TABLE IF EXISTS webhooks;
 DROP TABLE IF EXISTS events;

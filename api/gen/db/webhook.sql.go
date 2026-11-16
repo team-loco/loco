@@ -57,6 +57,34 @@ func (q *Queries) ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDe
 	return items, nil
 }
 
+const countWebhookDeliveries = `-- name: CountWebhookDeliveries :one
+SELECT COUNT(*) AS total_count,
+       COUNT(*) FILTER (WHERE failing) AS failing_count,
+       COUNT(*) FILTER (WHERE ($1::text = '' OR status = $1)
+                        AND (NOT $2::boolean OR failing)) AS matching_count
+FROM webhook_delivery_results
+WHERE webhook_id = $3
+`
+
+type CountWebhookDeliveriesParams struct {
+	Status    string    `json:"status"`
+	Failing   bool      `json:"failing"`
+	WebhookID uuid.UUID `json:"webhookId"`
+}
+
+type CountWebhookDeliveriesRow struct {
+	TotalCount    int64 `json:"totalCount"`
+	FailingCount  int64 `json:"failingCount"`
+	MatchingCount int64 `json:"matchingCount"`
+}
+
+func (q *Queries) CountWebhookDeliveries(ctx context.Context, arg CountWebhookDeliveriesParams) (CountWebhookDeliveriesRow, error) {
+	row := q.db.QueryRow(ctx, countWebhookDeliveries, arg.Status, arg.Failing, arg.WebhookID)
+	var i CountWebhookDeliveriesRow
+	err := row.Scan(&i.TotalCount, &i.FailingCount, &i.MatchingCount)
+	return i, err
+}
+
 const countWorkspaceWebhooks = `-- name: CountWorkspaceWebhooks :one
 SELECT count(*) FROM webhooks WHERE kind = 'workspace' AND workspace_id = $1::uuid
 `
@@ -320,22 +348,24 @@ func (q *Queries) ListInstallWebhookIDs(ctx context.Context) ([]ListInstallWebho
 const listWebhookDeliveries = `-- name: ListWebhookDeliveries :many
 SELECT d.id, d.status, d.attempts, d.next_attempt_at, d.last_error, d.created_at, d.delivered_at,
        e.type AS event_type, e.id AS event_id
-FROM webhook_deliveries d
+FROM webhook_delivery_results d
 JOIN events e ON e.seq = d.event_seq
 WHERE d.webhook_id = $1
   AND ($2::text = '' OR d.status = $2)
-  AND ($3::text IS NULL
+  AND (NOT $3::boolean OR d.failing)
+  AND ($4::text IS NULL
        OR (d.created_at, d.id) < (
-         $4::timestamptz,
-         $3::uuid
+         $5::timestamptz,
+         $4::uuid
        ))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $5
+LIMIT $6
 `
 
 type ListWebhookDeliveriesParams struct {
 	WebhookID     uuid.UUID  `json:"webhookId"`
 	Status        string     `json:"status"`
+	Failing       bool       `json:"failing"`
 	PageToken     *string    `json:"pageToken"`
 	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 	MaxRows       int32      `json:"maxRows"`
@@ -357,6 +387,7 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 	rows, err := q.db.Query(ctx, listWebhookDeliveries,
 		arg.WebhookID,
 		arg.Status,
+		arg.Failing,
 		arg.PageToken,
 		arg.PageCreatedAt,
 		arg.MaxRows,

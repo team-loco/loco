@@ -466,13 +466,49 @@ func TestWebhookDeliveriesPageAndFilterByStatus(t *testing.T) {
 		t.Fatalf("fail delivery: %v", execErr)
 	}
 
+	retryID := all.GetDeliveries()[2].GetId()
+	if _, updateErr := f.pool.Exec(t.Context(), `UPDATE webhook_deliveries SET
+  status = CASE WHEN id = $1 THEN 'succeeded' ELSE status END,
+  last_error = CASE WHEN id = $2 THEN 'retry needed' ELSE last_error END
+  WHERE webhook_id = $3`, all.GetDeliveries()[3].GetId(), retryID, hookID); updateErr != nil {
+		t.Fatal(updateErr)
+	}
+	for _, status := range []string{"", webhooks.StatusPending, webhooks.StatusSucceeded} {
+		req := &webhookv1.ListWebhookDeliveriesRequest{Failing: true, Status: status, PageSize: 1}
+		var ids []string
+		matching := int64(2)
+		if status == webhooks.StatusPending {
+			matching = 1
+		}
+		if status == webhooks.StatusSucceeded {
+			matching = 0
+		}
+		for {
+			response := list(t, req)
+			if response.GetTotalCount() != 4 || response.GetFailingCount() != 2 ||
+				response.GetMatchingCount() != matching {
+				t.Fatalf("delivery counts = %v", response)
+			}
+			for _, delivery := range response.GetDeliveries() {
+				ids = append(ids, delivery.GetId())
+			}
+			req.PageToken = response.GetNextPageToken()
+			if req.GetPageToken() == "" {
+				break
+			}
+		}
+		if int64(len(ids)) != matching {
+			t.Fatalf("failing %q: deliveries = %v", status, ids)
+		}
+	}
+
 	failed := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: webhooks.StatusFailed}).GetDeliveries()
 	if len(failed) != 1 || failed[0].GetId() != failedID {
 		t.Fatalf("failed deliveries = %+v", failed)
 	}
 	pending := list(t, &webhookv1.ListWebhookDeliveriesRequest{Status: webhooks.StatusPending}).GetDeliveries()
-	if len(pending) != 3 {
-		t.Fatalf("pending deliveries = %d, want 3", len(pending))
+	if len(pending) != 2 {
+		t.Fatalf("pending deliveries = %d, want 2", len(pending))
 	}
 
 	newestFirst := make([]string, 0, len(all.GetDeliveries()))

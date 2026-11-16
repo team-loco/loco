@@ -142,11 +142,17 @@ message ListWebhookDeliveriesRequest {
       ]
     }
   ];
+  // Failed deliveries and pending retries with a recorded error; combines with status.
+  bool failing = 6;
 }
 
 message ListWebhookDeliveriesResponse {
   repeated WebhookDelivery deliveries = 1;
   string next_page_token = 2; // empty if no more pages
+  // Counts exclude the page cursor.
+  int64 matching_count = 3;
+  int64 total_count = 4;
+  int64 failing_count = 5;
 }
 
 message RedeliverWebhookDeliveryRequest {

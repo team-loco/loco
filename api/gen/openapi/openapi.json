@@ -14890,6 +14890,11 @@
               "failed"
             ],
             "description": "Only deliveries with this status; empty lists every status."
+          },
+          "failing": {
+            "type": "boolean",
+            "title": "failing",
+            "description": "Failed deliveries and pending retries with a recorded error; combines with status."
           }
         },
         "title": "ListWebhookDeliveriesRequest",
@@ -14910,6 +14915,22 @@
             "type": "string",
             "title": "next_page_token",
             "description": "empty if no more pages"
+          },
+          "matchingCount": {
+            "type": "string",
+            "title": "matching_count",
+            "format": "int64",
+            "description": "Counts exclude the page cursor."
+          },
+          "totalCount": {
+            "type": "string",
+            "title": "total_count",
+            "format": "int64"
+          },
+          "failingCount": {
+            "type": "string",
+            "title": "failing_count",
+            "format": "int64"
           }
         },
         "title": "ListWebhookDeliveriesResponse",
