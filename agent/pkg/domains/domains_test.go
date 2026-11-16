@@ -169,3 +169,20 @@ func TestServedIsEmptyWithoutAGateway(t *testing.T) {
 		t.Fatalf("served = %v, want none", got)
 	}
 }
+
+func TestGatewayTargetsAreAvailableBeforeCertificateReadiness(t *testing.T) {
+	gateway := gatewayWith(nil)
+	gateway.Status.Addresses = []gatewayv1.GatewayStatusAddress{{Value: "192.0.2.1"}, {Value: "gateway.example.test"}}
+	reporter := reporter(t, testCertificate, gateway, certificate(metav1.ConditionFalse, "*."+testDomain))
+	targets, err := reporter.Targets(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(targets, []string{"192.0.2.1", "gateway.example.test"}) {
+		t.Fatalf("targets = %v", targets)
+	}
+	served, err := reporter.Served(t.Context())
+	if err != nil || len(served) != 0 {
+		t.Fatalf("unready certificate serves %v, %v", served, err)
+	}
+}

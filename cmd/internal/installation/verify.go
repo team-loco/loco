@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json/v2"
 	"errors"
@@ -455,4 +456,49 @@ func verificationWait(ctx context.Context) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+//go:embed probe.Dockerfile
+var probeDockerfile string
+
+func VerifyAPI(ctx context.Context, clients *rpc.Clients, target VerificationTarget) (Status, error) {
+	probe, err := verificationClient(target.CAFile)
+	if err != nil {
+		return Status{}, err
+	}
+	listed, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
+	if err != nil {
+		return Status{}, err
+	}
+	var selected *clusterv1.Cluster
+	for _, cluster := range listed.GetClusters() {
+		if cluster.GetName() == target.Worker || cluster.GetId() == target.Worker {
+			selected = cluster
+			break
+		}
+	}
+	if selected == nil || selected.GetRemovedAt() != nil ||
+		selected.GetRole() != clusterv1.ClusterRole_CLUSTER_ROLE_ALL ||
+		len(selected.GetDomains()) == 0 {
+		return Status{}, errVerificationTarget
+	}
+	environment, err := clients.Environment.GetEnvironment(
+		ctx,
+		&environmentv1.GetEnvironmentRequest{EnvironmentId: target.EnvironmentID},
+	)
+	if err != nil {
+		return Status{}, err
+	}
+	if environment.GetEnvironment().GetType() != selected.GetTier() {
+		return Status{}, errVerificationTarget
+	}
+	worker := Worker{Name: selected.GetName(), Region: selected.GetRegion(), AppsDomain: selected.GetDomains()[0]}
+	base := strings.TrimSpace(strings.TrimPrefix(probeDockerfile, "FROM "))
+	if err := verifyApplication(ctx, clients, probe, worker, environment.GetEnvironment(), base); err != nil {
+		return Status{}, err
+	}
+	return Status{
+		Phase:   "verified",
+		Workers: []WorkerStatus{{Name: worker.Name, ClusterID: selected.GetId(), Ready: true}},
+	}, nil
 }

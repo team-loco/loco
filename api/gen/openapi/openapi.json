@@ -8104,6 +8104,13 @@
               "format": "hostname"
             },
             "title": "domains"
+          },
+          "dnsRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.DNSRecord"
+            },
+            "title": "dns_records"
           }
         },
         "title": "Heartbeat",
@@ -8252,6 +8259,13 @@
               "format": "hostname"
             },
             "title": "domains"
+          },
+          "dnsRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.DNSRecord"
+            },
+            "title": "dns_records"
           }
         },
         "title": "RegisterRequest",
@@ -9090,6 +9104,20 @@
           "role": {
             "title": "role",
             "$ref": "#/components/schemas/loco.cluster.v1.ClusterRole"
+          },
+          "domains": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "domains"
+          },
+          "dnsRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.cluster.v1.DNSRecord"
+            },
+            "title": "dns_records"
           }
         },
         "title": "Cluster",
@@ -9187,6 +9215,27 @@
           }
         },
         "title": "CreateClusterResponse",
+        "additionalProperties": false
+      },
+      "loco.cluster.v1.DNSRecord": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "domain",
+            "format": "hostname"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 253,
+              "minLength": 1
+            },
+            "title": "targets"
+          }
+        },
+        "title": "DNSRecord",
         "additionalProperties": false
       },
       "loco.cluster.v1.IssueJoinTokenRequest": {
@@ -9573,6 +9622,10 @@
           "observabilityMaxTimeRange": {
             "title": "observability_max_time_range",
             "$ref": "#/components/schemas/google.protobuf.Duration"
+          },
+          "apiVersion": {
+            "type": "string",
+            "title": "api_version"
           }
         },
         "title": "GetConfigResponse",

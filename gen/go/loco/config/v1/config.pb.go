@@ -73,6 +73,7 @@ type GetConfigResponse struct {
 	// history_retention applies across the installation and cannot be overridden per organization.
 	HistoryRetention          *HistoryRetention    `protobuf:"bytes,9,opt,name=history_retention,json=historyRetention,proto3" json:"history_retention,omitempty"`
 	ObservabilityMaxTimeRange *durationpb.Duration `protobuf:"bytes,10,opt,name=observability_max_time_range,json=observabilityMaxTimeRange,proto3" json:"observability_max_time_range,omitempty"`
+	ApiVersion                string               `protobuf:"bytes,11,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache
 }
@@ -175,6 +176,13 @@ func (x *GetConfigResponse) GetObservabilityMaxTimeRange() *durationpb.Duration 
 		return x.ObservabilityMaxTimeRange
 	}
 	return nil
+}
+
+func (x *GetConfigResponse) GetApiVersion() string {
+	if x != nil {
+		return x.ApiVersion
+	}
+	return ""
 }
 
 type HistoryRetention struct {
@@ -715,7 +723,7 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a\x1egoogle/protobuf/duration.proto\x1a#loco/deployment/v1/deployment.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\xfd\x04\n" +
+	"\x10GetConfigRequest\"\x9e\x05\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
@@ -729,7 +737,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fcount_limits\x18\b \x01(\v2\x1b.loco.config.v1.CountLimitsR\vcountLimits\x12M\n" +
 	"\x11history_retention\x18\t \x01(\v2 .loco.config.v1.HistoryRetentionR\x10historyRetention\x12Z\n" +
 	"\x1cobservability_max_time_range\x18\n" +
-	" \x01(\v2\x19.google.protobuf.DurationR\x19observabilityMaxTimeRange\"\x80\x01\n" +
+	" \x01(\v2\x19.google.protobuf.DurationR\x19observabilityMaxTimeRange\x12\x1f\n" +
+	"\vapi_version\x18\v \x01(\tR\n" +
+	"apiVersion\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
 	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xdb\x05\n" +

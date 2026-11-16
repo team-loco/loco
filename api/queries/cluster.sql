@@ -7,6 +7,7 @@ SET agent_version = $2,
     capacity_memory_bytes = $4,
     role = $5,
     domains = sqlc.arg(domains)::text[],
+    dns_records = sqlc.arg(dns_records)::jsonb,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -18,6 +19,7 @@ SET last_heartbeat = $2,
     health_status = $5,
     role = $6,
     domains = sqlc.arg(domains)::text[],
+    dns_records = sqlc.arg(dns_records)::jsonb,
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
@@ -29,11 +31,6 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
        last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at
 FROM clusters
-WHERE id = $1;
-
--- name: SetClusterGatewayHostname :exec
-UPDATE clusters
-SET gateway_hostname = $2, updated_at = NOW()
 WHERE id = $1;
 
 -- name: CreateCluster :exec
@@ -81,7 +78,7 @@ ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role
+       last_heartbeat, agent_version, agent_public_key, role, domains, dns_records
 FROM clusters ORDER BY created_at, id;
 
 -- name: LockClusterLifecycle :one

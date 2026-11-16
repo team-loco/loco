@@ -517,6 +517,7 @@ type Cluster struct {
 	Tier                  string      `json:"tier"`
 	CreatedAt             time.Time   `json:"createdAt"`
 	UpdatedAt             time.Time   `json:"updatedAt"`
+	DnsRecords            []byte      `json:"dnsRecords"`
 }
 
 type ClusterAssertion struct {

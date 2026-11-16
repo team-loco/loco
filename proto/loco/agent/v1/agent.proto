@@ -27,6 +27,7 @@ message RegisterRequest {
   string cluster_key = 4 [(buf.validate.field).string.uuid = true];
   Enrollment enrollment = 5;
   repeated string domains = 6 [(buf.validate.field).repeated.items.string.hostname = true];
+  repeated loco.cluster.v1.DNSRecord dns_records = 7;
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.
@@ -168,6 +169,7 @@ message Heartbeat {
     not_in: [0]
   }];
   repeated string domains = 4 [(buf.validate.field).repeated.items.string.hostname = true];
+  repeated loco.cluster.v1.DNSRecord dns_records = 5;
 }
 
 // AgentCapacity reports cluster resource capacity.

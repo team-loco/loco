@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/team-loco/loco/cmd/internal/gitops"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
 
@@ -91,10 +95,18 @@ func operations() []operation {
 			},
 			run: createCluster,
 		},
-		byID(clusterJoinToken, "issue a one-time join token that enrolls an agent into the cluster",
-			func(ctx context.Context, c adminClient, id string) (proto.Message, error) {
-				return c.IssueJoinToken(ctx, &clusterv1.IssueJoinTokenRequest{ClusterId: id})
-			}),
+		{
+			use:   clusterJoinToken + " <cluster-id>",
+			short: "Issue a one-time enrollment token",
+			args:  cobra.ExactArgs(1),
+			run: func(cmd *cobra.Command, c adminClient, args []string) (proto.Message, error) {
+				ttl, err := tokenTTL(cmd)
+				if err != nil {
+					return nil, err
+				}
+				return c.IssueJoinToken(cmd.Context(), &clusterv1.IssueJoinTokenRequest{ClusterId: args[0], Ttl: ttl})
+			},
+		},
 		{
 			use:   clusterList,
 			short: "list cluster",
@@ -133,7 +145,29 @@ func (op operation) command() *cobra.Command {
 	if op.flags != nil {
 		op.flags(command)
 	}
+	tokenCommand := strings.Fields(op.use)[0] == clusterCreate || strings.Fields(op.use)[0] == clusterJoinToken
+	var recipients, output, namespace, secretName string
+	if tokenCommand {
+		command.Flags().Duration("ttl", 0, "Join-token lifetime; omission uses the API default")
+		command.Flags().
+			StringVar(&recipients, "sops-recipient", "", "Comma-separated age recipients for the encrypted Secret")
+		command.Flags().StringVar(&output, "output", "", "Write an encrypted join-token Secret to this file")
+		command.Flags().StringVar(&namespace, "namespace", "loco-system", "Namespace of the worker join-token Secret")
+		command.Flags().
+			StringVar(&secretName, "secret-name", "loco-agent-join-token", "Name of the worker join-token Secret")
+		command.MarkFlagsRequiredTogether("sops-recipient", "output")
+	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
+		if tokenCommand {
+			if _, err := tokenTTL(cmd); err != nil {
+				return err
+			}
+			if output != "" {
+				if err := gitops.Recipients(recipients); err != nil {
+					return err
+				}
+			}
+		}
 		if len(args) > 0 {
 			if _, err := uuid.Parse(args[0]); err != nil {
 				return fmt.Errorf("invalid cluster ID: %w", err)
@@ -146,6 +180,34 @@ func (op operation) command() *cobra.Command {
 		response, err := op.run(cmd, login.Clients.ClusterAdmin, args)
 		if err != nil {
 			printWorkloads(cmd, err)
+			return err
+		}
+		if tokenCommand && output != "" {
+			var token *clusterv1.JoinToken
+			var id string
+			switch result := response.(type) {
+			case *clusterv1.CreateClusterResponse:
+				token = result.GetJoinToken()
+				id = result.GetClusterId()
+			case *clusterv1.IssueJoinTokenResponse:
+				token = result.GetJoinToken()
+				id = result.GetClusterId()
+			}
+			if token == nil {
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), "Cluster", id, "is enrolled")
+				return err
+			}
+			if err = gitops.WriteSecret(
+				cmd.Context(),
+				output,
+				recipients,
+				namespace,
+				secretName,
+				map[string]string{"join-token": token.GetToken()},
+			); err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Cluster %s: encrypted join token written to %s\n", id, output)
 			return err
 		}
 		encoded, err := protojson.MarshalOptions{Indent: "  "}.Marshal(response)
@@ -173,6 +235,10 @@ func createCluster(
 		*field = value
 	}
 	tierFlag, err := cmd.Flags().GetString(flagTier)
+	if err != nil {
+		return nil, err
+	}
+	request.Ttl, err = tokenTTL(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -211,4 +277,18 @@ func printWorkloads(cmd *cobra.Command, err error) {
 	for _, workload := range workloads.GetWorkloads() {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", workload.GetKind(), workload.GetId())
 	}
+}
+
+func tokenTTL(cmd *cobra.Command) (*durationpb.Duration, error) {
+	if !cmd.Flags().Changed("ttl") {
+		return nil, nil
+	}
+	ttl, err := cmd.Flags().GetDuration("ttl")
+	if err != nil {
+		return nil, err
+	}
+	if ttl <= time.Duration(0) {
+		return nil, errors.New("ttl must be positive")
+	}
+	return durationpb.New(ttl), nil
 }

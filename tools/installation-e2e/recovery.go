@@ -64,7 +64,22 @@ func recoveryDrill(ctx context.Context) (err error) {
 		return errRecoveryDrill
 	}
 	identities := make([]*age.X25519Identity, count+1)
-	args := []string{recoveryCommand, "export", "--file", clientFile, "--output", output}
+	contextName, err := kubectl(ctx, "config", "current-context")
+	if err != nil {
+		return err
+	}
+	args := []string{
+		recoveryCommand,
+		"export",
+		"--context",
+		strings.TrimSpace(string(contextName)),
+		"--namespace",
+		controlNamespace,
+		"--seal-secret",
+		"loco-openbao-seal",
+		"--output",
+		output,
+	}
 	for i := range identities {
 		identities[i], err = age.GenerateX25519Identity()
 		if err != nil {
@@ -78,16 +93,6 @@ func recoveryDrill(ctx context.Context) (err error) {
 	}
 	if _, err = locoadm(ctx, args...); err != nil {
 		return err
-	}
-	status, err := locoadm(ctx, "status", "--file", clientFile)
-	if err != nil {
-		return err
-	}
-	var exported struct {
-		RecoveryExported bool `json:"recoveryExported"`
-	}
-	if json.Unmarshal(status, &exported) != nil || !exported.RecoveryExported {
-		return errRecoveryDrill
 	}
 	material, shares, err := decryptRecovery(output, identities)
 	if err != nil {

@@ -5,12 +5,10 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"sync"
 	"syscall"
@@ -19,7 +17,6 @@ import (
 
 	"github.com/team-loco/loco/cmd/internal/ui"
 
-	"github.com/team-loco/loco/cmd/internal/installation"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
@@ -33,14 +30,6 @@ func TestSignalsCancelRunningCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	file, err := filepath.Abs("../internal/installation/testdata/loco-install.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	config, err := installation.Load(file)
-	if err != nil {
-		t.Fatal(err)
-	}
 	for _, signal := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
 		t.Run(signal.String(), func(t *testing.T) {
 			received := make(chan struct{})
@@ -50,27 +39,11 @@ func TestSignalsCancelRunningCommand(t *testing.T) {
 				<-r.Context().Done()
 			}))
 			defer server.Close()
-			kubeconfig := filepath.Join(t.TempDir(), "kubeconfig")
-			data := fmt.Sprintf(`apiVersion: v1
-kind: Config
-clusters:
-- name: fixture
-  cluster: {server: %s}
-contexts:
-- name: %s
-  context: {cluster: fixture, user: fixture}
-users:
-- name: fixture
-  user: {}
-`, server.URL, config.ControlPlane.Kubernetes.Context)
-			if err := os.WriteFile(kubeconfig, []byte(data), 0600); err != nil {
-				t.Fatal(err)
-			}
 			ctx, cancel := context.WithTimeout(t.Context(), signalTestTimeout)
 			defer cancel()
 			child := exec.CommandContext(ctx, executable, "-test.run=^TestLocoadmSignalChild$", "--",
-				"status", "--file", file)
-			child.Env = append(os.Environ(), signalHelperEnv+"=1", "KUBECONFIG="+kubeconfig,
+				"login", "--api", server.URL, "--web", server.URL, "--device")
+			child.Env = append(os.Environ(), signalHelperEnv+"=1",
 				"HOME="+t.TempDir(), keychain.StoreEnvVar+"=file")
 			if err := child.Start(); err != nil {
 				t.Fatal(err)
@@ -79,7 +52,7 @@ users:
 			case <-received:
 			case <-ctx.Done():
 				waitErr := child.Wait()
-				t.Fatalf("command did not reach Kubernetes: %v", waitErr)
+				t.Fatalf("command did not reach the API: %v", waitErr)
 			}
 			if err := child.Process.Signal(signal); err != nil {
 				cancel()

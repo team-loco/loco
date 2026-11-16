@@ -54,7 +54,7 @@ func TestInstallationCommandsReadTheDefaultFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
-		{"validate"}, {"plan"}, {"apply"}, {"status"}, {"login", "--device"}, {clusterCommand, "attach"},
+		{"validate"}, {"plan"}, {"apply"}, {clusterCommand, "attach"},
 	} {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			err := runLocoadm(t, args...)
@@ -78,7 +78,7 @@ func (c *configWithoutAuth) GetConfig(
 	return &configv1.GetConfigResponse{}, nil
 }
 
-func TestLoginSignsInToTheFilesAPI(t *testing.T) {
+func TestLoginSignsInToTheFlaggedAPI(t *testing.T) {
 	config := &configWithoutAuth{called: make(chan struct{})}
 	server := connect.NewServer()
 	configv1connect.RegisterConfigServiceHandler(server, config)
@@ -87,19 +87,19 @@ func TestLoginSignsInToTheFilesAPI(t *testing.T) {
 	api := httptest.NewServer(mux)
 	t.Cleanup(api.Close)
 	dir := t.TempDir()
-	writeInstallation(t, dir, api.URL)
+	writeInstallation(t, dir, "https://unused.example.invalid")
 	t.Chdir(dir)
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv(keychain.StoreEnvVar, "file")
 
-	err := runLocoadm(t, "login", "--device")
+	err := runLocoadm(t, "login", "--api", api.URL, "--web", api.URL, "--device")
 	if err == nil || !strings.Contains(err.Error(), "login to "+api.URL+" failed") {
 		t.Fatalf("login = %v, want a sign-in attempt against %s", err, api.URL)
 	}
 	select {
 	case <-config.called:
 	case <-time.After(time.Second):
-		t.Fatal("login did not ask the file's API for its configuration")
+		t.Fatal("login did not ask the selected API for its configuration")
 	}
 }
 

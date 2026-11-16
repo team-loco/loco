@@ -12,10 +12,10 @@ title: "Installation file"
 locoadm validate
 locoadm plan
 locoadm apply
-locoadm login
+locoadm login --api https://api.example.com --web https://app.example.com
 locoadm cluster attach
-locoadm status
-locoadm verify --worker staging-us --environment ENVIRONMENT_UUID
+locoadm status --host https://api.example.com
+locoadm verify --host https://api.example.com --worker staging-us --environment ENVIRONMENT_UUID
 ```
 
 Every `locoadm` command that reads the installation file reads `loco-install.yaml` in the current directory; `--file` names another file. See the [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
@@ -92,7 +92,7 @@ release:
   version: 0.1.0
 ```
 
-With `version`, `locoadm` resolves `ghcr.io/team-loco/loco/platform:<version>` to a digest, downloads it anonymously, checks the digest, and reads `release.json` from the bundle. That file must name the same version. Without `release`, `locoadm` installs the bundle matching its own version, so `locoadm` 0.1.0 installs bundle `0.1.0`; a development build has no matching bundle and requires `release.version` or `release.manifest`. When the bundle version differs from the version of `locoadm`, the command prints a warning and continues. `plan` reports the resolved bundle as `releaseBundle`, and `status` reports the bundle the last apply recorded.
+With `version`, `locoadm` resolves `ghcr.io/team-loco/loco/platform:<version>` to a digest, downloads it anonymously, checks the digest, and reads `release.json` from the bundle. That file must name the same version. Without `release`, `locoadm` installs the bundle matching its own version, so `locoadm` 0.1.0 installs bundle `0.1.0`; a development build has no matching bundle and requires `release.version` or `release.manifest`. When the bundle version differs from the version of `locoadm`, the command prints a warning and continues. `plan` reports the resolved bundle as `releaseBundle`, and the installer records the applied bundle in its state.
 
 `release.manifest` points to a `release.json` copied from a platform bundle, relative to the installation file. Each release also attaches its bundle's `release.json` as a release asset. Use it where the operator machine cannot reach the bundle's registry; the artifacts and images it pins must still be pullable. `plan` and `status` report no bundle digest for a local manifest. The JSON object contains a release `version`, its `coreCommit`, and digest-pinned `artifacts` and `images`. Required artifacts are `loco-control-plane`, `loco-worker`, `cert-manager-chart`, `loco-applications-crd`, `loco-builds-crd` and `loco-gateway-crd`. Required images are `api`, `ui`, `obs-proxy`, `agent`, `controller` and `builder`. Mutable image tags cannot replace digest references.
 
@@ -117,23 +117,23 @@ The initial installer requires a cluster-admin context for every target and chec
 Apply installs or upgrades the control plane and never needs an API session. It then reports the configured admins nobody has claimed (every configured admin when no system-admin session is saved) and the next two commands:
 
 ```sh
-locoadm login
+locoadm login --api https://api.example.com --web https://app.example.com
 locoadm cluster attach
 ```
 
-`locoadm login` signs in to `controlPlane.apiURL` through the dashboard at `controlPlane.webURL`, like `loco login`, and saves the same session, so `loco` and `locoadm` share it. `--device` prints a code to approve on another device, for machines without a browser. Sign in as one of `controlPlane.admins` to claim it.
+`locoadm login --api API_URL --web WEB_URL` signs in to the supplied API through the supplied dashboard, like `loco login`, and saves the same session, so `loco` and `locoadm` share it. `--device` prints a code to approve on another device, for machines without a browser. Sign in as one of `controlPlane.admins` to claim it.
 
 `locoadm cluster attach` needs a system-admin session. For every worker in the file, or only the one named (`locoadm cluster attach staging-us`), it registers the cluster, issues the join token, stores the enrollment Secret and installs `loco-worker`, then waits for the agent to report. Rerunning it on an attached worker upgrades its chart without enrolling it again. Worker namespaces it creates carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; attach does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store. `locoadm cluster create` remains for operators who install the agent themselves.
 
 Generated seal material and ClickHouse user and operator credentials go directly to destination Secrets. The operator's Secret name and username come from the pinned chart. Helm receives references only. Reapply preserves owned secrets and rejects malformed or missing material after credential establishment. It does not rotate keys or credentials. Changing external input credential values requires a separate rotation procedure; apply does not silently replace the API's existing copy.
 
-Status reports the installation phase, worker enrollment readiness and required DNS hostnames with their published Gateway addresses. With a system-admin session, `admins.unclaimed` lists the configured admins nobody has claimed; without one, `admins.checked` is `false`. `running` does not establish DNS, HTTPS, a successful source build or recovery restorability. An exported recovery backup is reported separately. Removing a worker from the file reports pending removal and deletes no workload, cluster, volume or key. A recorded worker target UID cannot change on reapply.
+`locoadm status --host API_URL` reads cluster enrollment, heartbeats, agent and API versions, DNS targets and unclaimed administrators from the API. It requires a system-admin session. It does not read the installation file or Kubernetes installation state.
 
-`plan`, `apply`, `status` and `cluster attach` accept `--timeout` (30 minutes by default). Apply locks use API-server time sampled through a non-persistent dry-run ConfigMap creation and expire after the operation deadline plus a recovery margin; a concurrent apply fails. Operator wall-clock skew does not determine expiry. Lease recovery requires a stable, synchronized control-plane clock. Expiry does not roll back previously accepted remote operations; reapply relies on owned state, atomic creation and resource-version checks to preserve keys and identities. Secret values and raw child-process diagnostics are excluded from command output.
+`plan`, `apply` and `cluster attach` accept `--timeout` (30 minutes by default). Apply locks use API-server time sampled through a non-persistent dry-run ConfigMap creation and expire after the operation deadline plus a recovery margin; a concurrent apply fails. Operator wall-clock skew does not determine expiry. Lease recovery requires a stable, synchronized control-plane clock. Expiry does not roll back previously accepted remote operations; reapply relies on owned state, atomic creation and resource-version checks to preserve keys and identities. Secret values and raw child-process diagnostics are excluded from command output.
 
 ## Source verification
 
-`locoadm verify --worker staging-us --environment ENVIRONMENT_UUID` uses the stored operator session and an existing authorized environment whose tier matches the worker. The worker must enable builds. DNS and an HTTPS certificate must already serve its application domain. The HTTPS checks trust the operating system's certificate roots; `--ca-file PATH` adds the PEM certificates in that file for a domain whose certificate comes from a private or self-signed CA. `SSL_CERT_FILE` has no effect on macOS. The flag applies only to the application-domain checks; API requests and the source upload use the system roots.
+`locoadm verify --host https://api.example.com --worker staging-us --environment ENVIRONMENT_UUID` uses the stored operator session and an existing authorized environment whose tier matches the worker. The worker must enable builds. DNS and an HTTPS certificate must already serve its application domain. The HTTPS checks trust the operating system's certificate roots; `--ca-file PATH` adds the PEM certificates in that file for a domain whose certificate comes from a private or self-signed CA. `SSL_CERT_FILE` has no effect on macOS. The flag applies only to the application-domain checks; API requests and the source upload use the system roots.
 
 Verification provisions a uniquely named disposable service through the plan API, stores a random application secret, uploads source and waits for its build. It deploys that build in the worker's region and checks the HTTPS response, the SHA-256 hash of the delivered secret, and a unique log record through the observability query API. The generated source contains no secret value. The API schedules the build on an eligible build cluster; the command does not pin the build executor to the selected worker. Verification deletes its service after success or failure and reports cleanup errors. A process crash can leave a `verify-<UUID>` resource for an operator to remove.
 
@@ -144,7 +144,8 @@ The command reports `verified` only after every probe and cleanup succeeds. This
 `locoadm recovery export` reads the existing destination material, encrypts it in memory and writes only age ciphertext to a new directory:
 
 ```sh
-locoadm recovery export --output ./recovery-export \
+locoadm recovery export --context example-control-plane --namespace loco-system \
+  --output ./recovery-export \
   --recipient AGE_MATERIAL_RECIPIENT \
   --share-recipient AGE_FIRST_CUSTODIAN \
   --share-recipient AGE_SECOND_CUSTODIAN \
@@ -157,10 +158,10 @@ Supply one distinct age X25519 public recipient per recovery share, in share ord
 
 | Material | Destination owner | Export |
 | --- | --- | --- |
-| OpenBao seal key | Installation-owned `loco-openbao-seal` Secret | `material.age` |
+| OpenBao seal key | Seal Secret selected by `--seal-secret` (default `openbao-seal`) | `material.age` |
 | Generate-root token | Chart setup's `loco-control-plane-openbao-init` Secret | `material.age` |
 | Recovery shares | Chart setup's `loco-control-plane-openbao-init` Secret | One encrypted file per custodian |
 | Agent private keys | Each worker agent's identity store | Excluded |
 | Database, storage, registry credentials | Operator-managed input Secrets | Excluded |
 
-Export retains the source Secrets and records `recoveryExported` only after encrypted files are written and synced. That marker confirms export, not successful restoration. Keep source material until a separate restoration exercise succeeds. The export does not include PostgreSQL data, OpenBao snapshots, persistent volumes or external-service backups; retain those through their own backup procedures. This command does not implement restore.
+Export retains the source Secrets and writes no installation-state marker. Set `--seal-secret ""` for KMS or transit auto-unseal; `--init-secret` selects the chart initialization Secret. Keep source material until a separate restoration exercise succeeds. The export does not include PostgreSQL data, OpenBao snapshots, persistent volumes or external-service backups; retain those through their own backup procedures. This command does not implement restore.

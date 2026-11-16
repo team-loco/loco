@@ -27,6 +27,7 @@ message GetConfigResponse {
   // history_retention applies across the installation and cannot be overridden per organization.
   HistoryRetention history_retention = 9;
   google.protobuf.Duration observability_max_time_range = 10;
+  string api_version = 11;
 }
 
 message HistoryRetention {

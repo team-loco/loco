@@ -16,6 +16,7 @@ import (
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
+	apiVersion                string
 	minCLIVersion             string
 	apiTokenMaxLifetime       time.Duration
 	observabilityMaxTimeRange time.Duration
@@ -28,7 +29,7 @@ type ConfigServer struct {
 }
 
 func NewConfigServer(
-	minCLIVersion, schemaURL string,
+	apiVersion, minCLIVersion, schemaURL string,
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
 	orgLinks []OrgLink,
@@ -41,6 +42,7 @@ func NewConfigServer(
 		authConfig = &configv1.AuthConfig{Issuer: ic.Issuer, ClientId: ic.Web.ClientID, Scopes: ic.Web.Scopes}
 	}
 	return &ConfigServer{
+		apiVersion:                apiVersion,
 		minCLIVersion:             minCLIVersion,
 		schemaURL:                 schemaURL,
 		defaults:                  defaults,
@@ -60,6 +62,7 @@ func (s *ConfigServer) GetConfig(
 	health := configplan.Health(s.defaults.Health())
 	return &configv1.GetConfigResponse{
 		MinCliVersion:              s.minCLIVersion,
+		ApiVersion:                 s.apiVersion,
 		ApiTokenMaxLifetimeSeconds: int64(s.apiTokenMaxLifetime / time.Second),
 		SchemaUrl:                  s.schemaURL,
 		Auth:                       s.auth,

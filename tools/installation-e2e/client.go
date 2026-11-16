@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"sigs.k8s.io/yaml"
 
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
@@ -225,17 +226,14 @@ func applyAndAttach(ctx context.Context) error {
 }
 
 func requireAdminsClaimed(ctx context.Context) error {
-	output, err := locoadm(ctx, "status", "--file", clientFile)
+	output, err := locoadm(ctx, "status", "--host", fixtureAPIURL)
 	if err != nil {
 		return err
 	}
 	var status struct {
-		Admins struct {
-			Checked   bool     `json:"checked"`
-			Unclaimed []string `json:"unclaimed"`
-		} `json:"admins"`
+		Unclaimed []string `json:"unclaimedAdmins"`
 	}
-	if json.Unmarshal(output, &status) != nil || !status.Admins.Checked || len(status.Admins.Unclaimed) != 0 {
+	if json.Unmarshal(output, &status) != nil || len(status.Unclaimed) != 0 {
 		return errAdminsUnclaimed
 	}
 	return nil
@@ -249,7 +247,28 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
 		}
 	}()
-	cmd := exec.CommandContext(ctx, "locoadm", "login", "--file", clientFile, "--device")
+	data, err := os.ReadFile(clientFile)
+	if err != nil {
+		return err
+	}
+	var settings struct {
+		ControlPlane struct {
+			WebURL string `json:"webURL"`
+		} `json:"controlPlane"`
+	}
+	if err := yaml.Unmarshal(data, &settings); err != nil {
+		return err
+	}
+	cmd := exec.CommandContext(
+		ctx,
+		"locoadm",
+		"login",
+		"--api",
+		fixtureAPIURL,
+		"--web",
+		settings.ControlPlane.WebURL,
+		"--device",
+	)
 	cmd.Stderr = &stderr
 	transcript := io.Discard
 	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
@@ -445,8 +464,8 @@ services:
 		ctx,
 		"verify",
 		"--timeout", verifyTimeout,
-		"--file",
-		clientFile,
+		"--host",
+		fixtureAPIURL,
 		"--worker",
 		"staging",
 		"--environment",

@@ -6,9 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"filippo.io/age"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -261,5 +265,41 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		if len(fake.calls) != 0 {
 			t.Fatalf("made RPC for invalid args: %v", args)
 		}
+	}
+}
+
+func TestClusterCreateWritesAnEncryptedTokenWithRequestedTTL(t *testing.T) {
+	recipient, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeClusterAdmin{t: t}
+	command, output := clusterTestCommand(t, fake)
+	path := filepath.Join(t.TempDir(), "join-token.sops.yaml")
+	args := append(
+		append([]string{}, createArgs...),
+		"--ttl",
+		"72h",
+		"--sops-recipient",
+		recipient.Recipient().String(),
+		"--output",
+		path,
+	)
+	command.SetArgs(args)
+	if err = command.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if fake.created.GetTtl().AsDuration() != 72*time.Hour {
+		t.Fatalf("ttl = %v", fake.created.GetTtl())
+	}
+	if strings.Contains(output.String(), testJoinToken) {
+		t.Fatal("encrypted token command printed plaintext")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), testJoinToken) || !strings.Contains(string(data), "ENC[AES256_GCM") {
+		t.Fatal("output is not an encrypted Secret")
 	}
 }

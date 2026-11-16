@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -20,6 +21,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
@@ -110,8 +112,12 @@ func (s *AgentServer) Register(
 	if parseErr != nil || key == uuid.Nil {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errInvalidClusterKey)
 	}
+	dnsRecords, err := encodeDNSRecords(req.GetDnsRecords())
+	if err != nil {
+		return nil, err
+	}
 	var cluster registeredCluster
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var authErr error
 		if enrolled != nil {
 			cluster, authErr = registeredAs(*enrolled, key)
@@ -131,6 +137,7 @@ func (s *AgentServer) Register(
 			CapacityMemoryBytes:   &memBytes,
 			Role:                  clusterRoleFromProto(req.GetRole()),
 			Domains:               reportedDomains(req.GetDomains()),
+			DnsRecords:            dnsRecords,
 		}); updateErr != nil {
 			return fmt.Errorf("update cluster %s agent info: %w", cluster.id, updateErr)
 		}
@@ -207,11 +214,16 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		slog.WarnContext(ctx, "ignoring an invalid heartbeat", "error", err, "cluster_id", clusterID)
 		return
 	}
+	dnsRecords, err := encodeDNSRecords(heartbeat.GetDnsRecords())
+	if err != nil {
+		slog.ErrorContext(ctx, "encode cluster DNS report", "error", err)
+		return
+	}
 	now := time.Now()
 	cpuCores := heartbeat.GetCapacity().GetCpuMillicoresTotal()
 	memBytes := heartbeat.GetCapacity().GetMemoryBytesTotal()
 	healthStatus := healthStatusFromProto(heartbeat.GetHealth())
-	err := s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
+	err = s.queries.UpdateClusterHeartbeat(ctx, genDb.UpdateClusterHeartbeatParams{
 		ID:                    clusterID,
 		LastHeartbeat:         &now,
 		CapacityCpuMillicores: &cpuCores,
@@ -219,6 +231,7 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		HealthStatus:          &healthStatus,
 		Role:                  clusterRoleFromProto(heartbeat.GetRole()),
 		Domains:               reportedDomains(heartbeat.GetDomains()),
+		DnsRecords:            dnsRecords,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)
@@ -243,4 +256,11 @@ func healthStatusFromProto(h *agentv1.AgentHealth) string {
 		return clusterHealthUnhealthy
 	}
 	return clusterHealthDegraded
+}
+
+func encodeDNSRecords(records []*clusterv1.DNSRecord) ([]byte, error) {
+	if records == nil {
+		records = []*clusterv1.DNSRecord{}
+	}
+	return json.Marshal(records)
 }

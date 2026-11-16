@@ -169,3 +169,43 @@ func writeRecoveryFile(path string, data []byte) error {
 	}
 	return nil
 }
+
+func ExportRecoveryFromCluster(
+	ctx context.Context,
+	target KubernetesTarget,
+	sealName, initName string,
+	options RecoveryExport,
+) error {
+	kube, err := NewKubernetes(target)
+	if err != nil {
+		return err
+	}
+	var seal *corev1.Secret
+	if sealName != "" {
+		seal, err = kube.Core.Secrets(target.Namespace).Get(ctx, sealName, metav1.GetOptions{})
+		if err != nil {
+			return safeKubernetesError("read recovery seal material", err)
+		}
+		if !validSeal(seal) {
+			return errSecretInvalid
+		}
+	}
+	init, err := kube.Core.Secrets(target.Namespace).Get(ctx, initName, metav1.GetOptions{})
+	if err != nil {
+		return safeKubernetesError("read recovery initialization material", err)
+	}
+	shares := strings.Fields(string(init.Data["recovery-keys"]))
+	if len(shares) == 0 || len(init.Data["generate-root-token"]) == 0 {
+		return errSecretInvalid
+	}
+	for _, share := range shares {
+		if _, err := base64.StdEncoding.DecodeString(share); err != nil {
+			return errSecretInvalid
+		}
+	}
+	material := recoveryMaterial{GenerateRootToken: string(init.Data["generate-root-token"])}
+	if seal != nil {
+		material.SealKey = string(seal.Data[secretKeyField])
+	}
+	return writeRecovery(options, material, shares)
+}
