@@ -91,7 +91,8 @@ metadata:
   name: envoy-proxy
   namespace: {{ .Release.Namespace }}
 spec:
-  {{- $collectorHost := printf "%s.%s.svc.cluster.local" (include "loco-worker.collectorService" .) (include "loco-worker.observabilityNamespace" .) }}
+  {{- $collectorService := include "loco-worker.collectorService" . }}
+  {{- $collectorNamespace := include "loco-worker.observabilityNamespace" . }}
   {{- $collectorPort := index .Values "otel-col-deploy" "ports" "otlp" "servicePort" }}
   {{- with .Values.envoyProxy.service }}
   provider:
@@ -113,14 +114,18 @@ spec:
       sinks:
         - type: OpenTelemetry
           openTelemetry:
-            host: {{ $collectorHost }}
-            port: {{ $collectorPort }}
+            backendRefs:
+              - name: {{ $collectorService }}
+                namespace: {{ $collectorNamespace }}
+                port: {{ $collectorPort }}
     tracing:
       samplingRate: {{ .Values.envoyProxy.tracing.samplingRate }}
       provider:
         type: OpenTelemetry
-        host: {{ $collectorHost }}
-        port: {{ $collectorPort }}
+        backendRefs:
+          - name: {{ $collectorService }}
+            namespace: {{ $collectorNamespace }}
+            port: {{ $collectorPort }}
     accessLog:
       settings:
         - format:
@@ -130,8 +135,10 @@ spec:
           sinks:
             - type: OpenTelemetry
               openTelemetry:
-                host: {{ $collectorHost }}
-                port: {{ $collectorPort }}
+                backendRefs:
+                  - name: {{ $collectorService }}
+                    namespace: {{ $collectorNamespace }}
+                    port: {{ $collectorPort }}
 ---
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: ClientTrafficPolicy
