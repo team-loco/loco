@@ -3880,6 +3880,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "InviteOrgMember",
+        "description": "InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.",
         "operationId": "loco.org.v1.OrgService.InviteOrgMember",
         "parameters": [
           {
@@ -3941,6 +3942,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "ListInvitations",
+        "description": "ListInvitations lists open invitations; organization membership is required.",
         "operationId": "loco.org.v1.OrgService.ListInvitations",
         "parameters": [
           {
@@ -4002,6 +4004,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "ListOrgMembers",
+        "description": "ListOrgMembers lists organization members; organization membership is required.",
         "operationId": "loco.org.v1.OrgService.ListOrgMembers",
         "parameters": [
           {
@@ -4125,6 +4128,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "RemoveOrgMember",
+        "description": "RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.",
         "operationId": "loco.org.v1.OrgService.RemoveOrgMember",
         "parameters": [
           {
@@ -4186,6 +4190,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "ResendInvitation",
+        "description": "ResendInvitation extends an open invitation and records a resend; requires organization admin.",
         "operationId": "loco.org.v1.OrgService.ResendInvitation",
         "parameters": [
           {
@@ -4309,6 +4314,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "RevokeInvitation",
+        "description": "RevokeInvitation revokes an open invitation; requires organization admin.",
         "operationId": "loco.org.v1.OrgService.RevokeInvitation",
         "parameters": [
           {
@@ -4432,6 +4438,7 @@
           "loco.org.v1.OrgService"
         ],
         "summary": "SetOrgMemberRole",
+        "description": "SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.",
         "operationId": "loco.org.v1.OrgService.SetOrgMemberRole",
         "parameters": [
           {
@@ -12137,7 +12144,8 @@
           }
         },
         "title": "Invitation",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Invitation describes an open invitation and its sign-in link."
       },
       "loco.org.v1.InviteOrgMemberRequest": {
         "type": "object",
@@ -12154,7 +12162,8 @@
           }
         },
         "title": "InviteOrgMemberRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "InviteOrgMemberRequest identifies the organization and email address to invite."
       },
       "loco.org.v1.InviteOrgMemberResponse": {
         "type": "object",
@@ -12165,7 +12174,8 @@
           }
         },
         "title": "InviteOrgMemberResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "InviteOrgMemberResponse contains the created invitation."
       },
       "loco.org.v1.ListInvitationsRequest": {
         "type": "object",
@@ -12189,7 +12199,8 @@
           }
         },
         "title": "ListInvitationsRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ListInvitationsRequest selects a page of open organization invitations."
       },
       "loco.org.v1.ListInvitationsResponse": {
         "type": "object",
@@ -12208,7 +12219,8 @@
           }
         },
         "title": "ListInvitationsResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ListInvitationsResponse contains a page of invitations and a continuation token."
       },
       "loco.org.v1.ListOrgMembersRequest": {
         "type": "object",
@@ -12233,7 +12245,8 @@
           }
         },
         "title": "ListOrgMembersRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ListOrgMembersRequest selects a page of organization members."
       },
       "loco.org.v1.ListOrgMembersResponse": {
         "type": "object",
@@ -12252,7 +12265,8 @@
           }
         },
         "title": "ListOrgMembersResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ListOrgMembersResponse contains a page of members and a continuation token."
       },
       "loco.org.v1.ListUserOrgsRequest": {
         "type": "object",
@@ -12354,7 +12368,8 @@
           }
         },
         "title": "OrgMember",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "OrgMember pairs a user with their organization scopes."
       },
       "loco.org.v1.OrgRole": {
         "type": "string",
@@ -12363,7 +12378,8 @@
           "ORG_ROLE_UNSPECIFIED",
           "ORG_ROLE_ADMIN",
           "ORG_ROLE_MEMBER"
-        ]
+        ],
+        "description": "OrgRole selects organization administrator or member access."
       },
       "loco.org.v1.Organization": {
         "type": "object",
@@ -12416,12 +12432,14 @@
           }
         },
         "title": "RemoveOrgMemberRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "RemoveOrgMemberRequest identifies another user to remove from the organization."
       },
       "loco.org.v1.RemoveOrgMemberResponse": {
         "type": "object",
         "title": "RemoveOrgMemberResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "RemoveOrgMemberResponse acknowledges member removal."
       },
       "loco.org.v1.ResendInvitationRequest": {
         "type": "object",
@@ -12433,7 +12451,8 @@
           }
         },
         "title": "ResendInvitationRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ResendInvitationRequest identifies the open invitation to extend and resend."
       },
       "loco.org.v1.ResendInvitationResponse": {
         "type": "object",
@@ -12444,7 +12463,8 @@
           }
         },
         "title": "ResendInvitationResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "ResendInvitationResponse contains the invitation with its extended expiry."
       },
       "loco.org.v1.ResumeOrgRequest": {
         "type": "object",
@@ -12481,12 +12501,14 @@
           }
         },
         "title": "RevokeInvitationRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "RevokeInvitationRequest identifies the open invitation to revoke."
       },
       "loco.org.v1.RevokeInvitationResponse": {
         "type": "object",
         "title": "RevokeInvitationResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "RevokeInvitationResponse acknowledges invitation revocation."
       },
       "loco.org.v1.SetOrgLimitsRequest": {
         "type": "object",
@@ -12555,12 +12577,14 @@
           }
         },
         "title": "SetOrgMemberRoleRequest",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "SetOrgMemberRoleRequest identifies the organization member and their desired role."
       },
       "loco.org.v1.SetOrgMemberRoleResponse": {
         "type": "object",
         "title": "SetOrgMemberRoleResponse",
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "SetOrgMemberRoleResponse acknowledges the member role assignment."
       },
       "loco.org.v1.SuspendOrgRequest": {
         "type": "object",

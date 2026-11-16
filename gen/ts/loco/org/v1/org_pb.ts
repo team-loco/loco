@@ -353,6 +353,8 @@ export const ListUserOrgsResponseSchema: GenMessage<ListUserOrgsResponse, {jsonT
   messageDesc(file_loco_org_v1_org, 6);
 
 /**
+ * ListOrgMembersRequest selects a page of organization members.
+ *
  * @generated from message loco.org.v1.ListOrgMembersRequest
  */
 export type ListOrgMembersRequest = Message<"loco.org.v1.ListOrgMembersRequest"> & {
@@ -377,6 +379,8 @@ export type ListOrgMembersRequest = Message<"loco.org.v1.ListOrgMembersRequest">
 };
 
 /**
+ * ListOrgMembersRequest selects a page of organization members.
+ *
  * @generated from message loco.org.v1.ListOrgMembersRequest
  */
 export type ListOrgMembersRequestJson = {
@@ -408,6 +412,8 @@ export const ListOrgMembersRequestSchema: GenMessage<ListOrgMembersRequest, {jso
   messageDesc(file_loco_org_v1_org, 7);
 
 /**
+ * ListOrgMembersResponse contains a page of members and a continuation token.
+ *
  * @generated from message loco.org.v1.ListOrgMembersResponse
  */
 export type ListOrgMembersResponse = Message<"loco.org.v1.ListOrgMembersResponse"> & {
@@ -425,6 +431,8 @@ export type ListOrgMembersResponse = Message<"loco.org.v1.ListOrgMembersResponse
 };
 
 /**
+ * ListOrgMembersResponse contains a page of members and a continuation token.
+ *
  * @generated from message loco.org.v1.ListOrgMembersResponse
  */
 export type ListOrgMembersResponseJson = {
@@ -449,6 +457,8 @@ export const ListOrgMembersResponseSchema: GenMessage<ListOrgMembersResponse, {j
   messageDesc(file_loco_org_v1_org, 8);
 
 /**
+ * OrgMember pairs a user with their organization scopes.
+ *
  * @generated from message loco.org.v1.OrgMember
  */
 export type OrgMember = Message<"loco.org.v1.OrgMember"> & {
@@ -464,6 +474,8 @@ export type OrgMember = Message<"loco.org.v1.OrgMember"> & {
 };
 
 /**
+ * OrgMember pairs a user with their organization scopes.
+ *
  * @generated from message loco.org.v1.OrgMember
  */
 export type OrgMemberJson = {
@@ -486,6 +498,8 @@ export const OrgMemberSchema: GenMessage<OrgMember, {jsonType: OrgMemberJson}> =
   messageDesc(file_loco_org_v1_org, 9);
 
 /**
+ * RemoveOrgMemberRequest identifies another user to remove from the organization.
+ *
  * @generated from message loco.org.v1.RemoveOrgMemberRequest
  */
 export type RemoveOrgMemberRequest = Message<"loco.org.v1.RemoveOrgMemberRequest"> & {
@@ -501,6 +515,8 @@ export type RemoveOrgMemberRequest = Message<"loco.org.v1.RemoveOrgMemberRequest
 };
 
 /**
+ * RemoveOrgMemberRequest identifies another user to remove from the organization.
+ *
  * @generated from message loco.org.v1.RemoveOrgMemberRequest
  */
 export type RemoveOrgMemberRequestJson = {
@@ -523,12 +539,16 @@ export const RemoveOrgMemberRequestSchema: GenMessage<RemoveOrgMemberRequest, {j
   messageDesc(file_loco_org_v1_org, 10);
 
 /**
+ * RemoveOrgMemberResponse acknowledges member removal.
+ *
  * @generated from message loco.org.v1.RemoveOrgMemberResponse
  */
 export type RemoveOrgMemberResponse = Message<"loco.org.v1.RemoveOrgMemberResponse"> & {
 };
 
 /**
+ * RemoveOrgMemberResponse acknowledges member removal.
+ *
  * @generated from message loco.org.v1.RemoveOrgMemberResponse
  */
 export type RemoveOrgMemberResponseJson = {
@@ -542,6 +562,8 @@ export const RemoveOrgMemberResponseSchema: GenMessage<RemoveOrgMemberResponse, 
   messageDesc(file_loco_org_v1_org, 11);
 
 /**
+ * SetOrgMemberRoleRequest identifies the organization member and their desired role.
+ *
  * @generated from message loco.org.v1.SetOrgMemberRoleRequest
  */
 export type SetOrgMemberRoleRequest = Message<"loco.org.v1.SetOrgMemberRoleRequest"> & {
@@ -562,6 +584,8 @@ export type SetOrgMemberRoleRequest = Message<"loco.org.v1.SetOrgMemberRoleReque
 };
 
 /**
+ * SetOrgMemberRoleRequest identifies the organization member and their desired role.
+ *
  * @generated from message loco.org.v1.SetOrgMemberRoleRequest
  */
 export type SetOrgMemberRoleRequestJson = {
@@ -589,12 +613,16 @@ export const SetOrgMemberRoleRequestSchema: GenMessage<SetOrgMemberRoleRequest, 
   messageDesc(file_loco_org_v1_org, 12);
 
 /**
+ * SetOrgMemberRoleResponse acknowledges the member role assignment.
+ *
  * @generated from message loco.org.v1.SetOrgMemberRoleResponse
  */
 export type SetOrgMemberRoleResponse = Message<"loco.org.v1.SetOrgMemberRoleResponse"> & {
 };
 
 /**
+ * SetOrgMemberRoleResponse acknowledges the member role assignment.
+ *
  * @generated from message loco.org.v1.SetOrgMemberRoleResponse
  */
 export type SetOrgMemberRoleResponseJson = {
@@ -608,6 +636,8 @@ export const SetOrgMemberRoleResponseSchema: GenMessage<SetOrgMemberRoleResponse
   messageDesc(file_loco_org_v1_org, 13);
 
 /**
+ * Invitation describes an open invitation and its sign-in link.
+ *
  * @generated from message loco.org.v1.Invitation
  */
 export type Invitation = Message<"loco.org.v1.Invitation"> & {
@@ -648,6 +678,8 @@ export type Invitation = Message<"loco.org.v1.Invitation"> & {
 };
 
 /**
+ * Invitation describes an open invitation and its sign-in link.
+ *
  * @generated from message loco.org.v1.Invitation
  */
 export type InvitationJson = {
@@ -695,6 +727,8 @@ export const InvitationSchema: GenMessage<Invitation, {jsonType: InvitationJson}
   messageDesc(file_loco_org_v1_org, 14);
 
 /**
+ * InviteOrgMemberRequest identifies the organization and email address to invite.
+ *
  * @generated from message loco.org.v1.InviteOrgMemberRequest
  */
 export type InviteOrgMemberRequest = Message<"loco.org.v1.InviteOrgMemberRequest"> & {
@@ -710,6 +744,8 @@ export type InviteOrgMemberRequest = Message<"loco.org.v1.InviteOrgMemberRequest
 };
 
 /**
+ * InviteOrgMemberRequest identifies the organization and email address to invite.
+ *
  * @generated from message loco.org.v1.InviteOrgMemberRequest
  */
 export type InviteOrgMemberRequestJson = {
@@ -732,6 +768,8 @@ export const InviteOrgMemberRequestSchema: GenMessage<InviteOrgMemberRequest, {j
   messageDesc(file_loco_org_v1_org, 15);
 
 /**
+ * InviteOrgMemberResponse contains the created invitation.
+ *
  * @generated from message loco.org.v1.InviteOrgMemberResponse
  */
 export type InviteOrgMemberResponse = Message<"loco.org.v1.InviteOrgMemberResponse"> & {
@@ -742,6 +780,8 @@ export type InviteOrgMemberResponse = Message<"loco.org.v1.InviteOrgMemberRespon
 };
 
 /**
+ * InviteOrgMemberResponse contains the created invitation.
+ *
  * @generated from message loco.org.v1.InviteOrgMemberResponse
  */
 export type InviteOrgMemberResponseJson = {
@@ -759,6 +799,8 @@ export const InviteOrgMemberResponseSchema: GenMessage<InviteOrgMemberResponse, 
   messageDesc(file_loco_org_v1_org, 16);
 
 /**
+ * ListInvitationsRequest selects a page of open organization invitations.
+ *
  * @generated from message loco.org.v1.ListInvitationsRequest
  */
 export type ListInvitationsRequest = Message<"loco.org.v1.ListInvitationsRequest"> & {
@@ -781,6 +823,8 @@ export type ListInvitationsRequest = Message<"loco.org.v1.ListInvitationsRequest
 };
 
 /**
+ * ListInvitationsRequest selects a page of open organization invitations.
+ *
  * @generated from message loco.org.v1.ListInvitationsRequest
  */
 export type ListInvitationsRequestJson = {
@@ -810,6 +854,8 @@ export const ListInvitationsRequestSchema: GenMessage<ListInvitationsRequest, {j
   messageDesc(file_loco_org_v1_org, 17);
 
 /**
+ * ListInvitationsResponse contains a page of invitations and a continuation token.
+ *
  * @generated from message loco.org.v1.ListInvitationsResponse
  */
 export type ListInvitationsResponse = Message<"loco.org.v1.ListInvitationsResponse"> & {
@@ -827,6 +873,8 @@ export type ListInvitationsResponse = Message<"loco.org.v1.ListInvitationsRespon
 };
 
 /**
+ * ListInvitationsResponse contains a page of invitations and a continuation token.
+ *
  * @generated from message loco.org.v1.ListInvitationsResponse
  */
 export type ListInvitationsResponseJson = {
@@ -851,6 +899,8 @@ export const ListInvitationsResponseSchema: GenMessage<ListInvitationsResponse, 
   messageDesc(file_loco_org_v1_org, 18);
 
 /**
+ * RevokeInvitationRequest identifies the open invitation to revoke.
+ *
  * @generated from message loco.org.v1.RevokeInvitationRequest
  */
 export type RevokeInvitationRequest = Message<"loco.org.v1.RevokeInvitationRequest"> & {
@@ -861,6 +911,8 @@ export type RevokeInvitationRequest = Message<"loco.org.v1.RevokeInvitationReque
 };
 
 /**
+ * RevokeInvitationRequest identifies the open invitation to revoke.
+ *
  * @generated from message loco.org.v1.RevokeInvitationRequest
  */
 export type RevokeInvitationRequestJson = {
@@ -878,12 +930,16 @@ export const RevokeInvitationRequestSchema: GenMessage<RevokeInvitationRequest, 
   messageDesc(file_loco_org_v1_org, 19);
 
 /**
+ * RevokeInvitationResponse acknowledges invitation revocation.
+ *
  * @generated from message loco.org.v1.RevokeInvitationResponse
  */
 export type RevokeInvitationResponse = Message<"loco.org.v1.RevokeInvitationResponse"> & {
 };
 
 /**
+ * RevokeInvitationResponse acknowledges invitation revocation.
+ *
  * @generated from message loco.org.v1.RevokeInvitationResponse
  */
 export type RevokeInvitationResponseJson = {
@@ -897,6 +953,8 @@ export const RevokeInvitationResponseSchema: GenMessage<RevokeInvitationResponse
   messageDesc(file_loco_org_v1_org, 20);
 
 /**
+ * ResendInvitationRequest identifies the open invitation to extend and resend.
+ *
  * @generated from message loco.org.v1.ResendInvitationRequest
  */
 export type ResendInvitationRequest = Message<"loco.org.v1.ResendInvitationRequest"> & {
@@ -907,6 +965,8 @@ export type ResendInvitationRequest = Message<"loco.org.v1.ResendInvitationReque
 };
 
 /**
+ * ResendInvitationRequest identifies the open invitation to extend and resend.
+ *
  * @generated from message loco.org.v1.ResendInvitationRequest
  */
 export type ResendInvitationRequestJson = {
@@ -924,6 +984,8 @@ export const ResendInvitationRequestSchema: GenMessage<ResendInvitationRequest, 
   messageDesc(file_loco_org_v1_org, 21);
 
 /**
+ * ResendInvitationResponse contains the invitation with its extended expiry.
+ *
  * @generated from message loco.org.v1.ResendInvitationResponse
  */
 export type ResendInvitationResponse = Message<"loco.org.v1.ResendInvitationResponse"> & {
@@ -934,6 +996,8 @@ export type ResendInvitationResponse = Message<"loco.org.v1.ResendInvitationResp
 };
 
 /**
+ * ResendInvitationResponse contains the invitation with its extended expiry.
+ *
  * @generated from message loco.org.v1.ResendInvitationResponse
  */
 export type ResendInvitationResponseJson = {
@@ -1505,6 +1569,8 @@ export const SetOrgLimitsResponseSchema: GenMessage<SetOrgLimitsResponse, {jsonT
   messageDesc(file_loco_org_v1_org, 36);
 
 /**
+ * OrgRole selects organization administrator or member access.
+ *
  * @generated from enum loco.org.v1.OrgRole
  */
 export enum OrgRole {
@@ -1525,6 +1591,8 @@ export enum OrgRole {
 }
 
 /**
+ * OrgRole selects organization administrator or member access.
+ *
  * @generated from enum loco.org.v1.OrgRole
  */
 export type OrgRoleJson = "ORG_ROLE_UNSPECIFIED" | "ORG_ROLE_ADMIN" | "ORG_ROLE_MEMBER";
@@ -1592,6 +1660,8 @@ export const OrgService: GenService<{
     output: typeof ListUserOrgsResponseSchema;
   },
   /**
+   * ListOrgMembers lists organization members; organization membership is required.
+   *
    * @generated from rpc loco.org.v1.OrgService.ListOrgMembers
    */
   listOrgMembers: {
@@ -1600,6 +1670,8 @@ export const OrgService: GenService<{
     output: typeof ListOrgMembersResponseSchema;
   },
   /**
+   * SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
+   *
    * @generated from rpc loco.org.v1.OrgService.SetOrgMemberRole
    */
   setOrgMemberRole: {
@@ -1608,6 +1680,8 @@ export const OrgService: GenService<{
     output: typeof SetOrgMemberRoleResponseSchema;
   },
   /**
+   * RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
+   *
    * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
    */
   removeOrgMember: {
@@ -1662,6 +1736,8 @@ export const OrgService: GenService<{
     output: typeof SetOrgLimitsResponseSchema;
   },
   /**
+   * InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.
+   *
    * @generated from rpc loco.org.v1.OrgService.InviteOrgMember
    */
   inviteOrgMember: {
@@ -1670,6 +1746,8 @@ export const OrgService: GenService<{
     output: typeof InviteOrgMemberResponseSchema;
   },
   /**
+   * ListInvitations lists open invitations; organization membership is required.
+   *
    * @generated from rpc loco.org.v1.OrgService.ListInvitations
    */
   listInvitations: {
@@ -1678,6 +1756,8 @@ export const OrgService: GenService<{
     output: typeof ListInvitationsResponseSchema;
   },
   /**
+   * RevokeInvitation revokes an open invitation; requires organization admin.
+   *
    * @generated from rpc loco.org.v1.OrgService.RevokeInvitation
    */
   revokeInvitation: {
@@ -1686,6 +1766,8 @@ export const OrgService: GenService<{
     output: typeof RevokeInvitationResponseSchema;
   },
   /**
+   * ResendInvitation extends an open invitation and records a resend; requires organization admin.
+   *
    * @generated from rpc loco.org.v1.OrgService.ResendInvitation
    */
   resendInvitation: {

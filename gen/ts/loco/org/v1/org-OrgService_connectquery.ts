@@ -40,16 +40,22 @@ export const deleteOrg = OrgService.method.deleteOrg;
 export const listUserOrgs = OrgService.method.listUserOrgs;
 
 /**
+ * ListOrgMembers lists organization members; organization membership is required.
+ *
  * @generated from rpc loco.org.v1.OrgService.ListOrgMembers
  */
 export const listOrgMembers = OrgService.method.listOrgMembers;
 
 /**
+ * SetOrgMemberRole sets a member role; requires organization admin and preserves at least one admin.
+ *
  * @generated from rpc loco.org.v1.OrgService.SetOrgMemberRole
  */
 export const setOrgMemberRole = OrgService.method.setOrgMemberRole;
 
 /**
+ * RemoveOrgMember removes another member; requires organization admin and preserves at least one admin.
+ *
  * @generated from rpc loco.org.v1.OrgService.RemoveOrgMember
  */
 export const removeOrgMember = OrgService.method.removeOrgMember;
@@ -89,21 +95,29 @@ export const getOrgLimits = OrgService.method.getOrgLimits;
 export const setOrgLimits = OrgService.method.setOrgLimits;
 
 /**
+ * InviteOrgMember invites an email address; requires an organization admin user and rejects existing members.
+ *
  * @generated from rpc loco.org.v1.OrgService.InviteOrgMember
  */
 export const inviteOrgMember = OrgService.method.inviteOrgMember;
 
 /**
+ * ListInvitations lists open invitations; organization membership is required.
+ *
  * @generated from rpc loco.org.v1.OrgService.ListInvitations
  */
 export const listInvitations = OrgService.method.listInvitations;
 
 /**
+ * RevokeInvitation revokes an open invitation; requires organization admin.
+ *
  * @generated from rpc loco.org.v1.OrgService.RevokeInvitation
  */
 export const revokeInvitation = OrgService.method.revokeInvitation;
 
 /**
+ * ResendInvitation extends an open invitation and records a resend; requires organization admin.
+ *
  * @generated from rpc loco.org.v1.OrgService.ResendInvitation
  */
 export const resendInvitation = OrgService.method.resendInvitation;
