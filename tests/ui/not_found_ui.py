@@ -76,6 +76,7 @@ def fake_idp(context, user):
 
 with session(out) as browser:
     cases = []
+    created_org_names = set()
     try:
         context, page, errors = open_page(browser, "owner")
         context.add_init_script("""window.modeSounds = [];
@@ -227,7 +228,9 @@ with session(out) as browser:
         finally:
             context.close()
 
-        other_org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], evidence.RPC_CREATE_ORG, {"name": f"globex-{uuid.uuid4().hex[:6]}"})["orgId"]
+        other_org_name = f"globex-{uuid.uuid4().hex}"
+        created_org_names.add(other_org_name)
+        other_org = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], evidence.RPC_CREATE_ORG, {"name": other_org_name})["orgId"]
         context, page, errors = open_page(browser, "owner")
         try:
             for path in (f"/org/{other_org}/wks/{shared}", f"/org/{org}/wks/{shared}/resource/not-a-uuid", f"/org/{uuid.uuid4()}/team"):
@@ -252,7 +255,9 @@ with session(out) as browser:
             expect(page.get_by_text("No invitations", exact=True)).to_be_visible()
             page.goto(ui + "/organizations")
             page.get_by_role("button", name="New organization", exact=True).click()
-            page.get_by_role("dialog", name="New organization").get_by_role("textbox", name="Name").fill(f"initech-{uuid.uuid4().hex[:6]}")
+            new_org_name = f"initech-{uuid.uuid4().hex}"
+            created_org_names.add(new_org_name)
+            page.get_by_role("dialog", name="New organization").get_by_role("textbox", name="Name").fill(new_org_name)
             with page.expect_response("**/CreateOrg") as creation:
                 page.get_by_role("button", name="Create", exact=True).click()
             created_org = creation.value.json()["orgId"]
@@ -331,5 +336,13 @@ with session(out) as browser:
         finally:
             context.close()
     finally:
-        browser.close()
+        try:
+            if created_org_names:
+                owner = state["users"]["owner"]
+                organizations = evidence.rpc(state["api_url"], owner["token"], "loco.org.v1.OrgService/ListUserOrgs", {"userId": owner["id"]})["orgs"]
+                for organization in organizations:
+                    if organization["name"] in created_org_names:
+                        evidence.rpc(state["api_url"], owner["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": organization["id"]})
+        finally:
+            browser.close()
 print(f"PASS: not-found cases {', '.join(cases)}")
