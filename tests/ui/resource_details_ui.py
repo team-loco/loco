@@ -96,8 +96,8 @@ def check_service_map(browser):
     page.set_viewport_size(evidence.DESKTOP)
     paths = page.locator("svg path[marker-end]")
     expect(paths).to_have_count(len(edges))
-    for path in paths.all():
-        assert path.evaluate("e => getComputedStyle(e).markerStart === 'none' && getComputedStyle(e).markerMid === 'none' && getComputedStyle(e).markerEnd !== 'none'")
+    for edge_path in paths.all():
+        assert edge_path.evaluate("e => getComputedStyle(e).markerStart === 'none' && getComputedStyle(e).markerMid === 'none' && getComputedStyle(e).markerEnd !== 'none'")
     mode[0] = "empty"
     page.goto(path + "&range=15m")
     expect(page.get_by_text("No service calls in this range. Send traces to see connections.", exact=True)).to_be_visible()

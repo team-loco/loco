@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { ServiceGraphEdgeSchema } from "@gen/loco/observability/v1/observability_pb";
 
-import { mapLayout } from "./mapLayout";
+import { MAP_NODE_H, MAP_NODE_W, mapLayout } from "./mapLayout";
 import { callLabel, serviceGraph } from "./serviceGraph";
 import { row } from "./testRows";
 import { itemName } from "./resourceRows";
@@ -91,6 +91,11 @@ test("incoming and outgoing calls attach to separate points on each resource", (
 	const layout = mapLayout([row("web"), row("api"), row("worker")], [], 1000, true);
 	const graph = serviceGraph(layout, [edge, create(ServiceGraphEdgeSchema, { from: "api", to: "postgresql" })], 1000);
 	const api = layout.internalNodes.find((node) => itemName(node.row) === "api")!;
-	expect(graph.calls[0]?.path.endsWith(`184,${api.y + 21}`)).toBe(true);
-	expect(graph.calls[1]?.path.startsWith(`M184,${api.y + 45} `)).toBe(true);
+	const incoming = /([\d.]+),([\d.]+)$/.exec(graph.calls[0]!.path)!.slice(1).map(Number);
+	const outgoing = /^M([\d.]+),([\d.]+) /.exec(graph.calls[1]!.path)!.slice(1).map(Number);
+	expect(incoming[0]).toBe(api.x + MAP_NODE_W);
+	expect(outgoing[0]).toBe(api.x + MAP_NODE_W);
+	expect(incoming[1]).toBeGreaterThan(api.y);
+	expect(outgoing[1]).toBeLessThan(api.y + MAP_NODE_H);
+	expect(incoming[1]).toBeLessThan(outgoing[1]!);
 });
