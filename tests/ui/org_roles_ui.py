@@ -21,7 +21,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     organizations = page.get_by_role("table", name="Organizations", exact=True)
     expect(organizations.get_by_role("columnheader", name="Workspaces", exact=True)).to_be_visible()
     expect(organizations.get_by_text("Owner", exact=True)).to_be_visible()
-    row = organizations.get_by_role("row").filter(has_text="acme")
+    row = organizations.get_by_role("link", name="Open acme", exact=True)
     expect(row.get_by_role("cell").nth(2)).to_have_text("2")
     expect(row.get_by_role("cell").nth(3)).to_have_text("3")
     page.get_by_role("button", name="Actions for acme", exact=True).click()
