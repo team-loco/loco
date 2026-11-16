@@ -18,6 +18,8 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/google/uuid"
+
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/tools/internal/devicelogin"
@@ -84,7 +86,8 @@ func clientAcceptance(ctx context.Context) (result error) {
 	}()
 	ctx, cancel := context.WithTimeout(ctx, clientTimeout)
 	defer cancel()
-	if err := clientFlow(ctx, audit); err != nil {
+	hostname := "build-" + uuid.NewString() + "." + fixtureAppsDomain
+	if err := clientFlow(ctx, audit, hostname); err != nil {
 		return err
 	}
 	operatorPhase(phaseRecovery)
@@ -92,14 +95,14 @@ func clientAcceptance(ctx context.Context) (result error) {
 		return err
 	}
 	operatorPhase(phaseTLSMinimum)
-	if err := verifyTLSMinimum(ctx); err != nil {
+	if err := verifyTLSMinimum(ctx, hostname); err != nil {
 		return err
 	}
 	fmt.Println("Installation passed: sign-in, source build, HTTPS, preserved identity and recovery.")
 	return nil
 }
 
-func clientFlow(ctx context.Context, audit *leakAudit) error {
+func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 	for _, operation := range []string{"validate", "plan"} {
 		if _, checkErr := locoadm(ctx, operation, "--file", clientFile); checkErr != nil {
 			return fmt.Errorf("initial %s: %w", operation, checkErr)
@@ -170,7 +173,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 		return checkErr
 	}
 	operatorPhase(phaseWorkloads)
-	if checkErr := deployFixture(ctx); checkErr != nil {
+	if checkErr := deployFixture(ctx, hostname); checkErr != nil {
 		return checkErr
 	}
 	// The build controller creates namespace policies before its first real Build Job.
@@ -346,7 +349,7 @@ func identitySnapshot(ctx context.Context) (string, error) {
 	return hex.EncodeToString(digest[:]), nil
 }
 
-func deployFixture(ctx context.Context) error {
+func deployFixture(ctx context.Context, hostname string) error {
 	app := "/fixture/build-app"
 	organization, checkErr := command(ctx, "", nil, "loco", "org", "create", "installation-e2e")
 	if checkErr != nil {
@@ -397,17 +400,17 @@ func deployFixture(ctx context.Context) error {
 	if checkErr := os.Setenv("LOCO_ENV", "staging"); checkErr != nil {
 		return checkErr
 	}
-	file := `version: 1
+	file := fmt.Sprintf(`version: 1
 partial: installation-smoke
 services:
   build:
     dockerfile: deploy/Dockerfile
     port: 8080
     health: {path: /healthz, interval: 5, timeout: 3, failThreshold: 3, startupGracePeriod: 0}
-    domains: [build.apps.installation.test]
+    domains: [%s]
     regions:
       us-east-1: {cpu: 100m, memory: 128Mi, replicas: {min: 1, max: 1}}
-`
+`, hostname)
 	if checkErr := os.WriteFile(filepath.Join(app, "loco.yaml"), []byte(file), 0600); checkErr != nil {
 		return checkErr
 	}
@@ -422,7 +425,7 @@ services:
 		return checkErr
 	}
 	// Fixture routing resolves this public hostname through the worker Gateway service.
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://build.apps.installation.test/healthz", nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+hostname+"/healthz", nil)
 	if err != nil {
 		return err
 	}
