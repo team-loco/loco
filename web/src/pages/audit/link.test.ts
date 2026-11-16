@@ -34,6 +34,11 @@ describe("audit links", () => {
 		expect(Object.fromEntries(new URLSearchParams(result.search))).toEqual({ ws: "shared", env: "production" });
 		expect(result.dropped.map((f) => f.value)).toEqual(["wat", "missing"]);
 	});
+	test("drops an environment without a workspace", () => {
+		expect(auditLink("?env=production", [], undefined, undefined).dropped).toEqual([
+			{ label: "Environment", value: "production", reason: "pick a workspace to filter by environment" },
+		]);
+	});
 	test("waits for loaded metadata before treating an ID as missing", () => {
 		expect(auditLink("?ws=shared&res=checkout&env=production", undefined, undefined, undefined).dropped).toEqual([]);
 		expect(

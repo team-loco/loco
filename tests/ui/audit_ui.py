@@ -146,7 +146,7 @@ with session(out) as browser:
     expect(panel.get_by_role("button")).to_have_count(5)
     for field in ("@actor:", "@actor_type:", "@target:", "@type:", "@request:"):
         expect(panel.get_by_role("button", name=re.compile(re.escape(field)))).to_be_visible()
-    expect(page.get_by_text("Fix the search to see events.", exact=True)).to_be_visible()
+    expect(page.get_by_text("Fix the search to see events.", exact=True)).to_have_count(0)
     with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@actor:"):
         panel.get_by_role("button", name=re.compile(r"^@actor:")).click()
     expect(search).to_be_focused()
@@ -206,7 +206,7 @@ with session(out) as browser:
     assert "@actor:" + users["owner"]["id"] in list_events(calls)[-1]["body"]["query"]
 
     page.goto(state["ui_url"] + audit_path + f"?range=forever&types=resource.created,unknown.event&ws={shared}&res=00000000-0000-4000-8000-000000000001&env=00000000-0000-4000-8000-000000000002&size=bad&before=bad&q=checkout")
-    banner = page.get_by_role("status").filter(has_text="Some filters in this link couldn't be used")
+    banner = page.get_by_role("status").filter(has_text="Some filters in this link couldn’t be used")
     expect(banner).to_be_visible()
     for value in ("forever", "unknown.event", "bad", "00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"):
         expect(banner).to_contain_text(value)
@@ -215,12 +215,16 @@ with session(out) as browser:
     expect(page).not_to_have_url(re.compile(r"[?&](range|res|env|size|before)="))
     assert list_events(calls)[-1]["body"]["query"] == "(@type:resource.created) checkout"
     assert list_events(calls)[-1]["body"]["workspaceId"] == shared
-    page.get_by_role("button", name="Dismiss unused filters", exact=True).click()
+    page.get_by_role("button", name="Dismiss", exact=True).click()
     expect(banner).to_have_count(0)
     page.goto(state["ui_url"] + audit_path + "?ws=missing&res=missing&env=missing")
-    expect(page.get_by_role("status").filter(has_text="Some filters in this link couldn't be used")).to_contain_text("Workspace not found")
+    expect(page.get_by_role("status").filter(has_text="Some filters in this link couldn’t be used")).to_contain_text("Workspace not found")
     expect(rows).to_have_count(50)
     expect(page).not_to_have_url(re.compile(r"[?&](ws|res|env)="))
+    page.goto(state["ui_url"] + audit_path + "?env=missing")
+    expect(banner).to_contain_text("pick a workspace to filter by environment")
+    expect(page.get_by_role("button", name="Environment", exact=True)).to_have_count(0)
+    expect(page).not_to_have_url(re.compile(r"[?&]env="))
 
     field = b"start_time"
     description = b"Time range is outside retention."
@@ -232,18 +236,28 @@ with session(out) as browser:
     page.route("**/loco.event.v1.EventService/ListEvents", reject_filters)
     page.goto(state["ui_url"] + audit_path + "?range=90d")
     alert = page.get_by_role("alert")
-    expect(alert).to_contain_text("The audit log rejected these filters")
+    expect(alert.get_by_role("heading")).to_have_text("Couldn’t load events for this time range")
     expect(alert).to_contain_text("start_time")
     expect(alert).to_contain_text("Time range is outside retention.")
     expect(alert.get_by_title("Copy request ID", exact=True)).to_have_text(request_id)
-    expect(page.get_by_text("Fix the filters to see events.", exact=True)).to_be_visible()
+    expect(alert).to_contain_text("EventService.ListEvents")
+    expect(alert).to_contain_text("invalid_argument")
+    expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
+    expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
+    expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
+    expect(page.get_by_text("Fix the filters to see events.", exact=True)).to_have_count(0)
     expect(rows).to_have_count(0)
     expect(search).to_be_visible()
     page.context.grant_permissions(["clipboard-read", "clipboard-write"])
     alert.get_by_title("Copy request ID", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == request_id
+    expect(alert.get_by_title("Copied", exact=True)).to_be_visible()
+    page.set_viewport_size(evidence.NARROW)
+    expect(alert.get_by_title("Copied", exact=True)).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.set_viewport_size(evidence.DESKTOP)
     page.unroute("**/loco.event.v1.EventService/ListEvents", reject_filters)
-    alert.get_by_role("button", name="Reset time range", exact=True).click()
+    alert.get_by_role("button", name="Reset to Past 7 days", exact=True).click()
     expect(rows).to_have_count(50)
     expect(alert).to_have_count(0)
 
