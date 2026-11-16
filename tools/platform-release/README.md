@@ -13,7 +13,7 @@ mise run lint:charts
 mise run lint:crd-versions
 ```
 
-`lint:charts` runs `ct lint`, which compares each chart's version with `origin/main` and skips files the chart's `.helmignore` excludes. `lint:crd-versions` compares against the merge base with `origin/main`; pass another ref as its argument for a stacked branch.
+`lint:charts` runs `ct lint`, which compares each chart's version with `origin/main` locally and the event base commit in CI, and skips files the chart's `.helmignore` excludes. `lint:crd-versions` compares against the merge base with `origin/main`; pass another ref as its argument for a stacked branch.
 
 Every push to `main` that touches charts, CRDs or this tooling runs `mise run release:artifacts`. It publishes each version the registry does not hold yet and skips a version already published with the same content. A version already published with different content fails the run. The manifest annotation `io.loco.platform.content` records a digest of the packaged files, so repackaging the same chart compares equal.
 

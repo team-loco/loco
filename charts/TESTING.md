@@ -27,6 +27,8 @@ mise run lint:charts
 - a version above the one on `origin/main`
 - `helm lint` with each `ci/*-values.yaml`, which also validates the values against the schema
 
+CI pins the comparison to the event base commit: the pull request base SHA or the commit before a push. Chart selection and old versions stay fixed even if `main` advances while the job waits. Local runs use `origin/main` by default.
+
 `.ct.yaml` holds the configuration. Files a chart's `.helmignore` excludes, such as `ci/` and `tests/`, need no version bump. Arguments after `--` go to `ct lint`; to lint both charts without the version check:
 
 ```sh

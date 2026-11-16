@@ -212,3 +212,56 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 		})
 	}
 }
+
+// Execute the lint step against a repository whose target branch advances after
+// the event, as it can while a ready-for-review run waits for a runner.
+func TestChartLintKeepsEventBase(t *testing.T) {
+	var workflow struct {
+		Jobs map[string]struct {
+			Steps []struct {
+				Run string            `yaml:"run"`
+				Env map[string]string `yaml:"env"`
+			} `yaml:"steps"`
+		} `yaml:"jobs"`
+	}
+	readYAML(t, filepath.Join(workflowsDir, "charts.yml"), &workflow)
+	for _, step := range workflow.Jobs["checks"].Steps {
+		if !strings.Contains(step.Run, "mise run lint:charts") {
+			continue
+		}
+		require.Equal(t, "${{ github.event.pull_request.base.sha || github.event.before }}", step.Env["BASE"])
+		r := newRepo(t)
+		const chart = "charts/example/Chart.yaml"
+		base := r.write(chart, "apiVersion: v2\nname: example\nversion: 0.1.0\n")
+		r.git("update-ref", "refs/remotes/origin/main", base)
+		head := r.write(chart, "apiVersion: v2\nname: example\nversion: 0.1.1\n")
+		bin := t.TempDir()
+		// Leave chart-testing's flags visible while executing the real ref setup.
+		require.NoError(t, os.WriteFile(filepath.Join(bin, "mise"), []byte(`#!/bin/sh
+printf '%s\n' "$@"
+`), 0o700))
+		for _, target := range []string{base, head} {
+			r.git("update-ref", "refs/remotes/origin/main", target)
+			cmd := exec.CommandContext(t.Context(), "bash", "-eu", "-c", step.Run)
+			cmd.Dir = r.dir
+			cmd.Env = append(os.Environ(), "BASE="+base, "PATH="+bin+":"+os.Getenv("PATH"))
+			out, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s", out)
+			args := strings.Fields(string(out))
+			branch := "main"
+			for i, arg := range args {
+				if arg == "--target-branch" {
+					require.Less(t, i+1, len(args))
+					branch = args[i+1]
+				}
+			}
+			ref := "origin/" + branch
+			assert.Equal(t, base, r.git("rev-parse", ref))
+			assert.Equal(t, "apiVersion: v2\nname: example\nversion: 0.1.0", r.git("show", ref+":"+chart))
+			mergeBase := r.git("merge-base", ref, "HEAD")
+			assert.Equal(t, chart, r.git("diff", "--name-only", mergeBase, "HEAD", "--", "charts"))
+		}
+		return
+	}
+	t.Fatal("chart lint step not found")
+}
