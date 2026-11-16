@@ -4,6 +4,11 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
+
+	"connectrpc.com/connect/v2/connectinprocess"
+	"github.com/team-loco/loco/api/db/dbtest"
+	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -420,4 +425,86 @@ func wantEnvironmentEvent(
 		t.Fatalf("event environment = %s, want %s", event.GetEnvironmentId(), environmentID)
 	}
 	return response.GetEvents()[0]
+}
+
+func TestWorkspaceEventStreamFiltersReconnectAndRevocation(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	f.events.poll = time.Millisecond
+	user, err := f.queries.CreateUser(t.Context(), genDb.CreateUserParams{Email: "stream@acme.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant := genDb.AddUserScopeParams{
+		UserID:     user.ID,
+		EntityType: genDb.EntityTypeWorkspace,
+		EntityID:   f.workspaceID,
+		Scope:      genDb.ScopeRead,
+	}
+	if err = f.queries.AddUserScope(t.Context(), grant); err != nil {
+		t.Fatal(err)
+	}
+	principal, _ := reqctx.PrincipalFrom(scoped(t, f.queries, user.ID))
+	server := connect.NewServer(eventPrincipalInjector{principal}.Interceptor)
+	eventv1connect.RegisterEventServiceHandler(server, f.events)
+	client := eventv1connect.NewEventServiceClient(connect.NewClient(connectinprocess.New(server)))
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	request := &eventv1.StreamEventsRequest{
+		OrgId:       f.orgID,
+		WorkspaceId: f.workspaceID.String(),
+		ResourceId:  f.resourceID.String(),
+		Query:       "@type:" + events.ResourceUpdated,
+	}
+	dbtest.WaitForEarlierTransactions(t, f.pool)
+	stream, err := client.StreamEvents(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := stream.Receive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.GetEvents()) != 1 || first.GetEvents()[0].GetResourceId() != f.resourceID.String() ||
+		first.GetEvents()[0].GetType() != events.ResourceUpdated {
+		t.Fatalf("batch = %v", first)
+	}
+	if err = stream.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err = events.Record(
+		f.owner,
+		f.queries,
+		events.Event{Type: events.ResourceUpdated, ResourceID: &f.resourceID},
+	); err != nil {
+		t.Fatal(err)
+	}
+	dbtest.WaitForEarlierTransactions(t, f.pool)
+	request.Cursor = first.GetCursor()
+	resumed, err := client.StreamEvents(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := resumed.Receive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(next.GetEvents()) != 1 || next.GetEvents()[0].GetSeq() <= first.GetEvents()[0].GetSeq() {
+		t.Fatalf("resumed = %v", next)
+	}
+	if err = f.queries.RemoveUserScope(t.Context(), genDb.RemoveUserScopeParams(grant)); err != nil {
+		t.Fatal(err)
+	}
+	_, err = resumed.Receive()
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("revoked stream: %v", err)
+	}
+}
+
+type eventPrincipalInjector struct{ principal reqctx.Principal }
+
+func (i eventPrincipalInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
+	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+		return next(reqctx.WithPrincipal(ctx, i.principal), spec, stream)
+	}
 }

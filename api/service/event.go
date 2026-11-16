@@ -19,6 +19,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/reqctx"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/internal/logquery"
@@ -107,18 +108,11 @@ func (s *EventServer) ListEvents(
 	ctx context.Context,
 	req *eventv1.ListEventsRequest,
 ) (*eventv1.ListEventsResponse, error) {
-	if req.GetStartTime() != nil && req.GetEndTime() != nil &&
-		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
-		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
-	}
-	filter, err := logquery.Parse(req.GetQuery())
-	if err == nil {
-		err = events.ValidateQuery(filter)
-	}
+	filter, err := parseEventFilter(req)
 	if err != nil {
-		return nil, querySyntaxError(err)
+		return nil, err
 	}
-	scope, err := s.authorizeEventScope(ctx, req)
+	scope, err := s.authorizeEventScope(ctx, req, actions.ListWorkspaceAuditEvents)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +140,6 @@ const (
 	eventScopeResource
 )
 
-// eventScope is the narrowest level a ListEvents request reads. workspaceID is set for the
-// workspace and resource levels, resourceID for the resource level.
 type eventScope struct {
 	kind        eventScopeKind
 	orgID       uuid.UUID
@@ -155,7 +147,11 @@ type eventScope struct {
 	resourceID  uuid.UUID
 }
 
-func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
+func (s *EventServer) authorizeEventScope(
+	ctx context.Context,
+	req *eventv1.ListEventsRequest,
+	workspaceAction actions.Action,
+) (eventScope, error) {
 	orgID, err := parseID("org_id", req.GetOrgId())
 	if err != nil {
 		return eventScope{}, err
@@ -194,7 +190,7 @@ func (s *EventServer) authorizeEventScope(ctx context.Context, req *eventv1.List
 		if err != nil {
 			return eventScope{}, err
 		}
-		if err = authorize(ctx, s.authz, actions.ListWorkspaceAuditEvents, workspaceID); err != nil {
+		if err = authorize(ctx, s.authz, workspaceAction, workspaceID); err != nil {
 			return eventScope{}, err
 		}
 		parent, err := s.queries.GetOrganizationIDByWorkspaceID(ctx, workspaceID)
@@ -222,30 +218,9 @@ func (s *EventServer) listAuditEvents(
 	filter logquery.Expr,
 	maxRows int32,
 ) ([]*eventv1.Event, error) {
-	query := events.AuditQuery{
-		OrgID:     scope.orgID,
-		BeforeSeq: req.GetBeforeSeq(),
-		Filter:    filter,
-		Limit:     maxRows,
-	}
-	if scope.kind != eventScopeOrg {
-		query.WorkspaceID = &scope.workspaceID
-	}
-	if scope.kind == eventScopeResource {
-		query.ResourceID = &scope.resourceID
-	}
-	if req.GetEnvironmentId() != "" {
-		id, err := parseID("environment_id", req.GetEnvironmentId())
-		if err != nil {
-			return nil, err
-		}
-		query.EnvironmentID = &id
-	}
-	if req.GetStartTime() != nil {
-		query.Start = new(req.GetStartTime().AsTime())
-	}
-	if req.GetEndTime() != nil {
-		query.End = new(req.GetEndTime().AsTime())
+	query, err := auditQuery(req, scope, filter, maxRows)
+	if err != nil {
+		return nil, err
 	}
 	rows, err := events.ListAudit(ctx, s.db, query)
 	if err != nil {
@@ -265,8 +240,32 @@ func (s *EventServer) StreamEvents(
 	req *eventv1.StreamEventsRequest,
 	stream eventv1connect.EventServiceStreamEventsServerStream,
 ) error {
-	if err := authorizeSystem(ctx, s.authz, actions.StreamEvents); err != nil {
-		return err
+	var scoped *eventv1.ListEventsRequest
+	var filter logquery.Expr
+	if req.GetWorkspaceId() != "" {
+		scoped = &eventv1.ListEventsRequest{
+			OrgId:         req.GetOrgId(),
+			WorkspaceId:   req.GetWorkspaceId(),
+			ResourceId:    req.GetResourceId(),
+			EnvironmentId: req.GetEnvironmentId(),
+			StartTime:     req.GetStartTime(),
+			EndTime:       req.GetEndTime(),
+			Query:         req.GetQuery(),
+		}
+		var err error
+		filter, err = parseEventFilter(scoped)
+		if err != nil {
+			return err
+		}
+	} else {
+		if req.GetOrgId() != "" || req.GetResourceId() != "" || req.GetEnvironmentId() != "" || req.GetQuery() != "" ||
+			req.GetStartTime() != nil ||
+			req.GetEndTime() != nil {
+			return connect.NewError(connect.CodeInvalidArgument, "workspace_id is required for event filters")
+		}
+		if err := authorizeSystem(ctx, s.authz, actions.StreamEvents); err != nil {
+			return err
+		}
 	}
 	position, err := decodeStreamCursor(req.GetCursor())
 	if err != nil {
@@ -275,11 +274,29 @@ func (s *EventServer) StreamEvents(
 	ticker := time.NewTicker(s.poll)
 	defer ticker.Stop()
 	for {
-		rows, err := s.queries.ListEventsAfter(ctx, genDb.ListEventsAfterParams{
-			AfterTxid: position.txid,
-			AfterSeq:  position.seq,
-			MaxRows:   streamBatch,
-		})
+		var rows []genDb.Event
+		if scoped == nil {
+			rows, err = s.queries.ListEventsAfter(
+				ctx,
+				genDb.ListEventsAfterParams{AfterTxid: position.txid, AfterSeq: position.seq, MaxRows: streamBatch},
+			)
+		} else {
+			var scope eventScope
+			scope, err = s.authorizeStreamScope(ctx, scoped)
+			if err != nil {
+				return err
+			}
+			query, queryErr := auditQuery(scoped, scope, filter, streamBatch)
+			if queryErr != nil {
+				return queryErr
+			}
+			query.Stream, query.AfterTxid, query.AfterSeq = true, position.txid, position.seq
+			var audit []events.AuditEvent
+			audit, err = events.ListAudit(ctx, s.db, query)
+			for _, row := range audit {
+				rows = append(rows, row.Event)
+			}
+		}
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil
@@ -289,6 +306,11 @@ func (s *EventServer) StreamEvents(
 		if len(rows) > 0 {
 			batch := make([]*eventv1.Event, len(rows))
 			for i, row := range rows {
+				if scoped != nil {
+					if _, err := s.authorizeStreamScope(ctx, scoped); err != nil {
+						return err
+					}
+				}
 				batch[i] = eventToProto(row)
 			}
 			last := rows[len(rows)-1]
@@ -307,4 +329,75 @@ func (s *EventServer) StreamEvents(
 		case <-ticker.C:
 		}
 	}
+}
+
+func (s *EventServer) authorizeStreamScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return eventScope{}, err
+	}
+	if p.ActorType == genDb.DeploymentActorTypeUser {
+		p.Scopes, err = s.authz.UserScopes(ctx, p.UserID)
+		if err != nil {
+			return eventScope{}, fmt.Errorf("read stream permissions: %w", err)
+		}
+	}
+	ctx = reqctx.WithPrincipal(ctx, p)
+	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
+	if err != nil {
+		return eventScope{}, err
+	}
+	if err := authorize(ctx, s.authz, actions.StreamWorkspaceEvents, workspaceID); err != nil {
+		return eventScope{}, err
+	}
+	return s.authorizeEventScope(ctx, req, actions.StreamWorkspaceEvents)
+}
+
+func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
+	if req.GetStartTime() != nil && req.GetEndTime() != nil &&
+		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
+	}
+	filter, err := logquery.Parse(req.GetQuery())
+	if err == nil {
+		err = events.ValidateQuery(filter)
+	}
+	if err != nil {
+		return nil, querySyntaxError(err)
+	}
+	return filter, nil
+}
+
+func auditQuery(
+	req *eventv1.ListEventsRequest,
+	scope eventScope,
+	filter logquery.Expr,
+	maxRows int32,
+) (events.AuditQuery, error) {
+	query := events.AuditQuery{
+		OrgID:     scope.orgID,
+		BeforeSeq: req.GetBeforeSeq(),
+		Filter:    filter,
+		Limit:     maxRows,
+	}
+	if scope.kind != eventScopeOrg {
+		query.WorkspaceID = &scope.workspaceID
+	}
+	if scope.kind == eventScopeResource {
+		query.ResourceID = &scope.resourceID
+	}
+	if req.GetEnvironmentId() != "" {
+		id, err := parseID("environment_id", req.GetEnvironmentId())
+		if err != nil {
+			return events.AuditQuery{}, err
+		}
+		query.EnvironmentID = &id
+	}
+	if req.GetStartTime() != nil {
+		query.Start = new(req.GetStartTime().AsTime())
+	}
+	if req.GetEndTime() != nil {
+		query.End = new(req.GetEndTime().AsTime())
+	}
+	return query, nil
 }

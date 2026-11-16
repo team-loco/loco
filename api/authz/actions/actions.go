@@ -422,6 +422,7 @@ var (
 		entityType: db.EntityTypeOrganization,
 		scope:      db.ScopeAdmin,
 	}
+	StreamWorkspaceEvents        = Action{entityType: db.EntityTypeWorkspace, scope: db.ScopeRead}
 	ListWorkspaceAuditEvents     = Action{entityType: db.EntityTypeWorkspace, scope: db.ScopeAdmin}
 	ListResourceAuditEvents      = Action{entityType: db.EntityTypeResource, scope: db.ScopeRead}
 	ListResourceAuditAdminEvents = Action{entityType: db.EntityTypeResource, scope: db.ScopeAdmin}
