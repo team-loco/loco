@@ -627,7 +627,13 @@ def capture(browser, state, shot, theme, narrow, target):
             elif action == "hover":
                 locator.first.hover()
             settle(page, wait_for_network=wait_for_network)
-        applied = f"() => document.documentElement.classList.contains('dark') === {json.dumps(theme == 'dark')}"
+        applied = f"""() => {{
+          const root = document.documentElement;
+          const scheme = getComputedStyle(root).colorScheme;
+          return scheme === "normal"
+            ? root.classList.contains("dark") === {json.dumps(theme == 'dark')}
+            : scheme === {json.dumps(theme)};
+        }}"""
         try:
             page.wait_for_function(applied, timeout=STEP_TIMEOUT_MS)
         except PlaywrightTimeout:
