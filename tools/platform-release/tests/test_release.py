@@ -716,3 +716,35 @@ def test_local_release_names_everything_at_the_cluster_address(local_release):
     for reference in references:
         assert reference.startswith("registry.example.localhost:15000/example/platform")
         assert "@sha256:" in reference
+
+
+def test_local_release_reuses_images_and_isolates_push_credentials(publication, capsys):
+    images = "prebuilt-*:test"
+    publication.registry.host = "localhost:15000"
+    publication.registry.username = "push"
+    publication.registry.password = "secret"
+    commands = partial(_command, publication)
+    configs = []
+
+    def command(*args):
+        if args[:2] == ("git", "rev-parse"):
+            return publication.commit
+        if args[0] == "docker" and "push" in args:
+            config = Path(args[args.index("--config") + 1]) / "config.json"
+            configs.append(json.loads(config.read_text()))
+            assert config.stat().st_mode & 0o777 == 0o600
+            assert args[args.index("--host") + 1] == "unix:///test-docker.sock"
+        if args[:3] == ("docker", "context", "inspect"):
+            return "unix:///test-docker.sock"
+        return commands(*args)
+
+    with patch.object(release, "run", side_effect=command):
+        release.local_release(publication.registry, "registry.example.localhost:15000", images)
+    lock = json.loads(capsys.readouterr().out)
+    assert len(configs) == len(release.IMAGES)
+    assert all(config == {"auths": {"localhost:15000": {"auth": "cHVzaDpzZWNyZXQ="}}} for config in configs)
+    assert not [call for call in publication.calls if call[:2] == ("docker", "build")]
+    tags = [call for call in publication.calls if call[:2] == ("docker", "tag")]
+    assert [call[2] for call in tags] == [images.replace("*", name) for name in release.IMAGES]
+    assert set(lock["images"]) == set(release.IMAGES)
+    assert all("@sha256:" in ref for ref in lock["images"].values())

@@ -1,11 +1,8 @@
 package main
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,322 +10,93 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/google/go-containerregistry/pkg/authn"
-	registryname "github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/static"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-var (
-	errArtifactPublish = errors.New("publish fixture release artifact failed")
-	errChartArchive    = errors.New("chart packaging returned no archive")
-	errImageDigest     = errors.New("inspect fixture image digest failed")
-)
+const operatorImage = "installation-operator"
 
-const (
-	fixtureVersion = "e2e"
-	operatorImage  = "installation-operator"
-	helmLayer      = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
-	bundleLayer    = "application/vnd.oci.image.layer.v1.tar+gzip"
-)
-
-var installationCRDs = []struct{ key, file string }{
-	{"loco-applications-crd", "controller/config/crd/bases/infra.loco.io_applications.yaml"},
-	{"loco-builds-crd", "controller/config/crd/bases/infra.loco.io_builds.yaml"},
-}
-
-var platformImages = []struct{ name, directory string }{
-	{"api", "api"},
-	{"ui", "web"},
-	{"obs-proxy", "observability-proxy"},
-	{"agent", "agent"},
-	{"controller", "controller"},
-	{fixtureBuilder, fixtureBuilder},
-}
+var errReleaseVersion = errors.New("fixture release has no version")
 
 func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
-	// Pulls use the host's Docker credentials, which configureRegistryAuth swaps out.
-	if checkErr := f.pullPrebuilt(ctx); checkErr != nil {
-		return nil, "", checkErr
+	if err := f.pullPrebuilt(ctx); err != nil {
+		return nil, "", err
 	}
-	if checkErr := f.configureRegistryAuth(); checkErr != nil {
-		return nil, "", fmt.Errorf("configure fixture image authentication: %w", checkErr)
-	}
-	if _, checkErr := command(ctx, f.root, nil, "mise", "run", "helm:deps"); checkErr != nil {
-		return nil, "", checkErr
-	}
-	images, imagesErr := f.publishImages(ctx)
-	if imagesErr != nil {
-		return nil, "", imagesErr
-	}
-	artifacts := map[string]string{}
-	for _, name := range []string{"loco-control-plane", "loco-worker"} {
-		output, err := command(ctx, f.root, nil, "helm", "package", "charts/"+name, "--destination", f.dir)
-		if err != nil {
-			return nil, "", err
-		}
-		_, file, ok := strings.Cut(strings.TrimSpace(string(output)), "saved it to: ")
-		if !ok {
-			return nil, "", errChartArchive
-		}
-		data, err := os.ReadFile(file)
-		if err != nil {
-			return nil, "", err
-		}
-		ref, err := f.publish(ctx, "platform/charts/"+name, data, helmLayer)
-		if err != nil {
-			return nil, "", err
-		}
-		artifacts[name] = ref
-	}
-	certVersion, err := f.pin(ctx, "charts/cert-manager.yaml", ".version")
+	output, err := f.releaseManifest(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-	certRepo, err := f.pin(ctx, "charts/cert-manager.yaml", ".repository")
-	if err != nil {
-		return nil, "", err
+	var manifest map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(output))
+	decoder.UseNumber()
+	if decodeErr := decoder.Decode(&manifest); decodeErr != nil {
+		return nil, "", decodeErr
 	}
-	certName, err := f.pin(ctx, "charts/cert-manager.yaml", ".chart")
-	if err != nil {
-		return nil, "", err
+	version, ok := manifest["version"].(string)
+	if !ok || version == "" {
+		return nil, "", errReleaseVersion
 	}
-	if _, checkErr := command(
-		ctx,
-		f.root,
-		nil,
-		"helm",
-		"pull",
-		certName,
-		"--repo",
-		certRepo,
-		"--version",
-		certVersion,
-		"--destination",
-		f.dir,
-	); checkErr != nil {
-		return nil, "", checkErr
+	if buildErr := f.buildLocoadm(ctx, version); buildErr != nil {
+		return nil, "", buildErr
 	}
-	certPath := filepath.Join(f.dir, certName+"-"+strings.TrimPrefix(certVersion, "v")+".tgz")
-	if _, checkErr := os.Stat(certPath); checkErr != nil {
-		certPath = filepath.Join(f.dir, certName+"-"+certVersion+".tgz")
-	}
-	certData, err := os.ReadFile(certPath)
-	if err != nil {
-		return nil, "", err
-	}
-	artifacts["cert-manager-chart"], err = f.publish(ctx, "platform/charts/cert-manager", certData, helmLayer)
-	if err != nil {
-		return nil, "", err
-	}
-	for _, component := range installationCRDs {
-		data, readErr := os.ReadFile(filepath.Join(f.root, component.file))
-		if readErr != nil {
-			return nil, "", readErr
-		}
-		archive, bundleErr := bundle(map[string][]byte{"resources.yaml": data})
-		if bundleErr != nil {
-			return nil, "", bundleErr
-		}
-		artifacts[component.key], err = f.publish(ctx, "platform/crds/"+component.key, archive, bundleLayer)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-	gatewayVersion, err := f.pin(
-		ctx,
-		"charts/loco-worker/Chart.yaml",
-		`.dependencies[] | select(.name == "gateway-helm") | .version`,
-	)
-	if err != nil {
-		return nil, "", err
-	}
-	crds, err := command(
-		ctx,
-		f.root,
-		nil,
-		"helm",
-		"show",
-		"crds",
-		filepath.Join("charts", "loco-worker", "charts", "gateway-helm-"+gatewayVersion+".tgz"),
-	)
-	if err != nil {
-		return nil, "", err
-	}
-	gateway, err := bundle(map[string][]byte{"resources.yaml": crds})
-	if err != nil {
-		return nil, "", err
-	}
-	artifacts["loco-gateway-crd"], err = f.publish(ctx, "platform/crds/gateway", gateway, bundleLayer)
-	if err != nil {
-		return nil, "", err
-	}
-	commit, err := command(ctx, f.root, nil, "git", "rev-parse", "HEAD")
-	if err != nil {
-		return nil, "", err
-	}
-	configVersion, err := f.pin(ctx, "examples/installation/loco-install.yaml", ".version")
-	if err != nil {
-		return nil, "", err
-	}
-	manifest := map[string]any{
-		"configVersion": json.Number(configVersion),
-		"version":       "0.0.0-e2e",
-		"coreCommit":    strings.TrimSpace(string(commit)),
-		"artifacts":     artifacts,
-		"images":        images,
-	}
-	operatorImage, err := f.buildOperator(ctx)
-	return manifest, operatorImage, err
+	image, err := f.buildOperator(ctx, version)
+	return manifest, image, err
 }
 
-// publishImages pushes each platform image to the fixture registry and
-// returns its digest reference by component.
-func (f *fixture) publishImages(ctx context.Context) (map[string]string, error) {
-	images := map[string]string{}
-	for _, component := range platformImages {
-		tag := strings.TrimPrefix(
-			f.registryURL,
-			"http://",
-		) + "/platform/images/" + component.name + ":" + fixtureVersion
-		if checkErr := f.image(ctx, component.name, tag, func() error {
-			if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform, "--build-arg", "VERSION="+fixtureVersion,
-				"-f", component.directory+"/Dockerfile", "-t", tag, "."); checkErr != nil {
-				return fmt.Errorf("build %s fixture: %w", component.name, checkErr)
-			}
-			return nil
-		}); checkErr != nil {
-			return nil, checkErr
-		}
-		if _, checkErr := command(ctx, f.root, nil, "docker", "push", tag); checkErr != nil {
-			return nil, fmt.Errorf("push %s fixture image: %w", component.name, checkErr)
-		}
-		digest, err := f.manifestDigest(ctx, "platform/images/"+component.name, fixtureVersion)
-		if err != nil {
-			return nil, err
-		}
-		images[component.name] = registryHost + "/platform/images/" + component.name + "@" + digest
+func (f *fixture) releaseManifest(ctx context.Context) ([]byte, error) {
+	path := filepath.Join(f.dir, "release.json")
+	if f.skip {
+		return os.ReadFile(path)
 	}
-	return images, nil
+	args := []string{"run", "--quiet", "release:local", "--repository", "platform/loco",
+		"--push", strings.Replace(strings.TrimPrefix(f.registryURL, "http://"), "127.0.0.1:", "localhost:", 1),
+		"--address", registryHost, "--username", fixtureBuilder, "--password", "loco-dev-builder"}
+	if f.images != "" {
+		args = append(args, "--images", f.images)
+	}
+	var stdout bytes.Buffer
+	cmd := exec.CommandContext(ctx, "mise", args...)
+	cmd.Dir = f.root
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("publish fixture release: %w", err)
+	}
+	output := stdout.Bytes()
+	if err := os.WriteFile(path, output, 0600); err != nil {
+		return nil, err
+	}
+	return output, nil
 }
 
-func (f *fixture) configureRegistryAuth() error {
-	config := filepath.Join(f.dir, "docker")
-	if checkErr := os.MkdirAll(config, 0700); checkErr != nil {
-		return checkErr
-	}
-	if checkErr := os.Setenv("DOCKER_CONFIG", config); checkErr != nil {
-		return checkErr
-	}
-	// A populated auth map prevents Docker from auto-selecting an interactive host credential store.
-	auth := base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":loco-dev-builder"))
-	data, err := json.Marshal(map[string]any{
-		"cliPluginsExtraDirs": f.dockerPluginDirs,
-		"auths": map[string]any{
-			strings.TrimPrefix(f.registryURL, "http://"): map[string]string{"auth": auth},
-		},
-	})
-	if err != nil {
-		return err
-	}
-	path := filepath.Join(config, "config.json")
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return err
-	}
-	return os.Setenv("HELM_REGISTRY_CONFIG", path)
+func (f *fixture) buildLocoadm(ctx context.Context, version string) error {
+	_, arch, _ := strings.Cut(f.platform, "/")
+	_, err := command(ctx, f.root, nil, "env", "CGO_ENABLED=0", "GOOS=linux", "GOARCH="+arch,
+		"go", "-C", "cmd", "build", "-ldflags", "-X main.version="+version,
+		"-o", filepath.Join(f.dir, "locoadm"), "./locoadm")
+	return err
 }
 
-func (f *fixture) manifestDigest(ctx context.Context, repository, reference string) (string, error) {
-	ref, err := registryname.NewTag(strings.TrimPrefix(f.registryURL, "http://") + "/" + repository + ":" + reference)
-	if err != nil {
-		return "", err
-	}
-	descriptor, err := remote.Get(ref, remote.WithContext(ctx), remote.WithAuth(fixtureRegistryAuth()))
-	if err != nil {
-		return "", errImageDigest
-	}
-	return descriptor.Digest.String(), nil
-}
-
-func fixtureRegistryAuth() authn.Authenticator {
-	//nolint:gosec // Public development-only identity from dev/registry/htpasswd; never a live credential.
-	return authn.FromConfig(authn.AuthConfig{Username: fixtureBuilder, Password: "loco-dev-builder"})
-}
-
-func (f *fixture) publish(ctx context.Context, repository string, data []byte, layerType string) (string, error) {
-	image, err := mutate.AppendLayers(empty.Image, static.NewLayer(data, types.MediaType(layerType)))
-	if err != nil {
-		return "", err
-	}
-	ref, err := registryname.NewTag(
-		strings.TrimPrefix(f.registryURL, "http://") + "/" + repository + ":" + fixtureVersion,
-	)
-	if err != nil {
-		return "", err
-	}
-	if checkErr := remote.Write(
-		ref,
-		image,
-		remote.WithContext(ctx),
-		remote.WithAuth(fixtureRegistryAuth()),
-	); checkErr != nil {
-		return "", errArtifactPublish
-	}
-	digest, err := image.Digest()
-	if err != nil {
-		return "", err
-	}
-	return registryHost + "/" + repository + "@" + digest.String(), nil
-}
-
-func bundle(files map[string][]byte) ([]byte, error) {
-	var output bytes.Buffer
-	compressed := gzip.NewWriter(&output)
-	archive := tar.NewWriter(compressed)
-	for name, data := range files {
-		if checkErr := archive.WriteHeader(
-			&tar.Header{Name: name, Size: int64(len(data)), Mode: 0600},
-		); checkErr != nil {
-			return nil, checkErr
-		}
-		if _, checkErr := archive.Write(data); checkErr != nil {
-			return nil, checkErr
-		}
-	}
-	if checkErr := archive.Close(); checkErr != nil {
-		return nil, checkErr
-	}
-	if checkErr := compressed.Close(); checkErr != nil {
-		return nil, checkErr
-	}
-	return output.Bytes(), nil
-}
-
-func (f *fixture) buildOperator(ctx context.Context) (string, error) {
+func (f *fixture) buildOperator(ctx context.Context, version string) (string, error) {
 	tag := "loco-installation-operator:" + f.name
-	if checkErr := f.image(ctx, operatorImage, tag, func() error {
+	if f.images != "" {
+		if _, err := command(ctx, f.root, nil, "docker", "tag", f.prebuilt(operatorImage), tag); err != nil {
+			return "", err
+		}
+	} else if !f.skip {
 		helm, err := f.pin(ctx, "mise.toml", ".tools.helm")
 		if err != nil {
-			return err
+			return "", err
 		}
 		kubectl, err := f.pin(ctx, "mise.toml", ".tools.kubectl")
 		if err != nil {
-			return err
+			return "", err
 		}
 		if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform,
-			"--build-arg", "VERSION="+fixtureVersion,
+			"--build-arg", "VERSION="+version,
 			"--build-arg", "HELM_VERSION="+helm,
 			"--build-arg", "KUBECTL_VERSION="+kubectl,
 			"-f", "tests/e2e/fixtures/installation/operator.Dockerfile", "-t", tag, "."); checkErr != nil {
-			return fmt.Errorf("build operator fixture: %w", checkErr)
+			return "", fmt.Errorf("build operator fixture: %w", checkErr)
 		}
-		return nil
-	}); checkErr != nil {
-		return "", checkErr
 	}
 	if _, checkErr := command(
 		ctx, f.root, nil, "kind", "load", "docker-image", "--name", f.name, tag,
@@ -346,10 +114,8 @@ func (f *fixture) pullPrebuilt(ctx context.Context) error {
 	if f.images == "" {
 		return nil
 	}
-	names := []string{operatorImage}
-	for _, component := range platformImages {
-		names = append(names, component.name)
-	}
+	// Platform names follow tools/platform-release/release.py's IMAGES.
+	names := []string{operatorImage, "api", "ui", "obs-proxy", "agent", "controller", fixtureBuilder}
 	for _, name := range names {
 		if checkErr := f.pullPlatformImage(ctx, f.prebuilt(name)); checkErr != nil {
 			return checkErr
@@ -391,19 +157,6 @@ func (f *fixture) pullPlatformImage(ctx context.Context, image string) error {
 		return fmt.Errorf("tag %s: %w", image, checkErr)
 	}
 	return nil
-}
-
-// image makes tag a local image: the pulled prebuilt image when E2E_IMAGES
-// names them, the image already there with --skip-build, or the result of build.
-func (f *fixture) image(ctx context.Context, name, tag string, build func() error) error {
-	if f.images != "" {
-		_, checkErr := command(ctx, f.root, nil, "docker", "tag", f.prebuilt(name), tag)
-		return checkErr
-	}
-	if f.skip {
-		return nil
-	}
-	return build()
 }
 
 func dockerBuild(ctx context.Context, dir string, args ...string) error {

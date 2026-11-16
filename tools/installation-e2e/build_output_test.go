@@ -33,7 +33,7 @@ func TestFailedOperatorBuildStreamsDiagnostics(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := fixture{root: root, dir: t.TempDir(), name: "build-output", platform: "linux/amd64"}
-	_, err = f.buildOperator(t.Context())
+	_, err = f.buildOperator(t.Context(), "0.0.0-test")
 	var exit *exec.ExitError
 	if !errors.As(err, &exit) || exit.ExitCode() != 17 {
 		t.Fatalf("build error = %v, want exit status 17", err)
