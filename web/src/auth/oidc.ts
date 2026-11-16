@@ -6,12 +6,10 @@ import { notifySessionChange, TOKENS_KEY } from "./session";
 
 const PENDING_KEY = "loco:auth:oidc:pending:v1";
 const EXPIRY_SKEW_MS = 30_000;
-const ACCESS_DENIED = "access_denied";
 
 const errNoIDToken = new Error("The identity provider did not return an ID token");
 const errNoAuthorizationEndpoint = new Error("The identity provider has no authorization endpoint");
 const errSignInExpired = new Error("This sign-in link has expired. Try signing in again.");
-const errSignInCancelled = new Error("Sign-in was cancelled.");
 const errSignInRefused = new Error("The identity provider could not sign you in. Try again.");
 
 interface StoredTokens {
@@ -88,7 +86,7 @@ function callbackParams(
 		return oauth.validateAuthResponse(as, client, callback, state);
 	} catch (err) {
 		if (!(err instanceof oauth.AuthorizationResponseError)) throw err;
-		throw err.error === ACCESS_DENIED ? errSignInCancelled : errSignInRefused;
+		throw errSignInRefused;
 	}
 }
 

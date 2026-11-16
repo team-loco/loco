@@ -1,5 +1,5 @@
 package interceptor
 
 const (
-	publicUnauthorized = "unauthorized"
+	publicUnauthorized = "Sign-in failed. Check your sign-in method and verify your email, or contact your administrator."
 )

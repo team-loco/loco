@@ -2,6 +2,7 @@ package interceptor
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/netip"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 )
@@ -126,7 +128,7 @@ func TestAuthenticateProviderTokenErrors(t *testing.T) {
 		{
 			"rejected by signup policy",
 			f.issuer.Sign("k1", f.issuer.Claims("s", "dev@evil.test", true)),
-			connect.CodePermissionDenied,
+			connect.CodeUnauthenticated,
 		},
 		{"untrusted issuer", other.Sign("k1", other.Claims("s", "dev@acme.test", true)), connect.CodeUnauthenticated},
 		{"unknown loco token", "loco_s_doesnotexist", connect.CodeUnauthenticated},
@@ -202,6 +204,14 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 		if code := connect.CodeOf(authErr); code != connect.CodeUnauthenticated {
 			t.Errorf("%s: code = %v (%v), want %v", name, code, authErr, connect.CodeUnauthenticated)
 		}
+		_, invalid := f.interceptor.authenticate(
+			t.Context(),
+			orgv1connect.OrgServiceGetOrgProcedure,
+			withBearer("loco_s_invalid"),
+		)
+		if authErr.Error() != invalid.Error() {
+			t.Fatalf("%s: refusal = %v, invalid credential = %v", name, authErr, invalid)
+		}
 	}
 	orgCtx, err := f.interceptor.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer(apiToken))
 	if err != nil {
@@ -261,5 +271,50 @@ func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
 	}
 	if again := claimedOrgs(ctx); len(again) != 0 {
 		t.Fatalf("claimed orgs repeated on the next request: %+v", again)
+	}
+}
+
+func TestSignInRefusalsAreUniform(t *testing.T) {
+	t.Parallel()
+	f := newProviderFixture(t, auth.SignupPolicy{})
+	owner := f.issuer.Sign("k1", f.issuer.Claims("owner", "owner@example.test", true))
+	if _, err := f.interceptor.authenticate(
+		t.Context(),
+		userv1connect.UserServiceWhoAmIProcedure,
+		withBearer(owner),
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, procedure := range []string{
+		userv1connect.UserServiceWhoAmIProcedure,
+		authv1connect.AuthServiceApproveCLILoginProcedure,
+		authv1connect.AuthServiceApproveDeviceLoginProcedure,
+	} {
+		_, invalid := f.interceptor.authenticate(t.Context(), procedure, withBearer("loco_s_invalid"))
+		for _, closed := range []bool{false, true} {
+			f.interceptor.resolver = auth.NewResolver(
+				f.pool,
+				auth.SignupPolicy{Closed: closed},
+				limits.Defaults(),
+				time.Hour,
+			)
+			for _, verified := range []bool{false, true} {
+				for _, email := range []string{"owner@example.test", "missing@example.test", ""} {
+					if !closed && verified && email == "missing@example.test" {
+						continue
+					}
+					token := f.issuer.Sign("k1", f.issuer.Claims("other", email, verified))
+					_, err := f.interceptor.authenticate(t.Context(), procedure, withBearer(token))
+					rejected, ok := errors.AsType[*connect.Error](err)
+					if !ok || rejected.Code() != connect.CodeUnauthenticated {
+						t.Fatalf("%s %s closed=%t verified=%t: %v", procedure, email, closed, verified, err)
+					}
+					if err.Error() != invalid.Error() {
+						t.Fatalf("refusal = %v, invalid credential = %v", err, invalid)
+					}
+				}
+			}
+		}
 	}
 }

@@ -57,28 +57,26 @@ describe("sign-in redirect", () => {
 		expect(url.searchParams.has("login_hint")).toBe(false);
 	});
 
-	test("reports a sign-in cancelled at the identity provider", async () => {
-		const { client, url } = await startSignIn(null);
-		const cancelled = callback({ error: "access_denied", state: url.searchParams.get("state") ?? "" });
-		expect(await client.completeSignIn(cancelled).catch(String)).toContain("Sign-in was cancelled.");
-	});
-
-	test("reports other identity provider errors without their text", async () => {
-		const { client, url } = await startSignIn(null);
-		const failed = callback({
-			error: "server_error",
-			error_description: "Upstream down",
-			state: url.searchParams.get("state") ?? "",
-		});
-		expect(await client.completeSignIn(failed).catch(String)).toContain(
-			"The identity provider could not sign you in. Try again.",
-		);
+	test("reports the same refusal for existing and missing accounts", async () => {
+		for (const response of [
+			{ error: "access_denied", error_description: "Invalid credentials" },
+			{ error: "login_required", error_description: "Account unavailable" },
+			{ error: "server_error", error_description: "Upstream down" },
+		]) {
+			const { client, url } = await startSignIn(null);
+			const failed = callback({ ...response, state: url.searchParams.get("state") ?? "" });
+			expect(await client.completeSignIn(failed).catch(String)).toBe(
+				"Error: The identity provider could not sign you in. Try again.",
+			);
+		}
 	});
 
 	test("reports an expired sign-in when the callback is replayed", async () => {
 		const { client, url } = await startSignIn(null);
 		const cancelled = callback({ error: "access_denied", state: url.searchParams.get("state") ?? "" });
-		expect(await client.completeSignIn(cancelled).catch(String)).toContain("Sign-in was cancelled.");
+		expect(await client.completeSignIn(cancelled).catch(String)).toContain(
+			"The identity provider could not sign you in. Try again.",
+		);
 		expect(await client.completeSignIn(cancelled).catch(String)).toContain("This sign-in link has expired.");
 	});
 });

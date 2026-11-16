@@ -40,7 +40,6 @@ const (
 	journeyOrgName = "Acme"
 	journeyWebURL  = "https://app.loco.test"
 	journeyTTL     = time.Hour
-	journeyTimeout = 10 * time.Second
 
 	carolEmail = "carol@dex.test"
 	carolPass  = "carolpw"
@@ -56,7 +55,7 @@ const (
 	signupModeClosed = "closed"
 	signupModeOpen   = "open"
 
-	rejectedClosedSignup = "Sign-ups are closed"
+	rejectedSignIn = "Sign-in failed."
 )
 
 type journeyAPI struct {
@@ -296,7 +295,8 @@ func (a *journeyAPI) signInSteps(t *testing.T, orgID, carolInvitationID string) 
 
 	erin := a.dexClients(t, erinEmail, erinPass)
 	_, err = erin.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
-	requireRPCError(t, err, connect.CodePermissionDenied, rejectedClosedSignup)
+	requireRPCError(t, err, connect.CodeUnauthenticated, rejectedSignIn)
+	refusal := err.Error()
 	if _, lookupErr := a.queries.GetUserByEmail(ctx, erinEmail); lookupErr == nil {
 		t.Fatal("step 6: erin was provisioned")
 	}
@@ -314,6 +314,9 @@ func (a *journeyAPI) signInSteps(t *testing.T, orgID, carolInvitationID string) 
 	_, err = carol.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("step 7: suspended carol call = %v, want unauthenticated", err)
+	}
+	if err.Error() != refusal {
+		t.Fatalf("sign-in refusals differ: %v, %s", err, refusal)
 	}
 	if err = setStatus(userv1.UserStatus_USER_STATUS_ACTIVE); err != nil {
 		t.Fatalf("step 7: reinstate: %v", err)
