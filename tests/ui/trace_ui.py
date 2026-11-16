@@ -348,7 +348,7 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     page.get_by_role('button', name='Refresh', exact=True).click()
     assert next(row for row in reversed(recorded) if 'startTime' in row)['startTime'] != previous_request['startTime']
-    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '@trace:invalid') as filtered:
+    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '@trace:invalid' and response.request.post_data_json.get('limit') == 25) as filtered:
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
     assert filtered.value.request.post_data_json['query'] == '@trace:invalid'
     page.goto(state['ui_url'] + base)

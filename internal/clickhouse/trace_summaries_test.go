@@ -137,6 +137,27 @@ func TestTraceSummarySortColumns(t *testing.T) {
 	}
 }
 
+func TestTraceSummaryLegacyHTTPCode(t *testing.T) {
+	f, req := newTraceSummaryFixture(t)
+	id := fmt.Sprintf("%032x", 4)
+	err := f.conn.Exec(t.Context(), "INSERT INTO otel_traces "+
+		"(Timestamp, TraceId, SpanId, ResourceAttributes, SpanAttributes) VALUES (?, ?, ?, ?, ?)",
+		req.GetStartTime().AsTime(), id, "legacy", tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID),
+		map[string]string{"http.status_code": "201"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, summary := range queryTraceSummaries(t, f, req, TraceFilter{}, testFullPage).GetSummaries() {
+		if summary.GetTraceId() == id {
+			if summary.GetHttpStatusCode() != 201 {
+				t.Fatalf("legacy HTTP code: %v", summary)
+			}
+			return
+		}
+	}
+	t.Fatal("legacy trace missing")
+}
+
 // traceFilter parses query, naming the worker resource "worker".
 func traceFilter(t *testing.T, query string) TraceFilter {
 	t.Helper()
@@ -256,7 +277,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testResourceID,
 			time.Second,
 			time.Second,
-			map[string]string{"user.id": "7", "http.status_code": "200"},
+			map[string]string{"user.id": "7", summaryHTTPStatus: "200"},
 		},
 		{
 			3,
