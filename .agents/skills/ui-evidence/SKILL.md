@@ -33,6 +33,10 @@ mise exec -- uv run --script "$E" <command>
    For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
    visible when the shot is ready. The shot skips network-idle waits and waits for the selector
    after its steps. Shots without `ready_selector` wait for network idle.
+   To capture a loader or another pending state, add `"hold_requests": ["**/Service/Method"]`
+   with Playwright URL glob patterns and a `ready_selector` for that state. Matching requests
+   stay pending from navigation through capture; closing the shot's browser context cancels them.
+   Keep navigation and assets outside these patterns.
 3. Commit source changes before capturing the current HEAD; `up` rejects uncommitted files
    when its ref resolves to HEAD. Historical refs can be captured from a dirty checkout.
    Bring up both refs. Each prints the path of its state file on stdout:
