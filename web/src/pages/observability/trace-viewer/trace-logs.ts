@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { traceBounds } from "./trace-time";
+import { useMemo, useState } from "react";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
@@ -14,8 +15,7 @@ export function useTraceLogs(trace: TraceSummary) {
 	const { workspaceId, scopedResourceIds, resourceById } = useObs();
 	const { active } = useEnvironments();
 	const [now] = useState(Date.now);
-	const start = Number(trace.start / 1_000_000n);
-	const end = start + Number(trace.duration) / 1_000_000;
+	const { start, end } = traceBounds(trace);
 	const from = start - AROUND_MS;
 	const to = Math.min(now, end + AROUND_MS);
 	const query = useQueryLogs({
@@ -29,12 +29,18 @@ export function useTraceLogs(trace: TraceSummary) {
 		endTime: msToTimestamp(to),
 		limit: 50,
 	});
-	const rows = toRows(query.entries, resourceById).map((row) => {
-		const linked = trace.spans.find(
-			(span) =>
-				span.spanId === row.entry.spanId || (row.entry.spanId === "" && span.resourceId === row.entry.resourceId),
-		);
-		return linked === undefined ? row : { ...row, color: color(linked) };
-	});
+
+	const rows = useMemo(
+		() =>
+			toRows(query.entries, resourceById).map((row) => {
+				const linked = trace.spans.find(
+					(span) =>
+						span.spanId === row.entry.spanId || (row.entry.spanId === "" && span.resourceId === row.entry.resourceId),
+				);
+				return linked === undefined ? row : { ...row, color: color(linked) };
+			}),
+		[query.entries, resourceById, trace, color],
+	);
+
 	return { ...query, rows, from, to };
 }

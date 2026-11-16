@@ -1,5 +1,5 @@
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
-import { spanStart, timestampNanos } from "../traces";
+import { spanError, spanStart, timestampNanos } from "../traces";
 
 const attributes = (values: Record<string, string>) =>
 	Object.entries(values).map(([key, value]) => ({
@@ -7,8 +7,9 @@ const attributes = (values: Record<string, string>) =>
 		value: { stringValue: value },
 	}));
 const KINDS: Record<string, number> = { internal: 1, server: 2, client: 3, producer: 4, consumer: 5 };
-const kind = (value: string) => KINDS[value.toLowerCase()] ?? 0;
-const status = (value: string) => (value.toLowerCase() === "error" ? 2 : value.toLowerCase() === "ok" ? 1 : 0);
+const kind = (value: string) => KINDS[value.toLowerCase().replace(/^span_kind_/, "")] ?? 0;
+const status = (span: TraceSpan) =>
+	spanError(span) ? 2 : ["ok", "status_code_ok", "1"].includes(span.statusCode.toLowerCase()) ? 1 : 0;
 
 export function traceJson(spans: TraceSpan[]): string {
 	return JSON.stringify(
@@ -29,7 +30,7 @@ export function traceJson(spans: TraceSpan[]): string {
 								endTimeUnixNano: String(spanStart(span) + span.durationNanos),
 								attributes: attributes(span.spanAttributes),
 								status: {
-									code: status(span.statusCode),
+									code: status(span),
 									message: span.statusMessage,
 								},
 								events: span.events.map((event) => ({

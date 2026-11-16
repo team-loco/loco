@@ -1,3 +1,4 @@
+import { traceBounds } from "./trace-time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
@@ -17,8 +18,7 @@ import { Spinner } from "@/components/design/Spinner";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatHourMinute, tsMs } from "@/lib/time";
-import { timeAxis } from "@/lib/compute-chart";
+import { formatHourMinute, timeAxis, tsMs } from "@/lib/time";
 import { useObs } from "../context";
 import type { TraceSummary } from "../traces";
 import { formatDuration } from "@/pages/resource/format";
@@ -50,8 +50,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 	const spec = resource?.raw.spec?.spec;
 	const service =
 		spec?.case === "service" ? spec.value.regions[span.resourceAttributes["loco.region"] ?? ""] : undefined;
-	const start = Number(trace.start / 1_000_000n);
-	const end = start + Number(trace.duration) / 1_000_000;
+	const { start, end } = traceBounds(trace);
 	const from = start - WINDOW_MS;
 	const to = end + WINDOW_MS;
 	const queries = useQueries({
@@ -163,7 +162,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 													dataKey="time"
 													type="number"
 													domain={[from, to]}
-													ticks={timeAxis(from, to)}
+													ticks={timeAxis(from, to, timePref)}
 													tickFormatter={(ms: number) => formatHourMinute(ms, timePref)}
 													tickLine={false}
 													axisLine={false}

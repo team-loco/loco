@@ -2,7 +2,17 @@ import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
 
-import { descendantIds, failingSpan, flameLayout, FULL_ZOOM, lineage, selfTime, serviceShares, zoomTo } from "./flame";
+import {
+	descendantIds,
+	failingSpan,
+	flameLayout,
+	FULL_ZOOM,
+	lineage,
+	selfTime,
+	spanSelfTimes,
+	serviceShares,
+	zoomTo,
+} from "./flame";
 import { spanStart, summarizeTraces } from "./traces";
 
 const span = (id: string, parent: string, startNanos: number, duration: bigint, extra = {}) =>
@@ -175,4 +185,21 @@ test("ranks distinct resources separately when service names match", () => {
 	if (summary === undefined) throw new Error("Missing trace");
 	expect(serviceShares(summary)).toHaveLength(2);
 	expect(serviceShares(summary).find((s) => s.key === "resource-two")?.nanos).toBe(200n);
+});
+
+test("zero-duration spans reserve separate clickable rows", () => {
+	const summary = summaryOf([span("one", "", 0, 0n), span("two", "", 0, 0n)]);
+	const layout = flameLayout(summary, FULL_ZOOM);
+	expect(layout.blocks.map((block) => block.depth)).toEqual([0, 1]);
+	expect(layout.depth).toBe(2);
+});
+
+test("one trace self-time index covers thousands of sibling spans", () => {
+	const spans = [root, ...Array.from({ length: 3000 }, (_, i) => span(String(i), "root", i, 1n))];
+	const summary = summaryOf(spans);
+	const times = spanSelfTimes(summary);
+	expect(times.size).toBe(3001);
+	expect(times.get("1")).toBe(1n);
+	expect(times.get("root")).toBe(selfTime(summary, root));
+	expect(serviceShares(summary, times)).toEqual(serviceShares(summary));
 });

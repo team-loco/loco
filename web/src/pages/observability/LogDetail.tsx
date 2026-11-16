@@ -78,15 +78,17 @@ export function LogDetail({
 	onNext,
 	onClose,
 	onFilterToken,
+	onAround,
 }: {
 	row: LogRow;
 	words: string[];
 	columns: ColumnKey[];
-	onColumns: (next: ColumnKey[]) => void;
+	onColumns?: (next: ColumnKey[]) => void;
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
 	onClose: () => void;
 	onFilterToken?: (token: Token) => void;
+	onAround?: () => void;
 }) {
 	const timePref = useTimePreferences();
 	const { tokens, text, setQuery, goTo, orgId, workspaceId, resourceById } = useObs();
@@ -180,7 +182,8 @@ export function LogDetail({
 							<DropdownMenuItem
 								className="items-start"
 								onClick={() => {
-									goTo("logs", { range: aroundWindow(row.ts, Date.now()), focusTs: row.ts });
+									if (onAround !== undefined) onAround();
+									else goTo("logs", { range: aroundWindow(row.ts, Date.now()), focusTs: row.ts });
 								}}
 							>
 								<ClockIcon />
@@ -299,9 +302,13 @@ export function LogDetail({
 								onFilter={(neg) => {
 									if (typeof a.filter !== "string") addTok({ neg, ...a.filter });
 								}}
-								onColumn={() => {
-									if (a.column !== undefined && !columns.includes(a.column)) onColumns([...columns, a.column]);
-								}}
+								onColumn={
+									onColumns === undefined
+										? undefined
+										: () => {
+												if (a.column !== undefined && !columns.includes(a.column)) onColumns([...columns, a.column]);
+											}
+								}
 							/>
 						))}
 					</div>
@@ -337,7 +344,7 @@ function AttributeRow({
 	isColumn: boolean;
 	onCopy: () => void;
 	onFilter: (neg: boolean) => void;
-	onColumn: () => void;
+	onColumn: (() => void) | undefined;
 }) {
 	const { key, value, filter } = attribute;
 	const reason = typeof filter === "string" ? filter : null;
@@ -373,13 +380,15 @@ function AttributeRow({
 				>
 					<MinusIcon />
 				</AttrAction>
-				<AttrAction
-					label={isColumn ? "Already a column" : `Add ${key} as a column`}
-					disabled={attribute.column === undefined || isColumn}
-					onClick={onColumn}
-				>
-					<Columns3Icon />
-				</AttrAction>
+				{onColumn !== undefined && (
+					<AttrAction
+						label={isColumn ? "Already a column" : `Add ${key} as a column`}
+						disabled={attribute.column === undefined || isColumn}
+						onClick={onColumn}
+					>
+						<Columns3Icon />
+					</AttrAction>
+				)}
 				<CopyButton copied={copied} onCopy={onCopy} title={`Copy ${key}`} className="size-6" />
 			</span>
 		</div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTable } from "@tanstack/react-table";
 import {
 	DataTable,
@@ -9,7 +9,6 @@ import {
 } from "@/components/design/DataTable";
 import { SearchInput } from "@/components/design/SearchInput";
 import { cn } from "@/lib/utils";
-import { selfTime } from "../flame";
 import { useObs } from "../context";
 import { durationLabel, type TraceSummary } from "../traces";
 import { traceServiceLabel } from "../trace-service";
@@ -30,6 +29,7 @@ function operations(
 	trace: TraceSummary,
 	label: (span: TraceSummary["root"]) => string,
 	color: (span: TraceSummary["root"]) => string,
+	selfTime: (span: TraceSummary["root"]) => bigint,
 ): Operation[] {
 	const groups = new Map<string, Operation>();
 	for (const span of trace.spans) {
@@ -46,7 +46,7 @@ function operations(
 		};
 		group.count++;
 		group.average += Number(span.durationNanos);
-		group.execution += Number(selfTime(trace, span));
+		group.execution += Number(selfTime(span));
 		groups.set(key, group);
 	}
 	const total = [...groups.values()].reduce((sum, g) => sum + g.execution, 0);
@@ -126,13 +126,16 @@ const COLUMNS: DataColumn<Operation>[] = [
 const PAGE_SIZES = [25, 50, 100];
 export function SpanList({ trace }: { trace: TraceSummary }) {
 	const { resourceById } = useObs();
-	const { color } = useTraceResources();
+	const { color, selfTime } = useTraceResources();
 	const [search, setSearch] = useState("");
-	const data = operations(
-		trace,
-		(span) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name),
-		color,
-	).filter((g) => `${g.name} ${g.resource}`.toLowerCase().includes(search.toLowerCase()));
+
+	const groups = useMemo(
+		() =>
+			operations(trace, (span) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name), color, selfTime),
+		[trace, resourceById, color, selfTime],
+	);
+	const data = groups.filter((g) => `${g.name} ${g.resource}`.toLowerCase().includes(search.toLowerCase()));
+
 	const table = useTable({
 		...sortOptions,
 		features: dataTableFeatures,

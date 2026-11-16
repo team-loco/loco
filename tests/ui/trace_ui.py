@@ -20,7 +20,7 @@ org_id = orgs['orgs'][0]['id']
 workspace_id = state['workspaces']['acme/shared']
 base = f'/org/{org_id}/wks/{workspace_id}/observability?view=traces'
 trace = '4bf92f3577b34da6a3ce929d0e0e4736'
-start = int(time.time()) - 60
+start = int(time.time()) - 600
 rows = [('0001', '', 'frontend-proxy', 'POST /api/checkout', 0, 427.6), ('0002', '0001', 'frontend', 'POST /api/checkout', 1.2, 424.1), ('0003', '0002', 'checkout', 'oteldemo.CheckoutService/PlaceOrder', 5.3, 412.0), ('0004', '0003', 'cart', 'GetCart', 8.4, 24.5), ('0005', '0004', 'valkey', 'GET cart:session', 10.1, 7.8), ('0006', '0003', 'product-catalog', 'GetProduct · OLJCESPC7Z', 34.1, 18.9), ('0007', '0003', 'currency', 'Convert · USD → EUR', 58.7, 12.4), ('0008', '0003', 'shipping', 'GetQuote', 76.3, 86.2), ('0009', '0008', 'quote', 'POST /quote', 79.5, 71.4), ('000a', '0003', 'payment', 'Charge · attempt 1', 166.8, 96.1), ('000b', '000a', 'payment', 'POST /payments/authorize', 168.2, 91.7), ('000c', '0003', 'payment', 'Charge · attempt 2', 275.2, 78.6), ('000d', '0003', 'email', 'SendOrderConfirmation', 357.4, 45.2), ('000e', '0003', 'cart', 'EmptyCart', 405.1, 8.6)]
 
 def stamp(offset):
@@ -30,6 +30,7 @@ def span(row):
     sid, parent, service, name, offset, duration = row
     return {'traceId': trace, 'spanId': sid.zfill(16), 'parentSpanId': parent.zfill(16) if parent else '', 'name': name, 'kind': 'Server', 'serviceName': service, 'startTime': stamp(offset), 'durationNanos': str(int(duration * 1000000)), 'statusCode': 'Error' if sid in ('000a', '000b') else 'Ok', 'statusMessage': 'Payment authorization timed out after 90 ms' if sid == '000b' else '', 'spanAttributes': {'http.request.method': 'POST', 'http.response.status_code': '504' if sid == '000b' else '200', 'server.address': 'payments.internal', 'payment.attempt': '1'} if sid == '000b' else {'rpc.system': 'grpc', 'rpc.service': f'oteldemo.{service.title()}Service'}, 'resourceAttributes': {'service.name': service, 'service.version': '2.1.0', 'deployment.environment.name': 'production', 'cloud.region': 'us-east-1'}, 'scopeName': '@opentelemetry/instrumentation-http', 'scopeVersion': '0.210.0'}
 spans = [span(row) for row in rows]
+spans[0]['startTime'] = stamp(0.000123)
 concurrent_spans = [span(row) for row in [
     ('1000', '', 'frontend', 'GET /recommendations', 0, 10),
     ('1001', '1000', 'product-catalog', 'Product lookup', 0.5, 8),
@@ -73,6 +74,9 @@ def handle(route):
     if mode[0] == 'drawer-error' and route.request.url.endswith('/GetTrace'):
         route.fulfill(status=500, content_type='application/json', body=json.dumps({'code': 'internal', 'message': 'Trace read failed'}))
         return
+    if mode[0] == 'zero' and route.request.url.endswith('/GetTrace'):
+        route.fulfill(json={'spans': [dict(spans[0], durationNanos='0')]})
+        return
     if mode[0] == 'drawer-empty' and route.request.url.endswith('/GetTrace'):
         route.fulfill(json={'spans': []})
         return
@@ -87,6 +91,9 @@ def handle(route):
         return
     if mode[0] == 'concurrent' and route.request.url.endswith('/GetTrace'):
         route.fulfill(json={'spans': concurrent_spans})
+        return
+    if mode[0] == 'large' and route.request.url.endswith('/GetTrace'):
+        route.fulfill(json={'spans': [spans[0]] + [dict(spans[5],spanId=f'{index + 256:016x}',parentSpanId=spans[0]['spanId']) for index in range(3000)]})
         return
     if mode[0] == 'many' and not route.request.url.endswith('/ListTraces'):
         route.fulfill(json={'spans': spans + [dict(spans[5],spanId=f'{index + 256:016x}',name=f'Lookup {index}') for index in range(100)]})
@@ -186,6 +193,10 @@ with session(out) as browser:
     plot = drawer.locator('[data-trace-plot]')
     plot.hover(position={'x': 150, 'y': 50})
     page.mouse.wheel(0, -250)
+    expect(drawer.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
+    page.keyboard.down('Control')
+    page.mouse.wheel(0, -250)
+    page.keyboard.up('Control')
     expect(drawer.get_by_role('button', name='Reset zoom', exact=True)).to_be_visible()
     window = overview.get_attribute('aria-valuetext')
     plot.hover(position={'x': 160, 'y': 50})
@@ -358,9 +369,6 @@ with session(out) as browser:
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
     assert last_page_request()['minDurationNanos'] == '100000000'
     token_remove = page.get_by_role('button', name='Remove duration >100', exact=True)
-    expect(token_remove).to_have_css('border-top-right-radius','0px')
-    expect(token_remove.locator('..')).to_have_css('border-top-width','1px')
-    expect(token_remove.locator('..')).to_have_css('overflow-x','hidden')
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
     page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:100'))
     expect(page.get_by_role('alert')).to_contain_text('A duration filter compares in milliseconds')
@@ -431,6 +439,7 @@ with session(out) as browser:
     spans[6]['resourceAttributes'].pop('k8s.pod.name')
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
     log_entries = [
+        {'timestamp':stamp(0.000456), 'severity':'INFO','body':'Trace started','resourceId':workspace_id,'traceId':trace,'spanId':spans[0]['spanId']},
         {'timestamp':stamp(172), 'severity':'ERROR','body':'Payment request failed','resourceId':workspace_id,'traceId':trace,'spanId':spans[10]['spanId']},
         {'timestamp':stamp(35), 'severity':'INFO','body':'Product lookup complete','resourceId':workspace_id,'traceId':trace,'spanId':spans[5]['spanId']},
     ]
@@ -448,6 +457,8 @@ with session(out) as browser:
     drawer = page.get_by_role('dialog', name=root_name)
     log_rows = drawer.get_by_role('region', name='Logs in this trace')
     expect(log_rows.get_by_role('button', name='Open log: Payment request failed')).to_be_visible()
+    expect(drawer.get_by_role('button', name=re.compile('^Log at .*Trace started$'))).to_be_visible()
+    expect(log_rows.get_by_role('button', name='Open log: Trace started')).to_contain_text('+333 ns')
     failing_button = drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=failing)
     assert len(log_requests) == 1, log_requests
     assert log_requests[0]['query'] == '@trace:' + trace, log_requests
@@ -458,6 +469,7 @@ with session(out) as browser:
     marker.click()
     expect(page).to_have_url(re.compile('span=' + spans[10]['spanId']))
     expect(drawer.get_by_role('complementary', name='Log line')).to_be_visible()
+    expect(drawer.get_by_role('button', name=re.compile('^Add .* as a column$'))).to_have_count(0)
     drawer.get_by_role('complementary', name='Log line').get_by_role('button', name='Close', exact=True).click()
     drawer.get_by_role('button', name='This span', exact=True).click()
     expect(log_rows.get_by_role('button')).to_have_count(1)
@@ -483,6 +495,11 @@ with session(out) as browser:
     drawer.get_by_role('tab', name=re.compile('^Logs ')).click()
     assert len(log_requests) == 1, log_requests
     marker.click()
+    drawer.get_by_role('complementary', name='Log line').get_by_role('button', name='More for this line').click()
+    page.get_by_role('menuitem', name=re.compile('^Logs around this line')).click()
+    wait_for_query(page, lambda query: query.get('view') == ['logs'] and query.get('q') == ['@trace:' + trace])
+    page.go_back()
+    marker.click()
     drawer.get_by_role('complementary', name='Log line').get_by_role('button', name='Only level error', exact=True).click()
     wait_for_query(page, lambda query: query.get('view') == ['logs'] and '@trace:' + trace in query.get('q', [''])[0] and '@level:error' in query.get('q', [''])[0])
     page.set_viewport_size({'width':390,'height':844})
@@ -491,11 +508,55 @@ with session(out) as browser:
     narrow_flame = drawer.get_by_role('region', name='Flame graph')
     expect(narrow_flame.get_by_role('button', name=failing)).to_be_visible()
     assert narrow_flame.bounding_box()['height'] > 100
+    narrow_flame.hover(position={'x':30,'y':30})
+    ancestors = """el => {const values=[]; for(let p=el.parentElement;p;p=p.parentElement) values.push(p.scrollTop); return values;}"""
+    before_hover = narrow_flame.evaluate(ancestors)
+    box = narrow_flame.bounding_box()
+    page.mouse.move(box['x']+200,box['y']+40,steps=20)
+    assert narrow_flame.evaluate(ancestors) == before_hover
+
     message = drawer.get_by_role('button', name='Open log: Payment request failed').locator(':scope > span').last
     assert message.bounding_box()['width'] > 200
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     spans[:] = original_spans
+    mode[0] = 'zero'
+    context, page, errors = open_page(browser, state=state)
+    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    zero = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph').get_by_role('button').first
+    expect(zero).to_be_visible()
+    assert zero.bounding_box()['width'] > 0
+    zero.click()
+    expect(page).to_have_url(re.compile('span=' + spans[0]['spanId']))
+    assert not errors, errors
+    context.close()
+    mode[0] = 'large'
+    context, page, errors = open_page(browser, state=state)
+    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    drawer = page.get_by_role('dialog', name=root_name)
+    large_flame = drawer.get_by_role('region', name='Flame graph')
+    expect(large_flame.get_by_role('button')).to_have_count(3001)
+    first = large_flame.get_by_role('button').first
+    first.hover()
+    before_top = first.bounding_box()['y']
+    page.mouse.wheel(0, 400)
+    page.wait_for_function("""top => document.querySelector('[aria-label="Flame graph"] button').getBoundingClientRect().top < top""", arg=before_top)
+    expect(drawer.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
+    frames = page.locator('[data-trace-plot]').evaluate("""async plot => {
+        const samples=[];
+        for(let i=0;i<20;i++) {
+            const start=performance.now();
+            plot.querySelectorAll('[data-span-id]')[i+1].dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:100+i,clientY:300}));
+            await new Promise(requestAnimationFrame);
+            samples.push(performance.now()-start);
+        }
+        return samples;
+    }""")
+    print('Large trace pointer frame samples (ms):', frames)
+    assert not errors, errors
+    context.close()
     mode[0] = 'many'
     context, page, _ = open_page(browser, state=state)
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*',handle)

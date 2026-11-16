@@ -1,3 +1,4 @@
+import { logOffset } from "./trace-time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import type { Zoom } from "../flame";
 import type { LogRow } from "../rows";
@@ -18,7 +19,7 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 	return (
 		<div aria-label="Trace log markers" className="relative h-3 shrink-0">
 			{logs.map((row) => {
-				const fraction = (row.ts - Number(trace.start) / 1_000_000) / (Number(trace.duration) / 1_000_000 || 1);
+				const fraction = Number(logOffset(trace, row.entry.timestamp)) / Number(trace.duration || 1n);
 				const left = (fraction - zoom.a) / (zoom.b - zoom.a);
 				if (left < 0 || left > 1) return null;
 				return (

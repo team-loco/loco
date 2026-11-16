@@ -1,5 +1,8 @@
+import { useTraceResources } from "./TraceColors";
+import { logOffset } from "./trace-time";
+import { aroundWindow } from "@/lib/obs-time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
@@ -12,7 +15,6 @@ import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { levelStyle } from "../format";
 import { LogDetail } from "../LogDetail";
-import { DEFAULT_COLUMNS } from "../columns";
 import type { LogRow } from "../rows";
 import { durationLabel, type TraceSummary } from "../traces";
 import { Infrastructure } from "./Infrastructure";
@@ -46,11 +48,14 @@ export function TraceLogPanel({
 }) {
 	const timePref = useTimePreferences();
 	const { goTo } = useObs();
-	const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+	const { children } = useTraceResources();
 	const [scope, setScope] = useState("trace");
 	const [height, setHeight] = useState(240);
 	const resizeRef = useRef<{ y: number; height: number } | null>(null);
-	const descendants = descendantIds(trace, selected.spanId);
+	const descendants = useMemo(
+		() => descendantIds(trace, selected.spanId, children),
+		[trace, selected.spanId, children],
+	);
 	const rows = scope === "span" ? logs.rows.filter((r) => descendants.has(r.entry.spanId)) : logs.rows;
 	const more = logs.newerCursor !== "";
 	const openLogs = () => {
@@ -159,7 +164,7 @@ export function TraceLogPanel({
 				</div>
 				{!collapsed && (
 					<>
-						<TabsContent value="logs" className="min-h-0 flex-1 overflow-auto">
+						<TabsContent data-trace-log-scroll value="logs" className="min-h-0 flex-1 overflow-auto">
 							{opened !== null ? (
 								<LogDetail
 									row={opened}
@@ -171,8 +176,14 @@ export function TraceLogPanel({
 										});
 									}}
 									words={[]}
-									columns={columns}
-									onColumns={setColumns}
+									columns={[]}
+									onAround={() => {
+										goTo("logs", {
+											range: aroundWindow(opened.ts, Date.now()),
+											tokens: [{ key: "trace", value: trace.id, neg: false }],
+											focusTs: opened.ts,
+										});
+									}}
 									onPrev={null}
 									onNext={null}
 									onClose={() => {
@@ -229,7 +240,7 @@ export function TraceLogPanel({
 													)}
 												>
 													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
-													<span className="text-fg3">+{durationLabel(BigInt(row.ts) * 1_000_000n - trace.start)}</span>
+													<span className="text-fg3">+{durationLabel(logOffset(trace, row.entry.timestamp))}</span>
 													<span className={levelStyle(row.level).body}>{row.label}</span>
 													<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
 														<span className="mr-2 inline-flex items-center gap-1 text-fg3">
