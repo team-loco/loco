@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pytest
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 PORT = 8080
@@ -118,7 +118,7 @@ def check_unknown_path_opens_ui(address, paths):
             page = browser.new_page()
             page.goto(f"http://{UI_HOST}{path}")
             page.wait_for_url(f"http://{UI_HOST}/login")
-            assert page.title() == "Sign in | Loco", path
+            expect(page, path).to_have_title("Sign in | Loco")
             page.close()
         browser.close()
 
