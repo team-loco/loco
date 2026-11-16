@@ -72,6 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       images: ${{ steps.filter.outputs.images }}
+      all: ${{ steps.filter.outputs.all }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,7 +104,8 @@ jobs:
           echo "$FILES"
 
           sel=()
-          add() { grep -qE "$2" <<<"$FILES" && sel+=("$1") || true; }
+          all=()
+          add() { all+=("$1"); grep -qE "$2" <<<"$FILES" && sel+=("$1") || true; }
 
           # an image is rescanned when its own tree, its Dockerfile, or a module
           # graph it compiles against moves
@@ -115,6 +117,7 @@ jobs:
           add '"ui"' '^(web/|gen/ts/|package\.json$|bun\.lock$)'
 
           printf 'images=[%s]\n' "$(IFS=,; echo "${sel[*]-}")" >> "$GITHUB_OUTPUT"
+          printf 'all=[%s]\n' "$(IFS=,; echo "${all[*]}")" >> "$GITHUB_OUTPUT"
 
   image:
     needs: changes
@@ -129,7 +132,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ${{ fromJSON(github.event_name == 'pull_request' && '["controller","api","agent","builder","observability-proxy","ui"]' || needs.changes.outputs.images) }}
+        image: ${{ fromJSON(github.event_name == 'pull_request' && needs.changes.outputs.all || needs.changes.outputs.images) }}
 
     env:
       SCAN: ${{ contains(fromJSON(needs.changes.outputs.images), matrix.image) }}
