@@ -1,5 +1,7 @@
 import { getOption } from "@bufbuild/protobuf";
 import { useMutation } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
+import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -25,12 +27,15 @@ export function CreateOrgDialog({
 }: {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSuccess: (orgId: string) => void;
+	onSuccess: (orgId: string, workspaceId: string) => void;
 	existingNames: string[];
 }) {
 	const [orgName, setOrgName] = useState("");
 	const nameRef = useRef<HTMLInputElement>(null);
-	const { mutate: mutateCreateOrg, isPending } = useMutation(createOrg);
+	const orgMutation = useMutation(createOrg);
+	const workspaceMutation = useMutation(createWorkspace);
+	const queryClient = useQueryClient();
+	const isPending = orgMutation.isPending || workspaceMutation.isPending;
 	const trimmed = orgName.trim();
 
 	const nameError =
@@ -38,39 +43,26 @@ export function CreateOrgDialog({
 			? null
 			: Array.from(trimmed).length > maxNameLength
 				? `Use at most ${maxNameLength.toString()} characters.`
-				: existingNames.includes(trimmed)
+				: orgMutation.data === undefined && existingNames.includes(trimmed)
 					? `${trimmed} is taken.`
 					: null;
 
-	const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
-		e.preventDefault();
-		if (trimmed === "" || nameError !== null || isPending) {
-			return;
+	const submit = async () => {
+		if (trimmed === "" || nameError !== null || isPending) return;
+		let orgId = orgMutation.data?.orgId;
+		try {
+			orgId ??= (await orgMutation.mutateAsync({ name: trimmed })).orgId;
+			const { workspaceId } = await workspaceMutation.mutateAsync({ orgId, name: "default" });
+			await queryClient.invalidateQueries();
+			toast.success(`Created ${trimmed}`, { description: "With a default workspace" });
+			handleOpenChange(false);
+			onSuccess(orgId, workspaceId);
+		} catch (error) {
+			toastConnectError(
+				error,
+				orgId === undefined ? "Failed to create organization" : "Failed to create default workspace",
+			);
 		}
-		mutateCreateOrg(
-			{ name: trimmed },
-			{
-				onSuccess: (response) => {
-					if (response.orgId) {
-						toast.success(`Created ${trimmed}`, {
-							description: "With a default workspace",
-							action: {
-								label: "Open dashboard",
-								onClick: () => {
-									onSuccess(response.orgId);
-								},
-							},
-						});
-						setOrgName("");
-						onOpenChange(false);
-						onSuccess(response.orgId);
-					}
-				},
-				onError: (error) => {
-					toastConnectError(error, "Failed to create organization");
-				},
-			},
-		);
 	};
 
 	const handleOpenChange = (next: boolean) => {
@@ -79,6 +71,8 @@ export function CreateOrgDialog({
 		}
 		if (!next) {
 			setOrgName("");
+			orgMutation.reset();
+			workspaceMutation.reset();
 		}
 		onOpenChange(next);
 	};
@@ -86,7 +80,13 @@ export function CreateOrgDialog({
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
 			<DialogContent title="New organization" initialFocus={nameRef}>
-				<form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
+				<form
+					onSubmit={(e) => {
+						e.preventDefault();
+						void submit();
+					}}
+					className="flex min-h-0 flex-col"
+				>
 					<DialogBody>
 						<Field label="Name" error={nameError}>
 							<Input
@@ -97,7 +97,7 @@ export function CreateOrgDialog({
 								}}
 								placeholder="acme"
 								className="font-mono"
-								disabled={isPending}
+								disabled={isPending || orgMutation.data !== undefined}
 							/>
 						</Field>
 					</DialogBody>

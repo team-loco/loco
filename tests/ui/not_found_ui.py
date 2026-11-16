@@ -253,8 +253,11 @@ with session(out) as browser:
             page.goto(ui + "/organizations")
             page.get_by_role("button", name="New organization", exact=True).click()
             page.get_by_role("dialog", name="New organization").get_by_role("textbox", name="Name").fill(f"initech-{uuid.uuid4().hex[:6]}")
-            page.get_by_role("button", name="Create", exact=True).click()
-            expect(page).to_have_url(re.compile(r"/org/[0-9a-f-]+/team$"))
+            with page.expect_response("**/CreateOrg") as creation:
+                page.get_by_role("button", name="Create", exact=True).click()
+            created_org = creation.value.json()["orgId"]
+            expect(page).to_have_url(re.compile(rf"/org/{created_org}/wks/[0-9a-f-]+(\?env=[\w-]+)?$"))
+            page.goto(ui + f"/org/{created_org}/team")
             expect(page.get_by_role("region", name="It's just you so far")).to_be_visible()
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
             # Hold the API until the loading overlay shows, so the code below is read while the
