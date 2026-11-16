@@ -19,7 +19,7 @@ import (
 
 func TestVerificationUploadsGeneratedSource(t *testing.T) {
 	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "unavailable"))
-	archive, err := verificationArchive("busybox@sha256:fixture", "fixture-marker")
+	archive, err := verificationArchive("fixture-marker")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,6 +27,10 @@ func TestVerificationUploadsGeneratedSource(t *testing.T) {
 	if err != nil || string(files["index.html"]) != "fixture-marker" || len(files["proof"]) == 0 {
 		t.Fatalf("incomplete source: %v", err)
 	}
+	if !strings.HasPrefix(string(files["Dockerfile"]), probeDockerfile) {
+		t.Fatal("verification source does not use its pinned runtime")
+	}
+
 	compressed, err := gzip.NewReader(bytes.NewReader(archive))
 	if err != nil {
 		t.Fatal(err)
@@ -118,40 +122,4 @@ func TestVerificationRejectsCAFileWithoutCertificate(t *testing.T) {
 	if _, err := verificationClient(caFile); !errors.Is(err, errVerificationCAFile) {
 		t.Fatalf("accepted CA file without certificate: %v", err)
 	}
-}
-
-func TestVerificationRequiresPinnedRuntimeFromReleaseChart(t *testing.T) {
-	for _, image := range []string{"busybox:latest", "busybox:1.0\nRUN echo injected"} {
-		chart := verificationChart(t, "otel-col-daemon:\n  initContainers:\n    - image: "+image+"\n")
-		if _, err := verificationBase(chart); err == nil {
-			t.Fatal("accepted unpinned verification runtime")
-		}
-	}
-	image := "busybox:fixture@sha256:" + strings.Repeat("a", 64)
-	chart := verificationChart(t, "otel-col-daemon:\n  initContainers:\n    - image: "+image+"\n")
-	if got, err := verificationBase(chart); err != nil || got != image {
-		t.Fatalf("runtime %q: %v", got, err)
-	}
-}
-
-func verificationChart(t *testing.T, values string) []byte {
-	t.Helper()
-	var output bytes.Buffer
-	gzipWriter := gzip.NewWriter(&output)
-	tarWriter := tar.NewWriter(gzipWriter)
-	if err := tarWriter.WriteHeader(
-		&tar.Header{Name: "loco-worker/values.yaml", Size: int64(len(values)), Mode: 0600},
-	); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tarWriter.Write([]byte(values)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tarWriter.Close(); err != nil {
-		t.Fatal(err)
-	}
-	if err := gzipWriter.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return output.Bytes()
 }

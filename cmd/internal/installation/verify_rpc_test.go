@@ -130,7 +130,6 @@ func TestVerificationCleansProvisionedResourceAfterFailure(t *testing.T) {
 					MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
 				},
 				&environmentv1.Environment{Id: "fixture-environment", WorkspaceId: "fixture-workspace"},
-				"busybox@sha256:fixture",
 			)
 			if !errors.Is(err, errVerification) || !api.provisioned || !api.deleted || api.secretSet == lost {
 				t.Fatalf("err=%v provisioned=%v secret=%v deleted=%v", err, api.provisioned, api.secretSet, api.deleted)

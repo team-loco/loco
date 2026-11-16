@@ -34,60 +34,6 @@ type recoveryMaterial struct {
 	GenerateRootToken string `json:"generateRootToken"`
 }
 
-// ExportRecovery leaves source material intact until an operator verifies recovery.
-func ExportRecovery(ctx context.Context, config Config, options RecoveryExport) error {
-	kube, err := NewKubernetes(config.ControlPlane.Kubernetes)
-	if err != nil {
-		return err
-	}
-	state, err := kube.state(ctx, config.Name)
-	if err != nil {
-		return err
-	}
-	return kube.withLock(ctx, state, func(ctx context.Context, state *corev1.ConfigMap) error {
-		return kube.exportRecovery(ctx, state, options)
-	})
-}
-
-func (kube *Kubernetes) exportRecovery(ctx context.Context, state *corev1.ConfigMap, options RecoveryExport) error {
-	seal, err := kube.Core.Secrets(kube.Target.Namespace).Get(ctx, sealSecretName, metav1.GetOptions{})
-	if err != nil {
-		return safeKubernetesError("read recovery seal material", err)
-	}
-	if seal.Annotations[installationID] != string(state.UID) {
-		return errForeignOwnership
-	}
-	if !validSeal(seal) {
-		return errSecretInvalid
-	}
-	init, err := kube.Core.Secrets(kube.Target.Namespace).
-		Get(ctx, controlPlaneRelease+"-openbao-init", metav1.GetOptions{})
-	if err != nil {
-		return safeKubernetesError("read recovery initialization material", err)
-	}
-	shares := strings.Fields(string(init.Data["recovery-keys"]))
-	if len(shares) == 0 || len(init.Data["generate-root-token"]) == 0 {
-		return errSecretInvalid
-	}
-	for _, share := range shares {
-		if _, err := base64.StdEncoding.DecodeString(share); err != nil {
-			return errSecretInvalid
-		}
-	}
-	material := recoveryMaterial{
-		SealKey:           string(seal.Data[secretKeyField]),
-		GenerateRootToken: string(init.Data["generate-root-token"]),
-	}
-	if err := writeRecovery(options, material, shares); err != nil {
-		return err
-	}
-	state.Data["recoveryExported"] = stateTrue
-	if _, err := kube.Core.ConfigMaps(kube.Target.Namespace).Update(ctx, state, metav1.UpdateOptions{}); err != nil {
-		return safeKubernetesError("record encrypted recovery export", err)
-	}
-	return nil
-}
-
 func writeRecovery(options RecoveryExport, material recoveryMaterial, shares []string) error {
 	if len(shares) == 0 || len(options.ShareRecipients) != len(shares) || options.Output == "" {
 		return errRecoveryRecipients
@@ -180,9 +126,14 @@ func ExportRecoveryFromCluster(
 	if err != nil {
 		return err
 	}
+	return kube.exportRecovery(ctx, sealName, initName, options)
+}
+
+func (kube *Kubernetes) exportRecovery(ctx context.Context, sealName, initName string, options RecoveryExport) error {
 	var seal *corev1.Secret
+	var err error
 	if sealName != "" {
-		seal, err = kube.Core.Secrets(target.Namespace).Get(ctx, sealName, metav1.GetOptions{})
+		seal, err = kube.Core.Secrets(kube.Target.Namespace).Get(ctx, sealName, metav1.GetOptions{})
 		if err != nil {
 			return safeKubernetesError("read recovery seal material", err)
 		}
@@ -190,7 +141,7 @@ func ExportRecoveryFromCluster(
 			return errSecretInvalid
 		}
 	}
-	init, err := kube.Core.Secrets(target.Namespace).Get(ctx, initName, metav1.GetOptions{})
+	init, err := kube.Core.Secrets(kube.Target.Namespace).Get(ctx, initName, metav1.GetOptions{})
 	if err != nil {
 		return safeKubernetesError("read recovery initialization material", err)
 	}
