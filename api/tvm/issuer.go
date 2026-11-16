@@ -13,6 +13,11 @@ import (
 
 // pgNameEntityUnique is the (name, entity_type, entity_id) unique constraint of api_tokens;
 // the token_hash constraint also raises unique violations and must not read as a taken name.
+const (
+	tokenDisplayPrefixLength = 11
+	tokenDisplaySuffixLength = 4
+)
+
 const pgNameEntityUnique = "api_tokens_name_entity_type_entity_id_key"
 
 // Issue issues an API token for the given entity and scopes and returns it with the stored
@@ -43,14 +48,16 @@ func (tvm *VendingMachine) Issue(
 
 	token, hash := generateToken(prefixAPIKey)
 	row, err := tvm.queries.CreateAPIToken(ctx, queries.CreateAPITokenParams{
-		ID:         uuid.Must(uuid.NewV7()),
-		TokenHash:  hash,
-		Name:       name,
-		EntityType: entity.Type,
-		EntityID:   entity.ID,
-		Scopes:     entityScopes,
-		CreatedBy:  user,
-		ExpiresAt:  time.Now().Add(duration),
+		ID:            uuid.Must(uuid.NewV7()),
+		TokenHash:     hash,
+		DisplayPrefix: token[:tokenDisplayPrefixLength],
+		DisplaySuffix: token[len(token)-tokenDisplaySuffixLength:],
+		Name:          name,
+		EntityType:    entity.Type,
+		EntityID:      entity.ID,
+		Scopes:        entityScopes,
+		CreatedBy:     user,
+		ExpiresAt:     time.Now().Add(duration),
 	})
 	if err != nil {
 		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&
