@@ -52,6 +52,23 @@ describe("deploymentsRequest", () => {
 });
 
 describe("buildRegions", () => {
+	test("keeps retired releases available without a current deployment", () => {
+		const history = [3, 1, 2].map((day) =>
+			create(DeploymentSchema, {
+				id: `release-${day.toString()}`,
+				region: "us-east-1",
+				status: DeploymentPhase.SUCCEEDED,
+				createdAt: msToTimestamp(day * 86_400_000),
+				spec: create(DeploymentSpecSchema),
+			}),
+		);
+		const [region] = buildRegions(create(ResourceSchema), history, undefined);
+		expect(region?.current).toBeUndefined();
+		expect(region?.history.map((d) => d.id)).toEqual(["release-3", "release-2", "release-1"]);
+		if (region === undefined) throw new Error("Missing history region");
+		expect(lastGoodDeployment(region)?.id).toBe("release-3");
+	});
+
 	test("keeps a long-lived current deployment outside the history page", () => {
 		const current = create(DeploymentSchema, { id: "current-europe", region: "eu-west-1", isActive: true });
 		const history = Array.from({ length: 200 }, (_, i) =>
