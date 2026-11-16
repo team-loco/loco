@@ -86,6 +86,7 @@ func TestIssuerChartValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			config.ControlPlane.APIURL = "http://api.example.com"
 			config.ControlPlane.Certificates = test.certificates
 			worker := config.Workers[0]
 			worker.Certificates = test.certificates
@@ -104,11 +105,15 @@ func TestIssuerChartValues(t *testing.T) {
 			for chart, rendered := range map[string][]byte{"control plane": controlPlane, "worker": workerChart} {
 				var values struct {
 					CertManager struct {
-						Issuer map[string]any `json:"issuer"`
+						Enabled bool           `json:"enabled"`
+						Issuer  map[string]any `json:"issuer"`
 					} `json:"certManager"`
 				}
 				if err := yaml.Unmarshal(rendered, &values); err != nil {
 					t.Fatal(err)
+				}
+				if chart == "control plane" && values.CertManager.Enabled {
+					t.Fatal("HTTP control plane must serve without a Gateway certificate")
 				}
 				if fmt.Sprint(values.CertManager.Issuer) != fmt.Sprint(want) {
 					t.Fatalf("%s issuer values = %v, want %v", chart, values.CertManager.Issuer, want)

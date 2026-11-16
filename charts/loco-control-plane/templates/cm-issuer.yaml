@@ -1,4 +1,4 @@
-{{- if and (include "loco-control-plane.issueCertificate" .) .Values.certManager.issuer.create }}
+{{- if and .Values.certManager.issuer.create (or (eq .Values.certManager.issuer.type "selfSigned") (include "loco-control-plane.issueCertificate" .)) }}
 {{- if ne .Values.certManager.issuer.kind "ClusterIssuer" }}
 {{- fail "certManager.issuer.kind must be ClusterIssuer when certManager.issuer.create is true" }}
 {{- end }}

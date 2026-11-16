@@ -214,3 +214,36 @@ tests:
         template: templates/cm-cert.yaml
       - hasDocuments: {count: 0}
         template: templates/cm-issuer.yaml
+
+  - it: creates a declared self-signed issuer for workers while the Gateway serves HTTP
+    set:
+      certManager.enabled: false
+      certManager.issuer: {create: true, type: selfSigned, name: shared-local}
+    asserts:
+      - equal:
+          path: metadata.name
+          value: shared-local
+        template: templates/cm-issuer.yaml
+      - equal:
+          path: spec
+          value: {selfSigned: {}}
+        template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cm-cert.yaml
+      - equal:
+          path: spec.listeners[*].protocol
+          value: HTTP
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: Gateway}
+
+  - it: creates a declared self-signed issuer without creating a Gateway
+    set:
+      gateway.create: false
+      certManager.issuer: {create: true, type: selfSigned, name: shared-local}
+    asserts:
+      - equal:
+          path: spec
+          value: {selfSigned: {}}
+        template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cm-cert.yaml
