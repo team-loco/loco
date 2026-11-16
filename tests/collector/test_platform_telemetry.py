@@ -1,3 +1,6 @@
+import json
+import re
+
 import pytest
 
 from helpers import chart_values, collector_relays, render_chart
@@ -75,7 +78,10 @@ def test_changing_platform_settings_restarts_the_collectors():
         workloads = [document for document in render_chart("loco-worker", configured(collectionInterval=interval))
                      if document["kind"] in ("DaemonSet", "StatefulSet") and document["metadata"]["name"] in ("otel-col-daemon-agent", "otel-col-cluster")]
         checksums.append({document["metadata"]["name"]: document["spec"]["template"]["metadata"]["annotations"]["checksum/platform-telemetry"] for document in workloads})
-    assert checksums[0].keys() == checksums[1].keys()
+        assert {(document["kind"], document["metadata"]["name"]) for document in workloads} == {
+            ("DaemonSet", "otel-col-daemon-agent"),
+            ("StatefulSet", "otel-col-cluster"),
+        }
     assert all(checksums[0][name] != checksums[1][name] for name in checksums[0])
 
 
@@ -89,6 +95,8 @@ def test_disabling_an_individual_collector_still_renders():
 
 def test_platform_allowlist_covers_the_release_and_collector_namespaces(configured_relays):
     (condition, *_) = configured_relays["otel-col-cluster"]["processors"]["filter/platform"]["metric_conditions"]
-    pattern = condition.split("IsMatch(", 1)[1]
+    pattern = json.loads(condition.rsplit(", ", 1)[1].removesuffix(")"))
     for namespace in ("kube-system", "cert-manager", "platform-test", "loco-obs", "loco-obs-node"):
-        assert f"|{namespace}|" in pattern.replace("(", "|").replace(")", "|")
+        assert re.search(pattern, namespace), namespace
+        for excluded in (f"prefix-{namespace}", f"{namespace}-suffix", f"{namespace}x"):
+            assert re.search(pattern, excluded) is None, excluded
