@@ -72,22 +72,13 @@ func serviceGraphSQL(
 	return query, b.args
 }
 
-func serviceGraphName(resource, service string, resources []ResourceName, b binder) string {
+func serviceGraphName(resource, service string, resources []ResourceName, b *positionalBinder) string {
 	if len(resources) == 0 {
 		return service
 	}
 	ids, names := make([]string, len(resources)), make([]string, len(resources))
 	for i, r := range resources {
-		ids[i] = b.str(r.ID)
+		ids[i], names[i] = r.ID, r.Name
 	}
-	for i, r := range resources {
-		names[i] = b.str(r.Name)
-	}
-	return "transform(" + resource + ", [" + strings.Join(
-		ids,
-		", ",
-	) + "], [" + strings.Join(
-		names,
-		", ",
-	) + "], " + service + ")"
+	return "transform(" + resource + ", " + b.add(ids) + ", " + b.add(names) + ", " + service + ")"
 }
