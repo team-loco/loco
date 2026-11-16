@@ -65,7 +65,7 @@ func newConfig() config {
 
 func run(ctx context.Context, cfg config, args []string) error {
 	if len(args) != 1 {
-		return errors.New("usage: localstack install|deploy|reset|cluster|ca")
+		return errors.New("usage: localstack install|deploy|reset|ca")
 	}
 	switch args[0] {
 	case "install":
@@ -74,11 +74,6 @@ func run(ctx context.Context, cfg config, args []string) error {
 		return cfg.deploy(ctx)
 	case actionReset:
 		return cfg.reset(ctx)
-	case "cluster":
-		if err := os.MkdirAll(filepath.Dir(cfg.kubeconfig()), 0700); err != nil {
-			return err
-		}
-		return cfg.cluster(ctx)
 	case "ca":
 		data, err := cfg.kubectl(
 			ctx,

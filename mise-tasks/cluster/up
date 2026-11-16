@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-#MISE description="Create or start this checkout's kind cluster and export its private kubeconfig"
-set -euo pipefail
-exec mise exec -- go run ./tools/localstack cluster

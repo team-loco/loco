@@ -231,14 +231,6 @@ env = { _.source = "dev/stack.sh" }
 raw = true
 run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
 
-[tasks."cluster:up"]
-env = { _.source = "dev/stack.sh" }
-
-[tasks."cluster:down"]
-description = "Delete this checkout's kind cluster"
-env = { _.source = "dev/stack.sh" }
-run = 'kind delete cluster --name "$KIND_CLUSTER"'
-
 [tasks.stop]
 env = { _.source = "dev/stack.sh" }
 
