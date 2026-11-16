@@ -43,21 +43,13 @@ import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { agoLabel, msToTimestamp } from "@/lib/time";
+import { queryError } from "@/pages/observability/query";
+import { QueryErrorLine } from "@/pages/observability/QueryBar";
 
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { ActorFilter, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
-import {
-	ACTOR_KINDS,
-	auditRow,
-	DEFAULT_RANGE,
-	filtersQuery,
-	matchesPageFilter,
-	requestIdFilter,
-	PAGE_SIZES,
-	RANGES,
-	TYPE_ACTORS,
-} from "./audit/model";
+import { ACTOR_KINDS, auditQuery, auditRow, DEFAULT_RANGE, PAGE_SIZES, RANGES, TYPE_ACTORS } from "./audit/model";
 import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
@@ -95,7 +87,7 @@ export function Audit() {
 
 	const { types, q: search, actor, size, ws: wsParam } = params;
 	const range = RANGES.find((r) => r.value === params.range) ?? DEFAULT_RANGE;
-	const requestId = requestIdFilter(search);
+	const sent = auditQuery(types, actor, search);
 	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
 	const workspaceId = choices.some((w) => w.id === wsParam)
@@ -106,17 +98,7 @@ export function Audit() {
 	const resourceId = workspaceId === "" ? "" : params.res;
 	const environmentId = workspaceId === "" ? "" : params.env;
 
-	const filterKey = JSON.stringify([
-		orgId,
-		range.value,
-		types,
-		workspaceId,
-		resourceId,
-		environmentId,
-		size,
-		requestId,
-		actor,
-	]);
+	const filterKey = JSON.stringify([orgId, range.value, types, workspaceId, resourceId, environmentId, size, sent]);
 	const stack = params.before;
 	const live = params.live === 1 && stack.length === 0;
 	const setFilters = (next: Partial<{ [K in keyof typeof params]: (typeof params)[K] | null }>) => {
@@ -129,7 +111,7 @@ export function Audit() {
 			workspaceId,
 			resourceId,
 			environmentId,
-			query: filtersQuery(types, actor, requestId),
+			query: sent,
 			pageSize: size,
 			beforeSeq: stack.at(-1) ?? 0n,
 			startTime: msToTimestamp(openedAt - range.ms),
@@ -162,11 +144,10 @@ export function Audit() {
 		...choices.map((w): [string, string] => [w.id, w.name]),
 		...details.names,
 	]);
-	const loadedRows = events.map((e) => auditRow(e, users, names));
-	const rows = loadedRows.filter((row) => matchesPageFilter(row, search));
+	const rows = events.map((e) => auditRow(e, users, names));
 	const actors = new Map<string, { id: string; name: string; detail: string; group: string }>([
 		...[...users].map(([id, u]) => [id, { id, name: u.name || u.email, detail: u.email, group: "People" }] as const),
-		...loadedRows
+		...rows
 			.filter((r) => r.event.actorId !== "" && !TYPE_ACTORS.includes(r.event.actorType))
 			.map(
 				(r) =>
@@ -201,6 +182,7 @@ export function Audit() {
 	const first = rows[0];
 	const last = rows.at(-1);
 	const loading = access.isLoading || query.isLoading;
+	const rejected = query.error === null ? null : queryError(query.error, sent);
 
 	return (
 		<Page>
@@ -244,14 +226,14 @@ export function Audit() {
 					</>
 				}
 			/>
-			{query.error !== null ? (
+			{query.error !== null && rejected === null ? (
 				<ErrorState error={query.error} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
 			) : (
 				<Section
 					search={
 						<SearchInput
-							aria-label="Filter this page"
-							placeholder="Filter this page"
+							aria-label="Search request ID, actor or target"
+							placeholder="Search request ID, actor or target"
 							onClear={() => {
 								setFilters({ q: null, event: null });
 							}}
@@ -315,6 +297,7 @@ export function Audit() {
 						</>
 					}
 				>
+					{rejected !== null && <QueryErrorLine error={rejected} />}
 					<AuditTable
 						rows={rows}
 						highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
@@ -325,7 +308,7 @@ export function Audit() {
 							void setParams({ event: id });
 						}}
 					/>
-					{!loading && rows.length === 0 && (
+					{!loading && rejected === null && rows.length === 0 && (
 						<EmptyState
 							icon={<HistoryIcon />}
 							title={

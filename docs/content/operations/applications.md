@@ -146,7 +146,7 @@ The status comes from the replicas the cluster reports ready, not from the deplo
 
 Runtime reasons are `crash_looping`, `out_of_memory`, `image_pull_failed`, `unschedulable` and `health_check_failing`. Events include a Loco-written message, placement ID and region in their data, with organization, workspace, resource and environment IDs for filtering. The dashboard's events drawer and warning count use this history; its crash-loop card shows recent logs for the affected resource, environment and region. Kubernetes reasons and replica names are not included in events.
 
-`EventService.ListEvents` reads one organization, workspace or resource, optionally one environment and a creation time range, and its `query` field selects events by actor, target, event type and request ID with an [audit query](../reference/audit-queries.md). The dashboard's text box filters only the loaded page, apart from a complete request ID, which it looks up across history.
+`EventService.ListEvents` reads one organization, workspace or resource, optionally one environment and a creation time range, and its `query` field selects events by actor, target, event type and request ID with an [audit query](../reference/audit-queries.md). The dashboard's audit log search box sends its text as that query, so it searches the whole log.
 
 ```sh
 loco web
