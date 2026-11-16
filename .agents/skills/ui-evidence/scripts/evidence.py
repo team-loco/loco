@@ -26,6 +26,9 @@ LABEL = "loco-ui-evidence"
 HOST = "127.0.0.1"
 UI_BACKLOG = 128
 BASE_DIR = Path(tempfile.gettempdir()) / LABEL
+# A run nobody has used for this long is a leak: its agent died or never ran `down`.
+LEASE_S = 2 * 60 * 60
+OPENBAO_PROJECT = LABEL + "-openbao-"
 DB_USER = "evidence"
 DB_PASSWORD = "evidence"
 DB_NAME = "evidence"
@@ -260,10 +263,17 @@ def validate_spec(spec):
         )
         if not valid_crop:
             raise EvidenceError(f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}")
+        for response in shot.get("respond", []):
+            if (not isinstance(response, dict) or not isinstance(response.get("url"), str)
+                    or not response["url"].strip() or "json" not in response
+                    or not isinstance(response.get("status", 200), int)
+                    or set(response) - {"url", "status", "json", "headers"}):
+                raise EvidenceError(f"shot {name}: each respond entry is {{url, json, status?, headers?}}")
         for step in shot.get("steps", []):
-            if len(step) != 1 or next(iter(step)) not in ("click", "hover", "wait", "type"):
+            if len(step) != 1 or next(iter(step)) not in ("click", "hover", "wait", "type", "press", "drag"):
                 raise EvidenceError(
-                    f"shot {name}: each step is {{click: selector}}, {{hover: selector}}, {{wait: selector}} or {{type: {{selector, text}}}}"
+                    f"shot {name}: each step is {{click: selector}}, {{hover: selector}}, {{wait: selector}}, "
+                    "{type: {selector, text}}, {press: {selector, key}} or {drag: {selector, from, to}}"
                 )
             if "type" in step:
                 value = step["type"]
@@ -271,6 +281,20 @@ def validate_spec(spec):
                         or not isinstance(value["selector"], str) or not value["selector"].strip()
                         or not isinstance(value["text"], str)):
                     raise EvidenceError(f"shot {name}: type needs a non-empty selector and string text")
+            if "press" in step:
+                value = step["press"]
+                if (not isinstance(value, dict) or set(value) != {"selector", "key"}
+                        or not isinstance(value["selector"], str) or not value["selector"].strip()
+                        or not isinstance(value["key"], str) or not value["key"]):
+                    raise EvidenceError(f"shot {name}: press needs a non-empty selector and key")
+            if "drag" in step:
+                value = step["drag"]
+                point = lambda v: (isinstance(v, list) and len(v) == 2
+                                   and all(isinstance(n, (int, float)) and not isinstance(n, bool) for n in v))
+                if (not isinstance(value, dict) or set(value) != {"selector", "from", "to"}
+                        or not isinstance(value["selector"], str) or not value["selector"].strip()
+                        or not point(value["from"]) or not point(value["to"])):
+                    raise EvidenceError(f"shot {name}: drag needs a selector and from/to points as [x, y] fractions of its box")
     return shots
 
 
@@ -510,7 +534,56 @@ def check_ref_worktree(repo, ref):
             raise EvidenceError(f"ref {ref} excludes uncommitted files; commit them before capture:\n{dirty}")
 
 
+def renew(state):
+    state["expires_at"] = time.time() + LEASE_S
+    write_json(Path(state["root"]) / "state.json", state)
+
+
+def pid_alive(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def reap():
+    """Stops runs whose lease expired and Docker leftovers no live run or test run owns."""
+    now = time.time()
+    for path in BASE_DIR.glob("*/state.json"):
+        try:
+            state = load_state(path)
+        except (OSError, ValueError):
+            continue
+        if state.get("expires_at", path.stat().st_mtime + LEASE_S) < now:
+            log(f"reaping {state.get('id', path.parent.name)}: unused for {LEASE_S // 3600}h")
+            stop_state(state)
+    listed = subprocess.run(
+        ["docker", "ps", "-a", "--format", '{{.Names}}\t{{.Label "com.docker.compose.project"}}'],
+        capture_output=True, text=True,
+    ).stdout.splitlines()
+    for line in listed:
+        name, _, project = line.partition("\t")
+        owner = project or name
+        if not owner.startswith(LABEL + "-"):
+            continue
+        if owner.startswith(OPENBAO_PROJECT):
+            pid = owner.removeprefix(OPENBAO_PROJECT)
+            if pid.isdigit() and pid_alive(int(pid)):
+                continue
+        elif (BASE_DIR / owner.removeprefix(LABEL + "-") / "state.json").exists():
+            continue
+        log(f"reaping {owner}: no run owns it")
+        if project:
+            stop_compose(project)
+        else:
+            subprocess.run(["docker", "rm", "-f", "-v", name], capture_output=True)
+
+
 def cmd_up(args):
+    reap()
     repo = repo_root()
     openbao = os.environ.get(OPENBAO_ENV)
     if not openbao:
@@ -520,7 +593,7 @@ def cmd_up(args):
     root = BASE_DIR / run_id
     root.mkdir(parents=True)
     state_path = root / "state.json"
-    state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "pids": []}
+    state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "pids": [], "expires_at": time.time() + LEASE_S}
     if openbao:
         worktree = repo
     else:
@@ -585,7 +658,10 @@ def cmd_up(args):
         state.update({"users": users, "workspaces": workspaces, "resources": resources, "notes": notes})
         write_json(state_path, state)
     except BaseException:
-        log(f"up failed; state kept at {state_path} for `down`")
+        for name in ("api.log", "ui.log"):
+            if (root / name).exists():
+                log(f"{name}:\n{log_tail(root / name)}")
+        stop_state(state)
         raise
     for note in notes:
         log(f"scenario note: {note}")
@@ -689,6 +765,11 @@ def capture(browser, state, shot, theme, narrow, target):
     if "color" in shot:
         script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
     context.add_init_script(script)
+    def responder(response):
+        return lambda route: route.fulfill(
+            status=response.get("status", 200), headers=response.get("headers"), json=response["json"])
+    for response in shot.get("respond", []):
+        context.route(response["url"], responder(response))
     for pattern in shot.get("hold_requests", []):
         context.route(pattern, lambda route: None)
     problems = []
@@ -705,7 +786,7 @@ def capture(browser, state, shot, theme, narrow, target):
         settle(page, wait_for_network=wait_for_network)
         for step in steps:
             action, value = next(iter(step.items()))
-            selector = value["selector"] if action == "type" else value
+            selector = value["selector"] if isinstance(value, dict) else value
             locator = page.locator(selector)
             try:
                 locator.first.wait_for(state="visible", timeout=STEP_TIMEOUT_MS)
@@ -717,6 +798,15 @@ def capture(browser, state, shot, theme, narrow, target):
                 locator.first.fill(value["text"])
             elif action == "hover":
                 locator.first.hover()
+            elif action == "press":
+                locator.first.press(value["key"])
+            elif action == "drag":
+                box = locator.first.bounding_box()
+                at = lambda f: (box["x"] + f[0] * box["width"], box["y"] + f[1] * box["height"])
+                page.mouse.move(*at(value["from"]))
+                page.mouse.down()
+                page.mouse.move(*at(value["to"]), steps=8)
+                page.mouse.up()
             settle(page, wait_for_network=wait_for_network)
         applied = f"""() => {{
           const root = document.documentElement;
@@ -766,7 +856,9 @@ def capture(browser, state, shot, theme, narrow, target):
 def cmd_shoot(args):
     from playwright.sync_api import sync_playwright
 
+    reap()
     state = load_state(args.state)
+    renew(state)
     shots = validate_spec(json.loads(Path(args.spec).read_text()))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
@@ -817,9 +909,11 @@ def stop_state(state):
 
 
 def cmd_down(args):
+    reap()
     states = [Path(args.state)] if args.state else sorted(BASE_DIR.glob("*/state.json"))
     for path in states:
-        stop_state(load_state(path))
+        if path.exists():
+            stop_state(load_state(path))
     if args.all:
         listed = subprocess.run(
             ["docker", "ps", "-aq", "--filter", f"label={LABEL}"], capture_output=True, text=True

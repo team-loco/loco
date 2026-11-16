@@ -30,7 +30,8 @@ mise exec -- uv run --script "$E" <command>
    The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths.
 2. Write a shot spec JSON. Each shot names a path, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
-   `{"type": {"selector": selector, "text": "value"}}`), a crop (`"viewport"`, `"full"`,
+   `{"type": {"selector": selector, "text": "value"}}`, `{"press": {"selector": selector, "key": "ArrowLeft"}}`,
+   `{"drag": {"selector": selector, "from": [x, y], "to": [x, y]}}`), a crop (`"viewport"`, `"full"`,
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
    colour theme id (as in `web/src/lib/theme.ts`) and `"narrow": true` for an extra 390-pixel-wide
    capture. Omit `user` for signed-out pages; the context has no session.
@@ -38,7 +39,13 @@ mise exec -- uv run --script "$E" <command>
    before and after must line up: a selector crop follows the element's size.
    Full and selector crops expand the viewport to the document height before capture.
    Viewport and explicit clip crops keep the requested desktop or narrow viewport.
-   A `type` step fills the field, replacing its contents; empty text clears it.
+   A `type` step fills the field, replacing its contents; empty text clears it. A `press` step
+   sends one key to the element. A `drag` step presses the mouse at `from` and releases it at `to`,
+   each an `[x, y]` fraction of the element's box; values outside 0–1 land outside it.
+   To show data or errors the seeded API cannot produce (traces, metrics, a rejected request),
+   add `"respond": [{"url": "**/Service/Method", "json": {...}, "status": 400, "headers": {...}}]`.
+   Matching requests get that response; `status` defaults to 200 and `headers` is optional.
+   A Connect error is a status with `{"code": "invalid_argument", "message": "...", "details": [...]}`.
    For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
    visible when the shot is ready. The shot skips network-idle waits and waits for the selector
    after its steps. Shots without `ready_selector` wait for network idle.
@@ -69,7 +76,9 @@ mise exec -- uv run --script "$E" <command>
    saves nothing for a shot whose selector is missing or whose theme did not apply. Fix the spec
    or the scenario; never keep a shot that shows the wrong screen.
 5. Open every PNG with Read and check it shows what the shot claims.
-6. Stop everything: `mise exec -- uv run --script "$E" down --all`.
+6. Stop everything: `mise exec -- uv run --script "$E" down --all`. Every `up`, `shoot` and `down`
+   also stops runs nobody has used for two hours, and a failed `up` stops itself after printing
+   its API and UI logs, so an interrupted capture does not leave containers behind.
 
 Return the PNG paths, one line per file saying what it shows, every `scenario note:` line and every
 failure.
