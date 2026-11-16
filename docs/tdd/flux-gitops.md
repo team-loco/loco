@@ -1,175 +1,173 @@
-# Technical Design Document: GitOps with Flux
+# Technical Design Document: Platform delivery with Flux
 
-**Status:** Proposed. No cluster runs Flux yet.
+**Status:** Approved design.
 
-## Summary
+Flux installs and upgrades Loco's platform software on control-plane and worker clusters. Each cluster reconciles its own configuration from an operator-owned repository. Core publishes versioned charts, images and an OCI platform bundle; CI holds no kubeconfig.
 
-Every Loco cluster runs Flux and pulls its own platform configuration from this repository. A cluster is described by one directory, `clusters/<name>/`. Merging to `main` is the deploy. CI builds and publishes images and charts; it never holds a kubeconfig.
+Customer workloads follow the API → agent → `Application` path. Flux owns platform resources, including their CRDs, and leaves customer applications to Loco's controllers.
 
-Flux owns the **platform**: cert-manager and the `loco-worker` release, which holds the agent, the controllers, Envoy Gateway and the OpenTelemetry collectors. It does not own customer workloads. Those keep flowing from the API through the agent to `Application` resources, as today.
+## Ownership
 
-Local development does not change shape. Tilt still builds images and syncs the same charts with `mise run helm:sync:release`. The work here is to make local and every real cluster consume the same charts and the same base values, so the only differences are the per-cluster overlay and the secrets.
+| Concern | Owner |
+|---|---|
+| Charts, images, versioned platform bundle | Core, published per release |
+| Cluster inventory, values, secrets, release pins | Each operator's repository |
+| Installation, upgrades, drift correction | Flux on each cluster |
+| Cluster provisioning, networking, CNI | Operator's provisioning tools or provider |
+| Registration, join tokens, bootstrap secrets, verification, recovery | `locoadm` |
+| Customer workloads | API, agent and application controllers |
 
-## Why GitOps, and why now
+Each cluster runs four Flux controllers and reads only its own directory. There is no management cluster holding credentials for the fleet. Core is agnostic about Flux bootstrap: operators can use `flux bootstrap` or the Flux Operator. The delivery tooling pins Flux and documents its minimum supported version.
 
-Nothing in this repository deploys to a cluster today. A push to `main` runs `ci.yml`, which tests, builds and pushes the images and, once its gate passes, publishes them. `platform-release.yml` publishes every new chart and CRD bundle version to GHCR as an OCI artifact, and each hand-dispatched `release.yml` run publishes a platform bundle alongside the CLI release: Flux `OCIRepository`, `Kustomization` and `HelmRelease` objects that pin those artifacts and the images by digest (`tools/platform-release/README.md`). The namespaces, the `loco-worker-values` ConfigMap and the `loco-worker-secrets` Secret the bundle reads belong to each cluster's configuration, which lives outside this repository.
+## Operator repository
 
-The reason is where Loco is heading: a **control-plane cluster** (the `loco-control-plane` chart's API, UI, observability proxy and ClickHouse, plus Postgres and Valkey) and any number of **worker clusters** running customer workloads. A push model has to scale CI's credentials with the cluster count. Every new worker means another kubeconfig in CI, reachable from GitHub's runners. A pull model inverts that. Each cluster holds a read-only deploy key and reaches out to Git, the same direction the agent already uses to reach the API. No cluster has to accept inbound connections from CI.
+Self-hosters keep their own repository. Loco Cloud uses its private fleet repository for workers; its control plane stays on its hosted service. Moving that control plane into Kubernetes is a separate decision.
 
-## Alternatives considered
-
-- **Run Helm from CI.** It needs a kubeconfig per cluster in CI and network reach into each cluster, and it only knows the state of a cluster at the moment a job runs. Drift between deploys goes unnoticed.
-- **Argo CD.** Argo CD is the usual alternative, and its UI is better. Its natural shape is hub-and-spoke: one Argo instance holds credentials for every cluster and pushes to them. That is the push model again, moved from CI into a cluster. Argo can run per cluster, but then it carries a heavier footprint than Flux for no gain here.
-- **Let the agent apply the platform.** The agent already applies `Application` resources sent by the API. Extending it to manage the platform would mean building Flux's source fetching, Helm handling, health checks and rollback ourselves, inside a component whose failure would then also take down its own upgrade path.
-
-Flux is a set of small controllers per cluster. It is pull-based, supports Helm and SOPS directly, and has nothing to manage centrally.
-
-## Layout
-
-```
-charts/                         loco umbrella charts (unchanged location)
-env/
-  common/<release>.yaml         values shared by every cluster, including local
-platform/
-  sources.yaml                  GitRepository, HelmRepository objects
-  <release>.yaml                one HelmRelease per release, no cluster-specific values
-clusters/
-  <name>/
-    flux-system/                written by `flux bootstrap`
-    platform.yaml               Flux Kustomizations, one per layer
-    values/<release>.yaml       this cluster's overlay
-    secrets/<release>.sops.yaml SOPS-encrypted Secret, consumed through valuesFrom
-.sops.yaml                      encryption rules; public age recipients only
+```text
+.sops.yaml                         one rule per cluster: cluster age key + offline admin key
+releases/
+  control-plane.yaml               control-plane bundle source
+  workers-staging.yaml             staging cohort bundle source
+  workers-production.yaml          production cohort bundle source
+clusters/<name>/
+  flux-system/                     Flux bootstrap output
+  kustomization.yaml               selects a releases/ file and this cluster's loco.yaml
+  loco.yaml                        bundle entry point and cluster-config reconciliation
+  values/loco-control-plane.yaml   per-cluster chart values
+  values/loco-worker.yaml
+  config/
+    *.sops.yaml                    encrypted standalone Secrets
+    issuer.yaml                    optional operator-supplied issuer
 ```
 
-The four value layers merge in a fixed order, and each layer has one home:
+Core ships a working control-plane and worker example in `examples/gitops/`. `locoadm init` renders that layout from flags and generates Loco's bootstrap secrets. Chart defaults provide shared values; operators override them per cluster. There is no shared values directory in core.
 
-| Layer | Local (`mise run helm:sync:release`) | Cluster (Flux) |
+## Versioned bundle
+
+Each release publishes `ghcr.io/team-loco/loco/platform:X.Y.Z`, an OCI artifact containing Flux objects that pin charts and images by digest. Clusters consume released bundles. The bundle has three entry points:
+
+| Entry point | Purpose |
+|---|---|
+| `./control-plane` | Control-plane cluster |
+| `./worker` | Worker cluster |
+| `./all` | Combined control plane and worker |
+
+Flux applies these layers in dependency order and checks health before proceeding:
+
+| Layer | Contents | Dependencies |
 |---|---|---|
-| chart defaults | `charts/<release>/values.yaml` | same |
-| shared | `env/common/<release>.yaml` | same file, as a ConfigMap generated by kustomize |
-| per environment | `dev/worker-chart.yaml` | `clusters/<name>/values/<release>.yaml` |
-| secrets | the shell environment (`CLOUDFLARE_TOKEN`, `LOCO_JOIN_TOKEN`), passed as `--set-string` by `mise-tasks/helm/sync/release` | `clusters/<name>/secrets/<release>.sops.yaml` |
+| `loco-namespaces` | `loco-system` with Pod Security labels, `cert-manager`, reconciler service account | None |
+| `loco-cluster-config` (operator-owned) | Decrypted Secrets, optional issuer | Namespaces |
+| `loco-crds` | Gateway API, Envoy Gateway and Loco Application/Build CRDs | Namespaces |
+| `loco-infra` | cert-manager and a separate Envoy Gateway release | CRDs |
+| `loco-control-plane` | API, UI, ingest proxy, OpenBao, ClickHouse | Infrastructure and cluster config |
+| `loco-worker` | Agent, controllers, collectors | Infrastructure and cluster config |
 
-`env/common/` is the parity guarantee. Anything that should be the same everywhere goes there and is read by both paths. Today the only values file outside the charts is `dev/worker-chart.yaml`, the local overlay for `loco-worker`. A real cluster's values come from its `loco-worker-values` ConfigMap and `loco-worker-secrets` Secret outside this repository, and nothing checks that the two agree.
+CRDs are never pruned. Changes must be additive because worker clusters upgrade independently. Envoy Gateway has its own chart and release; the worker bundle disables the `gateway-helm` subchart. Third-party versions remain pinned in tracked chart metadata.
 
-### Third-party chart versions live in exactly one place
+Each release accepts an optional `<release>-values` ConfigMap and an optional values Secret. Image digests stay pinned in the bundle. Credentials are standalone Secrets referenced by name, never Helm values. The bundle has no `configVersion` field.
 
-Envoy Gateway (`gateway-helm`) and the OpenTelemetry collector charts are dependencies of `charts/loco-worker`, and ClickHouse is a dependency of `charts/loco-control-plane`. Their versions live in `Chart.yaml` and `Chart.lock`, and both `mise run helm:sync:release` and Flux read them. cert-manager is the exception: `mise-tasks/helm/sync/release` installs `jetstack/cert-manager` directly at the version `charts/cert-manager.yaml` pins, and `tools/platform-release/release.py` mirrors that version to GHCR. A `HelmRelease` under `platform/` would need its own copy of that pin, and the two would drift.
+The control-plane bundle supports external ClickHouse and external OpenBao. Postgres is operator-supplied and sits outside the bundle. The worker entry point accepts an API endpoint without assuming where the control plane runs. Registry authentication defaults to token mode; static credentials remain supported.
 
-So cert-manager moves into an umbrella chart as well, `charts/loco-cert-manager`, and the rule becomes: **no release references a third-party chart directly.** Renovate then has one file to bump per dependency.
+The CNI must run before Flux and enforce NetworkPolicy. Provisioning owns it.
 
-## Layers and ordering
+## Chart configuration and setup
 
-Each cluster has one Flux `Kustomization` per layer. Each depends on the one before it and waits for its releases to become healthy:
+Both Loco charts publish `values.schema.json`. Typed values expose operator-tuned API settings: `api.limits.*` maps to the `LOCO_*` count-limit settings in `api/config.go` and internal limits; `api.defaults.*` and retention settings expose their corresponding API configuration. Chart lint and delivery validation reject invalid values.
 
-| Layer | Releases | Why it comes here |
-|---|---|---|
-| `crds` | cert-manager CRDs, the Gateway API and Envoy Gateway CRDs from `gateway-helm`, `applications.infra.loco.io`, `builds.infra.loco.io` | later layers create these kinds |
-| `certs` | `loco-cert-manager` | issuers and certificates for the gateway |
-| `worker` | `loco-worker` | gateway, agent, controllers, OpenTelemetry collectors |
+Setup Jobs have `ttlSecondsAfterFinished`. The OpenBao setup Job initializes OpenBao and configures its API access. A ClickHouse credentials Job creates missing user credentials and preserves existing credentials across retries and upgrades. Chart consumers read those credentials from Secrets.
 
-Locally, `resource_deps` in `dev/Tiltfile` applies the same order. The platform bundle that `release.py` publishes today has two layers, `crds` and `platform-releases`; in the second, the `loco-worker` `HelmRelease` depends on cert-manager. A layer that fails stops the ones after it instead of deploying them against a broken base.
-
-### The CNI is installed before Flux
-
-Flux's controllers are pods, and pods need a CNI. Loco needs one that enforces NetworkPolicy, and no chart in this repository installs it. Locally, `dev/kind-cluster.yml` keeps kind's default CNI, which enforces NetworkPolicy: the e2e network isolation test passes on it. A real worker gets its CNI from its provisioning step or from its managed Kubernetes offering. Flux starts after the CNI is running and does not manage it.
-
-## Charts
-
-`HelmRelease` objects reference the umbrella charts straight from the `GitRepository` with `reconcileStrategy: Revision`, so a chart change on `main` deploys without a version bump. The cost is one Helm revision per commit to `main`, even for commits that do not touch `charts/`. Those upgrades render identical manifests, so nothing restarts, but `helm history` grows.
-
-`platform-release.yml` already publishes each chart version to GHCR as an OCI artifact, and the platform bundle each release publishes pins those artifacts by digest. A worker cluster that should not track `main` can consume the bundle instead of the `GitRepository`, which also removes the per-commit Helm revisions.
-
-## Images
-
-CI keeps building and pushing images, but `build-push.yml` tags them only `sha-<40 hex>` (the staging UI `sha-<40 hex>-staging`). Commit hashes cannot be ordered, so nothing can pick "the newest". Each image gets a second, sortable tag: `main-<unix timestamp>-<short sha>`.
-
-Flux's image automation then closes the loop:
-
-1. An `ImageRepository` per image scans GHCR.
-2. An `ImagePolicy` selects the newest `main-*` tag by its timestamp.
-3. An `ImageUpdateAutomation` rewrites the tag in `clusters/<name>/values/<release>.yaml` and commits it to `main`.
-
-Each tag in those files carries Flux's setter marker:
-
-```yaml
-agent:
-  image:
-    tag: main-1790000000-4c8ea7e # {"$imagepolicy": "flux-system:loco-agent:tag"}
-```
-
-The commit is the deploy record: `git log clusters/<name>/` answers "what ran where, and since when". A cluster that should not take every build, such as a future staging/production split, gets its own `ImagePolicy` with a narrower tag pattern or a semver range on release tags.
-
-The automation needs a deploy key with write access, and `main` is protected by the CI gate. Whether the bot commits straight to `main` through a ruleset bypass, or opens a pull request per bump, is an open question (below).
+The first administrator is listed in `api.systemAdmins` and claims access by signing in with `locoadm login`. DNS records belong to the operator or external-dns; `locoadm status` reports the targets.
 
 ## Secrets
 
-Secrets are SOPS-encrypted with age and committed under `clusters/<name>/secrets/`. Flux's kustomize-controller decrypts them in the cluster with a key stored there as the `sops-age` Secret. `.sops.yaml` holds only public recipients and is committed.
+Operators commit SOPS-encrypted Secrets using age. Each cluster has its own age key, and every file also has an offline administrator recipient. `.sops.yaml` contains public recipients; only `data` and `stringData` are encrypted. Flux holds the cluster decryption key. Its Git deploy key and age key are bootstrap inputs created outside reconciliation.
 
-- **Each cluster has its own age key.** A worker can decrypt only its own secrets. One shared key would let any compromised worker read every cluster's secrets.
-- **Every file is also encrypted to an admin recipient**, held offline, so a lost cluster key does not lose the secrets.
-- **Only `data` and `stringData` are encrypted** (`encrypted_regex`). Names and kinds stay readable in review.
+Core consumes plain Kubernetes Secrets by name and does not read SOPS. Operators can substitute another secret-delivery mechanism for individual files.
 
-The per-worker secret that matters most is the agent's key Secret, which the agent creates on first start from a one-time join token. Registering a worker means running `locoadm cluster create` and committing the encrypted join token to `clusters/<name>/secrets/`; the token is spent after the first start.
+| Secret | Created by | Delivery and custody |
+|---|---|---|
+| Database URLs, source bucket keys, control-plane registry credentials | Operator | SOPS file |
+| OpenBao static seal key | `locoadm init` | SOPS file and offline custody with the admin key |
+| OpenBao KMS/transit credentials | Operator | SOPS or workload identity |
+| OpenBao recovery shares and root token | Chart setup Job | Cluster custody; `locoadm recovery export` for offline custody |
+| ClickHouse users and passwords | Chart credentials Job | Generated in cluster if missing |
+| DNS-01 token | Operator | Per-cluster SOPS file |
+| Worker join token | `locoadm cluster create` | SOPS file |
+| Agent identity key | Agent | Cluster Secret; never Git |
+| Worker registry pull/push credentials | Operator, static mode only | SOPS file; token mode needs none |
+| Ingest token | API, fetched by agent | Never Git |
 
-Locally, secrets stay out of the repository: `mise run tilt` reads the GitHub OAuth app from Infisical, and the release task reads the rest from the shell environment. Running SOPS in the inner loop would add a key to every laptop for no benefit.
+`locoadm` generates the static seal key and join tokens. OpenBao auto-unseals with a static key by default; KMS and transit are supported alternatives. Retain the seal key with recovery material because snapshots require it.
 
-## Health and rollout
+## Enrollment
 
-Flux checks each rollout:
+Join tokens are single-use and stored by the API only as hashes. `CreateCluster` and `IssueJoinToken` accept an optional TTL. The default is one hour; `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` caps requested lifetimes, such as seven days.
 
-- **Releases:** each `HelmRelease` waits for its resources to become ready, judged by kstatus, the same readiness rules `kubectl rollout status` uses. If an upgrade fails, it retries and then rolls back to the last good revision.
-- **Layers:** each `Kustomization` has `wait: true`, so a layer is healthy only when everything it applied is.
-- **Reporting:** a notification `Provider` of type `github` posts each layer's result as a commit status on the commit that caused it. Whether a merge actually deployed shows on the commit in GitHub, next to CI.
+```sh
+locoadm cluster create --name worker-staging --ttl 72h \
+  --sops-recipient age1… \
+  --output clusters/worker-staging/config/join-token.sops.yaml
+```
 
-## Boundaries
+The command writes an encrypted Secret and prints no secret. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. Operators can delete the spent token ciphertext from Git.
 
-Flux applies and prunes only what it applied itself, tracked by its inventory. The `Application` resources that the agent creates are not in Git, so Flux never touches them. The resources the controller creates from them, such as Deployments, Services and HTTPRoutes in tenant namespaces, carry the controller's ownership and are likewise invisible to Flux.
+An approval-based join flow is outside this design. Pulling a token from the API would itself require a credential.
 
-The shared objects are the `applications.infra.loco.io` and `builds.infra.loco.io` CRDs. Flux owns them, through the `crds` layer. The controller must never install or upgrade them at runtime.
+## Operator commands
+
+| Command | Responsibility |
+|---|---|
+| `init` | Scaffold the repo once from flags, generate a seal key and write encrypted files |
+| `cluster create`, `cluster join-token` | Register workers and issue tokens; accept TTL, SOPS recipient and output flags |
+| `cluster list/pause/resume/remove/restore` | Manage API cluster records |
+| `login` | Sign in using `--api` and `--web` |
+| `status` | Query the API for clusters, heartbeats, version skew, unclaimed admins and DNS targets |
+| `verify` | Run the end-to-end probe using an image pinned in `locoadm` |
+| `recovery export` | Export recovery material using `--context` and `--namespace` |
+| `admin`, `user`, `org` | Manage API records |
+
+`locoadm` has no `apply`, `plan`, `cluster attach` or `validate` command, and no `loco-install.yaml` format. Flux provides reconciliation and diff/build tools. Installation state ConfigMaps, installer locks, ownership annotations, release guards and resolution, prerequisite installers, issuer checks and value templates are outside `locoadm`'s responsibilities. Each Flux reconciles its own cluster; enrollment binds an agent's identity to its API cluster record.
+
+## Upgrades and rollback
+
+Release source files define rollout cohorts. Upgrade the control plane first, then staging workers, then production workers. Flux cannot enforce ordering across clusters; operators gate each cohort on the preceding cohort's health. Flux notifications can report reconciliation health as a commit status.
+
+Staging cohorts can follow plain release semver ranges automatically. Production pins an exact digest and changes it through a reviewed PR. Core publishes no release-candidate bundles. Image automation is unnecessary because each bundle pins its images.
+
+API minor version N supports agents at N and N−1. Workers must never run ahead of the API; status flags skew. Database migrations run at API startup and remain backward compatible through a rollout: add first, remove in a later release.
+
+Helm releases wait for health, retry failed upgrades and roll back on failure. Layers depend on healthy predecessors. Operators roll back by reverting the bundle version in Git. Database migrations do not roll back, so schema compatibility is required. Flux corrects drift within its inventory; tenant resources remain outside that inventory.
 
 ## Local development
 
-Nothing changes in how `mise run tilt` works. Tilt builds the agent, controller and builder images, installs cert-manager with `mise run helm:sync:cert-manager`, and deploys `loco-worker` through `mise run tilt:deploy`, which runs `mise run helm:sync:release` with `dev/worker-chart.yaml` and overrides only the image references and `env.CONTROL_PLANE_URL`, the API on the host. The API, UI and observability proxy run on the host. What changes is where `helm:sync:release` reads values from: `env/common/` first, then `dev/`. A setting that differs locally has to be written in `dev/` on purpose.
+Local development uses Flux in kind with OCI sources in the local registry. Uncommitted changes are included in the bundle; no Git commit is needed.
 
-Running Flux locally was considered and rejected for the inner loop. Flux reconciles from Git, so uncommitted changes would not deploy, and the edit-build-run loop would need a commit and push per change. `flux diff kustomization`, run against a cluster, shows what a commit would change there without needing Flux on the laptop.
+```sh
+mise run dev
+mise run dev:deploy
+```
 
-## Validation in CI
+`dev` starts kind and the compose fixtures for Postgres, registry, S3 and Dex, installs pinned Flux controllers, builds and pushes the platform bundle with `release:local`, and pushes `dev/flux/local/` as an OCI artifact containing values and plaintext development Secrets. It waits for Flux health, signs in automatically, and registers and enrolls the worker. The UI runs on the host at port 5173 for hot reload. Fixtures, automatic login and the state directory use the local-stack harness.
 
-A new `deploy:check` task, run in CI on changes to `charts/`, `env/`, `platform/` or `clusters/`:
+`dev:deploy` rebuilds changed images, pushes a bundle and reconciles Flux. `dev:deploy --suspend` pauses Flux for a release to permit direct Helm iteration. Local development exercises the same bundle layers and dependencies as deployed clusters.
 
-1. `flux build kustomization` for every layer of every `clusters/<name>/`. This renders the Flux objects each cluster will apply, and fails when a layer references a `values/` or `secrets/` file that does not exist.
-2. `helm template` for every release of every cluster, with the same value layers the `HelmRelease` merges: the chart defaults, `env/common/`, then `clusters/<name>/values/`. The encrypted secrets are replaced by placeholder values of the right shape, because CI holds no age key.
-3. `kubeconform` on the rendered manifests, against the Kubernetes schema plus the CRD schemas the platform installs.
+## Validation
 
-`mise run test:platform-render` already renders and packages the charts, CRDs and Flux layers of the platform bundle; `deploy:check` covers `clusters/`. `mise.toml` does not pin the `flux` CLI yet. It gets a pin like every other tool, and the in-cluster controllers run the same version.
+Chart and bundle changes run `flux build` over `examples/gitops/`, render chart values with their schemas, and validate resources with kubeconform, including schemas for the installed CRDs. CI needs neither a kubeconfig nor decryption keys; encrypted inputs use validation fixtures.
 
-## Migration
+The installation e2e test installs bundle N−1 through Flux, upgrades to N, and checks that the agent identity key, OpenBao data and ClickHouse credentials survive. It then exercises login, cluster creation and verification. Local validation checks startup, automatic login and enrollment, changed-image deployment and Flux reconciliation.
 
-1. **Add the sortable image tag** to `build-push.yml`.
-2. **Restructure values, with no behaviour change.**
-   - Create `env/common/` and `charts/loco-cert-manager`.
-   - Point `mise-tasks/helm/sync/release` at the new files.
-   - Prove it with `helm template`: each release renders the same manifests before and after.
-3. **Add `platform/` and the first `clusters/<name>/`,** with encrypted secrets and the `deploy:check` validation. Nothing is bootstrapped yet, but CI renders the cluster on every change.
-4. **Bootstrap the first worker cluster:**
-   - install a CNI that enforces NetworkPolicy;
-   - run `flux bootstrap github` with a deploy key scoped to this repository;
-   - create the `sops-age` Secret;
-   - create the cluster with `locoadm cluster create` against the API, which still runs on Railway, and commit its encrypted join token.
-5. **Turn on image automation** for that cluster.
-6. **Control-plane cluster, later.** Move the control plane from Railway into `clusters/control-plane/`: the `loco-control-plane` release (API, UI, observability proxy, ClickHouse), plus Postgres and Valkey. This depends on the open questions below about migrations and the database.
+## Core implementation order
 
-## Open questions
+1. Document this delivery design and the join-token and auto-unseal contracts.
+2. Add agent enrollment waiting and issue-time join-token TTL with a server cap.
+3. Add chart credential generation, separate gateway delivery, setup Job cleanup and typed schemas.
+4. Publish layered bundles and entry points; push bundles from `release:local`.
+5. Ship and validate `examples/gitops/` with a control plane and worker.
+6. Implement the operator commands and flag-based connection inputs.
+7. Exercise Flux installation and N−1-to-N state preservation.
+8. Run local development through Flux and retain the local-stack fixtures and automatic login.
+9. Delete installer commands, implementation and schema; document installation, self-hosting and registration.
 
-- **How the image bot reaches `main`.** It could commit directly through a ruleset bypass, which is fast and shows the deploy record as it happens. Or it could open a pull request per bump, which goes through the CI gate but makes every build wait for a merge. The answer may differ between a worker that tracks `main` and a future production cluster.
-- **Database migrations on the control-plane cluster.** `db:migrate` runs goose, which records the migrations it has applied. `loco-control-plane` has no migration Job, so before Flux can deploy the API, migrations need to run as a Helm pre-upgrade Job that blocks the rollout on failure.
-- **Postgres and Valkey on the control-plane cluster.** These could run in-cluster through an operator (CloudNativePG, for example) or as a managed service referenced by Secret. The answer decides whether the control-plane cluster holds state at all.
-- **Local certificates.** The local cluster requests real Let's Encrypt certificates for the platform domain: `dev/worker-chart.yaml` keeps the chart's default `acme` issuer. The chart already supports `certManager.issuer.type: selfSigned`, so a self-signed local issuer is a one-line change in `dev/worker-chart.yaml`, and it is worth making in step 2.
-
-## What this does not solve
-
-- **Scheduling across worker clusters.** Which worker an app lands on is still the API's decision. Flux only makes each worker's platform consistent.
-- **Customer workload delivery.** That path is still API to agent to `Application` to controller, and it is unchanged.
-- **Cluster provisioning.** Creating the cluster, its node pools and its network is outside Flux. Flux starts from a cluster that already has a CNI.
+The demo uses a `gitops/` directory and the same local workflow. Fleet provisioning and pinned tooling remain operator concerns; fleet configuration consumes the worker entry point, per-cluster values, join tokens and cohort release sources.
