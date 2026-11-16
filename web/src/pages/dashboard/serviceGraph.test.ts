@@ -86,3 +86,11 @@ test("reverse calls and self calls have distinct directed paths", () => {
 	expect(new Set(graph.calls.map((call) => call.key)).size).toBe(3);
 	expect(Math.abs((graph.calls[0]?.y ?? 0) - (graph.calls[1]?.y ?? 0))).toBeGreaterThanOrEqual(60);
 });
+
+test("incoming and outgoing calls attach to separate points on each resource", () => {
+	const layout = mapLayout([row("web"), row("api"), row("worker")], [], 1000, true);
+	const graph = serviceGraph(layout, [edge, create(ServiceGraphEdgeSchema, { from: "api", to: "postgresql" })], 1000);
+	const api = layout.internalNodes.find((node) => itemName(node.row) === "api")!;
+	expect(graph.calls[0]?.path.endsWith(`184,${api.y + 21}`)).toBe(true);
+	expect(graph.calls[1]?.path.startsWith(`M184,${api.y + 45} `)).toBe(true);
+});

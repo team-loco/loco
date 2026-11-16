@@ -88,6 +88,16 @@ def check_service_map(browser):
     page.keyboard.press("Escape")
     page.set_viewport_size(evidence.NARROW)
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    for item in [page.get_by_text("External peer", exact=True).locator(".."), *[page.get_by_role("group", name=f"{edge['from']} → {edge['to']}", exact=True) for edge in edges]]:
+        item.scroll_into_view_if_needed()
+        bounds = item.bounding_box()
+        assert bounds and 0 <= bounds["x"] and bounds["x"] + bounds["width"] <= evidence.NARROW["width"], bounds
+        assert item.evaluate("e => e.scrollWidth <= e.clientWidth")
+    page.set_viewport_size(evidence.DESKTOP)
+    paths = page.locator("svg path[marker-end]")
+    expect(paths).to_have_count(len(edges))
+    for path in paths.all():
+        assert path.evaluate("e => getComputedStyle(e).markerStart === 'none' && getComputedStyle(e).markerMid === 'none' && getComputedStyle(e).markerEnd !== 'none'")
     mode[0] = "empty"
     page.goto(path + "&range=15m")
     expect(page.get_by_text("No service calls in this range. Send traces to see connections.", exact=True)).to_be_visible()

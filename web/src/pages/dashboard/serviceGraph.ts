@@ -26,8 +26,8 @@ export function serviceGraph(layout: MapLayout, edges: ServiceGraphEdge[], range
 		const from = nodes.get(edge.from);
 		const to = nodes.get(edge.to);
 		if (from === undefined || to === undefined) throw new Error("Missing service graph node");
-		const y1 = from.y + MAP_NODE_H / 2;
-		const y2 = to.y + MAP_NODE_H / 2;
+		const y1 = from.y + MAP_NODE_H / 2 + 12;
+		const y2 = to.y + MAP_NODE_H / 2 - 12;
 		const sameColumn = from.x === to.x;
 		const forward = from.x < to.x;
 		const x1 = from.x + (sameColumn || forward ? MAP_NODE_W : 0);

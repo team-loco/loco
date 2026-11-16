@@ -184,7 +184,14 @@ export function ArchitectureDiagram({
 		<div className="overflow-x-auto px-5 pt-3 pb-5">
 			<div ref={measure} className="min-w-0">
 				{available > 0 && (
-					<div className="relative" style={{ width: graph.width, height: graph.height }}>
+					<div
+						className={cn(
+							"relative",
+							graph.calls.length > 0 &&
+								"max-sm:flex max-sm:!h-auto max-sm:!w-full max-sm:flex-col max-sm:gap-3 max-sm:[&>svg]:hidden max-sm:[&>div]:!static max-sm:[&>button]:!static max-sm:[&>a]:!static",
+						)}
+						style={{ width: graph.width, height: graph.height }}
+					>
 						{layout.gaps.map((gap) => (
 							<GapEdges key={gap.key} gap={gap} height={layout.height} />
 						))}
@@ -202,7 +209,7 @@ export function ArchitectureDiagram({
 									refY="5"
 									markerWidth="6"
 									markerHeight="6"
-									orient="auto-start-reverse"
+									orient="auto"
 								>
 									<path d="M0 0 L10 5 L0 10" className="fill-fg3 stroke-none" />
 								</marker>
@@ -216,7 +223,7 @@ export function ArchitectureDiagram({
 								key={call.key}
 								role="group"
 								aria-label={call.name}
-								className="absolute w-[220px] rounded bg-panel px-2 py-1 font-mono text-[11px] text-fg3"
+								className="absolute w-[220px] rounded bg-panel px-2 py-1 font-mono text-[11px] text-fg3 max-sm:order-1 max-sm:w-full max-sm:break-words"
 								style={{ left: call.x, top: call.y }}
 							>
 								<div className="text-foreground">{call.name}</div>
