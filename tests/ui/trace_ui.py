@@ -118,6 +118,12 @@ with session(out) as browser:
     failing = re.compile(r'^payment POST \/payments\/authorize, .*, error$')
     context, page, errors = open_page(browser, state=state, permissions=['clipboard-read', 'clipboard-write'], device_scale_factor=2, reduced_motion='reduce')
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+    def six_hour_config(route):
+        response = route.fetch()
+        body = response.json()
+        body['observabilityMaxTimeRange'] = '21600s'
+        route.fulfill(response=response, json=body)
+    context.route('**/loco.config.v1.ConfigService/GetConfig', six_hour_config)
     page.goto(state['ui_url'] + base)
     open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
     open_trace.wait_for()
@@ -317,6 +323,8 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     spans.pop()
     page.get_by_role('button', name=re.compile(r'^Past hour ')).click()
+    expect(page.get_by_text('Ranges up to 6h.', exact=True)).to_be_visible()
+    expect(page.get_by_role('group', name='Presets').get_by_role('button', name=re.compile('Past 12 hours'))).to_have_count(0)
     page.get_by_role('group', name='Presets').get_by_role('button', name='Past 15 minutes', exact=False).click()
     expect(page).to_have_url(re.compile(r'[?&]range=15m'))
     page.go_back()

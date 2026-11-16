@@ -4,7 +4,6 @@ import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import { getServiceSpec } from "@/lib/deployment-utils";
 import { shortDigest } from "@/lib/image";
-import { QUERY_MAX_MS } from "@/lib/obs-time";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
 const SECOND_MS = 1000;
@@ -82,13 +81,13 @@ export function emptyBuildLogText(status: BuildStatus): string {
 export type BuildLogSource =
 	{ kind: "none" } | { kind: "tail"; sinceMs: number } | { kind: "query"; startMs: number; endMs: number };
 
-export function buildLogSource(build: Build): BuildLogSource {
+export function buildLogSource(build: Build, maxRangeMs: number): BuildLogSource {
 	if (build.status === BuildStatus.AWAITING_UPLOAD) return { kind: "none" };
 	const createdMs = tsMs(build.createdAt);
 	const finishedMs = maybeTsMs(build.finishedAt);
 	if (!isBuildFinished(build.status) || finishedMs === undefined) return { kind: "tail", sinceMs: createdMs };
 	const endMs = finishedMs + FINISHED_LOG_MARGIN_MS;
-	return { kind: "query", startMs: Math.max(createdMs, endMs - QUERY_MAX_MS), endMs };
+	return { kind: "query", startMs: Math.max(createdMs, endMs - maxRangeMs), endMs };
 }
 
 export function deploymentBuildId(dep: Deployment): string | undefined {

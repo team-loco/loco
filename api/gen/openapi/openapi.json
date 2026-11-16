@@ -9498,6 +9498,10 @@
             "title": "history_retention",
             "description": "history_retention applies across the installation and cannot be overridden per organization.",
             "$ref": "#/components/schemas/loco.config.v1.HistoryRetention"
+          },
+          "observabilityMaxTimeRange": {
+            "title": "observability_max_time_range",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
           }
         },
         "title": "GetConfigResponse",

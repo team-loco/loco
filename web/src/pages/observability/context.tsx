@@ -5,13 +5,15 @@ import { parseAsString, useQueryStates } from "nuqs";
 import { useNavigate } from "react-router";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
+import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
+import { Skeleton } from "@/components/design/Skeleton";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { observabilityPath, type ObservabilityView } from "@/lib/routes";
 import { configuredRegions } from "@/lib/resource-regions";
 
 import { liveTokens, narrow, QUERY_PARSERS, queryStr, queryValues, toQuery, type Token } from "./query";
-import { EVENTS_MAX_MS, QUERY_MAX_MS, toWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
+import { EVENTS_MAX_MS, toWindow, WINDOW_PARSERS, windowValues, type TimeWindow } from "@/lib/obs-time";
 
 const SERIES_COLORS = 8;
 
@@ -70,8 +72,8 @@ interface ObsContextValue {
 
 const ObsContext = createContext<ObsContextValue | null>(null);
 
-export function maxSpanFor(view: ObservabilityView): number {
-	return view === "events" ? EVENTS_MAX_MS : QUERY_MAX_MS;
+export function maxSpanFor(view: ObservabilityView, queryMaxMs: number): number {
+	return view === "events" ? EVENTS_MAX_MS : queryMaxMs;
 }
 
 export function ObsProvider({
@@ -93,7 +95,8 @@ export function ObsProvider({
 		workspaceResourcesOptions(transport, workspaceId, grants),
 	);
 
-	const maxMs = maxSpanFor(view);
+	const queryMaxMs = useObservabilityMaxRange();
+	const maxMs = maxSpanFor(view, queryMaxMs ?? 0);
 	const range = toWindow(params, maxMs);
 	const { tokens, text } = toQuery(params);
 
@@ -147,6 +150,7 @@ export function ObsProvider({
 		goTo,
 	};
 
+	if (queryMaxMs === undefined) return <Skeleton className="h-64 w-full" />;
 	return <ObsContext value={value}>{children}</ObsContext>;
 }
 

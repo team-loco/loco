@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"google.golang.org/protobuf/types/known/durationpb"
+
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -14,14 +16,15 @@ import (
 
 // ConfigServer implements the ConfigService, returning default values for use by the CLI and UI.
 type ConfigServer struct {
-	minCLIVersion       string
-	apiTokenMaxLifetime time.Duration
-	schemaURL           string
-	defaults            servicedefaults.Defaults
-	auth                *configv1.AuthConfig
-	orgLinks            []*configv1.OrgLink
-	counts              *configv1.CountLimits
-	historyRetention    *configv1.HistoryRetention
+	minCLIVersion             string
+	apiTokenMaxLifetime       time.Duration
+	observabilityMaxTimeRange time.Duration
+	schemaURL                 string
+	defaults                  servicedefaults.Defaults
+	auth                      *configv1.AuthConfig
+	orgLinks                  []*configv1.OrgLink
+	counts                    *configv1.CountLimits
+	historyRetention          *configv1.HistoryRetention
 }
 
 func NewConfigServer(
@@ -29,7 +32,7 @@ func NewConfigServer(
 	defaults servicedefaults.Defaults,
 	issuers []auth.IssuerConfig,
 	orgLinks []OrgLink,
-	apiTokenMaxLifetime time.Duration,
+	apiTokenMaxLifetime, observabilityMaxTimeRange time.Duration,
 	counts *configv1.CountLimits,
 	historyRetention *configv1.HistoryRetention,
 ) *ConfigServer {
@@ -38,14 +41,15 @@ func NewConfigServer(
 		authConfig = &configv1.AuthConfig{Issuer: ic.Issuer, ClientId: ic.Web.ClientID, Scopes: ic.Web.Scopes}
 	}
 	return &ConfigServer{
-		minCLIVersion:       minCLIVersion,
-		schemaURL:           schemaURL,
-		defaults:            defaults,
-		orgLinks:            orgLinksProto(orgLinks),
-		auth:                authConfig,
-		apiTokenMaxLifetime: apiTokenMaxLifetime,
-		counts:              counts,
-		historyRetention:    historyRetention,
+		minCLIVersion:             minCLIVersion,
+		schemaURL:                 schemaURL,
+		defaults:                  defaults,
+		orgLinks:                  orgLinksProto(orgLinks),
+		auth:                      authConfig,
+		apiTokenMaxLifetime:       apiTokenMaxLifetime,
+		observabilityMaxTimeRange: observabilityMaxTimeRange,
+		counts:                    counts,
+		historyRetention:          historyRetention,
 	}
 }
 
@@ -62,6 +66,7 @@ func (s *ConfigServer) GetConfig(
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.counts,
 		HistoryRetention:           s.historyRetention,
+		ObservabilityMaxTimeRange:  durationpb.New(s.observabilityMaxTimeRange),
 		SizeLimits: &configv1.SizeLimits{
 			MinCpuMillis:   locoControllerV1.MinCPUMillis,
 			MaxCpuMillis:   locoControllerV1.MaxCPUMillis,

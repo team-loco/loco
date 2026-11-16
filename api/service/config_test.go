@@ -18,7 +18,17 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	t.Parallel()
 	defaults := testServiceDefaults()
 	const schemaURL = "https://loco.test/schemas/loco.v1.json"
-	server := NewConfigServer("v1.2.3", schemaURL, defaults, nil, nil, 42*time.Hour, limits.Defaults(), nil)
+	server := NewConfigServer(
+		"v1.2.3",
+		schemaURL,
+		defaults,
+		nil,
+		nil,
+		42*time.Hour,
+		6*time.Hour,
+		limits.Defaults(),
+		nil,
+	)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -26,6 +36,9 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 	}
 	if resp.GetApiTokenMaxLifetimeSeconds() != int64((42*time.Hour)/time.Second) {
 		t.Errorf("API token maximum = %d, want 42 hours", resp.GetApiTokenMaxLifetimeSeconds())
+	}
+	if got := resp.GetObservabilityMaxTimeRange().AsDuration(); got != 6*time.Hour {
+		t.Errorf("observability range = %v, want 6h", got)
 	}
 	got := resp.GetServiceDefaults()
 	if got.GetCpuTarget() != defaults.CPUTarget {
@@ -70,7 +83,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 		{Label: "Support", URL: "https://support.example.com/orgs/{orgId}"},
 		{Label: "Status", URL: "https://status.example.com"},
 	}
-	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour, limits.Defaults(), nil)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, links, time.Hour, 6*time.Hour, limits.Defaults(), nil)
 	req := &configv1.GetConfigRequest{}
 	resp, err := server.GetConfig(t.Context(), req)
 	if err != nil {
@@ -87,7 +100,7 @@ func TestGetConfigReturnsOrgLinks(t *testing.T) {
 
 func TestGetConfigSizeLimitsAreTheValidationBounds(t *testing.T) {
 	t.Parallel()
-	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults(), nil)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, 6*time.Hour, limits.Defaults(), nil)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
@@ -130,7 +143,7 @@ func TestGetConfigReportsTheInstallCountLimits(t *testing.T) {
 	t.Parallel()
 	counts := limits.Defaults()
 	limits.ResourcesPerWorkspace.Set(counts, 7)
-	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, counts, nil)
+	server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, 6*time.Hour, counts, nil)
 	resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 	if err != nil {
 		t.Fatalf("GetConfig: %v", err)
@@ -149,7 +162,17 @@ func TestGetConfigReportsInstallHistoryRetention(t *testing.T) {
 				BuildImagesPerResource: images,
 				Events:                 durationpb.New(36*time.Hour + 500*time.Millisecond),
 			}
-			server := NewConfigServer("", "", testServiceDefaults(), nil, nil, time.Hour, limits.Defaults(), retention)
+			server := NewConfigServer(
+				"",
+				"",
+				testServiceDefaults(),
+				nil,
+				nil,
+				time.Hour,
+				6*time.Hour,
+				limits.Defaults(),
+				retention,
+			)
 			resp, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
 			if err != nil {
 				t.Fatal(err)
