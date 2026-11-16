@@ -271,6 +271,7 @@ def dashboard(page):
         evidence.psql(state["container"], "\n".join(sql))
         state["dashboard_resources"] = True
         evidence.write_json(Path(args.state), state)
+    evidence.psql(state["container"], f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END, ready=resources.name<>'dashboard-0', status_phase=CASE WHEN resources.name='dashboard-0' THEN 'Failed' ELSE 'Ready' END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');")
     for color, mode in ((color, mode) for color in ("loco", "catppuccin", "neobrutal") for mode in ("light", "dark")):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
@@ -282,6 +283,13 @@ def dashboard(page):
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
         else:
             expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
+        replicas = page.get_by_label("47 of 48 ready · 1 starting\nus-east-1: 47/48", exact=True)
+        expect(replicas).to_be_visible()
+        expect(replicas).to_contain_text("47/48")
+        expect(page.get_by_role("region", name="Resources", exact=True).get_by_role("row").filter(has=page.get_by_role("link", name="dashboard-1", exact=True))).to_contain_text("12/12")
+        replicas.focus()
+        expect(page.locator('[data-slot="tooltip-content"]')).to_contain_text("us-east-1: 47/48")
+        page.keyboard.press("Escape")
         totals = page.get_by_role("region", name="Totals", exact=True)
         allocated = page.get_by_role("group", name=re.compile("^Allocated:"))
         expect(allocated).to_be_visible()
@@ -314,6 +322,13 @@ def dashboard(page):
         action.click()
         assert page.evaluate("localStorage.getItem('loco:mode:v1')") == ("dark" if next_mode == "Dark" else None)
         page.keyboard.press("Escape")
+    evidence.psql(state["container"], f"UPDATE placements SET ready_replicas=48, ready=true, status_phase='Ready' FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name='dashboard-0';")
+    page.reload()
+    ready = page.get_by_label("48 of 48 ready\nus-east-1: 48/48", exact=True)
+    expect(ready).to_be_visible()
+    ready.focus()
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text("48 of 48 ready us-east-1: 48/48")
+    page.keyboard.press("Escape")
     page.evaluate("localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')")
 
 

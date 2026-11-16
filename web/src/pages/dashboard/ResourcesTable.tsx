@@ -25,6 +25,7 @@ import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
@@ -55,7 +56,7 @@ import {
 import type { EnvResource } from "./useDashboardData";
 
 const PAGE_SIZE = 25;
-const MAX_PIPS = 8;
+const MAX_PIPS = 12;
 
 function replicaTotal(item: DashboardItem): number {
 	return isDraftItem(item) ? 0 : item.totalReplicas;
@@ -90,7 +91,7 @@ function statusNote(item: EnvResource): string {
 function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: number; degraded: boolean }) {
 	return (
 		<span className="flex gap-[3px]" aria-hidden="true">
-			{Array.from({ length: Math.min(desired, MAX_PIPS) }, (_, i) => (
+			{Array.from({ length: desired }, (_, i) => (
 				<span
 					key={i}
 					className={cn(
@@ -172,17 +173,44 @@ function NameCell({ item }: { item: DashboardItem }) {
 function ReplicasCell({ item }: { item: DashboardItem }) {
 	if (isDraftItem(item)) return <span className="font-mono text-[12px] text-fg4">—</span>;
 	const degraded = item.status === ResourceStatus.DEGRADED;
-	return (
+	const meter = item.totalReplicas > MAX_PIPS;
+	const ready = item.regions.reduce((n, g) => n + g.ready, 0);
+	const missing = Math.max(0, item.totalReplicas - ready);
+	const summary = `${ready.toString()} of ${item.totalReplicas.toString()} ready${missing ? ` · ${missing.toString()} starting` : ""}`;
+	const label = [
+		summary,
+		...item.regions.map((g) => `${g.region}: ${g.ready.toString()}/${g.desired.toString()}`),
+	].join("\n");
+	const replicas = (
 		<div className="flex flex-col">
 			{item.regions.map((g) => (
 				<span key={g.region} className="flex h-[19px] items-center gap-2.5">
-					<ReplicaPips desired={g.desired} ready={g.ready} degraded={degraded} />
+					{meter ? (
+						<span className="relative block h-1.5 w-[44px] overflow-hidden rounded-[3px] bg-line" aria-hidden="true">
+							<span
+								className={cn(
+									"absolute inset-y-0 left-0 rounded-[3px] opacity-85",
+									degraded ? "bg-warn" : "bg-foreground",
+								)}
+								style={{ width: `${(g.desired === 0 ? 0 : Math.min(1, g.ready / g.desired) * 100).toString()}%` }}
+							/>
+						</span>
+					) : (
+						<ReplicaPips desired={g.desired} ready={g.ready} degraded={degraded} />
+					)}
 					<span className="font-mono text-[12px] text-fg2 tabular-nums">
 						{g.ready.toString()}/{g.desired.toString()}
 					</span>
 				</span>
 			))}
 		</div>
+	);
+	if (!meter) return replicas;
+	return (
+		<Tooltip>
+			<TooltipTrigger render={replicas} tabIndex={0} aria-label={label} />
+			<TooltipContent className="whitespace-pre-line">{label}</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -261,7 +289,7 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		accessorFn: replicaTotal,
 		sortFn: "basic",
 		sortDescFirst: true,
-		meta: { headClassName: "w-[110px]" },
+		meta: { headClassName: "w-[160px]" },
 		cell: ({ row }) => <ReplicasCell item={row.original} />,
 	},
 	{

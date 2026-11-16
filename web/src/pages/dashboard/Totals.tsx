@@ -113,7 +113,7 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 										)}
 										style={{
 											flex: `${r.cpuMilli.toString()} 1 0`,
-											backgroundColor: `var(--series-${i.toString()})`,
+											backgroundColor: `var(--allocation-${i.toString()})`,
 											transitionDelay: `${(i * 30).toString()}ms`,
 										}}
 									/>
@@ -163,7 +163,7 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 													)}
 													style={{
 														width: `${((r.cpuMilli / max) * PERCENT).toFixed(1)}%`,
-														backgroundColor: `var(--series-${i.toString()})`,
+														backgroundColor: `var(--allocation-${i.toString()})`,
 													}}
 												/>
 											</span>
