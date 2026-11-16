@@ -37,19 +37,19 @@ tests:
           path: spec.telemetry.metrics.sinks
           value:
             - type: OpenTelemetry
-              openTelemetry: {host: otel-col-deploy.loco-obs.svc.cluster.local, port: 4317}
+              openTelemetry: {backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
           path: spec.telemetry.tracing.provider
-          value: {type: OpenTelemetry, host: otel-col-deploy.loco-obs.svc.cluster.local, port: 4317}
+          value: {type: OpenTelemetry, backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
           path: spec.telemetry.accessLog.settings[0].sinks
           value:
             - type: OpenTelemetry
-              openTelemetry: {host: otel-col-deploy.loco-obs.svc.cluster.local, port: 4317}
+              openTelemetry: {backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
@@ -65,6 +65,28 @@ tests:
           content: {name: otlp, port: 4317}
           any: true
         template: charts/otel-col-deploy/templates/service.yaml
+
+  - it: resolves every telemetry backend from the collector values
+    set:
+      otel-col-deploy.namespaceOverride: telemetry
+      otel-col-deploy.fullnameOverride: collector
+      otel-col-deploy.ports.otlp.servicePort: 14317
+    asserts:
+      - equal:
+          path: spec.telemetry.metrics.sinks[0].openTelemetry.backendRefs
+          value: [{name: collector, namespace: telemetry, port: 14317}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: spec.telemetry.tracing.provider.backendRefs
+          value: [{name: collector, namespace: telemetry, port: 14317}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
+      - equal:
+          path: spec.telemetry.accessLog.settings[0].sinks[0].openTelemetry.backendRefs
+          value: [{name: collector, namespace: telemetry, port: 14317}]
+        template: templates/gateway.yaml
+        documentSelector: {path: kind, value: EnvoyProxy}
 
   - it: leaves the Envoy Service settings to Envoy Gateway by default
     asserts:
