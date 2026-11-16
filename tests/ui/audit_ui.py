@@ -146,6 +146,10 @@ with session(out) as browser:
     expect(panel.get_by_role("button")).to_have_count(5)
     for field in ("@actor:", "@actor_type:", "@target:", "@type:", "@request:"):
         expect(panel.get_by_role("button", name=re.compile(re.escape(field)))).to_be_visible()
+    expect(panel.get_by_role("heading")).to_have_text("@type does not compare numbers")
+    expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
+    expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
+    expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
     expect(page.get_by_text("Fix the search to see events.", exact=True)).to_have_count(0)
     with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@actor:"):
         panel.get_by_role("button", name=re.compile(r"^@actor:")).click()
@@ -162,6 +166,15 @@ with session(out) as browser:
     expect(panel.locator("mark")).to_have_text("@wrong:value")
     page.set_viewport_size(evidence.NARROW)
     expect(panel.get_by_role("button", name=re.compile(r"^@request:"))).to_be_visible()
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    page.evaluate("localStorage.setItem('loco:color:v1', 'neobrutal')")
+    page.reload()
+    expect(search).to_have_attribute("aria-invalid", "true")
+    group = search.locator("..")
+    expect(group).to_have_css("border-top-width", "2px")
+    expect(group).to_have_css("box-shadow", re.compile(r"2px 2px"))
+    page.evaluate("localStorage.setItem('loco:color:v1', 'loco')")
+    page.reload()
     page.set_viewport_size(evidence.DESKTOP)
 
     with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == request_id) as searched:

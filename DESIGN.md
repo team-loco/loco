@@ -155,3 +155,5 @@ The sidebar search opens the shared command palette. Header search appears while
 The dashboard allocation strip and bars use `--allocation-0` through `--allocation-5` from `web/src/theme.css`.
 
 Audit filter rejections use the shared error receipt and empty hero inside the toolbar section. The receipt carries request, call, code and API field details; the heading and reset action describe the affected filter. Unusable link filters use the shared warning banner with a Dismiss action.
+
+Audit search rejections use the same empty hero with a search receipt, the API message as the heading and field insertion actions. The table and pager remain hidden until the search is accepted.
