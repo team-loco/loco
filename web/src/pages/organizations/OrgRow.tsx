@@ -69,8 +69,12 @@ export function OrgRow({
 					{role ?? "…"}
 				</Badge>
 			</TableCell>
-			<TableCell className="hidden text-right text-fg4 min-[701px]:table-cell">—</TableCell>
-			<TableCell className="hidden text-right text-fg4 min-[701px]:table-cell">—</TableCell>
+			<TableCell className="hidden text-right text-fg3 min-[701px]:table-cell">
+				{org.workspaceCount?.toString() ?? "—"}
+			</TableCell>
+			<TableCell className="hidden text-right text-fg3 min-[701px]:table-cell">
+				{org.memberCount?.toString() ?? "—"}
+			</TableCell>
 			<TableCell className="hidden whitespace-nowrap text-[12.5px] text-fg3 min-[701px]:table-cell">
 				{created}
 			</TableCell>

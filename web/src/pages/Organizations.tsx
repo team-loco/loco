@@ -13,7 +13,6 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { userOrgsOptions } from "@/hooks/userOrgs";
@@ -99,12 +98,8 @@ export function Organizations() {
 						<TableRow>
 							<TableHead>Organization</TableHead>
 							<TableHead>Your role</TableHead>
-							<TableHead className="hidden text-right min-[701px]:table-cell">
-								Workspaces <SoonTag />
-							</TableHead>
-							<TableHead className="hidden text-right min-[701px]:table-cell">
-								Members <SoonTag />
-							</TableHead>
+							<TableHead className="hidden text-right min-[701px]:table-cell">Workspaces</TableHead>
+							<TableHead className="hidden text-right min-[701px]:table-cell">Members</TableHead>
 							<TableHead className="hidden min-[701px]:table-cell">Created</TableHead>
 							<TableHead>
 								<span className="sr-only">Actions</span>

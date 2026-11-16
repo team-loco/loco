@@ -236,13 +236,18 @@ func (s *OrgServer) ListUserOrgs(
 
 	var orgResponses []*orgv1.Organization
 	for _, org := range orgs {
-		orgResponses = append(orgResponses, orgToProto(org))
+		response := orgToProto(org.Organization)
+		response.WorkspaceCount = new(org.WorkspaceCount)
+		response.MemberCount = new(org.MemberCount)
+		orgResponses = append(orgResponses, response)
 	}
 
 	token := nextPageToken(
 		orgs,
 		pageSize,
-		func(row genDb.Organization) (uuid.UUID, time.Time) { return row.ID, row.CreatedAt },
+		func(row genDb.ListOrgsForUserRow) (uuid.UUID, time.Time) {
+			return row.Organization.ID, row.Organization.CreatedAt
+		},
 	)
 
 	return &orgv1.ListUserOrgsResponse{
