@@ -73,6 +73,8 @@ CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expir
 CREATE TABLE api_tokens (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     token_hash TEXT NOT NULL UNIQUE,
+    display_prefix TEXT NOT NULL,
+    display_suffix TEXT NOT NULL,
     name TEXT NOT NULL,
     entity_type entity_type NOT NULL,
     entity_id UUID NOT NULL,

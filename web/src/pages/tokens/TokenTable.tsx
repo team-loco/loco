@@ -143,7 +143,14 @@ export function TokenTable({
 						return (
 							<TableRow key={t.name} className={cn(status === "expired" && "opacity-65")}>
 								<TableCell className="truncate font-mono text-[13px]" title={t.name}>
-									{t.name}
+									<span className="flex min-w-0 flex-col gap-px">
+										<span className="truncate">{t.name}</span>
+										{t.displayPrefix !== "" && t.displaySuffix !== "" && (
+											<span className="text-[11px] text-fg3">
+												{t.displayPrefix}…{t.displaySuffix}
+											</span>
+										)}
+									</span>
 								</TableCell>
 								<TableCell className="whitespace-normal">
 									<AccessCell chips={accessChips(tree, t)} />
