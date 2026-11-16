@@ -165,6 +165,7 @@ function WebhookDetail({
 					<ToggleGroup
 						variant="segmented"
 						aria-label="Show deliveries"
+						className="max-w-full flex-wrap"
 						value={[filter]}
 						onValueChange={(v: string[]) => {
 							const selected = FILTERS.find((option) => option.value === v[0]);

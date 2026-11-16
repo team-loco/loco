@@ -175,6 +175,13 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
         secret_dialog.get_by_role("button", name="Done", exact=True).click()
         assert any(method == "RotateWebhookSecret" and body["gracePeriodSeconds"] == 3600 for method, body in requests)
         expect(drawer.get_by_text("Previous secret expires", exact=False)).to_be_visible()
+        page.set_viewport_size({"width": 390, "height": 844})
+        group = drawer.get_by_role("group", name="Show deliveries", exact=True)
+        bounds = drawer.bounding_box()
+        for button in group.get_by_role("button").all():
+            box = button.bounding_box()
+            assert bounds["x"] <= box["x"] and box["x"] + box["width"] <= bounds["x"] + bounds["width"], box
+
         assert not errors, errors
     except BaseException:
         page.screenshot(path=out / "failure.png", animations="disabled")
