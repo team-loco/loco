@@ -52,7 +52,7 @@ The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is n
 
 ## Install through locoadm
 
-`mise run stack:install` installs a control plane and one enrolled staging worker on a single kind node. It uses `dev/loco-install.yaml` with Postgres, Dex, the registry and the source bucket from `dev/compose.local.yaml`. The configured admin is `dev@loco.test`, with password `loco-dev`; signup is open.
+`mise run stack:install` installs a control plane and one enrolled production worker on a single kind node. It uses `dev/loco-install.yaml` with Postgres, Dex, the registry and the source bucket from `dev/compose.local.yaml`. The configured admin is `dev@loco.test`, with password `loco-dev`; signup is open.
 
 The installation and CLI credentials live under the shared git directory's `loco-stacks/state/<slot>/`, outside the worktree. A completed installation persists across runs; an interrupted installation resumes against its retained database. Delete the stack with `mise run down` before changing chart or installation inputs.
 

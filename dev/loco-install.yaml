@@ -40,7 +40,7 @@ workers:
       clusterUID: {{ .ClusterUID }}
       namespace: loco-system
     region: local
-    tier: staging
+    tier: production
     role: all
     appsDomain: apps.{{ .Domain }}
     metricsServer: {enabled: true, kubeletInsecureTLS: true}

@@ -71,7 +71,7 @@ func TestInstallationTemplateMatchesSchema(t *testing.T) {
 			APIURL, WebURL string
 			Admins         []string
 		}
-		Workers []struct{ Name, AppsDomain string }
+		Workers []struct{ Name, AppsDomain, Tier string }
 	}
 	if err := yaml.Unmarshal(data, &install); err != nil {
 		t.Fatal(err)
@@ -80,7 +80,8 @@ func TestInstallationTemplateMatchesSchema(t *testing.T) {
 		len(install.ControlPlane.Admins) != 1 || install.ControlPlane.Admins[0] != "dev@loco.test" ||
 		len(
 			install.Workers,
-		) != 1 || install.Workers[0].Name != "local" || install.Workers[0].AppsDomain != "apps."+cfg.Domain {
+		) != 1 || install.Workers[0].Name != "local" || install.Workers[0].AppsDomain != "apps."+cfg.Domain ||
+		install.Workers[0].Tier != "production" {
 		t.Fatalf("unexpected installation: %+v", install)
 	}
 }
