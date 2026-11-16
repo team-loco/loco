@@ -354,3 +354,8 @@
 	border-radius: 1px;
 	box-shadow: 0 0 0 1.5px var(--ink);
 }
+
+[data-theme="neobrutal"] .audit-search:has([aria-invalid="true"]) {
+	border: 2px solid var(--err);
+	box-shadow: 2px 2px 0 var(--err);
+}

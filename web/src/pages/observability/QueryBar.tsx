@@ -494,18 +494,32 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 
 /** Shows where the API stopped reading the query, under the bar. */
 export function QueryErrorLine({ error, highlightTo }: { error: QueryError; highlightTo?: number }) {
+	return (
+		<div role="alert" className="flex min-w-0 flex-col gap-1 px-1 text-[12.5px]">
+			<span className="text-bad-fg">{error.message}</span>
+			<QueryErrorText error={error} highlightTo={highlightTo} />
+		</div>
+	);
+}
+
+export function QueryErrorText({
+	error,
+	highlightTo,
+	className,
+}: {
+	error: QueryError;
+	highlightTo?: number | undefined;
+	className?: string;
+}) {
 	const chars = Array.from(error.query);
 	const at = Math.min(error.position - 1, chars.length);
 	const end = highlightTo ?? at + 1;
 	return (
-		<div role="alert" className="flex min-w-0 flex-col gap-1 px-1 text-[12.5px]">
-			<span className="text-bad-fg">{error.message}</span>
-			<code className="font-mono text-[12px] break-all whitespace-pre-wrap text-fg2">
-				{chars.slice(0, at).join("")}
-				<mark className="rounded-[2px] bg-bad-bg px-px text-bad-fg">{chars.slice(at, end).join("") || " "}</mark>
-				{chars.slice(end).join("")}
-			</code>
-		</div>
+		<code className={cn("font-mono text-[12px] break-all whitespace-pre-wrap text-fg2", className)}>
+			{chars.slice(0, at).join("")}
+			<mark className="rounded-[2px] bg-bad-bg px-px text-bad-fg">{chars.slice(at, end).join("") || " "}</mark>
+			{chars.slice(end).join("")}
+		</code>
 	);
 }
 

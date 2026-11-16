@@ -289,6 +289,7 @@ export function Audit() {
 						<SearchInput
 							aria-label="Search request ID, actor or target"
 							placeholder="Search, or @type:deployment.* @actor:name"
+							className="audit-search"
 							ref={searchRef}
 							aria-invalid={searchRejected}
 							aria-describedby={searchRejected ? "audit-query-error" : undefined}
