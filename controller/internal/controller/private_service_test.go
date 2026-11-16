@@ -7,6 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
@@ -44,7 +45,8 @@ var _ = Describe("Private service discovery", func() {
 		Expect(alias.Spec.Ports).To(HaveLen(2))
 		Expect(alias.Spec.Ports[0].Port).To(Equal(servicePort))
 		Expect(alias.Spec.Ports[1].Port).To(Equal(int32(7070)))
-		Expect(alias.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(7070)))
+		Expect(alias.Spec.Ports[0].TargetPort).To(Equal(intstr.FromString("http")))
+		Expect(alias.Spec.Ports[1].TargetPort).To(Equal(intstr.FromString("http")))
 		Expect(alias.Spec.Ports[0].Protocol).To(Equal(corev1.ProtocolTCP))
 		Expect(
 			alias.Spec.Selector,
@@ -61,6 +63,7 @@ var _ = Describe("Private service discovery", func() {
 			),
 		).To(Succeed())
 		Expect(legacy.Spec.Ports[0].Port).To(Equal(servicePort))
+		Expect(legacy.Spec.Ports[0].TargetPort).To(Equal(intstr.FromString("http")))
 	})
 	It("removes both Services when the service drops its port", func() {
 		app := isolationTestApplication("discovery-worker", "worker")
@@ -111,7 +114,8 @@ var _ = Describe("Private service discovery", func() {
 		Expect(svc.Spec.ClusterIP).To(Equal(address))
 		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))
 		Expect(svc.Spec.Ports[1].Port).To(Equal(int32(3550)))
-		Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(int32(3550)))
+		Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromString("http")))
+		Expect(svc.Spec.Ports[1].TargetPort).To(Equal(intstr.FromString("http")))
 		app.Spec.Slug = "product-catalog"
 		Expect(r.ensurePrivateService(ctx, app)).To(Succeed())
 		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, key, svc))).To(BeTrue())
@@ -247,7 +251,7 @@ var _ = Describe("Private service discovery", func() {
 		Expect(k8sClient.Get(ctx, key, svc)).To(Succeed())
 		Expect(svc.Spec.Ports).To(HaveLen(1))
 		Expect(svc.Spec.Ports[0].Port).To(Equal(servicePort))
-		Expect(svc.Spec.Ports[0].TargetPort.IntVal).To(Equal(servicePort))
+		Expect(svc.Spec.Ports[0].TargetPort).To(Equal(intstr.FromString("http")))
 	})
 
 })

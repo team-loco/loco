@@ -63,6 +63,7 @@ const (
 	envRegion               = "LOCO_REGION"
 	componentApplication    = "application"
 	servicePort             = int32(80)
+	applicationPortName     = "http"
 	deployingRequeue        = 15 * time.Second
 	envSecretRequeue        = 5 * time.Second
 	maxConcurrentReconciles = 4
@@ -90,6 +91,8 @@ type ApplicationReconciler struct {
 	// counts it and replaces an old one, so a replica that crashes soon after it
 	// starts never displaces the version that is serving.
 	MinReadySeconds int32
+	// DrainSeconds keeps a terminating service listening while routing withdraws its endpoint.
+	DrainSeconds int32
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -529,9 +532,9 @@ func (r *ApplicationReconciler) ensureService(ctx context.Context, app *locov1al
 	labels := managedLabels(app)
 	annotations := ownerAnnotations(app)
 	selector := map[string]string{labelApp: name}
-	targetPort := intstr.FromInt32(containerPort)
+	targetPort := intstr.FromString(applicationPortName)
 	port := corev1ac.ServicePort().
-		WithName("http").
+		WithName(applicationPortName).
 		WithProtocol(corev1.ProtocolTCP).
 		WithPort(servicePort).
 		WithTargetPort(targetPort)
@@ -651,11 +654,18 @@ func desiredDeployment(
 	envSecret envSecretMount,
 	telemetry TelemetryConfig,
 	minReadySeconds int32,
+	drainSeconds int32,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
 	template, err := podTemplate(app, namespace, envSecret, telemetry)
 	if err != nil {
 		return nil, err
+	}
+	if app.Spec.ServiceSpec.Deployment.Port != nil {
+		drain := int64(drainSeconds)
+		hook := corev1ac.LifecycleHandler().WithSleep(corev1ac.SleepAction().WithSeconds(drain))
+		template.Spec.Containers[0].WithLifecycle(corev1ac.Lifecycle().WithPreStop(hook))
+		template.Spec.WithTerminationGracePeriodSeconds(corev1.DefaultTerminationGracePeriodSeconds + drain)
 	}
 
 	selectorLabels := map[string]string{labelApp: name}
@@ -726,7 +736,7 @@ func podTemplate(
 	if spec.Deployment.Port != nil {
 		containerPort := *spec.Deployment.Port
 		port := corev1ac.ContainerPort().
-			WithName("http").
+			WithName(applicationPortName).
 			WithContainerPort(containerPort).
 			WithProtocol(corev1.ProtocolTCP)
 		container.WithPorts(port)
@@ -770,7 +780,14 @@ func (r *ApplicationReconciler) ensureDeployment(
 	app *locov1alpha1.Application,
 	envSecret envSecretMount,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	dep, err := desiredDeployment(app, r.workspaceNamespace(app), envSecret, r.Telemetry, r.MinReadySeconds)
+	dep, err := desiredDeployment(
+		app,
+		r.workspaceNamespace(app),
+		envSecret,
+		r.Telemetry,
+		r.MinReadySeconds,
+		r.DrainSeconds,
+	)
 	if err != nil {
 		return nil, err
 	}

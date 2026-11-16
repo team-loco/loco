@@ -72,11 +72,10 @@ func containerSecurityContext() *corev1ac.SecurityContextApplyConfiguration {
 		WithCapabilities(capabilities)
 }
 
-func tcpPort(port int32) *networkingv1ac.NetworkPolicyPortApplyConfiguration {
-	value := intstr.FromInt32(port)
+func tcpPort(port intstr.IntOrString) *networkingv1ac.NetworkPolicyPortApplyConfiguration {
 	return networkingv1ac.NetworkPolicyPort().
 		WithProtocol(corev1.ProtocolTCP).
-		WithPort(value)
+		WithPort(port)
 }
 
 func namespacedPodPeer(
@@ -120,8 +119,8 @@ func (r *ApplicationReconciler) workspaceNetworkPolicies(
 
 	telemetryLabels := map[string]string{labelAppKubernetesName: r.Telemetry.CollectorService}
 	telemetryPeer := namespacedPodPeer(r.Telemetry.Namespace, telemetryLabels)
-	grpcPort := tcpPort(r.Telemetry.GRPCPort)
-	httpPort := tcpPort(r.Telemetry.HTTPPort)
+	grpcPort := tcpPort(intstr.FromInt32(r.Telemetry.GRPCPort))
+	httpPort := tcpPort(intstr.FromInt32(r.Telemetry.HTTPPort))
 	telemetryRule := networkingv1ac.NetworkPolicyEgressRule().
 		WithTo(telemetryPeer).
 		WithPorts(grpcPort, httpPort)
@@ -166,7 +165,7 @@ func (r *ApplicationReconciler) gatewayIngressPolicy(
 		labelGatewayNamespace: r.LocoNamespace,
 	}
 	gatewayPeer := namespacedPodPeer(r.LocoNamespace, gatewayLabels)
-	port := tcpPort(*app.Spec.ServiceSpec.Deployment.Port)
+	port := tcpPort(intstr.FromString(applicationPortName))
 	rule := networkingv1ac.NetworkPolicyIngressRule().WithFrom(gatewayPeer).WithPorts(port)
 	spec := networkingv1ac.NetworkPolicySpec().
 		WithPodSelector(appSelector).

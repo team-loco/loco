@@ -95,6 +95,22 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_MIN_READY_SECONDS, value: "25"}
 
+  - it: passes the endpoint drain window to the Application controller
+    set:
+      controller.drainSeconds: 7
+    template: templates/controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_DRAIN_SECONDS, value: "7"}
+
+  - it: refuses a zero endpoint drain window
+    set:
+      controller.drainSeconds: 0
+    asserts:
+      - failedTemplate:
+          errorPattern: "/controller/drainSeconds': minimum"
+
   - it: names workspace namespaces with the prefix the values give
     set:
       global.workspaceNamespacePrefix: tenant-

@@ -447,6 +447,7 @@ var _ = Describe("Application reconcile", func() {
 			envSecretMount{},
 			testTelemetry(),
 			testMinReadySeconds,
+			testDrainSeconds,
 		)
 		Expect(err).NotTo(HaveOccurred())
 		delete(previous.Spec.Template.Labels, labelAppKubernetesName)
@@ -459,6 +460,8 @@ var _ = Describe("Application reconcile", func() {
 			Telemetry:                testTelemetry(),
 			Gateway:                  testGateway,
 			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			MinReadySeconds:          testMinReadySeconds,
+			DrainSeconds:             testDrainSeconds,
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}

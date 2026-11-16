@@ -22,6 +22,7 @@ var (
 	errGatewayMissing          = errors.New("the application reconciler requires " + envGateway)
 	errWorkspacePrefixMissing  = errors.New("the application reconciler requires " + envWorkspacePrefix)
 	errMinReadySecondsMissing  = errors.New("the application reconciler requires " + envMinReadySeconds)
+	errDrainSecondsMissing     = errors.New("the application reconciler requires " + envDrainSeconds)
 	errNoLocoNamespace         = errors.New("registry secrets require " + envLocoNamespace)
 	errNoPushSecret            = errors.New("builds require a registry push secret outside registry token mode")
 	errStaticSecretInTokenMode = errors.New(
@@ -65,6 +66,9 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if operator.MinReadySeconds == nil {
 		return reconcilerSetup{}, errMinReadySecondsMissing
 	}
+	if operator.DrainSeconds == nil {
+		return reconcilerSetup{}, errDrainSecondsMissing
+	}
 	if operator.RegistryTokenMode && operator.PullSecretName != "" {
 		return reconcilerSetup{}, errStaticSecretInTokenMode
 	}
@@ -89,6 +93,7 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 			WorkspaceNamespacePrefix: operator.WorkspaceNamespacePrefix,
 			Telemetry:                operator.Telemetry,
 			MinReadySeconds:          *operator.MinReadySeconds,
+			DrainSeconds:             *operator.DrainSeconds,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}

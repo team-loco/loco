@@ -90,6 +90,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		envSecretMount{Mounted: true, Revision: 7},
 		testTelemetry(),
 		testMinReadySeconds,
+		testDrainSeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
@@ -132,6 +133,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
+		testDrainSeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment without a secret: %v", err)
@@ -154,6 +156,7 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
+		testDrainSeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
@@ -175,6 +178,7 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
+		testDrainSeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)
@@ -203,6 +207,7 @@ func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
+		testDrainSeconds,
 	); err == nil {
 		t.Fatal("expected an error for an unparsable cpu quantity")
 	}
@@ -254,6 +259,7 @@ func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
+		testDrainSeconds,
 	)
 	if err != nil {
 		t.Fatalf("desiredDeployment: %v", err)

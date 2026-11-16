@@ -10,7 +10,10 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-const testMinReadySeconds = int32(10)
+const (
+	testMinReadySeconds = int32(10)
+	testDrainSeconds    = int32(7)
+)
 
 func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 	health := &locov1alpha1.HealthCheckSpec{
@@ -36,6 +39,7 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 				envSecretMount{},
 				testTelemetry(),
 				testMinReadySeconds,
+				testDrainSeconds,
 			)
 			if err != nil {
 				t.Fatal(err)
@@ -73,7 +77,14 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 
 func TestDesiredDeploymentKeepsOldReplicasUntilNewOnesStayReady(t *testing.T) {
 	app := testApplication()
-	deployment, err := desiredDeployment(app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry(), 17)
+	deployment, err := desiredDeployment(
+		app,
+		testWorkspaceNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		17,
+		testDrainSeconds,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,5 +99,43 @@ func TestDesiredDeploymentKeepsOldReplicasUntilNewOnesStayReady(t *testing.T) {
 	}
 	if rolling.MaxSurge == nil || rolling.MaxSurge.String() != "25%" {
 		t.Errorf("maxSurge = %v, want 25%%", rolling.MaxSurge)
+	}
+}
+
+func TestDesiredDeploymentReservesDrainTimeBeforeProcessShutdown(t *testing.T) {
+	for _, drain := range []int32{testDrainSeconds, 1<<31 - 1} {
+		app := testApplication()
+		deployment, err := desiredDeployment(
+			app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, drain,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pod := deployment.Spec.Template.Spec
+		lifecycle := pod.Containers[0].Lifecycle
+		if lifecycle == nil || lifecycle.PreStop == nil || lifecycle.PreStop.Sleep == nil ||
+			lifecycle.PreStop.Sleep.Seconds == nil || *lifecycle.PreStop.Sleep.Seconds != int64(drain) {
+			t.Fatalf("drain %d: lifecycle = %+v, want native preStop sleep", drain, lifecycle)
+		}
+		wantGrace := int64(corev1.DefaultTerminationGracePeriodSeconds) + int64(drain)
+		if pod.TerminationGracePeriodSeconds == nil || *pod.TerminationGracePeriodSeconds != wantGrace {
+			t.Errorf("drain %d: termination grace = %v, want %d", drain, pod.TerminationGracePeriodSeconds, wantGrace)
+		}
+	}
+}
+
+func TestDesiredDeploymentDoesNotDelayPortlessWorkerShutdown(t *testing.T) {
+	app := testApplication()
+	app.Spec.ServiceSpec.Deployment.Port = nil
+	deployment, err := desiredDeployment(
+		app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, testDrainSeconds,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pod := deployment.Spec.Template.Spec
+	if pod.Containers[0].Lifecycle != nil || pod.TerminationGracePeriodSeconds != nil {
+		t.Errorf("worker shutdown overrides Kubernetes defaults: lifecycle=%+v grace=%v",
+			pod.Containers[0].Lifecycle, pod.TerminationGracePeriodSeconds)
 	}
 }
