@@ -1,72 +1,80 @@
-import { TriangleAlertIcon, XIcon } from "lucide-react";
+import { RotateCcwIcon } from "lucide-react";
 
+import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
-import { CopyId } from "@/components/design/CopyId";
-import { requestId } from "@/lib/error-handler";
+import { EmptyHero } from "@/components/design/EmptyHero";
+import { ErrorReceipt } from "@/components/design/ErrorState";
 import { AUDIT_FILTER_FIXES, auditFilterViolations, type DroppedFilter } from "./link";
+import { DEFAULT_RANGE } from "./model";
 
 export function DroppedFilters({ filters, onDismiss }: { filters: DroppedFilter[]; onDismiss: () => void }) {
 	return (
-		<div
-			role="status"
-			className="m-4 rounded-control border border-warn/25 bg-warn-bg px-4 py-3 text-[13px] text-warn-fg"
-		>
-			<div className="flex items-start justify-between gap-3 font-medium">
-				<span>Some filters in this link couldn't be used, so they were left out</span>
-				<Button variant="ghost" size="icon-sm" aria-label="Dismiss unused filters" onClick={onDismiss}>
-					<XIcon />
+		<Banner
+			tone="warn"
+			title="Some filters in this link couldn’t be used and were left out"
+			className="mx-5 mt-0 mb-3.5"
+			action={
+				<Button variant="ghost" size="sm" className="shrink-0" onClick={onDismiss}>
+					Dismiss
 				</Button>
-			</div>
-			<ul className="mt-2 flex list-none flex-col gap-1 p-0">
+			}
+		>
+			<ul className="mt-1 flex list-none flex-col gap-1 p-0 text-[12.5px]">
 				{filters.map((f, i) => (
-					<li key={i} className="flex flex-wrap gap-x-2">
-						<span>{f.label}</span>
-						<s className="break-all font-mono">{f.value}</s>
-						<span className="text-fg3">{f.reason}</span>
+					<li key={i} className="flex flex-wrap gap-x-2.5">
+						<span className="text-fg3">{f.label}</span>
+						<s className="break-all font-mono text-[12px] text-fg2 decoration-fg3">{f.value}</s>
+						<span className="text-fg2">{f.reason}</span>
 					</li>
 				))}
 			</ul>
-		</div>
+		</Banner>
 	);
 }
 
 export function AuditFilterError({ error, onFix }: { error: Error; onFix: (field: string) => void }) {
 	const violations = auditFilterViolations(error);
-	const id = requestId(error);
+	const field = violations.find((v) => AUDIT_FILTER_FIXES.has(v.field))?.field ?? "";
+	const fix = AUDIT_FILTER_FIXES.get(field);
+	const time = field === "start_time" || field === "end_time";
+	const subject = new Map([
+		["page_size", "number of rows"],
+		["before_seq", "page"],
+		["workspace_id", "workspace"],
+		["resource_id", "resource"],
+		["environment_id", "environment"],
+	]).get(field);
 	return (
-		<div
+		<EmptyHero
 			role="alert"
-			className="m-4 flex flex-col gap-2 rounded-control border border-bad-fg/20 bg-bad-bg px-4 py-3 text-[13px]"
+			className="rounded-none border-t border-line bg-transparent pt-12 pb-14"
+			art={
+				<ErrorReceipt
+					error={error}
+					rpc="EventService.ListEvents"
+					className="w-[min(520px,100%)]"
+					rows={violations.map((v) => ({ label: "field", value: `${v.field}: ${v.description}` }))}
+				/>
+			}
+			title={
+				time
+					? "Couldn’t load events for this time range"
+					: subject === undefined
+						? "Couldn’t load events with these filters"
+						: `Couldn’t load events for this ${subject}`
+			}
+			subtitle={time ? "Choose a different time range to load events." : "Check the filters and try again."}
 		>
-			<span className="flex items-center gap-2 font-medium text-bad-fg">
-				<TriangleAlertIcon className="size-4" />
-				The audit log rejected these filters
-			</span>
-			{violations.map((v, i) => {
-				const fix = AUDIT_FILTER_FIXES.get(v.field);
-				return (
-					<div key={i} className="flex flex-wrap items-center gap-2">
-						<span className="font-mono text-bad-fg">{v.field}</span>
-						<span className="text-fg2">{v.description}</span>
-						{fix !== undefined && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									onFix(v.field);
-								}}
-							>
-								{fix.label}
-							</Button>
-						)}
-					</div>
-				);
-			})}
-			{id !== null && (
-				<CopyId value={id} title="Copy request ID" className="max-w-full self-start font-mono text-[12px]">
-					<span className="truncate">{id}</span>
-				</CopyId>
+			{fix !== undefined && (
+				<Button
+					onClick={() => {
+						onFix(field);
+					}}
+				>
+					<RotateCcwIcon />
+					{time ? `Reset to ${DEFAULT_RANGE.label}` : fix.label}
+				</Button>
 			)}
-		</div>
+		</EmptyHero>
 	);
 }

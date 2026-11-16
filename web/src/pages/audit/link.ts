@@ -56,7 +56,8 @@ export function auditLink(
 	] as const) {
 		const value = params.get(key);
 		if (value === null) continue;
-		if (!params.has("ws") && selectedWorkspace === "") drop(key, label, "Choose a workspace first");
+		if (!params.has("ws") && selectedWorkspace === "")
+			drop(key, label, key === "env" ? "pick a workspace to filter by environment" : "Choose a workspace first");
 		else if (ids !== undefined && !ids.includes(value)) drop(key, label, `${label} not found in this workspace`);
 	}
 	return { search: params.toString(), dropped };

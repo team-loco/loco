@@ -14,6 +14,7 @@ import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useCopy } from "@/hooks/useCopy";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { errorKind, getErrorMessage, requestId } from "@/lib/error-handler";
+import { cn } from "@/lib/utils";
 import { userLabel } from "@/lib/user";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 import { roleOf } from "@/pages/team/model";
@@ -96,6 +97,58 @@ function Unavailable({ onRetry, className }: { onRetry: () => Promise<unknown>; 
 	);
 }
 
+export function ErrorReceipt({
+	error,
+	rpc,
+	rows,
+	className,
+}: {
+	error?: unknown;
+	rpc?: string;
+	rows: readonly { label: string; value: ReactNode }[];
+	className?: string;
+}) {
+	const id = requestId(error);
+	const entries = [...rows];
+	if (rpc !== undefined) {
+		entries.unshift(
+			{ label: "call", value: rpc },
+			{ label: "code", value: <span className="text-err">{codeName(error)}</span> },
+		);
+		if (id !== null)
+			entries.unshift({
+				label: "request",
+				value: (
+					<CopyId
+						value={id}
+						title="Copy request ID"
+						className="max-w-full min-w-0 justify-start p-0 font-mono text-[12px] text-foreground hover:bg-transparent hover:underline hover:decoration-fg3 hover:underline-offset-3"
+					>
+						<span className="min-w-0 truncate">{id}</span>
+					</CopyId>
+				),
+			});
+	}
+	return (
+		<div
+			className={cn(
+				"mx-auto mb-[18px] flex w-[min(440px,100%)] flex-col rounded-[10px] border border-line bg-background px-3.5 py-2.5 text-left font-mono text-[12px]",
+				className,
+			)}
+		>
+			{entries.map((entry, i) => (
+				<div
+					key={i}
+					className="flex min-w-0 gap-3.5 py-1 not-first:border-t not-first:border-dashed not-first:border-line"
+				>
+					<span className="w-14 shrink-0 text-fg3">{entry.label}</span>
+					<div className="min-w-0 wrap-anywhere text-foreground">{entry.value}</div>
+				</div>
+			))}
+		</div>
+	);
+}
+
 function Internal({
 	error,
 	what,
@@ -121,34 +174,16 @@ function Internal({
 		`Time: ${at.toISOString()}`,
 		`Page: ${window.location.href}`,
 	].join("\n");
-	const row = (key: string, value: ReactNode) => (
-		<div className="flex min-w-0 gap-3.5 py-1 not-first:border-t not-first:border-dashed not-first:border-line">
-			<span className="w-14 shrink-0 text-fg3">{key}</span>
-			{value}
-		</div>
-	);
-	const text = (value: string, tone = "text-foreground") => <span className={`min-w-0 truncate ${tone}`}>{value}</span>;
 	return (
 		<EmptyHero
 			role="alert"
 			className={className}
 			art={
-				<div className="mx-auto mb-[18px] flex w-[min(440px,100%)] flex-col rounded-[10px] border border-line bg-background px-3.5 py-2.5 text-left font-mono text-[12px]">
-					{id !== null &&
-						row(
-							"request",
-							<CopyId
-								value={id}
-								title="Copy request ID"
-								className="min-w-0 justify-start p-0 font-mono text-[12px] text-foreground hover:bg-transparent hover:underline hover:decoration-fg3 hover:underline-offset-3"
-							>
-								<span className="min-w-0 truncate">{id}</span>
-							</CopyId>,
-						)}
-					{row("call", text(rpc))}
-					{row("code", text(code, "text-err"))}
-					{row("at", text(formatClock(at.getTime(), false, timePref)))}
-				</div>
+				<ErrorReceipt
+					error={error}
+					rpc={rpc}
+					rows={[{ label: "at", value: formatClock(at.getTime(), false, timePref) }]}
+				/>
 			}
 			title={`Couldn’t load ${what}`}
 			subtitle={

@@ -386,22 +386,19 @@ export function Audit() {
 							}}
 						/>
 					)}
-					<AuditTable
-						rows={filterRejected || rejected !== null ? [] : rows}
-						highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
-						loading={loading}
-						selectedId={selected?.event.id ?? null}
-						nowMs={now}
-						onSelect={(id) => {
-							void setParams({ event: id });
-						}}
-					/>
-					{rejected !== null && (
-						<div className="px-4 py-12 text-center text-[13px] text-fg3">Fix the search to see events.</div>
+					{!filterRejected && rejected === null && (
+						<AuditTable
+							rows={rows}
+							highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
+							loading={loading}
+							selectedId={selected?.event.id ?? null}
+							nowMs={now}
+							onSelect={(id) => {
+								void setParams({ event: id });
+							}}
+						/>
 					)}
-					{filterRejected && (
-						<div className="px-4 py-12 text-center text-[13px] text-fg3">Fix the filters to see events.</div>
-					)}
+
 					{!loading && !filterRejected && rejected === null && rows.length === 0 && (
 						<EmptyState
 							icon={<HistoryIcon />}
@@ -430,50 +427,52 @@ export function Audit() {
 							}
 						/>
 					)}
-					<Pager
-						label={
-							first === undefined || last === undefined
-								? ""
-								: `${rows.length.toLocaleString()} events, ${agoLabel(first.ms, now)} to ${agoLabel(last.ms, now)}`
-						}
-						total={rows.length}
-						pageSizes={PAGE_SIZES}
-						pageSize={size}
-						onPageSize={(n) => {
-							setFilters({
-								size: PAGE_SIZES.find((s) => s === n) ?? null,
-								event: null,
-							});
-						}}
-						firstLabel="Newest events"
-						prevLabel="Newer events"
-						nextLabel="Older events"
-						onFirst={
-							stack.length > 0 && !filterRejected && rejected === null
-								? () => {
-										void setParams({ before: null });
-									}
-								: null
-						}
-						onPrev={
-							stack.length > 0 && !filterRejected && rejected === null
-								? () => {
-										void setParams({ before: stack.slice(0, -1) });
-									}
-								: null
-						}
-						onNext={
-							nextBeforeSeq !== 0n && !filterRejected && rejected === null
-								? () => {
-										void setParams({
-											before: [...stack, nextBeforeSeq],
-											live: null,
-											event: null,
-										});
-									}
-								: null
-						}
-					/>
+					{!filterRejected && rejected === null && (
+						<Pager
+							label={
+								first === undefined || last === undefined
+									? ""
+									: `${rows.length.toLocaleString()} events, ${agoLabel(first.ms, now)} to ${agoLabel(last.ms, now)}`
+							}
+							total={rows.length}
+							pageSizes={PAGE_SIZES}
+							pageSize={size}
+							onPageSize={(n) => {
+								setFilters({
+									size: PAGE_SIZES.find((s) => s === n) ?? null,
+									event: null,
+								});
+							}}
+							firstLabel="Newest events"
+							prevLabel="Newer events"
+							nextLabel="Older events"
+							onFirst={
+								stack.length > 0
+									? () => {
+											void setParams({ before: null });
+										}
+									: null
+							}
+							onPrev={
+								stack.length > 0
+									? () => {
+											void setParams({ before: stack.slice(0, -1) });
+										}
+									: null
+							}
+							onNext={
+								nextBeforeSeq !== 0n
+									? () => {
+											void setParams({
+												before: [...stack, nextBeforeSeq],
+												live: null,
+												event: null,
+											});
+										}
+									: null
+							}
+						/>
+					)}
 				</Section>
 			)}
 			<AuditDrawer

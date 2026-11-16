@@ -153,3 +153,5 @@ The observability custom range uses the shared DateTimePicker: shadcn's Calendar
 The sidebar search opens the shared command palette. Header search appears while the sidebar is collapsed. The user menu cycles System, Light, and Dark from one item named for its next mode. Its icon morphs between monitor, sun, and moon; reduced motion disables the transitions.
 
 The dashboard allocation strip and bars use `--allocation-0` through `--allocation-5` from `web/src/theme.css`.
+
+Audit filter rejections use the shared error receipt and empty hero inside the toolbar section. The receipt carries request, call, code and API field details; the heading and reset action describe the affected filter. Unusable link filters use the shared warning banner with a Dismiss action.
