@@ -46,7 +46,7 @@ import {
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { expandOrgLink } from "@/lib/org-links";
-import { colorThemes, modes, parseColorTheme, type Mode } from "@/lib/theme";
+import { colorThemes, modes, nextMode, parseColorTheme, type Mode } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
@@ -55,7 +55,6 @@ import { accountSettingsPath, workspacePath } from "@/lib/routes";
 import { useNavSections } from "./nav";
 import { SidebarToggle } from "./SidebarToggle";
 import { Kbd } from "@/components/design/Kbd";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { SHORTCUT_LABEL, useOpenPalette } from "./CommandMenu";
 import { ThemeIcon } from "./ThemeIcon";
 
@@ -85,7 +84,8 @@ function preloadPage(load: (() => Promise<unknown>) | undefined) {
 export function AppSidebar() {
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { theme, mode, setMode, color, setColor } = useTheme();
+	const { theme, mode, toggle, color, setColor } = useTheme();
+	const next = nextMode(mode);
 	const openPalette = useOpenPalette();
 	const { isMobile, setOpenMobile } = useSidebar();
 	const dark = theme === "dark";
@@ -243,41 +243,9 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
-							<DropdownMenuItem
-								render={<div />}
-								closeOnClick={false}
-								className={menuItem}
-								onFocus={(event) => {
-									if (event.target === event.currentTarget) {
-										event.currentTarget.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
-									}
-								}}
-							>
-								<span>Mode</span>
-								<ToggleGroup
-									aria-label="Mode"
-									data-mode-control
-									overshoot
-									variant="segmented"
-									value={[mode]}
-									onValueChange={(values) => {
-										const selected = modes.find((item) => item.id === values[0]);
-										if (selected !== undefined) setMode(selected.id);
-									}}
-								>
-									{modes.map((item) => (
-										<ToggleGroupItem
-											key={item.id}
-											value={item.id}
-											aria-label={item.name}
-											title={item.name}
-											className="h-6 w-[30px] px-0"
-										>
-											<ThemeIcon mode={MODE_ICONS[item.id]} active={mode === item.id} />
-										</ToggleGroupItem>
-									))}
-								</ToggleGroup>
-							</DropdownMenuItem>
+							<MenuLink icon={<ThemeIcon mode={MODE_ICONS[next]} />} onClick={toggle} closeOnClick={false}>
+								{`${modes.find((item) => item.id === next)?.name ?? ""} mode`}
+							</MenuLink>
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger className={cn(menuItem, "gap-2 [&>svg:last-child]:ml-0")}>
 									<span className="flex-1">Color theme</span>

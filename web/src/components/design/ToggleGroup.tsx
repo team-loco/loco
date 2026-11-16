@@ -8,12 +8,11 @@ type ToggleGroupVariant = "default" | "outline" | "segmented";
 
 const EMPTY_VALUES: readonly string[] = [];
 
-const SegmentedContext = createContext({ segmented: false, values: EMPTY_VALUES, multiple: false, overshoot: false });
+const SegmentedContext = createContext({ segmented: false, values: EMPTY_VALUES, multiple: false });
 
 function ToggleGroup({
 	className,
 	variant = "default",
-	overshoot = false,
 	spacing = 2,
 	value,
 	defaultValue = EMPTY_VALUES,
@@ -22,14 +21,13 @@ function ToggleGroup({
 	...props
 }: Omit<React.ComponentProps<typeof ToggleGroupBase>, "variant"> & {
 	variant?: ToggleGroupVariant | undefined;
-	overshoot?: boolean;
 }) {
 	const segmented = variant === "segmented";
 	const id = useId();
 	const [localValue, setLocalValue] = useState(defaultValue);
 	const values = value ?? localValue;
 	return (
-		<SegmentedContext value={{ segmented, values, multiple: props.multiple ?? false, overshoot }}>
+		<SegmentedContext value={{ segmented, values, multiple: props.multiple ?? false }}>
 			<MotionConfig reducedMotion="user">
 				<LayoutGroup id={id}>
 					<ToggleGroupBase
@@ -57,7 +55,7 @@ function ToggleGroupItem({
 	count,
 	...props
 }: React.ComponentProps<typeof ToggleGroupItemBase> & { count?: ReactNode }) {
-	const { segmented, values, multiple, overshoot } = use(SegmentedContext);
+	const { segmented, values, multiple } = use(SegmentedContext);
 	const selected = props.value !== undefined && values.includes(props.value);
 	return (
 		<ToggleGroupItemBase
@@ -75,11 +73,7 @@ function ToggleGroupItem({
 					data-slot="segmented-indicator"
 					layoutId={multiple ? props.value : "selection"}
 					initial={false}
-					transition={
-						overshoot
-							? { type: "tween", duration: 0.3, ease: [0.3, 1.3, 0.5, 1] }
-							: { type: "tween", duration: 0.18, ease: "easeOut" }
-					}
+					transition={{ type: "tween", duration: 0.18, ease: "easeOut" }}
 					className="pointer-events-none absolute -inset-px -z-10 rounded-control-inner bg-raise shadow-xs ring-1 ring-line dark:shadow-none dark:ring-line2"
 				/>
 			)}

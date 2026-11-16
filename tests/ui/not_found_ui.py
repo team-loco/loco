@@ -78,6 +78,11 @@ with session(out) as browser:
     cases = []
     try:
         context, page, errors = open_page(browser, "owner")
+        context.add_init_script("""window.modeSounds = [];
+            HTMLMediaElement.prototype.play = function () {
+                if (/Mode[.]wav$/.test(this.src)) window.modeSounds.push(this.src.split('/').pop());
+                return Promise.resolve();
+            };""")
         try:
             page.goto(ui + "/no/such/page?x=1")
             expect_not_found(page, "/no/such/page?x=1")
@@ -155,22 +160,50 @@ with session(out) as browser:
             expect(nav_link).to_be_focused()
 
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
-            mode = page.get_by_role("group", name="Mode", exact=True)
-            dark = mode.get_by_role("button", name="Dark", exact=True)
-            light = mode.get_by_role("button", name="Light", exact=True)
-            dark.click()
-            expect(dark).to_have_attribute("aria-pressed", "true")
+            mode = page.get_by_role("menuitem", name=re.compile(r"^(System|Light|Dark) mode$"))
+            expect(mode).to_have_text("Dark mode")
+            icon = mode.locator(".theme-icon")
+            expect(icon).to_have_attribute("data-mode", "moon")
+            icon.evaluate("""node => {
+                window.modeIcon = node;
+                window.modeTransitions = [];
+                node.addEventListener('transitionrun', event => window.modeTransitions.push(event.propertyName));
+            }""")
+            page.evaluate("window.modeSounds = []")
+            mode.click()
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
-            light.click()
-            expect(light).to_have_attribute("aria-pressed", "true")
-            light.focus()
-            page.keyboard.press("ArrowLeft")
-            system = mode.get_by_role("button", name="System", exact=True)
-            expect(system).to_be_focused()
-            page.keyboard.press("Space")
-            expect(system).to_have_attribute("aria-pressed", "true")
-            page.emulate_media(reduced_motion="reduce")
-            expect(system.locator(".theme-icon-motion")).to_have_css("animation-name", "none")
+            expect(mode).to_have_text("System mode")
+            expect(icon).to_have_attribute("data-mode", "monitor")
+            page.wait_for_function("window.modeTransitions.includes('transform')")
+            expect(icon).to_have_css("border-radius", "4px")
+            mode.click()
+            expect(mode).to_have_text("Light mode")
+            assert page.evaluate("localStorage.getItem('loco:mode:v1')") is None
+            expect(icon).to_have_attribute("data-mode", "sun")
+            expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
+            mode.click()
+            expect(mode).to_have_text("Dark mode")
+            expect(icon).to_have_attribute("data-mode", "moon")
+            assert page.evaluate("window.modeSounds") == ["darkMode.wav", "lightMode.wav"]
+            mode.focus()
+            page.keyboard.press("Enter")
+            expect(mode).to_have_text("System mode")
+            assert icon.evaluate("node => node === window.modeIcon")
+            page.emulate_media(color_scheme="dark", reduced_motion="reduce")
+            page.evaluate("window.modeTransitions = []")
+            mode.click()
+            expect(mode).to_have_text("Light mode")
+            expect(icon).to_have_css("transition-duration", "0s")
+            assert icon.evaluate("node => getComputedStyle(node, '::before').transitionDuration") == "0s"
+            assert icon.evaluate("node => getComputedStyle(node, '::after').transitionDuration") == "0s"
+            assert page.evaluate("window.modeSounds") == ["darkMode.wav", "lightMode.wav", "darkMode.wav"]
+            mode.click()
+            expect(mode).to_have_text("Dark mode")
+            expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
+            mode.click()
+            expect(mode).to_have_text("System mode")
+            assert page.evaluate("window.modeSounds") == ["darkMode.wav", "lightMode.wav", "darkMode.wav", "lightMode.wav", "darkMode.wav"]
+            assert page.evaluate("window.modeTransitions") == []
             page.keyboard.press("Escape")
             top_search.click()
             query.fill("dark mode")
