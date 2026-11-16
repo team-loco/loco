@@ -572,7 +572,6 @@ with session(out) as browser:
     expect(memory.get_by_label('Memory at trace start')).to_have_text('40%')
     expect(memory.get_by_text('Peak 60%', exact=True)).to_be_visible()
     expect(cpu.get_by_text('Limit 100%', exact=True)).to_be_visible()
-    expect(cpu.get_by_text('Request 100%', exact=True)).to_be_visible()
     assert len(metric_requests) == 4, metric_requests
     assert all(request['resourceIds'] == [workspace_id] and request['attributes']['k8s.pod.name'] == 'checkout-abc-123' for request in metric_requests)
     assert {request['metricName'] for request in metric_requests} == {'k8s.pod.cpu_limit_utilization', 'k8s.pod.memory_limit_utilization', 'k8s.pod.network.io'}

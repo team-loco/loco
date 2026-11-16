@@ -44,15 +44,12 @@ const CHART_CONFIG = {
 
 export function Infrastructure({ trace, selected }: { trace: TraceSummary; selected: TraceSpan }) {
 	const timePref = useTimePreferences();
-	const { workspaceId, resourceById } = useObs();
+	const { workspaceId } = useObs();
 	const { active } = useEnvironments();
 	const transport = useTransport();
 	const [minutes, setMinutes] = useState(10);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
 	const pod = selected.resourceAttributes["k8s.pod.name"] ?? "";
-	const spec = resourceById.get(selected.resourceId)?.raw.spec?.spec;
-	const service =
-		spec?.case === "service" ? spec.value.regions[selected.resourceAttributes["loco.region"] ?? ""] : undefined;
 	const { start, end } = traceBounds(trace);
 	const from = start - minutes * 60_000;
 	const to = end + minutes * 60_000;
@@ -86,11 +83,10 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 	);
 	const started = Date.parse(selected.resourceAttributes["k8s.pod.start_time"] ?? "");
 	const uptime = Number.isFinite(started) && started <= start ? formatDuration(start - started) : null;
-	// Region sizing sets the same quantity for workload requests and limits.
 	const panels = [
-		{ title: "CPU", indices: [0], request: service?.cpu ? 100 : undefined, color: "var(--series-0)" },
-		{ title: "Memory", indices: [1], request: service?.memory ? 100 : undefined, color: "var(--series-1)" },
-		{ title: "Network", indices: [2, 3], request: undefined, color: "var(--series-2)" },
+		{ title: "CPU", indices: [0], color: "var(--series-0)" },
+		{ title: "Memory", indices: [1], color: "var(--series-1)" },
+		{ title: "Network", indices: [2, 3], color: "var(--series-2)" },
 	];
 	return (
 		<section aria-label="Trace infrastructure" className="flex min-w-0 flex-col gap-3 px-5 py-3">
@@ -229,19 +225,6 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 														y={100}
 														stroke="var(--err)"
 														label={{ value: "Limit 100%", fill: "var(--err)", fontSize: 9, position: "insideTopLeft" }}
-													/>
-												)}
-												{panel.request !== undefined && (
-													<ReferenceLine
-														y={panel.request}
-														stroke="var(--fg4)"
-														strokeDasharray="4 4"
-														label={{
-															value: `Request ${formatPercent(panel.request)}`,
-															fill: "var(--fg3)",
-															fontSize: 9,
-															position: "insideTopRight",
-														}}
 													/>
 												)}
 												{hoverTime !== null && <ReferenceLine x={hoverTime} stroke="var(--fg3)" />}
