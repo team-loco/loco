@@ -28,23 +28,26 @@ func (c *Cluster) dumpCluster(ctx context.Context) {
 	}
 	for _, args := range [][]string{
 		{"inspect", "--format", "status={{.State.Status}} exit={{.State.ExitCode}} running={{.State.Running}}", c.Node()},
+		{"stats", "--no-stream", "--format", "cpu={{.CPUPerc}} memory={{.MemUsage}} pids={{.PIDs}}", c.Node()},
 		{"logs", "--tail", "200", c.Node()},
 		{"exec", c.Node(), "journalctl", "-u", "kubelet", "--no-pager", "--lines=200"},
 	} {
 		dump(append([]string{diagnosticDocker}, args...)...)
 	}
-	for _, command := range []string{
-		"get nodes -o wide",
-		"-n kube-system get pods -o wide",
-		"get events -A --sort-by=.metadata.creationTimestamp",
-	} {
-		dump(append([]string{"kubectl", diagnosticContext, c.kubeContext}, strings.Fields(command)...)...)
-	}
-	for _, component := range []string{"etcd", "kube-apiserver"} {
+	for _, component := range []string{"etcd", "kube-apiserver", "kube-scheduler", "kube-controller-manager"} {
 		ids := dump(diagnosticDocker, "exec", c.Node(), "crictl", "ps", "-a", "--name", component, "-q")
 		for id := range strings.FieldsSeq(ids) {
 			dump(diagnosticDocker, "exec", c.Node(), "crictl", "logs", "--tail=200", id)
 		}
+	}
+	for _, command := range []string{
+		"get --raw=/readyz?verbose",
+		"get nodes -o wide",
+		"-n kube-system get pods -o wide",
+		"-n kube-system get leases",
+		"get events -A --sort-by=.metadata.creationTimestamp",
+	} {
+		dump(append([]string{"kubectl", diagnosticContext, c.kubeContext}, strings.Fields(command)...)...)
 	}
 }
 
