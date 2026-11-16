@@ -328,11 +328,12 @@ func (s *DeploymentServer) CreateDeployment(
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.DeploymentCreated,
-			WorkspaceID: new(resource.WorkspaceID),
-			ResourceID:  new(resource.ID),
-			SubjectType: events.SubjectDeployment,
-			SubjectID:   new(deploymentID),
+			Type:          events.DeploymentCreated,
+			EnvironmentID: new(environmentID),
+			WorkspaceID:   new(resource.WorkspaceID),
+			ResourceID:    new(resource.ID),
+			SubjectType:   events.SubjectDeployment,
+			SubjectID:     new(deploymentID),
 			Data: map[string]any{
 				events.FieldResourceID:    resourceID.String(),
 				events.FieldEnvironmentID: environmentID.String(),

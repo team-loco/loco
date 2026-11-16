@@ -357,3 +357,60 @@ func TestListEventsPagesMatchingHistoryAndRetainsDeletedResource(t *testing.T) {
 		t.Fatalf("deleted resource=%v", err)
 	}
 }
+
+func TestDeploymentAndScaleEventsStayInTheirEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	stagingID := f.deployToProductionAndStaging(t)
+	for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
+		f.finishRollouts(t)
+		if err := scaleResourceIn(t, f, environmentID, 2); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
+		wantEnvironmentEvent(t, f, f.resourceID, environmentID, events.DeploymentCreated)
+		wantEnvironmentEvent(t, f, f.resourceID, environmentID, events.ResourceScaled)
+	}
+}
+
+func TestApplyDeploymentEventsStayInTheirEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	stagingID := f.prepareStaging(t)
+	file := planFileHeader + applyFileWorkerOverride
+	for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
+		applyOK(t, f, file, applyOptions{environmentID: environmentID})
+	}
+	resource, found := f.resourceByName(t, applyWorker)
+	if !found {
+		t.Fatal("worker resource missing")
+	}
+	for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
+		wantEnvironmentEvent(t, f, resource.ID, environmentID, events.DeploymentCreated)
+	}
+}
+
+func wantEnvironmentEvent(t *testing.T, f *deployFixture, resourceID, environmentID uuid.UUID, kind string) {
+	t.Helper()
+	server := NewEventServer(f.pool, f.queries)
+	owner, err := f.queries.GetWorkspaceOrganizationIDByResourceID(t.Context(), resourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := auditScope(t, genDb.EntityTypeResource, resourceID, genDb.ScopeRead)
+	response, err := server.ListEvents(ctx, &eventv1.ListEventsRequest{
+		OrgId: owner.OrgID.String(), ResourceId: resourceID.String(), EnvironmentId: environmentID.String(),
+		Query: "@type:" + kind,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetEvents()) != 1 {
+		t.Fatalf("%s events in %s = %v, want one", kind, environmentID, response.GetEvents())
+	}
+	if event := response.GetEvents()[0]; event.GetEnvironmentId() != environmentID.String() {
+		t.Fatalf("event environment = %s, want %s", event.GetEnvironmentId(), environmentID)
+	}
+}
