@@ -20,12 +20,21 @@ mise exec -- uv run --script "$E" <command>
 
 1. Write a scenario JSON: the users, the organizations each owner creates with their
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
-2. Write a shot spec JSON. Each shot names a user, a path, optional steps
+   An optional `resources` list seeds synthetic services. Each entry names a `workspace`
+   (`org/workspace`), a `name` and a non-empty `deployments` list. Each deployment specifies
+   an existing `environment`, `region`, deployment `status`, placement `phase`, `ready_replicas`
+   and a service deployment `spec` with `observability`, an image `build`, `cpu`, `memory`, `minReplicas`,
+   `maxReplicas` and optional `port`. Use one deployment per environment and region.
+   Start from `.agents/skills/ui-evidence/scenario.resources.example.json`. Resources use the API; synthetic
+   clusters, deployments and placements use SQL without contacting a registry or worker.
+   The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths.
+2. Write a shot spec JSON. Each shot names a path, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
    `{"type": {"selector": selector, "text": "value"}}`), a crop (`"viewport"`, `"full"`,
    `{"selector": s, "padding": px}` or `{"clip": [x, y, width, height]}`), an optional `"color"`
    colour theme id (as in `web/src/lib/theme.ts`) and `"narrow": true` for an extra 390-pixel-wide
-   capture. Start from `shots.example.json`. Use a `clip` crop when
+   capture. Omit `user` for signed-out pages; the context has no session.
+   Start from `shots.example.json`. Use a `clip` crop when
    before and after must line up: a selector crop follows the element's size.
    Full and selector crops expand the viewport to the document height before capture.
    Viewport and explicit clip crops keep the requested desktop or narrow viewport.
