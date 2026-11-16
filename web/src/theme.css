@@ -84,6 +84,8 @@
 	--color-err: var(--err);
 	--color-warn: var(--warn);
 	--color-info: var(--info);
+	--color-lv-info: var(--lv-info);
+	--color-lv-warn: var(--lv-warn);
 
 	--color-ok-bg: color-mix(in oklch, var(--ok) 12%, transparent);
 	--color-ok-fg: color-mix(in oklch, var(--ok) 70%, var(--fg));
@@ -147,6 +149,8 @@
 		--logo: var(--brand);
 		--code-bg: var(--panel);
 		--code-line-number: var(--fg3);
+		--lv-info: color-mix(in oklch, var(--info) 55%, var(--panel));
+		--lv-warn: #e0a100;
 		--sh-identifier: var(--fg);
 		--sh-sign: var(--fg3);
 		--sh-property: #2348a8;
@@ -216,6 +220,7 @@
 		--series-5: oklch(0.74 0.13 350);
 		--series-6: oklch(0.82 0.12 95);
 		--series-7: oklch(0.72 0.02 260);
+		--lv-warn: #f2b937;
 		--sh-property: #8fb0f5;
 		--sh-string: #f2a97a;
 		--sh-keyword: #c8a5f4;

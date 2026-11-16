@@ -29,14 +29,14 @@ export function levelStyle(level: Level): LevelStyle {
 			return {
 				badge: "bg-warn-bg text-warn-fg",
 				body: "text-foreground",
-				dot: "bg-warn",
+				dot: "bg-lv-warn",
 				text: "text-warn-fg",
 			};
 		case "info":
 			return {
 				badge: "bg-panel2 text-fg2",
 				body: "text-foreground",
-				dot: "bg-info",
+				dot: "bg-lv-info",
 				text: "text-fg3",
 			};
 		case "debug":

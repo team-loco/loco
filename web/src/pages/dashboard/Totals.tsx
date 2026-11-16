@@ -19,7 +19,7 @@ const SPEND = "Spend";
 const TOP = 5;
 const PERCENT = 100;
 
-const CARD = "flex min-w-0 sm:min-h-[150px] flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
+const CARD = "flex min-h-full min-w-0 flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
 const VALUE = "font-mono text-[30px] leading-[1.25] font-medium tracking-[-0.03em] tabular-nums";
 
 function share(part: number, total: number): string {
@@ -51,14 +51,12 @@ function SoonCard({ label }: { label: string }) {
 }
 
 const EASE = "ease-[cubic-bezier(0.2,0.8,0.2,1)] motion-reduce:transition-none";
-const SEG_FADE = 0.12;
-const MIN_OPACITY = 0.3;
 
 function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: string) => string }) {
 	const shown = value.resources.length > TOP + 1 ? value.resources.slice(0, TOP) : value.resources;
 	const rest = value.resources.slice(shown.length);
 	const restCpu = rest.reduce((n, r) => n + r.cpuMilli, 0);
-	const max = shown[0]?.cpuMilli ?? 0;
+	const max = Math.max(1, shown[0]?.cpuMilli ?? 0);
 	const hasBreakdown = value.resources.length > 0;
 
 	return (
@@ -78,7 +76,9 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 					<span className="font-mono text-[11.5px]">now</span>
 				</CardHead>
 				<span className={VALUE}>{formatCpu(value.cpuMilli)}</span>
-				<span className="font-mono text-[11.5px] text-fg3">{formatMemory(value.memMi)} memory</span>
+				<span className="truncate font-mono text-[11.5px] text-fg3" title={`${formatMemory(value.memMi)} memory`}>
+					{formatMemory(value.memMi)} memory
+				</span>
 				{hasBreakdown && (
 					<div
 						className={cn(
@@ -99,21 +99,32 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 									/>
 								</span>
 							</div>
-							<div aria-hidden="true" className="mb-1.5 flex h-2 gap-0.5 overflow-hidden rounded-[3px]">
-								{value.resources.map((r, i) => (
+							<div
+								aria-hidden="true"
+								data-slot="allocation-strip"
+								className="mb-1.5 flex h-2 gap-0.5 overflow-hidden rounded-[3px]"
+							>
+								{shown.map((r, i) => (
 									<span
 										key={r.id}
 										className={cn(
 											EASE,
-											"block h-full min-w-0.5 origin-bottom scale-y-0 bg-foreground transition-transform duration-[380ms] group-focus-within/stat:scale-y-100 group-hover/stat:scale-y-100",
+											"block h-full min-w-0.5 origin-bottom scale-y-0 transition-transform duration-[380ms] group-focus-within/stat:scale-y-100 group-hover/stat:scale-y-100",
 										)}
 										style={{
 											flex: `${r.cpuMilli.toString()} 1 0`,
-											opacity: Math.max(MIN_OPACITY, 1 - i * SEG_FADE),
+											backgroundColor: `var(--series-${i.toString()})`,
 											transitionDelay: `${(i * 30).toString()}ms`,
 										}}
 									/>
 								))}
+								{rest.length > 0 && (
+									<span
+										data-rest
+										className="h-full min-w-0.5 bg-line2 dark:bg-panel2"
+										style={{ flex: `${restCpu.toString()} 1 0` }}
+									/>
+								)}
 							</div>
 							<ul className="m-0 flex list-none flex-col p-0">
 								{shown.map((r, i) => (
@@ -141,13 +152,19 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 													</span>
 												</span>
 											</span>
-											<span className="block h-[3px] overflow-hidden rounded-[2px] bg-panel2">
+											<span
+												data-slot="allocation-bar"
+												className="block h-[3px] overflow-hidden rounded-[2px] bg-panel2"
+											>
 												<span
 													className={cn(
 														EASE,
-														"block h-full origin-left scale-x-0 rounded-[2px] bg-foreground transition-transform duration-[520ms] group-focus-within/stat:scale-x-100 group-hover/stat:scale-x-100",
+														"block h-full origin-left scale-x-0 rounded-[2px] transition-transform duration-[520ms] group-focus-within/stat:scale-x-100 group-hover/stat:scale-x-100",
 													)}
-													style={{ width: `${((r.cpuMilli / max) * PERCENT).toFixed(1)}%` }}
+													style={{
+														width: `${((r.cpuMilli / max) * PERCENT).toFixed(1)}%`,
+														backgroundColor: `var(--series-${i.toString()})`,
+													}}
 												/>
 											</span>
 										</Link>
@@ -191,6 +208,7 @@ export function Totals({
 		{ label: "Errors", value: trafficValue(errorShare(latest), "%") },
 		{ label: "Bandwidth out", value: trafficValue(latest?.bytes, " B/s") },
 	];
+	const note = traffic.error !== null ? getErrorMessage(traffic.error, "Failed to load traffic") : "Latest bucket";
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-end gap-2">
@@ -212,14 +230,14 @@ export function Totals({
 			</div>
 			<section
 				aria-label="Totals"
-				className="grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] items-start gap-2.5"
+				className="grid grid-cols-[repeat(auto-fit,minmax(min(180px,100%),1fr))] gap-2.5 sm:auto-rows-[minmax(150px,auto)]"
 			>
 				{cards.map(({ label, value: shown }) => (
 					<div key={label} className={CARD}>
 						<CardHead label={label} />
 						<span className={VALUE}>{traffic.isLoading ? "…" : traffic.error !== null ? "—" : shown}</span>
-						<span className="text-[12px] text-fg3">
-							{traffic.error !== null ? getErrorMessage(traffic.error, "Failed to load traffic") : "Latest bucket"}
+						<span className="truncate text-[12px] text-fg3" title={note}>
+							{note}
 						</span>
 					</div>
 				))}

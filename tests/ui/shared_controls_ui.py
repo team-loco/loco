@@ -2,6 +2,7 @@ import argparse
 import json
 import re
 import urllib.parse
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -230,6 +231,7 @@ def volume(page):
     area = page.get_by_role("region", name="Log volume").locator('[data-slot="slider"]').locator("..")
     bars = area.locator("> div").first.locator("> div")
     count = bars.count()
+    assert bars.first.locator("span").nth(1).evaluate("node => getComputedStyle(node).boxShadow") != "none"
     box = area.bounding_box()
     target = count - 5
     point = {"x": box["width"] * (target + 0.1) / count, "y": box["height"] / 2}
@@ -252,6 +254,55 @@ def volume(page):
     page.keyboard.press("Enter")
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
     assert urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0] == clicked
+
+
+def dashboard(page):
+    page.set_viewport_size(evidence.DESKTOP)
+    if not state.get("dashboard_resources"):
+        environment = next(e["id"] for e in evidence.rpc(state["api_url"], owner["token"], "loco.environment.v1.EnvironmentService/ListEnvironments", {"workspaceId": workspace})["environments"] if e["name"] == "production")
+        cluster = str(uuid.uuid4())
+        sql = [f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier) VALUES ('{cluster}','dashboard-pilot','us-east-1','fixture',true,false,'healthy',NOW(),'production');"]
+        for index in range(7):
+            resource_id = evidence.rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {"workspaceId": workspace, "name": f"dashboard-{index}", "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}}}}})["resourceId"]
+            deployment = str(uuid.uuid4())
+            runtime = evidence.sql_literal(json.dumps({"build": {"type": "image", "image": "example.invalid/dashboard:1"}, "cpu": f"{(index + 1) * 100}m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080}))
+            sql.append(f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user','{owner['id']}','cli','{deployment}','{resource_id}','{cluster}','us-east-1',1,'running',true,'Dashboard pilot','{environment}',{runtime},1,NOW());")
+            sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource_id}','{cluster}','us-east-1','{deployment}','{environment}','{{}}',true,1,'Ready',NOW());")
+        evidence.psql(state["container"], "\n".join(sql))
+        state["dashboard_resources"] = True
+        evidence.write_json(Path(args.state), state)
+    for color, mode in ((color, mode) for color in ("loco", "catppuccin", "neobrutal") for mode in ("light", "dark")):
+        page.evaluate("([color, mode]) => { localStorage.setItem('loco:color:v1', color); localStorage.setItem('loco:mode:v1', mode); }", [color, mode])
+        page.goto(state["ui_url"] + base + "?env=production")
+        totals = page.get_by_role("region", name="Totals", exact=True)
+        allocated = page.get_by_role("group", name=re.compile("^Allocated:"))
+        expect(allocated).to_be_visible()
+        cards = totals.locator(":scope > div")
+        heights = cards.evaluate_all("nodes => nodes.map(n => n.getBoundingClientRect().height)")
+        assert max(heights) - min(heights) <= 1, heights
+        allocated.hover()
+        strip = allocated.locator('[data-slot="allocation-strip"]')
+        expect(strip.locator(":scope > span")).to_have_count(6)
+        expect(strip.locator("[data-rest]")).to_have_count(1)
+        bars = allocated.locator('[data-slot="allocation-bar"] > span')
+        expect(bars).to_have_count(5)
+        if color == "neobrutal":
+            expect(strip).to_have_css("border-top-width", "2px")
+            expect(allocated.locator('[data-slot="allocation-bar"]').first).to_have_css("border-top-width", "2px")
+        colors = strip.locator(":scope > span:not([data-rest])").evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)")
+        assert len(set(colors)) == 5, colors
+        assert bars.evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)") == colors
+        expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
+        page.get_by_role("button").filter(has_text="Olivia Owner").click()
+        selected = page.get_by_role("group", name="Mode", exact=True).get_by_role("button", name=mode.title(), exact=True)
+        ink = selected.evaluate("node => getComputedStyle(node).color")
+        icon = selected.locator(".theme-icon")
+        if mode == "dark":
+            assert ink in icon.evaluate("node => getComputedStyle(node).boxShadow")
+        else:
+            expect(icon).to_have_css("background-color", ink)
+        page.keyboard.press("Escape")
+    page.evaluate("localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')")
 
 
 def limit_display(page):
@@ -477,7 +528,7 @@ with session(out) as browser:
             name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
             box = name.bounding_box()
             assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
-            for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, limit_display):
+            for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, limit_display, dashboard):
                 check(page)
             assert not errors, errors
             results.append({"passed": True})
