@@ -138,9 +138,3 @@ volumes:
   postgres-data:
   registry-data:
   s3-data:
-
-networks:
-  default:
-    ipam:
-      config:
-        - subnet: ${LOCO_TEST_SUBNET:-}

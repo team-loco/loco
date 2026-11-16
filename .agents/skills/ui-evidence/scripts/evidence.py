@@ -129,7 +129,8 @@ def discovery_document(issuer):
 
 
 def compose(worktree, project, env, *args, capture=False):
-    files = ["-f", str(worktree / "dev" / "compose.yaml")]
+    files = ["-f", str(worktree / "dev" / "compose.yaml"),
+             "-f", str(Path(__file__).resolve().parents[4] / "dev" / "compose.subnet.yaml")]
     return run(["docker", "compose", *files, "-p", project, *args], env=env, capture=capture)
 
 
