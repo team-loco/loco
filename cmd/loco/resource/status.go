@@ -168,6 +168,9 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 			}
 			return cellStyle
 		})
+	if width := ui.TerminalWidth(stdout); width > 0 {
+		t.Width(max(1, width-tableMargin.GetHorizontalFrameSize())).FitContent()
+	}
 	_, err := lipgloss.Fprintln(stdout, tableMargin.Render(t.String()))
 	return err
 }

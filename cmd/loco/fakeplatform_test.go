@@ -19,6 +19,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectproto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -86,6 +87,7 @@ type fakePlatform struct {
 	uploads           map[string]fakeUpload
 	logQueries        []*observabilityv1.QueryLogsRequest
 	eventPageSizes    []int32
+	message           string
 	plan              *planv1.PlanResponse
 	planned           [][]byte
 	applies           []*planv1.ApplyRequest
@@ -750,7 +752,12 @@ func (s *fakeEventService) ListEvents(
 	var events []*eventv1.Event
 	seq := before - 1
 	for ; seq > 0 && len(events) < size; seq-- {
-		event := &eventv1.Event{Seq: seq, Type: fmt.Sprintf("event-%d", seq)}
+		event := &eventv1.Event{
+			Seq: seq, Type: fmt.Sprintf("event-%d", seq),
+			Data: &structpb.Struct{Fields: map[string]*structpb.Value{
+				"message": structpb.NewStringValue(s.api.platform.message),
+			}},
+		}
 		if req.GetQuery() == "" || req.GetQuery() == "@type:"+event.GetType() {
 			events = append(events, event)
 		}

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"io"
 	"os"
 	"strconv"
 
@@ -43,4 +44,17 @@ func IsInteractive() bool {
 func StdoutIsTerminal() bool {
 	fd := os.Stdout.Fd()
 	return term.IsTerminal(fd)
+}
+
+// TerminalWidth reports the output terminal's width, or zero for redirected output.
+func TerminalWidth(out io.Writer) int {
+	file, ok := out.(*os.File)
+	if !ok || !term.IsTerminal(file.Fd()) {
+		return 0
+	}
+	width, _, err := term.GetSize(file.Fd())
+	if err != nil {
+		return 0
+	}
+	return width
 }

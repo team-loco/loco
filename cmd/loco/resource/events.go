@@ -165,6 +165,9 @@ func renderEventsTable(stdout io.Writer, events []*eventv1.Event) error {
 			}
 			return cellStyle
 		})
+	if width := ui.TerminalWidth(stdout); width > 0 {
+		t.Width(max(1, width-eventsTableMargin.GetHorizontalFrameSize())).FitContent()
+	}
 	_, err := lipgloss.Fprintln(stdout, eventsTableMargin.Render(t.String()))
 	return err
 }
