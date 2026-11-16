@@ -253,7 +253,7 @@ def bundle(version, commit, refs, images):
     # cert-manager installs and retains its own CRDs.
     cert[1]['spec']['install']['crds'] = 'Create'
     cert[1]['spec']['upgrade']['crds'] = 'CreateReplace'
-    gateway = helm_release('envoy-gateway', 'gateway-chart', 'loco-system', {'config': {'envoyGateway': {'provider': {'type': 'Kubernetes', 'kubernetes': {'deploy': {'type': 'GatewayNamespace'}}}}}})
+    gateway = helm_release('envoy-gateway', 'gateway-chart', 'loco-system', {'crds': {'enabled': False}, 'config': {'envoyGateway': {'provider': {'type': 'Kubernetes', 'kubernetes': {'deploy': {'type': 'GatewayNamespace'}}}}}})
     write_layer('infra', cert + gateway)
     pinned = {name: {'repository': reference.split('@')[0], 'tag': f'sha-{commit}@{reference.split("@")[1]}'} for name, reference in images.items()}
     write_layer('control-plane', helm_release('loco-control-plane', 'loco-control-plane', 'loco-system', {'api': {'image': pinned['api']}, 'ui': {'image': pinned['ui']}, 'obsProxy': {'image': pinned['obs-proxy']}}, ('cert-manager', 'envoy-gateway')))

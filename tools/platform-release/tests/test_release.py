@@ -118,6 +118,7 @@ def test_crds_health_requires_the_expected_artifact_revision(bundle):
 def test_gateway_has_an_independent_release(bundle):
     spec = helm_release(bundle, "infra", "envoy-gateway")["spec"]
     assert spec["install"]["crds"] == spec["upgrade"]["crds"] == "Skip"
+    assert spec["values"]["crds"]["enabled"] is False
     assert spec["values"]["config"]["envoyGateway"]["provider"]["kubernetes"]["deploy"]["type"] == "GatewayNamespace"
 
 
