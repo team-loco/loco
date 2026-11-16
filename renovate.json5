@@ -12,6 +12,14 @@
     ignorePaths: ["**/node_modules/**", "gen/ts/node_modules/**"],
   },
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
+  bumpVersions: [
+    {
+      name: "chart version",
+      filePatterns: ["/^({{#each upgrades}}{{#unless @first}}|{{/unless}}{{{packageFileDir}}}{{/each}})\\/Chart\\.yaml$/"],
+      matchStrings: ["(?:^|\\n)version: (?<version>[^\\s]+)"],
+      bumpType: "patch",
+    },
+  ],
   constraints: {
     mise: "2026.11.5",
   },
@@ -117,12 +125,6 @@
       groupName: "opentelemetry charts",
       matchManagers: ["helmv3"],
       matchPackageNames: ["opentelemetry-**"],
-    },
-    {
-      description: "A chart publishes only when its version moves, and lint:charts requires the bump. Only helmv3 can bump it: helm-values cannot, so an image update in a chart's values.yaml needs the chart version moved by hand",
-      matchManagers: ["helmv3"],
-      matchFileNames: ["charts/**"],
-      bumpVersion: "patch",
     },
     {
       matchManagers: ["dockerfile", "docker-compose"],
