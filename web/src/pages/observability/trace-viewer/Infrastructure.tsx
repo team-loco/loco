@@ -17,7 +17,7 @@ import { Spinner } from "@/components/design/Spinner";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatHourMinute, tsMs, timeAxis } from "@/lib/time";
+import { formatHourMinute, timeAxis, tsMs } from "@/lib/time";
 import { useObs } from "../context";
 import type { TraceSummary } from "../traces";
 import { formatDuration } from "@/pages/resource/format";
