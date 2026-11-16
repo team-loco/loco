@@ -151,3 +151,5 @@ Shared control behavior comes from the Base UI shadcn registry through the desig
 The observability custom range uses the shared DateTimePicker: shadcn's Calendar in a Popover and a native time input, in the browser's locale and the user's local timezone. It preserves minute precision and the existing range validation.
 
 The sidebar search opens the shared command palette. Header search appears while the sidebar is collapsed. The user menu cycles System, Light, and Dark from one item named for its next mode. Its icon morphs between monitor, sun, and moon; reduced motion disables the transitions.
+
+The dashboard allocation strip and bars use `--allocation-0` through `--allocation-5` from `web/src/theme.css`.
