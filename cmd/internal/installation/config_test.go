@@ -9,7 +9,7 @@ import (
 
 func example(t *testing.T) []byte {
 	t.Helper()
-	data, err := os.ReadFile("../../../examples/installation/loco-install.yaml")
+	data, err := os.ReadFile("testdata/loco-install.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

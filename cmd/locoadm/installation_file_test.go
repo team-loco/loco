@@ -26,7 +26,7 @@ const clusterCommand = "cluster"
 
 func writeInstallation(t *testing.T, dir, apiURL string) {
 	t.Helper()
-	data, err := os.ReadFile("../../examples/installation/" + installation.DefaultFile)
+	data, err := os.ReadFile("../internal/installation/testdata/" + installation.DefaultFile)
 	if err != nil {
 		t.Fatal(err)
 	}

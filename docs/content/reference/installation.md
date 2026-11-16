@@ -18,7 +18,7 @@ locoadm status
 locoadm verify --worker staging-us --environment ENVIRONMENT_UUID
 ```
 
-Every `locoadm` command that reads the installation file reads `loco-install.yaml` in the current directory; `--file` names another file. See the [complete example](https://github.com/team-loco/loco/blob/main/examples/installation/loco-install.yaml) and [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
+Every `locoadm` command that reads the installation file reads `loco-install.yaml` in the current directory; `--file` names another file. See the [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
 
 Every field below except `release`, `controlPlane.tls` and `workers[].tls` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS and Kubernetes clusters; this file does not provision those services. Certificate issuers come from the operator or, for a self-signed issuer, from the Loco charts.
 

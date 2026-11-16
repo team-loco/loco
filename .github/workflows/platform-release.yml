@@ -18,6 +18,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
       - run: mise run test:platform-release
       - run: mise run test:platform-render
+      - run: mise run test:gitops
       - name: Check that changed CRD bundles bump their versions
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -47,6 +48,7 @@ jobs:
         run: |
           mise run test:platform-release
           mise run test:platform-render
+          mise run test:gitops
 
       - name: Publish every chart and CRD bundle version not yet in the registry
         env:
