@@ -92,7 +92,7 @@ export function EventsView() {
 		resources.map((r) => r.raw),
 		live,
 	);
-	const { from, to } = eventWindow(range, nowMs, tsMs(events[0]?.timestamp), live);
+	const { from, to } = eventWindow(range, nowMs, tsMs(events[0]?.timestamp));
 	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));
 	const words = text.toLowerCase().split(" ").filter(Boolean);
 	const inRange = events.filter((e) => {

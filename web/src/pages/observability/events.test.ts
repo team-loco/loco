@@ -14,11 +14,12 @@ test("unknown event types and reasons remain readable", () => {
 	expect(eventTitle("resource.degraded", "custom_reason")).toBe("custom reason");
 });
 
-test("relative live ranges include events received between clock ticks", () => {
+test("relative ranges retain received events between clock ticks", () => {
 	const range = { kind: "relative", spanMs: 60000 } as const;
-	expect(eventWindow(range, 100000, 100500, true)).toEqual({ from: 40500, to: 100500 });
-	expect(eventWindow(range, 100000, 100500, false)).toEqual({ from: 40000, to: 100000 });
-	expect(eventWindow({ kind: "absolute", from: 1000, to: 2000 }, 100000, 100500, true)).toEqual({
+	expect(eventWindow(range, 100000, 100500)).toEqual({ from: 40500, to: 100500 });
+	expect(eventWindow(range, 100100, 100500)).toEqual({ from: 40500, to: 100500 });
+	expect(eventWindow(range, 101000, 100500)).toEqual({ from: 41000, to: 101000 });
+	expect(eventWindow({ kind: "absolute", from: 1000, to: 2000 }, 100000, 100500)).toEqual({
 		from: 1000,
 		to: 2000,
 	});

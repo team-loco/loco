@@ -132,6 +132,6 @@ export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] 
 	return [...m.values()].toSorted((a, b) => b.ts - a.ts);
 }
 
-export function eventWindow(range: TimeWindow, now: number, latest: number, live: boolean) {
-	return resolveWindow(range, live ? Math.max(now, latest) : now);
+export function eventWindow(range: TimeWindow, now: number, latest: number) {
+	return resolveWindow(range, Math.max(now, latest));
 }
