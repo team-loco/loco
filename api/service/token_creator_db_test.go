@@ -62,8 +62,8 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 			}
 			for _, metadata := range append(listed.GetTokens(), created.GetTokenMetadata(), token.GetToken()) {
 				secret := created.GetToken()
-				if metadata.GetDisplayPrefix() != secret[:11] || metadata.GetDisplaySuffix() != secret[len(secret)-4:] {
-					t.Fatalf("display fragments = %v", metadata)
+				if metadata.GetDisplaySuffix() != secret[len(secret)-4:] {
+					t.Fatalf("display suffix = %v", metadata)
 				}
 				encoded, marshalErr := protojson.Marshal(metadata)
 				if marshalErr != nil {

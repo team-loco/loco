@@ -419,7 +419,6 @@ func apiTokenRowToProto(row genDb.CreateAPITokenRow) *tokenv1.Token {
 		CreatedAt:     timestamppb.New(row.CreatedAt),
 		ExpiresAt:     timestamppb.New(row.ExpiresAt),
 		LastUsedAt:    optionalTimestamp(row.LastUsedAt),
-		DisplayPrefix: row.DisplayPrefix,
 		DisplaySuffix: row.DisplaySuffix,
 	}
 }

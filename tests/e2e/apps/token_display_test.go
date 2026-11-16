@@ -27,7 +27,7 @@ func TestTokenDisplayFragments(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, metadata := range append(listed.GetTokens(), response.GetToken()) {
-		if metadata.GetDisplayPrefix() != secret[:11] || metadata.GetDisplaySuffix() != secret[len(secret)-4:] {
+		if metadata.GetDisplaySuffix() != secret[len(secret)-4:] {
 			t.Fatalf("display metadata = %v", metadata)
 		}
 	}

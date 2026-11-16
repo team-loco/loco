@@ -13,7 +13,6 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 				create(TokenSchema, {
 					name: "named",
 					createdBy: "member-id",
-					displayPrefix: "loco_k_abcd",
 					displaySuffix: "wxyz",
 				}),
 				create(TokenSchema, {
@@ -38,7 +37,7 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 		}),
 	);
 	expect(html).toContain("Created by");
-	expect(html).toContain("loco_k_abcd");
+	expect(html).toContain("loco_k_…wxyz");
 	expect(html).toContain("…");
 	expect(html).toContain("wxyz");
 	expect(html).toContain("Olivia Owner");
