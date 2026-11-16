@@ -66,7 +66,13 @@ WITH RECURSIVE entity_hierarchy AS (
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3;
 
 -- name: AddUserScope :exec
-INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING;
+INSERT INTO user_scopes (user_id, scope, entity_type, entity_id, created_at)
+VALUES ($1, $2, $3, $4,
+  CASE WHEN $3::entity_type = 'organization' THEN
+    COALESCE((SELECT MIN(created_at) FROM user_scopes
+              WHERE user_id = $1 AND entity_type = $3 AND entity_id = $4), NOW())
+  ELSE NOW() END)
+ON CONFLICT DO NOTHING;
 
 -- name: RemoveUserScope :exec
 DELETE FROM user_scopes WHERE user_id = $1 AND scope = $2 AND entity_type = $3 AND entity_id = $4;

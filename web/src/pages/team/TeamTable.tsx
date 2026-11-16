@@ -27,9 +27,9 @@ import {
 import { LevelChip } from "@/components/design/LevelChip";
 import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
-import { agoLabel, tsMs } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
+import { agoLabel, formatMonthDayYear, tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
@@ -86,13 +86,16 @@ function Dash() {
 
 function MemberRow({
 	member,
+	now,
 	accessLoading,
 	actions,
 }: {
 	member: Member;
+	now: number;
 	accessLoading: boolean;
 	actions: RowActions;
 }) {
+	const pref = useTimePreferences();
 	const user = member.member.user;
 	const isMe = user?.id === actions.meId;
 	const name = user === undefined ? "" : userLabel(user);
@@ -185,11 +188,11 @@ function MemberRow({
 					</span>
 				)}
 			</TableCell>
-			<TableCell>
-				<Dash />
+			<TableCell className="text-fg3" title="Last recorded sign-in">
+				{member.member.lastLoginAt ? agoLabel(tsMs(member.member.lastLoginAt), now) : <Dash />}
 			</TableCell>
-			<TableCell>
-				<Dash />
+			<TableCell className="text-fg3">
+				{member.member.joinedAt ? formatMonthDayYear(tsMs(member.member.joinedAt), pref) : <Dash />}
 			</TableCell>
 			<TableCell className="text-right">
 				{!isMe && (
@@ -311,17 +314,6 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 	);
 }
 
-function SoonHead({ children, className }: { children: ReactNode; className: string }) {
-	return (
-		<TableHead className={className}>
-			<span className="flex items-center gap-1.5">
-				{children}
-				<SoonTag />
-			</span>
-		</TableHead>
-	);
-}
-
 export function TeamTable({
 	rows,
 	now,
@@ -345,8 +337,8 @@ export function TeamTable({
 					<TableHead className="w-[124px]">Status</TableHead>
 					<TableHead className="w-[116px]">Role</TableHead>
 					<TableHead>Workspaces</TableHead>
-					<SoonHead className="w-[104px]">Last active</SoonHead>
-					<SoonHead className="w-[140px]">Joined</SoonHead>
+					<TableHead className="w-[104px]">Last active</TableHead>
+					<TableHead className="w-[140px]">Joined</TableHead>
 					<TableHead className="w-10" />
 				</TableRow>
 			</TableHeader>
@@ -389,6 +381,7 @@ export function TeamTable({
 							<MemberRow
 								key={row.member.member.user?.id}
 								member={row.member}
+								now={now}
 								accessLoading={accessLoading}
 								actions={actions}
 							/>
