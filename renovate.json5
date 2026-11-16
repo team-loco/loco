@@ -12,6 +12,14 @@
     ignorePaths: ["**/node_modules/**", "gen/ts/node_modules/**"],
   },
   postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
+  bumpVersions: [
+    {
+      name: "chart version",
+      filePatterns: ["/^({{#each upgrades}}{{#unless @first}}|{{/unless}}{{{packageFileDir}}}{{/each}})\\/Chart\\.yaml$/"],
+      matchStrings: ["(?:^|\\n)version: (?<version>[^\\s]+)"],
+      bumpType: "patch",
+    },
+  ],
   constraints: {
     mise: "2026.11.5",
   },
@@ -117,23 +125,6 @@
       groupName: "opentelemetry charts",
       matchManagers: ["helmv3"],
       matchPackageNames: ["opentelemetry-**"],
-    },
-    {
-      description: "Chart dependency updates bump the owning chart version",
-      matchManagers: ["helmv3"],
-      matchFileNames: ["charts/**"],
-      bumpVersion: "patch",
-    },
-    {
-      description: "Chart image updates bump each affected chart once per branch",
-      matchManagers: ["helm-values"],
-      matchFileNames: ["charts/*/values.yaml"],
-      postUpgradeTasks: {
-        commands: ["go run ./tools/chartimagebump {{#each upgrades}}{{{packageFile}}} {{/each}}"],
-        executionMode: "branch",
-        fileFilters: ["charts/*/Chart.yaml"],
-        installTools: { golang: {} },
-      },
     },
     {
       matchManagers: ["dockerfile", "docker-compose"],
