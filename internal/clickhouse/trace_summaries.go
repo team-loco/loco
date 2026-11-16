@@ -28,8 +28,8 @@ func buildTraceSummaryQuery(req traceRequest, filter TraceFilter, b *positionalB
 		), " AND ")
 	}
 	query := "SELECT TraceId, argMin(tuple(SpanName, ServiceName, ResourceId, " +
-		"toUInt32OrZero(if(SpanAttributes['http.response.status_code'] != '', " +
-		"SpanAttributes['http.response.status_code'], SpanAttributes['http.status_code']))), " +
+		"toUInt32OrZero(coalesce(nullIf(SpanAttributes[" + b.str("http.response.status_code") + "], " +
+		b.str("") + "), SpanAttributes[" + b.str("http.status_code") + "]))), " +
 		"tuple(ParentSpanId != '', Timestamp, SpanId)) AS root, min(Timestamp) AS start_time, " +
 		"toUInt64(max(toInt128(toUnixTimestamp64Nano(Timestamp)) + Duration) - " +
 		"toInt128(toUnixTimestamp64Nano(start_time))) AS duration_nanos, " +
