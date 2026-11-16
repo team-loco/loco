@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -21,14 +23,38 @@ type Commit struct {
 }
 
 func Read(ctx context.Context, dir string) (Commit, error) {
-	head, err := git(ctx, dir, "log", "-1", "--format=%H%n%s")
-	// git exits non-zero outside a work tree, in one without commits and in one it cannot
-	// read; telling them apart means parsing localized messages, and a build needs none of
-	// them, so all read as no commit.
-	_, exited := errors.AsType[*exec.ExitError](err)
-	if exited || errors.Is(err, exec.ErrNotFound) {
+	inside, err := git(ctx, dir, "rev-parse", "--is-inside-work-tree")
+	if errors.Is(err, exec.ErrNotFound) {
 		return Commit{}, nil
 	}
+	if err != nil {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && exitErr.ExitCode() == 128 {
+			exists, statErr := repositoryMarker(dir)
+			if statErr != nil {
+				return Commit{}, statErr
+			}
+			if !exists {
+				return Commit{}, nil
+			}
+		}
+		return Commit{}, err
+	}
+	if strings.TrimSpace(inside) != "true" {
+		return Commit{}, nil
+	}
+	reference, err := git(ctx, dir, "symbolic-ref", "--quiet", "HEAD")
+	if err == nil {
+		_, err = git(ctx, dir, "show-ref", "--exists", strings.TrimSpace(reference))
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && exitErr.ExitCode() == 2 {
+			return Commit{}, nil
+		}
+	} else if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && exitErr.ExitCode() == 1 {
+		err = nil
+	}
+	if err != nil {
+		return Commit{}, err
+	}
+	head, err := git(ctx, dir, "log", "-1", "--format=%H%n%s")
 	if err != nil {
 		return Commit{}, err
 	}
@@ -55,4 +81,37 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 		return "", fmt.Errorf("git %s in %s: %w", args[0], dir, err)
 	}
 	return string(out), nil
+}
+
+// Git also reports a broken HEAD as a non-repository; retain errors for repository storage.
+func repositoryMarker(dir string) (bool, error) {
+	dir, err := filepath.Abs(dir)
+	if err != nil {
+		return false, fmt.Errorf("resolve source directory: %w", err)
+	}
+	for {
+		marker := filepath.Join(dir, ".git")
+		info, err := os.Lstat(marker)
+		if err == nil {
+			if !info.IsDir() {
+				return true, nil
+			}
+			for _, name := range []string{"objects", "refs", "config"} {
+				if _, statErr := os.Stat(filepath.Join(marker, name)); statErr == nil {
+					return true, nil
+				} else if !errors.Is(statErr, os.ErrNotExist) {
+					return false, fmt.Errorf("inspect repository storage: %w", statErr)
+				}
+			}
+			return false, nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return false, fmt.Errorf("inspect repository in %s: %w", dir, err)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false, nil
+		}
+		dir = parent
+	}
 }
