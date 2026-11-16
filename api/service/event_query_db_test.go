@@ -15,18 +15,17 @@ func TestListEventsQuery(t *testing.T) {
 	t.Parallel()
 	f := newEventFixture(t)
 	orgID := uuid.MustParse(f.orgID)
-	user := func(name, email string) uuid.UUID {
-		var id uuid.UUID
-		if err := f.pool.QueryRow(t.Context(), "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id",
-			name, email).Scan(&id); err != nil {
+	user := func(id uuid.UUID, name, email string) uuid.UUID {
+		if err := f.pool.QueryRow(t.Context(), "INSERT INTO users (id, name, email) VALUES ($1, $2, $3) RETURNING id",
+			id, name, email).Scan(&id); err != nil {
 			t.Fatal(err)
 		}
 		return id
 	}
-	ada := user("Ada Lovelace", "ada@acme.test")
-	obrien := user(`O'Brien \ "Q"`, "ob@acme.test")
-	domainID := uuid.New()
-	requestID := uuid.NewString()
+	ada := user(uuid.MustParse("00000000-0000-4000-8000-000000000001"), "Ada Lovelace", "ada@acme.test")
+	obrien := user(uuid.MustParse("00000000-0000-4000-8000-000000000002"), `O'Brien \ "Q"`, "ob@acme.test")
+	domainID := uuid.MustParse("00000000-0000-4000-8000-000000000003")
+	requestID := "11111111-1111-4111-8111-111111111111"
 	insert := func(ev genDb.InsertEventParams) int64 {
 		ev.OrgID = &orgID
 		seq, err := f.queries.InsertEvent(t.Context(), ev)
