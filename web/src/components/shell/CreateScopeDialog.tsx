@@ -1,5 +1,4 @@
 import { useMutation } from "@connectrpc/connect-query";
-import { createOrg } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { createWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -15,6 +14,8 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { toastConnectError } from "@/lib/error-handler";
 import { workspacePath } from "@/lib/routes";
 
+import { CreateOrgDialog } from "./CreateOrgDialog";
+
 export type ScopeKind = "org" | "workspace";
 
 export function CreateScopeDialog({
@@ -24,12 +25,24 @@ export function CreateScopeDialog({
 	kind: ScopeKind | null;
 	onOpenChange: (open: boolean) => void;
 }) {
+	const { orgs } = useOrgWorkspace();
+	const navigate = useNavigate();
+	if (kind === "org") {
+		return (
+			<CreateOrgDialog
+				open
+				onOpenChange={onOpenChange}
+				existingNames={orgs.map((org) => org.name)}
+				onSuccess={(orgId, workspaceId) => {
+					void navigate(workspacePath(orgId, workspaceId));
+				}}
+			/>
+		);
+	}
 	return (
 		<Dialog open={kind !== null} onOpenChange={onOpenChange}>
 			{kind !== null && (
-				<CreateScopeForm
-					key={kind}
-					kind={kind}
+				<CreateWorkspaceForm
 					onDone={() => {
 						onOpenChange(false);
 					}}
@@ -39,7 +52,7 @@ export function CreateScopeDialog({
 	);
 }
 
-function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void }) {
+function CreateWorkspaceForm({ onDone }: { onDone: () => void }) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const { orgs, activeOrgId } = useOrgWorkspace();
@@ -47,43 +60,33 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 	const nameRef = useRef<HTMLInputElement>(null);
 	const [description, setDescription] = useState("");
 	const [orgId, setOrgId] = useState(activeOrgId ?? orgs[0]?.id ?? "");
-	const orgMutation = useMutation(createOrg);
 	const wsMutation = useMutation(createWorkspace);
-	const pending = orgMutation.isPending || wsMutation.isPending;
+	const pending = wsMutation.isPending;
 
-	const isOrg = kind === "org";
 	const orgName = orgs.find((o) => o.id === orgId)?.name ?? "";
 	const trimmed = name.trim();
-	const maxLen = isOrg ? 100 : 63;
+	const maxLen = 63;
 	const error = trimmed.length > maxLen ? "Too long" : null;
-	const ok = trimmed !== "" && error === null && (isOrg || orgId !== "");
+	const ok = trimmed !== "" && error === null && orgId !== "";
 
 	const submit = async () => {
 		if (!ok || pending) return;
 		try {
-			if (isOrg) {
-				const res = await orgMutation.mutateAsync({ name: trimmed });
-				const ws = await wsMutation.mutateAsync({ orgId: res.orgId, name: "default" });
-				await queryClient.invalidateQueries();
-				onDone();
-				void navigate(workspacePath(res.orgId, ws.workspaceId));
-			} else {
-				const res = await wsMutation.mutateAsync({
-					orgId,
-					name: trimmed,
-					description: description.trim() === "" ? undefined : description.trim(),
-				});
-				await queryClient.invalidateQueries();
-				onDone();
-				void navigate(workspacePath(orgId, res.workspaceId));
-			}
+			const res = await wsMutation.mutateAsync({
+				orgId,
+				name: trimmed,
+				description: description.trim() === "" ? undefined : description.trim(),
+			});
+			await queryClient.invalidateQueries();
+			onDone();
+			void navigate(workspacePath(orgId, res.workspaceId));
 		} catch (err) {
-			toastConnectError(err, isOrg ? "Failed to create organization" : "Failed to create workspace");
+			toastConnectError(err, "Failed to create workspace");
 		}
 	};
 
 	return (
-		<DialogContent title={isOrg ? "New organization" : `New workspace in ${orgName}`} initialFocus={nameRef}>
+		<DialogContent title={`New workspace in ${orgName}`} initialFocus={nameRef}>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -92,13 +95,11 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 				className="contents"
 			>
 				<DialogBody>
-					{!isOrg && (
-						<p className="m-0 text-[13px] leading-normal text-fg2">
-							A workspace is a project inside {orgName}. Its resources, environments, members, tokens and webhooks live
-							here.
-						</p>
-					)}
-					{!isOrg && orgs.length > 1 && (
+					<p className="m-0 text-[13px] leading-normal text-fg2">
+						A workspace is a project inside {orgName}. Its resources, environments, members, tokens and webhooks live
+						here.
+					</p>
+					{orgs.length > 1 && (
 						<div className="flex flex-col gap-1.5">
 							<span className="font-semibold">Organization</span>
 							<ToggleGroup
@@ -122,7 +123,7 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 							ref={nameRef}
 							autoComplete="off"
 							value={name}
-							placeholder={isOrg ? "acme-labs" : "payments"}
+							placeholder="payments"
 							aria-invalid={error !== null}
 							className="h-9 text-[13.5px]"
 							onChange={(e) => {
@@ -130,26 +131,24 @@ function CreateScopeForm({ kind, onDone }: { kind: ScopeKind; onDone: () => void
 							}}
 						/>
 					</Field>
-					{!isOrg && (
-						<Field label="Description">
-							<Textarea
-								rows={2}
-								maxLength={256}
-								value={description}
-								className="text-[13.5px]"
-								onChange={(e) => {
-									setDescription(e.target.value);
-								}}
-							/>
-						</Field>
-					)}
+					<Field label="Description">
+						<Textarea
+							rows={2}
+							maxLength={256}
+							value={description}
+							className="text-[13.5px]"
+							onChange={(e) => {
+								setDescription(e.target.value);
+							}}
+						/>
+					</Field>
 				</DialogBody>
 				<DialogFooter>
 					<Button type="button" variant="outline" size="lg" onClick={onDone}>
 						Cancel
 					</Button>
 					<Button type="submit" size="lg" disabled={!ok || pending}>
-						{isOrg ? "Create organization" : "Create workspace"}
+						Create workspace
 					</Button>
 				</DialogFooter>
 			</form>

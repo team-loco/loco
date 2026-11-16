@@ -1,5 +1,5 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
-import { useQueryClient, useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2, Plus } from "lucide-react";
 import { parseAsInteger, useQueryState } from "nuqs";
 
@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { limitReason, limitUsage } from "@/lib/limits";
 
-import { CreateOrgDialog } from "./organizations/CreateOrgDialog";
+import { CreateOrgDialog } from "@/components/shell/CreateOrgDialog";
 import { OrgRow } from "./organizations/OrgRow";
 
 const PAGE_SIZES = [25, 50, 100] as const;
@@ -47,7 +47,6 @@ export function Organizations() {
 	const [createOrgOpen, setCreateOrgOpen] = useQueryState("new", parseAsInteger.withDefault(0));
 	const transport = useTransport();
 	const scopes = useMyScopes();
-	const queryClient = useQueryClient();
 	const { data: orgsRes, isLoading, error } = useTanstackQuery(userOrgsOptions(transport, user?.id ?? ""));
 	const orgs = orgsRes?.orgs ?? [];
 	const paged = usePagedRows(orgs, PAGE_SIZES);
@@ -64,10 +63,7 @@ export function Organizations() {
 	};
 
 	const handleCreateOrgSuccess = (orgId: string) => {
-		// The caller's scopes gain the new organization, and the not-found check reads them.
-		void queryClient.invalidateQueries().then(() => {
-			setActiveOrg(orgId);
-		});
+		setActiveOrg(orgId);
 	};
 
 	const renderBody = () => {

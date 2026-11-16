@@ -1,5 +1,6 @@
 import argparse
 import re
+import uuid
 
 from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, session, repo
@@ -52,7 +53,35 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     assert creation.value.ok
     assert creation.value.request.post_data_json == {"name": "Acme & Partners 🚀"}
     expect(dialog).to_be_hidden()
-    evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": creation.value.json()["orgId"]})
+    created_org = creation.value.json()["orgId"]
+    workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": created_org})["workspaces"]
+    assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
+    evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": created_org})
+    shared = state["workspaces"]["acme/shared"]
+    page.goto(state["ui_url"] + f"/org/{org['id']}/wks/{shared}/resources")
+    page.get_by_title("Switch workspace", exact=True).click()
+    page.get_by_role("menuitem", name="New organization", exact=True).click()
+    name.fill("sidebar-" + uuid.uuid4().hex[:8])
+    workspace_rpc = "**/loco.workspace.v1.WorkspaceService/CreateWorkspace"
+    context.route(workspace_rpc, lambda route: route.fulfill(status=503, json={"code": "unavailable", "message": "Workspace creation unavailable"}))
+    before_orgs = sum(url.endswith("/CreateOrg") for url in requests)
+    with page.expect_response(lambda response: response.url.endswith("/CreateOrg")) as sidebar_creation:
+        create.click()
+    expect(page.get_by_text("Workspace creation unavailable.", exact=True)).to_be_visible()
+    expect(name).to_be_disabled()
+    expect(create).to_be_enabled()
+    sidebar_org = sidebar_creation.value.json()["orgId"]
+    context.unroute(workspace_rpc)
+    with page.expect_response(lambda response: response.url.endswith("/CreateWorkspace")) as workspace_creation:
+        create.click()
+    assert workspace_creation.value.ok
+    workspace_id = workspace_creation.value.json()["workspaceId"]
+    expect(dialog).to_be_hidden()
+    expect(page).to_have_url(re.compile(rf"/org/{sidebar_org}/wks/{workspace_id}(\?env=[\w-]+)?$"))
+    assert sum(url.endswith("/CreateOrg") for url in requests) == before_orgs + 1
+    workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": sidebar_org})["workspaces"]
+    assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
+    evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": sidebar_org})
     page.goto(path)
     page.wait_for_load_state("networkidle")
     invitations_before = sum(url.endswith("/ListInvitations") for url in requests)
