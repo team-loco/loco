@@ -152,8 +152,11 @@ with session(out) as browser:
     expect(attributes.get_by_text('service.version', exact=True)).to_be_visible()
     expect(attributes.get_by_text('@opentelemetry/instrumentation-http', exact=True)).to_be_visible()
     attributes.get_by_role('tab', name='Attributes', exact=True).click()
-    expect(attributes.get_by_role('button', name='Only traces with this value: http.response.status_code', exact=True)).to_be_disabled()
-    expect(attributes.get_by_role('button', name='Hide traces with this value: http.response.status_code', exact=True)).to_be_disabled()
+    expect(attributes.get_by_role('button', name='Only traces with this value: http.response.status_code', exact=True)).to_be_enabled()
+    expect(attributes.get_by_role('button', name='Hide traces with this value: http.response.status_code', exact=True)).to_be_enabled()
+    attributes.get_by_role('tab', name='Telemetry', exact=True).click()
+    expect(attributes.get_by_role('button', name='Only traces with this value: scope.name', exact=True)).to_be_disabled()
+    attributes.get_by_role('tab', name='Attributes', exact=True).click()
     drawer.get_by_role('button', name='More for this trace', exact=True).click()
     page.get_by_role('menuitem', name='Copy trace ID', exact=True).click()
     assert page.evaluate('navigator.clipboard.readText()') == trace
@@ -285,6 +288,12 @@ with session(out) as browser:
     with page.expect_response("**/ListTraces"):
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
     assert last_page_request()['query'] == '@trace:invalid'
+    page.goto(state['ui_url'] + base)
+    expect(open_trace).to_be_visible()
+    page.goto(state['ui_url'] + base + '&q=checkout&trace=' + trace + '&span=' + spans[10]['spanId'])
+    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '-@http.response.status_code:504 checkout'):
+        drawer.get_by_role('region', name='Span attributes').get_by_role('button', name='Hide traces with this value: http.response.status_code', exact=True).click()
+    expect(drawer).to_have_count(0)
     page.goto(state['ui_url'] + base)
     expect(open_trace).to_be_visible()
     page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=ffffffffffffffff')
@@ -643,4 +652,4 @@ with session(out) as browser:
     browser.close()
 assert all((row.get('scope', {}).get('environmentId') for row in recorded))
 assert all((not row.get('scope', {}).get('resourceIds') for row in recorded if row.get('traceId')))
-print('PASS browser trace list, complete drawer spans, span selection and attributes, query text requests, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI; trace responses use explicit browser fixtures.')
+print('PASS browser trace list, complete drawer spans, span selection and attributes, span attribute filters, query text requests, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI; trace responses use explicit browser fixtures.')
