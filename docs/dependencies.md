@@ -1,246 +1,41 @@
-# Loco Dependencies
+# Component dependencies
 
-Goal is to track everything Loco is directly/indirectly dependent on, so we can map any inter-dependencies and version things properly.
+Loco's dependencies connect the control plane, worker clusters and clients through the contracts below. See the maintained [architecture reference](content/reference/architecture.md) for runtime behavior and [self-hosting guide](content/operations/self-hosting.md) for installation requirements.
 
-## Overview
+## Builds and images
 
-Loco is a container orchestration platform with the following components:
+The CLI packs source and uploads it to S3-compatible storage through a URL the API signs. The API records the Build and dispatches it to an enrolled agent. The agent creates a Build custom resource; the build controller runs a Kubernetes Job with the builder's fetch and push steps around BuildKit. The builder downloads source, restores the registry cache, and pushes the resulting image and cache. The API records the image digest for deployment.
 
-- **CLI**: Terminal-based interface for deployments
-- **API**: ConnectRPC backend serving the CLI and UI
-- **Controller**: Kubernetes operator managing the kubernetes resources
-- **UI**: React-based web dashboard
+The registry implements the OCI image distribution interface. Operators configure static credentials or Loco's token authentication; the agent distributes credentials to the worker and the controllers attach them to builds and workloads. Registry hostnames, credentials and token settings belong to the installation. See [registry access](content/reference/architecture.md#registry-access) and the [worker chart's credential contract](../charts/loco-worker/README.md#registry-credentials).
 
----
+## Platform state and authentication
 
-## CLI
+The API owns platform state in PostgreSQL and exposes ConnectRPC services to the CLI, dashboard and agents. Protobuf definitions in [`proto/`](../proto/) define the RPC contract; generated clients live in [`gen/`](../gen/). Agents apply desired Application and Build resources to their clusters and report status to the API. Controllers reconcile those resources through the Kubernetes API.
 
-### External Services & Platforms
+User authentication accepts configured OIDC issuers through `AUTH_ISSUERS`, including issuer, audience, claims and browser client settings. The CLI and dashboard authenticate with that configuration. Cluster enrollment and agent assertions authenticate worker communication. OpenBao Transit supplies the keys for platform secret encryption and signed registry and telemetry tokens. See [API configuration](../charts/loco-control-plane/README.md) and [secrets key provider](content/operations/secrets-key-provider.md).
 
-- **Container Registries**: Gitlab Container Registry
-  - we have secrets for this we need to manage in the API as well.
-- **Docker API**: Local Docker daemon for building and pushing images
-- **Go Modules**: Standard library, CLI framework libraries (Cobra, Charm Bubble Tea, Lipgloss), protobuf
+## Networking and certificates
 
----
+Worker clusters require a CNI that enforces NetworkPolicy. The Application controller creates workloads, Services, HTTPRoutes and workspace network policies. Envoy Gateway implements Gateway API routing and TLS termination; cert-manager issues certificates using the installation's configured issuer. CRDs are installed separately from the Loco charts. The [self-hosting guide](content/operations/self-hosting.md) owns the supported Kubernetes range and upgrade rules.
 
-## API Server
+## Telemetry and dashboard
 
-### Core Dependencies
+Worker OpenTelemetry collectors send logs, metrics and traces over OTLP/HTTP to the configured exporter endpoint. Loco's observability proxy authenticates ingest, migrates the ClickHouse schema and writes telemetry. The API reads ClickHouse and serves queries and live log tails. See [observability](content/reference/architecture.md#observability) for ownership, tenancy and authentication.
 
-- **PostgreSQL Database**: User accounts, deployments, credentials
-- **Protobuf**: API contract definitions (shared with CLI/UI)
-- **ConnectRPC**: HTTP-based RPC for CLI/UI communication
+The React dashboard calls the API through generated ConnectRPC clients. The UI image serves its static build and documentation with Static Web Server, configured in [`web/sws.toml`](../web/sws.toml).
 
-### Kubernetes Integration
+## Version sources
 
-- **Kubernetes Client Libraries** (`k8s.io/client-go`, `k8s.io/api`, `k8s.io/apimachinery`):
-  - Read/write Application CRDs from the controller
-  - Query deployments and pods
-  - Manage secrets and configmaps
+Read versions from the manifests and lockfiles that builds and dependency updates use:
 
-- **controller-runtime** (`sigs.k8s.io/controller-runtime`):
-  - Client abstraction for Kubernetes API
-  - RBAC management
+| Dependency | Canonical files |
+| --- | --- |
+| Go libraries | Each component's `go.mod` and `go.sum`; shared libraries in the root module |
+| Dashboard, docs and client generation | Workspace `package.json` files and root [`bun.lock`](../bun.lock) |
+| Development and CI tools | [`mise.toml`](../mise.toml) and [`mise.lock`](../mise.lock) |
+| Helm dependencies | [`loco-control-plane/Chart.yaml`](../charts/loco-control-plane/Chart.yaml), [`loco-worker/Chart.yaml`](../charts/loco-worker/Chart.yaml) and their `Chart.lock` files |
+| cert-manager | [`charts/cert-manager.yaml`](../charts/cert-manager.yaml) |
+| Runtime images | Component Dockerfiles and chart `values.yaml` files |
+| Platform release artifacts | [`tools/platform-release/crds.yaml`](../tools/platform-release/crds.yaml) and the [release contract](../tools/platform-release/README.md) |
 
-### Cloud Providers
-
-- **GitHub OAuth**: User authentication
-- **GitLab API**: Repository access and CI/CD
-- **Cloudflare**: DNS and DDoS protection (token required)
-
-### Caching
-
-- **BigCache**: In-memory caching layer
-
-### Observability
-
-- **OpenTelemetry**: Instrumentation for metrics, logs, traces
-- **OpenTelemetry Collector**: Data collection and export
-
----
-
-## Controller
-
-### Kubernetes Operators & APIs
-
-- **controller-runtime** (`sigs.k8s.io/controller-runtime`):
-  - Reconciliation loops
-  - Webhook management
-  - RBAC controller
-
-- **Kubernetes Gateway API** (`sigs.k8s.io/gateway-api`):
-  - Manages HTTPRoute, Gateway resources
-  - Abstracts ingress/routing configuration
-
-- **Kubernetes API Groups**:
-  - Core API (v1): Pods, Services, Secrets, ConfigMaps, PersistentVolumes
-  - Apps API: Deployments, StatefulSets, DaemonSets
-  - Batch API: Jobs, CronJobs
-  - Networking API: NetworkPolicies
-  - CRD Extensions: CustomResourceDefinitions management
-
-### Custom Resources
-
-- **Application CRD**: Loco's custom resource for deploying user applications
-  - Managed by the controller
-  - Reconciles to Kubernetes Deployments, Services, Ingress
-
-### Observability in Controller
-
-- **OpenTelemetry SDK**: Instrument controller operations
-- **Prometheus**: Metrics exposure
-
-### Testing
-
-- **Ginkgo/Gomega**: BDD testing framework for controller logic
-
----
-
-## Kubernetes Infrastructure (via Helm Charts)
-
-Each cluster needs a CNI that enforces Kubernetes NetworkPolicy; the controller isolates workspaces with `networking.k8s.io/v1` NetworkPolicy objects. Local development uses kind's default CNI.
-
-### Phase 1: Core Services
-
-#### loco-worker Chart
-
-Deploys:
-
-- **loco-agent**: connects the cluster to the control plane
-- **loco-controller** (the Application controller)
-  - Watches Application CRDs
-  - Reconciles to Deployments, Services, HTTPRoutes and NetworkPolicies
-- **loco-build-controller** (the build controller, only with `cluster.role` `builds` or `all`)
-  - Watches Build CRDs in the `loco-builds` namespace
-  - Runs each Build as a BuildKit Job and reports the pushed digest
-- **OpenTelemetry collectors**: three OpenTelemetry Collector contrib instances, at the image `charts/loco-worker/values.yaml` pins, `otel-col-deploy` (OTLP from applications and Envoy) and `otel-col-cluster` (cluster metrics and events) in `loco-obs`, `otel-col-daemon` (container logs and node metrics) in `loco-obs-node`. They export everything over OTLP/HTTP to one configured endpoint.
-- **Envoy Gateway** (the `gateway-helm` dependency in `charts/loco-worker/Chart.yaml`)
-  - **HTTP routing** and load balancing
-  - **TLS termination** (HTTPS)
-  - **HTTP/3 support**
-  - **Gateway API implementation**: Translates K8s Gateway API resources to Envoy config
-
-**Envoy Gateway Dependencies**:
-
-- Kubernetes Gateway API, at the CRD bundle the `gateway-helm` chart ships
-- Service discovery via Kubernetes services
-
-#### cert-manager Helm Chart (pinned in `charts/cert-manager.yaml`)
-
-- **Let's Encrypt Integration**: Automatic SSL certificate provisioning
-- **Certificate Automation**: Renewal and rotation
-- **ACME Protocol**: Orchestrates ACME challenges
-
-**cert-manager Dependencies**:
-
-- Kubernetes API for CustomResourceDefinitions (Certificate, Issuer, ClusterIssuer)
-- External ACME server (Let's Encrypt production/staging)
-
----
-
-### Phase 2: Observability
-
-#### loco-control-plane Chart
-
-Runs the observability proxy and, with `clickhouse.enabled`, ClickHouse (26.3 Altinity stable image, Altinity chart 0.3.13). The proxy migrates the schema and writes OTLP to ClickHouse with the contrib ClickHouse exporter v0.163.0; the API serves reads.
-
-**Observability Data Flow**:
-
-```
-Applications → OpenTelemetry SDK
-  ↓
-Worker collectors (OTLP/HTTP)
-  ↓
-Observability proxy → ClickHouse
-  ↓
-API
-```
-
----
-
-## UI (Web Frontend)
-
-### Framework & Build
-
-- **React**: Component-based UI framework
-- **Static HTML/CSS/JS**: Build output served by nginx
-
-### API Communication
-
-- **ConnectRPC Client**: Type-safe client for API calls
-- **Protocol Buffers**: Shared message definitions
-
-### No external service dependencies beyond the API server.
-
----
-
-## External Helm Chart Repositories
-
-Used by the chart dependencies and `charts/cert-manager.yaml`:
-
-| Repository         | URL                                                        | Purpose              |
-| ------------------ | ---------------------------------------------------------- | -------------------- |
-| **jetstack**       | https://charts.jetstack.io                                 | cert-manager chart   |
-| **altinity**       | https://helm.altinity.com                                  | ClickHouse chart     |
-| **open-telemetry** | https://open-telemetry.github.io/opentelemetry-helm-charts | OpenTelemetry charts |
-
----
-
-## Deployment Flow & Dependencies
-
-```
-User runs: loco deploy
-  ↓
-CLI → API Server (ConnectRPC)
-  ↓
-API → Controller (Kubernetes API)
-  ↓
-Controller → Create/Update Application CRD
-  ↓
-Controller Reconciles:
-  - Deployment (API workload)
-  - Service (internal networking)
-  - Ingress (via Envoy Gateway)
-  ↓
-Envoy Gateway (loco-worker)
-  - Terminates TLS (via cert-manager certificates)
-  - Exposes HTTP/3
-```
-
----
-
-## External Services (Runtime)
-
-- **Let's Encrypt**: ACME certificate authority
-- **GitHub/GitLab**: OAuth, repository access, container registries
-- **Cloudflare**: DNS/DDoS protection (optional)
-- **PostgreSQL Database**: Managed externally or in-cluster
-
----
-
-## Summary of Critical Dependencies
-
-### Must-Have
-
-- Kubernetes cluster (1.34+)
-- PostgreSQL database
-- A CNI that enforces Kubernetes NetworkPolicy
-- cert-manager + Let's Encrypt
-- Envoy Gateway
-- OpenTelemetry (if observability needed)
-
-### Integration Points
-
-- **Kubernetes API**: All components talk to the API server
-- **Helm**: Deployment and lifecycle management
-- **OpenTelemetry SDK**: Instrumentation in API and Controller
-
----
-
-## Notes
-
-- All Helm chart versions are pinned in `charts/cert-manager.yaml` and individual `Chart.yaml` files
-- Go module dependencies are managed per component (`cli/go.mod`, `api/go.mod`, `controller/go.mod`, `shared/go.mod`)
-- Protobuf definitions are shared across CLI, API, and Controller via the `shared` module
-- CI/CD integration (GitHub Actions, GitLab CI) is handled at deployment time, not runtime dependency
+Hosted installation credentials, provider accounts and deployment configuration belong outside this repository.
