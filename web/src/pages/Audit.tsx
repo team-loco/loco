@@ -45,7 +45,7 @@ import { agoLabel, msToTimestamp } from "@/lib/time";
 import { queryError } from "@/pages/observability/query";
 import { QueryErrorLine } from "@/pages/observability/QueryBar";
 
-import { auditLink, auditFilterViolations, sequenceParser, type DroppedFilter } from "./audit/link";
+import { AUDIT_FILTER_FIXES, auditLink, auditFilterViolations, sequenceParser, type DroppedFilter } from "./audit/link";
 import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { ActorFilter, EventFilter } from "./audit/AuditFilters";
@@ -231,28 +231,10 @@ export function Audit() {
 	const rejected = query.error === null ? null : queryError(query.error, sent);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
 	const fixFilter = (field: string) => {
-		switch (field) {
-			case "start_time":
-			case "end_time":
-				setOpenedAt(Date.now());
-				setFilters({ range: null });
-				break;
-			case "page_size":
-				setFilters({ size: null });
-				break;
-			case "before_seq":
-				setFilters({ before: null });
-				break;
-			case "workspace_id":
-				setFilters({ ws: null, res: null, env: null });
-				break;
-			case "resource_id":
-				setFilters({ res: null });
-				break;
-			case "environment_id":
-				setFilters({ env: null });
-				break;
-		}
+		const fix = AUDIT_FILTER_FIXES.get(field);
+		if (fix === undefined) return;
+		if ("range" in fix.params) setOpenedAt(Date.now());
+		setFilters(fix.params);
 	};
 
 	return (

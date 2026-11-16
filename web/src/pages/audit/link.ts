@@ -69,3 +69,16 @@ export function auditFilterViolations(error: unknown) {
 		.flatMap((d) => d.fieldViolations)
 		.filter((v) => v.field !== "query");
 }
+
+export const AUDIT_FILTER_FIXES = new Map<
+	string,
+	{ label: string; params: Partial<Record<"range" | "size" | "before" | "ws" | "res" | "env", null>> }
+>([
+	["start_time", { label: "Reset time range", params: { range: null } }],
+	["end_time", { label: "Reset time range", params: { range: null } }],
+	["page_size", { label: "Reset rows per page", params: { size: null } }],
+	["before_seq", { label: "Show newest events", params: { before: null } }],
+	["workspace_id", { label: "Clear workspace filter", params: { ws: null, res: null, env: null } }],
+	["resource_id", { label: "Clear resource filter", params: { res: null } }],
+	["environment_id", { label: "Clear environment filter", params: { env: null } }],
+]);

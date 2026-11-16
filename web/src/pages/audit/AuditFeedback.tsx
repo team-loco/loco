@@ -3,7 +3,7 @@ import { TriangleAlertIcon, XIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { requestId } from "@/lib/error-handler";
-import { auditFilterViolations, type DroppedFilter } from "./link";
+import { AUDIT_FILTER_FIXES, auditFilterViolations, type DroppedFilter } from "./link";
 
 export function DroppedFilters({ filters, onDismiss }: { filters: DroppedFilter[]; onDismiss: () => void }) {
 	return (
@@ -42,23 +42,26 @@ export function AuditFilterError({ error, onFix }: { error: Error; onFix: (field
 				<TriangleAlertIcon className="size-4" />
 				The audit log rejected these filters
 			</span>
-			{violations.map((v, i) => (
-				<div key={i} className="flex flex-wrap items-center gap-2">
-					<span className="font-mono text-bad-fg">{v.field}</span>
-					<span className="text-fg2">{v.description}</span>
-					{fixLabel(v.field) !== null && (
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={() => {
-								onFix(v.field);
-							}}
-						>
-							{fixLabel(v.field)}
-						</Button>
-					)}
-				</div>
-			))}
+			{violations.map((v, i) => {
+				const fix = AUDIT_FILTER_FIXES.get(v.field);
+				return (
+					<div key={i} className="flex flex-wrap items-center gap-2">
+						<span className="font-mono text-bad-fg">{v.field}</span>
+						<span className="text-fg2">{v.description}</span>
+						{fix !== undefined && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => {
+									onFix(v.field);
+								}}
+							>
+								{fix.label}
+							</Button>
+						)}
+					</div>
+				);
+			})}
 			{id !== null && (
 				<CopyId value={id} title="Copy request ID" className="max-w-full self-start font-mono text-[12px]">
 					<span className="truncate">{id}</span>
@@ -66,24 +69,4 @@ export function AuditFilterError({ error, onFix }: { error: Error; onFix: (field
 			)}
 		</div>
 	);
-}
-
-function fixLabel(field: string) {
-	switch (field) {
-		case "start_time":
-		case "end_time":
-			return "Reset time range";
-		case "page_size":
-			return "Reset rows per page";
-		case "before_seq":
-			return "Show newest events";
-		case "workspace_id":
-			return "Clear workspace filter";
-		case "resource_id":
-			return "Clear resource filter";
-		case "environment_id":
-			return "Clear environment filter";
-		default:
-			return null;
-	}
 }
