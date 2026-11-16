@@ -54,7 +54,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     assert creation.value.request.post_data_json == {"name": "Acme & Partners 🚀"}
     expect(dialog).to_be_hidden()
     created_org = creation.value.json()["orgId"]
-    workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": created_org})["workspaces"]
+    workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": created_org}).get("workspaces", [])
     assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
     evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": created_org})
     shared = state["workspaces"]["acme/shared"]
@@ -79,7 +79,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(dialog).to_be_hidden()
     expect(page).to_have_url(re.compile(rf"/org/{sidebar_org}/wks/{workspace_id}(\?env=[\w-]+)?$"))
     assert sum(url.endswith("/CreateOrg") for url in requests) == before_orgs + 1
-    workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": sidebar_org})["workspaces"]
+    workspaces = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces", {"orgId": sidebar_org}).get("workspaces", [])
     assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
     evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.org.v1.OrgService/DeleteOrg", {"orgId": sidebar_org})
     page.goto(path)
