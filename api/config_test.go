@@ -1102,3 +1102,21 @@ func TestPublicImageSizeConfiguration(t *testing.T) {
 		})
 	}
 }
+
+func TestJoinTokenMaximumTTL(t *testing.T) {
+	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_TTL", "1h")
+	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL", "")
+	if got := newAgentConfig(servicedefaults.Defaults{}).JoinTokenMaxTTL; got != 7*24*time.Hour {
+		t.Fatalf("maximum ttl = %v, want 7d", got)
+	}
+	t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL", "72h")
+	if got := newAgentConfig(servicedefaults.Defaults{}).JoinTokenMaxTTL; got != 72*time.Hour {
+		t.Fatalf("maximum ttl = %v, want 72h", got)
+	}
+	for _, invalid := range []string{"0s", "-2h", "30m", "bad"} {
+		t.Setenv("LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL", invalid)
+		if err := panicValue(t, func() { newAgentConfig(servicedefaults.Defaults{}) }); err == nil {
+			t.Fatalf("accepted maximum ttl %s", invalid)
+		}
+	}
+}

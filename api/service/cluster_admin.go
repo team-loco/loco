@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
@@ -38,18 +39,24 @@ var (
 )
 
 type ClusterAdminServer struct {
-	pool         *pgxpool.Pool
-	queries      genDb.Querier
-	authz        *authz.Authorizer
-	joinTokenTTL time.Duration
+	pool            *pgxpool.Pool
+	queries         genDb.Querier
+	authz           *authz.Authorizer
+	joinTokenTTL    time.Duration
+	joinTokenMaxTTL time.Duration
 }
 
-func NewClusterAdminServer(pool *pgxpool.Pool, queries genDb.Querier, joinTokenTTL time.Duration) *ClusterAdminServer {
+func NewClusterAdminServer(
+	pool *pgxpool.Pool,
+	queries genDb.Querier,
+	joinTokenTTL, joinTokenMaxTTL time.Duration,
+) *ClusterAdminServer {
 	return &ClusterAdminServer{
-		pool:         pool,
-		queries:      queries,
-		authz:        authz.New(queries),
-		joinTokenTTL: joinTokenTTL,
+		pool:            pool,
+		queries:         queries,
+		authz:           authz.New(queries),
+		joinTokenTTL:    joinTokenTTL,
+		joinTokenMaxTTL: joinTokenMaxTTL,
 	}
 }
 
@@ -59,9 +66,22 @@ type joinToken struct {
 	expiresAt time.Time
 }
 
-func (s *ClusterAdminServer) newJoinToken() joinToken {
+func (s *ClusterAdminServer) tokenTTL(requested *durationpb.Duration) (time.Duration, error) {
+	if requested == nil {
+		return s.joinTokenTTL, nil
+	}
+	if requested.CheckValid() != nil || requested.AsDuration() <= 0 || requested.AsDuration() > s.joinTokenMaxTTL {
+		return 0, connect.NewError(
+			connect.CodeInvalidArgument,
+			"join token ttl must be positive and must not exceed the server maximum",
+		)
+	}
+	return requested.AsDuration(), nil
+}
+
+func newJoinToken(ttl time.Duration) joinToken {
 	token := joinTokenPrefix + rand.Text()
-	return joinToken{token: token, hash: bearer.Hash(token), expiresAt: time.Now().Add(s.joinTokenTTL)}
+	return joinToken{token: token, hash: bearer.Hash(token), expiresAt: time.Now().Add(ttl)}
 }
 
 func (t joinToken) proto() *clusterv1.JoinToken {
@@ -83,6 +103,10 @@ func (s *ClusterAdminServer) CreateCluster(
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errInvalidClusterFields)
 	}
+	ttl, err := s.tokenTTL(req.GetTtl())
+	if err != nil {
+		return nil, err
+	}
 	tier := protoEnvTypeToString(req.GetTier())
 	response := &clusterv1.CreateClusterResponse{}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
@@ -103,7 +127,7 @@ func (s *ClusterAdminServer) CreateCluster(
 		if row.AgentPublicKey != nil {
 			return nil
 		}
-		token := s.newJoinToken()
+		token := newJoinToken(ttl)
 		if _, issueErr := queries.SetClusterJoinToken(ctx, genDb.SetClusterJoinTokenParams{
 			ID: row.ID, JoinTokenHash: &token.hash, JoinTokenExpiresAt: &token.expiresAt,
 		}); issueErr != nil {
@@ -126,11 +150,15 @@ func (s *ClusterAdminServer) IssueJoinToken(
 	if err := authorizeSystem(ctx, s.authz, actions.ManageClusters); err != nil {
 		return nil, err
 	}
+	ttl, err := s.tokenTTL(req.GetTtl())
+	if err != nil {
+		return nil, err
+	}
 	id, err := uuid.Parse(req.GetClusterId())
 	if err != nil {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, err)
 	}
-	token := s.newJoinToken()
+	token := newJoinToken(ttl)
 	_, err = s.queries.SetClusterJoinToken(ctx, genDb.SetClusterJoinTokenParams{
 		ID:                 id,
 		JoinTokenHash:      &token.hash,

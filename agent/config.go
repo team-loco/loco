@@ -18,6 +18,7 @@ import (
 
 const (
 	envControlPlaneURL          = "CONTROL_PLANE_URL"
+	envJoinTokenFile            = "LOCO_JOIN_TOKEN_FILE"  //nolint:gosec
 	envJoinToken                = "LOCO_JOIN_TOKEN"       //nolint:gosec
 	envKeySecret                = "LOCO_AGENT_KEY_SECRET" //nolint:gosec
 	envAssertionLifetime        = "LOCO_ASSERTION_LIFETIME"
@@ -74,6 +75,7 @@ type Config struct {
 	LogLevel                 slog.Level
 	ControlPlaneURL          string
 	JoinToken                string
+	JoinTokenFile            string
 	KeySecret                string
 	AssertionLifetime        time.Duration
 	AgentVersion             string
@@ -124,10 +126,14 @@ func newAgentConfig() *Config {
 
 func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config, error) {
 	cfg := &Config{
-		AgentVersion: agentVersion,
-		Kubeconfig:   getenv(envKubeconfig),
-		JoinToken:    getenv(envJoinToken),
-		Certificate:  getenv(envCertificate),
+		AgentVersion:  agentVersion,
+		Kubeconfig:    getenv(envKubeconfig),
+		JoinToken:     getenv(envJoinToken),
+		JoinTokenFile: getenv(envJoinTokenFile),
+		Certificate:   getenv(envCertificate),
+	}
+	if cfg.JoinToken != "" && cfg.JoinTokenFile != "" {
+		return nil, errors.New("LOCO_JOIN_TOKEN and LOCO_JOIN_TOKEN_FILE are mutually exclusive")
 	}
 	required := map[string]*string{
 		envControlPlaneURL:      &cfg.ControlPlaneURL,

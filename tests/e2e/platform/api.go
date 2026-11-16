@@ -127,6 +127,15 @@ func (p *Platform) clickhouseDSN() string {
 // StartAgent starts the agent against apiURL, enrolling with joinToken when it is set, and waits
 // until the cluster records a new sync generation from this agent's version.
 func (p *Platform) StartAgent(ctx context.Context, apiURL, joinToken string) error {
+	return p.startAgent(ctx, apiURL, joinToken, "")
+}
+
+// StartAgentWithTokenFile waits for enrollment from a token delivered through a file.
+func (p *Platform) StartAgentWithTokenFile(ctx context.Context, apiURL, tokenFile string) error {
+	return p.startAgent(ctx, apiURL, "", tokenFile)
+}
+
+func (p *Platform) startAgent(ctx context.Context, apiURL, joinToken, tokenFile string) error {
 	var previous int64
 	err := p.DB.QueryRow(ctx, "SELECT sync_generation FROM clusters WHERE cluster_key = $1", p.ClusterKey).
 		Scan(&previous)
@@ -140,6 +149,7 @@ func (p *Platform) StartAgent(ctx context.Context, apiURL, joinToken string) err
 	env = append(env,
 		"CONTROL_PLANE_URL="+apiURL,
 		"LOCO_JOIN_TOKEN="+joinToken,
+		"LOCO_JOIN_TOKEN_FILE="+tokenFile,
 		"LOCO_NAMESPACE="+locoNamespace,
 		"LOG_LEVEL="+p.values.agentLogLevel,
 		"KUBECONFIG="+p.kubeconfig,

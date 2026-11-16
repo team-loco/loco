@@ -39,7 +39,7 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 	)
 	clusterv1connect.RegisterClusterAdminServiceHandler(
 		server,
-		NewClusterAdminServer(pool, queries, testAgentConfig().JoinTokenTTL),
+		NewClusterAdminServer(pool, queries, testAgentConfig().JoinTokenTTL, testAgentConfig().JoinTokenMaxTTL),
 	)
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

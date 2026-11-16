@@ -215,7 +215,7 @@ type Agent struct {
 
 // Run starts the agent's main loop.
 func (a *Agent) Run(ctx context.Context) error {
-	if err := a.register(ctx); err != nil {
+	if err := a.waitForRegistration(ctx); err != nil {
 		return fmt.Errorf("registration failed: %w", err)
 	}
 

@@ -35,6 +35,7 @@ var (
 type AgentConfig struct {
 	AssertionMaxLifetime time.Duration
 	JoinTokenTTL         time.Duration
+	JoinTokenMaxTTL      time.Duration
 	DeployAttempts       int32
 	DeployRetryDelay     int32
 	RegistryTokenMode    bool
