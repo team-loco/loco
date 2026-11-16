@@ -83,7 +83,7 @@ export function buildRegions(
 		const currentId = status?.deploymentId;
 		const current = currentId
 			? (currentDeployments.find((d) => d.id === currentId) ?? history.find((d) => d.id === currentId))
-			: (history.find((d) => d.isActive) ?? history[0]);
+			: history.find((d) => d.isActive);
 		return { name, status, history, current };
 	});
 }
