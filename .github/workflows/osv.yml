@@ -24,6 +24,7 @@ jobs:
       security-events: write
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
+      upload-sarif: false
       scan-args: |-
         --recursive
         --x-exclude=examples
@@ -38,10 +39,33 @@ jobs:
       security-events: write
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
     with:
+      upload-sarif: false
       scan-args: |-
         --recursive
         --x-exclude=examples
         ./
+
+  osv-scan:
+    name: Upload Source Results
+    needs: [source, source-baseline]
+    if: ${{ !cancelled() && (needs.source.result != 'skipped' || needs.source-baseline.result != 'skipped') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: OSV Scanner SARIF file
+          path: sarif
+
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: sarif/results.sarif
+          category: .github/workflows/ci.yml:osv-scan
 
   changes:
     name: Detect Changed Images
@@ -94,7 +118,7 @@ jobs:
 
   image:
     needs: changes
-    if: needs.changes.outputs.images != '[]'
+    if: github.event_name == 'pull_request' || needs.changes.outputs.images != '[]'
     runs-on: ubuntu-latest
 
     permissions:
@@ -105,24 +129,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ${{ fromJSON(needs.changes.outputs.images) }}
+        image: ${{ fromJSON(github.event_name == 'pull_request' && '["controller","api","agent","builder","observability-proxy","ui"]' || needs.changes.outputs.images) }}
+
+    env:
+      SCAN: ${{ contains(fromJSON(needs.changes.outputs.images), matrix.image) }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: ./.github/actions/setup-tools
+        if: env.SCAN == 'true'
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        if: inputs.images != ''
+        if: env.SCAN == 'true' && inputs.images != ''
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        if: inputs.images == ''
+        if: env.SCAN == 'true' && inputs.images == ''
 
       - name: Pull or build the image
+        if: env.SCAN == 'true'
         env:
           IMAGES: ${{ inputs.images }}
           TARGET: ${{ matrix.image == 'observability-proxy' && 'obs-proxy' || matrix.image }}
@@ -139,6 +168,7 @@ jobs:
 
       # scanning the exported archive keeps osv-scanner out of the docker socket
       - name: Scan image
+        if: env.SCAN == 'true'
         env:
           EVENT: ${{ github.event_name }}
         run: |
@@ -176,6 +206,11 @@ jobs:
           if [ "$code" -gt 1 ] || { [ "$code" -eq 1 ] && [ "$EVENT" != pull_request ]; }; then
             exit "$code"
           fi
+
+      - name: Empty results for unchanged image
+        if: env.SCAN != 'true'
+        run: |
+          echo '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"osv-scanner"}},"results":[]}]}' > /tmp/osv-image.sarif
 
       - name: Upload results
         if: always()
