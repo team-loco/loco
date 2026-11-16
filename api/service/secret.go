@@ -335,10 +335,11 @@ func (s *SecretServer) writeSecrets(
 
 func (t secretTarget) event(eventType string, names []string, revision int64) events.Event {
 	return events.Event{
-		Type:        eventType,
-		WorkspaceID: new(t.env.WorkspaceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(t.resourceID),
+		Type:          eventType,
+		EnvironmentID: new(t.env.ID),
+		WorkspaceID:   new(t.env.WorkspaceID),
+		SubjectType:   events.SubjectResource,
+		SubjectID:     new(t.resourceID),
 		Data: map[string]any{
 			events.FieldNames:         names,
 			events.FieldEnvironmentID: t.env.ID,
