@@ -11,8 +11,7 @@ import (
 	"github.com/team-loco/loco/internal/logquery"
 )
 
-// AuditQuery selects a page of an organization's events, newest first. Nil scope fields read
-// every workspace, resource or environment; Filter is a validated audit query or nil.
+// AuditQuery selects an organization's events within optional scope and time bounds.
 type AuditQuery struct {
 	OrgID         uuid.UUID
 	WorkspaceID   *uuid.UUID

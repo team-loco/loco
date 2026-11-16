@@ -140,8 +140,6 @@ const (
 	eventScopeResource
 )
 
-// eventScope is the narrowest level a ListEvents request reads. workspaceID is set for the
-// workspace and resource levels, resourceID for the resource level.
 type eventScope struct {
 	kind        eventScopeKind
 	orgID       uuid.UUID
@@ -149,15 +147,9 @@ type eventScope struct {
 	resourceID  uuid.UUID
 }
 
-type eventScopeRequest interface {
-	GetOrgId() string
-	GetWorkspaceId() string
-	GetResourceId() string
-}
-
 func (s *EventServer) authorizeEventScope(
 	ctx context.Context,
-	req eventScopeRequest,
+	req *eventv1.ListEventsRequest,
 	workspaceAction actions.Action,
 ) (eventScope, error) {
 	orgID, err := parseID("org_id", req.GetOrgId())
@@ -263,7 +255,7 @@ func (s *EventServer) StreamEvents(
 		var err error
 		filter, err = parseEventFilter(scoped)
 		if err != nil {
-			return querySyntaxError(err)
+			return err
 		}
 	} else {
 		if req.GetOrgId() != "" || req.GetResourceId() != "" || req.GetEnvironmentId() != "" || req.GetQuery() != "" ||
@@ -361,16 +353,7 @@ func (s *EventServer) authorizeStreamScope(ctx context.Context, req *eventv1.Lis
 	return s.authorizeEventScope(ctx, req, actions.StreamWorkspaceEvents)
 }
 
-type eventFilterRequest interface {
-	eventScopeRequest
-	GetEnvironmentId() string
-	GetStartTime() *timestamppb.Timestamp
-	GetEndTime() *timestamppb.Timestamp
-	GetQuery() string
-	GetBeforeSeq() int64
-}
-
-func parseEventFilter(req eventFilterRequest) (logquery.Expr, error) {
+func parseEventFilter(req *eventv1.ListEventsRequest) (logquery.Expr, error) {
 	if req.GetStartTime() != nil && req.GetEndTime() != nil &&
 		!req.GetStartTime().AsTime().Before(req.GetEndTime().AsTime()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "start_time must be before end_time")
@@ -386,7 +369,7 @@ func parseEventFilter(req eventFilterRequest) (logquery.Expr, error) {
 }
 
 func auditQuery(
-	req eventFilterRequest,
+	req *eventv1.ListEventsRequest,
 	scope eventScope,
 	filter logquery.Expr,
 	maxRows int32,
