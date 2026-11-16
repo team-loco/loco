@@ -37,6 +37,7 @@ def check_scoped_user(browser):
     minute_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(minutes=1)
     stamp = minute_ago.strftime('%Y-%m-%dT%H:%M:%S.000Z')
     telemetry = {
+        'QueryLogBuckets': {'buckets': [{'startTime': stamp, 'severity': 'INFO', 'count': '1'}]},
         'QueryLogs': {'entries': [{'timestamp': stamp, 'severity': 'INFO', 'body': 'checkout order placed', 'resourceId': rid, 'resourceAttributes': {'loco.region': 'us-east-1', 'k8s.pod.name': 'checkout-7d9f-x2k4p'}}]},
         'ListTraces': {'totalCount': '1', 'summaries': [{'traceId': '0af7651916cd43dd8448eb211c80319c', 'rootSpanName': 'POST /api/checkout', 'serviceName': 'checkout', 'startTime': stamp, 'durationNanos': '12000000', 'status': 'TRACE_STATUS_OK', 'spanCount': '1', 'resourceId': rid}]},
         'QueryMetrics': {'series': [{'resourceId': rid, 'points': [{'timestamp': stamp, 'value': 0.25}]}]},
