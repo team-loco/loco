@@ -334,7 +334,7 @@ def dashboard(page):
 
 def limit_display(page):
     user_id = owner["id"]
-    evidence.psql(state["container"], f"INSERT INTO api_tokens (token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;")
+    evidence.psql(state["container"], f"INSERT INTO api_tokens (display_prefix,display_suffix,token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'loco_k_test','test','limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;")
     limit = 11
     config_url = "**/loco.config.v1.ConfigService/GetConfig"
 
