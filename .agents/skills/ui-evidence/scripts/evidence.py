@@ -439,14 +439,25 @@ def cmd_openbao(args):
     print(start_openbao(repo_root(), args.project, dict(os.environ)))
 
 
+def check_ref_worktree(repo, ref):
+    commit = run(["git", "rev-parse", f"{ref}^{{commit}}"], cwd=repo, capture=True).strip()
+    head = run(["git", "rev-parse", "HEAD"], cwd=repo, capture=True).strip()
+    if commit == head:
+        dirty = run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=repo, capture=True).strip()
+        if dirty:
+            raise EvidenceError(f"ref {ref} excludes uncommitted files; commit them before capture:\n{dirty}")
+
+
 def cmd_up(args):
     repo = repo_root()
+    openbao = os.environ.get(OPENBAO_ENV)
+    if not openbao:
+        check_ref_worktree(repo, args.ref)
     scenario = json.loads(Path(args.scenario).read_text())
     run_id = f"{args.name}-{secrets.token_hex(4)}"
     root = BASE_DIR / run_id
     root.mkdir(parents=True)
     state_path = root / "state.json"
-    openbao = os.environ.get(OPENBAO_ENV)
     state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "pids": []}
     if openbao:
         worktree = repo
