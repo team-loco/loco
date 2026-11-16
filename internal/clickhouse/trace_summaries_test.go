@@ -125,6 +125,9 @@ func TestTraceSummarySortColumns(t *testing.T) {
 						result.GetSummaries()[0].GetTraceId() != fmt.Sprintf("%032x", id) {
 						t.Fatalf("offset %d: %v, want trace %d", offset, result, id)
 					}
+					if id == 2 && result.GetSummaries()[0].GetHttpStatusCode() != 200 {
+						t.Fatalf("legacy HTTP code: %v", result.GetSummaries()[0])
+					}
 					if id == 3 && result.GetSummaries()[0].GetHttpStatusCode() != 0 {
 						t.Fatalf("missing HTTP code: %v", result.GetSummaries()[0])
 					}
@@ -253,7 +256,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testResourceID,
 			time.Second,
 			time.Second,
-			map[string]string{"user.id": "7", summaryHTTPStatus: "200"},
+			map[string]string{"user.id": "7", "http.status_code": "200"},
 		},
 		{
 			3,

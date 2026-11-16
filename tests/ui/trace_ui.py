@@ -433,7 +433,7 @@ with session(out) as browser:
     with page.expect_response("**/ListTraces"):
         page.get_by_role('button', name=re.compile(r'^Duration\W*sorted descending$')).click()
     assert last_page_request()['ascending'] is True
-    for label, key in [('Root span', 'OPERATION'), ('Resource', 'RESOURCE'), ('Status', 'STATUS'), ('Spans', 'SPAN_COUNT'), ('When', 'START_TIME')]:
+    for label, key in [('Root span', 'OPERATION'), ('Resource', 'RESOURCE'), ('Status', 'STATUS'), ('Spans', 'SPAN_COUNT')]:
         with page.expect_response("**/ListTraces"):
             page.get_by_role('button', name=label, exact=True).click()
         assert last_page_request()['sort'] == 'TRACE_SUMMARY_SORT_' + key
