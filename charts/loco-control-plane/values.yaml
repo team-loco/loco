@@ -82,9 +82,9 @@ api:
     metricRetentionDays: null
   # @schema additionalProperties: false
   defaults:
-    # @schema type: string
+    # @schema type: string; pattern: ^$|^[+]?([0-9]*[1-9][0-9]*([.][0-9]*)?|[0-9]*[.][0-9]*[1-9][0-9]*)(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|K|M|G|T|P|E|[eE][-+]?[0-9]+)?$
     cpu: ""
-    # @schema type: string
+    # @schema type: string; pattern: ^$|^[+]?([0-9]*[1-9][0-9]*([.][0-9]*)?|[0-9]*[.][0-9]*[1-9][0-9]*)(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|K|M|G|T|P|E|[eE][-+]?[0-9]+)?$
     memory: ""
     # @schema type: [integer, "null"]; minimum: 1; maximum: 10
     minReplicas: null
@@ -112,18 +112,15 @@ api:
     deployRetryDelay: null
   # @schema additionalProperties: false
   retention:
-    # @schema type: string
-    # @schema pattern: ^$|^([0-9]+([.][0-9]+)?(h|m|s|ms|us|ns))+$
+    # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
     events: ""
     # @schema type: [integer, "null"]; minimum: 0; maximum: 2147483647
     images: null
   # @schema additionalProperties: false
   joinToken:
-    # @schema type: string
-    # @schema pattern: ^$|^([0-9]+([.][0-9]+)?(h|m|s|ms|us|ns))+$
+    # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
     ttl: ""
-    # @schema type: string
-    # @schema pattern: ^$|^([0-9]+([.][0-9]+)?(h|m|s|ms|us|ns))+$
+    # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
     maxTtl: ""
   env: {}
   # @schema skipProperties
