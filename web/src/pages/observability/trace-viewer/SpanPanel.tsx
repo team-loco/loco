@@ -115,7 +115,7 @@ export function SpanPanel({
 			<SpanLinks span={selected} />
 			<section aria-label="Span attributes" className="min-w-0">
 				<Tabs defaultValue="Attributes" key={selected.spanId}>
-					<TabsList className="overflow-x-auto">
+					<TabsList aria-label="Span detail tabs" variant="segmented" className="max-w-full overflow-x-auto">
 						{ATTRIBUTE_TABS.map((tab) => (
 							<TabsTrigger key={tab} value={tab} className="tv-stab px-2 text-[12px]">
 								{tab}

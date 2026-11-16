@@ -281,14 +281,6 @@ export function TraceHeader({
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end">
 						<DropdownMenuItem
-							onClick={() => {
-								copy("trace", traceId, "Copied trace ID");
-							}}
-						>
-							<CopyIcon />
-							Copy trace ID
-						</DropdownMenuItem>
-						<DropdownMenuItem
 							disabled={trace === undefined}
 							onClick={() => {
 								if (trace !== undefined) copy("json", traceJson(trace.spans), "Copied trace JSON");
@@ -296,11 +288,6 @@ export function TraceHeader({
 						>
 							<BracesIcon />
 							Copy as JSON
-							{trace !== undefined && (
-								<span className="text-fg3">
-									{trace.spans.length} {trace.spans.length === 1 ? "span" : "spans"}
-								</span>
-							)}
 						</DropdownMenuItem>
 						<DropdownMenuItem disabled={trace === undefined} onClick={download}>
 							<DownloadIcon />

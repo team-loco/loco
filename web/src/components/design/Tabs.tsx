@@ -1,3 +1,5 @@
+import { createContext, use } from "react";
+import { SegmentedScope, SegmentedThumb, segmentedGroupClass, segmentedItemClass } from "./Segmented";
 import {
 	Tabs as TabsBase,
 	TabsContent as TabsContentBase,
@@ -10,21 +12,56 @@ function Tabs({ className, ...props }: React.ComponentProps<typeof TabsBase>) {
 	return <TabsBase className={cn("gap-0", className)} {...props} />;
 }
 
-function TabsList({ className, ...props }: React.ComponentProps<typeof TabsListBase>) {
-	return (
+type TabsVariant = "line" | "segmented";
+const TabsVariantContext = createContext<TabsVariant>("line");
+
+function TabsList({
+	className,
+	variant = "line",
+	children,
+	...props
+}: Omit<React.ComponentProps<typeof TabsListBase>, "variant"> & { variant?: TabsVariant }) {
+	const segmented = variant === "segmented";
+	const list = (
 		<TabsListBase
 			variant="line"
-			className={cn("h-auto! w-full justify-start gap-0.5 rounded-none border-b border-line p-0", className)}
+			data-segmented={segmented || undefined}
+			className={cn(
+				segmented
+					? cn("h-auto! w-fit justify-start gap-0.5 border-0", segmentedGroupClass)
+					: "h-auto! w-full justify-start gap-0.5 rounded-none border-b border-line p-0",
+				className,
+			)}
 			{...props}
-		/>
+		>
+			{children}
+		</TabsListBase>
+	);
+	return (
+		<TabsVariantContext value={variant}>
+			{segmented ? <SegmentedScope>{list}</SegmentedScope> : list}
+		</TabsVariantContext>
 	);
 }
 
 function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsTriggerBase>) {
+	const segmented = use(TabsVariantContext) === "segmented";
 	return (
 		<TabsTriggerBase
+			render={
+				segmented
+					? (buttonProps, state) => (
+							<button type="button" {...buttonProps}>
+								{state.active && <SegmentedThumb />}
+								{buttonProps.children}
+							</button>
+						)
+					: undefined
+			}
 			className={cn(
-				"-mb-px h-[34px] flex-none gap-2 rounded-none border-0 border-b-2 border-transparent px-2.5 text-[14px] font-medium text-fg3 after:hidden hover:text-foreground data-active:border-foreground data-active:text-foreground dark:text-fg3 dark:data-active:border-foreground",
+				segmented
+					? segmentedItemClass
+					: "-mb-px h-[34px] flex-none gap-2 rounded-none border-0 border-b-2 border-transparent px-2.5 text-[14px] font-medium text-fg3 after:hidden hover:text-foreground data-active:border-foreground data-active:text-foreground dark:text-fg3 dark:data-active:border-foreground",
 				className,
 			)}
 			{...props}

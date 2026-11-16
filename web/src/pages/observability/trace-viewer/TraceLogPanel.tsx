@@ -7,7 +7,7 @@ import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { Button } from "@/components/design/Button";
 import { Spinner } from "@/components/design/Spinner";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/design/Tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent, TabsCount } from "@/components/design/Tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { formatClock } from "@/lib/time";
@@ -50,7 +50,7 @@ export function TraceLogPanel({
 	const { goTo } = useObs();
 	const { children } = useTraceResources();
 	const [scope, setScope] = useState("trace");
-	const [height, setHeight] = useState(240);
+	const [height, setHeight] = useState(310);
 	const resizeRef = useRef<{ y: number; height: number } | null>(null);
 	const descendants = useMemo(
 		() => descendantIds(trace, selected.spanId, children),
@@ -107,16 +107,19 @@ export function TraceLogPanel({
 				}}
 				className="flex min-h-0 flex-1 flex-col"
 			>
-				<div className="flex flex-wrap items-center gap-2 border-b border-line px-2">
-					<TabsList className="w-auto border-0">
+				<div className="flex flex-wrap items-center min-h-11 gap-2 border-b border-line px-2">
+					<TabsList aria-label="Trace bottom panel" variant="segmented" className="w-auto">
 						<TabsTrigger
 							value="logs"
 							onClick={() => {
 								onCollapsed(false);
 							}}
 						>
-							Logs ({logs.rows.length}
-							{more ? "+" : ""})
+							Logs{" "}
+							<TabsCount>
+								{logs.rows.length}
+								{more ? "+" : ""}
+							</TabsCount>
 						</TabsTrigger>
 						<TabsTrigger
 							value="infra"
