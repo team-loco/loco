@@ -89,4 +89,4 @@ SELECT COUNT(*) FROM environments WHERE workspace_id = $1;
 SELECT COUNT(*) FROM resources WHERE workspace_id = $1;
 
 -- name: CountEntityAPITokens :one
-SELECT COUNT(*) FROM api_tokens WHERE entity_type = $1 AND entity_id = $2;
+SELECT COUNT(*) FROM api_tokens WHERE entity_type = $1 AND entity_id = $2 AND expires_at > NOW();
