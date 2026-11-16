@@ -1,11 +1,10 @@
 import { ArrowRightIcon } from "lucide-react";
-import { useRef, useState } from "react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
 import { DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
-import { Input } from "@/components/design/Input";
+import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { cn } from "@/lib/utils";
 
 import { shortId } from "./format";
@@ -152,20 +151,21 @@ export function RollbackDialogContent({
 	);
 }
 
-export function DeleteDialogContent({
+export function DeleteResourceDialog({
+	open,
+	onOpenChange,
 	resource,
 	places,
 	pending,
 	onConfirm,
 }: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	resource: Resource;
 	places: string[];
 	pending: boolean;
 	onConfirm: () => void;
 }) {
-	const [typed, setTyped] = useState("");
-	const cancelRef = useRef<HTMLButtonElement>(null);
-	const ok = typed.trim() === resource.name;
 	const deployCount =
 		places.length === 1 ? "its active deployment" : `its ${places.length.toString()} active deployments`;
 	const placeList = places.length > 0 ? ` in ${places.join(" and ")}` : "";
@@ -177,51 +177,22 @@ export function DeleteDialogContent({
 				? `the domain ${domains[0]?.domain ?? ""}`
 				: `${domains.length.toString()} domains`;
 	return (
-		<DialogContent className="w-[520px]" title="Delete resource?" initialFocus={cancelRef}>
-			<form
-				noValidate
-				onSubmit={(e) => {
-					e.preventDefault();
-					if (ok && !pending) onConfirm();
-				}}
-			>
-				<DialogBody className="gap-3">
-					<code className="w-fit max-w-full rounded-sm bg-panel px-2 py-1 font-mono font-semibold break-all">
-						{resource.name}
-					</code>
-					<span className="leading-normal text-fg2">
-						Removes the resource, {deployCount}
-						{placeList}, and {domainText}. Running replicas stop immediately.
-					</span>
-					{resource.partial !== undefined && (
-						<p className="rounded-md border border-warn/30 bg-warn-bg px-3 py-2 text-sm text-warn-fg">
-							Deleting here causes drift with <code className="font-mono">loco.yaml</code>. Applying the file again can
-							recreate this resource. Remove it from the file to keep it deleted.
-						</p>
-					)}
-					<label className="flex flex-col gap-1.5">
-						<span className="text-sm text-fg3">
-							Type <span className="font-mono font-semibold text-foreground">{resource.name}</span> to confirm
-						</span>
-						<Input
-							value={typed}
-							placeholder={resource.name}
-							className="h-[34px]"
-							onChange={(e) => {
-								setTyped(e.target.value);
-							}}
-						/>
-					</label>
-				</DialogBody>
-				<DialogFooter>
-					<DialogClose render={<Button ref={cancelRef} type="button" variant="outline" className="h-[30px]" />}>
-						Cancel
-					</DialogClose>
-					<Button type="submit" variant="destructive" className="h-[30px]" disabled={!ok || pending}>
-						{pending ? "Deleting…" : "Delete resource"}
-					</Button>
-				</DialogFooter>
-			</form>
-		</DialogContent>
+		<ConfirmDeleteDialog
+			open={open}
+			onOpenChange={onOpenChange}
+			title="Delete resource?"
+			text={`Removes the resource, ${deployCount}${placeList}, and ${domainText}. Running replicas stop immediately.`}
+			target={resource.name}
+			confirmLabel="Delete resource"
+			pending={pending}
+			onConfirm={onConfirm}
+		>
+			{resource.partial !== undefined && (
+				<p className="rounded-md border border-warn/30 bg-warn-bg px-3 py-2 text-sm text-warn-fg">
+					Deleting here causes drift with <code className="font-mono">loco.yaml</code>. Applying the file again can
+					recreate this resource. Remove it from the file to keep it deleted.
+				</p>
+			)}
+		</ConfirmDeleteDialog>
 	);
 }
