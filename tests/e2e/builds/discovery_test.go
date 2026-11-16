@@ -18,11 +18,10 @@ import (
 )
 
 const (
-	aliasTimeout         = time.Minute
-	discoveryDumpTimeout = time.Minute
-	cartName             = "cart"
-	callerName           = "caller"
-	workspaceOne         = "workspace-one"
+	aliasTimeout = time.Minute
+	cartName     = "cart"
+	callerName   = "caller"
+	workspaceOne = "workspace-one"
 )
 
 // TestDiscovery deploys private HTTP and TCP services and checks how other apps reach them: by
@@ -187,25 +186,13 @@ func workspaceBuilds(t *testing.T, w *platform.Workspace) int {
 // dumpDiscovery preserves routing and workload diagnostics before failure cleanup removes them.
 func dumpDiscovery(t *testing.T, namespace string) {
 	t.Helper()
+	p.LogWorkspaceRuntime(t, namespace)
 	p.LogKubectl(t,
-		"-n "+namespace+" get services,endpointslices,networkpolicies,pods -o wide",
-		"-n "+namespace+" get pods -o=custom-columns=NAME:.metadata.name,PHASE:.status.phase,"+
-			"REASON:.status.containerStatuses[*].state.waiting.reason,"+
-			"MESSAGE:.status.containerStatuses[*].state.waiting.message",
-		"-n "+namespace+" get events --sort-by=.metadata.creationTimestamp",
+		"-n "+namespace+" get services,endpointslices,networkpolicies -o wide",
 		"-n "+namespace+" get networkpolicies -o yaml",
 		"-n kube-system get pods -l k8s-app=kube-dns -o wide",
 		"-n kube-system logs -l k8s-app=kube-dns --all-containers --prefix --tail=100",
 	)
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), discoveryDumpTimeout)
-	defer cancel()
-	out, err := p.Kubectl(ctx, "-n", namespace, "get", "secret", "loco-registry-pull",
-		"-o=custom-columns=NAME:.metadata.name,UID:.metadata.uid,CREATED:.metadata.creationTimestamp,"+
-			"DELETING:.metadata.deletionTimestamp,TYPE:.type,RESOURCEVERSION:.metadata.resourceVersion")
-	t.Logf("registry pull secret metadata:\n%s%v", out, err)
-	out, err = p.Command(ctx, "docker", "exec", p.Node(), "journalctl", "-u", "kubelet",
-		"--since=-5min", "--no-pager", "--output=short-iso-precise", "--lines=200", "--grep="+namespace)
-	t.Logf("workspace kubelet messages:\n%s%v", out, err)
 }
 
 // discovery is the workspace TestDiscovery deploys into.

@@ -147,6 +147,7 @@ func (w *Workspace) MustLoco(tb testing.TB, dir string, args ...string) CLIResul
 	tb.Helper()
 	result := w.Loco(tb.Context(), dir, nil, args...)
 	if result.Err != nil {
+		w.p.LogWorkspaceRuntime(tb, w.Namespace)
 		tb.Fatalf("loco %s: %v\n%s", strings.Join(args, " "), result.Err, result.Output())
 	}
 	return result
