@@ -843,20 +843,22 @@ func (s *status) crashLoopEvent(t *testing.T) {
 		},
 	)
 	before := eventIDs(t, w, crashID)
-	byName, err := p.User.Event.ListEvents(t.Context(), &eventv1.ListEventsRequest{
-		OrgId: w.OrgID, ResourceId: crashID, EnvironmentName: platform.Production,
-		Query: "@type:resource.degraded",
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	byNameIDs := make([]string, 0, len(byName.GetEvents()))
-	for _, event := range byName.GetEvents() {
-		byNameIDs = append(byNameIDs, event.GetId())
-	}
-	slices.Sort(byNameIDs)
-	if !slices.Equal(byNameIDs, before) {
-		t.Fatalf("environment-name events = %v, want %v", byNameIDs, before)
+	for name, want := range map[string][]string{platform.Production: before, "missing": nil} {
+		byName, err := p.User.Event.ListEvents(t.Context(), &eventv1.ListEventsRequest{
+			OrgId: w.OrgID, ResourceId: crashID, EnvironmentName: name,
+			Query: "@type:resource.degraded",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		byNameIDs := make([]string, 0, len(byName.GetEvents()))
+		for _, event := range byName.GetEvents() {
+			byNameIDs = append(byNameIDs, event.GetId())
+		}
+		slices.Sort(byNameIDs)
+		if !slices.Equal(byNameIDs, want) {
+			t.Fatalf("environment %s events = %v, want %v", name, byNameIDs, want)
+		}
 	}
 	p.StopAgent()
 	var reconnectAfter time.Time
