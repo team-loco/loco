@@ -5,6 +5,7 @@ import { ServiceGraphEdgeSchema } from "@gen/loco/observability/v1/observability
 import { mapLayout } from "./mapLayout";
 import { callLabel, serviceGraph } from "./serviceGraph";
 import { row } from "./testRows";
+import { itemName } from "./resourceRows";
 
 const edge = create(ServiceGraphEdgeSchema, {
 	from: "web",
@@ -48,6 +49,8 @@ test("calls join resource nodes and deduplicate external peers", () => {
 		1000,
 	);
 	expect(graph.external.map((node) => node.name)).toEqual(["postgresql"]);
+	expect(graph.external[0]?.x).toBeLessThan(1000);
+	expect(graph.external[0]?.y).toBe(layout.internalNodes.find((node) => itemName(node.row) === "api")?.y);
 	expect(graph.calls.map((call) => call.name)).toEqual([
 		"web → api",
 		"api → worker",
@@ -81,4 +84,5 @@ test("reverse calls and self calls have distinct directed paths", () => {
 	);
 	expect(new Set(graph.calls.map((call) => call.path)).size).toBe(3);
 	expect(new Set(graph.calls.map((call) => call.key)).size).toBe(3);
+	expect(Math.abs((graph.calls[0]?.y ?? 0) - (graph.calls[1]?.y ?? 0))).toBeGreaterThanOrEqual(60);
 });

@@ -14,11 +14,13 @@ export function serviceGraph(layout: MapLayout, edges: ServiceGraphEdge[], range
 		[...layout.publicNodes, ...layout.internalNodes].map((node) => [itemName(node.row), node]),
 	);
 	const peers = [...new Set(edges.flatMap((edge) => [edge.from, edge.to]))].filter((name) => !nodes.has(name));
-	const external = peers.map((name, i) => ({
-		name,
-		x: layout.width + 360,
-		y: i * 160,
-	}));
+	const right = Math.max(0, ...[...nodes.values()].map((node) => node.x + MAP_NODE_W));
+	let peerY = -160;
+	const external = peers.map((name) => {
+		const caller = edges.find((edge) => edge.to === name);
+		peerY = Math.max(peerY + 160, nodes.get(caller?.from ?? "")?.y ?? 0);
+		return { name, x: right + 360, y: peerY };
+	});
 	for (const node of external) nodes.set(node.name, node);
 	const calls = edges.map((edge, i) => {
 		const from = nodes.get(edge.from);
@@ -32,12 +34,13 @@ export function serviceGraph(layout: MapLayout, edges: ServiceGraphEdge[], range
 		const x2 = to.x + (sameColumn || !forward ? MAP_NODE_W : 0);
 		const bend = sameColumn ? x1 + 80 + i * 12 : (x1 + x2) / 2;
 		const self = edge.from === edge.to;
+		const reverse = edge.from > edge.to && edges.some((other) => other.from === edge.to && other.to === edge.from);
 		return {
 			key: JSON.stringify([edge.from, edge.to]),
 			name: `${edge.from} → ${edge.to}`,
 			label: callLabel(edge, rangeMs),
 			x: sameColumn ? bend + 8 : (x1 + x2) / 2 - 110,
-			y: self ? y1 + 45 : (y1 + y2) / 2 - 24,
+			y: self ? y1 + 45 : (y1 + y2) / 2 - 24 + (reverse ? 72 : 0),
 			path: self
 				? `M${x1},${y1 - 12} C${bend + 80},${y1 - 60} ${bend + 80},${y1 + 60} ${x2},${y1 + 12}`
 				: `M${x1},${y1} C${bend},${y1} ${bend},${y2} ${x2},${y2}`,

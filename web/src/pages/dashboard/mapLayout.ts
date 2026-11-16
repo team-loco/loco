@@ -68,17 +68,17 @@ interface PlacedColumn {
 	more: MapPoint | null;
 }
 
-function columnHeight(c: Column): number {
+function columnHeight(c: Column, rowGap: number): number {
 	return (
 		(c.label ? MAP_LABEL_H + ROW_GAP : 0) +
 		c.count * MAP_NODE_H +
-		(c.count - 1) * ROW_GAP +
+		(c.count - 1) * rowGap +
 		(c.more ? ROW_GAP + MAP_MORE_H : 0)
 	);
 }
 
-function placeColumn(c: Column, x: number, height: number): PlacedColumn {
-	let y = (height - columnHeight(c)) / 2;
+function placeColumn(c: Column, x: number, height: number, rowGap: number): PlacedColumn {
+	let y = (height - columnHeight(c, rowGap)) / 2;
 	let label: MapPoint | null = null;
 	if (c.label) {
 		label = { x, y };
@@ -86,9 +86,9 @@ function placeColumn(c: Column, x: number, height: number): PlacedColumn {
 	}
 	const nodes = Array.from({ length: c.count }, (_, i) => ({
 		x,
-		y: y + i * (MAP_NODE_H + ROW_GAP),
+		y: y + i * (MAP_NODE_H + rowGap),
 	}));
-	const more = c.more ? { x, y: y + c.count * (MAP_NODE_H + ROW_GAP) } : null;
+	const more = c.more ? { x, y: y + c.count * (MAP_NODE_H + rowGap) } : null;
 	return { label, nodes, more };
 }
 
@@ -148,9 +148,10 @@ export function mapLayout(
 	const n = columns.length;
 	const width = Math.max(availableWidth, n * MAP_NODE_W + Math.max(0, n - 1) * (calls ? 280 : MAP_MIN_GAP));
 	const gap = n > 1 ? (width - n * MAP_NODE_W) / (n - 1) : 0;
-	const height = Math.max(0, ...columns.map(columnHeight));
+	const rowGap = calls ? 94 : ROW_GAP;
+	const height = Math.max(0, ...columns.map((c) => columnHeight(c, rowGap)));
 	const xs = columns.map((_, i) => i * (MAP_NODE_W + gap));
-	const placed = new Map(columns.map((c, i) => [c.key, placeColumn(c, xs[i] ?? 0, height)]));
+	const placed = new Map(columns.map((c, i) => [c.key, placeColumn(c, xs[i] ?? 0, height, rowGap)]));
 
 	const net = placed.get("internet");
 	const internet = net === undefined ? null : at(net.nodes, 0, {});
@@ -198,26 +199,9 @@ export function mapLayout(
 		divider: c.key === "internal",
 	}));
 
-	const scale = calls ? 2.5 : 1;
-	for (const node of [
-		internet,
-		...gateways,
-		...publicNodes,
-		...internalNodes,
-		pub?.more,
-		internal?.label,
-		internal?.more,
-	]) {
-		if (node != null) node.y *= scale;
-	}
-	for (const segment of gaps)
-		for (const edge of segment.edges) {
-			edge.y1 = (edge.y1 - MAP_NODE_H / 2) * scale + MAP_NODE_H / 2;
-			edge.y2 = (edge.y2 - MAP_NODE_H / 2) * scale + MAP_NODE_H / 2;
-		}
 	return {
 		width,
-		height: height * scale,
+		height,
 		internet,
 		gateways,
 		publicNodes,
