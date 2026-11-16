@@ -104,12 +104,13 @@ const COLUMNS: DataColumn<Operation>[] = [
 	},
 	{
 		id: "share",
+		meta: { cellClassName: "overflow-hidden" },
 		header: "% of exec time",
 		accessorKey: "share",
 		size: 160,
 		cell: ({ row }) => (
-			<span className="flex items-center gap-2">
-				<span className="h-1.5 flex-1 overflow-hidden rounded-sm bg-panel2">
+			<span className="flex min-w-0 items-center gap-2 overflow-hidden">
+				<span className="tv-share-bar h-1.5 min-w-0 max-w-[110px] flex-1 overflow-hidden rounded-sm bg-panel2">
 					<i
 						className="block h-full"
 						style={{
@@ -118,7 +119,7 @@ const COLUMNS: DataColumn<Operation>[] = [
 						}}
 					/>
 				</span>
-				<span className="font-mono text-fg3">{Math.round(row.original.share * 100)}%</span>
+				<span className="shrink-0 font-mono text-fg3">{Math.round(row.original.share * 100)}%</span>
 			</span>
 		),
 	},
