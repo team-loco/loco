@@ -324,11 +324,12 @@ func (a *applier) deploy(
 			return bumpErr
 		}
 		if eventErr := events.Record(ctx, qtx, events.Event{
-			Type:        events.DeploymentCreated,
-			WorkspaceID: new(res.WorkspaceID),
-			ResourceID:  new(res.ID),
-			SubjectType: events.SubjectDeployment,
-			SubjectID:   new(deploymentID),
+			Type:          events.DeploymentCreated,
+			EnvironmentID: new(a.env.ID),
+			WorkspaceID:   new(res.WorkspaceID),
+			ResourceID:    new(res.ID),
+			SubjectType:   events.SubjectDeployment,
+			SubjectID:     new(deploymentID),
 			Data: map[string]any{
 				events.FieldResourceID:    res.ID.String(),
 				events.FieldEnvironmentID: a.env.ID.String(),

@@ -728,11 +728,12 @@ func (s *ResourceServer) scaleCurrentDeployments(
 		scaled[events.FieldRegion] = req.GetRegion()
 	}
 	scaledEvent := events.Event{
-		Type:        events.ResourceScaled,
-		WorkspaceID: new(res.WorkspaceID),
-		SubjectType: events.SubjectResource,
-		SubjectID:   new(resourceID),
-		Data:        scaled,
+		Type:          events.ResourceScaled,
+		EnvironmentID: new(environmentID),
+		WorkspaceID:   new(res.WorkspaceID),
+		SubjectType:   events.SubjectResource,
+		SubjectID:     new(resourceID),
+		Data:          scaled,
 	}
 	if err := s.redeployRegions(ctx, qtx, res, plans, scaledEvent); err != nil {
 		return err
