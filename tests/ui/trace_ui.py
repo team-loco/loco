@@ -543,11 +543,15 @@ with session(out) as browser:
     failing_button = drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=failing)
     assert len(log_requests) == 1, log_requests
     assert log_requests[0]['query'] == '@trace:' + trace, log_requests
+    payment_log = log_rows.get_by_role('button', name='Open log: Payment request failed')
     expect(failing_button).not_to_have_attribute('data-linked', 'true')
-    log_rows.get_by_role('button', name='Open log: Payment request failed').dispatch_event('mousemove')
+    payment_log.hover()
     expect(failing_button).to_have_attribute('data-linked', 'true')
-    log_rows.get_by_role('button', name='Open log: Payment request failed').dispatch_event('mouseout')
-    log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
+    # Clear enter-driven state while keeping the pointer inside the row. The next
+    # native movement must restore linking without another mouseenter event.
+    payment_log.dispatch_event('mouseout')
+    expect(failing_button).not_to_have_attribute('data-linked', 'true')
+    payment_log.hover(position={'x': 20, 'y': 10})
     expect(failing_button).to_have_attribute('data-linked', 'true')
     marker = drawer.get_by_role('button', name=re.compile('^Log at .*Payment request failed$'))
     marker.click()
