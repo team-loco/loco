@@ -453,6 +453,7 @@ with session(out) as browser:
         metric_requests.append(route.request.post_data_json)
         route.fulfill(json={'series':[{'resourceId':workspace_id,'points':[{'timestamp':stamp(0),'value':0.3},{'timestamp':stamp(200),'value':0.5}]}]})
     context.route('**/loco.observability.v1.ObservabilityService/QueryMetrics', metrics)
+    page.mouse.move(0, 0)
     page.goto(state['ui_url'] + base + '&trace=' + trace)
     drawer = page.get_by_role('dialog', name=root_name)
     log_rows = drawer.get_by_role('region', name='Logs in this trace')
@@ -464,7 +465,7 @@ with session(out) as browser:
     assert log_requests[0]['query'] == '@trace:' + trace, log_requests
     before_shadow = failing_button.evaluate('(el) => getComputedStyle(el).boxShadow')
     log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
-    assert failing_button.evaluate('(el) => getComputedStyle(el).boxShadow') != before_shadow
+    expect(failing_button).not_to_have_css('box-shadow', before_shadow)
     marker = drawer.get_by_role('button', name=re.compile('^Log at .*Payment request failed$'))
     marker.click()
     expect(page).to_have_url(re.compile('span=' + spans[10]['spanId']))

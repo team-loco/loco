@@ -1,0 +1,49 @@
+version: 1
+name: local
+release:
+  manifest: {{ .State }}/release.json
+controlPlane:
+  kubernetes:
+    context: kind-{{ .Cluster }}
+    clusterUID: {{ .ClusterUID }}
+    namespace: loco-control-plane
+  apiURL: http://api.{{ .Domain }}:{{ .AppPort }}
+  webURL: http://localhost:{{ .WebPort }}
+  admins: [dev@loco.test]
+  database:
+    secretRef: {name: loco-inputs, key: database-url}
+  auth:
+    issuer: http://dex.{{ .Domain }}:{{ .DexPort }}/dex
+    clientId: loco
+    signupMode: open
+  sourceBucket: &source
+    endpoint: http://s3.{{ .Domain }}:{{ .S3Port }}
+    region: us-east-1
+    bucket: loco-sources
+    credentialsSecretRef: {name: loco-source}
+  registry:
+    endpoint: http://registry.{{ .Domain }}:{{ .RegistryPort }}
+    credentialsSecretRef: {name: loco-registry}
+  openbao:
+    managed: true
+    seal: {type: static}
+    snapshots: *source
+  observability:
+    enabled: true
+    ingestURL: http://ingest.{{ .Domain }}:{{ .AppPort }}
+  certificates:
+    issuer: {name: local-control-plane, selfSigned: {}}
+workers:
+  - name: local
+    kubernetes:
+      context: kind-{{ .Cluster }}
+      clusterUID: {{ .ClusterUID }}
+      namespace: loco-system
+    region: local
+    tier: production
+    role: all
+    appsDomain: apps.{{ .Domain }}
+    metricsServer: {enabled: true, kubeletInsecureTLS: true}
+    builds: {privateEgress: {{ .PrivateEgress }}}
+    certificates:
+      issuer: {name: local-apps, selfSigned: {}}

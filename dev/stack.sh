@@ -67,6 +67,9 @@ fi
 port_offset=$((LOCO_STACK_SLOT * port_stride))
 
 export LOCO_STACK_SLOT
+export STACK_DOMAIN="loco-dev$stack_suffix.localhost"
+export APPS_PORT=$((8443 + port_offset))
+export STACK_STATE="$stack_claims/state/$LOCO_STACK_SLOT"
 export LOCO_STACK_CLAIM="$stack_claim"
 export KIND_CLUSTER="loco-cluster-local$stack_suffix"
 export COMPOSE_PROJECT_NAME="loco-dev$stack_suffix"
