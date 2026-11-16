@@ -430,43 +430,6 @@ with session(out) as browser:
     page.get_by_role('dialog', name=root_name).get_by_role('region', name='Span attributes').get_by_text(raw_service, exact=True).first.wait_for()
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
-    mode[0] = 'zero'
-    context, page, errors = open_page(browser, state=state)
-    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
-    page.goto(state['ui_url'] + base + '&trace=' + trace)
-    zero = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph').get_by_role('button').first
-    expect(zero).to_be_visible()
-    assert zero.bounding_box()['width'] > 0
-    zero.click()
-    expect(page).to_have_url(re.compile('span=' + spans[0]['spanId']))
-    assert not errors, errors
-    context.close()
-    mode[0] = 'large'
-    context, page, errors = open_page(browser, state=state)
-    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
-    page.goto(state['ui_url'] + base + '&trace=' + trace)
-    drawer = page.get_by_role('dialog', name=root_name)
-    large_flame = drawer.get_by_role('region', name='Flame graph')
-    expect(large_flame.get_by_role('button')).to_have_count(3001)
-    first = large_flame.get_by_role('button').first
-    first.hover()
-    before_top = first.bounding_box()['y']
-    page.mouse.wheel(0, 400)
-    page.wait_for_function("""top => document.querySelector('[aria-label="Flame graph"] button').getBoundingClientRect().top < top""", arg=before_top)
-    expect(drawer.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
-    frames = page.locator('[data-trace-plot]').evaluate("""async plot => {
-        const samples=[];
-        for(let i=0;i<20;i++) {
-            const start=performance.now();
-            plot.querySelectorAll('[data-span-id]')[i+1].dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:100+i,clientY:300}));
-            await new Promise(requestAnimationFrame);
-            samples.push(performance.now()-start);
-        }
-        return samples;
-    }""")
-    print('Large trace pointer frame samples (ms):', frames)
-    assert not errors, errors
-    context.close()
     mode[0] = 'normal'
     context, page, _ = open_page(browser, state=state)
     original_spans = json.loads(json.dumps(spans))
@@ -557,6 +520,43 @@ with session(out) as browser:
     assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
     context.close()
     spans[:] = original_spans
+    mode[0] = 'zero'
+    context, page, errors = open_page(browser, state=state)
+    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    zero = page.get_by_role('dialog', name=root_name).get_by_role('region', name='Flame graph').get_by_role('button').first
+    expect(zero).to_be_visible()
+    assert zero.bounding_box()['width'] > 0
+    zero.click()
+    expect(page).to_have_url(re.compile('span=' + spans[0]['spanId']))
+    assert not errors, errors
+    context.close()
+    mode[0] = 'large'
+    context, page, errors = open_page(browser, state=state)
+    context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
+    page.goto(state['ui_url'] + base + '&trace=' + trace)
+    drawer = page.get_by_role('dialog', name=root_name)
+    large_flame = drawer.get_by_role('region', name='Flame graph')
+    expect(large_flame.get_by_role('button')).to_have_count(3001)
+    first = large_flame.get_by_role('button').first
+    first.hover()
+    before_top = first.bounding_box()['y']
+    page.mouse.wheel(0, 400)
+    page.wait_for_function("""top => document.querySelector('[aria-label="Flame graph"] button').getBoundingClientRect().top < top""", arg=before_top)
+    expect(drawer.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
+    frames = page.locator('[data-trace-plot]').evaluate("""async plot => {
+        const samples=[];
+        for(let i=0;i<20;i++) {
+            const start=performance.now();
+            plot.querySelectorAll('[data-span-id]')[i+1].dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:100+i,clientY:300}));
+            await new Promise(requestAnimationFrame);
+            samples.push(performance.now()-start);
+        }
+        return samples;
+    }""")
+    print('Large trace pointer frame samples (ms):', frames)
+    assert not errors, errors
+    context.close()
     mode[0] = 'many'
     context, page, _ = open_page(browser, state=state)
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*',handle)

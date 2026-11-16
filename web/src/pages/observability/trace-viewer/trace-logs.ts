@@ -30,21 +30,16 @@ export function useTraceLogs(trace: TraceSummary) {
 		limit: 50,
 	});
 
-	const spans = useMemo(
-		() => ({
-			byId: new Map(trace.spans.map((span) => [span.spanId, span])),
-			byResource: new Map(trace.spans.map((span) => [span.resourceId, span])),
-		}),
-		[trace],
-	);
 	const rows = useMemo(
 		() =>
 			toRows(query.entries, resourceById).map((row) => {
-				const linked =
-					row.entry.spanId === "" ? spans.byResource.get(row.entry.resourceId) : spans.byId.get(row.entry.spanId);
+				const linked = trace.spans.find(
+					(span) =>
+						span.spanId === row.entry.spanId || (row.entry.spanId === "" && span.resourceId === row.entry.resourceId),
+				);
 				return linked === undefined ? row : { ...row, color: color(linked) };
 			}),
-		[query.entries, resourceById, spans, color],
+		[query.entries, resourceById, trace, color],
 	);
 
 	return { ...query, rows, from, to };
