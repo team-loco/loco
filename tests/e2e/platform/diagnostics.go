@@ -9,73 +9,41 @@ import (
 )
 
 const (
-	diagnosticKubectl   = "kubectl"
-	diagnosticCRICTL    = "crictl"
-	diagnosticEvents    = "events"
-	diagnosticTimeout   = 30 * time.Second
-	diagnosticBudget    = 2 * time.Minute
-	diagnosticDocker    = "docker"
-	diagnosticExec      = "exec"
-	diagnosticContext   = "--context"
-	diagnosticGet       = "get"
-	diagnosticPods      = "pods"
-	diagnosticEventSort = "--sort-by=.metadata.creationTimestamp"
+	diagnosticTimeout = 30 * time.Second
+	diagnosticBudget  = 2 * time.Minute
+	diagnosticDocker  = "docker"
+	diagnosticContext = "--context"
 )
 
 func (c *Cluster) dumpCluster(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), diagnosticBudget)
 	defer cancel()
-	commands := [][]string{
-		{
-			diagnosticDocker,
-			"inspect",
-			"--format",
-			"status={{.State.Status}} exit={{.State.ExitCode}} running={{.State.Running}}",
-			c.Node(),
-		},
-		{diagnosticDocker, "logs", "--tail", "200", c.Node()},
-		{diagnosticDocker, diagnosticExec, c.Node(), "journalctl", "-u", "kubelet", "--no-pager", "--lines=200"},
-		{diagnosticKubectl, diagnosticContext, c.kubeContext, diagnosticGet, "nodes", "-o", "wide"},
-		{
-			diagnosticKubectl,
-			diagnosticContext,
-			c.kubeContext,
-			"-n",
-			"kube-system",
-			diagnosticGet,
-			diagnosticPods,
-			"-o",
-			"wide",
-		},
-		{
-			diagnosticKubectl,
-			diagnosticContext,
-			c.kubeContext,
-			diagnosticGet,
-			diagnosticEvents,
-			"-A",
-			diagnosticEventSort,
-		},
-		{diagnosticDocker, diagnosticExec, c.Node(), diagnosticCRICTL, "ps", "-a", "--name", "etcd", "-q"},
-		{diagnosticDocker, diagnosticExec, c.Node(), diagnosticCRICTL, "ps", "-a", "--name", "kube-apiserver", "-q"},
-	}
-	for _, command := range commands {
+	dump := func(command ...string) string {
 		out, err := c.diagnostic(ctx, command...)
 		logf("%s:\n%s%v", strings.Join(command, " "), tail(out), err)
-		if len(command) > 4 && command[3] == "crictl" && err == nil {
-			for id := range strings.FieldsSeq(out) {
-				logs, logErr := c.diagnostic(
-					ctx,
-					diagnosticDocker,
-					diagnosticExec,
-					c.Node(),
-					diagnosticCRICTL,
-					"logs",
-					"--tail=200",
-					id,
-				)
-				logf("%s container %s:\n%s%v", command[7], id, tail(logs), logErr)
-			}
+		if err != nil {
+			return ""
+		}
+		return out
+	}
+	for _, args := range [][]string{
+		{"inspect", "--format", "status={{.State.Status}} exit={{.State.ExitCode}} running={{.State.Running}}", c.Node()},
+		{"logs", "--tail", "200", c.Node()},
+		{"exec", c.Node(), "journalctl", "-u", "kubelet", "--no-pager", "--lines=200"},
+	} {
+		dump(append([]string{diagnosticDocker}, args...)...)
+	}
+	for _, command := range []string{
+		"get nodes -o wide",
+		"-n kube-system get pods -o wide",
+		"get events -A --sort-by=.metadata.creationTimestamp",
+	} {
+		dump(append([]string{"kubectl", diagnosticContext, c.kubeContext}, strings.Fields(command)...)...)
+	}
+	for _, component := range []string{"etcd", "kube-apiserver"} {
+		ids := dump(diagnosticDocker, "exec", c.Node(), "crictl", "ps", "-a", "--name", component, "-q")
+		for id := range strings.FieldsSeq(ids) {
+			dump(diagnosticDocker, "exec", c.Node(), "crictl", "logs", "--tail=200", id)
 		}
 	}
 }
@@ -94,16 +62,18 @@ func (c *Cluster) LogNamespace(tb testing.TB, namespace string) {
 	tb.Helper()
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(tb.Context()), diagnosticBudget)
 	defer cancel()
-	for _, args := range [][]string{
-		{diagnosticGet, diagnosticPods, "-o=custom-columns=NAME:.metadata.name,PHASE:.status.phase," +
+	for _, command := range []string{
+		"get pods -o=custom-columns=NAME:.metadata.name,PHASE:.status.phase," +
 			"CONTAINERS:.status.containerStatuses[*].name,READY:.status.containerStatuses[*].ready," +
 			"RESTARTS:.status.containerStatuses[*].restartCount,WAITING:.status.containerStatuses[*].state.waiting.reason," +
 			"TERMINATED:.status.containerStatuses[*].state.terminated.reason," +
-			"EXIT:.status.containerStatuses[*].state.terminated.exitCode"},
-		{diagnosticGet, diagnosticEvents, diagnosticEventSort},
+			"EXIT:.status.containerStatuses[*].state.terminated.exitCode",
+		"get events --sort-by=.metadata.creationTimestamp",
 	} {
-		command := append([]string{diagnosticKubectl, diagnosticContext, c.kubeContext, "-n", namespace}, args...)
-		out, err := c.diagnostic(ctx, command...)
-		tb.Logf("%s:\n%s%v", strings.Join(command, " "), tail(out), err)
+		args := append(
+			[]string{"kubectl", diagnosticContext, c.kubeContext, "-n", namespace},
+			strings.Fields(command)...)
+		out, err := c.diagnostic(ctx, args...)
+		tb.Logf("%s:\n%s%v", strings.Join(args, " "), tail(out), err)
 	}
 }

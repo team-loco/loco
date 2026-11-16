@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,19 +14,21 @@ import (
 const startupPollInterval = 500 * time.Millisecond
 
 type containerLog struct {
-	pod      string
-	uid      string
-	name     string
 	id       string
-	restart  int32
 	text     string
 	complete bool
 	err      error
 }
 
+type containerIncarnation struct {
+	pod     types.UID
+	name    string
+	restart int32
+}
+
 // StartupLogs retains each observed container incarnation's logs through installation.
 type StartupLogs struct {
-	containers map[string]containerLog
+	containers map[containerIncarnation]containerLog
 	pods       map[types.UID]corev1.Pod
 	err        error
 }
@@ -37,7 +38,10 @@ func (c *Cluster) CaptureStartupLogs(ctx context.Context, namespace, selector st
 	done := make(chan StartupLogs, 1)
 	go func() {
 		defer close(done)
-		logs := StartupLogs{containers: make(map[string]containerLog), pods: make(map[types.UID]corev1.Pod)}
+		logs := StartupLogs{
+			containers: make(map[containerIncarnation]containerLog),
+			pods:       make(map[types.UID]corev1.Pod),
+		}
 		ticker := time.NewTicker(startupPollInterval)
 		defer ticker.Stop()
 		for {
@@ -85,13 +89,12 @@ func (c *Cluster) sampleStartup(ctx context.Context, namespace, selector string,
 				}
 				id := strings.TrimPrefix(incarnation.id, "containerd://")
 				text, err := c.diagnostic(ctx, "docker", "exec", c.Node(), "crictl", "logs", "--tail=200", id)
-				key := string(pod.UID) + "/" + status.Name + "/" + strconv.Itoa(int(incarnation.restart))
+				key := containerIncarnation{pod.UID, status.Name, incarnation.restart}
 				if previous, ok := logs.containers[key]; ok && err != nil && previous.err == nil {
 					continue
 				}
 				logs.containers[key] = containerLog{
-					pod: pod.Name, uid: string(pod.UID), name: status.Name, id: incarnation.id,
-					restart: incarnation.restart, text: text, complete: incarnation.complete, err: err,
+					id: incarnation.id, text: text, complete: incarnation.complete, err: err,
 				}
 			}
 		}
@@ -112,47 +115,31 @@ func (logs StartupLogs) CheckRestarts(diagnostic string) error {
 		}
 		for _, status := range pod.Status.ContainerStatuses {
 			for restart := range status.RestartCount {
-				key := string(pod.UID) + "/" + status.Name + "/" + strconv.Itoa(int(restart))
-				captured, ok := logs.containers[key]
-				if !ok {
-					return fmt.Errorf(
-						"API pod %s uid %s container %s restart %d: logs unavailable",
-						pod.Name,
-						pod.UID,
-						status.Name,
-						restart,
-					)
+				identity := fmt.Sprintf(
+					"API pod %s uid %s container %s restart %d",
+					pod.Name,
+					pod.UID,
+					status.Name,
+					restart,
+				)
+				captured, ok := logs.containers[containerIncarnation{pod.UID, status.Name, restart}]
+				var reason string
+				switch {
+				case !ok:
+					reason = "logs unavailable"
+				case captured.err != nil:
+					reason = "logs unavailable (retrieval failed)"
+				case strings.Contains(captured.text, diagnostic):
+					continue
+				case !captured.complete:
+					reason = "logs unavailable (incomplete capture)"
+				default:
+					reason = "startup logs lack the transit diagnostic"
 				}
-				if captured.err != nil {
-					return fmt.Errorf(
-						"API pod %s uid %s container %s restart %d id %s: logs unavailable (retrieval failed)",
-						captured.pod,
-						captured.uid,
-						captured.name,
-						captured.restart,
-						captured.id,
-					)
+				if captured.id != "" {
+					identity += " id " + captured.id
 				}
-				if !strings.Contains(captured.text, diagnostic) {
-					if !captured.complete {
-						return fmt.Errorf(
-							"API pod %s uid %s container %s restart %d id %s: logs unavailable (incomplete capture)",
-							captured.pod,
-							captured.uid,
-							captured.name,
-							captured.restart,
-							captured.id,
-						)
-					}
-					return fmt.Errorf(
-						"API pod %s uid %s container %s restart %d id %s: startup logs lack the transit diagnostic",
-						captured.pod,
-						captured.uid,
-						captured.name,
-						captured.restart,
-						captured.id,
-					)
-				}
+				return fmt.Errorf("%s: %s", identity, reason)
 			}
 		}
 	}

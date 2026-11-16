@@ -61,7 +61,10 @@ func TestStartupLogsRetainContainerEvidence(t *testing.T) {
 			if err := os.WriteFile(logsPath, []byte(tc.text), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			logs := StartupLogs{containers: make(map[string]containerLog), pods: make(map[types.UID]corev1.Pod)}
+			logs := StartupLogs{
+				containers: make(map[containerIncarnation]containerLog),
+				pods:       make(map[types.UID]corev1.Pod),
+			}
 			if tc.captureEarly {
 				c.sampleStartup(t.Context(), "fixtures", "app=api", &logs)
 			}

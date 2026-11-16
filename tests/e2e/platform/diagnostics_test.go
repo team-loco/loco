@@ -105,3 +105,14 @@ type canceledDiagnosticTest struct {
 }
 
 func (t canceledDiagnosticTest) Context() context.Context { return t.ctx }
+
+func TestDiagnosticCapturesSuccessfulStderr(t *testing.T) {
+	c, _ := fakeCluster(t, false)
+	out, err := c.diagnostic(t.Context(), "sh", "-c", "printf diagnostic-stderr >&2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out != "diagnostic-stderr" {
+		t.Fatalf("output = %q, want stderr", out)
+	}
+}

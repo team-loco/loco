@@ -27,8 +27,7 @@ const (
 	contentTypeHeader = "Content-Type"
 	jsonContent       = "application/json"
 	passwordKey       = "password"
-	// transitStartupError is the error the API exits with when OpenBao has not created the transit
-	// keys yet, the one restart the install tolerates.
+	// transitStartupError identifies the API's tolerated OpenBao startup failure.
 	transitStartupError = `loco api failed error="verify the transit keys: `
 )
 
