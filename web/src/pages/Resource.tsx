@@ -34,7 +34,7 @@ import { runtimeEvent } from "@/lib/runtime-events";
 import { tsMs } from "@/lib/time";
 import { NoticeBanner } from "@/pages/resource/Banners";
 import { DeploymentsSection } from "@/pages/resource/DeploymentsSection";
-import { DeleteDialogContent, RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
+import { DeleteResourceDialog, RedeployDialogContent, RollbackDialogContent } from "@/pages/resource/Dialogs";
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
@@ -488,7 +488,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			/>
 
 			<Dialog
-				open={modal !== null}
+				open={modal !== null && modal.kind !== "delete"}
 				onOpenChange={(open: boolean) => {
 					if (!open) setModal(null);
 				}}
@@ -520,15 +520,17 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						onConfirm={() => void handleRedeploy()}
 					/>
 				)}
-				{modal?.kind === "delete" && (
-					<DeleteDialogContent
-						resource={resource}
-						places={activeDeploymentPlaces(resource)}
-						pending={del.isPending}
-						onConfirm={handleDelete}
-					/>
-				)}
 			</Dialog>
+			<DeleteResourceDialog
+				open={modal?.kind === "delete"}
+				onOpenChange={(open) => {
+					if (!open) setModal(null);
+				}}
+				resource={resource}
+				places={activeDeploymentPlaces(resource)}
+				pending={del.isPending}
+				onConfirm={handleDelete}
+			/>
 		</Page>
 	);
 }
