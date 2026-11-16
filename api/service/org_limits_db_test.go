@@ -46,7 +46,7 @@ func (f *deployFixture) orgAdmin(t *testing.T) context.Context {
 func (f *deployFixture) asCreator(t *testing.T, scopes ...genDb.EntityScope) context.Context {
 	t.Helper()
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: f.creatorID(t)}
-	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
+	return reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes, UserID: entity.ID})
 }
 
 func (f *deployFixture) creatorID(t *testing.T) uuid.UUID {

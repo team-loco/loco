@@ -61,9 +61,6 @@ func (s *WorkspaceServer) CreateWorkspace(
 	if err = check(ctx, s.authz, p, actions.New(actions.CreateWorkspace, orgID)); err != nil {
 		return nil, err
 	}
-	if p.Entity.Type != genDb.EntityTypeUser {
-		return nil, rpcerr.New(connect.CodePermissionDenied, ErrImproperUsage)
-	}
 	var wsID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var createErr error
@@ -71,7 +68,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 			OrgID:       orgID,
 			Name:        req.GetName(),
 			Description: req.Description,
-			CreatedBy:   p.Entity.ID,
+			CreatedBy:   p.UserID,
 		})
 		return createErr
 	})

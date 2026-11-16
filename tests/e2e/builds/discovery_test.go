@@ -72,7 +72,7 @@ func TestDiscovery(t *testing.T) {
 	}}
 	platform.WriteLocoFile(t, dir, file)
 
-	t.Run("deploys private HTTP and TCP services", func(t *testing.T) {
+	if !t.Run("deploys private HTTP and TCP services", func(t *testing.T) {
 		w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 		var deployment appsv1.Deployment
 		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, "payment"))
@@ -81,7 +81,9 @@ func TestDiscovery(t *testing.T) {
 			container.ReadinessProbe != nil && container.ReadinessProbe.HTTPGet != nil {
 			t.Error("payment, without a health check, has an HTTP probe")
 		}
-	})
+	}) {
+		return
+	}
 
 	d := &discovery{w: w}
 	t.Run("apps use logical names and configured ports", d.logicalNames)
@@ -187,6 +189,10 @@ func dumpDiscovery(t *testing.T, namespace string) {
 	t.Helper()
 	p.LogKubectl(t,
 		"-n "+namespace+" get services,endpointslices,networkpolicies,pods -o wide",
+		"-n "+namespace+" get pods -o=custom-columns=NAME:.metadata.name,PHASE:.status.phase,"+
+			"REASON:.status.containerStatuses[*].state.waiting.reason,"+
+			"MESSAGE:.status.containerStatuses[*].state.waiting.message",
+		"-n "+namespace+" get events --sort-by=.metadata.creationTimestamp",
 		"-n "+namespace+" get networkpolicies -o yaml",
 		"-n kube-system get pods -l k8s-app=kube-dns -o wide",
 		"-n kube-system logs -l k8s-app=kube-dns --all-containers --prefix --tail=100",
