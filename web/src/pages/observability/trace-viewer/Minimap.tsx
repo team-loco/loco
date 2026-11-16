@@ -11,15 +11,7 @@ function moveWindow(zoom: Zoom, center: number): Zoom {
 	return boundedZoom(center - width / 2, width);
 }
 
-export function Minimap({
-	zoom,
-	onZoom,
-	highlight,
-}: {
-	zoom: Zoom;
-	onZoom: SetTraceZoom;
-	highlight: string | null;
-}) {
+export function Minimap({ zoom, onZoom, highlight }: { zoom: Zoom; onZoom: SetTraceZoom; highlight: string | null }) {
 	const { color: resourceColor, layout } = useTraceResources();
 	const { blocks, depth } = layout;
 	const dragRef = useRef<{
@@ -73,7 +65,8 @@ export function Minimap({
 						if (Math.abs(x - origin.x) < 0.003 && !origin.moved) return;
 						origin.moved = true;
 						if (origin.inside) onZoom(boundedZoom(origin.zoom.a + x - origin.x, origin.zoom.b - origin.zoom.a), true);
-						else if (Math.abs(x - origin.x) > 0.004) onZoom({ a: Math.min(origin.x, x), b: Math.max(origin.x, x) }, true);
+						else if (Math.abs(x - origin.x) > 0.004)
+							onZoom({ a: Math.min(origin.x, x), b: Math.max(origin.x, x) }, true);
 					}}
 					onPointerUp={(e) => {
 						const origin = dragRef.current;

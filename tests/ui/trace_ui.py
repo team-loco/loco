@@ -502,6 +502,9 @@ with session(out) as browser:
     assert len(log_requests) == 1, log_requests
     assert log_requests[0]['query'] == '@trace:' + trace, log_requests
     expect(failing_button).not_to_have_attribute('data-linked', 'true')
+    log_rows.get_by_role('button', name='Open log: Payment request failed').dispatch_event('mousemove')
+    expect(failing_button).to_have_attribute('data-linked', 'true')
+    log_rows.get_by_role('button', name='Open log: Payment request failed').dispatch_event('mouseout')
     log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
     expect(failing_button).to_have_attribute('data-linked', 'true')
     marker = drawer.get_by_role('button', name=re.compile('^Log at .*Payment request failed$'))

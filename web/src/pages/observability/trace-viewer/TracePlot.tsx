@@ -113,7 +113,11 @@ export function TracePlot({
 						};
 					}}
 					onPointerDown={(e) => {
-						if (width >= 1 || e.button !== 0 || (e.target as HTMLElement).closest('[role="separator"], [data-trace-axis], [role="slider"]') !== null)
+						if (
+							width >= 1 ||
+							e.button !== 0 ||
+							(e.target as HTMLElement).closest('[role="separator"], [data-trace-axis], [role="slider"]') !== null
+						)
 							return;
 						suppressClickRefRef.current = false;
 						dragRef.current = { x: e.clientX, zoom };
