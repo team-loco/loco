@@ -10,7 +10,7 @@ title: "loco.yaml"
 loco infra init --name storefront
 ```
 
-`init` writes a starter `loco.yaml` from the API's defaults: CPU, memory and replica counts and the default region. Nothing defaults a port, so the starter service is a worker; add `port` and `domains` to serve traffic. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
+`init` writes a starter `loco.yaml` from the API's [service defaults](../operations/self-hosting.md#installation-inputs): CPU, memory and replica counts and the default region. Nothing defaults a port, so the starter service is a worker; add `port` and `domains` to serve traffic. The first line of the file points editors at the JSON Schema URL the API reports, `https://loco.build/schemas/loco.v1.json` on Loco's hosted service, which gives completion and inline errors. The dashboard serves the schema at `/schemas/loco.v1.json`.
 
 ```yaml
 version: 1

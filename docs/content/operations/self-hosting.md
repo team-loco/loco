@@ -57,6 +57,27 @@ api:
     ORG_LINKS: '[{"label":"Support","url":"https://support.example.com/orgs/{orgId}"}]'
 ```
 
+The API reads service defaults once at startup and reports them through `GetConfig` to the CLI and dashboard. Configure these environment variables in the API environment Secret; explicit service settings take precedence. Startup rejects defaults that fail the same validation as a service spec, including `MIN_REPLICAS <= MAX_REPLICAS`. CPU and memory use Kubernetes quantities; durations below are integer seconds.
+
+| Variable | Default | Meaning and bounds |
+| --- | --- | --- |
+| `LOCO_DEFAULT_CPU` | `100m` | CPU request, `100m`–`2000m` |
+| `LOCO_DEFAULT_MEMORY` | `256Mi` | Memory request, `32Mi`–`4Gi` |
+| `LOCO_DEFAULT_MIN_REPLICAS` | `1` | Minimum replicas, 1–10 |
+| `LOCO_DEFAULT_MAX_REPLICAS` | `1` | Maximum replicas, 1–10 and at least the minimum |
+| `LOCO_DEFAULT_CPU_TARGET` | `70` | CPU autoscaling target, 1–100 percent of the CPU request; does not enable autoscaling |
+| `LOCO_DEFAULT_PATH_PREFIX` | `/` | Route path prefix, must start with `/` |
+| `LOCO_DEFAULT_IDLE_TIMEOUT` | `60` | Route idle timeout in seconds, at least 1 |
+| `LOCO_DEFAULT_HEALTH_PATH` | `/health` | HTTP health path, must start with `/` |
+| `LOCO_DEFAULT_HEALTH_INTERVAL` | `30` | Seconds between HTTP checks, at least 5 |
+| `LOCO_DEFAULT_HEALTH_TIMEOUT` | `5` | HTTP check timeout in seconds, 1–60 |
+| `LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD` | `3` | Consecutive failed HTTP checks, 1–10 |
+| `LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD` | `0` | HTTP check startup grace in seconds, 0–180 |
+| `LOCO_DEFAULT_DEPLOY_ATTEMPTS` | `2` | Deployment attempts including the first, 1–10 |
+| `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` | `300` | Seconds between failed apply attempts, at least 60 |
+
+Health defaults apply when the service enables HTTP health checks. A service without `port` is a worker; the API supplies no default port. See the [service sizing rules](../deployment/loco-yaml.md#create-a-file), [health checks](../deployment/loco-yaml.md#health-checks) and [failed applies](../deployment/loco-yaml.md#failed-applies).
+
 With `LOCO_REGISTRY_AUTH=token` the API is the registry's [token endpoint](../reference/architecture.md#registry-access) at `/registry/token`, signing with the key the [secrets key provider](secrets-key-provider.md#configure-the-api) settings name. It reads these settings and refuses to start when one is invalid:
 
 | Variable | Default | Meaning |
