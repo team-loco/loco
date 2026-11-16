@@ -109,6 +109,8 @@ func TestObservability(t *testing.T) {
 
 	t.Run("application logs carry the tenancy", o.appLogs)
 
+	t.Run("QueryLogBuckets counts application logs", o.logBuckets)
+
 	t.Run("gateway access logs carry the tenancy", o.accessLogs)
 
 	t.Run("Envoy metrics carry the tenancy", o.envoyMetrics)
@@ -800,6 +802,36 @@ func (o *observed) appLogs(t *testing.T) {
 		traceID,
 	),
 		anyRow(w.ID, tenant.EnvironmentID, resourceID, w.OrgID))
+}
+
+func (o *observed) logBuckets(t *testing.T) {
+	for _, group := range []observabilityv1.LogBucketGroup{
+		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_RESOURCE,
+	} {
+		platform.Eventually(t, telemetryTimeout, "log buckets for the fixture trace", func(ctx context.Context) error {
+			result, err := o.own.Observability.QueryLogBuckets(ctx, &observabilityv1.QueryLogBucketsRequest{
+				WorkspaceId: o.w.ID, EnvironmentId: o.tenant.EnvironmentID, ResourceIds: []string{o.resourceID},
+				StartTime: timestamppb.New(o.trafficStarted), EndTime: timestamppb.Now(),
+				Query: o.traceID, IntervalSeconds: 60, GroupBy: group,
+			})
+			if err != nil {
+				return err
+			}
+			var total uint64
+			for _, bucket := range result.GetBuckets() {
+				if group == observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_RESOURCE &&
+					bucket.GetResourceId() != o.resourceID {
+					return fmt.Errorf("unexpected bucket resource: %v", bucket)
+				}
+				total += bucket.GetCount()
+			}
+			if total == 0 {
+				return errors.New("no application log buckets")
+			}
+			return nil
+		})
+	}
 }
 
 func (o *observed) accessLogs(t *testing.T) {

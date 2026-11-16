@@ -41,6 +41,7 @@ def stamp(delta):
 
 
 telemetry_points = []
+log_bucket_requests = []
 
 
 def mock_telemetry(context):
@@ -48,6 +49,14 @@ def mock_telemetry(context):
     points = [{"timestamp": stamp(timedelta(minutes=minute)), "value": value} for minute, value in ((50, 0.25), (30, 0.55), (10, 0.35))]
     telemetry_points[:] = points
     context.route("**/loco.observability.v1.ObservabilityService/QueryLogs", lambda route: route.fulfill(json={"entries": logs, "totalMatched": str(len(logs))}))
+    def log_buckets(route):
+        body = route.request.post_data_json
+        log_bucket_requests.append(body)
+        width = body['intervalSeconds']
+        at = datetime.fromisoformat(body['endTime'].replace('Z', '+00:00')).timestamp()
+        start = datetime.fromtimestamp(int(at) // width * width, UTC).isoformat().replace('+00:00', 'Z')
+        route.fulfill(json={'buckets': [{'startTime': start, 'severity': severity, 'count': str(count)} for severity, count in [('INFO', 10005), ('WARN', 2), ('ERROR', 3), ('DEBUG', 4)]]})
+    context.route("**/loco.observability.v1.ObservabilityService/QueryLogBuckets", log_buckets)
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
@@ -234,9 +243,11 @@ def volume(page):
     assert bars.first.locator("span").nth(1).evaluate("node => getComputedStyle(node).boxShadow") != "none"
     box = area.bounding_box()
     target = count - 5
-    point = {"x": box["width"] * (target + 0.1) / count, "y": box["height"] / 2}
+    point = {"x": box["width"] * (target + 0.5) / count, "y": box["height"] / 2}
     area.hover(position=point)
-    expect(area).to_have_attribute("title", re.compile(r"loaded"))
+    expect(area).to_have_attribute("title", re.compile(r"lines"))
+    assert log_bucket_requests[-1]["groupBy"] == "LOG_BUCKET_GROUP_SEVERITY"
+    expect(page.get_by_role("group", name="Log levels").get_by_role("button", name=re.compile(r"^Info"))).to_contain_text("10,005")
     area.click(position=point)
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
     clicked = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0]

@@ -19,6 +19,16 @@ func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
 			req := &observabilityv1.QueryLogsRequest{WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end}
 			return validated(req, func() error { return ValidateLogsRequest(req, cfg) })
 		}},
+		{name: "log buckets", validate: func(start, end *timestamppb.Timestamp) error {
+			req := &observabilityv1.QueryLogBucketsRequest{
+				WorkspaceId:     testWorkspaceID,
+				StartTime:       start,
+				EndTime:         end,
+				IntervalSeconds: 60,
+				GroupBy:         observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+			}
+			return validated(req, func() error { return ValidateLogBucketsRequest(req, cfg) })
+		}},
 		{name: "metrics", validate: func(start, end *timestamppb.Timestamp) error {
 			req := &observabilityv1.QueryMetricsRequest{
 				WorkspaceId: testWorkspaceID, StartTime: start, EndTime: end,

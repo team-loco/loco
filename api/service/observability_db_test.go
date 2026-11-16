@@ -122,6 +122,14 @@ func readCalls() map[string]readCall {
 			})
 			return err
 		},
+		"QueryLogBuckets": func(ctx context.Context, client observabilityClient, workspace string, resources []string) error {
+			start, end := window()
+			_, err := client.QueryLogBuckets(ctx, &observabilityv1.QueryLogBucketsRequest{
+				WorkspaceId: workspace, ResourceIds: resources, StartTime: start, EndTime: end,
+				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+			})
+			return err
+		},
 		"QueryTraceBuckets": func(
 			ctx context.Context,
 			client observabilityClient,

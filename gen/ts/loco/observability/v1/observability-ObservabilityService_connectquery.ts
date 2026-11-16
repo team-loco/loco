@@ -12,6 +12,11 @@ import { ObservabilityService } from "./observability_pb";
 export const queryLogs = ObservabilityService.method.queryLogs;
 
 /**
+ * @generated from rpc loco.observability.v1.ObservabilityService.QueryLogBuckets
+ */
+export const queryLogBuckets = ObservabilityService.method.queryLogBuckets;
+
+/**
  * Counter rates and histogram quantiles are calculated before combining source streams.
  *
  * @generated from rpc loco.observability.v1.ObservabilityService.QueryMetrics

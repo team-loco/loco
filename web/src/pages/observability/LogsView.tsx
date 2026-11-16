@@ -2,7 +2,7 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useState, type CSSProperties } from "react";
-import { queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
+import { queryLogBuckets, queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon } from "lucide-react";
 
@@ -11,10 +11,10 @@ import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
+import { useLogBuckets } from "@/hooks/useLogBuckets";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { useTailLogs } from "@/hooks/useTailLogs";
 import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
@@ -44,6 +44,7 @@ import {
 	type Token,
 } from "./query";
 import { QueryBar, QueryErrorLine } from "./QueryBar";
+import { logVolume } from "./log-volume";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
 import { PAGE_SIZES, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
@@ -229,21 +230,29 @@ export function LogsView() {
 	const from = tail ? nowMs - spanMs : historyFrom;
 	const to = tail ? nowMs : historyTo;
 
-	const bw = (to - from) / BUCKETS;
-	const counts = Array.from({ length: BUCKETS }, () => new Map<Level, number>());
-	const totals = new Map<Level, number>();
-	for (const r of rows) {
-		const idx = Math.min(BUCKETS - 1, Math.floor((r.ts - from) / bw));
-		const bucket = counts[idx];
-		totals.set(r.level, (totals.get(r.level) ?? 0) + 1);
-		if (idx < 0 || bucket === undefined) continue;
-		bucket.set(r.level, (bucket.get(r.level) ?? 0) + 1);
-	}
-	const buckets: VolumeBucket[] = counts.map((b, i) => {
-		const total = [...b.values()].reduce((a, n) => a + n, 0);
+	const volumeEnd = tail ? Math.floor(to / IDLE_TICK_MS) * IDLE_TICK_MS : to;
+	const volumeStart = tail ? volumeEnd - spanMs : from;
+	const intervalSeconds = Math.max(1, Math.ceil((volumeEnd - volumeStart) / 1000 / (BUCKETS - 1)));
+	const volume = useLogBuckets({
+		workspaceId,
+		environmentId,
+		allEnvironments: backend.allEnvironments,
+		resourceIds: backend.resourceIds,
+		query: backend.query,
+		start: volumeStart,
+		end: volumeEnd,
+		intervalSeconds,
+		enabled: !backend.impossible,
+	});
+	const bw = intervalSeconds * 1000;
+	const { points, totals } = logVolume(volume.data?.buckets ?? [], volumeStart, volumeEnd, bw);
+	const chartStart = points[0]?.start ?? volumeStart;
+	const chartEnd = chartStart + points.length * bw;
+	const buckets: VolumeBucket[] = points.map((point) => {
+		const total = [...point.counts.values()].reduce((a, n) => a + n, 0);
 		return {
-			label: `${fmtTs(from + i * bw, false, timePref)}, ${formatCount(total)} loaded ${total === 1 ? "line" : "lines"}`,
-			segments: LEVELS.map((l) => ({ value: b.get(l) ?? 0, color: LEVEL_SERIES[l].color })),
+			label: `${fmtTs(point.start, false, timePref)}, ${formatCount(total)} ${total === 1 ? "line" : "lines"}`,
+			segments: LEVELS.map((level) => ({ value: point.counts.get(level) ?? 0, color: LEVEL_SERIES[level].color })),
 		};
 	});
 
@@ -437,23 +446,29 @@ export function LogsView() {
 									>
 										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_SERIES[l].color }} />
 										{LEVEL_SERIES[l].label}
-										<span className="font-mono text-[11.5px] text-fg3">{formatCount(n)}</span>
+										<span className="font-mono text-[11.5px] text-fg3">
+											{volume.data === undefined && !backend.impossible ? "—" : formatCount(n)}
+										</span>
 									</ToggleGroupItem>
 								);
 							})}
 						</ToggleGroup>
-						<VolumeBars
-							buckets={buckets}
-							label="Log volume of the loaded lines. Arrow keys move between bars, Enter zooms in."
-							onPick={(i) => {
-								setRange({ kind: "absolute", from: from + i * bw, to: from + (i + 1) * bw });
-							}}
-						/>
-						<TimeAxis from={from} to={to} />
-						<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-							Bars count the {formatCount(rows.length)} loaded lines. Volume over the whole range
-							<SoonTag />
-						</span>
+						{volume.error !== null ? (
+							<ErrorState error={volume.error} what="log volume" rpc={queryLogBuckets} onRetry={volume.refetch} />
+						) : volume.isLoading ? (
+							<Skeleton className="h-14 w-full" />
+						) : (
+							<>
+								<VolumeBars
+									buckets={buckets}
+									label="Log volume over the selected range. Arrow keys move between bars, Enter zooms in."
+									onPick={(i) => {
+										setRange({ kind: "absolute", from: chartStart + i * bw, to: chartStart + (i + 1) * bw });
+									}}
+								/>
+								<TimeAxis from={chartStart} to={chartEnd} />
+							</>
+						)}
 					</section>
 
 					<div

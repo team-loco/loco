@@ -38,6 +38,20 @@ func ValidateLogsRequest(req *observabilityv1.QueryLogsRequest, limits Limits) e
 	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
 }
 
+func ValidateLogBucketsRequest(req *observabilityv1.QueryLogBucketsRequest, limits Limits) error {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {
+		return err
+	}
+	if err := validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange); err != nil {
+		return err
+	}
+	buckets := clickhouse.BucketCount(req.GetStartTime().AsTime(), req.GetEndTime().AsTime(), req.GetIntervalSeconds())
+	if buckets > int64(limits.MaxBuckets) {
+		return fmt.Errorf("%w: %d, at most %d", errTooManyBuckets, buckets, limits.MaxBuckets)
+	}
+	return nil
+}
+
 // ValidateMetricsRequest validates the query parameters for a metrics request.
 func ValidateMetricsRequest(req *observabilityv1.QueryMetricsRequest, limits Limits) error {
 	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), req.GetResourceIds()); err != nil {

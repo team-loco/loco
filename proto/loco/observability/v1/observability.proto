@@ -11,6 +11,7 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/observability/v1;obse
 service ObservabilityService {
   // QueryLogs returns historical log entries matching the given filters.
   rpc QueryLogs(QueryLogsRequest) returns (QueryLogsResponse);
+  rpc QueryLogBuckets(QueryLogBucketsRequest) returns (QueryLogBucketsResponse);
 
   // TailLogs streams live log entries as they arrive (server-push, polling-based).
   rpc TailLogs(TailLogsRequest) returns (stream TailLogsResponse);
@@ -23,6 +24,47 @@ service ObservabilityService {
   // per time bucket.
   rpc QueryTraceBuckets(QueryTraceBucketsRequest) returns (QueryTraceBucketsResponse);
   rpc GetTrace(GetTraceRequest) returns (GetTraceResponse);
+}
+
+enum LogBucketGroup {
+  LOG_BUCKET_GROUP_UNSPECIFIED = 0;
+  LOG_BUCKET_GROUP_SEVERITY = 1;
+  LOG_BUCKET_GROUP_RESOURCE = 2;
+}
+
+message QueryLogBucketsRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  repeated string resource_ids = 2 [(buf.validate.field).repeated.items.string.uuid = true];
+  google.protobuf.Timestamp start_time = 3 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true];
+  string query = 5 [(buf.validate.field).string.max_bytes = 4096];
+  int32 interval_seconds = 6 [(buf.validate.field).int32.gte = 1];
+  LogBucketGroup group_by = 7 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
+  string environment_id = 8 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
+
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+}
+
+// QueryLogBucketsResponse contains nonempty groups ordered by bucket start and group value.
+message QueryLogBucketsResponse {
+  repeated LogBucket buckets = 1;
+}
+
+message LogBucket {
+  google.protobuf.Timestamp start_time = 1;
+  uint64 count = 2;
+  string severity = 3;
+  string resource_id = 4;
 }
 
 // ---------- Logs: Historical Query ----------

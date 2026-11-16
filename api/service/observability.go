@@ -75,6 +75,25 @@ func (s *ObservabilityServer) QueryLogs(
 	return response, nil
 }
 
+func (s *ObservabilityServer) QueryLogBuckets(
+	ctx context.Context,
+	req *observabilityv1.QueryLogBucketsRequest,
+) (*observabilityv1.QueryLogBucketsResponse, error) {
+	if err := guardrails.ValidateLogBucketsRequest(req, s.cfg.Limits); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+	query, err := s.logQuery(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	query.Start, query.End = req.GetStartTime().AsTime(), req.GetEndTime().AsTime()
+	response, err := s.clickhouse.QueryLogBuckets(ctx, query, req.GetIntervalSeconds(), req.GetGroupBy())
+	if err != nil {
+		return nil, fmt.Errorf("query log buckets: %w", err)
+	}
+	return response, nil
+}
+
 // logFilterRequest holds the scope and query QueryLogsRequest and TailLogsRequest share.
 type logFilterRequest interface {
 	GetWorkspaceId() string
