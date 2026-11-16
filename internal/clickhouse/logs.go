@@ -54,7 +54,18 @@ func (c *Client) QueryLogs(ctx context.Context, q LogQuery) (*observabilityv1.Qu
 	if err != nil {
 		return nil, err
 	}
-	return &observabilityv1.QueryLogsResponse{Entries: page.entries, NextCursor: page.nextCursor}, nil
+	b := &positionalBinder{}
+	where := logFilters(q, b)
+	where = append(where, "Timestamp <= fromUnixTimestamp64Nano("+b.num(q.End.UnixNano())+")")
+	countQuery := "SELECT count() FROM otel_logs WHERE " + strings.Join(where, " AND ") +
+		fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
+	var total uint64
+	if err := c.conn.QueryRow(ctx, countQuery, b.args...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count matching logs: %w", err)
+	}
+	return &observabilityv1.QueryLogsResponse{
+		Entries: page.entries, NextCursor: page.nextCursor, TotalMatched: int64(total),
+	}, nil
 }
 
 func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []any, limit int32) (logPage, error) {

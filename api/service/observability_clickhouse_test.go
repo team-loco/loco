@@ -414,6 +414,9 @@ func TestQueryAndTailLogsApplyEveryQueryAlike(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			if got := queried.GetTotalMatched(); got != int64(len(want)) {
+				t.Errorf("QueryLogs total_matched = %d, want %d", got, len(want))
+			}
 			if got := logBodies(queried.GetEntries()); !slices.Equal(got, sorted) {
 				t.Errorf("QueryLogs bodies = %v, want %v", got, sorted)
 			}

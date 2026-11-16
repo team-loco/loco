@@ -899,6 +899,9 @@ func (o *observed) scopedLogs(t *testing.T) {
 			if len(logs.GetEntries()) == 0 {
 				return fmt.Errorf("region %s returned no entries", region)
 			}
+			if logs.GetTotalMatched() < int64(len(logs.GetEntries())) {
+				return fmt.Errorf("total_matched = %d for %d entries", logs.GetTotalMatched(), len(logs.GetEntries()))
+			}
 			excluded := o.logsRequest(w.ID, resourceID)
 			excluded.Query += " -@region:" + logquery.Quote(region)
 			if logs, err = own.Observability.QueryLogs(ctx, excluded); err != nil {
@@ -906,6 +909,9 @@ func (o *observed) scopedLogs(t *testing.T) {
 			}
 			if len(logs.GetEntries()) != 0 {
 				return fmt.Errorf("excluding region %s returned %d entries", region, len(logs.GetEntries()))
+			}
+			if logs.GetTotalMatched() != 0 {
+				return fmt.Errorf("excluded region total_matched = %d, want 0", logs.GetTotalMatched())
 			}
 			return nil
 		},
