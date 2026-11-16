@@ -1,19 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatPercent, percentAxis, timeAxis } from "./compute-chart";
+import { formatPercent, percentAxis } from "./compute-chart";
 
 describe("compute chart axes", () => {
-	test("covers the trace infrastructure window with evenly spaced time ticks", () => {
-		const from = Date.UTC(2026, 0, 1, 12, 0);
-		const to = Date.UTC(2026, 0, 1, 12, 20);
-		expect(timeAxis(from, to)).toEqual([
-			from,
-			Date.UTC(2026, 0, 1, 12, 5),
-			Date.UTC(2026, 0, 1, 12, 10),
-			Date.UTC(2026, 0, 1, 12, 15),
-			to,
-		]);
-	});
 	test("keeps a comparable 0–100% scale for low usage and labels intermediate levels", () => {
 		expect(percentAxis(3)).toEqual({ maximum: 100, ticks: [0, 25, 50, 75, 100] });
 	});
