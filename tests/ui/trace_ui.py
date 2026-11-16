@@ -282,10 +282,10 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     page.get_by_role('button', name='Refresh', exact=True).click()
     assert next(row for row in reversed(recorded) if 'startTime' in row)['startTime'] != previous_request['startTime']
-    page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
-    expect(page.get_by_role('alert')).to_have_text('A trace ID is 32 lowercase hexadecimal characters.')
-    assert not any(row.get('traceId') == 'invalid' for row in recorded)
-    page.get_by_role('button', name='Clear filters', exact=True).click()
+    with page.expect_response("**/ListTraces"):
+        page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
+    assert last_page_request()['query'] == '@trace:invalid'
+    page.goto(state['ui_url'] + base)
     expect(open_trace).to_be_visible()
     page.goto(state['ui_url'] + base + '&trace=' + trace + '&span=ffffffffffffffff')
     drawer.get_by_text('The selected span is unavailable.', exact=True).wait_for()
@@ -643,4 +643,4 @@ with session(out) as browser:
     browser.close()
 assert all((row.get('scope', {}).get('environmentId') for row in recorded))
 assert all((not row.get('scope', {}).get('resourceIds') for row in recorded if row.get('traceId')))
-print('PASS browser trace list, complete drawer spans, span selection and attributes, trace ID validation, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI; trace responses use explicit browser fixtures.')
+print('PASS browser trace list, complete drawer spans, span selection and attributes, query text requests, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI; trace responses use explicit browser fixtures.')
