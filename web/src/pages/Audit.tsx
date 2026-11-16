@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
-	createParser,
 	parseAsArrayOf,
 	parseAsInteger,
 	parseAsNumberLiteral,
@@ -21,7 +20,7 @@ import {
 	parseAsStringLiteral,
 	useQueryStates,
 } from "nuqs";
-import { useParams } from "react-router";
+import { useLocation, useSearchParams, useParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import {
@@ -46,6 +45,8 @@ import { agoLabel, msToTimestamp } from "@/lib/time";
 import { queryError } from "@/pages/observability/query";
 import { QueryErrorLine } from "@/pages/observability/QueryBar";
 
+import { auditLink, auditFilterViolations, sequenceParser, type DroppedFilter } from "./audit/link";
+import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
 import { AuditDrawer } from "./audit/AuditDrawer";
 import { ActorFilter, EventFilter } from "./audit/AuditFilters";
 import { AuditTable } from "./audit/AuditTable";
@@ -57,11 +58,6 @@ const NOW_TICK_MS = 60_000;
 // Typing commits the search after this pause, so a half-typed query sends no request.
 const SEARCH_DEBOUNCE_MS = 300;
 
-const sequenceParser = createParser<bigint>({
-	parse: (value) =>
-		/^\d+$/.test(value) && BigInt(value) > 0n && BigInt(value) <= 9223372036854775807n ? BigInt(value) : null,
-	serialize: (value) => value.toString(),
-});
 const AUDIT_PARAMS = {
 	before: parseAsArrayOf(sequenceParser).withDefault([]),
 	live: parseAsInteger.withDefault(0),
@@ -84,7 +80,7 @@ export function Audit() {
 	const transport = useTransport();
 	const access = useAuditAccess(orgId);
 	const { orgs, workspaces, activeWorkspaceId } = useOrgWorkspace();
-	const [openedAt] = useState(Date.now);
+	const [openedAt, setOpenedAt] = useState(Date.now);
 	const now = useNow(NOW_TICK_MS).getTime();
 
 	const { types, q: search, actor, size, ws: wsParam } = params;
@@ -97,8 +93,42 @@ export function Audit() {
 		: access.org
 			? ""
 			: ((choices.find((w) => w.id === activeWorkspaceId) ?? choices[0])?.id ?? "");
-	const resourceId = workspaceId === "" ? "" : params.res;
-	const environmentId = workspaceId === "" ? "" : params.env;
+	const selectedDetails = useWorkspaceDetails(workspaceId === "" ? [] : [workspaceId]);
+	const location = useLocation();
+	const [, setSearchParams] = useSearchParams();
+	const checked = auditLink(
+		location.search,
+		access.isLoading ? undefined : choices.map((w) => w.id),
+		selectedDetails.resourcesReady.has(workspaceId)
+			? (selectedDetails.resourcesOf.get(workspaceId) ?? []).map((r) => r.id)
+			: undefined,
+		selectedDetails.environmentsReady.has(workspaceId)
+			? (selectedDetails.environmentsOf.get(workspaceId) ?? []).map((e) => e.id)
+			: undefined,
+		workspaceId,
+	);
+	const cleanSearch = checked.search;
+	const droppedJSON = JSON.stringify(checked.dropped);
+	const droppedKey = location.key + droppedJSON;
+	const [notice, setNotice] = useState<{ key: string; filters: DroppedFilter[] }>({ key: "", filters: [] });
+	if (droppedJSON !== "[]" && notice.key !== droppedKey) {
+		setNotice({
+			key: droppedKey,
+			filters: [
+				...notice.filters,
+				...checked.dropped.filter(
+					(f) => !notice.filters.some((p) => p.label === f.label && p.value === f.value && p.reason === f.reason),
+				),
+			],
+		});
+	}
+	const dropped = notice.filters;
+	useEffect(() => {
+		if (droppedJSON !== "[]") setSearchParams(cleanSearch, { replace: true });
+	}, [cleanSearch, droppedJSON, setSearchParams]);
+	const cleaned = new URLSearchParams(cleanSearch);
+	const resourceId = workspaceId === "" ? "" : (cleaned.get("res") ?? "");
+	const environmentId = workspaceId === "" ? "" : (cleaned.get("env") ?? "");
 
 	const filterKey = JSON.stringify([orgId, range.value, types, workspaceId, resourceId, environmentId, size, sent]);
 	const stack = params.before;
@@ -132,7 +162,7 @@ export function Audit() {
 			startTime: msToTimestamp(openedAt - range.ms),
 		},
 		{
-			enabled: orgId !== "" && !access.isLoading,
+			enabled: orgId !== "" && !access.isLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
 			placeholderData: keepPreviousData,
 			refetchInterval: live ? 5000 : false,
 		},
@@ -149,7 +179,7 @@ export function Audit() {
 	const events = query.data?.events ?? [];
 	const known = new Set(choices.map((w) => w.id));
 	const details = useWorkspaceDetails([
-		...new Set([workspaceId, ...events.map((e) => e.workspaceId)].filter((id) => known.has(id))),
+		...new Set(events.map((e) => e.workspaceId).filter((id) => id !== workspaceId && known.has(id))),
 	]);
 	const users = new Map<string, AuditUser>(
 		(members.data?.members ?? []).flatMap((m) => (m.user === undefined ? [] : [[m.user.id, m.user] as const])),
@@ -157,6 +187,7 @@ export function Audit() {
 	const names = new Map<string, string>([
 		...orgs.map((o): [string, string] => [o.id, o.name]),
 		...choices.map((w): [string, string] => [w.id, w.name]),
+		...selectedDetails.names,
 		...details.names,
 	]);
 	const rows = events.map((e) => auditRow(e, users, names));
@@ -198,6 +229,31 @@ export function Audit() {
 	const last = rows.at(-1);
 	const loading = access.isLoading || query.isLoading;
 	const rejected = query.error === null ? null : queryError(query.error, sent);
+	const filterRejected = auditFilterViolations(query.error).length > 0;
+	const fixFilter = (field: string) => {
+		switch (field) {
+			case "start_time":
+			case "end_time":
+				setOpenedAt(Date.now());
+				setFilters({ range: null });
+				break;
+			case "page_size":
+				setFilters({ size: null });
+				break;
+			case "before_seq":
+				setFilters({ before: null });
+				break;
+			case "workspace_id":
+				setFilters({ ws: null, res: null, env: null });
+				break;
+			case "resource_id":
+				setFilters({ res: null });
+				break;
+			case "environment_id":
+				setFilters({ env: null });
+				break;
+		}
+	};
 
 	return (
 		<Page>
@@ -241,7 +297,7 @@ export function Audit() {
 					</>
 				}
 			/>
-			{query.error !== null && rejected === null ? (
+			{query.error !== null && rejected === null && !filterRejected ? (
 				<ErrorState error={query.error} what="the audit log" rpc={listEvents} scope="audit" onRetry={query.refetch} />
 			) : (
 				<Section
@@ -289,7 +345,7 @@ export function Audit() {
 									<PickFilter
 										icon={<BoxIcon />}
 										label="Resource"
-										items={details.resourcesOf.get(workspaceId) ?? []}
+										items={selectedDetails.resourcesOf.get(workspaceId) ?? []}
 										value={resourceId}
 										placeholder="Find a resource"
 										onChange={(id) => {
@@ -299,7 +355,7 @@ export function Audit() {
 									<PickFilter
 										icon={<GitBranchIcon />}
 										label="Environment"
-										items={details.environmentsOf.get(workspaceId) ?? []}
+										items={selectedDetails.environmentsOf.get(workspaceId) ?? []}
 										value={environmentId}
 										onChange={(id) => {
 											setFilters({ env: id, event: null });
@@ -317,9 +373,18 @@ export function Audit() {
 						</>
 					}
 				>
+					{dropped.length > 0 && (
+						<DroppedFilters
+							filters={dropped}
+							onDismiss={() => {
+								setNotice({ key: notice.key, filters: [] });
+							}}
+						/>
+					)}
+					{filterRejected && query.error !== null && <AuditFilterError error={query.error} onFix={fixFilter} />}
 					{rejected !== null && <QueryErrorLine error={rejected} />}
 					<AuditTable
-						rows={rows}
+						rows={filterRejected ? [] : rows}
 						highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
 						loading={loading}
 						selectedId={selected?.event.id ?? null}
@@ -328,7 +393,10 @@ export function Audit() {
 							void setParams({ event: id });
 						}}
 					/>
-					{!loading && rejected === null && rows.length === 0 && (
+					{filterRejected && (
+						<div className="px-4 py-12 text-center text-[13px] text-fg3">Fix the filters to see events.</div>
+					)}
+					{!loading && !filterRejected && rejected === null && rows.length === 0 && (
 						<EmptyState
 							icon={<HistoryIcon />}
 							title={
@@ -375,21 +443,21 @@ export function Audit() {
 						prevLabel="Newer events"
 						nextLabel="Older events"
 						onFirst={
-							stack.length > 0
+							stack.length > 0 && !filterRejected
 								? () => {
 										void setParams({ before: null });
 									}
 								: null
 						}
 						onPrev={
-							stack.length > 0
+							stack.length > 0 && !filterRejected
 								? () => {
 										void setParams({ before: stack.slice(0, -1) });
 									}
 								: null
 						}
 						onNext={
-							nextBeforeSeq !== 0n
+							nextBeforeSeq !== 0n && !filterRejected
 								? () => {
 										void setParams({
 											before: [...stack, nextBeforeSeq],
