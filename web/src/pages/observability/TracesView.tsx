@@ -24,11 +24,11 @@ import { formatClock, formatIsoDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { widthsParser, type ColumnKey, type ColumnWidths } from "./columns";
-import { filteredResources, useObs } from "./context";
+import { useObs } from "./context";
 import { fmtTs } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
-import { durationBounds, liveTokens, passes, QUERY_PARSERS, queryStr, sameToken, type FieldKey } from "./query";
+import { QUERY_PARSERS, queryStr, sameToken, type FieldKey } from "./query";
 import { QueryBar } from "./QueryBar";
 import { PAGE_SIZES } from "./shared";
 import { TraceDrawer } from "./TraceDrawer";
@@ -112,60 +112,42 @@ function TraceSession({
 	const environmentId = active?.id ?? "";
 	const [frozenEnd, setFrozenEnd] = useState(Date.now);
 	const bounds = resolveWindow(range, frozenEnd);
-	const traceToken = liveTokens("traces", tokens, "trace")[0];
-	const lookup = traceToken?.value.toLowerCase() ?? "";
-	const validLookup = lookup === "" || TRACE_ID_PATTERN.test(lookup);
-	const resourceFilter = liveTokens("traces", tokens, "resource").length > 0;
-	const visible = filteredResources("traces", resources, tokens);
-	const filterReady = !resourceFilter || (!resourcesLoading && visible.length > 0);
 	const scopeReady = scopedResourceIds === null || scopedResourceIds.length > 0;
 	const paging = { page: params.page, size: params.size };
-	const statusTokens = liveTokens("traces", tokens, "status");
-	const statuses = ["error", "ok"].filter((status) => passes([status], statusTokens));
-	const statusReady = statuses.length > 0;
-	const duration = durationBounds(tokens);
 	const sort = params.sort === "duration" ? TraceSummarySort.DURATION : TraceSummarySort.START_TIME;
 	const ascending = params.dir === "asc";
-	const ready = filterReady && scopeReady && validLookup && duration !== null;
+	const query = queryStr(tokens, text);
 	const filters = {
 		workspaceId,
 		environmentId,
-		resourceIds: resourceFilter ? visible.map((r) => r.id) : (scopedResourceIds ?? []),
-		traceId: validLookup ? lookup : "",
+		resourceIds: scopedResourceIds ?? [],
 		start: bounds.from,
 		end: bounds.to,
-		rootNameTerms: text.split(" ").filter(Boolean),
-		...(duration?.minNanos !== undefined && { minDurationNanos: duration.minNanos }),
-		...(duration?.maxNanos !== undefined && { maxDurationNanos: duration.maxNanos }),
 	};
-	const status =
-		statuses.length === 1 ? (statuses[0] === "error" ? TraceStatus.ERROR : TraceStatus.OK) : TraceStatus.UNSPECIFIED;
 	const browse = useListTraces({
 		...filters,
+		query,
 		limit: paging.size,
 		offset: paging.page * paging.size,
-		status,
 		sort,
 		ascending,
-		enabled: ready && statusReady,
+		enabled: scopeReady,
 	});
 	const widthSeconds = bucketSeconds(bounds.to - bounds.from);
-	const overview = useTraceBuckets({
+	const overview = useTraceBuckets({ ...filters, query, intervalSeconds: widthSeconds, enabled: scopeReady });
+	const unfiltered = tokens.filter((t) => t.key !== "status");
+	const allQuery = queryStr(unfiltered, text);
+	const errorQuery = queryStr([...unfiltered, ERROR_TOKEN], text);
+	const countOf = (countQuery: string) => ({
 		...filters,
-		status,
-		intervalSeconds: widthSeconds,
-		enabled: ready && statusReady,
-	});
-	const countOf = (countStatus: TraceStatus) => ({
-		...filters,
+		query: countQuery,
 		limit: COUNT_LIMIT,
 		offset: 0,
-		status: countStatus,
 		sort: TraceSummarySort.START_TIME,
-		enabled: ready && !(statusReady && status === countStatus),
+		enabled: scopeReady && countQuery !== query,
 	});
-	const allCount = useListTraces(countOf(TraceStatus.UNSPECIFIED));
-	const errorCount = useListTraces(countOf(TraceStatus.ERROR));
+	const allCount = useListTraces(countOf(allQuery));
+	const errorCount = useListTraces(countOf(errorQuery));
 	const openId = params.trace;
 	const shownId = useHeldWhileClosed(openId, openId !== "");
 	const detail = useGetTrace({
@@ -176,21 +158,20 @@ function TraceSession({
 		enabled: openId !== "" && TRACE_ID_PATTERN.test(openId) && scopeReady,
 	});
 
-	const traces = ready && statusReady ? (browse.data?.summaries ?? []) : [];
-	const total = ready && statusReady ? Number(browse.data?.totalCount ?? 0n) : 0;
-	const countLabel = (countStatus: TraceStatus, data: { totalCount: bigint } | undefined) => {
-		const counted = statusReady && status === countStatus ? browse.data : data;
-		return ready && counted !== undefined ? formatCount(Number(counted.totalCount)) : undefined;
+	const traces = scopeReady ? (browse.data?.summaries ?? []) : [];
+	const total = scopeReady ? Number(browse.data?.totalCount ?? 0n) : 0;
+	const countLabel = (countQuery: string, data: { totalCount: bigint } | undefined) => {
+		const counted = countQuery === query ? browse.data : data;
+		return scopeReady && counted !== undefined ? formatCount(Number(counted.totalCount)) : undefined;
 	};
 	const errorsOnly = tokens.some((t) => sameToken(t, ERROR_TOKEN));
 	const go = (page: number) => () => {
 		setPaging({ page, size: paging.size });
 	};
 	const pages = Math.max(1, Math.ceil(total / paging.size));
-	const loading = environmentLoading || browse.isLoading || ((resourceFilter || !scopeReady) && resourcesLoading);
+	const loading = environmentLoading || browse.isLoading || (!scopeReady && resourcesLoading);
 	const detailSpans = uniqueSpans(detail.data?.spans ?? []);
 	const openTrace = summarizeTraces(detailSpans)[0];
-	const query = queryStr(tokens, text);
 	const open = (id: string) => {
 		void setParams({ trace: id, span: null });
 	};
@@ -210,7 +191,7 @@ function TraceSession({
 			return [
 				[">100", 0],
 				[">500", 0],
-				[">1s", 0],
+				[">1000", 0],
 			];
 		return [];
 	};
@@ -298,16 +279,6 @@ function TraceSession({
 		<>
 			{header}
 			<QueryBar valueCounts={valueCounts} />
-			{!validLookup && (
-				<p role="alert" className="m-0 text-[12.5px] text-bad-fg">
-					A trace ID is 32 lowercase hexadecimal characters.
-				</p>
-			)}
-			{duration === null && (
-				<p role="alert" className="m-0 text-[12.5px] text-bad-fg">
-					A duration filter compares in milliseconds, like @duration:&gt;500, or with a unit, like @duration:&lt;2s.
-				</p>
-			)}
 			<Section
 				title="Overview"
 				card={false}
@@ -321,8 +292,8 @@ function TraceSession({
 				}
 			>
 				<TraceOverview
-					data={ready && statusReady ? overview.data : undefined}
-					loading={ready && statusReady && overview.isLoading}
+					data={scopeReady ? overview.data : undefined}
+					loading={scopeReady && overview.isLoading}
 					error={overview.error}
 					widthSeconds={widthSeconds}
 					from={bounds.from}
@@ -337,14 +308,13 @@ function TraceSession({
 						aria-label="Show"
 						value={[errorsOnly ? "errors" : "all"]}
 						onValueChange={(v: string[]) => {
-							const rest = tokens.filter((t) => t.key !== "status");
-							setQuery(v[0] === "errors" ? [...rest, ERROR_TOKEN] : rest, text);
+							setQuery(v[0] === "errors" ? [...unfiltered, ERROR_TOKEN] : unfiltered, text);
 						}}
 					>
-						<ToggleGroupItem value="all" count={countLabel(TraceStatus.UNSPECIFIED, allCount.data)}>
+						<ToggleGroupItem value="all" count={countLabel(allQuery, allCount.data)}>
 							All
 						</ToggleGroupItem>
-						<ToggleGroupItem value="errors" count={countLabel(TraceStatus.ERROR, errorCount.data)}>
+						<ToggleGroupItem value="errors" count={countLabel(errorQuery, errorCount.data)}>
 							Errors
 						</ToggleGroupItem>
 					</ToggleGroup>
@@ -364,9 +334,7 @@ function TraceSession({
 						sortDir={sortDir}
 						onSort={sortBy}
 					/>
-					{!loading && traces.length === 0 && (
-						<NoMatches title={filterReady ? "No requests match." : "The filtered resources aren't in this workspace"} />
-					)}
+					{!loading && traces.length === 0 && <NoMatches title="No requests match." />}
 				</div>
 				<Pager
 					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}

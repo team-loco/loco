@@ -8,74 +8,48 @@ import (
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"go.opentelemetry.io/collector/pdata/ptrace"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// traceFilters holds the fields ListTracesRequest and QueryTraceBucketsRequest share.
-type traceFilters interface {
-	proto.Message
+// traceRequest holds the scope and range ListTracesRequest and QueryTraceBucketsRequest share.
+type traceRequest interface {
 	GetScope() *observabilityv1.TraceScope
 	GetStartTime() *timestamppb.Timestamp
 	GetEndTime() *timestamppb.Timestamp
-	GetTraceId() string
-	GetMinDurationNanos() uint64
-	GetMaxDurationNanos() uint64
-	GetStatus() observabilityv1.TraceStatus
-	GetRootNameTerms() []string
 }
 
-func buildTraceSummaryQuery(req traceFilters) (string, []any) {
-	where, args := traceScope(req.GetScope())
-	where = append(where, "Timestamp >= fromUnixTimestamp64Nano(?)", "Timestamp <= fromUnixTimestamp64Nano(?)")
-	args = append(args, req.GetStartTime().AsTime().UnixNano(), req.GetEndTime().AsTime().UnixNano())
-	if req.GetTraceId() != "" {
-		where = append(where, "TraceId = ?")
-		args = append(args, req.GetTraceId())
+// buildTraceSummaryQuery summarizes the traces of the request's spans that match filter, binding
+// every value through b.
+func buildTraceSummaryQuery(req traceRequest, filter TraceFilter, b *positionalBinder) string {
+	spans := func() string {
+		return strings.Join(append(traceScope(req.GetScope(), b),
+			"Timestamp >= fromUnixTimestamp64Nano("+b.num(req.GetStartTime().AsTime().UnixNano())+")",
+			"Timestamp <= fromUnixTimestamp64Nano("+b.num(req.GetEndTime().AsTime().UnixNano())+")",
+		), " AND ")
 	}
-	having := []string{"1"}
-	if hasField(req, "min_duration_nanos") {
-		having = append(having, "duration_nanos >= ?")
-		args = append(args, req.GetMinDurationNanos())
-	}
-	if hasField(req, "max_duration_nanos") {
-		having = append(having, "duration_nanos <= ?")
-		args = append(args, req.GetMaxDurationNanos())
-	}
-	if req.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_UNSPECIFIED {
-		having = append(having, "status = ?")
-		args = append(args, int32(req.GetStatus()))
-	}
-	for _, term := range req.GetRootNameTerms() {
-		having = append(having, "positionCaseInsensitiveUTF8(root.1, ?) > 0")
-		args = append(args, term)
-	}
-	args = append([]any{
-		ptrace.StatusCodeError.String(),
-		int32(observabilityv1.TraceStatus_TRACE_STATUS_ERROR),
-		int32(observabilityv1.TraceStatus_TRACE_STATUS_OK),
-	}, args...)
-	return "SELECT TraceId, argMin(tuple(SpanName, ServiceName, ResourceId), " +
+	query := "SELECT TraceId, argMin(tuple(SpanName, ServiceName, ResourceId), " +
 		"tuple(ParentSpanId != '', Timestamp, SpanId)) AS root, min(Timestamp) AS start_time, " +
 		"toUInt64(max(toInt128(toUnixTimestamp64Nano(Timestamp)) + Duration) - " +
 		"toInt128(toUnixTimestamp64Nano(start_time))) AS duration_nanos, " +
-		"if(countIf(StatusCode = ?) > 0, toInt32(?), toInt32(?)) AS status, " +
-		"uniqExact(SpanId) AS span_count FROM otel_traces WHERE " + strings.Join(where, " AND ") +
-		" GROUP BY TraceId HAVING " + strings.Join(having, " AND "), args
-}
-
-func hasField(message proto.Message, name protoreflect.Name) bool {
-	m := message.ProtoReflect()
-	return m.Has(m.Descriptor().Fields().ByName(name))
+		"if(countIf(StatusCode = " + b.str(ptrace.StatusCodeError.String()) + ") > 0, toInt32(" +
+		b.num(int64(observabilityv1.TraceStatus_TRACE_STATUS_ERROR)) + "), toInt32(" +
+		b.num(int64(observabilityv1.TraceStatus_TRACE_STATUS_OK)) + ")) AS status, " +
+		"uniqExact(SpanId) AS span_count FROM otel_traces WHERE " + spans() + " GROUP BY TraceId"
+	if filter.Query != nil {
+		query += " HAVING " + traceFilterSQL(filter.Query, filter.Resources, spans, b)
+	}
+	return query
 }
 
 func (c *Client) ListTraces(
 	ctx context.Context,
 	req *observabilityv1.ListTracesRequest,
+	filter TraceFilter,
 	limit int32,
 ) (*observabilityv1.ListTracesResponse, error) {
-	query, args := buildTraceSummaryQuery(req)
+	b := &positionalBinder{}
+	query := buildTraceSummaryQuery(req, filter, b)
+	args := b.args
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
 	var total uint64
 	if err := c.conn.QueryRow(ctx, "SELECT count() FROM ("+query+")"+settings, args...).Scan(&total); err != nil {

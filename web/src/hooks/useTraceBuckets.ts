@@ -1,18 +1,13 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { queryTraceBuckets } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
-import type { TraceStatus } from "@gen/loco/observability/v1/observability_pb";
 import { msToTimestamp } from "@/lib/time";
 import type { TraceScopeOptions } from "./useGetTrace";
 
 interface TraceBucketsOptions extends TraceScopeOptions {
 	start: number;
 	end: number;
-	traceId: string;
-	rootNameTerms: string[];
-	status: TraceStatus;
+	query: string;
 	intervalSeconds: number;
-	minDurationNanos?: bigint;
-	maxDurationNanos?: bigint;
 }
 
 export function useTraceBuckets(options: TraceBucketsOptions) {

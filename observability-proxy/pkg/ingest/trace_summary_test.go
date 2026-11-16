@@ -8,6 +8,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/logquery"
 )
 
 func TestIngestedTraceSummaryStatus(t *testing.T) {
@@ -47,8 +49,7 @@ func TestIngestedTraceSummaryStatus(t *testing.T) {
 			if len(spans.GetSpans()) != 1 || spans.GetSpans()[0].GetStatusCode() != tc.stored.String() {
 				t.Fatalf("stored status: %v", spans)
 			}
-			req.Status = tc.summary
-			summaries, err := reader.ListTraces(t.Context(), req, testQueryLimit)
+			summaries, err := reader.ListTraces(t.Context(), req, statusFilter(tc.summary), testQueryLimit)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -60,8 +61,7 @@ func TestIngestedTraceSummaryStatus(t *testing.T) {
 			if tc.summary == other {
 				other = observabilityv1.TraceStatus_TRACE_STATUS_OK
 			}
-			req.Status = other
-			summaries, err = reader.ListTraces(t.Context(), req, testQueryLimit)
+			summaries, err = reader.ListTraces(t.Context(), req, statusFilter(other), testQueryLimit)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -70,4 +70,13 @@ func TestIngestedTraceSummaryStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+// statusFilter is the trace query @status:<name> for an ok or error summary status.
+func statusFilter(status observabilityv1.TraceStatus) clickhouse.TraceFilter {
+	name := "ok"
+	if status == observabilityv1.TraceStatus_TRACE_STATUS_ERROR {
+		name = "error"
+	}
+	return clickhouse.TraceFilter{Query: logquery.Field{Key: clickhouse.StatusField, Value: name}}
 }

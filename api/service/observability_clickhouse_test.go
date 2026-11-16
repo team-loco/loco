@@ -442,6 +442,96 @@ func TestQueryAndTailLogsApplyEveryQueryAlike(t *testing.T) {
 	}
 }
 
+func TestListTracesAndBucketsApplyEveryQueryAlike(t *testing.T) {
+	t.Parallel()
+	ch := newTestClickHouse(t)
+	f := newObservabilityFixture(t)
+	const (
+		traceA = "0123456789abcdef0123456789abcdef"
+		traceB = "fedcba9876543210fedcba9876543210"
+		userID = "user.id"
+	)
+	at := time.Now().UTC().Add(-time.Minute)
+	batch, err := ch.Conn().PrepareBatch(t.Context(), "INSERT INTO otel_traces "+
+		"(Timestamp, TraceId, SpanId, ParentSpanId, SpanName, Duration, StatusCode, ResourceAttributes, SpanAttributes)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, span := range []struct {
+		trace, id, parent, name, status string
+		duration                        time.Duration
+		resource                        uuid.UUID
+		attributes                      map[string]string
+	}{
+		{traceA, "a1", "", "GET /cart", "", 200 * time.Millisecond, f.resource, map[string]string{userID: "42"}},
+		{traceA, "a2", "a1", "SELECT carts", "Error", 300 * time.Millisecond, f.otherResource, map[string]string{
+			"db.system": "postgres",
+		}},
+		{traceB, "b1", "", "POST /orders", "", 50 * time.Millisecond, f.resource, map[string]string{userID: "7"}},
+	} {
+		attrs := map[string]string{
+			workspaceAttribute: f.workspace.String(),
+			resourceAttribute:  span.resource.String(),
+			retentionAttribute: "1",
+		}
+		if appendErr := batch.Append(
+			at, span.trace, span.id, span.parent, span.name, uint64(span.duration), span.status, attrs, span.attributes,
+		); appendErr != nil {
+			t.Fatal(appendErr)
+		}
+	}
+	if sendErr := batch.Send(); sendErr != nil {
+		t.Fatal(sendErr)
+	}
+	cfg := observabilityTestConfig
+	cfg.Limits.MaxLimit = 100
+	client := observabilityTestClient(t, NewObservabilityServer(ch, f.authorizer, f.queries, cfg), f.callers)
+	scope := &observabilityv1.TraceScope{WorkspaceId: f.workspace.String()}
+	for query, want := range map[string][]string{
+		"":                                      {traceA, traceB},
+		"@status:error":                         {traceA},
+		"-@status:error":                        {traceB},
+		"@duration:>100":                        {traceA},
+		"@duration:10..100":                     {traceB},
+		"@db.system:postgres":                   {traceA},
+		"-@db.system:postgres":                  {traceB},
+		"@user.id:42 OR @user.id:7":             {traceA, traceB},
+		"@resource:WORKER":                      {traceA},
+		"-@resource:worker":                     {traceB},
+		"cart":                                  {traceA},
+		"@trace:" + strings.ToUpper(traceA):     {traceA},
+		"(@status:error OR orders) -@user.id:7": {traceA},
+	} {
+		t.Run(query, func(t *testing.T) {
+			t.Parallel()
+			ctx := callerContext(t, workspaceReader)
+			list, err := client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
+				Scope: scope, StartTime: timestamppb.New(at), EndTime: timestamppb.New(at), Query: query, Limit: 100,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := make([]string, 0, len(list.GetSummaries()))
+			for _, summary := range list.GetSummaries() {
+				got = append(got, summary.GetTraceId())
+			}
+			if slices.Sort(got); !slices.Equal(got, want) {
+				t.Errorf("ListTraces = %v, want %v", got, want)
+			}
+			buckets, err := client.QueryTraceBuckets(ctx, &observabilityv1.QueryTraceBucketsRequest{
+				Scope: scope, StartTime: timestamppb.New(at), EndTime: timestamppb.New(at), Query: query,
+				IntervalSeconds: 60,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if count := buckets.GetTotal().GetTraceCount(); count != uint64(len(want)) {
+				t.Errorf("QueryTraceBuckets counts %d traces, want %d", count, len(want))
+			}
+		})
+	}
+}
+
 func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 	t.Parallel()
 	ch := newTestClickHouse(t)
@@ -460,13 +550,22 @@ func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 	}
 	defer stream.Close()
 	_, tailErr := stream.Receive()
+	scope := &observabilityv1.TraceScope{WorkspaceId: f.workspace.String()}
+	_, listErr := client.ListTraces(ctx, &observabilityv1.ListTracesRequest{
+		Scope: scope, StartTime: now, EndTime: now, Query: "checkout @status:failed",
+	})
+	_, bucketsErr := client.QueryTraceBuckets(ctx, &observabilityv1.QueryTraceBucketsRequest{
+		Scope: scope, StartTime: now, EndTime: now, Query: "@duration:>", IntervalSeconds: 60,
+	})
 	for rpc, tc := range map[string]struct {
 		err      error
 		message  string
 		position string
 	}{
-		"QueryLogs": {queryErr, "quote values that contain :", "7"},
-		"TailLogs":  {tailErr, "unclosed (", "1"},
+		"QueryLogs":         {queryErr, "quote values that contain :", "7"},
+		"TailLogs":          {tailErr, "unclosed (", "1"},
+		"ListTraces":        {listErr, "@status is ok or error", "10"},
+		"QueryTraceBuckets": {bucketsErr, `expected a number, got ""`, "12"},
 	} {
 		if got, want := querySyntaxDetails(t, tc.err), tc.message+" at "+tc.position; got != want {
 			t.Errorf("%s details = %q, want %q", rpc, got, want)

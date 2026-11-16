@@ -99,7 +99,7 @@ type ObservabilityServiceClient interface {
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
-	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,
+	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,
 	// per time bucket.
 	QueryTraceBuckets(context.Context, *v1.QueryTraceBucketsRequest) (*v1.QueryTraceBucketsResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)
@@ -143,7 +143,7 @@ type ObservabilityServiceHandler interface {
 	// Counter rates and histogram quantiles are calculated before combining source streams.
 	QueryMetrics(context.Context, *v1.QueryMetricsRequest) (*v1.QueryMetricsResponse, error)
 	ListTraces(context.Context, *v1.ListTracesRequest) (*v1.ListTracesResponse, error)
-	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and filters,
+	// QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,
 	// per time bucket.
 	QueryTraceBuckets(context.Context, *v1.QueryTraceBucketsRequest) (*v1.QueryTraceBucketsResponse, error)
 	GetTrace(context.Context, *v1.GetTraceRequest) (*v1.GetTraceResponse, error)

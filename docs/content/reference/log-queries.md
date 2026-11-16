@@ -2,7 +2,7 @@
 title: "Log queries"
 ---
 
-A log query selects log lines by their text, their fields and their attributes. The dashboard's logs view, `loco resource logs --query` and the `query` field of `QueryLogs` and `TailLogs` all take the same syntax, and the API parses it. [Audit queries](audit-queries.md) use the same syntax with fields of their own.
+A log query selects log lines by their text, their fields and their attributes. The dashboard's logs view, `loco resource logs --query` and the `query` field of `QueryLogs` and `TailLogs` all take the same syntax, and the API parses it. Traces take the same syntax with their own fields; see [trace queries](#trace-queries). [Audit queries](audit-queries.md) use the same syntax with fields of their own.
 
 ```text
 @level:error -@path:/healthz (timeout OR "connection reset")
@@ -70,6 +70,29 @@ Terms separated by spaces must all match. `AND` says the same explicitly, `OR` m
 | `@user.id:42 -@level:debug` | a user's lines from a JSON message, without debug output |
 | `"connection refused" OR "connection reset"` | either phrase |
 | `(@level:error OR @status:>=500) -@path:/healthz` | failures outside health checks |
+
+## Trace queries
+
+The dashboard's traces view and the `query` field of `ListTraces` and `QueryTraceBuckets` take the same syntax, with fields of their own. A trace query selects whole traces: a field matches a trace when any of its spans matches it, so `@user.id:42` finds every trace with a span whose `user.id` is `42`, and `-@user.id:42` finds the traces with no such span.
+
+Text matches the root span's name, ignoring case: `checkout` matches a trace whose root span is `POST /Checkout`.
+
+| Field | Matches |
+| --- | --- |
+| `@status` | `error` when any span failed, otherwise `ok`, ignoring case. |
+| `@duration` | The trace's duration in milliseconds, from its first span's start to its last span's end, compared as a number: `@duration:>500`, `@duration:100..250`. |
+| `@trace` | The OpenTelemetry trace ID, ignoring case. A value ending in `*` matches IDs that start with it. |
+| `@resource` | Traces with a span from the resource with this name, ignoring case. |
+| any other key | The span attribute of that name, or the resource attribute when the span has no such span attribute. |
+
+Keys starting with `loco.` are reserved, apart from Kubernetes labels under `loco.io/`. Traces count only the spans within the time range and the resources and environment the request selects, so a span outside them does not make its trace match.
+
+| Query | Finds |
+| --- | --- |
+| `@status:error` | traces with a failed span |
+| `@duration:>1000 -@resource:worker` | traces over a second without a `worker` span |
+| `@http.route:/api/* @http.response.status_code:>=500` | traces with a server error under `/api/` |
+| `checkout (@user.id:42 OR @user.id:7)` | `checkout` traces of either user |
 
 ## Limits and errors
 

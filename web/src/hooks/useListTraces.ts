@@ -1,25 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient, type Transport } from "@connectrpc/connect";
 import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
-import {
-	ObservabilityService,
-	type TraceStatus,
-	type TraceSummarySort,
-} from "@gen/loco/observability/v1/observability_pb";
+import { ObservabilityService, type TraceSummarySort } from "@gen/loco/observability/v1/observability_pb";
 import { msToTimestamp } from "@/lib/time";
 import type { TraceScopeOptions } from "./useGetTrace";
 
 interface ListTracesOptions extends TraceScopeOptions {
 	start: number;
 	end: number;
-	traceId: string;
+	query: string;
 	limit: number;
 	offset: number;
-	rootNameTerms: string[];
-	status: TraceStatus;
 	sort: TraceSummarySort;
-	minDurationNanos?: bigint;
-	maxDurationNanos?: bigint;
 	ascending?: boolean;
 }
 

@@ -9,7 +9,6 @@ import {
 	addRecent,
 	agoShort,
 	buildBackendQuery,
-	durationBounds,
 	parseQuery,
 	pinnedKey,
 	queryError,
@@ -154,18 +153,6 @@ describe("recent queries", () => {
 });
 
 describe("trace duration filters", () => {
-	test("reads milliseconds by default and other units when given", () => {
-		expect(durationBounds(parseQuery("@duration:>500").tokens)).toEqual({ minNanos: 500_000_000n });
-		expect(durationBounds(parseQuery("@duration:<1.5s").tokens)).toEqual({ maxNanos: 1_500_000_000n });
-		expect(durationBounds(parseQuery("@duration:>=250us").tokens)).toEqual({ minNanos: 250_000n });
-	});
-	test("keeps the tightest bound on each side", () => {
-		const { tokens } = parseQuery("@duration:>100 @duration:>200 @duration:<900 @duration:<2s");
-		expect(durationBounds(tokens)).toEqual({ minNanos: 200_000_000n, maxNanos: 900_000_000n });
-	});
-	test("rejects a value without a comparison", () => {
-		expect(durationBounds(parseQuery("@duration:500").tokens)).toBeNull();
-	});
 	test("applies to traces and is an attribute in logs", () => {
 		const { tokens } = parseQuery("@duration:>500");
 		expect(tokenSupport("metrics", tokens)[0]?.ok).toBe(false);
