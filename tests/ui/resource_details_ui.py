@@ -155,7 +155,7 @@ with session(out) as browser:
             page.keyboard.press("Escape")
             expect(dialog).to_be_visible()
             held_delete.pop().fulfill(status=503, json={"code": "unavailable", "message": "Try again"})
-            expect(page.get_by_text("Failed to delete resource", exact=True)).to_be_visible()
+            expect(page.get_by_text("Try again.", exact=True)).to_be_visible()
             expect(dialog.get_by_role("textbox")).to_have_value(name)
             expect(confirm).to_be_enabled()
             context.unroute(delete_rpc)
