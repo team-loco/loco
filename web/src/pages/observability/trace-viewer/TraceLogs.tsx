@@ -46,6 +46,7 @@ export function TraceLogs({
 				?.scrollIntoView({ block: "nearest" });
 	};
 	const hover = (id: string | null) => {
+		if (id === hoverSpan && nearLog === null) return;
 		setHoverSpan(id);
 		setNearLog(null);
 		if (id !== null) {

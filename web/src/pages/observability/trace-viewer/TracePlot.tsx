@@ -49,7 +49,6 @@ export function TracePlot({
 	onOpenLog: (row: LogRow) => void;
 }) {
 	const [view, setView] = useState<View>("flame");
-	const hoverRef = useRef<string | null>(null);
 	const cursorRef = useRef<HTMLDivElement>(null);
 	const dragRef = useRef<{ x: number; zoom: Zoom } | null>(null);
 	const suppressClickRefRef = useRef(false);
@@ -135,15 +134,8 @@ export function TracePlot({
 						}
 
 						const spanId = (e.target as HTMLElement).closest<HTMLElement>("[data-span-id]")?.dataset["spanId"];
-						if (spanId !== undefined) {
-							if (hoverRef.current !== spanId) {
-								hoverRef.current = spanId;
-								onHoverSpan(spanId);
-							}
-						} else {
-							hoverRef.current = null;
-							onHoverTime(fraction < 0 || fraction > 1 ? null : zoom.a + fraction * width);
-						}
+						if (spanId !== undefined) onHoverSpan(spanId);
+						else onHoverTime(fraction < 0 || fraction > 1 ? null : zoom.a + fraction * width);
 						const drag = dragRef.current;
 						if (drag !== null && e.buttons === 1) {
 							const delta = e.clientX - drag.x;
@@ -177,7 +169,6 @@ export function TracePlot({
 						suppressClickRefRef.current = false;
 					}}
 					onPointerLeave={() => {
-						hoverRef.current = null;
 						if (cursorRef.current !== null) cursorRef.current.hidden = true;
 
 						onHoverSpan(null);
