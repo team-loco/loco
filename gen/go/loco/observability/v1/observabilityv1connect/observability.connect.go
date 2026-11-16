@@ -27,6 +27,9 @@ const (
 	// ObservabilityServiceQueryLogsProcedure is the procedure name of the ObservabilityService's
 	// QueryLogs RPC.
 	ObservabilityServiceQueryLogsProcedure = "/loco.observability.v1.ObservabilityService/QueryLogs"
+	// ObservabilityServiceQueryLogBucketsProcedure is the procedure name of the ObservabilityService's
+	// QueryLogBuckets RPC.
+	ObservabilityServiceQueryLogBucketsProcedure = "/loco.observability.v1.ObservabilityService/QueryLogBuckets"
 	// ObservabilityServiceTailLogsProcedure is the procedure name of the ObservabilityService's
 	// TailLogs RPC.
 	ObservabilityServiceTailLogsProcedure = "/loco.observability.v1.ObservabilityService/TailLogs"
@@ -50,6 +53,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("QueryLogs"),
 			Procedure:  ObservabilityServiceQueryLogsProcedure,
+		}
+	})
+	observabilityServiceQueryLogBucketsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_observability_v1_observability_proto.Services().ByName("ObservabilityService").Methods().ByName("QueryLogBuckets"),
+			Procedure:  ObservabilityServiceQueryLogBucketsProcedure,
 		}
 	})
 	observabilityServiceTailLogsSpec = sync.OnceValue(func() connect.Spec {
@@ -94,6 +104,7 @@ var (
 type ObservabilityServiceClient interface {
 	// QueryLogs returns historical log entries matching the given filters.
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
+	QueryLogBuckets(context.Context, *v1.QueryLogBucketsRequest) (*v1.QueryLogBucketsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest) (ObservabilityServiceTailLogsClientStream, error)
 	// Counter rates and histogram quantiles are calculated before combining source streams.
@@ -138,6 +149,7 @@ func (s ObservabilityServiceTailLogsClientStream) Close() error {
 type ObservabilityServiceHandler interface {
 	// QueryLogs returns historical log entries matching the given filters.
 	QueryLogs(context.Context, *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error)
+	QueryLogBuckets(context.Context, *v1.QueryLogBucketsRequest) (*v1.QueryLogBucketsResponse, error)
 	// TailLogs streams live log entries as they arrive (server-push, polling-based).
 	TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityServiceTailLogsServerStream) error
 	// Counter rates and histogram quantiles are calculated before combining source streams.
@@ -155,6 +167,7 @@ func RegisterObservabilityServiceHandler(server *connect.Server, svc Observabili
 	adapter := observabilityServiceHandler{svc: svc}
 	server.Register(
 		connect.Method{Spec: observabilityServiceQueryLogsSpec(), Handler: adapter.queryLogs},
+		connect.Method{Spec: observabilityServiceQueryLogBucketsSpec(), Handler: adapter.queryLogBuckets},
 		connect.Method{Spec: observabilityServiceTailLogsSpec(), Handler: adapter.tailLogs},
 		connect.Method{Spec: observabilityServiceQueryMetricsSpec(), Handler: adapter.queryMetrics},
 		connect.Method{Spec: observabilityServiceListTracesSpec(), Handler: adapter.listTraces},
@@ -186,6 +199,10 @@ func (UnimplementedObservabilityServiceHandler) QueryLogs(context.Context, *v1.Q
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryLogs is not implemented")
 }
 
+func (UnimplementedObservabilityServiceHandler) QueryLogBuckets(context.Context, *v1.QueryLogBucketsRequest) (*v1.QueryLogBucketsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.QueryLogBuckets is not implemented")
+}
+
 func (UnimplementedObservabilityServiceHandler) TailLogs(context.Context, *v1.TailLogsRequest, ObservabilityServiceTailLogsServerStream) error {
 	return connect.NewError(connect.CodeUnimplemented, "loco.observability.v1.ObservabilityService.TailLogs is not implemented")
 }
@@ -213,6 +230,14 @@ type observabilityServiceClient struct {
 func (c *observabilityServiceClient) QueryLogs(ctx context.Context, req *v1.QueryLogsRequest) (*v1.QueryLogsResponse, error) {
 	var res v1.QueryLogsResponse
 	if err := c.client.CallUnary(ctx, observabilityServiceQueryLogsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *observabilityServiceClient) QueryLogBuckets(ctx context.Context, req *v1.QueryLogBucketsRequest) (*v1.QueryLogBucketsResponse, error) {
+	var res v1.QueryLogBucketsResponse
+	if err := c.client.CallUnary(ctx, observabilityServiceQueryLogBucketsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -266,6 +291,18 @@ func (h observabilityServiceHandler) queryLogs(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.QueryLogs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h observabilityServiceHandler) queryLogBuckets(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.QueryLogBucketsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.QueryLogBuckets(ctx, &req)
 	if err != nil {
 		return err
 	}

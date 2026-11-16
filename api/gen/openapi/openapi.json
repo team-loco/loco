@@ -3273,6 +3273,67 @@
         }
       }
     },
+    "/loco.observability.v1.ObservabilityService/QueryLogBuckets": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityService"
+        ],
+        "summary": "QueryLogBuckets",
+        "operationId": "loco.observability.v1.ObservabilityService.QueryLogBuckets",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.QueryLogBucketsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.QueryLogBucketsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.observability.v1.ObservabilityService/QueryLogs": {
       "post": {
         "tags": [
@@ -11362,6 +11423,39 @@
         "title": "ListTracesResponse",
         "additionalProperties": false
       },
+      "loco.observability.v1.LogBucket": {
+        "type": "object",
+        "properties": {
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "count": {
+            "type": "string",
+            "title": "count",
+            "format": "int64"
+          },
+          "severity": {
+            "type": "string",
+            "title": "severity"
+          },
+          "resourceId": {
+            "type": "string",
+            "title": "resource_id"
+          }
+        },
+        "title": "LogBucket",
+        "additionalProperties": false
+      },
+      "loco.observability.v1.LogBucketGroup": {
+        "type": "string",
+        "title": "LogBucketGroup",
+        "enum": [
+          "LOG_BUCKET_GROUP_UNSPECIFIED",
+          "LOG_BUCKET_GROUP_SEVERITY",
+          "LOG_BUCKET_GROUP_RESOURCE"
+        ]
+      },
       "loco.observability.v1.LogEntry": {
         "type": "object",
         "properties": {
@@ -11488,6 +11582,79 @@
         "title": "MetricSeries",
         "additionalProperties": false,
         "description": "MetricSeries represents samples for one resource, metric type and sum temporality."
+      },
+      "loco.observability.v1.QueryLogBucketsRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "resourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "title": "resource_ids"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endTime": {
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "query": {
+            "type": "string",
+            "title": "query",
+            "description": "string.max_bytes = 4096\n"
+          },
+          "intervalSeconds": {
+            "type": "integer",
+            "title": "interval_seconds",
+            "minimum": 1,
+            "format": "int32"
+          },
+          "groupBy": {
+            "not": {
+              "enum": [
+                "LOG_BUCKET_GROUP_UNSPECIFIED"
+              ]
+            },
+            "title": "group_by",
+            "$ref": "#/components/schemas/loco.observability.v1.LogBucketGroup"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          }
+        },
+        "title": "QueryLogBucketsRequest",
+        "required": [
+          "startTime",
+          "endTime"
+        ],
+        "additionalProperties": false,
+        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
+      },
+      "loco.observability.v1.QueryLogBucketsResponse": {
+        "type": "object",
+        "properties": {
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.LogBucket"
+            },
+            "title": "buckets"
+          }
+        },
+        "title": "QueryLogBucketsResponse",
+        "additionalProperties": false,
+        "description": "QueryLogBucketsResponse contains nonempty groups ordered by bucket start and group value."
       },
       "loco.observability.v1.QueryLogsRequest": {
         "type": "object",

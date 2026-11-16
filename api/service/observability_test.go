@@ -255,3 +255,33 @@ func TestTailLoopEndsTheStreamWhenAPollFails(t *testing.T) {
 		t.Fatalf("tail returned after %v, want under %v", elapsed, tailLoopReturnLimit)
 	}
 }
+
+func TestLogBucketValidation(t *testing.T) {
+	t.Parallel()
+	server := NewObservabilityServer(unreachableClickHouse(t), unreachableAuthorizer(t), nil, observabilityTestConfig)
+	client := observabilityTestClient(t, server, nil)
+	for _, tc := range []struct {
+		name   string
+		change func(*observabilityv1.QueryLogBucketsRequest)
+	}{
+		{"zero interval", func(r *observabilityv1.QueryLogBucketsRequest) { r.IntervalSeconds = 0 }},
+		{"too many buckets", func(r *observabilityv1.QueryLogBucketsRequest) { r.IntervalSeconds = 1 }},
+		{"unknown group", func(r *observabilityv1.QueryLogBucketsRequest) { r.GroupBy = 99 }},
+		{"unspecified group", func(r *observabilityv1.QueryLogBucketsRequest) { r.GroupBy = 0 }},
+		{"uppercase workspace", func(r *observabilityv1.QueryLogBucketsRequest) {
+			r.WorkspaceId = strings.ToUpper(r.GetWorkspaceId())
+		}},
+		{"invalid query", func(r *observabilityv1.QueryLogBucketsRequest) { r.Query = "(" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &observabilityv1.QueryLogBucketsRequest{WorkspaceId: observabilityTestWorkspace,
+				StartTime: timestamppb.New(time.Now().Add(-2 * time.Minute)), EndTime: timestamppb.Now(),
+				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY}
+			tc.change(req)
+			_, err := client.QueryLogBuckets(callerContext(t, observabilityTestCaller), req)
+			if connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("error = %v, want invalid_argument", err)
+			}
+		})
+	}
+}
