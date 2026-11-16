@@ -77,6 +77,10 @@ export function formatMonthDay(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].monthDay.format(ms);
 }
 
+export function formatStarted(ms: number | undefined, pref: TimePreferences): string {
+	return ms === undefined || ms === 0 ? "—" : `${formatMonthDay(ms, pref)}, ${formatHourMinute(ms, pref)}`;
+}
+
 export function formatMonthDayYear(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].monthDayYear.format(ms);
 }

@@ -10,7 +10,16 @@ test("shortAgoLabel fits minutes, hours and days in a few characters", () => {
 	expect(shortAgoLabel(now - 2 * 86_400_000, now)).toBe("2d ago");
 });
 
-import { DAY_MS, formatAxisTime, formatClock, formatFullTime, formatIsoDate, parseClockInput, timeAxis } from "./time";
+import {
+	DAY_MS,
+	formatStarted,
+	formatAxisTime,
+	formatClock,
+	formatFullTime,
+	formatIsoDate,
+	parseClockInput,
+	timeAxis,
+} from "./time";
 
 const utc12 = { zone: "utc", clock: "12" } as const;
 const midnight = Date.UTC(2026, 10, 12);
@@ -77,4 +86,17 @@ test("labels a day-long window with clock times", () => {
 	const pref = { zone: "local", clock: "24" } as const;
 	expect(formatAxisTime(from, from, from + DAY_MS, pref)).toBe("12:00");
 	expect(formatAxisTime(from + DAY_MS / 24, from, from + DAY_MS, pref)).toBe("13:00");
+});
+
+test("formats start labels with explicit clock and zone preferences", () => {
+	const instant = Date.UTC(2026, 10, 12, 13, 4);
+	expect(formatStarted(instant, { zone: "utc", clock: "24" })).toBe("Nov 12, 13:04");
+	expect(formatStarted(instant, utc12)).toBe("Nov 12, 1:04 PM");
+	const local = new Date(2026, 10, 12, 13, 4).getTime();
+	expect(formatStarted(local, { zone: "local", clock: "12" })).toBe("Nov 12, 1:04 PM");
+});
+
+test("leaves missing start times blank", () => {
+	expect(formatStarted(0, utc12)).toBe("—");
+	expect(formatStarted(undefined, utc12)).toBe("—");
 });

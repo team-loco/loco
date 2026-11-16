@@ -15,14 +15,13 @@ import { Textarea } from "@/components/design/Textarea";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { parseDotEnv } from "@/lib/dotenv";
 import { getErrorMessage } from "@/lib/error-handler";
-import { tsMs } from "@/lib/time";
+import { formatStarted, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage } from "@/lib/limits";
 
-import { formatStarted } from "./format";
 import { SECRET_NAME, type SettingsDraft } from "./settings-draft";
 import { SettingsBlock } from "./SettingsSections";
 import { secretNameProblem, secretRows, setterLabel, type SecretRow, type SecretStatus } from "./variables";

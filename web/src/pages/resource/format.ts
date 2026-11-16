@@ -1,11 +1,7 @@
-import { formatFullTime as fullTime, formatHourMinute, formatMonthDay, type TimePreferences } from "@/lib/time";
+import { formatFullTime as fullTime, type TimePreferences } from "@/lib/time";
 
 export function shortId(id: string): string {
 	return id.slice(0, 8);
-}
-
-export function formatStarted(ms: number | undefined, pref: TimePreferences): string {
-	return ms === undefined ? "—" : `${formatMonthDay(ms, pref)}, ${formatHourMinute(ms, pref)}`;
 }
 
 export function formatFullTime(ms: number, withMs: boolean, pref: TimePreferences): string {
