@@ -1146,56 +1146,6 @@ checksum = "sha256:11143c2a2556b14619e8241d3f74bb43ad97181c0eb4909bab87d7aad1154
 url = "https://github.com/astral-sh/python-build-standalone/releases/download/20261110/cpython-3.15.2+20261110-x86_64-apple-darwin-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
-[[tools.tilt]]
-version = "0.37.8"
-backend = "aqua:tilt-dev/tilt"
-specifiers = ["0.37.8"]
-
-[tools.tilt."platforms.linux-arm64"]
-checksum = "sha256:7a21281e830930be158202b7f8405ba62445613788b4d9708512ffe51f5cce90"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.arm64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230460"
-
-[tools.tilt."platforms.linux-arm64-musl"]
-checksum = "sha256:7a21281e830930be158202b7f8405ba62445613788b4d9708512ffe51f5cce90"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.arm64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230460"
-
-[tools.tilt."platforms.linux-x64"]
-checksum = "sha256:e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230514"
-
-[tools.tilt."platforms.linux-x64-baseline"]
-checksum = "sha256:e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230514"
-
-[tools.tilt."platforms.linux-x64-musl"]
-checksum = "sha256:e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230514"
-
-[tools.tilt."platforms.linux-x64-musl-baseline"]
-checksum = "sha256:e39513f958705d30524d55f68b1d46fbef2b46a0da568efd00e6383dee6be44f"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.linux.x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230514"
-
-[tools.tilt."platforms.macos-arm64"]
-checksum = "sha256:2d396b13c479f74deb19cb2161a3f0858f6e03f26f15f8d3b3be982d09ff4484"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.mac.arm64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230463"
-
-[tools.tilt."platforms.macos-x64"]
-checksum = "sha256:0d03359e43f7faea07a6ed0e7423bb56176d1959462fa155329e9acabf90e6fa"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.mac.x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230462"
-
-[tools.tilt."platforms.macos-x64-baseline"]
-checksum = "sha256:0d03359e43f7faea07a6ed0e7423bb56176d1959462fa155329e9acabf90e6fa"
-url = "https://github.com/tilt-dev/tilt/releases/download/v0.37.8/tilt.0.37.8.mac.x86_64.tar.gz"
-url_api = "https://api.github.com/repos/tilt-dev/tilt/releases/assets/602230462"
-
 [[tools.uv]]
 version = "0.13.7"
 backend = "aqua:astral-sh/uv"

@@ -9,7 +9,14 @@ allowed-tools: Bash, Read, Write
 # UI evidence
 
 `scripts/evidence.py` does every brittle step. Run it with uv from the repository root; it
-never touches the dev stack (`mise run tilt`), Dex or a person's browser windows.
+never touches the dev stack (`mise run dev`), Dex or a person's browser windows.
+
+Use a session-owned temporary directory when working beside other sessions. Keep `TMPDIR` set for every command so state discovery and teardown stay within that session:
+
+```sh
+ui_evidence_tmp=$(mktemp -d)
+export TMPDIR="$ui_evidence_tmp"
+```
 
 ```sh
 E="${CLAUDE_SKILL_DIR}/scripts/evidence.py"
@@ -50,7 +57,12 @@ mise exec -- uv run --script "$E" <command>
    saves nothing for a shot whose selector is missing or whose theme did not apply. Fix the spec
    or the scenario; never keep a shot that shows the wrong screen.
 5. Open every PNG with Read and check it shows what the shot claims.
-6. Stop everything: `mise exec -- uv run --script "$E" down --all`.
+6. Stop the fixtures created for these captures:
+
+   ```sh
+   mise exec -- uv run --script "$E" down --state "$before"
+   mise exec -- uv run --script "$E" down --state "$after"
+   ```
 
 Return the PNG paths, one line per file saying what it shows, every `scenario note:` line and every
 failure.

@@ -28,7 +28,6 @@ helm = "4.3.1"
 "github:helm-unittest/helm-unittest" = { version = "1.2.1", rename_exe = "untt" }
 kubectl = "1.37.2"
 kind = "0.33.0"
-tilt = "0.37.8"
 infisical = "0.45.4"
 
 
@@ -190,28 +189,6 @@ dir = "web"
 env = { _.source = "dev/stack.sh" }
 run = "bun run dev"
 
-[tasks.tilt]
-description = "Start this checkout's local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped; mise run stack prints its URLs"
-env = { _.file = "dev/api.env", _.source = "dev/stack.sh" }
-run = """
-orbstack_sock="$HOME/.orbstack/run/docker.sock"
-if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
-  export DOCKER_HOST="unix://$orbstack_sock"
-fi
-mise run doctor
-mise run cluster:up
-mise run services:stop
-infisical="--projectId 01f016e0-4b6e-49fd-bbc0-072b89cfc699 --env dev --silent --log-level warn"
-if infisical export $infisical >/dev/null 2>&1 </dev/null; then
-  infisical run $infisical -- tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
-else
-  if [ -z "${GH_OAUTH_CLIENT_ID:-}" ]; then
-    echo "the Dex login page has no GitHub button: run infisical login with an account that can read the Loco Infisical project" >&2
-  fi
-  tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
-fi
-"""
-
 [tasks.dev]
 description = "Install this checkout's local stack and run the host dashboard"
 alias = "start"
@@ -247,37 +224,6 @@ env = { _.source = "dev/stack.sh" }
 
 [tasks.locoadm]
 env = { _.source = "dev/stack.sh" }
-
-[tasks."infra:up"]
-description = "Start Postgres, Valkey, OpenBao, the identity provider, the image registry and the source bucket from dev/compose.yaml, wait until they are up, and seed OpenBao"
-env = { _.source = "dev/stack.sh" }
-run = [
-  "docker compose up -d --wait postgres valkey openbao dex registry s3",
-  "mise run openbao:seed",
-]
-
-[tasks."openbao:seed"]
-description = "Initialize the local OpenBao once, then make sure it has the transit keys, the loco-api policy and the API token dev/api.env names"
-env = { _.source = "dev/stack.sh" }
-run = "docker compose run --rm openbao-seed"
-
-[tasks."infra:down"]
-description = "Stop the compose services; the database, OpenBao, images and sources are kept in their volumes"
-env = { _.source = "dev/stack.sh" }
-run = "docker compose down"
-
-[tasks."db:migrate"]
-description = "Apply api/migrations with goose to the local database"
-env = { _.source = "dev/stack.sh" }
-run = [
-  "docker compose up -d --wait postgres",
-  'goose -dir api/migrations postgres "$DATABASE_URL" up',
-]
-
-[tasks."db:status"]
-description = "Show which migrations goose has applied to the local database"
-env = { _.source = "dev/stack.sh" }
-run = 'goose -dir api/migrations postgres "$DATABASE_URL" status'
 
 [tasks."db:psql"]
 description = "Open psql against the local database, inside the Postgres container"
@@ -324,22 +270,6 @@ state            $STACK_STATE
 compose project  $COMPOSE_PROJECT_NAME
 EOF
 """
-
-[tasks."helm:sync:release"]
-env = { _.source = "dev/stack.sh" }
-
-[tasks."helm:destroy"]
-env = { _.source = "dev/stack.sh" }
-
-[tasks."helm:sync:namespaces"]
-description = "Sync the loco-system namespace, which the loco-worker release installs into, and its Pod Security labels to the local cluster"
-env = { _.source = "dev/stack.sh" }
-run = "kubectl apply --server-side --force-conflicts --context kind-$KIND_CLUSTER -f manifests/namespaces"
-
-[tasks."helm:sync:cert-manager"]
-description = "Sync cert-manager to the local cluster"
-env = { _.source = "dev/stack.sh" }
-run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
 description = "Run an end-to-end shard of tests/e2e (builds, apps, telemetry or controlplane) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"

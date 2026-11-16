@@ -1,5 +1,5 @@
 ---
-name: tilt
+name: local-stack
 description: Run the local installation with mise, deploy platform changes through locoadm, inspect workloads and check the host dashboard.
 ---
 

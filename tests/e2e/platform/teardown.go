@@ -64,6 +64,8 @@ func (p *Platform) dump(ctx context.Context) {
 	if _, err := os.Stat(p.kubeconfig); err != nil {
 		return
 	}
+	group("cluster events", output("kubectl", "--context", p.kubeContext, "get", "events", "-A",
+		"--sort-by=.metadata.creationTimestamp", "-o", "wide"))
 	namespaces := []string{locoNamespace}
 	if p.Observability {
 		namespaces = append(namespaces, p.values.collectorNS, p.values.nodeCollectorNS)

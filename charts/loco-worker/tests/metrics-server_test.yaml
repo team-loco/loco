@@ -52,7 +52,7 @@ tests:
         not: true
 
   - it: permits unsigned kubelet certificates only in the kind fixture
-    values: [../../../dev/kind-worker-values.yaml]
+    values: [kind-values.yaml]
     asserts:
       - contains:
           path: spec.template.spec.containers[0].args

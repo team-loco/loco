@@ -74,25 +74,10 @@ export LOCO_STACK_CLAIM="$stack_claim"
 export KIND_CLUSTER="loco-cluster-local$stack_suffix"
 export COMPOSE_PROJECT_NAME="loco-dev$stack_suffix"
 export COMPOSE_FILE="$stack_root/dev/compose.local.yaml"
-export REGISTRY_ALIAS="loco-registry$stack_suffix"
-export S3_ALIAS="loco-s3$stack_suffix.localhost"
-
 export POSTGRES_PORT=$((5432 + port_offset))
-export VALKEY_PORT=$((6379 + port_offset))
 export REGISTRY_PORT=$((5001 + port_offset))
 export S3_PORT=$((9000 + port_offset))
 export DEX_PORT=$((5556 + port_offset))
-export TILT_PORT=$((10350 + port_offset))
-export OBS_PROXY_PORT=$((8050 + port_offset))
-export CLICKHOUSE_NATIVE_PORT=$((19050 + port_offset))
-export OBS_OTLP_GRPC_PORT=$((4317 + port_offset))
-export OBS_OTLP_HTTP_PORT=$((4318 + port_offset))
-export CLICKHOUSE_CONTAINER="$COMPOSE_PROJECT_NAME-clickhouse"
-export CLICKHOUSE_USER=loco_dev
-export CLICKHOUSE_PASSWORD=loco-dev-clickhouse
-export CLICKHOUSE_URL="clickhouse://$CLICKHOUSE_USER:$CLICKHOUSE_PASSWORD@127.0.0.1:$CLICKHOUSE_NATIVE_PORT"
-CLICKHOUSE_DB=$(yq '.clickhouse.clickhouse.database' "$stack_root/charts/loco-control-plane/values.yaml")
-export CLICKHOUSE_DB
 
 app_port=$(env_value APP_PORT)
 export APP_PORT="${app_port%:*}:$((${app_port##*:} + port_offset))"
@@ -100,14 +85,3 @@ export PUBLIC_API_URL="http://api.$STACK_DOMAIN:${APP_PORT##*:}"
 WEB_URL=$(shift_ports "$(env_value WEB_URL)")
 export WEB_URL
 export WEB_PORT=${WEB_URL##*:}
-
-for name in DATABASE_URL CACHE_ADDR CORS_ALLOWED_ORIGINS AUTH_ISSUERS LOCO_REGISTRY_URL LOCO_SECRETS_TRANSIT_ADDR; do
-	export "$name=$(shift_ports "$(env_value "$name")")"
-done
-bucket_endpoint=$(shift_ports "$(env_value LOCO_SOURCE_BUCKET_ENDPOINT)")
-export LOCO_SOURCE_BUCKET_ENDPOINT="${bucket_endpoint/loco-s3.localhost/$S3_ALIAS}"
-registry_host=$(env_value LOCO_REGISTRY_HOST)
-export LOCO_REGISTRY_HOST="${registry_host/#loco-registry:/$REGISTRY_ALIAS:}"
-export OPENBAO_PORT=${LOCO_SECRETS_TRANSIT_ADDR##*:}
-OPENBAO_IMAGE=$(yq '.openbao.image' "$stack_root/charts/loco-control-plane/values.yaml")
-export OPENBAO_IMAGE
