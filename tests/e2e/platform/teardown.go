@@ -73,12 +73,15 @@ func (p *Platform) dump(ctx context.Context) {
 			namespace+" pods",
 			output("kubectl", "--context", p.kubeContext, "-n", namespace, "get", "pods", "-o", "wide"),
 		)
-		workloads := output("kubectl", "--context", p.kubeContext, "-n", namespace, "get",
-			"deployments,statefulsets,daemonsets", "-o", "name")
-		for workload := range strings.FieldsSeq(workloads) {
+		pods, err := p.Command(ctx, "kubectl", "--context", p.kubeContext, "-n", namespace, "get", "pods", "-o", "name")
+		if err != nil {
+			group(namespace+" pod listing", err.Error())
+			continue
+		}
+		for pod := range strings.FieldsSeq(pods) {
 			group(
-				namespace+"/"+workload,
-				output("kubectl", "--context", p.kubeContext, "-n", namespace, "logs", workload,
+				namespace+"/"+pod,
+				output("kubectl", "--context", p.kubeContext, "-n", namespace, "logs", pod,
 					"--all-containers", "--tail", "200"),
 			)
 		}
