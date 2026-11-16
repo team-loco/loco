@@ -618,7 +618,7 @@ def capture(browser, state, shot, theme, narrow, target):
     user = state["users"].get(shot["user"])
     if user is None:
         raise EvidenceError(f"state has no user {shot['user']!r}")
-    viewport = NARROW if narrow else DESKTOP
+    viewport = dict(NARROW if narrow else DESKTOP)
     context = browser.new_context(viewport=viewport, device_scale_factor=SCALE, color_scheme=theme)
     stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
     script = (
@@ -668,10 +668,13 @@ def capture(browser, state, shot, theme, narrow, target):
             raise EvidenceError(f"{shot['name']}: the page did not apply the {theme} theme") from None
         settle(page, wait_for_network=wait_for_network)
         crop = shot.get("crop", "viewport")
+        if crop == "full" or isinstance(crop, dict) and "selector" in crop:
+            viewport["height"] = max(viewport["height"], page.evaluate("document.documentElement.scrollHeight"))
+            page.set_viewport_size(viewport)
+            page.evaluate("window.scrollTo(0, 0)")
+            settle(page, wait_for_network=wait_for_network)
         tmp = target.with_suffix(".partial.png")
-        if crop == "full":
-            page.screenshot(path=tmp, full_page=True)
-        elif crop == "viewport":
+        if crop in ("full", "viewport"):
             page.screenshot(path=tmp)
         elif "clip" in crop:
             x, y, width, height = crop["clip"]
