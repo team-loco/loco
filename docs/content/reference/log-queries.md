@@ -2,7 +2,7 @@
 title: "Log queries"
 ---
 
-A log query selects log lines by their text, their fields and their attributes. The dashboard's logs view, `loco resource logs --query` and the `query` field of `QueryLogs` and `TailLogs` all take the same syntax, and the API parses it. Traces take the same syntax with their own fields; see [trace queries](#trace-queries). [Audit queries](audit-queries.md) use the same syntax with fields of their own.
+A log query selects log lines by their text, their fields and their attributes. The dashboard's logs view, `loco resource logs --query` and the `query` field of `QueryLogs`, `QueryLogBuckets` and `TailLogs` all take the same syntax, and the API parses it. Traces take the same syntax with their own fields; see [trace queries](#trace-queries). [Audit queries](audit-queries.md) use the same syntax with fields of their own.
 
 ```text
 @level:error -@path:/healthz (timeout OR "connection reset")
