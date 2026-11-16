@@ -27,7 +27,9 @@ func buildTraceSummaryQuery(req traceRequest, filter TraceFilter, b *positionalB
 			"Timestamp <= fromUnixTimestamp64Nano("+b.num(req.GetEndTime().AsTime().UnixNano())+")",
 		), " AND ")
 	}
-	query := "SELECT TraceId, argMin(tuple(SpanName, ServiceName, ResourceId), " +
+	query := "SELECT TraceId, argMin(tuple(SpanName, ServiceName, ResourceId, " +
+		"toUInt32OrZero(coalesce(nullIf(SpanAttributes[" + b.str("http.response.status_code") + "], " +
+		b.str("") + "), SpanAttributes[" + b.str("http.status_code") + "]))), " +
 		"tuple(ParentSpanId != '', Timestamp, SpanId)) AS root, min(Timestamp) AS start_time, " +
 		"toUInt64(max(toInt128(toUnixTimestamp64Nano(Timestamp)) + Duration) - " +
 		"toInt128(toUnixTimestamp64Nano(start_time))) AS duration_nanos, " +
@@ -49,24 +51,40 @@ func (c *Client) ListTraces(
 ) (*observabilityv1.ListTracesResponse, error) {
 	b := &positionalBinder{}
 	query := buildTraceSummaryQuery(req, filter, b)
-	args := b.args
 	settings := fmt.Sprintf(" SETTINGS max_execution_time = %d", int(c.queryTimeout.Seconds()))
 	var total uint64
-	if err := c.conn.QueryRow(ctx, "SELECT count() FROM ("+query+")"+settings, args...).Scan(&total); err != nil {
+	if err := c.conn.QueryRow(ctx, "SELECT count() FROM ("+query+")"+settings, b.args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("count trace summaries: %w", err)
 	}
 	sort := "start_time"
-	if req.GetSort() == observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION {
+	switch req.GetSort() {
+	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION:
 		sort = "duration_nanos"
+	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_OPERATION:
+		sort = "root.1"
+	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE:
+		sort = "root.2"
+		if len(filter.Resources) > 0 {
+			choices := make([]string, 0, 2*len(filter.Resources)+1)
+			for _, resource := range filter.Resources {
+				choices = append(choices, "root.3 = "+b.str(resource.ID)+
+					" AND root.2 = concat('resource-', root.3)", b.str(resource.Name))
+			}
+			sort = "multiIf(" + strings.Join(append(choices, sort), ", ") + ")"
+		}
+	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_STATUS:
+		sort = "root.4"
+	case observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_SPAN_COUNT:
+		sort = "span_count"
 	}
 	direction := " DESC"
 	if req.GetAscending() {
 		direction = " ASC"
 	}
-	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count FROM (" +
+	query = "SELECT TraceId, root.1, root.2, root.3, start_time, duration_nanos, status, span_count, root.4 FROM (" +
 		query + ") ORDER BY " + sort + direction + ", TraceId ASC LIMIT ? OFFSET ?" + settings
-	args = append(args, limit, req.GetOffset())
-	rows, err := c.conn.Query(ctx, query, args...)
+	b.args = append(b.args, limit, req.GetOffset())
+	rows, err := c.conn.Query(ctx, query, b.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query trace summaries: %w", err)
 	}
@@ -75,20 +93,32 @@ func (c *Client) ListTraces(
 	for rows.Next() {
 		var id, name, service, resource string
 		var status int32
+		var httpStatus uint32
 		var start time.Time
 		var duration, count uint64
-		if err := rows.Scan(&id, &name, &service, &resource, &start, &duration, &status, &count); err != nil {
+		if err := rows.Scan(
+			&id,
+			&name,
+			&service,
+			&resource,
+			&start,
+			&duration,
+			&status,
+			&count,
+			&httpStatus,
+		); err != nil {
 			return nil, fmt.Errorf("scan trace summary: %w", err)
 		}
 		summaries = append(summaries, &observabilityv1.TraceSummary{
-			TraceId:       id,
-			RootSpanName:  name,
-			ServiceName:   service,
-			ResourceId:    resource,
-			StartTime:     timestamppb.New(start),
-			DurationNanos: duration,
-			Status:        observabilityv1.TraceStatus(status),
-			SpanCount:     count,
+			TraceId:        id,
+			RootSpanName:   name,
+			ServiceName:    service,
+			ResourceId:     resource,
+			StartTime:      timestamppb.New(start),
+			DurationNanos:  duration,
+			Status:         observabilityv1.TraceStatus(status),
+			SpanCount:      count,
+			HttpStatusCode: httpStatus,
 		})
 	}
 	if err := rows.Err(); err != nil {

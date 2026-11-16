@@ -82,6 +82,10 @@ const (
 	TraceSummarySort_TRACE_SUMMARY_SORT_UNSPECIFIED TraceSummarySort = 0
 	TraceSummarySort_TRACE_SUMMARY_SORT_START_TIME  TraceSummarySort = 1
 	TraceSummarySort_TRACE_SUMMARY_SORT_DURATION    TraceSummarySort = 2
+	TraceSummarySort_TRACE_SUMMARY_SORT_OPERATION   TraceSummarySort = 3
+	TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE    TraceSummarySort = 4
+	TraceSummarySort_TRACE_SUMMARY_SORT_STATUS      TraceSummarySort = 5
+	TraceSummarySort_TRACE_SUMMARY_SORT_SPAN_COUNT  TraceSummarySort = 6
 )
 
 // Enum value maps for TraceSummarySort.
@@ -90,11 +94,19 @@ var (
 		0: "TRACE_SUMMARY_SORT_UNSPECIFIED",
 		1: "TRACE_SUMMARY_SORT_START_TIME",
 		2: "TRACE_SUMMARY_SORT_DURATION",
+		3: "TRACE_SUMMARY_SORT_OPERATION",
+		4: "TRACE_SUMMARY_SORT_RESOURCE",
+		5: "TRACE_SUMMARY_SORT_STATUS",
+		6: "TRACE_SUMMARY_SORT_SPAN_COUNT",
 	}
 	TraceSummarySort_value = map[string]int32{
 		"TRACE_SUMMARY_SORT_UNSPECIFIED": 0,
 		"TRACE_SUMMARY_SORT_START_TIME":  1,
 		"TRACE_SUMMARY_SORT_DURATION":    2,
+		"TRACE_SUMMARY_SORT_OPERATION":   3,
+		"TRACE_SUMMARY_SORT_RESOURCE":    4,
+		"TRACE_SUMMARY_SORT_STATUS":      5,
+		"TRACE_SUMMARY_SORT_SPAN_COUNT":  6,
 	}
 )
 
@@ -1496,17 +1508,18 @@ func (x *GetTraceResponse) GetSpans() []*TraceSpan {
 }
 
 type TraceSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TraceId       string                 `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	RootSpanName  string                 `protobuf:"bytes,2,opt,name=root_span_name,json=rootSpanName,proto3" json:"root_span_name,omitempty"`
-	ServiceName   string                 `protobuf:"bytes,3,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
-	ResourceId    string                 `protobuf:"bytes,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	StartTime     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	DurationNanos uint64                 `protobuf:"varint,6,opt,name=duration_nanos,json=durationNanos,proto3" json:"duration_nanos,omitempty"`
-	Status        TraceStatus            `protobuf:"varint,7,opt,name=status,proto3,enum=loco.observability.v1.TraceStatus" json:"status,omitempty"`
-	SpanCount     uint64                 `protobuf:"varint,8,opt,name=span_count,json=spanCount,proto3" json:"span_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	TraceId        string                 `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	RootSpanName   string                 `protobuf:"bytes,2,opt,name=root_span_name,json=rootSpanName,proto3" json:"root_span_name,omitempty"`
+	ServiceName    string                 `protobuf:"bytes,3,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
+	ResourceId     string                 `protobuf:"bytes,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	StartTime      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	DurationNanos  uint64                 `protobuf:"varint,6,opt,name=duration_nanos,json=durationNanos,proto3" json:"duration_nanos,omitempty"`
+	Status         TraceStatus            `protobuf:"varint,7,opt,name=status,proto3,enum=loco.observability.v1.TraceStatus" json:"status,omitempty"`
+	SpanCount      uint64                 `protobuf:"varint,8,opt,name=span_count,json=spanCount,proto3" json:"span_count,omitempty"`
+	HttpStatusCode uint32                 `protobuf:"varint,9,opt,name=http_status_code,json=httpStatusCode,proto3" json:"http_status_code,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *TraceSummary) Reset() {
@@ -1591,6 +1604,13 @@ func (x *TraceSummary) GetStatus() TraceStatus {
 func (x *TraceSummary) GetSpanCount() uint64 {
 	if x != nil {
 		return x.SpanCount
+	}
+	return 0
+}
+
+func (x *TraceSummary) GetHttpStatusCode() uint32 {
+	if x != nil {
+		return x.HttpStatusCode
 	}
 	return 0
 }
@@ -2042,7 +2062,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x05scope\x18\x01 \x01(\v2!.loco.observability.v1.TraceScopeB\x06\xbaH\x03\xc8\x01\x01R\x05scope\x12R\n" +
 	"\btrace_id\x18\x02 \x01(\tB7\xbaH4r22\x0e^[0-9a-f]{32}$Z 00000000000000000000000000000000R\atraceId\"J\n" +
 	"\x10GetTraceResponse\x126\n" +
-	"\x05spans\x18\x01 \x03(\v2 .loco.observability.v1.TraceSpanR\x05spans\"\xd0\x02\n" +
+	"\x05spans\x18\x01 \x03(\v2 .loco.observability.v1.TraceSpanR\x05spans\"\xfa\x02\n" +
 	"\fTraceSummary\x12\x19\n" +
 	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12$\n" +
 	"\x0eroot_span_name\x18\x02 \x01(\tR\frootSpanName\x12!\n" +
@@ -2054,7 +2074,8 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\x0eduration_nanos\x18\x06 \x01(\x04R\rdurationNanos\x12:\n" +
 	"\x06status\x18\a \x01(\x0e2\".loco.observability.v1.TraceStatusR\x06status\x12\x1d\n" +
 	"\n" +
-	"span_count\x18\b \x01(\x04R\tspanCount\"\xd8\a\n" +
+	"span_count\x18\b \x01(\x04R\tspanCount\x12(\n" +
+	"\x10http_status_code\x18\t \x01(\rR\x0ehttpStatusCode\"\xd8\a\n" +
 	"\tTraceSpan\x12\x19\n" +
 	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12\x17\n" +
 	"\aspan_id\x18\x02 \x01(\tR\x06spanId\x12$\n" +
@@ -2107,11 +2128,15 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\bLogOrder\x12\x19\n" +
 	"\x15LOG_ORDER_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16LOG_ORDER_NEWEST_FIRST\x10\x01\x12\x1a\n" +
-	"\x16LOG_ORDER_OLDEST_FIRST\x10\x02*z\n" +
+	"\x16LOG_ORDER_OLDEST_FIRST\x10\x02*\xff\x01\n" +
 	"\x10TraceSummarySort\x12\"\n" +
 	"\x1eTRACE_SUMMARY_SORT_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dTRACE_SUMMARY_SORT_START_TIME\x10\x01\x12\x1f\n" +
-	"\x1bTRACE_SUMMARY_SORT_DURATION\x10\x02*X\n" +
+	"\x1bTRACE_SUMMARY_SORT_DURATION\x10\x02\x12 \n" +
+	"\x1cTRACE_SUMMARY_SORT_OPERATION\x10\x03\x12\x1f\n" +
+	"\x1bTRACE_SUMMARY_SORT_RESOURCE\x10\x04\x12\x1d\n" +
+	"\x19TRACE_SUMMARY_SORT_STATUS\x10\x05\x12!\n" +
+	"\x1dTRACE_SUMMARY_SORT_SPAN_COUNT\x10\x06*X\n" +
 	"\vTraceStatus\x12\x1c\n" +
 	"\x18TRACE_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fTRACE_STATUS_OK\x10\x01\x12\x16\n" +

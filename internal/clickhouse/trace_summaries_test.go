@@ -13,6 +13,7 @@ import (
 )
 
 const summaryService = "summary-web"
+const summaryHTTPStatus = "http.response.status_code"
 
 func TestTraceSummaries(t *testing.T) {
 	f, base := newTraceSummaryFixture(t)
@@ -25,7 +26,8 @@ func TestTraceSummaries(t *testing.T) {
 	if root.GetTraceId() != fmt.Sprintf("%032x", 1) || root.GetRootSpanName() != "GET /cart" ||
 		root.GetServiceName() != summaryService || root.GetResourceId() != testResourceID ||
 		!root.GetStartTime().AsTime().Equal(start) || root.GetDurationNanos() != uint64(4*time.Second) ||
-		root.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_ERROR || root.GetSpanCount() != 2 {
+		root.GetStatus() != observabilityv1.TraceStatus_TRACE_STATUS_ERROR || root.GetSpanCount() != 2 ||
+		root.GetHttpStatusCode() != 500 {
 		t.Fatalf("incorrect summary: %v", root)
 	}
 	for _, tc := range []struct {
@@ -92,6 +94,68 @@ func TestTraceSummaries(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTraceSummarySortColumns(t *testing.T) {
+	f, base := newTraceSummaryFixture(t)
+	for _, tc := range []struct {
+		sort                  observabilityv1.TraceSummarySort
+		ascending, descending []int
+	}{
+		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_START_TIME, []int{1, 2, 3}, []int{2, 3, 1}},
+		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_DURATION, []int{2, 3, 1}, []int{1, 2, 3}},
+		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_OPERATION, []int{1, 2, 3}, []int{3, 2, 1}},
+		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE, []int{3, 1, 2}, []int{1, 2, 3}},
+		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_STATUS, []int{3, 2, 1}, []int{1, 2, 3}},
+		{observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_SPAN_COUNT, []int{2, 3, 1}, []int{1, 2, 3}},
+	} {
+		for _, ascending := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/%t", tc.sort, ascending), func(t *testing.T) {
+				req := proto.CloneOf(base)
+				req.Sort, req.Ascending = tc.sort, ascending
+				want := tc.descending
+				if ascending {
+					want = tc.ascending
+				}
+				for offset, id := range want {
+					req.Offset = int32(offset)
+					filter := TraceFilter{Resources: []ResourceName{{ID: testResourceID, Name: "aaa"}}}
+					result := queryTraceSummaries(t, f, req, filter, 1)
+					if len(result.GetSummaries()) != 1 ||
+						result.GetSummaries()[0].GetTraceId() != fmt.Sprintf("%032x", id) {
+						t.Fatalf("offset %d: %v, want trace %d", offset, result, id)
+					}
+					if id == 2 && result.GetSummaries()[0].GetHttpStatusCode() != 200 {
+						t.Fatalf("legacy HTTP code: %v", result.GetSummaries()[0])
+					}
+					if id == 3 && result.GetSummaries()[0].GetHttpStatusCode() != 0 {
+						t.Fatalf("missing HTTP code: %v", result.GetSummaries()[0])
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestTraceSummaryLegacyHTTPCode(t *testing.T) {
+	f, req := newTraceSummaryFixture(t)
+	id := fmt.Sprintf("%032x", 4)
+	err := f.conn.Exec(t.Context(), "INSERT INTO otel_traces "+
+		"(Timestamp, TraceId, SpanId, ResourceAttributes, SpanAttributes) VALUES (?, ?, ?, ?, ?)",
+		req.GetStartTime().AsTime(), id, "legacy", tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID),
+		map[string]string{"http.status_code": "201"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, summary := range queryTraceSummaries(t, f, req, TraceFilter{}, testFullPage).GetSummaries() {
+		if summary.GetTraceId() == id {
+			if summary.GetHttpStatusCode() != 201 {
+				t.Fatalf("legacy HTTP code: %v", summary)
+			}
+			return
+		}
+	}
+	t.Fatal("legacy trace missing")
 }
 
 // traceFilter parses query, naming the worker resource "worker".
@@ -185,7 +249,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testWorkerResourceID,
 			time.Second,
 			3 * time.Second,
-			map[string]string{"user.id": "42", "http.route": "/cart"},
+			map[string]string{"user.id": "42", "http.route": "/cart", summaryHTTPStatus: "404"},
 		},
 		{
 			1,
@@ -199,7 +263,7 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testResourceID,
 			0,
 			2 * time.Second,
-			map[string]string{"http.response.status_code": "500"},
+			map[string]string{summaryHTTPStatus: "500"},
 		},
 		{
 			2,
@@ -213,14 +277,14 @@ func newTraceSummaryFixture(t *testing.T) (*queryFixture, *observabilityv1.ListT
 			testResourceID,
 			time.Second,
 			time.Second,
-			map[string]string{"user.id": "7", "http.response.status_code": "200"},
+			map[string]string{"user.id": "7", summaryHTTPStatus: "200"},
 		},
 		{
 			3,
 			"third",
 			"",
 			"POST /cart",
-			summaryService,
+			"resource-" + testResourceID,
 			"",
 			testWorkspaceID,
 			testEnvironmentID,

@@ -301,6 +301,10 @@ enum TraceSummarySort {
   TRACE_SUMMARY_SORT_UNSPECIFIED = 0;
   TRACE_SUMMARY_SORT_START_TIME = 1;
   TRACE_SUMMARY_SORT_DURATION = 2;
+  TRACE_SUMMARY_SORT_OPERATION = 3;
+  TRACE_SUMMARY_SORT_RESOURCE = 4;
+  TRACE_SUMMARY_SORT_STATUS = 5;
+  TRACE_SUMMARY_SORT_SPAN_COUNT = 6;
 }
 
 enum TraceStatus {
@@ -318,6 +322,7 @@ message TraceSummary {
   uint64 duration_nanos = 6;
   TraceStatus status = 7;
   uint64 span_count = 8;
+  uint32 http_status_code = 9;
 }
 
 message TraceSpan {

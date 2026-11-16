@@ -174,6 +174,12 @@ func (s *ObservabilityServer) ListTraces(
 	if err != nil {
 		return nil, err
 	}
+	if req.GetSort() == observabilityv1.TraceSummarySort_TRACE_SUMMARY_SORT_RESOURCE && len(filter.Resources) == 0 {
+		filter.Resources, err = s.resourceNames(ctx, req.GetScope().GetWorkspaceId())
+		if err != nil {
+			return nil, err
+		}
+	}
 	response, err := s.clickhouse.ListTraces(ctx, req, filter, guardrails.ClampLimit(req.GetLimit(), s.cfg.Limits))
 	if err != nil {
 		return nil, fmt.Errorf("list traces: %w", err)

@@ -100,7 +100,7 @@ def handle(route):
         return
     if route.request.url.endswith('/ListTraces'):
         others = [dict(spans[index], traceId=f'{index + 100:032x}', parentSpanId='', name=name, durationNanos=str(duration * 1000000)) for index, (name, duration) in enumerate([('GET /api/products', 18), ('GetRecommendations', 132), ('GetProduct', 9), ('GET /cart', 42), ('Convert · USD → EUR', 12), ('GetQuote', 86)])]
-        summaries = [{'traceId': trace, 'rootSpanName': spans[0]['name'], 'serviceName': spans[0]['serviceName'], 'startTime': spans[0]['startTime'], 'durationNanos': '427600000', 'status': 'TRACE_STATUS_ERROR', 'spanCount': str(len(spans))}]
+        summaries = [{'traceId': trace, 'rootSpanName': spans[0]['name'], 'serviceName': spans[0]['serviceName'], 'startTime': spans[0]['startTime'], 'durationNanos': '427600000', 'status': 'TRACE_STATUS_ERROR', 'spanCount': str(len(spans)), 'httpStatusCode': 200}]
         summaries += [{'traceId': row['traceId'], 'rootSpanName': row['name'], 'serviceName': row['serviceName'], 'startTime': row['startTime'], 'durationNanos': row['durationNanos'], 'status': 'TRACE_STATUS_OK', 'spanCount': '1'} for row in others]
         if mode[0] == 'paged':
             summaries += [dict(summaries[1], traceId=f'{index + 1000:032x}', rootSpanName=f'Paged trace {index}') for index in range(60)]
@@ -142,6 +142,7 @@ with session(out) as browser:
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
     wait_for_query(page, lambda query: query.get('env') == ['production'] and query.get('view') == ['traces'])
     expect(page.get_by_role('button', name=re.compile(r'^All\s*7$'))).to_be_visible()
+    expect(open_trace).to_contain_text('200')
     expect(open_trace).to_have_attribute('aria-pressed', 'false')
     open_trace.click(position={'x': 20, 'y': 10})
     drawer = page.get_by_role('dialog', name=root_name)
@@ -347,7 +348,7 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     page.get_by_role('button', name='Refresh', exact=True).click()
     assert next(row for row in reversed(recorded) if 'startTime' in row)['startTime'] != previous_request['startTime']
-    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '@trace:invalid') as filtered:
+    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '@trace:invalid' and response.request.post_data_json.get('limit') == 25) as filtered:
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
     assert filtered.value.request.post_data_json['query'] == '@trace:invalid'
     page.goto(state['ui_url'] + base)
@@ -432,6 +433,14 @@ with session(out) as browser:
     with page.expect_response("**/ListTraces"):
         page.get_by_role('button', name=re.compile(r'^Duration\W*sorted descending$')).click()
     assert last_page_request()['ascending'] is True
+    for label, key in [('Root span', 'OPERATION'), ('Resource', 'RESOURCE'), ('Status', 'STATUS'), ('Spans', 'SPAN_COUNT')]:
+        with page.expect_response("**/ListTraces"):
+            page.get_by_role('button', name=label, exact=True).click()
+        assert last_page_request()['sort'] == 'TRACE_SUMMARY_SORT_' + key
+        assert not last_page_request().get('ascending')
+        with page.expect_response("**/ListTraces"):
+            page.get_by_role('button', name=re.compile('^' + label + r'\W*sorted descending$')).click()
+        assert last_page_request()['ascending'] is True
     with page.expect_response("**/ListTraces"):
         page.get_by_role('button', name=re.compile(r'^Errors')).click()
     assert last_page_request()['query'] == '@status:error'
