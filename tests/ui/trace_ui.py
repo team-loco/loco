@@ -285,9 +285,9 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     page.get_by_role('button', name='Refresh', exact=True).click()
     assert next(row for row in reversed(recorded) if 'startTime' in row)['startTime'] != previous_request['startTime']
-    with page.expect_response("**/ListTraces"):
+    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '@trace:invalid') as filtered:
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@trace:invalid'))
-    assert last_page_request()['query'] == '@trace:invalid'
+    assert filtered.value.request.post_data_json['query'] == '@trace:invalid'
     page.goto(state['ui_url'] + base)
     expect(open_trace).to_be_visible()
     page.goto(state['ui_url'] + base + '&q=checkout&trace=' + trace + '&span=' + spans[10]['spanId'])
@@ -336,9 +336,9 @@ with session(out) as browser:
     mode[0] = 'normal'
     page.get_by_role('button', name='Retry', exact=True).click()
     open_trace.wait_for()
-    with page.expect_response("**/ListTraces"):
+    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == '@resource:not-a-resource') as filtered:
         page.goto(state['ui_url'] + base + '&r=not-a-resource')
-    assert last_page_request()['query'] == '@resource:not-a-resource'
+    assert filtered.value.request.post_data_json['query'] == '@resource:not-a-resource'
     page.goto(state['ui_url'] + base)
     open_trace.wait_for()
     context.close()
@@ -400,9 +400,9 @@ with session(out) as browser:
     assert '@duration' not in urllib.parse.unquote(page.url)
     assert 'from=' not in page.url
     expect(page.get_by_role('button', name='Reset zoom', exact=True)).to_have_count(0)
-    with page.expect_response("**/ListTraces"):
+    with page.expect_response(lambda response: response.url.endswith('/ListTraces') and response.request.post_data_json.get('query') == 'products') as filtered:
         page.goto(state['ui_url'] + base + '&q=products')
-    assert last_page_request()['query'] == 'products'
+    assert filtered.value.request.post_data_json['query'] == 'products'
     expect(page.get_by_role('button', name='Open trace GET /api/products', exact=True)).to_be_visible()
     context.close()
     mode[0] = 'normal'
@@ -469,6 +469,7 @@ with session(out) as browser:
     assert len(log_requests) == 1, log_requests
     assert log_requests[0]['query'] == '@trace:' + trace, log_requests
     expect(failing_button).not_to_have_attribute('data-linked', 'true')
+    drawer.evaluate("node => Promise.all(node.getAnimations().map(animation => animation.finished))")
     log_rows.get_by_role('button', name='Open log: Payment request failed').hover()
     expect(failing_button).to_have_attribute('data-linked', 'true')
     marker = drawer.get_by_role('button', name=re.compile('^Log at .*Payment request failed$'))
