@@ -90,7 +90,7 @@ esac
 			t.Setenv("PATH", bin)
 			t.Setenv("SCOPE_CALLS", calls)
 			t.Setenv("SCOPE_FAIL", tc.fail)
-			err := deployFixture(t.Context())
+			err := deployFixture(t.Context(), "build-test."+fixtureAppsDomain)
 			var exit *exec.ExitError
 			if !errors.As(err, &exit) || exit.ExitCode() != 42 {
 				t.Fatalf("scope failure = %v, want exit 42", err)

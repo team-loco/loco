@@ -15,7 +15,7 @@ import (
 var errTLS12Accepted = errors.New("gateway accepted a TLS 1.2 handshake")
 
 // Upgrade after recovery so the HTTP recovery fixture can finish before its API URL changes.
-func verifyTLSMinimum(ctx context.Context) (result error) {
+func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
 	roots, err := fixtureRoots(ctx)
 	if err != nil {
 		return err
@@ -50,9 +50,9 @@ func verifyTLSMinimum(ctx context.Context) (result error) {
 		{fixtureAPIHost + ":443", fixtureAPIHost},
 		{fixtureWebHost + ":443", fixtureWebHost},
 		{fixtureIngestHost + ":443", fixtureIngestHost},
-		{"build.apps.installation.test:443", "build.apps.installation.test"},
+		{hostname + ":443", hostname},
 		// Reach the worker's platform listener without depending on public DNS for loco.build.
-		{"build.apps.installation.test:443", "probe.loco.build"},
+		{hostname + ":443", "probe.loco.build"},
 	} {
 		if err := waitTLS13(ctx, target.address, target.serverName, roots); err != nil {
 			return fmt.Errorf("TLS minimum for %s: %w", target.serverName, err)
