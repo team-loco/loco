@@ -14,7 +14,6 @@ import {
 	msParser,
 	parseSpan,
 	presetsWithin,
-	QUERY_MAX_MS,
 	shiftWindow,
 	spanLabel,
 	stepSeconds,
@@ -26,7 +25,7 @@ import {
 
 const loadWindow = createLoader(WINDOW_PARSERS);
 const serializeWindow = createSerializer(WINDOW_PARSERS);
-const readWindow = (search: string) => toWindow(loadWindow(search), QUERY_MAX_MS);
+const readWindow = (search: string) => toWindow(loadWindow(search), DAY_MS);
 
 const NOW = Date.UTC(2026, 10, 8, 12, 0);
 
@@ -59,19 +58,19 @@ describe("time range text", () => {
 
 describe("time range limits", () => {
 	test("offers no preset longer than the limit", () => {
-		expect(presetsWithin(QUERY_MAX_MS).every((ms) => ms <= QUERY_MAX_MS)).toBe(true);
-		expect(presetsWithin(QUERY_MAX_MS)).toContain(QUERY_MAX_MS);
+		expect(presetsWithin(DAY_MS).every((ms) => ms <= DAY_MS)).toBe(true);
+		expect(presetsWithin(DAY_MS)).toContain(DAY_MS);
 	});
 
 	test("clamps a linked range to the limit", () => {
 		expect(readWindow("?range=7d")).toEqual({
 			kind: "relative",
-			spanMs: QUERY_MAX_MS,
+			spanMs: DAY_MS,
 		});
 		const from = NOW - 3 * DAY_MS;
 		expect(readWindow(`?from=${String(from)}&to=${String(NOW)}`)).toEqual({
 			kind: "absolute",
-			from: NOW - QUERY_MAX_MS,
+			from: NOW - DAY_MS,
 			to: NOW,
 		});
 	});
@@ -91,11 +90,11 @@ describe("time range limits", () => {
 	});
 
 	test("explains custom ranges the query can't run", () => {
-		expect(checkCustomRange(NOW - HOUR_MS, NOW, NOW, QUERY_MAX_MS)).toBeNull();
-		expect(checkCustomRange(NOW, NOW - HOUR_MS, NOW, QUERY_MAX_MS)).toBe("order");
-		expect(checkCustomRange(NOW + HOUR_MS, NOW + 2 * HOUR_MS, NOW, QUERY_MAX_MS)).toBe("future");
-		expect(checkCustomRange(NOW - 2 * DAY_MS, NOW, NOW, QUERY_MAX_MS)).toBe("too-long");
-		expect(checkCustomRange(Number.NaN, NOW, NOW, QUERY_MAX_MS)).toBe("invalid");
+		expect(checkCustomRange(NOW - HOUR_MS, NOW, NOW, DAY_MS)).toBeNull();
+		expect(checkCustomRange(NOW, NOW - HOUR_MS, NOW, DAY_MS)).toBe("order");
+		expect(checkCustomRange(NOW + HOUR_MS, NOW + 2 * HOUR_MS, NOW, DAY_MS)).toBe("future");
+		expect(checkCustomRange(NOW - 2 * DAY_MS, NOW, NOW, DAY_MS)).toBe("too-long");
+		expect(checkCustomRange(Number.NaN, NOW, NOW, DAY_MS)).toBe("invalid");
 	});
 });
 
@@ -150,4 +149,11 @@ test("absolute range labels use the explicit clock and zone preference", () => {
 	const range = { kind: "absolute", from: Date.UTC(2026, 10, 12, 23, 50), to: Date.UTC(2026, 10, 13, 0, 10) } as const;
 	expect(windowLabel(range, { zone: "utc", clock: "12" })).toBe("Nov 12 11:50 PM – Nov 13 12:10 AM");
 	expect(windowLabel(range, { zone: "utc", clock: "24" })).toBe("Nov 12 23:50 – Nov 13 00:10");
+});
+
+test("uses a configured maximum for presets and URL windows", () => {
+	const maximum = 6 * HOUR_MS;
+	expect(presetsWithin(maximum)).toEqual([15 * MINUTE_MS, HOUR_MS, 4 * HOUR_MS]);
+	expect(toWindow(loadWindow("?range=7d"), maximum)).toEqual({ kind: "relative", spanMs: maximum });
+	expect(toWindow(loadWindow("?range=7d"), 7 * DAY_MS)).toEqual({ kind: "relative", spanMs: 7 * DAY_MS });
 });

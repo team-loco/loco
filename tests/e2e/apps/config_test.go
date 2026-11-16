@@ -13,6 +13,9 @@ func TestConfigReportsInstallHistoryRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := response.GetObservabilityMaxTimeRange().AsDuration(); got != 24*time.Hour {
+		t.Errorf("observability range = %v, want 24h", got)
+	}
 	retention := response.GetHistoryRetention()
 	// The platform starts its API with LOCO_IMAGE_RETENTION=1.
 	if retention.GetBuildImagesPerResource() != 1 {

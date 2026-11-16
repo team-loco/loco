@@ -1,7 +1,8 @@
 import { createSerializer, type inferParserType, parseAsArrayOf, parseAsString, parseAsStringLiteral } from "nuqs";
 import { matchPath } from "react-router";
 
-import { msParser, QUERY_MAX_MS, WINDOW_PARSERS } from "./obs-time";
+import { msParser, WINDOW_PARSERS } from "./obs-time";
+import { DAY_MS } from "./time";
 
 export function workspacePath(orgId: string, workspaceId: string, sub = ""): string {
 	const base = `/org/${orgId}/wks/${workspaceId}`;
@@ -117,5 +118,5 @@ export function observabilityPath(
 }
 
 export function buildLogsPath(orgId: string, workspaceId: string, buildId: string): string {
-	return observabilityPath(orgId, workspaceId, "logs", { q: `build:${buildId}`, range: QUERY_MAX_MS });
+	return observabilityPath(orgId, workspaceId, "logs", { q: `build:${buildId}`, range: DAY_MS });
 }

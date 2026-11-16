@@ -1,3 +1,4 @@
+import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
 import { ChevronRightIcon, RocketIcon, ScrollTextIcon, XIcon } from "lucide-react";
@@ -46,7 +47,8 @@ export interface BuildDeploymentLink {
 }
 
 function BuildLog({ build, workspaceId }: { build: Build; workspaceId: string }) {
-	const source = buildLogSource(build);
+	const maxRangeMs = useObservabilityMaxRange();
+	const source = maxRangeMs === undefined ? { kind: "none" as const } : buildLogSource(build, maxRangeMs);
 	const log = useBuildLog(workspaceId, build.id, source);
 	if (log.error !== null) {
 		return (
@@ -61,10 +63,10 @@ function BuildLog({ build, workspaceId }: { build: Build; workspaceId: string })
 	if (log.entries.length === 0) {
 		return (
 			<div
-				aria-busy={log.isLoading}
+				aria-busy={log.isLoading || maxRangeMs === undefined}
 				className="rounded-lg bg-panel px-4 py-4 font-mono text-[12.5px] text-fg3 shadow-[inset_0_0_0_1px_var(--line)]"
 			>
-				{log.isLoading ? "Loading logs…" : emptyBuildLogText(build.status)}
+				{log.isLoading || maxRangeMs === undefined ? "Loading logs…" : emptyBuildLogText(build.status)}
 			</div>
 		);
 	}

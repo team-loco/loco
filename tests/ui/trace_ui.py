@@ -118,9 +118,27 @@ with session(out) as browser:
     failing = re.compile(r'^payment POST \/payments\/authorize, .*, error$')
     context, page, errors = open_page(browser, state=state, permissions=['clipboard-read', 'clipboard-write'], device_scale_factor=2, reduced_motion='reduce')
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
-    page.goto(state['ui_url'] + base)
+    config_requests = []
+    config_legacy = [True]
+    def six_hour_config(route):
+        response = route.fetch()
+        body = response.json()
+        if config_legacy[0]:
+            body.pop('observabilityMaxTimeRange', None)
+        else:
+            body['observabilityMaxTimeRange'] = '21600s'
+        config_requests.append(body)
+        route.fulfill(response=response, json=body)
+    context.route('**/loco.config.v1.ConfigService/GetConfig', six_hour_config)
+    page.goto(state['ui_url'] + f'/org/{org_id}/wks/{workspace_id}/resources')
+    page.wait_for_load_state('networkidle')
+    assert config_requests and all('observabilityMaxTimeRange' not in body for body in config_requests)
+    cached_requests = len(config_requests)
+    config_legacy[0] = False
+    page.get_by_role('link', name='Traces', exact=True).click()
     open_trace = page.get_by_role('region', name='Trace list').get_by_role('button', name='Open trace ' + root_name, exact=True)
     open_trace.wait_for()
+    assert len(config_requests) > cached_requests and config_requests[-1]['observabilityMaxTimeRange'] == '21600s'
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
     wait_for_query(page, lambda query: query.get('env') == ['production'] and query.get('view') == ['traces'])
     expect(page.get_by_role('button', name=re.compile(r'^All\s*7$'))).to_be_visible()
@@ -317,6 +335,8 @@ with session(out) as browser:
     expect(drawer).to_have_count(0)
     spans.pop()
     page.get_by_role('button', name=re.compile(r'^Past hour ')).click()
+    expect(page.get_by_text('Ranges up to 6h.', exact=True)).to_be_visible()
+    expect(page.get_by_role('group', name='Presets').get_by_role('button', name=re.compile('Past 12 hours'))).to_have_count(0)
     page.get_by_role('group', name='Presets').get_by_role('button', name='Past 15 minutes', exact=False).click()
     expect(page).to_have_url(re.compile(r'[?&]range=15m'))
     page.go_back()

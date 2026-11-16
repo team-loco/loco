@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { BuildSchema, BuildStatus } from "@gen/loco/build/v1/build_pb";
 import { DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { QUERY_MAX_MS } from "@/lib/obs-time";
+import { DAY_MS } from "@/lib/time";
 import { msToTimestamp } from "@/lib/time";
 
 import {
@@ -80,12 +80,12 @@ describe("builds", () => {
 	});
 
 	test("waits for the upload, tails running builds and queries finished ones", () => {
-		expect(buildLogSource(build(BuildStatus.AWAITING_UPLOAD))).toEqual({ kind: "none" });
+		expect(buildLogSource(build(BuildStatus.AWAITING_UPLOAD), DAY_MS)).toEqual({ kind: "none" });
 		expect(emptyBuildLogText(BuildStatus.AWAITING_UPLOAD)).toBe("Waiting for the CLI to upload source.");
-		expect(buildLogSource(build(BuildStatus.QUEUED))).toEqual({ kind: "tail", sinceMs: CREATED_MS });
-		expect(buildLogSource(build(BuildStatus.RUNNING))).toEqual({ kind: "tail", sinceMs: CREATED_MS });
+		expect(buildLogSource(build(BuildStatus.QUEUED), DAY_MS)).toEqual({ kind: "tail", sinceMs: CREATED_MS });
+		expect(buildLogSource(build(BuildStatus.RUNNING), DAY_MS)).toEqual({ kind: "tail", sinceMs: CREATED_MS });
 		const finished = CREATED_MS + 2 * MINUTE_MS;
-		expect(buildLogSource(build(BuildStatus.FAILED, { finishedAt: msToTimestamp(finished) }))).toEqual({
+		expect(buildLogSource(build(BuildStatus.FAILED, { finishedAt: msToTimestamp(finished) }), DAY_MS)).toEqual({
 			kind: "query",
 			startMs: CREATED_MS,
 			endMs: finished + MINUTE_MS,
@@ -93,11 +93,11 @@ describe("builds", () => {
 	});
 
 	test("clamps a long finished build's log window to the query maximum", () => {
-		const finished = CREATED_MS + 2 * QUERY_MAX_MS;
-		const source = buildLogSource(build(BuildStatus.SUCCEEDED, { finishedAt: msToTimestamp(finished) }));
+		const finished = CREATED_MS + 2 * DAY_MS;
+		const source = buildLogSource(build(BuildStatus.SUCCEEDED, { finishedAt: msToTimestamp(finished) }), DAY_MS / 4);
 		expect(source).toEqual({
 			kind: "query",
-			startMs: finished + MINUTE_MS - QUERY_MAX_MS,
+			startMs: finished + MINUTE_MS - DAY_MS / 4,
 			endMs: finished + MINUTE_MS,
 		});
 	});

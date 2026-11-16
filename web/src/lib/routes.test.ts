@@ -4,7 +4,8 @@ import { createLoader } from "nuqs";
 
 import { QUERY_PARSERS, toQuery } from "@/pages/observability/query";
 
-import { QUERY_MAX_MS, toWindow, WINDOW_PARSERS } from "./obs-time";
+import { toWindow, WINDOW_PARSERS } from "./obs-time";
+import { DAY_MS } from "./time";
 import { buildLogsPath, draftSearch, inResourcesSection, newResourcePath, resourcePath, withEnv } from "./routes";
 
 test("newResourcePath opens the new resource flow on the resources page and keeps other params", () => {
@@ -33,7 +34,7 @@ test("buildLogsPath opens a day of logs filtered to the build", () => {
 	expect(url.pathname).toBe("/org/o1/wks/w1/observability");
 	expect(url.searchParams.get("view")).toBe("logs");
 	expect(toQuery(createLoader(QUERY_PARSERS)(url)).tokens).toEqual([{ neg: false, key: "build", value: "b-123" }]);
-	expect(toWindow(createLoader(WINDOW_PARSERS)(url), QUERY_MAX_MS)).toEqual({ kind: "relative", spanMs: QUERY_MAX_MS });
+	expect(toWindow(createLoader(WINDOW_PARSERS)(url), DAY_MS)).toEqual({ kind: "relative", spanMs: DAY_MS });
 });
 
 test("resourcePath and withEnv carry the environment and keep the path's other params", () => {

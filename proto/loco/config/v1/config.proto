@@ -26,6 +26,7 @@ message GetConfigResponse {
   CountLimits count_limits = 8;
   // history_retention applies across the installation and cannot be overridden per organization.
   HistoryRetention history_retention = 9;
+  google.protobuf.Duration observability_max_time_range = 10;
 }
 
 message HistoryRetention {

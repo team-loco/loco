@@ -6,7 +6,6 @@ export const MINUTE_MS = 60_000;
 export const HOUR_MS = 60 * MINUTE_MS;
 const WEEK_MS = 7 * DAY_MS;
 
-export const QUERY_MAX_MS = DAY_MS;
 export const EVENTS_MAX_MS = WEEK_MS;
 export const DEFAULT_SPAN_MS = HOUR_MS;
 export const AROUND_MS = 5 * MINUTE_MS;

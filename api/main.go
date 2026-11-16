@@ -402,6 +402,7 @@ func newDeps(
 			ac.AuthIssuers,
 			ac.OrgLinks,
 			ac.Tokens.MaxAPITokenDuration,
+			ac.Observability.Limits.MaxTimeRange,
 			ac.CountLimits,
 			&configv1.HistoryRetention{
 				BuildImagesPerResource: ac.ImageSweep.Retention,
