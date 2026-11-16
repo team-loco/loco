@@ -23,6 +23,8 @@ func TestLogBuckets(t *testing.T) {
 		{testWorkspaceID, testEnvironmentID, testWorkerResourceID, bucketErrorSeverity, time.Minute, 2},
 		{testOtherWorkspaceID, testEnvironmentID, testResourceID, testSeverity, 0, 7},
 		{testWorkspaceID, testOtherEnvironmentID, testResourceID, testSeverity, 0, 3},
+		{testWorkspaceID, testEnvironmentID, testResourceID, testSeverity, 3 * time.Minute, 9},
+		{testWorkspaceID, testEnvironmentID, testResourceID, testSeverity, -time.Minute, 11},
 	} {
 		err := f.conn.Exec(t.Context(), "INSERT INTO otel_logs (Timestamp, Body, SeverityText, ResourceAttributes) "+
 			"SELECT ?, ?, ?, ? FROM numbers(?)", start.Add(row.offset), marker, row.severity,
