@@ -88,12 +88,12 @@ func (c *Cluster) runTests(ctx context.Context, m *testing.M, setup func(ctx con
 	}
 	if err := c.setupKind(setupCtx); err != nil {
 		logf("setup of run %s failed: %v", c.run, err)
+		c.dumpCluster(ctx)
 		return 1
 	}
 	if err := setup(setupCtx); err != nil {
 		logf("setup of run %s failed: %v", c.run, err)
-		out, err := c.Kubectl(context.WithoutCancel(ctx), "get", "pods", "--all-namespaces", "-o", "wide")
-		logf("pods:\n%s%v", out, err)
+		c.dumpCluster(ctx)
 		return 1
 	}
 	logf("Cluster %s ready", c.cluster)

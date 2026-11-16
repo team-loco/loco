@@ -56,28 +56,27 @@ func (c *Cluster) setupKind(ctx context.Context) error {
 			return err
 		}
 	}
-	create := func() error {
-		_, err := c.Command(ctx, "kind", "create", "cluster", "--image", node, "--config",
-			filepath.Join(c.root, "tests", "e2e", "kind-e2e.yml"), "--name", c.cluster, "--kubeconfig", c.kubeconfig)
+	if _, err := c.Command(
+		ctx,
+		"kind",
+		"create",
+		"cluster",
+		"--retain",
+		"--image",
+		node,
+		"--config",
+		filepath.Join(
+			c.root,
+			"tests",
+			"e2e",
+			"kind-e2e.yml",
+		),
+		"--name",
+		c.cluster,
+		"--kubeconfig",
+		c.kubeconfig,
+	); err != nil {
 		return err
-	}
-	if err := create(); err != nil {
-		logf("Creating kind cluster %s failed, deleting it and retrying once: %v", c.cluster, err)
-		if _, err := c.Command(
-			ctx,
-			"kind",
-			"delete",
-			"cluster",
-			"--name",
-			c.cluster,
-			"--kubeconfig",
-			c.kubeconfig,
-		); err != nil {
-			return err
-		}
-		if err := create(); err != nil {
-			return err
-		}
 	}
 	return c.writeKubeconfig(ctx)
 }
