@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"sigs.k8s.io/yaml"
 
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
@@ -247,18 +246,6 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
 		}
 	}()
-	data, err := os.ReadFile(clientFile)
-	if err != nil {
-		return err
-	}
-	var settings struct {
-		ControlPlane struct {
-			WebURL string `json:"webURL"`
-		} `json:"controlPlane"`
-	}
-	if err := yaml.Unmarshal(data, &settings); err != nil {
-		return err
-	}
 	cmd := exec.CommandContext(
 		ctx,
 		"locoadm",
@@ -266,7 +253,7 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 		"--api",
 		fixtureAPIURL,
 		"--web",
-		settings.ControlPlane.WebURL,
+		"http://console.installation.test",
 		"--device",
 	)
 	cmd.Stderr = &stderr
