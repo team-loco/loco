@@ -7,6 +7,7 @@
 !schemas
 !k8sapi
 !tools/installation-e2e
+!tools/internal/devicelogin
 !tests/e2e/fixtures/build-app
 !tests/e2e/fixtures/installation/network-probe.yaml
 **/node_modules
