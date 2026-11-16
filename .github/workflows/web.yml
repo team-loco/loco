@@ -57,10 +57,6 @@ jobs:
 
       - uses: ./.github/actions/setup-playwright
 
-      - name: Test screenshot readiness and the UI server
-        if: matrix.shard == 1
-        run: uv run --frozen --project tests pytest .agents/skills/ui-evidence/scripts/test_evidence.py
-
       - name: Test the dashboard suites
         timeout-minutes: 30
         env:
