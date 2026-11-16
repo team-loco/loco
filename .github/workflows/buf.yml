@@ -83,18 +83,11 @@ jobs:
             echo "breaking=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Fetch the pull request base
-        if: steps.labels.outputs.breaking == 'true'
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git fetch --no-tags --depth=1 origin "$BASE_SHA"
-
       - uses: bufbuild/buf-action@37ac33d8960807670a6e9719080e885197b09cc6 # v1.7.0
         with:
           token: ${{ secrets.BUF_TOKEN }}
           lint: true
           breaking: ${{ steps.labels.outputs.breaking == 'true' }}
-          breaking_against: ".git#ref=${{ github.event.pull_request.base.sha }}"
 
       # The installed CLI can lag main by many commits; compare with the newest release too.
       # Main can hold unreleased break-buf changes, so only breaks this pull request adds fail.
