@@ -27,8 +27,7 @@ const (
 	contentTypeHeader = "Content-Type"
 	jsonContent       = "application/json"
 	passwordKey       = "password"
-	// transitStartupError is the error the API exits with when OpenBao has not created the transit
-	// keys yet, the one restart the install tolerates.
+	// transitStartupError identifies the API's tolerated OpenBao startup failure.
 	transitStartupError = `loco api failed error="verify the transit keys: `
 )
 
@@ -151,6 +150,7 @@ func install(t *testing.T) *controlPlane {
 	cp.namespace = cp.values.GatewayNamespace
 	t.Cleanup(func() {
 		if t.Failed() {
+			c.LogNamespace(t, cp.namespace)
 			cp.logDiagnostics(t)
 		}
 	})
@@ -223,8 +223,18 @@ func install(t *testing.T) *controlPlane {
 				user.Name, cp.password, clickhouse.FullnameOverride, cp.namespace),
 		})
 	}
+	startupCtx, cancelStartup := context.WithCancel(t.Context())
+	startup := c.CaptureStartupLogs(startupCtx, cp.namespace, "app="+release+"-api")
+	t.Cleanup(func() {
+		cancelStartup()
+		for range startup {
+		}
+	})
 	cp.upgrade(t)
-	cp.checkAPIRestarts(t)
+	cancelStartup()
+	if err := (<-startup).CheckRestarts(transitStartupError); err != nil {
+		t.Fatal(err)
+	}
 
 	selector := "gateway.envoyproxy.io/owning-gateway-name=" + cp.values.Gateway.Name
 	platform.Eventually(t, time.Minute, "the Envoy proxy Deployment", func(ctx context.Context) error {
@@ -279,36 +289,6 @@ func (cp *controlPlane) upgrade(t *testing.T) {
 	helm(t, "upgrade", "--install", release, c.Path("charts", "loco-control-plane"), "--namespace", cp.namespace,
 		"-f", c.Path("tests", "e2e", "control-plane-values.yaml"), "--wait", "--wait-for-jobs",
 		"--timeout", upgradeTimeout.String())
-}
-
-// checkAPIRestarts fails unless every restart of an API pod was the startup race with OpenBao.
-func (cp *controlPlane) checkAPIRestarts(t *testing.T) {
-	t.Helper()
-	var pods struct {
-		Items []struct {
-			Metadata struct {
-				Name string `json:"name"`
-			} `json:"metadata"`
-			Status struct {
-				ContainerStatuses []struct {
-					RestartCount int             `json:"restartCount"`
-					LastState    json.RawMessage `json:"lastState"`
-				} `json:"containerStatuses"`
-			} `json:"status"`
-		} `json:"items"`
-	}
-	c.MustGet(t, &pods, "-n", cp.namespace, "pods", "-l", "app="+release+"-api")
-	for _, pod := range pods.Items {
-		status := pod.Status.ContainerStatuses[0]
-		if status.RestartCount == 0 {
-			continue
-		}
-		previous := c.MustKubectl(t, "-n", cp.namespace, "logs", pod.Metadata.Name, "--previous")
-		if !strings.Contains(previous, transitStartupError) {
-			t.Fatalf("API pod %s restarted %d times without logging why it could not verify the transit keys; "+
-				"last state: %s", pod.Metadata.Name, status.RestartCount, status.LastState)
-		}
-	}
 }
 
 //nolint:thelper // a step of TestControlPlane

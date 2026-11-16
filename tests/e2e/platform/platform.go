@@ -186,6 +186,7 @@ func (p *Platform) runTests(ctx context.Context, m *testing.M) int {
 	cancel()
 	if err != nil {
 		logf("setup of run %s failed: %v", p.run, err)
+		p.dumpCluster(ctx)
 		p.dump(context.WithoutCancel(ctx))
 		return 1
 	}
