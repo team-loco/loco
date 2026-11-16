@@ -601,6 +601,10 @@ func (s *status) deployReportsHealthy(t *testing.T) {
 		t.Error("the environment's deployment list omits the running resource")
 	}
 	for _, deployment := range listed.GetDeployments() {
+		started, created := deployment.GetStartedAt(), deployment.GetCreatedAt()
+		if started == nil || started.AsTime().Before(created.AsTime()) {
+			t.Errorf("deployment start = %v, created = %v", started, created)
+		}
 		if deployment.GetEnvironmentId() != w.EnvironmentID {
 			t.Errorf(
 				"the environment's deployment list holds a deployment of environment %s",

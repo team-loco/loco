@@ -81,7 +81,7 @@ func deploymentToProto(
 		IsActive:       d.IsActive,
 		CreatedAt:      timestamppb.New(d.CreatedAt),
 		UpdatedAt:      timestamppb.New(d.UpdatedAt),
-		StartedAt:      timestamppb.New(d.StartedAt),
+		StartedAt:      optionalTimestamp(d.StartedAt),
 		CompletedAt:    optionalTimestamp(d.CompletedAt),
 		SpecVersion:    d.SpecVersion,
 		Message:        d.Message,

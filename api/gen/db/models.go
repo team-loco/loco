@@ -543,7 +543,7 @@ type Deployment struct {
 	CommitDirty   bool                `json:"commitDirty"`
 	SecretNames   []string            `json:"secretNames"`
 	CreatedAt     time.Time           `json:"createdAt"`
-	StartedAt     time.Time           `json:"startedAt"`
+	StartedAt     *time.Time          `json:"startedAt"`
 	CompletedAt   *time.Time          `json:"completedAt"`
 	UpdatedAt     time.Time           `json:"updatedAt"`
 }
