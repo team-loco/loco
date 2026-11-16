@@ -37,6 +37,8 @@ jobs:
           configurationFile: renovate.json5
           token: ${{ secrets.RENOVATE_TOKEN }}
         env:
+          RENOVATE_BINARY_SOURCE: install
+          RENOVATE_ALLOWED_COMMANDS: '["^go run \\./tools/chartimagebump( [A-Za-z0-9_./-]+)+ *$"]'
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_DRY_RUN: ${{ inputs.dryRun && 'full' || null }}
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}

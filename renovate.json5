@@ -119,10 +119,21 @@
       matchPackageNames: ["opentelemetry-**"],
     },
     {
-      description: "A chart publishes only when its version moves, and lint:charts requires the bump. Only helmv3 can bump it: helm-values cannot, so an image update in a chart's values.yaml needs the chart version moved by hand",
+      description: "Chart dependency updates bump the owning chart version",
       matchManagers: ["helmv3"],
       matchFileNames: ["charts/**"],
       bumpVersion: "patch",
+    },
+    {
+      description: "Chart image updates bump each affected chart once per branch",
+      matchManagers: ["helm-values"],
+      matchFileNames: ["charts/*/values.yaml"],
+      postUpgradeTasks: {
+        commands: ["go run ./tools/chartimagebump {{#each upgrades}}{{{packageFile}}} {{/each}}"],
+        executionMode: "branch",
+        fileFilters: ["charts/*/Chart.yaml"],
+        installTools: { golang: {} },
+      },
     },
     {
       matchManagers: ["dockerfile", "docker-compose"],
