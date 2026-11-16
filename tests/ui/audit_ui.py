@@ -89,13 +89,13 @@ with session(out) as browser:
     page.get_by_role("button", name="Pause", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"[?&]live="))
     page.get_by_role("button", name="Event", exact=True).click()
-    expect(page.get_by_text("0 of 50", exact=True)).to_be_visible()
+    expect(page.get_by_text(re.compile(r"^0 of \d+$"))).to_be_visible()
     expect(page.get_by_role("option", name=re.compile(r"^Invited a member"))).to_be_visible()
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
     page.keyboard.press("Escape")
     expect(page).to_have_url(re.compile(r"[?&]types=resource\.created"))
     expect(rows).to_have_count(3)
-    assert list_events(calls)[-1]["body"]["types"] == ["resource.created"]
+    assert list_events(calls)[-1]["body"]["query"] == "(@type:resource.created)"
 
     rows.first.click()
     drawer = page.get_by_role("dialog")
@@ -123,10 +123,10 @@ with session(out) as browser:
     page.get_by_role("button", name="Clear event filter", exact=True).click()
     expect(rows).to_have_count(50)
     expect(page.get_by_role("list", name="Audit events")).not_to_contain_text("inventory")
-    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("requestId") == request_id) as searched:
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@request:" + request_id) as searched:
         search.fill(request_id)
     assert not searched.value.request.post_data_json.get("beforeSeq")
-    assert searched.value.request.post_data_json["requestId"] == request_id
+    assert searched.value.request.post_data_json["query"] == "@request:" + request_id
     expect(rows).to_have_count(1)
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
     expect(page).to_have_url(re.compile(r"[?&]q=" + request_id))
@@ -142,9 +142,9 @@ with session(out) as browser:
     page.get_by_role("button", name="Actor", exact=True).click()
     expect(page.get_by_role("option", name="Loco", exact=True)).to_be_visible()
     expect(page.get_by_role("option", name="Cluster agent", exact=True)).to_be_visible()
-    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("actorTypes") == ["system"]) as system_events:
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and "@actor_type:system" in response.request.post_data_json.get("query", "")) as system_events:
         page.get_by_role("option", name="Loco", exact=True).click()
-    assert system_events.value.request.post_data_json["actorTypes"] == ["system"]
+    assert system_events.value.request.post_data_json["query"] == "(@type:resource.created) @actor_type:system"
     expect(page.get_by_text("No events match these filters", exact=True)).to_be_visible()
     search.fill("no-such-event")
     page.get_by_role("button", name="Clear filters", exact=True).click()
@@ -156,14 +156,14 @@ with session(out) as browser:
     page.keyboard.press("Escape")
     expect(rows).to_have_count(3)
     rows.first.click()
-    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("actorIds") == [users["owner"]["id"]]) as by_actor:
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and "@actor:" + users["owner"]["id"] in response.request.post_data_json.get("query", "")) as by_actor:
         page.get_by_role("dialog").get_by_role("button", name=re.compile(r"^More by ")).click()
-    assert by_actor.value.request.post_data_json["actorIds"] == [users["owner"]["id"]]
+    assert "@actor:" + users["owner"]["id"] in by_actor.value.request.post_data_json["query"]
     expect(page.get_by_role("dialog")).not_to_be_visible()
     expect(page).to_have_url(re.compile(r"[?&]actor=" + users["owner"]["id"]))
     page.reload()
     expect(rows).to_have_count(3)
-    assert list_events(calls)[-1]["body"]["actorIds"] == [users["owner"]["id"]]
+    assert "@actor:" + users["owner"]["id"] in list_events(calls)[-1]["body"]["query"]
 
     assert not errors, errors
     context.close()
@@ -186,10 +186,10 @@ with session(out) as browser:
     assert {call["body"]["workspaceId"] for call in reads} == {shared, sibling}, reads
     assert all(call["status"] == 200 for call in reads), reads
     page.get_by_role("button", name="Actor", exact=True).click()
-    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("actorIds") == [users["workspace_admin"]["id"]]):
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@actor:" + users["workspace_admin"]["id"]):
         page.get_by_role("option", name=re.compile("Wren Workspace")).click()
     expect(page.get_by_role("button", name="Clear actor filter", exact=True)).to_be_visible()
-    assert list_events(calls)[-1]["body"]["actorIds"] == [users["workspace_admin"]["id"]]
+    assert list_events(calls)[-1]["body"]["query"] == "@actor:" + users["workspace_admin"]["id"]
     assert list_events(calls)[-1]["body"]["workspaceId"] == sibling
 
     # Workspace settings link to the log filtered to that workspace, and a resource filter in the URL applies on first load.

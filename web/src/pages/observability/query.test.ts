@@ -234,7 +234,7 @@ describe("log queries", () => {
 		const violations = create(BadRequestSchema, {
 			fieldViolations: [{ field: "query", description: "quote values that contain :" }],
 		});
-		const info = create(ErrorInfoSchema, { reason: "LOG_QUERY_SYNTAX", metadata: { position: "7" } });
+		const info = create(ErrorInfoSchema, { reason: "QUERY_SYNTAX", metadata: { position: "7" } });
 		error.details.push(
 			{ type: BadRequestSchema.typeName, value: toBinary(BadRequestSchema, violations) },
 			{ type: ErrorInfoSchema.typeName, value: toBinary(ErrorInfoSchema, info) },

@@ -10,10 +10,13 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connectproto"
 	"github.com/jackc/pgx/v5/pgconn"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 
 	"github.com/team-loco/loco/api/interceptor"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	"github.com/team-loco/loco/internal/logquery"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -155,4 +158,41 @@ func publicError(err error) *connect.Error {
 		return public
 	}
 	return nil
+}
+
+func TestQuerySyntaxErrorPointsAtThePosition(t *testing.T) {
+	_, parseErr := logquery.Parse("a (b")
+	if got := querySyntaxDetails(t, querySyntaxError(fmt.Errorf("parse: %w", parseErr))); got != "unclosed ( at 3" {
+		t.Errorf("details = %q, want unclosed ( at 3", got)
+	}
+	if code := connect.CodeOf(querySyntaxError(errors.New("boom"))); code != connect.CodeInternal {
+		t.Errorf("code for a non-syntax error = %v, want Internal", code)
+	}
+}
+
+// querySyntaxDetails returns a rejected query's violation on query and its position, as "message at position".
+func querySyntaxDetails(t *testing.T, err error) string {
+	t.Helper()
+	connectErr, ok := errors.AsType[*connect.Error](err)
+	if !ok || connectErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("err = %v, want InvalidArgument", err)
+	}
+	var violation, position string
+	for _, detail := range connectErr.Details() {
+		value, err := connectproto.UnmarshalErrorDetail(detail)
+		if err != nil {
+			t.Fatal(err)
+		}
+		switch value := value.(type) {
+		case *errdetails.BadRequest:
+			if fields := value.GetFieldViolations(); len(fields) == 1 && fields[0].GetField() == "query" {
+				violation = fields[0].GetDescription()
+			}
+		case *errdetails.ErrorInfo:
+			if value.GetReason() == querySyntaxReason {
+				position = value.GetMetadata()["position"]
+			}
+		}
+	}
+	return violation + " at " + position
 }

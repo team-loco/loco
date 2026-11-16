@@ -4,6 +4,7 @@ import { createConnectQueryKey } from "@connectrpc/connect-query";
 import { queryOptions } from "@tanstack/react-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { EventService, ListEventsResponseSchema, type ListEventsRequest } from "@gen/loco/event/v1/event_pb";
+import { eventTypesQuery } from "@/lib/audit-query";
 import { collectPages } from "@/lib/collectPages";
 import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
 
@@ -14,7 +15,12 @@ export function runtimeEventsOptions(
 	scope: Scope,
 	{ types = RUNTIME_EVENT_TYPES, anyEnvironment = false }: { types?: string[]; anyEnvironment?: boolean } = {},
 ) {
-	const input = { ...scope, environmentId: anyEnvironment ? "" : scope.environmentId, types, pageSize: 500 };
+	const input = {
+		...scope,
+		environmentId: anyEnvironment ? "" : scope.environmentId,
+		query: eventTypesQuery(types),
+		pageSize: 500,
+	};
 	const key = createConnectQueryKey({ schema: listEvents, input, transport, cardinality: "finite" });
 	return queryOptions({
 		queryKey: [...key, "all-pages"] as const,

@@ -61,13 +61,13 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := auditScope(t, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin)
-	eventServer := NewEventServer(f.queries)
+	eventServer := NewEventServer(f.pool, f.queries)
 	req := &eventv1.ListEventsRequest{
 		OrgId:         parents.OrgID.String(),
 		WorkspaceId:   parents.WorkspaceID.String(),
 		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.envID.String(),
-		Types:         []string{events.ResourceDegraded, events.ResourceRecovered},
+		Query:         "@type:" + events.ResourceDegraded + " OR @type:" + events.ResourceRecovered,
 		StartTime:     timestamppb.New(start),
 		EndTime:       timestamppb.New(time.Now().Add(time.Second)),
 		PageSize:      2,
@@ -149,9 +149,9 @@ func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	ctx := auditScope(t, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin)
-	server := NewEventServer(f.queries)
+	server := NewEventServer(f.pool, f.queries)
 	req := &eventv1.ListEventsRequest{OrgId: parents.OrgID.String(), WorkspaceId: parents.WorkspaceID.String(),
-		ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Types: []string{events.ResourceDegraded}}
+		ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Query: "@type:" + events.ResourceDegraded}
 	response, err := server.ListEvents(ctx, req)
 	if err != nil || len(response.GetEvents()) != 1 {
 		t.Fatalf("initial = %v (%v)", response, err)

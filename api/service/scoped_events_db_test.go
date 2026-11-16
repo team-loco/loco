@@ -285,7 +285,8 @@ func TestListEventsPagesMatchingHistoryAndRetainsDeletedResource(t *testing.T) {
 	f := newScopedAuditFixture(t)
 	ctx := auditScope(t, genDb.EntityTypeResource, f.resourceID, genDb.ScopeRead)
 	request := &eventv1.ListEventsRequest{OrgId: f.orgID, ResourceId: f.resourceID.String(), PageSize: 2,
-		Types: []string{events.DomainDeleted, events.DeploymentDeleted, events.BuildCanceled, events.SecretDeleted}}
+		Query: "@type:" + events.DomainDeleted + " OR @type:" + events.DeploymentDeleted + " OR @type:" +
+			events.BuildCanceled + " OR @type:" + events.SecretDeleted}
 	var seqs []int64
 	var kinds []string
 	for {

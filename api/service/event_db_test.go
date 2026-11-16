@@ -83,7 +83,7 @@ func newEventFixture(t *testing.T) *eventFixture {
 		pool:    pool,
 		queries: queries,
 		machine: machine,
-		events:  NewEventServer(queries),
+		events:  NewEventServer(pool, queries),
 		owner:   scoped(t, queries, owner.ID),
 		orgID:   created.GetOrgId(),
 	}
@@ -160,7 +160,7 @@ func TestListOrganizationEventsAuthorizationPagingAndFilter(t *testing.T) {
 	}
 
 	filtered, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
-		OrgId: f.orgID, Types: []string{events.OrgCreated},
+		OrgId: f.orgID, Query: "@type:" + events.OrgCreated,
 	})
 	if err != nil || len(filtered.GetEvents()) != 1 {
 		t.Fatalf("filtered = %v (%v)", eventTypes(filtered.GetEvents()), err)

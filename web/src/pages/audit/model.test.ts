@@ -4,7 +4,15 @@ import { describe, expect, test } from "bun:test";
 
 import { typesIn } from "@/pages/settings/auditEvents";
 
-import { auditRow, matchesPageFilter, requestIdFilter, toggleCategory, toggleType, typesLabel } from "./model";
+import {
+	auditRow,
+	filtersQuery,
+	matchesPageFilter,
+	requestIdFilter,
+	toggleCategory,
+	toggleType,
+	typesLabel,
+} from "./model";
 
 test("the event filter names one type, whole categories, or the first type and a count", () => {
 	expect(typesLabel([])).toBe("");
@@ -19,6 +27,15 @@ test("a category toggle selects every type in it, then clears them", () => {
 	expect(toggleCategory(some, tokens).toSorted()).toEqual(tokens.toSorted());
 	expect(toggleCategory(tokens, tokens)).toEqual([]);
 	expect(toggleType(some, "token.created")).toEqual([]);
+});
+
+test("the toolbar filters become one audit query", () => {
+	const id = "0198f2a4-6c1e-7c3b-9d4e-2f6a1b3c5d7e";
+	expect(filtersQuery([], "", "")).toBe("");
+	expect(filtersQuery(["token.created", "token.revoked"], "system", "")).toBe(
+		"(@type:token.created OR @type:token.revoked) @actor_type:system",
+	);
+	expect(filtersQuery([], id, id)).toBe(`@actor:${id} @request:${id}`);
 });
 
 test("rows name where an event happened from the IDs the caller can read", () => {

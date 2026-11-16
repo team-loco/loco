@@ -2,9 +2,9 @@ import { CheckIcon, ListFilterIcon, UserIcon } from "lucide-react";
 
 import { CommandGroup, CommandItem } from "@/components/design/Command";
 import { FilterPopover } from "@/components/design/FilterPopover";
-import { auditLabel } from "@/pages/settings/auditEvents";
+import { AUDIT_EVENT_TYPES, auditLabel } from "@/pages/settings/auditEvents";
 
-import { CATEGORIES, EVENT_TYPE_LIMIT, toggleCategory, toggleType, typesLabel } from "./model";
+import { CATEGORIES, toggleCategory, toggleType, typesLabel } from "./model";
 
 export function EventFilter({ types, onChange }: { types: string[]; onChange: (types: string[]) => void }) {
 	return (
@@ -19,7 +19,7 @@ export function EventFilter({ types, onChange }: { types: string[]; onChange: (t
 			footer={
 				<>
 					<span>
-						{types.length} of {EVENT_TYPE_LIMIT}
+						{types.length} of {AUDIT_EVENT_TYPES.length}
 					</span>
 					{types.length > 0 && (
 						<button

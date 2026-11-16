@@ -48,9 +48,9 @@ test("warning counts include later pages with the same environment scope", async
 			}),
 		);
 		expect(recentWarningCount(result.events.map(runtimeEvent), now)).toBe(501);
-		expect(requests.map((r) => [r.orgId, r.workspaceId, r.resourceId, r.environmentId, r.beforeSeq])).toEqual([
-			["org", "workspace", "resource", "production", 0n],
-			["org", "workspace", "resource", "production", 10n],
+		expect(requests.map((r) => [r.orgId, r.workspaceId, r.resourceId, r.environmentId, r.query, r.beforeSeq])).toEqual([
+			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", 0n],
+			["org", "workspace", "resource", "production", "(@type:resource.degraded OR @type:resource.recovered)", 10n],
 		]);
 	} finally {
 		client.clear();

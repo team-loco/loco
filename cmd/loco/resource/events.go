@@ -33,6 +33,7 @@ func newEventsCmd() *cobra.Command {
 Examples:
   loco resource events myapp
   loco resource events myapp --limit 20
+  loco resource events myapp --query '@type:deployment.* -@actor_type:system'
   loco resource events myapp --output json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -47,6 +48,11 @@ Examples:
 			limit, err := cmd.Flags().GetInt32("limit")
 			if err != nil {
 				return fmt.Errorf("error reading limit flag: %w", err)
+			}
+
+			query, err := cmd.Flags().GetString("query")
+			if err != nil {
+				return fmt.Errorf("error reading query flag: %w", err)
 			}
 
 			t, err := cmdutil.ResolveTarget(ctx, cmd)
@@ -70,6 +76,7 @@ Examples:
 				OrgId:       workspace.GetWorkspace().GetOrgId(),
 				WorkspaceId: t.WorkspaceID,
 				ResourceId:  resource.GetId(),
+				Query:       query,
 			}
 			if limit < 0 {
 				return errInvalidEventLimit
@@ -103,6 +110,7 @@ Examples:
 	cmd.Flags().String("workspace", "", "Workspace name")
 	cmd.Flags().String("output", "table", "Output format (table, json)")
 	cmd.Flags().Int32("limit", 0, "Maximum number of events to display (0 = all)")
+	cmd.Flags().StringP("query", "q", "", "Only events matching this audit query, such as '@type:deployment.*'")
 	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd

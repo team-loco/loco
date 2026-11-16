@@ -537,7 +537,7 @@ func resourceEvents(
 		WorkspaceId:   w.ID,
 		ResourceId:    resourceID,
 		EnvironmentId: w.EnvironmentID,
-		Types:         []string{eventType},
+		Query:         "@type:" + eventType,
 	})
 	if err != nil {
 		t.Fatal(err)

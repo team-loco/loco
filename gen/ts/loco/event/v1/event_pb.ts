@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file loco/event/v1/event.proto.
  */
 export const file_loco_event_v1_event: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIuUCCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJIsUDChFMaXN0RXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASFwoFdHlwZXMYAyADKAlCCLpIBZIBAhAyEh0KCXBhZ2Vfc2l6ZRgEIAEoBUIKukgHGgUY9AMoABIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEiAKC3Jlc291cmNlX2lkGAYgASgJQgu6SAjYAQFyA7ABARIjCg5lbnZpcm9ubWVudF9pZBgHIAEoCUILukgI2AEBcgOwAQESLgoKc3RhcnRfdGltZRgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLAoIZW5kX3RpbWUYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiQKCWFjdG9yX2lkcxgKIAMoCUIRukgOkgELEDIYASIFcgOwAQESMgoLYWN0b3JfdHlwZXMYCyADKAlCHbpIGpIBFxACGAEiEXIPUgZzeXN0ZW1SBWFnZW50Eh8KCnJlcXVlc3RfaWQYDCABKAlCC7pICNgBAXIDsAEBIlMKEkxpc3RFdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50EhcKD25leHRfYmVmb3JlX3NlcRgCIAEoAyIuChNTdHJlYW1FdmVudHNSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQCJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
+  fileDesc("Chlsb2NvL2V2ZW50L3YxL2V2ZW50LnByb3RvEg1sb2NvLmV2ZW50LnYxIuUCCgVFdmVudBILCgNzZXEYASABKAMSCgoCaWQYAiABKAkSDAoEdHlwZRgDIAEoCRIOCgZvcmdfaWQYBCABKAkSFAoMd29ya3NwYWNlX2lkGAUgASgJEhIKCmFjdG9yX3R5cGUYBiABKAkSEAoIYWN0b3JfaWQYByABKAkSFAoMc3ViamVjdF90eXBlGAggASgJEhIKCnN1YmplY3RfaWQYCSABKAkSEgoKcmVxdWVzdF9pZBgKIAEoCRIlCgRkYXRhGAsgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIuCgpjcmVhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBITCgthY3Rvcl9lbWFpbBgNIAEoCRISCgphY3Rvcl9uYW1lGA4gASgJEhMKC3Jlc291cmNlX2lkGA8gASgJEhYKDmVudmlyb25tZW50X2lkGBAgASgJIsoCChFMaXN0RXZlbnRzUmVxdWVzdBIYCgZvcmdfaWQYASABKAlCCLpIBXIDsAEBEhsKCmJlZm9yZV9zZXEYAiABKANCB7pIBCICKAASHQoJcGFnZV9zaXplGAQgASgFQgq6SAcaBRj0AygAEiEKDHdvcmtzcGFjZV9pZBgFIAEoCUILukgI2AEBcgOwAQESIAoLcmVzb3VyY2VfaWQYBiABKAlCC7pICNgBAXIDsAEBEiMKDmVudmlyb25tZW50X2lkGAcgASgJQgu6SAjYAQFyA7ABARIuCgpzdGFydF90aW1lGAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIsCghlbmRfdGltZRgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFwoFcXVlcnkYDSABKAlCCLpIBXIDKIAgIlMKEkxpc3RFdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50EhcKD25leHRfYmVmb3JlX3NlcRgCIAEoAyIuChNTdHJlYW1FdmVudHNSZXF1ZXN0EhcKBmN1cnNvchgBIAEoCUIHukgEcgIYQCJMChRTdHJlYW1FdmVudHNSZXNwb25zZRIkCgZldmVudHMYASADKAsyFC5sb2NvLmV2ZW50LnYxLkV2ZW50Eg4KBmN1cnNvchgCIAEoCTK8AQoMRXZlbnRTZXJ2aWNlElEKCkxpc3RFdmVudHMSIC5sb2NvLmV2ZW50LnYxLkxpc3RFdmVudHNSZXF1ZXN0GiEubG9jby5ldmVudC52MS5MaXN0RXZlbnRzUmVzcG9uc2USWQoMU3RyZWFtRXZlbnRzEiIubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXF1ZXN0GiMubG9jby5ldmVudC52MS5TdHJlYW1FdmVudHNSZXNwb25zZTABQjhaNmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZXZlbnQvdjE7ZXZlbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_struct, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.event.v1.Event
@@ -207,11 +207,6 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
   beforeSeq: bigint;
 
   /**
-   * @generated from field: repeated string types = 3;
-   */
-  types: string[];
-
-  /**
    * @generated from field: int32 page_size = 4;
    */
   pageSize: number;
@@ -244,21 +239,13 @@ export type ListEventsRequest = Message<"loco.event.v1.ListEventsRequest"> & {
   endTime?: Timestamp | undefined;
 
   /**
-   * @generated from field: repeated string actor_ids = 10;
-   */
-  actorIds: string[];
-
-  /**
-   * IDs and types are alternatives so people and system actors can be selected together.
+   * Audit query: free text matched against the actor, target, event type and request ID, the
+   * @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+   * docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
    *
-   * @generated from field: repeated string actor_types = 11;
+   * @generated from field: string query = 13;
    */
-  actorTypes: string[];
-
-  /**
-   * @generated from field: string request_id = 12;
-   */
-  requestId: string;
+  query: string;
 };
 
 /**
@@ -274,11 +261,6 @@ export type ListEventsRequestJson = {
    * @generated from field: int64 before_seq = 2;
    */
   beforeSeq?: string;
-
-  /**
-   * @generated from field: repeated string types = 3;
-   */
-  types?: string[];
 
   /**
    * @generated from field: int32 page_size = 4;
@@ -313,21 +295,13 @@ export type ListEventsRequestJson = {
   endTime?: TimestampJson;
 
   /**
-   * @generated from field: repeated string actor_ids = 10;
-   */
-  actorIds?: string[];
-
-  /**
-   * IDs and types are alternatives so people and system actors can be selected together.
+   * Audit query: free text matched against the actor, target, event type and request ID, the
+   * @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+   * docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
    *
-   * @generated from field: repeated string actor_types = 11;
+   * @generated from field: string query = 13;
    */
-  actorTypes?: string[];
-
-  /**
-   * @generated from field: string request_id = 12;
-   */
-  requestId?: string;
+  query?: string;
 };
 
 /**

@@ -160,7 +160,7 @@ with session(out) as browser:
                 method = url.path.rsplit('/', 1)[-1]
                 assert method.startswith(('Get', 'List', 'WhoAmI', 'Query')), method
                 body = route.request.post_data_json
-                is_activity = method == 'ListEvents' and not body.get('types')
+                is_activity = method == 'ListEvents' and not body.get('query')
                 if is_activity and mode['hold_initial']:
                     held.append(route)
                     return
@@ -224,7 +224,7 @@ with session(out) as browser:
         expect(panel.get_by_role('listitem')).to_have_count(10)
         expect(panel).to_contain_text('Olivia Owner restarted a resource')
         expect(panel).not_to_contain_text('STAGING_ONLY')
-        reads = [request['body'] for request in recorded if request['method'] == 'ListEvents' and not request['body'].get('types')]
+        reads = [request['body'] for request in recorded if request['method'] == 'ListEvents' and not request['body'].get('query')]
         assert reads and all(request.get('environmentId') for request in reads), reads
         # Only someone who can open the full audit log for the workspace gets the link to it.
         expect(panel.get_by_role('link', name='View all in audit log', exact=True)).to_have_count(1 if user == 'owner' else 0)

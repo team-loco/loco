@@ -192,7 +192,6 @@ type ListEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
 	BeforeSeq     int64                  `protobuf:"varint,2,opt,name=before_seq,json=beforeSeq,proto3" json:"before_seq,omitempty"`
-	Types         []string               `protobuf:"bytes,3,rep,name=types,proto3" json:"types,omitempty"`
 	PageSize      int32                  `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	WorkspaceId   string                 `protobuf:"bytes,5,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	ResourceId    string                 `protobuf:"bytes,6,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
@@ -200,10 +199,10 @@ type ListEventsRequest struct {
 	// Inclusive start and exclusive end of the event creation time range.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	EndTime   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	ActorIds  []string               `protobuf:"bytes,10,rep,name=actor_ids,json=actorIds,proto3" json:"actor_ids,omitempty"`
-	// IDs and types are alternatives so people and system actors can be selected together.
-	ActorTypes    []string `protobuf:"bytes,11,rep,name=actor_types,json=actorTypes,proto3" json:"actor_types,omitempty"`
-	RequestId     string   `protobuf:"bytes,12,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Audit query: free text matched against the actor, target, event type and request ID, the
+	// @actor, @actor_type, @target, @type and @request fields, AND, OR, - and parentheses.
+	// docs/content/reference/audit-queries.md describes the fields. Empty matches every event.
+	Query         string `protobuf:"bytes,13,opt,name=query,proto3" json:"query,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -252,13 +251,6 @@ func (x *ListEventsRequest) GetBeforeSeq() int64 {
 	return 0
 }
 
-func (x *ListEventsRequest) GetTypes() []string {
-	if x != nil {
-		return x.Types
-	}
-	return nil
-}
-
 func (x *ListEventsRequest) GetPageSize() int32 {
 	if x != nil {
 		return x.PageSize
@@ -301,23 +293,9 @@ func (x *ListEventsRequest) GetEndTime() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ListEventsRequest) GetActorIds() []string {
+func (x *ListEventsRequest) GetQuery() string {
 	if x != nil {
-		return x.ActorIds
-	}
-	return nil
-}
-
-func (x *ListEventsRequest) GetActorTypes() []string {
-	if x != nil {
-		return x.ActorTypes
-	}
-	return nil
-}
-
-func (x *ListEventsRequest) GetRequestId() string {
-	if x != nil {
-		return x.RequestId
+		return x.Query
 	}
 	return ""
 }
@@ -499,12 +477,11 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"actor_name\x18\x0e \x01(\tR\tactorName\x12\x1f\n" +
 	"\vresource_id\x18\x0f \x01(\tR\n" +
 	"resourceId\x12%\n" +
-	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xc5\x04\n" +
+	"\x0eenvironment_id\x18\x10 \x01(\tR\renvironmentId\"\xa9\x03\n" +
 	"\x11ListEventsRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12&\n" +
 	"\n" +
-	"before_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\tbeforeSeq\x12\x1e\n" +
-	"\x05types\x18\x03 \x03(\tB\b\xbaH\x05\x92\x01\x02\x102R\x05types\x12'\n" +
+	"before_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\tbeforeSeq\x12'\n" +
 	"\tpage_size\x18\x04 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xf4\x03(\x00R\bpageSize\x12.\n" +
 	"\fworkspace_id\x18\x05 \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\vworkspaceId\x12,\n" +
@@ -513,13 +490,8 @@ const file_loco_event_v1_event_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\a \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\renvironmentId\x129\n" +
 	"\n" +
 	"start_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
-	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12.\n" +
-	"\tactor_ids\x18\n" +
-	" \x03(\tB\x11\xbaH\x0e\x92\x01\v\x102\x18\x01\"\x05r\x03\xb0\x01\x01R\bactorIds\x12>\n" +
-	"\vactor_types\x18\v \x03(\tB\x1d\xbaH\x1a\x92\x01\x17\x10\x02\x18\x01\"\x11r\x0fR\x06systemR\x05agentR\n" +
-	"actorTypes\x12*\n" +
-	"\n" +
-	"request_id\x18\f \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\trequestId\"j\n" +
+	"\bend_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
+	"\x05query\x18\r \x01(\tB\b\xbaH\x05r\x03(\x80 R\x05query\"j\n" +
 	"\x12ListEventsResponse\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.loco.event.v1.EventR\x06events\x12&\n" +
 	"\x0fnext_before_seq\x18\x02 \x01(\x03R\rnextBeforeSeq\"6\n" +
