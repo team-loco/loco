@@ -42,8 +42,8 @@ import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { agoLabel, msToTimestamp } from "@/lib/time";
-import { queryError } from "@/pages/observability/query";
-import { QueryErrorLine } from "@/pages/observability/QueryBar";
+import { AuditQueryError } from "./audit/AuditQueryError";
+import { auditSearchError, insertAuditField } from "./audit/queryError";
 
 import { AUDIT_FILTER_FIXES, auditLink, auditFilterViolations, sequenceParser, type DroppedFilter } from "./audit/link";
 import { DroppedFilters, AuditFilterError } from "./audit/AuditFeedback";
@@ -136,6 +136,7 @@ export function Audit() {
 	// The search box shows draft while a typed search waits to commit to the q parameter.
 	const [draft, setDraft] = useState<string | null>(null);
 	const pendingSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+	const searchRef = useRef<HTMLInputElement>(null);
 	useEffect(
 		() => () => {
 			clearTimeout(pendingSearchRef.current);
@@ -228,7 +229,8 @@ export function Audit() {
 	const first = rows[0];
 	const last = rows.at(-1);
 	const loading = access.isLoading || query.isLoading;
-	const rejected = query.error === null ? null : queryError(query.error, sent);
+	const rejected = query.error === null ? null : auditSearchError(query.error, types, actor, search);
+	const searchRejected = rejected !== null && (draft === null || draft === search);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
 	const fixFilter = (field: string) => {
 		const fix = AUDIT_FILTER_FIXES.get(field);
@@ -286,7 +288,10 @@ export function Audit() {
 					search={
 						<SearchInput
 							aria-label="Search request ID, actor or target"
-							placeholder="Search request ID, actor or target"
+							placeholder="Search, or @type:deployment.* @actor:name"
+							ref={searchRef}
+							aria-invalid={searchRejected}
+							aria-describedby={searchRejected ? "audit-query-error" : undefined}
 							onClear={() => {
 								setFilters({ q: null, event: null });
 							}}
@@ -364,9 +369,25 @@ export function Audit() {
 						/>
 					)}
 					{filterRejected && query.error !== null && <AuditFilterError error={query.error} onFix={fixFilter} />}
-					{rejected !== null && <QueryErrorLine error={rejected} />}
+					{searchRejected && (
+						<AuditQueryError
+							rejected={rejected}
+							onField={(field) => {
+								const next = insertAuditField(search, rejected.start, rejected.end, field);
+								clearTimeout(pendingSearchRef.current);
+								setDraft(next.query);
+								void setParams({ q: next.query, event: null, before: null }).then(() => {
+									setDraft(null);
+									requestAnimationFrame(() => {
+										searchRef.current?.focus();
+										searchRef.current?.setSelectionRange(next.caret, next.caret);
+									});
+								});
+							}}
+						/>
+					)}
 					<AuditTable
-						rows={filterRejected ? [] : rows}
+						rows={filterRejected || rejected !== null ? [] : rows}
 						highlightAfter={live && baseline?.key === filterKey ? baseline.seq : undefined}
 						loading={loading}
 						selectedId={selected?.event.id ?? null}
@@ -375,6 +396,9 @@ export function Audit() {
 							void setParams({ event: id });
 						}}
 					/>
+					{rejected !== null && (
+						<div className="px-4 py-12 text-center text-[13px] text-fg3">Fix the search to see events.</div>
+					)}
 					{filterRejected && (
 						<div className="px-4 py-12 text-center text-[13px] text-fg3">Fix the filters to see events.</div>
 					)}
@@ -425,21 +449,21 @@ export function Audit() {
 						prevLabel="Newer events"
 						nextLabel="Older events"
 						onFirst={
-							stack.length > 0 && !filterRejected
+							stack.length > 0 && !filterRejected && rejected === null
 								? () => {
 										void setParams({ before: null });
 									}
 								: null
 						}
 						onPrev={
-							stack.length > 0 && !filterRejected
+							stack.length > 0 && !filterRejected && rejected === null
 								? () => {
 										void setParams({ before: stack.slice(0, -1) });
 									}
 								: null
 						}
 						onNext={
-							nextBeforeSeq !== 0n && !filterRejected
+							nextBeforeSeq !== 0n && !filterRejected && rejected === null
 								? () => {
 										void setParams({
 											before: [...stack, nextBeforeSeq],

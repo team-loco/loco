@@ -493,16 +493,17 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 }
 
 /** Shows where the API stopped reading the query, under the bar. */
-export function QueryErrorLine({ error }: { error: QueryError }) {
+export function QueryErrorLine({ error, highlightTo }: { error: QueryError; highlightTo?: number }) {
 	const chars = Array.from(error.query);
 	const at = Math.min(error.position - 1, chars.length);
+	const end = highlightTo ?? at + 1;
 	return (
 		<div role="alert" className="flex min-w-0 flex-col gap-1 px-1 text-[12.5px]">
 			<span className="text-bad-fg">{error.message}</span>
 			<code className="font-mono text-[12px] break-all whitespace-pre-wrap text-fg2">
 				{chars.slice(0, at).join("")}
-				<mark className="rounded-[2px] bg-bad-bg px-px text-bad-fg">{chars[at] ?? " "}</mark>
-				{chars.slice(at + 1).join("")}
+				<mark className="rounded-[2px] bg-bad-bg px-px text-bad-fg">{chars.slice(at, end).join("") || " "}</mark>
+				{chars.slice(end).join("")}
 			</code>
 		</div>
 	);
