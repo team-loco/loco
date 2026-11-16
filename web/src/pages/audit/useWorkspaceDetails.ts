@@ -25,5 +25,8 @@ export function useWorkspaceDetails(workspaceIds: readonly string[]) {
 		...[...resourcesOf.values()].flat().map((r): [string, string] => [r.id, r.name]),
 		...[...environmentsOf.values()].flat().map((e): [string, string] => [e.id, e.name]),
 	]);
-	return { resourcesOf, environmentsOf, names };
+	const resourcesReady = new Set(workspaceIds.filter((_, i) => resources[i]?.data !== undefined));
+	const environmentsReady = new Set(workspaceIds.filter((_, i) => environments[i]?.data !== undefined));
+	const isLoading = [...resources, ...environments].some((q) => q.isPending);
+	return { resourcesOf, environmentsOf, names, resourcesReady, environmentsReady, isLoading };
 }

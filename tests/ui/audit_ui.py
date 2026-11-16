@@ -1,4 +1,5 @@
 import argparse
+import base64
 import re
 from pathlib import Path
 
@@ -177,6 +178,48 @@ with session(out) as browser:
     page.reload()
     expect(rows).to_have_count(3)
     assert "@actor:" + users["owner"]["id"] in list_events(calls)[-1]["body"]["query"]
+
+    page.goto(state["ui_url"] + audit_path + f"?range=forever&types=resource.created,unknown.event&ws={shared}&res=00000000-0000-4000-8000-000000000001&env=00000000-0000-4000-8000-000000000002&size=bad&before=bad&q=checkout")
+    banner = page.get_by_role("status").filter(has_text="Some filters in this link couldn't be used")
+    expect(banner).to_be_visible()
+    for value in ("forever", "unknown.event", "bad", "00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000002"):
+        expect(banner).to_contain_text(value)
+    expect(rows).to_have_count(1)
+    expect(search).to_have_value("checkout")
+    expect(page).not_to_have_url(re.compile(r"[?&](range|res|env|size|before)="))
+    assert list_events(calls)[-1]["body"]["query"] == "(@type:resource.created) checkout"
+    assert list_events(calls)[-1]["body"]["workspaceId"] == shared
+    page.get_by_role("button", name="Dismiss unused filters", exact=True).click()
+    expect(banner).to_have_count(0)
+    page.goto(state["ui_url"] + audit_path + "?ws=missing&res=missing&env=missing")
+    expect(page.get_by_role("status").filter(has_text="Some filters in this link couldn't be used")).to_contain_text("Workspace not found")
+    expect(rows).to_have_count(50)
+    expect(page).not_to_have_url(re.compile(r"[?&](ws|res|env)="))
+
+    field = b"start_time"
+    description = b"Time range is outside retention."
+    violation = b"\x0a" + bytes([len(field)]) + field + b"\x12" + bytes([len(description)]) + description
+    details = base64.b64encode(b"\x0a" + bytes([len(violation)]) + violation).decode()
+    request_id = "00000000-0000-4000-8000-000000000003"
+    def reject_filters(route):
+        route.fulfill(status=400, headers={"x-loco-request-id": request_id, "access-control-expose-headers": "x-loco-request-id"}, json={"code": "invalid_argument", "message": "Invalid filters", "details": [{"type": "google.rpc.BadRequest", "value": details}]})
+    page.route("**/loco.event.v1.EventService/ListEvents", reject_filters)
+    page.goto(state["ui_url"] + audit_path + "?range=90d")
+    alert = page.get_by_role("alert")
+    expect(alert).to_contain_text("The audit log rejected these filters")
+    expect(alert).to_contain_text("start_time")
+    expect(alert).to_contain_text("Time range is outside retention.")
+    expect(alert.get_by_title("Copy request ID", exact=True)).to_have_text(request_id)
+    expect(page.get_by_text("Fix the filters to see events.", exact=True)).to_be_visible()
+    expect(rows).to_have_count(0)
+    expect(search).to_be_visible()
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    alert.get_by_title("Copy request ID", exact=True).click()
+    assert page.evaluate("navigator.clipboard.readText()") == request_id
+    page.unroute("**/loco.event.v1.EventService/ListEvents", reject_filters)
+    alert.get_by_role("button", name="Reset time range", exact=True).click()
+    expect(rows).to_have_count(50)
+    expect(alert).to_have_count(0)
 
     assert not errors, errors
     context.close()
