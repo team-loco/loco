@@ -375,19 +375,8 @@ func (f *fixture) provision(ctx context.Context) error {
 		return checkErr
 	}
 	for _, service := range services {
-		if _, checkErr := command(
-			ctx,
-			f.root,
-			nil,
-			"kubectl",
-			"-n",
-			fixtureNamespace,
-			"rollout",
-			"status",
-			"deployment/"+service.Name,
-			"--timeout="+fixtureReadyTimeout,
-		); checkErr != nil {
-			return checkErr
+		if err := f.waitFixture(ctx, service.Name); err != nil {
+			return err
 		}
 	}
 	return f.registryRouting(ctx)
