@@ -19,7 +19,7 @@ const SPEND = "Spend";
 const TOP = 5;
 const PERCENT = 100;
 
-const CARD = "box-border flex min-h-full min-w-0 flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
+const CARD = "flex min-h-full min-w-0 flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
 const VALUE = "font-mono text-[30px] leading-[1.25] font-medium tracking-[-0.03em] tabular-nums";
 
 function share(part: number, total: number): string {
@@ -208,6 +208,7 @@ export function Totals({
 		{ label: "Errors", value: trafficValue(errorShare(latest), "%") },
 		{ label: "Bandwidth out", value: trafficValue(latest?.bytes, " B/s") },
 	];
+	const note = traffic.error !== null ? getErrorMessage(traffic.error, "Failed to load traffic") : "Latest bucket";
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-end gap-2">
@@ -235,13 +236,8 @@ export function Totals({
 					<div key={label} className={CARD}>
 						<CardHead label={label} />
 						<span className={VALUE}>{traffic.isLoading ? "…" : traffic.error !== null ? "—" : shown}</span>
-						<span
-							className="truncate text-[12px] text-fg3"
-							title={
-								traffic.error !== null ? getErrorMessage(traffic.error, "Failed to load traffic") : "Latest bucket"
-							}
-						>
-							{traffic.error !== null ? getErrorMessage(traffic.error, "Failed to load traffic") : "Latest bucket"}
+						<span className="truncate text-[12px] text-fg3" title={note}>
+							{note}
 						</span>
 					</div>
 				))}
