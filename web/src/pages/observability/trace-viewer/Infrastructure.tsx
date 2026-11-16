@@ -1,217 +1,279 @@
-import { traceBounds } from "./trace-time";
-import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { TraceSpan } from "@gen/loco/observability/v1/observability_pb";
 import { useQueries } from "@tanstack/react-query";
 import { useTransport } from "@connectrpc/connect-query";
-import { Area, CartesianGrid, ComposedChart, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
+import { ChartContainer, ChartTooltip } from "@/components/design/Chart";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Button } from "@/components/design/Button";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Spinner } from "@/components/design/Spinner";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
+import { formatHourMinute, timeAxis } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatHourMinute, timeAxis, tsMs } from "@/lib/time";
+import { formatPercent, percentAxis } from "@/lib/compute-chart";
+import { trafficValue } from "@/lib/traffic";
+import { cn } from "@/lib/utils";
+import { percentPoints } from "@/pages/resource/metric";
+import { formatDuration } from "@/pages/resource/format";
 import { useObs } from "../context";
 import type { TraceSummary } from "../traces";
-import { formatDuration } from "@/pages/resource/format";
-import { traceServiceLabel } from "../trace-service";
+import { traceBounds } from "./trace-time";
+import { networkPoints, sampleAt, type InfraPoint } from "./infra-series";
 
-const WINDOW_MS = 10 * 60_000;
-const METRICS = [
-	{ title: "CPU", metric: "k8s.pod.cpu_limit_utilization" },
-	{ title: "Memory", metric: "k8s.pod.memory_limit_utilization" },
+const WINDOWS = [
+	{ value: 5, label: "±5m" },
+	{ value: 10, label: "±10m" },
+	{ value: 30, label: "±30m" },
+	{ value: 60, label: "±1h" },
 ];
-const CHART_CONFIG = { value: { label: "Usage", color: "var(--series-0)" } };
+const METRICS = [
+	{ metric: "k8s.pod.cpu_limit_utilization", aggregation: "avg", direction: "" },
+	{ metric: "k8s.pod.memory_limit_utilization", aggregation: "avg", direction: "" },
+	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "receive" },
+	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "transmit" },
+];
+const networkLabel = (point: InfraPoint | undefined) =>
+	`${trafficValue(point?.value, "")} / ${trafficValue(point?.out, "")} B/s`;
+const CHART_CONFIG = {
+	value: { label: "Usage", color: "var(--series-0)" },
+	out: { label: "Out", color: "var(--series-2)" },
+};
 
 export function Infrastructure({ trace, selected }: { trace: TraceSummary; selected: TraceSpan }) {
 	const timePref = useTimePreferences();
-	const { workspaceId, resourceById } = useObs();
+	const { workspaceId } = useObs();
 	const { active } = useEnvironments();
 	const transport = useTransport();
-	const replicas = [
-		...new Map(
-			trace.spans
-				.filter((s) => s.resourceAttributes["k8s.pod.name"])
-				.map((s) => [`${s.resourceId}:${s.resourceAttributes["k8s.pod.name"] ?? ""}`, s]),
-		).values(),
-	];
-	const [picked, setPicked] = useState<string | null>(null);
-	const span = replicas.find((s) => s.spanId === picked) ?? selected;
-	const pod = span.resourceAttributes["k8s.pod.name"] ?? "";
-	const resource = resourceById.get(span.resourceId);
-	const spec = resource?.raw.spec?.spec;
-	const service =
-		spec?.case === "service" ? spec.value.regions[span.resourceAttributes["loco.region"] ?? ""] : undefined;
+	const [minutes, setMinutes] = useState(10);
+	const [hoverTime, setHoverTime] = useState<number | null>(null);
+	const pod = selected.resourceAttributes["k8s.pod.name"] ?? "";
 	const { start, end } = traceBounds(trace);
-	const from = start - WINDOW_MS;
-	const to = end + WINDOW_MS;
+	const from = start - minutes * 60_000;
+	const to = end + minutes * 60_000;
 	const queries = useQueries({
-		queries: METRICS.map((m) =>
+		queries: METRICS.map((metric) =>
 			metricsQueryOptions(transport, {
 				workspaceId,
 				environmentId: active?.id ?? "",
-				resourceIds: [span.resourceId],
+				resourceIds: [selected.resourceId],
 				spanMs: to - from,
 				endMs: to,
-				metricName: m.metric,
-				attributes: { "k8s.pod.name": pod },
-				region: span.resourceAttributes["loco.region"] ?? "",
-				enabled: pod !== "" && span.resourceId !== "",
+				metricName: metric.metric,
+				aggregation: metric.aggregation,
+				attributes: { "k8s.pod.name": pod, ...(metric.direction === "" ? {} : { direction: metric.direction }) },
+				region: selected.resourceAttributes["loco.region"] ?? "",
+				enabled: pod !== "" && selected.resourceId !== "",
 			}),
 		),
 	});
-	const podStart = span.resourceAttributes["k8s.pod.start_time"];
-	const started = podStart === undefined ? NaN : Date.parse(podStart);
-	const facts = [
-		["Replica", pod],
-		["Node", span.resourceAttributes["k8s.node.name"] ?? "Not recorded"],
-		[
-			"Uptime",
-			Number.isFinite(started) && started <= start
-				? `Up for ${formatDuration(start - started)} when this ran`
-				: "Not recorded",
+	const cpu = queries[0]?.data,
+		memory = queries[1]?.data,
+		incoming = queries[2]?.data,
+		outgoing = queries[3]?.data;
+	const points = useMemo<InfraPoint[][]>(
+		() => [
+			percentPoints(cpu ?? [], selected.resourceId).map(({ time, pct }) => ({ time, value: pct })),
+			percentPoints(memory ?? [], selected.resourceId).map(({ time, pct }) => ({ time, value: pct })),
+			networkPoints(incoming, outgoing, selected.resourceId),
 		],
+		[cpu, memory, incoming, outgoing, selected.resourceId],
+	);
+	const started = Date.parse(selected.resourceAttributes["k8s.pod.start_time"] ?? "");
+	const uptime = Number.isFinite(started) && started <= start ? formatDuration(start - started) : null;
+	const panels = [
+		{ title: "CPU", indices: [0], color: "var(--series-0)" },
+		{ title: "Memory", indices: [1], color: "var(--series-1)" },
+		{ title: "Network", indices: [2, 3], color: "var(--series-2)" },
 	];
 	return (
-		<section aria-label="Trace infrastructure" className="flex min-w-0 flex-col gap-4 px-5 py-4">
-			{(replicas.length > 1 || (replicas.length > 0 && pod === "")) && (
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={
-							<Button
-								variant="outline"
-								size="sm"
-								aria-label="Choose replica"
-								className="max-w-full self-start truncate"
-							/>
+		<section aria-label="Trace infrastructure" className="flex min-w-0 flex-col gap-3 px-5 py-3">
+			<div className="flex flex-wrap items-center gap-2">
+				<ToggleGroup
+					variant="segmented"
+					aria-label="Infrastructure window"
+					value={[String(minutes)]}
+					onValueChange={(values) => {
+						const next = WINDOWS.find((window) => String(window.value) === values[0]);
+						if (next !== undefined) {
+							setMinutes(next.value);
+							setHoverTime(null);
 						}
-					>
-						{pod || "Choose replica"}
-					</DropdownMenuTrigger>
-					<DropdownMenuContent>
-						{replicas.map((s) => (
-							<DropdownMenuItem
-								key={s.spanId}
-								onClick={() => {
-									setPicked(s.spanId);
-								}}
-							>
-								{traceServiceLabel(s, resourceById.get(s.resourceId)?.name)} · {s.resourceAttributes["k8s.pod.name"]}
-							</DropdownMenuItem>
-						))}
-					</DropdownMenuContent>
-				</DropdownMenu>
-			)}
+					}}
+				>
+					{WINDOWS.map((window) => (
+						<ToggleGroupItem key={window.value} value={String(window.value)}>
+							{window.label}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
+				<span className="ml-auto text-[12px] text-fg3">
+					{uptime === null ? "Uptime not recorded" : `Up ${uptime} when this ran`}
+				</span>
+			</div>
 			{pod === "" ? (
 				<p className="m-0 text-[12px] text-fg3">No replica identity was recorded for this span.</p>
 			) : (
-				<>
-					<dl className="m-0 grid grid-cols-1 gap-x-6 gap-y-2 text-[12px] sm:grid-cols-3">
-						{facts.map(([key, value]) => (
-							<div key={key}>
-								<dt className="text-fg3">{key}</dt>
-								<dd className="m-0 break-all font-mono">{value}</dd>
-							</div>
-						))}
-					</dl>
-					<div className="grid min-w-0 gap-5 sm:grid-cols-2">
-						{METRICS.map((m, i) => {
-							const query = queries[i];
-							const points = (query?.data ?? [])
-								.flatMap((s) => s.points.map((p) => ({ time: tsMs(p.timestamp), value: p.value * 100 })))
-								.toSorted((a, b) => a.time - b.time);
-							const limit = i === 0 ? service?.cpu : service?.memory;
+				<div className="grid min-w-0 gap-5 min-[1180px]:grid-cols-[minmax(0,1fr)_200px]">
+					<div className="grid min-w-0 gap-4 sm:grid-cols-3">
+						{panels.map((panel, index) => {
+							const data = points[index] ?? [];
+							const network = panel.title === "Network";
+							const fmt = (value: number | undefined) =>
+								network ? trafficValue(value, "B/s") : value === undefined ? "—" : formatPercent(value);
+							const current = sampleAt(data, start);
+							const hovered = hoverTime === null ? undefined : sampleAt(data, hoverTime);
+							const peak = data.reduce<number | undefined>(
+								(max, point) =>
+									point.value === undefined ? max : max === undefined ? point.value : Math.max(max, point.value),
+								undefined,
+							);
+							const hot = !network && peak !== undefined && peak > 85;
+							const error = panel.indices.map((i) => queries[i]?.error).find((e) => e !== null && e !== undefined);
+							const loading = panel.indices.some((i) => queries[i]?.isLoading === true);
 							return (
-								<div key={m.title} className="min-w-0">
-									<div className="mb-2 flex items-center gap-2 text-[12px]">
-										<span>{m.title}</span>
-										<span className="ml-auto text-fg3">
-											% of limit{limit !== undefined && limit !== "" ? ` · configured ${limit}` : ""}
-										</span>
+								<section key={panel.title} aria-label={`${panel.title} for ${pod}`} className="min-w-0">
+									<div className="flex min-h-5 items-baseline justify-between gap-2">
+										<h4 className="m-0 text-[12px] font-medium text-fg2">{panel.title}</h4>
+										<output
+											aria-live="off"
+											aria-label={`${panel.title} at trace start`}
+											className="min-w-0 truncate font-mono text-[12px]"
+										>
+											{network ? networkLabel(current) : fmt(current?.value)}
+										</output>
 									</div>
-									{query?.isLoading === true ? (
-										<div role="status" className="flex h-32 items-center justify-center gap-2 text-fg3">
+									<div className={cn("h-4 text-[11px] text-fg3", hot && "text-bad-fg")}>
+										{network ? (
+											<span className="inline-flex items-center gap-1">
+												<i aria-hidden className="w-2 border-t-2" style={{ borderColor: panel.color }} />
+												In{" "}
+												<i
+													aria-hidden
+													className="ml-2 w-2 border-t-2 border-dashed"
+													style={{ borderColor: panel.color }}
+												/>
+												Out
+											</span>
+										) : (
+											`Peak ${fmt(peak)}${hot ? " · High" : ""}`
+										)}
+									</div>
+									<output
+										aria-live="off"
+										aria-label={`${panel.title} at cursor`}
+										className="block h-4 truncate font-mono text-[10px] text-fg2"
+									>
+										{hoverTime === null
+											? ""
+											: `${network ? networkLabel(hovered) : fmt(hovered?.value)} at ${formatHourMinute(hoverTime, timePref)}`}
+									</output>
+									{loading ? (
+										<div role="status" className="flex h-36 items-center justify-center gap-2 text-fg3">
 											<Spinner />
 											Loading metrics…
 										</div>
-									) : query?.error !== null && query?.error !== undefined ? (
-										<p role="alert" className="text-bad-fg">
-											{getErrorMessage(query.error, "Couldn’t load replica metrics")}
+									) : error !== undefined ? (
+										<p role="alert" className="m-0 flex h-36 items-center text-[12px] text-bad-fg">
+											{getErrorMessage(error, "Couldn’t load replica metrics")}
 										</p>
-									) : points.length === 0 ? (
-										<div className="flex h-32 items-center justify-center rounded-md border border-dashed border-line text-[12px] text-fg3">
+									) : data.length === 0 ? (
+										<div className="flex h-36 items-center justify-center rounded-md border border-dashed border-line text-[12px] text-fg3">
 											No metrics in this range
 										</div>
 									) : (
 										<ChartContainer
+											role="group"
+											aria-label={`${panel.title} usage`}
 											config={CHART_CONFIG}
-											className="tv-infra-chart h-36 w-full"
-											aria-label={`${m.title} for ${pod}, ten minutes around trace`}
+											className="tv-infra-chart h-36 w-full aspect-auto"
 										>
-											<ComposedChart data={points} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
+											<ComposedChart
+												data={data}
+												margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+												onMouseMove={(state) => {
+													const time = Number(state.activeLabel);
+													if (Number.isFinite(time)) setHoverTime(time);
+												}}
+												onMouseLeave={() => {
+													setHoverTime(null);
+												}}
+											>
 												<CartesianGrid vertical={false} stroke="var(--line)" />
 												<XAxis
 													dataKey="time"
 													type="number"
 													domain={[from, to]}
 													ticks={timeAxis(from, to, timePref)}
-													tickFormatter={(ms: number) => formatHourMinute(ms, timePref)}
+													tickFormatter={(time: number) => formatHourMinute(time, timePref)}
 													tickLine={false}
 													axisLine={false}
 													minTickGap={30}
 												/>
 												<YAxis
-													domain={[0, "auto"]}
-													tickFormatter={(n: number) => `${String(n)}%`}
+													domain={network ? [0, "auto"] : [0, percentAxis(peak ?? 0).maximum]}
+													tickFormatter={(value: number) => (network ? trafficValue(value, "") : fmt(value))}
 													tickLine={false}
 													axisLine={false}
-													width={44}
+													width={40}
 												/>
 												<ReferenceArea x1={start} x2={end} fill="var(--fg3)" fillOpacity={0.18} />
-												<ReferenceLine
-													ifOverflow="extendDomain"
-													y={100}
-													stroke="var(--fg3)"
-													strokeDasharray="4 4"
-													label={{ value: "limit", fill: "var(--fg3)", fontSize: 10 }}
-												/>
-												<ChartTooltip
-													content={
-														<ChartTooltipContent
-															labelFormatter={(label) => formatHourMinute(Number(label), timePref)}
-															formatter={(value) => `${Number(value).toFixed(1)}%`}
+												{!network && (
+													<ReferenceLine
+														y={100}
+														stroke="var(--err)"
+														label={{ value: "Limit 100%", fill: "var(--err)", fontSize: 9, position: "insideTopLeft" }}
+													/>
+												)}
+												{hoverTime !== null && <ReferenceLine x={hoverTime} stroke="var(--fg3)" />}
+												<ChartTooltip cursor={false} content={() => null} />
+												{network ? (
+													<>
+														<Line
+															dataKey="value"
+															name="In"
+															stroke={panel.color}
+															dot={false}
+															isAnimationActive={false}
 														/>
-													}
-												/>
-												<Area
-													type="monotone"
-													dataKey="value"
-													stroke="var(--series-0)"
-													fill="var(--series-0)"
-													fillOpacity={0.12}
-													isAnimationActive={false}
-												/>
+														<Line
+															dataKey="out"
+															name="Out"
+															stroke={panel.color}
+															strokeDasharray="4 3"
+															dot={false}
+															isAnimationActive={false}
+														/>
+													</>
+												) : (
+													<Area
+														type="monotone"
+														dataKey="value"
+														stroke={panel.color}
+														fill={panel.color}
+														fillOpacity={0.1}
+														isAnimationActive={false}
+													/>
+												)}
 											</ComposedChart>
 										</ChartContainer>
 									)}
-								</div>
+								</section>
 							);
 						})}
 					</div>
-					<div className="flex items-center gap-2 text-[12px] text-fg3">
+					<section
+						aria-label={`Events on ${pod}`}
+						className="min-w-0 border-line min-[1180px]:border-l min-[1180px]:pl-5"
+					>
+						<h4 className="m-0 mb-2 break-all text-[12px] font-medium text-fg2">Events on {pod}</h4>
 						<Button variant="ghost" size="sm" disabled>
-							Replica events, ±10 min <SoonTag />
+							Replica events <SoonTag />
 						</Button>
-					</div>
-				</>
+					</section>
+				</div>
 			)}
 		</section>
 	);

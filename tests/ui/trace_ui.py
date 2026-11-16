@@ -484,6 +484,9 @@ with session(out) as browser:
         row['resourceId'] = workspace_id
         row['resourceAttributes'].update({'k8s.pod.name': 'checkout-abc-123', 'k8s.node.name': 'worker-1', 'k8s.pod.start_time': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(start - 3600)), 'loco.region': 'us-east-1'})
     spans[6]['resourceAttributes'].pop('k8s.pod.name')
+    spans[5]['resourceAttributes']['k8s.pod.name'] = 'catalog-def-456'
+    context.route('**/loco.resource.v1.ResourceService/ListWorkspaceResources', lambda route: route.fulfill(json={'resources': [{'id': workspace_id, 'workspaceId': workspace_id, 'name': 'checkout', 'type': 'RESOURCE_TYPE_SERVICE', 'spec': {'service': {'regions': {'us-east-1': {'enabled': True, 'cpu': '500m', 'memory': '512Mi'}}}}}]}))
+
     context.route('**/loco.observability.v1.ObservabilityService/*Trace*', handle)
     log_entries = [
         {'timestamp':stamp(0.000456), 'severity':'INFO','body':'Trace started','resourceId':workspace_id,'traceId':trace,'spanId':spans[0]['spanId']},
@@ -496,9 +499,19 @@ with session(out) as browser:
         route.fulfill(json={'entries':log_entries,'totalMatched':str(len(log_entries))})
     context.route('**/loco.observability.v1.ObservabilityService/QueryLogs', trace_logs)
     metric_requests = []
+    metric_mode = ['normal']
     def metrics(route):
-        metric_requests.append(route.request.post_data_json)
-        route.fulfill(json={'series':[{'resourceId':workspace_id,'points':[{'timestamp':stamp(0),'value':0.3},{'timestamp':stamp(200),'value':0.5}]}]})
+        body = route.request.post_data_json
+        metric_requests.append(body)
+        if metric_mode[0] == 'error':
+            route.fulfill(status=500, json={'code': 'internal', 'message': 'Replica metrics unavailable'})
+            return
+        if metric_mode[0] == 'empty':
+            route.fulfill(json={'series': []})
+            return
+        values = [0.3, 0.92, 0.45] if body['metricName'] == 'k8s.pod.cpu_limit_utilization' else [0.4, 0.6, 0.5] if body['metricName'] == 'k8s.pod.memory_limit_utilization' else [1024, 2048, 512] if body['attributes'].get('direction') == 'receive' else [512, 1024, 256]
+        points = [{'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(start + offset)), 'value': value} for offset, value in zip((-60, 60, 120), values)]
+        route.fulfill(json={'series': [{'resourceId': workspace_id, 'points': points}]})
     context.route('**/loco.observability.v1.ObservabilityService/QueryMetrics', metrics)
     page.mouse.move(0, 0)
     page.goto(state['ui_url'] + base + '&trace=' + trace)
@@ -545,15 +558,58 @@ with session(out) as browser:
     expect(drawer.get_by_role('tabpanel', name='Infrastructure', exact=True)).to_be_visible()
     infrastructure = drawer.get_by_role('region', name='Trace infrastructure')
     expect(infrastructure.get_by_text('No replica identity was recorded for this span.', exact=True)).to_be_visible()
-    infrastructure.get_by_role('button', name='Choose replica', exact=True).click()
-    page.get_by_role('menuitem').first.click()
-    expect(infrastructure.get_by_text('worker-1', exact=True)).to_be_visible()
-    expect(infrastructure.get_by_text(re.compile('Up for .* when this ran'))).to_be_visible()
+    drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=failing).click()
+    expect(infrastructure.get_by_text(re.compile('Up .* when this ran'))).to_be_visible()
+    expect(infrastructure.get_by_role('region', name='Events on checkout-abc-123', exact=True)).to_be_visible()
     expect(infrastructure.get_by_role('button', name=re.compile('Replica events'))).to_be_disabled()
-    expect(infrastructure.get_by_label('CPU for checkout-abc-123, ten minutes around trace')).to_be_visible()
-    expect(infrastructure.get_by_label('Memory for checkout-abc-123, ten minutes around trace')).to_be_visible()
-    assert len(metric_requests) == 2
-    assert all(request['attributes'] == {'k8s.pod.name':'checkout-abc-123'} for request in metric_requests)
+    cpu = infrastructure.get_by_role('region', name='CPU for checkout-abc-123', exact=True)
+    memory = infrastructure.get_by_role('region', name='Memory for checkout-abc-123', exact=True)
+    network = infrastructure.get_by_role('region', name='Network for checkout-abc-123', exact=True)
+    for chart, title in ((cpu, 'CPU'), (memory, 'Memory'), (network, 'Network')):
+        expect(chart.get_by_role('group', name=title + ' usage', exact=True)).to_be_visible()
+    expect(cpu.get_by_label('CPU at trace start')).to_have_text('30%')
+    expect(cpu.get_by_text('Peak 92% · High', exact=True)).to_be_visible()
+    expect(memory.get_by_label('Memory at trace start')).to_have_text('40%')
+    expect(memory.get_by_text('Peak 60%', exact=True)).to_be_visible()
+    expect(cpu.get_by_text('Limit 100%', exact=True)).to_be_visible()
+    assert len(metric_requests) == 4, metric_requests
+    assert all(request['resourceIds'] == [workspace_id] and request['attributes']['k8s.pod.name'] == 'checkout-abc-123' for request in metric_requests)
+    assert {request['metricName'] for request in metric_requests} == {'k8s.pod.cpu_limit_utilization', 'k8s.pod.memory_limit_utilization', 'k8s.pod.network.io'}
+    network_requests = [request for request in metric_requests if request['metricName'] == 'k8s.pod.network.io']
+    assert {request['attributes']['direction'] for request in network_requests} == {'receive', 'transmit'}
+    assert all(request['aggregation'] == 'rate' for request in network_requests)
+    grid = cpu.locator('.recharts-cartesian-grid').bounding_box()
+    page.mouse.move(grid['x'] + grid['width'] * 0.55, grid['y'] + grid['height'] / 2, steps=3)
+    expect(cpu.get_by_label('CPU at cursor')).to_contain_text('92% at ')
+    expect(memory.get_by_label('Memory at cursor')).to_contain_text('60% at ')
+    expect(network.get_by_label('Network at cursor')).to_contain_text(' B/s at ')
+    cursor_times = [chart.get_by_label(title + ' at cursor').inner_text().split(' at ')[-1] for chart, title in ((cpu, 'CPU'), (memory, 'Memory'), (network, 'Network'))]
+    assert len(set(cursor_times)) == 1, cursor_times
+    window = infrastructure.get_by_role('group', name='Infrastructure window')
+    expect(window.get_by_role('button', name='±10m', exact=True)).to_have_attribute('aria-pressed', 'true')
+    window.get_by_role('button', name='±1h', exact=True).click()
+    expect(network.get_by_role('group', name='Network usage', exact=True)).to_be_visible()
+    assert len(metric_requests) == 8, metric_requests
+    assert all(7200 <= iso_seconds(request['endTime']) - iso_seconds(request['startTime']) <= 7201 for request in metric_requests[4:])
+    drawer.get_by_role('region', name='Flame graph').get_by_role('button', name=re.compile('^product-catalog GetProduct')).click()
+    expect(infrastructure.get_by_role('region', name='Events on catalog-def-456', exact=True)).to_be_visible()
+    expect(window.get_by_role('button', name='±1h', exact=True)).to_have_attribute('aria-pressed', 'true')
+    expect(infrastructure.get_by_role('group', name='Network usage', exact=True)).to_be_visible()
+    assert len(metric_requests) == 12, metric_requests
+    assert all(request['attributes']['k8s.pod.name'] == 'catalog-def-456' for request in metric_requests[8:])
+    page.set_viewport_size({'width': 390, 'height': 844})
+    infrastructure.get_by_role('region', name='Network for catalog-def-456', exact=True).scroll_into_view_if_needed()
+    assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+    page.set_viewport_size({'width': 1280, 'height': 800})
+    metric_mode[0] = 'empty'
+    window.get_by_role('button', name='±5m', exact=True).click()
+    expect(infrastructure.get_by_text('No metrics in this range', exact=True)).to_have_count(3)
+    metric_mode[0] = 'error'
+    window.get_by_role('button', name='±30m', exact=True).click()
+    expect(infrastructure.get_by_role('alert').first).to_contain_text('Replica metrics unavailable', timeout=20000)
+    metric_mode[0] = 'normal'
+    window.get_by_role('button', name='±10m', exact=True).click()
+    expect(infrastructure.get_by_role('group', name='Network usage', exact=True)).to_be_visible()
     drawer.get_by_role('tab', name=re.compile('^Logs ')).click()
     assert len(log_requests) == 1, log_requests
     marker.click()
