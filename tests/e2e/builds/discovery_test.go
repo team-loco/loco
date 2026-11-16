@@ -18,10 +18,11 @@ import (
 )
 
 const (
-	aliasTimeout = time.Minute
-	cartName     = "cart"
-	callerName   = "caller"
-	workspaceOne = "workspace-one"
+	aliasTimeout         = time.Minute
+	discoveryDumpTimeout = time.Minute
+	cartName             = "cart"
+	callerName           = "caller"
+	workspaceOne         = "workspace-one"
 )
 
 // TestDiscovery deploys private HTTP and TCP services and checks how other apps reach them: by
@@ -183,8 +184,7 @@ func workspaceBuilds(t *testing.T, w *platform.Workspace) int {
 	return count
 }
 
-// dumpDiscovery logs what decides private service discovery in a namespace: its Services,
-// EndpointSlices, network policies and pods, and CoreDNS.
+// dumpDiscovery preserves routing and workload diagnostics before failure cleanup removes them.
 func dumpDiscovery(t *testing.T, namespace string) {
 	t.Helper()
 	p.LogKubectl(t,
@@ -197,6 +197,15 @@ func dumpDiscovery(t *testing.T, namespace string) {
 		"-n kube-system get pods -l k8s-app=kube-dns -o wide",
 		"-n kube-system logs -l k8s-app=kube-dns --all-containers --prefix --tail=100",
 	)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), discoveryDumpTimeout)
+	defer cancel()
+	out, err := p.Kubectl(ctx, "-n", namespace, "get", "secret", "loco-registry-pull",
+		"-o=custom-columns=NAME:.metadata.name,UID:.metadata.uid,CREATED:.metadata.creationTimestamp,"+
+			"DELETING:.metadata.deletionTimestamp,TYPE:.type,RESOURCEVERSION:.metadata.resourceVersion")
+	t.Logf("registry pull secret metadata:\n%s%v", out, err)
+	out, err = p.Command(ctx, "docker", "exec", p.Node(), "journalctl", "-u", "kubelet",
+		"--since=-5min", "--no-pager", "--output=short-iso-precise", "--lines=200", "--grep="+namespace)
+	t.Logf("workspace kubelet messages:\n%s%v", out, err)
 }
 
 // discovery is the workspace TestDiscovery deploys into.
