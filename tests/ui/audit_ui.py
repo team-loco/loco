@@ -138,6 +138,32 @@ with session(out) as browser:
     assert rejected.value.status == 400, rejected.value.status
     expect(page.get_by_role("alert")).to_contain_text("@type does not compare numbers")
     expect(rows).to_have_count(0)
+    expect(search).to_have_attribute("placeholder", "Search, or @type:deployment.* @actor:name")
+    expect(search).to_have_attribute("aria-invalid", "true")
+    expect(search).to_have_attribute("aria-describedby", "audit-query-error")
+    panel = page.locator("#audit-query-error")
+    expect(panel.locator("mark")).to_have_text("@type:>1")
+    expect(panel.get_by_role("button")).to_have_count(5)
+    for field in ("@actor:", "@actor_type:", "@target:", "@type:", "@request:"):
+        expect(panel.get_by_role("button", name=re.compile(re.escape(field)))).to_be_visible()
+    expect(page.get_by_text("Fix the search to see events.", exact=True)).to_be_visible()
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@actor:"):
+        panel.get_by_role("button", name=re.compile(r"^@actor:")).click()
+    expect(search).to_be_focused()
+    expect(search).to_have_value("@actor:")
+    assert search.evaluate("node => node.selectionStart") == len("@actor:")
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@actor:" + users["owner"]["id"]):
+        search.press_sequentially(users["owner"]["id"])
+    expect(search).to_have_attribute("aria-invalid", "false")
+    expect(panel).to_have_count(0)
+    expect(rows).to_have_count(50)
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@wrong:value"):
+        search.fill("@wrong:value")
+    expect(panel.locator("mark")).to_have_text("@wrong:value")
+    page.set_viewport_size(evidence.NARROW)
+    expect(panel.get_by_role("button", name=re.compile(r"^@request:"))).to_be_visible()
+    page.set_viewport_size(evidence.DESKTOP)
+
     with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == request_id) as searched:
         search.fill(request_id)
     assert not searched.value.request.post_data_json.get("beforeSeq")
