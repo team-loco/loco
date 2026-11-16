@@ -91,7 +91,7 @@ const GROUPS: readonly { label: string; subjects: readonly string[] }[] = [
 	{ label: "Resources", subjects: ["resource"] },
 	{ label: "Domains", subjects: ["domain"] },
 	{ label: "Environments", subjects: ["environment"] },
-	{ label: "Secrets", subjects: ["secret"] },
+	{ label: "Secrets", subjects: ["secret", "secret_key"] },
 	{ label: "Members", subjects: ["member"] },
 	{ label: "Tokens", subjects: ["token"] },
 	{ label: "Workspace", subjects: ["workspace", "webhook"] },
@@ -113,6 +113,6 @@ export function groupCountLabel(selected: number, total: number): string {
 export function webhookEventGroups(types: readonly string[] = AUDIT_EVENT_TYPES): EventGroup[] {
 	return GROUPS.map((g) => ({
 		label: g.label,
-		types: types.filter((t) => g.subjects.includes(subjectOf(t))),
+		types: types.filter((t) => t !== "webhook.test" && g.subjects.includes(subjectOf(t))),
 	})).filter((g) => g.types.length > 0);
 }
