@@ -180,7 +180,10 @@ func (q *Queries) ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMemb
 }
 
 const listOrgsForUser = `-- name: ListOrgsForUser :many
-SELECT o.id, o.name, o.created_by, o.suspended_at, o.suspension_reason, o.created_at, o.updated_at
+SELECT o.id, o.name, o.created_by, o.suspended_at, o.suspension_reason, o.created_at, o.updated_at,
+  (SELECT COUNT(*) FROM workspaces w WHERE w.org_id = o.id) AS workspace_count,
+  (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
+   WHERE us.entity_type = 'organization' AND us.entity_id = o.id) AS member_count
 FROM organizations o
 WHERE EXISTS (
     SELECT 1 FROM user_scopes us
@@ -204,7 +207,13 @@ type ListOrgsForUserParams struct {
 	PageCreatedAt *time.Time `json:"pageCreatedAt"`
 }
 
-func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error) {
+type ListOrgsForUserRow struct {
+	Organization   Organization `json:"organization"`
+	WorkspaceCount int64        `json:"workspaceCount"`
+	MemberCount    int64        `json:"memberCount"`
+}
+
+func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]ListOrgsForUserRow, error) {
 	rows, err := q.db.Query(ctx, listOrgsForUser,
 		arg.UserID,
 		arg.Limit,
@@ -215,17 +224,19 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Organization
+	var items []ListOrgsForUserRow
 	for rows.Next() {
-		var i Organization
+		var i ListOrgsForUserRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedBy,
-			&i.SuspendedAt,
-			&i.SuspensionReason,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.Organization.ID,
+			&i.Organization.Name,
+			&i.Organization.CreatedBy,
+			&i.Organization.SuspendedAt,
+			&i.Organization.SuspensionReason,
+			&i.Organization.CreatedAt,
+			&i.Organization.UpdatedAt,
+			&i.WorkspaceCount,
+			&i.MemberCount,
 		); err != nil {
 			return nil, err
 		}

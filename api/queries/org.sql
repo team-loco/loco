@@ -7,7 +7,10 @@ RETURNING *;
 SELECT * FROM organizations WHERE id = $1;
 
 -- name: ListOrgsForUser :many
-SELECT o.*
+SELECT sqlc.embed(o),
+  (SELECT COUNT(*) FROM workspaces w WHERE w.org_id = o.id) AS workspace_count,
+  (SELECT COUNT(DISTINCT us.user_id) FROM user_scopes us
+   WHERE us.entity_type = 'organization' AND us.entity_id = o.id) AS member_count
 FROM organizations o
 WHERE EXISTS (
     SELECT 1 FROM user_scopes us

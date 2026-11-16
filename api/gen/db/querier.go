@@ -191,7 +191,7 @@ type Querier interface {
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
 	ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error)
 	ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error)
-	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]Organization, error)
+	ListOrgsForUser(ctx context.Context, arg ListOrgsForUserParams) ([]ListOrgsForUserRow, error)
 	ListPendingPlacements(ctx context.Context, clusterID uuid.UUID) ([]ListPendingPlacementsRow, error)
 	ListPlacementSecretSizes(ctx context.Context, arg ListPlacementSecretSizesParams) ([]ListPlacementSecretSizesRow, error)
 	ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByIDsParams) ([]ListPlacementsByIDsRow, error)
