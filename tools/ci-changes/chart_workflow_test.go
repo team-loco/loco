@@ -12,6 +12,8 @@ import (
 )
 
 func TestChartLintKeepsTheEventBaseAfterMainAdvances(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", "/dev/null")
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
 	type step struct {
 		ID  string            `yaml:"id"`
 		Run string            `yaml:"run"`
@@ -60,40 +62,19 @@ func TestChartLintKeepsTheEventBaseAfterMainAdvances(t *testing.T) {
 		{name: "unchanged version", advanced: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			git := func(args ...string) string {
-				t.Helper()
-				cmd := exec.CommandContext(t.Context(), "git", args...)
-				cmd.Dir = dir
-				cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
-					"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.test",
-					"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.test")
-				out, err := cmd.CombinedOutput()
-				require.NoError(t, err, string(out))
-				return strings.TrimSpace(string(out))
-			}
-			git("init", "--initial-branch=main")
-			require.NoError(t, os.MkdirAll(filepath.Join(dir, "charts/app"), 0o700))
-			require.NoError(t, os.WriteFile(filepath.Join(dir, chartPath), []byte(baseChart), 0o600))
-			git("add", "charts")
-			git("commit", "-m", "base")
-			base := git("rev-parse", "HEAD")
+			r := &repo{t: t, dir: t.TempDir()}
+			r.git("init", "--initial-branch=main")
+			base := r.write(chartPath, baseChart)
 			if tc.bumped {
-				require.NoError(t, os.WriteFile(filepath.Join(dir, chartPath),
-					[]byte("name: app\nversion: 1.0.1\n"), 0o600))
+				r.write(chartPath, "name: app\nversion: 1.0.1\n")
 			}
-			require.NoError(
-				t,
-				os.WriteFile(filepath.Join(dir, "charts/app/values.yaml"), []byte("enabled: true\n"), 0o600),
-			)
-			git("add", "charts")
-			git("commit", "-m", "change")
+			head := r.write("charts/app/values.yaml", "enabled: true\n")
 			target := base
 			if tc.advanced {
-				target = git("rev-parse", "HEAD")
+				target = head
 			}
-			git("update-ref", "refs/remotes/"+comparison, target)
-			bin := filepath.Join(dir, "bin")
+			r.git("update-ref", "refs/remotes/"+comparison, target)
+			bin := filepath.Join(r.dir, "bin")
 			require.NoError(t, os.Mkdir(bin, 0o700))
 			// ct reads the old Chart.yaml from remote/target-branch even when --since is set.
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "mise"), []byte(`#!/bin/sh
@@ -102,7 +83,7 @@ git show "$CHART_TEST_COMPARISON:charts/app/Chart.yaml" > before.yaml
 ! cmp -s before.yaml charts/app/Chart.yaml
 `), 0o700))
 			cmd := exec.CommandContext(t.Context(), "bash", "-e", "-o", "pipefail", "-c", lint.Run)
-			cmd.Dir = dir
+			cmd.Dir = r.dir
 			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 				"CHARTS_BASE_SHA="+base, "CHART_TEST_COMPARISON="+comparison)
 			out, err := cmd.CombinedOutput()
@@ -111,11 +92,11 @@ git show "$CHART_TEST_COMPARISON:charts/app/Chart.yaml" > before.yaml
 			} else {
 				require.Error(t, err, "a chart change without a version increment must still fail")
 			}
-			before, readErr := os.ReadFile(filepath.Join(dir, "before.yaml"))
+			before, readErr := os.ReadFile(filepath.Join(r.dir, "before.yaml"))
 			require.NoError(t, readErr)
 			assert.Equal(t, baseChart, string(before))
-			assert.Equal(t, base, git("rev-parse", comparison))
-			assert.Contains(t, git("diff", "--name-only", comparison, "HEAD"), "charts/app/values.yaml")
+			assert.Equal(t, base, r.git("rev-parse", comparison))
+			assert.Contains(t, r.git("diff", "--name-only", comparison, "HEAD"), "charts/app/values.yaml")
 		})
 	}
 }
