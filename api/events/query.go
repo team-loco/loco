@@ -37,39 +37,23 @@ var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 // ValidateQuery rejects fields an audit query does not have and number comparisons, which no audit
 // field holds.
 func ValidateQuery(expr logquery.Expr) error {
-	switch expr := expr.(type) {
-	case logquery.And:
-		return validateQueries(expr.Terms)
-	case logquery.Or:
-		return validateQueries(expr.Terms)
-	case logquery.Not:
-		return ValidateQuery(expr.Term)
-	case logquery.Field:
-		if !queryFields[expr.Key] {
+	return logquery.CheckFields(expr, func(field logquery.Field) error {
+		if !queryFields[field.Key] {
 			return &logquery.SyntaxError{
-				Position: expr.Position,
+				Position: field.Position,
 				Message: fmt.Sprintf(
-					"unknown field @%s; use @actor, @actor_type, @target, @type or @request", expr.Key,
+					"unknown field @%s; use @actor, @actor_type, @target, @type or @request", field.Key,
 				),
 			}
 		}
-		if expr.Match != logquery.Equal && expr.Match != logquery.Prefix {
+		if field.Match != logquery.Equal && field.Match != logquery.Prefix {
 			return &logquery.SyntaxError{
-				Position: expr.Position,
-				Message:  fmt.Sprintf("@%s does not compare numbers", expr.Key),
+				Position: field.Position,
+				Message:  fmt.Sprintf("@%s does not compare numbers", field.Key),
 			}
 		}
-	}
-	return nil
-}
-
-func validateQueries(terms []logquery.Expr) error {
-	for _, term := range terms {
-		if err := ValidateQuery(term); err != nil {
-			return err
-		}
-	}
-	return nil
+		return nil
+	})
 }
 
 // binder collects the arguments of a query and names each by its $n placeholder.

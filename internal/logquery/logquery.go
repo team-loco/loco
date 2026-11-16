@@ -83,6 +83,27 @@ func Uses(expr Expr, key string) bool {
 	return false
 }
 
+// CheckFields returns the first error check reports for a field of expr.
+func CheckFields(expr Expr, check func(Field) error) error {
+	var terms []Expr
+	switch expr := expr.(type) {
+	case And:
+		terms = expr.Terms
+	case Or:
+		terms = expr.Terms
+	case Not:
+		terms = []Expr{expr.Term}
+	case Field:
+		return check(expr)
+	}
+	for _, term := range terms {
+		if err := CheckFields(term, check); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // SyntaxError is a query the parser rejects; Position counts characters from 1.
 type SyntaxError struct {
 	Position int
