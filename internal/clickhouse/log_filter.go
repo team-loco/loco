@@ -50,7 +50,7 @@ const (
 // ValidateLogFilter rejects fields a log query cannot use: the loco. attributes Loco sets, apart
 // from loco.io/ labels, and number comparisons on the log fields.
 func ValidateLogFilter(expr logquery.Expr) error {
-	return validateFields(expr, func(field logquery.Field) error {
+	return logquery.CheckFields(expr, func(field logquery.Field) error {
 		if err := rejectReserved(field, "use @resource or @region"); err != nil {
 			return err
 		}
@@ -59,27 +59,6 @@ func ValidateLogFilter(expr logquery.Expr) error {
 		}
 		return nil
 	})
-}
-
-// validateFields returns the first error check reports for a field of expr.
-func validateFields(expr logquery.Expr, check func(logquery.Field) error) error {
-	var terms []logquery.Expr
-	switch expr := expr.(type) {
-	case logquery.And:
-		terms = expr.Terms
-	case logquery.Or:
-		terms = expr.Terms
-	case logquery.Not:
-		terms = []logquery.Expr{expr.Term}
-	case logquery.Field:
-		return check(expr)
-	}
-	for _, term := range terms {
-		if err := validateFields(term, check); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func rejectReserved(field logquery.Field, hint string) error {

@@ -38,7 +38,7 @@ type TraceFilter struct {
 // from loco.io/ labels, a @status other than ok or error, a @duration without a number comparison,
 // and number comparisons on @trace and @resource.
 func ValidateTraceFilter(expr logquery.Expr) error {
-	return validateFields(expr, func(field logquery.Field) error {
+	return logquery.CheckFields(expr, func(field logquery.Field) error {
 		if err := rejectReserved(field, "use @resource"); err != nil {
 			return err
 		}
