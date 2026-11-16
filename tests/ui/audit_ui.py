@@ -124,6 +124,14 @@ with session(out) as browser:
     with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "INVENTORY"):
         search.fill("INVENTORY")
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
+    # Typing sends only the query the typing pauses on, so a half-typed field neither reads nor fails.
+    typed_from = len(list_events(calls))
+    search.press("ControlOrMeta+a")
+    with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@type:secret.set"):
+        search.press_sequentially("@type:secret.set", delay=20)
+    typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
+    assert typed == ["@type:secret.set"], typed
+    expect(page.get_by_role("alert")).to_have_count(0)
     with page.expect_response(lambda response: response.url.endswith("/ListEvents") and response.request.post_data_json.get("query") == "@type:>1") as rejected:
         search.fill("@type:>1")
     assert rejected.value.status == 400, rejected.value.status

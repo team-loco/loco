@@ -11,7 +11,7 @@ import {
 	PlayIcon,
 	PauseIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	createParser,
 	parseAsArrayOf,
@@ -54,6 +54,8 @@ import { useWorkspaceDetails } from "./audit/useWorkspaceDetails";
 import { AUDIT_EVENT_TYPES, type AuditUser } from "./settings/auditEvents";
 
 const NOW_TICK_MS = 60_000;
+// Typing commits the search after this pause, so a half-typed query sends no request.
+const SEARCH_DEBOUNCE_MS = 300;
 
 const sequenceParser = createParser<bigint>({
 	parse: (value) =>
@@ -101,7 +103,20 @@ export function Audit() {
 	const filterKey = JSON.stringify([orgId, range.value, types, workspaceId, resourceId, environmentId, size, sent]);
 	const stack = params.before;
 	const live = params.live === 1 && stack.length === 0;
+	// The search box shows draft while a typed search waits to commit to the q parameter.
+	const [draft, setDraft] = useState<string | null>(null);
+	const pendingSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+	useEffect(
+		() => () => {
+			clearTimeout(pendingSearchRef.current);
+		},
+		[],
+	);
 	const setFilters = (next: Partial<{ [K in keyof typeof params]: (typeof params)[K] | null }>) => {
+		if ("q" in next) {
+			clearTimeout(pendingSearchRef.current);
+			setDraft(null);
+		}
 		void setParams({ ...next, before: null });
 	};
 	const query = useQuery(
@@ -237,9 +252,14 @@ export function Audit() {
 							onClear={() => {
 								setFilters({ q: null, event: null });
 							}}
-							value={search}
+							value={draft ?? search}
 							onChange={(event) => {
-								setFilters({ q: event.target.value, event: null });
+								const text = event.target.value;
+								setDraft(text);
+								clearTimeout(pendingSearchRef.current);
+								pendingSearchRef.current = setTimeout(() => {
+									setFilters({ q: text, event: null });
+								}, SEARCH_DEBOUNCE_MS);
 							}}
 						/>
 					}
