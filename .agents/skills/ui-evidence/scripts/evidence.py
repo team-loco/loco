@@ -129,14 +129,20 @@ def discovery_document(issuer):
 
 
 def compose(worktree, project, env, *args, capture=False):
-    files = ["-f", str(worktree / "dev" / "compose.yaml")]
+    files = ["-f", str(worktree / "dev" / "compose.yaml"),
+             "-f", str(Path(__file__).resolve().parents[4] / "dev" / "compose.subnet.yaml")]
     return run(["docker", "compose", *files, "-p", project, *args], env=env, capture=capture)
 
 
-def start_openbao(worktree, project, env):
+def openbao_env(worktree, env):
     values = worktree / "charts" / "loco-control-plane" / "values.yaml"
     image = run(["mise", "exec", "--", "yq", ".openbao.image", str(values)], capture=True).strip()
-    compose_env = dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
+    return dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
+
+
+def start_openbao(worktree, project, env):
+    compose_env = openbao_env(worktree, env)
+    image = compose_env["OPENBAO_IMAGE"]
     run(["mise", "exec", "--", "go", "run", "./tools/pullimage", image], cwd=worktree, env=env)
     try:
         compose(worktree, project, compose_env, "up", "-d", "--wait", "--pull", "never", OPENBAO_SERVICE)
@@ -157,12 +163,13 @@ def start_openbao(worktree, project, env):
             except EvidenceError as error:
                 log(str(error))
         finally:
-            stop_compose(project)
+            stop_compose(project, worktree)
         raise
 
 
-def stop_compose(project):
-    subprocess.run(["docker", "compose", "-p", project, "down", "-v", "--remove-orphans"], capture_output=True)
+def stop_compose(project, worktree=None):
+    worktree = Path(worktree) if worktree else repo_root()
+    compose(worktree, project, openbao_env(worktree, dict(os.environ)), "down", "-v", "--remove-orphans")
 
 
 def compose_postgres_image(compose_text):
@@ -525,6 +532,10 @@ def cmd_openbao(args):
     print(start_openbao(repo_root(), args.project, dict(os.environ)))
 
 
+def cmd_stop_openbao(args):
+    stop_compose(args.project)
+
+
 def check_ref_worktree(repo, ref):
     commit = run(["git", "rev-parse", f"{ref}^{{commit}}"], cwd=repo, capture=True).strip()
     head = run(["git", "rev-parse", "HEAD"], cwd=repo, capture=True).strip()
@@ -618,6 +629,10 @@ def cmd_up(args):
 
         env = dict(os.environ)
         if not openbao:
+            state["compose"] = f"{LABEL}-{run_id}"
+            write_json(state_path, state)
+            run(["mise", "trust", "--quiet", str(worktree / "mise.toml")])
+            openbao = start_openbao(worktree, state["compose"], env)
             build(worktree, env)
         dist = worktree / "web" / "dist"
 
@@ -636,10 +651,6 @@ def cmd_up(args):
         wait_postgres(container)
 
         dev_env = read_api_env((worktree / "dev" / "api.env").read_text())
-        if not openbao:
-            state["compose"] = container
-            write_json(state_path, state)
-            openbao = start_openbao(worktree, container, env)
         dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = openbao
         api_log = root / "api.log"
         api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
@@ -899,7 +910,7 @@ def stop_state(state):
     if state.get("container"):
         subprocess.run(["docker", "rm", "-f", "-v", state["container"]], capture_output=True)
     if state.get("compose"):
-        stop_compose(state["compose"])
+        stop_compose(state["compose"], state.get("worktree"))
     worktree = state.get("worktree")
     if worktree and Path(worktree).exists():
         repo = run(["git", "-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"], capture=True)
@@ -959,6 +970,9 @@ def main():
     bao = sub.add_parser("openbao", help=f"start one seeded OpenBao for ${OPENBAO_ENV} and print its address")
     bao.add_argument("--project", required=True)
     bao.set_defaults(func=cmd_openbao)
+    stop_bao = sub.add_parser("stop-openbao", help="remove a seeded OpenBao project and its volumes and network")
+    stop_bao.add_argument("--project", required=True)
+    stop_bao.set_defaults(func=cmd_stop_openbao)
     args = parser.parse_args()
     try:
         args.func(args)

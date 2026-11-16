@@ -1,0 +1,5 @@
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${LOCO_TEST_SUBNET:-}

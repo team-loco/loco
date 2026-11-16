@@ -78,6 +78,7 @@ func (p *Platform) compose(ctx context.Context, args ...string) (string, error) 
 	files := []string{
 		"compose",
 		"-f", filepath.Join(p.root, "dev", "compose.yaml"),
+		"-f", filepath.Join(p.root, "dev", "compose.subnet.yaml"),
 		"-f", filepath.Join(p.root, "tests", "e2e", "compose.kind.yaml"),
 	}
 	if p.RegistryToken {
