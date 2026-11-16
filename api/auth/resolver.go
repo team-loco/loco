@@ -313,6 +313,11 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 		return genDb.User{}, nil, ErrEmailUnverified
 	}
 
+	policyErr := r.policy.Check()
+	if policyErr != nil && !r.systemAdmins.lists(id.Email) {
+		return genDb.User{}, nil, policyErr
+	}
+
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return genDb.User{}, nil, fmt.Errorf("%w: begin transaction: %w", ErrResolve, err)
@@ -336,10 +341,6 @@ func (r *Resolver) provision(ctx context.Context, id Identity) (genDb.User, []Cl
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return genDb.User{}, nil, fmt.Errorf("%w: look up user by email: %w", ErrResolve, err)
-	}
-	policyErr := r.policy.Check()
-	if policyErr != nil && !r.systemAdmins.lists(id.Email) {
-		return genDb.User{}, nil, policyErr
 	}
 	user, err := createUser(ctx, qtx, id)
 	if err != nil {

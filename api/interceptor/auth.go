@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/api/tvm"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	"github.com/team-loco/loco/internal/bearer"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var (
@@ -110,7 +109,7 @@ func (i *authInterceptor) authenticateProviderToken(
 	if err != nil {
 		if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
 			slog.InfoContext(ctx, "sign-in rejected", "issuer", identity.Issuer, "reason", rejected.Message)
-			return nil, rpcerr.New(connect.CodePermissionDenied, rejected)
+			return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 		}
 		slog.ErrorContext(ctx, "failed to resolve identity", "issuer", identity.Issuer, "error", err)
 		return nil, connect.NewError(connect.CodeInternal, auth.ErrResolve.Error()).WithCause(err)
