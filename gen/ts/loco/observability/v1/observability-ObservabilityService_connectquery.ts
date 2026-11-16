@@ -37,6 +37,11 @@ export const listTraces = ObservabilityService.method.listTraces;
 export const queryTraceBuckets = ObservabilityService.method.queryTraceBuckets;
 
 /**
+ * @generated from rpc loco.observability.v1.ObservabilityService.QueryServiceGraph
+ */
+export const queryServiceGraph = ObservabilityService.method.queryServiceGraph;
+
+/**
  * @generated from rpc loco.observability.v1.ObservabilityService.GetTrace
  */
 export const getTrace = ObservabilityService.method.getTrace;

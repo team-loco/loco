@@ -3458,6 +3458,67 @@
         }
       }
     },
+    "/loco.observability.v1.ObservabilityService/QueryServiceGraph": {
+      "post": {
+        "tags": [
+          "loco.observability.v1.ObservabilityService"
+        ],
+        "summary": "QueryServiceGraph",
+        "operationId": "loco.observability.v1.ObservabilityService.QueryServiceGraph",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.observability.v1.QueryServiceGraphRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.observability.v1.QueryServiceGraphResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.observability.v1.ObservabilityService/QueryTraceBuckets": {
       "post": {
         "tags": [
@@ -11838,6 +11899,50 @@
         "additionalProperties": false,
         "description": "QueryMetricsResponse contains the aggregated metric data."
       },
+      "loco.observability.v1.QueryServiceGraphRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "environmentId": {
+            "type": "string",
+            "title": "environment_id",
+            "format": "uuid"
+          },
+          "startTime": {
+            "title": "start_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "endTime": {
+            "title": "end_time",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "QueryServiceGraphRequest",
+        "required": [
+          "startTime",
+          "endTime"
+        ],
+        "additionalProperties": false,
+        "description": "time_range.start_lte_end // start_time must be before or equal to end_time\n"
+      },
+      "loco.observability.v1.QueryServiceGraphResponse": {
+        "type": "object",
+        "properties": {
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.observability.v1.ServiceGraphEdge"
+            },
+            "title": "edges"
+          }
+        },
+        "title": "QueryServiceGraphResponse",
+        "additionalProperties": false
+      },
       "loco.observability.v1.QueryTraceBucketsRequest": {
         "type": "object",
         "properties": {
@@ -11894,6 +11999,50 @@
         "title": "QueryTraceBucketsResponse",
         "additionalProperties": false,
         "description": "QueryTraceBucketsResponse holds every bucket from the one containing start_time to the one\n containing end_time, in time order; a bucket without traces has zero counts and durations."
+      },
+      "loco.observability.v1.ServiceGraphEdge": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "title": "from",
+            "description": "Resource names; an external target uses peer.service, falling back to db.system."
+          },
+          "to": {
+            "type": "string",
+            "title": "to"
+          },
+          "requests": {
+            "type": "string",
+            "title": "requests",
+            "format": "int64"
+          },
+          "errors": {
+            "type": "string",
+            "title": "errors",
+            "format": "int64"
+          },
+          "p95Ms": {
+            "oneOf": [
+              {
+                "type": "number",
+                "format": "double"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "NaN",
+                  "Infinity",
+                  "-Infinity"
+                ]
+              }
+            ],
+            "title": "p95_ms",
+            "description": "The p95 client span duration, in milliseconds."
+          }
+        },
+        "title": "ServiceGraphEdge",
+        "additionalProperties": false
       },
       "loco.observability.v1.TailLogsRequest": {
         "type": "object",

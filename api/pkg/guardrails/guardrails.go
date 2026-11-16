@@ -143,3 +143,10 @@ func validateQueryTimeRange(startTimestamp, endTimestamp *timestamppb.Timestamp,
 	}
 	return nil
 }
+
+func ValidateServiceGraphRequest(req *observabilityv1.QueryServiceGraphRequest, limits Limits) error {
+	if err := validateCanonicalIDs(req.GetWorkspaceId(), req.GetEnvironmentId(), nil); err != nil {
+		return err
+	}
+	return validateQueryTimeRange(req.GetStartTime(), req.GetEndTime(), limits.MaxTimeRange)
+}

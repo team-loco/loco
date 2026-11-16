@@ -208,3 +208,31 @@ func TestObservabilityReadsNeedWorkspaceReadOrReadOnEveryNamedResource(t *testin
 		}
 	}
 }
+
+func TestServiceGraphRequiresWorkspaceRead(t *testing.T) {
+	t.Parallel()
+	f := newObservabilityFixture(t)
+	client := f.client(t, unreachableClickHouse(t))
+	at := time.Now()
+	for _, tc := range []struct {
+		caller string
+		code   connect.Code
+	}{
+		{workspaceReader, connect.CodeInternal}, {orgReader, connect.CodeInternal},
+		{resourceReader, connect.CodePermissionDenied},
+		{workspaceWriter, connect.CodePermissionDenied},
+		{stranger, connect.CodePermissionDenied},
+	} {
+		t.Run(tc.caller, func(t *testing.T) {
+			_, err := client.QueryServiceGraph(callerContext(t, tc.caller), &observabilityv1.QueryServiceGraphRequest{
+				WorkspaceId:   f.workspace.String(),
+				EnvironmentId: uuid.NewString(),
+				StartTime:     timestamppb.New(at.Add(-time.Minute)),
+				EndTime:       timestamppb.New(at),
+			})
+			if connect.CodeOf(err) != tc.code {
+				t.Fatalf("error = %v, want %v", err, tc.code)
+			}
+		})
+	}
+}

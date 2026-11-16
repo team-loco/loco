@@ -224,6 +224,27 @@ func (s *ObservabilityServer) QueryTraceBuckets(
 	return response, nil
 }
 
+func (s *ObservabilityServer) QueryServiceGraph(
+	ctx context.Context,
+	req *observabilityv1.QueryServiceGraphRequest,
+) (*observabilityv1.QueryServiceGraphResponse, error) {
+	if err := guardrails.ValidateServiceGraphRequest(req, s.cfg.Limits); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	}
+	if err := s.authorizeRead(ctx, req.GetWorkspaceId(), nil); err != nil {
+		return nil, err
+	}
+	resources, err := s.resourceNames(ctx, req.GetWorkspaceId())
+	if err != nil {
+		return nil, err
+	}
+	response, err := s.clickhouse.QueryServiceGraph(ctx, req, resources)
+	if err != nil {
+		return nil, fmt.Errorf("query service graph: %w", err)
+	}
+	return response, nil
+}
+
 // traceFilterRequest holds the scope and query ListTracesRequest and QueryTraceBucketsRequest share.
 type traceFilterRequest interface {
 	GetScope() *observabilityv1.TraceScope

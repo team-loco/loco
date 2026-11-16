@@ -23,6 +23,7 @@ service ObservabilityService {
   // QueryTraceBuckets counts the traces ListTraces would return for the same scope and query,
   // per time bucket.
   rpc QueryTraceBuckets(QueryTraceBucketsRequest) returns (QueryTraceBucketsResponse);
+  rpc QueryServiceGraph(QueryServiceGraphRequest) returns (QueryServiceGraphResponse);
   rpc GetTrace(GetTraceRequest) returns (GetTraceResponse);
 }
 
@@ -402,4 +403,30 @@ message TraceSpanLink {
   string trace_id = 1;
   string span_id = 2;
   map<string, string> attributes = 3;
+}
+
+message QueryServiceGraphRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  string environment_id = 2 [(buf.validate.field).string.uuid = true];
+  google.protobuf.Timestamp start_time = 3 [(buf.validate.field).required = true];
+  google.protobuf.Timestamp end_time = 4 [(buf.validate.field).required = true];
+  option (buf.validate.message).cel = {
+    id: "time_range.start_lte_end"
+    message: "start_time must be before or equal to end_time"
+    expression: "this.start_time <= this.end_time"
+  };
+}
+
+message QueryServiceGraphResponse {
+  repeated ServiceGraphEdge edges = 1;
+}
+
+message ServiceGraphEdge {
+  // Resource names; an external target uses peer.service, falling back to db.system.
+  string from = 1;
+  string to = 2;
+  uint64 requests = 3;
+  uint64 errors = 4;
+  // The p95 client span duration, in milliseconds.
+  double p95_ms = 5;
 }

@@ -285,3 +285,42 @@ func TestLogBucketValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestServiceGraphValidation(t *testing.T) {
+	t.Parallel()
+	client := observabilityTestClient(
+		t,
+		NewObservabilityServer(nil, unreachableAuthorizer(t), nil, observabilityTestConfig),
+		nil,
+	)
+	at := time.Now()
+	for _, tc := range []struct {
+		name   string
+		change func(*observabilityv1.QueryServiceGraphRequest)
+	}{
+		{"malformed workspace", func(r *observabilityv1.QueryServiceGraphRequest) { r.WorkspaceId = "not-a-workspace-id" }},
+		{"environment", func(r *observabilityv1.QueryServiceGraphRequest) { r.EnvironmentId = "" }},
+		{"missing start", func(r *observabilityv1.QueryServiceGraphRequest) { r.StartTime = nil }},
+		{
+			"reversed range",
+			func(r *observabilityv1.QueryServiceGraphRequest) { r.StartTime = timestamppb.New(at.Add(time.Minute)) },
+		},
+		{"range limit", func(r *observabilityv1.QueryServiceGraphRequest) {
+			r.StartTime = timestamppb.New(at.Add(-2 * observabilityTestConfig.Limits.MaxTimeRange))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := &observabilityv1.QueryServiceGraphRequest{
+				WorkspaceId:   observabilityTestWorkspace,
+				EnvironmentId: observabilityTestWorkspace,
+				StartTime:     timestamppb.New(at.Add(-time.Minute)),
+				EndTime:       timestamppb.New(at),
+			}
+			tc.change(req)
+			_, err := client.QueryServiceGraph(t.Context(), req)
+			if connect.CodeOf(err) != connect.CodeInvalidArgument {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
