@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2/connectinprocess"
-	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 
 	"connectrpc.com/connect/v2"
@@ -456,7 +455,6 @@ func TestWorkspaceEventStreamFiltersReconnectAndRevocation(t *testing.T) {
 		ResourceId:  f.resourceID.String(),
 		Query:       "@type:" + events.ResourceUpdated,
 	}
-	dbtest.WaitForEarlierTransactions(t, f.pool)
 	stream, err := client.StreamEvents(ctx, request)
 	if err != nil {
 		t.Fatal(err)
@@ -479,7 +477,6 @@ func TestWorkspaceEventStreamFiltersReconnectAndRevocation(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	dbtest.WaitForEarlierTransactions(t, f.pool)
 	request.Cursor = first.GetCursor()
 	resumed, err := client.StreamEvents(ctx, request)
 	if err != nil {

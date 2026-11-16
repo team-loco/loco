@@ -20,7 +20,6 @@ import (
 )
 
 const (
-	transactionWaitTimeout  = time.Minute
 	transactionPollInterval = 10 * time.Millisecond
 	lockWaitTimeout         = 5 * time.Second
 	unreachableDatabaseURL  = "postgres://loco@127.0.0.1:1/loco"
@@ -93,37 +92,6 @@ func WaitForLockWaiters(t *testing.T, pool *pgxpool.Pool, want int) {
 		select {
 		case <-ctx.Done():
 			t.Fatalf("%d of %d sessions waited on a lock after %s", waiting, want, lockWaitTimeout)
-		case <-ticker.C:
-		}
-	}
-}
-
-// WaitForEarlierTransactions blocks until every transaction open when it is called has finished.
-func WaitForEarlierTransactions(t *testing.T, pool *pgxpool.Pool) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), transactionWaitTimeout)
-	defer cancel()
-	var horizon string
-	if err := pool.QueryRow(ctx, "SELECT pg_snapshot_xmax(pg_current_snapshot())::text").Scan(&horizon); err != nil {
-		t.Fatalf("read transaction horizon: %v", err)
-	}
-	ticker := time.NewTicker(transactionPollInterval)
-	defer ticker.Stop()
-	for {
-		var finished bool
-		if err := pool.QueryRow(
-			ctx,
-			"SELECT pg_snapshot_xmin(pg_current_snapshot()) >= $1::text::xid8",
-			horizon,
-		).Scan(&finished); err != nil {
-			t.Fatalf("check transactions before %s: %v", horizon, err)
-		}
-		if finished {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("transactions before %s still open after %s", horizon, transactionWaitTimeout)
 		case <-ticker.C:
 		}
 	}

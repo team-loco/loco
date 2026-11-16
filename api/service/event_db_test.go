@@ -103,11 +103,7 @@ func eventTypes(list []*eventv1.Event) []string {
 
 func TestSignupAndOrgCreationAreRecorded(t *testing.T) {
 	f := newEventFixture(t)
-	dbtest.WaitForEarlierTransactions(t, f.pool)
-	all, err := f.queries.ListEventsAfter(t.Context(), genDb.ListEventsAfterParams{MaxRows: 10})
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
+	all := dbtest.Events(t, f.pool)
 	if len(all) != 2 || all[0].Type != events.UserCreated || all[1].Type != events.OrgCreated {
 		t.Fatalf("events = %+v", all)
 	}
@@ -209,7 +205,6 @@ func (f *eventFixture) streamClient(t *testing.T, asSystem *atomic.Bool) eventv1
 
 func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 	f := newEventFixture(t)
-	dbtest.WaitForEarlierTransactions(t, f.pool)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
 	asSystem.Store(true)
@@ -221,18 +216,22 @@ func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stream: %v", err)
 	}
-	streamMessage, receiveErr := stream.Receive()
-	if receiveErr != nil {
-		t.Fatalf("no first batch: %v", receiveErr)
+	var initial []string
+	for len(initial) < 2 {
+		message, receiveErr := stream.Receive()
+		if receiveErr != nil {
+			t.Fatalf("initial events after %v: %v", initial, receiveErr)
+		}
+		initial = append(initial, eventTypes(message.GetEvents())...)
 	}
-	if got := eventTypes(streamMessage.GetEvents()); len(got) != 2 {
-		t.Fatalf("first batch = %v", got)
+	if want := []string{events.UserCreated, events.OrgCreated}; !slices.Equal(initial, want) {
+		t.Fatalf("initial events = %v, want %v", initial, want)
 	}
 
 	if recordErr := events.Record(f.owner, f.queries, events.Event{Type: events.TokenCreated}); recordErr != nil {
 		t.Fatalf("record: %v", recordErr)
 	}
-	streamMessage, receiveErr = stream.Receive()
+	streamMessage, receiveErr := stream.Receive()
 	if receiveErr != nil {
 		t.Fatalf("no follow-up batch: %v", receiveErr)
 	}
@@ -294,7 +293,6 @@ func receiveBatches(stream eventv1connect.EventServiceStreamEventsClientStream) 
 
 func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	f := newEventFixture(t)
-	dbtest.WaitForEarlierTransactions(t, f.pool)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
 	asSystem.Store(true)
@@ -335,8 +333,15 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	}
 	batches := receiveBatches(stream)
 	var delivered []string
-	first := <-batches
-	delivered = append(delivered, first.types...)
+	var cursor string
+	for len(delivered) < 2 {
+		next, ok := <-batches
+		if !ok {
+			t.Fatalf("stream ended after %v", delivered)
+		}
+		delivered = append(delivered, next.types...)
+		cursor = next.cursor
+	}
 	if want := []string{events.UserCreated, events.OrgCreated}; !slices.Equal(delivered, want) {
 		t.Fatalf("delivered while a transaction was open = %v, want %v", delivered, want)
 	}
@@ -349,7 +354,6 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	if commitErr := open.Commit(ctx); commitErr != nil {
 		t.Fatalf("commit: %v", commitErr)
 	}
-	cursor := first.cursor
 	want := []string{events.UserCreated, events.OrgCreated, events.WorkspaceCreated, events.WorkspaceUpdated}
 	for len(delivered) < len(want) {
 		next, ok := <-batches
