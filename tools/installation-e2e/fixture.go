@@ -207,6 +207,10 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	); checkErr != nil {
 		return checkErr
 	}
+	if _, err := command(ctx, f.root, nil, "kubectl", "-n", fixtureNamespace, "cp",
+		filepath.Join(f.dir, "locoadm"), "operator:/usr/local/bin/locoadm"); err != nil {
+		return err
+	}
 	fmt.Println("Running public operator and application workflow")
 	return f.runOperator(ctx)
 }

@@ -420,24 +420,30 @@ def main_release(commit, registry):
     print(json.dumps(release_manifest('0.0.0-main.g' + commit[:12], commit, refs, images), indent=2))
 
 
-def local_release(registry, address):
+def local_release(registry, address, images=None):
     """Builds the checkout's images, charts and CRD bundles into registry and prints a release.json that names them at address."""
     commit = run('git', 'rev-parse', 'HEAD')
     version = '0.0.0-local.g' + commit[:12]
     names = repositories(registry)
     refs = {}
+    prebuilt = images
     images = {}
     with tempfile.TemporaryDirectory(prefix='loco-release-') as directory:
         for name, _, data, config, layer_type in packaged_artifacts(directory, commit):
             refs[name] = address + '/' + names[name] + '@' + registry.publish(names[name], version, data, config, layer_type, replace=True)
         auth = base64.b64encode((registry.username + ':' + registry.password).encode()).decode()
-        (Path(directory) / 'config.json').write_text(json.dumps({'auths': {registry.host: {'auth': auth}}}))
+        config = Path(directory) / 'config.json'
+        config.write_text(json.dumps({'auths': {registry.host: {'auth': auth}}}))
+        config.chmod(0o600)
         # The push reads its credential from a separate client configuration, which has no contexts, and names the current context's daemon.
         daemon = run('docker', 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}')
         for name in IMAGES:
             repository = registry.repository + '-' + name
             tag = registry.host + '/' + repository + ':' + version
-            run('docker', 'build', '--build-arg', 'VERSION=' + version, '-f', DOCKERFILES[name], '-t', tag, '.')
+            if prebuilt:
+                run('docker', 'tag', prebuilt.replace('*', name), tag)
+            else:
+                run('docker', 'build', '--build-arg', 'VERSION=' + version, '-f', DOCKERFILES[name], '-t', tag, '.')
             run('docker', '--config', directory, '--host', daemon, 'push', tag)
             images[name] = address + '/' + repository + '@' + registry.manifest(repository, version)
     print(json.dumps(release_manifest(version, commit, refs, images), indent=2))
@@ -462,6 +468,7 @@ def main():
     local.add_argument('--address', required=True)
     local.add_argument('--username', required=True)
     local.add_argument('--password', required=True)
+    local.add_argument('--images', help='Local prebuilt image template, with * standing for the component name')
     check = commands.add_parser('check-versions')
     check.add_argument('--base', required=True)
     args = parser.parse_args()
@@ -474,7 +481,7 @@ def main():
         main_release(args.commit, Registry(args.repository, '', ''))
         return
     if args.command == 'local':
-        local_release(Registry(args.repository, args.username, args.password, args.push), args.address)
+        local_release(Registry(args.repository, args.username, args.password, args.push), args.address, args.images)
         return
     registry = Registry(args.repository, os.environ['GITHUB_ACTOR'], os.environ['GH_TOKEN'])
     if args.command == 'artifacts':

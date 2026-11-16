@@ -11,8 +11,7 @@ COPY cmd/go.mod cmd/go.sum ./cmd/
 RUN go mod download && go -C cmd mod download
 COPY . .
 ARG VERSION
-RUN go -C cmd build -ldflags "-X main.version=${VERSION}" -o /locoadm ./locoadm \
- && go -C cmd build -ldflags "-X main.version=${VERSION}" -o /loco ./loco \
+RUN go -C cmd build -ldflags "-X main.version=${VERSION}" -o /loco ./loco \
  && go build -o /installation-e2e ./tools/installation-e2e
 
 FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82 AS operator-tools
@@ -37,7 +36,7 @@ WORKDIR /tmp
 COPY --from=operator-tools /helm /kubectl /usr/local/libexec/
 RUN ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm \
  && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
-COPY --from=builder /locoadm /loco /installation-e2e /usr/local/bin/
+COPY --from=builder /loco /installation-e2e /usr/local/bin/
 COPY tests/e2e/fixtures/build-app /fixture/build-app
 COPY tests/e2e/fixtures/installation/network-probe.yaml /fixture/network-probe.yaml
 COPY tests/e2e/fixtures/installation/recovery.yaml /fixture/recovery.yaml
