@@ -77,12 +77,12 @@ def fixture():
     runtime = json.dumps({"observability": {"injectOtel": True}, "build": {"type": "image", "image": "example.invalid/browser-pilot:staging-current"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 2, "maxReplicas": 2, "port": 8080})
     sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'Staging current','{staging}',{evidence.sql_literal(runtime)},1,NOW());")
     for deployment, cluster, environment, region, replicas in ((release_ids[0], clusters[0], production, "us-east-1", 1), (release_ids[-1], clusters[1], production, "eu-west-1", 1), (staging_release, clusters[2], staging, "us-east-1", 2)):
-        sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{}}',true,{replicas},'Ready',NOW());")
+        sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{\"app_spec\":{{}}}}',true,{replicas},'Ready',NOW());")
     for cluster, region in ((clusters[0], "us-east-1"), (clusters[1], "eu-west-1")):
         deployment = str(uuid.uuid4())
         runtime = json.dumps({"observability": {"injectOtel": True}, "build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
         sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{edge}','{cluster}','{region}',1,'running',true,'Edge current','{production}',{evidence.sql_literal(runtime)},1,NOW());")
-        sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{}}',true,1,'Ready',NOW());")
+        sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{\"app_spec\":{{}}}}',true,1,'Ready',NOW());")
     sql.append(f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);")
     sql.append(f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');")
     owner_id = state["users"]["owner"]["id"]
@@ -101,6 +101,8 @@ def fixture():
 
 
 data = fixture()
+for resource, environment in ((data["resource"], data["production"]), (data["resource"], data["staging"]), (data["edge"], data["production"])):
+    assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": environment}) == {}
 first_page = rpc("deployment", "ListDeployments", {"resourceId": data["resource"], "environmentId": data["production"], "pageSize": 200})
 assert len(first_page["deployments"]) == 200 and first_page["nextPageToken"]
 assert data["releases"][-1] not in [row["id"] for row in first_page["deployments"]]
