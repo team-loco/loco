@@ -813,9 +813,11 @@ type ListWebhookDeliveriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deliveries    []*WebhookDelivery     `protobuf:"bytes,1,rep,name=deliveries,proto3" json:"deliveries,omitempty"`
 	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // empty if no more pages
-	// Counts exclude the page cursor.
+	// Matches status and failing filters; excludes the page cursor.
 	MatchingCount int64 `protobuf:"varint,3,opt,name=matching_count,json=matchingCount,proto3" json:"matching_count,omitempty"`
-	TotalCount    int64 `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// All deliveries for the webhook, ignoring filters and the page cursor.
+	TotalCount int64 `protobuf:"varint,4,opt,name=total_count,json=totalCount,proto3" json:"total_count,omitempty"`
+	// Failed deliveries and pending retries, ignoring filters and the page cursor.
 	FailingCount  int64 `protobuf:"varint,5,opt,name=failing_count,json=failingCount,proto3" json:"failing_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -149,9 +149,11 @@ message ListWebhookDeliveriesRequest {
 message ListWebhookDeliveriesResponse {
   repeated WebhookDelivery deliveries = 1;
   string next_page_token = 2; // empty if no more pages
-  // Counts exclude the page cursor.
+  // Matches status and failing filters; excludes the page cursor.
   int64 matching_count = 3;
+  // All deliveries for the webhook, ignoring filters and the page cursor.
   int64 total_count = 4;
+  // Failed deliveries and pending retries, ignoring filters and the page cursor.
   int64 failing_count = 5;
 }
 

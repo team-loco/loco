@@ -669,18 +669,22 @@ export type ListWebhookDeliveriesResponse = Message<"loco.webhook.v1.ListWebhook
   nextPageToken: string;
 
   /**
-   * Counts exclude the page cursor.
+   * Matches status and failing filters; excludes the page cursor.
    *
    * @generated from field: int64 matching_count = 3;
    */
   matchingCount: bigint;
 
   /**
+   * All deliveries for the webhook, ignoring filters and the page cursor.
+   *
    * @generated from field: int64 total_count = 4;
    */
   totalCount: bigint;
 
   /**
+   * Failed deliveries and pending retries, ignoring filters and the page cursor.
+   *
    * @generated from field: int64 failing_count = 5;
    */
   failingCount: bigint;
@@ -703,18 +707,22 @@ export type ListWebhookDeliveriesResponseJson = {
   nextPageToken?: string;
 
   /**
-   * Counts exclude the page cursor.
+   * Matches status and failing filters; excludes the page cursor.
    *
    * @generated from field: int64 matching_count = 3;
    */
   matchingCount?: string;
 
   /**
+   * All deliveries for the webhook, ignoring filters and the page cursor.
+   *
    * @generated from field: int64 total_count = 4;
    */
   totalCount?: string;
 
   /**
+   * Failed deliveries and pending retries, ignoring filters and the page cursor.
+   *
    * @generated from field: int64 failing_count = 5;
    */
   failingCount?: string;

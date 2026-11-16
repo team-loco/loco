@@ -14920,17 +14920,19 @@
             "type": "string",
             "title": "matching_count",
             "format": "int64",
-            "description": "Counts exclude the page cursor."
+            "description": "Matches status and failing filters; excludes the page cursor."
           },
           "totalCount": {
             "type": "string",
             "title": "total_count",
-            "format": "int64"
+            "format": "int64",
+            "description": "All deliveries for the webhook, ignoring filters and the page cursor."
           },
           "failingCount": {
             "type": "string",
             "title": "failing_count",
-            "format": "int64"
+            "format": "int64",
+            "description": "Failed deliveries and pending retries, ignoring filters and the page cursor."
           }
         },
         "title": "ListWebhookDeliveriesResponse",
