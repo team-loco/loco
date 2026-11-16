@@ -12,6 +12,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/rogpeppe/go-internal/testscript"
 	"github.com/team-loco/loco/cmd/internal/keychain"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 const (
@@ -23,7 +24,8 @@ type fakeAPIKey struct{}
 
 func TestMain(m *testing.M) {
 	testscript.Main(m, map[string]func(){
-		"loco": func() { Cli(scriptVersion) },
+		"terminal": terminalMain,
+		"loco":     func() { Cli(scriptVersion) },
 	})
 }
 
@@ -113,6 +115,21 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 	}
 
 	switch args[0] {
+	case "message":
+		requireArgs(ts, neg, args, 2, "fakeapi message <text>")
+		api.mu.Lock()
+		api.platform.message = args[1]
+		for _, res := range api.platform.resources {
+			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
+				{
+					EnvironmentName: "production",
+					Regions: []*resourcev1.RegionStatus{
+						{Region: fakeDefaultRegion, Message: &api.platform.message},
+					},
+				},
+			}
+		}
+		api.mu.Unlock()
 	case "called":
 		if len(args) < 2 || len(args) > 3 {
 			ts.Fatalf("usage: fakeapi called <method> [authorization]")

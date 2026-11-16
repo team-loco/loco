@@ -1,0 +1,29 @@
+[windows] skip
+
+fakeapi resource web
+fakeapi message 'Failed scheduling because the requested memory exceeds every available node in the region and additional capacity must be provisioned before this deployment can proceed.'
+env NO_COLOR=1
+
+exec terminal 80 resource status web
+stdout 'MESSAGE'
+stdout 'proceed\.'
+
+exec terminal 80 resource events web --limit 1
+stdout 'MESSAGE'
+stdout 'proceed\.'
+
+exec loco resource events web --limit 1
+stdout 'Failed scheduling because the requested memory exceeds every available node in the region and additional capacity must be provisioned before this deployment can proceed\.'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
