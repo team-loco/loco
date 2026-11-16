@@ -75,6 +75,7 @@ export function FlameGraph({
 						<button
 							key={b.span.spanId}
 							data-span-id={b.span.spanId}
+							data-linked={linkedSpan === b.span.spanId || undefined}
 							onFocus={() => {
 								onHoverSpan(b.span.spanId);
 							}}

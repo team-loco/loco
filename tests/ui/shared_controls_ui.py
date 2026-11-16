@@ -294,13 +294,16 @@ def dashboard(page):
         assert bars.evaluate_all("nodes => nodes.map(n => getComputedStyle(n).backgroundColor)") == colors
         expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
         page.get_by_role("button").filter(has_text="Olivia Owner").click()
-        selected = page.get_by_role("group", name="Mode", exact=True).get_by_role("button", name=mode.title(), exact=True)
-        ink = selected.evaluate("node => getComputedStyle(node).color")
-        icon = selected.locator(".theme-icon")
-        if mode == "dark":
+        toggle = page.get_by_role("menuitem", name=re.compile(r" mode$"))
+        icon = toggle.locator(".theme-icon")
+        ink = icon.locator("..").evaluate("node => getComputedStyle(node).color")
+        shape = icon.get_attribute("data-mode")
+        if shape == "moon":
             assert ink in icon.evaluate("node => getComputedStyle(node).boxShadow")
-        else:
+        elif shape == "sun":
             expect(icon).to_have_css("background-color", ink)
+        else:
+            expect(icon).to_have_css("border-top-color", ink)
         page.keyboard.press("Escape")
     page.evaluate("localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')")
 
