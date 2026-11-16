@@ -12,9 +12,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connectproto"
 	"github.com/google/uuid"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
@@ -470,38 +468,12 @@ func TestLogQuerySyntaxErrorsAreInvalidArgument(t *testing.T) {
 		"QueryLogs": {queryErr, "quote values that contain :", "7"},
 		"TailLogs":  {tailErr, "unclosed (", "1"},
 	} {
-		connectErr, ok := errors.AsType[*connect.Error](tc.err)
-		if !ok || connectErr.Code() != connect.CodeInvalidArgument ||
-			connectErr.Message() != tc.message+" at position "+tc.position {
-			t.Errorf("%s error = %v, want InvalidArgument %q at %s", rpc, tc.err, tc.message, tc.position)
-			continue
+		if got, want := querySyntaxDetails(t, tc.err), tc.message+" at "+tc.position; got != want {
+			t.Errorf("%s details = %q, want %q", rpc, got, want)
 		}
-		var violation, position string
-		for _, detail := range connectErr.Details() {
-			value, err := connectproto.UnmarshalErrorDetail(detail)
-			if err != nil {
-				t.Fatalf("%s detail: %v", rpc, err)
-			}
-			switch value := value.(type) {
-			case *errdetails.BadRequest:
-				if fields := value.GetFieldViolations(); len(fields) == 1 && fields[0].GetField() == "query" {
-					violation = fields[0].GetDescription()
-				}
-			case *errdetails.ErrorInfo:
-				if value.GetReason() == querySyntaxReason {
-					position = value.GetMetadata()["position"]
-				}
-			}
-		}
-		if violation != tc.message || position != tc.position {
-			t.Errorf(
-				"%s details = violation %q at %q, want %q at %s",
-				rpc,
-				violation,
-				position,
-				tc.message,
-				tc.position,
-			)
+		connectErr, _ := errors.AsType[*connect.Error](tc.err)
+		if want := tc.message + " at position " + tc.position; connectErr.Message() != want {
+			t.Errorf("%s message = %q, want %q", rpc, connectErr.Message(), want)
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package events
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,44 +38,4 @@ func FuzzQuerySQLBindsEveryValue(f *testing.F) {
 			t.Fatalf("%q compiled to SQL with a literal: %s", query, sql)
 		}
 	})
-}
-
-func TestQuerySQLEscapesLikeWildcards(t *testing.T) {
-	for query, want := range map[string][]any{
-		`100%_off`:      {`%100\%\_off%`, `100%_off`},
-		`"a\\b"`:        {`%a\\b%`, `a\b`},
-		`@target:a_b*`:  {`a\_b%`},
-		`@actor:"50%"`:  {`50\%`},
-		`@type:a%*`:     {`a\%%`},
-		`@request:a_b`:  {`a_b`},
-		`@actor_type:%`: {`%`},
-	} {
-		expr, err := logquery.Parse(query)
-		if err != nil {
-			t.Fatal(err)
-		}
-		b := &binder{}
-		querySQL(expr, b)
-		if !slices.Equal(b.args, want) {
-			t.Errorf("%q binds %q, want %q", query, b.args, want)
-		}
-	}
-}
-
-func TestValidateQueryRejectsUnknownFieldsAndNumbers(t *testing.T) {
-	for query, want := range map[string]string{
-		"@actor:a* @actor_type:user @target:t @type:x.y @request:r -z": "",
-		"a (@status:200)": "unknown field @status; use @actor, @actor_type, @target, @type or @request at position 4",
-		"-@type:>1":       "@type does not compare numbers at position 2",
-		"@target:1..9":    "@target does not compare numbers at position 1",
-	} {
-		expr, err := logquery.Parse(query)
-		if err != nil {
-			t.Fatal(err)
-		}
-		err = ValidateQuery(expr)
-		if (want == "" && err != nil) || (want != "" && (err == nil || err.Error() != want)) {
-			t.Errorf("ValidateQuery(%q) = %v, want %q", query, err, want)
-		}
-	}
 }

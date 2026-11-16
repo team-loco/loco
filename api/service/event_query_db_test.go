@@ -72,6 +72,7 @@ func TestListEventsQuery(t *testing.T) {
 		"100%":                               {secret},
 		"_":                                  {secret, degraded},
 		"a_b":                                {degraded},
+		"@target:a_b*":                       {degraded},
 		`"O'Brien"`:                          {member},
 		`\`:                                  {member},
 		`"\\ \"Q\""`:                         {member},
