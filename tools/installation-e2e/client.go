@@ -99,7 +99,16 @@ func clientAcceptance(ctx context.Context) (result error) {
 	return nil
 }
 
-func clientFlow(ctx context.Context, audit *leakAudit) error {
+func clientFlow(ctx context.Context, audit *leakAudit) (result error) {
+	directory, err := os.MkdirTemp("", "installation-upgrade-")
+	if err != nil {
+		return err
+	}
+	defer func() { result = errors.Join(result, os.RemoveAll(directory)) }()
+	initialFile, err := previousRelease(directory, clientFile)
+	if err != nil {
+		return err
+	}
 	for _, operation := range []string{"validate", "plan"} {
 		if _, checkErr := locoadm(ctx, operation, "--file", clientFile); checkErr != nil {
 			return fmt.Errorf("initial %s: %w", operation, checkErr)
@@ -107,14 +116,14 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	}
 	operatorPhase(phaseControlPlane)
 	if _, checkErr := kubectl(ctx, "get", "clusterissuer", "installation-ca"); checkErr != nil {
-		if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr == nil {
+		if _, checkErr := locoadm(ctx, "apply", "--file", initialFile); checkErr == nil {
 			return errMissingIssuerAccepted
 		}
 		if checkErr := provisionIssuer(ctx); checkErr != nil {
 			return checkErr
 		}
 	}
-	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
+	if _, checkErr := locoadm(ctx, "apply", "--file", initialFile); checkErr != nil {
 		return checkErr
 	}
 	if dnsErr := configureGatewayDNS(ctx, controlNamespace, false); dnsErr != nil {
@@ -139,7 +148,7 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 	if _, targetErr := locoadm(ctx, "cluster", "list"); targetErr != nil {
 		return fmt.Errorf("saved login target: %w", targetErr)
 	}
-	if _, checkErr := locoadm(ctx, "cluster", "attach", "--file", clientFile); checkErr != nil {
+	if _, checkErr := locoadm(ctx, "cluster", "attach", "--file", initialFile); checkErr != nil {
 		return checkErr
 	}
 	if dnsErr := configureGatewayDNS(ctx, workerNamespace, true); dnsErr != nil {
@@ -154,6 +163,9 @@ func clientFlow(ctx context.Context, audit *leakAudit) error {
 		return err
 	}
 	if checkErr := applyAndAttach(ctx); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := requireRecordedRelease(ctx); checkErr != nil {
 		return checkErr
 	}
 	if checkErr := audit.inspect(ctx, "repeat apply complete"); checkErr != nil {

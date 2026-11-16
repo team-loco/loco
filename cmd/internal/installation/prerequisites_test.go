@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -250,5 +252,81 @@ func TestGatewayPrerequisiteConsumesPinnedWorkerConfiguration(t *testing.T) {
 		if _, err := gatewayPrerequisiteValues(worker, fixtureGatewayController); !errors.Is(err, errInvalidRelease) {
 			t.Fatalf("unsupported prerequisite configuration returned %v", err)
 		}
+	}
+}
+
+func TestPrerequisiteReleaseUpgrade(t *testing.T) {
+	chart, err := packageArchive(map[string][]byte{
+		fixtureCertManagerChartPath: []byte("name: cert-manager\nappVersion: target\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker, err := packageArchive(map[string][]byte{
+		fixtureGatewayValuesPath:      []byte(fixtureGatewayValues),
+		fixtureGatewayChartValuesPath: []byte(fixtureGatewayChartValues),
+		fixtureGatewayChartPath:       []byte("name: gateway-helm\nappVersion: target\n"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name           string
+		owned, install bool
+		want           error
+	}{
+		{"apply owned", true, true, nil},
+		{"plan owned", true, false, nil},
+		{"foreign version", false, true, errPrerequisiteConflict},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", testJSON)
+				name, namespace := certManagerName, certManagerName
+				if strings.Contains(r.URL.Query().Get("labelSelector"), "gateway-helm") {
+					name, namespace = envoyGatewayName, testNamespace
+				}
+				deployment := appsv1.Deployment{
+					Name: name, Namespace: namespace,
+					Labels: map[string]string{prerequisiteVersionLabel: "older"},
+				}
+				if test.owned {
+					deployment.Annotations = map[string]string{
+						"meta.helm.sh/release-name":      name,
+						"meta.helm.sh/release-namespace": namespace,
+					}
+				}
+				if err := json.NewEncoder(w).
+					Encode(&appsv1.DeploymentList{Items: []appsv1.Deployment{deployment}}); err != nil {
+					t.Error(err)
+				}
+			}))
+			defer server.Close()
+			apps, err := appsclient.NewForConfig(&rest.Config{Host: server.URL, ContentType: testJSON})
+			if err != nil {
+				t.Fatal(err)
+			}
+			bin := t.TempDir()
+			marker := filepath.Join(bin, "upgrades")
+			script := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> " + marker + "\n"
+			if err = os.WriteFile(filepath.Join(bin, "helm"), []byte(script), 0700); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", bin)
+			kube := Kubernetes{Apps: apps, Target: KubernetesTarget{Namespace: testNamespace}}
+			err = prerequisites(t.Context(), &kube, releaseArtifacts{certManager: chart, worker: worker}, test.install)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("got %v, want %v", err, test.want)
+			}
+			data, err := os.ReadFile(marker)
+			if test.owned && test.install {
+				if err != nil || !strings.Contains(string(data), "upgrade --install cert-manager") ||
+					!strings.Contains(string(data), "upgrade --install loco-envoy-gateway") {
+					t.Fatalf("prerequisites not upgraded: %s, %v", data, err)
+				}
+			} else if !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("unexpected prerequisite write: %s, %v", data, err)
+			}
+		})
 	}
 }

@@ -189,9 +189,6 @@ func ApplyControlPlane(ctx context.Context, config Config, resolved ResolvedRele
 		return err
 	}
 	return kube.withLock(ctx, state, func(ctx context.Context, lockedState *corev1.ConfigMap) error {
-		if releaseErr := validateRecordedRelease(lockedState.Data, release.manifest); releaseErr != nil {
-			return releaseErr
-		}
 		if err := kube.ensureCredentials(ctx, lockedState, inputs, release.clickhouse); err != nil {
 			return err
 		}

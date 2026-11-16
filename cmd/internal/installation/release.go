@@ -247,7 +247,7 @@ func archiveFiles(data []byte) (map[string][]byte, error) {
 }
 
 var errReleaseChanged = errors.New(
-	"installation release differs from recorded state; upgrades require a separate procedure",
+	"worker release differs from the control plane; run locoadm apply with this release first",
 )
 
 func validateRecordedRelease(state map[string]string, manifest Manifest) error {

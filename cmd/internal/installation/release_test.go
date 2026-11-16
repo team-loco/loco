@@ -91,7 +91,7 @@ func TestWorkerSuppliesPinnedGatewayPrerequisite(t *testing.T) {
 	}
 }
 
-func TestApplyPreservesRecordedRelease(t *testing.T) {
+func TestWorkerRequiresRecordedControlPlaneRelease(t *testing.T) {
 	manifest := releaseFixture()
 	for _, state := range []map[string]string{
 		{},
@@ -103,7 +103,7 @@ func TestApplyPreservesRecordedRelease(t *testing.T) {
 	}
 	for _, state := range []map[string]string{{"releaseCommit": strings.Repeat("d", 40)}, {"releaseVersion": "0.8.0"}} {
 		if !errors.Is(validateRecordedRelease(state, manifest), errReleaseChanged) {
-			t.Fatal("apply accepted a different release")
+			t.Fatal("worker accepted a different control-plane release")
 		}
 	}
 }

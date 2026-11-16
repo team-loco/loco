@@ -81,6 +81,29 @@ func prerequisites(ctx context.Context, kube *Kubernetes, release releaseArtifac
 			return safeKubernetesError("inspect prerequisite controller", err)
 		}
 		if len(existing.Items) > 0 {
+			owned := true
+			for _, deployment := range existing.Items {
+				if deployment.Annotations["meta.helm.sh/release-name"] != prerequisite.name ||
+					deployment.Annotations["meta.helm.sh/release-namespace"] != prerequisite.namespace {
+					owned = false
+				}
+			}
+			if owned {
+				if install {
+					target := kube.Target
+					target.Namespace = prerequisite.namespace
+					if err := installChart(
+						ctx,
+						target,
+						prerequisite.name,
+						prerequisite.chart,
+						prerequisite.values,
+					); err != nil {
+						return err
+					}
+				}
+				continue
+			}
 			for _, deployment := range existing.Items {
 				if deployment.Labels["app.kubernetes.io/version"] != metadata.AppVersion {
 					return fmt.Errorf("%s: %w", prerequisite.name, errPrerequisiteConflict)
