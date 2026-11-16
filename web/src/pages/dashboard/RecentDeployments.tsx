@@ -13,7 +13,7 @@ import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, tsMs } from "@/lib/time";
+import { agoLabel, formatStarted, tsMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -23,7 +23,6 @@ import {
 	filterDeployments,
 	withinWindow,
 } from "./deploymentRows";
-import { startedLabel } from "./format";
 
 const COLUMNS = 7;
 const DEPLOYS_VALUES = [ALL_DEPLOYMENTS, ...DEPLOYMENT_FILTERS.map((f) => f.value)];
@@ -140,7 +139,7 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell
 										className="text-right font-mono text-[12px] whitespace-nowrap text-fg3"
-										title={startedLabel(createdMs, timePref)}
+										title={formatStarted(createdMs, timePref)}
 									>
 										{agoLabel(createdMs, nowMs)}
 									</TableCell>

@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import type { TimePreferences } from "@/lib/time";
+import { formatStarted, type TimePreferences } from "@/lib/time";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
@@ -15,7 +15,7 @@ import {
 import { useCopy } from "@/hooks/useCopy";
 import { cn } from "@/lib/utils";
 
-import { formatStarted, shortId } from "./format";
+import { shortId } from "./format";
 import { depTag, startedMs } from "./model";
 import { diffLines, sideBySide, specText } from "./spec";
 
