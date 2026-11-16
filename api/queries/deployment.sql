@@ -1,8 +1,8 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, started_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 RETURNING id;
 
 -- name: GetDeploymentByID :one
@@ -101,6 +101,10 @@ ORDER BY created_at DESC;
 -- name: AdvanceDeploymentStatus :execrows
 UPDATE deployments
 SET status = sqlc.arg(status),
+    started_at = CASE
+        WHEN sqlc.arg(status)::deployment_status = 'deploying' THEN COALESCE(started_at, NOW())
+        ELSE started_at
+    END,
     message = sqlc.arg(message),
     completed_at = CASE
         WHEN sqlc.arg(status)::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()

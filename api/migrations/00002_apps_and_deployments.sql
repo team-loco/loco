@@ -227,7 +227,7 @@ CREATE TABLE
         commit_dirty BOOLEAN NOT NULL DEFAULT false,
         secret_names TEXT[] NOT NULL DEFAULT '{}',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        started_at TIMESTAMPTZ NOT NULL,
+        started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
