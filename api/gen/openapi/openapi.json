@@ -14486,6 +14486,10 @@
           "createdBy": {
             "type": "string",
             "title": "created_by"
+          },
+          "displaySuffix": {
+            "type": "string",
+            "title": "display_suffix"
           }
         },
         "title": "Token",

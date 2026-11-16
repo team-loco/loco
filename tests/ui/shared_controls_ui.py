@@ -334,7 +334,7 @@ def dashboard(page):
 
 def limit_display(page):
     user_id = owner["id"]
-    evidence.psql(state["container"], f"INSERT INTO api_tokens (token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;")
+    evidence.psql(state["container"], f"INSERT INTO api_tokens (display_suffix,token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'test','limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;")
     limit = 11
     config_url = "**/loco.config.v1.ConfigService/GetConfig"
 
@@ -349,7 +349,7 @@ def limit_display(page):
         for limit, label in ((11, None), (10, "9 / 10"), (9, "9 / 9")):
             page.goto(state["ui_url"] + "/tokens?owner=personal")
             heading = page.get_by_role("heading", name=re.compile("^Tokens"))
-            expect(page.get_by_role("cell", name="limit-display-1", exact=True)).to_be_visible()
+            expect(page.get_by_text("limit-display-1", exact=True)).to_be_visible()
             badge = heading.locator('[data-slot="badge"]')
             if label is None:
                 expect(badge).to_have_count(0)

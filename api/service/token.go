@@ -148,17 +148,8 @@ func (s *TokenServer) CreateToken(
 	)
 
 	return &tokenv1.CreateTokenResponse{
-		Token: token,
-		TokenMetadata: apiTokenRowToProto(
-			tokenData.Name,
-			tokenData.EntityType,
-			tokenData.EntityID,
-			tokenData.Scopes,
-			tokenData.CreatedBy,
-			tokenData.CreatedAt,
-			tokenData.ExpiresAt,
-			tokenData.LastUsedAt,
-		),
+		Token:         token,
+		TokenMetadata: apiTokenRowToProto(tokenData),
 	}, nil
 }
 
@@ -232,16 +223,7 @@ func (s *TokenServer) ListTokens(
 
 	protoTokens := make([]*tokenv1.Token, len(tokens))
 	for i, t := range tokens {
-		protoTokens[i] = apiTokenRowToProto(
-			t.Name,
-			t.EntityType,
-			t.EntityID,
-			t.Scopes,
-			t.CreatedBy,
-			t.CreatedAt,
-			t.ExpiresAt,
-			t.LastUsedAt,
-		)
+		protoTokens[i] = apiTokenRowToProto(genDb.CreateAPITokenRow(t))
 	}
 
 	return &tokenv1.ListTokensResponse{
@@ -295,16 +277,7 @@ func (s *TokenServer) GetToken(
 	}
 
 	return &tokenv1.GetTokenResponse{
-		Token: apiTokenRowToProto(
-			token.Name,
-			token.EntityType,
-			token.EntityID,
-			token.Scopes,
-			token.CreatedBy,
-			token.CreatedAt,
-			token.ExpiresAt,
-			token.LastUsedAt,
-		),
+		Token: apiTokenRowToProto(genDb.CreateAPITokenRow(token)),
 	}, nil
 }
 
@@ -427,18 +400,9 @@ func (s *TokenServer) CheckPermission(
 
 // Helper functions
 
-func apiTokenRowToProto(
-	name string,
-	entityType genDb.EntityType,
-	entityID uuid.UUID,
-	dbScopes []genDb.EntityScope,
-	createdBy uuid.UUID,
-	createdAt time.Time,
-	expiresAt time.Time,
-	lastUsedAt *time.Time,
-) *tokenv1.Token {
-	scopes := make([]*tokenv1.EntityScope, len(dbScopes))
-	for i, scope := range dbScopes {
+func apiTokenRowToProto(row genDb.CreateAPITokenRow) *tokenv1.Token {
+	scopes := make([]*tokenv1.EntityScope, len(row.Scopes))
+	for i, scope := range row.Scopes {
 		scopes[i] = &tokenv1.EntityScope{
 			Scope:      dbScopeToProto(scope.Scope),
 			EntityType: dbEntityTypeToProto(scope.EntityType),
@@ -446,20 +410,16 @@ func apiTokenRowToProto(
 		}
 	}
 
-	var lastUsedProto *timestamppb.Timestamp
-	if lastUsedAt != nil {
-		lastUsedProto = timestamppb.New(*lastUsedAt)
-	}
-
 	return &tokenv1.Token{
-		Name:       name,
-		EntityType: dbEntityTypeToProto(entityType),
-		EntityId:   entityID.String(),
-		Scopes:     scopes,
-		CreatedBy:  createdBy.String(),
-		CreatedAt:  timestamppb.New(createdAt),
-		ExpiresAt:  timestamppb.New(expiresAt),
-		LastUsedAt: lastUsedProto,
+		Name:          row.Name,
+		EntityType:    dbEntityTypeToProto(row.EntityType),
+		EntityId:      row.EntityID.String(),
+		Scopes:        scopes,
+		CreatedBy:     row.CreatedBy.String(),
+		CreatedAt:     timestamppb.New(row.CreatedAt),
+		ExpiresAt:     timestamppb.New(row.ExpiresAt),
+		LastUsedAt:    optionalTimestamp(row.LastUsedAt),
+		DisplaySuffix: row.DisplaySuffix,
 	}
 }
 

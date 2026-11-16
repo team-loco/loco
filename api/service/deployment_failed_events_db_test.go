@@ -94,8 +94,9 @@ func (f *deployFixture) apiToken(t *testing.T) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	if err := f.pool.QueryRow(t.Context(),
-		`INSERT INTO api_tokens (token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-		 VALUES ('hash', 'ci', 'resource', $1, '[]', $2, NOW() + INTERVAL '1 day') RETURNING id`,
+		`INSERT INTO api_tokens (display_suffix, token_hash, name, entity_type, entity_id,
+ scopes, created_by, expires_at)
+		 VALUES ('test', 'hash', 'ci', 'resource', $1, '[]', $2, NOW() + INTERVAL '1 day') RETURNING id`,
 		f.resourceID, f.userID,
 	).Scan(&id); err != nil {
 		t.Fatal(err)

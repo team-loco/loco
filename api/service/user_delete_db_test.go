@@ -88,8 +88,10 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 		},
 		{
 			name: "token",
-			insert: `INSERT INTO api_tokens (token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-			         VALUES ('test-hash', 'test-token', 'workspace', $2, '[]', $1, now() + interval '1 hour')`,
+			insert: `INSERT INTO api_tokens (display_suffix, token_hash, name, entity_type, entity_id,
+ scopes, created_by, expires_at)
+			         VALUES ('test', 'test-hash', 'test-token', 'workspace', $2, '[]', $1,
+ now() + interval '1 hour')`,
 			message: "user created API tokens",
 		},
 		{

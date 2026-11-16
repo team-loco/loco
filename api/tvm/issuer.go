@@ -11,6 +11,8 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
+const tokenDisplaySuffixLength = 4
+
 // pgNameEntityUnique is the (name, entity_type, entity_id) unique constraint of api_tokens;
 // the token_hash constraint also raises unique violations and must not read as a taken name.
 const pgNameEntityUnique = "api_tokens_name_entity_type_entity_id_key"
@@ -43,14 +45,15 @@ func (tvm *VendingMachine) Issue(
 
 	token, hash := generateToken(prefixAPIKey)
 	row, err := tvm.queries.CreateAPIToken(ctx, queries.CreateAPITokenParams{
-		ID:         uuid.Must(uuid.NewV7()),
-		TokenHash:  hash,
-		Name:       name,
-		EntityType: entity.Type,
-		EntityID:   entity.ID,
-		Scopes:     entityScopes,
-		CreatedBy:  user,
-		ExpiresAt:  time.Now().Add(duration),
+		ID:            uuid.Must(uuid.NewV7()),
+		TokenHash:     hash,
+		DisplaySuffix: token[len(token)-tokenDisplaySuffixLength:],
+		Name:          name,
+		EntityType:    entity.Type,
+		EntityID:      entity.ID,
+		Scopes:        entityScopes,
+		CreatedBy:     user,
+		ExpiresAt:     time.Now().Add(duration),
 	})
 	if err != nil {
 		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&

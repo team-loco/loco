@@ -10,7 +10,11 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 	const html = renderToStaticMarkup(
 		createElement(TokenTable, {
 			tokens: [
-				create(TokenSchema, { name: "named", createdBy: "member-id" }),
+				create(TokenSchema, {
+					name: "named",
+					createdBy: "member-id",
+					displaySuffix: "wxyz",
+				}),
 				create(TokenSchema, {
 					name: "unresolved",
 					createdBy: "former-member-id",
@@ -33,6 +37,9 @@ test("token creator uses a member name, preserves an unresolved ID and marks abs
 		}),
 	);
 	expect(html).toContain("Created by");
+	expect(html).toContain("loco_k_…wxyz");
+	expect(html).toContain("…");
+	expect(html).toContain("wxyz");
 	expect(html).toContain("Olivia Owner");
 	expect(html).toContain("former-member-id");
 	expect(html).toContain("Unknown");

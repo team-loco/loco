@@ -42,32 +42,34 @@ func (q *Queries) AddUserScope(ctx context.Context, arg AddUserScopeParams) erro
 
 const createAPIToken = `-- name: CreateAPIToken :one
 
-INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+INSERT INTO api_tokens (id, token_hash, name, entity_type, entity_id, scopes, created_by, expires_at, display_suffix)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 `
 
 type CreateAPITokenParams struct {
-	ID         uuid.UUID     `json:"id"`
-	TokenHash  string        `json:"tokenHash"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
+	ID            uuid.UUID     `json:"id"`
+	TokenHash     string        `json:"tokenHash"`
+	Name          string        `json:"name"`
+	EntityType    EntityType    `json:"entityType"`
+	EntityID      uuid.UUID     `json:"entityId"`
+	Scopes        []EntityScope `json:"scopes"`
+	CreatedBy     uuid.UUID     `json:"createdBy"`
+	ExpiresAt     time.Time     `json:"expiresAt"`
+	DisplaySuffix string        `json:"displaySuffix"`
 }
 
 type CreateAPITokenRow struct {
-	ID         uuid.UUID     `json:"id"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	ID            uuid.UUID     `json:"id"`
+	Name          string        `json:"name"`
+	EntityType    EntityType    `json:"entityType"`
+	EntityID      uuid.UUID     `json:"entityId"`
+	Scopes        []EntityScope `json:"scopes"`
+	CreatedBy     uuid.UUID     `json:"createdBy"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	ExpiresAt     time.Time     `json:"expiresAt"`
+	LastUsedAt    *time.Time    `json:"lastUsedAt"`
+	DisplaySuffix string        `json:"displaySuffix"`
 }
 
 // -----------------------------------------------------------------------------
@@ -83,6 +85,7 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 		arg.Scopes,
 		arg.CreatedBy,
 		arg.ExpiresAt,
+		arg.DisplaySuffix,
 	)
 	var i CreateAPITokenRow
 	err := row.Scan(
@@ -95,6 +98,7 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
+		&i.DisplaySuffix,
 	)
 	return i, err
 }
@@ -220,21 +224,22 @@ func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessToke
 }
 
 const getAPIToken = `-- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens
 WHERE token_hash = $1 AND expires_at > NOW()
 `
 
 type GetAPITokenRow struct {
-	ID         uuid.UUID     `json:"id"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	ID            uuid.UUID     `json:"id"`
+	Name          string        `json:"name"`
+	EntityType    EntityType    `json:"entityType"`
+	EntityID      uuid.UUID     `json:"entityId"`
+	Scopes        []EntityScope `json:"scopes"`
+	CreatedBy     uuid.UUID     `json:"createdBy"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	ExpiresAt     time.Time     `json:"expiresAt"`
+	LastUsedAt    *time.Time    `json:"lastUsedAt"`
+	DisplaySuffix string        `json:"displaySuffix"`
 }
 
 func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error) {
@@ -250,12 +255,13 @@ func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPIToke
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
+		&i.DisplaySuffix,
 	)
 	return i, err
 }
 
 const getAPITokenByNameAndEntity = `-- name: GetAPITokenByNameAndEntity :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens
 WHERE name = $1 AND entity_type = $2 AND entity_id = $3
 `
@@ -267,15 +273,16 @@ type GetAPITokenByNameAndEntityParams struct {
 }
 
 type GetAPITokenByNameAndEntityRow struct {
-	ID         uuid.UUID     `json:"id"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	ID            uuid.UUID     `json:"id"`
+	Name          string        `json:"name"`
+	EntityType    EntityType    `json:"entityType"`
+	EntityID      uuid.UUID     `json:"entityId"`
+	Scopes        []EntityScope `json:"scopes"`
+	CreatedBy     uuid.UUID     `json:"createdBy"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	ExpiresAt     time.Time     `json:"expiresAt"`
+	LastUsedAt    *time.Time    `json:"lastUsedAt"`
+	DisplaySuffix string        `json:"displaySuffix"`
 }
 
 func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error) {
@@ -291,6 +298,7 @@ func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPIToke
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
+		&i.DisplaySuffix,
 	)
 	return i, err
 }
@@ -592,7 +600,7 @@ func (q *Queries) GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWit
 }
 
 const listAPITokensForEntity = `-- name: ListAPITokensForEntity :many
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at
+SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
 FROM api_tokens
 WHERE entity_type = $1 AND entity_id = $2
 ORDER BY created_at DESC
@@ -604,15 +612,16 @@ type ListAPITokensForEntityParams struct {
 }
 
 type ListAPITokensForEntityRow struct {
-	ID         uuid.UUID     `json:"id"`
-	Name       string        `json:"name"`
-	EntityType EntityType    `json:"entityType"`
-	EntityID   uuid.UUID     `json:"entityId"`
-	Scopes     []EntityScope `json:"scopes"`
-	CreatedBy  uuid.UUID     `json:"createdBy"`
-	CreatedAt  time.Time     `json:"createdAt"`
-	ExpiresAt  time.Time     `json:"expiresAt"`
-	LastUsedAt *time.Time    `json:"lastUsedAt"`
+	ID            uuid.UUID     `json:"id"`
+	Name          string        `json:"name"`
+	EntityType    EntityType    `json:"entityType"`
+	EntityID      uuid.UUID     `json:"entityId"`
+	Scopes        []EntityScope `json:"scopes"`
+	CreatedBy     uuid.UUID     `json:"createdBy"`
+	CreatedAt     time.Time     `json:"createdAt"`
+	ExpiresAt     time.Time     `json:"expiresAt"`
+	LastUsedAt    *time.Time    `json:"lastUsedAt"`
+	DisplaySuffix string        `json:"displaySuffix"`
 }
 
 func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error) {
@@ -634,6 +643,7 @@ func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensF
 			&i.CreatedAt,
 			&i.ExpiresAt,
 			&i.LastUsedAt,
+			&i.DisplaySuffix,
 		); err != nil {
 			return nil, err
 		}
