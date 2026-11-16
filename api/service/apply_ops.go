@@ -87,6 +87,10 @@ func (a *applier) apply(ctx context.Context, qtx *genDb.Queries, op configplan.O
 }
 
 func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.Operation) error {
+	principal, err := principalFrom(ctx)
+	if err != nil {
+		return err
+	}
 	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
 	spec := serviceSpecFor(op.Desired)
 	specJSON, err := protojson.Marshal(spec)
@@ -95,6 +99,7 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	}
 	resourceID, err := qtx.CreateResource(ctx, genDb.CreateResourceParams{
 		WorkspaceID: a.env.WorkspaceID,
+		CreatedBy:   principal.UserID,
 		Name:        op.Service,
 		Slug:        resourceSlug(op.Service),
 		Type:        genDb.ResourceTypeService,

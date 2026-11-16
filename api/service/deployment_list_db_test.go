@@ -146,8 +146,9 @@ func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		err = f.pool.QueryRow(ctx, `INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-			VALUES ($1, $2, $2, 'service', '', '{}', 1) RETURNING id`, ws, seed.name).
+		err = f.pool.QueryRow(ctx, `INSERT INTO resources
+			(workspace_id, name, slug, type, description, spec, spec_version, created_by)
+			VALUES ($1, $2, $2, 'service', '', '{}', 1, $3) RETURNING id`, ws, seed.name, f.userID).
 			Scan(seed.id)
 		if err != nil {
 			t.Fatal(err)

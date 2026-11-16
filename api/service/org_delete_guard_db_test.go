@@ -11,6 +11,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/reqctx"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -133,7 +134,9 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 		done <- deleteErr
 	}()
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	principal, _ := reqctx.PrincipalFrom(f.owner)
 	_, createErr := qtx.CreateResource(t.Context(), genDb.CreateResourceParams{
+		CreatedBy:   principal.UserID,
 		WorkspaceID: uuid.MustParse(f.workspaceID), Name: testNewResource, Slug: testNewResource,
 		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
 	})

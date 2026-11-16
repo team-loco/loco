@@ -21,10 +21,10 @@ func TestResourceReaderListsTheEnvironmentsOfTheirResourcesWorkspace(t *testing.
 WITH other AS (
   INSERT INTO workspaces (org_id, name, created_by)
   SELECT org_id, 'other', created_by FROM workspaces WHERE id = $1
-  RETURNING id
+  RETURNING id, created_by
 )
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-SELECT id, 'elsewhere', 'elsewhere', 'service', '', '{}', 1 FROM other
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+SELECT id, 'elsewhere', 'elsewhere', 'service', '', '{}', 1, created_by FROM other
 RETURNING id`, workspaceID).Scan(&otherResource)
 	if err != nil {
 		t.Fatalf("create resource in another workspace: %v", err)

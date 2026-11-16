@@ -42,6 +42,7 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 	)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
 		ActorType: genDb.DeploymentActorTypeUser,
+		UserID:    f.userID,
 		Method:    genDb.DeploymentMethodWeb,
 		Scopes:    f.applyScopes(t),
 	})

@@ -46,8 +46,8 @@ WITH u AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)
     VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
 ), r AS (
-    INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-    SELECT w.id, 'svc', 'svc', 'service', '', '{}', 1 FROM w RETURNING id
+    INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+    SELECT w.id, 'svc', 'svc', 'service', '', '{}', 1, u.id FROM w, u RETURNING id
 )
 SELECT w.id, c.id, c2.id, r.id, e.id FROM w, c, c2, r, e`)
 	if err := row.Scan(&f.workspaceID, &f.clusterID, &f.otherCluster, &f.resourceID, &f.envID); err != nil {
@@ -95,8 +95,8 @@ func (f *fixture) otherResource(t *testing.T) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
 	err := f.pool.QueryRow(f.ctx, `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version)
-SELECT workspace_id, n.name, n.name, type, '', '{}', 1
+INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
+SELECT workspace_id, n.name, n.name, type, '', '{}', 1, created_by
 FROM resources, (SELECT 'other-' || substr(md5(random()::text), 1, 8) AS name) n WHERE id = $1
 RETURNING id`, f.resourceID).Scan(&id)
 	if err != nil {

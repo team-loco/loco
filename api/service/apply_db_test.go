@@ -69,7 +69,10 @@ func applyFile(
 	server := newPlanServer(f)
 	ctx := reqctx.WithPrincipal(
 		context.Background(),
-		reqctx.Principal{ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb, Scopes: scopes},
+		reqctx.Principal{
+			UserID: f.userID, ActorType: genDb.DeploymentActorTypeUser,
+			Method: genDb.DeploymentMethodWeb, Scopes: scopes,
+		},
 	)
 	req := &planv1.ApplyRequest{
 		File:               []byte(file),

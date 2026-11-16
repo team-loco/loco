@@ -575,6 +575,13 @@ func (s *status) deployReportsHealthy(t *testing.T) {
 	w, dir := s.w, s.dir
 	w.MustLoco(t, dir, "deploy", "--yes")
 	waitRolloutFinished(t, w, app)
+	resource, err := w.Resource(t.Context(), app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resource.GetCreatedBy(); got != p.UserID {
+		t.Errorf("resource creator = %q, want %s", got, p.UserID)
+	}
 	region := regionStatus(t, w, app)
 	ready := resourceEvents(t.Context(), t, w, w.ResourceID(t, app), "deployment.ready")
 	if len(ready) != 1 || ready[0].GetSubjectId() != region.GetDeploymentId() {

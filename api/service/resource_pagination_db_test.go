@@ -25,6 +25,7 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 		id, err := f.queries.CreateResource(
 			ctx,
 			genDb.CreateResourceParams{
+				CreatedBy:   f.userID,
 				WorkspaceID: workspaceID,
 				Name:        "page-" + strconv.Itoa(i),
 				Slug:        "page-" + strconv.Itoa(i),

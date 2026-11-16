@@ -47,6 +47,7 @@ func newScopedAuditFixture(t *testing.T) *scopedAuditFixture {
 		id, err := f.queries.CreateResource(
 			t.Context(),
 			genDb.CreateResourceParams{
+				CreatedBy:   owner.ID,
 				WorkspaceID: workspaces[0],
 				Name:        name,
 				Slug:        name,

@@ -42,7 +42,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeWrite},
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	}
-	scoped := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
+	scoped := reqctx.WithPrincipal(ctx, reqctx.Principal{UserID: f.userID, Scopes: scopes})
 
 	region := &resourcev1.RegionTarget{Enabled: true, Cpu: testRegionCPU, Memory: testRegionMemory}
 	service := &resourcev1.ServiceSpec{
