@@ -109,7 +109,6 @@ func newFakePlatform() *fakePlatform {
 			Id:          fakeEnvironmentID,
 			WorkspaceId: fakeWorkspaceID,
 			Name:        "production",
-			Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 		}},
 		polls:              map[string]int{},
 		outcome:            outcomeSucceeded,

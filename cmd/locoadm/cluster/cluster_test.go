@@ -21,7 +21,6 @@ import (
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
-	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -31,13 +30,11 @@ const (
 	testName          = "east"
 	testWorkerContext = "worker"
 	testRegion        = "us-east-1"
-	testTier          = environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
 )
 
 var (
-	testTierFlag = strings.ToLower(strings.TrimPrefix(testTier.String(), tierEnumPrefix))
-	createArgs   = []string{
-		clusterCreate, "--" + flagName, testName, "--" + flagRegion, testRegion, "--" + flagTier, testTierFlag,
+	createArgs = []string{
+		clusterCreate, "--" + flagName, testName, "--" + flagRegion, testRegion,
 	}
 )
 
@@ -215,8 +212,7 @@ func TestClusterCreateAndJoinTokenPrintTheToken(t *testing.T) {
 			t.Fatalf("output lacks the cluster ID or join token: %s", output)
 		}
 		if args[0] == clusterCreate &&
-			(fake.created.GetName() != testName || fake.created.GetRegion() != testRegion ||
-				fake.created.GetTier() != testTier) {
+			(fake.created.GetName() != testName || fake.created.GetRegion() != testRegion) {
 			t.Fatalf("created %v", fake.created)
 		}
 	}
@@ -254,7 +250,6 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		{clusterResume, testClusterID, "--force"},
 		createArgs[:len(createArgs)-2],
 		append([]string{clusterCreate, testClusterID}, createArgs[1:]...),
-		append(createArgs[:len(createArgs)-1:len(createArgs)-1], "qa"),
 		{clusterJoinToken},
 		{clusterJoinToken, "invalid"},
 		{clusterJoinToken, testClusterID, "-o", "unsupported"},

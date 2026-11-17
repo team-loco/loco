@@ -10,7 +10,7 @@ Bootstrap the worker’s Flux against its repository directory first and wait fo
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
-locoadm cluster create --name worker-staging --region example-east --tier staging \
+locoadm cluster create --name worker-staging --region example-east \
   --kube-context worker-staging
 ```
 
@@ -37,7 +37,7 @@ Status reports pending or enrolled clusters, last heartbeats, API and agent vers
 kubectl --context worker-staging get gateway -n loco-system
 ```
 
-Point the application wildcard, such as `*.apps.example.com`, at that address once, or run external-dns. Wait for certificates. Each environment runs on its own clusters; staging and production do not share a worker.
+Point the application wildcard, such as `*.apps.example.com`, at that address once, or run external-dns. Wait for certificates. Application environments can share a worker cluster. Each keeps separate workloads, secrets and deployment history. Loco’s own staging and production installations use separate clusters.
 
 ## Renew a pending token
 
