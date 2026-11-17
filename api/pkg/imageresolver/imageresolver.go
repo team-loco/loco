@@ -46,22 +46,23 @@ func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, err
 		return "", fmt.Errorf("fetch manifest for %s: %w", ref, err)
 	}
 
-	var img v1.Image
 	switch {
 	case desc.MediaType.IsIndex():
-		img, err = indexImage(desc)
+		index, indexErr := desc.ImageIndex()
+		if indexErr != nil {
+			return "", fmt.Errorf("read image index: %w", indexErr)
+		}
+		err = checkIndex(index, r.maxBytes)
 	case desc.MediaType.IsImage():
-		img, err = desc.Image()
+		img, imageErr := desc.Image()
+		if imageErr != nil {
+			return "", fmt.Errorf("read image: %w", imageErr)
+		}
+		err = checkImage(img, r.maxBytes)
 	default:
 		return "", fmt.Errorf("unsupported manifest media type %s", desc.MediaType)
 	}
 	if err != nil {
-		return "", err
-	}
-	if err := checkSize(img, r.maxBytes); err != nil {
-		return "", err
-	}
-	if err := checkImage(img); err != nil {
 		return "", err
 	}
 	return desc.Digest.String(), nil
@@ -105,27 +106,51 @@ func checkSize(img v1.Image, limit int64) error {
 	return nil
 }
 
-func indexImage(desc *remote.Descriptor) (v1.Image, error) {
-	index, err := desc.ImageIndex()
-	if err != nil {
-		return nil, fmt.Errorf("read image index: %w", err)
-	}
+// The runtime chooses a variant from the pinned index. Check each eligible
+// variant independently so CPU-specific variants cannot bypass the budget.
+// An omitted platform can also be selected by runtimes; check its image config.
+func checkIndex(index v1.ImageIndex, limit int64) error {
 	manifest, err := index.IndexManifest()
 	if err != nil {
-		return nil, fmt.Errorf("read index manifest: %w", err)
+		return fmt.Errorf("read index manifest: %w", err)
 	}
+	found := false
 	for _, m := range manifest.Manifests {
-		if m.Platform == nil {
+		if m.Platform != nil && (m.Platform.OS != requiredOS || m.Platform.Architecture != requiredArchitecture) {
 			continue
 		}
-		if m.Platform.OS == requiredOS && m.Platform.Architecture == requiredArchitecture {
-			return index.Image(m.Digest)
+		found = true
+		if m.MediaType.IsIndex() {
+			child, childErr := index.ImageIndex(m.Digest)
+			if childErr != nil {
+				return fmt.Errorf("read child index: %w", childErr)
+			}
+			if checkErr := checkIndex(child, limit); checkErr != nil {
+				return checkErr
+			}
+			continue
+		}
+		if !m.MediaType.IsImage() {
+			return fmt.Errorf("unsupported manifest media type %s", m.MediaType)
+		}
+		img, imageErr := index.Image(m.Digest)
+		if imageErr != nil {
+			return fmt.Errorf("read child image: %w", imageErr)
+		}
+		if checkErr := checkImage(img, limit); checkErr != nil {
+			return checkErr
 		}
 	}
-	return nil, ErrPlatformUnsupported
+	if !found {
+		return ErrPlatformUnsupported
+	}
+	return nil
 }
 
-func checkImage(img v1.Image) error {
+func checkImage(img v1.Image, limit int64) error {
+	if err := checkSize(img, limit); err != nil {
+		return err
+	}
 	cfg, err := img.ConfigFile()
 	if err != nil {
 		return fmt.Errorf("read image config: %w", err)
