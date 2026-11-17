@@ -70,7 +70,7 @@ Track unfinished work in the owning repository’s GitHub issues. Do not maintai
 
 ## Elevation & Depth
 
-Neutral surface tones and thin borders distinguish code, tables, and search. The header has a bottom border and no shadow. Fumadocs owns search overlays and their stacking behavior.
+Neutral surface tones and thin borders distinguish code, tables, and search. The header has a bottom border and no shadow. Fumadocs owns search overlays and their stacking behavior. The search field uses the dialog’s outer focus ring, avoiding a second inset border; its header has 16px horizontal padding and a 12px gap between icon, field, and Escape control.
 
 ## Shapes
 

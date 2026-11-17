@@ -188,6 +188,19 @@ def check_docs_reading_layout(address, out_dir):
         page.get_by_role("button", name="Light", exact=True).first.click()
         expect(page.locator("html")).not_to_have_class(re.compile(r"dark"))
         page.get_by_role("button", name="System", exact=True).first.click()
+        search_trigger = page.get_by_role("button", name=re.compile(r"^Search")).first
+        search_trigger.click()
+        search_input = page.get_by_role("combobox", name="Search", exact=True)
+        expect(search_input).to_be_focused()
+        expect(search_input).to_have_css("outline-style", "none")
+        search_dialog = page.get_by_role("dialog")
+        expect(search_dialog).to_have_css("outline-style", "solid")
+        page.screenshot(path=out_dir / "docs-search-light.png", animations="disabled")
+        search_input.fill("install")
+        expect(page.get_by_role("option").first).to_be_visible()
+        search_input.press("Escape")
+        expect(search_input).to_be_hidden()
+        expect(search_trigger).to_be_focused()
         article = page.locator("#nd-page")
         assert article.bounding_box()["width"] <= 780
         logo = page.get_by_role("img", name="Loco", exact=True).first
