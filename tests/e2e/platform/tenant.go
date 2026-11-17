@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 	"sigs.k8s.io/yaml"
 
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -49,11 +50,13 @@ func (p *Platform) NewTenant(t *testing.T) *Workspace {
 		nameSeparators.ReplaceAllString(strings.ToLower(strings.TrimPrefix(t.Name(), "Test")), "-"),
 		"-",
 	)
-	org, err := p.User.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(name)})
+	// Kept platforms retain earlier runs; name-based CLI lookups must stay unambiguous.
+	orgName := name + "-" + uuid.NewString()
+	org, err := p.User.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new(orgName)})
 	if err != nil {
-		t.Fatalf("create organization %s: %v", name, err)
+		t.Fatalf("create organization %s: %v", orgName, err)
 	}
-	return p.newWorkspace(t, org.GetOrgId(), name, name)
+	return p.newWorkspace(t, org.GetOrgId(), orgName, name)
 }
 
 // NewWorkspace creates another workspace in the same organization.
