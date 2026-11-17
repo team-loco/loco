@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/team-loco/loco/tools/internal/devicelogin"
+	"github.com/team-loco/loco/tools/internal/operatorrepo"
 )
 
 const localIdentity = "local"
@@ -55,10 +55,10 @@ func (cfg config) install(ctx context.Context) error {
 	if len(identity) > 0 {
 		entry = "./all"
 	}
-	if err = cfg.deployEntry(ctx, false, entry); err != nil {
+	if _, err = command(ctx, nil, nil, "go", "-C", "cmd", "build", "-o", "../bin/", "./loco", "./locoadm"); err != nil {
 		return err
 	}
-	if _, err = command(ctx, nil, nil, "go", "-C", "cmd", "build", "-o", "../bin/", "./loco", "./locoadm"); err != nil {
+	if err = cfg.deployEntry(ctx, false, entry); err != nil {
 		return err
 	}
 	login := exec.CommandContext(
@@ -151,12 +151,12 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	}
 	var manifest struct {
 		Version string `json:"version"`
+		Bundle  string `json:"bundle"`
 	}
 	if err = json.Unmarshal(output, &manifest); err != nil {
 		return err
 	}
 	cfg.BundleVersion = manifest.Version
-	cfg.EntryPoint = entry
 	egress, err := command(
 		ctx,
 		nil,
@@ -172,21 +172,6 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		return err
 	}
 	cfg.PrivateEgress = strings.TrimSpace(string(egress))
-	sealPath := filepath.Join(cfg.State, "seal.key")
-	seal, err := os.ReadFile(sealPath)
-	if os.IsNotExist(err) {
-		key := make([]byte, 32)
-		if _, err = rand.Read(key); err != nil {
-			return err
-		}
-		seal = []byte(base64.StdEncoding.EncodeToString(key))
-		if err = os.WriteFile(sealPath, seal, 0600); err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-	cfg.SealKey = string(seal)
 	auth := func(user, password string) (string, error) {
 		data, marshalErr := json.Marshal(
 			map[string]any{
@@ -205,37 +190,22 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	if cfg.PullAuth, err = auth("nodes", "loco-dev-nodes"); err != nil {
 		return err
 	}
-	directory := filepath.Join(cfg.State, "flux")
-	if err = os.RemoveAll(directory); err != nil {
-		return err
+	repo := operatorrepo.Repository{
+		Path:    filepath.Join(cfg.State, "repo"),
+		Cluster: localIdentity,
+		Source:  "local-config",
 	}
-	if err = os.MkdirAll(directory, 0700); err != nil {
-		return err
-	}
-	for _, name := range []string{"control-plane", "worker"} {
-		destination := filepath.Join(cfg.State, name+"-values.yaml")
-		if err = cfg.render("dev/flux/local/"+name+"-values.yaml", destination); err != nil {
+	if _, statErr := os.Stat(repo.Path); os.IsNotExist(statErr) {
+		if err = cfg.initializeRepo(ctx, repo, manifest.Bundle); err != nil {
 			return err
 		}
-		data, readErr := os.ReadFile(destination)
-		if readErr != nil {
-			return readErr
-		}
-		if name == "worker" {
-			cfg.WorkerValues = string(data)
-		} else {
-			cfg.ControlPlaneValues = string(data)
-		}
+	} else if statErr != nil {
+		return statErr
 	}
-	if err = cfg.render("dev/flux/local/resources.yaml", filepath.Join(directory, "resources.yaml")); err != nil {
+	if err = cfg.mergeValues(repo); err != nil {
 		return err
 	}
-	resources := "resources:\n  - resources.yaml\n"
-	if err = os.WriteFile(
-		filepath.Join(directory, "kustomization.yaml"),
-		[]byte("apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"+resources),
-		0600,
-	); err != nil {
+	if err = repo.Configure(manifest.Bundle, entry); err != nil {
 		return err
 	}
 	if _, err = cfg.flux(
@@ -244,9 +214,9 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		"artifact",
 		"oci://localhost:"+cfg.RegistryPort+"/team-loco/loco/dev:local",
 		"--path",
-		directory,
+		repo.Path,
 		"--source",
-		"dev/flux/local",
+		"dev/flux/values",
 		"--revision",
 		cfg.BundleVersion,
 		"--insecure-registry",
@@ -255,18 +225,20 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	); err != nil {
 		return err
 	}
-	root := filepath.Join(cfg.State, "flux-root.yaml")
-	if err = cfg.render("dev/flux/local/root.yaml", root); err != nil {
-		return err
-	}
-	data, err := os.ReadFile(root)
+	data, err := repo.Bootstrap("oci://registry." + cfg.Domain + ":" + cfg.RegistryPort + "/team-loco/loco/dev:local")
 	if err != nil {
 		return err
 	}
 	if err = cfg.apply(ctx, data); err != nil {
 		return err
 	}
-	for _, source := range []string{"platform-bundle", "local-config"} {
+	if _, err = cfg.flux(ctx, "reconcile", "source", "oci", repo.Source); err != nil {
+		return err
+	}
+	if _, err = cfg.flux(ctx, "reconcile", "kustomization", repo.Source); err != nil {
+		return err
+	}
+	for _, source := range []string{"platform-bundle"} {
 		if _, err = cfg.flux(ctx, "reconcile", "source", "oci", source); err != nil {
 			return err
 		}
@@ -317,4 +289,54 @@ func enrollmentArgs(data []byte, kubeContext string) ([]string, error) {
 		"production",
 		"--kube-context", kubeContext,
 	}, nil
+}
+
+func (cfg config) initializeRepo(ctx context.Context, repo operatorrepo.Repository, bundle string) error {
+	destination := repo.Path
+	scratch, err := os.MkdirTemp(cfg.State, "init-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(scratch)
+	repo.Path = filepath.Join(scratch, "repo")
+	env := filepath.Join(cfg.State, "api.env")
+	if err = cfg.render("dev/flux/values/api.env", env); err != nil {
+		return err
+	}
+	if _, err = cfg.locoadm(ctx, "init", "--single-cluster", "--name", repo.Cluster,
+		"--output", repo.Path, "--api", cfg.apiURL(), "--web", "http://localhost:"+cfg.WebPort,
+		"--domain", "apps."+cfg.Domain, "--region", localIdentity, "--admin", "dev@loco.test",
+		"--bundle", "oci://"+bundle, "--api-env-file", env); err != nil {
+		return err
+	}
+	path := filepath.Join(cfg.State, "fixture-resources.yaml")
+	if err = cfg.render("dev/flux/values/secrets.yaml", path); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err = repo.AddResources(data); err != nil {
+		return err
+	}
+	return os.Rename(repo.Path, destination)
+}
+
+func (cfg config) mergeValues(repo operatorrepo.Repository) error {
+	var err error
+	for _, release := range []string{"loco-control-plane", "loco-worker"} {
+		path := filepath.Join(cfg.State, release+"-overrides.yaml")
+		if err = cfg.render("dev/flux/values/"+release+".yaml", path); err != nil {
+			return err
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if err = operatorrepo.Merge(repo.Values(release), data); err != nil {
+			return err
+		}
+	}
+	return nil
 }

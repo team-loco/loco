@@ -21,6 +21,9 @@ func Command() *cobra.Command {
 			return err
 		},
 	}
+	command.Flags().
+		BoolVar(&options.SingleCluster, "single-cluster", false, "Run the control plane and worker on one cluster")
+	command.Flags().StringVar(&options.Name, "name", "local", "Cluster directory name for --single-cluster")
 	flags := []struct {
 		name  string
 		value *string

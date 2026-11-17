@@ -11,10 +11,18 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	registryname "github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/team-loco/loco/tools/internal/imagepull"
 )
+
+//nolint:gosec // Public development-only identity from dev/registry/htpasswd.
+const fixturePushPassword = "loco-dev-builder"
+
+func fixtureRegistryAuth() authn.Authenticator {
+	return authn.FromConfig(authn.AuthConfig{Username: fixtureBuilder, Password: fixturePushPassword})
+}
 
 const operatorImage = "installation-operator"
 

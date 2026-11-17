@@ -76,6 +76,8 @@ locoadm init --output ./fleet \
   --api-env-file ./api.env
 ```
 
+`--single-cluster --name local` creates one `clusters/local/` directory using the bundle’s `./all` entry point, with values for both releases. Without `--single-cluster`, the repository contains a control plane and a staging worker.
+
 The command generates the static seal key and writes it and the supplied API environment as plaintext Kubernetes Secret files. Encrypt these files before committing, or deliver the named Secrets through External Secrets. The generated README describes optional encryption with operator-installed SOPS. Review chart values, provide infrastructure credentials and bootstrap Flux separately. Deliver the worker join token with `locoadm cluster create --kube-context WORKER`; the agent waits for the mounted token.
 
 `locoadm cluster create` and `cluster join-token` accept `--kube-context CONTEXT` to write the token directly to the worker and print only a confirmation. Bootstrap Flux first; the bundle must create the target namespace. `--ttl` sets its lifetime. `-o secret` prints a plaintext Kubernetes Secret manifest for operator-managed delivery and is mutually exclusive with `--kube-context`. Default output is JSON. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. For an expired pending token, re-run `cluster join-token CLUSTER_UUID --kube-context CONTEXT`.

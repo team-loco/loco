@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	yamlv3 "go.yaml.in/yaml/v3"
@@ -22,9 +24,15 @@ import (
 
 type InitOptions struct {
 	Output, API, Web, Domain, Region, Admin, Bundle, APIEnvFile string
+	SingleCluster                                               bool
+	Name                                                        string
 }
 
 func Init(options InitOptions) error {
+	if options.SingleCluster &&
+		(len(options.Name) > 63 || !regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`).MatchString(options.Name)) {
+		return errors.New("name must be a lowercase cluster name")
+	}
 	endpoints := make([]*url.URL, 0, 2)
 	for _, address := range []string{options.API, options.Web} {
 		endpoint, err := url.Parse(address)
@@ -101,6 +109,9 @@ func Init(options InitOptions) error {
 		); writeErr != nil {
 			return writeErr
 		}
+	}
+	if options.SingleCluster {
+		return singleCluster(options)
 	}
 	return nil
 }
@@ -188,4 +199,107 @@ func copyExample(options InitOptions, repository, pin string, replacements *stri
 		}
 		return os.WriteFile(filepath.Join(options.Output, path), data, 0600)
 	})
+}
+
+func singleCluster(options InitOptions) error {
+	root, err := os.OpenRoot(options.Output)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	all := filepath.Join("bases", "all")
+	if err = root.Mkdir(all, 0700); err != nil {
+		return err
+	}
+	for _, name := range []string{"kustomization.yaml", "loco.yaml"} {
+		data, readErr := root.ReadFile(filepath.Join("bases", "control-plane", name))
+		if readErr != nil {
+			return readErr
+		}
+		if name == "kustomization.yaml" {
+			data = []byte(
+				"apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n" +
+					"resources: [loco.yaml, ../control-plane/values, ../worker/values]\n",
+			)
+		} else {
+			data = bytes.ReplaceAll(data, []byte("./control-plane"), []byte("./all"))
+		}
+		if err = root.WriteFile(filepath.Join(all, name), data, 0600); err != nil {
+			return err
+		}
+	}
+	control := filepath.Join("clusters", "control-plane")
+	worker := filepath.Join("clusters", "worker-staging")
+	values, err := root.ReadFile(filepath.Join(worker, "values", "loco-worker.yaml"))
+	if err != nil {
+		return err
+	}
+	var workerValues map[string]any
+	if err = yaml.Unmarshal(values, &workerValues); err != nil {
+		return err
+	}
+	workerValues["certManager"] = map[string]any{"issuer": map[string]any{"create": false, "email": options.Admin}}
+	values, err = yaml.Marshal(workerValues)
+	if err != nil {
+		return err
+	}
+	if err = root.WriteFile(filepath.Join(control, "values", "loco-worker.yaml"), values, 0600); err != nil {
+		return err
+	}
+	path := filepath.Join(control, "kustomization.yaml")
+	data, err := root.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var cluster map[string]any
+	if err = yaml.Unmarshal(data, &cluster); err != nil {
+		return err
+	}
+	cluster["resources"] = []string{"../../releases/control-plane.yaml", "../../bases/all"}
+	generators, ok := cluster["configMapGenerator"].([]any)
+	if !ok {
+		return errors.New("cluster has no values generators")
+	}
+	cluster["configMapGenerator"] = append(generators, map[string]any{
+		"name":      "loco-worker-values",
+		"namespace": "flux-system",
+		"files":     []string{"values.yaml=values/loco-worker.yaml"},
+	})
+	data, err = yaml.Marshal(cluster)
+	if err != nil {
+		return err
+	}
+	data = bytes.ReplaceAll(
+		data,
+		[]byte("./clusters/control-plane/config"),
+		[]byte("./clusters/"+options.Name+"/config"),
+	)
+	if err = root.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	if err = root.RemoveAll(worker); err != nil {
+		return err
+	}
+	readme := fmt.Sprintf(`# Loco single-cluster repository
+
+This repository installs a control plane and worker on one cluster through Flux.
+Bootstrap Flux against clusters/%s with Flux 2.10.0 or later.
+
+The combined base selects the bundle's ./all entry point. releases/control-plane.yaml
+pins its bundle digest. Per-release overrides live in clusters/%s/values/;
+shared defaults live under bases/. Review endpoints, credentials and certificate settings.
+
+The Secret files are plaintext: encrypt them before committing, or supply the named
+Secrets through External Secrets. Keep the seal key in offline custody.
+Use locoadm cluster create with --kube-context to deliver the worker join token after Flux bootstrap.
+
+See https://docs.loco.build/reference/installation for enrollment, upgrades and recovery.
+`, options.Name, options.Name)
+	if err = root.WriteFile("README.md", []byte(readme), 0600); err != nil {
+		return err
+	}
+	if options.Name != "control-plane" {
+		return root.Rename(control, filepath.Join("clusters", options.Name))
+	}
+	return nil
 }

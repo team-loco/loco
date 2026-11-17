@@ -10,9 +10,14 @@ import (
 	"net"
 	"strings"
 	"time"
+
+	"sigs.k8s.io/yaml"
 )
 
-var errTLS12Accepted = errors.New("gateway accepted a TLS 1.2 handshake")
+var (
+	errTLS12Accepted    = errors.New("gateway accepted a TLS 1.2 handshake")
+	errTLSFixtureValues = errors.New("TLS fixture values are missing an expected key")
+)
 
 // Upgrade after recovery so the HTTP recovery fixture can finish before its API URL changes.
 func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
@@ -30,17 +35,9 @@ func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
 	if err = json.Unmarshal(data, &values); err != nil {
 		return err
 	}
-	source := strings.Replace(
-		values.Data["values.yaml"],
-		"certManager: {enabled: false}",
-		`certManager: {enabled: true, issuer: {create: false, name: installation-ca, kind: ClusterIssuer}}
-gateway:
-  tls: {minVersion: "1.3"}
-`,
-		1,
-	)
-	for _, host := range []string{fixtureAPIHost, fixtureWebHost, fixtureIngestHost} {
-		source = strings.ReplaceAll(source, "http://"+host, "https://"+host)
+	source, err := tlsControlPlaneValues(values.Data["values.yaml"])
+	if err != nil {
+		return err
 	}
 	patch, err := json.Marshal(map[string]any{fluxData: map[string]string{"values.yaml": source}})
 	if err != nil {
@@ -91,6 +88,47 @@ gateway:
 		}
 	}
 	return nil
+}
+
+const tlsIssuerKindKey = "kind"
+
+func tlsControlPlaneValues(source string) (string, error) {
+	var values map[string]any
+	if err := yaml.Unmarshal([]byte(source), &values); err != nil {
+		return "", err
+	}
+	for _, update := range []struct {
+		path  string
+		value any
+	}{
+		{"certManager.enabled", true},
+		{"certManager.issuer", map[string]any{
+			"create": false, "name": "installation-ca", tlsIssuerKindKey: "ClusterIssuer",
+		}},
+		{"api.env.WEB_URL", "https://" + fixtureWebHost},
+		{"api.env.CORS_ALLOWED_ORIGINS", "https://" + fixtureWebHost},
+	} {
+		parent := values
+		keys := strings.Split(update.path, ".")
+		for _, key := range keys[:len(keys)-1] {
+			nested, exists := parent[key].(map[string]any)
+			if !exists {
+				return "", fmt.Errorf("%w: %s", errTLSFixtureValues, update.path)
+			}
+			parent = nested
+		}
+		key := keys[len(keys)-1]
+		if _, exists := parent[key]; !exists {
+			return "", fmt.Errorf("%w: %s", errTLSFixtureValues, update.path)
+		}
+		parent[key] = update.value
+	}
+	values["gateway"] = map[string]any{"tls": map[string]any{"minVersion": "1.3"}}
+	data, err := yaml.Marshal(values)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 func waitTLS13(ctx context.Context, address, serverName string, roots *x509.CertPool) error {

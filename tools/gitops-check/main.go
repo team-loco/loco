@@ -67,6 +67,9 @@ spec:
 		return err
 	}
 	var resources bytes.Buffer
+	if err = checkSingleCluster(ctx, root, scratch, spec, &resources); err != nil {
+		return err
+	}
 	var chartCommands [][]string
 	for _, cluster := range clusters {
 		dir := filepath.Join(example, "clusters", cluster.name)
@@ -94,23 +97,9 @@ spec:
 			resources.Write(built)
 			resources.WriteString("\n---\n")
 		}
-		args := []string{
-			"template",
-			cluster.chart,
-			filepath.Join(root, "charts", cluster.chart),
-			"--namespace",
-			"loco-system",
-			"-f", filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
-			"-f", filepath.Join(dir, "values", cluster.chart+".yaml"),
-		}
-		components := []string{"api.image.tag", "ui.image.tag", "obsProxy.image.tag"}
-		if cluster.chart == "loco-worker" {
-			components = []string{"agent.image.tag", "controller.image.tag", "builds.builderImage.tag"}
-			args = append(args, "--set", "gateway-helm.enabled=false")
-		}
-		for _, component := range components {
-			args = append(args, "--set", component+"=validation@sha256:"+strings.Repeat("a", 64))
-		}
+		args := chartArgs(root, cluster.chart,
+			filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
+			filepath.Join(dir, "values", cluster.chart+".yaml"))
 		chartCommands = append(chartCommands, args)
 	}
 	cohorts, listErr := filepath.Glob(filepath.Join(example, "releases", "*.yaml"))
@@ -137,7 +126,7 @@ spec:
 			return err
 		}
 	}
-	return nil
+	return checkCombinedCharts(ctx, root, filepath.Join(scratch, "combined"))
 }
 
 func command(ctx context.Context, dir string, input []byte, name string, args ...string) ([]byte, error) {
@@ -216,6 +205,112 @@ func strictSchema(value any) {
 			strictSchema(child)
 		}
 	}
+}
+
+func checkSingleCluster(ctx context.Context, root, scratch, spec string, resources *bytes.Buffer) error {
+	env := filepath.Join(scratch, "api.env")
+	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\n"), 0600); err != nil {
+		return err
+	}
+	output := filepath.Join(scratch, "combined")
+	if _, err := command(
+		ctx,
+		root,
+		nil,
+		"go",
+		"-C",
+		"cmd",
+		"run",
+		"./locoadm",
+		"init",
+		"--single-cluster",
+		"--name",
+		"combined",
+		"--output",
+		output,
+		"--api",
+		"https://api.test",
+		"--web",
+		"https://console.test",
+		"--domain",
+		"apps.test",
+		"--region",
+		"test-east",
+		"--admin",
+		"admin@test.local",
+		"--bundle",
+		"oci://registry.test/platform@sha256:"+strings.Repeat("a", 64),
+		"--api-env-file",
+		env,
+	); err != nil {
+		return err
+	}
+	cluster := filepath.Join(output, "clusters", "combined")
+	if err := checkCohort(output, cluster); err != nil {
+		return err
+	}
+	for _, path := range []string{cluster, filepath.Join(cluster, "config")} {
+		built, err := command(
+			ctx,
+			root,
+			nil,
+			"flux",
+			"build",
+			"kustomization",
+			"example",
+			"--dry-run",
+			"--path",
+			path,
+			"--kustomization-file",
+			spec,
+		)
+		if err != nil {
+			return err
+		}
+		resources.Write(built)
+		resources.WriteString("\n---\n")
+	}
+	return nil
+}
+
+func checkCombinedCharts(ctx context.Context, root, output string) error {
+	issuers := 0
+	for _, role := range []string{"control-plane", "worker"} {
+		chart := "loco-" + role
+		args := chartArgs(root, chart, filepath.Join(output, "bases", role, "values", "values.yaml"),
+			filepath.Join(output, "clusters", "combined", "values", chart+".yaml"))
+		rendered, err := command(ctx, root, nil, "helm", args...)
+		if err != nil {
+			return err
+		}
+		issuers += bytes.Count(rendered, []byte("\nkind: ClusterIssuer\n"))
+	}
+	if issuers != 1 {
+		return fmt.Errorf("combined installation renders %d ClusterIssuers, want one shared issuer", issuers)
+	}
+
+	return nil
+}
+
+func chartArgs(root, chart, base, values string) []string {
+	args := []string{
+		"template",
+		chart,
+		filepath.Join(root, "charts", chart),
+		"--namespace",
+		"loco-system",
+		"-f", base,
+		"-f", values,
+	}
+	components := []string{"api.image.tag", "ui.image.tag", "obsProxy.image.tag"}
+	if chart == "loco-worker" {
+		components = []string{"agent.image.tag", "controller.image.tag", "builds.builderImage.tag"}
+		args = append(args, "--set", "gateway-helm.enabled=false")
+	}
+	for _, component := range components {
+		args = append(args, "--set", component+"=validation@sha256:"+strings.Repeat("a", 64))
+	}
+	return args
 }
 
 func checkCohort(repo, cluster string) error {
