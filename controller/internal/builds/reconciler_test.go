@@ -423,6 +423,7 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(r.patchBuildStatus(ctx, build, original)).To(Succeed())
 		reconcileBuild(r, build)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseSucceeded))
+		Expect(build.Status.Stage).To(Equal(locov1alpha1.BuildStagePush))
 		Expect(build.Status.ImageDigest).To(Equal(testImageDigest))
 		Expect(build.Status.CacheDigest).To(Equal(testCacheDigest))
 		Expect(build.Status.FinishedAt).NotTo(BeNil())
@@ -449,6 +450,7 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		complete := withCondition(job, batchv1.JobComplete, "")
 		observeBuildJob(r, build, complete)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseSucceeded))
+		Expect(build.Status.Stage).To(Equal(locov1alpha1.BuildStagePush))
 		Expect(build.Status.ImageDigest).To(Equal(testImageDigest))
 	})
 
@@ -503,6 +505,7 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		failed := withCondition(job, batchv1.JobFailed, "BackoffLimitExceeded")
 		observeBuildJob(r, build, failed)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseFailed))
+		Expect(build.Status.Stage).To(Equal(locov1alpha1.BuildStageBuild))
 		Expect(build.Status.Message).To(HavePrefix("build step failed with exit code 1: ERROR"))
 
 		deadline := testBuild("deadline")
@@ -530,13 +533,128 @@ var _ = Describe("Build reconcile", Ordered, func() {
 
 		reconcileBuild(r, build)
 		Expect(build.Status.Phase).To(Equal(locov1alpha1.BuildPhaseFailed))
-		Expect(build.Status.Message).To(Equal("build step could not start: ImagePullBackOff: details"))
+		Expect(
+			build.Status.Message,
+		).To(Equal("build step could not start: ImagePullBackOff: details"))
 		err := k8sClient.Get(ctx, client.ObjectKeyFromObject(job), &batchv1.Job{})
 		if err == nil {
 			Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(job), job)).To(Succeed())
 			Expect(job.DeletionTimestamp).NotTo(BeNil())
 		} else {
 			Expect(apierrors.IsNotFound(err)).To(BeTrue())
+		}
+	})
+
+	It("reports each stage with a stable container start time", func() {
+		r := testReconciler()
+		build := testBuild("stages")
+		Expect(k8sClient.Create(ctx, build)).To(Succeed())
+		reconcileBuild(r, build)
+		Expect(build.Status.Stage).To(BeEmpty())
+		Expect(build.Status.StageSince).To(BeNil())
+		job := buildJobFor(build)
+		pod := createBuildPod(job, corev1.PodStatus{})
+		start := metav1.NewTime(time.Now().Add(-time.Minute).Truncate(time.Second))
+		for _, step := range []struct {
+			name  string
+			stage locov1alpha1.BuildStage
+		}{
+			{buildContainerFetch, locov1alpha1.BuildStageFetch},
+			{buildContainerBuild, locov1alpha1.BuildStageBuild},
+			{buildContainerPush, locov1alpha1.BuildStagePush},
+		} {
+			status := corev1.ContainerStatus{
+				Name:  step.name,
+				State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "PodInitializing"}},
+			}
+			pod.Status.InitContainerStatuses = nil
+			pod.Status.ContainerStatuses = nil
+			if step.name == buildContainerPush {
+				pod.Status.ContainerStatuses = []corev1.ContainerStatus{status}
+			} else {
+				pod.Status.InitContainerStatuses = []corev1.ContainerStatus{status}
+			}
+			if step.name != buildContainerFetch {
+				pod.Status.InitContainerStatuses = append(
+					[]corev1.ContainerStatus{terminated(buildContainerFetch, 0, "")},
+					pod.Status.InitContainerStatuses...)
+			}
+			if step.name == buildContainerPush {
+				pod.Status.InitContainerStatuses = append(
+					pod.Status.InitContainerStatuses,
+					terminated(buildContainerBuild, 0, ""),
+				)
+			}
+			Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			reconcileBuild(r, build)
+			Expect(build.Status.Stage).To(Equal(step.stage))
+			Expect(build.Status.StageSince).To(BeNil())
+			status.State = corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: start}}
+			if step.name == buildContainerPush {
+				pod.Status.ContainerStatuses = []corev1.ContainerStatus{status}
+			} else {
+				pod.Status.InitContainerStatuses = []corev1.ContainerStatus{status}
+			}
+			Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			reconcileBuild(r, build)
+			Expect(build.Status.StageSince).To(Equal(&start))
+			status.State.Running.StartedAt = metav1.NewTime(start.Add(time.Second))
+			if step.name == buildContainerPush {
+				pod.Status.ContainerStatuses = []corev1.ContainerStatus{status}
+			} else {
+				pod.Status.InitContainerStatuses = []corev1.ContainerStatus{status}
+			}
+			Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			reconcileBuild(r, build)
+			Expect(build.Status.StageSince).To(Equal(&start))
+			if step.name != buildContainerPush {
+				pod.Status.InitContainerStatuses = []corev1.ContainerStatus{terminated(buildContainerFetch, 0, "")}
+				next := locov1alpha1.BuildStageBuild
+				if step.name == buildContainerBuild {
+					pod.Status.InitContainerStatuses = append(
+						pod.Status.InitContainerStatuses,
+						terminated(buildContainerBuild, 0, ""),
+					)
+					next = locov1alpha1.BuildStagePush
+				}
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+				reconcileBuild(r, build)
+				Expect(build.Status.Stage).To(Equal(next))
+				Expect(build.Status.StageSince).To(BeNil())
+			}
+		}
+	})
+
+	It("retains the failed container's stage and start time", func() {
+		r := testReconciler()
+		start := metav1.NewTime(time.Now().Add(-time.Minute).Truncate(time.Second))
+		for _, step := range []struct {
+			name  string
+			stage locov1alpha1.BuildStage
+		}{
+			{buildContainerFetch, locov1alpha1.BuildStageFetch},
+			{buildContainerBuild, locov1alpha1.BuildStageBuild},
+			{buildContainerPush, locov1alpha1.BuildStagePush},
+		} {
+			build := testBuild("failed-stage-" + step.name)
+			Expect(k8sClient.Create(ctx, build)).To(Succeed())
+			reconcileBuild(r, build)
+			job := buildJobFor(build)
+			failed := terminated(step.name, 1, "step error")
+			failed.State.Terminated.StartedAt = start
+			status := corev1.PodStatus{Phase: corev1.PodFailed}
+			if step.name == buildContainerPush {
+				status.ContainerStatuses = []corev1.ContainerStatus{failed}
+			} else {
+				status.InitContainerStatuses = []corev1.ContainerStatus{failed}
+			}
+			createBuildPod(job, status)
+			observeBuildJob(r, build, withCondition(job, batchv1.JobFailed, "BackoffLimitExceeded"))
+			Expect(build.Status.Stage).To(Equal(step.stage))
+			Expect(build.Status.StageSince).To(Equal(&start))
+			Expect(
+				build.Status.Message,
+			).To(Equal(step.name + " step failed with exit code 1: step error"))
 		}
 	})
 
