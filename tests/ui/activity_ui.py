@@ -42,9 +42,7 @@ def check_scoped_user(browser):
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": activity["workspaceId"]},
     )["environments"]
-    production = next(
-        e["id"] for e in environments if e["type"] == "ENVIRONMENT_TYPE_PRODUCTION"
-    )
+    production = next(e["id"] for e in environments if e["name"] == "production")
     minute_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)
     stamp = minute_ago.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     telemetry = {

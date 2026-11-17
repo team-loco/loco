@@ -992,7 +992,6 @@ with session(out) as browser:
             {
                 "workspaceId": workspace_id,
                 "name": "staging",
-                "type": "ENVIRONMENT_TYPE_STAGING",
             },
         )["environmentId"]
     context, page, _ = open_page(

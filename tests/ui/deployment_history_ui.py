@@ -70,7 +70,6 @@ def fixture():
         {
             "workspaceId": workspace_id,
             "name": "staging",
-            "type": "ENVIRONMENT_TYPE_STAGING",
         },
     )["environmentId"]
     resource = rpc(
@@ -129,15 +128,14 @@ def fixture():
         for name in ("awaiting", "running", "deployed", "failed", "canceled", "older")
     }
     sql = []
-    for cluster, region, tier in zip(
+    for cluster, region in zip(
         clusters,
         ("us-east-1", "eu-west-1", "us-east-1"),
-        ("production", "production", "staging"),
         strict=True,
     ):
         domains = "{" + PLATFORM_DOMAIN + "}" if cluster == clusters[0] else "{}"
         sql.append(
-            f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier,domains) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{tier}','{domains}');"
+            f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{domains}');"
         )
     for index, deployment in enumerate(release_ids, 1):
         region = "eu-west-1" if index == len(release_ids) else "us-east-1"
@@ -469,7 +467,7 @@ with session(out) as browser:
             stage = "environment-switch"
             environment_switcher = page.get_by_title("Switch environment", exact=True)
             environment_switcher.click()
-            page.get_by_role("menuitem", name="staging staging", exact=True).click()
+            page.get_by_role("menuitem", name="staging", exact=True).click()
             expect(page).to_have_url(re.compile(r"[?&]env=staging"))
             expect(
                 section.get_by_role(
@@ -498,9 +496,7 @@ with session(out) as browser:
                 for request in requests
             )
             environment_switcher.click()
-            page.get_by_role(
-                "menuitem", name="production production", exact=True
-            ).click()
+            page.get_by_role("menuitem", name="production", exact=True).click()
             expect(
                 section.get_by_role(
                     "button",
