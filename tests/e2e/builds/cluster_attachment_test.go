@@ -5,11 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
@@ -78,6 +81,7 @@ func TestClusterAttachment(t *testing.T) {
 	t.Run("the agent reconnects across API processes", reconnectAcrossAPIProcesses)
 
 	t.Run("re-enrollment rotates the agent key", reenrollmentRotatesKey)
+	t.Run("agent waits for a mounted join token", delayedJoinToken)
 
 	t.Run("pause, remove and restore", pauseRemoveRestore)
 }
@@ -290,5 +294,65 @@ func reenrollmentRotatesKey(t *testing.T) {
 	}
 	if agentKeyFingerprint(t) == previous {
 		t.Error("re-enrollment kept the agent key")
+	}
+}
+
+func delayedJoinToken(t *testing.T) {
+	previous := agentKeyFingerprint(t)
+	issued, err := p.Admin.ClusterAdmin.IssueJoinToken(t.Context(), &clusterv1.IssueJoinTokenRequest{
+		ClusterId: p.ClusterID, Ttl: durationpb.New(72 * time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	remaining := time.Until(issued.GetJoinToken().GetExpiresAt().AsTime())
+	if remaining < 71*time.Hour || remaining > 72*time.Hour {
+		t.Fatalf("requested token ttl = %v, want 72h", remaining)
+	}
+	_, err = p.Admin.ClusterAdmin.IssueJoinToken(t.Context(), &clusterv1.IssueJoinTokenRequest{
+		ClusterId: p.ClusterID, Ttl: durationpb.New(8 * 24 * time.Hour),
+	})
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("over-cap ttl: %v", err)
+	}
+	p.StopAgent()
+	if err := p.DeleteAgentKey(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	tokenFile := filepath.Join(t.TempDir(), "join-token")
+	done := make(chan error, 1)
+	go func() { done <- p.StartAgentWithTokenFile(t.Context(), p.APIURL, tokenFile) }()
+	platform.Eventually(t, time.Minute, "agent waiting for its token file", func(context.Context) error {
+		lines, err := p.LogLines("agent", `"msg":"waiting for agent registration"`)
+		if err != nil {
+			return err
+		}
+		if len(lines) == 0 {
+			return errors.New("agent has not reported waiting")
+		}
+		return nil
+	})
+	if exited, code := p.AgentExited(); exited {
+		t.Fatalf("unenrolled agent exited: %d", code)
+	}
+	if err := os.WriteFile(tokenFile, []byte(issued.GetJoinToken().GetToken()), 0600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Minute):
+		t.Fatal("agent did not enroll after token delivery")
+	}
+	if got := agentKeyFingerprint(t); got == previous {
+		t.Fatal("enrollment retained the lost key")
+	}
+	if err := os.Remove(tokenFile); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.RestartAgent(t.Context()); err != nil {
+		t.Fatal(err)
 	}
 }

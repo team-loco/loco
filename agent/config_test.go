@@ -315,3 +315,16 @@ func TestParseAgentConfigReadsTheClusterRole(t *testing.T) {
 		t.Errorf("parseAgentConfig with an unknown role = %v, want errInvalidRole", err)
 	}
 }
+
+func TestJoinTokenFileConfiguration(t *testing.T) {
+	env := agentEnv()
+	env[envJoinTokenFile] = "/var/run/loco/join-token"
+	cfg, err := parseAgentConfig(lookup(env), testAgentVersion)
+	if err != nil || cfg.JoinTokenFile != env[envJoinTokenFile] {
+		t.Fatalf("file config: %v, %v", cfg, err)
+	}
+	env[envJoinToken] = "token"
+	if _, err := parseAgentConfig(lookup(env), testAgentVersion); err == nil {
+		t.Fatal("accepted both join token sources")
+	}
+}

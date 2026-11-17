@@ -146,6 +146,7 @@ const (
 
 	defaultHeartbeatInterval         = 30 * time.Second
 	defaultClusterJoinTokenTTL       = time.Hour
+	defaultClusterJoinTokenMaxTTL    = 7 * 24 * time.Hour
 	defaultAgentAssertionMaxLifetime = 5 * time.Minute
 	defaultInvitationTTL             = 168 * time.Hour
 
@@ -753,7 +754,12 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 		defaultAgentAssertionMaxLifetime,
 	)
 	joinTokenTTL := envconfig.PositiveDuration("LOCO_CLUSTER_JOIN_TOKEN_TTL", defaultClusterJoinTokenTTL)
+	joinTokenMaxTTL := envconfig.PositiveDuration("LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL", defaultClusterJoinTokenMaxTTL)
+	if joinTokenTTL > joinTokenMaxTTL {
+		panic(errors.New("LOCO_CLUSTER_JOIN_TOKEN_TTL must not exceed LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL"))
+	}
 	return service.AgentConfig{
+		JoinTokenMaxTTL:      joinTokenMaxTTL,
 		AssertionMaxLifetime: assertionLifetime,
 		JoinTokenTTL:         joinTokenTTL,
 		DeployAttempts:       defaults.DeployAttempts,

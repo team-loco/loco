@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.cluster.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "loco/environment/v1/environment.proto";
 
@@ -56,6 +57,8 @@ message JoinToken {
 }
 
 message CreateClusterRequest {
+  // Omit for the server default; positive and bounded by the server maximum.
+  google.protobuf.Duration ttl = 5;
   // persist before sending; reuse only for the same worker registration
   string request_id = 4 [(buf.validate.field).string.uuid = true];
   string name = 1 [(buf.validate.field).string = {
@@ -78,6 +81,8 @@ message CreateClusterResponse {
 }
 
 message IssueJoinTokenRequest {
+  // Omit for the server default; positive and bounded by the server maximum.
+  google.protobuf.Duration ttl = 2;
   string cluster_id = 1 [(buf.validate.field).string.uuid = true];
 }
 

@@ -12,7 +12,7 @@ Cluster administration requires the `system:admin` scope. `locoadm`, the operato
 locoadm cluster create --name production-east --region us-east-1 --tier production
 ```
 
-The tier is `staging` or `production`. The command prints the cluster ID and a join token. The token works once and expires after `LOCO_CLUSTER_JOIN_TOKEN_TTL` (API configuration, default `1h`); the API stores only its SHA-256 hash. Pass it to the agent's first start:
+The tier is `staging` or `production`. The command prints the cluster ID and a join token. The token works once and expires after `LOCO_CLUSTER_JOIN_TOKEN_TTL` (API configuration, default `1h`); the API stores only its SHA-256 hash. `CreateCluster` and `IssueJoinToken` accept an optional positive `ttl`; `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` caps it at `168h` by default. The configured default TTL must not exceed the cap. Pass it to the agent's first start:
 
 ```yaml
 agent:
@@ -25,6 +25,8 @@ env:
 `agent.joinToken.existingSecret` and `agent.joinToken.secretKey` name a Secret you create instead of `value`.
 
 On first start the agent generates a key pair and stores the private key in the `<release>-agent-key` Secret in its namespace. It sends the join token, its public key and its cluster key, the UID of Kubernetes' `kube-system` namespace, to the API. The API consumes the token and binds the key and cluster key to the record. A Kubernetes cluster can be enrolled into one record only. New clusters become eligible for deployment after healthy heartbeats arrive.
+
+An unenrolled agent waits with backoff for a token or a successful enrollment. `LOCO_JOIN_TOKEN_FILE` selects a mounted token file, which the agent rereads on each enrollment attempt so a delivered or renewed token takes effect without a restart. Set either that file path or `LOCO_JOIN_TOKEN`, never both.
 
 After enrollment the agent ignores the join token. Every registration and sync stream carries a JWT the agent signs with its key: `iss` and `sub` are the cluster ID, `aud` is `loco-api`, and `exp` is `agent.assertionLifetime` (default `1m`) after `iat`. The API verifies it against the bound public key, rejects assertions that live longer than `LOCO_AGENT_ASSERTION_MAX_LIFETIME` (default `5m`), and records each `jti` in PostgreSQL so every API replica rejects a reused assertion. The agent needs no credential issued by the API, so it reconnects after an outage of any length.
 

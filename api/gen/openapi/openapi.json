@@ -9138,6 +9138,11 @@
       "loco.cluster.v1.CreateClusterRequest": {
         "type": "object",
         "properties": {
+          "ttl": {
+            "title": "ttl",
+            "description": "Omit for the server default; positive and bounded by the server maximum.",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
+          },
           "requestId": {
             "type": "string",
             "title": "request_id",
@@ -9187,6 +9192,11 @@
       "loco.cluster.v1.IssueJoinTokenRequest": {
         "type": "object",
         "properties": {
+          "ttl": {
+            "title": "ttl",
+            "description": "Omit for the server default; positive and bounded by the server maximum.",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
+          },
           "clusterId": {
             "type": "string",
             "title": "cluster_id",

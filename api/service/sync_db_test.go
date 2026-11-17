@@ -445,6 +445,7 @@ func testAgentConfig() AgentConfig {
 	return AgentConfig{
 		AssertionMaxLifetime: 5 * testAssertionLifetime,
 		JoinTokenTTL:         time.Hour,
+		JoinTokenMaxTTL:      7 * 24 * time.Hour,
 		DeployAttempts:       testDeployAttempts,
 		DeployRetryDelay:     testDeployRetryDelay,
 	}

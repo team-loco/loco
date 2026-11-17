@@ -411,7 +411,7 @@ func newDeps(
 				Events:                 durationpb.New(ac.EventsRetention),
 			},
 		),
-		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL),
+		clusterAdmin: service.NewClusterAdminServer(pool, queries, ac.Agent.JoinTokenTTL, ac.Agent.JoinTokenMaxTTL),
 		systemAdmin:  service.NewSystemAdminServer(pool, queries),
 		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,

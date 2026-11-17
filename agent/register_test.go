@@ -6,6 +6,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -33,15 +35,16 @@ var errRejectedCall = errors.New("call lacks a valid fresh assertion")
 
 type fakeRegistrar struct {
 	agentv1connect.UnimplementedAgentServiceHandler
-	t          *testing.T
-	clusterKey string
-	clusterID  string
-	joinToken  string
-	publicKey  ed25519.PublicKey
-	jtis       map[string]bool
-	enrolled   int
-	asserted   int
-	synced     int
+	t                *testing.T
+	clusterKey       string
+	clusterID        string
+	joinToken        string
+	publicKey        ed25519.PublicKey
+	jtis             map[string]bool
+	enrolled         int
+	asserted         int
+	synced           int
+	enrollmentTokens chan string
 }
 
 func (f *fakeRegistrar) verify(ctx context.Context) error {
@@ -70,6 +73,9 @@ func (f *fakeRegistrar) Register(
 	}
 	response := &agentv1.RegisterResponse{ClusterId: f.clusterID, HeartbeatInterval: durationpb.New(time.Second)}
 	if enrollment := req.GetEnrollment(); enrollment != nil {
+		if f.enrollmentTokens != nil {
+			f.enrollmentTokens <- enrollment.GetJoinToken()
+		}
 		info, _ := connect.CallInfoForServerContext(ctx)
 		if header := info.RequestHeader().Get("Authorization"); header != "" {
 			f.t.Errorf("enrollment sent Authorization %q", header)
@@ -138,13 +144,53 @@ func TestEveryAgentCallCarriesAFreshAssertionOnceEnrolled(t *testing.T) {
 		}
 	}
 
-	if err := newAgent("").register(t.Context()); !errors.Is(err, errNotEnrolled) {
-		t.Fatalf("register without a key or join token: %v", err)
+	tokenFile := filepath.Join(t.TempDir(), "join-token")
+	waiting := newAgent("")
+	waiting.cfg.JoinTokenFile = tokenFile
+	waiting.cfg.ReconnectBaseDelay = time.Millisecond
+	waiting.cfg.ReconnectMaxDelay = 5 * time.Millisecond
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() { done <- waiting.waitForRegistration(ctx) }()
+	select {
+	case err := <-done:
+		t.Fatalf("agent did not wait for token delivery: %v", err)
+	case <-time.After(20 * time.Millisecond):
 	}
-	enrolled := newAgent(registrar.joinToken)
-	if err := enrolled.register(t.Context()); err != nil {
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("cancel waiting: %v", err)
+	}
+
+	registrar.enrollmentTokens = make(chan string, 32)
+	go func() { done <- waiting.waitForRegistration(t.Context()) }()
+	if err := os.WriteFile(tokenFile, []byte("expired"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	select {
+	case token := <-registrar.enrollmentTokens:
+		if token != "expired" {
+			t.Fatalf("attempted token %q", token)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("agent did not attempt enrollment")
+	}
+	if err := os.WriteFile(tokenFile, []byte(registrar.joinToken+"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("agent did not enroll after token replacement")
+	}
+	if err := os.Remove(tokenFile); err != nil {
+		t.Fatal(err)
+	}
+	registrar.enrollmentTokens = nil
+	enrolled := waiting
 	openTestSync(t, enrolled)
 	openTestSync(t, enrolled)
 	for range 2 {

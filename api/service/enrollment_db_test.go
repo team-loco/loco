@@ -14,6 +14,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -35,8 +36,10 @@ func newEnrollmentFixture(t *testing.T) *enrollmentFixture {
 	f := newDeployFixture(t)
 	return &enrollmentFixture{
 		deployFixture: f,
-		admin:         NewClusterAdminServer(f.pool, f.queries, testAgentConfig().JoinTokenTTL),
-		agent:         startSyncServer(t, f),
+		admin: NewClusterAdminServer(
+			f.pool, f.queries, testAgentConfig().JoinTokenTTL, testAgentConfig().JoinTokenMaxTTL,
+		),
+		agent: startSyncServer(t, f),
 	}
 }
 
@@ -388,4 +391,50 @@ func TestAssertionChecks(t *testing.T) {
 	_, err = registerWithAssertion(ctx, replica, assertion, e.clusterID)
 	requireCode(t, err, connect.CodeUnauthenticated, "replay on another replica")
 	requireCode(t, syncError(ctx, t, replica, assertion), connect.CodeUnauthenticated, "replayed sync")
+}
+
+func TestClusterJoinTokenRequestedTTL(t *testing.T) {
+	t.Parallel()
+	e := newEnrollmentFixture(t)
+	for _, ttl := range []time.Duration{time.Hour, 72 * time.Hour, 7 * 24 * time.Hour} {
+		requested := durationpb.New(ttl)
+		if ttl == time.Hour {
+			requested = nil
+		}
+		started := time.Now()
+		response, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
+			RequestId: uuid.NewString(), Name: "ttl", Region: testRegion,
+			Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING, Ttl: requested,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		expires := response.GetJoinToken().GetExpiresAt().AsTime()
+		if expires.Before(started.Add(ttl)) || expires.After(time.Now().Add(ttl)) {
+			t.Fatalf("create expiry = %v, ttl = %v", expires, ttl)
+		}
+		issued, err := e.admin.IssueJoinToken(
+			systemAdminContext(t),
+			&clusterv1.IssueJoinTokenRequest{ClusterId: response.GetClusterId(), Ttl: requested},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expires = issued.GetJoinToken().GetExpiresAt().AsTime()
+		if expires.Before(started.Add(ttl)) || expires.After(time.Now().Add(ttl)) {
+			t.Fatalf("issue expiry = %v, ttl = %v", expires, ttl)
+		}
+		for _, invalid := range []time.Duration{0, -time.Second, 8 * 24 * time.Hour} {
+			_, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
+				RequestId: uuid.NewString(), Name: "invalid-ttl", Region: testRegion,
+				Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING, Ttl: durationpb.New(invalid),
+			})
+			requireCode(t, err, connect.CodeInvalidArgument, "create ttl")
+			_, err = e.admin.IssueJoinToken(
+				systemAdminContext(t),
+				&clusterv1.IssueJoinTokenRequest{ClusterId: response.GetClusterId(), Ttl: durationpb.New(invalid)},
+			)
+			requireCode(t, err, connect.CodeInvalidArgument, "issue ttl")
+		}
+	}
 }
