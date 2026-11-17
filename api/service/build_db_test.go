@@ -575,13 +575,16 @@ func TestPinDockerfileBuildFromDatabase(t *testing.T) {
 		"no build id":               {f.resourceID, "", "", connect.CodeInvalidArgument},
 		"missing build":             {f.resourceID, missing, "", connect.CodeNotFound},
 		"build of another resource": {uuid.New(), succeeded, "", connect.CodeNotFound},
-		"build not finished":        {f.resourceID, unfinished, "", connect.CodeFailedPrecondition},
 		"build image deleted":       {f.resourceID, deleted, "", connect.CodeFailedPrecondition},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := pin(tt.resourceID, tt.buildID, tt.image)
 			wantCode(t, err, tt.want)
 		})
+	}
+	pending, pinErr := pin(f.resourceID, unfinished, "")
+	if pinErr != nil || pending.GetBuildId() != unfinished {
+		t.Fatalf("unfinished build=%v %v", pending, pinErr)
 	}
 	if len(resolver.calls) != 0 {
 		t.Fatalf("resolver called for dockerfile builds: %v", resolver.calls)

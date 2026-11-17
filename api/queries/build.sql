@@ -233,7 +233,7 @@ LIMIT sqlc.arg(max_builds);
 SELECT image_deleted_at FROM builds WHERE id = $1 FOR UPDATE;
 
 -- name: LockBuildImageForDeploy :one
-SELECT image_deleted_at FROM builds WHERE id = $1 FOR SHARE;
+SELECT * FROM builds WHERE id = $1 FOR SHARE;
 
 -- name: MarkBuildImageDeleted :execrows
 UPDATE builds
@@ -275,3 +275,13 @@ WHERE b.id IN (
   AND b.status IN ('succeeded', 'failed', 'canceled')
   AND b.source_deleted_at IS NOT NULL
   AND (b.status <> 'succeeded' OR b.image_deleted_at IS NOT NULL);
+
+-- name: UpdateBuildStage :exec
+UPDATE builds SET stage = $2 WHERE id = $1;
+
+-- name: LockBuildResource :exec
+SELECT r.id FROM resources r JOIN builds b ON b.resource_id = r.id
+WHERE b.id = $1 FOR UPDATE OF r;
+
+-- name: LockBuild :one
+SELECT * FROM builds WHERE id = $1 FOR UPDATE;

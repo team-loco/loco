@@ -269,3 +269,11 @@ WITH restarted AS (
     WHERE deployments.id = restarted.deployment_id AND deployments.is_active
 )
 SELECT cluster_id FROM restarted;
+
+-- name: RetireOtherRegionPlacements :many
+UPDATE placements SET desired_deleted = true, desired_spec = NULL,
+ desired_revision = desired_revision + 1, applied_error = NULL, retry_after = NULL,
+ apply_attempts = 0, apply_failed = false, updated_at = NOW()
+WHERE resource_id = sqlc.arg(resource_id) AND environment_id = sqlc.arg(environment_id)
+ AND region = sqlc.arg(region) AND cluster_id <> sqlc.arg(cluster_id) AND NOT desired_deleted
+RETURNING id, cluster_id, desired_revision;

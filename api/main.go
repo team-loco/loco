@@ -332,7 +332,13 @@ func newDeps(
 	}
 	var sourceSweeper *sweepers.SourceSweeper
 	if sourceBucket != nil {
-		sourceSweeper = sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
+		sourceSweeper = sweepers.NewSourceSweeper(
+			pool,
+			queries,
+			sourceBucket,
+			ac.SourceSweep,
+			service.FinishBuildDeployments,
+		)
 	}
 	imageResolver := imageresolver.New(ac.ImageResolveTimeout, ac.PublicImageMaxBytes)
 

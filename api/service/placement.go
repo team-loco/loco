@@ -20,6 +20,22 @@ func placeApplication(
 	qtx *genDb.Queries,
 	params genDb.UpsertPlacementParams,
 ) error {
+	retired, err := qtx.RetireOtherRegionPlacements(ctx, genDb.RetireOtherRegionPlacementsParams{
+		ResourceID:    params.ResourceID,
+		EnvironmentID: params.EnvironmentID,
+		Region:        params.Region,
+		ClusterID:     params.ClusterID,
+	})
+	if err != nil {
+		return fmt.Errorf("retire previous placements: %w", err)
+	}
+	removed := make([]genDb.MarkPlacementDeletedRow, 0, len(retired))
+	for _, row := range retired {
+		removed = append(removed, genDb.MarkPlacementDeletedRow(row))
+	}
+	if notifyErr := notifyRemovedPlacements(ctx, qtx, params.ResourceID, removed); notifyErr != nil {
+		return notifyErr
+	}
 	placement, err := qtx.UpsertPlacement(ctx, params)
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)

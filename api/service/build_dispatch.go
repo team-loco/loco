@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -303,6 +304,9 @@ func (s *AgentServer) failClusterBuilds(ctx context.Context, params genDb.FailCl
 			return err
 		}
 		for _, row := range rows {
+			if err := FinishBuildDeployments(ctx, qtx, row.ID); err != nil {
+				return err
+			}
 			if err := events.RecordBuildFailure(
 				ctx, qtx, row.ID, row.ResourceID, events.BuildFailureBuild, params.Message,
 			); err != nil {
@@ -365,21 +369,118 @@ func (s *AgentServer) recordBuildStatus(
 	clusterID, buildID uuid.UUID,
 	status *agentv1.BuildStatus,
 ) error {
-	var err error
-	switch status.GetPhase() {
-	case agentv1.BuildPhase_BUILD_PHASE_PENDING:
-		err = s.recordBuildPending(ctx, clusterID, buildID, status)
-	case agentv1.BuildPhase_BUILD_PHASE_RUNNING:
-		err = s.recordBuildRunning(ctx, clusterID, buildID, status)
-	case agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED,
-		agentv1.BuildPhase_BUILD_PHASE_FAILED,
-		agentv1.BuildPhase_BUILD_PHASE_CANCELED:
-		err = s.recordFinishedBuild(ctx, clusterID, buildID, status)
-	default:
+	if stage := status.GetStage(); stage != "" && stage != string(loco.BuildStageFetch) &&
+		stage != string(loco.BuildStageBuild) &&
+		stage != string(loco.BuildStagePush) {
+		slog.WarnContext(ctx, "ignoring invalid build stage", "build_id", buildID, "stage", stage)
 		return nil
 	}
+	var stageSince time.Time
+	if status.GetStageSince() != nil {
+		stageSince = status.GetStageSince().AsTime()
+	}
+	var finished *buildSource
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if err := qtx.LockBuildResource(ctx, buildID); err != nil {
+			return err
+		}
+		previous, getErr := qtx.LockBuild(ctx, buildID)
+		if errors.Is(getErr, pgx.ErrNoRows) {
+			return nil
+		}
+		if getErr != nil {
+			return getErr
+		}
+		if previous.ClusterID == nil || *previous.ClusterID != clusterID || buildStatusFinished(previous.Status) {
+			return nil
+		}
+		if stage := status.GetStage(); stage != "" && stage != previous.Stage {
+			if err := qtx.UpdateBuildStage(ctx, genDb.UpdateBuildStageParams{ID: buildID, Stage: stage}); err != nil {
+				return err
+			}
+		}
+		switch status.GetPhase() {
+		case agentv1.BuildPhase_BUILD_PHASE_PENDING:
+			if status.GetMessage() != "" {
+				if _, err := qtx.UpdateQueuedBuildMessage(
+					ctx,
+					genDb.UpdateQueuedBuildMessageParams{
+						ID:        buildID,
+						ClusterID: &clusterID,
+						Message:   status.GetMessage(),
+					},
+				); err != nil {
+					return err
+				}
+			}
+		case agentv1.BuildPhase_BUILD_PHASE_RUNNING:
+			if _, err := qtx.MarkBuildRunning(
+				ctx,
+				genDb.MarkBuildRunningParams{
+					ID:        buildID,
+					ClusterID: &clusterID,
+					Message:   messageOr(status.GetMessage(), buildRunningMessage),
+				},
+			); err != nil {
+				return err
+			}
+		case agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED,
+			agentv1.BuildPhase_BUILD_PHASE_FAILED,
+			agentv1.BuildPhase_BUILD_PHASE_CANCELED:
+			params, publicFailure := buildFinishParams(status)
+			params.ID, params.ClusterID = buildID, &clusterID
+			row, err := qtx.FinishBuild(ctx, params)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			finished = &buildSource{id: row.ID, key: row.SourceKey}
+			switch params.Status {
+			case genDb.BuildStatusSucceeded:
+				if err := events.RecordBuildOutcome(
+					ctx,
+					qtx,
+					row.ID,
+					row.ResourceID,
+					events.BuildSucceeded,
+					map[string]any{events.FieldImageDigest: *params.ImageDigest},
+				); err != nil {
+					return err
+				}
+			case genDb.BuildStatusFailed:
+				if err := events.RecordBuildFailure(
+					ctx,
+					qtx,
+					row.ID,
+					row.ResourceID,
+					events.BuildFailureBuild,
+					publicFailure,
+				); err != nil {
+					return err
+				}
+			}
+		default:
+			return nil
+		}
+		current, getErr := qtx.GetBuildByID(ctx, buildID)
+		if getErr != nil {
+			return getErr
+		}
+		return updateBuildingDeployments(
+			ctx,
+			qtx,
+			current,
+			buildActivity(previous, current, stageSince),
+			s.config.ServiceDefaults,
+		)
+	})
 	if err != nil {
 		return fmt.Errorf("record build %s status: %w", buildID, err)
+	}
+	if finished != nil {
+		deleteBuildSources(ctx, s.queries, s.sources, *finished)
 	}
 	return nil
 }
@@ -391,112 +492,29 @@ func messageOr(message, fallback string) string {
 	return message
 }
 
-func (s *AgentServer) recordBuildPending(
-	ctx context.Context,
-	clusterID, buildID uuid.UUID,
-	status *agentv1.BuildStatus,
-) error {
-	message := status.GetMessage()
-	if message == "" {
-		return nil
-	}
-	if _, err := s.queries.UpdateQueuedBuildMessage(ctx, genDb.UpdateQueuedBuildMessageParams{
-		Message:   message,
-		ID:        buildID,
-		ClusterID: &clusterID,
-	}); err != nil {
-		return fmt.Errorf("update queued build: %w", err)
-	}
-	return nil
-}
-
-func (s *AgentServer) recordBuildRunning(
-	ctx context.Context,
-	clusterID, buildID uuid.UUID,
-	status *agentv1.BuildStatus,
-) error {
-	reported := status.GetMessage()
-	message := messageOr(reported, buildRunningMessage)
-	rows, err := s.queries.MarkBuildRunning(ctx, genDb.MarkBuildRunningParams{
-		Message:   message,
-		ID:        buildID,
-		ClusterID: &clusterID,
-	})
-	if err != nil {
-		return fmt.Errorf("mark build running: %w", err)
-	}
-	if rows > 0 {
-		slog.InfoContext(ctx, "build running", "cluster_id", clusterID, "build_id", buildID)
-	}
-	return nil
-}
-
-func (s *AgentServer) recordFinishedBuild(
-	ctx context.Context,
-	clusterID, buildID uuid.UUID,
-	status *agentv1.BuildStatus,
-) error {
-	params := genDb.FinishBuildParams{ID: buildID, ClusterID: &clusterID}
-	// The stored diagnostic can contain private information.
-	var publicFailure string
+func buildFinishParams(status *agentv1.BuildStatus) (genDb.FinishBuildParams, string) {
+	params := genDb.FinishBuildParams{}
+	publicFailure := buildFailedMessage
 	switch status.GetPhase() {
 	case agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED:
-		digest := status.GetImageDigest()
-		if digest == "" {
-			params.Status = genDb.BuildStatusFailed
-			params.Message = buildMissingDigestMessage
-			publicFailure = buildMissingDigestMessage
-		} else {
+		if digest := status.GetImageDigest(); digest != "" {
 			params.Status = genDb.BuildStatusSucceeded
-			params.Message = messageOr(status.GetMessage(), buildSucceededMessage)
 			params.ImageDigest = &digest
+			params.Message = messageOr(status.GetMessage(), buildSucceededMessage)
 			if cache := status.GetCacheDigest(); cache != "" {
 				params.CacheDigest = &cache
 			}
+		} else {
+			params.Status = genDb.BuildStatusFailed
+			params.Message = buildMissingDigestMessage
+			publicFailure = buildMissingDigestMessage
 		}
 	case agentv1.BuildPhase_BUILD_PHASE_FAILED:
 		params.Status = genDb.BuildStatusFailed
 		params.Message = messageOr(status.GetMessage(), buildFailedMessage)
-		publicFailure = buildFailedMessage
 	case agentv1.BuildPhase_BUILD_PHASE_CANCELED:
 		params.Status = genDb.BuildStatusCanceled
 		params.Message = messageOr(status.GetMessage(), buildCanceledMessage)
 	}
-
-	var finished *buildSource
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		row, err := qtx.FinishBuild(ctx, params)
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		finished = &buildSource{id: row.ID, key: row.SourceKey}
-		switch params.Status {
-		case genDb.BuildStatusSucceeded:
-			data := map[string]any{events.FieldImageDigest: *params.ImageDigest}
-			return events.RecordBuildOutcome(ctx, qtx, row.ID, row.ResourceID, events.BuildSucceeded, data)
-		case genDb.BuildStatusFailed:
-			return events.RecordBuildFailure(
-				ctx, qtx, row.ID, row.ResourceID, events.BuildFailureBuild, publicFailure,
-			)
-		default:
-			return nil
-		}
-	})
-	if err != nil {
-		return fmt.Errorf("finish build: %w", err)
-	}
-	if finished == nil {
-		return nil
-	}
-
-	slog.InfoContext(ctx, "build finished",
-		"cluster_id", clusterID,
-		"build_id", buildID,
-		"status", params.Status,
-	)
-	deleteBuildSources(ctx, s.queries, s.sources, *finished)
-	return nil
+	return params, publicFailure
 }

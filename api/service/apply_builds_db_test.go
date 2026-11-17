@@ -144,9 +144,6 @@ func TestApplyRefusesBuildsThatCannotDeployTheService(t *testing.T) {
 		"another service's build": {
 			file, map[string]string{applyWorker: otherService.String()}, connect.CodeNotFound,
 		},
-		"an unfinished build": {
-			file, map[string]string{applyWorker: running.String()}, connect.CodeFailedPrecondition,
-		},
 		"an image service": {
 			imageFile, map[string]string{applyWorker: running.String()}, connect.CodeInvalidArgument,
 		},
@@ -326,5 +323,41 @@ func TestApplyProvisionRefusesServicesThePlanDoesNotCreate(t *testing.T) {
 	})
 	if f.hasResource(t, applyWorker) {
 		t.Fatalf("%s was created by a refused apply", applyWorker)
+	}
+}
+
+func TestApplyDeploysUnfinishedBuildAndReplacesBuildingDeployment(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	file := createSourceWorker(t, f)
+	buildID := f.addRunningBuild(t, applyWorker)
+	for range 2 {
+		response, err := applyBuilds(t, f, file, map[string]string{applyWorker: buildID.String()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(response.GetDeployments()) != 1 {
+			t.Fatalf("deployments=%v", response.GetDeployments())
+		}
+		id := uuid.MustParse(response.GetDeployments()[0].GetDeploymentId())
+		if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusBuilding {
+			t.Fatalf("status=%s", got)
+		}
+	}
+	var building, canceled int
+	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FILTER (WHERE status='building'),
+ count(*) FILTER (WHERE status='canceled') FROM deployments`).
+		Scan(&building, &canceled); err != nil {
+		t.Fatal(err)
+	}
+	if building != 1 || canceled != 1 {
+		t.Fatalf("building=%d canceled=%d", building, canceled)
+	}
+	var placements int
+	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM placements`).Scan(&placements); err != nil {
+		t.Fatal(err)
+	}
+	if placements != 0 {
+		t.Fatalf("placements=%d", placements)
 	}
 }

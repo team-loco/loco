@@ -8,10 +8,6 @@ stdout '^Plan for loco.yaml against environment revision 7\.$'
 stdout '^  ~ web  \(needs deploy\)$'
 stdout '^Packed 5 files from \. \('
 stdout '^Building web from Dockerfile in \.$'
-stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 queued'
-stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 running'
-stdout '│ #5 DONE 0199b6c4-5d1e-7f00-8000-000000000001'
-stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 succeeded'
 stdout '^Applied\. Environment revision is now 8\.$'
 stdout '^Started deployment dep-web for web in us-east-1\.$'
 stdout '^web: https://web\.onloco\.test$'
@@ -29,7 +25,7 @@ fakeapi uploaded .dockerignore
 fakeapi upload-header Content-Length body
 fakeapi upload-header Content-Type application/gzip
 fakeapi called StartBuild 'Bearer test-token'
-fakeapi called TailLogs 'Bearer test-token'
+! fakeapi called GetBuild
 fakeapi applied 7
 fakeapi built web Dockerfile .
 ! fakeapi called CreateResource

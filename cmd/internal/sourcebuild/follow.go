@@ -26,20 +26,6 @@ func (e *detachedError) Error() string {
 	return "detached from build " + e.buildID
 }
 
-type buildFailedError struct {
-	build *buildv1.Build
-}
-
-func (e *buildFailedError) Error() string {
-	id := e.build.GetId()
-	status := e.build.GetStatus()
-	message := e.build.GetMessage()
-	if message == "" {
-		message = StatusLabel(status)
-	}
-	return fmt.Sprintf("build %s did not succeed: %s", id, message)
-}
-
 type syncWriter struct {
 	mu  sync.Mutex
 	out io.Writer

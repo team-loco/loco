@@ -102,7 +102,7 @@ func TestConfigApply(t *testing.T) {
 		out := loco(t, "deploy", "--env", platform.Production, "--yes", "--wait")
 		t.Logf("loco deploy took %s", time.Since(started))
 		requireDeploymentOrigin(t, w, repo, configWeb, true)
-		requireContains(t, out, "Building "+configWeb+" from deploy/Dockerfile in services/web", "succeeded in",
+		requireContains(t, out, "Building "+configWeb+" from deploy/Dockerfile in services/web", "Build succeeded",
 			configWeb+": https://"+platform.Host(configWeb))
 	})
 

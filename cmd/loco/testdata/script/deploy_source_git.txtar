@@ -12,7 +12,6 @@ exec git init -q -b main
 exec git add .
 exec git commit -q -m 'Fix the health check' -m 'The body stays out of the build.'
 exec loco deploy --yes
-stdout 'Build 0199b6c4-5d1e-7f00-8000-000000000001 succeeded'
 
 exec loco builds get 0199b6c4-5d1e-7f00-8000-000000000001
 stdout '^Commit: +[0-9a-f]{40}$'
@@ -22,7 +21,7 @@ stdout '^Commit message: +Fix the health check$'
 
 exec loco builds list web
 stdout '^ID +STATUS +COMMIT +CREATED +DURATION +IMAGE DIGEST$'
-stdout '^0199b6c4-5d1e-7f00-8000-000000000001 +succeeded +[0-9a-f]{7} '
+stdout '^0199b6c4-5d1e-7f00-8000-000000000001 +running +[0-9a-f]{7} '
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

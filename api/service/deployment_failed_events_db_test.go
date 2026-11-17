@@ -61,6 +61,18 @@ func (f *deployFixture) deployAs(
 	actorID uuid.UUID,
 ) uuid.UUID {
 	t.Helper()
+	if _, err := f.pool.Exec(
+		t.Context(),
+		`INSERT INTO builds(id,resource_id,status,source_type,source_key,source_size,
+ dockerfile_path,image_repository,image_digest,created_by)
+ VALUES ($1::uuid,$2,'succeeded','upload',$1::uuid::text,1,'Dockerfile','registry.test/svc','sha256:0',$3)
+ ON CONFLICT DO NOTHING`,
+		uuid.MustParse(failedDeployBuild),
+		f.resourceID,
+		f.userID,
+	); err != nil {
+		t.Fatal(err)
+	}
 	var id uuid.UUID
 	err := withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
 		counts, err := f.counts(t.Context(), qtx)

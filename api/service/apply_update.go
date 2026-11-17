@@ -36,11 +36,13 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	current := currentSpec.GetService()
 	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
 	affected := a.affectedRegions(res.ID, op.Changes, regions)
+	var allowed []genDb.DeploymentStatus
 	if a.builds[res.Name] != nil {
 		affected = regions
+		allowed = []genDb.DeploymentStatus{genDb.DeploymentStatusBuilding}
 	}
 	for _, region := range affected {
-		if rolloutErr := ensureNoRollout(ctx, qtx, res.ID, a.env.ID, region); rolloutErr != nil {
+		if rolloutErr := ensureNoRollout(ctx, qtx, res.ID, a.env.ID, region, allowed...); rolloutErr != nil {
 			return rolloutErr
 		}
 	}

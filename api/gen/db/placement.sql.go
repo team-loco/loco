@@ -730,6 +730,53 @@ func (q *Queries) ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]R
 	return items, nil
 }
 
+const retireOtherRegionPlacements = `-- name: RetireOtherRegionPlacements :many
+UPDATE placements SET desired_deleted = true, desired_spec = NULL,
+ desired_revision = desired_revision + 1, applied_error = NULL, retry_after = NULL,
+ apply_attempts = 0, apply_failed = false, updated_at = NOW()
+WHERE resource_id = $1 AND environment_id = $2
+ AND region = $3 AND cluster_id <> $4 AND NOT desired_deleted
+RETURNING id, cluster_id, desired_revision
+`
+
+type RetireOtherRegionPlacementsParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Region        string    `json:"region"`
+	ClusterID     uuid.UUID `json:"clusterId"`
+}
+
+type RetireOtherRegionPlacementsRow struct {
+	ID              uuid.UUID `json:"id"`
+	ClusterID       uuid.UUID `json:"clusterId"`
+	DesiredRevision int64     `json:"desiredRevision"`
+}
+
+func (q *Queries) RetireOtherRegionPlacements(ctx context.Context, arg RetireOtherRegionPlacementsParams) ([]RetireOtherRegionPlacementsRow, error) {
+	rows, err := q.db.Query(ctx, retireOtherRegionPlacements,
+		arg.ResourceID,
+		arg.EnvironmentID,
+		arg.Region,
+		arg.ClusterID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RetireOtherRegionPlacementsRow
+	for rows.Next() {
+		var i RetireOtherRegionPlacementsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.DesiredRevision); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setPlacementApplyError = `-- name: SetPlacementApplyError :one
 WITH policy AS (
     SELECT p.id,

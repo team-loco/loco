@@ -174,3 +174,18 @@ WHERE current.id = $1 AND old.resource_id = current.resource_id
 -- name: LockPlacementResource :one
 SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
 WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r;
+
+-- name: ListBuildingDeployments :many
+SELECT * FROM deployments
+WHERE spec->'build'->>'buildId' = sqlc.arg(build_id)::text
+ AND status = 'building' AND is_active
+ORDER BY id FOR UPDATE;
+
+-- name: SetDeploymentBuildImage :exec
+UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb(sqlc.arg(image)::text))
+WHERE id = sqlc.arg(id);
+
+-- name: SetBuildingDeploymentEnv :exec
+UPDATE deployments
+SET spec = jsonb_set(spec, '{env}', COALESCE(sqlc.arg(desired_spec)::jsonb #> '{app_spec,serviceSpec,deployment,env}', '{}'::jsonb))
+WHERE id = sqlc.arg(id);

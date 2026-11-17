@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -103,14 +104,14 @@ func pinDockerfileBuild(
 		slog.WarnContext(ctx, "build belongs to another resource", "buildId", buildID, "resourceId", resourceID)
 		return nil, ErrBuildNotFound
 	}
-	if build.Status != genDb.BuildStatusSucceeded || build.ImageDigest == nil {
+	if build.Status == genDb.BuildStatusFailed || build.Status == genDb.BuildStatusCanceled {
 		return nil, errBuildNotSucceeded
 	}
 	if build.ImageDeletedAt != nil {
 		return nil, errBuildImageDeleted
 	}
 
-	image := build.ImageRepository + "@" + *build.ImageDigest
+	image := buildImage(build)
 	if src.GetImage() != "" && src.GetImage() != image {
 		return nil, errBuildImageMismatch
 	}
@@ -131,14 +132,25 @@ func lockPinnedBuildImage(ctx context.Context, qtx *genDb.Queries, pinned *deplo
 	if err != nil {
 		return fmt.Errorf("parse pinned build id: %w", err)
 	}
-	deletedAt, err := qtx.LockBuildImageForDeploy(ctx, buildID)
+	build, err := qtx.LockBuildImageForDeploy(ctx, buildID)
 	if err != nil {
 		return fmt.Errorf("lock build %s: %w", buildID, err)
 	}
-	if deletedAt != nil {
+	if build.ImageDeletedAt != nil {
 		return errBuildImageDeleted
 	}
+	if build.Status == genDb.BuildStatusFailed || build.Status == genDb.BuildStatusCanceled {
+		return errBuildNotSucceeded
+	}
+	pinned.Image = buildImage(build)
 	return nil
+}
+
+func buildImage(build genDb.Build) string {
+	if build.ImageDigest != nil {
+		return build.ImageRepository + "@" + *build.ImageDigest
+	}
+	return build.ImageRepository + ":" + loco.BuildImageTagPrefix + build.ID.String()
 }
 
 func pinPublicImage(

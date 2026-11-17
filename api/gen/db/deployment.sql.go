@@ -400,6 +400,55 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 	return items, nil
 }
 
+const listBuildingDeployments = `-- name: ListBuildingDeployments :many
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+WHERE spec->'build'->>'buildId' = $1::text
+ AND status = 'building' AND is_active
+ORDER BY id FOR UPDATE
+`
+
+func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) ([]Deployment, error) {
+	rows, err := q.db.Query(ctx, listBuildingDeployments, buildID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Deployment
+	for rows.Next() {
+		var i Deployment
+		if err := rows.Scan(
+			&i.ID,
+			&i.ResourceID,
+			&i.ClusterID,
+			&i.Region,
+			&i.Replicas,
+			&i.Status,
+			&i.IsActive,
+			&i.EnvironmentID,
+			&i.Spec,
+			&i.SpecVersion,
+			&i.ActorType,
+			&i.ActorID,
+			&i.Method,
+			&i.CommitSha,
+			&i.CommitDirty,
+			&i.SecretNames,
+			&i.ActivitySeq,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
@@ -709,6 +758,37 @@ func (q *Queries) PruneDeploymentHistory(ctx context.Context, arg PruneDeploymen
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setBuildingDeploymentEnv = `-- name: SetBuildingDeploymentEnv :exec
+UPDATE deployments
+SET spec = jsonb_set(spec, '{env}', COALESCE($1::jsonb #> '{app_spec,serviceSpec,deployment,env}', '{}'::jsonb))
+WHERE id = $2
+`
+
+type SetBuildingDeploymentEnvParams struct {
+	DesiredSpec []byte    `json:"desiredSpec"`
+	ID          uuid.UUID `json:"id"`
+}
+
+func (q *Queries) SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error {
+	_, err := q.db.Exec(ctx, setBuildingDeploymentEnv, arg.DesiredSpec, arg.ID)
+	return err
+}
+
+const setDeploymentBuildImage = `-- name: SetDeploymentBuildImage :exec
+UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb($1::text))
+WHERE id = $2
+`
+
+type SetDeploymentBuildImageParams struct {
+	Image string    `json:"image"`
+	ID    uuid.UUID `json:"id"`
+}
+
+func (q *Queries) SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error {
+	_, err := q.db.Exec(ctx, setDeploymentBuildImage, arg.Image, arg.ID)
+	return err
 }
 
 const supersedePreviousDeployments = `-- name: SupersedePreviousDeployments :exec

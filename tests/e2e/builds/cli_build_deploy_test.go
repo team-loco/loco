@@ -59,7 +59,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		deployed := w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 		t.Logf("loco deploy took %s", time.Since(started))
 		url := app + ": https://" + platform.Host(app)
-		for _, want := range []string{"Packed", "succeeded in", "Started deployment", url} {
+		for _, want := range []string{"Packed", "Build succeeded", "Started deployment", url} {
 			if !strings.Contains(deployed.Stdout, want) {
 				t.Errorf("loco deploy output lacks %q:\n%s", want, deployed.Stdout)
 			}

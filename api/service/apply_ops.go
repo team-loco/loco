@@ -276,7 +276,14 @@ func (a *applier) deploy(
 		return err
 	}
 	for _, region := range regions {
-		if rolloutErr := ensureNoRollout(ctx, qtx, res.ID, a.env.ID, region); rolloutErr != nil {
+		if rolloutErr := ensureNoRollout(
+			ctx,
+			qtx,
+			res.ID,
+			a.env.ID,
+			region,
+			genDb.DeploymentStatusBuilding,
+		); rolloutErr != nil {
 			return rolloutErr
 		}
 		cluster, found := clusterForRegion(clusters, region)

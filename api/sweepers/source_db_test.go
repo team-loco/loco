@@ -16,6 +16,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/buildsource"
 	"github.com/team-loco/loco/api/pkg/sourcebucket"
+	"github.com/team-loco/loco/api/service"
 )
 
 const (
@@ -133,7 +134,7 @@ func newSweepFixture(t *testing.T) *sweepFixture {
 	t.Helper()
 	f := newFixture(t)
 	bucket := newFakeBucket()
-	sweeper := NewSourceSweeper(f.pool, f.queries, bucket, testSourceSweep)
+	sweeper := NewSourceSweeper(f.pool, f.queries, bucket, testSourceSweep, service.FinishBuildDeployments)
 	return &sweepFixture{fixture: f, bucket: bucket, sweeper: sweeper}
 }
 
@@ -366,7 +367,7 @@ func TestConcurrentSweepsRunOnce(t *testing.T) {
 		t.Fatal("the first sweep never reached the bucket")
 	}
 
-	other := NewSourceSweeper(f.pool, f.queries, f.bucket, testSourceSweep)
+	other := NewSourceSweeper(f.pool, f.queries, f.bucket, testSourceSweep, service.FinishBuildDeployments)
 	second, err := other.Sweep(context.Background())
 	if err != nil {
 		t.Fatalf("second sweep: %v", err)

@@ -19,6 +19,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -33,6 +34,7 @@ var (
 )
 
 type AgentConfig struct {
+	ServiceDefaults      servicedefaults.Defaults
 	AssertionMaxLifetime time.Duration
 	JoinTokenTTL         time.Duration
 	JoinTokenMaxTTL      time.Duration

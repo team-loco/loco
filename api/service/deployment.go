@@ -61,6 +61,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
 	}
+	spec.GetService().Env = nil
 	var commit *deploymentv1.SourceCommit
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
@@ -241,7 +242,8 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, region); rolloutErr != nil {
+		building := genDb.DeploymentStatusBuilding
+		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, region, building); rolloutErr != nil {
 			return rolloutErr
 		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
