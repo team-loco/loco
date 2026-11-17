@@ -246,30 +246,52 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
 		}
 	}()
-	cmd := exec.CommandContext(
-		ctx,
-		"locoadm",
-		"login",
-		"--api",
-		fixtureAPIURL,
-		"--web",
-		"http://console.installation.test",
-		"--device",
-	)
-	cmd.Stderr = &stderr
-	transcript := io.Discard
-	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
-		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
-		transcript = auditWriter{audit, "CLI output (stdout)"}
-	}
-	return devicelogin.Run(ctx, cmd, transcript, func(ctx context.Context, code string) error {
-		operatorPhase(phaseLoginApprove)
-		if err := approve(ctx, code); err != nil {
-			return err
+	deadline := time.NewTimer(gatewayReadyTimeout)
+	defer deadline.Stop()
+	retry := time.NewTicker(time.Second)
+	defer retry.Stop()
+	for {
+		stderr = boundedOutput{}
+		cmd := exec.CommandContext(
+			ctx,
+			"locoadm",
+			"login",
+			"--api",
+			fixtureAPIURL,
+			"--web",
+			"http://console.installation.test",
+			"--device",
+		)
+		cmd.Stderr = &stderr
+		transcript := io.Discard
+		if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
+			cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
+			transcript = auditWriter{audit, "CLI output (stdout)"}
 		}
-		operatorPhase(phaseLoginApproved)
-		return nil
-	})
+		approvalStarted := false
+		loginErr := devicelogin.Run(ctx, cmd, transcript, func(ctx context.Context, code string) error {
+			approvalStarted = true
+			operatorPhase(phaseLoginApprove)
+			if err := approve(ctx, code); err != nil {
+				return err
+			}
+			operatorPhase(phaseLoginApproved)
+			return nil
+		})
+		if loginErr == nil {
+			return nil
+		}
+		if approvalStarted || classifyLoginFailure(stderr.Bytes()) != loginFailureDNS {
+			return loginErr
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(loginErr, ctx.Err())
+		case <-deadline.C:
+			return loginErr
+		case <-retry.C:
+		}
+	}
 }
 
 func approveDeviceCode(ctx context.Context, code string) error {
