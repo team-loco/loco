@@ -146,14 +146,14 @@ WHERE s.user_id = $1 AND s.scope = 'admin'
 ORDER BY o.id
 FOR UPDATE OF o;
 
--- name: UserIsLastActiveOrgAdmin :one
+-- name: OrgAdminHasNoActiveSuccessor :one
 SELECT EXISTS (
-    SELECT 1 FROM user_scopes s JOIN users u ON u.id = s.user_id
+    SELECT 1 FROM user_scopes s
     WHERE s.entity_type = 'organization' AND s.entity_id = sqlc.arg('org_id')
-      AND s.scope = 'admin' AND s.user_id = sqlc.arg('user_id') AND u.status = 'active'
+      AND s.scope = 'admin' AND s.user_id = sqlc.arg('user_id')
       AND NOT EXISTS (
           SELECT 1 FROM user_scopes other JOIN users other_user ON other_user.id = other.user_id
           WHERE other.entity_type = 'organization' AND other.entity_id = s.entity_id
             AND other.scope = 'admin' AND other.user_id <> s.user_id AND other_user.status = 'active'
       )
-) AS is_last_admin;
+) AS has_no_active_successor;

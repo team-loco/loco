@@ -561,13 +561,13 @@ func lockOrgMembership(
 }
 
 func keepOrgAdmin(ctx context.Context, qtx *genDb.Queries, orgID, userID uuid.UUID) error {
-	last, err := qtx.UserIsLastActiveOrgAdmin(ctx, genDb.UserIsLastActiveOrgAdminParams{
+	needsSuccessor, err := qtx.OrgAdminHasNoActiveSuccessor(ctx, genDb.OrgAdminHasNoActiveSuccessorParams{
 		OrgID: orgID, UserID: userID,
 	})
 	if err != nil {
 		return fmt.Errorf("check active organization admins: %w", err)
 	}
-	if last {
+	if needsSuccessor {
 		return errLastOrgAdmin
 	}
 	return nil

@@ -145,52 +145,63 @@ func TestMembershipMutationReloadsActorAfterWaiting(t *testing.T) {
 }
 
 func TestOrgAdminChangesRequireAnActiveSuccessor(t *testing.T) {
-	t.Parallel()
-	o := newMembershipOrg(t)
-	successor := o.api.signUp(t, "successor")
-	promoteLifecycleAdmin(t, o, successor)
-	operator := o.api.signUp(t, "operator")
-	if err := o.api.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
-		UserID: operator.id, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := o.api.queries.SetUserStatus(t.Context(), genDb.SetUserStatusParams{
-		ID: successor.id, Status: genDb.UserStatusSuspended,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	changes := []struct {
-		name string
-		run  func() error
-	}{
-		{"demote", func() error {
-			_, err := operator.clients.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
-				OrgId: o.orgID, UserId: o.owner.id.String(), Role: orgv1.OrgRole_ORG_ROLE_MEMBER,
-			})
-			return err
-		}},
-		{"remove member", func() error {
-			_, err := operator.clients.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
-				OrgId: o.orgID, UserId: o.owner.id.String(),
-			})
-			return err
-		}},
-	}
-	for _, change := range changes {
-		if err := change.run(); codeOf(err) != connect.CodeFailedPrecondition {
-			t.Fatalf("%s with suspended successor = %v, want FailedPrecondition", change.name, err)
-		}
-	}
-	if _, err := o.api.queries.SetUserStatus(t.Context(), genDb.SetUserStatusParams{
-		ID: successor.id, Status: genDb.UserStatusActive,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	for _, change := range changes {
-		if err := change.run(); err != nil {
-			t.Fatalf("%s with active successor: %v", change.name, err)
-		}
+	for _, targetStatus := range []userv1.UserStatus{
+		userv1.UserStatus_USER_STATUS_ACTIVE, userv1.UserStatus_USER_STATUS_SUSPENDED,
+	} {
+		t.Run(targetStatus.String(), func(t *testing.T) {
+			t.Parallel()
+			o := newMembershipOrg(t)
+			successor := o.api.signUp(t, "successor")
+			promoteLifecycleAdmin(t, o, successor)
+			operator := o.api.signUp(t, "operator")
+			if err := o.api.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+				UserID: operator.id, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := o.api.queries.SetUserStatus(t.Context(), genDb.SetUserStatusParams{
+				ID: successor.id, Status: genDb.UserStatusSuspended,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := operator.clients.User.SetUserStatus(t.Context(), &userv1.SetUserStatusRequest{
+				Key: &userv1.SetUserStatusRequest_UserId{UserId: o.owner.id.String()}, Status: targetStatus,
+			}); err != nil {
+				t.Fatalf("set target status: %v", err)
+			}
+			changes := []struct {
+				name string
+				run  func() error
+			}{
+				{"demote", func() error {
+					_, err := operator.clients.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
+						OrgId: o.orgID, UserId: o.owner.id.String(), Role: orgv1.OrgRole_ORG_ROLE_MEMBER,
+					})
+					return err
+				}},
+				{"remove member", func() error {
+					_, err := operator.clients.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
+						OrgId: o.orgID, UserId: o.owner.id.String(),
+					})
+					return err
+				}},
+			}
+			for _, change := range changes {
+				if err := change.run(); codeOf(err) != connect.CodeFailedPrecondition {
+					t.Fatalf("%s with suspended successor = %v, want FailedPrecondition", change.name, err)
+				}
+			}
+			if _, err := o.api.queries.SetUserStatus(t.Context(), genDb.SetUserStatusParams{
+				ID: successor.id, Status: genDb.UserStatusActive,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			for _, change := range changes {
+				if err := change.run(); err != nil {
+					t.Fatalf("%s with active successor: %v", change.name, err)
+				}
+			}
+		})
 	}
 }
 

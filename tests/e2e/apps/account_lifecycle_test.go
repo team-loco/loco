@@ -117,6 +117,18 @@ func TestAccountDeletionRequiresAnotherActiveAdmin(t *testing.T) {
 	successor := inviteLifecycleUser(t, u.session, org.GetOrgId(), "deletion-successor@test.local")
 	setLifecycleRole(t, u.session, org.GetOrgId(), successor.id, orgv1.OrgRole_ORG_ROLE_ADMIN)
 	setLifecycleStatus(t, successor.id, userv1.UserStatus_USER_STATUS_SUSPENDED)
+	setLifecycleStatus(t, u.id, userv1.UserStatus_USER_STATUS_SUSPENDED)
+	if _, err = p.Admin.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
+		OrgId: org.GetOrgId(), UserId: u.id, Role: orgv1.OrgRole_ORG_ROLE_MEMBER,
+	}); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("demote suspended admin without active successor = %v, want FailedPrecondition", err)
+	}
+	if _, err = p.Admin.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
+		OrgId: org.GetOrgId(), UserId: u.id,
+	}); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("remove suspended admin without active successor = %v, want FailedPrecondition", err)
+	}
+	setLifecycleStatus(t, u.id, userv1.UserStatus_USER_STATUS_ACTIVE)
 	wantBlocked()
 	setLifecycleStatus(t, successor.id, userv1.UserStatus_USER_STATUS_ACTIVE)
 	if _, err = u.session.User.DeleteUser(t.Context(), &userv1.DeleteUserRequest{UserId: u.id}); err != nil {

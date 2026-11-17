@@ -270,6 +270,7 @@ type Querier interface {
 	NotifyDeploymentActivity(ctx context.Context, deploymentID string) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
 	OpenRollout(ctx context.Context, arg OpenRolloutParams) error
+	OrgAdminHasNoActiveSuccessor(ctx context.Context, arg OrgAdminHasNoActiveSuccessorParams) (bool, error)
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	PlacementForDeployment(ctx context.Context, deploymentID *uuid.UUID) (Placement, error)
 	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
@@ -346,7 +347,6 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
-	UserIsLastActiveOrgAdmin(ctx context.Context, arg UserIsLastActiveOrgAdminParams) (bool, error)
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

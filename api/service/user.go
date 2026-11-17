@@ -226,13 +226,14 @@ func (s *UserServer) DeleteUser(
 			return fmt.Errorf("lock user organizations: %w", lockErr)
 		}
 		for _, org := range orgs {
-			last, checkErr := qtx.UserIsLastActiveOrgAdmin(lockedCtx, genDb.UserIsLastActiveOrgAdminParams{
-				OrgID: org.ID, UserID: userID,
-			})
+			needsSuccessor, checkErr := qtx.OrgAdminHasNoActiveSuccessor(
+				lockedCtx,
+				genDb.OrgAdminHasNoActiveSuccessorParams{OrgID: org.ID, UserID: userID},
+			)
 			if checkErr != nil {
 				return fmt.Errorf("check active organization admins: %w", checkErr)
 			}
-			if last {
+			if needsSuccessor {
 				return rpcerr.NewCoded(connect.CodeFailedPrecondition,
 					fmt.Sprintf("organization %q must keep at least one active admin", org.Name))
 			}

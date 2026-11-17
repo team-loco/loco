@@ -373,6 +373,31 @@ func (q *Queries) LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) e
 	return err
 }
 
+const orgAdminHasNoActiveSuccessor = `-- name: OrgAdminHasNoActiveSuccessor :one
+SELECT EXISTS (
+    SELECT 1 FROM user_scopes s
+    WHERE s.entity_type = 'organization' AND s.entity_id = $1
+      AND s.scope = 'admin' AND s.user_id = $2
+      AND NOT EXISTS (
+          SELECT 1 FROM user_scopes other JOIN users other_user ON other_user.id = other.user_id
+          WHERE other.entity_type = 'organization' AND other.entity_id = s.entity_id
+            AND other.scope = 'admin' AND other.user_id <> s.user_id AND other_user.status = 'active'
+      )
+) AS has_no_active_successor
+`
+
+type OrgAdminHasNoActiveSuccessorParams struct {
+	OrgID  uuid.UUID `json:"orgId"`
+	UserID uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) OrgAdminHasNoActiveSuccessor(ctx context.Context, arg OrgAdminHasNoActiveSuccessorParams) (bool, error) {
+	row := q.db.QueryRow(ctx, orgAdminHasNoActiveSuccessor, arg.OrgID, arg.UserID)
+	var has_no_active_successor bool
+	err := row.Scan(&has_no_active_successor)
+	return has_no_active_successor, err
+}
+
 const orgHasWorkspacesWithResources = `-- name: OrgHasWorkspacesWithResources :one
 SELECT EXISTS(
   SELECT 1 FROM workspaces w
@@ -488,29 +513,4 @@ func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (O
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const userIsLastActiveOrgAdmin = `-- name: UserIsLastActiveOrgAdmin :one
-SELECT EXISTS (
-    SELECT 1 FROM user_scopes s JOIN users u ON u.id = s.user_id
-    WHERE s.entity_type = 'organization' AND s.entity_id = $1
-      AND s.scope = 'admin' AND s.user_id = $2 AND u.status = 'active'
-      AND NOT EXISTS (
-          SELECT 1 FROM user_scopes other JOIN users other_user ON other_user.id = other.user_id
-          WHERE other.entity_type = 'organization' AND other.entity_id = s.entity_id
-            AND other.scope = 'admin' AND other.user_id <> s.user_id AND other_user.status = 'active'
-      )
-) AS is_last_admin
-`
-
-type UserIsLastActiveOrgAdminParams struct {
-	OrgID  uuid.UUID `json:"orgId"`
-	UserID uuid.UUID `json:"userId"`
-}
-
-func (q *Queries) UserIsLastActiveOrgAdmin(ctx context.Context, arg UserIsLastActiveOrgAdminParams) (bool, error) {
-	row := q.db.QueryRow(ctx, userIsLastActiveOrgAdmin, arg.OrgID, arg.UserID)
-	var is_last_admin bool
-	err := row.Scan(&is_last_admin)
-	return is_last_admin, err
 }
