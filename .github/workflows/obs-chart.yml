@@ -14,6 +14,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: obs-chart
       - name: Check that every ClickHouse table the chart creates has a TTL
         run: mise run test:obs-retention
 
