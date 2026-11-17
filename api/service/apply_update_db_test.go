@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/db/dbtest"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -169,6 +171,21 @@ func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
 	}
 	if len(domains) != 1 || domains[0].Domain != applyAPIDomain || !domains[0].IsPrimary {
 		t.Fatalf("domains = %+v, want only api as primary", domains)
+	}
+	kinds := map[string]int{}
+	for _, event := range dbtest.Events(t, f.pool) {
+		switch event.Type {
+		case events.DomainCreated, events.DomainUpdated, events.DomainDeleted:
+			kinds[event.Type]++
+			if event.EnvironmentID == nil || *event.EnvironmentID != f.envID {
+				t.Fatalf("%s environment = %v, want %s", event.Type, event.EnvironmentID, f.envID)
+			}
+		}
+	}
+	for _, kind := range []string{events.DomainCreated, events.DomainUpdated, events.DomainDeleted} {
+		if kinds[kind] == 0 {
+			t.Fatalf("missing %s event", kind)
+		}
 	}
 	wantCleanPlan(t, f, planFileHeader+onlyAPI)
 }

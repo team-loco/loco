@@ -13,7 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
+	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 )
 
@@ -506,4 +508,49 @@ func (i eventPrincipalInjector) Interceptor(next connect.ServerFunc) connect.Ser
 	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 		return next(reqctx.WithPrincipal(ctx, i.principal), spec, stream)
 	}
+}
+
+func TestEnvironmentLifecycleEventsStayInTheirEnvironment(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
+	created, err := server.CreateEnvironment(f.owner, &environmentv1.CreateEnvironmentRequest{
+		WorkspaceId: f.workspaceID.String(),
+		Name:        "preview",
+		Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	environmentID := created.GetEnvironmentId()
+	want := func(kind string) {
+		t.Helper()
+		response, listErr := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{
+			OrgId: f.orgID, WorkspaceId: f.workspaceID.String(), EnvironmentId: environmentID, Query: "@type:" + kind,
+		})
+		if listErr != nil {
+			t.Fatal(listErr)
+		}
+		if len(response.GetEvents()) != 1 {
+			t.Fatalf("%s events = %v, want one", kind, response.GetEvents())
+		}
+		event := response.GetEvents()[0]
+		if event.GetEnvironmentId() != environmentID || event.GetSubjectId() != environmentID {
+			t.Fatalf("%s event = %v", kind, event)
+		}
+	}
+	want(events.EnvironmentCreated)
+	if _, err = server.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
+		EnvironmentId: environmentID, Name: new("renamed"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	want(events.EnvironmentUpdated)
+	if _, err = server.DeleteEnvironment(
+		f.owner,
+		&environmentv1.DeleteEnvironmentRequest{EnvironmentId: environmentID},
+	); err != nil {
+		t.Fatal(err)
+	}
+	want(events.EnvironmentDeleted)
 }

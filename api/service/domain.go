@@ -198,11 +198,12 @@ func (s *DomainServer) CreateResourceDomain(
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainCreated,
-			ResourceID:  new(resourceID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(resourceDomain),
-			Data:        map[string]any{events.FieldDomain: fullDomain, events.FieldResourceID: resourceID.String()},
+			Type:          events.DomainCreated,
+			EnvironmentID: new(environmentID),
+			ResourceID:    new(resourceID),
+			SubjectType:   events.SubjectDomain,
+			SubjectID:     new(resourceDomain),
+			Data:          map[string]any{events.FieldDomain: fullDomain, events.FieldResourceID: resourceID.String()},
 		})
 	})
 	if err != nil {
@@ -279,11 +280,12 @@ func (s *DomainServer) UpdateResourceDomain(
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainUpdated,
-			ResourceID:  new(domainRow.ResourceID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(domainID),
-			Data:        map[string]any{events.FieldDomain: req.GetDomain()},
+			Type:          events.DomainUpdated,
+			EnvironmentID: new(domainRow.EnvironmentID),
+			ResourceID:    new(domainRow.ResourceID),
+			SubjectType:   events.SubjectDomain,
+			SubjectID:     new(domainID),
+			Data:          map[string]any{events.FieldDomain: req.GetDomain()},
 		})
 	})
 	if err != nil {
@@ -345,11 +347,12 @@ func (s *DomainServer) SetPrimaryResourceDomain(
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainUpdated,
-			ResourceID:  new(resourceID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(domainID),
-			Data:        map[string]any{events.FieldPrimary: true},
+			Type:          events.DomainUpdated,
+			EnvironmentID: new(domainRow.EnvironmentID),
+			ResourceID:    new(resourceID),
+			SubjectType:   events.SubjectDomain,
+			SubjectID:     new(domainID),
+			Data:          map[string]any{events.FieldPrimary: true},
 		})
 	})
 	if err != nil {
@@ -420,11 +423,12 @@ func (s *DomainServer) DeleteResourceDomain(
 			return bumpErr
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainDeleted,
-			ResourceID:  new(current.ResourceID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(domainID),
-			Data:        map[string]any{events.FieldDomain: current.Domain},
+			Type:          events.DomainDeleted,
+			EnvironmentID: new(current.EnvironmentID),
+			ResourceID:    new(current.ResourceID),
+			SubjectType:   events.SubjectDomain,
+			SubjectID:     new(domainID),
+			Data:          map[string]any{events.FieldDomain: current.Domain},
 		})
 	})
 	if err != nil {

@@ -93,11 +93,12 @@ func (s *EnvironmentServer) CreateEnvironment(
 		}
 		env = created
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.EnvironmentCreated,
-			WorkspaceID: new(workspaceID),
-			SubjectType: events.SubjectEnvironment,
-			SubjectID:   new(env.ID),
-			Data:        map[string]any{events.FieldName: env.Name},
+			Type:          events.EnvironmentCreated,
+			EnvironmentID: new(env.ID),
+			WorkspaceID:   new(workspaceID),
+			SubjectType:   events.SubjectEnvironment,
+			SubjectID:     new(env.ID),
+			Data:          map[string]any{events.FieldName: env.Name},
 		})
 	})
 	if err != nil {
@@ -246,10 +247,11 @@ func (s *EnvironmentServer) UpdateEnvironment(
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.EnvironmentUpdated,
-			WorkspaceID: new(existing.WorkspaceID),
-			SubjectType: events.SubjectEnvironment,
-			SubjectID:   new(envID),
+			Type:          events.EnvironmentUpdated,
+			EnvironmentID: new(envID),
+			WorkspaceID:   new(existing.WorkspaceID),
+			SubjectType:   events.SubjectEnvironment,
+			SubjectID:     new(envID),
 		})
 	})
 	if err != nil {
@@ -288,10 +290,11 @@ func (s *EnvironmentServer) DeleteEnvironment(
 			return fmt.Errorf("delete environment: %w", deleteErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.EnvironmentDeleted,
-			WorkspaceID: new(existing.WorkspaceID),
-			SubjectType: events.SubjectEnvironment,
-			SubjectID:   new(envID),
+			Type:          events.EnvironmentDeleted,
+			EnvironmentID: new(envID),
+			WorkspaceID:   new(existing.WorkspaceID),
+			SubjectType:   events.SubjectEnvironment,
+			SubjectID:     new(envID),
 		})
 	})
 	if err != nil {

@@ -200,12 +200,13 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 			return fmt.Errorf("delete domain %s: %w", row.Domain, deleteErr)
 		}
 		if eventErr := events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainDeleted,
-			WorkspaceID: new(a.env.WorkspaceID),
-			ResourceID:  new(resourceID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(row.ID),
-			Data:        map[string]any{events.FieldDomain: row.Domain},
+			Type:          events.DomainDeleted,
+			EnvironmentID: new(a.env.ID),
+			WorkspaceID:   new(a.env.WorkspaceID),
+			ResourceID:    new(resourceID),
+			SubjectType:   events.SubjectDomain,
+			SubjectID:     new(row.ID),
+			Data:          map[string]any{events.FieldDomain: row.Domain},
 		}); eventErr != nil {
 			return eventErr
 		}
@@ -244,11 +245,12 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 		return fmt.Errorf("set primary domain: %w", setErr)
 	}
 	return events.Record(ctx, qtx, events.Event{
-		Type:        events.DomainUpdated,
-		WorkspaceID: new(a.env.WorkspaceID),
-		ResourceID:  new(resourceID),
-		SubjectType: events.SubjectDomain,
-		SubjectID:   new(primaryID),
-		Data:        map[string]any{events.FieldPrimary: true},
+		Type:          events.DomainUpdated,
+		EnvironmentID: new(a.env.ID),
+		WorkspaceID:   new(a.env.WorkspaceID),
+		ResourceID:    new(resourceID),
+		SubjectType:   events.SubjectDomain,
+		SubjectID:     new(primaryID),
+		Data:          map[string]any{events.FieldPrimary: true},
 	})
 }

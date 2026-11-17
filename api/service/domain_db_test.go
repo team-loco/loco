@@ -230,6 +230,8 @@ func TestAddingAndRemovingTheLastDomainRecordEvents(t *testing.T) {
 		t.Fatalf("remove the last domain: %v", err)
 	}
 
+	wantEnvironmentEvent(t, f, f.resourceID, f.envID, events.DomainCreated)
+	wantEnvironmentEvent(t, f, f.resourceID, f.envID, events.DomainDeleted)
 	got := domainEvents(t, f, testPrimaryDomain)
 	want := []domainEventRow{
 		{eventType: events.DomainCreated, subjectID: id},
@@ -270,6 +272,7 @@ func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
 	if _, err := client.server.SetPrimaryResourceDomain(client.ctx, request); err != nil {
 		t.Fatal(err)
 	}
+	wantEnvironmentEvent(t, f, f.resourceID, f.envID, events.DomainUpdated)
 	after := f.placement(t, f.clusterID)
 	if after.DesiredRevision != before.DesiredRevision+1 {
 		t.Fatalf("revision = %d, want %d", after.DesiredRevision, before.DesiredRevision+1)
@@ -313,6 +316,7 @@ func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T)
 	if _, updateErr := client.server.UpdateResourceDomain(client.ctx, request); updateErr != nil {
 		t.Fatal(updateErr)
 	}
+	wantEnvironmentEvent(t, f, f.resourceID, f.envID, events.DomainUpdated)
 	after := desiredPayload(t, f)
 	if after.AppSpec.ServiceSpec.Routing.HostName != testSecondDomain {
 		t.Fatalf("route = %+v", after.AppSpec.ServiceSpec.Routing)
