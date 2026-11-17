@@ -27,14 +27,7 @@ import { formatClock, tsMs } from "@/lib/time";
 
 import { WebhookActions } from "./WebhookActions";
 import { formatDay } from "../settings/parts";
-import {
-	deliveryDetail,
-	deliveryLabel,
-	deliveryGlyph,
-	deliveryWhen,
-	STATUS_FAILED,
-	STATUS_SUCCEEDED,
-} from "./webhooks";
+import { deliveryDetail, deliveryLabel, deliveryTick, deliveryWhen, STATUS_FAILED, STATUS_SUCCEEDED } from "./webhooks";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZES[0] };
@@ -330,7 +323,7 @@ function DeliveryList({
 						className="grid grid-cols-[90px_minmax(0,1fr)_70px_28px] sm:grid-cols-[110px_minmax(0,1fr)_100px_28px] items-center gap-x-3 gap-y-1 border-b border-line py-2.5 last:border-b-0"
 					>
 						<span className="flex items-center gap-2 text-[12.5px]">
-							<StatusGlyph glyph={deliveryGlyph(d)} />
+							<StatusGlyph glyph={deliveryTick(d)} />
 							{deliveryLabel(d)}
 						</span>
 						<span className="truncate font-mono text-[12px]">{d.eventType}</span>

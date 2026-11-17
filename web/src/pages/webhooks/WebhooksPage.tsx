@@ -8,7 +8,7 @@ import {
 } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
-import { useState, type MouseEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
@@ -35,7 +35,7 @@ const TICK_CLASS: Record<Tick, string> = {
 	ok: "bg-ok-glyph opacity-75",
 	warn: "bg-warn",
 	err: "bg-err",
-	wait: "bg-fg4",
+	off: "bg-fg4",
 };
 
 export function WebhooksPage({
@@ -238,31 +238,11 @@ function WebhookRow({
 }) {
 	const timePref = useTimePreferences();
 	const url = new URL(webhook.url);
-	const onRowClick = (e: MouseEvent<HTMLTableRowElement>) => {
-		const target = e.target;
-		if (
-			target instanceof Element &&
-			e.currentTarget.contains(target) &&
-			target.closest("button, [role=menuitem]") === null
-		)
-			onOpen();
-	};
 	return (
-		<TableRow
-			onClick={onRowClick}
-			tabIndex={0}
-			aria-label={`Deliveries for ${webhook.url}`}
-			onKeyDown={(e) => {
-				if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-					e.preventDefault();
-					onOpen();
-				}
-			}}
-		>
+		<TableRow onClick={onOpen}>
 			<TableCell className="w-full max-w-0">
 				<button
 					type="button"
-					onClick={onOpen}
 					aria-label={`Deliveries for ${webhook.url}`}
 					title={webhook.url}
 					className="block w-full text-left font-mono"
@@ -283,7 +263,11 @@ function WebhookRow({
 			<TableCell className="hidden font-mono text-[12px] whitespace-nowrap text-fg3 md:table-cell">
 				{formatDay(webhook.createdAt, timePref)}
 			</TableCell>
-			<TableCell>
+			<TableCell
+				onClick={(e) => {
+					e.stopPropagation();
+				}}
+			>
 				<WebhookActions
 					menuOnly
 					workspaceId={workspaceId}

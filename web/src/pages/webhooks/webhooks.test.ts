@@ -8,8 +8,8 @@ import { msToTimestamp } from "@/lib/time";
 import {
 	DELIVERY_TICKS,
 	deliveryDetail,
-	deliveryGlyph,
 	deliveryLabel,
+	deliveryTick,
 	deliveryWhen,
 	eventsSummary,
 	groupCountLabel,
@@ -145,12 +145,12 @@ test("blocks private endpoint addresses before submission", () => {
 		expect(isPrivateAddress(`https://${host}/hook`)).toBe(true);
 	for (const host of ["example.com", "172.15.0.1", "172.32.0.1"])
 		expect(isPrivateAddress(`https://${host}/hook`)).toBe(false);
-	expect(tickStrip([delivery("pending", "pending")])[0]?.tick).toBe("wait");
+	expect(tickStrip([delivery("pending", "pending")])[0]?.tick).toBe("off");
 });
 
 test("maps fresh pending deliveries to the neutral glyph", () => {
-	expect(deliveryGlyph(delivery("pending", "pending"))).toBe("off");
-	expect(deliveryGlyph(delivery("retry", "pending", "timeout"))).toBe("warn");
-	expect(deliveryGlyph(delivery("failed", "failed"))).toBe("err");
-	expect(deliveryGlyph(delivery("sent", "succeeded"))).toBe("ok");
+	expect(deliveryTick(delivery("pending", "pending"))).toBe("off");
+	expect(deliveryTick(delivery("retry", "pending", "timeout"))).toBe("warn");
+	expect(deliveryTick(delivery("failed", "failed"))).toBe("err");
+	expect(deliveryTick(delivery("sent", "succeeded"))).toBe("ok");
 });
