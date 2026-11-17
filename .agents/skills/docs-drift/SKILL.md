@@ -57,7 +57,7 @@ Pages state released behaviour and label unreleased workflows with a release not
 - `docs/content/reference/cli-api.md`: the CLI command table, the Buf Schema Registry link,
   `mise run gen`.
 - `docs/content/reference/ai.md`: `llms.txt` exports. Affected by the Fumadocs LLM routes and content-source configuration.
-- `docs/content/contributing/development.md`: `mise run setup`, `mise run tilt`, `dev/api.env`,
+- `docs/content/contributing/development.md`: `mise run setup`, `mise run dev`, `dev/api.env`,
   the local ports `8000` and `5173`, `./bin/loco login --host`, the tasks it names.
 - `charts/TESTING.md`: the chart test tasks (`lint:charts`, `chart:schema`, `test:charts`,
   `test:collectors`), `.ct.yaml`, the helm-unittest suite layout and the TDD order.
@@ -65,7 +65,7 @@ Pages state released behaviour and label unreleased workflows with a release not
   `web/sws.toml`, `docs/build.ts`.
 - `README.md`: quick start (installer flags, `loco login`, `loco init`, `loco validate`, `loco
   deploy` and `--image`, source packing rules, `loco resource` and `loco builds` subcommands),
-  the examples list, the contributing section (mise, Tilt, Dex on `localhost:5556`, the local
+  the examples list, the contributing section (mise, Flux, Dex on `localhost:5556`, the local
   registry and bucket, build flow, `charts/loco-worker` controller deployments and `builds.enabled`).
 - `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,

@@ -82,7 +82,6 @@ export VALKEY_PORT=$((6379 + port_offset))
 export REGISTRY_PORT=$((5001 + port_offset))
 export S3_PORT=$((9000 + port_offset))
 export DEX_PORT=$((5556 + port_offset))
-export TILT_PORT=$((10350 + port_offset))
 export OBS_PROXY_PORT=$((8050 + port_offset))
 export CLICKHOUSE_NATIVE_PORT=$((19050 + port_offset))
 export OBS_OTLP_GRPC_PORT=$((4317 + port_offset))
@@ -96,7 +95,7 @@ export CLICKHOUSE_DB
 
 app_port=$(env_value APP_PORT)
 export APP_PORT="${app_port%:*}:$((${app_port##*:} + port_offset))"
-export PUBLIC_API_URL="http://localhost:${APP_PORT##*:}"
+export PUBLIC_API_URL="http://api.$STACK_DOMAIN:${APP_PORT##*:}"
 WEB_URL=$(shift_ports "$(env_value WEB_URL)")
 export WEB_URL
 export WEB_PORT=${WEB_URL##*:}

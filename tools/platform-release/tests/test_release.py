@@ -786,3 +786,28 @@ def test_local_source_uses_selected_checkout(monkeypatch, tmp_path):
         release.main()
     assert release.ROOT == source
     publish.assert_called_once()
+
+
+def test_local_image_cache_builds_only_changed_inputs(publication, tmp_path):
+    publication.registry.host = "localhost:15000"
+    publication.registry.username = "push"
+    publication.registry.password = "fixture"
+    fingerprints = {name: name for name in release.IMAGES}
+    commands = partial(_command, publication)
+    def command(*args):
+        if args[:2] == ("git", "rev-parse"):
+            return publication.commit
+        if args[:3] == ("go", "run", "./tools/image-inputs"):
+            return json.dumps(fingerprints)
+        if args[:3] == ("docker", "context", "inspect"):
+            return "unix:///test-docker.sock"
+        return commands(*args)
+    cache = str(tmp_path / "images.json")
+    with patch.object(release, "run", side_effect=command):
+        release.local_release(publication.registry, "registry.localhost:15000", cache=cache)
+        publication.calls.clear()
+        fingerprints["agent"] = "changed-agent"
+        release.local_release(publication.registry, "registry.localhost:15000", cache=cache)
+    builds = [call for call in publication.calls if call[:2] == ("docker", "build")]
+    assert len(builds) == 1
+    assert builds[0][builds[0].index("-f") + 1] == release.DOCKERFILES["agent"]

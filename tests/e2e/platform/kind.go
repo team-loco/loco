@@ -98,7 +98,7 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 	args := []string{
 		"upgrade", "--install", workerRelease, filepath.Join(p.root, "charts", "loco-worker"),
 		"--kubeconfig", p.kubeconfig, "--kube-context", p.kubeContext, "--namespace", locoNamespace,
-		"--values", filepath.Join(p.root, "dev", "kind-worker-values.yaml"),
+		"--values", filepath.Join(p.root, "charts", "loco-worker", "tests", "kind-values.yaml"),
 		"--values", filepath.Join(p.root, "tests", "e2e", "worker-values.yaml"),
 		setFlag, "global.domain.apps={" + platformDomain + "}",
 		setFlag, "certManager.existingTLSSecret=" + gatewayTLSSecret,

@@ -63,7 +63,7 @@ func (cfg config) compose(ctx context.Context, args ...string) error {
 	return err
 }
 func (cfg config) locoadm(ctx context.Context, args ...string) ([]byte, error) {
-	return command(ctx, nil, cfg.cliEnv(), "bin/locoadm", append(args, "--file", cfg.file())...)
+	return command(ctx, nil, cfg.cliEnv(), "bin/locoadm", args...)
 }
 func writeCA(encoded []byte) error {
 	data, err := base64.StdEncoding.DecodeString(string(encoded))

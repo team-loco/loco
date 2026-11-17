@@ -101,7 +101,7 @@ func gatewayCorefile(corefile, domain string) (string, error) {
 	escaped := strings.ReplaceAll(domain, ".", `\.`)
 	rules := fmt.Sprintf(
 		`    rewrite stop name regex ^(api|ingest)\.%s\.$ `+
-			"control-plane-gateway.loco-control-plane.svc.cluster.local answer auto\n"+
+			"control-plane-gateway.loco-system.svc.cluster.local answer auto\n"+
 			`    rewrite stop name regex ^.+\.apps\.%s\.$ `+
 			"apps-gateway.loco-system.svc.cluster.local answer auto\n", escaped, escaped,
 	)
@@ -120,20 +120,15 @@ func (cfg config) gatewayServices(ctx context.Context) error {
 		return err
 	}
 	return cfg.apply(ctx, []byte(fmt.Sprintf(`apiVersion: v1
-kind: Namespace
-metadata:
-  name: loco-control-plane
----
-apiVersion: v1
 kind: Service
 metadata:
   name: control-plane-gateway
-  namespace: loco-control-plane
+  namespace: loco-system
 spec:
   type: NodePort
   selector:
     gateway.envoyproxy.io/owning-gateway-name: loco-control-plane
-    gateway.envoyproxy.io/owning-gateway-namespace: loco-control-plane
+    gateway.envoyproxy.io/owning-gateway-namespace: loco-system
   ports:
     - name: http
       port: %s
@@ -156,39 +151,4 @@ spec:
       targetPort: 10443
       nodePort: 30443
 `, cfg.AppPort, cfg.AppsPort)))
-}
-
-func (cfg config) inputSecrets(ctx context.Context) error {
-	database := "postgres://loco_user:loco_password@postgres." + cfg.Domain + ":5432/loco?sslmode=disable"
-	secrets := []struct {
-		Name string
-		Data map[string]string
-	}{
-		{"loco-inputs", map[string]string{"database-url": database}},
-		//nolint:gosec // Public development fixture credentials match dev/compose.yaml.
-		{"loco-source", map[string]string{"access-key-id": "loco-dev", "secret-access-key": "loco-dev-secret"}},
-		//nolint:gosec // Public development accounts match dev/registry/htpasswd.
-		{"loco-registry", map[string]string{
-			"api-username": "api", "api-password": "loco-dev-api",
-			"push-username": "builder", "push-password": "loco-dev-builder",
-			"pull-username": "nodes", "pull-password": "loco-dev-nodes",
-		}},
-	}
-	for _, secret := range secrets {
-		data, err := json.Marshal(
-			map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Secret",
-				"metadata":   map[string]string{"name": secret.Name, "namespace": "loco-control-plane"},
-				"stringData": secret.Data,
-			},
-		)
-		if err != nil {
-			return err
-		}
-		if err := cfg.apply(ctx, data); err != nil {
-			return err
-		}
-	}
-	return nil
 }

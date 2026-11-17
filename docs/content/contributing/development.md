@@ -8,61 +8,27 @@ The local environment runs Loco's control plane and cluster components for devel
 mise run setup
 ```
 
-Tool versions live in `mise.toml` and `mise.lock`. The local API reads its configuration from `dev/api.env`, which holds only dev values, so a fresh clone needs no `.env` file.
+Tool versions live in `mise.toml` and `mise.lock`. Start the platform and host dashboard with:
 
 ```sh
-mise run tilt
+mise run dev
 ```
 
-Tilt starts the local cluster and services. The API listens at `http://localhost:8000`, and the dashboard at `http://localhost:5173`. The dashboard signs in through Dex at `http://localhost:5556/dex` as `dev@loco.test` with the password `loco-dev`. `dev/api.env` lists `dev@loco.test` in `LOCO_SYSTEM_ADMINS`, so its first sign-in makes it a system admin.
+`dev` checks Docker with `mise run doctor` before starting the platform. If `DOCKER_HOST` is unset, it uses the OrbStack socket when available. Team members can run `infisical login` once to supply `GH_OAUTH_CLIENT_ID` and `GH_OAUTH_CLIENT_SECRET` for Dex’s GitHub connector. These variables can also be exported directly. Without credentials, the stack starts with password login and prints a message about the missing GitHub button.
 
-Dex also offers GitHub login when `GH_OAUTH_CLIENT_ID` and `GH_OAUTH_CLIENT_SECRET` name a GitHub OAuth app whose callback URL is `http://localhost:5556/dex/callback`. Team members with access to the Loco Infisical project log in once, and `mise run tilt` then runs Tilt under `infisical run`, which supplies both:
+Flux runs in kind and pulls the platform bundle and `dev/flux/local/` configuration from the local registry. Postgres, Dex, the registry and source bucket use `dev/compose.local.yaml`. OpenBao and ClickHouse run in Kubernetes. Device login and worker enrollment run automatically. Sign in as `dev@loco.test` with password `loco-dev`.
+
+Each worktree receives an isolated stack slot, private kubeconfig and credential home. Run `mise run stack` for its URLs. Slot N adds 100×N to the base ports: API 8000, dashboard 5173, Dex 5556 and apps 8443. Platform state and the image cache live beneath the shared git directory's `loco-stacks/state/<slot>/`.
 
 ```sh
-infisical login
-mise run tilt
+mise run dev:deploy
+mise run locoadm status
+mise run loco whoami
 ```
 
-Anyone else can export the two variables for their own OAuth app before `mise run tilt`. Without either, the stack starts without the GitHub button and `mise run tilt` prints a line saying so.
+`dev:deploy` rebuilds images whose Docker inputs changed, pushes the bundle and reconciles Flux. Uncommitted changes are included. `--suspend` pauses platform releases for manual Helm iteration; resume them through Flux before returning to automatic reconciliation.
 
-Each git worktree gets its own stack, so several can run at once. A worktree takes the first free slot N from 1 to 9, and its ports move up by 100×N: slot 1 serves the API at `http://localhost:8100` and the dashboard at `http://localhost:5273`. Run `mise run stack` for the current checkout's URLs, and `mise run down` to delete its stack before removing the worktree.
-
-## Connect the CLI
-
-```sh
-mise run build
-./bin/loco login --host http://localhost:8000
-./bin/loco config set webHost http://localhost:5173
-```
-
-Tilt starts development components and supports ordinary login. The complete first-admin path uses the [installation workflow](../operations/self-hosting.md#first-system-admin); it requires installer-managed destination state. The installation e2e suite below exercises that workflow from a fresh cluster.
-
-## Attach the local cluster
-
-The local agent enrolls with a join token. With an account that has `system:admin`, create the cluster, stop Tilt, and start it again with the printed token in `LOCO_JOIN_TOKEN` so it redeploys `loco-worker` with it:
-
-```sh
-mise run build:locoadm
-./bin/locoadm cluster create --name loco-local --region us-east-1 --tier production
-mise run stop
-LOCO_JOIN_TOKEN=<printed token> mise run tilt
-```
-
-The agent keeps its key in the `loco-worker-agent-key` Secret, so the token is needed again only after the kind cluster or that Secret is deleted.
-
-## Install through locoadm
-
-`mise run stack:install` installs a control plane and one enrolled production worker on a single kind node. It uses `dev/loco-install.yaml` with Postgres, Dex, the registry and the source bucket from `dev/compose.local.yaml`. The configured admin is `dev@loco.test`, with password `loco-dev`; signup is open.
-
-The installation and CLI credentials live under the shared git directory's `loco-stacks/state/<slot>/`, outside the worktree. A completed installation persists across runs; an interrupted installation resumes against its retained database. Delete the stack with `mise run down` before changing chart or installation inputs.
-
-The API uses `http://api.loco-dev.localhost:8000`, Dex uses `http://dex.loco-dev.localhost:5556/dex`, and apps use `https://<name>.apps.loco-dev.localhost:8443`. Worktree slot N adds `-N` to `loco-dev` and 100×N to these ports. Accept the browser warning for self-signed app certificates. Export the apps CA with:
-
-```sh
-mise run stack:ca > apps-ca.pem
-```
-
-`locoadm verify` targets installations that serve apps on port 443 and is not used against the local stack.
+`mise run stop` keeps state while stopping the dashboard, fixtures and kind node. `mise run dev` starts them. `mise run down` deletes the stack and frees its slot. Apps use self-signed certificates; export the CA with `mise run stack:ca > apps-ca.pem`. The application verification command requires port 443 and is exercised by installation acceptance.
 
 ## Charts
 
@@ -86,15 +52,11 @@ Use the repository's tasks for builds, tests, code generation, and linting so lo
 
 ## Installation end-to-end suite
 
-The unreleased installation suite provisions its own kind cluster and external fixture services, then uses `locoadm` for control-plane installation, the configured admin's sign-in under closed signup and worker attachment:
+The installation suite uses Flux to install the merge-base bundle and upgrade to the head bundle, checks retained identities and encryption keys, then exercises login, enrollment, source deployment, verification and recovery.
 
 ```sh
 mise run e2e:installation --no-teardown
 mise run e2e:installation --skip-build
 ```
 
-The suite builds images for Docker's host architecture, or pulls the ones `E2E_IMAGES` names (such as `ghcr.io/team-loco/loco-*:ci-<commit>`, `*` standing for the image name), and publishes digest-pinned charts, images and CRDs to a fixture registry. An operator pod uses an explicit fixture kubeconfig; The operator signs in with `locoadm login --device`; the suite approves the code by calling the API's `ApproveDeviceLogin` with an ID token from the fixture Dex's password grant, the call the dashboard makes when a person approves. Generated installation credentials and worker identity follow the public commands. Application setup uses authenticated APIs, then `loco deploy` builds source and checks its HTTPS response. No SQL creates ordinary users, sessions or cluster registrations on this path.
-
-The pinned cloud-provider-kind controller publishes real LoadBalancer addresses. Fixture CoreDNS records route control-plane names and wildcard application names to those addresses. The fixture CA verifies the HTTPS certificate; these names represent operator-managed DNS inside the disposable environment and do not test Internet DNS propagation.
-
-Each checkout owns a separate cluster. `--no-teardown` preserves it for inspection; `--skip-build` reuses its images while rerunning the workflow. Without `--no-teardown`, success and failure both remove the cluster and its external fixtures. Unknown options or test filters fail before provisioning. The E2E workflow runs this suite as an independent job with its own clean environment.
+The fixture registry holds digest-pinned charts, images and CRDs. The baseline and head use the current bundle tooling. Each checkout owns its kind cluster; `--no-teardown` keeps it for inspection and `--skip-build` reuses its images. Default cleanup removes fixtures after success or failure.

@@ -452,12 +452,15 @@ def main_release(commit, registry):
     print(json.dumps(release_manifest('0.0.0-main.g' + commit[:12], commit, refs, images), indent=2))
 
 
-def local_release(registry, address, images=None):
+def local_release(registry, address, images=None, cache=None):
     """Builds the checkout's images, charts and CRD bundles into registry and prints a release.json that names them at address."""
     commit = run('git', 'rev-parse', 'HEAD')
     version = '0.0.0-local.g' + commit[:12]
     names = repositories(registry)
     refs = {}
+    cached = json.loads(Path(cache).read_text()) if cache and Path(cache).exists() else {}
+    fingerprints = json.loads(run('go', 'run', './tools/image-inputs', *[name + '=' + DOCKERFILES[name] for name in IMAGES])) if cache else {}
+    next_cache = {}
     prebuilt = images
     images = {}
     with tempfile.TemporaryDirectory(prefix='loco-release-') as directory:
@@ -472,14 +475,26 @@ def local_release(registry, address, images=None):
         for name in IMAGES:
             repository = registry.repository + '-' + name
             tag = registry.host + '/' + repository + ':' + version
+            previous = cached.get(name, {})
+            if cache and previous.get('fingerprint') == fingerprints[name] and previous.get('repository') == registry.host + '/' + repository:
+                existing = registry.manifest(repository, previous['digest'], missing=True)
+                if existing:
+                    images[name] = address + '/' + repository + '@' + existing
+                    next_cache[name] = previous
+                    continue
             if prebuilt:
                 run('docker', 'tag', prebuilt.replace('*', name), tag)
             else:
                 run('docker', 'build', '--build-arg', 'VERSION=' + version, '-f', DOCKERFILES[name], '-t', tag, '.')
             run('docker', '--config', directory, '--host', daemon, 'push', tag)
             images[name] = address + '/' + repository + '@' + registry.manifest(repository, version)
+            if cache:
+                next_cache[name] = {'fingerprint': fingerprints[name], 'repository': registry.host + '/' + repository, 'digest': images[name].split('@')[1]}
     files = bundle(version, commit, refs, images)
     result = registry.publish(names['platform'], version, archive(files), {'version': version, 'coreCommit': commit}, replace=True)
+    if cache:
+        Path(cache).parent.mkdir(parents=True, exist_ok=True)
+        Path(cache).write_text(json.dumps(next_cache))
     print('published ' + address + '/' + names['platform'] + ':' + version + '@' + result, file=sys.stderr)
     print(json.dumps(release_manifest(version, commit, refs, images), indent=2))
 
@@ -504,6 +519,7 @@ def main():
     local.add_argument('--address', required=True)
     local.add_argument('--username', required=True)
     local.add_argument('--password', required=True)
+    local.add_argument('--cache', help='Image input cache for local development')
     local.add_argument('--source', help='Checkout supplying the charts and images; uses this tooling to build its bundle')
     local.add_argument('--images', help='Local prebuilt image template, with * standing for the component name')
     check = commands.add_parser('check-versions')
@@ -520,7 +536,7 @@ def main():
     if args.command == 'local':
         if args.source:
             ROOT = Path(args.source).resolve()
-        local_release(Registry(args.repository, args.username, args.password, args.push), args.address, args.images)
+        local_release(Registry(args.repository, args.username, args.password, args.push), args.address, args.images, args.cache)
         return
     registry = Registry(args.repository, os.environ['GITHUB_ACTOR'], os.environ['GH_TOKEN'])
     if args.command == 'artifacts':

@@ -1,32 +1,9 @@
 #!/usr/bin/env bash
-#MISE description="Stop this checkout's local environment and keep its state: Tilt and the services it runs, the compose services, and the kind nodes; mise run start brings it back"
+#MISE description="Stop this checkout's host dashboard, fixtures and kind node while retaining installation state"
 set -euo pipefail
-
-name=$KIND_CLUSTER
-tilt_pattern="(^|/)tilt up --context kind-${name}( |$)"
-tilt_exit_timeout_seconds=30
-node_stop_timeout_seconds=120
-
-if pgrep -f "$tilt_pattern" >/dev/null; then
-	echo "stopping tilt..."
-	pkill -INT -f "$tilt_pattern"
-	for _ in $(seq "$tilt_exit_timeout_seconds"); do
-		pgrep -f "$tilt_pattern" >/dev/null || break
-		sleep 1
-	done
-	if pgrep -f "$tilt_pattern" >/dev/null; then
-		echo "tilt did not exit within ${tilt_exit_timeout_seconds}s" >&2
-		exit 1
-	fi
-fi
 mise run services:stop
-
-echo "stopping the compose services and ClickHouse..."
-docker compose stop
-docker stop "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true
-
-nodes=$(kind get nodes --name "$name" 2>/dev/null)
+docker compose --file dev/compose.local.yaml stop
+nodes=$(kind get nodes --name "$KIND_CLUSTER" 2>/dev/null)
 if [ -n "$nodes" ]; then
-	echo "stopping the kind nodes..."
-	xargs docker stop --time "$node_stop_timeout_seconds" <<<"$nodes" >/dev/null
+  xargs docker stop --time 120 <<<"$nodes" >/dev/null
 fi
