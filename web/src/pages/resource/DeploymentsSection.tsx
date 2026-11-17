@@ -16,6 +16,7 @@ import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
@@ -34,8 +35,8 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { formatCount } from "@/lib/format";
 
-import { deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
-import { BuildsTable, type BuildActor } from "./BuildsTable";
+import { buildStatusStyle, deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
+import { BuildDetail, BuildsTable, type BuildActor } from "./BuildsTable";
 import { formatDuration, formatFullTime } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
@@ -211,8 +212,9 @@ export function DeploymentsSection({
 	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
 	const builds = useResourceBuilds(resourceId, environmentId);
-	const [selectedBuild, setSelectedBuild] = useState<{ id: string; expanded: boolean } | null>(null);
-	const selected = useQuery(getBuild, selectedBuild === null ? skipToken : { buildId: selectedBuild.id });
+	const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
+	const selected = useQuery(getBuild, selectedBuild === null ? skipToken : { buildId: selectedBuild });
+	const selectedStatus = selected.data?.build === undefined ? undefined : buildStatusStyle(selected.data.build.status);
 	const { activeOrgId } = useOrgWorkspace();
 	const limits = useOrgLimits(activeOrgId ?? "");
 	const { data: membersRes } = useTanstackQuery({
@@ -252,7 +254,7 @@ export function DeploymentsSection({
 			setBuildPaging({ page: pageOf(index, BUILD_PAGE_SIZE), size: BUILD_PAGE_SIZE });
 			return;
 		}
-		setSelectedBuild({ id: buildId, expanded: true });
+		setSelectedBuild(buildId);
 	};
 	const goDeployment = (row: Row) => {
 		void setHist("deploys");
@@ -461,7 +463,7 @@ export function DeploymentsSection({
 					if (!isOpen) setSelectedBuild(null);
 				}}
 			>
-				<DialogContent size="wide" title={`Build ${selectedBuild === null ? "" : formatShortId(selectedBuild.id)}`}>
+				<DialogContent size="wide" title={`Build ${selectedBuild === null ? "" : formatShortId(selectedBuild)}`}>
 					<DialogBody>
 						{selected.isPending && (
 							<div role="status" className="flex items-center gap-2 py-5 text-fg3">
@@ -473,19 +475,19 @@ export function DeploymentsSection({
 								{getErrorMessage(selected.error, "Could not load build.")}
 							</div>
 						)}
+						{selectedStatus !== undefined && (
+							<div className="flex items-center gap-2 text-sm">
+								<StatusGlyph glyph={selectedStatus.glyph} />
+								{selectedStatus.label}
+							</div>
+						)}
 						{selected.data?.build !== undefined && (
-							<BuildsTable
-								builds={[selected.data.build]}
-								actors={actors}
+							<BuildDetail
+								build={selected.data.build}
 								workspaceId={workspaceId}
-								nowMs={nowMs}
 								canWrite={canWrite}
-								openId={selectedBuild?.expanded ? selected.data.build.id : null}
-								onOpen={(id) => {
-									setSelectedBuild((previous) => (previous === null ? null : { ...previous, expanded: id !== null }));
-								}}
-								deploymentFor={buildDeployment}
-								logsHref={buildLogsHref}
+								deployment={buildDeployment(selected.data.build.id)}
+								logsHref={buildLogsHref(selected.data.build.id)}
 								onCanceled={() => {
 									builds.refresh();
 									void selected.refetch();

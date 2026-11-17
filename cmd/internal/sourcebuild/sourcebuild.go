@@ -101,12 +101,8 @@ func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBui
 			gitBranch = &commit.Branch
 		}
 	}
-	var originEnvironmentID *string
-	if in.OriginEnvironmentID != "" {
-		originEnvironmentID = &in.OriginEnvironmentID
-	}
 	req := &buildv1.CreateBuildRequest{
-		OriginEnvironmentId: originEnvironmentID,
+		OriginEnvironmentId: new(in.OriginEnvironmentID),
 		ResourceId:          in.ResourceID,
 		DockerfilePath:      in.Dockerfile,
 		SourceSize:          in.Archive.Size,
