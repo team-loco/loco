@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { ExternalLinkIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
+import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { EntityType, type Token } from "@gen/loco/token/v1/token_pb";
 import { createConnectQueryKey, useQuery } from "@connectrpc/connect-query";
 
+import { DocsButton } from "@/components/design/DocsButton";
 import { Button } from "@/components/design/Button";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -269,14 +270,7 @@ export function Tokens() {
 					>
 						<span className="flex flex-wrap justify-center gap-2">
 							<LimitedAction reason={createBlocked}>{newTokenButton}</LimitedAction>
-							<Button
-								variant="outline"
-								nativeButton={false}
-								render={<a href={TOKEN_DOCS} target="_blank" rel="noopener noreferrer" />}
-							>
-								Read the docs
-								<ExternalLinkIcon className="text-fg3" />
-							</Button>
+							<DocsButton href={TOKEN_DOCS} />
 						</span>
 					</EmptyHero>
 				) : (

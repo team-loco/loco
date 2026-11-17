@@ -1,0 +1,108 @@
+.range {
+	width: 100%;
+}
+.range > div {
+	height: 20px;
+}
+.range [data-slot="slider-track"] {
+	height: 4px;
+	border-radius: 2px;
+	background: var(--sl-track);
+}
+.range [data-slot="slider-range"] {
+	background: var(--sl);
+}
+.range [data-slot="slider-thumb"] {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	border: 2px solid var(--sl);
+	background: var(--bg);
+	box-shadow: var(--shadow-knob);
+	transition: scale 120ms ease;
+}
+.range [data-slot="slider-thumb"][data-dragging] {
+	scale: 1.12;
+}
+.range [data-slot="slider-thumb"]:has(:focus-visible) {
+	box-shadow: 0 0 0 4px color-mix(in oklch, var(--sl) 22%, transparent);
+}
+.dsl-box {
+	position: relative;
+	display: flex;
+	height: 20px;
+	margin: 0 9px;
+	align-items: center;
+	touch-action: none;
+	user-select: none;
+}
+.dsl-rail {
+	position: relative;
+	height: 4px;
+	flex-grow: 1;
+	border-radius: 2px;
+	background: var(--sl-track);
+}
+.dsl-fill {
+	height: 100%;
+	border-radius: 2px;
+	background: var(--sl);
+}
+.dsl-stop {
+	position: absolute;
+	top: 50%;
+	width: 6px;
+	height: 6px;
+	transform: translate(-50%, -50%);
+	border-radius: 50%;
+	background: var(--fg4);
+	pointer-events: none;
+}
+.dsl-stop[data-on] {
+	background: var(--sl);
+}
+.dsl-thumb {
+	display: block;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	border: 2px solid var(--sl);
+	background: var(--bg);
+	box-shadow: var(--shadow-knob);
+	transition: scale 120ms ease;
+}
+.dsl-thumb:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 4px color-mix(in oklch, var(--sl) 22%, transparent);
+}
+.dsl-thumb[data-dragging] {
+	scale: 1.12;
+}
+.dsl-labels {
+	position: relative;
+	height: 16px;
+	margin: 0 9px;
+}
+.dsl-labels > span {
+	position: absolute;
+	transform: translateX(-50%);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	color: var(--fg3);
+	white-space: nowrap;
+}
+.dsl-labels > span[data-on] {
+	color: var(--fg);
+}
+.dsl-labels > span:first-child {
+	transform: translateX(-9px);
+}
+.dsl-labels > span:last-child {
+	transform: translateX(calc(-100% + 9px));
+}
+@media (prefers-reduced-motion: reduce) {
+	.range [data-slot="slider-thumb"],
+	.dsl-thumb {
+		transition: none;
+	}
+}

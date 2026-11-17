@@ -35,7 +35,7 @@
 
 	--shadow-popover: var(--pop-shadow);
 	--shadow-overlay: var(--overlay-shadow);
-	--shadow-bar: 0 16px 40px -10px rgba(0, 0, 0, 0.35);
+	--shadow-bar: 0 0 0 1px var(--line2), 0 16px 40px -12px rgba(0, 0, 0, 0.28);
 	--shadow-toast: 0 1px 2px rgba(0, 0, 0, 0.06), 0 14px 36px rgba(0, 0, 0, 0.14);
 	--shadow-knob: 0 1px 2px rgba(0, 0, 0, 0.2);
 
@@ -113,6 +113,8 @@
 @layer base {
 	:root,
 	[data-theme="loco"] {
+		--sl: var(--fg);
+		--sl-track: var(--line2);
 		--shell: #f3f3f1;
 		--shell-hover: #eaeae7;
 		--shell-active: #e4e4e1;

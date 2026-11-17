@@ -1,4 +1,6 @@
 [data-theme="rose-pine"] {
+	--sl: var(--fg);
+	--sl-track: var(--line2);
 	--radius-control: 8px;
 	--radius-card: 14px;
 	--shell: #f2e9e1;

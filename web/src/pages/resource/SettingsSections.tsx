@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
-import { RegionHealth } from "@/components/design/RegionHealth";
+import { RegionCard, RegionCards } from "@/components/design/RegionCards";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { StepSlider } from "@/components/design/StepSlider";
@@ -289,15 +289,6 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 	);
 }
 
-function regionNote(info: RegionInfo | undefined, deployed: boolean): ReactNode {
-	return (
-		<span className="flex flex-wrap items-center gap-2">
-			<RegionHealth region={info} />
-			{!deployed ? "Starts without this resource's secrets" : info?.isDefault === true ? "default" : null}
-		</span>
-	);
-}
-
 export function ObservabilitySection({ draft, base, locked, describedBy, onChange }: SectionProps) {
 	const next = draft.observability ?? base.observability;
 	return (
@@ -337,6 +328,7 @@ export function RegionsSection({
 }: SectionProps & { available: RegionInfo[] }) {
 	const names = [...new Set([...available.map((r) => r.region), ...Object.keys(base.regions)])].toSorted();
 	const hasDeployment = Object.keys(base.scaling).length > 0;
+	const selected = names.filter((name) => draft.regions?.[name] ?? base.regions[name] === true);
 	return (
 		<SettingsBlock
 			id="set-regions"
@@ -347,35 +339,56 @@ export function RegionsSection({
 					: "Deploy this resource before adding regions."
 			}
 		>
-			<div className="overflow-hidden rounded-card border border-line bg-background">
+			<RegionCards aria-label="Regions" value={selected}>
 				{names.map((name) => {
 					const configured = base.regions[name] === true;
-					const allowed =
-						configured ||
-						(hasDeployment && available.some((region) => region.region === name && region.healthStatus === "healthy"));
-					const on = draft.regions?.[name] ?? configured;
+					const info = available.find((region) => region.region === name);
+					const allowed = configured || (hasDeployment && info?.healthStatus === "healthy");
+					const on = selected.includes(name);
+					const last = on && selected.length === 1;
+					const note = !hasDeployment
+						? undefined
+						: configured
+							? on
+								? "Running"
+								: "Will be removed"
+							: on
+								? "Will be added"
+								: undefined;
 					return (
-						<div key={name} className="flex items-center gap-3.5 border-b border-line px-3.5 py-3 last:border-b-0">
-							<span className="font-mono text-[12.5px]">{name}</span>
-							<span className="flex-1 text-[12.5px] text-fg3">
-								{regionNote(
-									available.find((r) => r.region === name),
-									name in base.scaling,
-								)}
-							</span>
-							<Switch
-								checked={on}
-								disabled={locked || !allowed}
-								aria-label={`Run in ${name}`}
-								aria-describedby={describedBy}
-								onCheckedChange={(checked: boolean) => {
-									onChange({ regions: { ...draft.regions, [name]: checked } });
-								}}
-							/>
-						</div>
+						<RegionCard
+							key={name}
+							name={name}
+							value={name}
+							onPressedChange={(pressed, details) => {
+								if (last) {
+									details.cancel();
+									return;
+								}
+								onChange({ regions: { ...draft.regions, [name]: pressed } });
+							}}
+							health={info}
+							aria-label={`Run in ${name}`}
+							aria-describedby={describedBy}
+							disabled={locked || !allowed}
+							aria-disabled={last || undefined}
+							title={last ? "A resource needs at least one region" : undefined}
+							noteTone={configured && !on ? "rm" : !configured && on ? "add" : undefined}
+							note={
+								note === undefined ? undefined : (
+									<>
+										{note}
+										{configured && on && info?.isDefault === true && " · default"}
+										{on && !configured && (
+											<span className="block text-warn-fg">Starts without this resource's secrets</span>
+										)}
+									</>
+								)
+							}
+						/>
 					);
 				})}
-			</div>
+			</RegionCards>
 			{errors.regions !== undefined && <span className="text-[12.5px] text-bad-fg">{errors.regions}</span>}
 		</SettingsBlock>
 	);

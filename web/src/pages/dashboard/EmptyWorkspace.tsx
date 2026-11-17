@@ -1,6 +1,7 @@
-import { ExternalLinkIcon, PlusIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { Link } from "react-router";
 
+import { DocsButton } from "@/components/design/DocsButton";
 import { Button } from "@/components/design/Button";
 import { CopyButton } from "@/components/design/CopyButton";
 import { EmptyHero } from "@/components/design/EmptyHero";
@@ -100,15 +101,7 @@ export function EmptyWorkspace({
 					<PlusIcon />
 					New resource
 				</Button>
-				<Button
-					variant="outline"
-					size="lg"
-					nativeButton={false}
-					render={<a href={DOCS_URL} target="_blank" rel="noopener noreferrer" />}
-				>
-					Read the docs
-					<ExternalLinkIcon />
-				</Button>
+				<DocsButton href={DOCS_URL} />
 			</div>
 			{otherEnvName !== null && (
 				<Button variant="link" className="mt-1" onClick={onSwitchEnv}>

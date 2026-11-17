@@ -1,4 +1,6 @@
 [data-theme="paper"] {
+	--sl: var(--brand);
+	--sl-track: var(--line2);
 	--radius-card: 6px;
 	--shell: #f6f8fa;
 	--shell-hover: #eef1f4;

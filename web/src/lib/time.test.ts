@@ -48,7 +48,7 @@ test("formats midnight, noon, milliseconds and the timestamp zone", () => {
 
 test("places ticks on round boundaries within an unaligned range", () => {
 	const from = midnight + 123_000;
-	const ticks = timeAxis(from, from + 3_600_000, utc12);
+	const ticks = timeAxis(from, from + 3_600_000, { zone: "utc", clock: "24" });
 	expect(ticks.length).toBeGreaterThanOrEqual(6);
 	expect(ticks.length).toBeLessThanOrEqual(9);
 	expect(ticks.every((t) => t >= from && t <= from + 3_600_000 && t % 300_000 === 0)).toBe(true);
@@ -114,4 +114,13 @@ test("formats start labels with explicit clock and zone preferences", () => {
 test("leaves missing start times blank", () => {
 	expect(formatStarted(0, utc12)).toBe("—");
 	expect(formatStarted(undefined, utc12)).toBe("—");
+});
+
+test("12-hour axes leave room for wider clock labels", () => {
+	const to = midnight + 12 * 3_600_000;
+	const regular = timeAxis(midnight, to, { zone: "utc", clock: "24" });
+	const wide = timeAxis(midnight, to, utc12);
+	expect(wide.length).toBeGreaterThanOrEqual(3);
+	expect(wide.length).toBeLessThan(regular.length);
+	expect(wide).toEqual(Array.from({ length: 5 }, (_, i) => midnight + i * 3 * 3_600_000));
 });

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { ArrowUpRightIcon, CheckIcon, CopyIcon, HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, HistoryIcon, SearchXIcon, XIcon } from "lucide-react";
 
+import { DocsButton } from "@/components/design/DocsButton";
 import { Button } from "@/components/design/Button";
 import { ART_SOFT, ART_STRONG, ClusterArt } from "@/components/design/ClusterArt";
 import { EmptyHero } from "@/components/design/EmptyHero";
@@ -112,10 +113,7 @@ export function ObsHero({
 			{children}
 			<div className="mt-1.5 flex flex-wrap justify-center gap-2">
 				{action}
-				<Button variant="outline" nativeButton={false} render={<a href={DOCS_PATH} target="_blank" rel="noreferrer" />}>
-					Read the docs
-					<ArrowUpRightIcon />
-				</Button>
+				<DocsButton href={DOCS_PATH} />
 			</div>
 		</EmptyHero>
 	);
