@@ -1,11 +1,13 @@
 package tvm_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/db/dbtest"
@@ -237,5 +239,47 @@ func TestPersonalTokenRejectsExpiry(t *testing.T) {
 	}
 	if _, err := f.machine.GetToken(t.Context(), token); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("expired personal token = %v", err)
+	}
+}
+
+func TestIssueSeesTransactionLocalGrants(t *testing.T) {
+	t.Parallel()
+	f := newPrincipalFixture(t)
+	tx, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if rollbackErr := tx.Rollback(
+			context.Background(),
+		); rollbackErr != nil &&
+			!errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("rollback token transaction: %v", rollbackErr)
+		}
+	})
+	q := f.q.WithTx(tx)
+	scope := queries.EntityScope{
+		EntityType: queries.EntityTypeWorkspace,
+		EntityID:   f.workspace,
+		Scope:      queries.ScopeWrite,
+	}
+	if err = q.AddUserScope(
+		t.Context(),
+		queries.AddUserScopeParams{
+			UserID:     f.user,
+			EntityType: scope.EntityType,
+			EntityID:   scope.EntityID,
+			Scope:      scope.Scope,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = f.machine.WithQueries(q).
+		Issue(
+			t.Context(), "transaction", f.user,
+			queries.Entity{Type: scope.EntityType, ID: scope.EntityID},
+			[]queries.EntityScope{scope}, time.Hour,
+		); err != nil {
+		t.Fatalf("issue with transaction-local grants: %v", err)
 	}
 }
