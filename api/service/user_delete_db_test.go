@@ -24,6 +24,11 @@ func TestDeleteUserRemovesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err = f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	tx, err := f.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -134,6 +139,11 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 			if _, err := f.pool.Exec(ctx, tt.insert, userID, workspaceID); err != nil {
 				t.Fatal(err)
 			}
+			if err := f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+				UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+			}); err != nil {
+				t.Fatal(err)
+			}
 			ctx = reqctx.WithPrincipal(
 				ctx,
 				reqctx.Principal{
@@ -176,6 +186,11 @@ func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
 	}
 	if _, err := f.pool.Exec(ctx, `INSERT INTO identities (user_id, issuer, subject)
 		VALUES ($1, 'https://idp.example.com', 'sub-1')`, userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	ctx = reqctx.WithPrincipal(

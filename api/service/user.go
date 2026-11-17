@@ -208,18 +208,17 @@ func (s *UserServer) DeleteUser(
 	if err != nil {
 		return nil, err
 	}
-	p, err := sessionPrincipal(ctx)
-	if err != nil {
+	if err = authorize(ctx, s.authz, actions.DeleteUser, userID); err != nil {
 		return nil, err
-	}
-	if p.UserID != userID {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
 		if lockErr != nil {
 			return lockErr
+		}
+		if accessErr := authorize(lockedCtx, authz.New(qtx), actions.DeleteUser, userID); accessErr != nil {
+			return accessErr
 		}
 		orgs, lockErr := qtx.LockUserAdminOrganizations(lockedCtx, userID)
 		if lockErr != nil {
