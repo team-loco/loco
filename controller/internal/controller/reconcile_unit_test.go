@@ -252,31 +252,15 @@ func TestDeploymentReady(t *testing.T) {
 	}
 }
 
-func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
+func TestReplicaCountUsesObservedPodReadiness(t *testing.T) {
 	app := testApplication()
-	deployment, err := desiredDeployment(
-		app,
-		testEnvironmentNamespace(app),
-		envSecretMount{},
-		testTelemetry(),
-		testMinReadySeconds,
-		testDrainSeconds,
-	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
-	for _, count := range []int32{0, 1, 2, 0} {
-		status := appsv1ac.DeploymentStatus().WithReadyReplicas(count)
-		deployment.WithStatus(status)
-		setReadyReplicas(app, deployment)
-		if app.Status.ReadyReplicas != count {
-			t.Fatalf("status = %+v, want ready=%d", app.Status, count)
-		}
-	}
-	deployment.Status = nil
-	setReadyReplicas(app, deployment)
-	if app.Status.ReadyReplicas != 0 {
-		t.Fatalf("status without deployment status = %+v", app.Status)
+	app.Status.Rollout = &locov1alpha1.RolloutStatus{Replicas: []locov1alpha1.ReplicaStatus{
+		{Ready: true, State: locov1alpha1.ReplicaFailing},
+		{Ready: false, State: locov1alpha1.ReplicaStarting},
+	}}
+	setReadyReplicas(app)
+	if app.Status.ReadyReplicas != 1 {
+		t.Fatalf("Pod readiness was hidden by a lagging Deployment status: %+v", app.Status)
 	}
 }
 

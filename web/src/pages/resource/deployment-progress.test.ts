@@ -61,11 +61,20 @@ test("progress does not use a sibling region's deployments", () => {
 test("replicas group by placement revision, retaining stopped replicas", () => {
 	const old = create(ReplicaSchema, { name: "old", placementRevision: 1n, state: "Stopped" });
 	const next = create(ReplicaSchema, { name: "next", placementRevision: 2n });
-	expect(groupReplicas([old, next], 2n)).toEqual([
+	expect(groupReplicas([old, next], 2n, "next")).toEqual([
 		{ label: "New version", replicas: [next] },
 		{ label: "Previous version", replicas: [old] },
 	]);
-	expect(groupReplicas([], 0n).map((g) => g.replicas)).toEqual([[], []]);
+	expect(groupReplicas([], 0n, "next").map((g) => g.replicas)).toEqual([[], []]);
+});
+
+test("a retiring placement's revision one stays separate from the desired deployment", () => {
+	const old = create(ReplicaSchema, { deploymentId: "old-deployment", placementRevision: 1n, ready: true });
+	const next = create(ReplicaSchema, { deploymentId: "next-deployment", placementRevision: 1n, ready: true });
+	expect(groupReplicas([old, next], 1n, "next-deployment")).toEqual([
+		{ label: "New version", replicas: [next] },
+		{ label: "Previous version", replicas: [old] },
+	]);
 });
 
 test("replica states have readable labels and semantic tones", () => {

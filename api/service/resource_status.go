@@ -86,7 +86,7 @@ func regionStatus(
 	if row.DesiredReplicas < 1 {
 		return nil, fmt.Errorf("%w: deployment %s", errNoDesiredReplicas, row.DeploymentID)
 	}
-	if !row.Placed {
+	if !row.Placed && row.DeploymentStatus != genDb.DeploymentStatusBuilding {
 		return nil, fmt.Errorf("%w: deployment %s", errActiveDeploymentUnplaced, row.DeploymentID)
 	}
 	inFlight, err := deploymentInFlight(row.DeploymentStatus)

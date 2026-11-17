@@ -639,13 +639,14 @@ type Invitation struct {
 }
 
 type ObservedPlacementRollout struct {
-	PlacementID          uuid.UUID  `json:"placementId"`
-	DesiredDeploymentID  *uuid.UUID `json:"desiredDeploymentId"`
-	ResourceID           uuid.UUID  `json:"resourceId"`
-	EnvironmentID        uuid.UUID  `json:"environmentId"`
-	ClusterID            uuid.UUID  `json:"clusterId"`
-	ReportedDeploymentID uuid.UUID  `json:"reportedDeploymentId"`
-	Snapshot             []byte     `json:"snapshot"`
+	PlacementID          uuid.UUID `json:"placementId"`
+	ResourceID           uuid.UUID `json:"resourceId"`
+	EnvironmentID        uuid.UUID `json:"environmentId"`
+	ClusterID            uuid.UUID `json:"clusterId"`
+	Region               string    `json:"region"`
+	ReportedDeploymentID uuid.UUID `json:"reportedDeploymentId"`
+	Snapshot             []byte    `json:"snapshot"`
+	Replicas             []byte    `json:"replicas"`
 }
 
 type OrgLimitOverride struct {

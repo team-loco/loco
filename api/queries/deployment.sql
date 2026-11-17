@@ -11,7 +11,9 @@ SELECT * FROM deployments WHERE id = $1;
 -- name: ListResourceDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT snapshot FROM observed_placement_rollouts ro WHERE ro.desired_deployment_id = d.id), '{}'::jsonb)::jsonb AS observed_snapshot,
+ COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
+   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
+     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
@@ -40,7 +42,9 @@ LIMIT sqlc.arg('page_size');
 -- name: ListEnvironmentDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT snapshot FROM observed_placement_rollouts ro WHERE ro.desired_deployment_id = d.id), '{}'::jsonb)::jsonb AS observed_snapshot,
+ COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
+   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
+     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
@@ -141,7 +145,9 @@ WHERE d.id = $1;
 -- name: GetDeploymentView :one
 SELECT sqlc.embed(d), r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT snapshot FROM observed_placement_rollouts ro WHERE ro.desired_deployment_id = d.id), '{}'::jsonb)::jsonb AS observed_snapshot,
+ COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
+   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
+     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,

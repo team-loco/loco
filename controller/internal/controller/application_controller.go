@@ -235,7 +235,7 @@ func (r *ApplicationReconciler) reconcileResources(
 	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
 		return ctrl.Result{}, err
 	}
-	setReadyReplicas(app, dep)
+	setReadyReplicas(app)
 
 	err = r.ensureService(ctx, app)
 	if err != nil {
@@ -812,10 +812,12 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32)
 	return generation > 0 && observed == generation && updated == replicas && available == replicas && total == replicas
 }
 
-func setReadyReplicas(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApplyConfiguration) {
+func setReadyReplicas(app *locov1alpha1.Application) {
 	app.Status.ReadyReplicas = 0
-	if dep.Status != nil {
-		app.Status.ReadyReplicas = ptr.Deref(dep.Status.ReadyReplicas, 0)
+	for _, replica := range app.Status.Rollout.Replicas {
+		if replica.Ready {
+			app.Status.ReadyReplicas++
+		}
 	}
 }
 

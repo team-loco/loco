@@ -173,7 +173,6 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	deployments := make([]uuid.UUID, 3)
-	builds := make([]uuid.UUID, 2)
 	digests := []string{"sha256:" + strings.Repeat("a", 64), "sha256:" + strings.Repeat("b", 64)}
 	server := f.agentServer()
 	var firstRevision int64
@@ -186,23 +185,7 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 		if i == 2 {
 			break
 		}
-		builds[i] = uuid.New()
-		if _, err = f.pool.Exec(ctx, `INSERT INTO builds
-(id,resource_id,cluster_id,status,source_type,source_key,source_size,dockerfile_path,
- image_repository,image_digest,created_by,finished_at)
-VALUES($1,$2,$3,'succeeded','upload',$1::uuid::text,10,'Dockerfile','registry.test/app',$4,$5,NOW())`,
-			builds[i], f.resourceID, f.clusterID, digests[i], f.userID); err != nil {
-			t.Fatal(err)
-		}
-		if _, err = f.pool.Exec(
-			ctx,
-			`UPDATE deployments SET spec=jsonb_build_object('build',jsonb_build_object('type','image','image',$2::text))
-WHERE id=$1`,
-			id,
-			"registry.test/app@"+digests[i],
-		); err != nil {
-			t.Fatal(err)
-		}
+		insertObservedBuild(t, f, id, digests[i])
 		p := f.placement(t, f.clusterID)
 		if i == 0 {
 			firstRevision = p.DesiredRevision
@@ -232,7 +215,7 @@ WHERE id=$1`,
 		ctx,
 		genDb.ListDeletableBuildImagesParams{Keep: 0, MaxBuilds: 10},
 	)
-	if err != nil || len(candidates) != 1 || candidates[0].ID != builds[1] {
+	if err != nil || len(candidates) != 0 {
 		t.Fatalf("image candidates=%+v, %v", candidates, err)
 	}
 
@@ -249,6 +232,73 @@ WHERE id=$1`,
 	)
 	if err != nil || len(candidates) != 2 {
 		t.Fatalf("released image candidates=%+v, %v", candidates, err)
+	}
+}
+
+func insertObservedBuild(t *testing.T, f *deployFixture, deployment uuid.UUID, digest string) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	if _, err := f.pool.Exec(t.Context(), `INSERT INTO builds
+(id,resource_id,cluster_id,status,source_type,source_key,source_size,dockerfile_path,
+ image_repository,image_digest,created_by,finished_at)
+VALUES($1,$2,$3,'succeeded','upload',$1::uuid::text,10,'Dockerfile','registry.test/app',$4,$5,NOW())`,
+		id, f.resourceID, f.clusterID, digest, f.userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(t.Context(),
+		`UPDATE deployments SET spec=jsonb_build_object('build',jsonb_build_object('type','image','image',$2::text))
+WHERE id=$1`, deployment, "registry.test/app@"+digest); err != nil {
+		t.Fatal(err)
+	}
+	return id
+}
+
+func TestZeroReadyObservedContextRetainsArtifactsForLateReadyReport(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	observed, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := insertObservedBuild(t, f, observed, "sha256:"+strings.Repeat("c", 64))
+	p := f.placement(t, f.clusterID)
+	report := &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), DeploymentId: observed.String(), ObservedRevision: p.DesiredRevision,
+	}
+	server := f.agentServer()
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	desired, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertServingDeployments(t, f, desired)
+	prune := genDb.PruneDeploymentHistoryParams{ResourceID: f.resourceID, EnvironmentID: f.envID, Keep: 0}
+	if deleted, pruneErr := f.queries.PruneDeploymentHistory(ctx, prune); pruneErr != nil || deleted != 0 {
+		t.Fatalf("zero-ready context was pruned: %d, %v", deleted, pruneErr)
+	}
+	candidates, err := f.queries.ListDeletableBuildImages(
+		ctx,
+		genDb.ListDeletableBuildImagesParams{Keep: 0, MaxBuilds: 10},
+	)
+	if err != nil || len(candidates) != 0 {
+		t.Fatalf("observed context image became deletable: %+v, %v", candidates, err)
+	}
+	report.ReadyReplicas = 1
+	report.Replicas = []*agentv1.ReplicaReport{{Uid: "late-ready", DeploymentId: observed.String(), Ready: true,
+		State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}}
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	assertServingDeployments(t, f, desired, observed)
+	current := f.placement(t, f.clusterID)
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
+		PlacementId: current.ID.String(), DeploymentId: desired.String(), ObservedRevision: current.DesiredRevision,
+	})
+	candidates, err = f.queries.ListDeletableBuildImages(
+		ctx,
+		genDb.ListDeletableBuildImagesParams{Keep: 0, MaxBuilds: 10},
+	)
+	if err != nil || len(candidates) != 1 || candidates[0].ID != build {
+		t.Fatalf("superseded context image stayed pinned: %+v, %v", candidates, err)
 	}
 }
 
@@ -283,4 +333,119 @@ FROM deployments d,r WHERE d.resource_id=$1 RETURNING deployments.id`, f.resourc
 	if after.ObservedRevision != 0 || after.ReadyReplicas != 0 {
 		t.Fatalf("foreign deployment advanced observation: %+v", after)
 	}
+}
+
+func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	first, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := insertObservedBuild(t, f, first, "sha256:"+strings.Repeat("d", 64))
+	old := f.placement(t, f.clusterID)
+	server := f.agentServer()
+	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
+		PlacementId: old.ID.String(), DeploymentId: first.String(), ObservedRevision: old.DesiredRevision,
+		ReadyReplicas: 1, Available: true,
+		Replicas: []*agentv1.ReplicaReport{{Uid: "old-region-pod", DeploymentId: first.String(), Ready: true,
+			State: string(loco.ReplicaServing), PlacementRevision: old.DesiredRevision}},
+	})
+	if _, err = f.pool.Exec(ctx, `UPDATE deployments SET is_active=false WHERE id=$1`, first); err != nil {
+		t.Fatal(err)
+	}
+	params := f.paramsFor(f.otherCluster)
+	params.Status = genDb.DeploymentStatusBuilding
+	building, err := f.queries.CreateDeployment(ctx, params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertServingDeployments(t, f, building, first)
+	if _, statusErr := (&ResourceServer{queries: f.queries}).environmentStatuses(
+		ctx,
+		[]uuid.UUID{f.resourceID},
+	); statusErr != nil {
+		t.Fatalf("pending build prevented loading the resource: %v", statusErr)
+	}
+
+	next, err := f.deployTo(ctx, f.otherCluster, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retiring := f.placement(t, f.clusterID)
+	if !retiring.DesiredDeleted {
+		t.Fatal("old cluster placement was not retired")
+	}
+	assertServingDeployments(t, f, next, first)
+	current := f.placement(t, f.otherCluster)
+	server.recordStatus(ctx, f.otherCluster, 0, &agentv1.PlacementStatus{
+		PlacementId: current.ID.String(), DeploymentId: next.String(), ObservedRevision: current.DesiredRevision,
+		ReadyReplicas: 1, Available: true,
+		Replicas: []*agentv1.ReplicaReport{{Uid: "new-region-pod", DeploymentId: next.String(), Ready: true,
+			State: string(loco.ReplicaServing), PlacementRevision: current.DesiredRevision}},
+	})
+	assertServingDeployments(t, f, next, first, next)
+	candidates, err := f.queries.ListDeletableBuildImages(
+		ctx,
+		genDb.ListDeletableBuildImagesParams{Keep: 0, MaxBuilds: 10},
+	)
+	if err != nil || len(candidates) != 0 {
+		t.Fatalf("retiring cluster's image became deletable before cleanup ACK: %+v, %v", candidates, err)
+	}
+	server.recordApplied(ctx, f.clusterID, &agentv1.Applied{
+		PlacementId: retiring.ID.String(), Revision: retiring.DesiredRevision,
+	})
+	assertServingDeployments(t, f, next, next)
+	candidates, err = f.queries.ListDeletableBuildImages(
+		ctx,
+		genDb.ListDeletableBuildImagesParams{Keep: 0, MaxBuilds: 10},
+	)
+	if err != nil || len(candidates) != 1 || candidates[0].ID != build {
+		t.Fatalf("retired cluster's image stayed pinned after cleanup ACK: %+v, %v", candidates, err)
+	}
+}
+
+func TestSuspensionInvalidatesServingObservationUntilNewReport(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	id, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	report := &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), DeploymentId: id.String(), ObservedRevision: p.DesiredRevision,
+		ReadyReplicas: 1, Available: true,
+		Replicas: []*agentv1.ReplicaReport{{Uid: "suspended-pod", DeploymentId: id.String(), Ready: true,
+			State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
+	}
+	f.agentServer().recordStatus(ctx, f.clusterID, 0, report)
+	assertServingDeployments(t, f, id, id)
+	var organization uuid.UUID
+	if err := f.pool.QueryRow(ctx, `SELECT w.org_id FROM resources r JOIN workspaces w ON w.id=r.workspace_id
+WHERE r.id=$1`, f.resourceID).Scan(&organization); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `UPDATE organizations SET suspended_at=NOW(), suspension_reason='fixture'
+WHERE id=$1`, organization); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.queries.SuspendOrgPlacements(ctx, organization); err != nil {
+		t.Fatal(err)
+	}
+	assertServingDeployments(t, f, id)
+	if _, err := f.pool.Exec(ctx, `UPDATE organizations SET suspended_at=NULL, suspension_reason=NULL
+WHERE id=$1`, organization); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.queries.ResumeOrgPlacements(ctx, organization); err != nil {
+		t.Fatal(err)
+	}
+	assertServingDeployments(t, f, id)
+	current := f.placement(t, f.clusterID)
+	report.ObservedRevision = current.DesiredRevision
+	f.agentServer().recordStatus(ctx, f.clusterID, 0, report)
+	assertServingDeployments(t, f, id, id)
 }

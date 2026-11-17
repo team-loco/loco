@@ -226,7 +226,9 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 const getDeploymentView = `-- name: GetDeploymentView :one
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT snapshot FROM observed_placement_rollouts ro WHERE ro.desired_deployment_id = d.id), '{}'::jsonb)::jsonb AS observed_snapshot,
+ COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
+   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
+     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
@@ -242,7 +244,7 @@ type GetDeploymentViewRow struct {
 	Deployment       Deployment   `json:"deployment"`
 	ResourceType     ResourceType `json:"resourceType"`
 	RolloutSnapshot  []byte       `json:"rolloutSnapshot"`
-	ObservedSnapshot []byte       `json:"observedSnapshot"`
+	ObservedReplicas []byte       `json:"observedReplicas"`
 	CurrentRevision  int64        `json:"currentRevision"`
 	ActorName        string       `json:"actorName"`
 	ActorAvatarUrl   string       `json:"actorAvatarUrl"`
@@ -275,7 +277,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.Deployment.UpdatedAt,
 		&i.ResourceType,
 		&i.RolloutSnapshot,
-		&i.ObservedSnapshot,
+		&i.ObservedReplicas,
 		&i.CurrentRevision,
 		&i.ActorName,
 		&i.ActorAvatarUrl,
@@ -455,7 +457,9 @@ func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) (
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT snapshot FROM observed_placement_rollouts ro WHERE ro.desired_deployment_id = d.id), '{}'::jsonb)::jsonb AS observed_snapshot,
+ COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
+   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
+     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
@@ -500,7 +504,7 @@ type ListEnvironmentDeploymentsRow struct {
 	Deployment       Deployment   `json:"deployment"`
 	ResourceType     ResourceType `json:"resourceType"`
 	RolloutSnapshot  []byte       `json:"rolloutSnapshot"`
-	ObservedSnapshot []byte       `json:"observedSnapshot"`
+	ObservedReplicas []byte       `json:"observedReplicas"`
 	CurrentRevision  int64        `json:"currentRevision"`
 	ActorName        string       `json:"actorName"`
 	ActorAvatarUrl   string       `json:"actorAvatarUrl"`
@@ -551,7 +555,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
 			&i.RolloutSnapshot,
-			&i.ObservedSnapshot,
+			&i.ObservedReplicas,
 			&i.CurrentRevision,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
@@ -569,7 +573,9 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 const listResourceDeployments = `-- name: ListResourceDeployments :many
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT snapshot FROM observed_placement_rollouts ro WHERE ro.desired_deployment_id = d.id), '{}'::jsonb)::jsonb AS observed_snapshot,
+ COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
+   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
+     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
@@ -614,7 +620,7 @@ type ListResourceDeploymentsRow struct {
 	Deployment       Deployment   `json:"deployment"`
 	ResourceType     ResourceType `json:"resourceType"`
 	RolloutSnapshot  []byte       `json:"rolloutSnapshot"`
-	ObservedSnapshot []byte       `json:"observedSnapshot"`
+	ObservedReplicas []byte       `json:"observedReplicas"`
 	CurrentRevision  int64        `json:"currentRevision"`
 	ActorName        string       `json:"actorName"`
 	ActorAvatarUrl   string       `json:"actorAvatarUrl"`
@@ -665,7 +671,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
 			&i.RolloutSnapshot,
-			&i.ObservedSnapshot,
+			&i.ObservedReplicas,
 			&i.CurrentRevision,
 			&i.ActorName,
 			&i.ActorAvatarUrl,

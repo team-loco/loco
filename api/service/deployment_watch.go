@@ -232,8 +232,8 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []
 		}
 	}
 	if deployment.GetIsActive() {
-		snapshot = rolloutSnapshot{}
-		if err := json.Unmarshal(observed, &snapshot); err != nil {
+		snapshot.Replicas = nil
+		if err := json.Unmarshal(observed, &snapshot.Replicas); err != nil {
 			return fmt.Errorf("decode observed rollout: %w", err)
 		}
 	}

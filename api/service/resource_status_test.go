@@ -58,6 +58,17 @@ func TestRegionStatus(t *testing.T) {
 		message string
 	}{
 		{
+			name: "source build before placement",
+			row: func() genDb.ListRegionStatusesForResourcesRow {
+				row := regionRow(genDb.DeploymentStatusBuilding, 0)
+				row.Placed = false
+				row.StatusUpdatedAt = nil
+				row.Problem = []byte(`null`)
+				return row
+			},
+			want: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
+		},
+		{
 			name: "every desired replica ready",
 			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.DeploymentStatusRunning, 2) },
 			want: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
