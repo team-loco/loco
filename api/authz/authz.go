@@ -48,7 +48,8 @@ func (a *Authorizer) Intersect(ctx context.Context, left, right []queries.Entity
 			candidates := []queries.EntityScope{l, r}
 			if l.Scope != r.Scope && l.Scope != queries.ScopeMember && r.Scope != queries.ScopeMember {
 				for _, scope := range []queries.EntityScope{l, r} {
-					if scope.EntityType == queries.EntityTypeOrganization {
+					if scope.EntityType == queries.EntityTypeOrganization ||
+						scope.EntityType == queries.EntityTypeSystem {
 						scope.Scope = queries.ScopeMember
 						candidates = append(candidates, scope)
 					}
