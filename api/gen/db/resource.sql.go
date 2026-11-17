@@ -201,33 +201,37 @@ func (q *Queries) GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id
 }
 
 const listClusterRegions = `-- name: ListClusterRegions :many
-SELECT region, (is_default AND health_status = 'healthy')::boolean AS is_default, health_status
+SELECT region, (available AND is_default AND health_status = 'healthy')::boolean AS is_default,
+       health_status, available
 FROM (
-    SELECT DISTINCT ON (region) region, is_default, health_status
+    SELECT DISTINCT ON (region) region, is_default, health_status,
+           COALESCE(last_heartbeat >= $1::timestamptz, false)::boolean AS available
     FROM clusters
-    WHERE tier = $1
+    WHERE tier = $2
       AND is_active = true
       AND role IN ('apps', 'all')
-      AND health_status IN ('healthy', 'degraded')
-      AND last_heartbeat >= $2::timestamptz
-    ORDER BY region, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
+      AND (health_status IN ('healthy', 'degraded')
+           OR last_heartbeat < $1::timestamptz
+           OR last_heartbeat IS NULL)
+    ORDER BY region, available DESC, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
 ) AS region_clusters
-ORDER BY (health_status = 'healthy') DESC, region
+ORDER BY available DESC, (health_status = 'healthy') DESC, region
 `
 
 type ListClusterRegionsParams struct {
-	Tier       string    `json:"tier"`
 	HeardSince time.Time `json:"heardSince"`
+	Tier       string    `json:"tier"`
 }
 
 type ListClusterRegionsRow struct {
 	Region       string  `json:"region"`
 	IsDefault    bool    `json:"isDefault"`
 	HealthStatus *string `json:"healthStatus"`
+	Available    bool    `json:"available"`
 }
 
 func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error) {
-	rows, err := q.db.Query(ctx, listClusterRegions, arg.Tier, arg.HeardSince)
+	rows, err := q.db.Query(ctx, listClusterRegions, arg.HeardSince, arg.Tier)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +239,12 @@ func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegions
 	var items []ListClusterRegionsRow
 	for rows.Next() {
 		var i ListClusterRegionsRow
-		if err := rows.Scan(&i.Region, &i.IsDefault, &i.HealthStatus); err != nil {
+		if err := rows.Scan(
+			&i.Region,
+			&i.IsDefault,
+			&i.HealthStatus,
+			&i.Available,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
