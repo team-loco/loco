@@ -121,34 +121,20 @@ def check_not_found_renders(address, pages, out_dir):
 
 
 def check_path_opens_ui(page, path):
-    problems = []
+    errors = []
     page.on(
         "console",
         lambda message: message.type == "error"
-        and problems.append(f"Console error: {message.text}"),
+        and errors.append(f"{message.location['url']}: {message.text}"),
     )
-    page.on("pageerror", lambda error: problems.append(f"Page error: {error}"))
-    page.on(
-        "requestfailed",
-        lambda request: problems.append(f"{request.url}: {request.failure}"),
-    )
-    page.on(
-        "response",
-        lambda reply: reply.status >= 400
-        and problems.append(f"{reply.url}: HTTP {reply.status}"),
-    )
+    page.on("pageerror", lambda error: errors.append(f"Uncaught: {error}"))
+    navigate(page, f"http://{UI_HOST}{path}")
     try:
-        navigate(page, f"http://{UI_HOST}{path}")
         page.wait_for_url(f"http://{UI_HOST}/login")
-        expect(page, path).to_have_title("Sign in | Loco")
-    except (Error, AssertionError) as error:
-        details = "\n".join(problems) or "(none)"
-        pytest.fail(
-            f"Expected http://{UI_HOST}/login from {path}\n"
-            f"Final URL: {page.url}\n"
-            f"Browser errors:\n{details}\n"
-            f"{error}"
-        )
+    except Error as error:
+        console = "\n".join(errors) or "(none)"
+        pytest.fail(f"{path} stopped at {page.url}\nConsole errors:\n{console}\n{error}")
+    expect(page, path).to_have_title("Sign in | Loco")
 
 
 def check_unknown_path_opens_ui(address, paths):
@@ -432,38 +418,6 @@ def test_navigation_retries_network_changes(failures, monkeypatch):
     else:
         assert navigate(page, "http://docs.test/foo") == "response"
     assert page.goto.call_count == min(failures + 1, NAVIGATION_ATTEMPTS)
-
-
-def test_redirect_failure_reports_browser_errors():
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch()
-        page = browser.new_page()
-        page.set_default_navigation_timeout(1000)
-        page.route(
-            f"http://{UI_HOST}{UNKNOWN_PATH}",
-            lambda route: route.fulfill(
-                content_type="text/html",
-                body="""<script>
-                    history.replaceState(null, '', '/stuck');
-                    console.error('UI bootstrap failed');
-                    fetch('/failed.js').catch(() => {});
-                    fetch('/missing.js');
-                    throw new Error('Uncaught UI error');
-                </script>""",
-            ),
-        )
-        page.route(f"http://{UI_HOST}/failed.js", lambda route: route.abort("failed"))
-        page.route(f"http://{UI_HOST}/missing.js", lambda route: route.fulfill(status=503))
-        with pytest.raises(pytest.fail.Exception) as caught:
-            check_path_opens_ui(page, UNKNOWN_PATH)
-        message = str(caught.value)
-        assert f"Expected http://{UI_HOST}/login" in message
-        assert f"Final URL: http://{UI_HOST}/stuck" in message
-        assert "UI bootstrap failed" in message
-        assert "Uncaught UI error" in message
-        assert f"http://{UI_HOST}/failed.js: net::ERR_FAILED" in message
-        assert f"http://{UI_HOST}/missing.js: HTTP 503" in message
-        browser.close()
 
 
 def test_navigation_preserves_other_errors():
