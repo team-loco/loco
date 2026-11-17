@@ -1083,3 +1083,22 @@ func TestNewAPIConfigTokenMaximum(t *testing.T) {
 	}()
 	newAPIConfig()
 }
+
+func TestPublicImageSizeConfiguration(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if got := newAPIConfig().PublicImageMaxBytes; got != 1<<30 {
+		t.Fatalf("default public image budget = %d", got)
+	}
+	t.Setenv("LOCO_PUBLIC_IMAGE_MAX_BYTES", "500")
+	if got := newAPIConfig().PublicImageMaxBytes; got != 500 {
+		t.Fatalf("configured budget = %d", got)
+	}
+	for _, value := range []string{"0", "-1", "1Gi", "9223372036854775808"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("LOCO_PUBLIC_IMAGE_MAX_BYTES", value)
+			if err := panicValue(t, func() { newAPIConfig() }); !errors.Is(err, errInvalidPublicImageBytes) {
+				t.Fatalf("panic = %v", err)
+			}
+		})
+	}
+}

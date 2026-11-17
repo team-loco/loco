@@ -2,9 +2,13 @@ package imageresolver
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,6 +19,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func newRegistry(t *testing.T) string {
@@ -84,12 +89,12 @@ func pushIndex(t *testing.T, host, repo string, platforms ...v1.Platform) name.R
 
 func TestResolve(t *testing.T) {
 	host := newRegistry(t)
-	resolver := New(10 * time.Second)
+	resolver := New(10*time.Second, 1<<30)
 
 	amd64Image := platformImage(t, "linux", "amd64")
 	armImage := platformImage(t, "linux", "arm64")
-	amd64Platform := v1.Platform{OS: "linux", Architecture: "amd64"}
-	armPlatform := v1.Platform{OS: "linux", Architecture: "arm64"}
+	amd64Platform := v1.Platform{OS: requiredOS, Architecture: requiredArchitecture}
+	armPlatform := v1.Platform{OS: requiredOS, Architecture: "arm64"}
 	amd64Ref := pushImage(t, host, "single/amd64", amd64Image)
 	armRef := pushImage(t, host, "single/arm64", armImage)
 	multiRef := pushIndex(t, host, "multi/amd64", armPlatform, amd64Platform)
@@ -136,7 +141,7 @@ func TestResolveMissingImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse reference: %v", err)
 	}
-	resolver := New(10 * time.Second)
+	resolver := New(10*time.Second, 1<<30)
 	ctx := context.Background()
 	if _, resolveErr := resolver.Resolve(ctx, ref); resolveErr == nil {
 		t.Fatal("resolve of a missing image succeeded")
@@ -158,7 +163,7 @@ func TestResolveTagAndDigestUsesDigest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse reference: %v", err)
 	}
-	resolver := New(10 * time.Second)
+	resolver := New(10*time.Second, 1<<30)
 	ctx := context.Background()
 	digest, err := resolver.Resolve(ctx, ref)
 	if err != nil {
@@ -166,5 +171,289 @@ func TestResolveTagAndDigestUsesDigest(t *testing.T) {
 	}
 	if digest != pinnedDigest.String() {
 		t.Fatalf("digest = %s, want %s", digest, pinnedDigest)
+	}
+}
+
+type rawManifest []byte
+
+func (m rawManifest) RawManifest() ([]byte, error) { return m, nil }
+func (m rawManifest) MediaType() (types.MediaType, error) {
+	var header struct {
+		MediaType types.MediaType `json:"mediaType"`
+	}
+	err := json.Unmarshal(m, &header)
+	return header.MediaType, err
+}
+
+func TestResolveSizeBudget(t *testing.T) {
+	host := newRegistry(t)
+	img := platformImage(t, "linux", "amd64")
+	pushImage(t, host, "budget", img)
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const invalidSize = "invalid size"
+	cfgSize := manifest.Config.Size
+	layer := manifest.Layers[0]
+	armManifest := manifest.DeepCopy()
+	armManifest.Layers[0].Size = math.MaxInt64
+	armRaw, err := json.Marshal(armManifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	armRef, err := name.ParseReference(host + "/budget:arm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if putErr := remote.Put(armRef, rawManifest(armRaw)); putErr != nil {
+		t.Fatal(putErr)
+	}
+	armDigest, _, err := v1.SHA256(strings.NewReader(string(armRaw)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name  string
+		sizes []string
+		limit int64
+		want  string
+	}{
+		{"at limit", []string{"100"}, cfgSize + 100, ""},
+		{
+			"over limit",
+			[]string{"101"},
+			cfgSize + 100,
+			fmt.Sprintf("image size %d bytes exceeds limit %d bytes", cfgSize+101, cfgSize+100),
+		},
+		{"repeated blob", []string{"100", "100"}, cfgSize + 100, ""},
+		{"conflicting sizes", []string{"100", "101"}, cfgSize + 1000, "conflicting sizes"},
+		{"negative", []string{"-1"}, cfgSize + 1000, invalidSize},
+		{"zero", []string{"0"}, cfgSize + 1000, invalidSize},
+		{"missing", []string{""}, cfgSize + 1000, invalidSize},
+		{"null", []string{"null"}, cfgSize + 1000, invalidSize},
+		{"fractional", []string{"1.5"}, cfgSize + 1000, "manifest"},
+		{"integer overflow", []string{"9223372036854775808"}, cfgSize + 1000, "manifest"},
+		{"total overflow", []string{"9223372036854775807"}, math.MaxInt64, "overflow"},
+	}
+	for _, tt := range tests {
+		for _, index := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/index=%t", tt.name, index), func(t *testing.T) {
+				var layers []string
+				for _, size := range tt.sizes {
+					sizeField := ""
+					if size != "" {
+						sizeField = `,"size":` + size
+					}
+					layers = append(
+						layers,
+						fmt.Sprintf(`{"mediaType":%q,"digest":%q%s}`, layer.MediaType, layer.Digest, sizeField),
+					)
+				}
+				config, err := json.Marshal(manifest.Config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				raw := rawManifest(
+					fmt.Sprintf(
+						`{"schemaVersion":2,"mediaType":%q,"config":%s,"layers":[%s]}`,
+						manifest.MediaType,
+						config,
+						strings.Join(layers, ","),
+					),
+				)
+				ref, err := name.ParseReference(host + "/budget:test")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if putErr := remote.Put(ref, raw); putErr != nil {
+					t.Fatal(putErr)
+				}
+				wantDigest, _, err := v1.SHA256(strings.NewReader(string(raw)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if index {
+					idx := v1.IndexManifest{
+						SchemaVersion: 2,
+						MediaType:     types.OCIImageIndex,
+						Manifests: []v1.Descriptor{
+							{
+								MediaType: manifest.MediaType,
+								Digest:    armDigest,
+								Size:      int64(len(armRaw)),
+								Platform:  &v1.Platform{OS: requiredOS, Architecture: "arm64"},
+							},
+							{
+								MediaType: manifest.MediaType,
+								Digest:    wantDigest,
+								Size:      int64(len(raw)),
+								Platform:  &v1.Platform{OS: requiredOS, Architecture: requiredArchitecture},
+							},
+						},
+					}
+					raw, err = json.Marshal(idx)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if putErr := remote.Put(ref, raw); putErr != nil {
+						t.Fatal(putErr)
+					}
+					wantDigest, _, err = v1.SHA256(strings.NewReader(string(raw)))
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				got, err := New(10*time.Second, tt.limit).Resolve(t.Context(), ref)
+				if tt.want != "" {
+					if err == nil || !strings.Contains(err.Error(), tt.want) {
+						t.Fatalf("resolve = %q, %v; want %q", got, err, tt.want)
+					}
+					return
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got != wantDigest.String() {
+					t.Fatalf("digest = %s, want %s", got, wantDigest)
+				}
+			})
+		}
+	}
+}
+
+func TestResolveIndexChecksConfigPlatform(t *testing.T) {
+	host := newRegistry(t)
+	// An index's platform label does not replace checking the image config.
+	index := mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+		Add: platformImage(
+			t,
+			"linux",
+			"arm64",
+		),
+		Platform: &v1.Platform{OS: requiredOS, Architecture: requiredArchitecture},
+	})
+	ref, err := name.ParseReference(host + "/mislabeled:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := remote.WriteIndex(ref, index); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := New(10*time.Second, 1<<30).Resolve(t.Context(), ref); !errors.Is(err, ErrPlatformUnsupported) {
+		t.Fatalf("resolve mislabeled index: %v", err)
+	}
+}
+
+func TestResolveChecksEveryRuntimeVariant(t *testing.T) {
+	host := newRegistry(t)
+	img := platformImage(t, requiredOS, requiredArchitecture)
+	ref := pushImage(t, host, "variants", img)
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := remote.Head(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondImage := platformImage(t, requiredOS, requiredArchitecture)
+	pushImage(t, host, "variants", secondImage)
+	secondBase, err := secondImage.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Both variants fit separately, even though their combined size exceeds the limit.
+	limit := max(manifest.Config.Size+manifest.Layers[0].Size, secondBase.Config.Size+secondBase.Layers[0].Size)
+	for _, oversized := range []bool{false, true} {
+		for _, layout := range []struct {
+			name             string
+			nested, implicit bool
+		}{
+			{name: "direct"},
+			{name: "nested", nested: true},
+			{name: "implicit platform", implicit: true},
+		} {
+			t.Run(fmt.Sprintf("oversized=%t/%s", oversized, layout.name), func(t *testing.T) {
+				secondManifest := secondBase.DeepCopy()
+				if oversized {
+					secondManifest.Layers[0].Size = limit + 1
+				}
+				raw, marshalErr := json.Marshal(secondManifest)
+				if marshalErr != nil {
+					t.Fatal(marshalErr)
+				}
+				if putErr := remote.Put(ref, rawManifest(raw)); putErr != nil {
+					t.Fatal(putErr)
+				}
+				second, headErr := remote.Head(ref)
+				if headErr != nil {
+					t.Fatal(headErr)
+				}
+				index := v1.IndexManifest{SchemaVersion: 2, MediaType: types.OCIImageIndex, Manifests: []v1.Descriptor{
+					{
+						MediaType: first.MediaType,
+						Digest:    first.Digest,
+						Size:      first.Size,
+						Platform:  &v1.Platform{OS: requiredOS, Architecture: requiredArchitecture},
+					},
+					{
+						MediaType: second.MediaType,
+						Digest:    second.Digest,
+						Size:      second.Size,
+						Platform:  &v1.Platform{OS: requiredOS, Architecture: requiredArchitecture, Variant: "v3"},
+					},
+				}}
+				if layout.implicit {
+					index.Manifests[1].Platform = nil
+					index.Manifests[0], index.Manifests[1] = index.Manifests[1], index.Manifests[0]
+				}
+				raw, marshalErr = json.Marshal(index)
+				if marshalErr != nil {
+					t.Fatal(marshalErr)
+				}
+				if putErr := remote.Put(ref, rawManifest(raw)); putErr != nil {
+					t.Fatal(putErr)
+				}
+				if layout.nested {
+					child, childErr := remote.Head(ref)
+					if childErr != nil {
+						t.Fatal(childErr)
+					}
+					index.Manifests = []v1.Descriptor{
+						{
+							MediaType: child.MediaType,
+							Digest:    child.Digest,
+							Size:      child.Size,
+							Platform:  &v1.Platform{OS: requiredOS, Architecture: requiredArchitecture},
+						},
+					}
+					raw, marshalErr = json.Marshal(index)
+					if marshalErr != nil {
+						t.Fatal(marshalErr)
+					}
+					if putErr := remote.Put(ref, rawManifest(raw)); putErr != nil {
+						t.Fatal(putErr)
+					}
+				}
+				root, headErr := remote.Head(ref)
+				if headErr != nil {
+					t.Fatal(headErr)
+				}
+				digest, resolveErr := New(10*time.Second, limit).Resolve(t.Context(), ref)
+				if oversized {
+					if _, ok := errors.AsType[*SizeLimitError](resolveErr); !ok {
+						t.Fatalf("resolve = %s, %v, want size limit error", digest, resolveErr)
+					}
+					return
+				}
+				if resolveErr != nil {
+					t.Fatal(resolveErr)
+				}
+				if digest != root.Digest.String() {
+					t.Fatalf("digest = %s, want root %s", digest, root.Digest)
+				}
+			})
+		}
 	}
 }

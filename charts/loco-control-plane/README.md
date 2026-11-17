@@ -27,6 +27,10 @@ kubectl -n loco-system create secret generic regional-api-env \
 
 Set nonsecret API options through `api.env`. The chart supplies `APP_PORT` and, while `obsProxy.enabled` is true, `CLICKHOUSE_URL` and `CLICKHOUSE_DB`; `api.env` cannot override them.
 
+`LOCO_PUBLIC_IMAGE_MAX_BYTES` sets the API's prebuilt public-image budget in bytes, defaulting to `1073741824` (1 GiB). Set it through `api.env` or the API environment Secret; it must be a positive integer. The API sums manifest-declared sizes of unique compressed layer blobs and the image config for each eligible `linux/amd64` variant, counting a repeated digest once within each variant. Each variant must fit independently because workers choose the variant from the pinned index, including CPU-specific variants, entries with an omitted platform and nested indexes. Other platforms and manifest JSON are excluded. Invalid or conflicting blob sizes are rejected. An over-budget image fails during resolution, before deployment or placement writes, with the measured size and limit in bytes. Images remain pinned to the immutable digest of the original image or index, and the selected variant must support `linux/amd64`.
+
+Source-built images use the worker chart's `builds.maxImageSize` budget (default `1Gi`), enforced by the builder before pushing. That budget counts the actual unique blobs in the OCI output layout, including manifest blobs. Neither budget limits the decompressed filesystem size. Configure the two budgets separately for the installation's pull and storage capacity.
+
 ```yaml
 controlPlaneHostname: api.region.example.com
 ui:

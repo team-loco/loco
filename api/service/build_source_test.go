@@ -226,6 +226,12 @@ func TestImageErrorsOnWire(t *testing.T) {
 			want:       "Unsupported build type. Use dockerfile or image.",
 		},
 		{
+			name:   "image too large",
+			reason: "IMAGE_SIZE_EXCEEDED",
+			cause:  &imageresolver.SizeLimitError{Size: 501, Limit: 500},
+			want:   `Cannot deploy image "nginx:1.27": image size 501 bytes exceeds limit 500 bytes.`,
+		},
+		{
 			name:   "unsupported platform",
 			reason: "IMAGE_PLATFORM_UNSUPPORTED",
 			cause:  imageresolver.ErrPlatformUnsupported,

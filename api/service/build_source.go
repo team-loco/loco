@@ -185,6 +185,9 @@ func pinPublicImage(
 }
 
 func imageResolutionFailure(image string, err error) (message, reason string) {
+	if sizeErr, ok := errors.AsType[*imageresolver.SizeLimitError](err); ok {
+		return fmt.Sprintf("Cannot deploy image %q: %s.", image, sizeErr), imageSizeExceededReason
+	}
 	if errors.Is(err, imageresolver.ErrPlatformUnsupported) {
 		return fmt.Sprintf(
 			"Cannot deploy image %q: %s.", image, imageresolver.ErrPlatformUnsupported,
