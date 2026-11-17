@@ -25,7 +25,7 @@ export const ENVIRONMENT_EVENT_TYPES = [
 	"resource.scaled",
 ];
 
-/** Build events have no environment; rollout outcomes still name theirs in their data. */
+/** Build events have no environment; keep rollout outcomes in their existing query group. */
 export const ROLLOUT_EVENT_TYPES = [
 	"deployment.ready",
 	"deployment.failed",
