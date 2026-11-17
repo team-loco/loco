@@ -220,14 +220,22 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 		t.Errorf("loco deploy --wait of the crashing version: %v, want an error naming %q:\n%s",
 			crashing.Err, failure, crashing.Output())
 	}
-	restarts, _ := newPodState(t, w, selector, oldHash)
-	// A replica that counted as available during another run would replace an old one.
-	platform.Eventually(t, 2*time.Minute, "the crashing version to start and exit again", func(context.Context) error {
-		if now, running := newPodState(t, w, selector, oldHash); now <= restarts || running {
-			return fmt.Errorf("%d restarts, running %v", now, running)
-		}
-		return nil
-	})
+	// Multiple completed crashes prove that another incarnation could not replace an old
+	// replica. They may already have happened while deploy --wait was observing the failure;
+	// waiting for a further restart can exceed this deadline because of kubelet backoff.
+	platform.Eventually(
+		t,
+		2*time.Minute,
+		"the crashing version to complete multiple runs",
+		func(context.Context) error {
+			state := newPodState(t, w, selector, oldHash)
+			lastExit := state.LastTerminationState.Terminated
+			if state.RestartCount < 2 || lastExit == nil || lastExit.ExitCode == 0 {
+				return fmt.Errorf("%d restarts, previous termination %+v", state.RestartCount, lastExit)
+			}
+			return nil
+		},
+	)
 	recorded := samples.stop()
 	served, failed := count("ok"), count("fail")
 	if served <= servedBefore {
@@ -368,16 +376,15 @@ func (s *sampler) stop() []replicaSample {
 	return s.samples
 }
 
-// newPodState returns the restart count of the new version's pod and whether its container runs.
-func newPodState(t *testing.T, w *platform.Workspace, selector, oldHash string) (int32, bool) {
+// newPodState returns the new version's container status, including its previous termination.
+func newPodState(t *testing.T, w *platform.Workspace, selector, oldHash string) corev1.ContainerStatus {
 	t.Helper()
 	for _, pod := range appPods(t, w, selector) {
 		if pod.Labels["pod-template-hash"] != oldHash && len(pod.Status.ContainerStatuses) > 0 {
-			status := pod.Status.ContainerStatuses[0]
-			return status.RestartCount, status.State.Running != nil
+			return pod.Status.ContainerStatuses[0]
 		}
 	}
-	return 0, false
+	return corev1.ContainerStatus{}
 }
 
 func appPods(t *testing.T, w *platform.Workspace, selector string) []corev1.Pod {
