@@ -1,4 +1,4 @@
-import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
+import { RegionAvailability, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ export function RegionCard({
 	note,
 	noteTone,
 	className,
+	disabled,
 	...props
 }: Omit<ComponentProps<typeof ToggleGroupItem>, "children"> & {
 	name: string;
@@ -23,15 +24,25 @@ export function RegionCard({
 	note?: ReactNode;
 	noteTone?: "add" | "rm" | "warn" | undefined;
 }) {
+	const unavailable =
+		health === undefined
+			? "No cluster in this region"
+			: health.availability === RegionAvailability.OFFLINE
+				? "Offline"
+				: undefined;
 	return (
-		<ToggleGroupItem className={cn("reg-card", className)} {...props}>
+		<ToggleGroupItem
+			className={cn("reg-card", className)}
+			{...props}
+			disabled={disabled === true || unavailable !== undefined}
+		>
 			<span className="flex w-full flex-wrap items-center gap-2">
 				<span className="font-mono text-[12.5px]">{name}</span>
-				<RegionHealth region={health} />
+				{unavailable === undefined && <RegionHealth region={health} />}
 			</span>
-			{note !== undefined && (
-				<span className="reg-note" data-tone={noteTone}>
-					{note}
+			{(unavailable ?? note) !== undefined && (
+				<span className="reg-note" data-tone={unavailable === undefined ? noteTone : "warn"}>
+					{unavailable ?? note}
 				</span>
 			)}
 		</ToggleGroupItem>

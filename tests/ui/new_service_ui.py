@@ -23,7 +23,8 @@ platform_domain = "apps.e2e.test"
 evidence.psql(state["container"], f"""UPDATE clusters SET is_active=false WHERE provider='fixture';
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
 VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
-('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}');""")
+('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}'),
+('{uuid.uuid4()}','offline-{suffix}','eu-north-1','fixture',true,false,'unhealthy',NOW()-INTERVAL '1 day','{{{platform_domain}}}');""")
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(state["container"], f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';")
 replica_limit = evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]["maxReplicas"]
@@ -86,6 +87,19 @@ with session(out) as browser:
             for route in pending_config:
                 route.continue_()
             expect(drawer.get_by_role("group", name="Minimum replicas", exact=True)).to_be_visible()
+            assert not errors, errors
+        finally:
+            context.close()
+
+        missing = seeded_draft("missing-region", "registry.example.com/acme/missing:1")
+        missing["edits"] = {"regions": ["ap-south-1"]}
+        context, page, errors = open_page(browser, "owner", storage={drafts_key: json.dumps([missing])})
+        try:
+            page.goto(base + f"/resources?env=production&draft={missing['id']}")
+            drawer = page.get_by_role("dialog", name="missing-region", exact=True)
+            card = drawer.get_by_role("button", name="ap-south-1 No cluster in this region", exact=True)
+            expect(card).to_be_disabled()
+            expect(card).to_have_attribute("aria-pressed", "true")
             assert not errors, errors
         finally:
             context.close()
@@ -153,6 +167,9 @@ with session(out) as browser:
             expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
             assert stored_drafts(page) == [name], stored_drafts(page)
             expect(drawer.get_by_role("button", name="us-east-1", exact=True)).to_have_attribute("aria-pressed", "true")
+            offline = drawer.get_by_role("button", name="eu-north-1 Offline", exact=True)
+            expect(offline).to_be_disabled()
+            expect(drawer.get_by_role("button", name="eu-west-1 degraded", exact=True)).to_be_enabled()
             last_region = drawer.get_by_role("button", name="us-east-1", exact=True)
             expect(last_region).to_have_attribute("aria-disabled", "true")
             expect(last_region).to_have_attribute("title", "A resource needs at least one region")

@@ -116,6 +116,17 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
             assert calls == [], calls
             page.get_by_role("button", name="Discard", exact=True).click()
 
+            sql(f"UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-east-1';")
+            page.reload()
+            expect(east).to_be_disabled()
+            expect(east).to_contain_text("Offline")
+            expect(west).to_be_enabled()
+            sql("UPDATE clusters SET is_active=false WHERE region='us-east-1';")
+            page.reload()
+            expect(east).to_be_disabled()
+            expect(east).to_contain_text("No cluster in this region")
+            sql("UPDATE clusters SET is_active=true, last_heartbeat=NOW() WHERE region='us-east-1';")
+
             sql(f"UPDATE resources SET partial='app' WHERE id='{resource}';")
             page.reload()
             expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
