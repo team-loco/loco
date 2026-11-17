@@ -177,7 +177,7 @@ WHERE d.id IN (
         AND ro.cluster_id = d.cluster_id
         AND (ro.reported_deployment_id = d.id OR EXISTS (
             SELECT 1 FROM jsonb_array_elements(COALESCE(ro.snapshot->'replicas', '[]'::jsonb)) replica
-            WHERE replica->>'deployment_id' = d.id::text AND replica->>'ready' = 'true'
+            WHERE replica->>'deployment_id' = d.id::text AND replica->>'state' NOT IN ('Stopped', 'Killed')
         ))
   );
 

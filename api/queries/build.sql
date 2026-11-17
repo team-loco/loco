@@ -232,7 +232,7 @@ WHERE c.position > sqlc.arg(keep)::int
       AND d.environment_id = ro.environment_id AND d.cluster_id = ro.cluster_id
       AND (d.id = ro.reported_deployment_id OR EXISTS (
         SELECT 1 FROM jsonb_array_elements(COALESCE(ro.snapshot->'replicas', '[]'::jsonb)) replica
-        WHERE d.id::text = replica->>'deployment_id' AND replica->>'ready' = 'true'
+        WHERE d.id::text = replica->>'deployment_id' AND replica->>'state' NOT IN ('Stopped', 'Killed')
       ))
     WHERE ro.resource_id = c.resource_id
       AND strpos(d.spec::text, c.image_digest) > 0

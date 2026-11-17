@@ -176,6 +176,7 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 	digests := []string{"sha256:" + strings.Repeat("a", 64), "sha256:" + strings.Repeat("b", 64)}
 	server := f.agentServer()
 	var firstRevision int64
+	var report *agentv1.PlacementStatus
 	for i := range deployments {
 		id, err := f.deploy(ctx, staticSpec)
 		if err != nil {
@@ -190,7 +191,7 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 		if i == 0 {
 			firstRevision = p.DesiredRevision
 		}
-		server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
+		report = &agentv1.PlacementStatus{
 			PlacementId:              p.ID.String(),
 			DeploymentId:             id.String(),
 			ObservedRevision:         p.DesiredRevision,
@@ -205,7 +206,13 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 					PlacementRevision: firstRevision,
 				},
 			},
-		})
+		}
+		if i == 1 {
+			report.ReadyReplicas = 0
+			report.Replicas[0].Ready = false
+			report.Replicas[0].State = string(loco.ReplicaStarting)
+		}
+		server.recordStatus(ctx, f.clusterID, 0, report)
 	}
 	prune := genDb.PruneDeploymentHistoryParams{ResourceID: f.resourceID, EnvironmentID: f.envID, Keep: 0}
 	if deleted, err := f.queries.PruneDeploymentHistory(ctx, prune); err != nil || deleted != 0 {
@@ -218,12 +225,31 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 	if err != nil || len(candidates) != 0 {
 		t.Fatalf("image candidates=%+v, %v", candidates, err)
 	}
+	report.ReadyReplicas = 1
+	report.Replicas[0].Ready = true
+	report.Replicas[0].State = string(loco.ReplicaServing)
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	assertServingDeployments(t, f, deployments[2], deployments[0])
+	report.ReadyReplicas = 0
+	report.Replicas[0].Ready = false
+	report.Replicas[0].State = string(loco.ReplicaStopped)
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if deleted, pruneErr := f.queries.PruneDeploymentHistory(ctx, prune); pruneErr != nil || deleted != 1 {
+		t.Fatalf("terminal replica retained its old deployment: %d, %v", deleted, pruneErr)
+	}
+	candidates, err = f.queries.ListDeletableBuildImages(
+		ctx,
+		genDb.ListDeletableBuildImagesParams{Keep: 0, MaxBuilds: 10},
+	)
+	if err != nil || len(candidates) != 1 {
+		t.Fatalf("terminal replica retained its old image: %+v, %v", candidates, err)
+	}
 
 	p := f.placement(t, f.clusterID)
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), DeploymentId: deployments[2].String(), ObservedRevision: p.DesiredRevision,
 	})
-	if deleted, pruneErr := f.queries.PruneDeploymentHistory(ctx, prune); pruneErr != nil || deleted != 2 {
+	if deleted, pruneErr := f.queries.PruneDeploymentHistory(ctx, prune); pruneErr != nil || deleted != 1 {
 		t.Fatalf("obsolete observations retained: %d, %v", deleted, pruneErr)
 	}
 	candidates, err = f.queries.ListDeletableBuildImages(
