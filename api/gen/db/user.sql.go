@@ -12,31 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const checkUserHasOrganizations = `-- name: CheckUserHasOrganizations :one
-SELECT EXISTS(SELECT 1 FROM organizations WHERE created_by = $1) AS has_orgs
-`
-
-func (q *Queries) CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, checkUserHasOrganizations, createdBy)
-	var has_orgs bool
-	err := row.Scan(&has_orgs)
-	return has_orgs, err
-}
-
-const checkUserHasWorkspaces = `-- name: CheckUserHasWorkspaces :one
-SELECT EXISTS(
-  SELECT 1 FROM user_scopes
-  WHERE user_id = $1 AND entity_type = 'workspace'
-) AS has_workspaces
-`
-
-func (q *Queries) CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error) {
-	row := q.db.QueryRow(ctx, checkUserHasWorkspaces, userID)
-	var has_workspaces bool
-	err := row.Scan(&has_workspaces)
-	return has_workspaces, err
-}
-
 const createOrganization = `-- name: CreateOrganization :one
 
 INSERT INTO organizations (name, created_by)

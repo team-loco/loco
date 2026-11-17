@@ -28,8 +28,6 @@ type Querier interface {
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
 	ChangePlacementProblemReason(ctx context.Context, arg ChangePlacementProblemReasonParams) (int64, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
-	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
-	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)
 	ClaimInvitation(ctx context.Context, arg ClaimInvitationParams) (Invitation, error)
 	ClaimSystemAdmin(ctx context.Context, arg ClaimSystemAdminParams) (int64, error)
 	ClaimWebhookDeliveries(ctx context.Context, arg ClaimWebhookDeliveriesParams) ([]ClaimWebhookDeliveriesRow, error)
@@ -122,6 +120,7 @@ type Querier interface {
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)
+	GetIdentityByID(ctx context.Context, id uuid.UUID) (Identity, error)
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
@@ -212,6 +211,7 @@ type Querier interface {
 	ListSecretUsage(ctx context.Context, arg ListSecretUsageParams) ([]ListSecretUsageRow, error)
 	ListSecrets(ctx context.Context, arg ListSecretsParams) ([]ListSecretsRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
+	ListSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]ListSystemAdminEntriesExceptRow, error)
 	ListSystemAdmins(ctx context.Context) ([]ListSystemAdminsRow, error)
 	ListUnclaimedSystemAdminEmails(ctx context.Context) ([]string, error)
 	ListUndeletedBuildSources(ctx context.Context, maxBuilds int32) ([]ListUndeletedBuildSourcesRow, error)
@@ -246,9 +246,11 @@ type Querier interface {
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
 	LockRollout(ctx context.Context, arg LockRolloutParams) ([]byte, error)
+	LockSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]LockSystemAdminEntriesExceptRow, error)
 	// Locks every system:admin row so concurrent revocations cannot remove the last admin.
 	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
+	LockUserAdminOrganizations(ctx context.Context, userID uuid.UUID) ([]LockUserAdminOrganizationsRow, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
 	LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) ([]LockWorkspaceEnvironmentsRow, error)
@@ -344,6 +346,7 @@ type Querier interface {
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
 	UpsertPlacement(ctx context.Context, arg UpsertPlacementParams) (UpsertPlacementRow, error)
 	UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error
+	UserIsLastActiveOrgAdmin(ctx context.Context, arg UserIsLastActiveOrgAdminParams) (bool, error)
 	WorkspaceHoldsAnyResource(ctx context.Context, arg WorkspaceHoldsAnyResourceParams) (bool, error)
 }
 

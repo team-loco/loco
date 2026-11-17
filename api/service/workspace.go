@@ -63,8 +63,15 @@ func (s *WorkspaceServer) CreateWorkspace(
 	}
 	var wsID uuid.UUID
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx)
+		if lockErr != nil {
+			return lockErr
+		}
+		if accessErr := authorize(lockedCtx, authz.New(qtx), actions.CreateWorkspace, orgID); accessErr != nil {
+			return accessErr
+		}
 		var createErr error
-		wsID, createErr = createWorkspaceInTx(ctx, qtx, s.counts, genDb.CreateWorkspaceParams{
+		wsID, createErr = createWorkspaceInTx(lockedCtx, qtx, s.counts, genDb.CreateWorkspaceParams{
 			OrgID:       orgID,
 			Name:        req.GetName(),
 			Description: req.Description,
@@ -437,35 +444,39 @@ func (s *WorkspaceServer) CreateMember(
 		grantedScopes[i] = sc.Scope
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, lockErr := qtx.LockUserForMembership(ctx, userID)
-		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return ErrUserNotFound
-		}
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
 		if lockErr != nil {
-			return fmt.Errorf("lock user: %w", lockErr)
+			return lockErr
 		}
-		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(ctx, wsID)
+		fresh, principalErr := principalFrom(lockedCtx)
+		if principalErr != nil {
+			return principalErr
+		}
+		if accessErr := check(lockedCtx, authz.New(qtx), fresh, required...); accessErr != nil {
+			return accessErr
+		}
+		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(lockedCtx, wsID)
 		if errors.Is(orgErr, pgx.ErrNoRows) {
 			return ErrWorkspaceNotFound
 		}
 		if orgErr != nil {
 			return fmt.Errorf("get workspace organization: %w", orgErr)
 		}
-		isMember, memberErr := qtx.IsOrgMember(ctx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
+		isMember, memberErr := qtx.IsOrgMember(lockedCtx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
 		if memberErr != nil {
 			return fmt.Errorf("check organization membership: %w", memberErr)
 		}
 		if !isMember {
 			return ErrNotOrgMember
 		}
-		applyErr := authz.ApplyRoles(ctx, qtx, userID, addScopes, nil)
+		applyErr := authz.ApplyRoles(lockedCtx, qtx, userID, addScopes, nil)
 		if pgForeignKeyConstraint(applyErr) == pgWorkspaceScopeReference {
 			return ErrWorkspaceNotFound
 		}
 		if applyErr != nil {
 			return applyErr
 		}
-		return events.Record(ctx, qtx, events.Event{
+		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.MemberAdded,
 			WorkspaceID: new(wsID),
 			SubjectType: events.SubjectUser,
@@ -502,7 +513,14 @@ func (s *WorkspaceServer) DeleteMember(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if removeErr := qtx.RemoveAllScopesForUserOnEntity(ctx, genDb.RemoveAllScopesForUserOnEntityParams{
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if accessErr := authorize(lockedCtx, authz.New(qtx), actions.RemoveWorkspaceMember, wsID); accessErr != nil {
+			return accessErr
+		}
+		if removeErr := qtx.RemoveAllScopesForUserOnEntity(lockedCtx, genDb.RemoveAllScopesForUserOnEntityParams{
 			UserID:     userID,
 			EntityType: genDb.EntityTypeWorkspace,
 			EntityID:   wsID,
@@ -510,10 +528,10 @@ func (s *WorkspaceServer) DeleteMember(
 			return fmt.Errorf("remove workspace scopes: %w", removeErr)
 		}
 		resourceScopes := genDb.RemoveResourceScopesForUserInWorkspaceParams{UserID: userID, WorkspaceID: wsID}
-		if removeErr := qtx.RemoveResourceScopesForUserInWorkspace(ctx, resourceScopes); removeErr != nil {
+		if removeErr := qtx.RemoveResourceScopesForUserInWorkspace(lockedCtx, resourceScopes); removeErr != nil {
 			return fmt.Errorf("remove resource scopes: %w", removeErr)
 		}
-		return events.Record(ctx, qtx, events.Event{
+		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.MemberRemoved,
 			WorkspaceID: new(wsID),
 			SubjectType: events.SubjectUser,

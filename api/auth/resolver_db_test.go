@@ -770,8 +770,14 @@ func TestResolveSuspendedUserDoesNotClaim(t *testing.T) {
 	orgID := f.org(t, "acme")
 	invitation := f.invite(t, orgID, inviteeEmail, invitationTTL)
 
-	if _, _, err := r.Resolve(t.Context(), identity(inviteeSubject, inviteeEmail, true)); err != nil {
-		t.Fatalf("resolve: %v", err)
+	if _, _, err := r.Resolve(
+		t.Context(),
+		identity(inviteeSubject, inviteeEmail, true),
+	); !errors.Is(
+		err,
+		ErrAccountUnavailable,
+	) {
+		t.Fatalf("resolve = %v, want unavailable account", err)
 	}
 	if f.isMember(t, user.ID, orgID) || f.claimedBy(t, invitation.ID) != nil {
 		t.Fatal("suspended user claimed an invitation")

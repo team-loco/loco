@@ -104,8 +104,15 @@ func (s *OrgServer) CreateOrg(
 
 	var org genDb.Organization
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, p.UserID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if accessErr := authorize(lockedCtx, authz.New(qtx), actions.CreateOrg, p.UserID); accessErr != nil {
+			return accessErr
+		}
 		var createErr error
-		org, createErr = createOrgInTx(ctx, qtx, s.counts, p.UserID, orgName)
+		org, createErr = createOrgInTx(lockedCtx, qtx, s.counts, p.UserID, orgName)
 		return createErr
 	})
 	if err != nil {
@@ -260,28 +267,38 @@ func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, user
 		return errCreateIfMissingForOtherUser
 	}
 	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, err := qtx.LockUserForMembership(ctx, userID); err != nil {
-			return fmt.Errorf("lock user: %w", err)
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
+		if lockErr != nil {
+			return lockErr
 		}
-		existing, err := qtx.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{UserID: userID, Limit: 1})
+		fresh, principalErr := principalFrom(lockedCtx)
+		if principalErr != nil {
+			return principalErr
+		}
+		existing, err := qtx.ListOrgsForUser(lockedCtx, genDb.ListOrgsForUserParams{UserID: userID, Limit: 1})
 		if err != nil {
 			return fmt.Errorf("list organizations: %w", err)
 		}
 		if len(existing) > 0 {
 			return nil
 		}
-		if authzErr := check(ctx, s.authz, p, actions.New(actions.CreateOrg, userID)); authzErr != nil {
+		if authzErr := check(
+			lockedCtx,
+			authz.New(qtx),
+			fresh,
+			actions.New(actions.CreateOrg, userID),
+		); authzErr != nil {
 			return authzErr
 		}
-		user, err := qtx.GetUserByID(ctx, userID)
+		user, err := qtx.GetUserByID(lockedCtx, userID)
 		if err != nil {
 			return fmt.Errorf("get user: %w", err)
 		}
-		org, err := createOrgInTx(ctx, qtx, s.counts, userID, defaultOrgName(user))
+		org, err := createOrgInTx(lockedCtx, qtx, s.counts, userID, defaultOrgName(user))
 		if err != nil {
 			return err
 		}
-		_, err = createWorkspaceInTx(ctx, qtx, s.counts, genDb.CreateWorkspaceParams{
+		_, err = createWorkspaceInTx(lockedCtx, qtx, s.counts, genDb.CreateWorkspaceParams{
 			OrgID:     org.ID,
 			Name:      firstWorkspaceName,
 			CreatedBy: userID,
@@ -475,15 +492,14 @@ func (s *OrgServer) SetOrgMemberRole(
 		return nil, err
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if err = s.lockOrgMembership(ctx, qtx, orgID, actions.SetOrgMemberRole); err != nil {
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if err = lockOrgMembership(lockedCtx, qtx, orgID, actions.SetOrgMemberRole); err != nil {
 			return err
 		}
-		if _, lockErr := qtx.LockUserForMembership(ctx, userID); errors.Is(lockErr, pgx.ErrNoRows) {
-			return errOrgMemberNotFound
-		} else if lockErr != nil {
-			return fmt.Errorf("lock user: %w", lockErr)
-		}
-		member, memberErr := qtx.IsOrgMember(ctx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
+		member, memberErr := qtx.IsOrgMember(lockedCtx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
 		if memberErr != nil {
 			return fmt.Errorf("check organization membership: %w", memberErr)
 		}
@@ -491,7 +507,7 @@ func (s *OrgServer) SetOrgMemberRole(
 			return errOrgMemberNotFound
 		}
 		if req.GetRole() == orgv1.OrgRole_ORG_ROLE_MEMBER {
-			if err = keepOrgAdmin(ctx, qtx, orgID, userID); err != nil {
+			if err = keepOrgAdmin(lockedCtx, qtx, orgID, userID); err != nil {
 				return err
 			}
 		}
@@ -504,11 +520,11 @@ func (s *OrgServer) SetOrgMemberRole(
 				remove = append(remove, grant)
 			}
 		}
-		if err = authz.ApplyRoles(ctx, qtx, userID, add, remove); err != nil {
+		if err = authz.ApplyRoles(lockedCtx, qtx, userID, add, remove); err != nil {
 			return err
 		}
 		return events.Record(
-			ctx,
+			lockedCtx,
 			qtx,
 			events.Event{
 				Type:        events.OrgMemberRoleChanged,
@@ -525,7 +541,7 @@ func (s *OrgServer) SetOrgMemberRole(
 	return &orgv1.SetOrgMemberRoleResponse{}, nil
 }
 
-func (s *OrgServer) lockOrgMembership(
+func lockOrgMembership(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	orgID uuid.UUID,
@@ -541,30 +557,17 @@ func (s *OrgServer) lockOrgMembership(
 	if err != nil {
 		return err
 	}
-	if p.Entity.Type == genDb.EntityTypeUser {
-		fresh, err := authz.New(qtx).UserScopes(ctx, p.Entity.ID)
-		if err != nil {
-			return fmt.Errorf("reload caller scopes: %w", err)
-		}
-		p.Scopes = fresh
-		return check(ctx, s.authz, p, actions.New(action, orgID))
-	}
-	return nil
+	return check(ctx, authz.New(qtx), p, actions.New(action, orgID))
 }
 
 func keepOrgAdmin(ctx context.Context, qtx *genDb.Queries, orgID, userID uuid.UUID) error {
-	admins, err := qtx.GetUsersWithScopeOnEntity(
-		ctx,
-		genDb.GetUsersWithScopeOnEntityParams{
-			EntityType: genDb.EntityTypeOrganization,
-			EntityID:   orgID,
-			Scope:      genDb.ScopeAdmin,
-		},
-	)
+	last, err := qtx.UserIsLastActiveOrgAdmin(ctx, genDb.UserIsLastActiveOrgAdminParams{
+		OrgID: orgID, UserID: userID,
+	})
 	if err != nil {
-		return fmt.Errorf("list organization admins: %w", err)
+		return fmt.Errorf("check active organization admins: %w", err)
 	}
-	if len(admins) == 1 && admins[0] == userID {
+	if last {
 		return errLastOrgAdmin
 	}
 	return nil
@@ -592,26 +595,23 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if err = s.lockOrgMembership(ctx, qtx, orgID, actions.RemoveOrgMember); err != nil {
-			return err
-		}
-		if err = keepOrgAdmin(ctx, qtx, orgID, userID); err != nil {
-			return err
-		}
-		_, lockErr := qtx.LockUserForMembership(ctx, userID)
-		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return ErrUserNotFound
-		}
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
 		if lockErr != nil {
-			return fmt.Errorf("lock user: %w", lockErr)
+			return lockErr
 		}
-		if removeErr := qtx.RemoveOrgMember(ctx, genDb.RemoveOrgMemberParams{
+		if err = lockOrgMembership(lockedCtx, qtx, orgID, actions.RemoveOrgMember); err != nil {
+			return err
+		}
+		if err = keepOrgAdmin(lockedCtx, qtx, orgID, userID); err != nil {
+			return err
+		}
+		if removeErr := qtx.RemoveOrgMember(lockedCtx, genDb.RemoveOrgMemberParams{
 			UserID: userID,
 			OrgID:  orgID,
 		}); removeErr != nil {
 			return fmt.Errorf("remove organization member: %w", removeErr)
 		}
-		return events.Record(ctx, qtx, events.Event{
+		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.OrgMemberRemoved,
 			OrgID:       new(orgID),
 			SubjectType: events.SubjectUser,

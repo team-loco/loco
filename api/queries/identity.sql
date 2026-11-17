@@ -25,3 +25,6 @@ SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_log
 FROM identities
 WHERE user_id = $1
 ORDER BY created_at;
+
+-- name: GetIdentityByID :one
+SELECT * FROM identities WHERE id = $1;

@@ -13,11 +13,15 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-var errInvalidAdminEmail = errors.New("not a bare email address")
+var (
+	errInvalidAdminEmail  = errors.New("not a bare email address")
+	errAdminClaimsChanged = errors.New("system admin claims changed while locking accounts")
+)
 
 // SystemAdmins lists the configured system-admin emails, lowercased.
 type SystemAdmins []string
@@ -49,25 +53,56 @@ func SyncSystemAdmins(ctx context.Context, pool *pgxpool.Pool, admins SystemAdmi
 	if emails == nil {
 		emails = []string{}
 	}
-	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		q := genDb.New(tx)
-		removed, err := q.RemoveSystemAdminEntriesExcept(ctx, emails)
-		if err != nil {
-			return fmt.Errorf("remove system admin entries: %w", err)
-		}
-		for _, entry := range removed {
-			if entry.UserID == nil {
-				continue
+	for {
+		err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+			q := genDb.New(tx)
+			entries, err := q.ListSystemAdminEntriesExcept(ctx, emails)
+			if err != nil {
+				return fmt.Errorf("list removed system admin entries: %w", err)
 			}
-			if err := revokeSystemAdmin(ctx, q, entry); err != nil {
-				return err
+			var users []uuid.UUID
+			for _, entry := range entries {
+				if entry.UserID != nil {
+					users = append(users, *entry.UserID)
+				}
 			}
+			if lockErr := authz.LockUsers(ctx, q, users...); errors.Is(lockErr, pgx.ErrNoRows) {
+				return errAdminClaimsChanged
+			} else if lockErr != nil {
+				return fmt.Errorf("lock system admin accounts: %w", lockErr)
+			}
+			locked, err := q.LockSystemAdminEntriesExcept(ctx, emails)
+			if err != nil {
+				return fmt.Errorf("lock removed system admin entries: %w", err)
+			}
+			for _, entry := range locked {
+				if entry.UserID != nil && !slices.Contains(users, *entry.UserID) {
+					// A claim committed after the account snapshot. Retry before
+					// changing anything, preserving user-before-claim lock order.
+					return errAdminClaimsChanged
+				}
+			}
+			removed, err := q.RemoveSystemAdminEntriesExcept(ctx, emails)
+			if err != nil {
+				return fmt.Errorf("remove system admin entries: %w", err)
+			}
+			for _, entry := range removed {
+				if entry.UserID == nil {
+					continue
+				}
+				if err := revokeSystemAdmin(ctx, q, entry); err != nil {
+					return err
+				}
+			}
+			if err := q.AddSystemAdminEntries(ctx, emails); err != nil {
+				return fmt.Errorf("add system admin entries: %w", err)
+			}
+			return nil
+		})
+		if !errors.Is(err, errAdminClaimsChanged) {
+			return err
 		}
-		if err := q.AddSystemAdminEntries(ctx, emails); err != nil {
-			return fmt.Errorf("add system admin entries: %w", err)
-		}
-		return nil
-	})
+	}
 }
 
 func revokeSystemAdmin(ctx context.Context, q *genDb.Queries, entry genDb.RemoveSystemAdminEntriesExceptRow) error {
@@ -101,6 +136,11 @@ func (r *Resolver) claimSystemAdmin(
 ) (bool, error) {
 	if !id.EmailVerified || !r.systemAdmins.lists(id.Email) || user.Status != genDb.UserStatusActive {
 		return false, nil
+	}
+	var err error
+	user, err = lockActiveUser(ctx, qtx, user.ID)
+	if err != nil {
+		return false, err
 	}
 	email := strings.ToLower(id.Email)
 	claimed, err := qtx.ClaimSystemAdmin(ctx, genDb.ClaimSystemAdminParams{UserID: user.ID, Email: email})

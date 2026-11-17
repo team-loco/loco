@@ -107,6 +107,9 @@ func (i *authInterceptor) authenticateProviderToken(
 
 	user, claimed, err := i.resolver.Resolve(ctx, identity)
 	if err != nil {
+		if errors.Is(err, auth.ErrAccountUnavailable) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+		}
 		if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
 			slog.InfoContext(ctx, "sign-in rejected", "issuer", identity.Issuer, "reason", rejected.Message)
 			return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)

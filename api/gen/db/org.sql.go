@@ -315,6 +315,40 @@ func (q *Queries) LockResourceOrganization(ctx context.Context, id uuid.UUID) (*
 	return suspension_reason, err
 }
 
+const lockUserAdminOrganizations = `-- name: LockUserAdminOrganizations :many
+SELECT o.id, o.name
+FROM organizations o
+JOIN user_scopes s ON s.entity_type = 'organization' AND s.entity_id = o.id
+WHERE s.user_id = $1 AND s.scope = 'admin'
+ORDER BY o.id
+FOR UPDATE OF o
+`
+
+type LockUserAdminOrganizationsRow struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func (q *Queries) LockUserAdminOrganizations(ctx context.Context, userID uuid.UUID) ([]LockUserAdminOrganizationsRow, error) {
+	rows, err := q.db.Query(ctx, lockUserAdminOrganizations, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockUserAdminOrganizationsRow
+	for rows.Next() {
+		var i LockUserAdminOrganizationsRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockUserForMembership = `-- name: LockUserForMembership :one
 SELECT id FROM users WHERE id = $1 FOR UPDATE
 `
@@ -454,4 +488,29 @@ func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (O
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const userIsLastActiveOrgAdmin = `-- name: UserIsLastActiveOrgAdmin :one
+SELECT EXISTS (
+    SELECT 1 FROM user_scopes s JOIN users u ON u.id = s.user_id
+    WHERE s.entity_type = 'organization' AND s.entity_id = $1
+      AND s.scope = 'admin' AND s.user_id = $2 AND u.status = 'active'
+      AND NOT EXISTS (
+          SELECT 1 FROM user_scopes other JOIN users other_user ON other_user.id = other.user_id
+          WHERE other.entity_type = 'organization' AND other.entity_id = s.entity_id
+            AND other.scope = 'admin' AND other.user_id <> s.user_id AND other_user.status = 'active'
+      )
+) AS is_last_admin
+`
+
+type UserIsLastActiveOrgAdminParams struct {
+	OrgID  uuid.UUID `json:"orgId"`
+	UserID uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) UserIsLastActiveOrgAdmin(ctx context.Context, arg UserIsLastActiveOrgAdminParams) (bool, error) {
+	row := q.db.QueryRow(ctx, userIsLastActiveOrgAdmin, arg.OrgID, arg.UserID)
+	var is_last_admin bool
+	err := row.Scan(&is_last_admin)
+	return is_last_admin, err
 }

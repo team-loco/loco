@@ -17,9 +17,11 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/team-loco/loco/api/auth"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/cache"
@@ -183,6 +185,16 @@ func (s *AuthServer) issue(
 	identityID := grant.IdentityID
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if err := lockCLIAccount(ctx, qtx, grant.UserID); err != nil {
+			return err
+		}
+		identity, err := qtx.GetIdentityByID(ctx, identityID)
+		if errors.Is(err, pgx.ErrNoRows) || err == nil && identity.UserID != grant.UserID {
+			return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+		}
+		if err != nil {
+			return fmt.Errorf("get CLI identity: %w", err)
+		}
 		var issueErr error
 		access, refresh, issueErr = s.machine.WithQueries(qtx).IssueSession(ctx, grant.UserID, &identityID, ip, ua)
 		if issueErr != nil {
@@ -437,7 +449,23 @@ func (s *AuthServer) RefreshCLIToken(
 	ctx context.Context,
 	req *authv1.RefreshCLITokenRequest,
 ) (*authv1.RefreshCLITokenResponse, error) {
-	access, newRefresh, err := s.machine.Refresh(ctx, req.GetRefreshToken())
+	var access, newRefresh string
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		// Resolve the owner without locking the session, then take the account
+		// lock before Refresh reads and rotates the session in this transaction.
+		session, err := qtx.GetSessionByRefreshToken(ctx, bearer.Hash(req.GetRefreshToken()))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tvm.ErrInvalidExpiredToken
+		}
+		if err != nil {
+			return fmt.Errorf("get refresh owner: %w", err)
+		}
+		if lockErr := lockCLIAccount(ctx, qtx, session.UserID); lockErr != nil {
+			return lockErr
+		}
+		access, newRefresh, err = s.machine.WithQueries(qtx).Refresh(ctx, req.GetRefreshToken())
+		return err
+	})
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -449,6 +477,24 @@ func (s *AuthServer) RefreshCLIToken(
 		RefreshToken: newRefresh,
 		ExpiresIn:    int64(s.machine.Cfg.SessionAccessTokenDuration.Seconds()),
 	}}, nil
+}
+
+// lockCLIAccount fences cached approvals and refresh tokens against deletion and
+// suspension without resolving an identity or provisioning a replacement user.
+func lockCLIAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID) error {
+	if err := authz.LockUsers(ctx, qtx, userID); errors.Is(err, pgx.ErrNoRows) {
+		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+	} else if err != nil {
+		return fmt.Errorf("lock CLI account: %w", err)
+	}
+	user, err := qtx.GetUserByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("read CLI account: %w", err)
+	}
+	if user.Status != genDb.UserStatusActive {
+		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+	}
+	return nil
 }
 
 // authStoreUnavailable reports a sign-in store failure the client can retry; err stays private.

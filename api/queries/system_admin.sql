@@ -45,6 +45,7 @@ SELECT email FROM system_admin_claims WHERE claimed_at IS NULL ORDER BY email;
 -- Locks every system:admin row so concurrent revocations cannot remove the last admin.
 SELECT user_id FROM user_scopes
 WHERE scope = 'admin' AND entity_type = 'system' AND entity_id = '00000000-0000-0000-0000-000000000000'
+ORDER BY user_id
 FOR UPDATE;
 
 -- name: AddSystemAdminGrant :execrows
@@ -55,3 +56,14 @@ DELETE FROM system_admin_grants WHERE user_id = $1;
 
 -- name: SystemAdminClaimed :one
 SELECT EXISTS (SELECT 1 FROM system_admin_claims WHERE user_id = $1);
+
+-- name: ListSystemAdminEntriesExcept :many
+SELECT email, user_id FROM system_admin_claims
+WHERE NOT (email = ANY(sqlc.arg('emails')::text[]))
+ORDER BY email;
+
+-- name: LockSystemAdminEntriesExcept :many
+SELECT email, user_id FROM system_admin_claims
+WHERE NOT (email = ANY(sqlc.arg('emails')::text[]))
+ORDER BY email
+FOR UPDATE;
