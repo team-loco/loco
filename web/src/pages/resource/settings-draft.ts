@@ -40,6 +40,7 @@ export interface SettingsDraft {
 	name?: string;
 	description?: string;
 	image?: string;
+	rollbackOnFailure?: boolean;
 	observability?: ObservabilitySettings;
 	scaling?: Record<string, Scaling>;
 	cpu?: string;
@@ -61,6 +62,7 @@ export interface Baseline {
 	name: string;
 	description: string;
 	image: string;
+	rollbackOnFailure: boolean;
 	observability: ObservabilitySettings;
 	cpu: string;
 	memory: string;
@@ -89,6 +91,7 @@ export function baseline(
 	configured: string[],
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
+	rollbackOnFailure?: boolean,
 ): Baseline {
 	const template = templateRegion(regions)?.current;
 	const svc = template === undefined ? undefined : getServiceSpec(template);
@@ -98,6 +101,7 @@ export function baseline(
 		name,
 		description,
 		image: svc?.build?.image ?? "",
+		rollbackOnFailure: rollbackOnFailure ?? defaults.rollbackOnFailure,
 		observability: observabilitySettings(svc === undefined ? defaults.observability : svc.observability),
 		cpu: svc?.cpu ?? "",
 		memory: svc?.memory ?? "",
@@ -131,6 +135,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		name: draft.name ?? base.name,
 		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
+		rollbackOnFailure: draft.rollbackOnFailure ?? base.rollbackOnFailure,
 		observability: draft.observability ?? base.observability,
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
@@ -170,6 +175,7 @@ export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	count += Object.keys(draft.secrets ?? {}).length;
 	count += (draft.removedSecrets ?? []).length;
 	if (next.isPublic !== base.isPublic) count++;
+	if (next.rollbackOnFailure !== base.rollbackOnFailure) count++;
 	if (next.observability.injectOtel !== base.observability.injectOtel) count++;
 	return count;
 }

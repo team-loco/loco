@@ -175,6 +175,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		configuredRegions(resource),
 		resource.domains.length > 0,
 		defaults,
+		resource.spec?.spec.case === "service" ? resource.spec.spec.value.rollbackOnFailure : undefined,
 	);
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;

@@ -120,6 +120,8 @@ message ServiceDeploymentSpec {
 
   // Defaults to the resource settings when omitted; stored in the deployment snapshot.
   ObservabilityConfig observability = 13;
+  // Overrides the service's current rollback setting; omitted inherits it, off by default.
+  optional bool rollback_on_failure = 14;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"

@@ -494,6 +494,33 @@ func (s *ResourceServer) UpdateResource(
 				return updateErr
 			}
 		}
+		if req.RollbackOnFailure != nil {
+			if resource.Type != genDb.ResourceTypeService {
+				return errOnlyServiceResources
+			}
+			if req.GetRegions() != nil {
+				resource, getErr = qtx.GetResourceByID(ctx, resourceID)
+				if getErr != nil {
+					return fmt.Errorf("get updated resource: %w", getErr)
+				}
+			}
+			spec, specErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+			if specErr != nil {
+				return specErr
+			}
+			service := spec.GetService()
+			service.RollbackOnFailure = req.GetRollbackOnFailure()
+			encoded, marshalErr := protojson.Marshal(service)
+			if marshalErr != nil {
+				return fmt.Errorf("marshal service setting: %w", marshalErr)
+			}
+			if updateErr := qtx.UpdateResourceSpec(
+				ctx,
+				genDb.UpdateResourceSpecParams{ID: resourceID, Spec: encoded},
+			); updateErr != nil {
+				return fmt.Errorf("update service setting: %w", updateErr)
+			}
+		}
 		if rename {
 			slugErr := checkSlugFree(ctx, qtx, resource.WorkspaceID, *updateParams.Slug, &resourceID)
 			if slugErr != nil {

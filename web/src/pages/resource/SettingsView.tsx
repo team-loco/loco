@@ -38,6 +38,7 @@ import {
 	SettingsBlock,
 	SizeSection,
 	ObservabilitySection,
+	DeploymentSection,
 } from "./SettingsSections";
 import { useSaveSettings } from "./useSaveSettings";
 import { VariablesSection } from "./VariablesSection";
@@ -52,6 +53,7 @@ const NAV = [
 	{ id: "set-scaling", label: "Scaling" },
 	{ id: "set-size", label: "Size" },
 	{ id: "set-env", label: "Variables" },
+	{ id: "set-deployment", label: "Deployment behavior" },
 	{ id: "set-observability", label: "Observability" },
 	{ id: "set-net", label: "Networking" },
 	{ id: HEALTH_SECTION_ID, label: "Health check" },
@@ -182,6 +184,7 @@ export function SettingsView({
 						canReadWorkspace={canReadWorkspace}
 						onChange={change}
 					/>
+					<DeploymentSection {...props} />
 					<ObservabilitySection {...props} />
 					<NetworkingSection
 						{...props}

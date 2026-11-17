@@ -102,18 +102,19 @@ func MergeDeploymentSpec(
 		requestServiceSpec.GetObservability(),
 	)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
-		Observability: observability.Proto(),
-		RunAsUser:     requestServiceSpec.RunAsUser,
-		RunAsGroup:    requestServiceSpec.RunAsGroup,
-		Build:         requestServiceSpec.GetBuild(),
-		Port:          requestServiceSpec.Port,
-		Env:           requestServiceSpec.GetEnv(),
-		Cpu:           &resources.CPU,
-		Memory:        &resources.Memory,
-		MinReplicas:   &resources.MinReplicas,
-		MaxReplicas:   &resources.MaxReplicas,
-		Scalers:       resources.Scalers,
-		HealthCheck:   healthCheck,
+		RollbackOnFailure: requestServiceSpec.RollbackOnFailure,
+		Observability:     observability.Proto(),
+		RunAsUser:         requestServiceSpec.RunAsUser,
+		RunAsGroup:        requestServiceSpec.RunAsGroup,
+		Build:             requestServiceSpec.GetBuild(),
+		Port:              requestServiceSpec.Port,
+		Env:               requestServiceSpec.GetEnv(),
+		Cpu:               &resources.CPU,
+		Memory:            &resources.Memory,
+		MinReplicas:       &resources.MinReplicas,
+		MaxReplicas:       &resources.MaxReplicas,
+		Scalers:           resources.Scalers,
+		HealthCheck:       healthCheck,
 	}
 
 	return &deploymentv1.DeploymentSpec{

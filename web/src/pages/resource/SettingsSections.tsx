@@ -289,6 +289,32 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 	);
 }
 
+export function DeploymentSection({ draft, base, locked, describedBy, onChange }: SectionProps) {
+	return (
+		<SettingsBlock id="set-deployment" title="Deployment behavior" hint="Changes apply on the next rollout.">
+			<div className="flex items-start justify-between gap-4">
+				<div className="flex min-w-0 flex-col gap-1">
+					<label htmlFor="rollback-on-failure" className="text-[13.5px] font-medium">
+						Roll back when a deployment fails
+					</label>
+					<p id="rollback-on-failure-hint" className="m-0 text-[13px] text-fg3">
+						When a deployment fails, Loco restores the previous deployment. Off by default.
+					</p>
+				</div>
+				<Switch
+					id="rollback-on-failure"
+					checked={draft.rollbackOnFailure ?? base.rollbackOnFailure}
+					disabled={locked}
+					aria-describedby={["rollback-on-failure-hint", describedBy].filter(Boolean).join(" ")}
+					onCheckedChange={(rollbackOnFailure: boolean) => {
+						onChange({ rollbackOnFailure });
+					}}
+				/>
+			</div>
+		</SettingsBlock>
+	);
+}
+
 export function ObservabilitySection({ draft, base, locked, describedBy, onChange }: SectionProps) {
 	const next = draft.observability ?? base.observability;
 	return (

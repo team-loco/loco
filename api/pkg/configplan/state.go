@@ -42,20 +42,21 @@ var (
 // reference of an image service and empty for a service built from source; Dockerfile and
 // Context are set for a service built from source and empty for an image service.
 type State struct {
-	Observability observabilityconfig.Config
-	Image         string
-	Dockerfile    string
-	Context       string
-	RunAsUser     *int64
-	RunAsGroup    *int64
-	Port          *int32
-	Health        *Health
-	Routing       *Routing
-	Domains       []string
-	Env           map[string]string
-	Secrets       []string
-	Regions       map[string]Region
-	Deploy        *locofile.Deploy
+	RollbackOnFailure bool
+	Observability     observabilityconfig.Config
+	Image             string
+	Dockerfile        string
+	Context           string
+	RunAsUser         *int64
+	RunAsGroup        *int64
+	Port              *int32
+	Health            *Health
+	Routing           *Routing
+	Domains           []string
+	Env               map[string]string
+	Secrets           []string
+	Regions           map[string]Region
+	Deploy            *locofile.Deploy
 }
 
 // Health is a service health check with every field set.
@@ -96,16 +97,17 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		})
 	}
 	state := State{
-		Observability: observability,
-		RunAsUser:     service.RunAsUser,
-		RunAsGroup:    service.RunAsGroup,
-		Image:         pinnedImage,
-		Port:          service.Port,
-		Domains:       CanonicalDomains(service.Domains),
-		Env:           maps.Clone(service.Env),
-		Secrets:       slices.Sorted(slices.Values(service.Secrets)),
-		Regions:       make(map[string]Region, len(service.Regions)),
-		Deploy:        service.Deploy,
+		RollbackOnFailure: service.RollbackOnFailure != nil && *service.RollbackOnFailure,
+		Observability:     observability,
+		RunAsUser:         service.RunAsUser,
+		RunAsGroup:        service.RunAsGroup,
+		Image:             pinnedImage,
+		Port:              service.Port,
+		Domains:           CanonicalDomains(service.Domains),
+		Env:               maps.Clone(service.Env),
+		Secrets:           slices.Sorted(slices.Values(service.Secrets)),
+		Regions:           make(map[string]Region, len(service.Regions)),
+		Deploy:            service.Deploy,
 	}
 	if pinnedImage == "" {
 		state.Dockerfile = locofile.DefaultDockerfile
@@ -195,6 +197,7 @@ func flatten(state *State) map[string]string {
 		return map[string]string{}
 	}
 	fields := map[string]string{
+		"rollbackOnFailure":        strconv.FormatBool(state.RollbackOnFailure),
 		"observability.injectOtel": strconv.FormatBool(state.Observability.InjectOtel),
 		pathDomains:                formatList(state.Domains),
 		pathSecrets:                formatList(slices.Sorted(slices.Values(state.Secrets))),

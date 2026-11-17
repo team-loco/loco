@@ -173,6 +173,7 @@ func TestNewServiceIsACreateListingEveryField(t *testing.T) {
 		{Path: "regions.us-east-1.memory", After: testMemory},
 		{Path: "regions.us-east-1.replicas.max", After: "3"},
 		{Path: "regions.us-east-1.replicas.min", After: "1"},
+		{Path: "rollbackOnFailure", After: "false"},
 		{Path: "routing.idleTimeout", After: "60"},
 		{Path: "routing.pathPrefix", After: "/"},
 	}

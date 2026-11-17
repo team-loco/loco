@@ -621,8 +621,10 @@ type DefaultServiceConfig struct {
 	DeployRetryDelaySeconds int32                   `protobuf:"varint,7,opt,name=deploy_retry_delay_seconds,json=deployRetryDelaySeconds,proto3" json:"deploy_retry_delay_seconds,omitempty"`
 	CpuTarget               int32                   `protobuf:"varint,8,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
 	Observability           *v1.ObservabilityConfig `protobuf:"bytes,9,opt,name=observability,proto3" json:"observability,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Restores the previous deployment on failure; off by default.
+	RollbackOnFailure bool `protobuf:"varint,10,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3" json:"rollback_on_failure,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DefaultServiceConfig) Reset() {
@@ -718,6 +720,13 @@ func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
 	return nil
 }
 
+func (x *DefaultServiceConfig) GetRollbackOnFailure() bool {
+	if x != nil {
+		return x.RollbackOnFailure
+	}
+	return false
+}
+
 var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 
 const file_loco_config_v1_config_proto_rawDesc = "" +
@@ -775,7 +784,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"AuthConfig\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
 	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xa4\x03\n" +
+	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xd4\x03\n" +
 	"\x14DefaultServiceConfig\x12H\n" +
 	"\fhealth_check\x18\x01 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
@@ -786,7 +795,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x1adeploy_retry_delay_seconds\x18\a \x01(\x05R\x17deployRetryDelaySeconds\x12\x1d\n" +
 	"\n" +
 	"cpu_target\x18\b \x01(\x05R\tcpuTarget\x12M\n" +
-	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability2a\n" +
+	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12.\n" +
+	"\x13rollback_on_failure\x18\n" +
+	" \x01(\bR\x11rollbackOnFailure2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 

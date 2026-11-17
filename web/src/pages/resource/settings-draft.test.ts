@@ -107,6 +107,27 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
+	test("rollback changes update the service without planning deployments", () => {
+		expect(base.rollbackOnFailure).toBe(false);
+		expect(changeCount({ rollbackOnFailure: true }, base)).toBe(1);
+		expect(plan({ rollbackOnFailure: true })).toEqual([]);
+		const enabledBase = baseline("shop", "", regions, [EAST, WEST], true, defaults, true);
+		expect(enabledBase.rollbackOnFailure).toBe(true);
+		expect(planSave(regions, { rollbackOnFailure: false }, enabledBase)).toEqual([]);
+		expect(baseline("shop", "", [], [EAST], true, defaults).rollbackOnFailure).toBe(false);
+	});
+
+	test("the switch reads the service setting while preserving deployment overrides", () => {
+		const current = deployment("overridden", EAST);
+		getServiceSpec(current)!.rollbackOnFailure = true;
+		const running = [region(EAST, current)];
+		const serviceBase = baseline("shop", "", running, [EAST], true, defaults, false);
+		expect(serviceBase.rollbackOnFailure).toBe(false);
+		expect(planSave(running, { rollbackOnFailure: true }, serviceBase)).toEqual([]);
+		const changed = planSave(running, { port: "9090" }, serviceBase);
+		expect(getServiceSpec(create(DeploymentSchema, { spec: changed[0]!.spec }))?.rollbackOnFailure).toBe(true);
+	});
+
 	test("SDK environment configuration redeploys every running region and preserves application variables", () => {
 		expect(base.observability).toEqual(OBSERVABILITY);
 		const observability = { injectOtel: false };

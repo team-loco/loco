@@ -354,8 +354,10 @@ type ServiceSpec struct {
 	HealthCheck *v1.HealthCheckConfig    `protobuf:"bytes,3,opt,name=health_check,json=healthCheck,proto3,oneof" json:"health_check,omitempty"`                                          // health check defaults
 	// Application SDK environment injection defaults to true.
 	Observability *v1.ObservabilityConfig `protobuf:"bytes,4,opt,name=observability,proto3" json:"observability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Restores the previous deployment on failure; off by default.
+	RollbackOnFailure bool `protobuf:"varint,5,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3" json:"rollback_on_failure,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ServiceSpec) Reset() {
@@ -414,6 +416,13 @@ func (x *ServiceSpec) GetObservability() *v1.ObservabilityConfig {
 		return x.Observability
 	}
 	return nil
+}
+
+func (x *ServiceSpec) GetRollbackOnFailure() bool {
+	if x != nil {
+		return x.RollbackOnFailure
+	}
+	return false
 }
 
 // DatabaseSpec is the spec of the corresponding resource type.
@@ -1468,9 +1477,11 @@ type UpdateResourceRequest struct {
 	// regions replaces the resource's whole region map when set; omitted regions are torn down.
 	Regions *RegionTargets `protobuf:"bytes,4,opt,name=regions,proto3,oneof" json:"regions,omitempty"`
 	// revision is the Resource.revision the caller loaded; a regions update fails when it moved.
-	Revision      int64 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Revision int64 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Restores the previous deployment on failure; off by default.
+	RollbackOnFailure *bool `protobuf:"varint,6,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateResourceRequest) Reset() {
@@ -1536,6 +1547,13 @@ func (x *UpdateResourceRequest) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *UpdateResourceRequest) GetRollbackOnFailure() bool {
+	if x != nil && x.RollbackOnFailure != nil {
+		return *x.RollbackOnFailure
+	}
+	return false
 }
 
 // RegionTargets is a resource's desired region map, keyed by region name.
@@ -2306,12 +2324,13 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x05 \x01(\x05R\vmaxReplicas\x12:\n" +
 	"\ascalers\x18\x06 \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
 	"\n" +
-	"\b_scalers\"\xcd\x04\n" +
+	"\b_scalers\"\xfd\x04\n" +
 	"\vServiceSpec\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12N\n" +
 	"\aregions\x18\x02 \x03(\v2*.loco.resource.v1.ServiceSpec.RegionsEntryB\b\xbaH\x05\x9a\x01\x02\b\x01R\aregions\x12M\n" +
 	"\fhealth_check\x18\x03 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12M\n" +
-	"\robservability\x18\x04 \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x1aZ\n" +
+	"\robservability\x18\x04 \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12.\n" +
+	"\x13rollback_on_failure\x18\x05 \x01(\bR\x11rollbackOnFailure\x1aZ\n" +
 	"\fRegionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
 	"\x05value\x18\x02 \x01(\v2\x1e.loco.resource.v1.RegionTargetR\x05value:\x028\x01:\xa7\x01\xbaH\xa3\x01\x1a\xa0\x01\n" +
@@ -2404,18 +2423,20 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x98\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe5\x02\n" +
 	"\x15UpdateResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12>\n" +
 	"\aregions\x18\x04 \x01(\v2\x1f.loco.resource.v1.RegionTargetsH\x02R\aregions\x88\x01\x01\x12\x1a\n" +
-	"\brevision\x18\x05 \x01(\x03R\brevisionB\a\n" +
+	"\brevision\x18\x05 \x01(\x03R\brevision\x123\n" +
+	"\x13rollback_on_failure\x18\x06 \x01(\bH\x03R\x11rollbackOnFailure\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
-	"\b_regions\"\xb3\x01\n" +
+	"\b_regionsB\x16\n" +
+	"\x14_rollback_on_failure\"\xb3\x01\n" +
 	"\rRegionTargets\x12F\n" +
 	"\atargets\x18\x01 \x03(\v2,.loco.resource.v1.RegionTargets.TargetsEntryR\atargets\x1aZ\n" +
 	"\fTargetsEntry\x12\x10\n" +

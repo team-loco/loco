@@ -148,3 +148,11 @@ func FirstSet[T comparable](values ...T) T {
 	}
 	return zero
 }
+
+// RollbackOnFailure returns the deployment's own setting when it has one, else the service's.
+func RollbackOnFailure(service bool, deployment *bool) bool {
+	if deployment != nil {
+		return *deployment
+	}
+	return service
+}

@@ -435,10 +435,11 @@ func serviceSpecFor(state configplan.State) *resourcev1.ServiceSpec {
 		}
 	}
 	return &resourcev1.ServiceSpec{
-		Observability: state.Observability.Proto(),
-		Routing:       routing,
-		HealthCheck:   healthCheckFor(state.Health),
-		Regions:       regions,
+		RollbackOnFailure: state.RollbackOnFailure,
+		Observability:     state.Observability.Proto(),
+		Routing:           routing,
+		HealthCheck:       healthCheckFor(state.Health),
+		Regions:           regions,
 	}
 }
 
