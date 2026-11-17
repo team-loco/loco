@@ -13559,6 +13559,16 @@
         "additionalProperties": false,
         "description": "QueueSpec is the spec of the corresponding resource type."
       },
+      "loco.resource.v1.RegionAvailability": {
+        "type": "string",
+        "title": "RegionAvailability",
+        "enum": [
+          "REGION_AVAILABILITY_UNSPECIFIED",
+          "REGION_AVAILABILITY_AVAILABLE",
+          "REGION_AVAILABILITY_OFFLINE"
+        ],
+        "description": "RegionAvailability describes whether a region has a cluster heard from recently."
+      },
       "loco.resource.v1.RegionInfo": {
         "type": "object",
         "properties": {
@@ -13573,11 +13583,15 @@
           "healthStatus": {
             "type": "string",
             "title": "health_status"
+          },
+          "availability": {
+            "title": "availability",
+            "$ref": "#/components/schemas/loco.resource.v1.RegionAvailability"
           }
         },
         "title": "RegionInfo",
         "additionalProperties": false,
-        "description": "RegionInfo represents available region information."
+        "description": "RegionInfo describes a region served by an environment's eligible clusters."
       },
       "loco.resource.v1.RegionStatus": {
         "type": "object",

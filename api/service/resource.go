@@ -581,7 +581,7 @@ func (s *ResourceServer) DeleteResource(
 	return &resourcev1.DeleteResourceResponse{}, nil
 }
 
-// ListRegions lists healthy and degraded regions for an environment.
+// ListRegions lists cluster regions and their availability for an environment.
 func (s *ResourceServer) ListRegions(
 	ctx context.Context,
 	req *resourcev1.ListRegionsRequest,
@@ -600,10 +600,15 @@ func (s *ResourceServer) ListRegions(
 	}
 	regions := make([]*resourcev1.RegionInfo, 0, len(clusters))
 	for _, cluster := range clusters {
+		availability := resourcev1.RegionAvailability_REGION_AVAILABILITY_OFFLINE
+		if cluster.Available {
+			availability = resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE
+		}
 		regions = append(regions, &resourcev1.RegionInfo{
 			Region:       cluster.Region,
 			IsDefault:    cluster.IsDefault,
 			HealthStatus: derefString(cluster.HealthStatus),
+			Availability: availability,
 		})
 	}
 	return &resourcev1.ListRegionsResponse{Regions: regions}, nil

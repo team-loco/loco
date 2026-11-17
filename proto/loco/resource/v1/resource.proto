@@ -259,11 +259,19 @@ message DeleteResourceRequest {
 // DeleteResourceResponse is the response after deleting a resource.
 message DeleteResourceResponse {}
 
-// RegionInfo represents available region information.
+// RegionAvailability describes whether a region has a cluster heard from recently.
+enum RegionAvailability {
+  REGION_AVAILABILITY_UNSPECIFIED = 0;
+  REGION_AVAILABILITY_AVAILABLE = 1;
+  REGION_AVAILABILITY_OFFLINE = 2;
+}
+
+// RegionInfo describes a region served by an environment's eligible clusters.
 message RegionInfo {
   string region = 1;
   bool is_default = 2;
   string health_status = 3;
+  RegionAvailability availability = 4;
 }
 
 // ListRegionsRequest names the environment whose clusters' regions to list.

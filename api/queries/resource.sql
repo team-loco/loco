@@ -87,18 +87,18 @@ WHERE tier = sqlc.arg(tier)
 ORDER BY region ASC, is_default DESC, created_at ASC;
 
 -- name: ListClusterRegions :many
-SELECT region, (is_default AND health_status = 'healthy')::boolean AS is_default, health_status
+SELECT region, (available AND is_default AND health_status = 'healthy')::boolean AS is_default,
+       health_status, available
 FROM (
-    SELECT DISTINCT ON (region) region, is_default, health_status
+    SELECT DISTINCT ON (region) region, is_default, health_status,
+           COALESCE(last_heartbeat >= sqlc.arg(heard_since)::timestamptz, false)::boolean AS available
     FROM clusters
     WHERE tier = sqlc.arg(tier)
       AND is_active = true
       AND role IN ('apps', 'all')
-      AND health_status IN ('healthy', 'degraded')
-      AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
-    ORDER BY region, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
+    ORDER BY region, available DESC, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
 ) AS region_clusters
-ORDER BY (health_status = 'healthy') DESC, region;
+ORDER BY available DESC, (health_status = 'healthy') DESC, region;
 
 -- name: ListRegionStatusesForResources :many
 SELECT d.resource_id,

@@ -68,7 +68,8 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 		t.Fatalf("production regions = %v, want only %s", production, testRegion)
 	}
 	region := production[0]
-	if region.GetRegion() != testRegion || region.GetIsDefault() || region.GetHealthStatus() != "healthy" {
+	if region.GetRegion() != testRegion || region.GetIsDefault() || region.GetHealthStatus() != "healthy" ||
+		region.GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
 		t.Fatalf("production region = %v, want %s from c2: not default, healthy", region, testRegion)
 	}
 
@@ -120,4 +121,43 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 
 	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, "production", testClusterSilentAfter)
 	wantCode(t, err, connect.CodeFailedPrecondition)
+}
+
+func TestListRegionsReportsOfflineClusters(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.markClustersHealthy(t)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	scopes := f.workspaceReadScopes(t)
+
+	silent := `UPDATE clusters SET last_heartbeat = NULL WHERE id = $1`
+	if _, err := f.pool.Exec(t.Context(), silent, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	regions := listRegions(t, server, scopes, f.envID.String())
+	if len(regions) != 1 ||
+		regions[0].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
+		t.Fatalf("regions = %v, want the available fallback cluster", regions)
+	}
+
+	move := `UPDATE clusters SET region = $2, last_heartbeat = NOW() - INTERVAL '1 day' WHERE id = $1`
+	if _, err := f.pool.Exec(t.Context(), move, f.clusterID, statusSecondRegion); err != nil {
+		t.Fatal(err)
+	}
+	regions = listRegions(t, server, scopes, f.envID.String())
+	if len(regions) != 2 || regions[1].GetRegion() != statusSecondRegion ||
+		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_OFFLINE ||
+		regions[1].GetIsDefault() {
+		t.Fatalf("regions = %v, want the offline region without a default", regions)
+	}
+
+	unhealthy := `UPDATE clusters SET last_heartbeat = NOW(), health_status = 'unhealthy' WHERE id = $1`
+	if _, err := f.pool.Exec(t.Context(), unhealthy, f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	regions = listRegions(t, server, scopes, f.envID.String())
+	if len(regions) != 2 || regions[1].GetHealthStatus() != "unhealthy" ||
+		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
+		t.Fatalf("regions = %v, want the reported health of the available cluster", regions)
+	}
 }
