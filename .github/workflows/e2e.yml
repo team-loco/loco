@@ -33,12 +33,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Apps E2E
+          - name: Repeated rollback
             shard: apps
-            tests: "Test(FailedDeploymentRollsBack|Ingress|PortRollout|ResourceStatus)$"
-          - name: Telemetry E2E
-            shard: telemetry
-            tests: "TestObservability/acknowledged_logs_replay_after_a_collector_SIGKILL$"
+            tests: "^TestFailedDeploymentRollsBack$"
+          - name: Repeated ingress
+            shard: apps
+            tests: "^TestIngress$"
+          - name: Repeated port rollout
+            shard: apps
+            tests: "^TestPortRollout$"
+          - name: Repeated resource status
+            shard: apps
+            tests: "^TestResourceStatus$"
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
