@@ -1,0 +1,31 @@
+controlPlaneHostname: api.installation.test
+ui: {hostname: console.installation.test}
+api:
+  existingSecret: loco-api-env
+  systemAdmins: [dev@loco.test]
+  env:
+    WEB_URL: http://console.installation.test
+    CORS_ALLOWED_ORIGINS: http://console.installation.test
+    AUTH_ISSUERS: '[{"name":"installation","issuer":"http://dex.installation-fixtures.svc.cluster.local:5556/dex","audience":"loco","web":{"clientId":"loco","scopes":"openid profile email"}}]'
+    AUTH_SIGNUP_MODE: closed
+    LOCO_SOURCE_BUCKET_ENDPOINT: http://s3.installation.localhost:8080
+    LOCO_SOURCE_BUCKET: source
+    LOCO_SOURCE_BUCKET_REGION: us-east-1
+    LOCO_REGISTRY_HOST: registry.installation.localhost:5000
+    LOCO_REGISTRY_URL: http://registry.installation.localhost:5000
+gatewayNamespace: loco-system
+certManager: {enabled: false}
+openbao:
+  seal:
+    static:
+      existingSecret: {name: loco-openbao-seal, key: key}
+  snapshots:
+    s3:
+      endpoint: http://s3.installation-fixtures.svc.cluster.local:8080
+      region: us-east-1
+      bucket: backups
+      existingSecret: {name: fixture-inputs}
+clickhouse: {enabled: true}
+obsProxy:
+  enabled: true
+  ingest: {hostname: ingest.installation.test}

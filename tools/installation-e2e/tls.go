@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
 )
@@ -20,30 +20,62 @@ func verifyTLSMinimum(ctx context.Context, hostname string) (result error) {
 	if err != nil {
 		return err
 	}
-	data, err := os.ReadFile(clientFile)
+	data, err := kubectl(ctx, "-n", "flux-system", "get", "configmap", "loco-control-plane-values", "-o", "json")
 	if err != nil {
 		return err
 	}
-	source := strings.Replace(string(data), "controlPlane:\n", "controlPlane:\n  tls: {minVersion: \"1.3\"}\n", 1)
+	var values struct {
+		Data map[string]string `json:"data"`
+	}
+	if err = json.Unmarshal(data, &values); err != nil {
+		return err
+	}
+	source := strings.Replace(
+		values.Data["values.yaml"],
+		"certManager: {enabled: false}",
+		`certManager: {enabled: true, issuer: {create: false, name: installation-ca, kind: ClusterIssuer}}
+gateway:
+  tls: {minVersion: "1.3"}
+`,
+		1,
+	)
 	for _, host := range []string{fixtureAPIHost, fixtureWebHost, fixtureIngestHost} {
 		source = strings.ReplaceAll(source, "http://"+host, "https://"+host)
 	}
-	// The original installation file is mounted from a read-only ConfigMap.
-	file, err := os.CreateTemp("", "installation-tls-*.yaml")
+	patch, err := json.Marshal(map[string]any{fluxData: map[string]string{"values.yaml": source}})
 	if err != nil {
 		return err
 	}
-	defer func() { result = errors.Join(result, os.Remove(file.Name())) }()
-	if _, err := file.WriteString(source); err != nil {
-		return errors.Join(err, file.Close())
-	}
-	if err := file.Close(); err != nil {
+	if _, err = kubectl(
+		ctx,
+		"-n",
+		"flux-system",
+		"patch",
+		"configmap",
+		"loco-control-plane-values",
+		"--type=merge",
+		"--patch",
+		string(patch),
+	); err != nil {
 		return err
 	}
-	if _, err := locoadm(ctx, "apply", "--file", file.Name()); err != nil {
+	// Suspend the fixture config source while testing an explicit operator values change.
+	if _, err = command(ctx, "", nil, "flux", "suspend", "kustomization", "loco-cluster-config"); err != nil {
 		return err
 	}
-	if err := configureGatewayDNS(ctx, controlNamespace, false); err != nil {
+	if _, err = command(
+		ctx,
+		"",
+		nil,
+		"flux",
+		"reconcile",
+		"helmrelease",
+		"loco-control-plane",
+		"--timeout=10m",
+	); err != nil {
+		return err
+	}
+	if err := configureGatewayDNS(ctx, false); err != nil {
 		return err
 	}
 	for _, target := range []struct{ address, serverName string }{

@@ -82,7 +82,7 @@ jobs:
             exit 1
           fi
           mkdir -p bin/operator-tools
-          for tool in helm kubectl; do
+          for tool in helm kubectl flux; do
             cp "$(mise which "$tool")" "bin/operator-tools/$tool"
             python3 tools/platform-images/verify.py binary "bin/operator-tools/$tool" "linux/$ARCH"
           done
@@ -108,7 +108,8 @@ jobs:
           fi
           HELM_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["helm"])')
           KUBECTL_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["kubectl"])')
-          export REGISTRY=${REGISTRY,,} PLATFORMS=linux/$ARCH BINARIES=bin/images HELM_VERSION KUBECTL_VERSION
+          FLUX_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["flux2"])')
+          export REGISTRY=${REGISTRY,,} PLATFORMS=linux/$ARCH BINARIES=bin/images HELM_VERSION KUBECTL_VERSION FLUX_VERSION
           TAG=$tag docker buildx bake -f docker-bake.hcl -f "$LABELS" --push "${targets[@]}"
           echo "images=$REGISTRY-*:$TAG" >> "$GITHUB_OUTPUT"
 

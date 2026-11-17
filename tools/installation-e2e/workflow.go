@@ -11,16 +11,18 @@ import (
 )
 
 const (
+	phaseUnknown         = "unknown"
 	phasePrefix          = "installation-e2e phase: "
 	phasePreflight       = "preflight"
 	phaseControlPlane    = "control-plane"
+	phaseAdminStatus     = "admin-status"
 	phasePreLoginAudit   = "pre-login-audit"
 	phaseLogin           = "login"
 	phaseLoginApprove    = "login-approve"
 	phaseLoginApproved   = "login-approved"
 	phasePostLoginAudit  = "post-login-audit"
 	phaseWorkers         = "workers"
-	phaseRepeatApply     = "repeat-apply"
+	phaseUpgrade         = "upgrade"
 	phaseFreshHome       = "fresh-home"
 	phaseWorkloads       = "workloads"
 	phaseSourceDeploy    = "source-deploy"
@@ -47,23 +49,39 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		"--client",
 	)
 	cmd.Dir = dir
-	// Keep raw child output bounded and private even when kubectl fails.
-	output := operatorOutput{phase: "unknown"}
+	// Keep stdout private on failure; stderr carries the operator and kubectl diagnostics.
+	output := operatorOutput{phase: phaseUnknown}
 	cmd.Stdout = &output
-	cmd.Stderr = &output
+	stderr := operatorOutput{phase: phaseUnknown}
+	cmd.Stderr = &stderr
 	err := cmd.Run()
-	if output.exceeded {
+	if stderr.phase != phaseUnknown {
+		output.phase = stderr.phase
+	}
+	if stderr.failure != "" {
+		output.failure = stderr.failure
+	}
+	if output.exceeded || stderr.exceeded || len(output.Bytes())+len(stderr.Bytes()) > auditLimit {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
 	}
 	if err != nil {
 		if output.failure != "" {
 			return nil, fmt.Errorf(
-				"operator phase %s, %s: kubectl failed: %w", output.phase, output.failure, err,
+				"operator phase %s, %s: kubectl failed: %w; stderr: %s",
+				output.phase,
+				output.failure,
+				err,
+				strings.TrimSpace(string(stderr.Bytes())),
 			)
 		}
-		return nil, fmt.Errorf("operator phase %s: kubectl failed: %w", output.phase, err)
+		return nil, fmt.Errorf(
+			"operator phase %s: kubectl failed: %w; stderr: %s",
+			output.phase,
+			err,
+			strings.TrimSpace(string(stderr.Bytes())),
+		)
 	}
-	return output.Bytes(), nil
+	return append(output.Bytes(), stderr.Bytes()...), nil
 }
 
 type operatorOutput struct {
@@ -99,8 +117,8 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
 			phasePrefix + phasePreLoginAudit, phasePrefix + phaseLogin,
 			phasePrefix + phaseLoginApprove, phasePrefix + phaseLoginApproved,
-			phasePrefix + phasePostLoginAudit,
-			phasePrefix + phaseWorkers, phasePrefix + phaseRepeatApply,
+			phasePrefix + phasePostLoginAudit, phasePrefix + phaseAdminStatus,
+			phasePrefix + phaseWorkers, phasePrefix + phaseUpgrade,
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,
 			phasePrefix + phaseSourceVerify, phasePrefix + phaseNetworkPolicy,

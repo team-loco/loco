@@ -775,3 +775,14 @@ def test_crd_readiness_expression_survives_artifact_revision_changes(bundle):
     old = json.loads(bundle.files["all/crds.yaml"])
     new = json.loads(updated["all/crds.yaml"])
     assert old["spec"]["healthCheckExprs"] == new["spec"]["healthCheckExprs"]
+def test_local_source_uses_selected_checkout(monkeypatch, tmp_path):
+    source = tmp_path / "baseline"
+    source.mkdir()
+    monkeypatch.setattr(release, "ROOT", release.ROOT)
+    monkeypatch.setattr("sys.argv", ["release.py", "local", "--source", str(source),
+        "--repository", "example/platform", "--push", "localhost:15000", "--address", "registry.localhost",
+        "--username", "fixture", "--password", "fixture"])
+    with patch.object(release, "local_release") as publish:
+        release.main()
+    assert release.ROOT == source
+    publish.assert_called_once()

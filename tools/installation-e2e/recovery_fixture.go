@@ -27,7 +27,12 @@ const (
 	recoveryReadyTimeout = 2 * time.Minute
 )
 
-func restoreRecovery(ctx context.Context, material exportedMaterial, shares []string) error {
+func restoreRecovery(
+	ctx context.Context,
+	material exportedMaterial,
+	shares []string,
+	upgrade func(context.Context) error,
+) error {
 	var source, restored baoClient
 	var sourceForward, forward *exec.Cmd
 	var restoredInitialized bool
@@ -114,6 +119,10 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 		if err != nil {
 			return err
 		}
+		if err = verifyUpgrade(ctx, source, upgrade, paths); err != nil {
+			return err
+		}
+
 		if err = provisionRecovery(ctx, running.Spec.Containers[0].Image, keyID[1], material.SealKey); err != nil {
 			return err
 		}
@@ -405,4 +414,11 @@ func restartRestoredBao(ctx context.Context, client baoClient, forward *exec.Cmd
 	}
 	client.endpoint = "http://127.0.0.1:" + recoveryBaoPort
 	return forwardBao(ctx, client, recoveryNamespace, "pod/"+recoveryPod)
+}
+
+func verifyUpgrade(ctx context.Context, source baoClient, upgrade func(context.Context) error, paths [2]string) error {
+	if upgrade == nil {
+		return nil
+	}
+	return recoveryProof(ctx, source, &source, upgrade, paths[0], paths[1])
 }

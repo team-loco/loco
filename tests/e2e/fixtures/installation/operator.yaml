@@ -12,10 +12,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata: {name: installation, namespace: installation-fixtures}
 data:
-  loco-install.yaml: |
-{{ indent .Installation 4 }}
-  release.json: |
-{{ indent .Release 4 }}
+  previous: {{ .Previous | quote }}
+  current: {{ .Current | quote }}
   kubeconfig: |
     apiVersion: v1
     kind: Config

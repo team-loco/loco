@@ -18,6 +18,7 @@ func TestOperatorFailureReportsOnlyKnownPhase(t *testing.T) {
 		{"last-known", "installation-e2e phase: preflight\n" +
 			"installation-e2e phase: pre-login-audit\n" +
 			"installation-e2e phase: credential-canary\n", "pre-login-audit"},
+		{"administrator status", "installation-e2e phase: admin-status\n", phaseAdminStatus},
 		{"login-boundary", "installation-e2e phase: login-approved\ncredential-canary\n", phaseLoginApproved},
 		{"unknown-login", "installation-e2e phase: login-credential-canary\n", unknownPhase},
 		{"incomplete", "installation-e2e phase: pre-login-audit", unknownPhase},
@@ -25,7 +26,7 @@ func TestOperatorFailureReportsOnlyKnownPhase(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeOperatorCommand(t, `#!/bin/sh
 printf '%s' "$OPERATOR_TEST_OUTPUT"
-printf 'credential-canary' >&2
+printf 'operator request failed' >&2
 exit 1
 `)
 			t.Setenv("OPERATOR_TEST_OUTPUT", tc.output)
@@ -37,6 +38,19 @@ exit 1
 				t.Fatal("failed operator exposed raw output")
 			}
 		})
+	}
+}
+
+func TestOperatorFailureIncludesStderr(t *testing.T) {
+	fakeOperatorCommand(
+		t,
+		"#!/bin/sh\nprintf 'private-stdout'\nprintf 'device approval rejected: unavailable' >&2\nexit 1\n",
+	)
+	out, err := operatorWorkflow(t.Context(), t.TempDir())
+	if err == nil || !strings.Contains(err.Error(), "stderr: device approval rejected: unavailable") ||
+		strings.Contains(err.Error(), "private-stdout") ||
+		len(out) != 0 {
+		t.Fatalf("missing stderr or exposed stdout: %v", err)
 	}
 }
 
@@ -79,7 +93,7 @@ func TestHostAcceptsOnlyKnownLoginFailureCategories(t *testing.T) {
 			fakeOperatorCommand(t, `#!/bin/sh
 printf 'installation-e2e phase: login-approved\n'
 printf 'installation-e2e login failure: %s\n' "$LOGIN_FAILURE_TEST_MARKER"
-printf 'credential-canary' >&2
+printf 'operator request failed' >&2
 exit 1
 `)
 			t.Setenv("LOGIN_FAILURE_TEST_MARKER", tc.marker)

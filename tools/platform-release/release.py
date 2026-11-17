@@ -485,6 +485,7 @@ def local_release(registry, address, images=None):
 
 
 def main():
+    global ROOT
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest='command', required=True)
     artifacts = commands.add_parser('artifacts')
@@ -503,6 +504,7 @@ def main():
     local.add_argument('--address', required=True)
     local.add_argument('--username', required=True)
     local.add_argument('--password', required=True)
+    local.add_argument('--source', help='Checkout supplying the charts and images; uses this tooling to build its bundle')
     local.add_argument('--images', help='Local prebuilt image template, with * standing for the component name')
     check = commands.add_parser('check-versions')
     check.add_argument('--base', required=True)
@@ -516,6 +518,8 @@ def main():
         main_release(args.commit, Registry(args.repository, '', ''))
         return
     if args.command == 'local':
+        if args.source:
+            ROOT = Path(args.source).resolve()
         local_release(Registry(args.repository, args.username, args.password, args.push), args.address, args.images)
         return
     registry = Registry(args.repository, os.environ['GITHUB_ACTOR'], os.environ['GH_TOKEN'])

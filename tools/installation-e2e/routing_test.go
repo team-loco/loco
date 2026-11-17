@@ -19,7 +19,7 @@ func TestWorkerDNSRejectsMissingOrInvalidLoadBalancerAddress(t *testing.T) {
 			t.Setenv("FIXTURE_LB_ADDRESS", address)
 			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
 			defer cancel()
-			if err := configureGatewayDNS(ctx, workerNamespace, true); !errors.Is(err, errGatewayAddress) {
+			if err := configureGatewayDNS(ctx, true); !errors.Is(err, errGatewayAddress) {
 				t.Fatalf("invalid LoadBalancer address accepted: %v", err)
 			}
 		})
@@ -33,7 +33,7 @@ func TestGatewayDNSWaitsForMatchingAnswers(t *testing.T) {
 			fakeGatewayDNSCommands(t)
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
-			if err := configureGatewayDNS(ctx, controlNamespace, worker); err != nil {
+			if err := configureGatewayDNS(ctx, worker); err != nil {
 				t.Fatal(err)
 			}
 			if queries.Load() < 3 {

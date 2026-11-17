@@ -1,51 +1,49 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
+	yamlv3 "go.yaml.in/yaml/v3"
+
 	"sigs.k8s.io/yaml"
 )
 
-func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
-	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "loco-install.yaml")
-	if _, err := renderFixtureFile(path, map[string]any{"Version": 1}); err == nil {
-		t.Fatal("missing external cluster identity was accepted")
-	}
+func TestWorkerFluxValuesPreserveBuildNetworkInputs(t *testing.T) {
+	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "worker-values.yaml")
 	data, err := renderFixtureFile(
 		path,
-		map[string]any{
-			"Version":       json.Number("1"),
-			"ClusterUID":    "external-kind-uid",
-			"Email":         fixtureEmail,
-			"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}},
-		},
+		map[string]any{"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}}},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var installation struct {
-		Version int `json:"version"`
-		Workers []struct {
-			MetricsServer struct {
-				Enabled            bool `json:"enabled"`
-				KubeletInsecureTLS bool `json:"kubeletInsecureTLS"`
-			} `json:"metricsServer"`
-		} `json:"workers"`
+	var values struct {
+		MetricsServer struct {
+			Enabled bool     `json:"enabled"`
+			Args    []string `json:"args"`
+		} `json:"metrics-server"`
+		Builds struct {
+			PrivateEgress []struct {
+				CIDR string `json:"cidr"`
+				Port int    `json:"port"`
+			} `json:"privateEgress"`
+		} `json:"builds"`
 	}
-	if err := yaml.Unmarshal(data, &installation); err != nil {
+	if err = yaml.Unmarshal(data, &values); err != nil {
 		t.Fatal(err)
 	}
-	if installation.Version != 1 {
-		t.Fatalf("fixture version = %d, want integer 1", installation.Version)
-	}
-	if len(installation.Workers) != 1 || !installation.Workers[0].MetricsServer.Enabled ||
-		!installation.Workers[0].MetricsServer.KubeletInsecureTLS {
-		t.Fatal("kind worker must opt into unsigned kubelet serving certificates")
+	if !values.MetricsServer.Enabled || !slices.Contains(values.MetricsServer.Args, "--kubelet-insecure-tls") ||
+		len(values.Builds.PrivateEgress) != 1 ||
+		values.Builds.PrivateEgress[0].CIDR != "10.2.3.4/32" {
+		t.Fatalf("fixture values = %+v", values)
 	}
 }
 
@@ -127,4 +125,78 @@ func servicePodTemplates(t *testing.T, revision string) map[string]map[string]an
 		}
 	}
 	return templates
+}
+
+func TestFluxClusterConfigurationCarriesCredentialsAndValues(t *testing.T) {
+	data, err := renderFixtureFile(
+		filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "cluster-config.yaml"),
+		map[string]any{
+			"ControlPlane": "api: {systemAdmins: [dev@loco.test]}\n", "Worker": "cluster: {role: all}\n",
+			"SealKey": "rendered-seal-key", "ClickHouseUsers": []string{"migrator", "ingest", "reader"},
+			"PushAuth": "fixture-push", "PullAuth": "fixture-pull",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	objects := map[string]struct {
+		Kind     string `yaml:"kind"`
+		Metadata struct {
+			Name      string `yaml:"name"`
+			Namespace string `yaml:"namespace"`
+		} `yaml:"metadata"`
+		StringData map[string]string `yaml:"stringData"`
+		Data       map[string]string `yaml:"data"`
+	}{}
+	decoder := yamlv3.NewDecoder(bytes.NewReader(data))
+	for {
+		var object struct {
+			Kind     string `yaml:"kind"`
+			Metadata struct {
+				Name      string `yaml:"name"`
+				Namespace string `yaml:"namespace"`
+			} `yaml:"metadata"`
+			StringData map[string]string `yaml:"stringData"`
+			Data       map[string]string `yaml:"data"`
+		}
+		if err = decoder.Decode(&object); errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		objects[object.Metadata.Name] = object
+	}
+	if len(objects) != 10 {
+		t.Fatalf("configuration has %d resources, want 10", len(objects))
+	}
+	if objects["loco-openbao-seal"].StringData["key"] != "rendered-seal-key" {
+		t.Fatal("configuration lost seal material")
+	}
+	if objects["loco-worker-values"].Data["values.yaml"] != "cluster: {role: all}\n" {
+		t.Fatal("configuration changed worker values")
+	}
+	for _, role := range []string{"migrator", "ingest", "reader"} {
+		values := objects["loco-clickhouse-"+role].StringData
+		if values["password"] != "fixture-clickhouse-"+role ||
+			!strings.Contains(values["url"], "loco_"+role+":"+values["password"]+"@") {
+			t.Fatalf("configuration lost %s credentials", role)
+		}
+	}
+	for _, role := range []string{"push", "pull"} {
+		var config struct {
+			Auths map[string]struct {
+				Auth string `json:"auth"`
+			} `json:"auths"`
+		}
+		if err = json.Unmarshal(
+			[]byte(objects["loco-registry-"+role].StringData[".dockerconfigjson"]),
+			&config,
+		); err != nil {
+			t.Fatal(err)
+		}
+		if config.Auths[registryHost].Auth != "fixture-"+role {
+			t.Fatalf("configuration lost %s registry authentication", role)
+		}
+	}
 }
