@@ -127,6 +127,7 @@ export function TraceOverview({
 			{brush !== null && (
 				<span
 					aria-hidden
+					data-slot="chart-brush"
 					className="pointer-events-none absolute inset-y-0 border border-info/55 bg-info/12"
 					style={{ left: pct(Math.min(brush.x0, brush.x1)), width: pct(Math.abs(brush.x1 - brush.x0)) }}
 				/>
@@ -145,7 +146,7 @@ export function TraceOverview({
 	}
 
 	return (
-		<div className="relative grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
+		<div data-slot="trace-overview" className="relative grid grid-cols-2 gap-4 max-[900px]:grid-cols-1">
 			<OverviewCard
 				title="Traces"
 				value={loading ? undefined : formatCount(traces)}
@@ -176,12 +177,15 @@ export function TraceOverview({
 						<i
 							className={cn(
 								"block rounded-[1px] bg-err transition-[height] duration-300 motion-reduce:transition-none",
-								b.errors > 0 && "mb-px",
+								b.errors > 0 ? "mb-px" : "hidden",
 							)}
 							style={{ height: pct(b.errors / countMax) }}
 						/>
 						<i
-							className="block rounded-[1px] bg-lv-info transition-[height] duration-300 motion-reduce:transition-none"
+							className={cn(
+								"block rounded-[1px] bg-lv-info transition-[height] duration-300 motion-reduce:transition-none",
+								b.traces === b.errors && "hidden",
+							)}
 							style={{ height: pct((b.traces - b.errors) / countMax) }}
 						/>
 					</span>
@@ -247,7 +251,7 @@ function Swatch({ className, children }: { className: string; children: ReactNod
 	return (
 		<span className="inline-flex items-center gap-[5px] self-center text-[11.5px] text-fg3">
 			<span aria-hidden className="inline-flex h-2 items-center">
-				<i className={className} />
+				<i data-slot="chart-swatch" className={className} />
 			</span>
 			{children}
 		</span>

@@ -12,10 +12,9 @@ export const colorThemes = [
 	{ id: "loco", name: "Loco" },
 	{ id: "catppuccin", name: "Catppuccin" },
 	{ id: "rose-pine", name: "Rosé Pine" },
-	{ id: "gruvbox", name: "Gruvbox" },
-	{ id: "tokyo-night", name: "Tokyo Night" },
-	{ id: "paper", name: "Paper" },
-	{ id: "neobrutal", name: "Neobrutal" },
+	{ id: "solarized", name: "Solarized" },
+	{ id: "neobrutal", name: "Neobrutalism" },
+	{ id: "paper", name: "GitHub" },
 ] as const;
 export type ColorTheme = (typeof colorThemes)[number]["id"];
 export const defaultColorTheme = "loco" satisfies ColorTheme;
@@ -43,6 +42,7 @@ export function nextMode(mode: Mode): Mode {
 }
 
 export function parseColorTheme(value: string | null): ColorTheme {
+	if (value === "gruvbox") return "solarized";
 	return colorThemes.find((theme) => theme.id === value)?.id ?? defaultColorTheme;
 }
 

@@ -2,18 +2,16 @@ import dmSansLatinExt from "@fontsource-variable/dm-sans/files/dm-sans-latin-ext
 import dmSansLatin from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2" with { type: "file" };
 
 import catppuccin from "../themes/catppuccin.css" with { type: "file" };
-import gruvbox from "../themes/gruvbox.css" with { type: "file" };
+import solarized from "../themes/solarized.css" with { type: "file" };
 import neobrutal from "../themes/neobrutal.css" with { type: "file" };
 import paper from "../themes/paper.css" with { type: "file" };
 import rosePine from "../themes/rose-pine.css" with { type: "file" };
-import tokyoNight from "../themes/tokyo-night.css" with { type: "file" };
 import { defaultColorTheme, type ColorTheme } from "./theme";
 
 const stylesheets: Record<Exclude<ColorTheme, typeof defaultColorTheme>, string> = {
 	catppuccin,
 	"rose-pine": rosePine,
-	gruvbox,
-	"tokyo-night": tokyoNight,
+	solarized,
 	paper,
 	neobrutal,
 };

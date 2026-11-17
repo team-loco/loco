@@ -16,7 +16,7 @@ This guide is grounded in a production build at `5fe392bb`, reviewed against the
 
 ## Colors
 
-[`index.css`](web/src/index.css) owns the light/dark CSS variables and their Tailwind aliases. Use semantic classes through the design wrappers; this document explains their roles rather than maintaining another palette.
+[`theme.css`](web/src/theme.css) owns the default light/dark CSS variables; [`themes/`](web/src/themes/) owns palette overrides and theme-specific component rules. [`index.css`](web/src/index.css) maps the tokens to Tailwind aliases. Use semantic classes through the design wrappers; this document explains their roles rather than maintaining another palette.
 
 | Role | Tokens and treatment | Existing example |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ This guide is grounded in a production build at `5fe392bb`, reviewed against the
 | Status | `ok`, `info`, `warn`, `bad`, `neutral` background/foreground pairs | Healthy badge, managed configuration notice, warning and validation error |
 | Destructive action | The Button's destructive variants and DangerCard | Delete workspace, separated from normal settings |
 
-Use [StatusBadge](web/src/components/design/StatusBadge.tsx) for resource/deployment state and [Badge](web/src/components/design/Badge.tsx) for generic tones. Pair status color with a readable label or icon; a colored dot alone is insufficient. Theme changes preserve the meaning and contrast hierarchy, including overlays and disabled controls.
+Use [StatusBadge](web/src/components/design/StatusBadge.tsx) for resource/deployment state and [Badge](web/src/components/design/Badge.tsx) for generic tones. Pair status color with a readable label or icon; a colored dot alone is insufficient. Theme changes preserve the meaning and contrast hierarchy, including overlays and disabled controls. Solarized uses parchment and teal surfaces with monospace headings and double table rules. Neobrutalism uses hard borders and offset shadows, with cream outlines in dark mode. The Paper palette uses compact ruled tables.
 
 Service colors in traces identify services; error markers identify failures. Keep those roles separate. Trace colors come from [trace-service](web/src/pages/observability/trace-service.ts) and the theme's trace variables. Reuse the existing chart and trace styles rather than introducing a new chart palette.
 

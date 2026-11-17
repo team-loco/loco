@@ -32,22 +32,26 @@ describe("theme mode", () => {
 
 describe("page theme", () => {
 	test("the splash is light with the Loco theme for a signed-out visitor", () => {
-		expect(pageTheme("/", false, "dark", "gruvbox")).toEqual({ mode: "light", color: "loco" });
+		expect(pageTheme("/", false, "dark", "solarized")).toEqual({ mode: "light", color: "loco" });
 	});
 
 	test("a signed-in visitor on the splash keeps their theme while redirected into the app", () => {
-		expect(pageTheme("/", true, "dark", "gruvbox")).toEqual({ mode: "dark", color: "gruvbox" });
+		expect(pageTheme("/", true, "dark", "solarized")).toEqual({ mode: "dark", color: "solarized" });
 	});
 
 	test("app pages use the stored mode and colour theme", () => {
-		expect(pageTheme("/dashboard", false, "dark", "gruvbox")).toEqual({ mode: "dark", color: "gruvbox" });
+		expect(pageTheme("/dashboard", false, "dark", "solarized")).toEqual({ mode: "dark", color: "solarized" });
 		expect(pageTheme("/login", false, "dark", "rose-pine")).toEqual({ mode: "dark", color: "rose-pine" });
 	});
 });
 
 describe("colour theme", () => {
+	test("migrates a stored Gruvbox preference", () => {
+		expect(parseColorTheme("gruvbox")).toBe("solarized");
+	});
+
 	test("reads a stored colour theme", () => {
-		expect(parseColorTheme("gruvbox")).toBe("gruvbox");
+		expect(parseColorTheme("solarized")).toBe("solarized");
 		expect(parseColorTheme("rose-pine")).toBe("rose-pine");
 	});
 

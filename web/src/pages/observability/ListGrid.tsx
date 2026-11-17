@@ -6,12 +6,12 @@ import { clampWidth, type ColumnKey, type ColumnWidths } from "./columns";
 
 const RESIZE_STEP = 16;
 
-export const LIST_HEAD_CLASS = "grid h-[38px] items-center border-b border-line2 text-[12px] text-fg3";
+export const LIST_HEAD_CLASS = "list-head grid h-[38px] items-center border-b border-line2 text-[12px] text-fg3";
 
 /** The log and trace lists share one row look: zebra stripes, a hover fill and a raised selected row. */
 export function listRowClass(index: number, selected: boolean): string {
 	return cn(
-		"grid min-h-[34px] w-full items-center rounded-lg text-left text-[12px] transition-[background] duration-900 ease-out hover:bg-[var(--list-hover,var(--panel2))] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+		"list-row grid min-h-[34px] w-full items-center rounded-lg text-left text-[12px] transition-[background] duration-900 ease-out hover:bg-[var(--list-hover,var(--panel2))] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 		index % 2 === 1 && "bg-[color-mix(in_oklab,var(--panel2)_45%,transparent)]",
 		selected &&
 			"bg-[var(--list-selected,var(--bg))] shadow-[inset_0_0_0_1px_var(--list-ring,var(--line2))] hover:bg-[var(--list-selected,var(--bg))]",

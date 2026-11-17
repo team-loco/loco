@@ -283,7 +283,7 @@ def dashboard(page):
         state["dashboard_resources"] = True
         evidence.write_json(Path(args.state), state)
     evidence.psql(state["container"], f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END, ready=resources.name<>'dashboard-0', status_phase=CASE WHEN resources.name='dashboard-0' THEN 'Failed' ELSE 'Ready' END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');")
-    for color, mode in ((color, mode) for color in ("loco", "catppuccin", "neobrutal") for mode in ("light", "dark")):
+    for color, mode in ((color, mode) for color in ("loco", "catppuccin", "solarized", "paper", "neobrutal") for mode in ("light", "dark")):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
         # The authentication init script starts every navigation in light mode.
@@ -556,6 +556,7 @@ with session(out) as browser:
             expect(html).not_to_have_class(dark_class)
             colours = page.get_by_role("radiogroup", name="Color theme")
             loco = colours.get_by_role("radio", name="Loco", exact=True)
+            expect(colours.get_by_role("radio", name="Solarized", exact=True)).to_be_visible()
             loco.focus()
             page.keyboard.press("ArrowRight")
             catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)

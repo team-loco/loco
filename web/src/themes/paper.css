@@ -54,3 +54,52 @@
 	--series-2: #39c5cf;
 	--series-3: #db6d28;
 }
+
+[data-theme="paper"] {
+	& :is([data-slot="toggle-group-item"], [data-slot="tabs-trigger"]) {
+		font-weight: inherit;
+	}
+	& :is([data-slot="table-header"], .list-head) {
+		background: var(--panel);
+		font-weight: 600;
+		color: var(--fg3);
+	}
+	& [data-slot="table-head"] {
+		font-weight: 600;
+	}
+	& .list-head {
+		height: 40px;
+		margin-bottom: 0;
+	}
+	& .list-head [role="separator"]::after {
+		background: transparent;
+	}
+	& .list-head:hover [role="separator"]::after {
+		background: var(--line2);
+	}
+	& :is(.list-head, .list-row) > span {
+		padding-inline: 8px;
+	}
+	& :has(> .list-row) {
+		gap: 0;
+		padding-top: 0;
+	}
+	& .list-row {
+		min-height: 36px;
+		border-bottom: 1px solid var(--line);
+		border-radius: 0;
+		background: transparent;
+	}
+	& .list-row:hover {
+		background: var(--panel);
+	}
+	& .list-row[aria-pressed="true"] {
+		background: color-mix(in oklch, var(--brand) 7%, var(--bg));
+		box-shadow: inset 2px 0 var(--brand);
+	}
+	& .rounded-card {
+		border: 1px solid var(--line2);
+		border-radius: 6px;
+		background: var(--bg);
+	}
+}
