@@ -345,11 +345,12 @@ func buildServices(
 		}
 		fmt.Fprintf(out, "Building %s from %s in %s\n", target.name, target.dockerfile, target.context)
 		build, buildErr := builder.Start(ctx, sourcebuild.Input{
-			ResourceID: res.GetId(),
-			Archive:    archive,
-			Commit:     commit,
-			Dockerfile: target.dockerfile,
-			Context:    target.context,
+			OriginEnvironmentID: t.Environment.GetId(),
+			ResourceID:          res.GetId(),
+			Archive:             archive,
+			Commit:              commit,
+			Dockerfile:          target.dockerfile,
+			Context:             target.context,
 		})
 		if buildErr != nil {
 			return nil, buildErr

@@ -140,6 +140,22 @@ func (s *BuildServer) CreateBuild(
 		return nil, fmt.Errorf("get resource %s: %w", resourceID, err)
 	}
 
+	var originEnvironmentID *uuid.UUID
+	if req.OriginEnvironmentId != nil {
+		originID, originErr := parseID("origin_environment_id", req.GetOriginEnvironmentId())
+		if originErr != nil {
+			return nil, originErr
+		}
+		origin, originErr := s.queries.GetEnvironmentByID(ctx, originID)
+		if errors.Is(originErr, pgx.ErrNoRows) || (originErr == nil && origin.WorkspaceID != resource.WorkspaceID) {
+			return nil, ErrEnvironmentNotFound
+		}
+		if originErr != nil {
+			return nil, fmt.Errorf("get build origin: %w", originErr)
+		}
+		originEnvironmentID = &originID
+	}
+
 	buildID, err := uuid.NewV7()
 	if err != nil {
 		return nil, fmt.Errorf("generate build id: %w", err)
@@ -173,20 +189,21 @@ func (s *BuildServer) CreateBuild(
 	}
 	createErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, err := qtx.CreateBuild(ctx, genDb.CreateBuildParams{
-			ID:               buildID,
-			ResourceID:       resource.ID,
-			SourceType:       buildSourceTypeUpload,
-			SourceKey:        sourceKey,
-			SourceSize:       sourceSize,
-			DockerfilePath:   dockerfilePath,
-			Context:          buildContext,
-			ImageRepository:  repository,
-			Platform:         string(s.config.TargetPlatform),
-			CreatedBy:        p.ActorID,
-			ApiTokenID:       apiTokenID,
-			GitCommit:        req.GitCommit,
-			GitBranch:        req.GitBranch,
-			GitCommitMessage: gitCommitMessage,
+			ID:                  buildID,
+			ResourceID:          resource.ID,
+			OriginEnvironmentID: originEnvironmentID,
+			SourceType:          buildSourceTypeUpload,
+			SourceKey:           sourceKey,
+			SourceSize:          sourceSize,
+			DockerfilePath:      dockerfilePath,
+			Context:             buildContext,
+			ImageRepository:     repository,
+			Platform:            string(s.config.TargetPlatform),
+			CreatedBy:           p.ActorID,
+			ApiTokenID:          apiTokenID,
+			GitCommit:           req.GitCommit,
+			GitBranch:           req.GitBranch,
+			GitCommitMessage:    gitCommitMessage,
 		}); err != nil {
 			return fmt.Errorf("create build: %w", err)
 		}
@@ -194,11 +211,12 @@ func (s *BuildServer) CreateBuild(
 			return err
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.BuildCreated,
-			WorkspaceID: new(resource.WorkspaceID),
-			ResourceID:  new(resource.ID),
-			SubjectType: events.SubjectBuild,
-			SubjectID:   new(buildID),
+			Type:          events.BuildCreated,
+			EnvironmentID: originEnvironmentID,
+			WorkspaceID:   new(resource.WorkspaceID),
+			ResourceID:    new(resource.ID),
+			SubjectType:   events.SubjectBuild,
+			SubjectID:     new(buildID),
 			Data: map[string]any{
 				events.FieldResourceID: resource.ID.String(),
 				events.FieldSourceSize: sourceSize,
@@ -389,10 +407,11 @@ func queueBuild(
 			supersededIDs[i] = source.id.String()
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.BuildStarted,
-			ResourceID:  new(resourceID),
-			SubjectType: events.SubjectBuild,
-			SubjectID:   new(buildID),
+			Type:          events.BuildStarted,
+			EnvironmentID: build.OriginEnvironmentID,
+			ResourceID:    new(resourceID),
+			SubjectType:   events.SubjectBuild,
+			SubjectID:     new(buildID),
 			Data: map[string]any{
 				events.FieldResourceID: resourceID.String(),
 				events.FieldClusterID:  clusterID.String(),
@@ -461,11 +480,21 @@ func (s *BuildServer) ListBuilds(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
+	var originEnvironmentID *uuid.UUID
+	if req.OriginEnvironmentId != nil {
+		originID, originErr := parseID("origin_environment_id", req.GetOriginEnvironmentId())
+		if originErr != nil {
+			return nil, originErr
+		}
+		originEnvironmentID = &originID
+	}
+
 	rows, err := s.queries.ListBuildsForResource(ctx, genDb.ListBuildsForResourceParams{
-		ResourceID:    resourceID,
-		Limit:         pageSize,
-		PageToken:     cursor.ID,
-		PageCreatedAt: cursor.CreatedAt,
+		ResourceID:          resourceID,
+		OriginEnvironmentID: originEnvironmentID,
+		Limit:               pageSize,
+		PageToken:           cursor.ID,
+		PageCreatedAt:       cursor.CreatedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("list builds of resource %s: %w", resourceID, err)
@@ -539,11 +568,12 @@ func cancelBuild(
 			}
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.BuildCanceled,
-			ResourceID:  new(resourceID),
-			SubjectType: events.SubjectBuild,
-			SubjectID:   new(buildID),
-			Data:        map[string]any{events.FieldResourceID: resourceID.String()},
+			Type:          events.BuildCanceled,
+			EnvironmentID: row.OriginEnvironmentID,
+			ResourceID:    new(resourceID),
+			SubjectType:   events.SubjectBuild,
+			SubjectID:     new(buildID),
+			Data:          map[string]any{events.FieldResourceID: resourceID.String()},
 		})
 	})
 	if err != nil {
@@ -619,6 +649,10 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 		GitCommit:        b.GitCommit,
 		GitBranch:        b.GitBranch,
 		GitCommitMessage: b.GitCommitMessage,
+	}
+	if b.OriginEnvironmentID != nil {
+		originID := b.OriginEnvironmentID.String()
+		out.OriginEnvironmentId = &originID
 	}
 	if b.ClusterID != nil {
 		clusterID := b.ClusterID.String()

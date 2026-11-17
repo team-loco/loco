@@ -3,7 +3,7 @@
 fakeapi resource web
 fakeapi plan plan.json
 cd app
-exec loco deploy --yes
+exec loco deploy --yes --env production
 stdout '^Plan for loco.yaml against environment revision 7\.$'
 stdout '^  ~ web  \(needs deploy\)$'
 stdout '^Packed 5 files from \. \('
@@ -28,6 +28,12 @@ fakeapi called StartBuild 'Bearer test-token'
 ! fakeapi called GetBuild
 fakeapi applied 7
 fakeapi built web Dockerfile .
+
+# Build origin follows the resolved deploy environment; details remain addressable by build ID.
+exec loco builds get 0199b6c4-5d1e-7f00-8000-000000000001
+stdout '^Origin environment: +00000000-0000-7000-8000-0000000000e1$'
+exec loco builds get 0199b6c4-5d1e-7f00-8000-000000000001 --output json
+stdout '"originEnvironmentId":"00000000-0000-7000-8000-0000000000e1"'
 ! fakeapi called CreateResource
 
 -- home/.loco/credentials.json --

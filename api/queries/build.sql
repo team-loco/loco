@@ -1,8 +1,8 @@
 -- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    api_token_id, git_commit, git_branch, git_commit_message, platform)
+                    api_token_id, git_commit, git_branch, git_commit_message, platform, origin_environment_id)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
-        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.arg(platform))
+        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.arg(platform), sqlc.narg(origin_environment_id))
 RETURNING *;
 
 -- name: GetBuildByID :one
@@ -11,6 +11,8 @@ SELECT * FROM builds WHERE id = $1;
 -- name: ListBuildsForResource :many
 SELECT * FROM builds b
 WHERE b.resource_id = $1
+  AND (sqlc.narg(origin_environment_id)::uuid IS NULL
+       OR b.origin_environment_id = sqlc.narg(origin_environment_id))
   AND (sqlc.narg('page_token')::text IS NULL
        OR (b.created_at, b.id) < (
          sqlc.narg('page_created_at')::timestamptz,
@@ -56,11 +58,11 @@ SET status = 'canceled',
     finished_at = NOW()
 WHERE id = sqlc.arg(id)
   AND status IN ('awaiting_upload', 'queued', 'running')
-RETURNING id, cluster_id, source_key;
+RETURNING id, cluster_id, source_key, origin_environment_id;
 
 -- name: GetBuildCreator :one
 -- creator_* is NULL when the creating user no longer exists.
-SELECT b.created_by, b.api_token_id, r.name AS resource_name,
+SELECT b.created_by, b.api_token_id, b.origin_environment_id, r.name AS resource_name,
        u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
 FROM builds b
 JOIN resources r ON r.id = b.resource_id

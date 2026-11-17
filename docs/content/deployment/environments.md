@@ -26,7 +26,9 @@ LOCO_WORKSPACE=my-team LOCO_ENV=production loco infra plan
 
 With a user session, `--workspace` overrides `LOCO_WORKSPACE`, which overrides the workspace saved by `loco use`. [API tokens](../operations/access.md#deploy-from-ci-with-an-api-token) require an explicit workspace ID. `--env` overrides `LOCO_ENV` and both accept an environment name or ID. Without either, a workspace with a single environment uses it, and a workspace with several asks in a terminal and fails otherwise.
 
-The same `loco.yaml` serves every environment. A service's `environments` block overrides its fields for one environment, or turns the service off there with `enabled: false`; see [loco.yaml](loco-yaml.md#environment-overrides). Staging and production keep separate resources and deployment history.
+The same `loco.yaml` serves every environment. A service's `environments` block overrides its fields for one environment, or turns the service off there with `enabled: false`; see [loco.yaml](loco-yaml.md#environment-overrides). Staging and production share resource identities and keep separate runtime configuration, workloads and deployment history.
+
+Source builds started by `loco deploy` record the selected environment. The dashboard shows those builds and their activity in that environment. A build's image remains reusable in other environments; a deployment can still open its source build and logs there. Builds created through the API without an origin appear only in unfiltered build history, including `loco builds list`.
 
 While a deployment is pending or rolling out, Loco rejects scaling, replacement deployments, runtime configuration changes and secret changes for the affected service and environment with `failed_precondition`. A regional scaling or deployment request checks only its target regions. Other services and environments remain available for changes.
 

@@ -214,6 +214,7 @@ func writeBuildDetails(out io.Writer, build *buildv1.Build) error {
 	rows := [][2]string{
 		{"ID", build.GetId()},
 		{"Service", build.GetResourceId()},
+		{"Origin environment", build.GetOriginEnvironmentId()},
 		{"Status", sourcebuild.StatusLabel(status)},
 		{"Message", build.GetMessage()},
 		{"Dockerfile", build.GetDockerfilePath()},

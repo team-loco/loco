@@ -23,18 +23,14 @@ export const ENVIRONMENT_EVENT_TYPES = [
 	"resource.restarted",
 	"deployment.created",
 	"resource.scaled",
-];
-
-/** Build events have no environment; keep rollout outcomes in their existing query group. */
-export const ROLLOUT_EVENT_TYPES = [
-	"deployment.ready",
-	"deployment.failed",
 	"build.created",
 	"build.started",
 	"build.succeeded",
 	"build.failed",
 	"build.canceled",
 ];
+
+export const ROLLOUT_EVENT_TYPES = ["deployment.ready", "deployment.failed"];
 
 export function runtimeEvent(event: Event): RuntimeEvent {
 	const field = (key: string): string => {
@@ -55,4 +51,15 @@ export function runtimeEvent(event: Event): RuntimeEvent {
 		memory: field("memory"),
 		timestamp: event.createdAt,
 	};
+}
+
+/** Unknown build origins belong only to unfiltered history. */
+export function eventInEnvironment(
+	event: Pick<RuntimeEvent, "type" | "environmentId">,
+	environmentId: string,
+): boolean {
+	return (
+		event.environmentId === environmentId ||
+		(event.environmentId === "" && !ENVIRONMENT_EVENT_TYPES.includes(event.type))
+	);
 }

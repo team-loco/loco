@@ -1,3 +1,4 @@
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
@@ -121,9 +122,15 @@ function Detail({
 	canWrite: boolean;
 	onCancel: () => void;
 }) {
+	const { environments } = useEnvironments();
+	const origin =
+		environments.find((environment) => environment.id === build.originEnvironmentId)?.name ??
+		build.originEnvironmentId ??
+		"Not recorded";
 	const message = buildMessage(build);
 	const facts: [string, string][] = [
 		["Build ID", build.id],
+		["Origin environment", origin],
 		["Dockerfile", build.dockerfilePath],
 		["Context", build.context === "" ? "." : build.context],
 		["Source", build.sourceType],

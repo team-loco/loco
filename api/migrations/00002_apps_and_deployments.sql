@@ -350,6 +350,8 @@ CREATE TABLE
     builds (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
+        -- Historical context survives environment deletion, like events.environment_id.
+        origin_environment_id UUID,
         cluster_id UUID REFERENCES clusters (id) ON DELETE SET NULL,
         status build_status NOT NULL,
         source_type TEXT NOT NULL CHECK (source_type IN ('upload')),
