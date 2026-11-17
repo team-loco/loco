@@ -228,7 +228,6 @@ CREATE TABLE
         commit_dirty BOOLEAN NOT NULL DEFAULT false,
         secret_names TEXT[] NOT NULL DEFAULT '{}',
         activity_seq BIGINT NOT NULL DEFAULT 0,
-        problem JSONB,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,

@@ -75,7 +75,8 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 		Problem: &agentv1.ProblemReport{Reason: "crash_loop", Detail: "exit 1"}}
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	var detail string
-	if err := f.pool.QueryRow(ctx, `SELECT problem->>'detail' FROM deployments WHERE id=$1`, id).
+	if err := f.pool.QueryRow(ctx, `SELECT snapshot->'problem'->>'detail' FROM deployment_rollouts
+ WHERE deployment_id=$1 ORDER BY revision DESC LIMIT 1`, id).
 		Scan(&detail); err != nil ||
 		detail != "exit 1" {
 		t.Fatalf("problem detail=%q %v", detail, err)
@@ -87,7 +88,8 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	var cleared bool
-	if err := f.pool.QueryRow(ctx, `SELECT problem IS NULL FROM deployments WHERE id=$1`, id).
+	if err := f.pool.QueryRow(ctx, `SELECT snapshot->'problem' IS NULL FROM deployment_rollouts
+ WHERE deployment_id=$1 ORDER BY revision DESC LIMIT 1`, id).
 		Scan(&cleared); err != nil ||
 		!cleared {
 		t.Fatalf("clear=%v %v", cleared, err)

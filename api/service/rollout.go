@@ -168,9 +168,6 @@ func ingestRollout(
 	revision int64,
 	report *agentv1.PlacementStatus,
 ) error {
-	if !validRolloutReport(ctx, report) {
-		return nil
-	}
 	if err := qtx.OpenRollout(
 		ctx,
 		genDb.OpenRolloutParams{DeploymentID: deploymentID, Revision: revision},

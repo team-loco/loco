@@ -544,7 +544,6 @@ type Deployment struct {
 	CommitDirty   bool                `json:"commitDirty"`
 	SecretNames   []string            `json:"secretNames"`
 	ActivitySeq   int64               `json:"activitySeq"`
-	Problem       []byte              `json:"problem"`
 	CreatedAt     time.Time           `json:"createdAt"`
 	StartedAt     *time.Time          `json:"startedAt"`
 	CompletedAt   *time.Time          `json:"completedAt"`

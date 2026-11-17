@@ -102,7 +102,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, problem, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
 ORDER BY created_at DESC
 LIMIT 1
@@ -136,7 +136,6 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 		&i.CommitDirty,
 		&i.SecretNames,
 		&i.ActivitySeq,
-		&i.Problem,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
@@ -167,7 +166,7 @@ func (q *Queries) GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDepl
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, problem, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -192,7 +191,6 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.CommitDirty,
 		&i.SecretNames,
 		&i.ActivitySeq,
-		&i.Problem,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
@@ -300,7 +298,7 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error
 }
 
 const listActiveDeploymentsForEnvironment = `-- name: ListActiveDeploymentsForEnvironment :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, problem, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE environment_id = $1 AND is_active = true
 ORDER BY resource_id, created_at DESC
 `
@@ -333,7 +331,6 @@ func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, envir
 			&i.CommitDirty,
 			&i.SecretNames,
 			&i.ActivitySeq,
-			&i.Problem,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.CompletedAt,
@@ -350,7 +347,7 @@ func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, envir
 }
 
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, problem, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
@@ -383,7 +380,6 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 			&i.CommitDirty,
 			&i.SecretNames,
 			&i.ActivitySeq,
-			&i.Problem,
 			&i.CreatedAt,
 			&i.StartedAt,
 			&i.CompletedAt,
@@ -400,7 +396,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.problem, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -486,7 +482,6 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.CommitDirty,
 			&i.Deployment.SecretNames,
 			&i.Deployment.ActivitySeq,
-			&i.Deployment.Problem,
 			&i.Deployment.CreatedAt,
 			&i.Deployment.StartedAt,
 			&i.Deployment.CompletedAt,
@@ -506,7 +501,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 }
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.problem, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -592,7 +587,6 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.CommitDirty,
 			&i.Deployment.SecretNames,
 			&i.Deployment.ActivitySeq,
-			&i.Deployment.Problem,
 			&i.Deployment.CreatedAt,
 			&i.Deployment.StartedAt,
 			&i.Deployment.CompletedAt,
@@ -698,21 +692,6 @@ func (q *Queries) PruneDeploymentHistory(ctx context.Context, arg PruneDeploymen
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const setDeploymentProblem = `-- name: SetDeploymentProblem :exec
-UPDATE deployments SET problem = $1::jsonb
-WHERE id = $2 AND problem IS DISTINCT FROM $1::jsonb
-`
-
-type SetDeploymentProblemParams struct {
-	Problem []byte    `json:"problem"`
-	ID      uuid.UUID `json:"id"`
-}
-
-func (q *Queries) SetDeploymentProblem(ctx context.Context, arg SetDeploymentProblemParams) error {
-	_, err := q.db.Exec(ctx, setDeploymentProblem, arg.Problem, arg.ID)
-	return err
 }
 
 const supersedePreviousDeployments = `-- name: SupersedePreviousDeployments :exec

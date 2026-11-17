@@ -161,10 +161,6 @@ WHERE d.id IN (
   AND d.status IN ('superseded', 'failed', 'canceled')
   AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id);
 
--- name: SetDeploymentProblem :exec
-UPDATE deployments SET problem = sqlc.narg(problem)::jsonb
-WHERE id = sqlc.arg(id) AND problem IS DISTINCT FROM sqlc.narg(problem)::jsonb;
-
 -- name: SupersedePreviousDeployments :exec
 UPDATE deployments old SET status = 'superseded', completed_at = NOW(), updated_at = NOW()
 FROM deployments current

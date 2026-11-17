@@ -6,10 +6,6 @@ import (
 )
 
 func nextDeploymentStatus(previous genDb.DeploymentStatus, report *agentv1.PlacementStatus) genDb.DeploymentStatus {
-	switch previous {
-	case genDb.DeploymentStatusCanceled, genDb.DeploymentStatusSuperseded:
-		return previous
-	}
 	if report.GetAvailable() {
 		return genDb.DeploymentStatusRunning
 	}

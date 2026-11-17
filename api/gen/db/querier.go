@@ -255,7 +255,7 @@ type Querier interface {
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
-	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (MarkPlacementAppliedRow, error)
+	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
@@ -299,7 +299,6 @@ type Querier interface {
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
-	SetDeploymentProblem(ctx context.Context, arg SetDeploymentProblemParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error

@@ -489,7 +489,7 @@ func (q *Queries) LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (
 	return sync_generation, err
 }
 
-const markPlacementApplied = `-- name: MarkPlacementApplied :one
+const markPlacementApplied = `-- name: MarkPlacementApplied :exec
 UPDATE placements
 SET applied_revision = desired_revision,
     applied_at = NOW(),
@@ -499,8 +499,6 @@ SET applied_revision = desired_revision,
     apply_failed = false,
     updated_at = NOW()
 WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_deleted
-RETURNING deployment_id,
-          resource_suspended(placements.resource_id)::boolean AS suspended
 `
 
 type MarkPlacementAppliedParams struct {
@@ -509,16 +507,9 @@ type MarkPlacementAppliedParams struct {
 	DesiredRevision int64     `json:"desiredRevision"`
 }
 
-type MarkPlacementAppliedRow struct {
-	DeploymentID *uuid.UUID `json:"deploymentId"`
-	Suspended    bool       `json:"suspended"`
-}
-
-func (q *Queries) MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (MarkPlacementAppliedRow, error) {
-	row := q.db.QueryRow(ctx, markPlacementApplied, arg.ID, arg.ClusterID, arg.DesiredRevision)
-	var i MarkPlacementAppliedRow
-	err := row.Scan(&i.DeploymentID, &i.Suspended)
-	return i, err
+func (q *Queries) MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error {
+	_, err := q.db.Exec(ctx, markPlacementApplied, arg.ID, arg.ClusterID, arg.DesiredRevision)
+	return err
 }
 
 const markPlacementDeleted = `-- name: MarkPlacementDeleted :many

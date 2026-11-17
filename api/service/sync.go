@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -495,19 +494,10 @@ func (s *AgentServer) advancePastRevision(
 }
 
 func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uuid.UUID, revision int64) {
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, markErr := qtx.MarkPlacementApplied(ctx, genDb.MarkPlacementAppliedParams{
-			ID:              placementID,
-			ClusterID:       clusterID,
-			DesiredRevision: revision,
-		})
-		if errors.Is(markErr, pgx.ErrNoRows) {
-			return nil
-		}
-		if markErr != nil {
-			return fmt.Errorf("mark placement applied: %w", markErr)
-		}
-		return nil
+	err := s.queries.MarkPlacementApplied(ctx, genDb.MarkPlacementAppliedParams{
+		ID:              placementID,
+		ClusterID:       clusterID,
+		DesiredRevision: revision,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record applied placement",
@@ -707,29 +697,12 @@ func (s *AgentServer) recordStatus(
 				return transitionErr
 			}
 		}
-		var problemData []byte
-		if status.GetProblem() != nil {
-			data, encodeErr := json.Marshal(status.GetProblem())
-			if encodeErr != nil {
-				return fmt.Errorf("encode deployment problem: %w", encodeErr)
-			}
-			problemData = data
-		}
-		if problemErr := qtx.SetDeploymentProblem(
-			ctx,
-			genDb.SetDeploymentProblemParams{ID: deployment.ID, Problem: problemData},
-		); problemErr != nil {
-			return fmt.Errorf("store deployment problem: %w", problemErr)
-		}
 		if next == genDb.DeploymentStatusRunning {
 			if supersedeErr := qtx.SupersedePreviousDeployments(ctx, deployment.ID); supersedeErr != nil {
 				return fmt.Errorf("supersede deployments: %w", supersedeErr)
 			}
 			reason := status.GetProblem().GetReason()
-			message := ""
-			if reason != "" {
-				message, _ = locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
-			}
+			message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
 			changed, changeErr := qtx.ChangePlacementRuntimeCondition(ctx, genDb.ChangePlacementRuntimeConditionParams{
 				ID: placementID, Reason: reason, Message: message,
 			})

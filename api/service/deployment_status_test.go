@@ -23,8 +23,6 @@ func TestNextDeploymentStatus(t *testing.T) {
 		{"running unhealthy", genDb.DeploymentStatusRunning, genDb.DeploymentStatusRunning, false, false},
 		{"restart waits", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusDeploying, false, false},
 		{"restart ready", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusRunning, true, false},
-		{"canceled final", genDb.DeploymentStatusCanceled, genDb.DeploymentStatusCanceled, true, false},
-		{"superseded final", genDb.DeploymentStatusSuperseded, genDb.DeploymentStatusSuperseded, true, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			got := nextDeploymentStatus(

@@ -77,7 +77,7 @@ WHERE cluster_id = $1 AND id = ANY(sqlc.arg(ids)::uuid[])
   AND NOT apply_failed
   AND (retry_after IS NULL OR retry_after <= NOW());
 
--- name: MarkPlacementApplied :one
+-- name: MarkPlacementApplied :exec
 UPDATE placements
 SET applied_revision = desired_revision,
     applied_at = NOW(),
@@ -86,9 +86,7 @@ SET applied_revision = desired_revision,
     apply_attempts = 0,
     apply_failed = false,
     updated_at = NOW()
-WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_deleted
-RETURNING deployment_id,
-          resource_suspended(placements.resource_id)::boolean AS suspended;
+WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_deleted;
 
 -- name: SetPlacementApplyError :one
 WITH policy AS (
