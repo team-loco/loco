@@ -58,9 +58,9 @@ Open `/` on the API host to browse the schema and try unary RPCs with Scalar. Th
 curl --fail https://api.loco.build/openapi.json -o openapi.json
 ```
 
-Settings update requests use optional fields. Omitted fields and JSON `null` preserve the stored value. An explicit empty description clears it; an empty profile name or avatar URL clears that field. Organization, workspace, environment and application names must remain nonempty. An explicitly unspecified environment type is invalid.
+Settings update requests use optional fields. Omitted fields and JSON `null` preserve the stored value. An explicit empty description clears it; an empty profile name or avatar URL clears that field. Organization, workspace, environment and application names must remain nonempty.
 
-`ClusterAdminService.CreateCluster` requires a UUID `request_id`. Persist it before sending and reuse it to recover a lost response. A retry returns the same cluster ID; changed name, region or tier, or a removed cluster, fails. Pending enrollment gets a new join token, invalidating the previous token. An enrolled cluster returns no join token and keeps its agent identity. `locoadm cluster create` generates a fresh request ID for each invocation. Administrative cluster reads include `role`, which the agent reports from its install: `apps`, `builds` or `all`.
+`ClusterAdminService.CreateCluster` requires a UUID `request_id`. Persist it before sending and reuse it to recover a lost response. A retry returns the same cluster ID; changed name or region, or a removed cluster, fails. Pending enrollment gets a new join token, invalidating the previous token. An enrolled cluster returns no join token and keeps its agent identity. `locoadm cluster create` generates a fresh request ID for each invocation. Administrative cluster reads include `role`, which the agent reports from its install: `apps`, `builds` or `all`.
 
 `ClusterAdminService.CreateCluster` and `IssueJoinToken` accept an optional positive `ttl` duration, bounded by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` (default `168h`). Omission uses `LOCO_CLUSTER_JOIN_TOKEN_TTL` (default `1h`).
 
@@ -85,7 +85,7 @@ The command generates the static seal key and writes it and the supplied API env
 `locoadm cluster create` and `cluster join-token` accept `--kube-context CONTEXT` to write the token directly to the worker and print only a confirmation. Bootstrap Flux first; the bundle must create the target namespace. `--ttl` sets its lifetime. `-o secret` prints a plaintext Kubernetes Secret manifest for operator-managed delivery and is mutually exclusive with `--kube-context`. Default output is JSON. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. For an expired pending token, re-run `cluster join-token CLUSTER_UUID --kube-context CONTEXT`.
 
 ```sh
-locoadm cluster create --name worker-staging --region example-east --tier staging \
+locoadm cluster create --name worker-staging --region example-east \
   --kube-context worker-staging
 ```
 

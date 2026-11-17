@@ -78,9 +78,8 @@ func ResolveEnvironment(
 	options := make([]ui.SelectOption, len(environments))
 	for i, env := range environments {
 		label := env.GetName()
-		tier := env.GetType().String()
 		id := env.GetId()
-		options[i] = ui.SelectOption{Label: label, Description: tier, Value: id}
+		options[i] = ui.SelectOption{Label: label, Description: env.GetDescription(), Value: id}
 	}
 	selected, err := ui.SelectFromList("Select the environment to deploy to", options)
 	if err != nil {

@@ -1,5 +1,5 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { EnvironmentType, type Environment } from "@gen/loco/environment/v1/environment_pb";
+import { type Environment } from "@gen/loco/environment/v1/environment_pb";
 import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
@@ -41,9 +41,7 @@ export function useEnvironments() {
 
 	const requested = envParam ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
 	const active: Environment | undefined =
-		environments.find((e) => e.name === requested || e.id === requested) ??
-		environments.find((e) => e.type === EnvironmentType.PRODUCTION) ??
-		environments[0];
+		environments.find((e) => e.name === requested || e.id === requested) ?? environments[0];
 
 	const setActive = (env: Environment) => {
 		if (activeWorkspaceId !== null) writeStorage(storageKey(activeWorkspaceId), env.name);
@@ -67,15 +65,4 @@ export function useEnvironmentInUrl() {
 	useEffect(() => {
 		if (!isLoading && name !== undefined && env !== name) void setEnv(name, { history: "replace" });
 	}, [isLoading, name, env, setEnv]);
-}
-
-export function environmentTypeLabel(type: EnvironmentType): string {
-	switch (type) {
-		case EnvironmentType.PRODUCTION:
-			return "production";
-		case EnvironmentType.STAGING:
-			return "staging";
-		case EnvironmentType.UNSPECIFIED:
-			return "";
-	}
 }

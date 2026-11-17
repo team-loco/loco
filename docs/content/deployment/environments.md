@@ -2,7 +2,7 @@
 title: "Environments"
 ---
 
-An environment separates an application's staging and production targets. Select the API instance first, then the workspace and environment within that instance.
+An environment separates an application's configuration, secrets and deployment history within a workspace. Each new workspace starts with an environment named `production`. Add environments with names such as `staging` or `preview` in workspace settings; names do not select a cluster tier. Select the API instance first, then the workspace and environment within that instance.
 
 ## Loco's hosted endpoints
 
