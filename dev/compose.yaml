@@ -7,6 +7,7 @@ x-postgres-env: &postgres-env
 
 services:
   postgres:
+    restart: unless-stopped
     image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
     environment: *postgres-env
     ports:
@@ -22,6 +23,7 @@ services:
       start_interval: 1s
 
   valkey:
+    restart: unless-stopped
     image: valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
     ports:
       - "${VALKEY_PORT:-6379}:6379"
@@ -32,6 +34,7 @@ services:
       retries: 30
 
   registry:
+    restart: unless-stopped
     image: ghcr.io/project-zot/zot:v2.1.23@sha256:9d3de83ac2099e6f4843045b4c9b65b7e8baf40f92d28f54906dee9d4d390fd7
     ports:
       - "${REGISTRY_PORT:-5001}:5000"
@@ -41,6 +44,7 @@ services:
       - registry-data:/var/lib/registry
 
   s3:
+    restart: unless-stopped
     image: versity/versitygw:v1.10.0@sha256:89cad13cc981986ee284cbafea4613f9533ce6fd5f37a2c96c4c4fb8adb3a316
     environment:
       ROOT_ACCESS_KEY: ${LOCO_SOURCE_BUCKET_ACCESS_KEY_ID:-loco-dev}
@@ -59,6 +63,7 @@ services:
         exec versitygw posix /data
 
   dex:
+    restart: unless-stopped
     image: ghcr.io/dexidp/dex:v2.46.1@sha256:65b72ca0f4b0bf6d4ada84ec21da8851782563404ac7b8f926923d27ceced9ab
     command: ["dex", "serve", "/etc/dex/config.yaml"]
     ports:
@@ -77,6 +82,7 @@ services:
       retries: 30
 
   openbao:
+    restart: unless-stopped
     extends:
       file: ../tests/conformance/transit/compose.yaml
       service: openbao
