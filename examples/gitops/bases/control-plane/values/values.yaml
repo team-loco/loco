@@ -1,0 +1,13 @@
+api:
+  existingSecret: loco-api-env
+  registry:
+    auth: token
+clickhouse:
+  enabled: true
+openbao:
+  seal:
+    static:
+      existingSecret:
+        name: openbao-seal
+  snapshots:
+    enabled: false

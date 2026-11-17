@@ -1,8 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../releases/workers-staging.yaml
-  - loco.yaml
+  - ../../bases/worker
 configMapGenerator:
   - name: loco-worker-values
     namespace: flux-system
@@ -10,3 +9,9 @@ configMapGenerator:
       - values.yaml=values/loco-worker.yaml
 generatorOptions:
   disableNameSuffixHash: true
+patches:
+  - target: {kind: Kustomization, name: loco-cluster-config}
+    patch: |-
+      - op: replace
+        path: /spec/path
+        value: ./clusters/worker-staging/config

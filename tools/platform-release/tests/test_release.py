@@ -79,7 +79,7 @@ def test_release_values_sources_are_optional(bundle, layer, name):
     assert spec["install"]["createNamespace"] is False
     assert spec["valuesFrom"] == [
         {"kind": kind, "name": name + suffix, "valuesKey": "values.yaml", "optional": True}
-        for kind, suffix in (("ConfigMap", "-values"), ("Secret", "-secrets"))
+        for kind, suffix in (("ConfigMap", "-base-values"), ("ConfigMap", "-values"), ("Secret", "-secrets"))
     ]
 
 

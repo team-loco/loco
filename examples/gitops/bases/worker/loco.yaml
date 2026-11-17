@@ -8,7 +8,7 @@ spec:
   sourceRef:
     kind: OCIRepository
     name: platform-bundle
-  path: ./control-plane
+  path: ./worker
   prune: true
   wait: true
   timeout: 30m
@@ -23,7 +23,7 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./clusters/control-plane/config
+  path: ./
   prune: true
   wait: true
   dependsOn:

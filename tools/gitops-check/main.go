@@ -97,8 +97,8 @@ spec:
 			filepath.Join(root, "charts", cluster.chart),
 			"--namespace",
 			"loco-system",
-			"-f",
-			filepath.Join(dir, "values", cluster.chart+".yaml"),
+			"-f", filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
+			"-f", filepath.Join(dir, "values", cluster.chart+".yaml"),
 		}
 		components := []string{"api.image.tag", "ui.image.tag", "obsProxy.image.tag"}
 		if cluster.chart == "loco-worker" {

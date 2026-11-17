@@ -1,0 +1,9 @@
+agent:
+  joinToken:
+    existingSecret: loco-agent-join-token
+registry:
+  auth: token
+global:
+  exporter:
+    ingestToken:
+      enabled: true

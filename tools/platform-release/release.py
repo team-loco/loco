@@ -243,7 +243,7 @@ def bundle(version, commit, refs, images):
 
     def helm_release(name, chart, namespace, values, dependencies=()):
         result = source(name + '-chart', refs[chart], HELM_LAYER_TYPE)
-        hr = resource('HelmRelease', name, {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': name, 'targetNamespace': namespace, 'chartRef': {'kind': 'OCIRepository', 'name': name + '-chart'}, 'dependsOn': [dependency(dep) for dep in dependencies], 'valuesFrom': [{'kind': kind, 'name': name + suffix, 'valuesKey': 'values.yaml', 'optional': True} for kind, suffix in (('ConfigMap', '-values'), ('Secret', '-secrets'))], 'values': values, 'install': {'createNamespace': False, 'crds': 'Skip', 'remediation': {'retries': 2}}, 'upgrade': {'crds': 'Skip', 'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'driftDetection': {'mode': 'enabled'}})
+        hr = resource('HelmRelease', name, {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': name, 'targetNamespace': namespace, 'chartRef': {'kind': 'OCIRepository', 'name': name + '-chart'}, 'dependsOn': [dependency(dep) for dep in dependencies], 'valuesFrom': [{'kind': kind, 'name': name + suffix, 'valuesKey': 'values.yaml', 'optional': True} for kind, suffix in (('ConfigMap', '-base-values'), ('ConfigMap', '-values'), ('Secret', '-secrets'))], 'values': values, 'install': {'createNamespace': False, 'crds': 'Skip', 'remediation': {'retries': 2}}, 'upgrade': {'crds': 'Skip', 'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'driftDetection': {'mode': 'enabled'}})
         hr['metadata'].update({'labels': labels, 'annotations': annotations})
         return [result, hr]
 
