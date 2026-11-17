@@ -53,7 +53,7 @@ def session(out):
                     context.tracing.stop(path=out / f"failure-{index}.zip")
                 for number, page in enumerate(context.pages):
                     with contextlib.suppress(Exception):
-                        evidence.write_json(out / f"failure-{index}-{number}.json", {"url": page.url})
+                        evidence.write_json(out / f"failure-{index}-{number}.json", {"url": page.url, **getattr(page, "diagnostics", {})})
                         page.screenshot(path=out / f"failure-{index}-{number}.png", animations="disabled")
             raise
 
@@ -65,7 +65,11 @@ def open_page(browser, user="owner", narrow=False, *, state, storage=None, **con
     authenticate(context, None if user is None else state["users"][user]["token"], storage)
     page = context.new_page()
     errors = []
+    failed_requests = []
+    page.diagnostics = {"page_errors": errors, "failed_requests": failed_requests}
     page.on("pageerror", lambda error: errors.append(str(error)))
+    page.on("requestfailed", lambda request: failed_requests.append({"url": request.url, "failure": request.failure}))
+    page.on("response", lambda response: failed_requests.append({"url": response.url, "status": response.status}) if response.status >= 400 else None)
     return context, page, errors
 
 
