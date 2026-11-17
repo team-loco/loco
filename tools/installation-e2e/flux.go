@@ -15,6 +15,7 @@ import (
 )
 
 const (
+	fluxData            = "data"
 	fluxStringData      = "stringData"
 	fluxPrune           = "prune"
 	fluxSourceRef       = "sourceRef"
@@ -22,19 +23,14 @@ const (
 	fluxAPIVersion      = "apiVersion"
 	fluxMetadata        = "metadata"
 	fluxKind            = "kind"
-	fluxData            = "data"
 	fluxInterval        = "interval"
 	fluxName            = "name"
 	fluxPath            = "path"
 	fluxURL             = "url"
-	fluxKey             = "key"
-	fluxPassword        = "password"
-	dockerConfigKey     = ".dockerconfigjson"
 	ociRepositoryKind   = "OCIRepository"
 	secretKind          = "Secret"
 	platformSource      = "platform-bundle"
 	controlPlaneRelease = "loco-control-plane"
-	fixtureRegistryUser = "api"
 )
 
 func fluxObject(kind, name string, spec map[string]any) map[string]any {
@@ -68,135 +64,39 @@ func (f *fixture) installFlux(ctx context.Context, allowances []map[string]any, 
 	if _, err := command(ctx, f.root, nil, "flux", "install"); err != nil {
 		return err
 	}
-	files := map[string][]byte{}
-	add := func(name string, object map[string]any) error {
-		data, err := yaml.Marshal(object)
-		if err != nil {
-			return err
-		}
-		files[name+".yaml"] = data
-		return nil
-	}
-	for _, release := range []struct{ name, file string }{{controlPlaneRelease, "control-plane-values.yaml"},
-		{"loco-worker", "worker-values.yaml"}} {
+	values := map[string]string{}
+	for _, name := range []string{"control-plane", "worker"} {
 		data, err := renderFixtureFile(
-			filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", release.file),
+			filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", name+"-values.yaml"),
 			map[string]any{"PrivateEgress": allowances},
 		)
 		if err != nil {
 			return err
 		}
-		if err = add(
-			release.name,
-			map[string]any{
-				fluxAPIVersion: "v1",
-				fluxKind:       "ConfigMap",
-				fluxMetadata:   metadata(release.name+"-values", "flux-system"),
-				fluxData:       map[string]string{"values.yaml": string(data)},
-			},
-		); err != nil {
-			return err
-		}
-	}
-	secret := func(name string, values map[string]string) error {
-		return add(
-			name,
-			map[string]any{
-				fluxAPIVersion: "v1",
-				fluxKind:       secretKind,
-				fluxMetadata:   metadata(name, controlNamespace),
-				fluxStringData: values,
-			},
-		)
-	}
-	// Fixture credentials are public test identities. Production configuration uses SOPS.
-	if err := secret(
-		"loco-api-env",
-		//nolint:gosec // Public fixture identity, shared with services.yaml.
-		map[string]string{
-			"DATABASE_URL": "postgresql://loco:fixture-database-canary@" +
-				"postgres.installation-fixtures.svc.cluster.local:5432/loco?sslmode=disable",
-			"LOCO_SOURCE_BUCKET_ACCESS_KEY_ID":     "fixture-access",
-			"LOCO_SOURCE_BUCKET_SECRET_ACCESS_KEY": "fixture-source-canary",
-			"LOCO_REGISTRY_USERNAME":               fixtureRegistryUser,
-			"LOCO_REGISTRY_PASSWORD":               "loco-dev-api",
-		},
-	); err != nil {
-		return err
+		values[name] = string(data)
 	}
 	seal := make([]byte, 32)
 	if _, err := rand.Read(seal); err != nil {
 		return err
 	}
-	if err := secret(
-		"loco-openbao-seal",
-		map[string]string{fluxKey: base64.StdEncoding.EncodeToString(seal)},
-	); err != nil {
-		return err
-	}
-	// The merge-base chart expects operator-provided credentials; the head chart preserves them.
-	if err := secret(
-		"loco-clickhouse-operator",
-		map[string]string{"username": "loco_operator", fluxPassword: "fixture-clickhouse-operator"},
-	); err != nil {
-		return err
-	}
-	for _, role := range []string{"migrator", "ingest", "reader"} {
-		password := "fixture-clickhouse-" + role
-		if err := secret(
-			"loco-clickhouse-"+role,
-			map[string]string{
-				fluxPassword: password,
-				fluxURL: "clickhouse://loco_" + role + ":" + password + "@" +
-					"clickhouse-loco-clickhouse.loco-system.svc.cluster.local:9000",
-			},
-		); err != nil {
-			return err
-		}
-	}
-	for _, role := range []struct{ name, user, password string }{{"push", "builder", fixturePushPassword},
-		{"pull", "nodes", "loco-dev-nodes"}} {
-		config, err := json.Marshal(
-			map[string]any{
-				"auths": map[string]any{
-					registryHost: map[string]string{
-						"auth": base64.StdEncoding.EncodeToString([]byte(role.user + ":" + role.password)),
-					},
-				},
-			},
-		)
-		if err != nil {
-			return err
-		}
-		if err = add(
-			"registry-"+role.name,
-			map[string]any{
-				fluxAPIVersion: "v1",
-				fluxKind:       secretKind,
-				fluxMetadata:   metadata("loco-registry-"+role.name, workerNamespace),
-				"type":         "kubernetes.io/dockerconfigjson",
-				fluxStringData: map[string]string{dockerConfigKey: string(config)},
-			},
-		); err != nil {
-			return err
-		}
-	}
-	resources := make([]string, 0, len(files))
-	for name := range files {
-		resources = append(resources, name)
-	}
-	kustomization, err := yaml.Marshal(
+	resources, err := renderFixtureFile(
+		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "cluster-config.yaml"),
 		map[string]any{
-			fluxAPIVersion: "kustomize.config.k8s.io/v1beta1",
-			fluxKind:       "Kustomization",
-			"resources":    resources,
+			"ControlPlane": values["control-plane"], "Worker": values["worker"],
+			"SealKey":         base64.StdEncoding.EncodeToString(seal),
+			"ClickHouseUsers": []string{"migrator", "ingest", "reader"},
+			"PushAuth":        base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":" + fixturePushPassword)),
+			"PullAuth":        base64.StdEncoding.EncodeToString([]byte("nodes:loco-dev-nodes")),
 		},
 	)
 	if err != nil {
 		return err
 	}
-	files["kustomization.yaml"] = kustomization
-	archive, err := bundle(files)
+	archive, err := bundle(map[string][]byte{
+		"resources.yaml": resources,
+		"kustomization.yaml": []byte("apiVersion: kustomize.config.k8s.io/v1beta1\n" +
+			"kind: Kustomization\nresources: [resources.yaml]\n"),
+	})
 	if err != nil {
 		return err
 	}
@@ -329,6 +229,10 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 	if _, err = locoadm(ctx, args...); err != nil {
 		return err
 	}
+	// Issuance after the upgrade leaves the enrolled worker's token and identity intact.
+	if head {
+		return nil
+	}
 	ciphertext, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -372,10 +276,6 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 	}
 	if _, err = command(ctx, "", source, "kubectl", "apply", "-f", "-"); err != nil {
 		return err
-	}
-	// A post-upgrade token proves issuance and SOPS output without disturbing the enrolled agent.
-	if head {
-		return nil
 	}
 	spec := map[string]any{
 		fluxInterval:  "1m",

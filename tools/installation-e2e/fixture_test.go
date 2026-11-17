@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+
+	yamlv3 "go.yaml.in/yaml/v3"
 
 	"sigs.k8s.io/yaml"
 )
@@ -120,4 +125,78 @@ func servicePodTemplates(t *testing.T, revision string) map[string]map[string]an
 		}
 	}
 	return templates
+}
+
+func TestFluxClusterConfigurationCarriesCredentialsAndValues(t *testing.T) {
+	data, err := renderFixtureFile(
+		filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "cluster-config.yaml"),
+		map[string]any{
+			"ControlPlane": "api: {systemAdmins: [dev@loco.test]}\n", "Worker": "cluster: {role: all}\n",
+			"SealKey": "rendered-seal-key", "ClickHouseUsers": []string{"migrator", "ingest", "reader"},
+			"PushAuth": "fixture-push", "PullAuth": "fixture-pull",
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	objects := map[string]struct {
+		Kind     string `yaml:"kind"`
+		Metadata struct {
+			Name      string `yaml:"name"`
+			Namespace string `yaml:"namespace"`
+		} `yaml:"metadata"`
+		StringData map[string]string `yaml:"stringData"`
+		Data       map[string]string `yaml:"data"`
+	}{}
+	decoder := yamlv3.NewDecoder(bytes.NewReader(data))
+	for {
+		var object struct {
+			Kind     string `yaml:"kind"`
+			Metadata struct {
+				Name      string `yaml:"name"`
+				Namespace string `yaml:"namespace"`
+			} `yaml:"metadata"`
+			StringData map[string]string `yaml:"stringData"`
+			Data       map[string]string `yaml:"data"`
+		}
+		if err = decoder.Decode(&object); errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		objects[object.Metadata.Name] = object
+	}
+	if len(objects) != 10 {
+		t.Fatalf("configuration has %d resources, want 10", len(objects))
+	}
+	if objects["loco-openbao-seal"].StringData["key"] != "rendered-seal-key" {
+		t.Fatal("configuration lost seal material")
+	}
+	if objects["loco-worker-values"].Data["values.yaml"] != "cluster: {role: all}\n" {
+		t.Fatal("configuration changed worker values")
+	}
+	for _, role := range []string{"migrator", "ingest", "reader"} {
+		values := objects["loco-clickhouse-"+role].StringData
+		if values["password"] != "fixture-clickhouse-"+role ||
+			!strings.Contains(values["url"], "loco_"+role+":"+values["password"]+"@") {
+			t.Fatalf("configuration lost %s credentials", role)
+		}
+	}
+	for _, role := range []string{"push", "pull"} {
+		var config struct {
+			Auths map[string]struct {
+				Auth string `json:"auth"`
+			} `json:"auths"`
+		}
+		if err = json.Unmarshal(
+			[]byte(objects["loco-registry-"+role].StringData[".dockerconfigjson"]),
+			&config,
+		); err != nil {
+			t.Fatal(err)
+		}
+		if config.Auths[registryHost].Auth != "fixture-"+role {
+			t.Fatalf("configuration lost %s registry authentication", role)
+		}
+	}
 }
