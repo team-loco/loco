@@ -198,3 +198,32 @@ capabilities:
   mountPath: /var/run/secrets/openbao-ca
   readOnly: true
 {{- end -}}
+
+{{- define "loco-control-plane.apiSettings" -}}
+{{- $settings := dict }}
+{{- range $key, $env := dict "orgsPerUser" "LOCO_LIMIT_ORGS_PER_USER" "workspacesPerOrg" "LOCO_LIMIT_WORKSPACES_PER_ORG" "membersPerOrg" "LOCO_LIMIT_MEMBERS_PER_ORG" "invitationsPerOrg" "LOCO_LIMIT_INVITATIONS_PER_ORG" "environmentsPerWorkspace" "LOCO_LIMIT_ENVIRONMENTS_PER_WORKSPACE" "resourcesPerWorkspace" "LOCO_LIMIT_RESOURCES_PER_WORKSPACE" "webhooksPerWorkspace" "LOCO_LIMIT_WEBHOOKS_PER_WORKSPACE" "tokensPerEntity" "LOCO_LIMIT_TOKENS_PER_ENTITY" "domainsPerResource" "LOCO_LIMIT_DOMAINS_PER_RESOURCE" "secretsPerResource" "LOCO_SECRETS_MAX_PER_SERVICE" "deploymentHistory" "LOCO_LIMIT_DEPLOYMENT_HISTORY" "buildHistory" "LOCO_LIMIT_BUILD_HISTORY" "logRetentionDays" "LOCO_LIMIT_LOG_RETENTION_DAYS" "traceRetentionDays" "LOCO_LIMIT_TRACE_RETENTION_DAYS" "metricRetentionDays" "LOCO_LIMIT_METRIC_RETENTION_DAYS" }}
+{{- $value := index $.Values.api.limits $key }}
+{{- if and (ne (toString $value) "<nil>") (ne (toString $value) "") }}
+{{- $_ := set $settings $env $value }}
+{{- end }}
+{{- end }}
+{{- range $key, $env := dict "cpu" "LOCO_DEFAULT_CPU" "memory" "LOCO_DEFAULT_MEMORY" "minReplicas" "LOCO_DEFAULT_MIN_REPLICAS" "maxReplicas" "LOCO_DEFAULT_MAX_REPLICAS" "cpuTarget" "LOCO_DEFAULT_CPU_TARGET" "pathPrefix" "LOCO_DEFAULT_PATH_PREFIX" "idleTimeout" "LOCO_DEFAULT_IDLE_TIMEOUT" "healthPath" "LOCO_DEFAULT_HEALTH_PATH" "healthInterval" "LOCO_DEFAULT_HEALTH_INTERVAL" "healthTimeout" "LOCO_DEFAULT_HEALTH_TIMEOUT" "healthFailThreshold" "LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD" "healthStartupGracePeriod" "LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD" "deployAttempts" "LOCO_DEFAULT_DEPLOY_ATTEMPTS" "deployRetryDelay" "LOCO_DEFAULT_DEPLOY_RETRY_DELAY" }}
+{{- $value := index $.Values.api.defaults $key }}
+{{- if and (ne (toString $value) "<nil>") (ne (toString $value) "") }}
+{{- $_ := set $settings $env $value }}
+{{- end }}
+{{- end }}
+{{- range $key, $env := dict "events" "EVENTS_RETENTION" "images" "LOCO_IMAGE_RETENTION" }}
+{{- $value := index $.Values.api.retention $key }}
+{{- if and (ne (toString $value) "<nil>") (ne (toString $value) "") }}
+{{- $_ := set $settings $env $value }}
+{{- end }}
+{{- end }}
+{{- range $key, $env := dict "ttl" "LOCO_CLUSTER_JOIN_TOKEN_TTL" "maxTtl" "LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL" }}
+{{- $value := index $.Values.api.joinToken $key }}
+{{- if and (ne (toString $value) "<nil>") (ne (toString $value) "") }}
+{{- $_ := set $settings $env $value }}
+{{- end }}
+{{- end }}
+{{- toYaml $settings }}
+{{- end }}

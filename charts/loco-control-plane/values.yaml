@@ -47,6 +47,81 @@ api:
     existingSecret:
       name: ""
       key: url
+  # Null and empty settings use the API defaults.
+  # @schema additionalProperties: false
+  limits:
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    orgsPerUser: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    workspacesPerOrg: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    membersPerOrg: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    invitationsPerOrg: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    environmentsPerWorkspace: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    resourcesPerWorkspace: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    webhooksPerWorkspace: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    tokensPerEntity: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    domainsPerResource: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    secretsPerResource: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    deploymentHistory: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    buildHistory: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    logRetentionDays: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    traceRetentionDays: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    metricRetentionDays: null
+  # @schema additionalProperties: false
+  defaults:
+    # @schema type: string; pattern: ^$|^[+]?([0-9]*[1-9][0-9]*([.][0-9]*)?|[0-9]*[.][0-9]*[1-9][0-9]*)(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|K|M|G|T|P|E|[eE][-+]?[0-9]+)?$
+    cpu: ""
+    # @schema type: string; pattern: ^$|^[+]?([0-9]*[1-9][0-9]*([.][0-9]*)?|[0-9]*[.][0-9]*[1-9][0-9]*)(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|K|M|G|T|P|E|[eE][-+]?[0-9]+)?$
+    memory: ""
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 10
+    minReplicas: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 10
+    maxReplicas: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 100
+    cpuTarget: null
+    # @schema type: string; pattern: ^$|^/
+    pathPrefix: ""
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 2147483647
+    idleTimeout: null
+    # @schema type: string; pattern: ^$|^/
+    healthPath: ""
+    # @schema type: [integer, "null"]; minimum: 5; maximum: 2147483647
+    healthInterval: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 60
+    healthTimeout: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 10
+    healthFailThreshold: null
+    # @schema type: [integer, "null"]; minimum: 0; maximum: 180
+    healthStartupGracePeriod: null
+    # @schema type: [integer, "null"]; minimum: 1; maximum: 10
+    deployAttempts: null
+    # @schema type: [integer, "null"]; minimum: 60; maximum: 2147483647
+    deployRetryDelay: null
+  # @schema additionalProperties: false
+  retention:
+    # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
+    events: ""
+    # @schema type: [integer, "null"]; minimum: 0; maximum: 2147483647
+    images: null
+  # @schema additionalProperties: false
+  joinToken:
+    # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
+    ttl: ""
+    # @schema type: string; pattern: ^$|^[+]?([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h)(([0-9]+([.][0-9]*)?|[.][0-9]+)(ns|us|µs|μs|ms|s|m|h))*$; not: {pattern: '^[+]?([0]*([.][0]*)?(ns|us|µs|μs|ms|s|m|h))+$'}
+    maxTtl: ""
   env: {}
   # @schema skipProperties
   resources:
@@ -377,3 +452,12 @@ openbao:
     tokenSecret:
       name: ""
       key: token
+
+# @schema additionalProperties: false
+setup:
+  # @schema minimum: 1
+  ttlSecondsAfterFinished: 3600
+  # @schema minimum: 1
+  timeoutSeconds: 300
+  # @schema minimum: 1
+  requestTimeoutSeconds: 10

@@ -61,6 +61,7 @@ func (c *Cluster) commandStdin(
 ) (string, error) {
 	cmd := exec.CommandContext(ctx, name, args...) //nolint:gosec,nolintlint // the run's own tools
 	cmd.Env = c.env
+	cmd.Dir = c.root
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}

@@ -1,0 +1,79 @@
+suite: platform setup
+release:
+  name: regional
+  namespace: loco-system
+values:
+  - ../ci/default-values.yaml
+templates:
+  - templates/clickhouse-credentials.yaml
+  - templates/openbao-setup.yaml
+  - templates/api-deployment.yaml
+tests:
+  - it: creates ClickHouse credentials in a restricted Job
+    set:
+      clickhouse.enabled: true
+    template: templates/clickhouse-credentials.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 3600
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: OnFailure
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 4
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value: {name: SECRET_NAME, value: loco-clickhouse-operator}
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+  - it: leaves external ClickHouse credentials to the operator
+    template: templates/clickhouse-credentials.yaml
+    asserts:
+      - hasDocuments: {count: 0}
+  - it: cleans up the OpenBao setup Job
+    template: templates/openbao-setup.yaml
+    documentSelector: {path: kind, value: Job}
+    asserts:
+      - equal:
+          path: spec.ttlSecondsAfterFinished
+          value: 3600
+  - it: maps typed API settings to their environment variables
+    template: templates/api-deployment.yaml
+    set:
+      api.limits.orgsPerUser: 4
+      api.limits.secretsPerResource: 24
+      api.defaults.minReplicas: 2
+      api.retention.events: 720h
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_LIMIT_ORGS_PER_USER, value: '4'}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_SECRETS_MAX_PER_SERVICE, value: '24'}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_DEFAULT_MIN_REPLICAS, value: '2'}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: EVENTS_RETENTION, value: 720h}
+  - it: rejects duplicate typed and environment settings
+    template: templates/api-deployment.yaml
+    set:
+      api.limits.orgsPerUser: 4
+      api.env.LOCO_LIMIT_ORGS_PER_USER: '5'
+    asserts:
+      - failedTemplate:
+          errorMessage: LOCO_LIMIT_ORGS_PER_USER is set in both api.env and a typed API setting
+  - it: preserves zero image retention as an explicit value
+    template: templates/api-deployment.yaml
+    set:
+      api.retention.images: 0
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_IMAGE_RETENTION, value: '0'}

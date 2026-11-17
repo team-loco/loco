@@ -164,7 +164,7 @@ tests:
           path: metadata.name
           value: loco-control-plane-openbao-setup-7
       - notExists:
-          path: metadata.annotations
+          path: metadata.annotations["helm.sh/hook"]
       - equal:
           path: spec.activeDeadlineSeconds
           value: 1800

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -211,18 +210,6 @@ func install(t *testing.T) *controlPlane {
 		"LOCO_IMAGE_RETENTION":           "0",
 		"LOCO_SECRETS_TRANSIT_CACHE_TTL": "1s",
 	})
-	// The component fixtures own their database identities, which locoadm creates in an install.
-	clickhouse := cp.values.ClickHouse
-	applySecret(t, cp.namespace, clickhouse.Operator.FullnameOverride, map[string]string{
-		"username": clickhouse.Operator.Secret.Username, passwordKey: cp.password,
-	})
-	for _, user := range clickhouse.ClickHouse.Users {
-		applySecret(t, cp.namespace, user.PasswordSecretName, map[string]string{
-			passwordKey: cp.password,
-			"url": fmt.Sprintf("clickhouse://%s:%s@clickhouse-%s.%s.svc.cluster.local:9000",
-				user.Name, cp.password, clickhouse.FullnameOverride, cp.namespace),
-		})
-	}
 	startupCtx, cancelStartup := context.WithCancel(t.Context())
 	startup := c.CaptureStartupLogs(startupCtx, cp.namespace, "app="+release+"-api")
 	t.Cleanup(func() {
