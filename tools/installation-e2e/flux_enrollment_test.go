@@ -9,28 +9,39 @@ import (
 )
 
 func TestFluxWorkerUsesTheWorkerContext(t *testing.T) {
-	for _, head := range []bool{false, true} {
-		t.Run(map[bool]string{false: "enrollment", true: "post-upgrade issuance"}[head], func(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		head, tier bool
+	}{
+		{name: "published API with tiers", tier: true},
+		{name: "published API without tiers"},
+		{name: "post-upgrade issuance", head: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			bin := t.TempDir()
-			for name, script := range map[string]string{
-				"locoadm": `echo "$*" > "$CLI_ARGS"
-echo "Applied join-token Secret"`,
-				"flux": "exit 0",
-			} {
-				if err := os.WriteFile(
-					filepath.Join(bin, name),
-					[]byte("#!/bin/sh\nset -eu\n"+script+"\n"),
-					0700,
-				); err != nil {
-					t.Fatal(err)
-				}
+			script := `#!/bin/sh
+set -eu
+if [ "$*" = 'cluster create --help' ]; then
+    printf '%s' "$BASELINE_HELP"
+    exit 0
+fi
+echo "$*" > "$CLI_ARGS"
+echo "Applied join-token Secret"
+`
+			if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
+				t.Fatal(err)
 			}
 			argsPath := filepath.Join(bin, "args")
 			t.Setenv("PATH", bin)
 			t.Setenv("CLI_ARGS", argsPath)
+			help := "cluster create --name --region"
+			if tc.tier {
+				help += " --tier"
+			}
+			t.Setenv("BASELINE_HELP", help)
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
-			if err := createFluxWorker(ctx, "fixture-worker", head); err != nil {
+			if err := createFluxWorker(ctx, "fixture-worker", tc.head); err != nil {
 				t.Fatal(err)
 			}
 			audit.add([]byte("fixture-token"))
@@ -41,8 +52,9 @@ echo "Applied join-token Secret"`,
 			if err != nil {
 				t.Fatal(err)
 			}
-			if strings.Contains(string(args), "--kube-context fixture") == head ||
-				strings.Contains(string(args), "--ttl 72h") != head {
+			if strings.Contains(string(args), "--kube-context fixture") == tc.head ||
+				strings.Contains(string(args), "--ttl 72h") != tc.head ||
+				strings.Contains(string(args), "--tier production") != tc.tier {
 				t.Fatalf("issuance arguments: %s", args)
 			}
 		})

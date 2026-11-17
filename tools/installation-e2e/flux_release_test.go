@@ -79,12 +79,12 @@ done
 			if err := os.WriteFile(filepath.Join(bin, "pulls"), nil, 0600); err != nil {
 				t.Fatal(err)
 			}
-			actual, err := publishedBaseline(t.Context(), repository)
+			actual, version, err := publishedBaseline(t.Context(), repository)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("error = %v, want %q", err, tc.wantErr)
 				}
-			} else if err != nil || actual != refs[tc.version] {
+			} else if err != nil || actual != refs[tc.version] || version != "v"+tc.version {
 				t.Fatalf("baseline = %q, %v; want %q", actual, err, refs[tc.version])
 			}
 			wantPulls := ""

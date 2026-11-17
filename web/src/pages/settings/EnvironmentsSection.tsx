@@ -1,5 +1,5 @@
 import { createConnectQueryKey, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
-import { type Environment, EnvironmentType } from "@gen/loco/environment/v1/environment_pb";
+import { type Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
 	createEnvironment,
 	deleteEnvironment,
@@ -12,7 +12,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Field } from "@/components/design/Field";
@@ -20,10 +19,8 @@ import { Input } from "@/components/design/Input";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Textarea } from "@/components/design/Textarea";
-import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { environmentTypeLabel } from "@/hooks/useEnvironment";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { slug } from "@/lib/slug";
@@ -34,7 +31,6 @@ import { limitReason, limitUsage } from "@/lib/limits";
 import { resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
 
-const TYPES = [EnvironmentType.STAGING, EnvironmentType.PRODUCTION];
 const MAX_DESCRIPTION = 256;
 
 export function EnvironmentsSection({
@@ -128,7 +124,6 @@ export function EnvironmentsSection({
 						<TableHeader>
 							<TableRow>
 								<TableHead>Name</TableHead>
-								<TableHead>Type</TableHead>
 								<TableHead className="hidden md:table-cell">Description</TableHead>
 								<TableHead>Resources</TableHead>
 								<TableHead className="w-20">
@@ -155,11 +150,6 @@ export function EnvironmentsSection({
 								return (
 									<TableRow key={env.id}>
 										<TableCell className="font-mono">{env.name}</TableCell>
-										<TableCell>
-											<Badge tone={env.type === EnvironmentType.PRODUCTION ? "info" : "neutral"} className="capitalize">
-												{environmentTypeLabel(env.type)}
-											</Badge>
-										</TableCell>
 										<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
 											{(env.description ?? "") === "" ? <span className="text-fg4">—</span> : env.description}
 										</TableCell>
@@ -258,7 +248,6 @@ function EnvironmentForm({
 	const create = useMutation(createEnvironment);
 	const update = useMutation(updateEnvironment);
 	const [raw, setRaw] = useState(env?.name ?? "");
-	const [type, setType] = useState(env?.type ?? EnvironmentType.STAGING);
 	const [desc, setDesc] = useState(env?.description ?? "");
 	const pending = create.isPending || update.isPending;
 
@@ -276,7 +265,6 @@ function EnvironmentForm({
 				{
 					environmentId: env.id,
 					...(name === env.name ? {} : { name }),
-					...(type === env.type ? {} : { type }),
 					...(description === (env.description ?? "") ? {} : { description }),
 				},
 				{
@@ -292,7 +280,7 @@ function EnvironmentForm({
 			return;
 		}
 		create.mutate(
-			{ workspaceId, name, type, description: description === "" ? undefined : description },
+			{ workspaceId, name, description: description === "" ? undefined : description },
 			{
 				onSuccess: () => {
 					toast.success(`Created ${name}`);
@@ -328,25 +316,6 @@ function EnvironmentForm({
 							}}
 						/>
 					</Field>
-					<div className="flex flex-col gap-1.5">
-						<span className="text-[13px] font-medium">Type</span>
-						<ToggleGroup
-							variant="segmented"
-							aria-label="Type"
-							className="w-max"
-							value={[String(type)]}
-							onValueChange={(v: string[]) => {
-								const next = TYPES.find((t) => String(t) === v[0]);
-								if (next !== undefined) setType(next);
-							}}
-						>
-							{TYPES.map((t) => (
-								<ToggleGroupItem key={t} value={String(t)} className="capitalize">
-									{environmentTypeLabel(t)}
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
-					</div>
 					<Field label="Description">
 						<Textarea
 							rows={2}

@@ -13,6 +13,19 @@ tests:
           path: data.relay
           pattern: 'from: namespace\n\s+key: loco.io/workspace-id\n\s+tag_name: loco.workspace.id'
 
+  - it: extracts the gateway route namespace for ownership lookup
+    template: templates/collectors/collector-configs.yaml
+    documentSelector: {path: metadata.name, value: otel-col-deploy}
+    set:
+      global.workspaceNamespacePrefix: tenant-
+    asserts:
+      - matchRegex:
+          path: data.relay
+          pattern: 'httproute/\(\?P<namespace>tenant-'
+      - matchRegex:
+          path: data.relay
+          pattern: 'set\(attributes\["k8s.namespace.name"\], cache\["namespace"\]\)'
+
   - it: runs only the node collector as a DaemonSet
     asserts:
       - isKind:

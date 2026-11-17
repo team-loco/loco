@@ -49,7 +49,7 @@ func (r *ApplicationReconciler) ensurePrivateService(ctx context.Context, app *l
 	if app.Spec.ServiceSpec.Deployment.Port == nil {
 		return r.prunePrivateServices(ctx, app, "")
 	}
-	namespace := r.workspaceNamespace(app)
+	namespace := r.environmentNamespace(app)
 	port := *app.Spec.ServiceSpec.Deployment.Port
 	targetPort := intstr.FromString(applicationPortName)
 	ports := []corev1.ServicePort{
@@ -74,7 +74,7 @@ func (r *ApplicationReconciler) ensurePrivateService(ctx context.Context, app *l
 		}, Annotations: ownerAnnotations(app),
 		Spec: corev1.ServiceSpec{
 			Type:     corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{labelApp: locov1alpha1.ApplicationName(app.Spec.ResourceID)},
+			Selector: map[string]string{labelApp: locov1alpha1.WorkloadName(app.Spec.ResourceID)},
 			Ports:    ports,
 		},
 	}
@@ -122,7 +122,7 @@ func (r *ApplicationReconciler) prunePrivateServices(
 		managed.LabelComponent:              componentPrivateService,
 	}
 	reader := r.APIReader
-	if err := reader.List(ctx, list, client.InNamespace(r.workspaceNamespace(app)), selector); err != nil {
+	if err := reader.List(ctx, list, client.InNamespace(r.environmentNamespace(app)), selector); err != nil {
 		return fmt.Errorf("list private services: %w", err)
 	}
 	for i := range list.Items {

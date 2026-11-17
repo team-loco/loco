@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	testNamespace  = "loco-system"
-	testResourceID = "abc"
-	testAppType    = "SERVICE"
-	testImage      = "ghcr.io/team-loco/app:v1"
+	testNamespace     = "loco-system"
+	testResourceID    = "abc"
+	testEnvironmentID = "env-test"
+	testAppType       = "SERVICE"
+	testImage         = "ghcr.io/team-loco/app:v1"
 )
 
 func newTestApplier(t *testing.T, existing ...client.Object) *Applier {
@@ -36,14 +37,22 @@ func newTestApplier(t *testing.T, existing ...client.Object) *Applier {
 
 func application(t *testing.T) []byte {
 	t.Helper()
-	return marshalPayload(t, &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID})
+	return marshalPayload(
+		t,
+		&locoControllerV1.ApplicationSpec{
+			Type:          testAppType,
+			ResourceID:    testResourceID,
+			EnvironmentID: testEnvironmentID,
+		},
+	)
 }
 
 func serviceApplication(t *testing.T) []byte {
 	t.Helper()
 	return marshalPayload(t, &locoControllerV1.ApplicationSpec{
-		Type:       testAppType,
-		ResourceID: testResourceID,
+		Type:          testAppType,
+		ResourceID:    testResourceID,
+		EnvironmentID: testEnvironmentID,
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: new(int32(8080))},
 		},
@@ -70,8 +79,14 @@ func (a *Applier) envSecret(t *testing.T) (*corev1.Secret, error) {
 func TestApplyPlacementWritesTheEnvSecretOwnedByTheApplication(t *testing.T) {
 	ctx := context.Background()
 	existing := &locoControllerV1.Application{
-		Name: "resource-abc", Namespace: testNamespace, UID: "app-uid",
-		Spec: locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID},
+		Name:      locoControllerV1.ApplicationName(testPlacementID),
+		Namespace: testNamespace,
+		UID:       "app-uid",
+		Spec: locoControllerV1.ApplicationSpec{
+			Type:          testAppType,
+			ResourceID:    testResourceID,
+			EnvironmentID: testEnvironmentID,
+		},
 	}
 	a := newTestApplier(t, existing)
 	value := []byte("postgres://user:pass@db/app")
@@ -139,7 +154,7 @@ func placement(t *testing.T, id string, revision int64) Placement {
 func (a *Applier) live(t *testing.T) (*locoControllerV1.Application, error) {
 	t.Helper()
 	app := &locoControllerV1.Application{}
-	key := client.ObjectKey{Namespace: testNamespace, Name: "resource-abc"}
+	key := client.ObjectKey{Namespace: testNamespace, Name: locoControllerV1.ApplicationName(testPlacementID)}
 	err := a.client.Get(context.Background(), key, app)
 	return app, err
 }
@@ -268,7 +283,12 @@ func TestInvalidPlacementsAreMarked(t *testing.T) {
 func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	a := newTestApplier(t)
 	p := placement(t, testPlacementID, 1)
-	spec := &locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, Slug: "cart"}
+	spec := &locoControllerV1.ApplicationSpec{
+		Type:          testAppType,
+		ResourceID:    testResourceID,
+		EnvironmentID: testEnvironmentID,
+		Slug:          "cart",
+	}
 	p.Application = marshalPayload(t, spec)
 	if applyErr := a.ApplyPlacement(context.Background(), p); applyErr != nil {
 		t.Fatal(applyErr)
@@ -292,5 +312,62 @@ func TestApplyPlacementPreservesLogicalServiceName(t *testing.T) {
 	}
 	if app.Spec.Slug != spec.Slug {
 		t.Fatalf("slug after rename = %q, want %q", app.Spec.Slug, spec.Slug)
+	}
+}
+
+func TestPlacementsOfOneResourceHaveIndependentApplications(t *testing.T) {
+	const productionID = "production"
+	a := newTestApplier(t)
+	for _, id := range []string{productionID, "staging"} {
+		p := placement(t, id, 1)
+		p.Application = marshalPayload(
+			t,
+			&locoControllerV1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, EnvironmentID: id},
+		)
+		if err := a.ApplyPlacement(t.Context(), p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := a.DeletePlacement(t.Context(), placement(t, "staging", 2)); err != nil {
+		t.Fatal(err)
+	}
+	production := &locoControllerV1.Application{}
+	if err := a.client.Get(
+		t.Context(),
+		client.ObjectKey{Namespace: testNamespace, Name: locoControllerV1.ApplicationName(productionID)},
+		production,
+	); err != nil {
+		t.Fatal(err)
+	}
+	if production.Spec.EnvironmentID != productionID {
+		t.Fatalf("production environment = %q", production.Spec.EnvironmentID)
+	}
+}
+
+func TestChangedEnvironmentCannotOverwriteAPlacementsSecret(t *testing.T) {
+	app := appliedApplication(1, true)
+	a := newTestApplier(t, app, stagedSecret(testPlacementID, 1, "production"))
+	p := placement(t, testPlacementID, 2)
+	p.Application = marshalPayload(
+		t,
+		&locoControllerV1.ApplicationSpec{
+			Type:          testAppType,
+			ResourceID:    testResourceID,
+			EnvironmentID: "different-environment",
+			ServiceSpec: &locoControllerV1.ServiceSpec{
+				Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: testImage},
+			},
+		},
+	)
+	p.EnvSecret = &EnvSecret{Revision: 2, Data: map[string][]byte{databaseURLName: []byte("staging")}}
+	if err := a.ApplyPlacement(t.Context(), p); !errors.Is(err, ErrInvalidPayload) {
+		t.Fatalf("retarget error = %v", err)
+	}
+	secret, err := a.envSecret(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(secret.Data[databaseURLName]) != "production" {
+		t.Fatalf("secret = %q", secret.Data[databaseURLName])
 	}
 }

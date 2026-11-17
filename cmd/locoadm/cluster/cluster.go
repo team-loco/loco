@@ -19,7 +19,6 @@ import (
 
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
-	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -34,17 +33,10 @@ const (
 
 	flagName   = "name"
 	flagRegion = "region"
-	flagTier   = "tier"
 	flagForce  = "force"
-
-	tierEnumPrefix = "ENVIRONMENT_TYPE_"
 )
 
 type adminClient = clusterv1connect.ClusterAdminServiceClient
-
-var (
-	errInvalidTier = errors.New("tier must be staging or production")
-)
 
 // operation describes one cluster subcommand. Every operation names its own RPC
 // in run, so adding one cannot fall through to another.
@@ -86,8 +78,7 @@ func operations() []operation {
 			flags: func(c *cobra.Command) {
 				c.Flags().String(flagName, "", "Cluster name")
 				c.Flags().String(flagRegion, "", "Cluster region")
-				c.Flags().String(flagTier, "", "Cluster tier: staging or production")
-				for _, flag := range []string{flagName, flagRegion, flagTier} {
+				for _, flag := range []string{flagName, flagRegion} {
 					cobra.CheckErr(c.MarkFlagRequired(flag))
 				}
 			},
@@ -248,15 +239,8 @@ func createCluster(
 		}
 		*field = value
 	}
-	tierFlag, err := cmd.Flags().GetString(flagTier)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 	request.Ttl, err = tokenTTL(cmd)
-	if err != nil {
-		return nil, err
-	}
-	request.Tier, err = parseTier(tierFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -273,14 +257,6 @@ func removeCluster(
 		return nil, err
 	}
 	return client.RemoveCluster(cmd.Context(), &clusterv1.RemoveClusterRequest{ClusterId: args[0], Force: force})
-}
-
-func parseTier(value string) (environmentv1.EnvironmentType, error) {
-	tier, ok := environmentv1.EnvironmentType_value[tierEnumPrefix+strings.ToUpper(value)]
-	if !ok || tier == int32(environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED) {
-		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED, fmt.Errorf("%w: %q", errInvalidTier, value)
-	}
-	return environmentv1.EnvironmentType(tier), nil
 }
 
 func printWorkloads(cmd *cobra.Command, err error) {

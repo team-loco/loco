@@ -12,16 +12,18 @@ import (
 
 const (
 	testGateway                  = "test-gateway"
+	testProductionEnvironmentID  = "019a6f3e-8c2b-7d41-9e5f-000000000003"
+	testPreviewEnvironmentID     = "019a6f3e-8c2b-7d41-9e5f-000000000004"
 	testWorkspaceNamespacePrefix = "loco-ws-"
 )
 
 func testAppName(app *locov1alpha1.Application) string {
-	return locov1alpha1.ApplicationName(app.Spec.ResourceID)
+	return locov1alpha1.WorkloadName(app.Spec.ResourceID)
 }
 
-func testWorkspaceNamespace(app *locov1alpha1.Application) string {
+func testEnvironmentNamespace(app *locov1alpha1.Application) string {
 	r := &ApplicationReconciler{WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix}
-	return r.workspaceNamespace(app)
+	return r.environmentNamespace(app)
 }
 
 func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *locov1alpha1.Application) error {
@@ -36,8 +38,8 @@ func ensureTestNamespace(ctx context.Context, kubeClient client.Client, app *loc
 func TestWorkspaceNamespaceUsesTheConfiguredPrefix(t *testing.T) {
 	app := testApplication()
 	r := &ApplicationReconciler{WorkspaceNamespacePrefix: "tenant-"}
-	want := "tenant-" + app.Spec.WorkspaceID
-	if got := r.workspaceNamespace(app); got != want {
+	want := "tenant-" + app.Spec.EnvironmentID
+	if got := r.environmentNamespace(app); got != want {
 		t.Errorf("workspace namespace = %q, want %q", got, want)
 	}
 }
@@ -45,13 +47,14 @@ func TestWorkspaceNamespaceUsesTheConfiguredPrefix(t *testing.T) {
 func TestNamesFitKubernetesLimitsForRealIDs(t *testing.T) {
 	app := &locov1alpha1.Application{
 		Spec: locov1alpha1.ApplicationSpec{
-			Type:        testAppType,
-			ResourceID:  "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f",
-			WorkspaceID: "019a6f3e-8c2b-7d41-9e5f-000000000003",
+			Type:          testAppType,
+			ResourceID:    "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f",
+			WorkspaceID:   "019a6f3e-8c2b-7d41-9e5f-000000000005",
+			EnvironmentID: testPreviewEnvironmentID,
 		},
 	}
 
-	namespace := testWorkspaceNamespace(app)
+	namespace := testEnvironmentNamespace(app)
 	if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
 		t.Errorf("namespace %q is not a valid namespace name: %v", namespace, errs)
 	}

@@ -1,11 +1,10 @@
 -- name: UpsertPlacement :one
 INSERT INTO placements (resource_id, cluster_id, region, deployment_id, desired_spec, environment_id, secret_names)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (resource_id, cluster_id) DO UPDATE
+ON CONFLICT (resource_id, environment_id, cluster_id) DO UPDATE
 SET region = EXCLUDED.region,
     deployment_id = EXCLUDED.deployment_id,
     desired_spec = EXCLUDED.desired_spec,
-    environment_id = EXCLUDED.environment_id,
     secret_names = EXCLUDED.secret_names,
     desired_deleted = false,
     desired_revision = placements.desired_revision + 1,
@@ -26,7 +25,7 @@ SET desired_deleted = true,
     apply_attempts = 0,
     apply_failed = false,
     updated_at = NOW()
-WHERE resource_id = $1 AND cluster_id = $2 AND NOT desired_deleted
+WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision;
 
 -- name: MarkResourcePlacementsDeleted :many
@@ -42,9 +41,9 @@ SET desired_deleted = true,
 WHERE resource_id = $1 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision;
 
--- name: GetPlacementForResourceCluster :one
+-- name: GetResourceEnvironmentPlacement :one
 SELECT * FROM placements
-WHERE resource_id = $1 AND cluster_id = $2;
+WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3;
 
 -- name: ListPendingPlacements :many
 SELECT id, desired_revision FROM placements
@@ -195,9 +194,13 @@ SELECT r.id, sqlc.arg(cluster_id), r.workspace_id FROM resources r WHERE r.id = 
 ON CONFLICT (resource_id, cluster_id) WHERE removed_at IS NULL DO NOTHING;
 
 -- name: ClosePlacementWindow :exec
-UPDATE placement_windows
+UPDATE placement_windows pw
 SET removed_at = NOW()
-WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL;
+WHERE pw.resource_id = $1 AND pw.cluster_id = $2 AND pw.removed_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM placements p
+    WHERE p.resource_id = $1 AND p.cluster_id = $2 AND NOT p.desired_deleted
+  );
 
 -- name: ListClusterPlacementWindows :many
 SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at

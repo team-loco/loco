@@ -341,8 +341,8 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 	if err := r.prunePrivateServices(ctx, app, ""); err != nil {
 		return err
 	}
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
 	routeName := getRouteName(app)
 	gatewayPolicyName := getGatewayPolicyName(app)
 	envSecretName := getEnvSecretName(app)
@@ -367,28 +367,28 @@ func (r *ApplicationReconciler) deleteAppObjects(ctx context.Context, app *locov
 	return nil
 }
 
-func (r *ApplicationReconciler) workspaceNamespace(app *locov1alpha1.Application) string {
-	return r.WorkspaceNamespacePrefix + app.Spec.WorkspaceID
+func (r *ApplicationReconciler) environmentNamespace(app *locov1alpha1.Application) string {
+	return locov1alpha1.EnvironmentNamespace(r.WorkspaceNamespacePrefix, app.Spec.EnvironmentID)
 }
 
 func getEnvSecretName(app *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-env", locov1alpha1.ApplicationName(app.Spec.ResourceID))
+	return fmt.Sprintf("%s-env", locov1alpha1.WorkloadName(app.Spec.ResourceID))
 }
 
 func getRouteName(app *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-route", locov1alpha1.ApplicationName(app.Spec.ResourceID))
+	return fmt.Sprintf("%s-route", locov1alpha1.WorkloadName(app.Spec.ResourceID))
 }
 
 func getGatewayPolicyName(app *locov1alpha1.Application) string {
-	return fmt.Sprintf("%s-gateway", locov1alpha1.ApplicationName(app.Spec.ResourceID))
+	return fmt.Sprintf("%s-gateway", locov1alpha1.WorkloadName(app.Spec.ResourceID))
 }
 
 func getInternalDomain(app *locov1alpha1.Application, namespace string) string {
-	return fmt.Sprintf("%s.%s.svc.cluster.local", locov1alpha1.ApplicationName(app.Spec.ResourceID), namespace)
+	return fmt.Sprintf("%s.%s.svc.cluster.local", locov1alpha1.WorkloadName(app.Spec.ResourceID), namespace)
 }
 
 func managedLabels(app *locov1alpha1.Application) map[string]string {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	return map[string]string{
 		labelApp:                  name,
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
@@ -413,10 +413,10 @@ func ownerAnnotations(app *locov1alpha1.Application) map[string]string {
 
 // ensureNamespace ensures the application namespace exists and is configured
 func (r *ApplicationReconciler) ensureNamespace(ctx context.Context, app *locov1alpha1.Application) error {
-	namespace := r.workspaceNamespace(app)
+	namespace := r.environmentNamespace(app)
 	slog.DebugContext(ctx, "ensuring namespace", "namespace", namespace)
 
-	labels := workspaceNamespaceLabels(app)
+	labels := environmentNamespaceLabels(app)
 	ns := corev1ac.Namespace(namespace).WithLabels(labels)
 
 	opts := managed.ApplyOptions()
@@ -437,7 +437,7 @@ func (r *ApplicationReconciler) ensureEnvSecret(
 	ctx context.Context,
 	app *locov1alpha1.Application,
 ) (envSecretMount, error) {
-	namespace := r.workspaceNamespace(app)
+	namespace := r.environmentNamespace(app)
 	envSecretName := getEnvSecretName(app)
 	ref := app.Spec.ServiceSpec.Deployment.EnvSecretRef
 	if ref == nil {
@@ -486,8 +486,8 @@ func (r *ApplicationReconciler) ensureEnvSecret(
 
 // ensureServiceAccount ensures the service account exists for the deployment and references image pull secret
 func (r *ApplicationReconciler) ensureServiceAccount(ctx context.Context, app *locov1alpha1.Application) error {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
 
 	slog.DebugContext(ctx, "ensuring service account", "namespace", namespace, "name", name)
 
@@ -511,8 +511,8 @@ func (r *ApplicationReconciler) ensureServiceAccount(ctx context.Context, app *l
 
 // ensureService ensures the Kubernetes service exists for the deployment
 func (r *ApplicationReconciler) ensureService(ctx context.Context, app *locov1alpha1.Application) error {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
 	if app.Spec.ServiceSpec.Deployment.Port == nil {
 		svc := &corev1.Service{Name: name, Namespace: namespace}
 		if err := r.Delete(ctx, svc); err != nil && !apierrors.IsNotFound(err) {
@@ -651,7 +651,7 @@ func desiredDeployment(
 	minReadySeconds int32,
 	drainSeconds int32,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	template, err := podTemplate(app, namespace, envSecret, telemetry)
 	if err != nil {
 		return nil, err
@@ -697,7 +697,7 @@ func podTemplate(
 	envSecret envSecretMount,
 	telemetry TelemetryConfig,
 ) (*corev1ac.PodTemplateSpecApplyConfiguration, error) {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	spec := app.Spec.ServiceSpec
 	resources, err := containerResources(spec.Resources)
 	if err != nil {
@@ -777,7 +777,7 @@ func (r *ApplicationReconciler) ensureDeployment(
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
 	dep, err := desiredDeployment(
 		app,
-		r.workspaceNamespace(app),
+		r.environmentNamespace(app),
 		envSecret,
 		r.Telemetry,
 		r.MinReadySeconds,
@@ -787,8 +787,8 @@ func (r *ApplicationReconciler) ensureDeployment(
 		return nil, err
 	}
 
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
 	opts := managed.ApplyOptions()
@@ -819,8 +819,8 @@ func setReadyReplicas(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApp
 
 // ensureHTTPRoute ensures the HTTPRoute exists for traffic ingress (Envoy Gateway)
 func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1alpha1.Application) error {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
 	routeName := getRouteName(app)
 	routing := app.Spec.ServiceSpec.Routing
 
@@ -885,7 +885,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Gateways report attachment and acceptance in status. Only desired route changes need repair.
 	routeChanged := predicate.Or(applicationChanged, predicate.LabelChangedPredicate{})
 	routePredicates := builder.WithPredicates(routeChanged)
-	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerWorkspace)
+	nodeHandler := handler.EnqueueRequestsFromMapFunc(r.applicationPerEnvironment)
 	nodeChanges := isolation.NodeRangesChanged()
 	nodePredicates := builder.WithPredicates(nodeChanges)
 	options := crcontroller.Options{MaxConcurrentReconciles: maxConcurrentReconciles}

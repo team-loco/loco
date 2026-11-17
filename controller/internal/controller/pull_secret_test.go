@@ -105,7 +105,7 @@ func TestPullSecretChangedMatchesTheAgentsSecretsInTokenMode(t *testing.T) {
 	}
 }
 
-func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
+func TestApplicationPerEnvironmentEnqueuesOneLiveAppPerEnvironment(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleting := workspaceApp("deleting", "1")
 	deleting.Finalizers = []string{locov1alpha1.FinalizerAppResourcesCleanup}
@@ -116,7 +116,7 @@ func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
 	live := workspaceApp("live", "3")
 	sibling := workspaceApp("sibling", "4")
 	elsewhere := workspaceApp("elsewhere", "5")
-	elsewhere.Spec.WorkspaceID = "9"
+	elsewhere.Spec.EnvironmentID = "env-9"
 	kubeClient := fake.NewClientBuilder().
 		WithScheme(scheme).
 		WithObjects(deleting, invalid, live, sibling, elsewhere).
@@ -124,7 +124,7 @@ func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
 	r := pullSecretReconciler(kubeClient)
 
 	testCtx := context.Background()
-	requests := r.applicationPerWorkspace(testCtx, nil)
+	requests := r.applicationPerEnvironment(testCtx, nil)
 	workspaces := make(map[string]int, len(requests))
 	for _, req := range requests {
 		if req.Name == deleting.Name || req.Name == invalid.Name {
@@ -134,10 +134,10 @@ func TestApplicationPerWorkspaceEnqueuesOneLiveAppPerWorkspace(t *testing.T) {
 		if err := kubeClient.Get(testCtx, req.NamespacedName, app); err != nil {
 			t.Fatalf("get %s: %v", req.NamespacedName, err)
 		}
-		workspaces[app.Spec.WorkspaceID]++
+		workspaces[app.Spec.EnvironmentID]++
 	}
-	want := map[string]int{live.Spec.WorkspaceID: 1, elsewhere.Spec.WorkspaceID: 1}
+	want := map[string]int{live.Spec.EnvironmentID: 1, elsewhere.Spec.EnvironmentID: 1}
 	if !maps.Equal(workspaces, want) {
-		t.Fatalf("requests per workspace = %v, want %v", workspaces, want)
+		t.Fatalf("requests per environment = %v, want %v", workspaces, want)
 	}
 }

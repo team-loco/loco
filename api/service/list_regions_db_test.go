@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -14,17 +15,16 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-func (f *deployFixture) addStagingRegionCluster(t *testing.T) {
+func (f *deployFixture) addAvailableRegionCluster(t *testing.T) {
 	t.Helper()
 	insert := `
-INSERT INTO clusters (name, region, provider, is_active, is_default, health_status, last_heartbeat, tier)
-VALUES ($1, $2, 'kind', true, true, 'healthy', NOW(), $3)`
+INSERT INTO clusters (name, region, provider, is_active, is_default, health_status, last_heartbeat)
+VALUES ($1, $2, 'kind', true, true, 'healthy', NOW())`
 	if _, err := f.pool.Exec(
 		context.Background(),
 		insert,
 		domainsSecondCluster,
 		statusSecondRegion,
-		stagingName,
 	); err != nil {
 		t.Fatalf("add staging region cluster: %v", err)
 	}
@@ -53,7 +53,7 @@ func listRegions(
 	return resp.GetRegions()
 }
 
-func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *testing.T) {
+func TestListRegionsUsesTheSameEligibleClustersForEveryEnvironment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
@@ -62,28 +62,32 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 	if _, err := f.pool.Exec(t.Context(), move, f.clusterID, statusSecondRegion); err != nil {
 		t.Fatal(err)
 	}
-	f.addStagingRegionCluster(t)
+	f.addAvailableRegionCluster(t)
 	staging := f.addStagingEnvironment(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := f.workspaceReadScopes(t)
 
 	production := listRegions(t, server, scopes, f.envID.String())
-	if len(production) != 1 {
-		t.Fatalf("production regions = %v, want only %s", production, testRegion)
+	if len(production) != 2 {
+		t.Fatalf("production regions = %v, want both eligible regions including %s", production, testRegion)
 	}
-	region := production[0]
-	if region.GetRegion() != testRegion || region.GetIsDefault() || region.GetHealthStatus() != "healthy" ||
-		region.GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
-		t.Fatalf("production region = %v, want %s from c2: not default, healthy", region, testRegion)
+	if production[0].GetRegion() != statusSecondRegion || !production[0].GetIsDefault() ||
+		production[1].GetRegion() != testRegion || production[1].GetIsDefault() {
+		t.Fatalf("regions = %v, want the shared default region before the fallback region", production)
 	}
-
+	for _, region := range production {
+		if region.GetHealthStatus() != "healthy" ||
+			region.GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
+			t.Fatalf("region = %v, want a healthy available worker", region)
+		}
+	}
 	stagingRegions := listRegions(t, server, scopes, staging.String())
-	names := make([]string, 0, len(stagingRegions))
-	for _, info := range stagingRegions {
-		names = append(names, info.GetRegion())
-	}
-	if !slices.Equal(names, []string{statusSecondRegion}) || !stagingRegions[0].GetIsDefault() {
-		t.Fatalf("staging regions = %v, want %s as the default", stagingRegions, statusSecondRegion)
+	if !slices.EqualFunc(
+		production,
+		stagingRegions,
+		func(a, b *resourcev1.RegionInfo) bool { return proto.Equal(a, b) },
+	) {
+		t.Fatalf("staging regions = %v, want the same workers as production %v", stagingRegions, production)
 	}
 
 	resourceScopes := []genDb.EntityScope{
@@ -123,7 +127,7 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 		t.Fatalf("regions = %v, want the healthy region first and the degraded region without a default", regions)
 	}
 
-	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, "production", testClusterSilentAfter)
+	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, testClusterSilentAfter)
 	wantCode(t, err, connect.CodeFailedPrecondition)
 }
 

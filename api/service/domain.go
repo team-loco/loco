@@ -33,9 +33,9 @@ var (
 		connect.CodeFailedPrecondition,
 		"make another domain primary before removing the primary domain",
 	)
-	errNoProductionEnvironment = rpcerr.NewCoded(
+	errNoWorkspaceEnvironment = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
-		"the workspace has no production environment to hold the domain",
+		"the workspace has no environments to hold the domain",
 	)
 	errPlacementNotService = errors.New("domain placement has no service spec")
 	errDomainWithoutPort   = rpcerr.NewCoded(
@@ -76,11 +76,11 @@ func (s *DomainServer) ListPlatformDomains(
 	req *domainv1.ListPlatformDomainsRequest,
 ) (*domainv1.ListPlatformDomainsResponse, error) {
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
-	env, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListPlatformDomains)
+	_, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListPlatformDomains)
 	if err != nil {
 		return nil, err
 	}
-	eligible, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
+	eligible, err := eligibleClusters(ctx, s.queries, s.silentAfter)
 	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
@@ -251,7 +251,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockResourceEnvironments(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID); lockErr != nil {
 			return lockErr
 		}
 		if changed {
@@ -464,9 +464,9 @@ func (s *DomainServer) checkResourceDomain(
 	if err != nil {
 		return "", "", fmt.Errorf("get resource %s: %w", resourceID, err)
 	}
-	env, err := s.queries.GetWorkspaceProductionEnvironment(ctx, resource.WorkspaceID)
+	env, err := s.queries.GetWorkspaceDefaultEnvironment(ctx, resource.WorkspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", "", errNoProductionEnvironment
+		return "", "", errNoWorkspaceEnvironment
 	}
 	if err != nil {
 		return "", "", fmt.Errorf("get production environment: %w", err)
@@ -490,7 +490,7 @@ func (s *DomainServer) checkResourceDomain(
 		placed = append(placed, placement.ClusterID)
 	}
 	regions := enabledRegions(spec.GetService().GetRegions())
-	check, err := resourceDomainCheck(ctx, s.queries, env.EnvironmentType, regions, placed, s.silentAfter)
+	check, err := resourceDomainCheck(ctx, s.queries, regions, placed, s.silentAfter)
 	if err != nil {
 		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}
@@ -507,21 +507,21 @@ func imperativeDomainEnvironment(ctx context.Context, q genDb.Querier, resourceI
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("get resource workspace: %w", err)
 	}
-	env, err := workspaceProductionEnvironment(ctx, q, workspaceID)
+	env, err := workspaceDefaultEnvironment(ctx, q, workspaceID)
 	if err != nil {
 		return uuid.UUID{}, err
 	}
 	return env.ID, nil
 }
 
-func workspaceProductionEnvironment(
+func workspaceDefaultEnvironment(
 	ctx context.Context,
 	q genDb.Querier,
 	workspaceID uuid.UUID,
 ) (genDb.Environment, error) {
-	env, err := q.GetWorkspaceProductionEnvironment(ctx, workspaceID)
+	env, err := q.GetWorkspaceDefaultEnvironment(ctx, workspaceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.Environment{}, errNoProductionEnvironment
+		return genDb.Environment{}, errNoWorkspaceEnvironment
 	}
 	if err != nil {
 		return genDb.Environment{}, fmt.Errorf("get production environment: %w", err)

@@ -14,7 +14,6 @@ const (
 	platformDomain = "e2e.test.local"
 	clusterRegion  = "us-east-1"
 	clusterName    = "e2e-test-cluster"
-	clusterTier    = "production"
 	workerRelease  = "loco-worker"
 	// gatewayName is loco-worker.gateway in charts/loco-worker/templates/_helpers.tpl.
 	gatewayName = "eg"

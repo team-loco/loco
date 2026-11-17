@@ -273,7 +273,7 @@ func (a *applier) deploy(
 	resourceSpec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}}
 	secretNames := append([]string{}, state.Secrets...)
 
-	clusters, err := eligibleClusters(ctx, qtx, a.env.EnvironmentType, a.silentAfter)
+	clusters, err := eligibleClusters(ctx, qtx, a.silentAfter)
 	if err != nil {
 		return err
 	}
@@ -290,7 +290,7 @@ func (a *applier) deploy(
 		}
 		cluster, found := clusterForRegion(clusters, region)
 		if !found {
-			return errNoActiveCluster.Detail("%s (%s)", region, a.env.EnvironmentType)
+			return errNoActiveCluster.Detail("%s", region)
 		}
 		service := deploymentSpecFor(state, region, build)
 		if quantityErr := validateQuantities(service); quantityErr != nil {

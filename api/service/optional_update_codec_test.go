@@ -58,14 +58,6 @@ func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
 			valid:   false,
 		},
 		{
-			name:    "environment type zero",
-			body:    `{"environmentId":"` + id + `","type":0}`,
-			message: &environmentv1.UpdateEnvironmentRequest{},
-			field:   "type",
-			present: true,
-			valid:   false,
-		},
-		{
 			name:    "resource name empty",
 			body:    `{"resourceId":"` + id + `","name":""}`,
 			message: &resourcev1.UpdateResourceRequest{},

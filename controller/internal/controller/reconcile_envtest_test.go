@@ -68,10 +68,11 @@ var _ = Describe("Application reconcile", func() {
 			Name: convergeName, Namespace: testNamespace,
 			Annotations: map[string]string{locov1alpha1.KeyPlacementID: "p-converge"},
 			Spec: locov1alpha1.ApplicationSpec{
-				Type:        testAppType,
-				ResourceID:  convergeName,
-				Slug:        convergeName,
-				WorkspaceID: "ws",
+				Type:          testAppType,
+				ResourceID:    convergeName,
+				Slug:          convergeName,
+				WorkspaceID:   "ws",
+				EnvironmentID: "env-ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
 						Image:         "registry.example.com/app:v1",
@@ -85,7 +86,7 @@ var _ = Describe("Application reconcile", func() {
 			},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		podNamespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
+		podNamespace := &corev1.Namespace{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Create(ctx, podNamespace)).To(Succeed())
 
 		r := &ApplicationReconciler{
@@ -101,7 +102,7 @@ var _ = Describe("Application reconcile", func() {
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
 		depKey := client.ObjectKey{
-			Namespace: testWorkspaceNamespace(app),
+			Namespace: testEnvironmentNamespace(app),
 			Name:      testAppName(app),
 		}
 		envSecretName := getEnvSecretName(app)
@@ -280,7 +281,7 @@ var _ = Describe("Application reconcile", func() {
 		secondKey := client.ObjectKeyFromObject(second)
 		firstReq := reconcile.Request{NamespacedName: firstKey}
 		secondReq := reconcile.Request{NamespacedName: secondKey}
-		namespace := testWorkspaceNamespace(first)
+		namespace := testEnvironmentNamespace(first)
 		secretKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 		firstName := testAppName(first)
 		secondName := testAppName(second)
@@ -312,7 +313,7 @@ var _ = Describe("Application reconcile", func() {
 		rotated := []byte(`{"auths":{"registry.example.com":{}}}`)
 		pullSecret.Data = map[string][]byte{corev1.DockerConfigJsonKey: rotated}
 		Expect(k8sClient.Update(ctx, pullSecret)).To(Succeed())
-		requests := r.applicationPerWorkspace(ctx, pullSecret)
+		requests := r.applicationPerEnvironment(ctx, pullSecret)
 		var workspaceRequests []reconcile.Request
 		for _, req := range requests {
 			if req == firstReq || req == secondReq {
@@ -374,7 +375,7 @@ var _ = Describe("Application reconcile", func() {
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
-		namespace := testWorkspaceNamespace(app)
+		namespace := testEnvironmentNamespace(app)
 		copyKey := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 		saKey := client.ObjectKey{Namespace: namespace, Name: testAppName(app)}
 
@@ -441,7 +442,7 @@ var _ = Describe("Application reconcile", func() {
 
 		previous, err := desiredDeployment(
 			app,
-			testWorkspaceNamespace(app),
+			testEnvironmentNamespace(app),
 			envSecretMount{},
 			testTelemetry(),
 			testMinReadySeconds,
@@ -468,7 +469,7 @@ var _ = Describe("Application reconcile", func() {
 
 		dep := &appsv1.Deployment{}
 		depKey := client.ObjectKey{
-			Namespace: testWorkspaceNamespace(app),
+			Namespace: testEnvironmentNamespace(app),
 			Name:      testAppName(app),
 		}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
@@ -508,7 +509,7 @@ var _ = Describe("Application reconcile", func() {
 
 		dep := &appsv1.Deployment{}
 		depKey := client.ObjectKey{
-			Namespace: testWorkspaceNamespace(app),
+			Namespace: testEnvironmentNamespace(app),
 			Name:      testAppName(app),
 		}
 		Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
@@ -531,7 +532,8 @@ var _ = Describe("Application reconcile", func() {
 			Name:       "invalid",
 			Namespace:  testNamespace,
 			Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
-			Spec:       locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws"},
+			Spec: locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: "invalid", WorkspaceID: "ws",
+				EnvironmentID: "env-invalid"},
 		}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
@@ -569,11 +571,11 @@ var _ = Describe("Application reconcile", func() {
 				Namespace:  testNamespace,
 				Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
 				Spec: locov1alpha1.ApplicationSpec{
-					Type: testAppType, ResourceID: workspaceID, WorkspaceID: workspaceID,
+					Type: testAppType, ResourceID: workspaceID, WorkspaceID: workspaceID, EnvironmentID: workspaceID,
 				},
 			}
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-			nsKey := client.ObjectKey{Name: testWorkspaceNamespace(app)}
+			nsKey := client.ObjectKey{Name: testEnvironmentNamespace(app)}
 			Expect(k8sClient.Create(ctx, &corev1.Namespace{Name: nsKey.Name, Labels: labels})).To(Succeed())
 
 			r := &ApplicationReconciler{

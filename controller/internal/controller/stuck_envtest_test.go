@@ -36,7 +36,7 @@ func reconcileStuckApp(r *ApplicationReconciler, app *locov1alpha1.Application) 
 func createReplica(app *locov1alpha1.Application, name, image string) *corev1.Pod {
 	dep := &appsv1.Deployment{}
 	depKey := client.ObjectKey{
-		Namespace: testWorkspaceNamespace(app),
+		Namespace: testEnvironmentNamespace(app),
 		Name:      testAppName(app),
 	}
 	Expect(k8sClient.Get(ctx, depKey, dep)).To(Succeed())
@@ -142,7 +142,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 
 		setWaiting(current, reasonImagePullBackOff, kubeletPullMessage)
 		dep := &appsv1.Deployment{}
-		key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: testAppName(app)}
+		key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: testAppName(app)}
 		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())
 		dep.Status.ObservedGeneration = dep.Generation
 		dep.Status.Conditions = []appsv1.DeploymentCondition{{
@@ -208,7 +208,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 		reconcileStuckApp(r, app)
 		dep := &appsv1.Deployment{}
 		key := client.ObjectKey{
-			Namespace: testWorkspaceNamespace(app),
+			Namespace: testEnvironmentNamespace(app),
 			Name:      testAppName(app),
 		}
 		Expect(k8sClient.Get(ctx, key, dep)).To(Succeed())

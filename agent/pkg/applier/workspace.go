@@ -17,8 +17,13 @@ func (a *Applier) WorkspaceIDs(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	ids := make([]string, 0, len(namespaces))
+	seen := make(map[string]bool, len(namespaces))
 	for _, ns := range namespaces {
-		ids = append(ids, ns.Labels[locolabels.LabelWorkspaceID])
+		id := ns.Labels[locolabels.LabelWorkspaceID]
+		if !seen[id] {
+			ids = append(ids, id)
+			seen[id] = true
+		}
 	}
 	return ids, nil
 }

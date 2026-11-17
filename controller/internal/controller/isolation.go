@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	namespaceAppLabelValue = "true"
 	labelNamespaceName     = "kubernetes.io/metadata.name"
 	labelGatewayName       = "gateway.envoyproxy.io/owning-gateway-name"
 	labelGatewayNamespace  = "gateway.envoyproxy.io/owning-gateway-namespace"
@@ -41,9 +42,9 @@ func podSecurityLabels() map[string]string {
 	}
 }
 
-func workspaceNamespaceLabels(app *locov1alpha1.Application) map[string]string {
+func environmentNamespaceLabels(app *locov1alpha1.Application) map[string]string {
 	labels := podSecurityLabels()
-	labels[locolabels.LabelLocoApp] = "true"
+	labels[locolabels.LabelLocoApp] = namespaceAppLabelValue
 	labels[locolabels.LabelManagedBy] = locolabels.ControllerManagedBy
 	labels[locolabels.LabelOrganizationID] = app.Spec.OrganizationID
 	labels[locolabels.LabelWorkspaceID] = app.Spec.WorkspaceID
@@ -90,24 +91,30 @@ func namespacedPodPeer(
 		WithPodSelector(podSelector)
 }
 
-func sameNamespacePeer() *networkingv1ac.NetworkPolicyPeerApplyConfiguration {
-	allPods := metav1ac.LabelSelector()
-	return networkingv1ac.NetworkPolicyPeer().WithPodSelector(allPods)
+func workspacePeer(workspaceID string) *networkingv1ac.NetworkPolicyPeerApplyConfiguration {
+	namespaces := metav1ac.LabelSelector().WithMatchLabels(map[string]string{
+		locolabels.LabelWorkspaceID: workspaceID,
+		locolabels.LabelManagedBy:   locolabels.ControllerManagedBy,
+		locolabels.LabelLocoApp:     namespaceAppLabelValue,
+	})
+	return networkingv1ac.NetworkPolicyPeer().
+		WithNamespaceSelector(namespaces).
+		WithPodSelector(metav1ac.LabelSelector())
 }
 
 func (r *ApplicationReconciler) workspaceNetworkPolicies(
 	app *locov1alpha1.Application,
 	exclusions isolation.EgressExclusions,
 ) []*networkingv1ac.NetworkPolicyApplyConfiguration {
-	namespace := r.workspaceNamespace(app)
+	namespace := r.environmentNamespace(app)
 	labels := workspaceObjectLabels(app)
 	ingress := networkingv1.PolicyTypeIngress
 	egress := networkingv1.PolicyTypeEgress
 
 	denyAll := isolation.DenyAllSpec()
 
-	workspaceIngressPeer := sameNamespacePeer()
-	workspaceEgressPeer := sameNamespacePeer()
+	workspaceIngressPeer := workspacePeer(app.Spec.WorkspaceID)
+	workspaceEgressPeer := workspacePeer(app.Spec.WorkspaceID)
 	workspaceIngress := networkingv1ac.NetworkPolicyIngressRule().WithFrom(workspaceIngressPeer)
 	workspaceEgress := networkingv1ac.NetworkPolicyEgressRule().WithTo(workspaceEgressPeer)
 	workspaceAccess := networkingv1ac.NetworkPolicySpec().
@@ -152,8 +159,8 @@ func (r *ApplicationReconciler) ensureWorkspaceNetworkPolicies(
 func (r *ApplicationReconciler) gatewayIngressPolicy(
 	app *locov1alpha1.Application,
 ) *networkingv1ac.NetworkPolicyApplyConfiguration {
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	namespace := r.workspaceNamespace(app)
+	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
+	namespace := r.environmentNamespace(app)
 	policyName := getGatewayPolicyName(app)
 	labels := managedLabels(app)
 	annotations := ownerAnnotations(app)
@@ -182,7 +189,7 @@ func (r *ApplicationReconciler) ensureGatewayIngressPolicy(
 	ctx context.Context,
 	app *locov1alpha1.Application,
 ) error {
-	namespace := r.workspaceNamespace(app)
+	namespace := r.environmentNamespace(app)
 	policyName := getGatewayPolicyName(app)
 
 	if app.Spec.ServiceSpec.Routing == nil {

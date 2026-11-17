@@ -88,23 +88,23 @@ func applicationForObject(_ context.Context, obj client.Object) []reconcile.Requ
 	return []reconcile.Request{{NamespacedName: key}}
 }
 
-func (r *ApplicationReconciler) applicationPerWorkspace(ctx context.Context, _ client.Object) []reconcile.Request {
+func (r *ApplicationReconciler) applicationPerEnvironment(ctx context.Context, _ client.Object) []reconcile.Request {
 	var apps locov1alpha1.ApplicationList
 	if err := r.List(ctx, &apps); err != nil {
-		slog.WarnContext(ctx, "failed to list applications for a workspace-wide change", "error", err)
+		slog.WarnContext(ctx, "failed to list applications for an environment-wide change", "error", err)
 		return nil
 	}
 	seen := make(map[string]bool, len(apps.Items))
 	var requests []reconcile.Request
 	for i := range apps.Items {
 		app := &apps.Items[i]
-		if seen[app.Spec.WorkspaceID] || !app.DeletionTimestamp.IsZero() {
+		if seen[app.Spec.EnvironmentID] || !app.DeletionTimestamp.IsZero() {
 			continue
 		}
 		if err := app.Spec.Validate(); err != nil {
 			continue
 		}
-		seen[app.Spec.WorkspaceID] = true
+		seen[app.Spec.EnvironmentID] = true
 		key := client.ObjectKeyFromObject(app)
 		requests = append(requests, reconcile.Request{NamespacedName: key})
 	}

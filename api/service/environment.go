@@ -21,13 +21,12 @@ import (
 )
 
 const (
-	environmentTypeProduction = "production"
+	defaultEnvironmentName = "production"
 )
 
 var (
 	ErrEnvironmentNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "environment not found")
 	ErrEnvironmentNameRequired  = rpcerr.NewCoded(connect.CodeInvalidArgument, "environment name must not be blank")
-	ErrEnvironmentTypeRequired  = rpcerr.NewCoded(connect.CodeInvalidArgument, "environment type is required")
 	ErrEnvironmentNameNotUnique = rpcerr.NewCoded(
 		connect.CodeAlreadyExists,
 		"environment name already exists in this workspace",
@@ -68,8 +67,6 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, err
 	}
 
-	envType := protoEnvTypeToString(req.GetType())
-
 	desc := req.GetDescription()
 	var env genDb.Environment
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -79,11 +76,10 @@ func (s *EnvironmentServer) CreateEnvironment(
 			return limitErr
 		}
 		created, createErr := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
-			WorkspaceID:     workspaceID,
-			Name:            req.GetName(),
-			Description:     &desc,
-			EnvironmentType: envType,
-			CreatedBy:       p.ActorID,
+			WorkspaceID: workspaceID,
+			Name:        req.GetName(),
+			Description: &desc,
+			CreatedBy:   p.ActorID,
 		})
 		if isUniqueViolation(createErr, pgEnvironmentNameUnique) {
 			return ErrEnvironmentNameNotUnique
@@ -175,7 +171,6 @@ func (s *EnvironmentServer) ListEnvironments(
 			Id:          env.ID.String(),
 			WorkspaceId: env.WorkspaceID.String(),
 			Name:        env.Name,
-			Type:        stringToProtoEnvType(env.EnvironmentType),
 		})
 	}
 
@@ -200,13 +195,8 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	fields := message.Descriptor().Fields()
 	updateName := message.Has(fields.ByName(updateNameField))
 	updateDescription := message.Has(fields.ByName(updateDescriptionField))
-	updateType := message.Has(fields.ByName(updateTypeField))
 	if updateName && strings.TrimSpace(req.GetName()) == "" {
 		return nil, ErrEnvironmentNameRequired
-	}
-	if updateType &&
-		req.GetType() == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
-		return nil, ErrEnvironmentTypeRequired
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -225,15 +215,10 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		if updateDescription {
 			description = new(req.GetDescription())
 		}
-		envType := current.EnvironmentType
-		if updateType {
-			envType = protoEnvTypeToString(req.GetType())
-		}
 		updated, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
-			ID:              envID,
-			Name:            name,
-			Description:     description,
-			EnvironmentType: envType,
+			ID:          envID,
+			Name:        name,
+			Description: description,
 		})
 		if isUniqueViolation(updateErr, pgEnvironmentNameUnique) {
 			return ErrEnvironmentNameNotUnique
@@ -241,7 +226,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		if updateErr != nil {
 			return fmt.Errorf("update environment: %w", updateErr)
 		}
-		if updated.Name != current.Name || updated.EnvironmentType != current.EnvironmentType {
+		if updated.Name != current.Name {
 			if bumpErr := bumpEnvironmentRevision(ctx, qtx, envID); bumpErr != nil {
 				return bumpErr
 			}
@@ -311,32 +296,9 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 		WorkspaceId: env.WorkspaceID.String(),
 		Name:        env.Name,
 		Description: env.Description,
-		Type:        stringToProtoEnvType(env.EnvironmentType),
 		CreatedBy:   env.CreatedBy.String(),
 		CreatedAt:   timestamppb.New(env.CreatedAt),
 		UpdatedAt:   timestamppb.New(env.UpdatedAt),
 		Revision:    env.Revision,
-	}
-}
-
-func protoEnvTypeToString(t environmentv1.EnvironmentType) string {
-	switch t {
-	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING:
-		return "staging"
-	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION:
-		return environmentTypeProduction
-	default:
-		return ""
-	}
-}
-
-func stringToProtoEnvType(s string) environmentv1.EnvironmentType {
-	switch s {
-	case "staging":
-		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING
-	case environmentTypeProduction:
-		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
-	default:
-		return environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED
 	}
 }

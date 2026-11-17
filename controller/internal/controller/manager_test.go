@@ -43,7 +43,7 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
 
 		app := isolationTestApplication("ws-route-watch", "route-watch")
-		namespace := testWorkspaceNamespace(app)
+		namespace := testEnvironmentNamespace(app)
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "1"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())

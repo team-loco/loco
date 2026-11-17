@@ -18,7 +18,6 @@ def prepare_activity(evidence, state):
         {
             "workspaceId": workspace,
             "name": "staging",
-            "type": "ENVIRONMENT_TYPE_STAGING",
         },
     )
     spec = {
@@ -86,9 +85,7 @@ def prepare_activity(evidence, state):
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]
-    production = next(
-        e["id"] for e in environments if e["type"] == "ENVIRONMENT_TYPE_PRODUCTION"
-    )
+    production = next(e["id"] for e in environments if e["name"] == "production")
     staging = next(e["id"] for e in environments if e["name"] == "staging")
     evidence.psql(
         state["container"],

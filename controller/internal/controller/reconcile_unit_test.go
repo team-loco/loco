@@ -42,10 +42,11 @@ func testApplication() *locov1alpha1.Application {
 	return &locov1alpha1.Application{
 		Name: "app", Namespace: "loco",
 		Spec: locov1alpha1.ApplicationSpec{
-			Type:        testAppType,
-			ResourceID:  "1",
-			Slug:        "app",
-			WorkspaceID: "2",
+			Type:          testAppType,
+			ResourceID:    "1",
+			Slug:          "app",
+			WorkspaceID:   "2",
+			EnvironmentID: "env-2",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
 					Image: testImage,
@@ -86,7 +87,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	app := testApplication()
 	dep, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{Mounted: true, Revision: 7},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -129,7 +130,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 
 	dep, err = desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -152,7 +153,7 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	app.Spec.ServiceSpec.Routing = nil
 	dep, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -174,7 +175,7 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
 	dep, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -203,7 +204,7 @@ func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
 	app.Spec.ServiceSpec.Resources.CPU = "lots"
 	if _, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -255,7 +256,7 @@ func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 	app := testApplication()
 	deployment, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -287,7 +288,7 @@ func TestEnsureHTTPRouteDeletesRouteWhenRoutingRemoved(t *testing.T) {
 
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	namespace := testWorkspaceNamespace(app)
+	namespace := testEnvironmentNamespace(app)
 	routeName := getRouteName(app)
 	existing := &v1Gateway.HTTPRoute{Name: routeName, Namespace: namespace}
 	kubeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
@@ -334,7 +335,7 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 		t.Fatalf("ensureHTTPRoute: %v", err)
 	}
 	route := &v1Gateway.HTTPRoute{}
-	key := client.ObjectKey{Namespace: testWorkspaceNamespace(app), Name: getRouteName(app)}
+	key := client.ObjectKey{Namespace: testEnvironmentNamespace(app), Name: getRouteName(app)}
 	if err := kubeClient.Get(testCtx, key, route); err != nil {
 		t.Fatalf("get route: %v", err)
 	}

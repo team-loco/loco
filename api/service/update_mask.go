@@ -4,6 +4,5 @@ package service
 const (
 	updateNameField        = "name"
 	updateDescriptionField = "description"
-	updateTypeField        = "type"
 	updateAvatarField      = "avatar_url"
 )

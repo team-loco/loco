@@ -154,7 +154,7 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 
 func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 	t.Parallel()
-	for _, test := range []string{"partial", "sizing", "unknown", "tier"} {
+	for _, test := range []string{"partial", "sizing", "unknown", "offline"} {
 		t.Run(test, func(t *testing.T) {
 			f := prepareRegionUpdate(t)
 			targets, revision := regionTargets(t, f)
@@ -170,8 +170,10 @@ func TestUpdateResourceRegionsRefusesPartialAndInvalidSizing(t *testing.T) {
 				targets[testRegion].Cpu = "bad-cpu"
 			case "unknown":
 				targets["unknown"] = proto.CloneOf(targets[testRegion])
-			case "tier":
-				f.setStagingTier(t, f.clusterID)
+			case "offline":
+				if _, err := f.pool.Exec(t.Context(), "UPDATE clusters SET health_status = 'unhealthy'"); err != nil {
+					t.Fatal(err)
+				}
 			}
 			wantCode(t, updateResourceRegions(t, f, targets, revision), connect.CodeFailedPrecondition)
 			_, after := regionTargets(t, f)
@@ -190,8 +192,8 @@ func TestUpdateResourceRegionsValidatesEveryEnvironmentAtomically(t *testing.T) 
 	targets, revision := regionTargets(t, f)
 	targets[otherRegion] = proto.CloneOf(targets[testRegion])
 	insert := `
-INSERT INTO clusters(name,region,provider,is_active,is_default,health_status,last_heartbeat,tier)
-VALUES('extra-production',$1,'kind',true,false,'healthy',NOW(),'production')`
+INSERT INTO clusters(name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES('extra',$1,'kind',true,false,'unhealthy',NOW())`
 	if _, err := f.pool.Exec(t.Context(), insert, otherRegion); err != nil {
 		t.Fatal(err)
 	}
@@ -202,8 +204,7 @@ VALUES('extra-production',$1,'kind',true,false,'healthy',NOW(),'production')`
 	}
 	if _, err := f.pool.Exec(
 		t.Context(),
-		`INSERT INTO clusters(name,region,provider,is_active,is_default,health_status,last_heartbeat,tier)
-VALUES('extra-staging',$1,'kind',true,false,'healthy',NOW(),'staging')`,
+		`UPDATE clusters SET health_status='healthy' WHERE region=$1`,
 		otherRegion,
 	); err != nil {
 		t.Fatal(err)

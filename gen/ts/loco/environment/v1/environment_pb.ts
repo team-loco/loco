@@ -2,8 +2,8 @@
 // @generated from file loco/environment/v1/environment.proto (package loco.environment.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/environment/v1/environment.proto.
  */
 export const file_loco_environment_v1_environment: GenFile = /*@__PURE__*/
-  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIqECCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEjIKBHR5cGUYBSABKA4yJC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50VHlwZRISCgpjcmVhdGVkX2J5GAYgASgJEi4KCmNyZWF0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHJldmlzaW9uGAkgASgDQg4KDF9kZXNjcmlwdGlvbiLFAQoYQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESFQoEbmFtZRgCIAEoCUIHukgEcgIYPxIiCgtkZXNjcmlwdGlvbhgDIAEoCUIIukgFcgMYgAJIAIgBARI+CgR0eXBlGAQgASgOMiQubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudFR5cGVCCrpIB4IBBBABIABCDgoMX2Rlc2NyaXB0aW9uIjMKGUNyZWF0ZUVudmlyb25tZW50UmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkiOQoVR2V0RW52aXJvbm1lbnRSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAEgASgJQgi6SAVyA7ABASJPChZHZXRFbnZpcm9ubWVudFJlc3BvbnNlEjUKC2Vudmlyb25tZW50GAEgASgLMiAubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudCI5ChdMaXN0RW52aXJvbm1lbnRzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBIlIKGExpc3RFbnZpcm9ubWVudHNSZXNwb25zZRI2CgxlbnZpcm9ubWVudHMYASADKAsyIC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50IuUBChhVcGRhdGVFbnZpcm9ubWVudFJlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBEhwKBG5hbWUYAiABKAlCCbpIBnIEEAEYP0gAiAEBEiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgBiAEBEkMKBHR5cGUYBCABKA4yJC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50VHlwZUIKukgHggEEEAEgAEgCiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbkIHCgVfdHlwZSIzChlVcGRhdGVFbnZpcm9ubWVudFJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJIjwKGERlbGV0ZUVudmlyb25tZW50UmVxdWVzdBIgCg5lbnZpcm9ubWVudF9pZBgBIAEoCUIIukgFcgOwAQEiGwoZRGVsZXRlRW52aXJvbm1lbnRSZXNwb25zZSpyCg9FbnZpcm9ubWVudFR5cGUSIAocRU5WSVJPTk1FTlRfVFlQRV9VTlNQRUNJRklFRBAAEhwKGEVOVklST05NRU5UX1RZUEVfU1RBR0lORxABEh8KG0VOVklST05NRU5UX1RZUEVfUFJPRFVDVElPThACMswEChJFbnZpcm9ubWVudFNlcnZpY2UScgoRQ3JlYXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLkNyZWF0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuQ3JlYXRlRW52aXJvbm1lbnRSZXNwb25zZRJpCg5HZXRFbnZpcm9ubWVudBIqLmxvY28uZW52aXJvbm1lbnQudjEuR2V0RW52aXJvbm1lbnRSZXF1ZXN0GisubG9jby5lbnZpcm9ubWVudC52MS5HZXRFbnZpcm9ubWVudFJlc3BvbnNlEm8KEExpc3RFbnZpcm9ubWVudHMSLC5sb2NvLmVudmlyb25tZW50LnYxLkxpc3RFbnZpcm9ubWVudHNSZXF1ZXN0Gi0ubG9jby5lbnZpcm9ubWVudC52MS5MaXN0RW52aXJvbm1lbnRzUmVzcG9uc2UScgoRVXBkYXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLlVwZGF0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRJyChFEZWxldGVFbnZpcm9ubWVudBItLmxvY28uZW52aXJvbm1lbnQudjEuRGVsZXRlRW52aXJvbm1lbnRSZXF1ZXN0Gi4ubG9jby5lbnZpcm9ubWVudC52MS5EZWxldGVFbnZpcm9ubWVudFJlc3BvbnNlQkRaQmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZW52aXJvbm1lbnQvdjE7ZW52aXJvbm1lbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIvkBCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYnkYBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIcmV2aXNpb24YCSABKANCDgoMX2Rlc2NyaXB0aW9uSgQIBRAGUgR0eXBlIpEBChhDcmVhdGVFbnZpcm9ubWVudFJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIVCgRuYW1lGAIgASgJQge6SARyAhg/EiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgAiAEBQg4KDF9kZXNjcmlwdGlvbkoECAQQBVIEdHlwZSIzChlDcmVhdGVFbnZpcm9ubWVudFJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJIjkKFUdldEVudmlyb25tZW50UmVxdWVzdBIgCg5lbnZpcm9ubWVudF9pZBgBIAEoCUIIukgFcgOwAQEiTwoWR2V0RW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQiOQoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABASJSChhMaXN0RW52aXJvbm1lbnRzUmVzcG9uc2USNgoMZW52aXJvbm1lbnRzGAEgAygLMiAubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudCKjAQoYVXBkYXRlRW52aXJvbm1lbnRSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAEgASgJQgi6SAVyA7ABARIcCgRuYW1lGAIgASgJQgm6SAZyBBABGD9IAIgBARIiCgtkZXNjcmlwdGlvbhgDIAEoCUIIukgFcgMYgAJIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25KBAgEEAVSBHR5cGUiMwoZVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSI8ChhEZWxldGVFbnZpcm9ubWVudFJlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBIhsKGURlbGV0ZUVudmlyb25tZW50UmVzcG9uc2UyzAQKEkVudmlyb25tZW50U2VydmljZRJyChFDcmVhdGVFbnZpcm9ubWVudBItLmxvY28uZW52aXJvbm1lbnQudjEuQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0Gi4ubG9jby5lbnZpcm9ubWVudC52MS5DcmVhdGVFbnZpcm9ubWVudFJlc3BvbnNlEmkKDkdldEVudmlyb25tZW50EioubG9jby5lbnZpcm9ubWVudC52MS5HZXRFbnZpcm9ubWVudFJlcXVlc3QaKy5sb2NvLmVudmlyb25tZW50LnYxLkdldEVudmlyb25tZW50UmVzcG9uc2USbwoQTGlzdEVudmlyb25tZW50cxIsLmxvY28uZW52aXJvbm1lbnQudjEuTGlzdEVudmlyb25tZW50c1JlcXVlc3QaLS5sb2NvLmVudmlyb25tZW50LnYxLkxpc3RFbnZpcm9ubWVudHNSZXNwb25zZRJyChFVcGRhdGVFbnZpcm9ubWVudBItLmxvY28uZW52aXJvbm1lbnQudjEuVXBkYXRlRW52aXJvbm1lbnRSZXF1ZXN0Gi4ubG9jby5lbnZpcm9ubWVudC52MS5VcGRhdGVFbnZpcm9ubWVudFJlc3BvbnNlEnIKEURlbGV0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5EZWxldGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLkRlbGV0ZUVudmlyb25tZW50UmVzcG9uc2VCRFpCZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9lbnZpcm9ubWVudC92MTtlbnZpcm9ubWVudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Environment represents an isolation boundary within a workspace.
@@ -40,11 +40,6 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
    * @generated from field: optional string description = 4;
    */
   description?: string | undefined;
-
-  /**
-   * @generated from field: loco.environment.v1.EnvironmentType type = 5;
-   */
-  type: EnvironmentType;
 
   /**
    * @generated from field: string created_by = 6;
@@ -94,11 +89,6 @@ export type EnvironmentJson = {
   description?: string;
 
   /**
-   * @generated from field: loco.environment.v1.EnvironmentType type = 5;
-   */
-  type?: EnvironmentTypeJson;
-
-  /**
    * @generated from field: string created_by = 6;
    */
   createdBy?: string;
@@ -146,11 +136,6 @@ export type CreateEnvironmentRequest = Message<"loco.environment.v1.CreateEnviro
    * @generated from field: optional string description = 3;
    */
   description?: string | undefined;
-
-  /**
-   * @generated from field: loco.environment.v1.EnvironmentType type = 4;
-   */
-  type: EnvironmentType;
 };
 
 /**
@@ -173,11 +158,6 @@ export type CreateEnvironmentRequestJson = {
    * @generated from field: optional string description = 3;
    */
   description?: string;
-
-  /**
-   * @generated from field: loco.environment.v1.EnvironmentType type = 4;
-   */
-  type?: EnvironmentTypeJson;
 };
 
 /**
@@ -362,11 +342,6 @@ export type UpdateEnvironmentRequest = Message<"loco.environment.v1.UpdateEnviro
    * @generated from field: optional string description = 3;
    */
   description?: string | undefined;
-
-  /**
-   * @generated from field: optional loco.environment.v1.EnvironmentType type = 4;
-   */
-  type?: EnvironmentType | undefined;
 };
 
 /**
@@ -389,11 +364,6 @@ export type UpdateEnvironmentRequestJson = {
    * @generated from field: optional string description = 3;
    */
   description?: string;
-
-  /**
-   * @generated from field: optional loco.environment.v1.EnvironmentType type = 4;
-   */
-  type?: EnvironmentTypeJson;
 };
 
 /**
@@ -489,41 +459,6 @@ export const DeleteEnvironmentResponseSchema: GenMessage<DeleteEnvironmentRespon
   messageDesc(file_loco_environment_v1_environment, 10);
 
 /**
- * EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
- *
- * @generated from enum loco.environment.v1.EnvironmentType
- */
-export enum EnvironmentType {
-  /**
-   * @generated from enum value: ENVIRONMENT_TYPE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: ENVIRONMENT_TYPE_STAGING = 1;
-   */
-  STAGING = 1,
-
-  /**
-   * @generated from enum value: ENVIRONMENT_TYPE_PRODUCTION = 2;
-   */
-  PRODUCTION = 2,
-}
-
-/**
- * EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
- *
- * @generated from enum loco.environment.v1.EnvironmentType
- */
-export type EnvironmentTypeJson = "ENVIRONMENT_TYPE_UNSPECIFIED" | "ENVIRONMENT_TYPE_STAGING" | "ENVIRONMENT_TYPE_PRODUCTION";
-
-/**
- * Describes the enum loco.environment.v1.EnvironmentType.
- */
-export const EnvironmentTypeSchema: GenEnum<EnvironmentType, EnvironmentTypeJson> = /*@__PURE__*/
-  enumDesc(file_loco_environment_v1_environment, 0);
-
-/**
  * EnvironmentService manages environments within a workspace.
  *
  * @generated from service loco.environment.v1.EnvironmentService
@@ -552,7 +487,7 @@ export const EnvironmentService: GenService<{
   /**
    * ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
    * but has a grant on one of its resources gets each environment with only id, workspace_id,
-   * name and type.
+   * name.
    *
    * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
    */

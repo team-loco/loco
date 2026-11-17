@@ -173,3 +173,10 @@ func TestAutoscalingValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationRequiresEnvironmentIdentity(t *testing.T) {
+	spec := ApplicationSpec{ResourceID: "resource", WorkspaceID: "workspace", Type: "SERVICE"}
+	if err := spec.Validate(); !errors.Is(err, errEnvironmentIDMissing) {
+		t.Fatalf("missing environment: %v", err)
+	}
+}

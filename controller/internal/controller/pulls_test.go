@@ -18,7 +18,7 @@ import (
 
 func TestPullEvents(t *testing.T) {
 	app := workspaceApp("pulls", "pulls")
-	pod := &corev1.Pod{UID: "pod", Name: "pod", Namespace: testWorkspaceNamespace(app),
+	pod := &corev1.Pod{UID: "pod", Name: "pod", Namespace: testEnvironmentNamespace(app),
 		Labels: map[string]string{labelApp: testAppName(app)}, Annotations: ownerAnnotations(app)}
 	other := pod.DeepCopy()
 	other.Name, other.UID = "second-pod", "second-pod"
@@ -26,7 +26,7 @@ func TestPullEvents(t *testing.T) {
 	r := &ApplicationReconciler{
 		Client: fake.NewClientBuilder().
 			WithScheme(workspaceTestScheme(t)).
-			WithObjects(pod, other, &corev1.Namespace{Name: pod.Namespace, Labels: workspaceNamespaceLabels(app)}).
+			WithObjects(pod, other, &corev1.Namespace{Name: pod.Namespace, Labels: environmentNamespaceLabels(app)}).
 			Build(),
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 	}

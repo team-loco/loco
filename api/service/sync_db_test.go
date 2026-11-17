@@ -138,6 +138,49 @@ func TestDeletedPlacementIsKeptUntilTheDeleteIsAcked(t *testing.T) {
 	}
 }
 
+func TestLateDeleteReportsPreserveReenabledAndRecreatedPlacements(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	server := f.agentServer()
+	deploy := func() genDb.Placement {
+		t.Helper()
+		if _, err := f.deploy(ctx, staticSpec); err != nil {
+			t.Fatal(err)
+		}
+		return f.placement(t, f.clusterID)
+	}
+	stop := func() genDb.Placement {
+		t.Helper()
+		if err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
+			return removePlacement(ctx, qtx, f.resourceID, f.envID, f.clusterID)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return f.placement(t, f.clusterID)
+	}
+	original := deploy()
+	deleted := stop()
+	reenabled := deploy()
+	if reenabled.ID != original.ID || reenabled.DesiredRevision <= deleted.DesiredRevision {
+		t.Fatalf("reenabled placement = %+v, want a newer revision of %s", reenabled, original.ID)
+	}
+	server.recordApplied(ctx, f.clusterID, applied(deleted.ID, deleted.DesiredRevision))
+	if got := f.placement(t, f.clusterID); got.ID != reenabled.ID || got.DesiredDeleted || got.AppliedRevision != 0 {
+		t.Fatalf("late delete report changed the reenabled placement: %+v", got)
+	}
+	deleted = stop()
+	server.recordApplied(ctx, f.clusterID, applied(deleted.ID, deleted.DesiredRevision))
+	recreated := deploy()
+	if recreated.ID == original.ID {
+		t.Fatal("acknowledged deletion did not release the placement identity")
+	}
+	server.recordApplied(ctx, f.clusterID, applied(deleted.ID, deleted.DesiredRevision))
+	if got := f.placement(t, f.clusterID); got.ID != recreated.ID || got.DesiredDeleted || got.AppliedRevision != 0 {
+		t.Fatalf("late delete report changed the recreated placement: %+v", got)
+	}
+}
+
 func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -225,7 +268,7 @@ func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
 	}
 
 	err = withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		return removePlacement(ctx, qtx, f.resourceID, f.clusterID)
+		return removePlacement(ctx, qtx, f.resourceID, f.envID, f.clusterID)
 	})
 	if err != nil {
 		t.Fatalf("remove placement: %v", err)

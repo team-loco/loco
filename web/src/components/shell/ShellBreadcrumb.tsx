@@ -4,7 +4,6 @@ import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon
 import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
-import { EnvironmentType } from "@gen/loco/environment/v1/environment_pb";
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
@@ -23,7 +22,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
-import { environmentTypeLabel, useEnvironments } from "@/hooks/useEnvironment";
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { settingsPath, switchWorkspacePath, WORKSPACE_ROUTE } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -35,17 +34,6 @@ const TRIGGER =
 
 function Slash() {
 	return <BreadcrumbSeparator className="px-0.5 text-fg4">/</BreadcrumbSeparator>;
-}
-
-function envDot(type: EnvironmentType): string {
-	switch (type) {
-		case EnvironmentType.PRODUCTION:
-			return "bg-info";
-		case EnvironmentType.STAGING:
-			return "bg-warn";
-		case EnvironmentType.UNSPECIFIED:
-			return "bg-fg4";
-	}
 }
 
 function EnvSwitcher({ children, label }: { children: ReactNode; label: string }) {
@@ -236,9 +224,7 @@ export function ShellBreadcrumb() {
 										setEnv(e);
 									}}
 								>
-									<span aria-hidden className={cn("size-[7px] shrink-0 rounded-full", envDot(e.type))} />
 									<span className="flex-1 truncate font-mono text-[12.5px]">{e.name}</span>
-									<span className="font-mono text-[10.5px] text-fg3">{environmentTypeLabel(e.type)}</span>
 									<CheckIcon className={cn("size-3.5", e.id !== env.id && "invisible")} />
 								</DropdownMenuItem>
 							))}

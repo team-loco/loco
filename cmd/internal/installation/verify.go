@@ -50,7 +50,7 @@ const (
 var (
 	errVerification       = errors.New("installation source verification failed")
 	errVerificationTarget = errors.New(
-		"verification requires a build-enabled worker and an authorized environment of the same tier",
+		"verification requires a build-enabled worker and an authorized environment",
 	)
 	errVerificationBuild          = fmt.Errorf("verify source build: %w", errVerification)
 	errVerificationHTTPS          = fmt.Errorf("verify HTTPS: %w", errVerification)
@@ -407,9 +407,6 @@ func VerifyAPI(ctx context.Context, clients *rpc.Clients, target VerificationTar
 	)
 	if err != nil {
 		return Status{}, err
-	}
-	if environment.GetEnvironment().GetType() != selected.GetTier() {
-		return Status{}, errVerificationTarget
 	}
 	if err := verifyApplication(ctx, clients, probe, selected, environment.GetEnvironment()); err != nil {
 		return Status{}, err

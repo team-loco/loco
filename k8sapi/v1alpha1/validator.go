@@ -13,6 +13,7 @@ import (
 var (
 	errAutoscalingTarget      = errors.New("enabled autoscaling needs a CPU or memory target between 1 and 100")
 	errResourceIDMissing      = errors.New("resourceId must be set")
+	errEnvironmentIDMissing   = errors.New("environmentId must be set")
 	errWorkspaceIDMissing     = errors.New("workspaceId must be set")
 	errTypeMissing            = errors.New("type must be set")
 	errServiceSpecMissing     = errors.New("serviceSpec must be set for SERVICE type")
@@ -78,6 +79,10 @@ func (spec *ApplicationSpec) Validate() error {
 
 	if spec.WorkspaceID == "" {
 		return errWorkspaceIDMissing
+	}
+
+	if spec.EnvironmentID == "" {
+		return errEnvironmentIDMissing
 	}
 
 	if spec.Type == "" {

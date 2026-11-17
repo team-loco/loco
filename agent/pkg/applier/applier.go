@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/team-loco/loco/agent/pkg/kube"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -27,10 +28,13 @@ const (
 )
 
 var (
-	ErrInvalidPayload = errors.New("invalid payload")
-	ErrStaleRevision  = errors.New("revision is older than the one applied")
-	errNoServiceSpec  = errors.New("env secret needs a service deployment spec")
-	errNoWorkspaceID  = errors.New("application has no workspace id")
+	ErrInvalidPayload      = errors.New("invalid payload")
+	ErrStaleRevision       = errors.New("revision is older than the one applied")
+	errNoServiceSpec       = errors.New("env secret needs a service deployment spec")
+	errEnvironmentChanged  = errors.New("application environment cannot change within a placement")
+	errApplicationDeleting = errors.New("application cleanup is still in progress")
+	errNoEnvironmentID     = errors.New("application has no environment id")
+	errNoWorkspaceID       = errors.New("application has no workspace id")
 
 	errEnvSecretRevision = errors.New("env secret revision differs from the apply revision")
 )
@@ -93,6 +97,9 @@ func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error
 	if payload.AppSpec == nil {
 		return fmt.Errorf("%w: application has no app_spec", ErrInvalidPayload)
 	}
+	if payload.AppSpec.EnvironmentID == "" {
+		return fmt.Errorf("%w: %w", ErrInvalidPayload, errNoEnvironmentID)
+	}
 	if placement.EnvSecret != nil && placement.EnvSecret.Revision != placement.Revision {
 		return fmt.Errorf("%w: %w: env secret %d, apply %d",
 			ErrInvalidPayload, errEnvSecretRevision, placement.EnvSecret.Revision, placement.Revision)
@@ -104,11 +111,14 @@ func (a *Applier) ApplyPlacement(ctx context.Context, placement Placement) error
 		return err
 	}
 
-	name := locoControllerV1.ApplicationName(placement.ResourceID)
+	name := locoControllerV1.ApplicationName(placement.ID)
 	return retry.OnError(retry.DefaultRetry, isWriteRace, func() error {
 		live, err := a.readPlacement(ctx, name, placement)
 		if err != nil {
 			return err
+		}
+		if live.application != nil && live.application.Spec.EnvironmentID != payload.AppSpec.EnvironmentID {
+			return fmt.Errorf("%w: %w", ErrInvalidPayload, errEnvironmentChanged)
 		}
 		if placement.EnvSecret == nil {
 			if applyErr := a.applyApplication(ctx, name, live, placement, payload.AppSpec); applyErr != nil {
@@ -184,6 +194,9 @@ func (a *Applier) readPlacement(ctx context.Context, name string, placement Plac
 		return live, err
 	}
 	if err == nil {
+		if !app.DeletionTimestamp.IsZero() {
+			return live, applicationDeletionPending(name)
+		}
 		live.application = app
 		storedID, storedRevision, ok := app.Placement()
 		if ok && storedID == placement.ID && storedRevision > placement.Revision {
@@ -371,6 +384,11 @@ func applicationApplyConfiguration(
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	obj.SetResourceVersion(resourceVersion)
+	obj.SetLabels(map[string]string{
+		locolabels.LabelResourceID:    spec.ResourceID,
+		locolabels.LabelWorkspaceID:   spec.WorkspaceID,
+		locolabels.LabelEnvironmentID: spec.EnvironmentID,
+	})
 	revision := strconv.FormatInt(placement.Revision, 10)
 	obj.SetAnnotations(map[string]string{
 		locoControllerV1.KeyPlacementID:       placement.ID,
@@ -388,7 +406,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 	if placement.ResourceID == "" {
 		return fmt.Errorf("%w: delete has no resource_id", ErrInvalidPayload)
 	}
-	name := locoControllerV1.ApplicationName(placement.ResourceID)
+	name := locoControllerV1.ApplicationName(placement.ID)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		live := &locoControllerV1.Application{}
@@ -413,6 +431,9 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 
+		if !live.DeletionTimestamp.IsZero() {
+			return applicationDeletionPending(name)
+		}
 		precondition := client.Preconditions{ResourceVersion: &live.ResourceVersion}
 		if err := a.client.Delete(ctx, live, precondition); err != nil {
 			if client.IgnoreNotFound(err) == nil {
@@ -422,7 +443,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 		}
 		slog.InfoContext(
 			ctx,
-			"deleted Application",
+			"requested Application deletion",
 			"name",
 			name,
 			"namespace",
@@ -430,6 +451,12 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			"placement_id",
 			placement.ID,
 		)
-		return nil
+		// Keep the API's tombstone until cleanup cannot delete a replacement's objects.
+		return applicationDeletionPending(name)
 	})
+}
+
+func applicationDeletionPending(name string) error {
+	resource := locoControllerV1.GroupVersion.WithResource("applications").GroupResource()
+	return apierrors.NewConflict(resource, name, errApplicationDeleting)
 }

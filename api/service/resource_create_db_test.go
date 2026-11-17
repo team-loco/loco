@@ -59,7 +59,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 		if staging {
 			wantEnvironment = f.addStagingEnvironment(t)
 			requestedEnvironment = new(wantEnvironment.String())
-			f.setStagingTier(t, f.clusterID)
+
 			_, err := f.pool.Exec(ctx, `UPDATE clusters SET domains = '{}' WHERE id = $1`, f.otherCluster)
 			if err != nil {
 				t.Fatalf("clear production cluster domains: %v", err)

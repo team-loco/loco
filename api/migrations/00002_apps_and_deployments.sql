@@ -40,9 +40,6 @@ CREATE TABLE
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
-        environment_type TEXT NOT NULL DEFAULT 'production' CHECK (
-            environment_type IN ('staging', 'production')
-        ),
         created_by UUID NOT NULL,
         revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -96,7 +93,6 @@ CREATE TABLE
         join_token_used_at TIMESTAMPTZ,
         -- reported by the agent from its install; 'all' until the agent first registers
         role cluster_role NOT NULL DEFAULT 'all',
-        tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
@@ -105,7 +101,6 @@ CREATE INDEX idx_clusters_region ON clusters (region);
 
 CREATE INDEX idx_clusters_is_active ON clusters (is_active);
 
-CREATE INDEX idx_clusters_tier ON clusters (tier);
 
 CREATE TABLE
     cluster_assertions (
@@ -289,7 +284,7 @@ CREATE TABLE
         status_updated_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (resource_id, cluster_id),
+        UNIQUE (resource_id, environment_id, cluster_id),
         CHECK (desired_deleted OR desired_spec IS NOT NULL)
     );
 

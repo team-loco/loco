@@ -117,7 +117,7 @@ func (s *ResourceServer) updateRegions(
 				Autoscaling: liveAutoscaling(target.GetScalers()),
 			}
 		}
-		clusters, clusterErr := eligibleClusters(ctx, qtx, env.EnvironmentType, s.clusterSilentAfter)
+		clusters, clusterErr := eligibleClusters(ctx, qtx, s.clusterSilentAfter)
 		if clusterErr != nil {
 			return clusterErr
 		}

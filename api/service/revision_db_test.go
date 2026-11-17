@@ -100,7 +100,7 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 	}
 }
 
-func TestEnvironmentRenameAndRetypeBumpTheRevision(t *testing.T) {
+func TestEnvironmentRenameBumpsTheRevision(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 
@@ -114,11 +114,5 @@ func TestEnvironmentRenameAndRetypeBumpTheRevision(t *testing.T) {
 	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Name: &name})
 	if rev := getEnvironment(t, f).GetRevision(); rev != 1 {
 		t.Fatalf("revision = %d after a rename, want 1", rev)
-	}
-
-	staging := environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING
-	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Type: &staging})
-	if rev := getEnvironment(t, f).GetRevision(); rev != 2 {
-		t.Fatalf("revision = %d after a type change, want 2", rev)
 	}
 }

@@ -7,13 +7,6 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/environment/v1;environmentv1";
 
-// EnvironmentType is the tier of an environment, which controls which clusters it can deploy to.
-enum EnvironmentType {
-  ENVIRONMENT_TYPE_UNSPECIFIED = 0;
-  ENVIRONMENT_TYPE_STAGING = 1;
-  ENVIRONMENT_TYPE_PRODUCTION = 2;
-}
-
 // EnvironmentService manages environments within a workspace.
 service EnvironmentService {
   // CreateEnvironment creates a new environment in a workspace.
@@ -22,7 +15,7 @@ service EnvironmentService {
   rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
   // ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
   // but has a grant on one of its resources gets each environment with only id, workspace_id,
-  // name and type.
+  // name.
   rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse);
   // UpdateEnvironment updates an environment.
   rpc UpdateEnvironment(UpdateEnvironmentRequest) returns (UpdateEnvironmentResponse);
@@ -36,7 +29,8 @@ message Environment {
   string workspace_id = 2;
   string name = 3;
   optional string description = 4;
-  EnvironmentType type = 5;
+  reserved 5;
+  reserved "type";
   string created_by = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
@@ -48,10 +42,8 @@ message CreateEnvironmentRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
   string name = 2 [(buf.validate.field).string.max_len = 63];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
-  EnvironmentType type = 4 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
+  reserved 4;
+  reserved "type";
 }
 
 // CreateEnvironmentResponse contains the created environment ID.
@@ -87,10 +79,8 @@ message UpdateEnvironmentRequest {
     max_len: 63
   }];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
-  optional EnvironmentType type = 4 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
+  reserved 4;
+  reserved "type";
 }
 
 // UpdateEnvironmentResponse contains the updated environment ID.

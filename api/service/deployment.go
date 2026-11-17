@@ -212,7 +212,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, ErrEnvironmentNotFound
 	}
 
-	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
+	cluster, err := eligibleCluster(ctx, s.queries, region, s.silentAfter)
 	if err != nil {
 		return nil, fmt.Errorf("get active cluster: %w", err)
 	}
@@ -494,6 +494,9 @@ func (s *DeploymentServer) DeleteDeployment(
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
+			return lockErr
+		}
+		if lockErr := lockResource(ctx, qtx, resource.ID); lockErr != nil {
 			return lockErr
 		}
 		current, getErr := qtx.GetDeploymentByID(ctx, deploymentID)

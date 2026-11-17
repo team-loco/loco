@@ -388,7 +388,6 @@ func deployFixture(ctx context.Context, hostname string) error {
 		&environmentv1.CreateEnvironmentRequest{
 			WorkspaceId: workspaceID,
 			Name:        "staging",
-			Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
 		},
 	)
 	if createErr != nil {

@@ -12,7 +12,8 @@ import (
 	"strings"
 )
 
-// The fixture initializes the head schema before platform setup.
+// Unreleased migrations are edited in place. Start with the head schema, then
+// temporarily restore the columns the published API still reads and writes.
 func (f *fixture) prepareSchema(ctx context.Context, databaseURL string) (result error) {
 	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
 	defer cancel()
@@ -52,5 +53,26 @@ func (f *fixture) prepareSchema(ctx context.Context, databaseURL string) (result
 	if output, migrateErr := migrate.CombinedOutput(); migrateErr != nil {
 		return fmt.Errorf("initialize fixture database schema: %w; output: %s", migrateErr, output)
 	}
-	return nil
+	return fixtureSchemaQuery(
+		ctx,
+		`ALTER TABLE environments ADD COLUMN environment_type TEXT NOT NULL DEFAULT 'production';
+ALTER TABLE clusters ADD COLUMN tier TEXT NOT NULL DEFAULT 'production';`,
+	)
+}
+
+func fixtureSchemaQuery(ctx context.Context, statement string) error {
+	_, err := kubectl(
+		ctx,
+		"-n",
+		fixtureNamespace,
+		"exec",
+		"deployment/postgres",
+		"--",
+		"sh",
+		"-c",
+		`exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --no-psqlrc --set ON_ERROR_STOP=on --command "$1"`,
+		"--",
+		statement,
+	)
+	return err
 }

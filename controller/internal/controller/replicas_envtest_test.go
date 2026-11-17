@@ -25,9 +25,10 @@ var _ = Describe("Replica rollout reports", func() {
 	It("reports both revisions and waits for all current replicas", func() {
 		app := workspaceApp("replica-report", "replica-report")
 		app.Spec.WorkspaceID = "replica-report"
+		app.Spec.EnvironmentID = "replica-report"
 		app.Annotations = map[string]string{loco.KeyPlacementRevision: "2"}
 		app.Status.ObservedPlacementRevision = 2
-		ns := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
+		ns := &corev1.Namespace{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, ns)).To(Succeed()) })
 		r := &ApplicationReconciler{

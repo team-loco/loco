@@ -97,7 +97,7 @@ func TestAgentLifecycle(t *testing.T) {
 			30*time.Second,
 			"the agent to create the Application at placement revision 1",
 			func(ctx context.Context) error {
-				application, err := p.Application(ctx, resourceID)
+				application, err := p.Application(ctx, resourceID, w.EnvironmentID)
 				if err != nil {
 					return err
 				}
