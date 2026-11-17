@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -195,9 +194,6 @@ func (s *ClusterAdminServer) ListClusters(
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,
 			Role:    clusterRoleToProto(row.Role),
 			Domains: row.Domains,
-		}
-		if err := json.Unmarshal(row.DnsRecords, &cluster.DnsRecords); err != nil {
-			return nil, fmt.Errorf("decode cluster DNS records: %w", err)
 		}
 		if row.AgentPublicKey != nil {
 			fingerprint := sha256.Sum256(row.AgentPublicKey)

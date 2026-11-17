@@ -41,7 +41,7 @@ Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USE
 
 ## Releases and operations
 
-Upgrade the control plane first, staging workers second and production workers last by changing cohort pins in `releases/`. Staging cohorts can follow stable semver releases; production cohorts pin reviewed digests. The API supports agents at its own minor version and one minor behind. `locoadm status` reports unsupported or ahead versions, heartbeats and DNS targets from the API.
+Upgrade the control plane first, staging workers second and production workers last by changing cohort pins in `releases/`. Staging cohorts can follow stable semver releases; production cohorts pin reviewed digests. The API supports agents at its own minor version and one minor behind. `locoadm status` reports unsupported or ahead versions and heartbeats from the API. Read the gateway’s load balancer address with `kubectl get gateway -n loco-system` on the worker or through its provider. Point the application wildcard at it once, or run external-dns.
 
 Flux installs CRDs before dependent releases and never prunes them. Database migrations retain compatibility through a rollout. Roll back software by reverting a cohort pin; databases retain their applied migrations. Failed chart upgrades use the bundle's retry and rollback policy.
 

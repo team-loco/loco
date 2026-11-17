@@ -76,7 +76,7 @@ Both Loco charts publish `values.schema.json`. Typed values expose operator-tune
 
 Setup Jobs have `ttlSecondsAfterFinished`. The OpenBao setup Job initializes OpenBao and configures its API access. Helm renders ClickHouse credential Secrets, reuses existing data through `lookup`, and retains them on uninstall. Chart consumers read those credentials from Secrets.
 
-The first administrator is listed in `api.systemAdmins` and claims access by signing in with `locoadm login`. DNS records belong to the operator or external-dns; `locoadm status` reports the targets.
+The first administrator is listed in `api.systemAdmins` and claims access by signing in with `locoadm login`. Read each worker gateway’s load balancer address with `kubectl get gateway -n loco-system` or through its provider. Point the apps wildcard at that address once, or run external-dns.
 
 ## Secrets
 
@@ -119,7 +119,7 @@ An approval-based join flow is outside this design. Pulling a token from the API
 | `cluster create`, `cluster join-token` | Register workers and deliver tokens with `--kube-context`; accept TTL and optional `-o secret` output |
 | `cluster list/pause/resume/remove/restore` | Manage API cluster records |
 | `login` | Sign in using `--api` and `--web` |
-| `status` | Query the API for clusters, heartbeats, version skew, unclaimed admins and DNS targets |
+| `status` | Query the API for clusters, heartbeats, version skew and unclaimed admins |
 | `verify` | Run the end-to-end probe using an image pinned in `locoadm` |
 | `recovery export` | Export recovery material using `--context` and `--namespace` |
 | `admin`, `user`, `org` | Manage API records |

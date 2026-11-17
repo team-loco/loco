@@ -33,19 +33,8 @@ message Cluster {
   optional string agent_key_fingerprint = 11;
   ClusterRole role = 12;
   repeated string domains = 13;
-  repeated DNSRecord dns_records = 14;
-}
-
-message DNSRecord {
-  string domain = 1 [(buf.validate.field).string.hostname = true];
-  repeated string targets = 2 [(buf.validate.field).repeated = {
-    items: {
-      string: {
-        min_len: 1
-        max_len: 253
-      }
-    }
-  }];
+  reserved 14;
+  reserved "dns_records";
 }
 
 // ClusterRole is chosen when the worker is installed and reported by its agent.

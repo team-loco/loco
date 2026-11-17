@@ -28,7 +28,7 @@ type clusterStatus struct {
 func Command() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "status",
-		Short: "Read cluster enrollment, heartbeats, DNS targets and administrators from the API",
+		Short: "Read cluster enrollment, heartbeats and administrators from the API",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			login, err := auth.ResolveLogin(cmd)

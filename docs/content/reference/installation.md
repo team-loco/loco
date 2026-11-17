@@ -67,11 +67,17 @@ For fully unattended installation, an encrypted join-token file in the worker co
 
 ## Upgrade and verify
 
-Bump the control-plane cohort's bundle digest, wait for Flux readiness, then update staging workers and production workers. The API supports agents at its own minor version and the preceding minor; workers must not run ahead of the API. `locoadm status` reports enrollment, heartbeats, DNS targets, version skew and unclaimed administrators from the API.
+Bump the control-plane cohort's bundle digest, wait for Flux readiness, then update staging workers and production workers. The API supports agents at its own minor version and the preceding minor; workers must not run ahead of the API. `locoadm status` reports enrollment, heartbeats, version skew and unclaimed administrators from the API.
 
 Revert the cohort pin to roll back platform software. Database migrations retain compatibility through a rollout; reverting a bundle does not roll back the database. Flux corrects drift and retries or rolls back failed chart upgrades.
 
-Configure the reported DNS targets and wait for trusted application certificates. Verify an authorized environment on a worker that runs applications and builds:
+Read the worker gateway’s load balancer address from Kubernetes or its provider:
+
+```sh
+kubectl --context worker-staging get gateway -n loco-system
+```
+
+Point the application wildcard, such as `*.apps.example.com`, at that address once, or run external-dns to manage the record. Wait for trusted application certificates. Verify an authorized environment on a worker that runs applications and builds:
 
 ```sh
 locoadm verify --worker worker-staging --environment ENVIRONMENT_UUID

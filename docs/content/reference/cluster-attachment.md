@@ -31,7 +31,13 @@ locoadm cluster list
 locoadm status
 ```
 
-Status reports pending or enrolled clusters, last heartbeats, API and agent versions, unclaimed administrators and gateway DNS targets. DNS targets are reported before certificate readiness. Point the required application names at those targets, then wait for certificates. Each environment runs on its own clusters; staging and production do not share a worker.
+Status reports pending or enrolled clusters, last heartbeats, API and agent versions and unclaimed administrators. Read the gateway’s load balancer address from Kubernetes or the provider:
+
+```sh
+kubectl --context worker-staging get gateway -n loco-system
+```
+
+Point the application wildcard, such as `*.apps.example.com`, at that address once, or run external-dns. Wait for certificates. Each environment runs on its own clusters; staging and production do not share a worker.
 
 ## Renew a pending token
 
