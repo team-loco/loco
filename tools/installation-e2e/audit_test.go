@@ -255,13 +255,11 @@ func TestAuditAllowsRenderedCredentialsAndChecksOtherFields(t *testing.T) {
 		{name: "other manifest", extra: "---\nkind: ConfigMap\ndata: {password: " + testCanary + "}\n", leaks: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			manifest := "kind: Secret\nmetadata:\n  name: loco-clickhouse-reader\n" +
+				"  annotations: {helm.sh/resource-policy: keep}\ndata: {password: " +
+				base64.StdEncoding.EncodeToString([]byte(testCanary)) + "}\n" + tc.extra
 			data, err := json.Marshal(
-				map[string]any{
-					"config": map[string]string{"password": tc.config},
-					"manifest": "kind: Secret\nmetadata:\n  name: loco-clickhouse-reader\n  annotations: {helm.sh/resource-policy: keep}\ndata: {password: " + base64.StdEncoding.EncodeToString(
-						[]byte(testCanary),
-					) + "}\n" + tc.extra,
-				},
+				map[string]any{"config": map[string]string{"password": tc.config}, "manifest": manifest},
 			)
 			if err != nil {
 				t.Fatal(err)
