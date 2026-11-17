@@ -351,7 +351,7 @@ CREATE TABLE
         cache_digest TEXT,
         message TEXT NOT NULL DEFAULT '',
         created_by UUID NOT NULL,
-        -- Set when an API token created the build; created_by is then the token's creator.
+        -- Set when an API token created the build; created_by records the same token ID.
         api_token_id UUID,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ,
