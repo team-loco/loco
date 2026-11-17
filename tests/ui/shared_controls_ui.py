@@ -533,6 +533,7 @@ def dashboard(page):
             runtime = evidence.sql_literal(
                 json.dumps(
                     {
+                        "platform": "linux/amd64",
                         "build": {
                             "type": "image",
                             "image": "example.invalid/dashboard:1",

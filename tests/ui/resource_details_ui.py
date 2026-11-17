@@ -67,6 +67,7 @@ cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
 image = f"registry.example.com/recommendation-{resource}:{deployment}"
 runtime = json.dumps(
     {
+        "platform": "linux/amd64",
         "observability": {"injectOtel": True},
         "build": {"type": "image", "image": image},
         "cpu": "500m",

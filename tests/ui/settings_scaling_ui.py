@@ -68,6 +68,7 @@ def resource_fixture():
     )["resourceId"]
     runtime = json.dumps(
         {
+            "platform": "linux/amd64",
             "build": {"type": "image", "image": "registry.example.com/app:1"},
             "cpu": "100m",
             "memory": "128Mi",

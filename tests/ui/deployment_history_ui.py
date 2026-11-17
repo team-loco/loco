@@ -154,6 +154,7 @@ def fixture():
             source = dict(source, type="dockerfile", buildId=builds["deployed"])
         runtime = json.dumps(
             {
+                "platform": "linux/amd64",
                 "observability": {"injectOtel": True},
                 "build": source,
                 "cpu": "100m",
@@ -168,6 +169,7 @@ def fixture():
         )
     runtime = json.dumps(
         {
+            "platform": "linux/amd64",
             "observability": {"injectOtel": True},
             "build": {
                 "type": "image",
@@ -195,6 +197,7 @@ def fixture():
         deployment = str(uuid.uuid4())
         runtime = json.dumps(
             {
+                "platform": "linux/amd64",
                 "observability": {"injectOtel": True},
                 "build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"},
                 "cpu": "100m",

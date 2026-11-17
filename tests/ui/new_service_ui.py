@@ -32,8 +32,8 @@ evidence.psql(
     f"""UPDATE clusters SET is_active=false WHERE provider='fixture';
 INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
 VALUES(ARRAY['linux/amd64'], '{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
-('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}'),
-('{uuid.uuid4()}','offline-{suffix}','eu-north-1','fixture',true,false,'unhealthy',NOW()-INTERVAL '1 day','{{{platform_domain}}}');""",
+(ARRAY['linux/amd64'], '{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}'),
+(ARRAY['linux/amd64'], '{uuid.uuid4()}','offline-{suffix}','eu-north-1','fixture',true,false,'unhealthy',NOW()-INTERVAL '1 day','{{{platform_domain}}}');""",
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = evidence.psql(

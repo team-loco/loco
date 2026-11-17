@@ -66,6 +66,7 @@ if "progress" not in state:
     old_image = "registry.example.test/progress:v1@sha256:" + "1" * 64
     image = "registry.example.test/progress:v2@sha256:" + "2" * 64
     old_spec = {
+        "platform": "linux/amd64",
         "observability": {"injectOtel": True},
         "build": {"type": "image", "image": old_image},
         "cpu": "100m",
