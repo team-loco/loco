@@ -61,12 +61,13 @@ func TestSetUserStatusByEmailReportsDatabaseFailure(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
 	server := NewUserServer(pool, genDb.New(pool), nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}}
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes, Method: genDb.DeploymentMethodCli})
 	_, err := server.SetUserStatus(ctx, &userv1.SetUserStatusRequest{
 		Key:    &userv1.SetUserStatusRequest_Email{Email: "a@example.com"},
 		Status: userv1.UserStatus_USER_STATUS_SUSPENDED,
 	})
-	if err == nil || connect.CodeOf(err) == connect.CodeNotFound {
+	if err == nil || connect.CodeOf(err) == connect.CodeNotFound ||
+		connect.CodeOf(err) == connect.CodePermissionDenied {
 		t.Fatalf("SetUserStatus by email on a closed pool: got %v, want a database error that is not NotFound", err)
 	}
 }

@@ -21,6 +21,8 @@ A user holds one or more scopes on an organization:
 
 ## Invite and remove members
 
+Sessions and API tokens use the same action permissions for organization, invitation, membership, role and account-status operations. Organization creation requires a real human owner, which a personal token can represent. A workspace created by a session or personal token receives the existing human creator grants; the token's stored scope ceiling still limits its access. Organization, workspace and resource tokens create no human grants.
+
 A user joins an organization only by accepting an invitation. An organization admin invites an email address with `loco org invite <email>` (`OrgService.InviteOrgMember`), and the user becomes a `member` the next time they sign in with that verified email address. `loco org invitations` lists pending invitations and `loco org revoke-invite <id>` revokes one.
 
 The dashboard and CLI return a sign-in link for the inviter to copy and share. Core sends no email. Installations that want invitation email consume the [`invitation.created` and `invitation.resent` webhook events](webhooks.md#invitation-events). Resending extends the invitation expiry and records a new event.
@@ -63,7 +65,7 @@ A personal API token acts as its user. Its effective permissions are the interse
 
 Organization, workspace and resource tokens act as themselves. Their issuing user's later permissions or suspension do not change their stored access, and removing the issuing user does not revoke them. The owning entity's administrators manage these tokens. Deleting the owning entity revokes its tokens. Token issuance records the issuer for attribution without creating a user account or user grants for the token.
 
-API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An invitation whose issuer no longer exists displays **Deleted user** and can still be claimed under the organization's normal invitation rules.
+API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An invitation whose issuer no longer exists displays **Unavailable inviter** and can still be claimed under the organization's normal invitation rules.
 
 ## API token lifetime
 

@@ -108,8 +108,8 @@ func createWorkspaceInTx(
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if p.ActorType != genDb.DeploymentActorTypeApiToken {
-		err = authz.ApplyRoles(ctx, qtx, params.CreatedBy, []genDb.EntityScope{
+	if p.UserID != uuid.Nil {
+		err = authz.ApplyRoles(ctx, qtx, p.UserID, []genDb.EntityScope{
 			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},

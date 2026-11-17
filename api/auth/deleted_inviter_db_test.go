@@ -44,7 +44,7 @@ func TestInvitationCanBeClaimedAfterInviterDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(claimed) != 1 || claimed[0].OrgID != org.ID || claimed[0].InviterName != "Deleted user" {
+	if len(claimed) != 1 || claimed[0].OrgID != org.ID || claimed[0].InviterName != "Unavailable inviter" {
 		t.Fatalf("claimed invitation = %+v", claimed)
 	}
 	count, err := q.CountOrgsCreatedBy(t.Context(), inviter.ID)

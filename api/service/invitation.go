@@ -38,7 +38,6 @@ var (
 	ErrInvitationNotFound = rpcerr.NewCoded(connect.CodeNotFound, "invitation not found")
 	ErrInvitationClaimed  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "invitation was already claimed")
 	ErrInvitationNotOpen  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "invitation is no longer open")
-	ErrInviterMustBeUser  = rpcerr.NewCoded(connect.CodePermissionDenied, "only users can send invitations")
 )
 
 type InvitationConfig struct {
@@ -65,14 +64,15 @@ func (s *OrgServer) InviteOrgMember(
 	if err = check(ctx, s.authz, p, actions.New(actions.InviteOrgMember, orgID)); err != nil {
 		return nil, err
 	}
-	if p.Entity.Type != genDb.EntityTypeUser {
-		return nil, ErrInviterMustBeUser
-	}
 	address, err := netmail.ParseAddress(req.GetEmail())
 	if err != nil || address.Name != "" || address.Address != strings.TrimSpace(req.GetEmail()) {
 		return nil, ErrInvalidInviteEmail
 	}
 	email := strings.ToLower(address.Address)
+	inviterID := p.UserID
+	if inviterID == uuid.Nil {
+		inviterID = p.ActorID
+	}
 
 	var result *orgv1.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -92,7 +92,7 @@ func (s *OrgServer) InviteOrgMember(
 		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
-			InvitedBy: p.Entity.ID,
+			InvitedBy: inviterID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
 		if isUniqueViolation(createErr, pgOpenInvitationUnique) {
@@ -314,7 +314,7 @@ func (s *OrgServer) recordInvitationEvent(
 func invitationInviter(ctx context.Context, q genDb.Querier, id uuid.UUID) (genDb.User, error) {
 	user, err := q.GetUserByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.User{ID: id, Name: new("Deleted user")}, nil
+		return genDb.User{ID: id, Name: new("Unavailable inviter")}, nil
 	}
 	return user, err
 }

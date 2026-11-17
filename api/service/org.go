@@ -86,14 +86,13 @@ func (s *OrgServer) CreateOrg(
 	if err != nil {
 		return nil, err
 	}
-	// Only a user can create an organization, and only with user:write on itself.
-	if p.Entity.Type != genDb.EntityTypeUser {
-		return nil, rpcerr.New(connect.CodePermissionDenied, ErrImproperUsage)
+	if p.UserID == uuid.Nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
-	if err = check(ctx, s.authz, p, actions.New(actions.CreateOrg, p.Entity.ID)); err != nil {
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateOrg, p.UserID)); err != nil {
 		return nil, err
 	}
-	user, err := s.queries.GetUserByID(ctx, p.Entity.ID)
+	user, err := s.queries.GetUserByID(ctx, p.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -106,7 +105,7 @@ func (s *OrgServer) CreateOrg(
 	var org genDb.Organization
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var createErr error
-		org, createErr = createOrgInTx(ctx, qtx, s.counts, p.Entity.ID, orgName)
+		org, createErr = createOrgInTx(ctx, qtx, s.counts, p.UserID, orgName)
 		return createErr
 	})
 	if err != nil {
@@ -257,7 +256,7 @@ func (s *OrgServer) ListUserOrgs(
 }
 
 func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, userID uuid.UUID) error {
-	if p.Entity.Type != genDb.EntityTypeUser || p.Entity.ID != userID {
+	if p.UserID != userID {
 		return errCreateIfMissingForOtherUser
 	}
 	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -588,7 +587,7 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	userID := uuid.MustParse(req.GetUserId())
-	if userID == p.Entity.ID {
+	if userID == p.UserID {
 		return nil, ErrRemoveSelfFromOrg
 	}
 

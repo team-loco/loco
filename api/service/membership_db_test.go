@@ -27,6 +27,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
+	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
@@ -72,6 +73,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	machine := tvm.NewVendingMachine(queries, tvm.Config{
+		MaxAPITokenDuration:         membershipSessionDuration,
 		SessionAccessTokenDuration:  membershipSessionDuration,
 		SessionRefreshTokenDuration: membershipSessionDuration,
 		LastUsedUpdateInterval:      membershipSessionDuration,
@@ -92,6 +94,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 	workspacev1connect.RegisterWorkspaceServiceHandler(server, NewWorkspaceServer(pool, queries, limits.Defaults()))
 	userv1connect.RegisterUserServiceHandler(server, NewUserServer(pool, queries, machine))
 	adminv1connect.RegisterSystemAdminServiceHandler(server, NewSystemAdminServer(pool, queries))
+	tokenv1connect.RegisterTokenServiceHandler(server, NewTokenServer(pool, queries, machine, limits.Defaults()))
 	resources := NewResourceServer(pool, queries, servicedefaults.Defaults{}, time.Minute, limits.Defaults())
 	resourcev1connect.RegisterResourceServiceHandler(server, resources)
 	mux := http.NewServeMux()
