@@ -94,6 +94,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		}
 		return nil
 	})
+	requireServingReplicas(t, getDeployment(t, previous), previous, 2)
 	logs, err := p.Kubectl(t.Context(), "-n", p.Namespace, "logs", poller)
 	if err != nil {
 		t.Fatal(err)

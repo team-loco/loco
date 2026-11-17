@@ -358,7 +358,7 @@ func TestObservePlacementRevision(t *testing.T) {
 		locov1alpha1.KeyPlacementRevision: "7",
 	}
 	observePlacementRevision(app)
-	if app.Status.ObservedPlacementRevision != 7 {
+	if app.Status.ObservedPlacementRevision != 7 || app.Status.ObservedDeploymentID != app.Spec.DeploymentID {
 		t.Fatalf("observed revision = %d, want 7", app.Status.ObservedPlacementRevision)
 	}
 

@@ -36,6 +36,15 @@ export function groupReplicas(replicas: readonly Replica[], revision: bigint) {
 	];
 }
 
+export function servingDeployments(replicas: readonly Replica[]) {
+	const counts = new Map<string, number>();
+	for (const replica of replicas) {
+		if (replica.ready && replica.deploymentId !== "")
+			counts.set(replica.deploymentId, (counts.get(replica.deploymentId) ?? 0) + 1);
+	}
+	return [...counts].map(([id, readyReplicas]) => ({ id, readyReplicas }));
+}
+
 export function replicaState(state: string): { label: string; tone: BadgeTone } {
 	switch (state) {
 		case "Scheduling":

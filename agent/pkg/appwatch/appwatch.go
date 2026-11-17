@@ -134,6 +134,7 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 	}
 	status := &agentv1.PlacementStatus{
 		PlacementId:      placementID,
+		DeploymentId:     app.Status.ObservedDeploymentID,
 		ObservedRevision: app.Status.ObservedPlacementRevision,
 		ReadyReplicas:    app.Status.ReadyReplicas,
 	}
@@ -147,6 +148,8 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 				Name:              replica.Name,
 				Node:              replica.Node,
 				PlacementRevision: replica.PlacementRevision,
+				DeploymentId:      replica.DeploymentID,
+				Ready:             replica.Ready,
 				State:             string(replica.State),
 				Restarts:          replica.Restarts,
 				Detail:            replica.Detail,

@@ -236,6 +236,8 @@ spec:
           status:
             description: status defines the observed state of Application
             properties:
+              observedDeploymentId:
+                type: string
               observedPlacementRevision:
                 format: int64
                 type: integer
@@ -281,6 +283,8 @@ spec:
                   replicas:
                     items:
                       properties:
+                        deploymentId:
+                          type: string
                         detail:
                           maxLength: 512
                           type: string
@@ -294,6 +298,8 @@ spec:
                         placementRevision:
                           format: int64
                           type: integer
+                        ready:
+                          type: boolean
                         restarts:
                           format: int32
                           type: integer

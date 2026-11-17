@@ -8,7 +8,7 @@ import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { Progress } from "@/components/design/Progress";
 import { useNow } from "@/hooks/useNow";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { activityTime, groupReplicas, problemLogsHref, replicaState, stoppingCountdown } from "./deployment-progress";
 
@@ -87,6 +87,11 @@ export function DeploymentRollout({
 									>
 										<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
 											<span className="min-w-0 break-all font-mono text-[12px]">{replica.name}</span>
+											{replica.deploymentId !== "" && (
+												<span title={replica.deploymentId} className="font-mono text-[11px] text-fg3">
+													Deployment {formatShortId(replica.deploymentId)}
+												</span>
+											)}
 											<span className="min-w-0 break-all font-mono text-[11px] text-fg3">
 												{replica.node || "Node pending"}
 											</span>

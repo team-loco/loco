@@ -312,3 +312,32 @@ func TestReplicaPullState(t *testing.T) {
 		})
 	}
 }
+
+func TestReplicaDeploymentIdentityAndReadiness(t *testing.T) {
+	const deploymentID = "019ab668-1111-7000-8000-000011112222"
+	pod := corev1.Pod{
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{
+			Env: []corev1.EnvVar{{Name: envDeploymentID, Value: deploymentID}},
+		}}},
+		Status: corev1.PodStatus{
+			Conditions: []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}},
+			ContainerStatuses: []corev1.ContainerStatus{{
+				State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff}},
+			}},
+		},
+	}
+	now := time.Now()
+	got := replicaState(&pod, nil, time.Minute, now)
+	if got.DeploymentID != deploymentID || !got.Ready || got.State != loco.ReplicaFailing {
+		t.Fatalf("ready recovering replica = %+v", got)
+	}
+	pod.DeletionTimestamp = new(metav1.NewTime(now))
+	if got := replicaState(&pod, nil, time.Minute, now); got.Ready {
+		t.Fatalf("terminating Pod reported ready: %+v", got)
+	}
+	pod.DeletionTimestamp = nil
+	pod.Status.Conditions[0].Status = corev1.ConditionFalse
+	if got := replicaState(&pod, nil, time.Minute, now); got.Ready {
+		t.Fatalf("unready Pod reported ready: %+v", got)
+	}
+}

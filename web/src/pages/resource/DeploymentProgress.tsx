@@ -17,10 +17,10 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { tsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { formatBuildDuration, isBuildFinished } from "./builds";
-import { deploymentElapsedMs, problemLogsHref, progressDeployments } from "./deployment-progress";
+import { deploymentElapsedMs, problemLogsHref, progressDeployments, servingDeployments } from "./deployment-progress";
 import { DeploymentRollout } from "./DeploymentRollout";
 import { depImage, depTag, type RegionView } from "./model";
 
@@ -61,6 +61,8 @@ function ProgressPanel({
 		},
 	);
 	const build = buildQuery.data?.build;
+	const desired = deployment.isActive ? deployment : region.current;
+	const serving = servingDeployments(desired?.replicas ?? []);
 	const failed = phase === DeploymentStatus.FAILED;
 	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = deploymentPhaseStyle(phase).label;
@@ -137,6 +139,32 @@ function ProgressPanel({
 				)}
 				{build?.gitCommitMessage && <span className="min-w-0 break-words text-fg2">{build.gitCommitMessage}</span>}
 			</div>
+			{desired?.isActive && (
+				<dl aria-label="Deployment versions" className="m-0 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
+					<div className="flex flex-wrap items-center gap-x-2">
+						<dt className="text-fg3">Desired deployment</dt>
+						<dd className="m-0">
+							<CopyId value={desired.id} className="font-mono text-[12px]">
+								{formatShortId(desired.id)}
+							</CopyId>
+						</dd>
+					</div>
+					<div className="flex flex-wrap items-center gap-x-2">
+						<dt className="text-fg3">Serving deployments</dt>
+						<dd className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
+							{serving.length === 0 && <span className="text-fg3">No ready replicas reported</span>}
+							{serving.map(({ id, readyReplicas }) => (
+								<span key={id} className="inline-flex items-center gap-1">
+									<CopyId value={id} className="font-mono text-[12px]">
+										{formatShortId(id)}
+									</CopyId>
+									<span className="text-fg3">({readyReplicas} ready)</span>
+								</span>
+							))}
+						</dd>
+					</div>
+				</dl>
+			)}
 			{connectionError !== undefined && (
 				<p role="status" className="m-0 text-[13px] text-warn-fg">
 					Disconnected. Reconnecting… {connectionError}

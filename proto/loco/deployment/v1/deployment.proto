@@ -198,6 +198,8 @@ message Deployment {
   SourceCommit commit = 21;
   int64 current_revision = 22;
   Problem problem = 23;
+  // Active deployments expose the live placement's latest reported replicas,
+  // including previous deployment IDs. Inactive deployments retain historical replicas.
   repeated Replica replicas = 24;
 }
 
@@ -290,6 +292,10 @@ message Replica {
   int32 restarts = 8;
   optional int32 exit_code = 9;
   string detail = 10;
+  // The deployment that created this Pod.
+  string deployment_id = 11;
+  // The Pod was ready and not terminating in this observation.
+  bool ready = 12;
 }
 
 message Problem {

@@ -110,7 +110,7 @@ p = state["progress"]
 path = f"/org/{p['org']}/wks/{workspace}/resource/{p['resource']}?env=production"
 
 
-def phase(status, problem_reason=None):
+def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
     building = status in ("building", "canceled")
     now = int(time.time())
     replica = {
@@ -118,10 +118,12 @@ def phase(status, problem_reason=None):
         "name": "progress-new-1",
         "node": "worker-east-3",
         "placement_revision": 2,
+        "deployment_id": p["current"],
+        "ready": status == "running" or new_ready,
         "state": "Failing"
         if status == "failed"
         else "Serving"
-        if status == "running"
+        if status == "running" or new_ready
         else "Starting",
         "detail": "Process exited with code 1"
         if status == "failed"
@@ -135,13 +137,20 @@ def phase(status, problem_reason=None):
             "name": name,
             "node": f"worker-east-{index}",
             "placement_revision": 1,
+            "deployment_id": p["previous"],
+            "ready": status == "failed"
+            and survivors
+            or status == "deploying"
+            and index == 1,
             "state": "Stopped"
-            if status in ("running", "failed")
+            if status == "running" or status == "failed" and not survivors
+            else "Serving"
+            if status == "failed"
             else "Stopping"
             if index == 2
             else "Serving",
             "detail": "Shutdown complete"
-            if status in ("running", "failed")
+            if status == "running" or status == "failed" and not survivors
             else "Draining requests"
             if index == 2
             else "Serving the previous version",
@@ -151,7 +160,12 @@ def phase(status, problem_reason=None):
     previous[1].update(
         state_since={"seconds": now - 10}, state_deadline={"seconds": now + 50}
     )
-    snapshot = {"replicas": [] if building else [replica, *previous]}
+    snapshot = {
+        "placementId": sql(
+            f"SELECT id FROM placements WHERE resource_id='{p['resource']}';"
+        ),
+        "replicas": [] if building else [replica, *previous],
+    }
     reason = problem_reason or ("crash_loop" if status == "failed" else None)
     if reason is not None:
         snapshot["problem"] = {
@@ -186,7 +200,7 @@ def phase(status, problem_reason=None):
     UPDATE deployments SET is_active=false WHERE resource_id='{p["resource"]}';
     UPDATE deployments SET is_active=true WHERE id='{p["previous"] if building else p["current"]}';
     UPDATE deployments SET status='{status}',updated_at=NOW(),completed_at={"NULL" if status in ("building", "deploying", "running") else "NOW()"} WHERE id='{p["current"]}';
-    UPDATE placements SET deployment_id='{p["previous"] if building else p["current"]}',desired_revision={1 if building else 2},ready_replicas={2 if building or status == "running" else 1},status_updated_at=NOW() WHERE resource_id='{p["resource"]}';
+    UPDATE placements SET deployment_id='{p["previous"] if building else p["current"]}',desired_revision={1 if building else 2},observed_revision={1 if building else 2},ready_replicas={2 if building or status == "running" else 1},status_updated_at=NOW() WHERE resource_id='{p["resource"]}';
     INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
     VALUES('{p["current"]}',2,{evidence.sql_literal(json.dumps(snapshot))})
     ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;
@@ -238,6 +252,13 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(countdown).to_be_visible()
     remaining = countdown.get_attribute("aria-valuenow")
     expect(countdown).not_to_have_attribute("aria-valuenow", remaining, timeout=3000)
+    versions = panel.locator('dl[aria-label="Deployment versions"]')
+    serving = versions.get_by_text("Serving deployments", exact=True).locator("+ dd")
+    expect(serving).to_contain_text(p["previous"][-8:])
+    expect(serving).not_to_contain_text(p["current"][-8:])
+    phase("deploying", new_ready=True)
+    expect(serving).to_contain_text(p["current"][-8:], timeout=25000)
+    expect(serving).to_contain_text(p["previous"][-8:])
     phase("running")
     # The open watch updates both the replicas and feed without reloading.
     panel = page.get_by_role("region", name="Running", exact=True)
@@ -262,6 +283,18 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     phase("failed")
     page.reload()
     panel = page.get_by_role("region", name="Failed", exact=True)
+    versions = panel.locator('dl[aria-label="Deployment versions"]')
+    expect(
+        versions.get_by_text("Desired deployment", exact=True).locator("+ dd")
+    ).to_contain_text(p["current"][-8:])
+    serving = versions.get_by_text("Serving deployments", exact=True).locator("+ dd")
+    expect(serving).to_contain_text(p["previous"][-8:])
+    expect(serving).to_contain_text("(2 ready)")
+    expect(serving).not_to_contain_text(p["current"][-8:])
+    phase("failed", survivors=False)
+    expect(serving).to_have_text("No ready replicas reported", timeout=25000)
+    phase("failed")
+    expect(serving).to_contain_text(p["previous"][-8:], timeout=25000)
     expect(
         panel.get_by_text(
             "The service keeps exiting soon after it starts. Check its logs for the error.",

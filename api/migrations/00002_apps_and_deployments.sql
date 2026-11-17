@@ -249,6 +249,9 @@ CREATE TABLE deployment_rollouts (
     PRIMARY KEY (deployment_id, revision)
 );
 
+CREATE UNIQUE INDEX uniq_rollout_placement_revision
+ON deployment_rollouts ((snapshot->>'placementId'), revision);
+
 CREATE TABLE deployment_activity (
     deployment_id UUID NOT NULL REFERENCES deployments (id) ON DELETE CASCADE,
     seq BIGINT NOT NULL,
@@ -287,6 +290,19 @@ CREATE TABLE
         UNIQUE (resource_id, environment_id, cluster_id),
         CHECK (desired_deleted OR desired_spec IS NOT NULL)
     );
+
+-- The live placement's exact accepted observation, even while a newer deployment is desired.
+CREATE VIEW observed_placement_rollouts AS
+SELECT p.id AS placement_id, p.deployment_id AS desired_deployment_id,
+       p.resource_id, p.environment_id, p.cluster_id,
+       reported.id AS reported_deployment_id, ro.snapshot
+FROM placements p
+JOIN deployments reported ON reported.resource_id = p.resource_id
+    AND reported.environment_id = p.environment_id AND reported.cluster_id = p.cluster_id
+JOIN deployment_rollouts ro ON ro.deployment_id = reported.id
+    AND ro.revision = p.observed_revision
+    AND ro.snapshot->>'placementId' = p.id::text
+WHERE NOT p.desired_deleted;
 
 -- +goose StatementBegin
 CREATE FUNCTION resource_suspended (resource UUID) RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
@@ -429,6 +445,7 @@ DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
 DROP FUNCTION IF EXISTS resource_suspended;
 DROP TABLE IF EXISTS placement_windows;
+DROP VIEW IF EXISTS observed_placement_rollouts;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployment_activity;
 DROP TABLE IF EXISTS deployment_rollouts;

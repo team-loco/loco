@@ -11,6 +11,7 @@ import {
 	progressDeployments,
 	replicaState,
 	stoppingCountdown,
+	servingDeployments,
 } from "./deployment-progress";
 import type { RegionView } from "./model";
 
@@ -140,4 +141,20 @@ test("elapsed rollout time includes the build and stops when ready or finished",
 	).toBe(15000);
 	expect(deploymentElapsedMs({ ...pending, createdAt: undefined }, 20000)).toBeUndefined();
 	expect(deploymentElapsedMs(pending, 0)).toBe(0);
+});
+
+test("serving deployments use reported readiness and Pod identity across mixed revisions", () => {
+	const replicas = [
+		create(ReplicaSchema, { deploymentId: "old", ready: true, state: "Serving" }),
+		create(ReplicaSchema, { deploymentId: "old", ready: true, state: "Failing" }),
+		create(ReplicaSchema, { deploymentId: "next", ready: true, state: "Serving" }),
+		create(ReplicaSchema, { deploymentId: "stopping", state: "Stopping" }),
+		create(ReplicaSchema, { deploymentId: "failed", state: "Serving" }),
+		create(ReplicaSchema, { ready: true, state: "Serving" }),
+	];
+	expect(servingDeployments(replicas)).toEqual([
+		{ id: "old", readyReplicas: 2 },
+		{ id: "next", readyReplicas: 1 },
+	]);
+	expect(servingDeployments([])).toEqual([]);
 });

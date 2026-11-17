@@ -67,6 +67,7 @@ import (
 const (
 	labelApp                = "app"
 	envRegion               = "LOCO_REGION"
+	envDeploymentID         = "LOCO_DEPLOYMENT_ID"
 	componentApplication    = "application"
 	servicePort             = int32(80)
 	applicationPortName     = "http"
@@ -268,6 +269,7 @@ func observePlacementRevision(app *locov1alpha1.Application) {
 		return
 	}
 	app.Status.ObservedPlacementRevision = revision
+	app.Status.ObservedDeploymentID = app.Spec.DeploymentID
 }
 
 func setApplicationProblem(app *locov1alpha1.Application, reason locov1alpha1.ProblemReason, detail string) {
@@ -590,7 +592,7 @@ func systemEnvVars(
 		{Name: "LOCO_APP_NAME", Value: app.Name},
 		{Name: "LOCO_RESOURCE_ID", Value: app.Spec.ResourceID},
 		{Name: "LOCO_WORKSPACE_ID", Value: app.Spec.WorkspaceID},
-		{Name: "LOCO_DEPLOYMENT_ID", Value: app.Spec.DeploymentID},
+		{Name: envDeploymentID, Value: app.Spec.DeploymentID},
 		{Name: envRegion, Value: app.Spec.Region},
 		{Name: "LOCO_ENVIRONMENT", Value: app.Spec.EnvironmentName},
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},

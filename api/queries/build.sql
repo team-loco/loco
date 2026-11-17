@@ -226,6 +226,14 @@ WHERE c.position > sqlc.arg(keep)::int
       AND NOT p.desired_deleted
       AND strpos(p.desired_spec::text, c.image_digest) > 0
   )
+  AND NOT EXISTS (
+    SELECT 1 FROM observed_placement_rollouts ro
+    CROSS JOIN LATERAL jsonb_array_elements(COALESCE(ro.snapshot->'replicas', '[]'::jsonb)) replica
+    JOIN deployments d ON d.id::text = replica->>'deployment_id'
+      AND d.resource_id = ro.resource_id AND d.environment_id = ro.environment_id AND d.cluster_id = ro.cluster_id
+    WHERE ro.resource_id = c.resource_id AND replica->>'ready' = 'true'
+      AND strpos(d.spec::text, c.image_digest) > 0
+  )
 ORDER BY c.finished_at, c.id
 LIMIT sqlc.arg(max_builds);
 

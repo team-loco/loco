@@ -202,7 +202,8 @@ type ApplicationStatus struct {
 
 	Rollout *RolloutStatus `json:"rollout,omitempty"`
 
-	ObservedPlacementRevision int64 `json:"observedPlacementRevision,omitzero"`
+	ObservedPlacementRevision int64  `json:"observedPlacementRevision,omitzero"`
+	ObservedDeploymentID      string `json:"observedDeploymentId,omitempty"`
 }
 
 // +kubebuilder:object:root=true
