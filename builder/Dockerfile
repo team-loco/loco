@@ -12,6 +12,7 @@ COPY builder/go.mod builder/go.sum ./
 RUN go mod download || go mod download
 
 COPY internal/buildinfo /app/internal/buildinfo
+COPY internal/workloadplatform /app/internal/workloadplatform
 COPY builder ./
 # Declared after the module download, which a new VERSION leaves cached.
 ARG VERSION
