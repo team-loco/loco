@@ -59,7 +59,7 @@ func (cfg config) install(ctx context.Context) error {
 	if err = cfg.deployEntry(ctx, false, entry); err != nil {
 		return err
 	}
-	if _, err = command(ctx, nil, nil, "go", "-C", "cmd", "build", "-o", "../bin/locoadm", "./locoadm"); err != nil {
+	if _, err = command(ctx, nil, nil, "go", "-C", "cmd", "build", "-o", "../bin/", "./loco", "./locoadm"); err != nil {
 		return err
 	}
 	login := exec.CommandContext(

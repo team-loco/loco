@@ -9,7 +9,7 @@ allowed-tools: Bash, Read, Write
 # UI evidence
 
 `scripts/evidence.py` does every brittle step. Run it with uv from the repository root; it
-never touches the dev stack (`mise run tilt`), Dex or a person's browser windows.
+never touches the dev stack (`mise run dev`), Dex or a person's browser windows.
 
 ```sh
 E="${CLAUDE_SKILL_DIR}/scripts/evidence.py"
