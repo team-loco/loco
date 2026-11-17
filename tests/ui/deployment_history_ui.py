@@ -123,6 +123,10 @@ def fixture():
     )["resourceId"]
     clusters = [str(uuid.uuid4()) for _ in range(3)]
     release_ids = [str(uuid.uuid7()) for _ in range(221)]
+    release_ids[:2] = [
+        "019ab668-1111-7000-8000-000011112222",
+        "019ab668-1112-7000-8000-000033334444",
+    ]
     staging_release = str(uuid.uuid4())
     builds = {
         name: str(uuid.uuid4())
@@ -405,17 +409,24 @@ with session(out) as browser:
             ).to_have_attribute("title", f"Copy {'7c41e9a'.ljust(40, '0')}")
             section.get_by_role("button", name="View spec", exact=True).click()
             spec_dialog = page.get_by_role("dialog", name="Deployment spec", exact=True)
-            expect(
-                spec_dialog.get_by_role("button", name="Deployment", exact=True)
-            ).to_contain_text(data["releases"][0][-8:])
-            with page.expect_download() as download:
-                spec_dialog.get_by_role(
-                    "button", name="Download spec", exact=True
-                ).click()
-            assert (
-                download.value.suggested_filename
-                == f"deployment-{data['releases'][0][-8:]}.json"
-            )
+            for index, deployment_id in enumerate(data["releases"][:2]):
+                picker = spec_dialog.get_by_role(
+                    "button", name="Deployment", exact=True
+                )
+                if index:
+                    picker.click()
+                    page.get_by_role(
+                        "menuitemradio", name=re.compile(deployment_id[-8:])
+                    ).click()
+                expect(picker).to_contain_text(deployment_id[-8:])
+                with page.expect_download() as download:
+                    spec_dialog.get_by_role(
+                        "button", name="Download spec", exact=True
+                    ).click()
+                assert (
+                    download.value.suggested_filename
+                    == f"deployment-{deployment_id[-8:]}.json"
+                )
             page.keyboard.press("Escape")
             section.get_by_role(
                 "button",
