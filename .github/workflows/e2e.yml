@@ -19,6 +19,6 @@ jobs:
           test "$result" = 1
       - name: Remove namespace suffix as workspace ID
         run: |
-          sed -i '/&setWorkspace set(attributes/d; /- *setWorkspace/d' charts/loco-worker/values.yaml
+          sed -i '/setWorkspace/d' charts/loco-worker/values.yaml
       - name: Prove namespace label enrichment
         run: mise exec -- uv run --locked --project tests pytest -s tests/collector/test_namespace_tenancy.py
