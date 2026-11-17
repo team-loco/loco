@@ -13,6 +13,7 @@ RUN go mod download || go mod download
 
 WORKDIR /workspace
 COPY internal/buildinfo ./internal/buildinfo
+COPY internal/clip ./internal/clip
 COPY k8sapi ./k8sapi
 COPY controller ./controller
 
