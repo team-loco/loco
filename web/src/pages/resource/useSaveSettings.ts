@@ -10,6 +10,8 @@ import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretServ
 
 import { getErrorMessage } from "@/lib/error-handler";
 
+import { secretUsageMessage } from "./variables";
+
 import type { Notice, RegionView } from "./model";
 import {
 	REGION_MAP_KEYS,
@@ -74,6 +76,7 @@ export function useSaveSettings({
 		const resourceId = resource.id;
 		const failures: string[] = [];
 		let next = draft;
+		let secretMessage = "";
 		const attempt = async (label: string, keys: readonly (keyof SettingsDraft)[], run: () => Promise<unknown>) => {
 			try {
 				await run();
@@ -87,11 +90,10 @@ export function useSaveSettings({
 
 		const secrets = draft.secrets ?? {};
 		if (Object.keys(secrets).length > 0) {
-			await attempt(
-				"Secrets",
-				["secrets"],
-				async () => await writeSecrets.mutateAsync({ resourceId, environmentId, values: secrets }),
-			);
+			await attempt("Secrets", ["secrets"], async () => {
+				const response = await writeSecrets.mutateAsync({ resourceId, environmentId, values: secrets });
+				secretMessage = secretUsageMessage(resource.name, response.usedBy);
+			});
 		}
 		const removed = draft.removedSecrets ?? [];
 		if (removed.length > 0) {
@@ -155,7 +157,9 @@ export function useSaveSettings({
 					onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
 						title: `${resource.name} changed since you opened it`,
-						message: "Showing its current regions and scaling. Make your region changes again.",
+						message: ["Showing its current regions and scaling. Make your region changes again.", secretMessage]
+							.filter(Boolean)
+							.join(" "),
 					});
 					return;
 				}
@@ -196,12 +200,13 @@ export function useSaveSettings({
 				title: `Some changes to ${resource.name} were not saved`,
 				message: [
 					...failures,
+					...(secretMessage === "" ? [] : [secretMessage]),
 					...(savedRegions.length > 0 ? [`Saved changes in ${savedRegions.join(", ")}.`] : []),
 				].join(" · "),
 			});
 			return;
 		}
-		const parts = [];
+		const parts = secretMessage === "" ? [] : [secretMessage];
 		const { rolling, stopping } =
 			targets === undefined ? { rolling: deploys.map((d) => d.region), stopping: [] } : regionChanges(effective, base);
 		if (rolling.length > 0) parts.push(`Rolling out in ${rolling.join(", ")}.`);

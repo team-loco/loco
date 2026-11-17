@@ -139,9 +139,11 @@ func (x *SecretVersion) GetVersion() int32 {
 
 // SetSecretsResponse reports the environment revision and the version of each name set.
 type SetSecretsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Revision      int64                  `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
-	Versions      []*SecretVersion       `protobuf:"bytes,2,rep,name=versions,proto3" json:"versions,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Revision int64                  `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	Versions []*SecretVersion       `protobuf:"bytes,2,rep,name=versions,proto3" json:"versions,omitempty"`
+	// Active deployments that bind names whose values changed, grouped by region.
+	UsedBy        []*SecretUsage `protobuf:"bytes,3,rep,name=used_by,json=usedBy,proto3" json:"used_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -190,6 +192,66 @@ func (x *SetSecretsResponse) GetVersions() []*SecretVersion {
 	return nil
 }
 
+func (x *SetSecretsResponse) GetUsedBy() []*SecretUsage {
+	if x != nil {
+		return x.UsedBy
+	}
+	return nil
+}
+
+// SecretUsage identifies the changed names a region's active deployment binds.
+type SecretUsage struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Region        string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
+	Names         []string               `protobuf:"bytes,2,rep,name=names,proto3" json:"names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretUsage) Reset() {
+	*x = SecretUsage{}
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretUsage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretUsage) ProtoMessage() {}
+
+func (x *SecretUsage) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretUsage.ProtoReflect.Descriptor instead.
+func (*SecretUsage) Descriptor() ([]byte, []int) {
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretUsage) GetRegion() string {
+	if x != nil {
+		return x.Region
+	}
+	return ""
+}
+
+func (x *SecretUsage) GetNames() []string {
+	if x != nil {
+		return x.Names
+	}
+	return nil
+}
+
 // DeleteSecretsRequest removes names from one service in one environment.
 type DeleteSecretsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -202,7 +264,7 @@ type DeleteSecretsRequest struct {
 
 func (x *DeleteSecretsRequest) Reset() {
 	*x = DeleteSecretsRequest{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[3]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -214,7 +276,7 @@ func (x *DeleteSecretsRequest) String() string {
 func (*DeleteSecretsRequest) ProtoMessage() {}
 
 func (x *DeleteSecretsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[3]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -227,7 +289,7 @@ func (x *DeleteSecretsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSecretsRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSecretsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{3}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DeleteSecretsRequest) GetResourceId() string {
@@ -261,7 +323,7 @@ type DeleteSecretsResponse struct {
 
 func (x *DeleteSecretsResponse) Reset() {
 	*x = DeleteSecretsResponse{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[4]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -273,7 +335,7 @@ func (x *DeleteSecretsResponse) String() string {
 func (*DeleteSecretsResponse) ProtoMessage() {}
 
 func (x *DeleteSecretsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[4]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -286,7 +348,7 @@ func (x *DeleteSecretsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSecretsResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSecretsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{4}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DeleteSecretsResponse) GetRevision() int64 {
@@ -307,7 +369,7 @@ type ListSecretsRequest struct {
 
 func (x *ListSecretsRequest) Reset() {
 	*x = ListSecretsRequest{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[5]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +381,7 @@ func (x *ListSecretsRequest) String() string {
 func (*ListSecretsRequest) ProtoMessage() {}
 
 func (x *ListSecretsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[5]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +394,7 @@ func (x *ListSecretsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSecretsRequest.ProtoReflect.Descriptor instead.
 func (*ListSecretsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{5}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListSecretsRequest) GetResourceId() string {
@@ -364,7 +426,7 @@ type Secret struct {
 
 func (x *Secret) Reset() {
 	*x = Secret{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[6]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -376,7 +438,7 @@ func (x *Secret) String() string {
 func (*Secret) ProtoMessage() {}
 
 func (x *Secret) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[6]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -389,7 +451,7 @@ func (x *Secret) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Secret.ProtoReflect.Descriptor instead.
 func (*Secret) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{6}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Secret) GetName() string {
@@ -444,7 +506,7 @@ type ListSecretsResponse struct {
 
 func (x *ListSecretsResponse) Reset() {
 	*x = ListSecretsResponse{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[7]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -456,7 +518,7 @@ func (x *ListSecretsResponse) String() string {
 func (*ListSecretsResponse) ProtoMessage() {}
 
 func (x *ListSecretsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[7]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -469,7 +531,7 @@ func (x *ListSecretsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSecretsResponse.ProtoReflect.Descriptor instead.
 func (*ListSecretsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{7}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListSecretsResponse) GetSecrets() []*Secret {
@@ -491,7 +553,7 @@ type RewrapEnvironmentKeysRequest struct {
 
 func (x *RewrapEnvironmentKeysRequest) Reset() {
 	*x = RewrapEnvironmentKeysRequest{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[8]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -503,7 +565,7 @@ func (x *RewrapEnvironmentKeysRequest) String() string {
 func (*RewrapEnvironmentKeysRequest) ProtoMessage() {}
 
 func (x *RewrapEnvironmentKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[8]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -516,7 +578,7 @@ func (x *RewrapEnvironmentKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RewrapEnvironmentKeysRequest.ProtoReflect.Descriptor instead.
 func (*RewrapEnvironmentKeysRequest) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{8}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RewrapEnvironmentKeysRequest) GetEnvironmentId() string {
@@ -546,7 +608,7 @@ type RewrapEnvironmentKeysResponse struct {
 
 func (x *RewrapEnvironmentKeysResponse) Reset() {
 	*x = RewrapEnvironmentKeysResponse{}
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[9]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -558,7 +620,7 @@ func (x *RewrapEnvironmentKeysResponse) String() string {
 func (*RewrapEnvironmentKeysResponse) ProtoMessage() {}
 
 func (x *RewrapEnvironmentKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_secret_v1_secret_proto_msgTypes[9]
+	mi := &file_loco_secret_v1_secret_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -571,7 +633,7 @@ func (x *RewrapEnvironmentKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RewrapEnvironmentKeysResponse.ProtoReflect.Descriptor instead.
 func (*RewrapEnvironmentKeysResponse) Descriptor() ([]byte, []int) {
-	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{9}
+	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RewrapEnvironmentKeysResponse) GetRewrapped() int32 {
@@ -610,10 +672,14 @@ const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
 	"\rSecretVersion\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x05R\aversion\"k\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\"\xa1\x01\n" +
 	"\x12SetSecretsResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x129\n" +
-	"\bversions\x18\x02 \x03(\v2\x1d.loco.secret.v1.SecretVersionR\bversions\"\xaa\x01\n" +
+	"\bversions\x18\x02 \x03(\v2\x1d.loco.secret.v1.SecretVersionR\bversions\x124\n" +
+	"\aused_by\x18\x03 \x03(\v2\x1b.loco.secret.v1.SecretUsageR\x06usedBy\";\n" +
+	"\vSecretUsage\x12\x16\n" +
+	"\x06region\x18\x01 \x01(\tR\x06region\x12\x14\n" +
+	"\x05names\x18\x02 \x03(\tR\x05names\"\xaa\x01\n" +
 	"\x14DeleteSecretsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12/\n" +
@@ -662,40 +728,42 @@ func file_loco_secret_v1_secret_proto_rawDescGZIP() []byte {
 	return file_loco_secret_v1_secret_proto_rawDescData
 }
 
-var file_loco_secret_v1_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_loco_secret_v1_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_loco_secret_v1_secret_proto_goTypes = []any{
 	(*SetSecretsRequest)(nil),             // 0: loco.secret.v1.SetSecretsRequest
 	(*SecretVersion)(nil),                 // 1: loco.secret.v1.SecretVersion
 	(*SetSecretsResponse)(nil),            // 2: loco.secret.v1.SetSecretsResponse
-	(*DeleteSecretsRequest)(nil),          // 3: loco.secret.v1.DeleteSecretsRequest
-	(*DeleteSecretsResponse)(nil),         // 4: loco.secret.v1.DeleteSecretsResponse
-	(*ListSecretsRequest)(nil),            // 5: loco.secret.v1.ListSecretsRequest
-	(*Secret)(nil),                        // 6: loco.secret.v1.Secret
-	(*ListSecretsResponse)(nil),           // 7: loco.secret.v1.ListSecretsResponse
-	(*RewrapEnvironmentKeysRequest)(nil),  // 8: loco.secret.v1.RewrapEnvironmentKeysRequest
-	(*RewrapEnvironmentKeysResponse)(nil), // 9: loco.secret.v1.RewrapEnvironmentKeysResponse
-	nil,                                   // 10: loco.secret.v1.SetSecretsRequest.ValuesEntry
-	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
+	(*SecretUsage)(nil),                   // 3: loco.secret.v1.SecretUsage
+	(*DeleteSecretsRequest)(nil),          // 4: loco.secret.v1.DeleteSecretsRequest
+	(*DeleteSecretsResponse)(nil),         // 5: loco.secret.v1.DeleteSecretsResponse
+	(*ListSecretsRequest)(nil),            // 6: loco.secret.v1.ListSecretsRequest
+	(*Secret)(nil),                        // 7: loco.secret.v1.Secret
+	(*ListSecretsResponse)(nil),           // 8: loco.secret.v1.ListSecretsResponse
+	(*RewrapEnvironmentKeysRequest)(nil),  // 9: loco.secret.v1.RewrapEnvironmentKeysRequest
+	(*RewrapEnvironmentKeysResponse)(nil), // 10: loco.secret.v1.RewrapEnvironmentKeysResponse
+	nil,                                   // 11: loco.secret.v1.SetSecretsRequest.ValuesEntry
+	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
 }
 var file_loco_secret_v1_secret_proto_depIdxs = []int32{
-	10, // 0: loco.secret.v1.SetSecretsRequest.values:type_name -> loco.secret.v1.SetSecretsRequest.ValuesEntry
+	11, // 0: loco.secret.v1.SetSecretsRequest.values:type_name -> loco.secret.v1.SetSecretsRequest.ValuesEntry
 	1,  // 1: loco.secret.v1.SetSecretsResponse.versions:type_name -> loco.secret.v1.SecretVersion
-	11, // 2: loco.secret.v1.Secret.created_at:type_name -> google.protobuf.Timestamp
-	11, // 3: loco.secret.v1.Secret.updated_at:type_name -> google.protobuf.Timestamp
-	6,  // 4: loco.secret.v1.ListSecretsResponse.secrets:type_name -> loco.secret.v1.Secret
-	0,  // 5: loco.secret.v1.SecretService.SetSecrets:input_type -> loco.secret.v1.SetSecretsRequest
-	3,  // 6: loco.secret.v1.SecretService.DeleteSecrets:input_type -> loco.secret.v1.DeleteSecretsRequest
-	5,  // 7: loco.secret.v1.SecretService.ListSecrets:input_type -> loco.secret.v1.ListSecretsRequest
-	8,  // 8: loco.secret.v1.SecretService.RewrapEnvironmentKeys:input_type -> loco.secret.v1.RewrapEnvironmentKeysRequest
-	2,  // 9: loco.secret.v1.SecretService.SetSecrets:output_type -> loco.secret.v1.SetSecretsResponse
-	4,  // 10: loco.secret.v1.SecretService.DeleteSecrets:output_type -> loco.secret.v1.DeleteSecretsResponse
-	7,  // 11: loco.secret.v1.SecretService.ListSecrets:output_type -> loco.secret.v1.ListSecretsResponse
-	9,  // 12: loco.secret.v1.SecretService.RewrapEnvironmentKeys:output_type -> loco.secret.v1.RewrapEnvironmentKeysResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	3,  // 2: loco.secret.v1.SetSecretsResponse.used_by:type_name -> loco.secret.v1.SecretUsage
+	12, // 3: loco.secret.v1.Secret.created_at:type_name -> google.protobuf.Timestamp
+	12, // 4: loco.secret.v1.Secret.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 5: loco.secret.v1.ListSecretsResponse.secrets:type_name -> loco.secret.v1.Secret
+	0,  // 6: loco.secret.v1.SecretService.SetSecrets:input_type -> loco.secret.v1.SetSecretsRequest
+	4,  // 7: loco.secret.v1.SecretService.DeleteSecrets:input_type -> loco.secret.v1.DeleteSecretsRequest
+	6,  // 8: loco.secret.v1.SecretService.ListSecrets:input_type -> loco.secret.v1.ListSecretsRequest
+	9,  // 9: loco.secret.v1.SecretService.RewrapEnvironmentKeys:input_type -> loco.secret.v1.RewrapEnvironmentKeysRequest
+	2,  // 10: loco.secret.v1.SecretService.SetSecrets:output_type -> loco.secret.v1.SetSecretsResponse
+	5,  // 11: loco.secret.v1.SecretService.DeleteSecrets:output_type -> loco.secret.v1.DeleteSecretsResponse
+	8,  // 12: loco.secret.v1.SecretService.ListSecrets:output_type -> loco.secret.v1.ListSecretsResponse
+	10, // 13: loco.secret.v1.SecretService.RewrapEnvironmentKeys:output_type -> loco.secret.v1.RewrapEnvironmentKeysResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_loco_secret_v1_secret_proto_init() }
@@ -709,7 +777,7 @@ func file_loco_secret_v1_secret_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_secret_v1_secret_proto_rawDesc), len(file_loco_secret_v1_secret_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

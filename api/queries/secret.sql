@@ -126,3 +126,16 @@ FROM (
 WHERE s.environment_id = sqlc.arg(environment_id)
   AND s.resource_id = v.resource_id
   AND s.name = v.name;
+
+-- name: ListSecretUsage :many
+SELECT d.region, ARRAY(
+    SELECT name FROM unnest(d.secret_names) AS name
+    WHERE name = ANY(sqlc.arg(names)::text[])
+    ORDER BY name
+)::text[] AS names
+FROM deployments d
+WHERE d.resource_id = sqlc.arg(resource_id)
+  AND d.environment_id = sqlc.arg(environment_id)
+  AND d.is_active
+  AND d.secret_names && sqlc.arg(names)::text[]
+ORDER BY d.region;

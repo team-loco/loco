@@ -60,62 +60,6 @@ func (q *Queries) BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, er
 	return sync_generation, err
 }
 
-const bumpPlacementsForSecretNames = `-- name: BumpPlacementsForSecretNames :many
-WITH rolled AS (
-UPDATE placements
-SET desired_revision = desired_revision + 1,
-    applied_error = NULL,
-    retry_after = NULL,
-    apply_attempts = 0,
-    apply_failed = false,
-    updated_at = NOW()
-WHERE placements.resource_id = $1
-  AND placements.environment_id = $2
-  AND NOT desired_deleted
-  AND secret_names && $3::text[]
-RETURNING placements.id, placements.cluster_id, placements.desired_revision, placements.deployment_id
-), deploying AS (
-UPDATE deployments
-SET status = 'deploying', completed_at = NULL, updated_at = NOW()
-FROM rolled
-WHERE deployments.id = rolled.deployment_id AND deployments.is_active
-  AND NOT resource_suspended(deployments.resource_id)
-)
-SELECT id, cluster_id, desired_revision FROM rolled
-`
-
-type BumpPlacementsForSecretNamesParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-	Names         []string  `json:"names"`
-}
-
-type BumpPlacementsForSecretNamesRow struct {
-	ID              uuid.UUID `json:"id"`
-	ClusterID       uuid.UUID `json:"clusterId"`
-	DesiredRevision int64     `json:"desiredRevision"`
-}
-
-func (q *Queries) BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error) {
-	rows, err := q.db.Query(ctx, bumpPlacementsForSecretNames, arg.ResourceID, arg.EnvironmentID, arg.Names)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []BumpPlacementsForSecretNamesRow
-	for rows.Next() {
-		var i BumpPlacementsForSecretNamesRow
-		if err := rows.Scan(&i.ID, &i.ClusterID, &i.DesiredRevision); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const changePlacementProblemReason = `-- name: ChangePlacementProblemReason :execrows
 UPDATE placements SET problem_reason = $1
 WHERE id = $2 AND problem_reason <> $1
@@ -181,7 +125,7 @@ func (q *Queries) GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (i
 }
 
 const getPlacementForResourceCluster = `-- name: GetPlacementForResourceCluster :one
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND cluster_id = $2
 `
 
@@ -205,7 +149,6 @@ func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPla
 		&i.DesiredSpec,
 		&i.DesiredDeleted,
 		&i.AppliedRevision,
-		&i.AppliedAt,
 		&i.AppliedError,
 		&i.RetryAfter,
 		&i.ApplyAttempts,
@@ -338,7 +281,7 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 }
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
-SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_names, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_at, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.created_at, placements.updated_at,
+SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_names, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.created_at, placements.updated_at,
        resource_suspended(placements.resource_id)::boolean AS suspended
 FROM placements
 WHERE cluster_id = $1 AND id = ANY($2::uuid[])
@@ -377,7 +320,6 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 			&i.Placement.DesiredSpec,
 			&i.Placement.DesiredDeleted,
 			&i.Placement.AppliedRevision,
-			&i.Placement.AppliedAt,
 			&i.Placement.AppliedError,
 			&i.Placement.RetryAfter,
 			&i.Placement.ApplyAttempts,
@@ -401,7 +343,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 }
 
 const listResourceEnvironmentPlacements = `-- name: ListResourceEnvironmentPlacements :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
 ORDER BY id
 FOR UPDATE
@@ -433,7 +375,6 @@ func (q *Queries) ListResourceEnvironmentPlacements(ctx context.Context, arg Lis
 			&i.DesiredSpec,
 			&i.DesiredDeleted,
 			&i.AppliedRevision,
-			&i.AppliedAt,
 			&i.AppliedError,
 			&i.RetryAfter,
 			&i.ApplyAttempts,
@@ -471,7 +412,6 @@ func (q *Queries) LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (
 const markPlacementApplied = `-- name: MarkPlacementApplied :exec
 UPDATE placements
 SET applied_revision = desired_revision,
-    applied_at = NOW(),
     applied_error = NULL,
     retry_after = NULL,
     apply_attempts = 0,

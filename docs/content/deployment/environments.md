@@ -30,7 +30,7 @@ The same `loco.yaml` serves every environment. A service's `environments` block 
 
 While a deployment is pending or rolling out, Loco rejects scaling, replacement deployments, runtime configuration changes and secret changes for the affected service and environment with `failed_precondition`. A regional scaling or deployment request checks only its target regions. Other services and environments remain available for changes.
 
-Secret rotation also starts a rollout when the service declares the changed secret. Changes become available again when the current rollout becomes ready or fails. Setting a secret to its existing value remains a no-op, and deleting or disabling a service remains available during a rollout.
+Saving secrets starts no rollout; new values take effect on the next restart or deploy. Changes become available again when the current rollout becomes ready or fails. Setting a secret to its existing value remains a no-op, and deleting or disabling a service remains available during a rollout.
 
 ## Promote the dashboard and documentation
 

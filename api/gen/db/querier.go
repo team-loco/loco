@@ -21,7 +21,6 @@ type Querier interface {
 	AllocateActivitySeq(ctx context.Context, arg AllocateActivitySeqParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
-	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
 	BumpResourceRevision(ctx context.Context, id uuid.UUID) error
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
@@ -210,6 +209,7 @@ type Querier interface {
 	ListResourcesRunningOutsideEnvironment(ctx context.Context, arg ListResourcesRunningOutsideEnvironmentParams) ([]uuid.UUID, error)
 	ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error)
 	ListSecretSizes(ctx context.Context, arg ListSecretSizesParams) ([]ListSecretSizesRow, error)
+	ListSecretUsage(ctx context.Context, arg ListSecretUsageParams) ([]ListSecretUsageRow, error)
 	ListSecrets(ctx context.Context, arg ListSecretsParams) ([]ListSecretsRow, error)
 	ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error)
 	ListSystemAdmins(ctx context.Context) ([]ListSystemAdminsRow, error)

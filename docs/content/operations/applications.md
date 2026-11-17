@@ -37,7 +37,7 @@ The dashboard's **Restart all replicas** action restarts the environment selecte
 
 ## Secrets
 
-`loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. `unset` refuses a name bound by an active deployment. Remove the binding from the deployment first.
+`loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. Saving secrets leaves running replicas unchanged, and new values apply on the next deploy or restart. When an active deployment uses a name whose value changed, the CLI and the dashboard name the secrets and regions, and the CLI prints the `loco resource restart` command. `unset` refuses a name bound by an active deployment. Remove the binding from the deployment first.
 
 ```sh
 loco env push --service web --env production .env
