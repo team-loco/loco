@@ -33,6 +33,7 @@ test("buildLogsPath opens a day of logs filtered to the build", () => {
 	const url = new URL(buildLogsPath("o1", "w1", "b-123"), "https://loco.test");
 	expect(url.pathname).toBe("/org/o1/wks/w1/observability");
 	expect(url.searchParams.get("view")).toBe("logs");
+	expect(url.searchParams.get("q")).toBe("@build:b-123");
 	expect(toQuery(createLoader(QUERY_PARSERS)(url)).tokens).toEqual([{ neg: false, key: "build", value: "b-123" }]);
 	expect(toWindow(createLoader(WINDOW_PARSERS)(url), DAY_MS)).toEqual({ kind: "relative", spanMs: DAY_MS });
 });

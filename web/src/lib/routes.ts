@@ -123,5 +123,5 @@ export function observabilityPath(
 }
 
 export function buildLogsPath(orgId: string, workspaceId: string, buildId: string): string {
-	return observabilityPath(orgId, workspaceId, "logs", { q: `build:${buildId}`, range: DAY_MS });
+	return observabilityPath(orgId, workspaceId, "logs", { q: `@build:${buildId}`, range: DAY_MS });
 }
