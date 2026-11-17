@@ -52,14 +52,14 @@ locoadm status
 
 Sign in with a verified email listed in `api.systemAdmins` to claim the first system administrator. `--device` supports approval from another machine. `loco` and `locoadm` share the resulting session.
 
-Register each worker and apply its one-time join-token Secret directly:
+Bootstrap each worker’s Flux against its directory first. Once the bundle creates `loco-system`, register the worker and deliver its one-time join-token Secret directly:
 
 ```sh
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  -o secret | kubectl --context worker-staging apply -f -
+  --kube-context worker-staging
 ```
 
-Keep the join token out of Git. The default one-hour TTL covers immediate application. Bootstrap that worker's Flux against its directory. The agent waits for the mounted token, enrolls once and stores its identity in the cluster.  [Cluster enrollment](cluster-attachment.md) describes token renewal and enrollment status.
+Keep the join token out of Git. The default one-hour TTL covers immediate application. `--kube-context` applies the Secret through the Kubernetes client and prints only a confirmation. The agent waits for the mounted token, enrolls once and stores its identity in the cluster.  [Cluster enrollment](cluster-attachment.md) describes token renewal and enrollment status.
 
 For fully unattended installation, an encrypted join-token file in the worker configuration is an option. Set a longer `--ttl`, encrypt it with operator tooling and configure Flux decryption; remove the spent file after enrollment.
 

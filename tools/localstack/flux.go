@@ -94,16 +94,13 @@ func (cfg config) install(ctx context.Context) error {
 		if listErr != nil {
 			return listErr
 		}
-		args, parseErr := enrollmentArgs(listed)
+		args, parseErr := enrollmentArgs(listed, "kind-"+cfg.Cluster)
 		if parseErr != nil {
 			return parseErr
 		}
-		created, createErr := cfg.locoadm(ctx, args...)
+		_, createErr := cfg.locoadm(ctx, args...)
 		if createErr != nil {
 			return createErr
-		}
-		if err = cfg.apply(ctx, created); err != nil {
-			return err
 		}
 		if err = cfg.deploy(ctx, false); err != nil {
 			return err
@@ -293,7 +290,7 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	return nil
 }
 
-func enrollmentArgs(data []byte) ([]string, error) {
+func enrollmentArgs(data []byte, kubeContext string) ([]string, error) {
 	var listed struct {
 		Clusters []struct {
 			ID        string `json:"id"`
@@ -306,7 +303,7 @@ func enrollmentArgs(data []byte) ([]string, error) {
 	}
 	for _, cluster := range listed.Clusters {
 		if cluster.Name == localIdentity && cluster.RemovedAt == "" {
-			return []string{"cluster", "join-token", cluster.ID, "-o", "secret"}, nil
+			return []string{"cluster", "join-token", cluster.ID, "--kube-context", kubeContext}, nil
 		}
 	}
 	return []string{
@@ -318,6 +315,6 @@ func enrollmentArgs(data []byte) ([]string, error) {
 		localIdentity,
 		"--tier",
 		"production",
-		"-o", "secret",
+		"--kube-context", kubeContext,
 	}, nil
 }

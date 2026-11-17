@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"sigs.k8s.io/yaml"
 
 	"connectrpc.com/connect/v2"
@@ -24,11 +26,12 @@ import (
 )
 
 const (
-	testClusterID = "00000000-0000-7000-8000-000000000001"
-	testJoinToken = "loco_j_test"
-	testName      = "east"
-	testRegion    = "us-east-1"
-	testTier      = environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
+	testClusterID     = "00000000-0000-7000-8000-000000000001"
+	testJoinToken     = "loco_j_test"
+	testName          = "east"
+	testWorkerContext = "worker"
+	testRegion        = "us-east-1"
+	testTier          = environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION
 )
 
 var (
@@ -42,11 +45,12 @@ var errTestDenied = errors.New("permission denied")
 
 type fakeClusterAdmin struct {
 	clusterv1connect.UnimplementedClusterAdminServiceHandler
-	t       *testing.T
-	calls   []string
-	force   bool
-	created *clusterv1.CreateClusterRequest
-	err     error
+	t         *testing.T
+	calls     []string
+	force     bool
+	created   *clusterv1.CreateClusterRequest
+	expiresAt *timestamppb.Timestamp
+	err       error
 }
 
 func (f *fakeClusterAdmin) record(ctx context.Context, method, id string) error {
@@ -72,7 +76,7 @@ func (f *fakeClusterAdmin) CreateCluster(
 	f.created = req
 	return &clusterv1.CreateClusterResponse{
 		ClusterId: testClusterID,
-		JoinToken: &clusterv1.JoinToken{Token: testJoinToken},
+		JoinToken: &clusterv1.JoinToken{Token: testJoinToken, ExpiresAt: f.expiresAt},
 	}, nil
 }
 
@@ -85,7 +89,7 @@ func (f *fakeClusterAdmin) IssueJoinToken(
 	}
 	return &clusterv1.IssueJoinTokenResponse{
 		ClusterId: req.GetClusterId(),
-		JoinToken: &clusterv1.JoinToken{Token: testJoinToken},
+		JoinToken: &clusterv1.JoinToken{Token: testJoinToken, ExpiresAt: f.expiresAt},
 	}, nil
 }
 
@@ -277,7 +281,7 @@ func TestClusterCreatePrintsSecretWithRequestedTTL(t *testing.T) {
 		"-o",
 		"secret",
 		"--namespace",
-		"worker",
+		testWorkerContext,
 		"--secret-name",
 		"join",
 	)
@@ -298,7 +302,7 @@ func TestClusterCreatePrintsSecretWithRequestedTTL(t *testing.T) {
 		t.Fatal(err)
 	}
 	if secret.APIVersion != "v1" || secret.Kind != "Secret" || secret.Metadata.Name != "join" ||
-		secret.Metadata.Namespace != "worker" ||
+		secret.Metadata.Namespace != testWorkerContext ||
 		secret.StringData["join-token"] != testJoinToken {
 		t.Fatalf("invalid join Secret: %+v", secret)
 	}

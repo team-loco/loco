@@ -14,7 +14,7 @@ loco config --help
 
 | Command | Purpose |
 | --- | --- |
-| `locoadm init` | Scaffold an operator GitOps repository with encrypted bootstrap Secrets |
+| `locoadm init` | Scaffold an operator GitOps repository with plaintext bootstrap Secrets |
 | `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, DNS targets, version skew and unclaimed admins from the API |
 | `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured admin's first sign-in makes it a system admin |
 | `locoadm admin list`, `grant <user-id>`, `revoke <user-id>` | List, grant and revoke [system admins](../operations/self-hosting.md#first-system-admin) |
@@ -76,13 +76,13 @@ locoadm init --output ./fleet \
   --api-env-file ./api.env
 ```
 
-The command generates the static seal key and writes it and the supplied API environment as plaintext Kubernetes Secret files. Encrypt these files before committing, or deliver the named Secrets through External Secrets. The generated README describes optional encryption with operator-installed SOPS. Review chart values, provide infrastructure credentials and bootstrap Flux separately. The worker token starts empty; the agent waits for an issued token.
+The command generates the static seal key and writes it and the supplied API environment as plaintext Kubernetes Secret files. Encrypt these files before committing, or deliver the named Secrets through External Secrets. The generated README describes optional encryption with operator-installed SOPS. Review chart values, provide infrastructure credentials and bootstrap Flux separately. Deliver the worker join token with `locoadm cluster create --kube-context WORKER`; the agent waits for the mounted token.
 
-`locoadm cluster create` and `cluster join-token` accept `--ttl` and `-o secret` to print a plaintext Kubernetes Secret manifest. Default output is JSON. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Redirect or pipe the manifest to your own secret-delivery tooling.
+`locoadm cluster create` and `cluster join-token` accept `--kube-context CONTEXT` to write the token directly to the worker and print only a confirmation. Bootstrap Flux first; the bundle must create the target namespace. `--ttl` sets its lifetime. `-o secret` prints a plaintext Kubernetes Secret manifest for operator-managed delivery and is mutually exclusive with `--kube-context`. Default output is JSON. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. For an expired pending token, re-run `cluster join-token CLUSTER_UUID --kube-context CONTEXT`.
 
 ```sh
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  -o secret | kubectl --context worker-staging apply -f -
+  --kube-context worker-staging
 ```
 
 `status` requires a system-admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
