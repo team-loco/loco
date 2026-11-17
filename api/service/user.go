@@ -103,6 +103,9 @@ func (s *UserServer) WhoAmI(
 	if err != nil {
 		return nil, err
 	}
+	if p.Entity.Type != genDb.EntityTypeUser {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
+	}
 	if err = check(ctx, s.authz, p, actions.New(actions.GetCurrentUser, p.Entity.ID)); err != nil {
 		return nil, err
 	}
@@ -243,7 +246,7 @@ func (s *UserServer) DeleteUser(
 			return fmt.Errorf("list user identities: %w", listErr)
 		}
 		if deleteErr := qtx.DeleteUser(ctx, userID); deleteErr != nil {
-			return deleteUserReferenceError(deleteErr)
+			return fmt.Errorf("delete user: %w", deleteErr)
 		}
 		removed := make([]map[string]string, 0, len(identities))
 		for _, identity := range identities {
@@ -263,25 +266,6 @@ func (s *UserServer) DeleteUser(
 		return nil, err
 	}
 	return &userv1.DeleteUserResponse{}, nil
-}
-
-func deleteUserReferenceError(err error) error {
-	var message string
-	switch pgForeignKeyConstraint(err) {
-	case "workspaces_created_by_fkey":
-		message = "user created workspaces"
-	case "environments_created_by_fkey":
-		message = "user created environments"
-	case "api_tokens_created_by_fkey":
-		message = "user created API tokens"
-	case "invitations_invited_by_fkey":
-		message = "user sent invitations"
-	case "invitations_claimed_by_fkey":
-		message = "user claimed invitations"
-	default:
-		return fmt.Errorf("delete user: %w", err)
-	}
-	return fmt.Errorf("%w: %w", rpcerr.NewCoded(connect.CodeFailedPrecondition, message), err)
 }
 
 // SetUserStatus suspends or reinstates a user

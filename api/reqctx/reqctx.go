@@ -26,12 +26,14 @@ type Request struct {
 
 // Principal is the caller the auth interceptor authenticated.
 type Principal struct {
+	// Entity is the credential scope owner; API-token identity is ActorID.
 	Entity    genDb.Entity
 	Scopes    []genDb.EntityScope
 	ActorType genDb.DeploymentActorType
 	ActorID   uuid.UUID
-	// UserID is the user accountable for the call: the session's user, or the API token's creator.
+	// UserID is the human principal for a session or personal token, and Nil for an owned token.
 	UserID uuid.UUID
+	// Method distinguishes provider sign-in (web), a Loco session (cli), and an API token.
 	Method genDb.DeploymentMethod
 	Token  string
 }

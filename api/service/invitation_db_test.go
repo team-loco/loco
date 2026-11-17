@@ -357,3 +357,54 @@ func TestConcurrentInvitesOverAnExpiredInvitationCreateOne(t *testing.T) {
 		t.Fatalf("open invitations = %d, want 1", open)
 	}
 }
+
+func TestInvitationSurvivesDeletedInviter(t *testing.T) {
+	t.Parallel()
+	o := newInvitationOrg(t)
+	successor := o.api.signUp(t, "successor")
+	o.addOrgMember(t, successor)
+	if _, err := o.owner.clients.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
+		OrgId: o.orgID, UserId: successor.id.String(), Role: orgv1.OrgRole_ORG_ROLE_ADMIN,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	invitation := o.invite(t, invitationEmail)
+	if _, err := o.api.pool.Exec(t.Context(), "DELETE FROM users WHERE id = $1", o.owner.id); err != nil {
+		t.Fatal(err)
+	}
+	listed, err := successor.clients.Org.ListInvitations(t.Context(), &orgv1.ListInvitationsRequest{OrgId: o.orgID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.GetInvitations()) != 1 {
+		t.Fatalf("invitations = %v", listed.GetInvitations())
+	}
+	check := func(got *orgv1.Invitation) {
+		t.Helper()
+		inviter := got.GetInvitedBy()
+		if inviter.GetId() != o.owner.id.String() || inviter.GetName() != "Deleted user" || inviter.GetEmail() != "" {
+			t.Fatalf("historical inviter = %v", inviter)
+		}
+	}
+	check(listed.GetInvitations()[0])
+	resent, err := successor.clients.Org.ResendInvitation(
+		t.Context(),
+		&orgv1.ResendInvitationRequest{Id: invitation.GetId()},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(resent.GetInvitation())
+	var data []byte
+	if err := o.api.pool.QueryRow(t.Context(), "SELECT data FROM events WHERE type = $1 AND subject_id = $2",
+		events.InvitationResent, uuid.MustParse(invitation.GetId())).Scan(&data); err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]string
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	if fields[events.FieldInviterName] != "Deleted user" || fields[events.FieldInviterEmail] != "" {
+		t.Fatalf("resent inviter fields = %v", fields)
+	}
+}

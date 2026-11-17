@@ -179,7 +179,7 @@ func (s *BuildServer) CreateBuild(
 			DockerfilePath:   dockerfilePath,
 			Context:          buildContext,
 			ImageRepository:  repository,
-			CreatedBy:        p.UserID,
+			CreatedBy:        p.ActorID,
 			ApiTokenID:       apiTokenID,
 			GitCommit:        req.GitCommit,
 			GitBranch:        req.GitBranch,

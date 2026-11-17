@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
@@ -28,6 +29,16 @@ const (
 )
 
 var errProvider = errors.New("fixture identity provider sign-in failed")
+
+// ProviderToken signs a fixture human in through the configured identity provider.
+func (p *Platform) ProviderToken(tb testing.TB, email string) string {
+	tb.Helper()
+	token, err := p.providerLogin(tb.Context(), email)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return token
+}
 
 // session is a CLI session the API issued, in the CLI's credentials file format
 // (cmd/internal/keychain.UserToken).

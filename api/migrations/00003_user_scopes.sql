@@ -78,7 +78,19 @@ CREATE TABLE api_tokens (
     entity_type entity_type NOT NULL,
     entity_id UUID NOT NULL,
     scopes JSONB NOT NULL,
-    created_by UUID NOT NULL REFERENCES users(id),
+    personal_user_id UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'user' THEN entity_id END
+    ) STORED REFERENCES users(id) ON DELETE CASCADE,
+    organization_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'organization' THEN entity_id END
+    ) STORED REFERENCES organizations(id) ON DELETE CASCADE,
+    workspace_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'workspace' THEN entity_id END
+    ) STORED REFERENCES workspaces(id) ON DELETE CASCADE,
+    resource_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'resource' THEN entity_id END
+    ) STORED REFERENCES resources(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
     last_used_at TIMESTAMPTZ,
@@ -86,6 +98,10 @@ CREATE TABLE api_tokens (
 );
 
 CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
+CREATE INDEX api_tokens_personal_user_idx ON api_tokens (personal_user_id) WHERE personal_user_id IS NOT NULL;
+CREATE INDEX api_tokens_organization_idx ON api_tokens (organization_ref) WHERE organization_ref IS NOT NULL;
+CREATE INDEX api_tokens_workspace_idx ON api_tokens (workspace_ref) WHERE workspace_ref IS NOT NULL;
+CREATE INDEX api_tokens_resource_idx ON api_tokens (resource_ref) WHERE resource_ref IS NOT NULL;
 CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
 CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 
@@ -93,10 +109,10 @@ CREATE TABLE invitations (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
-    invited_by UUID NOT NULL REFERENCES users(id),
+    invited_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
-    claimed_by UUID REFERENCES users(id),
+    claimed_by UUID,
     claimed_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ
 );

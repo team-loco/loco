@@ -130,7 +130,10 @@ func TestWhoAmIReturnsClaimedOrgs(t *testing.T) {
 	server := NewUserServer(o.api.pool, o.api.queries, o.api.machine)
 	call := func(claimed []auth.ClaimedOrg) *userv1.WhoAmIResponse {
 		entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: member.id}
-		ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
+		ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
+			Entity: entity, UserID: member.id, ActorType: genDb.DeploymentActorTypeUser, ActorID: member.id,
+			Method: genDb.DeploymentMethodWeb, Scopes: scopes,
+		})
 		ctx = auth.WithLogin(ctx, auth.Login{ClaimedOrgs: claimed})
 		resp, whoErr := server.WhoAmI(ctx, &userv1.WhoAmIRequest{})
 		if whoErr != nil {

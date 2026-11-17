@@ -83,7 +83,7 @@ func (s *EnvironmentServer) CreateEnvironment(
 			Name:            req.GetName(),
 			Description:     &desc,
 			EnvironmentType: envType,
-			CreatedBy:       p.UserID,
+			CreatedBy:       p.ActorID,
 		})
 		if isUniqueViolation(createErr, pgEnvironmentNameUnique) {
 			return ErrEnvironmentNameNotUnique

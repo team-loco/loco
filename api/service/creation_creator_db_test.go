@@ -17,7 +17,7 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
-func TestCreateWorkspaceRecordsTheCredentialUser(t *testing.T) {
+func TestCreateWorkspaceRecordsTheCredentialActor(t *testing.T) {
 	t.Parallel()
 	for _, credential := range []genDb.DeploymentActorType{
 		genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken,
@@ -28,6 +28,7 @@ func TestCreateWorkspaceRecordsTheCredentialUser(t *testing.T) {
 			if credential == genDb.DeploymentActorTypeApiToken {
 				ctx = creationTokenContext(t, f, genDb.EntityTypeOrganization, f.orgID, genDb.ScopeWrite)
 			}
+			principal, _ := reqctx.PrincipalFrom(ctx)
 			server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 			created, err := server.CreateWorkspace(ctx, &workspacev1.CreateWorkspaceRequest{
 				OrgId: f.orgID.String(), Name: "automated",
@@ -37,14 +38,19 @@ func TestCreateWorkspaceRecordsTheCredentialUser(t *testing.T) {
 			}
 			id := uuid.MustParse(created.GetWorkspaceId())
 			workspace, err := f.queries.GetWorkspaceByIDQuery(ctx, id)
-			if err != nil || workspace.CreatedBy != f.ownerID {
-				t.Fatalf("workspace creator = %s (%v), want %s", workspace.CreatedBy, err, f.ownerID)
+			if err != nil || workspace.CreatedBy != principal.ActorID {
+				t.Fatalf("workspace creator = %s (%v), want %s", workspace.CreatedBy, err, principal.ActorID)
 			}
 			var environmentCreator uuid.UUID
 			if scanErr := f.pool.QueryRow(ctx,
 				"SELECT created_by FROM environments WHERE workspace_id = $1 AND name = 'production'", id,
-			).Scan(&environmentCreator); scanErr != nil || environmentCreator != f.ownerID {
-				t.Fatalf("default environment creator = %s (%v), want %s", environmentCreator, scanErr, f.ownerID)
+			).Scan(&environmentCreator); scanErr != nil || environmentCreator != principal.ActorID {
+				t.Fatalf(
+					"default environment creator = %s (%v), want %s",
+					environmentCreator,
+					scanErr,
+					principal.ActorID,
+				)
 			}
 			scopes, err := authz.New(f.queries).UserScopes(ctx, f.ownerID)
 			if err != nil {
@@ -52,8 +58,11 @@ func TestCreateWorkspaceRecordsTheCredentialUser(t *testing.T) {
 			}
 			for _, scope := range []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
 				want := genDb.EntityScope{EntityType: genDb.EntityTypeWorkspace, EntityID: id, Scope: scope}
-				if !slices.Contains(scopes, want) {
-					t.Errorf("creator has no %s grant on the new workspace", scope)
+				if got, wantGrant := slices.Contains(
+					scopes,
+					want,
+				), credential == genDb.DeploymentActorTypeUser; got != wantGrant {
+					t.Errorf("human creator %s grant = %v, want %v", scope, got, wantGrant)
 				}
 			}
 			reader := creationTokenContext(t, f, genDb.EntityTypeOrganization, f.orgID, genDb.ScopeRead)
@@ -65,7 +74,7 @@ func TestCreateWorkspaceRecordsTheCredentialUser(t *testing.T) {
 	}
 }
 
-func TestCreateEnvironmentRecordsTheCredentialUser(t *testing.T) {
+func TestCreateEnvironmentRecordsTheCredentialActor(t *testing.T) {
 	t.Parallel()
 	for _, credential := range []genDb.DeploymentActorType{
 		genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken,
@@ -76,6 +85,7 @@ func TestCreateEnvironmentRecordsTheCredentialUser(t *testing.T) {
 			if credential == genDb.DeploymentActorTypeApiToken {
 				ctx = creationTokenContext(t, f, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeWrite)
 			}
+			principal, _ := reqctx.PrincipalFrom(ctx)
 			server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 			request := &environmentv1.CreateEnvironmentRequest{
 				WorkspaceId: f.workspaceID.String(), Name: "automated",
@@ -86,8 +96,8 @@ func TestCreateEnvironmentRecordsTheCredentialUser(t *testing.T) {
 				t.Fatalf("create environment: %v", err)
 			}
 			environment, err := f.queries.GetEnvironmentByID(ctx, uuid.MustParse(created.GetEnvironmentId()))
-			if err != nil || environment.CreatedBy != f.ownerID {
-				t.Fatalf("environment creator = %s (%v), want %s", environment.CreatedBy, err, f.ownerID)
+			if err != nil || environment.CreatedBy != principal.ActorID {
+				t.Fatalf("environment creator = %s (%v), want %s", environment.CreatedBy, err, principal.ActorID)
 			}
 			reader := creationTokenContext(t, f, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeRead)
 			request.Name = "read-only-environment"

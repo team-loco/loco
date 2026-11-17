@@ -39,6 +39,7 @@ func NewVendingMachine(q queries.Querier, cfg Config) *VendingMachine {
 func (tvm *VendingMachine) WithQueries(q queries.Querier) *VendingMachine {
 	scoped := *tvm
 	scoped.queries = q
+	scoped.authz = authz.New(q)
 	return &scoped
 }
 

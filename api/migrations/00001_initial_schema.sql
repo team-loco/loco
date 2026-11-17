@@ -35,7 +35,7 @@ CREATE TABLE
     IF NOT EXISTS organizations (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         name TEXT NOT NULL,
-        created_by UUID NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+        created_by UUID NOT NULL,
         suspended_at TIMESTAMPTZ,
         suspension_reason TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
@@ -79,7 +79,7 @@ CREATE TABLE
         org_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
-        created_by UUID NOT NULL REFERENCES users (id) ON DELETE RESTRICT,
+        created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );

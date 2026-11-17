@@ -451,17 +451,21 @@ func (ns NullWebhookKind) Value() (driver.Value, error) {
 }
 
 type ApiToken struct {
-	ID            uuid.UUID     `json:"id"`
-	TokenHash     string        `json:"tokenHash"`
-	DisplaySuffix string        `json:"displaySuffix"`
-	Name          string        `json:"name"`
-	EntityType    EntityType    `json:"entityType"`
-	EntityID      uuid.UUID     `json:"entityId"`
-	Scopes        []EntityScope `json:"scopes"`
-	CreatedBy     uuid.UUID     `json:"createdBy"`
-	CreatedAt     time.Time     `json:"createdAt"`
-	ExpiresAt     time.Time     `json:"expiresAt"`
-	LastUsedAt    *time.Time    `json:"lastUsedAt"`
+	ID              uuid.UUID     `json:"id"`
+	TokenHash       string        `json:"tokenHash"`
+	DisplaySuffix   string        `json:"displaySuffix"`
+	Name            string        `json:"name"`
+	EntityType      EntityType    `json:"entityType"`
+	EntityID        uuid.UUID     `json:"entityId"`
+	Scopes          []EntityScope `json:"scopes"`
+	PersonalUserID  *uuid.UUID    `json:"personalUserId"`
+	OrganizationRef *uuid.UUID    `json:"organizationRef"`
+	WorkspaceRef    *uuid.UUID    `json:"workspaceRef"`
+	ResourceRef     *uuid.UUID    `json:"resourceRef"`
+	CreatedBy       uuid.UUID     `json:"createdBy"`
+	CreatedAt       time.Time     `json:"createdAt"`
+	ExpiresAt       time.Time     `json:"expiresAt"`
+	LastUsedAt      *time.Time    `json:"lastUsedAt"`
 }
 
 type Build struct {

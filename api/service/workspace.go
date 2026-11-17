@@ -68,7 +68,7 @@ func (s *WorkspaceServer) CreateWorkspace(
 			OrgID:       orgID,
 			Name:        req.GetName(),
 			Description: req.Description,
-			CreatedBy:   p.UserID,
+			CreatedBy:   p.ActorID,
 		})
 		return createErr
 	})
@@ -104,13 +104,19 @@ func createWorkspaceInTx(
 		return uuid.Nil, fmt.Errorf("insert workspace: %w", err)
 	}
 
-	err = authz.ApplyRoles(ctx, qtx, params.CreatedBy, []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
-		{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
-	}, []genDb.EntityScope{})
+	p, err := principalFrom(ctx)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("grant roles on workspace %s: %w", wsID, err)
+		return uuid.Nil, err
+	}
+	if p.ActorType != genDb.DeploymentActorTypeApiToken {
+		err = authz.ApplyRoles(ctx, qtx, params.CreatedBy, []genDb.EntityScope{
+			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
+			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
+			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
+		}, []genDb.EntityScope{})
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("grant roles on workspace %s: %w", wsID, err)
+		}
 	}
 
 	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{

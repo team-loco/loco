@@ -21,7 +21,7 @@ import (
 // Session tokens (loco_s_...): scopes are always fetched live from user_scopes so
 // permission changes take effect immediately.
 //
-// API tokens (loco_k_...): scopes are the baked-in set from creation and never change.
+// Personal API tokens are bounded by live user grants; owned tokens use their stored scopes.
 //
 // Refresh tokens (loco_r_...) are rejected — they are not valid access credentials.
 func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.Principal, error) {
@@ -73,15 +73,28 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 			ID:   tok.EntityID,
 		}
 
+		scopes := tok.Scopes
+		userID := uuid.Nil
+		if tok.PersonalUserID != nil {
+			userID = *tok.PersonalUserID
+			var live []queries.EntityScope
+			if decodeErr := json.Unmarshal(tok.LiveScopes, &live); decodeErr != nil {
+				return reqctx.Principal{}, fmt.Errorf("decode personal token grants: %w", decodeErr)
+			}
+			scopes, err = tvm.authz.Intersect(ctx, scopes, live)
+			if err != nil {
+				return reqctx.Principal{}, fmt.Errorf("bound personal token permissions: %w", err)
+			}
+		}
 		tvm.touchAPITokenLastUsed(ctx, tok.ID, tok.LastUsedAt)
 
 		return reqctx.Principal{
 			Entity:    entity,
-			Scopes:    tok.Scopes,
+			Scopes:    scopes,
 			Token:     token,
 			ActorType: queries.DeploymentActorTypeApiToken,
 			ActorID:   tok.ID,
-			UserID:    tok.CreatedBy,
+			UserID:    userID,
 			Method:    queries.DeploymentMethodApiToken,
 		}, nil
 

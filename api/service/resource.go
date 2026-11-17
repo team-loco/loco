@@ -146,7 +146,7 @@ func (s *ResourceServer) CreateResource(
 
 	params := genDb.CreateResourceParams{
 		WorkspaceID: workspaceID,
-		CreatedBy:   p.UserID,
+		CreatedBy:   p.ActorID,
 		Name:        req.GetName(),
 		Slug:        slug,
 		Type:        genDb.ResourceTypeService,
