@@ -136,10 +136,15 @@ LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users u ON u.id = CASE WHEN d.actor_type = 'user' THEN d.actor_id ELSE t.created_by END
 WHERE d.id = $1;
 
--- name: GetDeploymentActor :one
-SELECT COALESCE(u.name, t.name, '')::text AS name,
-       COALESCE(u.avatar_url, '')::text AS avatar_url
+-- name: GetDeploymentView :one
+SELECT sqlc.embed(d), r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
+       COALESCE(u.name, t.name, '')::text AS actor_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
+JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 WHERE d.id = $1;

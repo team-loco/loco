@@ -114,12 +114,11 @@ type Querier interface {
 	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
-	GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDeploymentActorRow, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
 	GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDeploymentEventRow, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	GetDeploymentRollout(ctx context.Context, deploymentID *uuid.UUID) (GetDeploymentRolloutRow, error)
+	GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)

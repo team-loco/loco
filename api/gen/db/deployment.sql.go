@@ -134,27 +134,6 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 	return i, err
 }
 
-const getDeploymentActor = `-- name: GetDeploymentActor :one
-SELECT COALESCE(u.name, t.name, '')::text AS name,
-       COALESCE(u.avatar_url, '')::text AS avatar_url
-FROM deployments d
-LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
-LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
-WHERE d.id = $1
-`
-
-type GetDeploymentActorRow struct {
-	Name      string `json:"name"`
-	AvatarUrl string `json:"avatarUrl"`
-}
-
-func (q *Queries) GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDeploymentActorRow, error) {
-	row := q.db.QueryRow(ctx, getDeploymentActor, id)
-	var i GetDeploymentActorRow
-	err := row.Scan(&i.Name, &i.AvatarUrl)
-	return i, err
-}
-
 const getDeploymentByID = `-- name: GetDeploymentByID :one
 SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
@@ -242,6 +221,63 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 	var resource_id uuid.UUID
 	err := row.Scan(&resource_id)
 	return resource_id, err
+}
+
+const getDeploymentView = `-- name: GetDeploymentView :one
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
+       COALESCE(u.name, t.name, '')::text AS actor_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+WHERE d.id = $1
+`
+
+type GetDeploymentViewRow struct {
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
+}
+
+func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentView, id)
+	var i GetDeploymentViewRow
+	err := row.Scan(
+		&i.Deployment.ID,
+		&i.Deployment.ResourceID,
+		&i.Deployment.ClusterID,
+		&i.Deployment.Region,
+		&i.Deployment.Replicas,
+		&i.Deployment.Status,
+		&i.Deployment.IsActive,
+		&i.Deployment.EnvironmentID,
+		&i.Deployment.Spec,
+		&i.Deployment.SpecVersion,
+		&i.Deployment.ActorType,
+		&i.Deployment.ActorID,
+		&i.Deployment.Method,
+		&i.Deployment.CommitSha,
+		&i.Deployment.CommitDirty,
+		&i.Deployment.SecretNames,
+		&i.Deployment.ActivitySeq,
+		&i.Deployment.CreatedAt,
+		&i.Deployment.StartedAt,
+		&i.Deployment.CompletedAt,
+		&i.Deployment.UpdatedAt,
+		&i.ResourceType,
+		&i.RolloutSnapshot,
+		&i.CurrentRevision,
+		&i.ActorName,
+		&i.ActorAvatarUrl,
+	)
+	return i, err
 }
 
 const listActiveDeployments = `-- name: ListActiveDeployments :many

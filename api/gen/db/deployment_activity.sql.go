@@ -29,25 +29,6 @@ func (q *Queries) AllocateActivitySeq(ctx context.Context, arg AllocateActivityS
 	return activity_seq, err
 }
 
-const getDeploymentRollout = `-- name: GetDeploymentRollout :one
-SELECT COALESCE(
- (SELECT desired_revision FROM placements p WHERE p.deployment_id = $1 AND NOT p.desired_deleted LIMIT 1),
- (SELECT max(revision) FROM deployment_rollouts r WHERE r.deployment_id = $1), 0)::bigint AS current_revision,
- COALESCE((SELECT snapshot FROM deployment_rollouts r WHERE r.deployment_id = $1 ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS snapshot
-`
-
-type GetDeploymentRolloutRow struct {
-	CurrentRevision int64  `json:"currentRevision"`
-	Snapshot        []byte `json:"snapshot"`
-}
-
-func (q *Queries) GetDeploymentRollout(ctx context.Context, deploymentID *uuid.UUID) (GetDeploymentRolloutRow, error) {
-	row := q.db.QueryRow(ctx, getDeploymentRollout, deploymentID)
-	var i GetDeploymentRolloutRow
-	err := row.Scan(&i.CurrentRevision, &i.Snapshot)
-	return i, err
-}
-
 const insertDeploymentActivity = `-- name: InsertDeploymentActivity :exec
 INSERT INTO deployment_activity(deployment_id, seq, revision, at, severity, replica_uid, replica_name, message)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -119,7 +100,7 @@ func (q *Queries) ListDeploymentActivity(ctx context.Context, arg ListDeployment
 }
 
 const lockRollout = `-- name: LockRollout :one
-SELECT snapshot FROM deployment_rollouts r WHERE r.deployment_id = $1 AND revision = $2 FOR UPDATE
+SELECT snapshot FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE
 `
 
 type LockRolloutParams struct {

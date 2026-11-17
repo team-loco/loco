@@ -3,7 +3,7 @@ INSERT INTO deployment_rollouts(deployment_id, revision)
 VALUES ($1, $2) ON CONFLICT DO NOTHING;
 
 -- name: LockRollout :one
-SELECT snapshot FROM deployment_rollouts r WHERE r.deployment_id = $1 AND revision = $2 FOR UPDATE;
+SELECT snapshot FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE;
 
 -- name: AllocateActivitySeq :one
 UPDATE deployments SET activity_seq = activity_seq + sqlc.arg(count)::bigint
@@ -22,9 +22,3 @@ SELECT pg_notify('deployment_activity', sqlc.arg(deployment_id)::text);
 -- name: ListDeploymentActivity :many
 SELECT * FROM deployment_activity WHERE deployment_id = $1 AND seq > sqlc.arg(after_seq)
 ORDER BY seq LIMIT sqlc.arg(page_size);
-
--- name: GetDeploymentRollout :one
-SELECT COALESCE(
- (SELECT desired_revision FROM placements p WHERE p.deployment_id = $1 AND NOT p.desired_deleted LIMIT 1),
- (SELECT max(revision) FROM deployment_rollouts r WHERE r.deployment_id = $1), 0)::bigint AS current_revision,
- COALESCE((SELECT snapshot FROM deployment_rollouts r WHERE r.deployment_id = $1 ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS snapshot;

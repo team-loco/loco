@@ -50,7 +50,7 @@ func (s *DeploymentServer) WatchDeployment(
 	cursor := req.GetAfterSeq()
 	var previous *deploymentv1.Deployment
 	for {
-		deployment, activity, readErr := s.readDeployment(ctx, id, cursor, true)
+		deployment, activity, readErr := s.readDeployment(ctx, id, cursor)
 		if readErr != nil {
 			return readErr
 		}
@@ -130,7 +130,6 @@ func (s *DeploymentServer) readDeployment(
 	ctx context.Context,
 	id uuid.UUID,
 	cursor int64,
-	withActivity bool,
 ) (*deploymentv1.Deployment, []*deploymentv1.Activity, error) {
 	var deployment *deploymentv1.Deployment
 	var activity []*deploymentv1.Activity
@@ -140,35 +139,16 @@ func (s *DeploymentServer) readDeployment(
 		pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly},
 		func(tx pgx.Tx) error {
 			q := genDb.New(tx)
-			row, err := q.GetDeploymentByID(ctx, id)
+			row, err := q.GetDeploymentView(ctx, id)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return ErrDeploymentNotFound
 			}
 			if err != nil {
 				return fmt.Errorf("get deployment: %w", err)
 			}
-			resource, err := q.GetResourceByID(ctx, row.ResourceID)
-			if err != nil {
-				return fmt.Errorf("get deployment resource: %w", err)
-			}
-			actor, err := q.GetDeploymentActor(ctx, id)
-			if err != nil {
-				return fmt.Errorf("get deployment actor: %w", err)
-			}
-			deployment, err = deploymentToProto(row, resource.Type, actor.Name, actor.AvatarUrl)
+			deployment, err = deploymentToProto(row)
 			if err != nil {
 				return err
-			}
-			rollout, err := q.GetDeploymentRollout(ctx, &id)
-			if err != nil {
-				return fmt.Errorf("get deployment rollout: %w", err)
-			}
-			deployment.CurrentRevision = rollout.CurrentRevision
-			if err = setDeploymentRollout(deployment, rollout.Snapshot); err != nil {
-				return err
-			}
-			if !withActivity {
-				return nil
 			}
 			rows, err := q.ListDeploymentActivity(
 				ctx,

@@ -55,12 +55,9 @@ func parseDeploymentStatus(status genDb.DeploymentStatus) deploymentv1.Deploymen
 	}
 }
 
-func deploymentToProto(
-	d genDb.Deployment,
-	resourceType genDb.ResourceType,
-	actorName, actorAvatarURL string,
-) (*deploymentv1.Deployment, error) {
-	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
+func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment, error) {
+	d := row.Deployment
+	spec, err := converter.DeserializeDeploymentSpec(d.Spec, row.ResourceType)
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
 	}
@@ -68,7 +65,7 @@ func deploymentToProto(
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
 	}
-	return &deploymentv1.Deployment{
+	deployment := &deploymentv1.Deployment{
 		Id:              d.ID.String(),
 		ResourceId:      d.ResourceID.String(),
 		EnvironmentId:   d.EnvironmentID.String(),
@@ -85,11 +82,16 @@ func deploymentToProto(
 		Spec:            spec,
 		ActorType:       parseDeploymentActorType(d.ActorType),
 		ActorId:         d.ActorID.String(),
-		ActorName:       actorName,
-		ActorAvatarUrl:  actorAvatarURL,
+		ActorName:       row.ActorName,
+		ActorAvatarUrl:  row.ActorAvatarUrl,
 		Method:          parseDeploymentMethod(d.Method),
 		Commit:          commit,
-	}, nil
+		CurrentRevision: row.CurrentRevision,
+	}
+	if err := setDeploymentRollout(deployment, row.RolloutSnapshot); err != nil {
+		return nil, err
+	}
+	return deployment, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
@@ -356,7 +358,7 @@ func (s *DeploymentServer) GetDeployment(
 ) (*deploymentv1.GetDeploymentResponse, error) {
 	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
-	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
+	row, err := s.queries.GetDeploymentView(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrDeploymentNotFound
 	}
@@ -364,12 +366,12 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
-	required := actions.New(actions.GetDeployment, deploymentData.ResourceID)
+	required := actions.New(actions.GetDeployment, row.Deployment.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
 
-	deployment, _, err := s.readDeployment(ctx, deploymentID, 0, false)
+	deployment, err := deploymentToProto(row)
 	if err != nil {
 		return nil, err
 	}
@@ -450,15 +452,11 @@ func (s *DeploymentServer) ListDeployments(
 	}
 	var deployments []*deploymentv1.Deployment
 	for _, row := range rows {
-		deployment, err := deploymentToProto(row.Deployment, row.ResourceType, row.ActorName, row.ActorAvatarUrl)
+		deployment, err := deploymentToProto(genDb.GetDeploymentViewRow(row))
 		if err != nil {
 			return nil, err
 		}
-		if err := setDeploymentRollout(deployment, row.RolloutSnapshot); err != nil {
-			return nil, err
-		}
 		deployment.Replicas = nil
-		deployment.CurrentRevision = row.CurrentRevision
 		deployments = append(deployments, deployment)
 	}
 	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {

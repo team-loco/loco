@@ -83,11 +83,11 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 		t.Fatalf("placement status = %q %q, want %q %q",
 			placement.StatusPhase, placement.StatusMessage, locoControllerV1.ApplicationPhaseFailed, message)
 	}
-	row, err := f.queries.GetDeploymentByID(ctx, deploymentID)
+	row, err := f.queries.GetDeploymentView(ctx, deploymentID)
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
 	}
-	deployment, err := deploymentToProto(row, genDb.ResourceTypeService, "", "")
+	deployment, err := deploymentToProto(row)
 	if err != nil {
 		t.Fatalf("deployment to proto: %v", err)
 	}

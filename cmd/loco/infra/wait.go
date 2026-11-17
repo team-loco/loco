@@ -64,9 +64,6 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 					break
 				}
 				for _, entry := range event.GetActivity() {
-					if entry.GetSeq() <= cursor {
-						continue
-					}
 					prefix := entry.GetReplicaName()
 					if prefix != "" {
 						prefix += " · "
@@ -117,12 +114,10 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 			connect.CodeOf(err) != connect.CodeDeadlineExceeded {
 			return fmt.Errorf("watch deployment %s: %w", id, err)
 		}
-		timer := time.NewTimer(time.Second)
 		select {
 		case <-ctx.Done():
-			timer.Stop()
 			return ctx.Err()
-		case <-timer.C:
+		case <-time.After(time.Second):
 		}
 	}
 }

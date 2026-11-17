@@ -11,11 +11,10 @@ import { deploymentEnded, mergeActivity } from "./deployment-watch";
 export interface DeploymentWatch {
 	deployment: Deployment | undefined;
 	activity: Activity[];
-	connection: "live" | "reconnecting" | "ended";
 	error: string | undefined;
 }
 
-const IDLE: DeploymentWatch = { deployment: undefined, activity: [], connection: "live", error: undefined };
+const IDLE: DeploymentWatch = { deployment: undefined, activity: [], error: undefined };
 const ID_SEPARATOR = ",";
 
 export function useDeploymentWatch(deploymentIds: readonly string[]): (id: string | undefined) => DeploymentWatch {
@@ -42,15 +41,13 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 						const deployment = ev.deployment;
 						if (deployment === undefined) throw new Error("Deployment watch returned no deployment");
 						const last = ev.activity.at(-1)?.seq;
-						if (last !== undefined && last > (cursorsRef.current.get(deploymentId) ?? 0n))
-							cursorsRef.current.set(deploymentId, last);
+						if (last !== undefined) cursorsRef.current.set(deploymentId, last);
 						terminal = deploymentEnded(deployment);
 						setStates((prev) => ({
 							...prev,
 							[deploymentId]: {
 								deployment,
 								activity: mergeActivity(prev[deploymentId]?.activity ?? [], ev.activity),
-								connection: "live",
 								error: undefined,
 							},
 						}));
@@ -72,13 +69,7 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 						});
 						backoff = 1000;
 					}
-					if (terminal) {
-						setStates((prev) => ({
-							...prev,
-							[deploymentId]: { ...(prev[deploymentId] ?? IDLE), connection: "ended" },
-						}));
-						return;
-					}
+					if (terminal) return;
 					throw new Error("Deployment stream disconnected");
 				} catch (error) {
 					if (isAborted()) return;
@@ -86,7 +77,6 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 						...prev,
 						[deploymentId]: {
 							...(prev[deploymentId] ?? IDLE),
-							connection: "reconnecting",
 							error: getErrorMessage(error, "Deployment stream disconnected"),
 						},
 					}));
