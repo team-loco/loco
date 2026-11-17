@@ -3,6 +3,9 @@ package interceptor
 import (
 	"net/http"
 	"testing"
+	"time"
+
+	"github.com/team-loco/loco/api/auth"
 
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/api/db/dbtest"
@@ -14,7 +17,7 @@ import (
 
 func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
 	t.Parallel()
-	i := NewAuthInterceptor(nil, nil, nil, nil)
+	i := NewAuthInterceptor(nil, nil, nil, nil, auth.StreamConfig{Interval: time.Minute, Timeout: time.Second})
 	ctx, err := i.authenticate(t.Context(), authv1connect.AuthServiceRefreshCLITokenProcedure, http.Header{})
 	if err != nil {
 		t.Fatalf("authenticate public procedure: %v", err)
@@ -26,7 +29,7 @@ func TestAuthenticateSkipsPublicProcedures(t *testing.T) {
 
 func TestAuthenticateRejectsMissingToken(t *testing.T) {
 	t.Parallel()
-	i := NewAuthInterceptor(nil, nil, nil, nil)
+	i := NewAuthInterceptor(nil, nil, nil, nil, auth.StreamConfig{Interval: time.Minute, Timeout: time.Second})
 	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, http.Header{})
 	if code := connect.CodeOf(err); code != connect.CodeUnauthenticated {
 		t.Fatalf("code = %v, want Unauthenticated", code)
@@ -37,7 +40,7 @@ func TestAuthenticateReportsDatabaseFailure(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.ClosedPool(t)
 	machine := tvm.NewVendingMachine(genDb.New(pool), tvm.Config{})
-	i := NewAuthInterceptor(machine, nil, nil, nil)
+	i := NewAuthInterceptor(machine, nil, nil, nil, auth.StreamConfig{Interval: time.Minute, Timeout: time.Second})
 	_, err := i.authenticate(t.Context(), orgv1connect.OrgServiceGetOrgProcedure, withBearer("loco_s_unknown"))
 	if err == nil || connect.CodeOf(err) == connect.CodeUnauthenticated {
 		t.Fatalf("authenticate on a closed pool: got %v, want a database error that is not Unauthenticated", err)

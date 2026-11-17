@@ -49,7 +49,7 @@ func TestWatchDeploymentStreamCap(t *testing.T) {
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 			defer func() { finished <- struct{}{} }()
 			info, _ := connect.CallInfoForServerContext(ctx)
-			return next(reqctx.WithPrincipal(ctx, callers[info.RequestHeader().Get("Authorization")]), spec, stream)
+			return next(streamTestContext(ctx, callers[info.RequestHeader().Get("Authorization")]), spec, stream)
 		}
 	}
 	rpcServer := connect.NewServer(interceptor.NewErrorInterceptor(), principals)

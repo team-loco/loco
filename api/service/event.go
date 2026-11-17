@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
@@ -232,7 +233,7 @@ func (s *EventServer) StreamEvents(
 	ctx context.Context,
 	req *eventv1.StreamEventsRequest,
 	stream eventv1connect.EventServiceStreamEventsServerStream,
-) error {
+) (err error) {
 	var scoped *eventv1.ListEventsRequest
 	var filter logquery.Expr
 	if req.GetWorkspaceId() != "" {
@@ -245,7 +246,6 @@ func (s *EventServer) StreamEvents(
 			EndTime:       req.GetEndTime(),
 			Query:         req.GetQuery(),
 		}
-		var err error
 		filter, err = parseEventFilter(scoped)
 		if err != nil {
 			return err
@@ -256,10 +256,25 @@ func (s *EventServer) StreamEvents(
 			req.GetEndTime() != nil {
 			return connect.NewError(connect.CodeInvalidArgument, "workspace_id is required for event filters")
 		}
-		if err := authorizeSystem(ctx, s.authz, actions.StreamEvents); err != nil {
-			return err
+		if authorizationErr := authorizeSystem(ctx, s.authz, actions.StreamEvents); authorizationErr != nil {
+			return authorizationErr
 		}
 	}
+	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
+		if scoped == nil {
+			return authorizeSystem(check, s.authz, actions.StreamEvents)
+		}
+		_, checkErr := s.authorizeStreamScope(check, scoped)
+		return checkErr
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if authErr := stop(); authErr != nil {
+			err = authErr
+		}
+	}()
 	position, err := decodeStreamCursor(req.GetCursor())
 	if err != nil {
 		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
@@ -300,8 +315,8 @@ func (s *EventServer) StreamEvents(
 			batch := make([]*eventv1.Event, len(rows))
 			for i, row := range rows {
 				if scoped != nil {
-					if _, err := s.authorizeStreamScope(ctx, scoped); err != nil {
-						return err
+					if _, authorizationErr := s.authorizeStreamScope(ctx, scoped); authorizationErr != nil {
+						return authorizationErr
 					}
 				}
 				batch[i] = eventToProto(row)
@@ -309,6 +324,9 @@ func (s *EventServer) StreamEvents(
 			last := rows[len(rows)-1]
 			position = streamPosition(*last.StreamPosition)
 			resp := &eventv1.StreamEventsResponse{Events: batch, Cursor: position.encode()}
+			if err = ctx.Err(); err != nil {
+				return err
+			}
 			if sendErr := stream.Send(resp); sendErr != nil {
 				return sendErr
 			}

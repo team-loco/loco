@@ -92,7 +92,9 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver, authorizer).Interceptor(),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, authorizer,
+			auth.StreamConfig{Interval: time.Minute, Timeout: time.Second},
+		).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	invitations := service.InvitationConfig{TTL: journeyTTL, WebURL: journeyWebURL}

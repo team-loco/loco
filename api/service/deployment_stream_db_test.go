@@ -47,7 +47,7 @@ func (f *deployFixture) watchClient(t *testing.T) deploymentv1connect.Deployment
 	}
 	middleware := func(next connect.ServerFunc) connect.ServerFunc {
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-			return next(reqctx.WithPrincipal(ctx, principal), spec, stream)
+			return next(streamTestContext(ctx, principal), spec, stream)
 		}
 	}
 	rpcServer := connect.NewServer(middleware)

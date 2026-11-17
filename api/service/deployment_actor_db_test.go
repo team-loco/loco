@@ -205,9 +205,13 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 		Issuer: issuer.URL(), JWKSURL: issuer.URL() + "/.well-known/jwks.json", Audience: "authenticated",
 		Claims: auth.ClaimPaths{Subject: "sub", Email: "email", EmailVerified: "email_verified"},
 	}})
-	server := connect.NewServer(interceptor.NewErrorInterceptor(),
-		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(f.queries)).Interceptor(),
-		validate.NewServerInterceptor())
+	server := connect.NewServer(
+		interceptor.NewErrorInterceptor(),
+		interceptor.NewAuthInterceptor(machine, verifier, resolver, authz.New(f.queries),
+			auth.StreamConfig{Interval: time.Minute, Timeout: time.Second},
+		).Interceptor(),
+		validate.NewServerInterceptor(),
+	)
 	deploymentv1connect.RegisterDeploymentServiceHandler(server, NewDeploymentServer(
 		f.pool,
 		f.queries,

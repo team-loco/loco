@@ -97,7 +97,9 @@ func TestObservability(t *testing.T) {
 
 	t.Run("cluster events are collected once", clusterEventsOnce)
 
-	t.Run("traffic through the gateway", o.traffic)
+	if !t.Run("traffic through the gateway", o.traffic) {
+		return
+	}
 
 	t.Run("migrations", migrations)
 

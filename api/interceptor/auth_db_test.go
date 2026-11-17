@@ -61,6 +61,7 @@ func newProviderFixture(t *testing.T, policy auth.SignupPolicy) *providerFixture
 			verifier,
 			auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
 			authz.New(queries),
+			auth.StreamConfig{Interval: time.Minute, Timeout: time.Second},
 		),
 		machine: machine,
 		queries: queries,

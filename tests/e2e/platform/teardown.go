@@ -54,7 +54,7 @@ func (p *Platform) dump(ctx context.Context) {
 		}
 		return out
 	}
-	for _, name := range []string{apiProcess, replicaProcess, agentProcess, obsProcess} {
+	for _, name := range []string{apiProcess, replicaProcess, agentProcess, obsProcess, "gateway-forward"} {
 		if data, err := os.ReadFile(p.logPath(name)); err == nil {
 			group(name+" log", tail(string(data)))
 		}

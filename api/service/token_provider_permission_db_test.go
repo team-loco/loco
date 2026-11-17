@@ -53,7 +53,13 @@ func TestCheckPermissionForAuthenticatedProviderToken(t *testing.T) {
 		tvm.Config{LastUsedUpdateInterval: time.Minute, MaxAPITokenDuration: time.Hour},
 	)
 	authorizer := authz.New(f.queries)
-	authInterceptor := interceptor.NewAuthInterceptor(machine, verifier, resolver, authorizer)
+	authInterceptor := interceptor.NewAuthInterceptor(
+		machine,
+		verifier,
+		resolver,
+		authorizer,
+		auth.StreamConfig{Interval: time.Minute, Timeout: time.Second},
+	)
 	service := NewTokenServer(f.pool, f.queries, machine, limits.Defaults())
 	serverInterceptor := authInterceptor.Interceptor()
 	rpcServer := connect.NewServer(serverInterceptor)

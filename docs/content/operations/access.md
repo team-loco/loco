@@ -75,6 +75,12 @@ Deletion fails with `FailedPrecondition` naming any organization the target admi
 
 Shared resources and organization-owned tokens stay with their owning entities. Historical creator and issuer IDs confer no access. A pending CLI or device-login approval cannot create a session after its account is deleted or suspended, and a suspended account cannot refresh a CLI session.
 
+## Open streams and access changes
+
+Log tails, deployment watches and event streams recheck their original credential and the requested permissions while open, including while idle. Deleting or suspending a user, revoking or expiring a credential, or removing the required permission ends the affected stream. Organization, workspace and resource token streams do not depend on the issuer's account after issuance.
+
+The API reads `LOCO_STREAM_AUTH_INTERVAL` (default `5s`) and `LOCO_STREAM_AUTH_TIMEOUT` (default `2s`) at startup. Both must be positive durations. Access changes stop new delivery within one recheck interval plus the validation timeout, normally at most seven seconds with the defaults. A blocked HTTP write gets one additional validation timeout to finish before the transport aborts it. A failed database check also ends the stream. Responses already in flight or buffered by the client may still arrive. Already accepted deployments and builds continue under their normal lifecycle.
+
 ## API token lifetime
 
 The API limits token lifetimes with `LOCO_API_TOKEN_MAX_LIFETIME`, a Go duration of at least one second, defaulting to `8760h` (365 days). `ConfigService.GetConfig` exposes the limit as `api_token_max_lifetime_seconds`. The dashboard offers expiry choices up to that limit. The dashboard and `loco token create` default to 30 days, capped at the server maximum when it is shorter. The CLI rejects explicit `--expires` durations outside the permitted range. Use `--expires 7d` to request a shorter lifetime.
