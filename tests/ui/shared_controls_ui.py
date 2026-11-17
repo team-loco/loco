@@ -504,7 +504,7 @@ def dashboard(page):
         )
         cluster = str(uuid.uuid4())
         sql = [
-            f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier) VALUES ('{cluster}','dashboard-pilot','us-east-1','fixture',true,false,'healthy',NOW(),'production');"
+            f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES ('{cluster}','dashboard-pilot','us-east-1','fixture',true,false,'healthy',NOW());"
         ]
         for index in range(7):
             resource_id = evidence.rpc(

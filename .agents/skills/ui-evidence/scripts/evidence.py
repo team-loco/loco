@@ -709,7 +709,7 @@ def seed_resources(state, scenario, users, workspaces):
             env = json.loads(
                 psql(
                     state["container"],
-                    "SELECT json_build_object('id', e.id, 'type', e.environment_type, 'org', w.org_id, 'slug', r.slug) "
+                    "SELECT json_build_object('id', e.id, 'org', w.org_id, 'slug', r.slug) "
                     "FROM environments e JOIN workspaces w ON w.id=e.workspace_id JOIN resources r ON r.workspace_id=w.id "
                     f"WHERE r.id={sql_literal(resource_id)} AND e.name={sql_literal(deployment['environment'])};",
                 )
@@ -746,8 +746,8 @@ def seed_resources(state, scenario, users, workspaces):
             psql(
                 state["container"],
                 f"""BEGIN;
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier)
-VALUES({q(cluster_id)},{q("evidence-" + cluster_id)},{q(deployment["region"])},'fixture',true,false,'healthy',NOW(),{q(env["type"])});
+INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES({q(cluster_id)},{q("evidence-" + cluster_id)},{q(deployment["region"])},'fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,started_at)
 VALUES({q(deployment_id)},{q(resource_id)},{q(cluster_id)},{q(deployment["region"])},{runtime["minReplicas"]},{q(deployment["status"])},true,{q(env["id"])},{q(json.dumps(runtime))},1,'user',{q(owner["id"])},'web',NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,ready_replicas,status_updated_at)
