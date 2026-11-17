@@ -47,7 +47,6 @@ test("labels a full pill with its scope", () => {
 		workspace: "Workspace limit reached",
 		personal: "Personal limit reached",
 		account: "Account limit reached",
-		resource: "Resource limit reached",
 		"": "Limit reached",
 	})) {
 		const usage = limitUsage(10, 10, "tokens", scope);

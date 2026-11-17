@@ -25,7 +25,6 @@ export function usageLabel(usage: LimitUsage): string {
 const SCOPE_LABEL: Record<string, string> = {
 	organization: "Org",
 	workspace: "Workspace",
-	resource: "Resource",
 	personal: "Personal",
 	account: "Account",
 };
