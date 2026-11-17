@@ -3,9 +3,23 @@
 Usage: gate.py LATEST_TAG COMMIT, with an empty LATEST_TAG when no release exists.
 """
 import json
+import subprocess
 import sys
+import time
 
 from release import run
+
+GH_ATTEMPTS = 5
+
+
+def gh(*args):
+    for attempt in range(GH_ATTEMPTS):
+        try:
+            return run('gh', *args)
+        except subprocess.CalledProcessError:
+            if attempt == GH_ATTEMPTS - 1:
+                raise
+            time.sleep(2 ** attempt)
 
 
 def blocking(commits, jobs):
@@ -40,7 +54,7 @@ def blocking(commits, jobs):
 
 
 def push_run(workflow, sha):
-    runs = json.loads(run('gh', 'run', 'list', '--workflow', workflow, '--commit', sha, '--event', 'push', '--limit', '1', '--json', 'databaseId,conclusion'))
+    runs = json.loads(gh('run', 'list', '--workflow', workflow, '--commit', sha, '--event', 'push', '--limit', '1', '--json', 'databaseId,conclusion'))
     return runs[0] if runs else None
 
 
@@ -50,7 +64,7 @@ def main(latest, commit):
 
     def jobs(run_id):
         if run_id not in cache:
-            data = json.loads(run('gh', 'run', 'view', str(run_id), '--json', 'jobs'))
+            data = json.loads(gh('run', 'view', str(run_id), '--json', 'jobs'))
             cache[run_id] = {job['name']: job['conclusion'] for job in data['jobs']}
         return cache[run_id]
 
