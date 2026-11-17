@@ -461,7 +461,12 @@ func TestOwnedAPITokenAdministrationKeepsAHumanSuccessor(t *testing.T) {
 	t.Parallel()
 	o := newInvitationOrg(t)
 	successor := o.api.signUp(t, "successor")
-	promoteLifecycleAdmin(t, o, successor)
+	o.addOrgMember(t, successor)
+	if _, err := o.owner.clients.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
+		OrgId: o.orgID, UserId: successor.id.String(), Role: orgv1.OrgRole_ORG_ROLE_ADMIN,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	orgID := uuid.MustParse(o.orgID)
 	client, principal := administrativeToken(
 		t,

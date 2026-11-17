@@ -81,7 +81,7 @@ func (s *TokenServer) CreateToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
-	p, err := sessionPrincipal(ctx)
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}

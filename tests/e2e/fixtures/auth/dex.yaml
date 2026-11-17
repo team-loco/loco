@@ -37,6 +37,11 @@ staticPasswords:
     username: token-issuance
     userID: 122f678d-a40c-4662-bc88-04d31481b3b8
     hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: human-operations@test.local
+    username: human-operations
+    userID: 61e7ff3d-5c6d-406f-ba4f-78da028f029a
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+
 staticClients:
   - id: loco-e2e
     name: Loco component test fixtures
