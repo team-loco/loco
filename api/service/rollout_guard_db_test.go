@@ -77,18 +77,30 @@ func TestScaleRejectsAnActiveRollout(t *testing.T) {
 	}
 }
 
-func TestDeploymentReplacesAnActiveRollout(t *testing.T) {
+func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
 	t.Parallel()
-	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := deployService(t, f, imageService()); err != nil {
-		t.Fatal(err)
-	}
-	if got := f.deploymentStatus(t, uuid.MustParse(created.GetDeploymentId())); got != genDb.DeploymentStatusCanceled {
-		t.Fatalf("replaced status=%s", got)
+	for _, status := range []genDb.DeploymentStatus{genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying} {
+		t.Run(string(status), func(t *testing.T) {
+			f := newDeployFixture(t)
+			created, err := createDeployment(t, f, sameRegionSpec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, updateErr := f.pool.Exec(
+				t.Context(),
+				`UPDATE deployments SET status=$2 WHERE id=$1`,
+				created.GetDeploymentId(),
+				status,
+			); updateErr != nil {
+				t.Fatal(updateErr)
+			}
+			before := f.rolloutSnapshot(t)
+			_, err = deployService(t, f, imageService())
+			wantCode(t, err, connect.CodeFailedPrecondition)
+			if f.rolloutSnapshot(t) != before {
+				t.Fatal("rejected deployment changed persisted state")
+			}
+		})
 	}
 }
 

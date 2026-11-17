@@ -41,7 +41,7 @@ if "progress" not in state:
     INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,completed_at)
     VALUES('{previous}','{resource}','{cluster}','us-east-1',2,'running',true,'','{production}',{evidence.sql_literal(json.dumps(old_spec))},1,'user','{owner['id']}','web',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '9 minutes');
     INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,commit_sha)
-    VALUES('{current}','{resource}','{cluster}','us-east-1',2,'pending',false,'Waiting for the cluster','{production}',{evidence.sql_literal(json.dumps(spec))},2,'user','{owner['id']}','web',NOW()-INTERVAL '45 seconds',NOW()-INTERVAL '45 seconds','{'a' * 40}');
+    VALUES('{current}','{resource}','{cluster}','us-east-1',2,'building',false,'Waiting for the cluster','{production}',{evidence.sql_literal(json.dumps(spec))},2,'user','{owner['id']}','web',NOW()-INTERVAL '45 seconds',NOW()-INTERVAL '45 seconds','{'a' * 40}');
     INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
     VALUES('{resource}','{cluster}','us-east-1','{previous}','{production}','{{}}',true,2,'Ready',NOW());
     COMMIT;""")
@@ -53,19 +53,19 @@ path = f"/org/{p['org']}/wks/{workspace}/resource/{p['resource']}?env=production
 
 
 def phase(status):
-    pending = status in ("pending", "canceled")
-    message = {"pending": "Waiting for the cluster", "deploying": "Waiting for replicas", "failed": "The service keeps exiting", "canceled": "Canceled by the operator", "running": ""}[status]
+    building = status in ("building", "canceled")
+    message = {"building": "Waiting for the cluster", "deploying": "Waiting for replicas", "failed": "The service keeps exiting", "canceled": "Canceled by the operator", "running": ""}[status]
     sql(f"""BEGIN;
     UPDATE clusters SET last_heartbeat=NOW() WHERE id='{p['cluster']}';
     UPDATE deployments SET is_active=false WHERE resource_id='{p['resource']}';
-    UPDATE deployments SET is_active=true WHERE id='{p['previous'] if pending else p['current']}';
-    UPDATE deployments SET status='{status}',message={evidence.sql_literal(message)},updated_at=NOW(),completed_at={'NULL' if status in ('pending', 'deploying') else 'NOW()'} WHERE id='{p['current']}';
-    UPDATE placements SET deployment_id='{p['previous'] if pending else p['current']}',ready={'true' if pending or status == 'running' else 'false'},ready_replicas={2 if pending or status == 'running' else 1},status_phase='{'Ready' if status == 'running' or pending else 'Deploying'}',status_message={evidence.sql_literal(message)},status_updated_at=NOW() WHERE resource_id='{p['resource']}';
+    UPDATE deployments SET is_active=true WHERE id='{p['previous'] if building else p['current']}';
+    UPDATE deployments SET status='{status}',message={evidence.sql_literal(message)},updated_at=NOW(),completed_at={'NULL' if status in ('building', 'deploying', 'running') else 'NOW()'} WHERE id='{p['current']}';
+    UPDATE placements SET deployment_id='{p['previous'] if building else p['current']}',ready={'true' if building or status == 'running' else 'false'},ready_replicas={2 if building or status == 'running' else 1},status_phase='{'Ready' if status == 'running' or building else 'Deploying'}',status_message={evidence.sql_literal(message)},status_updated_at=NOW() WHERE resource_id='{p['resource']}';
     COMMIT;""")
 
 
 with session(repo / "tests/ui/out/deployment-progress") as browser:
-    phase("pending")
+    phase("building")
     context, page, errors = open_page(browser, state=state, permissions=["clipboard-read", "clipboard-write"])
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Deploying v2", exact=True)

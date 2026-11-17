@@ -218,3 +218,53 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 		t.Fatalf("degradation events = %d, want 1", count)
 	}
 }
+
+func TestRuntimeEventsDuringRollout(t *testing.T) {
+	t.Parallel()
+	for _, status := range []genDb.DeploymentStatus{
+		genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying, genDb.DeploymentStatusFailed,
+	} {
+		t.Run(string(status), func(t *testing.T) {
+			f := newDeployFixture(t)
+			id, err := f.deploy(t.Context(), staticSpec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, updateErr := f.pool.Exec(
+				t.Context(),
+				`UPDATE deployments SET status=$2 WHERE id=$1`,
+				id,
+				status,
+			); updateErr != nil {
+				t.Fatal(updateErr)
+			}
+			p := f.placement(t, f.clusterID)
+			report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+				Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+			f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
+			generation, err := f.queries.BeginClusterSync(t.Context(), f.clusterID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server := f.agentServer()
+			server.recordStatus(t.Context(), f.clusterID, generation, report)
+			report.Problem = nil
+			server.recordStatus(t.Context(), f.clusterID, generation, report)
+			server.recordStatus(t.Context(), f.clusterID, generation, report)
+			for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
+				var count int
+				if queryErr := f.pool.QueryRow(
+					t.Context(),
+					`SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`,
+					f.resourceID,
+					kind,
+				).Scan(&count); queryErr != nil {
+					t.Fatal(queryErr)
+				}
+				if count != 1 {
+					t.Fatalf("%s events = %d, want 1", kind, count)
+				}
+			}
+		})
+	}
+}

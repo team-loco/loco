@@ -672,35 +672,7 @@ func (s *AgentServer) recordStatus(
 		if updateErr != nil {
 			return fmt.Errorf("update placement status: %w", updateErr)
 		}
-		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
-			return nil
-		}
-		deployment, readErr := qtx.GetDeploymentByID(ctx, *row.DeploymentID)
-		if readErr != nil {
-			return fmt.Errorf("read reported deployment: %w", readErr)
-		}
-		if !deployment.IsActive {
-			return nil
-		}
-		next := nextDeploymentStatus(deployment.Status, status)
-		if next != deployment.Status {
-			if transitionErr := advanceDeploymentStatus(
-				ctx,
-				qtx,
-				genDb.AdvanceDeploymentStatusParams{
-					ID:           deployment.ID,
-					Status:       next,
-					Message:      status.GetMessage(),
-					FromStatuses: deploymentStatusNames(deployment.Status),
-				},
-			); transitionErr != nil {
-				return transitionErr
-			}
-		}
-		if next == genDb.DeploymentStatusRunning {
-			if supersedeErr := qtx.SupersedePreviousDeployments(ctx, deployment.ID); supersedeErr != nil {
-				return fmt.Errorf("supersede deployments: %w", supersedeErr)
-			}
+		if status.GetObservedRevision() == row.DesiredRevision {
 			reason := status.GetProblem().GetReason()
 			message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
 			changed, changeErr := qtx.ChangePlacementRuntimeCondition(ctx, genDb.ChangePlacementRuntimeConditionParams{
@@ -732,6 +704,37 @@ func (s *AgentServer) recordStatus(
 				}
 			}
 		}
+		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
+			return nil
+		}
+		deployment, readErr := qtx.GetDeploymentByID(ctx, *row.DeploymentID)
+		if readErr != nil {
+			return fmt.Errorf("read reported deployment: %w", readErr)
+		}
+		if !deployment.IsActive {
+			return nil
+		}
+		next := nextDeploymentStatus(deployment.Status, status)
+		if next != deployment.Status {
+			if transitionErr := advanceDeploymentStatus(
+				ctx,
+				qtx,
+				genDb.AdvanceDeploymentStatusParams{
+					ID:           deployment.ID,
+					Status:       next,
+					Message:      status.GetMessage(),
+					FromStatuses: deploymentStatusNames(deployment.Status),
+				},
+			); transitionErr != nil {
+				return transitionErr
+			}
+		}
+		if next == genDb.DeploymentStatusRunning {
+			if supersedeErr := qtx.SupersedePreviousDeployments(ctx, deployment.ID); supersedeErr != nil {
+				return fmt.Errorf("supersede deployments: %w", supersedeErr)
+			}
+		}
+
 		return ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status)
 	})
 	if err != nil {

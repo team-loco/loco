@@ -30,6 +30,7 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 		t.Fatalf("previous=%s", got)
 	}
 	p = f.placement(t, f.clusterID)
+	server.markApplied(ctx, f.clusterID, p.ID, p.DesiredRevision)
 	report.ObservedRevision = p.DesiredRevision
 	report.Available = false
 	report.ProgressDeadlineExceeded = true
@@ -39,6 +40,18 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 	}
 	if got := f.deploymentStatus(t, first); got != genDb.DeploymentStatusRunning {
 		t.Fatalf("previous after failure=%s", got)
+	}
+	failedPlacement := f.placement(t, f.clusterID)
+	if failedPlacement.DesiredRevision != p.DesiredRevision || failedPlacement.DesiredDeleted ||
+		string(failedPlacement.DesiredSpec) != string(p.DesiredSpec) || *failedPlacement.DeploymentID != second {
+		t.Fatal("failed rollout changed the application sent to the cluster")
+	}
+	pending, err := f.queries.ListPendingPlacements(ctx, f.clusterID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pending) != 0 {
+		t.Fatalf("failed rollout queued cluster changes: %v", pending)
 	}
 	report.Available = true
 	report.ProgressDeadlineExceeded = false
