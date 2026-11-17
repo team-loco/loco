@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -75,7 +76,7 @@ func updateBuildingDeployments(
 		status := deployment.Status
 		switch build.Status {
 		case genDb.BuildStatusSucceeded:
-			if err := placeDeployment(ctx, qtx, deployment, buildImage(build), nil, defaults); err != nil {
+			if err := placeBuiltDeployment(ctx, qtx, deployment, build, defaults); err != nil {
 				return err
 			}
 			status = genDb.DeploymentStatusDeploying
@@ -114,4 +115,27 @@ func storeBuildProblem(ctx context.Context, qtx *genDb.Queries, deploymentID uui
 		return fmt.Errorf("open build rollout: %w", err)
 	}
 	return qtx.StoreRollout(ctx, genDb.StoreRolloutParams{DeploymentID: deploymentID, Snapshot: snapshot})
+}
+
+func placeBuiltDeployment(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	deployment genDb.Deployment,
+	build genDb.Build,
+	defaults servicedefaults.Defaults,
+) error {
+	resource, err := qtx.GetResourceByID(ctx, deployment.ResourceID)
+	if err != nil {
+		return fmt.Errorf("read build deployment resource: %w", err)
+	}
+	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, resource.Type)
+	if err != nil {
+		return err
+	}
+	image := buildImage(build)
+	spec.GetService().GetBuild().Image = image
+	if err := placeDeployment(ctx, qtx, resource, deployment, spec, defaults); err != nil {
+		return err
+	}
+	return qtx.SetDeploymentBuildImage(ctx, genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image})
 }

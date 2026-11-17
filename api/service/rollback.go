@@ -11,6 +11,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 func rollbackDeploymentIfEnabled(
@@ -22,9 +23,6 @@ func rollbackDeploymentIfEnabled(
 	failed, err := qtx.GetDeploymentByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("read failed deployment: %w", err)
-	}
-	if !failed.IsActive {
-		return nil
 	}
 	placement, err := qtx.PlacementForDeployment(ctx, &id)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -45,11 +43,10 @@ func rollbackDeploymentIfEnabled(
 	if err != nil {
 		return err
 	}
-	enabled := resourceSpec.GetService().GetRollbackOnFailure()
-	if override := spec.GetService().RollbackOnFailure; override != nil {
-		enabled = *override
-	}
-	if !enabled {
+	if !servicedefaults.RollbackOnFailure(
+		resourceSpec.GetService().GetRollbackOnFailure(),
+		spec.GetService().RollbackOnFailure,
+	) {
 		return nil
 	}
 	previous, err := qtx.PreviousDeploymentForRollback(ctx, id)
@@ -59,6 +56,10 @@ func rollbackDeploymentIfEnabled(
 	if err != nil {
 		return fmt.Errorf("find previous deployment: %w", err)
 	}
+	previousSpec, err := converter.DeserializeDeploymentSpec(previous.Spec, resource.Type)
+	if err != nil {
+		return err
+	}
 	targetErr := lockAssignableCluster(ctx, qtx, previous.ClusterID, false)
 	if targetErr == nil {
 		targetErr = checkClusterEnvironment(ctx, qtx, genDb.CreateDeploymentParams{
@@ -66,58 +67,43 @@ func rollbackDeploymentIfEnabled(
 		})
 	}
 	if targetErr == nil {
-		previousSpec, decodeErr := converter.DeserializeDeploymentSpec(previous.Spec, resource.Type)
-		if decodeErr != nil {
-			return decodeErr
-		}
 		targetErr = lockPinnedBuildImage(ctx, qtx, previousSpec.GetService().GetBuild())
 	}
+	_, unavailable := errors.AsType[*rpcerr.CodedError](targetErr)
+	if unavailable || errors.Is(targetErr, pgx.ErrNoRows) {
+		slog.WarnContext(ctx, "skipping rollback to unavailable deployment",
+			"deployment_id", failed.ID,
+			"previous_deployment_id", previous.ID,
+			"cluster_id", previous.ClusterID,
+			"error", targetErr,
+		)
+		return nil
+	}
 	if targetErr != nil {
-		for _, unavailable := range []error{
-			ErrClusterNotAssignable, errClusterApplicationsNotAllowed, errClusterHeldByEnvironment,
-			errBuildImageDeleted, pgx.ErrNoRows,
-		} {
-			if !errors.Is(targetErr, unavailable) {
-				continue
-			}
-
-			slog.WarnContext(
-				ctx,
-				"skipping rollback to unavailable deployment",
-				"deployment_id",
-				failed.ID,
-				"previous_deployment_id",
-				previous.ID,
-				"cluster_id",
-				previous.ClusterID,
-				"error",
-				targetErr,
-			)
-			return nil
-		}
 		return targetErr
 	}
-	plainEnv, envErr := desiredEnv(ctx, qtx, failed.ResourceID, failed.ClusterID)
-	if envErr != nil {
-		return envErr
+	plainEnv, err := desiredEnv(ctx, qtx, failed.ResourceID, failed.ClusterID)
+	if err != nil {
+		return err
 	}
-	if opErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
+	previousSpec.GetService().Env = plainEnv
+	if err = qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
 		ID: failed.ID, Status: genDb.DeploymentStatusFailed, IsActive: false,
-	}); opErr != nil {
-		return opErr
+	}); err != nil {
+		return err
 	}
-	if opErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
+	if err = qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
 		ID: previous.ID, Status: genDb.DeploymentStatusDeploying, IsActive: true,
-	}); opErr != nil {
-		return opErr
+	}); err != nil {
+		return err
 	}
-	if opErr := placeDeployment(ctx, qtx, previous, "", plainEnv, defaults); opErr != nil {
-		return opErr
+	if err = placeDeployment(ctx, qtx, resource, previous, previousSpec, defaults); err != nil {
+		return err
 	}
-	if opErr := writeDeploymentActivity(ctx, qtx, failed.ID, placement.DesiredRevision, []activityEntry{
+	if err = writeDeploymentActivity(ctx, qtx, failed.ID, placement.DesiredRevision, []activityEntry{
 		{Message: "Rolled back to " + previous.ID.String()[:8], Severity: activityWarn},
-	}); opErr != nil {
-		return opErr
+	}); err != nil {
+		return err
 	}
 	restored, err := qtx.PlacementForDeployment(ctx, &previous.ID)
 	if err != nil {

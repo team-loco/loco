@@ -217,11 +217,11 @@ services:
         rollbackOnFailure: false
 ```
 
-Changing the setting rolls out nothing. A deployment's explicit value takes precedence over the service's current value; otherwise the service setting applies when the deployment fails.
+Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
 
-When the newest deployment in a resource, environment and region reaches its rollout deadline or exhausts apply retries, Loco restores the newest older deployment there that ran. Its cluster must still accept applications, the resource's placement there must not belong to another environment, and a source build's image must still be retained. If the target is unavailable, the failed deployment stays active. The restored deployment runs with its own configuration and the service's current environment variables. The restored deployment is active and shows `deploying` until it is available again, then `running`. The failed deployment stays `failed`, becomes inactive and its watch stream ends. Both deployments record the restoration in their activity.
+When the newest deployment in an environment and region misses its rollout deadline or runs out of apply retries, Loco restores the newest earlier deployment there that ran. The restored deployment keeps its own configuration, takes the service's current environment variables, and shows `deploying` until it is available, then `running`. The failed deployment stays `failed` and becomes inactive. The activity of both deployments records the rollback.
 
-Only the newest deployment can trigger rollback. A restored deployment is older than the failed one, so it cannot trigger another automatic rollback if it fails. A failed build has placed nothing and never triggers rollback. If there is no eligible previous deployment, or rollback is off, the failed deployment stays active and can recover to `running`.
+Nothing is rolled back, and the failed deployment stays active, when the setting is off, the build failed, no earlier deployment ran, or the earlier deployment's cluster or build image is no longer available. A restored deployment that fails is not rolled back again.
 
 ## Variables and secrets
 

@@ -361,28 +361,14 @@ func (e *invalidSpecError) Unwrap() []error {
 func placeDeployment(
 	ctx context.Context,
 	qtx *genDb.Queries,
+	resource genDb.Resource,
 	deployment genDb.Deployment,
-	image string,
-	plainEnv map[string]string,
+	spec *deploymentv1.DeploymentSpec,
 	defaults servicedefaults.Defaults,
 ) error {
-	resource, err := qtx.GetResourceByID(ctx, deployment.ResourceID)
-	if err != nil {
-		return fmt.Errorf("read build deployment resource: %w", err)
-	}
 	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
 	if err != nil {
 		return err
-	}
-	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, resource.Type)
-	if err != nil {
-		return err
-	}
-	if image != "" {
-		spec.GetService().GetBuild().Image = image
-	}
-	if plainEnv != nil {
-		spec.GetService().Env = plainEnv
 	}
 	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
 	if err != nil {
@@ -410,14 +396,6 @@ func placeDeployment(
 	payload, err := desired(deployment.ID)
 	if err != nil {
 		return err
-	}
-	if image != "" {
-		if err := qtx.SetDeploymentBuildImage(
-			ctx,
-			genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image},
-		); err != nil {
-			return err
-		}
 	}
 	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
 		ResourceID: resource.ID, EnvironmentID: env.ID, Region: deployment.Region, ClusterID: deployment.ClusterID,
