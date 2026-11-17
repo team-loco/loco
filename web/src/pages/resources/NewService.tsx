@@ -556,6 +556,7 @@ function ServiceForm({
 										name={regionName}
 										value={regionName}
 										health={region}
+										configured={selected.includes(regionName)}
 										aria-disabled={last || undefined}
 										title={last ? "A resource needs at least one region" : undefined}
 									/>

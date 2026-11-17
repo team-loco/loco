@@ -92,14 +92,16 @@ with session(out) as browser:
             context.close()
 
         missing = seeded_draft("missing-region", "registry.example.com/acme/missing:1")
-        missing["edits"] = {"regions": ["ap-south-1"]}
+        missing["edits"] = {"regions": ["us-east-1", "ap-south-1"]}
         context, page, errors = open_page(browser, "owner", storage={drafts_key: json.dumps([missing])})
         try:
             page.goto(base + f"/resources?env=production&draft={missing['id']}")
             drawer = page.get_by_role("dialog", name="missing-region", exact=True)
             card = drawer.get_by_role("button", name="ap-south-1 No cluster in this region", exact=True)
-            expect(card).to_be_disabled()
+            expect(card).to_be_enabled()
             expect(card).to_have_attribute("aria-pressed", "true")
+            card.click()
+            expect(card).to_have_count(0)
             assert not errors, errors
         finally:
             context.close()
@@ -324,6 +326,10 @@ with session(out) as browser:
             dashboard_row = draft_row(page, name)
             expect(dashboard_row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
             expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
+            page.get_by_role("button", name="Region: All", exact=True).click()
+            expect(page.get_by_role("menuitemradio", name=re.compile(r"^us-east-1\b"))).to_be_visible()
+            expect(page.get_by_role("menuitemradio", name=re.compile(r"^eu-north-1\b"))).to_have_count(0)
+            page.keyboard.press("Escape")
             expect(dashboard_row.get_by_role("button")).to_have_count(0)
             page.goto(base + "?env=production&view=map")
             node = page.get_by_role("link", name=re.compile(rf"^{re.escape(name)}\s*draft"))

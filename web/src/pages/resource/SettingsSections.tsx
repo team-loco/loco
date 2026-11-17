@@ -368,6 +368,7 @@ export function RegionsSection({
 								onChange({ regions: { ...draft.regions, [name]: pressed } });
 							}}
 							health={info}
+							configured={configured}
 							aria-label={`Run in ${name}`}
 							aria-describedby={describedBy}
 							disabled={locked || !allowed}

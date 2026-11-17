@@ -13,6 +13,7 @@ export function RegionCards({ className, ...props }: ComponentProps<typeof Toggl
 export function RegionCard({
 	name,
 	health,
+	configured = false,
 	note,
 	noteTone,
 	className,
@@ -21,6 +22,7 @@ export function RegionCard({
 }: Omit<ComponentProps<typeof ToggleGroupItem>, "children"> & {
 	name: string;
 	health: RegionInfo | undefined;
+	configured?: boolean;
 	note?: ReactNode;
 	noteTone?: "add" | "rm" | "warn" | undefined;
 }) {
@@ -30,19 +32,20 @@ export function RegionCard({
 			: health.availability === RegionAvailability.OFFLINE
 				? "Offline"
 				: undefined;
+	const shownNote = noteTone === "rm" ? note : (unavailable ?? note);
 	return (
 		<ToggleGroupItem
 			className={cn("reg-card", className)}
 			{...props}
-			disabled={disabled === true || unavailable !== undefined}
+			disabled={disabled === true || (!configured && unavailable !== undefined)}
 		>
 			<span className="flex w-full flex-wrap items-center gap-2">
 				<span className="font-mono text-[12.5px]">{name}</span>
 				{unavailable === undefined && <RegionHealth region={health} />}
 			</span>
-			{(unavailable ?? note) !== undefined && (
-				<span className="reg-note" data-tone={unavailable === undefined ? noteTone : "warn"}>
-					{unavailable ?? note}
+			{shownNote !== undefined && (
+				<span className="reg-note" data-tone={unavailable === undefined || noteTone === "rm" ? noteTone : "warn"}>
+					{shownNote}
 				</span>
 			)}
 		</ToggleGroupItem>
