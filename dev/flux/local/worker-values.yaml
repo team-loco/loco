@@ -1,0 +1,24 @@
+metrics-server:
+  enabled: true
+  args: [--kubelet-insecure-tls]
+agent:
+  joinToken: {existingSecret: loco-agent-join-token}
+cluster: {role: all}
+builds:
+  privateEgress: {{ .PrivateEgress }}
+  pushSecretName: loco-registry-push
+  insecureRegistry: true
+registry:
+  pullSecretName: loco-registry-pull
+global:
+  region: local
+  domain:
+    apps: [apps.{{ .Domain }}]
+  exporter:
+    endpoint: http://ingest.{{ .Domain }}:{{ .AppPort }}
+    ingestToken: {enabled: true}
+gateway-helm: {enabled: false}
+env:
+  CONTROL_PLANE_URL: http://api.{{ .Domain }}:{{ .AppPort }}
+certManager:
+  issuer: {create: true, name: local-apps, kind: ClusterIssuer, type: selfSigned}

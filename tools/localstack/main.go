@@ -15,10 +15,11 @@ import (
 )
 
 type config struct {
-	Cluster, Domain, State, Project                           string
-	AppPort, AppsPort, WebPort, DexPort, RegistryPort, S3Port string
-	ClusterUID, PrivateEgress                                 string
-	Timeout                                                   time.Duration
+	Cluster, Domain, State, Project                                                          string
+	AppPort, AppsPort, WebPort, DexPort, RegistryPort, S3Port                                string
+	ClusterUID, PrivateEgress                                                                string
+	BundleVersion, EntryPoint, SealKey, PushAuth, PullAuth, ControlPlaneValues, WorkerValues string
+	Timeout                                                                                  time.Duration
 }
 
 func main() {
@@ -62,12 +63,14 @@ func newConfig() config {
 }
 
 func run(ctx context.Context, cfg config, args []string) error {
-	if len(args) != 1 {
-		return errors.New("usage: localstack install|ca")
+	if len(args) == 0 {
+		return errors.New("usage: localstack install|deploy [--suspend]|ca")
 	}
 	switch args[0] {
 	case "install":
 		return cfg.install(ctx)
+	case "deploy":
+		return cfg.deploy(ctx, len(args) == 2 && args[1] == "--suspend")
 	case "ca":
 		data, err := cfg.kubectl(
 			ctx,
@@ -89,5 +92,4 @@ func run(ctx context.Context, cfg config, args []string) error {
 }
 
 func (cfg config) home() string   { return filepath.Join(cfg.State, "home") }
-func (cfg config) file() string   { return filepath.Join(cfg.State, "loco-install.yaml") }
 func (cfg config) apiURL() string { return "http://api." + cfg.Domain + ":" + cfg.AppPort }

@@ -3,219 +3,24 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"text/template"
 	"time"
-
-	"github.com/team-loco/loco/tools/internal/devicelogin"
 )
 
-type stamp struct {
-	ClusterUID string `json:"clusterUID"`
-	Inputs     string `json:"inputs"`
-	Complete   bool   `json:"complete"`
-}
-
-func (cfg config) install(ctx context.Context) error {
-	if err := os.MkdirAll(filepath.Dir(cfg.kubeconfig()), 0700); err != nil {
-		return err
-	}
-	if err := cfg.cluster(ctx); err != nil {
-		return err
-	}
-	uid, err := cfg.kubectl(ctx, "get", "namespace", "kube-system", "-o", "jsonpath={.metadata.uid}")
-	if err != nil {
-		return err
-	}
-	cfg.ClusterUID = string(uid)
-	inputs, err := cfg.inputsHash()
-	if err != nil {
-		return err
-	}
-	expected := stamp{ClusterUID: cfg.ClusterUID, Inputs: inputs, Complete: true}
-	saved, err := os.ReadFile(filepath.Join(cfg.State, "install.stamp"))
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-	var installed stamp
-	if err == nil {
-		if err = json.Unmarshal(saved, &installed); err != nil {
-			return fmt.Errorf("read install stamp: %w", err)
-		}
-	}
-	action, err := installationAction(installed, expected)
-	if err != nil {
-		return err
-	}
-	if err = cfg.registryConfig(); err != nil {
-		return err
-	}
-	if action == "skip" {
-		if err = cfg.compose(ctx, "up", "--detach", "--wait"); err != nil {
-			return err
-		}
-		return cfg.waitRunning(ctx)
-	}
-	if action == "reset" {
-		if err = cfg.resetDatabase(ctx); err != nil {
-			return err
-		}
-		if err = cfg.beginInstallation(expected); err != nil {
-			return err
-		}
-	}
-	if err = cfg.installPending(ctx); err != nil {
-		return fmt.Errorf("install %s: %w; run mise run tilt:reset", action, err)
-	}
-	return cfg.saveStamp(expected)
-}
-
-func (cfg config) saveStamp(value stamp) error {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return cfg.writeState("install.stamp", data)
-}
-
-func (cfg config) beginInstallation(expected stamp) error {
-	if err := os.Remove(filepath.Join(cfg.State, "release.json")); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-	expected.Complete = false
-	return cfg.saveStamp(expected)
-}
-
-//nolint:gosec // Filenames are internal constants beneath the stack-owned state directory.
 func (cfg config) writeState(name string, data []byte) error {
 	path := filepath.Join(cfg.State, name)
 	if err := os.WriteFile(path+".tmp", data, 0600); err != nil {
 		return err
 	}
 	return os.Rename(path+".tmp", path)
-}
-
-func installationAction(installed, expected stamp) (string, error) {
-	if installed.ClusterUID != expected.ClusterUID {
-		return "reset", nil
-	}
-	if installed.Inputs != expected.Inputs {
-		return "", errors.New("installation inputs changed; run mise run tilt:reset")
-	}
-	if installed.Complete {
-		return "skip", nil
-	}
-	return "resume", nil
-}
-
-func (cfg config) installPending(ctx context.Context) error {
-	if err := cfg.compose(ctx, "up", "--detach", "--wait"); err != nil {
-		return err
-	}
-	if err := cfg.registryHosts(ctx); err != nil {
-		return err
-	}
-	if err := cfg.gatewayDNS(ctx); err != nil {
-		return err
-	}
-	if err := cfg.gatewayServices(ctx); err != nil {
-		return err
-	}
-	if err := cfg.inputSecrets(ctx); err != nil {
-		return err
-	}
-	egress, err := command(ctx, nil, []string{
-		"LOCO_REGISTRY_HOST=registry." + cfg.Domain + ":" + cfg.RegistryPort,
-		"LOCO_SOURCE_BUCKET_ENDPOINT=http://s3." + cfg.Domain + ":" + cfg.S3Port,
-	}, "mise", "run", "cluster:build-egress")
-	if err != nil {
-		return err
-	}
-	cfg.PrivateEgress = strings.TrimSpace(string(egress))
-	if err = cfg.render("dev/loco-install.yaml", cfg.file()); err != nil {
-		return err
-	}
-	release, err := os.ReadFile(filepath.Join(cfg.State, "release.json"))
-	if errors.Is(err, fs.ErrNotExist) {
-		release, err = command(ctx, nil, nil, "mise", "run", "release:local", "--", "--repository", "team-loco/loco",
-			"--push", "localhost:"+cfg.RegistryPort, "--address", "registry."+cfg.Domain+":"+cfg.RegistryPort,
-			"--username", "builder", "--password", "loco-dev-builder")
-		if err != nil {
-			return err
-		}
-	} else if err != nil {
-		return err
-	}
-	var manifest struct {
-		Version string `json:"version"`
-	}
-	if err = json.Unmarshal(release, &manifest); err != nil {
-		return fmt.Errorf("read local release: %w", err)
-	}
-	if manifest.Version == "" {
-		return errors.New("local release has no version")
-	}
-	if err = cfg.writeState("release.json", release); err != nil {
-		return err
-	}
-	if _, err = command(
-		ctx,
-		nil,
-		nil,
-		"go",
-		"-C",
-		"cmd",
-		"build",
-		"-ldflags",
-		"-X main.version=v"+manifest.Version,
-		"-o",
-		"../bin/locoadm",
-		"./locoadm",
-	); err != nil {
-		return err
-	}
-	for _, operation := range []string{"validate", "apply"} {
-		if _, err = cfg.locoadm(ctx, operation); err != nil {
-			return err
-		}
-	}
-	login := exec.CommandContext(ctx, "bin/locoadm", "login", "--file", cfg.file(), "--device")
-	login.Env = append(os.Environ(), cfg.cliEnv()...)
-	login.Stderr = os.Stderr
-	err = devicelogin.Run(ctx, login, os.Stderr, func(ctx context.Context, code string) error {
-		identity := devicelogin.Identity{
-			Issuer:   "http://dex." + cfg.Domain + ":" + cfg.DexPort + "/dex",
-			ClientID: "loco",
-			Email:    "dev@loco.test",
-			Password: "loco-dev",
-		}
-		token, tokenErr := identity.Token(ctx)
-		if tokenErr != nil {
-			return tokenErr
-		}
-		return devicelogin.Approve(ctx, cfg.apiURL(), token, code)
-	})
-	if err != nil {
-		return err
-	}
-	if _, err := cfg.locoadm(ctx, "cluster", "attach"); err != nil {
-		return err
-	}
-	if err := cfg.waitRunning(ctx); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (cfg config) cluster(ctx context.Context) error {
@@ -267,7 +72,7 @@ func (cfg config) cluster(ctx context.Context) error {
 	for containerPort, hostPort := range map[string]string{"30080/tcp": cfg.AppPort, "30443/tcp": cfg.AppsPort} {
 		port := bindings[containerPort]
 		if len(port) != 1 || port[0].HostIP != "127.0.0.1" || port[0].HostPort != hostPort {
-			return errors.New("kind port mappings differ from installation inputs; run mise run tilt:reset")
+			return errors.New("kind port mappings differ from installation inputs; run mise run down")
 		}
 	}
 	stopped, err := command(
@@ -313,7 +118,16 @@ func (cfg config) render(source, destination string) error {
 	if err != nil {
 		return err
 	}
-	parsed, err := template.New(source).Option("missingkey=error").Parse(string(data))
+	parsed, err := template.New(source).Funcs(template.FuncMap{"indent": func(value string, width int) string {
+		return strings.Repeat(
+			" ",
+			width,
+		) + strings.ReplaceAll(
+			strings.TrimRight(value, "\n"),
+			"\n",
+			"\n"+strings.Repeat(" ", width),
+		)
+	}}).Option("missingkey=error").Parse(string(data))
 	if err != nil {
 		return err
 	}
@@ -322,81 +136,6 @@ func (cfg config) render(source, destination string) error {
 		return err
 	}
 	return os.WriteFile(destination, output.Bytes(), 0600)
-}
-
-func (cfg config) inputsHash() (string, error) {
-	hash := sha256.New()
-	if _, err := fmt.Fprintf(
-		hash,
-		"%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-		cfg.Domain,
-		cfg.AppPort,
-		cfg.AppsPort,
-		cfg.WebPort,
-		cfg.DexPort,
-		cfg.RegistryPort,
-		cfg.S3Port,
-	); err != nil {
-		return "", err
-	}
-	paths := []string{
-		"dev/loco-install.yaml",
-		"dev/kind-local.yaml",
-		"dev/compose.local.yaml",
-		"dev/dex.yaml",
-		"dev/registry/config.json", "manifests/namespaces/loco-system.yaml",
-	}
-	err := filepath.WalkDir("charts", func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() && entry.Name() == "charts" && path != "charts" {
-			return filepath.SkipDir
-		}
-		if !entry.IsDir() {
-			paths = append(paths, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return "", err
-	}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-		if _, err := fmt.Fprintf(hash, "%s\x00%s\x00", path, data); err != nil {
-			return "", err
-		}
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func (cfg config) resetDatabase(ctx context.Context) error {
-	if err := cfg.compose(ctx, "rm", "--stop", "--force", "postgres"); err != nil {
-		return err
-	}
-	name := cfg.Project + "_postgres-data"
-	volumes, err := command(
-		ctx,
-		nil,
-		nil,
-		"docker",
-		"volume",
-		"ls",
-		"--format",
-		"{{.Name}}",
-		"--filter",
-		"name=^"+name+"$",
-	)
-	if err != nil {
-		return err
-	}
-	if strings.TrimSpace(string(volumes)) == name {
-		_, err = command(ctx, nil, nil, "docker", "volume", "rm", name)
-	}
-	return err
 }
 
 const readinessPoll = 2 * time.Second
@@ -455,21 +194,24 @@ func waitAPI(ctx context.Context, endpoint string) error {
 
 func running(data []byte) (bool, error) {
 	var status struct {
-		Phase  string `json:"phase"`
-		Admins struct {
-			Checked   bool     `json:"checked"`
-			Unclaimed []string `json:"unclaimed"`
-		} `json:"admins"`
-		Workers []struct {
-			Name  string `json:"name"`
-			Ready bool   `json:"ready"`
-		} `json:"workers"`
+		Unclaimed []string `json:"unclaimedAdmins"`
+		Clusters  []struct {
+			Enrollment string `json:"enrollment"`
+			Cluster    struct {
+				Name string `json:"name"`
+			} `json:"cluster"`
+		} `json:"clusters"`
 	}
 	if err := json.Unmarshal(data, &status); err != nil {
-		return false, fmt.Errorf("read installation status: %w", err)
+		return false, err
 	}
-	return status.Phase == "running" && status.Admins.Checked && len(status.Admins.Unclaimed) == 0 &&
-		len(status.Workers) == 1 &&
-		status.Workers[0].Name == "local" &&
-		status.Workers[0].Ready, nil
+	if len(status.Unclaimed) > 0 {
+		return false, nil
+	}
+	for _, cluster := range status.Clusters {
+		if cluster.Cluster.Name == "local" && cluster.Enrollment == "enrolled" {
+			return true, nil
+		}
+	}
+	return false, nil
 }

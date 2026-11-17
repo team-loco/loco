@@ -192,28 +192,16 @@ dir = "web"
 env = { _.source = "dev/stack.sh" }
 run = "bun run dev"
 
-[tasks.tilt]
-description = "Start this checkout's local environment (cluster, infrastructure and services) with Tilt, including one mise run stop stopped; mise run stack prints its URLs"
+[tasks.dev]
+description = "Reconcile this checkout's platform through Flux and run the web dev server"
 alias = "start"
-env = { _.file = "dev/api.env", _.source = "dev/stack.sh" }
-run = """
-orbstack_sock="$HOME/.orbstack/run/docker.sock"
-if [ -z "${DOCKER_HOST:-}" ] && [ -S "$orbstack_sock" ]; then
-  export DOCKER_HOST="unix://$orbstack_sock"
-fi
-mise run doctor
-mise run cluster:up
-mise run services:stop
-infisical="--projectId 01f016e0-4b6e-49fd-bbc0-072b89cfc699 --env dev --silent --log-level warn"
-if infisical export $infisical >/dev/null 2>&1 </dev/null; then
-  infisical run $infisical -- tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
-else
-  if [ -z "${GH_OAUTH_CLIENT_ID:-}" ]; then
-    echo "the Dex login page has no GitHub button: run infisical login with an account that can read the Loco Infisical project" >&2
-  fi
-  tilt up --context "kind-$KIND_CLUSTER" --file dev/Tiltfile
-fi
-"""
+env = { _.source = "dev/stack.sh" }
+run = ["go run ./tools/localstack install", "mise run ui"]
+
+[tasks."dev:deploy"]
+description = "Publish changed platform images and reconcile Flux; --suspend pauses platform releases"
+env = { _.source = "dev/stack.sh" }
+run = "go run ./tools/localstack deploy"
 
 [tasks."infra:up"]
 description = "Start Postgres, Valkey, OpenBao, the identity provider, the image registry and the source bucket from dev/compose.yaml, wait until they are up, and seed OpenBao"
