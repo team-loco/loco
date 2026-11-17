@@ -78,7 +78,19 @@ CREATE TABLE api_tokens (
     entity_type entity_type NOT NULL,
     entity_id UUID NOT NULL,
     scopes JSONB NOT NULL,
-    created_by UUID NOT NULL REFERENCES users(id),
+    personal_user_id UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'user' THEN entity_id END
+    ) STORED REFERENCES users(id) ON DELETE CASCADE,
+    organization_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'organization' THEN entity_id END
+    ) STORED REFERENCES organizations(id) ON DELETE CASCADE,
+    workspace_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'workspace' THEN entity_id END
+    ) STORED REFERENCES workspaces(id) ON DELETE CASCADE,
+    resource_ref UUID GENERATED ALWAYS AS (
+        CASE WHEN entity_type = 'resource' THEN entity_id END
+    ) STORED REFERENCES resources(id) ON DELETE CASCADE,
+    created_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
     last_used_at TIMESTAMPTZ,
@@ -93,10 +105,10 @@ CREATE TABLE invitations (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
-    invited_by UUID NOT NULL REFERENCES users(id),
+    invited_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
-    claimed_by UUID REFERENCES users(id),
+    claimed_by UUID,
     claimed_at TIMESTAMPTZ,
     revoked_at TIMESTAMPTZ
 );

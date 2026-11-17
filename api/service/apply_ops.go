@@ -98,7 +98,7 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	}
 	resourceID, err := qtx.CreateResource(ctx, genDb.CreateResourceParams{
 		WorkspaceID: a.env.WorkspaceID,
-		CreatedBy:   principal.UserID,
+		CreatedBy:   principal.ActorID,
 		Name:        op.Service,
 		Slug:        resourceSlug(op.Service),
 		Type:        genDb.ResourceTypeService,

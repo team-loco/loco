@@ -224,22 +224,29 @@ func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessToke
 }
 
 const getAPIToken = `-- name: GetAPIToken :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
-FROM api_tokens
-WHERE token_hash = $1 AND expires_at > NOW()
+SELECT t.id, t.name, t.entity_type, t.entity_id, t.scopes, t.created_by,
+       t.created_at, t.expires_at, t.last_used_at, t.display_suffix, t.personal_user_id,
+       COALESCE((SELECT JSON_AGG(JSON_BUILD_OBJECT('scope', us.scope, 'entity_type', us.entity_type, 'entity_id', us.entity_id))
+                 FROM user_scopes us WHERE us.user_id = t.personal_user_id), '[]'::json)::json AS live_scopes
+FROM api_tokens t
+LEFT JOIN users u ON u.id = t.personal_user_id
+WHERE t.token_hash = $1 AND t.expires_at > NOW()
+  AND (t.entity_type != 'user' OR u.status = 'active')
 `
 
 type GetAPITokenRow struct {
-	ID            uuid.UUID     `json:"id"`
-	Name          string        `json:"name"`
-	EntityType    EntityType    `json:"entityType"`
-	EntityID      uuid.UUID     `json:"entityId"`
-	Scopes        []EntityScope `json:"scopes"`
-	CreatedBy     uuid.UUID     `json:"createdBy"`
-	CreatedAt     time.Time     `json:"createdAt"`
-	ExpiresAt     time.Time     `json:"expiresAt"`
-	LastUsedAt    *time.Time    `json:"lastUsedAt"`
-	DisplaySuffix string        `json:"displaySuffix"`
+	ID             uuid.UUID     `json:"id"`
+	Name           string        `json:"name"`
+	EntityType     EntityType    `json:"entityType"`
+	EntityID       uuid.UUID     `json:"entityId"`
+	Scopes         []EntityScope `json:"scopes"`
+	CreatedBy      uuid.UUID     `json:"createdBy"`
+	CreatedAt      time.Time     `json:"createdAt"`
+	ExpiresAt      time.Time     `json:"expiresAt"`
+	LastUsedAt     *time.Time    `json:"lastUsedAt"`
+	DisplaySuffix  string        `json:"displaySuffix"`
+	PersonalUserID *uuid.UUID    `json:"personalUserId"`
+	LiveScopes     []byte        `json:"liveScopes"`
 }
 
 func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error) {
@@ -256,6 +263,8 @@ func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPIToke
 		&i.ExpiresAt,
 		&i.LastUsedAt,
 		&i.DisplaySuffix,
+		&i.PersonalUserID,
+		&i.LiveScopes,
 	)
 	return i, err
 }

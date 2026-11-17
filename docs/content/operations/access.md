@@ -55,6 +55,14 @@ Use `--org` and `--workspace` to override the corresponding environment variable
 
 `TokenService.CreateToken` accepts one or more unique entity scopes per request. An entity scope combines the entity type, entity ID and permission.
 
+## Token identity and access
+
+A personal API token acts as its user. Its effective permissions are the intersection of its stored scopes and the user's current grants, including inherited organization and workspace permissions. Removing a grant removes that token access. Suspending the user stops authentication; deleting the user deletes their personal tokens.
+
+Organization, workspace and resource tokens act as themselves. Their issuing user's later permissions or suspension do not change their stored access, and removing the issuing user does not revoke them. The owning entity's administrators manage these tokens. Deleting the owning entity revokes its tokens. Token issuance records the issuer for attribution without creating a user account or user grants for the token.
+
+API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An invitation whose issuer no longer exists displays **Deleted user** and can still be claimed under the organization's normal invitation rules.
+
 ## API token lifetime
 
 The API limits token lifetimes with `LOCO_API_TOKEN_MAX_LIFETIME`, a Go duration of at least one second, defaulting to `8760h` (365 days). `ConfigService.GetConfig` exposes the limit as `api_token_max_lifetime_seconds`. The dashboard offers expiry choices up to that limit. The dashboard and `loco token create` default to 30 days, capped at the server maximum when it is shorter. The CLI rejects explicit `--expires` durations outside the permitted range. Use `--expires 7d` to request a shorter lifetime.

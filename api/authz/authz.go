@@ -39,6 +39,29 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 	return nil
 }
 
+// Intersect returns the scopes shared by both grants, including narrower descendant grants.
+func (a *Authorizer) Intersect(ctx context.Context, left, right []queries.EntityScope) ([]queries.EntityScope, error) {
+	var common []queries.EntityScope
+	parents := make(map[queries.Entity][]queries.EntityScope)
+	for _, l := range left {
+		for _, r := range right {
+			for _, pair := range [][2]queries.EntityScope{{l, r}, {r, l}} {
+				err := a.check(ctx, []queries.EntityScope{pair[0]}, pair[1], parents)
+				if errors.Is(err, ErrInsufficientPermissions) || errors.Is(err, ErrEntityNotFound) {
+					continue
+				}
+				if err != nil {
+					return nil, err
+				}
+				if !slices.Contains(common, pair[1]) {
+					common = append(common, pair[1])
+				}
+			}
+		}
+	}
+	return common, nil
+}
+
 func (a *Authorizer) check(
 	ctx context.Context,
 	granted []queries.EntityScope,

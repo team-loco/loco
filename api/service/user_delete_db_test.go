@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -64,27 +65,27 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	wantCode(t, <-deleted, connect.CodeFailedPrecondition)
 }
 
-func TestDeleteUserReportsBlockingReferences(t *testing.T) {
+func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
 	server := NewUserServer(f.pool, f.queries, nil)
 
 	for _, tt := range []struct {
-		name    string
-		insert  string
-		message string
+		name      string
+		insert    string
+		reference string
 	}{
 		{
 			name: "workspace",
 			insert: `INSERT INTO workspaces (org_id, name, created_by)
 			           SELECT org_id, 'other', $1 FROM workspaces WHERE id = $2`,
-			message: "user created workspaces",
+			reference: "workspaces.created_by",
 		},
 		{
-			name:    "environment",
-			insert:  `INSERT INTO environments (workspace_id, name, created_by) VALUES ($2, 'other', $1)`,
-			message: "user created environments",
+			name:      "environment",
+			insert:    `INSERT INTO environments (workspace_id, name, created_by) VALUES ($2, 'other', $1)`,
+			reference: "environments.created_by",
 		},
 		{
 			name: "token",
@@ -92,19 +93,19 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
  scopes, created_by, expires_at)
 			         VALUES ('test', 'test-hash', 'test-token', 'workspace', $2, '[]', $1,
  now() + interval '1 hour')`,
-			message: "user created API tokens",
+			reference: "api_tokens.created_by",
 		},
 		{
 			name: "sent invitation",
 			insert: `INSERT INTO invitations (org_id, email, invited_by, expires_at)
 			           SELECT org_id, 'sent@example.com', $1, now() FROM workspaces WHERE id = $2`,
-			message: "user sent invitations",
+			reference: "invitations.invited_by",
 		},
 		{
 			name: "claimed invitation",
 			insert: `INSERT INTO invitations (org_id, email, invited_by, expires_at, claimed_by, claimed_at)
 			         SELECT org_id, 'claimed@example.com', created_by, now(), $1, now() FROM workspaces WHERE id = $2`,
-			message: "user claimed invitations",
+			reference: "invitations.claimed_by",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,9 +123,17 @@ func TestDeleteUserReportsBlockingReferences(t *testing.T) {
 			}})
 
 			_, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()})
-			wantCode(t, err, connect.CodeFailedPrecondition)
-			if public := publicError(err); public.Message() != tt.message {
-				t.Fatalf("DeleteUser error = %v, want %q", err, tt.message)
+			if err != nil {
+				t.Fatal(err)
+			}
+			table, column, _ := strings.Cut(tt.reference, ".")
+			var preserved int
+			if err = f.pool.QueryRow(ctx, "SELECT count(*) FROM "+table+" WHERE "+column+" = $1", userID).
+				Scan(&preserved); err != nil {
+				t.Fatal(err)
+			}
+			if preserved != 1 {
+				t.Fatalf("historical references preserved = %d, want 1", preserved)
 			}
 		})
 	}
