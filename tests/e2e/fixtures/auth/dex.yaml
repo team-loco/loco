@@ -17,6 +17,26 @@ staticPasswords:
     username: application-user
     userID: b9d17e6e-f933-49c5-84a4-36f4d11dc4a2
     hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: token-lifecycle@test.local
+    username: token-lifecycle
+    userID: ab3a19ec-47a6-40a0-9786-f65e45119436
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: deleted-member@test.local
+    username: deleted-member
+    userID: 72378a7c-3596-46fe-8fac-62a0131068e1
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: deleted-creator@test.local
+    username: deleted-creator
+    userID: cf77fccd-ad0d-45c8-bcdb-0ea92c368786
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: deletion-successor@test.local
+    username: deletion-successor
+    userID: c42429ad-d0dc-4100-b643-49b08e10cb39
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
+  - email: token-issuance@test.local
+    username: token-issuance
+    userID: 122f678d-a40c-4662-bc88-04d31481b3b8
+    hash: "$2y$10$vfSi9m1OEnaluYBI3vRm1.Wi6fm//wfdPE4aN.IvABgykcA.5NBsi"
 staticClients:
   - id: loco-e2e
     name: Loco component test fixtures
