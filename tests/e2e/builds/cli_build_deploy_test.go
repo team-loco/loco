@@ -165,6 +165,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 			platform.Production,
 			"E2E_SECRET=e2e-secret-rotated",
 		)
+		w.MustLoco(t, secretDir, "resource", "restart", secretApp, "--env", platform.Production)
 		waitPodSecret(t, w, secretApp, "e2e-secret-rotated")
 		w.MustLoco(t, secretDir, "deploy", "--env", platform.Production, "--yes")
 		waitPodSecret(t, w, secretApp, "e2e-secret-rotated")

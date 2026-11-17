@@ -101,36 +101,19 @@ func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
 	}
 }
 
-func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
+func TestRestartKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	provider := newTestKeyProvider(t, "k1")
-	f.storeSecret(t, provider, stripeKey, stripeValue)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE placements SET secret_names = $2 WHERE resource_id = $1`,
-		f.resourceID,
-		[]string{stripeKey},
-	); err != nil {
-		t.Fatal(err)
-	}
 	f.reportRollout(t, false, true)
-	server := f.secretServer(provider)
-	ctx := f.rolloutContext(t)
-	request := &secretv1.SetSecretsRequest{
-		ResourceId:    f.resourceID.String(),
-		EnvironmentId: f.envID.String(),
-		Values:        map[string]string{stripeKey: "rotated"},
-	}
-	if _, err := server.SetSecrets(ctx, request); err != nil {
+	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
 		t.Fatal(err)
 	}
 	p := f.placement(t, f.clusterID)
 	if status := f.deploymentStatus(t, *p.DeploymentID); status != genDb.DeploymentStatusDeploying {
-		t.Fatalf("rotation status = %s, want deploying", status)
+		t.Fatalf("restart status = %s, want deploying", status)
 	}
 	f.agentServer().
 		recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
@@ -142,9 +125,6 @@ func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 	wantCode(t, scaleResource(t, f, 2), connect.CodeFailedPrecondition)
 	f.reportRollout(t, false, false)
 	wantCode(t, scaleResource(t, f, 2), connect.CodeFailedPrecondition)
-	request.Values[stripeKey] = "another rotation"
-	_, err := server.SetSecrets(ctx, request)
-	wantCode(t, err, connect.CodeFailedPrecondition)
 	f.reportRollout(t, false, true)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatal(err)
@@ -427,39 +407,23 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 	}
 }
 
-func TestFailedSecretRotationAllowsAnotherSecretChange(t *testing.T) {
+func TestFailedRestartAllowsASecretChange(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	provider := newTestKeyProvider(t, "k1")
-	f.storeSecret(t, provider, stripeKey, stripeValue)
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE placements SET secret_names = $2 WHERE resource_id = $1`,
-		f.resourceID,
-		[]string{stripeKey},
-	); err != nil {
-		t.Fatal(err)
-	}
 	f.reportRollout(t, false, true)
-	server := f.secretServer(provider)
-	request := &secretv1.SetSecretsRequest{
-		ResourceId:    f.resourceID.String(),
-		EnvironmentId: f.envID.String(),
-		Values:        map[string]string{stripeKey: "bad value"},
-	}
-	if _, err := server.SetSecrets(f.rolloutContext(t), request); err != nil {
+	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
 		t.Fatal(err)
 	}
 	f.reportRollout(t, true, false)
-	request.Values[stripeKey] = "repaired value"
-	if _, err := server.SetSecrets(f.rolloutContext(t), request); err != nil {
+	_, err := f.secretServer(newTestKeyProvider(t, "k1")).SetSecrets(f.rolloutContext(t), &secretv1.SetSecretsRequest{
+		ResourceId:    f.resourceID.String(),
+		EnvironmentId: f.envID.String(),
+		Values:        map[string]string{stripeKey: "repaired value"},
+	})
+	if err != nil {
 		t.Fatal(err)
-	}
-	p := f.placement(t, f.clusterID)
-	if status := f.deploymentStatus(t, *p.DeploymentID); status != genDb.DeploymentStatusDeploying {
-		t.Fatalf("replacement rotation = %s, want deploying", status)
 	}
 }

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/secret/v1/secret.proto.
  */
 export const file_loco_secret_v1_secret: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL3NlY3JldC92MS9zZWNyZXQucHJvdG8SDmxvY28uc2VjcmV0LnYxIuQBChFTZXRTZWNyZXRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEl8KBnZhbHVlcxgDIAMoCzItLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0LlZhbHVlc0VudHJ5QiC6SB2aARoIASIWchQyEl5bQS1aX11bQS1aMC05X10qJBotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi4KDVNlY3JldFZlcnNpb24SDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIlcKElNldFNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgh2ZXJzaW9ucxgCIAMoCzIdLmxvY28uc2VjcmV0LnYxLlNlY3JldFZlcnNpb24iiAEKFERlbGV0ZVNlY3JldHNSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESLwoFbmFtZXMYAyADKAlCILpIHZIBGggBIhZyFDISXltBLVpfXVtBLVowLTlfXSokIikKFURlbGV0ZVNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAyJVChJMaXN0U2VjcmV0c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASK3AQoGU2VjcmV0EgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIXCg91cGRhdGVkX2J5X3R5cGUYAyABKAkSFQoNdXBkYXRlZF9ieV9pZBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI+ChNMaXN0U2VjcmV0c1Jlc3BvbnNlEicKB3NlY3JldHMYASADKAsyFi5sb2NvLnNlY3JldC52MS5TZWNyZXQiVAocUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVxdWVzdBIjCg5lbnZpcm9ubWVudF9pZBgBIAEoCUILukgI2AEBcgOwAQESDwoHbmV3X2RlaxgCIAEoCCJkCh1SZXdyYXBFbnZpcm9ubWVudEtleXNSZXNwb25zZRIRCglyZXdyYXBwZWQYASABKAUSDwoHc2tpcHBlZBgCIAEoBRIfChdza2lwcGVkX2Vudmlyb25tZW50X2lkcxgDIAMoCTKQAwoNU2VjcmV0U2VydmljZRJTCgpTZXRTZWNyZXRzEiEubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1JlcXVlc3QaIi5sb2NvLnNlY3JldC52MS5TZXRTZWNyZXRzUmVzcG9uc2USXAoNRGVsZXRlU2VjcmV0cxIkLmxvY28uc2VjcmV0LnYxLkRlbGV0ZVNlY3JldHNSZXF1ZXN0GiUubG9jby5zZWNyZXQudjEuRGVsZXRlU2VjcmV0c1Jlc3BvbnNlElYKC0xpc3RTZWNyZXRzEiIubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXF1ZXN0GiMubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXNwb25zZRJ0ChVSZXdyYXBFbnZpcm9ubWVudEtleXMSLC5sb2NvLnNlY3JldC52MS5SZXdyYXBFbnZpcm9ubWVudEtleXNSZXF1ZXN0Gi0ubG9jby5zZWNyZXQudjEuUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9zZWNyZXQvdjE7c2VjcmV0djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL3NlY3JldC92MS9zZWNyZXQucHJvdG8SDmxvY28uc2VjcmV0LnYxIuQBChFTZXRTZWNyZXRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEl8KBnZhbHVlcxgDIAMoCzItLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0LlZhbHVlc0VudHJ5QiC6SB2aARoIASIWchQyEl5bQS1aX11bQS1aMC05X10qJBotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi4KDVNlY3JldFZlcnNpb24SDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIoUBChJTZXRTZWNyZXRzUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoIdmVyc2lvbnMYAiADKAsyHS5sb2NvLnNlY3JldC52MS5TZWNyZXRWZXJzaW9uEiwKB3VzZWRfYnkYAyADKAsyGy5sb2NvLnNlY3JldC52MS5TZWNyZXRVc2FnZSIsCgtTZWNyZXRVc2FnZRIOCgZyZWdpb24YASABKAkSDQoFbmFtZXMYAiADKAkiiAEKFERlbGV0ZVNlY3JldHNSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESLwoFbmFtZXMYAyADKAlCILpIHZIBGggBIhZyFDISXltBLVpfXVtBLVowLTlfXSokIikKFURlbGV0ZVNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAyJVChJMaXN0U2VjcmV0c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASK3AQoGU2VjcmV0EgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIXCg91cGRhdGVkX2J5X3R5cGUYAyABKAkSFQoNdXBkYXRlZF9ieV9pZBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI+ChNMaXN0U2VjcmV0c1Jlc3BvbnNlEicKB3NlY3JldHMYASADKAsyFi5sb2NvLnNlY3JldC52MS5TZWNyZXQiVAocUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVxdWVzdBIjCg5lbnZpcm9ubWVudF9pZBgBIAEoCUILukgI2AEBcgOwAQESDwoHbmV3X2RlaxgCIAEoCCJkCh1SZXdyYXBFbnZpcm9ubWVudEtleXNSZXNwb25zZRIRCglyZXdyYXBwZWQYASABKAUSDwoHc2tpcHBlZBgCIAEoBRIfChdza2lwcGVkX2Vudmlyb25tZW50X2lkcxgDIAMoCTKQAwoNU2VjcmV0U2VydmljZRJTCgpTZXRTZWNyZXRzEiEubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1JlcXVlc3QaIi5sb2NvLnNlY3JldC52MS5TZXRTZWNyZXRzUmVzcG9uc2USXAoNRGVsZXRlU2VjcmV0cxIkLmxvY28uc2VjcmV0LnYxLkRlbGV0ZVNlY3JldHNSZXF1ZXN0GiUubG9jby5zZWNyZXQudjEuRGVsZXRlU2VjcmV0c1Jlc3BvbnNlElYKC0xpc3RTZWNyZXRzEiIubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXF1ZXN0GiMubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXNwb25zZRJ0ChVSZXdyYXBFbnZpcm9ubWVudEtleXMSLC5sb2NvLnNlY3JldC52MS5SZXdyYXBFbnZpcm9ubWVudEtleXNSZXF1ZXN0Gi0ubG9jby5zZWNyZXQudjEuUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9zZWNyZXQvdjE7c2VjcmV0djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * SetSecretsRequest sets values by name for one service in one environment.
@@ -122,6 +122,13 @@ export type SetSecretsResponse = Message<"loco.secret.v1.SetSecretsResponse"> & 
    * @generated from field: repeated loco.secret.v1.SecretVersion versions = 2;
    */
   versions: SecretVersion[];
+
+  /**
+   * Active deployments that bind names whose values changed, grouped by region.
+   *
+   * @generated from field: repeated loco.secret.v1.SecretUsage used_by = 3;
+   */
+  usedBy: SecretUsage[];
 };
 
 /**
@@ -139,6 +146,13 @@ export type SetSecretsResponseJson = {
    * @generated from field: repeated loco.secret.v1.SecretVersion versions = 2;
    */
   versions?: SecretVersionJson[];
+
+  /**
+   * Active deployments that bind names whose values changed, grouped by region.
+   *
+   * @generated from field: repeated loco.secret.v1.SecretUsage used_by = 3;
+   */
+  usedBy?: SecretUsageJson[];
 };
 
 /**
@@ -147,6 +161,47 @@ export type SetSecretsResponseJson = {
  */
 export const SetSecretsResponseSchema: GenMessage<SetSecretsResponse, {jsonType: SetSecretsResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_secret_v1_secret, 2);
+
+/**
+ * SecretUsage identifies the changed names a region's active deployment binds.
+ *
+ * @generated from message loco.secret.v1.SecretUsage
+ */
+export type SecretUsage = Message<"loco.secret.v1.SecretUsage"> & {
+  /**
+   * @generated from field: string region = 1;
+   */
+  region: string;
+
+  /**
+   * @generated from field: repeated string names = 2;
+   */
+  names: string[];
+};
+
+/**
+ * SecretUsage identifies the changed names a region's active deployment binds.
+ *
+ * @generated from message loco.secret.v1.SecretUsage
+ */
+export type SecretUsageJson = {
+  /**
+   * @generated from field: string region = 1;
+   */
+  region?: string;
+
+  /**
+   * @generated from field: repeated string names = 2;
+   */
+  names?: string[];
+};
+
+/**
+ * Describes the message loco.secret.v1.SecretUsage.
+ * Use `create(SecretUsageSchema)` to create a new message.
+ */
+export const SecretUsageSchema: GenMessage<SecretUsage, {jsonType: SecretUsageJson}> = /*@__PURE__*/
+  messageDesc(file_loco_secret_v1_secret, 3);
 
 /**
  * DeleteSecretsRequest removes names from one service in one environment.
@@ -197,7 +252,7 @@ export type DeleteSecretsRequestJson = {
  * Use `create(DeleteSecretsRequestSchema)` to create a new message.
  */
 export const DeleteSecretsRequestSchema: GenMessage<DeleteSecretsRequest, {jsonType: DeleteSecretsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 3);
+  messageDesc(file_loco_secret_v1_secret, 4);
 
 /**
  * DeleteSecretsResponse reports the environment revision after the delete.
@@ -228,7 +283,7 @@ export type DeleteSecretsResponseJson = {
  * Use `create(DeleteSecretsResponseSchema)` to create a new message.
  */
 export const DeleteSecretsResponseSchema: GenMessage<DeleteSecretsResponse, {jsonType: DeleteSecretsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 4);
+  messageDesc(file_loco_secret_v1_secret, 5);
 
 /**
  * ListSecretsRequest lists the secrets of one service in one environment.
@@ -269,7 +324,7 @@ export type ListSecretsRequestJson = {
  * Use `create(ListSecretsRequestSchema)` to create a new message.
  */
 export const ListSecretsRequestSchema: GenMessage<ListSecretsRequest, {jsonType: ListSecretsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 5);
+  messageDesc(file_loco_secret_v1_secret, 6);
 
 /**
  * Secret is the metadata of one name; it never carries the value.
@@ -350,7 +405,7 @@ export type SecretJson = {
  * Use `create(SecretSchema)` to create a new message.
  */
 export const SecretSchema: GenMessage<Secret, {jsonType: SecretJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 6);
+  messageDesc(file_loco_secret_v1_secret, 7);
 
 /**
  * ListSecretsResponse lists the names a service holds in an environment.
@@ -381,7 +436,7 @@ export type ListSecretsResponseJson = {
  * Use `create(ListSecretsResponseSchema)` to create a new message.
  */
 export const ListSecretsResponseSchema: GenMessage<ListSecretsResponse, {jsonType: ListSecretsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 7);
+  messageDesc(file_loco_secret_v1_secret, 8);
 
 /**
  * RewrapEnvironmentKeysRequest selects the environment keys to rewrap. An empty environment_id
@@ -424,7 +479,7 @@ export type RewrapEnvironmentKeysRequestJson = {
  * Use `create(RewrapEnvironmentKeysRequestSchema)` to create a new message.
  */
 export const RewrapEnvironmentKeysRequestSchema: GenMessage<RewrapEnvironmentKeysRequest, {jsonType: RewrapEnvironmentKeysRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 8);
+  messageDesc(file_loco_secret_v1_secret, 9);
 
 /**
  * RewrapEnvironmentKeysResponse counts the keys rewrapped and lists the environments skipped because
@@ -477,7 +532,7 @@ export type RewrapEnvironmentKeysResponseJson = {
  * Use `create(RewrapEnvironmentKeysResponseSchema)` to create a new message.
  */
 export const RewrapEnvironmentKeysResponseSchema: GenMessage<RewrapEnvironmentKeysResponse, {jsonType: RewrapEnvironmentKeysResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 9);
+  messageDesc(file_loco_secret_v1_secret, 10);
 
 /**
  * SecretService stores named values of one service in one environment. Values are write-only: no RPC

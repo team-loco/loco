@@ -270,6 +270,15 @@ func (s *SecretServer) setSecretsOnce(
 			response.Revision = revision
 			return nil
 		}
+		usage, usageErr := qtx.ListSecretUsage(ctx, genDb.ListSecretUsageParams{
+			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: params.Names,
+		})
+		if usageErr != nil {
+			return fmt.Errorf("list secret usage: %w", usageErr)
+		}
+		for _, region := range usage {
+			response.UsedBy = append(response.UsedBy, &secretv1.SecretUsage{Region: region.Region, Names: region.Names})
+		}
 		if rolloutErr := ensureNoRollout(ctx, qtx, target.resourceID, target.env.ID, ""); rolloutErr != nil {
 			return rolloutErr
 		}
@@ -321,9 +330,6 @@ func (s *SecretServer) writeSecrets(
 		if total > int64(s.config.MaxPlacementBytes) {
 			return ErrPlacementSecretsLarge.Detail("placement %s holds %d bytes", size.PlacementID, total)
 		}
-	}
-	if rollErr := rollPlacementsForSecrets(ctx, qtx, target, params.Names); rollErr != nil {
-		return rollErr
 	}
 	if bumpErr := bumpEnvironmentRevision(ctx, qtx, target.env.ID); bumpErr != nil {
 		return bumpErr

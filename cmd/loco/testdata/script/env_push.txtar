@@ -1,8 +1,10 @@
 # loco env push sets every KEY=VALUE line of a .env file on one service in one SetSecrets call,
 # expanding nothing.
 fakeapi resource web
+fakeapi secret-usage web API_KEY us-east-1 eu-west-1
 exec loco env push --service web --env production app.env
 stdout '^Set 3 secrets \(revision 1\)$'
+stdout '^web uses API_KEY in eu-west-1, us-east-1\. The new value applies on the next deploy or restart: loco resource restart web --env production$'
 stdout '^  API_KEY v1$'
 stdout '^  DATABASE_URL v1$'
 stdout '^  GREETING v1$'

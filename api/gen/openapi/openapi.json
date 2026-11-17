@@ -14673,6 +14673,25 @@
         "additionalProperties": false,
         "description": "Secret is the metadata of one name; it never carries the value."
       },
+      "loco.secret.v1.SecretUsage": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "names"
+          }
+        },
+        "title": "SecretUsage",
+        "additionalProperties": false,
+        "description": "SecretUsage identifies the changed names a region's active deployment binds."
+      },
       "loco.secret.v1.SecretVersion": {
         "type": "object",
         "properties": {
@@ -14731,6 +14750,14 @@
               "$ref": "#/components/schemas/loco.secret.v1.SecretVersion"
             },
             "title": "versions"
+          },
+          "usedBy": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.secret.v1.SecretUsage"
+            },
+            "title": "used_by",
+            "description": "Active deployments that bind names whose values changed, grouped by region."
           }
         },
         "title": "SetSecretsResponse",

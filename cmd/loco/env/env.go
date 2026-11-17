@@ -3,6 +3,8 @@ package env
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -84,6 +86,23 @@ func setSecrets(ctx context.Context, cmd *cobra.Command, values map[string]strin
 	fmt.Fprintf(cmd.OutOrStdout(), "Set %d secrets (revision %d)\n", len(versions), resp.GetRevision())
 	for _, v := range versions {
 		fmt.Fprintf(cmd.OutOrStdout(), "  %s v%d\n", v.GetName(), v.GetVersion())
+	}
+	if len(resp.GetUsedBy()) > 0 {
+		var names, regions []string
+		for _, usage := range resp.GetUsedBy() {
+			names = append(names, usage.GetNames()...)
+			regions = append(regions, usage.GetRegion())
+		}
+		slices.Sort(names)
+		fmt.Fprintf(
+			cmd.OutOrStdout(),
+			"%s uses %s in %s. The new value applies on the next deploy or restart: loco resource restart %s --env %s\n",
+			service.GetName(),
+			strings.Join(slices.Compact(names), ", "),
+			strings.Join(regions, ", "),
+			service.GetName(),
+			t.Environment.GetName(),
+		)
 	}
 	return nil
 }

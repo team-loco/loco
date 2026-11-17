@@ -401,6 +401,51 @@ func (q *Queries) ListSecretSizes(ctx context.Context, arg ListSecretSizesParams
 	return items, nil
 }
 
+const listSecretUsage = `-- name: ListSecretUsage :many
+SELECT d.region, ARRAY(
+    SELECT name FROM unnest(d.secret_names) AS name
+    WHERE name = ANY($1::text[])
+    ORDER BY name
+)::text[] AS names
+FROM deployments d
+WHERE d.resource_id = $2
+  AND d.environment_id = $3
+  AND d.is_active
+  AND d.secret_names && $1::text[]
+ORDER BY d.region
+`
+
+type ListSecretUsageParams struct {
+	Names         []string  `json:"names"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+}
+
+type ListSecretUsageRow struct {
+	Region string   `json:"region"`
+	Names  []string `json:"names"`
+}
+
+func (q *Queries) ListSecretUsage(ctx context.Context, arg ListSecretUsageParams) ([]ListSecretUsageRow, error) {
+	rows, err := q.db.Query(ctx, listSecretUsage, arg.Names, arg.ResourceID, arg.EnvironmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSecretUsageRow
+	for rows.Next() {
+		var i ListSecretUsageRow
+		if err := rows.Scan(&i.Region, &i.Names); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecrets = `-- name: ListSecrets :many
 SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets

@@ -679,7 +679,6 @@ type Placement struct {
 	DesiredSpec      []byte     `json:"desiredSpec"`
 	DesiredDeleted   bool       `json:"desiredDeleted"`
 	AppliedRevision  int64      `json:"appliedRevision"`
-	AppliedAt        *time.Time `json:"appliedAt"`
 	AppliedError     *string    `json:"appliedError"`
 	RetryAfter       *time.Time `json:"retryAfter"`
 	ApplyAttempts    int32      `json:"applyAttempts"`

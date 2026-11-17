@@ -40,7 +40,7 @@ export function NoticeBanner({ notice, onDismiss }: { notice: Notice; onDismiss:
 			</span>
 			<div className="flex min-w-0 flex-col gap-px">
 				<span className="font-semibold">{notice.title}</span>
-				<span className="truncate">{notice.message}</span>
+				<span className="break-words">{notice.message}</span>
 			</div>
 			<button
 				type="button"

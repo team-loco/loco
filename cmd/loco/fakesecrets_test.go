@@ -27,6 +27,7 @@ const (
 type fakeSecret struct {
 	value   string
 	version int32
+	regions []string
 }
 
 type fakeSecretKey struct {
@@ -61,14 +62,22 @@ func (s *fakeSecretService) SetSecrets(
 	values := req.GetValues()
 	names := slices.Sorted(maps.Keys(values))
 	versions := make([]*secretv1.SecretVersion, 0, len(names))
+	usage := map[string][]string{}
 	for _, name := range names {
 		key := fakeSecretKey{resourceID: req.GetResourceId(), environmentID: req.GetEnvironmentId(), name: name}
-		version := f.platform.secrets[key].version + 1
-		f.platform.secrets[key] = fakeSecret{value: values[name], version: version}
+		previous := f.platform.secrets[key]
+		version := previous.version + 1
+		f.platform.secrets[key] = fakeSecret{value: values[name], version: version, regions: previous.regions}
 		versions = append(versions, &secretv1.SecretVersion{Name: name, Version: version})
+		for _, region := range previous.regions {
+			usage[region] = append(usage[region], name)
+		}
 	}
 	f.platform.revision++
 	resp := &secretv1.SetSecretsResponse{Revision: f.platform.revision, Versions: versions}
+	for _, region := range slices.Sorted(maps.Keys(usage)) {
+		resp.UsedBy = append(resp.UsedBy, &secretv1.SecretUsage{Region: region, Names: usage[region]})
+	}
 	return resp, nil
 }
 
@@ -186,4 +195,20 @@ func checkSecret(ts *testscript.TestScript, api *fakeAPI, neg bool, args []strin
 	if secret.value != args[3] {
 		ts.Fatalf("fakeapi: secret %s of %s has a different value than expected", name, service)
 	}
+}
+
+func cmdFakeSecrets(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	if args[0] == "secret" {
+		checkSecret(ts, api, neg, args)
+		return
+	}
+	if len(args) < 4 {
+		ts.Fatalf("usage: fakeapi secret-usage <service> <name> <region...>")
+	}
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	key := api.platform.secretKey(ts, args[1], args[2])
+	secret := api.platform.secrets[key]
+	secret.regions = args[3:]
+	api.platform.secrets[key] = secret
 }

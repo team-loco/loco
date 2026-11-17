@@ -1,4 +1,4 @@
-import type { Secret } from "@gen/loco/secret/v1/secret_pb";
+import type { Secret, SecretUsage } from "@gen/loco/secret/v1/secret_pb";
 
 import { SECRET_NAME } from "./settings-draft";
 
@@ -44,4 +44,13 @@ export function secretNameProblem(name: string): string | undefined {
 	if (name === "") return "Enter a name.";
 	if (!SECRET_NAME.test(name)) return "Use capital letters, digits and underscores, not starting with a digit.";
 	return undefined;
+}
+
+export function secretUsageMessage(service: string, usedBy: Pick<SecretUsage, "region" | "names">[]): string {
+	if (usedBy.length === 0) return "";
+	const names = [...new Set(usedBy.flatMap((usage) => usage.names))].toSorted();
+	const regions = new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(
+		usedBy.map((usage) => usage.region),
+	);
+	return `${service} uses ${names.join(", ")} in ${regions}. The new value applies on the next deploy or restart.`;
 }

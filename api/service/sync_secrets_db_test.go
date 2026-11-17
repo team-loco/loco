@@ -141,11 +141,10 @@ func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
 	}
 }
 
-func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing.T) {
+func TestSyncReportsAMissingSecretAndSendsItAfterRestart(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.setApplyRetryPolicy(t, 1, nil)
-	ctx := context.Background()
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
@@ -164,16 +163,8 @@ func TestSyncReportsAMissingSecretOnThePlacementAndResendsOnceItIsSet(t *testing
 	}
 
 	f.storeSecret(t, provider, missingName, "now-set")
-	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		env, envErr := qtx.GetEnvironmentByID(ctx, f.envID)
-		if envErr != nil {
-			return envErr
-		}
-		target := secretTarget{env: env, resourceID: f.resourceID}
-		return rollPlacementsForSecrets(ctx, qtx, target, []string{missingName})
-	})
-	if err != nil {
-		t.Fatalf("roll placements: %v", err)
+	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
+		t.Fatalf("restart: %v", err)
 	}
 	rolled := f.placement(t, f.clusterID)
 	if rolled.DesiredRevision != placement.DesiredRevision+1 || rolled.AppliedError != nil {

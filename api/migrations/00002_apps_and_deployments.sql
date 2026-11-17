@@ -279,7 +279,6 @@ CREATE TABLE
         desired_spec JSONB,
         desired_deleted BOOLEAN NOT NULL DEFAULT false,
         applied_revision BIGINT NOT NULL DEFAULT 0,
-        applied_at TIMESTAMPTZ,
         applied_error TEXT,
         retry_after TIMESTAMPTZ,
         apply_attempts INT NOT NULL DEFAULT 0,

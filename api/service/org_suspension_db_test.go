@@ -279,47 +279,6 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 	}
 }
 
-func TestSecretChangeWhileSuspendedKeepsTheDeploymentStatus(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	ctx := t.Context()
-	deploymentID, err := f.deploy(ctx, staticSpec)
-	if err != nil {
-		t.Fatalf("deploy: %v", err)
-	}
-	if _, execErr := f.pool.Exec(ctx,
-		`UPDATE placements SET secret_names = '{TOKEN}' WHERE resource_id = $1`, f.resourceID,
-	); execErr != nil {
-		t.Fatal(execErr)
-	}
-	running := `UPDATE deployments SET status = 'running' WHERE id = $1`
-	if _, execErr := f.pool.Exec(ctx, running, deploymentID); execErr != nil {
-		t.Fatal(execErr)
-	}
-	f.mustSuspend(t)
-
-	env, err := f.queries.GetEnvironmentByID(ctx, f.envID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	target := secretTarget{env: env, resourceID: f.resourceID}
-	err = withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		return rollPlacementsForSecrets(ctx, qtx, target, []string{"TOKEN"})
-	})
-	if err != nil {
-		t.Fatalf("roll placements: %v", err)
-	}
-	if got := f.placement(t, f.clusterID).DesiredRevision; got != 3 {
-		t.Fatalf("desired revision = %d, want the secret change recorded at 3", got)
-	}
-	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
-		t.Fatalf("deployment status = %s, want running while suspended", status)
-	}
-	if sent := f.pendingMessages(t); len(sent) != 1 || sent[0].GetDelete() == nil {
-		t.Fatalf("sent %v, want the secret change sent as a Delete while suspended", sent)
-	}
-}
-
 func TestDeploymentsAreRejectedWhileSuspended(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

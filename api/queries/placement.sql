@@ -80,7 +80,6 @@ WHERE cluster_id = $1 AND id = ANY(sqlc.arg(ids)::uuid[])
 -- name: MarkPlacementApplied :exec
 UPDATE placements
 SET applied_revision = desired_revision,
-    applied_at = NOW(),
     applied_error = NULL,
     retry_after = NULL,
     apply_attempts = 0,
@@ -153,29 +152,6 @@ RETURNING sync_generation;
 
 -- name: GetClusterSyncGeneration :one
 SELECT sync_generation FROM clusters WHERE id = $1 AND removed_at IS NULL;
-
--- name: BumpPlacementsForSecretNames :many
-WITH rolled AS (
-UPDATE placements
-SET desired_revision = desired_revision + 1,
-    applied_error = NULL,
-    retry_after = NULL,
-    apply_attempts = 0,
-    apply_failed = false,
-    updated_at = NOW()
-WHERE placements.resource_id = sqlc.arg(resource_id)
-  AND placements.environment_id = sqlc.arg(environment_id)
-  AND NOT desired_deleted
-  AND secret_names && sqlc.arg(names)::text[]
-RETURNING placements.id, placements.cluster_id, placements.desired_revision, placements.deployment_id
-), deploying AS (
-UPDATE deployments
-SET status = 'deploying', completed_at = NULL, updated_at = NOW()
-FROM rolled
-WHERE deployments.id = rolled.deployment_id AND deployments.is_active
-  AND NOT resource_suspended(deployments.resource_id)
-)
-SELECT id, cluster_id, desired_revision FROM rolled;
 
 -- name: ListResourceEnvironmentPlacements :many
 SELECT * FROM placements
