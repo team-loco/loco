@@ -56,7 +56,7 @@ func observabilityTestClient(
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 			info, _ := connect.CallInfoForServerContext(ctx)
 			if token, ok := bearer.FromHeader(info.RequestHeader()); ok {
-				ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: callers[token]})
+				ctx = streamTestContext(ctx, reqctx.Principal{Scopes: callers[token]})
 			}
 			return next(ctx, spec, stream)
 		}

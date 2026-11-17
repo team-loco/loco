@@ -103,6 +103,9 @@ const (
 	defaultSourceOrphanPageSize  = 1000
 	defaultSourceOrphanMaxPages  = 5
 
+	defaultStreamAuthInterval = 5 * time.Second
+	defaultStreamAuthTimeout  = 2 * time.Second
+
 	defaultEventsRetention = 90 * 24 * time.Hour
 
 	defaultDatabaseMaxConns         = 25
@@ -229,6 +232,7 @@ type APIConfig struct {
 	SourceSweep           sweepers.SourceSweepConfig
 	ServiceDefaults       servicedefaults.Defaults
 	AuthIssuers           []auth.IssuerConfig
+	StreamAuth            auth.StreamConfig
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
 	Invitations           service.InvitationConfig
@@ -273,6 +277,10 @@ func newAPIConfig() *APIConfig {
 	installWebhooks := newInstallWebhooks()
 	orgLinks := newOrgLinks()
 	authIssuers := newAuthIssuers()
+	streamAuth := auth.StreamConfig{
+		Interval: envconfig.PositiveDuration("LOCO_STREAM_AUTH_INTERVAL", defaultStreamAuthInterval),
+		Timeout:  envconfig.PositiveDuration("LOCO_STREAM_AUTH_TIMEOUT", defaultStreamAuthTimeout),
+	}
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
 	eventsRetention := envconfig.PositiveDuration("EVENTS_RETENTION", defaultEventsRetention)
@@ -325,6 +333,7 @@ func newAPIConfig() *APIConfig {
 		SourceSweep:           sourceSweep,
 		ServiceDefaults:       serviceDefaults,
 		AuthIssuers:           authIssuers,
+		StreamAuth:            streamAuth,
 		SignupPolicy:          signupPolicy,
 		WebURL:                webURL,
 		Invitations:           invitations,

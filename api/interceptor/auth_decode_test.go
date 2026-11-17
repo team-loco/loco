@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/team-loco/loco/api/auth"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -14,7 +17,15 @@ import (
 
 func TestAuthRejectsBeforeDecode(t *testing.T) {
 	t.Parallel()
-	server := connect.NewServer(NewAuthInterceptor(nil, nil, nil, nil).Interceptor())
+	server := connect.NewServer(
+		NewAuthInterceptor(
+			nil,
+			nil,
+			nil,
+			nil,
+			auth.StreamConfig{Interval: time.Minute, Timeout: time.Second},
+		).Interceptor(),
+	)
 	orgv1connect.RegisterOrgServiceHandler(server, &orgv1connect.UnimplementedOrgServiceHandler{})
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server)

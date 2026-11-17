@@ -506,7 +506,7 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 		errorInterceptor,
 		deadlineInterceptor.Interceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer).Interceptor(),
+		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer, ac.StreamAuth).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	return base, authenticated, nil
@@ -581,7 +581,7 @@ func newServer(ac *APIConfig, mux *http.ServeMux) *http.Server {
 
 	return &http.Server{
 		Addr:              ac.Port,
-		Handler:           muxWCors,
+		Handler:           auth.StreamTransport(muxWCors),
 		Protocols:         protocols,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,

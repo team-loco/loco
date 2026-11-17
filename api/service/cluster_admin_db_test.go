@@ -33,8 +33,9 @@ func clusterAdminHTTP(t *testing.T, pool *pgxpool.Pool, machine *tvm.VendingMach
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(queries)).
-			Interceptor(),
+		interceptor.NewAuthInterceptor(machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(queries),
+			auth.StreamConfig{Interval: time.Minute, Timeout: time.Second},
+		).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	clusterv1connect.RegisterClusterAdminServiceHandler(

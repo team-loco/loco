@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"connectrpc.com/connect/v2"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
@@ -27,6 +28,7 @@ type authInterceptor struct {
 	verifier *auth.Verifier
 	resolver *auth.Resolver
 	authz    *authz.Authorizer
+	streams  auth.StreamConfig
 }
 
 func NewAuthInterceptor(
@@ -34,12 +36,14 @@ func NewAuthInterceptor(
 	verifier *auth.Verifier,
 	resolver *auth.Resolver,
 	authorizer *authz.Authorizer,
+	streams auth.StreamConfig,
 ) *authInterceptor {
 	return &authInterceptor{
 		machine:  machine,
 		verifier: verifier,
 		resolver: resolver,
 		authz:    authorizer,
+		streams:  streams,
 	}
 }
 
@@ -148,7 +152,53 @@ func (i *authInterceptor) Interceptor() connect.ServerInterceptor {
 			if err != nil {
 				return err
 			}
+			if original, ok := reqctx.PrincipalFrom(authenticated); ok {
+				authenticated = auth.WithStreamValidation(
+					authenticated, i.streams, func(ctx context.Context) (reqctx.Principal, error) {
+						return i.revalidate(ctx, original)
+					},
+				)
+			}
 			return next(authenticated, spec, stream)
 		}
 	}
+}
+
+func (i *authInterceptor) revalidate(ctx context.Context, original reqctx.Principal) (reqctx.Principal, error) {
+	if login, provider := auth.LoginFrom(ctx); provider {
+		identity, err := i.verifier.Verify(ctx, original.Token)
+		if err != nil {
+			return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+		}
+		if identity.Issuer != login.Identity.Issuer || identity.Subject != login.Identity.Subject {
+			return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+		}
+		user, err := i.resolver.LookupExisting(ctx, identity)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+		}
+		if err != nil {
+			return reqctx.Principal{}, fmt.Errorf("validate stream user: %w", err)
+		}
+		if user.ID != original.UserID || user.Status != genDb.UserStatusActive {
+			return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+		}
+		original.Scopes, err = i.authz.UserScopes(ctx, original.UserID)
+		if err != nil {
+			return reqctx.Principal{}, fmt.Errorf("read stream scopes: %w", err)
+		}
+		return original, nil
+	}
+	current, err := i.machine.ValidateToken(ctx, original.Token)
+	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	}
+	if err != nil {
+		return reqctx.Principal{}, fmt.Errorf("validate stream credential: %w", err)
+	}
+	if current.ActorType != original.ActorType || current.ActorID != original.ActorID ||
+		current.UserID != original.UserID || current.Entity != original.Entity {
+		return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+	}
+	return current, nil
 }

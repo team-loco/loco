@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/guardrails"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
@@ -26,22 +27,38 @@ func (s *ObservabilityServer) TailLogs(
 	ctx context.Context,
 	req *observabilityv1.TailLogsRequest,
 	stream observabilityv1connect.ObservabilityServiceTailLogsServerStream,
-) error {
+) (err error) {
 	started := time.Now()
-	if err := guardrails.ValidateTailRequest(req, s.cfg.Limits, started); err != nil {
-		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
+	if validationErr := guardrails.ValidateTailRequest(req, s.cfg.Limits, started); validationErr != nil {
+		return connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(validationErr)
 	}
 	query, err := s.logQuery(ctx, req)
 	if err != nil {
 		return err
 	}
+	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
+		return s.authorizeRead(check, req.GetWorkspaceId(), req.GetResourceIds())
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if authErr := stop(); authErr != nil {
+			err = authErr
+		}
+	}()
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.MaxTailDuration)
 	defer cancel()
 	query.Start, query.Limit = started.Add(-defaultTailLookback), tailPageSize
 	if req.GetSince() != nil {
 		query.Start = req.GetSince().AsTime()
 	}
-	return s.tailLoop(ctx, query, stream.Send)
+	return s.tailLoop(ctx, query, func(response *observabilityv1.TailLogsResponse) error {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return contextErr
+		}
+		return stream.Send(response)
+	})
 }
 
 // tailLoop polls until the tail's deadline or the client goes away, both of which end the stream

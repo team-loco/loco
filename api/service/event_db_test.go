@@ -459,6 +459,9 @@ type scopeInjector func() []genDb.EntityScope
 
 func (s scopeInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
 	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-		return next(reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: s()}), spec, stream)
+		ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: s()})
+		ctx = auth.WithStreamValidation(ctx, auth.StreamConfig{Interval: 10 * time.Millisecond, Timeout: time.Second},
+			func(context.Context) (reqctx.Principal, error) { return reqctx.Principal{Scopes: s()}, nil })
+		return next(ctx, spec, stream)
 	}
 }

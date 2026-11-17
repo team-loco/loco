@@ -25,6 +25,16 @@ import (
 //
 // Refresh tokens (loco_r_...) are rejected — they are not valid access credentials.
 func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.Principal, error) {
+	return tvm.getToken(ctx, token, true)
+}
+
+// ValidateToken reads current credential validity and permissions without writing
+// last-used metadata. Long-lived streams use it while rechecking access.
+func (tvm *VendingMachine) ValidateToken(ctx context.Context, token string) (reqctx.Principal, error) {
+	return tvm.getToken(ctx, token, false)
+}
+
+func (tvm *VendingMachine) getToken(ctx context.Context, token string, touchLastUsed bool) (reqctx.Principal, error) {
 	hash := bearer.Hash(token)
 
 	switch tokenPrefix(token) {
@@ -47,7 +57,9 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 			return reqctx.Principal{}, fmt.Errorf("decode session scopes: %w", err)
 		}
 
-		tvm.touchSessionLastUsed(ctx, session.ID, session.LastUsedAt)
+		if touchLastUsed {
+			tvm.touchSessionLastUsed(ctx, session.ID, session.LastUsedAt)
+		}
 
 		return reqctx.Principal{
 			Entity:    entity,
@@ -86,7 +98,9 @@ func (tvm *VendingMachine) GetToken(ctx context.Context, token string) (reqctx.P
 				return reqctx.Principal{}, fmt.Errorf("bound personal token permissions: %w", err)
 			}
 		}
-		tvm.touchAPITokenLastUsed(ctx, tok.ID, tok.LastUsedAt)
+		if touchLastUsed {
+			tvm.touchAPITokenLastUsed(ctx, tok.ID, tok.LastUsedAt)
+		}
 
 		return reqctx.Principal{
 			Entity:    entity,

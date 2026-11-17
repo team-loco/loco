@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -28,7 +29,7 @@ func (s *DeploymentServer) WatchDeployment(
 	ctx context.Context,
 	req *deploymentv1.WatchDeploymentRequest,
 	stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream,
-) error {
+) (err error) {
 	principal, err := principalFrom(ctx)
 	if err != nil {
 		return err
@@ -41,6 +42,17 @@ func (s *DeploymentServer) WatchDeployment(
 	if err = s.authorizeDeploymentActivity(ctx, id); err != nil {
 		return err
 	}
+	ctx, stop, err := auth.GuardStream(ctx, func(check context.Context) error {
+		return s.authorizeDeploymentActivity(check, id)
+	})
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if authErr := stop(); authErr != nil {
+			err = authErr
+		}
+	}()
 	ctx, cancel := context.WithTimeout(ctx, watchDeploymentMaxDuration)
 	defer cancel()
 	listener := s.notifier.Listen(id)
@@ -50,6 +62,9 @@ func (s *DeploymentServer) WatchDeployment(
 	cursor := req.GetAfterSeq()
 	var previous *deploymentv1.Deployment
 	for {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
 		deployment, activity, readErr := s.readDeployment(ctx, id, cursor)
 		if readErr != nil {
 			return readErr
@@ -59,6 +74,9 @@ func (s *DeploymentServer) WatchDeployment(
 			activity = activity[:deploymentActivityBatchSize]
 		}
 		if !proto.Equal(previous, deployment) || len(activity) > 0 {
+			if err = ctx.Err(); err != nil {
+				return err
+			}
 			if err = stream.Send(
 				&deploymentv1.WatchDeploymentResponse{
 					Deployment:      deployment,

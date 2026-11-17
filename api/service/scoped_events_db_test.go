@@ -506,7 +506,7 @@ type eventPrincipalInjector struct{ principal reqctx.Principal }
 
 func (i eventPrincipalInjector) Interceptor(next connect.ServerFunc) connect.ServerFunc {
 	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-		return next(reqctx.WithPrincipal(ctx, i.principal), spec, stream)
+		return next(streamTestContext(ctx, i.principal), spec, stream)
 	}
 }
 
