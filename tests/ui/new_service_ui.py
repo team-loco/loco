@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 from playwright.sync_api import expect
 from harness import evidence, load_state, open_page as new_page, repo, session
@@ -46,6 +47,30 @@ def draft_row(page, name):
 
 def seeded_draft(name, image):
     return {"id": str(uuid.uuid4()), "name": name, "image": image, "createdMs": 0, "edits": {}}
+
+
+def seed_deployment(body, status, replica_state, detail, problem=None):
+    cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
+    replica = {"uid": f"replica-{deployment}", "name": "service-new-1", "node": "worker-east-1", "placement_revision": 1, "state": replica_state, "detail": detail}
+    spec = {**body["spec"]["service"], "observability": {"injectOtel": True}}
+    replicas = spec["minReplicas"]
+    snapshot = {"replicas": [replica]}
+    if problem is not None:
+        snapshot["problem"] = {"reason": problem, "detail": detail, "replica_name": replica["name"]}
+    evidence.psql(state["container"], f"""BEGIN;
+INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES('{cluster}','service-{deployment}','{body['region']}','fixture',true,false,'healthy',NOW());
+INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
+VALUES('{deployment}','{body['resourceId']}','{cluster}','{body['region']}',{replicas},'{status}',true,'{body['environmentId']}',{evidence.sql_literal(json.dumps(spec))},1,'user','{state['users']['owner']['id']}','web');
+INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,status_updated_at)
+VALUES('{body['resourceId']}','{cluster}','{body['region']}','{deployment}','{body['environmentId']}','{{}}',1,1,NOW());
+INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
+VALUES('{deployment}',1,{evidence.sql_literal(json.dumps(snapshot))});
+INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message)
+VALUES('{deployment}',1,1,NOW(),'info','','Deployment requested.'),
+('{deployment}',2,1,NOW(),'{"error" if problem else "info"}','{replica["name"]}',{evidence.sql_literal(detail)});
+COMMIT;""")
+    return deployment
 
 
 with session(out) as browser:
@@ -144,7 +169,7 @@ with session(out) as browser:
         def create_deployment(route):
             order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
             deployments.append(route.request.post_data_json)
-            route.fulfill(json={"deploymentId": str(uuid.uuid4())})
+            route.fulfill(json={"deploymentId": seed_deployment(route.request.post_data_json, "deploying", "Starting", "Starting application; waiting for readiness.")})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment)
         try:
@@ -366,19 +391,43 @@ with session(out) as browser:
             assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
             assert stored_drafts(page) == [name], stored_drafts(page)
             assert not order, order
-            # When SetSecrets fails and the cleanup delete fails too, nothing deployed and the draft stays.
+            # Resource creation errors leave the draft ready to retry.
+            resource_error = lambda route: route.fulfill(status=503, json={"code": "unavailable", "message": "Resource creation unavailable"})
+            page.route("**/loco.resource.v1.ResourceService/CreateResource", resource_error)
+            drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+            expect(drawer.get_by_role("alert")).to_have_text("Resource creation unavailable.")
+            expect(drawer.get_by_role("button", name=f"Deploy {name}", exact=True)).to_be_enabled()
+            expect(drawer.get_by_role("link", name="Open resource", exact=True)).to_have_count(0)
+            page.unroute("**/loco.resource.v1.ResourceService/CreateResource", resource_error)
+            # Failed deployment creation cleans up the resource and permits retry.
+            deployment_error = lambda route: route.fulfill(status=503, json={"code": "unavailable", "message": "Deployment creation unavailable"})
+            page.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", deployment_error)
+            drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+            expect(drawer.get_by_role("alert")).to_have_text(f"Couldn't deploy {image}: Deployment creation unavailable.")
+            expect(drawer.get_by_role("button", name=f"Deploy {name}", exact=True)).to_be_enabled()
+            expect(drawer.get_by_role("link", name="Open resource", exact=True)).to_have_count(0)
+            assert evidence.psql(state["container"], f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
+            assert stored_drafts(page) == [name], stored_drafts(page)
+            page.unroute("**/loco.deployment.v1.DeploymentService/CreateDeployment", deployment_error)
+            # A retained resource keeps its error and cannot be deployed twice.
             unavailable = lambda route: route.fulfill(status=503, json={"code": "unavailable"})
             page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
             page.route("**/loco.resource.v1.ResourceService/DeleteResource", unavailable)
             drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
             expect(drawer.get_by_text("Couldn't store the secrets.", exact=True)).to_be_visible()
+            drawer.get_by_role("textbox", name="Description").fill("Retained resource")
+            expect(drawer.get_by_role("alert")).to_have_text("Couldn't store the secrets.")
+            expect(drawer.get_by_role("button", name=f"Deploy {name}", exact=True)).to_be_disabled()
+            retained = drawer.get_by_role("link", name="Open resource", exact=True)
+            expect(retained).to_have_attribute("href", re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
+            expect(page).to_have_url(DRAFT_URL)
             assert not deployments, deployments
             assert stored_drafts(page) == [name], stored_drafts(page)
             page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
             page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
             orphan = evidence.psql(state["container"], f"SELECT id FROM resources WHERE name='{name}';")
             evidence.rpc(state["api_url"], state["users"]["owner"]["token"], "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan})
-            drawer.get_by_role("button", name="Done", exact=True).click()
+            drawer.get_by_role("button", name="Close", exact=True).click()
             expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
             draft_row(page, name).get_by_role("link", name=name, exact=True).click()
             expect(page).to_have_url(DRAFT_URL)
@@ -386,18 +435,20 @@ with session(out) as browser:
             drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
             drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
-            open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)
-            expect(open_button).to_be_visible()
-            expect(drawer.get_by_text(f"Deploying {name}", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("Pull image", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("Route traffic", exact=True)).to_be_visible()
-            expect(drawer.get_by_role("button", name="Done", exact=True)).to_be_visible()
-            header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
-            expect(header.get_by_text("Deploying", exact=True)).to_be_visible()
+            expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
+            expect(drawer).to_have_count(0)
+            panel = page.get_by_role("region", name="Deploying", exact=True)
+            new_version = panel.get_by_role("region", name="New version", exact=True)
+            expect(new_version.get_by_text("service-new-1", exact=True)).to_be_visible()
+            expect(new_version.get_by_text("worker-east-1", exact=True)).to_be_visible()
+            expect(new_version.get_by_text("Starting", exact=True)).to_be_visible()
+            expect(panel.get_by_role("region", name="Previous version", exact=True).get_by_text("No replicas", exact=True)).to_be_visible()
+            activity = panel.get_by_role("region", name="Activity feed", exact=True)
+            expect(activity.get_by_role("listitem")).to_have_count(2)
+            expect(activity.get_by_role("listitem").last).to_contain_text("Starting application; waiting for readiness.")
+            expect(activity.get_by_role("listitem").last).to_contain_text("service-new-1")
             page.wait_for_function(f"localStorage.getItem({json.dumps(drafts_key)}) === null")
-            open_button.click()
-            expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+$"))
-            resource = page.url.rsplit("/", 1)[-1]
+            resource = urlparse(page.url).path.rsplit("/", 1)[-1]
             assert evidence.psql(state["container"], f"SELECT name FROM resources WHERE id='{resource}';") == name
             assert evidence.psql(state["container"], f"SELECT description FROM resources WHERE id='{resource}';") == "Takes checkout payments"
             assert [(d["resourceId"], d["region"]) for d in deployments] == [(resource, "us-east-1")], deployments
@@ -433,15 +484,7 @@ with session(out) as browser:
         def create_failing_deployment(route):
             body = route.request.post_data_json
             deployments.append(body)
-            cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
-            evidence.psql(state["container"], f"""
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES('{cluster}','failed-{deployment}','{body['region']}','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
-VALUES('{deployment}','{body['resourceId']}','{cluster}','{body['region']}',1,'failed',true,'{body['environmentId']}',{evidence.sql_literal(json.dumps(body['spec']['service']))},1,'user','{state['users']['owner']['id']}','web');
-INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
-VALUES('{deployment}',1,'{{"problem":{{"reason":"image_pull_failed","detail":"ImagePullBackOff: manifest unknown"}}}}');
-""")
+            deployment = seed_deployment(body, "failed", "Failing", "ImagePullBackOff: manifest unknown", "image_pull_failed")
             route.fulfill(json={"deploymentId": deployment})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_failing_deployment)
@@ -492,10 +535,14 @@ VALUES('{deployment}',1,'{{"problem":{{"reason":"image_pull_failed","detail":"Im
                 drawer.get_by_role("button", name="Decrease maximum replicas", exact=True).click()
             drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
-            expect(drawer.get_by_text(f"Couldn't deploy {name}", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=False)).to_be_visible()
-            header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
-            expect(header.get_by_text("Failed", exact=True)).to_be_visible()
+            expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
+            expect(drawer).to_have_count(0)
+            panel = page.get_by_role("region", name="Failed", exact=True)
+            problem = panel.get_by_role("status").filter(has_text="ImagePullBackOff: manifest unknown")
+            expect(problem.get_by_text("ImagePullBackOff: manifest unknown", exact=True)).to_be_visible()
+            expect(problem.get_by_text("service-new-1", exact=True)).to_be_visible()
+            expect(panel.get_by_role("region", name="New version", exact=True).get_by_text("Failing", exact=True)).to_be_visible()
+            expect(panel.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
             spec = deployments[0]["spec"]["service"]
             assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 3, spec
             assert spec["scalers"] == {"enabled": True, "cpuTarget": 70}, spec
@@ -505,6 +552,52 @@ VALUES('{deployment}',1,'{{"problem":{{"reason":"image_pull_failed","detail":"Im
             raise
         finally:
             context.close()
+        # Regional failures keep the form open; successful regions remain deployed.
+        for partial_failure in (True, False):
+            name = f"{repository}-multi-{int(partial_failure)}"
+            draft = seeded_draft(name, image)
+            draft["edits"].update({"regions": ["us-east-1", "eu-west-1"], "isPublic": False, "port": "8080"})
+            context, page, errors = open_page(browser, "owner", storage={drafts_key: json.dumps([draft])})
+            regional_requests = []
+            context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", lambda route: route.fulfill(json={"image": pinned_image}))
+
+            def regional_deployment(route):
+                body = route.request.post_data_json
+                regional_requests.append(body)
+                if partial_failure and body["region"] == "eu-west-1":
+                    route.fulfill(status=503, json={"code": "unavailable", "message": "Region unavailable"})
+                else:
+                    route.fulfill(json={"deploymentId": seed_deployment(body, "deploying", "Starting", "Starting application; waiting for readiness.")})
+
+            context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", regional_deployment)
+            try:
+                page.goto(base + "/resources?env=production")
+                draft_row(page, name).get_by_role("link", name=name, exact=True).click()
+                drawer = page.get_by_role("dialog", name=name, exact=True)
+                drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+                if partial_failure:
+                    expect(drawer.get_by_role("alert")).to_have_text("eu-west-1: Region unavailable.")
+                    expect(page).to_have_url(DRAFT_URL)
+                    expect(drawer.get_by_role("button", name=f"Deploy {name}", exact=True)).to_be_disabled()
+                    assert stored_drafts(page) == [name], stored_drafts(page)
+                    drawer.get_by_role("link", name="Open resource", exact=True).click()
+                expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
+                expect(drawer).to_have_count(0)
+                panels = page.get_by_role("region", name="Deploying", exact=True)
+                expect(panels).to_have_count(1 if partial_failure else 2)
+                expect(panels.filter(has_text="us-east-1")).to_be_visible()
+                if not partial_failure:
+                    expect(panels.filter(has_text="eu-west-1")).to_be_visible()
+                assert sorted(body["region"] for body in regional_requests) == ["eu-west-1", "us-east-1"]
+                assert all(body["environmentId"] == production for body in regional_requests)
+                resource = urlparse(page.url).path.rsplit("/", 1)[-1]
+                assert evidence.psql(state["container"], f"SELECT count(*) FROM deployments WHERE resource_id='{resource}';") == ("1" if partial_failure else "2")
+                assert not errors, errors
+            except BaseException:
+                page.screenshot(path=out / f"failure-multiregion-{int(partial_failure)}.png", animations="disabled")
+                raise
+            finally:
+                context.close()
     finally:
         browser.close()
-print("PASS: new resource drafts for the read-only member and two owner cases")
+print("PASS: new resource drafts for the read-only member and owner creation, rollout, and regional failure cases")

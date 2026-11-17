@@ -119,7 +119,12 @@ with session(out) as browser:
         context, page, errors = open_page(browser, state=state)
         context.set_default_timeout(evidence.STEP_TIMEOUT_MS)
         requests = []
-        page.on("request", lambda request: requests.append({"method": request.url.rsplit("/", 1)[-1], "body": request.post_data_json}) if ".DeploymentService/" in request.url else None)
+        def record_deployment_request(request):
+            method = request.url.rsplit("/", 1)[-1]
+            if ".DeploymentService/" in request.url and method in ("GetDeployment", "ListDeployments"):
+                requests.append({"method": method, "body": request.post_data_json})
+
+        page.on("request", record_deployment_request)
         log_queries = []
 
         def build_logs(route):

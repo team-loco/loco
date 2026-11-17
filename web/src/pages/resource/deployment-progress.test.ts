@@ -1,10 +1,17 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { BuildSchema, BuildStatus } from "@gen/loco/build/v1/build_pb";
-import { DeploymentSchema, DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentSchema, DeploymentStatus, ReplicaSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import { expect, test } from "bun:test";
 
-import { deploymentSteps, progressDeployments } from "./deployment-progress";
+import {
+	activityTime,
+	deploymentElapsedMs,
+	groupReplicas,
+	problemLogsHref,
+	progressDeployments,
+	replicaState,
+	stoppingCountdown,
+} from "./deployment-progress";
 import type { RegionView } from "./model";
 
 const previous = create(DeploymentSchema, {
@@ -33,7 +40,7 @@ test("a failed newest deployment offers the previous running release", () => {
 	const failed = create(DeploymentSchema, { ...pending, status: DeploymentStatus.FAILED });
 	expect(progressDeployments([{ ...region, history: [failed, previous] }])[0]?.previous?.id).toBe("previous");
 	const running = create(DeploymentSchema, { ...pending, status: DeploymentStatus.RUNNING });
-	expect(progressDeployments([{ ...region, history: [running, previous] }])).toEqual([]);
+	expect(progressDeployments([{ ...region, history: [running, previous] }])[0]?.deployment).toBe(running);
 });
 
 test("progress does not use a sibling region's deployments", () => {
@@ -47,40 +54,90 @@ test("progress does not use a sibling region's deployments", () => {
 		progressDeployments([region, { name: "west", history: [other], current: other, status: undefined }]).map(
 			(p) => p.deployment.id,
 		),
-	).toEqual(["pending"]);
+	).toEqual(["pending", "other"]);
 });
 
-test("queued, deploying and running follow deployment phases", () => {
-	const states = (status: DeploymentStatus) =>
-		deploymentSteps(create(DeploymentSchema, { ...pending, status }), undefined).map((s) => s.state);
-	expect(states(DeploymentStatus.BUILDING)).toEqual(["active", "todo", "todo"]);
-	expect(states(DeploymentStatus.DEPLOYING)).toEqual(["done", "active", "todo"]);
-	expect(states(DeploymentStatus.RUNNING)).toEqual(["done", "done", "done"]);
-	expect(states(DeploymentStatus.CANCELED)).toEqual(["done", "failed", "todo"]);
-});
-
-test("a failed deployment marks the deployment phase and leaves Running incomplete", () => {
-	const failed = create(DeploymentSchema, {
-		...pending,
-		status: DeploymentStatus.FAILED,
-	});
-	expect(deploymentSteps(failed, undefined)).toEqual([
-		{ label: "Queued", detail: "", state: "done" },
-		{ label: "Deploying", detail: "", state: "failed" },
-		{ label: "Running", detail: "", state: "todo" },
+test("replicas group by placement revision, retaining stopped replicas", () => {
+	const old = create(ReplicaSchema, { name: "old", placementRevision: 1n, state: "Stopped" });
+	const next = create(ReplicaSchema, { name: "next", placementRevision: 2n });
+	expect(groupReplicas([old, next], 2n)).toEqual([
+		{ label: "New version", replicas: [next] },
+		{ label: "Previous version", replicas: [old] },
 	]);
+	expect(groupReplicas([], 0n).map((g) => g.replicas)).toEqual([[], []]);
 });
 
-test("a source build adds its recorded branch and duration", () => {
-	const build = create(BuildSchema, {
-		status: BuildStatus.SUCCEEDED,
-		gitBranch: "main",
-		startedAt: timestampFromMs(1000),
-		finishedAt: timestampFromMs(69000),
+test("replica states have readable labels and semantic tones", () => {
+	expect(
+		["Scheduling", "Pulling", "Starting", "Serving", "Failing", "Stopping", "Stopped", "Killed", "Unknown"].map(
+			replicaState,
+		),
+	).toEqual([
+		{ label: "Waiting for a node", tone: "muted" },
+		{ label: "Pulling image", tone: "info" },
+		{ label: "Starting", tone: "info" },
+		{ label: "Serving", tone: "ok" },
+		{ label: "Failing", tone: "bad" },
+		{ label: "Stopping", tone: "warn" },
+		{ label: "Stopped", tone: "muted" },
+		{ label: "Killed", tone: "bad" },
+		{ label: "Unknown", tone: "muted" },
+	]);
+	expect(replicaState("future")).toEqual({ label: "Unknown", tone: "muted" });
+});
+
+test("stopping countdown uses the reported interval and clamps clock skew and expiry", () => {
+	const replica = create(ReplicaSchema, {
+		state: "Stopping",
+		stateSince: timestampFromMs(10000),
+		stateDeadline: timestampFromMs(40000),
 	});
-	expect(deploymentSteps(pending, build)[0]).toEqual({
-		label: "Build",
-		detail: "main · 1m 08s · Succeeded",
-		state: "done",
+	expect(stoppingCountdown(replica, 25000)).toEqual({ seconds: 15, percent: 50 });
+	expect(stoppingCountdown(replica, 0)).toEqual({ seconds: 30, percent: 100 });
+	expect(stoppingCountdown(replica, 50000)).toEqual({ seconds: 0, percent: 0 });
+	expect(stoppingCountdown({ ...replica, stateSince: undefined }, 25000)).toEqual({ seconds: 15, percent: undefined });
+	expect(stoppingCountdown({ ...replica, stateDeadline: timestampFromMs(10000) }, 25000)).toEqual({
+		seconds: 0,
+		percent: 0,
 	});
+	expect(stoppingCountdown({ ...replica, stateDeadline: undefined }, 25000)).toBeUndefined();
+	expect(stoppingCountdown({ ...replica, state: "Stopped" }, 25000)).toBeUndefined();
+});
+
+test("activity time counts minutes and seconds from deployment start", () => {
+	expect(activityTime(timestampFromMs(43000), timestampFromMs(1000))).toBe("+0:42");
+	expect(activityTime(timestampFromMs(3662000), timestampFromMs(1000))).toBe("+61:01");
+	expect(activityTime(undefined, timestampFromMs(1000))).toBe("—");
+	expect(activityTime(timestampFromMs(1000), undefined)).toBe("—");
+});
+
+test("problem log links preserve scope and target replica or failed build", () => {
+	const deployment = create(DeploymentSchema, { problem: { replicaName: "web-1" } });
+	expect(problemLogsHref("/logs?env=prod&r=web", deployment)).toBe("/logs?env=prod&r=web&q=%40replica%3Aweb-1");
+	const build = create(DeploymentSchema, {
+		problem: { reason: "build_failed" },
+		spec: { spec: { case: "service", value: { build: { buildId: "build-1" } } } },
+	});
+	expect(problemLogsHref("/logs?env=prod", build)).toBe("/logs?env=prod&q=%40build%3Abuild-1");
+	expect(problemLogsHref(undefined, deployment)).toBeUndefined();
+	expect(problemLogsHref("/logs", pending)).toBeUndefined();
+	expect(
+		problemLogsHref("/logs", create(DeploymentSchema, { problem: { message: "No target replica" } })),
+	).toBeUndefined();
+});
+
+test("elapsed rollout time includes the build and stops when ready or finished", () => {
+	const ready = create(DeploymentSchema, {
+		...pending,
+		status: DeploymentStatus.RUNNING,
+		startedAt: timestampFromMs(13000),
+	});
+	expect(deploymentElapsedMs(pending, 20000)).toBe(17000);
+	expect(deploymentElapsedMs(ready, 20000)).toBe(10000);
+	expect(deploymentElapsedMs({ ...ready, status: DeploymentStatus.DEPLOYING }, 20000)).toBe(17000);
+	expect(
+		deploymentElapsedMs({ ...ready, status: DeploymentStatus.FAILED, completedAt: timestampFromMs(18000) }, 20000),
+	).toBe(15000);
+	expect(deploymentElapsedMs({ ...pending, createdAt: undefined }, 20000)).toBeUndefined();
+	expect(deploymentElapsedMs(pending, 0)).toBe(0);
 });

@@ -1,6 +1,7 @@
 import argparse
 import json
 import re
+import time
 import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -8,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, session
 
-parser = argparse.ArgumentParser(description="Check deployment progress, readiness polling and recovery")
+parser = argparse.ArgumentParser(description="Check deployment progress, replica watches and recovery")
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
@@ -52,30 +53,45 @@ p = state["progress"]
 path = f"/org/{p['org']}/wks/{workspace}/resource/{p['resource']}?env=production"
 
 
-def phase(status):
+def phase(status, problem_reason=None):
     building = status in ("building", "canceled")
+    now = int(time.time())
+    replica = {"uid": "new-replica", "name": "progress-new-1", "node": "worker-east-3", "placement_revision": 2, "state": "Failing" if status == "failed" else "Serving" if status == "running" else "Starting", "detail": "Process exited with code 1" if status == "failed" else "Accepting traffic" if status == "running" else "Waiting for readiness"}
+    previous = [{"uid": name, "name": name, "node": f"worker-east-{index}", "placement_revision": 1, "state": "Stopped" if status in ("running", "failed") else "Stopping" if index == 2 else "Serving", "detail": "Shutdown complete" if status in ("running", "failed") else "Draining requests" if index == 2 else "Serving the previous version"} for index, name in enumerate(("progress-old-1", "progress-old-2"), 1)]
+    previous[1].update(state_since={"seconds": now - 10}, state_deadline={"seconds": now + 50})
+    snapshot = {"replicas": [] if building else [replica, *previous]}
+    reason = problem_reason or ("crash_loop" if status == "failed" else None)
+    if reason is not None:
+        snapshot["problem"] = {"reason": reason, "detail": "Memory limit exceeded" if reason == "out_of_memory" else "Process exited with code 1", "replica_name": replica["name"]}
+    last_seq = int(sql(f"SELECT COALESCE(MAX(seq),0) FROM deployment_activity WHERE deployment_id='{p['current']}';"))
+    entries = [("info", "", "Deployment requested"), ("info", "", "Preparing the new version"), ("info", replica["name"], "Waiting for a node"), ("ok", replica["name"], "Scheduled on worker-east-3"), ("info", replica["name"], "Pulling image"), ("ok", replica["name"], "Image pulled"), ("info", replica["name"], "Starting application"), ("warn", previous[1]["name"], "Draining previous replica"), ("error" if reason else "info", replica["name"], f"Deployment {status}")]
+    activity = ",".join(f"('{p['current']}',{last_seq + index},2,NOW()-INTERVAL '{len(entries) - index} seconds',{evidence.sql_literal(severity)},{evidence.sql_literal(name)},{evidence.sql_literal(message)})" for index, (severity, name, message) in enumerate(entries, 1))
     sql(f"""BEGIN;
     UPDATE clusters SET last_heartbeat=NOW() WHERE id='{p['cluster']}';
     UPDATE deployments SET is_active=false WHERE resource_id='{p['resource']}';
     UPDATE deployments SET is_active=true WHERE id='{p['previous'] if building else p['current']}';
     UPDATE deployments SET status='{status}',updated_at=NOW(),completed_at={'NULL' if status in ('building', 'deploying', 'running') else 'NOW()'} WHERE id='{p['current']}';
-    UPDATE placements SET deployment_id='{p['previous'] if building else p['current']}',ready_replicas={2 if building or status == 'running' else 1},status_updated_at=NOW() WHERE resource_id='{p['resource']}';
+    UPDATE placements SET deployment_id='{p['previous'] if building else p['current']}',desired_revision={1 if building else 2},ready_replicas={2 if building or status == 'running' else 1},status_updated_at=NOW() WHERE resource_id='{p['resource']}';
     INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
-    VALUES('{p['current']}',1,{evidence.sql_literal(json.dumps({'problem': {'reason': 'crash_loop'}} if status == 'failed' else {}))})
+    VALUES('{p['current']}',2,{evidence.sql_literal(json.dumps(snapshot))})
     ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;
+    INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message) VALUES {activity};
     COMMIT;""")
 
 
 with session(repo / "tests/ui/out/deployment-progress") as browser:
+    sql(f"DELETE FROM deployment_activity WHERE deployment_id='{p['current']}';")
     phase("building")
     context, page, errors = open_page(browser, state=state, permissions=["clipboard-read", "clipboard-write"])
     page.goto(state["ui_url"] + path)
-    panel = page.get_by_role("region", name="Deploying v2", exact=True)
+    panel = page.get_by_role("region", name="Building", exact=True)
     expect(panel).to_be_visible()
     expect(panel.get_by_text("Show saved cards", exact=True)).to_be_visible()
-    expect(panel.get_by_text("main · 1m 08s · Succeeded", exact=True)).to_be_visible()
-    expect(panel.get_by_role("listitem").filter(has_text="Queued")).to_contain_text("active")
-    expect(panel.get_by_text(re.compile(r"of .* ready"))).to_have_count(0)
+    expect(panel.get_by_role("region", name="New version", exact=True).get_by_text("No replicas", exact=True)).to_be_visible()
+    activity = panel.get_by_role("region", name="Activity feed", exact=True)
+    expect(activity.get_by_role("listitem")).to_have_count(9)
+    expect(activity.get_by_role("listitem").last).to_contain_text("Deployment building")
+    expect(activity.get_by_role("listitem").first).to_contain_text(re.compile(r"\+\d+:\d{2}"))
     panel.get_by_role("button", name="Copy deployment ID", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == p["current"]
     panel.get_by_role("button", name="What’s being deployed", exact=True).click()
@@ -83,17 +99,40 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(panel.get_by_text("/health every 10s", exact=True)).to_be_visible()
     phase("deploying")
     page.reload()
-    panel = page.get_by_role("region", name="Deploying v2", exact=True)
-    expect(panel.get_by_text("1 of 2 ready", exact=True)).to_be_visible()
-    sql(f"UPDATE placements SET ready_replicas=2,status_updated_at=NOW() WHERE resource_id='{p['resource']}';")
-    expect(panel.get_by_text("2 of 2 ready", exact=True)).to_be_visible(timeout=25000)
+    panel = page.get_by_role("region", name="Deploying", exact=True)
+    new_version = panel.get_by_role("region", name="New version", exact=True)
+    old_version = panel.get_by_role("region", name="Previous version", exact=True)
+    expect(new_version.get_by_text("progress-new-1", exact=True)).to_be_visible()
+    expect(new_version.get_by_text("worker-east-3", exact=True)).to_be_visible()
+    expect(new_version.get_by_text("Starting", exact=True)).to_be_visible()
+    expect(new_version.get_by_text("Waiting for readiness", exact=True)).to_be_visible()
+    expect(old_version.get_by_role("listitem")).to_have_count(2)
+    expect(old_version.get_by_text("Serving", exact=True)).to_be_visible()
+    expect(old_version.get_by_text("Stopping", exact=True)).to_be_visible()
+    countdown = old_version.get_by_role("progressbar", name="progress-old-2 stopping time remaining", exact=True)
+    expect(countdown).to_be_visible()
+    remaining = countdown.get_attribute("aria-valuenow")
+    expect(countdown).not_to_have_attribute("aria-valuenow", remaining, timeout=3000)
+    phase("running")
+    # The open watch updates both the replicas and feed without reloading.
+    panel = page.get_by_role("region", name="Running", exact=True)
+    expect(panel).to_be_visible(timeout=25000)
+    expect(panel.get_by_role("region", name="New version", exact=True).get_by_text("Serving", exact=True)).to_be_visible()
+    stopped = panel.get_by_role("region", name="Previous version", exact=True).get_by_role("listitem")
+    expect(stopped).to_have_count(2)
+    for row in stopped.all():
+        expect(row.get_by_text("Stopped", exact=True)).to_be_visible()
+        expect(row).to_have_class(re.compile(r"opacity-50"))
+    expect(panel.get_by_role("region", name="Activity feed", exact=True).get_by_role("listitem").last).to_contain_text("Deployment running")
     phase("failed")
     page.reload()
-    panel = page.get_by_role("region", name="Deployment of v2 failed", exact=True)
+    panel = page.get_by_role("region", name="Failed", exact=True)
     expect(panel.get_by_text("The service keeps exiting soon after it starts. Check its logs for the error.", exact=True).first).to_be_visible()
     logs = panel.get_by_role("link", name="View logs", exact=True)
     query = parse_qs(urlparse(logs.get_attribute("href")).query)
-    assert query.get("r") == ["progress-ui"] and "@resource:" not in query.get("q", [""])[0], query
+    assert query.get("r") == ["progress-ui"] and query.get("q") == ["@replica:progress-new-1"], query
+    expect(panel.get_by_role("region", name="New version", exact=True).get_by_text("Failing", exact=True)).to_be_visible()
+    expect(logs).to_have_count(1)
     panel.get_by_role("button", name="Roll back to v1", exact=True).click()
     dialog = page.get_by_role("dialog", name="Roll back progress-ui in us-east-1", exact=True)
     expect(dialog).to_be_visible()
@@ -110,18 +149,23 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     assert mutations[0]["environmentId"] == p["environment"] and mutations[0]["region"] == "us-east-1", mutations
     phase("canceled")
     page.reload()
-    expect(page.get_by_role("region", name="Deployment of v2 canceled", exact=True)).to_be_visible()
+    expect(page.get_by_role("region", name="Canceled", exact=True)).to_be_visible()
     phase("running")
     page.reload()
     expect(page.get_by_role("heading", name="progress-ui", exact=True)).to_be_visible()
-    expect(page.get_by_role("list", name="Deployment status", exact=True)).to_have_count(0)
+    panel = page.get_by_role("region", name="Running", exact=True)
+    expect(panel).to_be_visible()
+    phase("running", "out_of_memory")
+    expect(panel.get_by_text("Memory limit exceeded", exact=True)).to_be_visible(timeout=25000)
+    expect(panel.get_by_role("heading", name="Running", exact=True)).to_be_visible()
+    expect(panel.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
     assert not errors, errors
     context.close()
 
     phase("failed")
     context, page, errors = open_page(browser, "member", narrow=True, state=state)
     page.goto(state["ui_url"] + path)
-    panel = page.get_by_role("region", name="Deployment of v2 failed", exact=True)
+    panel = page.get_by_role("region", name="Failed", exact=True)
     expect(panel.get_by_role("button", name="Roll back to v1", exact=True)).to_be_disabled()
     expect(panel.get_by_role("link", name="View logs", exact=True)).to_be_visible()
     assert panel.bounding_box()["width"] <= page.viewport_size["width"]
@@ -131,10 +175,10 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     phase("deploying")
     context, page, errors = open_page(browser, state=state, reduced_motion="reduce")
     page.goto(state["ui_url"] + path)
-    panel = page.get_by_role("region", name="Deploying v2", exact=True)
-    expect(panel.get_by_text("1 of 2 ready", exact=True)).to_be_visible()
+    panel = page.get_by_role("region", name="Deploying", exact=True)
+    expect(panel.get_by_role("region", name="New version", exact=True).get_by_text("Starting", exact=True)).to_be_visible()
     assert panel.evaluate("node => node.getAnimations({subtree:true}).filter(animation => animation.effect.getTiming().iterations === Infinity).length") == 0
     assert not errors, errors
     context.close()
     browser.close()
-print("Deployment progress phases, readiness polling, logs, rollback and reduced motion passed")
+print("Deployment progress phases, replica watches, logs, rollback and reduced motion passed")

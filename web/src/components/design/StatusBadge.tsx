@@ -27,7 +27,7 @@ export function resourceStatusStyle(status: ResourceStatus | undefined): StatusS
 	}
 }
 
-function deploymentPhaseStyle(phase: DeploymentStatus | undefined): StatusStyle {
+export function deploymentPhaseStyle(phase: DeploymentStatus | undefined): StatusStyle {
 	switch (phase) {
 		case DeploymentStatus.BUILDING:
 			return { label: "Building", glyph: "draft" };

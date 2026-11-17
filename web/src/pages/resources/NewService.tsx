@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router";
 import { useQueryState } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
@@ -25,7 +26,8 @@ import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
 import { StepSlider } from "@/components/design/StepSlider";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Notice } from "@/components/design/Notice";
-import { Sheet, SheetBody, SheetContent, SheetFooter } from "@/components/design/Sheet";
+import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
 import { ScalingFields } from "@/components/design/ScalingFields";
@@ -40,7 +42,7 @@ import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { parseDotEnv } from "@/lib/dotenv";
 import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits } from "@/lib/drafts";
 import { getErrorMessage } from "@/lib/error-handler";
-import { DRAFT_PARAM } from "@/lib/routes";
+import { DRAFT_PARAM, resourcePath } from "@/lib/routes";
 import {
 	firstError,
 	healthSummary,
@@ -59,7 +61,7 @@ import {
 } from "@/lib/new-resource";
 import { sizeOptions, type SizeOptions } from "@/lib/sizing";
 import { slug } from "@/lib/slug";
-import { DeployRunView, DrawerHeader, useServiceDeploy, type DeployError } from "@/pages/resources/NewServiceDeploy";
+import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 
 const SKELETON_ROWS = 6;
 const NON_DIGITS_RE = /\D/g;
@@ -299,6 +301,7 @@ function DraftPanel({
 	const regionsQuery = useRpcQuery(listRegions, { environmentId: env.id });
 	const domainsQuery = useRpcQuery(listPlatformDomains, { environmentId: env.id });
 	const deployment = useServiceDeploy(workspaceId, env);
+	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
 	const [healthOpen, setHealthOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
@@ -309,11 +312,25 @@ function DraftPanel({
 	const loadError = configQuery.error ?? regionsQuery.error ?? domainsQuery.error;
 	const config = configQuery.data;
 	const defaults = config?.serviceDefaults;
-	const header = <DrawerHeader name={draft?.name ?? "Draft"} image={draft?.image ?? ""} state="draft" />;
+	const header = (
+		<SheetHeader>
+			<div className="flex min-w-0 flex-col gap-0.5">
+				<div className="flex min-w-0 items-center gap-2.5">
+					<SheetTitle className="truncate">{draft?.name ?? "Draft"}</SheetTitle>
+					<span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-fg2">
+						<StatusGlyph glyph="draft" />
+						Draft
+					</span>
+				</div>
+				{draft?.image && (
+					<span className="truncate font-mono text-[12px] text-fg3" title={draft.image}>
+						{draft.image}
+					</span>
+				)}
+			</div>
+		</SheetHeader>
+	);
 	const body = (() => {
-		if (deployment.run !== null) {
-			return <DeployRunView run={deployment.run} env={env} orgId={orgId} workspaceId={workspaceId} onDone={close} />;
-		}
 		if (loadError !== null) {
 			return (
 				<SheetBody>
@@ -331,7 +348,6 @@ function DraftPanel({
 			);
 		}
 		if (draft === undefined) {
-			// Discarding or deploying removes the draft before the panel finishes sliding out.
 			if (!open) return <SheetBody />;
 			return (
 				<SheetBody>
@@ -352,6 +368,11 @@ function DraftPanel({
 				defaults={defaults}
 				sizes={sizeOptions(config.sizeLimits)}
 				deployment={deployment}
+				resourceHref={
+					deployment.resourceId === undefined
+						? undefined
+						: resourcePath(orgId, workspaceId, deployment.resourceId, { env: env.name })
+				}
 				tried={tried}
 				healthOpen={healthOpen}
 				holder={taken.get(slug(draft.name)) ?? null}
@@ -371,9 +392,10 @@ function DraftPanel({
 						setSecretValues(new Map(edits.vars.filter((row) => row.secret).map((row) => [row.id, row.value])));
 					}
 				}}
-				onDeployed={() => {
+				onDeployed={(resourceId) => {
 					setSecretValues(new Map());
 					store.discard(draft.id);
+					void navigate(resourcePath(orgId, workspaceId, resourceId, { env: env.name }));
 				}}
 				onDiscard={() => {
 					setDiscarding(true);
@@ -383,7 +405,7 @@ function DraftPanel({
 	})();
 	return (
 		<>
-			{deployment.run === null && header}
+			{header}
 			{body}
 			{draft !== undefined && (
 				<ConfirmDialog
@@ -437,6 +459,7 @@ function ServiceForm({
 	regions,
 	platformDomains,
 	deployment,
+	resourceHref,
 	tried,
 	healthOpen,
 	holder,
@@ -454,17 +477,18 @@ function ServiceForm({
 	regions: RegionInfo[];
 	platformDomains: PlatformDomain[];
 	deployment: ReturnType<typeof useServiceDeploy>;
+	resourceHref: string | undefined;
 	tried: boolean;
 	healthOpen: boolean;
 	holder: string | null;
 	onTry: () => void;
 	onHealthOpen: (open: boolean) => void;
 	onEdit: (edits: DraftEdits) => void;
-	onDeployed: () => void;
+	onDeployed: (resourceId: string) => void;
 	onDiscard: () => void;
 }) {
 	const { edits, image, name } = draft;
-	const { deployError, deploy } = deployment;
+	const { deployError, deploy, isPending, resourceId } = deployment;
 
 	const selected = draftRegions(draft, regions);
 	const regionNames = [...new Set([...regions.map((region) => region.region), ...selected])];
@@ -506,10 +530,10 @@ function ServiceForm({
 			onSubmit={(e) => {
 				e.preventDefault();
 				onTry();
-				if (blocker !== null) return;
-				void deploy(form, defaults).then(({ error, deployed }) => {
-					if (deployed) {
-						onDeployed();
+				if (blocker !== null || isPending || resourceId !== undefined) return;
+				void deploy(form, defaults).then(({ error, resourceId: createdResourceId }) => {
+					if (error === null && createdResourceId !== undefined) {
+						onDeployed(createdResourceId);
 						return;
 					}
 					const field = error?.field?.field;
@@ -518,7 +542,7 @@ function ServiceForm({
 			}}
 		>
 			<SheetBody className="gap-0 py-0 [&>*]:border-b [&>*]:border-line [&>*]:py-5 [&>*:last-child]:border-b-0">
-				{holder !== null && (
+				{holder !== null && resourceId === undefined && !isPending && (
 					<div>
 						<Notice>
 							{`${holder} already uses this name in this workspace. Deploying this draft will fail; discard it and start again with another name.`}
@@ -707,10 +731,15 @@ function ServiceForm({
 					</span>
 					<FooterError tried={tried} blocker={blocker} deployError={deployError} />
 				</span>
-				<Button type="button" variant="destructive-outline" onClick={onDiscard}>
+				<Button type="button" variant="destructive-outline" disabled={isPending} onClick={onDiscard}>
 					Discard draft
 				</Button>
-				<Button type="submit">{`Deploy ${name}`}</Button>
+				{resourceHref !== undefined && (
+					<Button variant="outline" nativeButton={false} render={<Link to={resourceHref} />}>
+						Open resource
+					</Button>
+				)}
+				<Button type="submit" disabled={isPending || resourceId !== undefined}>{`Deploy ${name}`}</Button>
 			</SheetFooter>
 		</form>
 	);
