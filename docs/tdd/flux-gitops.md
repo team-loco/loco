@@ -104,7 +104,7 @@ Join tokens are single-use and stored by the API only as hashes. `CreateCluster`
 
 ```sh
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  -o secret | kubectl --context worker-staging apply -f -
+  --kube-context worker-staging
 ```
 
 The command prints a plaintext Secret manifest for direct application to the worker. Direct application keeps tokens outside Git by default. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. The default one-hour token TTL covers immediate application.
@@ -116,7 +116,7 @@ An approval-based join flow is outside this design. Pulling a token from the API
 | Command | Responsibility |
 |---|---|
 | `init` | Scaffold the repo once from flags, generate a seal key and write plaintext Secret files with encryption guidance |
-| `cluster create`, `cluster join-token` | Register workers and issue tokens; accept TTL and `-o secret` output |
+| `cluster create`, `cluster join-token` | Register workers and deliver tokens with `--kube-context`; accept TTL and optional `-o secret` output |
 | `cluster list/pause/resume/remove/restore` | Manage API cluster records |
 | `login` | Sign in using `--api` and `--web` |
 | `status` | Query the API for clusters, heartbeats, version skew, unclaimed admins and DNS targets |

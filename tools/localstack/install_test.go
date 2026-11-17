@@ -203,13 +203,16 @@ func TestRegistryConfigPreservesImageCompatibilityAndAnonymousArtifacts(t *testi
 }
 
 func TestEnrollmentResumesAnExistingRegistration(t *testing.T) {
-	args, err := enrollmentArgs([]byte(`{"clusters":[{"id":"pending-id","name":"local"}]}`))
-	if err != nil || strings.Join(args, " ") != "cluster join-token pending-id -o secret" {
+	args, err := enrollmentArgs([]byte(`{"clusters":[{"id":"pending-id","name":"local"}]}`), "kind-worker")
+	if err != nil || strings.Join(args, " ") != "cluster join-token pending-id --kube-context kind-worker" {
 		t.Fatalf("enrollment=%v,%v", args, err)
 	}
-	args, err = enrollmentArgs([]byte(`{"clusters":[]}`))
+	args, err = enrollmentArgs([]byte(`{"clusters":[]}`), "kind-worker")
 	if err != nil ||
-		strings.Join(args, " ") != "cluster create --name local --region local --tier production -o secret" {
+		strings.Join(
+			args,
+			" ",
+		) != "cluster create --name local --region local --tier production --kube-context kind-worker" {
 		t.Fatalf("new enrollment=%v,%v", args, err)
 	}
 }

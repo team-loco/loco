@@ -81,7 +81,7 @@ func operations() []operation {
 	return []operation{
 		{
 			use:   clusterCreate,
-			short: "create a pending cluster and print its one-time join token",
+			short: "Create a pending cluster and deliver its one-time join token",
 			args:  cobra.NoArgs,
 			flags: func(c *cobra.Command) {
 				c.Flags().String(flagName, "", "Cluster name")
@@ -144,10 +144,13 @@ func (op operation) command() *cobra.Command {
 		op.flags(command)
 	}
 	tokenCommand := strings.Fields(op.use)[0] == clusterCreate || strings.Fields(op.use)[0] == clusterJoinToken
-	var output, namespace, secretName string
+	var output, namespace, secretName, kubeContext string
 	if tokenCommand {
+		command.Flags().
+			StringVar(&kubeContext, "kube-context", "", "Apply the join-token Secret to this Kubernetes context")
 		command.Flags().Duration("ttl", 0, "Join-token lifetime; omission uses the API default")
 		command.Flags().StringVarP(&output, "output", "o", "json", "Output format: json or secret")
+		command.MarkFlagsMutuallyExclusive("kube-context", "output")
 		command.Flags().StringVar(&namespace, "namespace", "loco-system", "Namespace of the worker join-token Secret")
 		command.Flags().
 			StringVar(&secretName, "secret-name", "loco-agent-join-token", "Name of the worker join-token Secret")
@@ -166,6 +169,17 @@ func (op operation) command() *cobra.Command {
 				return fmt.Errorf("invalid cluster ID: %w", err)
 			}
 		}
+		var worker *workerEnrollment
+		if tokenCommand && cmd.Flags().Changed("kube-context") {
+			if kubeContext == "" {
+				return errors.New("kube-context must not be empty")
+			}
+			var err error
+			worker, err = enrollmentClient(cmd.Context(), kubeContext, namespace, secretName)
+			if err != nil {
+				return err
+			}
+		}
 		login, err := auth.ResolveLogin(cmd)
 		if err != nil {
 			return err
@@ -175,16 +189,33 @@ func (op operation) command() *cobra.Command {
 			printWorkloads(cmd, err)
 			return err
 		}
-		if tokenCommand && output == "secret" {
+		if tokenCommand && (output == "secret" || worker != nil) {
 			var token *clusterv1.JoinToken
+			var clusterID string
 			switch result := response.(type) {
 			case *clusterv1.CreateClusterResponse:
 				token = result.GetJoinToken()
+				clusterID = result.GetClusterId()
 			case *clusterv1.IssueJoinTokenResponse:
 				token = result.GetJoinToken()
+				clusterID = result.GetClusterId()
 			}
 			if token == nil {
 				return errors.New("cluster is enrolled; no join token was issued")
+			}
+			if worker != nil {
+				if err = worker.apply(cmd.Context(), clusterID, token); err != nil {
+					return err
+				}
+				_, err = fmt.Fprintf(
+					cmd.OutOrStdout(),
+					"Applied join-token Secret %s/%s to context %s for cluster %s\n",
+					namespace,
+					secretName,
+					kubeContext,
+					clusterID,
+				)
+				return err
 			}
 			data, encodeErr := gitops.Secret(namespace, secretName, map[string]string{"join-token": token.GetToken()})
 			if encodeErr != nil {

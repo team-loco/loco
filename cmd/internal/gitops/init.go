@@ -291,7 +291,7 @@ shared defaults live under bases/. Review endpoints, credentials and certificate
 
 The Secret files are plaintext: encrypt them before committing, or supply the named
 Secrets through External Secrets. Keep the seal key in offline custody.
-Apply the one-time worker join-token Secret directly to the cluster after Flux bootstrap.
+Use locoadm cluster create with --kube-context to deliver the worker join token after Flux bootstrap.
 
 See https://docs.loco.build/reference/installation for enrollment, upgrades and recovery.
 `, options.Name, options.Name)
