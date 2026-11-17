@@ -183,7 +183,20 @@ with session(out) as browser:
 
             def save_and_settle():
                 calls.clear()
-                save.click()
+                expected_deployments = len(deployments) + len(regions)
+                with page.expect_response(
+                    lambda response: (
+                        response.url.endswith("/UpdateResource")
+                        or (
+                            response.url.endswith("/CreateDeployment")
+                            and len(deployments) == expected_deployments
+                            and response.request.post_data_json == deployments[-1]
+                        )
+                    )
+                ) as completed:
+                    save.click()
+                assert completed.value.ok, completed.value.text()
+                completed.value.finished()
                 expect(
                     page.get_by_role("button", name="Discard", exact=True)
                 ).to_have_count(0)
