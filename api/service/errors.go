@@ -51,6 +51,7 @@ const (
 	imageNotFoundReason            = "IMAGE_NOT_FOUND"
 	imageAccessDeniedReason        = "IMAGE_ACCESS_DENIED"
 	imageReferenceInvalidReason    = "IMAGE_REFERENCE_INVALID"
+	imageSizeExceededReason        = "IMAGE_SIZE_EXCEEDED"
 	imagePlatformUnsupportedReason = "IMAGE_PLATFORM_UNSUPPORTED"
 )
 

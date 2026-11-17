@@ -328,7 +328,7 @@ func newDeps(
 	if sourceBucket != nil {
 		sourceSweeper = sweepers.NewSourceSweeper(pool, queries, sourceBucket, ac.SourceSweep)
 	}
-	imageResolver := imageresolver.New(ac.ImageResolveTimeout)
+	imageResolver := imageresolver.New(ac.ImageResolveTimeout, ac.PublicImageMaxBytes)
 
 	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {

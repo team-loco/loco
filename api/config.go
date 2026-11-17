@@ -30,14 +30,15 @@ import (
 )
 
 var (
-	errAPITokenLifetime   = errors.New("LOCO_API_TOKEN_MAX_LIFETIME must be at least one second")
-	errDatabaseURLMissing = errors.New("DATABASE_URL is required")
-	errDatabasePoolSize   = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
-	errCacheAddrMissing   = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
-	errUnknownCacheType   = errors.New("unknown cache type")
-	errInvalidSourceBytes = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
-	errClickHouseDatabase = errors.New("CLICKHOUSE_DB must be a ClickHouse identifier when CLICKHOUSE_URL is set")
-	errClickHouseTimeout  = errors.New("CLICKHOUSE_QUERY_TIMEOUT must be a whole number of seconds")
+	errAPITokenLifetime        = errors.New("LOCO_API_TOKEN_MAX_LIFETIME must be at least one second")
+	errDatabaseURLMissing      = errors.New("DATABASE_URL is required")
+	errDatabasePoolSize        = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
+	errCacheAddrMissing        = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
+	errUnknownCacheType        = errors.New("unknown cache type")
+	errInvalidPublicImageBytes = errors.New("LOCO_PUBLIC_IMAGE_MAX_BYTES is not a positive integer")
+	errInvalidSourceBytes      = errors.New("LOCO_SOURCE_MAX_BYTES is not a positive integer")
+	errClickHouseDatabase      = errors.New("CLICKHOUSE_DB must be a ClickHouse identifier when CLICKHOUSE_URL is set")
+	errClickHouseTimeout       = errors.New("CLICKHOUSE_QUERY_TIMEOUT must be a whole number of seconds")
 
 	errInvalidServiceDefault  = errors.New("invalid service default")
 	errRegistryAuthPartial    = errors.New("LOCO_REGISTRY_USERNAME and LOCO_REGISTRY_PASSWORD must be set together")
@@ -122,6 +123,7 @@ const (
 	defaultTokenLastUsedInterval      = 5 * time.Minute
 	defaultTokenCleanupInterval       = time.Minute
 
+	defaultPublicImageMaxBytes   = 1 << 30
 	defaultImageResolveTimeout   = 15 * time.Second
 	defaultRPCTimeout            = 30 * time.Second
 	defaultShutdownDrainTimeout  = 30 * time.Second
@@ -204,6 +206,7 @@ type APIConfig struct {
 	Tokens                tvm.Config
 	TokenCleanupInterval  time.Duration
 	ImageResolveTimeout   time.Duration
+	PublicImageMaxBytes   int64
 	RPCTimeout            time.Duration
 	ShutdownDrainTimeout  time.Duration
 	LogLevel              slog.Level
@@ -292,44 +295,49 @@ func newAPIConfig() *APIConfig {
 		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
 		Tokens:                newTokenConfig(),
 		TokenCleanupInterval:  envconfig.PositiveDuration("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
-		ImageResolveTimeout:   envconfig.PositiveDuration("LOCO_IMAGE_RESOLVE_TIMEOUT", defaultImageResolveTimeout),
-		RPCTimeout:            envconfig.PositiveDuration("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
-		ShutdownDrainTimeout:  envconfig.PositiveDuration("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
-		Port:                  envconfig.String("APP_PORT", ""),
-		ClickHouse:            newClickHouseConfig(),
-		Observability:         newObservabilityConfig(),
-		LogLevel:              logLevel,
-		CacheType:             cacheType,
-		CacheAddr:             cacheAddr,
-		CORSAllowedOrigins:    corsOrigins,
-		MinCLIVersion:         minCLIVersion,
-		PprofAddr:             envconfig.String("PPROF_ADDR", ""),
-		SourceBucket:          sourceBucket,
-		SourceMaxBytes:        sourceMaxBytes,
-		RegistryHost:          registryHost,
-		RegistryPrefix:        registryPrefix,
-		Registry:              registry,
-		RegistryAuth:          registryAuth,
-		ImageSweep:            imageSweep,
-		SourceSweep:           sourceSweep,
-		ServiceDefaults:       serviceDefaults,
-		AuthIssuers:           authIssuers,
-		SignupPolicy:          signupPolicy,
-		WebURL:                webURL,
-		Invitations:           invitations,
-		SchemaURL:             envconfig.String("LOCO_SCHEMA_URL", defaultSchemaURL),
-		EventsRetention:       eventsRetention,
-		WebhooksAllowPrivate:  webhooksAllowPrivate,
-		Webhooks:              newWebhookConfig(),
-		InstallWebhooks:       installWebhooks,
-		OrgLinks:              orgLinks,
-		Transit:               transitConfig,
-		Secrets:               secrets,
-		SecretLimits:          secretLimits,
-		CountLimits:           newCountLimits(),
-		HeartbeatInterval:     heartbeatInterval,
-		SystemAdmins:          systemAdmins,
-		TracingEnabled:        tracingEnabled,
+		PublicImageMaxBytes: positiveInt64Env(
+			"LOCO_PUBLIC_IMAGE_MAX_BYTES",
+			defaultPublicImageMaxBytes,
+			errInvalidPublicImageBytes,
+		),
+		ImageResolveTimeout:  envconfig.PositiveDuration("LOCO_IMAGE_RESOLVE_TIMEOUT", defaultImageResolveTimeout),
+		RPCTimeout:           envconfig.PositiveDuration("LOCO_RPC_TIMEOUT", defaultRPCTimeout),
+		ShutdownDrainTimeout: envconfig.PositiveDuration("LOCO_SHUTDOWN_DRAIN_TIMEOUT", defaultShutdownDrainTimeout),
+		Port:                 envconfig.String("APP_PORT", ""),
+		ClickHouse:           newClickHouseConfig(),
+		Observability:        newObservabilityConfig(),
+		LogLevel:             logLevel,
+		CacheType:            cacheType,
+		CacheAddr:            cacheAddr,
+		CORSAllowedOrigins:   corsOrigins,
+		MinCLIVersion:        minCLIVersion,
+		PprofAddr:            envconfig.String("PPROF_ADDR", ""),
+		SourceBucket:         sourceBucket,
+		SourceMaxBytes:       sourceMaxBytes,
+		RegistryHost:         registryHost,
+		RegistryPrefix:       registryPrefix,
+		Registry:             registry,
+		RegistryAuth:         registryAuth,
+		ImageSweep:           imageSweep,
+		SourceSweep:          sourceSweep,
+		ServiceDefaults:      serviceDefaults,
+		AuthIssuers:          authIssuers,
+		SignupPolicy:         signupPolicy,
+		WebURL:               webURL,
+		Invitations:          invitations,
+		SchemaURL:            envconfig.String("LOCO_SCHEMA_URL", defaultSchemaURL),
+		EventsRetention:      eventsRetention,
+		WebhooksAllowPrivate: webhooksAllowPrivate,
+		Webhooks:             newWebhookConfig(),
+		InstallWebhooks:      installWebhooks,
+		OrgLinks:             orgLinks,
+		Transit:              transitConfig,
+		Secrets:              secrets,
+		SecretLimits:         secretLimits,
+		CountLimits:          newCountLimits(),
+		HeartbeatInterval:    heartbeatInterval,
+		SystemAdmins:         systemAdmins,
+		TracingEnabled:       tracingEnabled,
 	}
 }
 
