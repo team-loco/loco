@@ -5,7 +5,7 @@ import tempfile
 
 import release
 
-FIXTURE_VERSION = '0.0.0-rc.0'
+FIXTURE_VERSION = '0.0.0'
 FIXTURE_COMMIT = 'a' * 40
 FIXTURE_DIGEST = 'sha256:' + 'b' * 64
 
@@ -16,7 +16,7 @@ def documents(data):
 
 
 def main():
-    names = (*release.CHARTS, 'loco-applications-crd', 'loco-builds-crd', 'loco-gateway-crd', 'cert-manager-chart')
+    names = (*release.CHARTS, 'loco-applications-crd', 'loco-builds-crd', 'loco-gateway-crd', 'cert-manager-chart', 'gateway-chart')
     refs = {name: 'ghcr.io/example/platform/' + name + '@' + FIXTURE_DIGEST for name in names}
     images = {name: 'ghcr.io/example/platform-' + name + '@' + FIXTURE_DIGEST for name in release.IMAGES}
     files = release.bundle(FIXTURE_VERSION, FIXTURE_COMMIT, refs, images)
@@ -26,12 +26,16 @@ def main():
             path = temp / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
-        for layer in ('', 'crds', 'releases'):
-            rendered = release.run('kustomize', 'build', str(temp / layer))
+        for layer in ('control-plane', 'worker', 'all', 'layers/namespaces', 'layers/crds', 'layers/infra', 'layers/control-plane', 'layers/worker'):
+            if layer.startswith('layers/'):
+                name = layer.split('/')[1]
+                rendered = release.run('flux', 'build', 'kustomization', 'loco-' + name, '--dry-run', '--path', str(temp / layer), '--kustomization-file', str(temp / 'all' / (name + '.yaml')))
+            else:
+                rendered = release.run('kustomize', 'build', str(temp / layer))
             if not documents(rendered):
                 raise RuntimeError('bundle layer rendered no resources')
         name = 'loco-worker'
-        hr = json.loads(files['releases/' + name + '-helmrelease.yaml'])
+        hr = json.loads(files['layers/worker/' + name + '-helmrelease.yaml'])
         values = hr['spec']['values']
         values['certManager'] = {'issuer': {'email': 'release-test@example.invalid'}}
         values['global'] = {'region': 'release-test-region', 'exporter': {'endpoint': 'https://ingest.release-test.example.invalid'}}
@@ -52,16 +56,24 @@ def main():
                         pinned_images.add(image)
         if not pinned_images:
             raise RuntimeError('chart rendered no digest-pinned Loco deployments')
+        gateway_chart = next((release.ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz'))
+        gateway = json.loads(files['layers/infra/envoy-gateway-helmrelease.yaml'])
+        gateway_values = temp / 'gateway-values.json'
+        gateway_values.write_text(json.dumps(gateway['spec']['values']))
+        gateway_resources = documents(release.run('helm', 'template', 'envoy-gateway', str(gateway_chart), '--namespace', 'loco-system', '--include-crds', '--values', str(gateway_values)))
+        if any(item.get('kind') in ('CustomResourceDefinition', 'ValidatingAdmissionPolicy', 'ValidatingAdmissionPolicyBinding') for item in gateway_resources):
+            raise RuntimeError('gateway chart rendered CRD management resources despite independent CRD ownership')
         cp_values = {
             'certManager': {'issuer': {'email': 'ops@example.test'}},
             'openbao': {'seal': {'static': {'existingSecret': {'name': 'openbao-seal'}}},
                         'snapshots': {'s3': {'endpoint': 'https://s3.example.test', 'bucket': 'backups', 'existingSecret': {'name': 'snapshot-s3'}}}},
-            'ui': {'image': {'repository': images['ui'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}},
-            'api': {'image': {'repository': images['api'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'}, 'existingSecret': 'regional-api-env',
+            'api': {'existingSecret': 'regional-api-env',
                     'clickhouse': {'existingSecret': {'name': 'reader'}}},
-            'obsProxy': {'image': {'repository': images['obs-proxy'].split('@')[0], 'tag': f'sha-{FIXTURE_COMMIT}@{FIXTURE_DIGEST}'},
-                         'ingest': {'clickhouse': {'existingSecret': {'name': 'ingest'}, 'migratorExistingSecret': {'name': 'migrator'}}}},
+            'obsProxy': {'ingest': {'clickhouse': {'existingSecret': {'name': 'ingest'}, 'migratorExistingSecret': {'name': 'migrator'}}}},
         }
+        cp_pinned = json.loads(files['layers/control-plane/loco-control-plane-helmrelease.yaml'])['spec']['values']
+        for component in ('api', 'ui', 'obsProxy'):
+            cp_values.setdefault(component, {})['image'] = cp_pinned[component]['image']
         cp_path = temp / 'control-plane-values.json'
         cp_path.write_text(json.dumps(cp_values))
         cp_resources = documents(release.run('helm', 'template', 'regional', str(release.ROOT / 'charts/loco-control-plane'), '--namespace', 'loco-system', '--values', str(cp_path)))
@@ -80,7 +92,7 @@ def main():
             release.run('helm', 'package', str(release.ROOT / 'charts' / name), '--destination', str(again))
             if release.content((again / package.name).read_bytes()) != release.content(package.read_bytes()):
                 raise RuntimeError('packaged chart content is not reproducible')
-        release.gateway_crds(next((release.ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz')))
+        release.gateway_crds(gateway_chart)
         for name in ('applications', 'builds'):
             release.protected_crd(release.ROOT / f'controller/config/crd/bases/infra.loco.io_{name}.yaml')
     print('Platform bundle, chart packages, image digests and CRD ownership verified')

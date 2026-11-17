@@ -210,56 +210,84 @@ def source(name, reference, media_type=LAYER_TYPE):
 
 
 def dependency(name):
-    return {'name': name, 'readyExpr': "dep.metadata.labels['platform.loco.io/release'] == self.metadata.labels['platform.loco.io/release'] && dep.metadata.generation == dep.status.observedGeneration && dep.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True')"}
+    return {'name': name, 'readyExpr': "dep.metadata.annotations['platform.loco.io/revision'] == self.metadata.annotations['platform.loco.io/revision'] && dep.metadata.generation == dep.status.observedGeneration && dep.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True')"}
 
 
 def bundle(version, commit, refs, images):
     files = {}
+    revision = hashlib.sha256(encoded({'version': version, 'artifacts': refs, 'images': images})).hexdigest()
+    labels = {'platform.loco.io/release': version}
+    annotations = {'platform.loco.io/revision': revision}
+
+    def write_layer(name, objects):
+        paths = []
+        for item in objects:
+            path = item['metadata']['name'] + '-' + item['kind'].lower() + '.yaml'
+            files[f'layers/{name}/{path}'] = encoded(item)
+            paths.append(path)
+        files[f'layers/{name}/kustomization.yaml'] = encoded({'apiVersion': 'kustomize.config.k8s.io/v1beta1', 'kind': 'Kustomization', 'resources': paths})
+
+    namespace = lambda name: {'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': name}}
+    loco_namespace = value('manifests/namespaces/loco-system.yaml', '.')
+    account = {'apiVersion': 'v1', 'kind': 'ServiceAccount', 'metadata': {'name': 'platform-reconciler', 'namespace': 'flux-system'}}
+    binding = {'apiVersion': 'rbac.authorization.k8s.io/v1', 'kind': 'ClusterRoleBinding', 'metadata': {'name': 'loco-platform-reconciler'}, 'roleRef': {'apiGroup': 'rbac.authorization.k8s.io', 'kind': 'ClusterRole', 'name': 'cluster-admin'}, 'subjects': [{'kind': 'ServiceAccount', 'name': 'platform-reconciler', 'namespace': 'flux-system'}]}
+    write_layer('namespaces', [loco_namespace, namespace('cert-manager'), account, binding])
+
     crds = []
-    releases = []
     for name in ('applications', 'builds', 'gateway'):
         source_name = 'loco-' + name + '-crd'
         crds.append(source(source_name, refs[source_name]))
-        crds.append(resource('Kustomization', source_name, {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': source_name}, 'path': './', 'prune': False, 'wait': True, 'timeout': '5m', 'serviceAccountName': 'platform-reconciler', 'postBuild': {'substitute': {'PLATFORM_RELEASE': version}}}))
-    cert_source = 'cert-manager-chart'
-    releases.append(source(cert_source, refs[cert_source], HELM_LAYER_TYPE))
-    cert = resource('HelmRelease', 'cert-manager', {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': 'cert-manager', 'targetNamespace': 'cert-manager', 'chartRef': {'kind': 'OCIRepository', 'name': cert_source}, 'commonMetadata': {'labels': {'platform.loco.io/release': version}}, 'install': {'createNamespace': False, 'remediation': {'retries': 2}}, 'upgrade': {'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'values': {'crds': {'enabled': True, 'keep': True}}})
-    cert['metadata']['labels'] = {'platform.loco.io/release': version}
-    releases.append(cert)
-    pinned = {name: {'repository': images[name].split('@')[0], 'tag': f'sha-{commit}@{images[name].split("@")[1]}'} for name in ('agent', 'controller', 'builder')}
-    worker = 'loco-worker'
-    worker_chart = worker + '-chart'
-    releases.append(source(worker_chart, refs[worker], HELM_LAYER_TYPE))
-    values = {'agent': {'image': pinned['agent']}, 'controller': {'image': pinned['controller']}, 'builds': {'builderImage': pinned['builder']}}
-    hr = resource('HelmRelease', worker, {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': worker, 'targetNamespace': 'loco-system', 'chartRef': {'kind': 'OCIRepository', 'name': worker_chart}, 'dependsOn': [dependency('cert-manager')], 'valuesFrom': [{'kind': 'ConfigMap', 'name': worker + '-values', 'valuesKey': 'values.yaml'}, {'kind': 'Secret', 'name': worker + '-secrets', 'valuesKey': 'values.yaml'}], 'values': values, 'install': {'createNamespace': False, 'crds': 'Skip', 'remediation': {'retries': 2}}, 'upgrade': {'crds': 'Skip', 'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'driftDetection': {'mode': 'enabled'}})
-    hr['metadata']['labels'] = {'platform.loco.io/release': version}
-    releases.append(hr)
-    for path, documents in (('crds', crds), ('releases', releases)):
-        filenames = []
-        for item in documents:
-            filename = item['metadata']['name'] + '-' + item['kind'].lower() + '.yaml'
-            files[path + '/' + filename] = encoded(item)
-            filenames.append(filename)
-        files[path + '/kustomization.yaml'] = encoded({'apiVersion': 'kustomize.config.k8s.io/v1beta1', 'kind': 'Kustomization', 'resources': filenames})
-    revision_checks = []
-    for name in ('applications', 'builds', 'gateway'):
-        source_name = 'loco-' + name + '-crd'
-        expected = refs[source_name].split('@')[1]
-        revision_checks.append(f"(metadata.name == '{source_name}' && status.lastAppliedRevision == '{expected}')")
-    crd_health = "metadata.generation == status.observedGeneration && status.conditions.exists(c, c.type == 'Ready' && c.status == 'True') && (" + ' || '.join(revision_checks) + ')'
-    parent_spec = {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': 'platform-bundle'}, 'serviceAccountName': 'platform-reconciler', 'wait': True, 'timeout': '10m', 'postBuild': {'substitute': {'PLATFORM_RELEASE': version}}}
-    crd_layer = resource('Kustomization', 'crds', {**parent_spec, 'path': './crds', 'prune': False, 'healthCheckExprs': [{'apiVersion': 'kustomize.toolkit.fluxcd.io/v1', 'kind': 'Kustomization', 'current': crd_health}]})
-    release_layer = resource('Kustomization', 'platform-releases', {**parent_spec, 'path': './releases', 'prune': True, 'dependsOn': [{'name': 'crds'}]})
-    files['layers.yaml'] = b'\n---\n'.join(encoded(layer) for layer in (crd_layer, release_layer))
-    files['kustomization.yaml'] = encoded({'apiVersion': 'kustomize.config.k8s.io/v1beta1', 'kind': 'Kustomization', 'resources': ['layers.yaml']})
+        crds.append(resource('Kustomization', source_name, {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': source_name}, 'path': './', 'prune': False, 'wait': True, 'timeout': '5m', 'serviceAccountName': 'platform-reconciler', 'postBuild': {'substitute': {'PLATFORM_RELEASE': revision}}}))
+        crds[-1]['metadata']['annotations'] = {'platform.loco.io/artifact-digest': refs[source_name].split('@')[1]}
+    write_layer('crds', crds)
+
+    def helm_release(name, chart, namespace, values, dependencies=()):
+        result = source(name + '-chart', refs[chart], HELM_LAYER_TYPE)
+        hr = resource('HelmRelease', name, {'interval': '5m', 'serviceAccountName': 'platform-reconciler', 'releaseName': name, 'targetNamespace': namespace, 'chartRef': {'kind': 'OCIRepository', 'name': name + '-chart'}, 'dependsOn': [dependency(dep) for dep in dependencies], 'valuesFrom': [{'kind': kind, 'name': name + suffix, 'valuesKey': 'values.yaml', 'optional': True} for kind, suffix in (('ConfigMap', '-values'), ('Secret', '-secrets'))], 'values': values, 'install': {'createNamespace': False, 'crds': 'Skip', 'remediation': {'retries': 2}}, 'upgrade': {'crds': 'Skip', 'remediation': {'retries': 2, 'strategy': 'rollback'}}, 'driftDetection': {'mode': 'enabled'}})
+        hr['metadata'].update({'labels': labels, 'annotations': annotations})
+        return [result, hr]
+
+    cert = helm_release('cert-manager', 'cert-manager-chart', 'cert-manager', {'crds': {'enabled': True, 'keep': True}})
+    # cert-manager installs and retains its own CRDs.
+    cert[1]['spec']['install']['crds'] = 'Create'
+    cert[1]['spec']['upgrade']['crds'] = 'CreateReplace'
+    gateway = helm_release('envoy-gateway', 'gateway-chart', 'loco-system', {'crds': {'enabled': False}, 'config': {'envoyGateway': {'provider': {'type': 'Kubernetes', 'kubernetes': {'deploy': {'type': 'GatewayNamespace'}}}}}})
+    write_layer('infra', cert + gateway)
+    pinned = {name: {'repository': reference.split('@')[0], 'tag': f'sha-{commit}@{reference.split("@")[1]}'} for name, reference in images.items()}
+    control_plane = helm_release('loco-control-plane', 'loco-control-plane', 'loco-system', {'api': {'image': pinned['api']}, 'ui': {'image': pinned['ui']}, 'obsProxy': {'image': pinned['obs-proxy']}}, ('cert-manager', 'envoy-gateway'))
+    # Embedded operator CRDs precede their custom resources and remain installed.
+    control_plane[1]['spec']['install']['crds'] = 'Create'
+    control_plane[1]['spec']['upgrade']['crds'] = 'CreateReplace'
+    write_layer('control-plane', control_plane)
+    write_layer('worker', helm_release('loco-worker', 'loco-worker', 'loco-system', {'agent': {'image': pinned['agent']}, 'controller': {'image': pinned['controller']}, 'builds': {'builderImage': pinned['builder']}, 'gateway-helm': {'enabled': False}}, ('cert-manager', 'envoy-gateway')))
+
+    layers = {}
+    for name, dependencies in (('namespaces', ()), ('crds', ('namespaces',)), ('infra', ('crds',)), ('control-plane', ('infra',)), ('worker', ('infra',))):
+        spec = {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': 'platform-bundle'}, 'path': './layers/' + name, 'prune': name not in ('namespaces', 'crds'), 'wait': True, 'timeout': '10m', 'postBuild': {'substitute': {'PLATFORM_RELEASE': revision}}, 'dependsOn': [dependency('loco-' + dep) for dep in dependencies]}
+        if name != 'namespaces':
+            spec['serviceAccountName'] = 'platform-reconciler'
+        if name in ('control-plane', 'worker'):
+            spec['dependsOn'].append({'name': 'loco-cluster-config'})
+        if name == 'crds':
+            health = "metadata.generation == status.observedGeneration && status.conditions.exists(c, c.type == 'Ready' && c.status == 'True') && status.lastAppliedRevision == metadata.annotations['platform.loco.io/artifact-digest']"
+            spec['healthCheckExprs'] = [{'apiVersion': 'kustomize.toolkit.fluxcd.io/v1', 'kind': 'Kustomization', 'current': health}]
+        layer = resource('Kustomization', 'loco-' + name, spec)
+        layer['metadata'].update({'labels': labels, 'annotations': annotations})
+        layers[name] = layer
+    for entry, selected in (('control-plane', ('control-plane',)), ('worker', ('worker',)), ('all', ('control-plane', 'worker'))):
+        resources = []
+        for name in ('namespaces', 'crds', 'infra', *selected):
+            path = name + '.yaml'
+            files[entry + '/' + path] = encoded(layers[name])
+            resources.append(path)
+        files[entry + '/kustomization.yaml'] = encoded({'apiVersion': 'kustomize.config.k8s.io/v1beta1', 'kind': 'Kustomization', 'resources': resources})
     files['release.json'] = encoded(release_manifest(version, commit, refs, images))
     return files
 
 
 def release_manifest(version, commit, refs, images):
-    """Returns the release.json locoadm installs from."""
-    config_version = json.loads((ROOT / 'schemas/installation.v1.json').read_text())['properties']['version']['const']
-    return {'configVersion': config_version, 'version': version, 'coreCommit': commit, 'artifacts': refs, 'images': images}
+    """Records the immutable software artifacts and images of a bundle."""
+    return {'version': version, 'coreCommit': commit, 'artifacts': refs, 'images': images}
 
 
 def protected_crd(path):
@@ -305,13 +333,14 @@ def versions(ref=None):
     for version in result.values():
         order(version)
     result['cert-manager-chart'] = value(CERT_MANAGER, '.version', ref)
+    result['gateway-chart'] = value('charts/loco-worker/Chart.yaml', CRD_SOURCES['gateway'][1] + ' | .version', ref)
     return result
 
 
 def repositories(registry):
     result = {name: registry.repository + '/charts/' + name for name in CHARTS}
     result.update({'loco-' + name + '-crd': registry.repository + '/crds/' + name for name in CRD_SOURCES})
-    result.update({'cert-manager-chart': registry.repository + '/charts/cert-manager', 'platform': registry.repository + '/platform'})
+    result.update({'cert-manager-chart': registry.repository + '/charts/cert-manager', 'gateway-chart': registry.repository + '/charts/gateway-helm', 'platform': registry.repository + '/platform'})
     return result
 
 
@@ -338,6 +367,8 @@ def packaged_artifacts(directory, commit):
     data = next(temp.glob('cert-manager-*.tgz')).read_bytes()
     yield 'cert-manager-chart', cert['version'], data, {'name': cert['chart'], 'version': cert['version']}, HELM_LAYER_TYPE
     gateway_package = next((ROOT / 'charts/loco-worker/charts').glob('gateway-helm-*.tgz'))
+    gateway_version = value('charts/loco-worker/Chart.yaml', CRD_SOURCES['gateway'][1] + ' | .version')
+    yield 'gateway-chart', gateway_version, gateway_package.read_bytes(), {'name': 'gateway-helm', 'version': gateway_version}, HELM_LAYER_TYPE
     crds = {
         'loco-applications-crd': protected_crd(ROOT / CRD_SOURCES['applications'][0]),
         'loco-builds-crd': protected_crd(ROOT / CRD_SOURCES['builds'][0]),
@@ -388,7 +419,8 @@ def published(commit, registry, ref=None):
 
 
 def publish_bundle(version, commit, registry):
-    order(version)
+    if not order(version)[3]:
+        raise ValueError("platform bundles require a stable X.Y.Z release")
     validate_commit(commit)
     names = repositories(registry)
     registry.assert_absent(names['platform'], version)
@@ -446,6 +478,9 @@ def local_release(registry, address, images=None):
                 run('docker', 'build', '--build-arg', 'VERSION=' + version, '-f', DOCKERFILES[name], '-t', tag, '.')
             run('docker', '--config', directory, '--host', daemon, 'push', tag)
             images[name] = address + '/' + repository + '@' + registry.manifest(repository, version)
+    files = bundle(version, commit, refs, images)
+    result = registry.publish(names['platform'], version, archive(files), {'version': version, 'coreCommit': commit}, replace=True)
+    print('published ' + address + '/' + names['platform'] + ':' + version + '@' + result, file=sys.stderr)
     print(json.dumps(release_manifest(version, commit, refs, images), indent=2))
 
 

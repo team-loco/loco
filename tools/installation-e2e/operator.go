@@ -59,10 +59,14 @@ func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, 
 			)
 		}
 	}
+	configVersion, err := f.pin(ctx, "schemas/installation.v1.json", ".properties.version.const")
+	if err != nil {
+		return err
+	}
 	installation, err := renderFixtureFile(
 		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "loco-install.yaml"),
 		map[string]any{
-			"Version":       manifest["configVersion"],
+			"Version":       configVersion,
 			"Email":         fixtureEmail,
 			"PrivateEgress": allowances,
 			"ClusterUID":    strings.TrimSpace(string(uid)),

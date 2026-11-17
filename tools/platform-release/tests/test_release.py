@@ -30,6 +30,7 @@ def bundle():
         "loco-builds-crd",
         "loco-gateway-crd",
         "cert-manager-chart",
+        "gateway-chart",
     )
     bundle.refs = {
         name: "ghcr.io/example/platform/" + name + "@" + bundle.digest for name in names
@@ -39,116 +40,119 @@ def bundle():
         for name in release.IMAGES
     }
     bundle.files = release.bundle(
-        "0.7.0-rc.1", bundle.commit, bundle.refs, bundle.images
+        "0.7.0", bundle.commit, bundle.refs, bundle.images
     )
     return bundle
 
 
 def test_bundle_pins_every_source_by_digest(bundle):
-    resources = [
-        json.loads(value)
-        for path, value in bundle.files.items()
-        if path.endswith(".yaml") and path != "layers.yaml"
-    ]
-    sources = [value for value in resources if value["kind"] == "OCIRepository"]
+    sources = [json.loads(data) for path, data in bundle.files.items() if path.endswith(".yaml") and json.loads(data).get("kind") == "OCIRepository"]
     assert sources
-    for source in sources:
-        assert source["spec"]["ref"] == {"digest": bundle.digest}
+    assert all(source["spec"]["ref"] == {"digest": bundle.digest} for source in sources)
 
 
 def test_bundle_lock_records_the_commit_and_images(bundle):
     lock = json.loads(bundle.files["release.json"])
-    schema = json.loads((release.ROOT / "schemas/installation.v1.json").read_text())
-    assert lock["configVersion"] == schema["properties"]["version"]["const"]
-    assert lock["coreCommit"] == bundle.commit
-    assert lock["images"] == bundle.images
+    assert lock == {"version": "0.7.0", "coreCommit": bundle.commit, "artifacts": bundle.refs, "images": bundle.images}
+
+
+def helm_release(bundle, layer, name):
+    return json.loads(bundle.files[f"layers/{layer}/{name}-helmrelease.yaml"])
 
 
 def test_worker_release_pins_each_image_by_commit_and_digest(bundle):
-    worker = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
-    values = worker["spec"]["values"]
-    for image in (
-        values["agent"]["image"],
-        values["controller"]["image"],
-        values["builds"]["builderImage"],
-    ):
-        assert image["tag"] == f"sha-{bundle.commit}@{bundle.digest}"
-    assert values["agent"]["image"]["repository"] == "ghcr.io/example/platform-agent"
-    assert values["controller"]["image"]["repository"] == "ghcr.io/example/platform-controller"
-    assert values["builds"]["builderImage"]["repository"] == "ghcr.io/example/platform-builder"
+    values = helm_release(bundle, "worker", "loco-worker")["spec"]["values"]
+    for name, image in (("agent", values["agent"]["image"]), ("controller", values["controller"]["image"]), ("builder", values["builds"]["builderImage"])):
+        assert image == {"repository": "ghcr.io/example/platform-" + name, "tag": f"sha-{bundle.commit}@{bundle.digest}"}
+    assert values["gateway-helm"]["enabled"] is False
 
 
-def test_worker_release_does_not_own_crds(bundle):
-    worker = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
-    assert "crd" not in worker["spec"]["values"]
+def test_control_plane_release_pins_its_images(bundle):
+    values = helm_release(bundle, "control-plane", "loco-control-plane")["spec"]["values"]
+    for field, name in (("api", "api"), ("ui", "ui"), ("obsProxy", "obs-proxy")):
+        assert values[field]["image"] == {"repository": "ghcr.io/example/platform-" + name, "tag": f"sha-{bundle.commit}@{bundle.digest}"}
+
+
+@pytest.mark.parametrize("layer,name", [("worker", "loco-worker"), ("control-plane", "loco-control-plane"), ("infra", "envoy-gateway"), ("infra", "cert-manager")])
+def test_release_values_sources_are_optional(bundle, layer, name):
+    spec = helm_release(bundle, layer, name)["spec"]
+    assert spec["install"]["createNamespace"] is False
+    assert spec["valuesFrom"] == [
+        {"kind": kind, "name": name + suffix, "valuesKey": "values.yaml", "optional": True}
+        for kind, suffix in (("ConfigMap", "-values"), ("Secret", "-secrets"))
+    ]
 
 
 def test_crd_kustomizations_wait_without_pruning(bundle):
     for name in ("applications", "builds", "gateway"):
-        ks = json.loads(bundle.files[f"crds/loco-{name}-crd-kustomization.yaml"])
-        assert not ks["spec"]["prune"]
-        assert ks["spec"]["wait"]
+        spec = json.loads(bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"])["spec"]
+        assert spec["wait"] and not spec["prune"]
 
 
-def test_control_plane_chart_is_published_without_installing_on_workers(bundle):
-    assert "loco-control-plane" in release.CHARTS
-    assert not [name for name in bundle.files if "loco-control-plane" in name]
+@pytest.mark.parametrize("entry,selected", [("control-plane", {"control-plane"}), ("worker", {"worker"}), ("all", {"control-plane", "worker"})])
+def test_entry_points_select_their_layers(bundle, entry, selected):
+    names = {path.removesuffix(".yaml") for path in json.loads(bundle.files[entry + "/kustomization.yaml"])["resources"]}
+    assert names == {"namespaces", "crds", "infra"} | selected
 
 
-def test_worker_release_reads_its_values_sources(bundle):
-    hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
-    assert hr["spec"]["targetNamespace"] == "loco-system"
-    assert hr["spec"]["install"]["createNamespace"] is False
-    assert [(source["kind"], source["name"]) for source in hr["spec"]["valuesFrom"]] == [
-        ("ConfigMap", "loco-worker-values"),
-        ("Secret", "loco-worker-secrets"),
-    ]
-    assert [dep["name"] for dep in hr["spec"]["dependsOn"]] == ["cert-manager"]
-    for dep in hr["spec"]["dependsOn"]:
-        assert f"releases/{dep['name']}-helmrelease.yaml" in bundle.files
+def test_layers_wait_for_their_dependencies(bundle):
+    for name, deps in (("namespaces", set()), ("crds", {"loco-namespaces"}), ("infra", {"loco-crds"}), ("control-plane", {"loco-infra", "loco-cluster-config"}), ("worker", {"loco-infra", "loco-cluster-config"})):
+        spec = json.loads(bundle.files[f"all/{name}.yaml"])["spec"]
+        assert {dep["name"] for dep in spec["dependsOn"]} == deps
+        assert spec["wait"]
+        assert spec.get("serviceAccountName") == (None if name == "namespaces" else "platform-reconciler")
+        for dep in spec["dependsOn"]:
+            if dep["name"] != "loco-cluster-config":
+                assert "dep.status.observedGeneration" in dep["readyExpr"]
+                assert "platform.loco.io/revision" in dep["readyExpr"]
 
 
-def test_release_dependencies_must_be_current_at_the_same_release(bundle):
-    hr = json.loads(bundle.files["releases/loco-worker-helmrelease.yaml"])
-    for dep in hr["spec"]["dependsOn"]:
-        assert "dep.status.observedGeneration" in dep["readyExpr"]
-        assert "platform.loco.io/release" in dep["readyExpr"]
+@pytest.mark.parametrize("entry", ["control-plane", "worker", "all"])
+@pytest.mark.parametrize("layer", ["namespaces", "crds"])
+def test_persistent_layers_do_not_prune(bundle, entry, layer):
+    assert json.loads(bundle.files[f"{entry}/{layer}.yaml"])["spec"]["prune"] is False
+
+
+def test_crds_health_requires_the_expected_artifact_revision(bundle):
+    spec = json.loads(bundle.files["all/crds.yaml"])["spec"]
+    assert spec["prune"] is False
+    health = spec["healthCheckExprs"][0]["current"]
+    assert "platform.loco.io/artifact-digest" in health
+    for name in ("applications", "builds", "gateway"):
+        resource = json.loads(bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"])
+        assert resource["metadata"]["annotations"]["platform.loco.io/artifact-digest"] == bundle.digest
+    assert "status.lastAppliedRevision" in health and "status.observedGeneration" in health
+
+
+def test_gateway_has_an_independent_release(bundle):
+    spec = helm_release(bundle, "infra", "envoy-gateway")["spec"]
+    assert spec["install"]["crds"] == spec["upgrade"]["crds"] == "Skip"
+    assert spec["values"]["crds"]["enabled"] is False
+    assert spec["values"]["config"]["envoyGateway"]["provider"]["kubernetes"]["deploy"]["type"] == "GatewayNamespace"
+
+
+def test_bundle_namespace_layer_supplies_reconciliation_identity(bundle):
+    objects = [json.loads(data) for path, data in bundle.files.items() if path.startswith("layers/namespaces/")]
+    assert {obj["metadata"]["name"] for obj in objects if obj["kind"] == "Namespace"} == {"loco-system", "cert-manager"}
+    namespace = next(obj for obj in objects if obj["kind"] == "Namespace" and obj["metadata"]["name"] == "loco-system")
+    assert namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"] == "restricted"
+    account = next(obj for obj in objects if obj["kind"] == "ServiceAccount")
+    assert account["metadata"] == {"name": "platform-reconciler", "namespace": "flux-system"}
+
+
+def test_local_content_changes_advance_dependency_revision(bundle):
+    files = release.bundle("0.7.0", bundle.commit, bundle.refs, {**bundle.images, "api": "ghcr.io/example/platform-api@sha256:" + "c"*64})
+    for layer in ("namespaces", "crds", "infra", "control-plane", "worker"):
+        before = json.loads(bundle.files[f"all/{layer}.yaml"])
+        after = json.loads(files[f"all/{layer}.yaml"])
+        assert before["spec"]["postBuild"] != after["spec"]["postBuild"]
+        assert before["metadata"]["annotations"] != after["metadata"]["annotations"]
 
 
 def test_bundle_archive_contains_only_declared_files(bundle):
-    data = release.archive(bundle.files)
-    with tarfile.open(fileobj=io.BytesIO(data)) as tar:
+    with tarfile.open(fileobj=io.BytesIO(release.archive(bundle.files))) as tar:
         assert set(tar.getnames()) == set(bundle.files)
-        for member in tar.getmembers():
-            assert not member.name.startswith("/")
-            assert ".." not in Path(member.name).parts
-
-
-def _layers(bundle):
-    crds, platform = [
-        json.loads(item) for item in bundle.files["layers.yaml"].split(b"\n---\n")
-    ]
-    return crds, platform
-
-
-def test_layers_build_from_one_source_with_one_substitution_set(bundle):
-    crds, platform = _layers(bundle)
-    assert crds["spec"]["sourceRef"] == platform["spec"]["sourceRef"]
-    assert crds["spec"]["postBuild"] == platform["spec"]["postBuild"]
-
-
-def test_platform_layer_waits_for_the_crds_layer(bundle):
-    _, platform = _layers(bundle)
-    assert platform["spec"]["dependsOn"] == [{"name": "crds"}]
-    assert "readyExpr" not in platform["spec"]["dependsOn"][0]
-
-
-def test_crds_layer_is_healthy_only_at_the_current_bundle_revision(bundle):
-    crds, _ = _layers(bundle)
-    health = crds["spec"]["healthCheckExprs"][0]["current"]
-    assert "status.lastAppliedRevision" in health
-    assert bundle.digest in health
-    assert "status.observedGeneration" in health
+        assert all(not name.startswith("/") and ".." not in Path(name).parts for name in tar.getnames())
 
 
 def test_archive_is_reproducible(bundle):
@@ -287,7 +291,7 @@ def test_anonymous_registry_auth_requests_pull_only(registry):
 
 
 def test_valid_versions_only(registry):
-    for version in ("0.7.0", "0.7.0-rc.1"):
+    for version in ("0.7.0", "0.7.0"):
         assert release.VERSION.fullmatch(version) is not None
     for version in (
         "v0.7.0",
@@ -368,6 +372,7 @@ VERSIONS = {
     "loco-builds-crd": "0.1.0",
     "loco-gateway-crd": "0.4.0",
     "cert-manager-chart": "v1.0.0",
+    "gateway-chart": "1.0.0",
 }
 
 
@@ -410,6 +415,10 @@ def publication():
 
 
 def _value(path, expression, ref=None):
+    if path == 'manifests/namespaces/loco-system.yaml':
+        return {'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'loco-system', 'labels': {'pod-security.kubernetes.io/enforce': 'restricted'}}}
+    if path == 'charts/loco-worker/Chart.yaml' and '.version' in expression:
+        return VERSIONS['gateway-chart']
     if path == release.CERT_MANAGER:
         return {"repository": "https://charts.example.test", "chart": "cert-manager", "version": VERSIONS["cert-manager-chart"]}
     return {"name": Path(path).parent.name, "version": VERSIONS[Path(path).parent.name]}
@@ -462,7 +471,7 @@ def test_private_artifact_fails_publication(publication):
 @pytest.fixture
 def published_bundle(publication):
     with patch("builtins.print"):
-        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+        release.publish_bundle("0.7.0", publication.commit, publication.registry)
     return publication
 
 
@@ -476,12 +485,12 @@ def test_bundle_publishes_only_itself(published_bundle):
     names = release.repositories(published_bundle.registry)
     published_bundle.registry.ensure.assert_not_called()
     assert [call.args[0] for call in published_bundle.registry.publish.call_args_list] == [names["platform"]]
-    published_bundle.registry.assert_absent.assert_called_once_with(names["platform"], "0.7.0-rc.1")
+    published_bundle.registry.assert_absent.assert_called_once_with(names["platform"], "0.7.0")
     assert not [call for call in published_bundle.calls if call[0] == "helm"]
 
 
 def test_bundle_prints_the_published_release_manifest(publication, capsys):
-    release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+    release.publish_bundle("0.7.0", publication.commit, publication.registry)
     data = publication.registry.publish.call_args.args[2]
     with tarfile.open(fileobj=io.BytesIO(data)) as tar:
         published = tar.extractfile("release.json").read()
@@ -512,14 +521,14 @@ def test_bundle_requires_each_image_platform(published_bundle):
 def test_bundle_fails_when_a_pinned_version_is_not_published(publication):
     publication.public.manifest.side_effect = lambda repository, reference, missing=False: None if repository.endswith("crds/builds") else "sha256:" + "a" * 64
     with pytest.raises(RuntimeError, match="loco-builds-crd 0.1.0 is not published"):
-        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+        release.publish_bundle("0.7.0", publication.commit, publication.registry)
     publication.registry.publish.assert_not_called()
 
 
 def test_existing_bundle_version_aborts_before_images(publication):
     publication.registry.assert_absent.side_effect = RuntimeError("exists")
     with pytest.raises(RuntimeError, match="exists"):
-        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+        release.publish_bundle("0.7.0", publication.commit, publication.registry)
     publication.registry.manifest.assert_not_called()
     publication.registry.publish.assert_not_called()
 
@@ -529,14 +538,14 @@ def test_single_architecture_image_never_publishes_bundle(publication):
         "missing linux/arm64"
     )
     with pytest.raises(RuntimeError, match="missing linux/arm64"):
-        release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+        release.publish_bundle("0.7.0", publication.commit, publication.registry)
     publication.registry.publish.assert_not_called()
 
 
 def test_unverified_image_never_publishes_bundle(publication):
     with patch.object(release, "run", side_effect=RuntimeError("invalid provenance")):
         with pytest.raises(RuntimeError, match="invalid provenance"):
-            release.publish_bundle("0.7.0-rc.1", publication.commit, publication.registry)
+            release.publish_bundle("0.7.0", publication.commit, publication.registry)
     publication.registry.publish.assert_not_called()
 
 
@@ -691,7 +700,7 @@ def test_local_release_replaces_each_artifact_at_the_local_version(local_release
     names = release.repositories(local_release.registry)
     version = "0.0.0-local.g" + local_release.commit[:12]
     published = {call.args[0]: (call.args[1], call.kwargs) for call in local_release.registry.publish.call_args_list}
-    assert published == {names[name]: (version, {"replace": True}) for name in VERSIONS}
+    assert published == {names[name]: (version, {"replace": True}) for name in (*VERSIONS, "platform")}
     local_release.registry.ensure.assert_not_called()
 
 
@@ -748,3 +757,21 @@ def test_local_release_reuses_images_and_isolates_push_credentials(publication, 
     assert [call[2] for call in tags] == [images.replace("*", name) for name in release.IMAGES]
     assert set(lock["images"]) == set(release.IMAGES)
     assert all("@sha256:" in ref for ref in lock["images"].values())
+
+def test_prerelease_bundle_is_rejected():
+    with pytest.raises(ValueError, match="stable X.Y.Z"):
+        release.publish_bundle("0.7.0-rc.1", "b" * 40, Mock())
+
+
+def test_control_plane_installs_embedded_operator_crds(bundle):
+    spec = helm_release(bundle, "control-plane", "loco-control-plane")["spec"]
+    assert spec["install"]["crds"] == "Create"
+    assert spec["upgrade"]["crds"] == "CreateReplace"
+
+
+def test_crd_readiness_expression_survives_artifact_revision_changes(bundle):
+    changed = {name: reference.replace(bundle.digest, "sha256:" + "c" * 64) for name, reference in bundle.refs.items()}
+    updated = release.bundle("0.8.0", "d" * 40, changed, bundle.images)
+    old = json.loads(bundle.files["all/crds.yaml"])
+    new = json.loads(updated["all/crds.yaml"])
+    assert old["spec"]["healthCheckExprs"] == new["spec"]["healthCheckExprs"]
