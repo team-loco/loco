@@ -667,10 +667,11 @@ func (s *SecretServer) rewrapEnvironmentKey(
 			return fmt.Errorf("rewrap environment key: %w", updateErr)
 		}
 		return events.Record(ctx, qtx, events.Event{
-			Type:        events.SecretKeyRewrapped,
-			WorkspaceID: new(env.WorkspaceID),
-			SubjectType: events.SubjectEnvironment,
-			SubjectID:   new(env.ID),
+			Type:          events.SecretKeyRewrapped,
+			EnvironmentID: new(env.ID),
+			WorkspaceID:   new(env.WorkspaceID),
+			SubjectType:   events.SubjectEnvironment,
+			SubjectID:     new(env.ID),
 			Data: map[string]any{
 				events.FieldEnvironmentID: env.ID,
 				events.FieldKekID:         rewrapped.KeyID,
