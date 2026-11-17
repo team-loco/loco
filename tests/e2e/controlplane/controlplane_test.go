@@ -77,13 +77,6 @@ type chartValues struct {
 		} `json:"snapshots"`
 	} `json:"openbao"`
 	ClickHouse struct {
-		FullnameOverride string `json:"fullnameOverride"`
-		Operator         struct {
-			FullnameOverride string `json:"fullnameOverride"`
-			Secret           struct {
-				Username string `json:"username"`
-			} `json:"secret"`
-		} `json:"operator"`
 		ClickHouse struct {
 			Users []struct {
 				Name               string   `json:"name"`
