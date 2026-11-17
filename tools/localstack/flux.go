@@ -202,6 +202,9 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	} else if statErr != nil {
 		return statErr
 	}
+	if err = cfg.mergeValues(repo); err != nil {
+		return err
+	}
 	if err = repo.Configure(manifest.Bundle, entry); err != nil {
 		return err
 	}
@@ -306,6 +309,22 @@ func (cfg config) initializeRepo(ctx context.Context, repo operatorrepo.Reposito
 		"--bundle", "oci://"+bundle, "--api-env-file", env); err != nil {
 		return err
 	}
+	path := filepath.Join(cfg.State, "fixture-resources.yaml")
+	if err = cfg.render("dev/flux/values/secrets.yaml", path); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err = repo.AddResources(data); err != nil {
+		return err
+	}
+	return os.Rename(repo.Path, destination)
+}
+
+func (cfg config) mergeValues(repo operatorrepo.Repository) error {
+	var err error
 	for _, release := range []string{"loco-control-plane", "loco-worker"} {
 		path := filepath.Join(cfg.State, release+"-overrides.yaml")
 		if err = cfg.render("dev/flux/values/"+release+".yaml", path); err != nil {
@@ -319,16 +338,5 @@ func (cfg config) initializeRepo(ctx context.Context, repo operatorrepo.Reposito
 			return err
 		}
 	}
-	path := filepath.Join(cfg.State, "fixture-resources.yaml")
-	if err = cfg.render("dev/flux/values/secrets.yaml", path); err != nil {
-		return err
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	if err = repo.AddResources(data); err != nil {
-		return err
-	}
-	return os.Rename(repo.Path, destination)
+	return nil
 }

@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/team-loco/loco/tools/internal/operatorrepo"
 	"sigs.k8s.io/yaml"
 )
 
@@ -234,5 +235,67 @@ func TestDashboardUsesTheGatewayAPIHostname(t *testing.T) {
 	output, err := cmd.Output()
 	if err != nil || string(output) != cfg.apiURL() {
 		t.Fatalf("dashboard API URL = %q, %v; want %q", output, err, cfg.apiURL())
+	}
+}
+
+func TestReleaseOverridesFollowCurrentFixtureInputs(t *testing.T) {
+	cfg := testConfig(t)
+	repo := operatorrepo.Repository{
+		Path:    filepath.Join(cfg.State, "repo"),
+		Cluster: localIdentity,
+		Source:  "local-config",
+	}
+	values := filepath.Dir(repo.Values("loco-worker"))
+	if err := os.MkdirAll(values, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for release, data := range map[string]string{
+		"loco-control-plane": "api:\n  env: {CUSTOM_VALUE: retained}\n",
+		"loco-worker":        "global: {region: local}\n",
+	} {
+		if err := os.WriteFile(repo.Values(release), []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := cfg.mergeValues(repo); err != nil {
+		t.Fatal(err)
+	}
+	cfg.PrivateEgress = `[{"cidr":"192.0.2.8/32","port":5000}]`
+	cfg.DexPort = "5856"
+	if err := cfg.mergeValues(repo); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(repo.Values("loco-worker"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var worker struct {
+		Builds struct {
+			PrivateEgress []struct {
+				CIDR string `json:"cidr"`
+			} `json:"privateEgress"`
+		} `json:"builds"`
+	}
+	if err = yaml.Unmarshal(data, &worker); err != nil {
+		t.Fatal(err)
+	}
+	if len(worker.Builds.PrivateEgress) != 1 || worker.Builds.PrivateEgress[0].CIDR != "192.0.2.8/32" {
+		t.Fatalf("egress=%+v", worker.Builds.PrivateEgress)
+	}
+	data, err = os.ReadFile(repo.Values("loco-control-plane"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var control struct {
+		API struct {
+			Env map[string]string `json:"env"`
+		} `json:"api"`
+	}
+	if err = yaml.Unmarshal(data, &control); err != nil {
+		t.Fatal(err)
+	}
+	if control.API.Env["CUSTOM_VALUE"] != "retained" ||
+		!strings.Contains(control.API.Env["AUTH_ISSUERS"], ":5856/dex") {
+		t.Fatalf("environment=%v", control.API.Env)
 	}
 }
