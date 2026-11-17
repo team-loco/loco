@@ -380,7 +380,7 @@ func TestWorkloadSchedulesOnlyOnItsTargetPlatform(t *testing.T) {
 	for _, arch := range []string{"amd64", "arm64"} {
 		app := testApplication()
 		app.Spec.ServiceSpec.Deployment.Platform = "linux/" + arch
-		template, err := podTemplate(app, testWorkspaceNamespace(app), envSecretMount{}, TelemetryConfig{})
+		template, err := podTemplate(app, testEnvironmentNamespace(app), envSecretMount{}, TelemetryConfig{})
 		if err != nil {
 			t.Fatal(err)
 		}

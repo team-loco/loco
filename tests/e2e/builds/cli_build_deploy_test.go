@@ -77,7 +77,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		if response.GetBuild().GetPlatform() != p.TargetPlatform {
 			t.Fatalf("build target %s, worker target %s", response.GetBuild().GetPlatform(), p.TargetPlatform)
 		}
-		application, err := p.Application(t.Context(), w.ResourceID(t, cliApp))
+		application, err := p.Application(t.Context(), w.ResourceID(t, cliApp), w.EnvironmentID)
 		if err != nil {
 			t.Fatal(err)
 		}

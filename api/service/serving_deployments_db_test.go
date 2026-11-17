@@ -266,13 +266,13 @@ func insertObservedBuild(t *testing.T, f *deployFixture, deployment uuid.UUID, d
 	id := uuid.New()
 	if _, err := f.pool.Exec(t.Context(), `INSERT INTO builds
 (id,resource_id,cluster_id,status,source_type,source_key,source_size,dockerfile_path,
- image_repository,image_digest,created_by,finished_at)
-VALUES($1,$2,$3,'succeeded','upload',$1::uuid::text,10,'Dockerfile','registry.test/app',$4,$5,NOW())`,
-		id, f.resourceID, f.clusterID, digest, f.userID); err != nil {
+ image_repository,image_digest,created_by,finished_at,platform)
+VALUES($1,$2,$3,'succeeded','upload',$1::uuid::text,10,'Dockerfile','registry.test/app',$4,$5,NOW(),$6)`,
+		id, f.resourceID, f.clusterID, digest, f.userID, testPlatform); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.pool.Exec(t.Context(),
-		`UPDATE deployments SET spec=jsonb_build_object('build',jsonb_build_object('type','image','image',$2::text))
+		`UPDATE deployments SET spec=jsonb_set(spec,'{build}',jsonb_build_object('type','image','image',$2::text))
 WHERE id=$1`, deployment, "registry.test/app@"+digest); err != nil {
 		t.Fatal(err)
 	}
