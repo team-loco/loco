@@ -448,19 +448,19 @@ func (s *WorkspaceServer) CreateMember(
 		if lockErr != nil {
 			return lockErr
 		}
-		fresh, principalErr := principalFrom(lockedCtx)
-		if principalErr != nil {
-			return principalErr
-		}
-		if accessErr := check(lockedCtx, authz.New(qtx), fresh, required...); accessErr != nil {
-			return accessErr
-		}
 		orgID, orgErr := qtx.GetOrganizationIDByWorkspaceID(lockedCtx, wsID)
 		if errors.Is(orgErr, pgx.ErrNoRows) {
 			return ErrWorkspaceNotFound
 		}
 		if orgErr != nil {
 			return fmt.Errorf("get workspace organization: %w", orgErr)
+		}
+		fresh, principalErr := principalFrom(lockedCtx)
+		if principalErr != nil {
+			return principalErr
+		}
+		if accessErr := check(lockedCtx, authz.New(qtx), fresh, required...); accessErr != nil {
+			return accessErr
 		}
 		isMember, memberErr := qtx.IsOrgMember(lockedCtx, genDb.IsOrgMemberParams{UserID: userID, OrgID: orgID})
 		if memberErr != nil {
