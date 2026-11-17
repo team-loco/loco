@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { limitReason, limitTone, limitUsage, usageLabel } from "./limits";
+import { limitPillLabel, limitReason, limitTone, limitUsage, usageLabel } from "./limits";
 
 test("has no usage until the limit loads", () => {
 	expect(limitUsage(3, undefined, "workspaces", "organization")).toBeNull();
@@ -27,11 +27,29 @@ test("blocks a create only at or past the limit", () => {
 	expect(limitReason(null)).toBeNull();
 });
 
-test("personal and creator limits omit a containing scope", () => {
-	expect(limitReason(limitUsage(5, 5, "personal tokens", ""))).toBe(
+test("explains personal and account caps", () => {
+	expect(limitReason(limitUsage(5, 5, "personal tokens", "personal"))).toBe(
 		"You've reached the limit of 5 personal tokens. Delete one, or ask a Loco admin to raise it.",
 	);
-	expect(limitReason(limitUsage(3, 3, "organizations you created", ""))).toBe(
+	expect(limitReason(limitUsage(3, 3, "organizations you created", "account"))).toBe(
 		"You've reached the limit of 3 organizations you created. Delete one, or ask a Loco admin to raise it.",
 	);
+});
+
+test("labels a near-limit pill with formatted usage", () => {
+	const usage = limitUsage(9000, 10000, "resources", "workspace");
+	expect(usage && limitPillLabel(usage)).toBe("9,000 of 10,000 used");
+});
+
+test("labels a full pill with its scope", () => {
+	for (const [scope, label] of Object.entries({
+		organization: "Org limit reached",
+		workspace: "Workspace limit reached",
+		personal: "Personal limit reached",
+		account: "Account limit reached",
+		"": "Limit reached",
+	})) {
+		const usage = limitUsage(10, 10, "tokens", scope);
+		expect(usage && limitPillLabel(usage)).toBe(label);
+	}
 });

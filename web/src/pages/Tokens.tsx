@@ -148,8 +148,11 @@ export function Tokens() {
 	};
 	const tokenLimit =
 		owner.entityType === EntityType.USER ? config.data?.countLimits?.tokensPerEntity : limits?.tokensPerEntity;
-	const noun = ownerKey === "personal" ? "personal tokens" : `tokens for this ${OWNER_TITLE[ownerKey].toLowerCase()}`;
-	const usage = current.isLoading || current.error ? null : limitUsage(tokens.length, tokenLimit, noun, "");
+	const noun = ownerKey === "personal" ? "personal tokens" : "tokens";
+	const usage =
+		current.isLoading || current.error
+			? null
+			: limitUsage(tokens.length, tokenLimit, noun, ownerKey === "org" ? "organization" : ownerKey);
 	const createBlocked = owner.canCreate
 		? limitReason(usage)
 		: `You need write access to ${owner.label} to create tokens`;

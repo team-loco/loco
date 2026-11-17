@@ -1,0 +1,60 @@
+.lim-pill {
+	display: inline-flex;
+	align-items: center;
+	height: 24px;
+	margin-left: 2px;
+	padding: 0 9px;
+	border-radius: 6px;
+	font-size: 12.5px;
+	font-weight: 500;
+	line-height: 1;
+	letter-spacing: 0;
+	white-space: nowrap;
+	text-decoration: none;
+	transition: background 140ms ease;
+}
+.lim-pill.near {
+	color: color-mix(in oklch, var(--warn) 70%, var(--fg));
+	background: color-mix(in oklch, var(--warn) 12%, transparent);
+}
+.lim-pill.full {
+	color: color-mix(in oklch, var(--err) 70%, var(--fg));
+	background: color-mix(in oklch, var(--err) 11%, transparent);
+}
+.lim-pill.near:hover {
+	background: color-mix(in oklch, var(--warn) 18%, transparent);
+}
+.lim-pill.full:hover {
+	background: color-mix(in oklch, var(--err) 17%, transparent);
+}
+.lim-go {
+	display: inline-block;
+	width: 0;
+	opacity: 0;
+	overflow: hidden;
+	transform: translateX(-4px);
+	transition:
+		width 160ms ease,
+		opacity 160ms ease,
+		transform 160ms ease,
+		margin 160ms ease;
+}
+.lim-pill:hover .lim-go,
+.lim-pill:focus-visible .lim-go {
+	width: 12px;
+	margin-left: 5px;
+	opacity: 1;
+	transform: none;
+}
+[data-theme="neobrutal"] .lim-pill {
+	border: 2px solid var(--ink);
+	border-radius: 5px;
+	background: var(--raise);
+	box-shadow: 2px 2px 0 var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+	.lim-pill,
+	.lim-go {
+		transition: none;
+	}
+}

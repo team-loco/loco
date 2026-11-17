@@ -306,26 +306,18 @@ export function OrgTab({
 				memberCount={memberCount}
 			/>
 
-			<div
-				id="organization-danger"
-				className="scroll-mt-20"
-				ref={(node) => {
-					if (node !== null && window.location.hash === "#organization-danger") node.scrollIntoView();
-				}}
-			>
-				<SettingsSection title="Danger zone">
-					<DangerZone
-						title={`Delete ${org.name}`}
-						description={subtitle}
-						warn={withRes.length > 0}
-						actionLabel="Delete organization"
-						blockedReason={blockedReason}
-						onAction={() => {
-							setDeleteOpen(true);
-						}}
-					/>
-				</SettingsSection>
-			</div>
+			<SettingsSection id="organization-danger" title="Danger zone">
+				<DangerZone
+					title={`Delete ${org.name}`}
+					description={subtitle}
+					warn={withRes.length > 0}
+					actionLabel="Delete organization"
+					blockedReason={blockedReason}
+					onAction={() => {
+						setDeleteOpen(true);
+					}}
+				/>
+			</SettingsSection>
 			{dirty && canWrite && (
 				<SaveBar
 					onDiscard={() => {

@@ -114,7 +114,7 @@ export function LimitsSection({
 		{ key: "metricRetentionDays", label: "Metrics", per: "Organization", unit: "days" },
 	];
 	return (
-		<SettingsSection title="Limits">
+		<SettingsSection id="s-lim" title="Limits">
 			<SettingsCard>
 				{limits !== undefined && limits.overridden.length > 0 && (
 					<RaisedBanner org={org} limits={limits} users={users} />
