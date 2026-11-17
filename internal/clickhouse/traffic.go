@@ -108,7 +108,7 @@ func addTrafficSample(
 	case 2:
 		// Envoy's affected OTLP sink writes microseconds into its nanosecond start field.
 		// Scrape intervals stay usable across resets; the first sample has no safe interval.
-		// TODO: verify a fixed gateway image with the reproduction in https://github.com/team-loco/loco/issues/2300.
+		// TODO: verify a fixed gateway image with the reproduction in https://github.com/team-loco/loco/issues/1685.
 		if previous.stream != sample.stream || !sample.end.After(previous.end) {
 			return
 		}
