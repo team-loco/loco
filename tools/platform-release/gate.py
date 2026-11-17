@@ -28,7 +28,8 @@ def blocking(commits, jobs):
 
     commits lists (sha, run) oldest first; run is None when the commit has no run, else a dict with
     `databaseId` and `conclusion`. jobs(run id) returns {job name: conclusion}. A failed `Changes`
-    job is cleared only by its own run succeeding.
+    job is cleared only by its own run succeeding. The unfinished jobs of a cancelled run clear like
+    failed jobs.
     """
     blocked = []
     for index, (sha, ci) in enumerate(commits):
@@ -40,7 +41,7 @@ def blocking(commits, jobs):
         conclusion = ci["conclusion"] or "in progress"
         if conclusion == "success":
             continue
-        if released or conclusion != "failure":
+        if released or conclusion not in ("failure", "cancelled"):
             blocked.append((sha, conclusion))
             continue
         failed = {
@@ -58,7 +59,7 @@ def blocking(commits, jobs):
                     if result == "success"
                 }
         if failed:
-            blocked.append((sha, "failure (" + ", ".join(sorted(failed)) + ")"))
+            blocked.append((sha, conclusion + " (" + ", ".join(sorted(failed)) + ")"))
     return blocked
 
 
