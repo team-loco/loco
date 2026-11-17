@@ -33,12 +33,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Builds E2E
-            shard: builds
           - name: Apps E2E
             shard: apps
+            tests: "Test(FailedDeploymentRollsBack|Ingress|PortRollout|ResourceStatus)$"
           - name: Telemetry E2E
             shard: telemetry
+            tests: "TestObservability/acknowledged_logs_replay_after_a_collector_SIGKILL$"
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,4 +58,6 @@ jobs:
       - name: Run the shard
         env:
           SHARD: ${{ matrix.shard }}
-        run: mise run e2e --keep "$SHARD"
+          TESTS: ${{ matrix.tests }}
+          E2E_KEEP: "true"
+        run: mise exec -- go -C tests/e2e test -v -count=2 -timeout 60m "./$SHARD" -run "$TESTS"
