@@ -84,7 +84,9 @@ def run(cmd, cwd=None, env=None, capture=False):
         result = subprocess.run(cmd, cwd=cwd, env=env, text=True, stdout=sys.stderr)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip() if capture else ""
-        raise EvidenceError(f"command failed ({result.returncode}): {' '.join(cmd)}\n{detail}")
+        raise EvidenceError(
+            f"command failed ({result.returncode}): {' '.join(cmd)}\n{detail}"
+        )
     return result.stdout if capture else ""
 
 
@@ -129,37 +131,103 @@ def discovery_document(issuer):
 
 
 def compose(worktree, project, env, *args, capture=False):
-    files = ["-f", str(worktree / "dev" / "compose.yaml"),
-             "-f", str(Path(__file__).resolve().parents[4] / "dev" / "compose.subnet.yaml")]
-    return run(["docker", "compose", *files, "-p", project, *args], env=env, capture=capture)
+    files = [
+        "-f",
+        str(worktree / "dev" / "compose.yaml"),
+        "-f",
+        str(Path(__file__).resolve().parents[4] / "dev" / "compose.subnet.yaml"),
+    ]
+    return run(
+        ["docker", "compose", *files, "-p", project, *args], env=env, capture=capture
+    )
 
 
 def openbao_env(worktree, env):
     values = worktree / "charts" / "loco-control-plane" / "values.yaml"
-    image = run(["mise", "exec", "--", "yq", ".openbao.image", str(values)], capture=True).strip()
+    image = run(
+        ["mise", "exec", "--", "yq", ".openbao.image", str(values)], capture=True
+    ).strip()
     return dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
 
 
 def start_openbao(worktree, project, env):
     compose_env = openbao_env(worktree, env)
     image = compose_env["OPENBAO_IMAGE"]
-    run(["mise", "exec", "--", "go", "run", "./tools/pullimage", image], cwd=worktree, env=env)
+    run(
+        ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
+        cwd=worktree,
+        env=env,
+    )
     try:
-        compose(worktree, project, compose_env, "up", "-d", "--wait", "--pull", "never", OPENBAO_SERVICE)
-        compose(worktree, project, compose_env, "run", "--rm", "--pull", "never", OPENBAO_SEED_SERVICE)
-        published = compose(worktree, project, compose_env, "port", OPENBAO_SERVICE, OPENBAO_CONTAINER_PORT, capture=True)
+        compose(
+            worktree,
+            project,
+            compose_env,
+            "up",
+            "-d",
+            "--wait",
+            "--pull",
+            "never",
+            OPENBAO_SERVICE,
+        )
+        compose(
+            worktree,
+            project,
+            compose_env,
+            "run",
+            "--rm",
+            "--pull",
+            "never",
+            OPENBAO_SEED_SERVICE,
+        )
+        published = compose(
+            worktree,
+            project,
+            compose_env,
+            "port",
+            OPENBAO_SERVICE,
+            OPENBAO_CONTAINER_PORT,
+            capture=True,
+        )
         return f"http://{HOST}:{published.strip().rsplit(':', 1)[1]}"
     except EvidenceError:
         try:
-            for arguments in (("logs", "--no-color", OPENBAO_SERVICE), ("ps", "-a", "--format", "json")):
+            for arguments in (
+                ("logs", "--no-color", OPENBAO_SERVICE),
+                ("ps", "-a", "--format", "json"),
+            ):
                 try:
-                    log(compose(worktree, project, compose_env, *arguments, capture=True))
+                    log(
+                        compose(
+                            worktree, project, compose_env, *arguments, capture=True
+                        )
+                    )
                 except EvidenceError as error:
                     log(str(error))
             try:
-                containers = compose(worktree, project, compose_env, "ps", "-a", "-q", OPENBAO_SERVICE, capture=True).split()
+                containers = compose(
+                    worktree,
+                    project,
+                    compose_env,
+                    "ps",
+                    "-a",
+                    "-q",
+                    OPENBAO_SERVICE,
+                    capture=True,
+                ).split()
                 if containers:
-                    log(run(["docker", "inspect", "--format", "{{json .State}} restart_count={{.RestartCount}}", *containers], capture=True))
+                    log(
+                        run(
+                            [
+                                "docker",
+                                "inspect",
+                                "--format",
+                                "{{json .State}} restart_count={{.RestartCount}}",
+                                *containers,
+                            ],
+                            capture=True,
+                        )
+                    )
             except EvidenceError as error:
                 log(str(error))
         finally:
@@ -171,11 +239,20 @@ def stop_compose(project, worktree=None):
     worktree = Path(worktree) if worktree else repo_root()
     if not worktree.exists():
         worktree = Path(__file__).resolve().parents[4]
-    compose(worktree, project, openbao_env(worktree, dict(os.environ)), "down", "-v", "--remove-orphans")
+    compose(
+        worktree,
+        project,
+        openbao_env(worktree, dict(os.environ)),
+        "down",
+        "-v",
+        "--remove-orphans",
+    )
 
 
 def compose_postgres_image(compose_text):
-    match = re.search(r"^  postgres:\n(?:    .*\n)*?    image: (\S+)", compose_text, re.MULTILINE)
+    match = re.search(
+        r"^  postgres:\n(?:    .*\n)*?    image: (\S+)", compose_text, re.MULTILINE
+    )
     if match is None:
         raise EvidenceError("dev/compose.yaml has no postgres service image")
     return match.group(1)
@@ -245,29 +322,48 @@ def validate_spec(spec):
     for shot in shots:
         name = shot.get("name", "")
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name):
-            raise EvidenceError(f"shot name {name!r} must be lowercase letters, digits and dashes")
+            raise EvidenceError(
+                f"shot name {name!r} must be lowercase letters, digits and dashes"
+            )
         if name in names:
             raise EvidenceError(f"shot name {name!r} is used twice")
         names.add(name)
         if not shot.get("path", "").startswith("/"):
             raise EvidenceError(f"shot {name} needs a path starting with /")
-        if "user" in shot and (not isinstance(shot["user"], str) or not shot["user"].strip()):
+        if "user" in shot and (
+            not isinstance(shot["user"], str) or not shot["user"].strip()
+        ):
             raise EvidenceError(f"shot {name}: user must name a scenario user")
         if "ready_selector" in shot:
             selector = shot["ready_selector"]
             if not isinstance(selector, str) or not selector.strip():
-                raise EvidenceError(f"shot {name}: ready_selector must be a non-empty selector")
+                raise EvidenceError(
+                    f"shot {name}: ready_selector must be a non-empty selector"
+                )
         for field in ("exclude_animations", "permissions"):
-            if field in shot and (not isinstance(shot[field], list) or any(
-                not isinstance(value, str) or not value.strip() for value in shot[field]
-            )):
-                raise EvidenceError(f"shot {name}: {field} must be a list of non-empty strings")
+            if field in shot and (
+                not isinstance(shot[field], list)
+                or any(
+                    not isinstance(value, str) or not value.strip()
+                    for value in shot[field]
+                )
+            ):
+                raise EvidenceError(
+                    f"shot {name}: {field} must be a list of non-empty strings"
+                )
         if "hold_requests" in shot:
             patterns = shot["hold_requests"]
-            if not isinstance(patterns, list) or not patterns or any(
-                not isinstance(pattern, str) or not pattern.strip() for pattern in patterns
+            if (
+                not isinstance(patterns, list)
+                or not patterns
+                or any(
+                    not isinstance(pattern, str) or not pattern.strip()
+                    for pattern in patterns
+                )
             ):
-                raise EvidenceError(f"shot {name}: hold_requests must be a non-empty list of URL patterns")
+                raise EvidenceError(
+                    f"shot {name}: hold_requests must be a non-empty list of URL patterns"
+                )
             if "ready_selector" not in shot:
                 raise EvidenceError(f"shot {name}: hold_requests needs ready_selector")
         if "color" in shot and not isinstance(shot["color"], str):
@@ -277,39 +373,83 @@ def validate_spec(spec):
             isinstance(crop, dict) and (("selector" in crop) != ("clip" in crop))
         )
         if not valid_crop:
-            raise EvidenceError(f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}")
+            raise EvidenceError(
+                f"shot {name}: crop is viewport, full, {{selector, padding}} or {{clip}}"
+            )
         for response in shot.get("respond", []):
-            if (not isinstance(response, dict) or not isinstance(response.get("url"), str)
-                    or not response["url"].strip() or "json" not in response
-                    or not isinstance(response.get("status", 200), int)
-                    or set(response) - {"url", "status", "json", "headers"}):
-                raise EvidenceError(f"shot {name}: each respond entry is {{url, json, status?, headers?}}")
+            if (
+                not isinstance(response, dict)
+                or not isinstance(response.get("url"), str)
+                or not response["url"].strip()
+                or "json" not in response
+                or not isinstance(response.get("status", 200), int)
+                or set(response) - {"url", "status", "json", "headers"}
+            ):
+                raise EvidenceError(
+                    f"shot {name}: each respond entry is {{url, json, status?, headers?}}"
+                )
         for step in shot.get("steps", []):
-            if len(step) != 1 or next(iter(step)) not in ("click", "hover", "wait", "type", "press", "drag"):
+            if len(step) != 1 or next(iter(step)) not in (
+                "click",
+                "hover",
+                "wait",
+                "type",
+                "press",
+                "drag",
+            ):
                 raise EvidenceError(
                     f"shot {name}: each step is {{click: selector}}, {{hover: selector}}, {{wait: selector}}, "
                     "{type: {selector, text}}, {press: {selector, key}} or {drag: {selector, from, to}}"
                 )
             if "type" in step:
                 value = step["type"]
-                if (not isinstance(value, dict) or set(value) != {"selector", "text"}
-                        or not isinstance(value["selector"], str) or not value["selector"].strip()
-                        or not isinstance(value["text"], str)):
-                    raise EvidenceError(f"shot {name}: type needs a non-empty selector and string text")
+                if (
+                    not isinstance(value, dict)
+                    or set(value) != {"selector", "text"}
+                    or not isinstance(value["selector"], str)
+                    or not value["selector"].strip()
+                    or not isinstance(value["text"], str)
+                ):
+                    raise EvidenceError(
+                        f"shot {name}: type needs a non-empty selector and string text"
+                    )
             if "press" in step:
                 value = step["press"]
-                if (not isinstance(value, dict) or set(value) != {"selector", "key"}
-                        or not isinstance(value["selector"], str) or not value["selector"].strip()
-                        or not isinstance(value["key"], str) or not value["key"]):
-                    raise EvidenceError(f"shot {name}: press needs a non-empty selector and key")
+                if (
+                    not isinstance(value, dict)
+                    or set(value) != {"selector", "key"}
+                    or not isinstance(value["selector"], str)
+                    or not value["selector"].strip()
+                    or not isinstance(value["key"], str)
+                    or not value["key"]
+                ):
+                    raise EvidenceError(
+                        f"shot {name}: press needs a non-empty selector and key"
+                    )
             if "drag" in step:
                 value = step["drag"]
-                point = lambda v: (isinstance(v, list) and len(v) == 2
-                                   and all(isinstance(n, (int, float)) and not isinstance(n, bool) for n in v))
-                if (not isinstance(value, dict) or set(value) != {"selector", "from", "to"}
-                        or not isinstance(value["selector"], str) or not value["selector"].strip()
-                        or not point(value["from"]) or not point(value["to"])):
-                    raise EvidenceError(f"shot {name}: drag needs a selector and from/to points as [x, y] fractions of its box")
+
+                def point(v):
+                    return (
+                        isinstance(v, list)
+                        and len(v) == 2
+                        and all(
+                            isinstance(n, (int, float)) and not isinstance(n, bool)
+                            for n in v
+                        )
+                    )
+
+                if (
+                    not isinstance(value, dict)
+                    or set(value) != {"selector", "from", "to"}
+                    or not isinstance(value["selector"], str)
+                    or not value["selector"].strip()
+                    or not point(value["from"])
+                    or not point(value["to"])
+                ):
+                    raise EvidenceError(
+                        f"shot {name}: drag needs a selector and from/to points as [x, y] fractions of its box"
+                    )
     return shots
 
 
@@ -351,7 +491,12 @@ def load_state(path):
 def spawn(cmd, cwd, env, log_path):
     with open(log_path, "ab") as out:
         proc = subprocess.Popen(
-            cmd, cwd=cwd, env=env, stdout=out, stderr=subprocess.STDOUT, start_new_session=True
+            cmd,
+            cwd=cwd,
+            env=env,
+            stdout=out,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
         )
     return proc.pid
 
@@ -368,27 +513,51 @@ def wait_http(url, log_path):
             with urllib.request.urlopen(url, timeout=2) as response:
                 if response.status == 200:
                     return
-        except (urllib.error.URLError, ConnectionError, TimeoutError):
+        except urllib.error.URLError, ConnectionError, TimeoutError:
             pass
         time.sleep(0.5)
-    raise EvidenceError(f"{url} did not answer within {READY_TIMEOUT_S}s; log tail:\n{log_tail(log_path)}")
+    raise EvidenceError(
+        f"{url} did not answer within {READY_TIMEOUT_S}s; log tail:\n{log_tail(log_path)}"
+    )
 
 
 def wait_postgres(container):
     deadline = time.monotonic() + POSTGRES_READY_TIMEOUT_S
-    while subprocess.run(
-        ["docker", "exec", container, "pg_isready", "-h", HOST, "-U", DB_USER], capture_output=True
-    ).returncode != 0:
+    while (
+        subprocess.run(
+            ["docker", "exec", container, "pg_isready", "-h", HOST, "-U", DB_USER],
+            capture_output=True,
+        ).returncode
+        != 0
+    ):
         if time.monotonic() > deadline:
             logs = subprocess.run(
-                ["docker", "logs", "--tail", str(LOG_TAIL_LINES), container], capture_output=True, text=True
+                ["docker", "logs", "--tail", str(LOG_TAIL_LINES), container],
+                capture_output=True,
+                text=True,
             )
-            raise EvidenceError(f"postgres did not become ready within {POSTGRES_READY_TIMEOUT_S}s; {logs.stdout}{logs.stderr}")
+            raise EvidenceError(
+                f"postgres did not become ready within {POSTGRES_READY_TIMEOUT_S}s; {logs.stdout}{logs.stderr}"
+            )
         time.sleep(0.5)
 
 
 def psql(container, sql):
-    cmd = ["docker", "exec", "-i", container, "psql", "-q", "-v", "ON_ERROR_STOP=1", "-U", DB_USER, "-d", DB_NAME, "-tA"]
+    cmd = [
+        "docker",
+        "exec",
+        "-i",
+        container,
+        "psql",
+        "-q",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-U",
+        DB_USER,
+        "-d",
+        DB_NAME,
+        "-tA",
+    ]
     log(f"$ {' '.join(cmd)} <<SQL")
     result = subprocess.run(cmd, input=sql, text=True, capture_output=True)
     if result.returncode != 0:
@@ -404,7 +573,10 @@ def rpc(api_url, token, path, body):
     request = urllib.request.Request(
         f"{api_url}/{path}",
         data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
         method="POST",
     )
     try:
@@ -415,8 +587,13 @@ def rpc(api_url, token, path, body):
         try:
             detail = json.loads(payload)
         except json.JSONDecodeError:
-            detail = {"code": f"http_{err.code}", "message": payload.decode(errors="replace")}
-        raise RPCError(path, detail.get("code", f"http_{err.code}"), detail.get("message", "")) from None
+            detail = {
+                "code": f"http_{err.code}",
+                "message": payload.decode(errors="replace"),
+            }
+        raise RPCError(
+            path, detail.get("code", f"http_{err.code}"), detail.get("message", "")
+        ) from None
 
 
 def seed(state, scenario):
@@ -430,8 +607,14 @@ def seed(state, scenario):
             f"INSERT INTO users (email, name) VALUES ({sql_literal(user['email'])}, "
             f"{sql_literal(user.get('name', key))}) RETURNING id;",
         )
-        scope_rows = ", ".join(f"({sql_literal(user_id)}, '{s}', 'user', {sql_literal(user_id)})" for s in USER_SCOPES)
-        psql(container, f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {scope_rows};")
+        scope_rows = ", ".join(
+            f"({sql_literal(user_id)}, '{s}', 'user', {sql_literal(user_id)})"
+            for s in USER_SCOPES
+        )
+        psql(
+            container,
+            f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {scope_rows};",
+        )
         token = session_token()
         psql(
             container,
@@ -451,14 +634,22 @@ def seed(state, scenario):
         created = rpc(api_url, owner, RPC_CREATE_ORG, {"name": org["name"]})
         org_id = created["orgId"]
         for workspace in org.get("workspaces", []):
-            ws = rpc(api_url, owner, RPC_CREATE_WORKSPACE, {"orgId": org_id, "name": workspace})
+            ws = rpc(
+                api_url,
+                owner,
+                RPC_CREATE_WORKSPACE,
+                {"orgId": org_id, "name": workspace},
+            )
             workspaces[f"{org['name']}/{workspace}"] = ws["workspaceId"]
         member_rows = ", ".join(
             f"({sql_literal(users[member]['id'])}, 'member', 'organization', {sql_literal(org_id)})"
             for member in org.get("members", [])
         )
         if member_rows:
-            psql(container, f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {member_rows};")
+            psql(
+                container,
+                f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {member_rows};",
+            )
 
     notes.append(
         "users, sessions and org memberships are inserted with SQL: no API creates a user without an identity "
@@ -475,7 +666,9 @@ def seed(state, scenario):
         rpc(api_url, owners[org_name], RPC_CREATE_MEMBER, body)
     resources = seed_resources(state, scenario, users, workspaces)
     if resources:
-        notes.append("synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources")
+        notes.append(
+            "synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources"
+        )
     return users, workspaces, resources, notes
 
 
@@ -486,45 +679,81 @@ def seed_resources(state, scenario, users, workspaces):
         workspace = workspaces[resource["workspace"]]
         owner = owners[resource["workspace"].split("/", 1)[0]]
         regions = {
-            deployment["region"]: {"enabled": True, **{key: deployment["spec"][key]
-                for key in ("cpu", "memory", "minReplicas", "maxReplicas")}}
+            deployment["region"]: {
+                "enabled": True,
+                **{
+                    key: deployment["spec"][key]
+                    for key in ("cpu", "memory", "minReplicas", "maxReplicas")
+                },
+            }
             for deployment in resource["deployments"]
         }
         service = {"regions": regions}
         port = resource["deployments"][0]["spec"].get("port")
         if port is not None:
             service["routing"] = {"port": port}
-        created = rpc(state["api_url"], owner["token"], "loco.resource.v1.ResourceService/CreateResource", {
-            "workspaceId": workspace, "name": resource["name"], "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": service},
-        })
+        created = rpc(
+            state["api_url"],
+            owner["token"],
+            "loco.resource.v1.ResourceService/CreateResource",
+            {
+                "workspaceId": workspace,
+                "name": resource["name"],
+                "type": "RESOURCE_TYPE_SERVICE",
+                "spec": {"service": service},
+            },
+        )
         resource_id = created["resourceId"]
         resources[f"{resource['workspace']}/{resource['name']}"] = resource_id
         for deployment in resource["deployments"]:
-            env = json.loads(psql(state["container"],
-                "SELECT json_build_object('id', e.id, 'type', e.environment_type, 'org', w.org_id, 'slug', r.slug) "
-                "FROM environments e JOIN workspaces w ON w.id=e.workspace_id JOIN resources r ON r.workspace_id=w.id "
-                f"WHERE r.id={sql_literal(resource_id)} AND e.name={sql_literal(deployment['environment'])};"))
+            env = json.loads(
+                psql(
+                    state["container"],
+                    "SELECT json_build_object('id', e.id, 'type', e.environment_type, 'org', w.org_id, 'slug', r.slug) "
+                    "FROM environments e JOIN workspaces w ON w.id=e.workspace_id JOIN resources r ON r.workspace_id=w.id "
+                    f"WHERE r.id={sql_literal(resource_id)} AND e.name={sql_literal(deployment['environment'])};",
+                )
+            )
             cluster_id, deployment_id = str(uuid.uuid4()), str(uuid.uuid4())
             runtime = deployment["spec"]
             app = {
-                "type": "SERVICE", "resourceId": resource_id, "slug": env["slug"], "workspaceId": workspace,
-                "organizationId": env["org"], "environmentId": env["id"], "environmentName": deployment["environment"],
-                "deploymentId": deployment_id, "region": deployment["region"],
+                "type": "SERVICE",
+                "resourceId": resource_id,
+                "slug": env["slug"],
+                "workspaceId": workspace,
+                "organizationId": env["org"],
+                "environmentId": env["id"],
+                "environmentName": deployment["environment"],
+                "deploymentId": deployment_id,
+                "region": deployment["region"],
                 "serviceSpec": {
-                    "deployment": {"image": runtime["build"]["image"], "observability": runtime["observability"], **({"port": runtime["port"]} if "port" in runtime else {})},
-                    "resources": {"cpu": runtime["cpu"], "memory": runtime["memory"],
-                        "replicas": {"min": runtime["minReplicas"], "max": runtime["maxReplicas"]}},
+                    "deployment": {
+                        "image": runtime["build"]["image"],
+                        "observability": runtime["observability"],
+                        **({"port": runtime["port"]} if "port" in runtime else {}),
+                    },
+                    "resources": {
+                        "cpu": runtime["cpu"],
+                        "memory": runtime["memory"],
+                        "replicas": {
+                            "min": runtime["minReplicas"],
+                            "max": runtime["maxReplicas"],
+                        },
+                    },
                 },
             }
             q = sql_literal
-            psql(state["container"], f"""BEGIN;
+            psql(
+                state["container"],
+                f"""BEGIN;
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,tier)
-VALUES({q(cluster_id)},{q('evidence-' + cluster_id)},{q(deployment['region'])},'fixture',true,false,'healthy',NOW(),{q(env['type'])});
+VALUES({q(cluster_id)},{q("evidence-" + cluster_id)},{q(deployment["region"])},'fixture',true,false,'healthy',NOW(),{q(env["type"])});
 INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,started_at)
-VALUES({q(deployment_id)},{q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{runtime['minReplicas']},{q(deployment['status'])},true,{q(env['id'])},{q(json.dumps(runtime))},1,'user',{q(owner['id'])},'web',NOW());
+VALUES({q(deployment_id)},{q(resource_id)},{q(cluster_id)},{q(deployment["region"])},{runtime["minReplicas"]},{q(deployment["status"])},true,{q(env["id"])},{q(json.dumps(runtime))},1,'user',{q(owner["id"])},'web',NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,ready_replicas,status_updated_at)
-VALUES({q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{q(deployment_id)},{q(env['id'])},{q(json.dumps({'app_spec': app}))},1,1,{deployment['ready_replicas']},NOW());
-COMMIT;""")
+VALUES({q(resource_id)},{q(cluster_id)},{q(deployment["region"])},{q(deployment_id)},{q(env["id"])},{q(json.dumps({"app_spec": app}))},1,1,{deployment["ready_replicas"]},NOW());
+COMMIT;""",
+            )
     return resources
 
 
@@ -545,12 +774,20 @@ def cmd_stop_openbao(args):
 
 
 def check_ref_worktree(repo, ref):
-    commit = run(["git", "rev-parse", f"{ref}^{{commit}}"], cwd=repo, capture=True).strip()
+    commit = run(
+        ["git", "rev-parse", f"{ref}^{{commit}}"], cwd=repo, capture=True
+    ).strip()
     head = run(["git", "rev-parse", "HEAD"], cwd=repo, capture=True).strip()
     if commit == head:
-        dirty = run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=repo, capture=True).strip()
+        dirty = run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=repo,
+            capture=True,
+        ).strip()
         if dirty:
-            raise EvidenceError(f"ref {ref} excludes uncommitted files; commit them before capture:\n{dirty}")
+            raise EvidenceError(
+                f"ref {ref} excludes uncommitted files; commit them before capture:\n{dirty}"
+            )
 
 
 def renew(state):
@@ -574,14 +811,23 @@ def reap():
     for path in BASE_DIR.glob("*/state.json"):
         try:
             state = load_state(path)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             continue
         if state.get("expires_at", path.stat().st_mtime + LEASE_S) < now:
-            log(f"reaping {state.get('id', path.parent.name)}: unused for {LEASE_S // 3600}h")
+            log(
+                f"reaping {state.get('id', path.parent.name)}: unused for {LEASE_S // 3600}h"
+            )
             stop_state(state)
     listed = subprocess.run(
-        ["docker", "ps", "-a", "--format", '{{.Names}}\t{{.Label "com.docker.compose.project"}}'],
-        capture_output=True, text=True,
+        [
+            "docker",
+            "ps",
+            "-a",
+            "--format",
+            '{{.Names}}\t{{.Label "com.docker.compose.project"}}',
+        ],
+        capture_output=True,
+        text=True,
     ).stdout.splitlines()
     for line in listed:
         name, _, project = line.partition("\t")
@@ -612,7 +858,14 @@ def cmd_up(args):
     root = BASE_DIR / run_id
     root.mkdir(parents=True)
     state_path = root / "state.json"
-    state = {"id": run_id, "name": args.name, "ref": args.ref, "root": str(root), "pids": [], "expires_at": time.time() + LEASE_S}
+    state = {
+        "id": run_id,
+        "name": args.name,
+        "ref": args.ref,
+        "root": str(root),
+        "pids": [],
+        "expires_at": time.time() + LEASE_S,
+    }
     if openbao:
         worktree = repo
     else:
@@ -621,8 +874,21 @@ def cmd_up(args):
     write_json(state_path, state)
     try:
         if not openbao:
-            run(["git", "-C", str(repo), "worktree", "add", "--detach", str(worktree), args.ref])
-        state["commit"] = run(["git", "-C", str(worktree), "rev-parse", "HEAD"], capture=True).strip()
+            run(
+                [
+                    "git",
+                    "-C",
+                    str(repo),
+                    "worktree",
+                    "add",
+                    "--detach",
+                    str(worktree),
+                    args.ref,
+                ]
+            )
+        state["commit"] = run(
+            ["git", "-C", str(worktree), "rev-parse", "HEAD"], capture=True
+        ).strip()
         db_port = free_port()
         api_port = free_port({db_port})
         ui_port = free_port({db_port, api_port})
@@ -646,12 +912,31 @@ def cmd_up(args):
 
         image = compose_postgres_image((worktree / "dev" / "compose.yaml").read_text())
         container = f"{LABEL}-{run_id}"
-        run(["mise", "exec", "--", "go", "run", "./tools/pullimage", image], cwd=worktree, env=env)
+        run(
+            ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
+            cwd=worktree,
+            env=env,
+        )
         run(
             [
-                "docker", "run", "--pull", "never", "-d", "--name", container, "--label", f"{LABEL}={run_id}",
-                "-e", f"POSTGRES_USER={DB_USER}", "-e", f"POSTGRES_PASSWORD={DB_PASSWORD}",
-                "-e", f"POSTGRES_DB={DB_NAME}", "-p", f"{HOST}:{db_port}:5432", image,
+                "docker",
+                "run",
+                "--pull",
+                "never",
+                "-d",
+                "--name",
+                container,
+                "--label",
+                f"{LABEL}={run_id}",
+                "-e",
+                f"POSTGRES_USER={DB_USER}",
+                "-e",
+                f"POSTGRES_PASSWORD={DB_PASSWORD}",
+                "-e",
+                f"POSTGRES_DB={DB_NAME}",
+                "-p",
+                f"{HOST}:{db_port}:5432",
+                image,
             ],
             capture=True,
         )
@@ -663,11 +948,25 @@ def cmd_up(args):
         dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = openbao
         api_log = root / "api.log"
         api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
-        state["pids"].append(spawn(api_cmd, worktree, dict(env, **api_env(dev_env, db_port, api_port, ui_port)), api_log))
+        state["pids"].append(
+            spawn(
+                api_cmd,
+                worktree,
+                dict(env, **api_env(dev_env, db_port, api_port, ui_port)),
+                api_log,
+            )
+        )
         ui_log = root / "ui.log"
         ui_cmd = [
-            sys.executable, str(Path(__file__).resolve()), "serve-ui",
-            "--root", str(dist), "--port", str(ui_port), "--api-url", state["api_url"],
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "serve-ui",
+            "--root",
+            str(dist),
+            "--port",
+            str(ui_port),
+            "--api-url",
+            state["api_url"],
         ]
         state["pids"].append(spawn(ui_cmd, worktree, env, ui_log))
         write_json(state_path, state)
@@ -675,7 +974,14 @@ def cmd_up(args):
         wait_http(state["ui_url"] + "/", ui_log)
 
         users, workspaces, resources, notes = seed(state, scenario)
-        state.update({"users": users, "workspaces": workspaces, "resources": resources, "notes": notes})
+        state.update(
+            {
+                "users": users,
+                "workspaces": workspaces,
+                "resources": resources,
+                "notes": notes,
+            }
+        )
         write_json(state_path, state)
     except BaseException:
         for name in ("api.log", "ui.log"):
@@ -690,8 +996,16 @@ def cmd_up(args):
 
 def build(checkout, env):
     run(["mise", "trust", "--quiet", str(checkout / "mise.toml")])
-    run(["mise", "exec", "--", "bun", "install", "--frozen-lockfile"], cwd=checkout, env=env)
-    run(["mise", "exec", "--", "go", "build", "-o", "./bin/loco-api", "."], cwd=checkout / "api", env=env)
+    run(
+        ["mise", "exec", "--", "bun", "install", "--frozen-lockfile"],
+        cwd=checkout,
+        env=env,
+    )
+    run(
+        ["mise", "exec", "--", "go", "build", "-o", "./bin/loco-api", "."],
+        cwd=checkout / "api",
+        env=env,
+    )
     # The API address reaches the UI through runtime-config.js, as the chart
     # serves it in production, so one build serves every API.
     run(["mise", "exec", "--", "bun", "run", "build"], cwd=checkout / "web", env=env)
@@ -713,7 +1027,10 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == DISCOVERY_PATH:
             host, port = self.server.server_address[:2]
-            return self.send_body("application/json", json.dumps(discovery_document(f"http://{host}:{port}/dex")))
+            return self.send_body(
+                "application/json",
+                json.dumps(discovery_document(f"http://{host}:{port}/dex")),
+            )
         if path == RUNTIME_CONFIG_PATH:
             return self.send_body("text/javascript", runtime_config(self.api_url))
         return super().do_GET()
@@ -742,7 +1059,9 @@ class UIServer(http.server.ThreadingHTTPServer):
 
 
 def cmd_serve_ui(args):
-    handler = lambda *a, **kw: UIHandler(*a, directory=args.root, api_url=args.api_url, **kw)
+    def handler(*a, **kw):
+        return UIHandler(*a, directory=args.root, api_url=args.api_url, **kw)
+
     with UIServer((HOST, args.port), handler) as server:
         server.serve_forever()
 
@@ -767,7 +1086,9 @@ SETTLE_SCRIPT = """async ({timeout, excluded}) => {
 def settle(page, *, wait_for_network=True, exclude_animations=()):
     if wait_for_network:
         page.wait_for_load_state("networkidle")
-    if not page.evaluate(SETTLE_SCRIPT, {"timeout": SETTLE_TIMEOUT_MS, "excluded": exclude_animations}):
+    if not page.evaluate(
+        SETTLE_SCRIPT, {"timeout": SETTLE_TIMEOUT_MS, "excluded": exclude_animations}
+    ):
         raise EvidenceError("animations did not finish")
 
 
@@ -778,27 +1099,50 @@ def capture(browser, state, shot, theme, narrow, target):
     if "user" in shot and user is None:
         raise EvidenceError(f"state has no user {shot['user']!r}")
     viewport = dict(NARROW if narrow else DESKTOP)
-    context = browser.new_context(viewport=viewport, device_scale_factor=SCALE, color_scheme=theme)
+    context = browser.new_context(
+        viewport=viewport, device_scale_factor=SCALE, color_scheme=theme
+    )
     if "permissions" in shot:
         context.grant_permissions(shot["permissions"], origin=state["ui_url"])
     script = f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
     if user is not None:
-        stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
+        stored = json.dumps(
+            {
+                "idToken": user["token"],
+                "refreshToken": None,
+                "expiresAt": SESSION_EXPIRY_MS,
+            }
+        )
         script += f"localStorage.setItem({json.dumps(AUTH_KEY)}, {json.dumps(stored)});"
     if "color" in shot:
         script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
     context.add_init_script(script)
+
     def responder(response):
         return lambda route: route.fulfill(
-            status=response.get("status", 200), headers=response.get("headers"), json=response["json"])
+            status=response.get("status", 200),
+            headers=response.get("headers"),
+            json=response["json"],
+        )
+
     for response in shot.get("respond", []):
         context.route(response["url"], responder(response))
     for pattern in shot.get("hold_requests", []):
         context.route(pattern, lambda route: None)
     problems = []
     page = context.new_page()
-    page.on("console", lambda m: problems.append(f"console {m.type}: {m.text}") if m.type == "error" else None)
-    page.on("requestfailed", lambda r: problems.append(f"request failed: {r.url} {r.failure}"))
+    page.on(
+        "console",
+        lambda m: (
+            problems.append(f"console {m.type}: {m.text}")
+            if m.type == "error"
+            else None
+        ),
+    )
+    page.on(
+        "requestfailed",
+        lambda r: problems.append(f"request failed: {r.url} {r.failure}"),
+    )
     exclude_animations = shot.get("exclude_animations", [])
     ready_selector = shot.get("ready_selector")
     wait_for_network = ready_selector is None
@@ -806,8 +1150,15 @@ def capture(browser, state, shot, theme, narrow, target):
     if ready_selector is not None:
         steps = [*steps, {"wait": ready_selector}]
     try:
-        page.goto(state["ui_url"] + shot["path"], wait_until="load" if wait_for_network else "domcontentloaded")
-        settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
+        page.goto(
+            state["ui_url"] + shot["path"],
+            wait_until="load" if wait_for_network else "domcontentloaded",
+        )
+        settle(
+            page,
+            wait_for_network=wait_for_network,
+            exclude_animations=exclude_animations,
+        )
         for step in steps:
             action, value = next(iter(step.items()))
             selector = value["selector"] if isinstance(value, dict) else value
@@ -815,7 +1166,9 @@ def capture(browser, state, shot, theme, narrow, target):
             try:
                 locator.first.wait_for(state="visible", timeout=STEP_TIMEOUT_MS)
             except PlaywrightTimeout:
-                raise EvidenceError(f"{shot['name']}: selector {selector!r} never became visible") from None
+                raise EvidenceError(
+                    f"{shot['name']}: selector {selector!r} never became visible"
+                ) from None
             if action == "click":
                 locator.first.click()
             elif action == "type":
@@ -827,53 +1180,84 @@ def capture(browser, state, shot, theme, narrow, target):
             elif action == "drag":
                 locator.first.hover(timeout=STEP_TIMEOUT_MS)
                 box = locator.first.bounding_box()
-                at = lambda f: (box["x"] + f[0] * box["width"], box["y"] + f[1] * box["height"])
+
+                def at(f, box=box):
+                    return (
+                        box["x"] + f[0] * box["width"],
+                        box["y"] + f[1] * box["height"],
+                    )
+
                 page.mouse.move(*at(value["from"]))
                 page.mouse.down()
                 page.mouse.move(*at(value["to"]), steps=8)
                 page.mouse.up()
-            settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
+            settle(
+                page,
+                wait_for_network=wait_for_network,
+                exclude_animations=exclude_animations,
+            )
         applied = f"""() => {{
           const root = document.documentElement;
           const scheme = getComputedStyle(root).colorScheme;
           return scheme === "normal"
-            ? root.classList.contains("dark") === {json.dumps(theme == 'dark')}
+            ? root.classList.contains("dark") === {json.dumps(theme == "dark")}
             : scheme === {json.dumps(theme)};
         }}"""
         try:
             page.wait_for_function(applied, timeout=STEP_TIMEOUT_MS)
         except PlaywrightTimeout:
-            raise EvidenceError(f"{shot['name']}: the page did not apply the {theme} theme") from None
-        settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
+            raise EvidenceError(
+                f"{shot['name']}: the page did not apply the {theme} theme"
+            ) from None
+        settle(
+            page,
+            wait_for_network=wait_for_network,
+            exclude_animations=exclude_animations,
+        )
         crop = shot.get("crop", "viewport")
         if crop == "full" or isinstance(crop, dict) and "selector" in crop:
-            viewport["height"] = max(viewport["height"], page.evaluate("document.documentElement.scrollHeight"))
+            viewport["height"] = max(
+                viewport["height"],
+                page.evaluate("document.documentElement.scrollHeight"),
+            )
             page.set_viewport_size(viewport)
             page.evaluate("window.scrollTo(0, 0)")
-            settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
+            settle(
+                page,
+                wait_for_network=wait_for_network,
+                exclude_animations=exclude_animations,
+            )
         tmp = target.with_suffix(".partial.png")
         if crop in ("full", "viewport"):
             page.screenshot(path=tmp)
         elif "clip" in crop:
             x, y, width, height = crop["clip"]
-            page.screenshot(path=tmp, clip={"x": x, "y": y, "width": width, "height": height})
+            page.screenshot(
+                path=tmp, clip={"x": x, "y": y, "width": width, "height": height}
+            )
         else:
             locator = page.locator(crop["selector"])
             if locator.count() == 0:
-                raise EvidenceError(f"{shot['name']}: crop selector {crop['selector']!r} matches nothing")
+                raise EvidenceError(
+                    f"{shot['name']}: crop selector {crop['selector']!r} matches nothing"
+                )
             box = locator.first.bounding_box()
             pad = crop.get("padding", 0)
             x, y = max(box["x"] - pad, 0), max(box["y"] - pad, 0)
             width = min(box["x"] + box["width"] + pad, viewport["width"]) - x
             height = min(box["y"] + box["height"] + pad, viewport["height"]) - y
-            page.screenshot(path=tmp, clip={"x": x, "y": y, "width": width, "height": height})
+            page.screenshot(
+                path=tmp, clip={"x": x, "y": y, "width": width, "height": height}
+            )
         tmp.rename(target)
     except EvidenceError as err:
         failed = target.parent / "failed" / target.name
         failed.parent.mkdir(exist_ok=True)
         page.screenshot(path=failed)
         detail = "; ".join(problems[-5:]) or "no console errors or failed requests"
-        raise EvidenceError(f"{err} (page at {page.url}; {detail}; screenshot {failed})") from None
+        raise EvidenceError(
+            f"{err} (page at {page.url}; {detail}; screenshot {failed})"
+        ) from None
     finally:
         context.close()
 
@@ -894,7 +1278,9 @@ def cmd_shoot(args):
         for shot in shots:
             for theme in THEMES:
                 for narrow in (False, True) if shot.get("narrow") else (False,):
-                    target = out / shot_filename(shot["name"], state["name"], theme, narrow)
+                    target = out / shot_filename(
+                        shot["name"], state["name"], theme, narrow
+                    )
                     target.unlink(missing_ok=True)
                     try:
                         capture(browser, state, shot, theme, narrow, target)
@@ -922,13 +1308,35 @@ def stop_state(state):
         except ProcessLookupError:
             pass
     if state.get("container"):
-        subprocess.run(["docker", "rm", "-f", "-v", state["container"]], capture_output=True)
+        subprocess.run(
+            ["docker", "rm", "-f", "-v", state["container"]], capture_output=True
+        )
     if state.get("compose"):
         stop_compose(state["compose"], state.get("worktree"))
     worktree = state.get("worktree")
     if worktree and Path(worktree).exists():
-        repo = run(["git", "-C", worktree, "rev-parse", "--path-format=absolute", "--git-common-dir"], capture=True)
-        run(["git", "--git-dir", repo.strip(), "worktree", "remove", "--force", worktree])
+        repo = run(
+            [
+                "git",
+                "-C",
+                worktree,
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-common-dir",
+            ],
+            capture=True,
+        )
+        run(
+            [
+                "git",
+                "--git-dir",
+                repo.strip(),
+                "worktree",
+                "remove",
+                "--force",
+                worktree,
+            ]
+        )
     shutil.rmtree(state["root"], ignore_errors=True)
     log(f"stopped {state['id']}")
 
@@ -941,12 +1349,16 @@ def cmd_down(args):
             stop_state(load_state(path))
     if args.all:
         listed = subprocess.run(
-            ["docker", "ps", "-aq", "--filter", f"label={LABEL}"], capture_output=True, text=True
+            ["docker", "ps", "-aq", "--filter", f"label={LABEL}"],
+            capture_output=True,
+            text=True,
         ).stdout.split()
         for container in listed:
             subprocess.run(["docker", "rm", "-f", "-v", container], capture_output=True)
         projects = subprocess.run(
-            ["docker", "compose", "ls", "-a", "-q", "--filter", f"name={LABEL}"], capture_output=True, text=True
+            ["docker", "compose", "ls", "-a", "-q", "--filter", f"name={LABEL}"],
+            capture_output=True,
+            text=True,
         ).stdout.split()
         for project in projects:
             stop_compose(project)
@@ -954,19 +1366,27 @@ def cmd_down(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Collect before and after screenshots of the web UI")
+    parser = argparse.ArgumentParser(
+        description="Collect before and after screenshots of the web UI"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
-    up = sub.add_parser("up", help="build a ref and start a throwaway API, database and UI")
+    up = sub.add_parser(
+        "up", help="build a ref and start a throwaway API, database and UI"
+    )
     up.add_argument("--ref", required=True)
     up.add_argument("--name", required=True, choices=("before", "after"))
     up.add_argument("--scenario", required=True)
     up.set_defaults(func=cmd_up)
-    shoot = sub.add_parser("shoot", help="capture every shot of a spec in light and dark")
+    shoot = sub.add_parser(
+        "shoot", help="capture every shot of a spec in light and dark"
+    )
     shoot.add_argument("--state", required=True)
     shoot.add_argument("--spec", required=True)
     shoot.add_argument("--out", required=True)
     shoot.set_defaults(func=cmd_shoot)
-    table = sub.add_parser("table", help="print the before and after markdown for a PR body")
+    table = sub.add_parser(
+        "table", help="print the before and after markdown for a PR body"
+    )
     table.add_argument("--out", required=True)
     table.set_defaults(func=cmd_table)
     down = sub.add_parser("down", help="stop a run, or every run with --all")
@@ -981,10 +1401,16 @@ def main():
     serve.set_defaults(func=cmd_serve_ui)
     prebuild = sub.add_parser("build", help="build the API and UI in this checkout")
     prebuild.set_defaults(func=cmd_build)
-    bao = sub.add_parser("openbao", help=f"start one seeded OpenBao for ${OPENBAO_ENV} and print its address")
+    bao = sub.add_parser(
+        "openbao",
+        help=f"start one seeded OpenBao for ${OPENBAO_ENV} and print its address",
+    )
     bao.add_argument("--project", required=True)
     bao.set_defaults(func=cmd_openbao)
-    stop_bao = sub.add_parser("stop-openbao", help="remove a seeded OpenBao project and its volumes and network")
+    stop_bao = sub.add_parser(
+        "stop-openbao",
+        help="remove a seeded OpenBao project and its volumes and network",
+    )
     stop_bao.add_argument("--project", required=True)
     stop_bao.set_defaults(func=cmd_stop_openbao)
     args = parser.parse_args()

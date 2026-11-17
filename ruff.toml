@@ -1,0 +1,22 @@
+# mise run lint:versions keeps target-version on the Python minor version mise.toml pins.
+target-version = "py315"
+extend-exclude = ["*.md"]
+
+[lint]
+select = [
+    "E4", "E7", "E9", # pycodestyle errors compatible with the formatter
+    "F",              # pyflakes
+    "B",              # bugbear
+    "C4",             # comprehensions
+    "I",              # import sorting
+    "UP",             # Python upgrades
+    "PGH",            # explicit suppression directives
+    "RUF005",         # collection literal concatenation
+    "RUF006",         # dangling asyncio tasks
+    "RUF015",         # unnecessary iterable allocation
+    "RUF019",         # unnecessary key checks
+    "RUF100",         # unused suppression directives
+]
+
+[lint.isort]
+combine-as-imports = true

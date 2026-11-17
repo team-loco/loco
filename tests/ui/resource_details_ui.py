@@ -1,23 +1,27 @@
-from functools import partial
 import argparse
 import datetime
 import json
 import re
 import uuid
+from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from playwright.sync_api import expect
 
-parser = argparse.ArgumentParser(description="Check resource details against an isolated production dashboard")
+parser = argparse.ArgumentParser(
+    description="Check resource details against an isolated production dashboard"
+)
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/resource-details"))
 args = parser.parse_args()
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-state = load_state(args, 'resource-details', 'tests/ui/fixtures/deployment-history/scenario.json')
+state = load_state(
+    args, "resource-details", "tests/ui/fixtures/deployment-history/scenario.json"
+)
 owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
 
@@ -25,27 +29,115 @@ workspace = state["workspaces"]["acme/shared"]
 rpc = partial(api_rpc, state)
 
 
-org = evidence.psql(state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
-production = next(env["id"] for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})["environments"] if env["name"] == "production")
+org = evidence.psql(
+    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
+)
+production = next(
+    env["id"]
+    for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})[
+        "environments"
+    ]
+    if env["name"] == "production"
+)
 name = "details-" + uuid.uuid4().hex[:8]
-resource = rpc("resource", "CreateResource", {"workspaceId": workspace, "name": name, "type": "RESOURCE_TYPE_SERVICE", "spec": {"service": {"routing": {"port": 8080}, "regions": {"us-east-1": {"enabled": True, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1}}}}})["resourceId"]
+resource = rpc(
+    "resource",
+    "CreateResource",
+    {
+        "workspaceId": workspace,
+        "name": name,
+        "type": "RESOURCE_TYPE_SERVICE",
+        "spec": {
+            "service": {
+                "routing": {"port": 8080},
+                "regions": {
+                    "us-east-1": {
+                        "enabled": True,
+                        "cpu": "500m",
+                        "memory": "512Mi",
+                        "minReplicas": 1,
+                        "maxReplicas": 1,
+                    }
+                },
+            }
+        },
+    },
+)["resourceId"]
 cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
 image = f"registry.example.com/recommendation-{resource}:{deployment}"
-runtime = json.dumps({"observability": {"injectOtel": True}, "build": {"type": "image", "image": image}, "cpu": "500m", "memory": "512Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080, "healthCheck": {"path": "/health", "initialDelaySeconds": 5, "intervalSeconds": 10, "timeoutSeconds": 2, "failureThreshold": 3}})
-evidence.psql(state["container"], f"""BEGIN;
+runtime = json.dumps(
+    {
+        "observability": {"injectOtel": True},
+        "build": {"type": "image", "image": image},
+        "cpu": "500m",
+        "memory": "512Mi",
+        "minReplicas": 1,
+        "maxReplicas": 1,
+        "port": 8080,
+        "healthCheck": {
+            "path": "/health",
+            "initialDelaySeconds": 5,
+            "intervalSeconds": 10,
+            "timeoutSeconds": 2,
+            "failureThreshold": 3,
+        },
+    }
+)
+evidence.psql(
+    state["container"],
+    f"""BEGIN;
 UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','resource-details','us-east-1','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
+INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES('user','{owner["id"]}','web','{deployment}','{resource}','{cluster}','us-east-1',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',1,NOW());
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
 VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','crash_loop','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
 UPDATE placements SET ready_replicas=0 WHERE resource_id='{resource}'; INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"crash_loop","detail":"The pod restarted"}}}}');
-COMMIT;""")
-assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production}) == {}
-desired = json.dumps({"app_spec": {"serviceSpec": {"deployment": {"env": {"MODE": "production", "API_BASE_URL": "https://api.example.test"}}}}})
-evidence.psql(state["container"], f"UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';")
-rpc("secret", "SetSecrets", {"resourceId": resource, "environmentId": production, "values": {"API_TOKEN": "fixture-token"}})
-assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production})["env"]["MODE"] == "production"
+COMMIT;""",
+)
+assert (
+    rpc(
+        "resource",
+        "GetResourceEnv",
+        {"resourceId": resource, "environmentId": production},
+    )
+    == {}
+)
+desired = json.dumps(
+    {
+        "app_spec": {
+            "serviceSpec": {
+                "deployment": {
+                    "env": {
+                        "MODE": "production",
+                        "API_BASE_URL": "https://api.example.test",
+                    }
+                }
+            }
+        }
+    }
+)
+evidence.psql(
+    state["container"],
+    f"UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';",
+)
+rpc(
+    "secret",
+    "SetSecrets",
+    {
+        "resourceId": resource,
+        "environmentId": production,
+        "values": {"API_TOKEN": "fixture-token"},
+    },
+)
+assert (
+    rpc(
+        "resource",
+        "GetResourceEnv",
+        {"resourceId": resource, "environmentId": production},
+    )["env"]["MODE"]
+    == "production"
+)
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 USAGE = {"min": 0.5, "p50": 0.6, "max": 0.9}
 STAMP = datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
@@ -54,60 +146,128 @@ STAMP = datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
 def metrics(route):
     body = route.request.post_data_json
     value = USAGE[body["aggregation"]] if "cpu" in body["metricName"] else 0.25
-    route.fulfill(json={"series": [{"resourceId": resource, "points": [{"timestamp": STAMP, "value": value}]}]})
+    route.fulfill(
+        json={
+            "series": [
+                {
+                    "resourceId": resource,
+                    "points": [{"timestamp": STAMP, "value": value}],
+                }
+            ]
+        }
+    )
 
 
 results = []
 with session(out) as browser:
     try:
-        context, page, errors = open_page(browser, state=state, permissions=["clipboard-read", "clipboard-write"])
-        context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+        context, page, errors = open_page(
+            browser, state=state, permissions=["clipboard-read", "clipboard-write"]
+        )
+        context.route(
+            "**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics
+        )
         try:
             page.goto(base)
             expect(page.get_by_text("Last warning", exact=True)).to_be_visible()
-            expect(page.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
+            expect(
+                page.get_by_text("The service exited with code 1.", exact=True)
+            ).to_be_visible()
             expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
             expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
             expect(page.get_by_label("Above 85% of the limit")).to_have_count(1)
-            expect(page.get_by_text("band shows lowest to highest of 1 replica", exact=True).first).to_be_visible()
+            expect(
+                page.get_by_text(
+                    "band shows lowest to highest of 1 replica", exact=True
+                ).first
+            ).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^us-east-1")).click()
-            metrics_href = page.get_by_role("link", name="All metrics", exact=True).get_attribute("href")
-            assert parse_qs(urlparse(metrics_href).query)["q"] == ["@region:us-east-1"], metrics_href
+            metrics_href = page.get_by_role(
+                "link", name="All metrics", exact=True
+            ).get_attribute("href")
+            assert parse_qs(urlparse(metrics_href).query)["q"] == [
+                "@region:us-east-1"
+            ], metrics_href
             page.get_by_role("button", name=re.compile(r"^Events")).click()
             runtime_events = page.get_by_role("dialog", name="Events", exact=True)
             expect(runtime_events.get_by_text("crash loop", exact=True)).to_be_visible()
-            expect(runtime_events.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
+            expect(
+                runtime_events.get_by_text(
+                    "The service exited with code 1.", exact=True
+                )
+            ).to_be_visible()
             runtime_events.get_by_role("button", name="Warnings", exact=True).click()
-            expect(runtime_events.get_by_text("The service exited with code 1.", exact=True)).to_be_visible()
+            expect(
+                runtime_events.get_by_text(
+                    "The service exited with code 1.", exact=True
+                )
+            ).to_be_visible()
             page.keyboard.press("Escape")
             image_label = page.get_by_title(image, exact=True)
             expect(image_label).to_be_visible()
             assert len(image_label.inner_text()) < len(image)
-            expect(page.get_by_text(re.compile(r"^deployed .+ by @Olivia Owner$"))).to_be_visible()
+            expect(
+                page.get_by_text(re.compile(r"^deployed .+ by @Olivia Owner$"))
+            ).to_be_visible()
             page.get_by_role("button", name="Switch resource", exact=True).click()
-            expect(page.get_by_role("menuitem", name=re.compile(rf"^{name}")).get_by_text("Ranks products for each shopper", exact=True)).to_be_visible()
+            expect(
+                page.get_by_role("menuitem", name=re.compile(rf"^{name}")).get_by_text(
+                    "Ranks products for each shopper", exact=True
+                )
+            ).to_be_visible()
             page.keyboard.press("Escape")
             more = page.get_by_role("button", name="More actions", exact=True)
             more.click()
-            page.get_by_role("menuitem", name="Copy image reference", exact=True).click()
+            page.get_by_role(
+                "menuitem", name="Copy image reference", exact=True
+            ).click()
             assert page.evaluate("navigator.clipboard.readText()") == image
-            expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
+            expect(
+                page.get_by_text("Managed by loco.yaml", exact=True).first
+            ).to_be_visible()
             more.click()
-            restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
+            restart = page.get_by_role(
+                "menuitem", name="Restart all replicas", exact=True
+            )
             expect(restart).to_be_enabled()
-            with page.expect_response(lambda response: response.url.endswith("/RestartResource")) as restarted:
+            with page.expect_response(
+                lambda response: response.url.endswith("/RestartResource")
+            ) as restarted:
                 restart.click()
             assert restarted.value.ok, restarted.value.text()
             expect(page.get_by_text(f"Restarting {name}", exact=True)).to_be_visible()
-            assert evidence.psql(state["container"], f"SELECT deployment_id FROM placements WHERE resource_id='{resource}';") == deployment
-            assert evidence.psql(state["container"], f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}' AND environment_id='{production}';") == str(len(results) + 1)
+            assert (
+                evidence.psql(
+                    state["container"],
+                    f"SELECT deployment_id FROM placements WHERE resource_id='{resource}';",
+                )
+                == deployment
+            )
+            assert evidence.psql(
+                state["container"],
+                f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}' AND environment_id='{production}';",
+            ) == str(len(results) + 1)
             if not results:
                 receipt = "01a1e000-1234-7000-8000-000000000123"
                 failed_restart = "**/loco.resource.v1.ResourceService/RestartResource"
-                context.route(failed_restart, lambda route: route.fulfill(status=500, headers={"x-loco-request-id": receipt, "access-control-expose-headers": "x-loco-request-id"}, json={"code": "internal", "message": "internal error"}))
+                context.route(
+                    failed_restart,
+                    lambda route: route.fulfill(
+                        status=500,
+                        headers={
+                            "x-loco-request-id": receipt,
+                            "access-control-expose-headers": "x-loco-request-id",
+                        },
+                        json={"code": "internal", "message": "internal error"},
+                    ),
+                )
                 more.click()
-                page.get_by_role("menuitem", name="Restart all replicas", exact=True).click()
-                expect(page.get_by_text(f"Couldn’t restart {name}", exact=True)).to_be_visible()
+                page.get_by_role(
+                    "menuitem", name="Restart all replicas", exact=True
+                ).click()
+                expect(
+                    page.get_by_text(f"Couldn’t restart {name}", exact=True)
+                ).to_be_visible()
                 copy_receipt = page.get_by_title("Copy request ID", exact=True)
                 expect(copy_receipt).to_contain_text(receipt)
                 copy_receipt.click()
@@ -115,13 +275,20 @@ with session(out) as browser:
                 page.wait_for_timeout(8000)
                 expect(copy_receipt).to_be_visible()
                 context.unroute(failed_restart)
-            evidence.psql(state["container"], f"UPDATE deployments SET status='running' WHERE id='{deployment}';")
+            evidence.psql(
+                state["container"],
+                f"UPDATE deployments SET status='running' WHERE id='{deployment}';",
+            )
             more.click()
             page.get_by_role("menuitem", name="View spec", exact=True).click()
             dialog = page.get_by_role("dialog")
             expect(dialog).to_be_visible()
-            dialog.evaluate("node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))")
-            geometry = dialog.locator(".overflow-auto").evaluate("e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth})")
+            dialog.evaluate(
+                "node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))"
+            )
+            geometry = dialog.locator(".overflow-auto").evaluate(
+                "e => ({height:e.clientHeight, content:e.scrollHeight, width:e.clientWidth})"
+            )
             assert geometry["height"] > 0
             # Long image references scroll within the spec body.
             assert geometry["width"] <= dialog.bounding_box()["width"], geometry
@@ -134,15 +301,28 @@ with session(out) as browser:
             dialog.get_by_role("button", name="Close", exact=True).click()
             expect(more).to_be_focused()
             page.goto(base + "?tab=settings")
-            expect(page.get_by_text("Values stay hidden. Revealing one shows it for 30 seconds.", exact=True)).to_be_visible()
+            expect(
+                page.get_by_text(
+                    "Values stay hidden. Revealing one shows it for 30 seconds.",
+                    exact=True,
+                )
+            ).to_be_visible()
             mode = page.get_by_label("Value of MODE", exact=True)
             api_base = page.get_by_label("Value of API_BASE_URL", exact=True)
             expect(mode).to_have_attribute("type", "password")
             expect(api_base).to_have_attribute("type", "password")
-            expect(page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)).to_be_disabled()
-            expect(page.locator("#set-env").get_by_text("soon", exact=True)).to_be_visible()
+            expect(
+                page.get_by_role(
+                    "button", name="Show API_TOKEN for 30 seconds", exact=True
+                )
+            ).to_be_disabled()
+            expect(
+                page.locator("#set-env").get_by_text("soon", exact=True)
+            ).to_be_visible()
             page.clock.install()
-            page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
+            page.get_by_role(
+                "button", name="Show MODE for 30 seconds", exact=True
+            ).click()
             expect(mode).to_have_attribute("type", "text")
             expect(mode).to_have_value("production")
             expect(api_base).to_have_attribute("type", "password")
@@ -150,13 +330,17 @@ with session(out) as browser:
             expect(mode).to_have_attribute("type", "text")
             page.clock.fast_forward(1_000)
             expect(mode).to_have_attribute("type", "password")
-            page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
+            page.get_by_role(
+                "button", name="Show MODE for 30 seconds", exact=True
+            ).click()
             page.get_by_role("button", name="Hide MODE", exact=True).click()
             expect(mode).to_have_attribute("type", "password")
             replacement = page.get_by_label("New value for API_TOKEN", exact=True)
             replacement.fill("replacement-token")
             expect(replacement).to_have_attribute("type", "password")
-            page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True).click()
+            page.get_by_role(
+                "button", name="Show API_TOKEN for 30 seconds", exact=True
+            ).click()
             expect(replacement).to_have_attribute("type", "text")
             page.clock.fast_forward(30_000)
             expect(replacement).to_have_attribute("type", "password")
@@ -167,15 +351,29 @@ with session(out) as browser:
             delete = page.get_by_role("button", name="Delete resource", exact=True)
             expect(delete).to_be_enabled()
             delete.click()
-            dialog = page.get_by_role("alertdialog", name="Delete resource?", exact=True)
-            expect(dialog.get_by_text("Deleting here causes drift", exact=False)).to_be_visible()
-            expect(dialog.get_by_text("its active deployment in us-east-1, and no domains", exact=False)).to_be_visible()
+            dialog = page.get_by_role(
+                "alertdialog", name="Delete resource?", exact=True
+            )
+            expect(
+                dialog.get_by_text("Deleting here causes drift", exact=False)
+            ).to_be_visible()
+            expect(
+                dialog.get_by_text(
+                    "its active deployment in us-east-1, and no domains", exact=False
+                )
+            ).to_be_visible()
             expect(dialog.get_by_role("textbox")).to_be_focused()
-            expect(dialog.get_by_role("button", name="Delete resource", exact=True)).to_be_disabled()
+            expect(
+                dialog.get_by_role("button", name="Delete resource", exact=True)
+            ).to_be_disabled()
             dialog.get_by_role("textbox").fill(name.upper())
-            expect(dialog.get_by_role("button", name="Delete resource", exact=True)).to_be_disabled()
+            expect(
+                dialog.get_by_role("button", name="Delete resource", exact=True)
+            ).to_be_disabled()
             dialog.get_by_role("textbox").fill(f" {name} ")
-            expect(dialog.get_by_role("button", name="Delete resource", exact=True)).to_be_enabled()
+            expect(
+                dialog.get_by_role("button", name="Delete resource", exact=True)
+            ).to_be_enabled()
             page.keyboard.press("Escape")
             expect(delete).to_be_focused()
             delete.click()
@@ -187,17 +385,26 @@ with session(out) as browser:
             with page.expect_request(delete_rpc):
                 confirm.click()
             expect(dialog.get_by_role("textbox")).to_be_disabled()
-            expect(dialog.get_by_role("button", name="Cancel", exact=True)).to_be_disabled()
+            expect(
+                dialog.get_by_role("button", name="Cancel", exact=True)
+            ).to_be_disabled()
             page.keyboard.press("Escape")
             expect(dialog).to_be_visible()
-            held_delete.pop().fulfill(status=503, json={"code": "unavailable", "message": "Try again"})
+            held_delete.pop().fulfill(
+                status=503, json={"code": "unavailable", "message": "Try again"}
+            )
             expect(page.get_by_text("Try again.", exact=True)).to_be_visible()
             expect(dialog.get_by_role("textbox")).to_have_value(name)
             expect(confirm).to_be_enabled()
             context.unroute(delete_rpc)
             confirm.click()
-            expect(page).to_have_url(state["ui_url"] + f"/org/{org}/wks/{workspace}?env=production")
-            remaining = evidence.psql(state["container"], f"SELECT COUNT(*) FROM resources WHERE id='{resource}';")
+            expect(page).to_have_url(
+                state["ui_url"] + f"/org/{org}/wks/{workspace}?env=production"
+            )
+            remaining = evidence.psql(
+                state["container"],
+                f"SELECT COUNT(*) FROM resources WHERE id='{resource}';",
+            )
             assert remaining == "0", remaining
             assert not errors, errors
             results.append({"spec": geometry})

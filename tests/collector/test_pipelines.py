@@ -5,7 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from helpers import (
     COLLECTOR_CONFIGMAPS,
     TEST_EXPORTER_ENDPOINT,
@@ -28,7 +27,12 @@ GATEWAY_LABELS = {
     "gateway.envoyproxy.io/owning-gateway-name": "gateway.envoyproxy.io/owning-gateway-name",
     "gateway.envoyproxy.io/owning-gateway-namespace": "gateway.envoyproxy.io/owning-gateway-namespace",
 }
-CLIENT_POD_IDENTITY = ("k8s.pod.ip", "k8s.pod.uid", "k8s.pod.name", "k8s.namespace.name")
+CLIENT_POD_IDENTITY = (
+    "k8s.pod.ip",
+    "k8s.pod.uid",
+    "k8s.pod.name",
+    "k8s.namespace.name",
+)
 ENVOY_CLUSTER_ATTRIBUTES = {
     "trace_statements": "upstream_cluster",
     "log_statements": "upstream_cluster",
@@ -57,11 +61,15 @@ def test_collectors_export_to_the_configured_endpoint(worker_relays):
 
 def test_exporters_queue_on_file_storage_with_the_configured_settings(worker_relays):
     settings = exporter_settings()
-    queue = {key: value for key, value in settings["queue"].items() if key != "directory"}
+    queue = {
+        key: value for key, value in settings["queue"].items() if key != "directory"
+    }
     for collector, config in worker_relays.items():
         (exporter,) = config["exporters"].values()
         assert exporter["sending_queue"] == {
-            "enabled": True, "storage": "file_storage/exporter", **queue
+            "enabled": True,
+            "storage": "file_storage/exporter",
+            **queue,
         }, collector
         assert config["extensions"]["file_storage/exporter"] == {
             "directory": settings["queue"]["directory"]
@@ -73,7 +81,9 @@ def test_exporters_retry_with_the_configured_settings(worker_relays):
     settings = exporter_settings()
     for collector, config in worker_relays.items():
         (exporter,) = config["exporters"].values()
-        assert exporter["retry_on_failure"] == {"enabled": True, **settings["retry"]}, collector
+        assert exporter["retry_on_failure"] == {"enabled": True, **settings["retry"]}, (
+            collector
+        )
 
 
 def test_exporters_send_no_auth_by_default(worker_relays):
@@ -86,13 +96,22 @@ def test_exporters_send_no_auth_by_default(worker_relays):
 def authenticated_exporter():
     return render_chart(
         "loco-worker",
-        {"global": {"exporter": {"headers": EXPORTER_HEADERS, "ingestToken": {"enabled": True, "secretName": "cluster-token"}}}},
+        {
+            "global": {
+                "exporter": {
+                    "headers": EXPORTER_HEADERS,
+                    "ingestToken": {"enabled": True, "secretName": "cluster-token"},
+                }
+            }
+        },
     )
 
 
 def test_exporter_headers_come_from_values(authenticated_exporter):
     for collector, config in collector_relays(authenticated_exporter).items():
-        assert config["exporters"]["otlp_http"]["headers"] == EXPORTER_HEADERS, collector
+        assert config["exporters"]["otlp_http"]["headers"] == EXPORTER_HEADERS, (
+            collector
+        )
 
 
 def test_exporter_authenticates_with_the_mounted_bearer_token(authenticated_exporter):
@@ -100,8 +119,12 @@ def test_exporter_authenticates_with_the_mounted_bearer_token(authenticated_expo
     filename = f"{token['directory']}/{token['secretKey']}"
     for collector, config in collector_relays(authenticated_exporter).items():
         exporter = config["exporters"]["otlp_http"]
-        assert exporter["auth"] == {"authenticator": "bearertokenauth/exporter"}, collector
-        assert config["extensions"]["bearertokenauth/exporter"] == {"filename": filename}, collector
+        assert exporter["auth"] == {"authenticator": "bearertokenauth/exporter"}, (
+            collector
+        )
+        assert config["extensions"]["bearertokenauth/exporter"] == {
+            "filename": filename
+        }, collector
         assert "bearertokenauth/exporter" in config["service"]["extensions"], collector
 
 
@@ -126,7 +149,9 @@ def _k8s_attributes(pipeline):
 
 
 def _checkpoint_directory(worker_relays):
-    return worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"]["directory"]
+    return worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"][
+        "directory"
+    ]
 
 
 def test_file_log_receiver_checkpoints_to_file_storage(worker_relays):
@@ -142,7 +167,11 @@ def test_log_checkpoints_live_in_the_host_path_the_daemonset_mounts(worker_relay
 def test_disabling_log_checkpoints_drops_the_file_log_storage():
     documents = render_chart(
         "loco-worker",
-        {"otel-col-daemon": {"presets": {"logsCollection": {"storeCheckpoints": False}}}},
+        {
+            "otel-col-daemon": {
+                "presets": {"logsCollection": {"storeCheckpoints": False}}
+            }
+        },
     )
     config = collector_relays(documents)["otel-col-daemon-agent"]
     assert "storage" not in config["receivers"]["file_log"]
@@ -229,15 +258,11 @@ def test_file_logs_associate_pods_by_uid(worker_relays):
 def test_build_logs_keep_their_build_id(worker_relays):
     config = worker_relays["otel-col-daemon-agent"]
     pipeline = next(
-        (
-            pipeline
-            for pipeline in config["service"]["pipelines"].values()
-            if "file_log" in pipeline["receivers"]
-        )
+        pipeline
+        for pipeline in config["service"]["pipelines"].values()
+        if "file_log" in pipeline["receivers"]
     )
-    extract = config["processors"][_k8s_attributes(pipeline)[0]][
-        "extract"
-    ]
+    extract = config["processors"][_k8s_attributes(pipeline)[0]]["extract"]
     assert {
         "from": "pod",
         "key": "loco.io/build-id",
@@ -246,7 +271,7 @@ def test_build_logs_keep_their_build_id(worker_relays):
 
 
 def test_tenancy_comes_from_namespace_ownership_and_pod_resource_labels(worker_relays):
-    for collector, config, name, pipeline in _pipelines(worker_relays):
+    for collector, config, _name, pipeline in _pipelines(worker_relays):
         for enricher in _k8s_attributes(pipeline):
             if enricher == "k8s_attributes/route_namespace":
                 continue
@@ -259,9 +284,17 @@ def test_tenancy_comes_from_namespace_ownership_and_pod_resource_labels(worker_r
             assert labels == TENANT_LABELS | BUILD_LABELS | GATEWAY_LABELS, (
                 f"{collector} {enricher}"
             )
-            namespace_labels = {rule["key"]: rule["tag_name"] for rule in extract["labels"] if rule["from"] == "namespace"}
-            assert namespace_labels == {key: value for key, value in TENANT_LABELS.items() if key != "loco.io/resource-id"}
-            assert all(("key_regex" not in rule for rule in extract["labels"])), (
+            namespace_labels = {
+                rule["key"]: rule["tag_name"]
+                for rule in extract["labels"]
+                if rule["from"] == "namespace"
+            }
+            assert namespace_labels == {
+                key: value
+                for key, value in TENANT_LABELS.items()
+                if key != "loco.io/resource-id"
+            }
+            assert all("key_regex" not in rule for rule in extract["labels"]), (
                 f"{collector} {enricher}"
             )
             assert "annotations" not in extract, f"{collector} {enricher}"
@@ -293,17 +326,17 @@ def test_ingest_keeps_only_push_pipelines(worker_relays):
 
 def _ingest_collector(worker_documents):
     return next(
-        (
-            document
-            for document in worker_documents
-            if document["kind"] == "StatefulSet"
-            and document["metadata"]["name"] == "otel-col-deploy"
-        )
+        document
+        for document in worker_documents
+        if document["kind"] == "StatefulSet"
+        and document["metadata"]["name"] == "otel-col-deploy"
     )
 
 
 def test_ingest_requests_resources_within_its_limits(worker_documents):
-    resources = _ingest_collector(worker_documents)["spec"]["template"]["spec"]["containers"][0]["resources"]
+    resources = _ingest_collector(worker_documents)["spec"]["template"]["spec"][
+        "containers"
+    ][0]["resources"]
     for resource in ("cpu", "memory"):
         assert quantity(resources["requests"][resource]) > 0
         assert quantity(resources["requests"][resource]) <= quantity(
@@ -334,9 +367,10 @@ def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
             )
         ]
         assert order == sorted(order), name
-    assert envoy_telemetry.collector["processors"]["groupbyattrs/tenancy"][
-        "keys"
-    ] == [*ROUTE_TENANCY, "k8s.namespace.name"]
+    assert envoy_telemetry.collector["processors"]["groupbyattrs/tenancy"]["keys"] == [
+        *ROUTE_TENANCY,
+        "k8s.namespace.name",
+    ]
 
 
 def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
@@ -380,8 +414,12 @@ def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
 def test_collector_service_ports_reach_the_receivers():
     deploy = chart_values("loco-worker")["otel-col-deploy"]
     protocols = deploy["config"]["receivers"]["otlp"]["protocols"]
-    assert protocols["grpc"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp"]["servicePort"])
-    assert protocols["http"]["endpoint"].rsplit(":", 1)[1] == str(deploy["ports"]["otlp-http"]["servicePort"])
+    assert protocols["grpc"]["endpoint"].rsplit(":", 1)[1] == str(
+        deploy["ports"]["otlp"]["servicePort"]
+    )
+    assert protocols["http"]["endpoint"].rsplit(":", 1)[1] == str(
+        deploy["ports"]["otlp-http"]["servicePort"]
+    )
 
 
 def test_file_logs_extract_application_severity(worker_relays):
@@ -390,15 +428,23 @@ def test_file_logs_extract_application_severity(worker_relays):
             continue
         processors = pipeline["processors"]
         assert "transform/log_severity" in processors
-        assert processors.index("transform/log_severity") > processors.index("memory_limiter")
-        assert processors.index("transform/log_severity") < processors.index("resource/region")
+        assert processors.index("transform/log_severity") > processors.index(
+            "memory_limiter"
+        )
+        assert processors.index("transform/log_severity") < processors.index(
+            "resource/region"
+        )
         assert "log_statements" in config["processors"]["transform/log_severity"]
 
 
 def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
     prefix = "tenant-"
-    documents = render_chart("loco-worker", {"global": {"workspaceNamespacePrefix": prefix}})
-    statements = collector_relays(documents)["otel-col-deploy"]["processors"]["transform/envoy_tenancy"]["trace_statements"][1]["statements"]
+    documents = render_chart(
+        "loco-worker", {"global": {"workspaceNamespacePrefix": prefix}}
+    )
+    statements = collector_relays(documents)["otel-col-deploy"]["processors"][
+        "transform/envoy_tenancy"
+    ]["trace_statements"][1]["statements"]
     (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
     assert f'"^httproute/{prefix}(?P<workspace>' in parse
 
@@ -416,13 +462,20 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
     overrides = {}
     if platform_only is not None:
         overrides = {
-            "global": {"platformTelemetry": {
-                "enabled": True, "platformOnly": platform_only,
-                "installation": "test", "cluster": "test", "environment": "staging",
-            }},
+            "global": {
+                "platformTelemetry": {
+                    "enabled": True,
+                    "platformOnly": platform_only,
+                    "installation": "test",
+                    "cluster": "test",
+                    "environment": "staging",
+                }
+            },
             "otel-col-deploy": {"enabled": not platform_only},
         }
-    for collector, config in collector_relays(render_chart("loco-worker", overrides)).items():
+    for collector, config in collector_relays(
+        render_chart("loco-worker", overrides)
+    ).items():
         queue = config["exporters"]["otlp_http"]["sending_queue"]
         assert queue["storage"] == "file_storage/exporter", collector
         assert queue["block_on_overflow"] is True, collector
@@ -431,7 +484,10 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
         assert queue["batch"]["sizer"] == "items", collector
         assert "batch" not in config["processors"], collector
         for pipeline in config["service"]["pipelines"].values():
-            assert all(step.split("/")[0] not in {"batch", "queuebatch"} for step in pipeline["processors"]), collector
+            assert all(
+                step.split("/")[0] not in {"batch", "queuebatch"}
+                for step in pipeline["processors"]
+            ), collector
         config_path = tmp_path / f"{collector}.json"
         config_path.write_text(json.dumps(config))
         storage_mounts = [
@@ -440,26 +496,62 @@ def test_pipelines_batch_only_after_persistent_enqueue(platform_only, tmp_path):
             if name.split("/")[0] == "file_storage"
             for argument in ("--tmpfs", extension["directory"])
         ]
-        result = subprocess.run([
-            "docker", "run", "--rm", "--user", str(os.getuid()), *storage_mounts,
-            "--env", "MY_POD_IP=127.0.0.1", "--env", "OTEL_K8S_NODE_NAME=test-node",
-            "--env", "OTEL_K8S_NODE_IP=127.0.0.1",
-            "--env", "KUBERNETES_SERVICE_HOST=127.0.0.1", "--env", "KUBERNETES_SERVICE_PORT=443",
-            "--volume", f"{service_account}:/var/run/secrets/kubernetes.io/serviceaccount:ro",
-            "--volume", f"{tmp_path}:/conf:ro", f'{image["repository"]}:{image["tag"]}',
-            "validate", f"--config=/conf/{config_path.name}",
-        ], capture_output=True, text=True)
+        result = subprocess.run(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "--user",
+                str(os.getuid()),
+                *storage_mounts,
+                "--env",
+                "MY_POD_IP=127.0.0.1",
+                "--env",
+                "OTEL_K8S_NODE_NAME=test-node",
+                "--env",
+                "OTEL_K8S_NODE_IP=127.0.0.1",
+                "--env",
+                "KUBERNETES_SERVICE_HOST=127.0.0.1",
+                "--env",
+                "KUBERNETES_SERVICE_PORT=443",
+                "--volume",
+                f"{service_account}:/var/run/secrets/kubernetes.io/serviceaccount:ro",
+                "--volume",
+                f"{tmp_path}:/conf:ro",
+                f"{image['repository']}:{image['tag']}",
+                "validate",
+                f"--config=/conf/{config_path.name}",
+            ],
+            capture_output=True,
+            text=True,
+        )
         assert result.returncode == 0, f"{collector}: {result.stdout}\n{result.stderr}"
 
 
 def test_gateway_tenancy_comes_from_the_route_namespace(worker_relays):
     config = worker_relays["otel-col-deploy"]
     processor = config["processors"]["k8s_attributes/route_namespace"]
-    assert {rule["key"]: rule["tag_name"] for rule in processor["extract"]["labels"] if rule["from"] == "namespace"} == {key: value for key, value in TENANT_LABELS.items() if key != "loco.io/resource-id"}
+    assert {
+        rule["key"]: rule["tag_name"]
+        for rule in processor["extract"]["labels"]
+        if rule["from"] == "namespace"
+    } == {
+        key: value
+        for key, value in TENANT_LABELS.items()
+        if key != "loco.io/resource-id"
+    }
     for pipeline in config["service"]["pipelines"].values():
         order = pipeline["processors"]
-        assert order.index("groupbyattrs/tenancy") < order.index("k8s_attributes/route_namespace") < order.index("resource/region")
+        assert (
+            order.index("groupbyattrs/tenancy")
+            < order.index("k8s_attributes/route_namespace")
+            < order.index("resource/region")
+        )
     for groups in config["processors"]["transform/envoy_tenancy"].values():
         if not isinstance(groups, list):
             continue
-        assert any('set(attributes["k8s.namespace.name"]' in statement for group in groups for statement in group["statements"])
+        assert any(
+            'set(attributes["k8s.namespace.name"]' in statement
+            for group in groups
+            for statement in group["statements"]
+        )

@@ -45,6 +45,8 @@ mise run test:charts
 mise tasks
 mise run test:cli
 mise run lint:go
+mise exec -- ruff check
+mise exec -- ruff format
 mise run docs:serve
 ```
 

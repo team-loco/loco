@@ -1,5 +1,4 @@
 import importlib.util
-import os
 import struct
 from pathlib import Path
 from types import SimpleNamespace

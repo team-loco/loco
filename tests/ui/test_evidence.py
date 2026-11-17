@@ -3,21 +3,31 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from harness import evidence
 
 
 def test_reap_removed_checkout(tmp_path, monkeypatch):
     root = tmp_path / "expired"
     root.mkdir()
-    evidence.write_json(root / "state.json", {
-        "id": "expired", "root": str(root), "worktree": str(root / "src"),
-        "compose": "loco-ui-evidence-expired", "expires_at": 0,
-    })
+    evidence.write_json(
+        root / "state.json",
+        {
+            "id": "expired",
+            "root": str(root),
+            "worktree": str(root / "src"),
+            "compose": "loco-ui-evidence-expired",
+            "expires_at": 0,
+        },
+    )
     live = tmp_path / "live"
-    evidence.write_json(live / "state.json", {
-        "id": "live", "root": str(live), "expires_at": evidence.time.time() + evidence.LEASE_S,
-    })
+    evidence.write_json(
+        live / "state.json",
+        {
+            "id": "live",
+            "root": str(live),
+            "expires_at": evidence.time.time() + evidence.LEASE_S,
+        },
+    )
     monkeypatch.setattr(evidence, "BASE_DIR", tmp_path)
     commands = []
 
@@ -31,9 +41,15 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
         return ""
 
     monkeypatch.setattr(evidence, "run", run)
-    monkeypatch.setattr(evidence.subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(
-        a, 0, stdout="live-openbao\tloco-ui-evidence-live\nforeign-openbao\tforeign-project\n",
-    ))
+    monkeypatch.setattr(
+        evidence.subprocess,
+        "run",
+        lambda *a, **kw: subprocess.CompletedProcess(
+            a,
+            0,
+            stdout="live-openbao\tloco-ui-evidence-live\nforeign-openbao\tforeign-project\n",
+        ),
+    )
     evidence.reap()
     assert not root.exists()
     assert (live / "state.json").exists()
@@ -58,7 +74,11 @@ def test_postgres_pulled_before_start(tmp_path, monkeypatch):
         return "commit"
 
     monkeypatch.setattr(evidence, "run", run)
-    monkeypatch.setattr(evidence, "wait_postgres", lambda container: (_ for _ in ()).throw(RuntimeError("started")))
+    monkeypatch.setattr(
+        evidence,
+        "wait_postgres",
+        lambda container: (_ for _ in ()).throw(RuntimeError("started")),
+    )
     with pytest.raises(RuntimeError, match="started"):
         evidence.cmd_up(argparse.Namespace(name="test", ref="HEAD", scenario=scenario))
     pull = next(cmd for cmd in commands if "./tools/pullimage" in cmd)
@@ -88,32 +108,61 @@ def test_capture_scrolls_drag_target_into_view(tmp_path):
 
         def context(**options):
             result = browser_context(**options)
-            result.route("http://evidence.test/**", lambda route: route.fulfill(body=html, content_type="text/html"))
+            result.route(
+                "http://evidence.test/**",
+                lambda route: route.fulfill(body=html, content_type="text/html"),
+            )
             return result
 
         browser.new_context = context
         target = tmp_path / "drag.png"
-        evidence.capture(browser, {"users": {}, "ui_url": "http://evidence.test"}, {
-            "name": "brush", "path": "/", "ready_selector": "#ready",
-            "steps": [{"drag": {"selector": "#axis", "from": [0.2, 0.5], "to": [0.6, 0.5]}}],
-        }, "light", False, target)
+        evidence.capture(
+            browser,
+            {"users": {}, "ui_url": "http://evidence.test"},
+            {
+                "name": "brush",
+                "path": "/",
+                "ready_selector": "#ready",
+                "steps": [
+                    {
+                        "drag": {
+                            "selector": "#axis",
+                            "from": [0.2, 0.5],
+                            "to": [0.6, 0.5],
+                        }
+                    }
+                ],
+            },
+            "light",
+            False,
+            target,
+        )
         assert target.exists()
         browser.close()
 
 
 def test_suite_failure_records_browser_diagnostics(tmp_path):
     import json
+
     from harness import open_page, session
 
     with pytest.raises(RuntimeError, match="suite failed"):
         with session(tmp_path) as browser:
             context, page, errors = open_page(browser, user=None, state={})
-            page.route("http://evidence.test/", lambda route: route.fulfill(
-                body='<script>fetch("/broken").catch(() => {}); fetch("/unavailable"); throw new Error("page broke")</script>',
-                content_type="text/html",
-            ))
-            page.route("http://evidence.test/broken", lambda route: route.abort("failed"))
-            page.route("http://evidence.test/unavailable", lambda route: route.fulfill(status=503, body="unavailable"))
+            page.route(
+                "http://evidence.test/",
+                lambda route: route.fulfill(
+                    body='<script>fetch("/broken").catch(() => {}); fetch("/unavailable"); throw new Error("page broke")</script>',
+                    content_type="text/html",
+                ),
+            )
+            page.route(
+                "http://evidence.test/broken", lambda route: route.abort("failed")
+            )
+            page.route(
+                "http://evidence.test/unavailable",
+                lambda route: route.fulfill(status=503, body="unavailable"),
+            )
             page.goto("http://evidence.test/")
             page.wait_for_function("document.readyState === 'complete'")
             # Flush pending failed-request events before triggering the suite failure.

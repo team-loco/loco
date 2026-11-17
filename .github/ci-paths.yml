@@ -101,6 +101,7 @@ controller-helm-chart:
 docker:
   pull_request: &docker
     - "tests/pyproject.toml"
+    - "ruff.toml"
     - "tests/uv.lock"
     - "**/Dockerfile"
     - "**/*.dockerignore"
@@ -380,6 +381,16 @@ platform-release:
     - "charts/**"
     - "controller/config/crd/bases/**"
     - ".github/workflows/platform-release.yml"
+
+python:
+  pull_request: &python
+    - "**/*.py"
+    - "ruff.toml"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/workflows/python.yml"
+    - ".github/actions/setup-tools/**"
+  push: *python
 
 transit-conformance:
   pull_request: &transit-conformance

@@ -39,21 +39,28 @@ def bundle():
         name: "ghcr.io/example/platform-" + name + "@" + bundle.digest
         for name in release.IMAGES
     }
-    bundle.files = release.bundle(
-        "0.7.0", bundle.commit, bundle.refs, bundle.images
-    )
+    bundle.files = release.bundle("0.7.0", bundle.commit, bundle.refs, bundle.images)
     return bundle
 
 
 def test_bundle_pins_every_source_by_digest(bundle):
-    sources = [json.loads(data) for path, data in bundle.files.items() if path.endswith(".yaml") and json.loads(data).get("kind") == "OCIRepository"]
+    sources = [
+        json.loads(data)
+        for path, data in bundle.files.items()
+        if path.endswith(".yaml") and json.loads(data).get("kind") == "OCIRepository"
+    ]
     assert sources
     assert all(source["spec"]["ref"] == {"digest": bundle.digest} for source in sources)
 
 
 def test_bundle_lock_records_the_commit_and_images(bundle):
     lock = json.loads(bundle.files["release.json"])
-    assert lock == {"version": "0.7.0", "coreCommit": bundle.commit, "artifacts": bundle.refs, "images": bundle.images}
+    assert lock == {
+        "version": "0.7.0",
+        "coreCommit": bundle.commit,
+        "artifacts": bundle.refs,
+        "images": bundle.images,
+    }
 
 
 def helm_release(bundle, layer, name):
@@ -62,45 +69,94 @@ def helm_release(bundle, layer, name):
 
 def test_worker_release_pins_each_image_by_commit_and_digest(bundle):
     values = helm_release(bundle, "worker", "loco-worker")["spec"]["values"]
-    for name, image in (("agent", values["agent"]["image"]), ("controller", values["controller"]["image"]), ("builder", values["builds"]["builderImage"])):
-        assert image == {"repository": "ghcr.io/example/platform-" + name, "tag": f"sha-{bundle.commit}@{bundle.digest}"}
+    for name, image in (
+        ("agent", values["agent"]["image"]),
+        ("controller", values["controller"]["image"]),
+        ("builder", values["builds"]["builderImage"]),
+    ):
+        assert image == {
+            "repository": "ghcr.io/example/platform-" + name,
+            "tag": f"sha-{bundle.commit}@{bundle.digest}",
+        }
     assert values["gateway-helm"]["enabled"] is False
 
 
 def test_control_plane_release_pins_its_images(bundle):
-    values = helm_release(bundle, "control-plane", "loco-control-plane")["spec"]["values"]
+    values = helm_release(bundle, "control-plane", "loco-control-plane")["spec"][
+        "values"
+    ]
     for field, name in (("api", "api"), ("ui", "ui"), ("obsProxy", "obs-proxy")):
-        assert values[field]["image"] == {"repository": "ghcr.io/example/platform-" + name, "tag": f"sha-{bundle.commit}@{bundle.digest}"}
+        assert values[field]["image"] == {
+            "repository": "ghcr.io/example/platform-" + name,
+            "tag": f"sha-{bundle.commit}@{bundle.digest}",
+        }
 
 
-@pytest.mark.parametrize("layer,name", [("worker", "loco-worker"), ("control-plane", "loco-control-plane"), ("infra", "envoy-gateway"), ("infra", "cert-manager")])
+@pytest.mark.parametrize(
+    "layer,name",
+    [
+        ("worker", "loco-worker"),
+        ("control-plane", "loco-control-plane"),
+        ("infra", "envoy-gateway"),
+        ("infra", "cert-manager"),
+    ],
+)
 def test_release_values_sources_are_optional(bundle, layer, name):
     spec = helm_release(bundle, layer, name)["spec"]
     assert spec["install"]["createNamespace"] is False
     assert spec["valuesFrom"] == [
-        {"kind": kind, "name": name + suffix, "valuesKey": "values.yaml", "optional": True}
-        for kind, suffix in (("ConfigMap", "-base-values"), ("ConfigMap", "-values"), ("Secret", "-secrets"))
+        {
+            "kind": kind,
+            "name": name + suffix,
+            "valuesKey": "values.yaml",
+            "optional": True,
+        }
+        for kind, suffix in (
+            ("ConfigMap", "-base-values"),
+            ("ConfigMap", "-values"),
+            ("Secret", "-secrets"),
+        )
     ]
 
 
 def test_crd_kustomizations_wait_without_pruning(bundle):
     for name in ("applications", "builds", "gateway"):
-        spec = json.loads(bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"])["spec"]
+        spec = json.loads(
+            bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"]
+        )["spec"]
         assert spec["wait"] and not spec["prune"]
 
 
-@pytest.mark.parametrize("entry,selected", [("control-plane", {"control-plane"}), ("worker", {"worker"}), ("all", {"control-plane", "worker"})])
+@pytest.mark.parametrize(
+    "entry,selected",
+    [
+        ("control-plane", {"control-plane"}),
+        ("worker", {"worker"}),
+        ("all", {"control-plane", "worker"}),
+    ],
+)
 def test_entry_points_select_their_layers(bundle, entry, selected):
-    names = {path.removesuffix(".yaml") for path in json.loads(bundle.files[entry + "/kustomization.yaml"])["resources"]}
+    names = {
+        path.removesuffix(".yaml")
+        for path in json.loads(bundle.files[entry + "/kustomization.yaml"])["resources"]
+    }
     assert names == {"namespaces", "crds", "infra"} | selected
 
 
 def test_layers_wait_for_their_dependencies(bundle):
-    for name, deps in (("namespaces", set()), ("crds", {"loco-namespaces"}), ("infra", {"loco-crds"}), ("control-plane", {"loco-infra", "loco-cluster-config"}), ("worker", {"loco-infra", "loco-cluster-config"})):
+    for name, deps in (
+        ("namespaces", set()),
+        ("crds", {"loco-namespaces"}),
+        ("infra", {"loco-crds"}),
+        ("control-plane", {"loco-infra", "loco-cluster-config"}),
+        ("worker", {"loco-infra", "loco-cluster-config"}),
+    ):
         spec = json.loads(bundle.files[f"all/{name}.yaml"])["spec"]
         assert {dep["name"] for dep in spec["dependsOn"]} == deps
         assert spec["wait"]
-        assert spec.get("serviceAccountName") == (None if name == "namespaces" else "platform-reconciler")
+        assert spec.get("serviceAccountName") == (
+            None if name == "namespaces" else "platform-reconciler"
+        )
         for dep in spec["dependsOn"]:
             if dep["name"] != "loco-cluster-config":
                 assert "dep.status.observedGeneration" in dep["readyExpr"]
@@ -119,29 +175,62 @@ def test_crds_health_requires_the_expected_artifact_revision(bundle):
     health = spec["healthCheckExprs"][0]["current"]
     assert "platform.loco.io/artifact-digest" in health
     for name in ("applications", "builds", "gateway"):
-        resource = json.loads(bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"])
-        assert resource["metadata"]["annotations"]["platform.loco.io/artifact-digest"] == bundle.digest
-    assert "status.lastAppliedRevision" in health and "status.observedGeneration" in health
+        resource = json.loads(
+            bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"]
+        )
+        assert (
+            resource["metadata"]["annotations"]["platform.loco.io/artifact-digest"]
+            == bundle.digest
+        )
+    assert (
+        "status.lastAppliedRevision" in health and "status.observedGeneration" in health
+    )
 
 
 def test_gateway_has_an_independent_release(bundle):
     spec = helm_release(bundle, "infra", "envoy-gateway")["spec"]
     assert spec["install"]["crds"] == spec["upgrade"]["crds"] == "Skip"
     assert spec["values"]["crds"]["enabled"] is False
-    assert spec["values"]["config"]["envoyGateway"]["provider"]["kubernetes"]["deploy"]["type"] == "GatewayNamespace"
+    assert (
+        spec["values"]["config"]["envoyGateway"]["provider"]["kubernetes"]["deploy"][
+            "type"
+        ]
+        == "GatewayNamespace"
+    )
 
 
 def test_bundle_namespace_layer_supplies_reconciliation_identity(bundle):
-    objects = [json.loads(data) for path, data in bundle.files.items() if path.startswith("layers/namespaces/")]
-    assert {obj["metadata"]["name"] for obj in objects if obj["kind"] == "Namespace"} == {"loco-system", "cert-manager"}
-    namespace = next(obj for obj in objects if obj["kind"] == "Namespace" and obj["metadata"]["name"] == "loco-system")
-    assert namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"] == "restricted"
+    objects = [
+        json.loads(data)
+        for path, data in bundle.files.items()
+        if path.startswith("layers/namespaces/")
+    ]
+    assert {
+        obj["metadata"]["name"] for obj in objects if obj["kind"] == "Namespace"
+    } == {"loco-system", "cert-manager"}
+    namespace = next(
+        obj
+        for obj in objects
+        if obj["kind"] == "Namespace" and obj["metadata"]["name"] == "loco-system"
+    )
+    assert (
+        namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"]
+        == "restricted"
+    )
     account = next(obj for obj in objects if obj["kind"] == "ServiceAccount")
-    assert account["metadata"] == {"name": "platform-reconciler", "namespace": "flux-system"}
+    assert account["metadata"] == {
+        "name": "platform-reconciler",
+        "namespace": "flux-system",
+    }
 
 
 def test_local_content_changes_advance_dependency_revision(bundle):
-    files = release.bundle("0.7.0", bundle.commit, bundle.refs, {**bundle.images, "api": "ghcr.io/example/platform-api@sha256:" + "c"*64})
+    files = release.bundle(
+        "0.7.0",
+        bundle.commit,
+        bundle.refs,
+        {**bundle.images, "api": "ghcr.io/example/platform-api@sha256:" + "c" * 64},
+    )
     for layer in ("namespaces", "crds", "infra", "control-plane", "worker"):
         before = json.loads(bundle.files[f"all/{layer}.yaml"])
         after = json.loads(files[f"all/{layer}.yaml"])
@@ -152,7 +241,10 @@ def test_local_content_changes_advance_dependency_revision(bundle):
 def test_bundle_archive_contains_only_declared_files(bundle):
     with tarfile.open(fileobj=io.BytesIO(release.archive(bundle.files))) as tar:
         assert set(tar.getnames()) == set(bundle.files)
-        assert all(not name.startswith("/") and ".." not in Path(name).parts for name in tar.getnames())
+        assert all(
+            not name.startswith("/") and ".." not in Path(name).parts
+            for name in tar.getnames()
+        )
 
 
 def test_archive_is_reproducible(bundle):
@@ -318,41 +410,64 @@ def test_ensure_publishes_an_absent_version(registry):
 def existing_artifact(registry):
     def existing(data, annotations):
         layer = release.digest(data)
-        manifest = release.encoded({"annotations": annotations, "layers": [{"digest": layer}]})
+        manifest = release.encoded(
+            {"annotations": annotations, "layers": [{"digest": layer}]}
+        )
         reference = release.digest(manifest)
+
         def request(method, path, **kwargs):
             assert method == "GET"
             if path.endswith("/manifests/" + reference):
                 return manifest, {}
             assert path.endswith("/blobs/" + layer)
             return data, {}
+
         registry.manifest = Mock(return_value=reference)
         registry.request = Mock(side_effect=request)
         registry.publish = Mock()
         return reference
+
     return existing
 
 
-@pytest.mark.parametrize("annotations", [{}, {release.CONTENT_ANNOTATION: "legacy-compressed-hash"}])
-def test_ensure_reuses_existing_files_with_legacy_annotations(registry, existing_artifact, annotations):
+@pytest.mark.parametrize(
+    "annotations", [{}, {release.CONTENT_ANNOTATION: "legacy-compressed-hash"}]
+)
+def test_ensure_reuses_existing_files_with_legacy_annotations(
+    registry, existing_artifact, annotations
+):
     data = release.archive({"Chart.yaml": b"name: chart"})
     reference = existing_artifact(data, annotations)
     assert registry.ensure("example/platform/chart", "0.1.0", data, {}) == reference
     registry.publish.assert_not_called()
 
 
-def test_ensure_skips_a_version_published_with_the_same_content(registry, existing_artifact):
+def test_ensure_skips_a_version_published_with_the_same_content(
+    registry, existing_artifact
+):
     data = release.archive({"Chart.yaml": b"name: chart"})
-    reference = existing_artifact(data, {release.CONTENT_ANNOTATION: release.content(data)})
+    reference = existing_artifact(
+        data, {release.CONTENT_ANNOTATION: release.content(data)}
+    )
     assert registry.ensure("example/platform/chart", "0.1.0", data, {}) == reference
     assert registry.request.call_count == 1
     registry.publish.assert_not_called()
 
 
 def test_ensure_names_added_removed_and_changed_files(registry, existing_artifact):
-    existing_artifact(release.archive({"Chart.yaml": b"name: old", "removed.yaml": b"old", "same": b"same"}), {})
-    data = release.archive({"Chart.yaml": b"name: new", "added.yaml": b"new", "same": b"same"})
-    with pytest.raises(RuntimeError, match=r"different content; bump its version; differing files: Chart.yaml, added.yaml, removed.yaml$"):
+    existing_artifact(
+        release.archive(
+            {"Chart.yaml": b"name: old", "removed.yaml": b"old", "same": b"same"}
+        ),
+        {},
+    )
+    data = release.archive(
+        {"Chart.yaml": b"name: new", "added.yaml": b"new", "same": b"same"}
+    )
+    with pytest.raises(
+        RuntimeError,
+        match=r"different content; bump its version; differing files: Chart.yaml, added.yaml, removed.yaml$",
+    ):
         registry.ensure("example/platform/chart", "0.1.0", data, {})
     registry.publish.assert_not_called()
 
@@ -362,11 +477,13 @@ def test_ensure_checks_downloaded_digests(registry, existing_artifact, corrupt):
     data = release.archive({"Chart.yaml": b"name: chart"})
     existing_artifact(data, {})
     request = registry.request.side_effect
+
     def corrupted(method, path, **kwargs):
         body, headers = request(method, path, **kwargs)
         if ("/manifests/" in path) == (corrupt == "manifest"):
             body += b"corrupt"
         return body, headers
+
     registry.request.side_effect = corrupted
     with pytest.raises(RuntimeError, match="digest mismatch"):
         registry.ensure("example/platform/chart", "0.1.0", data, {})
@@ -377,7 +494,11 @@ def test_content_does_not_depend_on_gzip_compression():
     data = release.archive({"Chart.yaml": b"name: chart" * 100})
     before = release.content(data)
     compressor = release.gzip.compress
-    with patch.object(release.gzip, "compress", side_effect=lambda data, **kwargs: compressor(data, compresslevel=1, **kwargs)):
+    with patch.object(
+        release.gzip,
+        "compress",
+        side_effect=lambda data, **kwargs: compressor(data, compresslevel=1, **kwargs),
+    ):
         assert release.content(data) == before
 
 
@@ -399,7 +520,11 @@ def test_published_manifest_records_content(registry):
         patch.object(registry, "assert_absent"),
         patch.object(registry, "blob", return_value="sha256:" + "a" * 64),
         patch.object(registry, "request") as request,
-        patch.object(registry, "manifest", side_effect=lambda *args: release.digest(request.call_args.kwargs["data"])),
+        patch.object(
+            registry,
+            "manifest",
+            side_effect=lambda *args: release.digest(request.call_args.kwargs["data"]),
+        ),
     ):
         registry.publish("example/platform/chart", "0.1.0", data, {})
     manifest = json.loads(request.call_args.kwargs["data"])
@@ -454,12 +579,23 @@ def publication():
 
 
 def _value(path, expression, ref=None):
-    if path == 'manifests/namespaces/loco-system.yaml':
-        return {'apiVersion': 'v1', 'kind': 'Namespace', 'metadata': {'name': 'loco-system', 'labels': {'pod-security.kubernetes.io/enforce': 'restricted'}}}
-    if path == 'charts/loco-worker/Chart.yaml' and '.version' in expression:
-        return VERSIONS['gateway-chart']
+    if path == "manifests/namespaces/loco-system.yaml":
+        return {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": "loco-system",
+                "labels": {"pod-security.kubernetes.io/enforce": "restricted"},
+            },
+        }
+    if path == "charts/loco-worker/Chart.yaml" and ".version" in expression:
+        return VERSIONS["gateway-chart"]
     if path == release.CERT_MANAGER:
-        return {"repository": "https://charts.example.test", "chart": "cert-manager", "version": VERSIONS["cert-manager-chart"]}
+        return {
+            "repository": "https://charts.example.test",
+            "chart": "cert-manager",
+            "version": VERSIONS["cert-manager-chart"],
+        }
     return {"name": Path(path).parent.name, "version": VERSIONS[Path(path).parent.name]}
 
 
@@ -481,17 +617,25 @@ def published_artifacts(publication):
 
 
 def test_artifacts_publish_each_chart_and_crd_at_its_own_version(published_artifacts):
-    ensured = {call.args[0]: call.args[1] for call in published_artifacts.registry.ensure.call_args_list}
+    ensured = {
+        call.args[0]: call.args[1]
+        for call in published_artifacts.registry.ensure.call_args_list
+    }
     names = release.repositories(published_artifacts.registry)
     assert ensured == {names[name]: version for name, version in VERSIONS.items()}
-    data = {call.args[0]: call.args[2] for call in published_artifacts.registry.ensure.call_args_list}
+    data = {
+        call.args[0]: call.args[2]
+        for call in published_artifacts.registry.ensure.call_args_list
+    }
     assert data[names["loco-worker"]] == b"loco-worker"
     assert data[names["loco-gateway-crd"]] == b"gateway"
 
 
 def test_artifacts_publish_no_bundle(published_artifacts):
     published_artifacts.registry.publish.assert_not_called()
-    assert not [call for call in published_artifacts.calls if call[:2] == ("gh", "attestation")]
+    assert not [
+        call for call in published_artifacts.calls if call[:2] == ("gh", "attestation")
+    ]
 
 
 def test_artifacts_stop_at_a_version_published_with_other_content(publication):
@@ -516,15 +660,23 @@ def published_bundle(publication):
 
 def test_bundle_pins_the_published_versions(published_bundle):
     names = release.repositories(published_bundle.registry)
-    looked_up = {call.args[0]: call.args[1] for call in published_bundle.public.manifest.call_args_list if call.kwargs.get("missing")}
+    looked_up = {
+        call.args[0]: call.args[1]
+        for call in published_bundle.public.manifest.call_args_list
+        if call.kwargs.get("missing")
+    }
     assert looked_up == {names[name]: version for name, version in VERSIONS.items()}
 
 
 def test_bundle_publishes_only_itself(published_bundle):
     names = release.repositories(published_bundle.registry)
     published_bundle.registry.ensure.assert_not_called()
-    assert [call.args[0] for call in published_bundle.registry.publish.call_args_list] == [names["platform"]]
-    published_bundle.registry.assert_absent.assert_called_once_with(names["platform"], "0.7.0")
+    assert [
+        call.args[0] for call in published_bundle.registry.publish.call_args_list
+    ] == [names["platform"]]
+    published_bundle.registry.assert_absent.assert_called_once_with(
+        names["platform"], "0.7.0"
+    )
     assert not [call for call in published_bundle.calls if call[0] == "helm"]
 
 
@@ -558,7 +710,11 @@ def test_bundle_requires_each_image_platform(published_bundle):
 
 
 def test_bundle_fails_when_a_pinned_version_is_not_published(publication):
-    publication.public.manifest.side_effect = lambda repository, reference, missing=False: None if repository.endswith("crds/builds") else "sha256:" + "a" * 64
+    publication.public.manifest.side_effect = (
+        lambda repository, reference, missing=False: (
+            None if repository.endswith("crds/builds") else "sha256:" + "a" * 64
+        )
+    )
     with pytest.raises(RuntimeError, match="loco-builds-crd 0.1.0 is not published"):
         release.publish_bundle("0.7.0", publication.commit, publication.registry)
     publication.registry.publish.assert_not_called()
@@ -609,20 +765,40 @@ dependencies:
 @pytest.fixture
 def repository(tmp_path):
     def git(*args):
-        release.subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+        release.subprocess.run(
+            ["git", *args], cwd=tmp_path, check=True, capture_output=True
+        )
 
     def write(path, text):
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text(text)
 
-    write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.0", gateway="1.0.0", otel="1.0.0"))
-    write(release.CRD_SOURCES["applications"][0], "kind: CustomResourceDefinition\nmetadata: {name: applications}\n")
-    write(release.CRD_SOURCES["builds"][0], "kind: CustomResourceDefinition\nmetadata: {name: builds}\n")
+    write(
+        "charts/loco-worker/Chart.yaml",
+        WORKER_CHART.format(version="0.1.0", gateway="1.0.0", otel="1.0.0"),
+    )
+    write(
+        release.CRD_SOURCES["applications"][0],
+        "kind: CustomResourceDefinition\nmetadata: {name: applications}\n",
+    )
+    write(
+        release.CRD_SOURCES["builds"][0],
+        "kind: CustomResourceDefinition\nmetadata: {name: builds}\n",
+    )
     write(release.CRD_VERSIONS, "applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n")
     write("cmd/loco/main.go", "package main\n")
     git("init", "-q")
     git("add", ".")
-    git("-c", "user.name=test", "-c", "user.email=test@example.invalid", "commit", "-q", "-m", "base")
+    git(
+        "-c",
+        "user.name=test",
+        "-c",
+        "user.email=test@example.invalid",
+        "commit",
+        "-q",
+        "-m",
+        "base",
+    )
     with patch.object(release, "ROOT", tmp_path):
         yield SimpleNamespace(write=write)
 
@@ -633,8 +809,14 @@ def test_unchanged_artifacts_need_no_bump(repository):
 
 
 def test_changed_crd_needs_its_bundle_version_bumped(repository, subtests):
-    repository.write(release.CRD_SOURCES["builds"][0], "kind: CustomResourceDefinition\nmetadata: {name: builds, labels: {a: b}}\n")
-    for versions, stale in (("applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n", ["loco-builds-crd"]), ("applications: 0.1.0\nbuilds: 0.1.1\ngateway: 0.1.0\n", [])):
+    repository.write(
+        release.CRD_SOURCES["builds"][0],
+        "kind: CustomResourceDefinition\nmetadata: {name: builds, labels: {a: b}}\n",
+    )
+    for versions, stale in (
+        ("applications: 0.1.0\nbuilds: 0.1.0\ngateway: 0.1.0\n", ["loco-builds-crd"]),
+        ("applications: 0.1.0\nbuilds: 0.1.1\ngateway: 0.1.0\n", []),
+    ):
         with subtests.test(versions=versions):
             repository.write(release.CRD_VERSIONS, versions)
             assert release.unbumped("HEAD") == stale
@@ -643,42 +825,66 @@ def test_changed_crd_needs_its_bundle_version_bumped(repository, subtests):
 def test_gateway_dependency_bump_needs_a_gateway_crd_bump(repository, subtests):
     for gateway, stale in (("0.1.0", ["loco-gateway-crd"]), ("0.2.0", [])):
         with subtests.test(gateway=gateway):
-            repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.1", gateway="1.1.0", otel="1.0.0"))
-            repository.write(release.CRD_VERSIONS, f"applications: 0.1.0\nbuilds: 0.1.0\ngateway: {gateway}\n")
+            repository.write(
+                "charts/loco-worker/Chart.yaml",
+                WORKER_CHART.format(version="0.1.1", gateway="1.1.0", otel="1.0.0"),
+            )
+            repository.write(
+                release.CRD_VERSIONS,
+                f"applications: 0.1.0\nbuilds: 0.1.0\ngateway: {gateway}\n",
+            )
             assert release.unbumped("HEAD") == stale
 
 
 def test_other_worker_dependency_bump_leaves_gateway_crds_alone(repository):
-    repository.write("charts/loco-worker/Chart.yaml", WORKER_CHART.format(version="0.1.1", gateway="1.0.0", otel="1.1.0"))
+    repository.write(
+        "charts/loco-worker/Chart.yaml",
+        WORKER_CHART.format(version="0.1.1", gateway="1.0.0", otel="1.1.0"),
+    )
     assert release.unbumped("HEAD") == []
 
 
 def test_repository_versions_are_valid():
     versions = release.versions()
-    assert set(versions) == set(release.repositories(release.Registry("example/platform", "", ""))) - {"platform"}
+    assert set(versions) == set(
+        release.repositories(release.Registry("example/platform", "", ""))
+    ) - {"platform"}
 
 
 def test_local_registry_uses_http_and_basic_auth():
     registry = release.Registry("example/platform", "push", "secret", "localhost:15000")
     challenge = urllib.error.HTTPError(
-        "http://localhost:15000", 401, "auth", {"WWW-Authenticate": 'Basic realm="zot"'}, io.BytesIO(b"")
+        "http://localhost:15000",
+        401,
+        "auth",
+        {"WWW-Authenticate": 'Basic realm="zot"'},
+        io.BytesIO(b""),
     )
     manifest = io.BytesIO(b'{"schemaVersion":2}')
     manifest.headers = {}
     with patch("urllib.request.urlopen", side_effect=[challenge, manifest]) as request:
         registry.manifest("example/platform/chart", "0.7.0")
     retried = request.call_args_list[1].args[0]
-    assert retried.full_url == "http://localhost:15000/v2/example/platform/chart/manifests/0.7.0"
+    assert (
+        retried.full_url
+        == "http://localhost:15000/v2/example/platform/chart/manifests/0.7.0"
+    )
     assert retried.get_header("Authorization") == "Basic cHVzaDpzZWNyZXQ="
 
 
 def test_basic_challenge_without_credentials_fails():
     registry = release.Registry("example/platform", "", "", "localhost:15000")
     challenge = urllib.error.HTTPError(
-        "http://localhost:15000", 401, "auth", {"WWW-Authenticate": 'Basic realm="zot"'}, io.BytesIO(b"")
+        "http://localhost:15000",
+        401,
+        "auth",
+        {"WWW-Authenticate": 'Basic realm="zot"'},
+        io.BytesIO(b""),
     )
     with patch("urllib.request.urlopen", side_effect=challenge):
-        with pytest.raises(RuntimeError, match="unexpected registry authentication challenge"):
+        with pytest.raises(
+            RuntimeError, match="unexpected registry authentication challenge"
+        ):
             registry.manifest("example/platform/chart", "0.7.0")
 
 
@@ -687,19 +893,39 @@ def test_replacing_publish_skips_the_absence_checks(registry):
         patch.object(registry, "assert_absent") as absent,
         patch.object(registry, "blob", return_value="sha256:" + "a" * 64),
         patch.object(registry, "request") as request,
-        patch.object(registry, "manifest", side_effect=lambda *args: release.digest(request.call_args.kwargs["data"])),
+        patch.object(
+            registry,
+            "manifest",
+            side_effect=lambda *args: release.digest(request.call_args.kwargs["data"]),
+        ),
     ):
-        registry.publish("example/platform/chart", "0.0.0-local.gabc", release.archive({}), {}, replace=True)
+        registry.publish(
+            "example/platform/chart",
+            "0.0.0-local.gabc",
+            release.archive({}),
+            {},
+            replace=True,
+        )
     absent.assert_not_called()
 
 
 def test_main_release_uses_the_newest_commit_with_every_image(publication, capsys):
     older, newer = "c" * 40, "d" * 40
-    publication.registry.manifest.side_effect = lambda repository, reference, missing=False: (
-        None if missing and reference == "sha-" + newer and repository.endswith("-ui") else "sha256:" + "a" * 64
+    publication.registry.manifest.side_effect = (
+        lambda repository, reference, missing=False: (
+            None
+            if missing and reference == "sha-" + newer and repository.endswith("-ui")
+            else "sha256:" + "a" * 64
+        )
     )
     commands = partial(_command, publication)
-    with patch.object(release, "run", side_effect=lambda *args: f"{newer}\n{older}" if args[1] == "rev-list" else commands(*args)):
+    with patch.object(
+        release,
+        "run",
+        side_effect=lambda *args: (
+            f"{newer}\n{older}" if args[1] == "rev-list" else commands(*args)
+        ),
+    ):
         release.main_release(None, publication.registry)
     lock = json.loads(capsys.readouterr().out)
     assert lock["coreCommit"] == older
@@ -711,9 +937,19 @@ def test_main_release_uses_the_newest_commit_with_every_image(publication, capsy
 def test_main_release_verifies_each_image_attestation(publication):
     with patch("builtins.print"):
         release.main_release(publication.commit, publication.registry)
-    attestations = [call for call in publication.calls if call[:3] == ("gh", "attestation", "verify")]
+    attestations = [
+        call
+        for call in publication.calls
+        if call[:3] == ("gh", "attestation", "verify")
+    ]
     assert len(attestations) == len(release.IMAGES)
-    assert ("git", "merge-base", "--is-ancestor", publication.commit, "origin/main") in publication.calls
+    assert (
+        "git",
+        "merge-base",
+        "--is-ancestor",
+        publication.commit,
+        "origin/main",
+    ) in publication.calls
 
 
 def test_main_release_publishes_nothing(publication):
@@ -729,7 +965,13 @@ def local_release(publication, capsys):
     publication.registry.username = "push"
     publication.registry.password = "secret"
     commands = partial(_command, publication)
-    with patch.object(release, "run", side_effect=lambda *args: publication.commit if args[:2] == ("git", "rev-parse") else commands(*args)):
+    with patch.object(
+        release,
+        "run",
+        side_effect=lambda *args: (
+            publication.commit if args[:2] == ("git", "rev-parse") else commands(*args)
+        ),
+    ):
         release.local_release(publication.registry, "registry.example.localhost:15000")
     publication.lock = json.loads(capsys.readouterr().out)
     return publication
@@ -738,29 +980,45 @@ def local_release(publication, capsys):
 def test_local_release_replaces_each_artifact_at_the_local_version(local_release):
     names = release.repositories(local_release.registry)
     version = "0.0.0-local.g" + local_release.commit[:12]
-    published = {call.args[0]: (call.args[1], call.kwargs) for call in local_release.registry.publish.call_args_list}
-    assert published == {names[name]: (version, {"replace": True}) for name in (*VERSIONS, "platform")}
+    published = {
+        call.args[0]: (call.args[1], call.kwargs)
+        for call in local_release.registry.publish.call_args_list
+    }
+    assert published == {
+        names[name]: (version, {"replace": True}) for name in (*VERSIONS, "platform")
+    }
     local_release.registry.ensure.assert_not_called()
 
 
 def test_local_release_builds_and_pushes_each_image(local_release):
     version = "0.0.0-local.g" + local_release.commit[:12]
     builds = [call for call in local_release.calls if call[:2] == ("docker", "build")]
-    pushes = [call for call in local_release.calls if "push" in call and call[0] == "docker"]
+    pushes = [
+        call for call in local_release.calls if "push" in call and call[0] == "docker"
+    ]
     assert [call[-2:] for call in builds] == [
-        ("localhost:15000/example/platform-" + name + ":" + version, ".") for name in release.IMAGES
+        ("localhost:15000/example/platform-" + name + ":" + version, ".")
+        for name in release.IMAGES
     ]
     assert [call[-1] for call in pushes] == [
-        "localhost:15000/example/platform-" + name + ":" + version for name in release.IMAGES
+        "localhost:15000/example/platform-" + name + ":" + version
+        for name in release.IMAGES
     ]
-    assert not [call for call in local_release.calls if call[:2] == ("gh", "attestation")]
+    assert not [
+        call for call in local_release.calls if call[:2] == ("gh", "attestation")
+    ]
 
 
 def test_local_release_names_everything_at_the_cluster_address(local_release):
     assert local_release.lock["version"] == "0.0.0-local.g" + local_release.commit[:12]
     assert local_release.lock["coreCommit"] == local_release.commit
-    assert local_release.lock["bundle"].startswith("registry.example.localhost:15000/example/platform/platform@sha256:")
-    references = [*local_release.lock["artifacts"].values(), *local_release.lock["images"].values()]
+    assert local_release.lock["bundle"].startswith(
+        "registry.example.localhost:15000/example/platform/platform@sha256:"
+    )
+    references = [
+        *local_release.lock["artifacts"].values(),
+        *local_release.lock["images"].values(),
+    ]
     assert len(references) == len(VERSIONS) + len(release.IMAGES)
     for reference in references:
         assert reference.startswith("registry.example.localhost:15000/example/platform")
@@ -788,15 +1046,23 @@ def test_local_release_reuses_images_and_isolates_push_credentials(publication, 
         return commands(*args)
 
     with patch.object(release, "run", side_effect=command):
-        release.local_release(publication.registry, "registry.example.localhost:15000", images)
+        release.local_release(
+            publication.registry, "registry.example.localhost:15000", images
+        )
     lock = json.loads(capsys.readouterr().out)
     assert len(configs) == len(release.IMAGES)
-    assert all(config == {"auths": {"localhost:15000": {"auth": "cHVzaDpzZWNyZXQ="}}} for config in configs)
+    assert all(
+        config == {"auths": {"localhost:15000": {"auth": "cHVzaDpzZWNyZXQ="}}}
+        for config in configs
+    )
     assert not [call for call in publication.calls if call[:2] == ("docker", "build")]
     tags = [call for call in publication.calls if call[:2] == ("docker", "tag")]
-    assert [call[2] for call in tags] == [images.replace("*", name) for name in release.IMAGES]
+    assert [call[2] for call in tags] == [
+        images.replace("*", name) for name in release.IMAGES
+    ]
     assert set(lock["images"]) == set(release.IMAGES)
     assert all("@sha256:" in ref for ref in lock["images"].values())
+
 
 def test_prerelease_bundle_is_rejected():
     with pytest.raises(ValueError, match="stable X.Y.Z"):
@@ -810,18 +1076,39 @@ def test_control_plane_installs_embedded_operator_crds(bundle):
 
 
 def test_crd_readiness_expression_survives_artifact_revision_changes(bundle):
-    changed = {name: reference.replace(bundle.digest, "sha256:" + "c" * 64) for name, reference in bundle.refs.items()}
+    changed = {
+        name: reference.replace(bundle.digest, "sha256:" + "c" * 64)
+        for name, reference in bundle.refs.items()
+    }
     updated = release.bundle("0.8.0", "d" * 40, changed, bundle.images)
     old = json.loads(bundle.files["all/crds.yaml"])
     new = json.loads(updated["all/crds.yaml"])
     assert old["spec"]["healthCheckExprs"] == new["spec"]["healthCheckExprs"]
+
+
 def test_local_source_uses_selected_checkout(monkeypatch, tmp_path):
     source = tmp_path / "baseline"
     source.mkdir()
     monkeypatch.setattr(release, "ROOT", release.ROOT)
-    monkeypatch.setattr("sys.argv", ["release.py", "local", "--source", str(source),
-        "--repository", "example/platform", "--push", "localhost:15000", "--address", "registry.localhost",
-        "--username", "fixture", "--password", "fixture"])
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "release.py",
+            "local",
+            "--source",
+            str(source),
+            "--repository",
+            "example/platform",
+            "--push",
+            "localhost:15000",
+            "--address",
+            "registry.localhost",
+            "--username",
+            "fixture",
+            "--password",
+            "fixture",
+        ],
+    )
     with patch.object(release, "local_release") as publish:
         release.main()
     assert release.ROOT == source
@@ -834,6 +1121,7 @@ def test_local_image_cache_builds_only_changed_inputs(publication, tmp_path):
     publication.registry.password = "fixture"
     fingerprints = {name: name for name in release.IMAGES}
     commands = partial(_command, publication)
+
     def command(*args):
         if args[:2] == ("git", "rev-parse"):
             return publication.commit
@@ -842,12 +1130,17 @@ def test_local_image_cache_builds_only_changed_inputs(publication, tmp_path):
         if args[:3] == ("docker", "context", "inspect"):
             return "unix:///test-docker.sock"
         return commands(*args)
+
     cache = str(tmp_path / "images.json")
     with patch.object(release, "run", side_effect=command):
-        release.local_release(publication.registry, "registry.localhost:15000", cache=cache)
+        release.local_release(
+            publication.registry, "registry.localhost:15000", cache=cache
+        )
         publication.calls.clear()
         fingerprints["agent"] = "changed-agent"
-        release.local_release(publication.registry, "registry.localhost:15000", cache=cache)
+        release.local_release(
+            publication.registry, "registry.localhost:15000", cache=cache
+        )
     builds = [call for call in publication.calls if call[:2] == ("docker", "build")]
     assert len(builds) == 1
     assert builds[0][builds[0].index("-f") + 1] == release.DOCKERFILES["agent"]
