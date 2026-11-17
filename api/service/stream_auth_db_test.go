@@ -5,12 +5,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
@@ -143,6 +146,58 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 				t.Fatalf("idle stream after %s = %v, want %s", tc.name, err, tc.want)
 			}
 		})
+	}
+}
+
+func TestIdleEventStreamReportsDatabaseConnectionFailure(t *testing.T) {
+	t.Parallel()
+	f, userID, workspaceID := newStreamCredentialFixture(t)
+	var closing atomic.Bool
+	connecting := make(chan struct{})
+	config := f.pool.Config()
+	config.MinConns = 0
+	config.MinIdleConns = 0
+	config.BeforeConnect = func(ctx context.Context, _ *pgx.ConnConfig) error {
+		if !closing.Load() {
+			return nil
+		}
+		close(connecting)
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	validationPool, err := pgxpool.NewWithConfig(t.Context(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(validationPool.Close)
+	queries := genDb.New(validationPool)
+	machine := tvm.NewVendingMachine(queries, f.machine.Cfg)
+	server := streamCredentialServer(machine, queries)
+	eventv1connect.RegisterEventServiceHandler(server, f.events)
+	token := issueStreamCredential(t, f, userID, workspaceID, streamSession, nil)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	stream, err := streamHTTPClients(t, server, token).Event.StreamEvents(ctx, &eventv1.StreamEventsRequest{
+		OrgId: f.orgID, WorkspaceId: workspaceID.String(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err = stream.Receive(); err != nil {
+		t.Fatal(err)
+	}
+	closing.Store(true)
+	validationPool.Reset()
+	select {
+	case <-connecting:
+	case <-ctx.Done():
+		t.Fatal("stream did not attempt a new database connection")
+	}
+	// Closing a pool cancels its connection constructor, not the RPC request.
+	validationPool.Close()
+	if _, err = stream.Receive(); connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("database connection failure = %v, want Internal", err)
 	}
 }
 

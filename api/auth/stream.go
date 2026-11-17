@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"connectrpc.com/connect/v2"
+
 	"github.com/team-loco/loco/api/reqctx"
 )
 
@@ -46,10 +48,14 @@ func GuardStream(
 		ctx, cancel := context.WithTimeout(ctx, validation.config.Timeout)
 		defer cancel()
 		principal, err := validation.read(ctx)
-		if err != nil {
-			return err
+		if err == nil {
+			err = authorize(reqctx.WithPrincipal(ctx, principal))
 		}
-		return authorize(reqctx.WithPrincipal(ctx, principal))
+		// A dependency can cancel its own work while this request remains live.
+		if errors.Is(err, context.Canceled) && ctx.Err() == nil {
+			return connect.NewError(connect.CodeInternal, "stream validation failed").WithCause(err)
+		}
+		return err
 	}
 	if err := check(ctx); err != nil {
 		return nil, nil, err
