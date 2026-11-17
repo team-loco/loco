@@ -2,6 +2,7 @@
 
 Usage: gate.py LATEST_TAG COMMIT, with an empty LATEST_TAG when no release exists.
 """
+
 import json
 import subprocess
 import sys
@@ -15,11 +16,11 @@ GH_ATTEMPTS = 5
 def gh(*args):
     for attempt in range(GH_ATTEMPTS):
         try:
-            return run('gh', *args)
+            return run("gh", *args)
         except subprocess.CalledProcessError:
             if attempt == GH_ATTEMPTS - 1:
                 raise
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
 
 
 def blocking(commits, jobs):
@@ -34,47 +35,83 @@ def blocking(commits, jobs):
         released = index == len(commits) - 1
         if ci is None:
             if released:
-                blocked.append((sha, 'no run'))
+                blocked.append((sha, "no run"))
             continue
-        conclusion = ci['conclusion'] or 'in progress'
-        if conclusion == 'success':
+        conclusion = ci["conclusion"] or "in progress"
+        if conclusion == "success":
             continue
-        if released or conclusion != 'failure':
+        if released or conclusion != "failure":
             blocked.append((sha, conclusion))
             continue
-        failed = {name for name, result in jobs(ci['databaseId']).items() if result not in ('success', 'skipped')}
-        for _, later in commits[index + 1:]:
-            if not failed or 'Changes' in failed:
+        failed = {
+            name
+            for name, result in jobs(ci["databaseId"]).items()
+            if result not in ("success", "skipped")
+        }
+        for _, later in commits[index + 1 :]:
+            if not failed or "Changes" in failed:
                 break
             if later is not None:
-                failed -= {name for name, result in jobs(later['databaseId']).items() if result == 'success'}
+                failed -= {
+                    name
+                    for name, result in jobs(later["databaseId"]).items()
+                    if result == "success"
+                }
         if failed:
-            blocked.append((sha, 'failure (' + ', '.join(sorted(failed)) + ')'))
+            blocked.append((sha, "failure (" + ", ".join(sorted(failed)) + ")"))
     return blocked
 
 
 def push_run(workflow, sha):
-    runs = json.loads(gh('run', 'list', '--workflow', workflow, '--commit', sha, '--event', 'push', '--limit', '1', '--json', 'databaseId,conclusion'))
+    runs = json.loads(
+        gh(
+            "run",
+            "list",
+            "--workflow",
+            workflow,
+            "--commit",
+            sha,
+            "--event",
+            "push",
+            "--limit",
+            "1",
+            "--json",
+            "databaseId,conclusion",
+        )
+    )
     return runs[0] if runs else None
 
 
 def main(latest, commit):
-    shas = run('git', 'rev-list', '--first-parent', '--reverse', latest + '..' + commit).split() if latest else [commit]
+    shas = (
+        run(
+            "git", "rev-list", "--first-parent", "--reverse", latest + ".." + commit
+        ).split()
+        if latest
+        else [commit]
+    )
     cache = {}
 
     def jobs(run_id):
         if run_id not in cache:
-            data = json.loads(gh('run', 'view', str(run_id), '--json', 'jobs'))
-            cache[run_id] = {job['name']: job['conclusion'] for job in data['jobs']}
+            data = json.loads(gh("run", "view", str(run_id), "--json", "jobs"))
+            cache[run_id] = {job["name"]: job["conclusion"] for job in data["jobs"]}
         return cache[run_id]
 
-    failed = ['ci.yml on ' + sha + ': ' + reason for sha, reason in blocking([(sha, push_run('ci.yml', sha)) for sha in shas], jobs)]
+    failed = [
+        "ci.yml on " + sha + ": " + reason
+        for sha, reason in blocking(
+            [(sha, push_run("ci.yml", sha)) for sha in shas], jobs
+        )
+    ]
     for line in failed:
-        print('::error::' + line)
+        print("::error::" + line)
     if failed:
-        print('::error::the push runs above have not succeeded; re-running a failed run clears it')
+        print(
+            "::error::the push runs above have not succeeded; re-running a failed run clears it"
+        )
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(*sys.argv[1:])

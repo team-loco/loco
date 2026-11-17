@@ -5,7 +5,9 @@ SCRIPT = Path(__file__).resolve().parents[2] / "web/public/install.sh"
 
 
 def run(*args):
-    return subprocess.run(["sh", str(SCRIPT), *args], capture_output=True, text=True, check=False)
+    return subprocess.run(
+        ["sh", str(SCRIPT), *args], capture_output=True, text=True, check=False
+    )
 
 
 def test_rejects_an_unknown_binary_before_downloading():

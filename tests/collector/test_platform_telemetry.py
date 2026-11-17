@@ -35,7 +35,10 @@ def test_platform_metrics_share_the_cluster_exporter(configured_relays):
         assert config["service"]["pipelines"]["metrics"]["exporters"] == ["otlp_http"]
         assert "filter/platform" in pipeline["processors"]
         assert "resource/platform" in pipeline["processors"]
-    assert "metrics/platform" not in configured_relays["otel-col-deploy"]["service"]["pipelines"]
+    assert (
+        "metrics/platform"
+        not in configured_relays["otel-col-deploy"]["service"]["pipelines"]
+    )
 
 
 def test_platform_only_keeps_only_platform_pipelines():
@@ -43,11 +46,16 @@ def test_platform_only_keeps_only_platform_pipelines():
     values.update({"otel-col-deploy": {"enabled": False}})
     configs = collector_relays(render_chart("loco-worker", values))
     for config in configs.values():
-        assert set(config["service"]["pipelines"]) <= {"metrics/platform", "logs/platform"}
+        assert set(config["service"]["pipelines"]) <= {
+            "metrics/platform",
+            "logs/platform",
+        }
         assert set(config["exporters"]) == {"otlp_http"}
 
 
-def test_application_pipelines_keep_their_configuration(worker_relays, configured_relays):
+def test_application_pipelines_keep_their_configuration(
+    worker_relays, configured_relays
+):
     for name, config in worker_relays.items():
         for pipeline, settings in config["service"]["pipelines"].items():
             assert configured_relays[name]["service"]["pipelines"][pipeline] == settings
@@ -55,14 +63,22 @@ def test_application_pipelines_keep_their_configuration(worker_relays, configure
 
 def test_platform_identity_is_exported(configured_relays):
     for name in ("otel-col-daemon-agent", "otel-col-cluster"):
-        attributes = {item["key"]: item["value"] for item in configured_relays[name]["processors"]["resource/platform"]["attributes"]}
-        assert attributes.items() >= {
-            "loco.installation.id": "test-installation",
-            "k8s.cluster.name": "test-cluster",
-            "deployment.environment.name": "test",
-            "loco.region": "test-region-1",
-            "loco.telemetry.scope": "platform",
-        }.items()
+        attributes = {
+            item["key"]: item["value"]
+            for item in configured_relays[name]["processors"]["resource/platform"][
+                "attributes"
+            ]
+        }
+        assert (
+            attributes.items()
+            >= {
+                "loco.installation.id": "test-installation",
+                "k8s.cluster.name": "test-cluster",
+                "deployment.environment.name": "test",
+                "loco.region": "test-region-1",
+                "loco.telemetry.scope": "platform",
+            }.items()
+        )
 
 
 def test_platform_capacity_follows_the_configured_reports(configured_relays):
@@ -75,10 +91,26 @@ def test_platform_capacity_follows_the_configured_reports(configured_relays):
 def test_changing_platform_settings_restarts_the_collectors():
     checksums = []
     for interval in ("30s", "60s"):
-        workloads = [document for document in render_chart("loco-worker", configured(collectionInterval=interval))
-                     if document["kind"] in ("DaemonSet", "StatefulSet") and document["metadata"]["name"] in ("otel-col-daemon-agent", "otel-col-cluster")]
-        checksums.append({document["metadata"]["name"]: document["spec"]["template"]["metadata"]["annotations"]["checksum/platform-telemetry"] for document in workloads})
-        assert {(document["kind"], document["metadata"]["name"]) for document in workloads} == {
+        workloads = [
+            document
+            for document in render_chart(
+                "loco-worker", configured(collectionInterval=interval)
+            )
+            if document["kind"] in ("DaemonSet", "StatefulSet")
+            and document["metadata"]["name"]
+            in ("otel-col-daemon-agent", "otel-col-cluster")
+        ]
+        checksums.append(
+            {
+                document["metadata"]["name"]: document["spec"]["template"]["metadata"][
+                    "annotations"
+                ]["checksum/platform-telemetry"]
+                for document in workloads
+            }
+        )
+        assert {
+            (document["kind"], document["metadata"]["name"]) for document in workloads
+        } == {
             ("DaemonSet", "otel-col-daemon-agent"),
             ("StatefulSet", "otel-col-cluster"),
         }
@@ -93,10 +125,20 @@ def test_disabling_an_individual_collector_still_renders():
     assert "metrics/platform" in configs["otel-col-cluster"]["service"]["pipelines"]
 
 
-def test_platform_allowlist_covers_the_release_and_collector_namespaces(configured_relays):
-    (condition, *_) = configured_relays["otel-col-cluster"]["processors"]["filter/platform"]["metric_conditions"]
+def test_platform_allowlist_covers_the_release_and_collector_namespaces(
+    configured_relays,
+):
+    (condition, *_) = configured_relays["otel-col-cluster"]["processors"][
+        "filter/platform"
+    ]["metric_conditions"]
     pattern = json.loads(condition.rsplit(", ", 1)[1].removesuffix(")"))
-    for namespace in ("kube-system", "cert-manager", "platform-test", "loco-obs", "loco-obs-node"):
+    for namespace in (
+        "kube-system",
+        "cert-manager",
+        "platform-test",
+        "loco-obs",
+        "loco-obs-node",
+    ):
         assert re.search(pattern, namespace), namespace
         for excluded in (f"prefix-{namespace}", f"{namespace}-suffix", f"{namespace}x"):
             assert re.search(pattern, excluded) is None, excluded

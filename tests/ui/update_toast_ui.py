@@ -6,14 +6,18 @@ from pathlib import Path
 from playwright.sync_api import expect
 from harness import load_state, open_page as new_page, repo, session
 
-parser = argparse.ArgumentParser(description="Test the toast that offers a reload once a newer dashboard build is served")
+parser = argparse.ArgumentParser(
+    description="Test the toast that offers a reload once a newer dashboard build is served"
+)
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/update-toast"))
 args = parser.parse_args()
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-state = load_state(args, 'update_toast_ui', 'tests/ui/fixtures/deployment-history/scenario.json')
+state = load_state(
+    args, "update_toast_ui", "tests/ui/fixtures/deployment-history/scenario.json"
+)
 ui = state["ui_url"]
 TITLE = "Loco has been updated"
 
@@ -23,7 +27,12 @@ open_page = partial(new_page, state=state)
 
 def serve(page, version):
     page.unroute("**/version.json")
-    page.route("**/version.json", lambda route: route.fulfill(content_type="application/json", body=json.dumps({"version": version})))
+    page.route(
+        "**/version.json",
+        lambda route: route.fulfill(
+            content_type="application/json", body=json.dumps({"version": version})
+        ),
+    )
 
 
 def check(page):
@@ -34,10 +43,14 @@ def check(page):
 
 with session(out) as browser:
     try:
-        context, page, errors = open_page(browser, "owner", storage={"loco:color:v1": "neobrutal"})
+        context, page, errors = open_page(
+            browser, "owner", storage={"loco:color:v1": "neobrutal"}
+        )
         try:
             page.goto(ui + "/dashboard")
-            expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
+            expect(
+                page.get_by_role("button", name="Search and run commands")
+            ).to_be_visible()
             running = page.locator('meta[name="loco-version"]').get_attribute("content")
             toast = page.locator("[data-sonner-toast]").filter(has_text=TITLE)
             serve(page, running)

@@ -57,7 +57,10 @@ def navigate(page, url):
         try:
             return page.goto(url)
         except Error as error:
-            if "net::ERR_NETWORK_CHANGED" not in str(error) or attempt == NAVIGATION_ATTEMPTS - 1:
+            if (
+                "net::ERR_NETWORK_CHANGED" not in str(error)
+                or attempt == NAVIGATION_ATTEMPTS - 1
+            ):
                 raise
             time.sleep(POLL_INTERVAL)
 
@@ -92,7 +95,10 @@ def check_not_found_renders(address, pages, out_dir):
                     page.on(
                         "requestfailed",
                         lambda request, label=label: (
-                            not (request.is_navigation_request() and request.failure == "net::ERR_NETWORK_CHANGED")
+                            not (
+                                request.is_navigation_request()
+                                and request.failure == "net::ERR_NETWORK_CHANGED"
+                            )
                             and problems.append(f"{label}: {request.url} failed")
                         ),
                     )
@@ -124,8 +130,10 @@ def check_path_opens_ui(page, path):
     errors = []
     page.on(
         "console",
-        lambda message: message.type == "error"
-        and errors.append(f"{message.location['url']}: {message.text}"),
+        lambda message: (
+            message.type == "error"
+            and errors.append(f"{message.location['url']}: {message.text}")
+        ),
     )
     page.on("pageerror", lambda error: errors.append(f"Uncaught: {error}"))
     navigate(page, f"http://{UI_HOST}{path}")
@@ -133,7 +141,9 @@ def check_path_opens_ui(page, path):
         page.wait_for_url(f"http://{UI_HOST}/login")
     except Error as error:
         console = "\n".join(errors) or "(none)"
-        pytest.fail(f"{path} stopped at {page.url}\nConsole errors:\n{console}\n{error}")
+        pytest.fail(
+            f"{path} stopped at {page.url}\nConsole errors:\n{console}\n{error}"
+        )
     expect(page, path).to_have_title("Sign in | Loco")
 
 
@@ -187,9 +197,11 @@ def check_docs_reading_layout(address, out_dir):
             "href", f"https://{API_HOST}"
         )
         page.evaluate("document.fonts.ready")
-        assert page.locator("body").evaluate(
-            "el => getComputedStyle(el).fontFamily"
-        ).startswith('"Geist Variable"')
+        assert (
+            page.locator("body")
+            .evaluate("el => getComputedStyle(el).fontFamily")
+            .startswith('"Geist Variable"')
+        )
         for family in ("Geist Variable", "Geist Mono Variable"):
             assert page.evaluate(
                 "family => [...document.fonts].some(font => font.family.replaceAll(/['\"]/g, '') === family && font.status === 'loaded')",
@@ -197,7 +209,9 @@ def check_docs_reading_layout(address, out_dir):
             )
         assert page.locator("#nd-sidebar").bounding_box()["x"] == 0
         for label in ("API reference", "Dashboard"):
-            expect(page.get_by_role("link", name=label, exact=True).first.locator("svg")).to_be_visible()
+            expect(
+                page.get_by_role("link", name=label, exact=True).first.locator("svg")
+            ).to_be_visible()
         page.get_by_role("button", name="Dark", exact=True).first.click()
         expect(page.locator("html")).to_have_class(re.compile(r"dark"))
         page.get_by_role("button", name="Light", exact=True).first.click()
@@ -227,17 +241,27 @@ def check_docs_reading_layout(address, out_dir):
         page.screenshot(path=out_dir / "docs-install-dark.png")
         # A text-heavy guide must reflow without losing navigation or page actions.
         page.set_viewport_size({"width": 390, "height": 844})
-        expect(page.locator("#nd-notebook-layout")).to_have_css("--fd-sidebar-col", "0px")
+        expect(page.locator("#nd-notebook-layout")).to_have_css(
+            "--fd-sidebar-col", "0px"
+        )
         page.screenshot(path=out_dir / "docs-install-narrow.png")
-        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        assert page.evaluate(
+            "document.documentElement.scrollWidth <= window.innerWidth"
+        )
         assert article.bounding_box()["width"] >= 350
-        expect(page.get_by_role("heading", name="Install the CLI", exact=True)).to_be_visible()
-        expect(page.get_by_role("link", name="View Markdown", exact=True)).to_be_visible()
+        expect(
+            page.get_by_role("heading", name="Install the CLI", exact=True)
+        ).to_be_visible()
+        expect(
+            page.get_by_role("link", name="View Markdown", exact=True)
+        ).to_be_visible()
         page.get_by_role("button", name="Open Sidebar", exact=True).click()
         expect(page.get_by_role("link", name="API reference").last).to_be_visible()
         page.get_by_role("link", name="Connect to Loco", exact=True).last.click()
         expect(page).to_have_url(re.compile(r"/getting-started/connect/?$"))
-        expect(page.get_by_role("heading", name="Connect to Loco", exact=True)).to_be_visible()
+        expect(
+            page.get_by_role("heading", name="Connect to Loco", exact=True)
+        ).to_be_visible()
         browser.close()
 
 
@@ -292,7 +316,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
                 status, body, _ = response(f"{url}/health")
                 if status == 200:
                     break
-            except (URLError, ConnectionError):
+            except URLError, ConnectionError:
                 pass
             if time.monotonic() >= deadline:
                 pytest.fail(docker("logs", container))
