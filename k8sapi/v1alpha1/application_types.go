@@ -196,40 +196,11 @@ type ApplicationStatus struct {
 	// For Kubernetes API conventions, see:
 	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
-	// conditions represent the current state of the Application resource.
-	// Each condition has a unique type and reflects the status of a specific aspect of the resource.
-	//
-	// Standard condition types include:
-	// - "Available": the resource is fully functional
-	// - "Progressing": the resource is being created or updated
-	// - "Degraded": the resource failed to reach or maintain its desired state
-	//
-	// The status of each condition is one of True, False, or Unknown.
-
-	// +kubebuilder:validation:Enum=Idle;Deploying;Ready;Failed
-	Phase               string `json:"phase,omitempty"` // Idle | Deploying | Ready | Failed
-	Message             string `json:"message,omitempty"`
-	ActiveDeploymentRef string `json:"activeDeploymentRef,omitempty"`
-	RuntimeReason       string `json:"runtimeReason,omitempty"`
-	RuntimeMessage      string `json:"runtimeMessage,omitempty"`
-	ReadyReplicas       int32  `json:"readyReplicas,omitzero"`
-	DesiredReplicas     int32  `json:"desiredReplicas,omitzero"`
+	ReadyReplicas int32 `json:"readyReplicas,omitzero"`
 
 	Rollout *RolloutStatus `json:"rollout,omitempty"`
 
-	CreatedAt   *metav1.Time `json:"createdAt,omitempty"`
-	StartedAt   *metav1.Time `json:"startedAt,omitempty"`
-	CompletedAt *metav1.Time `json:"completedAt,omitempty"`
-	UpdatedAt   *metav1.Time `json:"updatedAt,omitempty"`
-
-	DeployedGeneration int64 `json:"deployedGeneration,omitzero"` // tracks spec changes applied
-
 	ObservedPlacementRevision int64 `json:"observedPlacementRevision,omitzero"`
-
-	// +listType=map
-	// +listMapKey=type
-	// +optional
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true

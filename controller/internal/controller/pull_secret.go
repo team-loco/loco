@@ -18,9 +18,8 @@ import (
 )
 
 const (
-	workspacePullSecretName       = "loco-registry-pull"
-	registryPullSecretRequeue     = 5 * time.Second
-	messageRegistryPullSecretWait = "Waiting for the agent to write the registry pull secret..."
+	workspacePullSecretName   = "loco-registry-pull"
+	registryPullSecretRequeue = 5 * time.Second
 )
 
 var errRegistryPullSecretPending = errors.New("the agent has not written the workspace's registry pull secret")

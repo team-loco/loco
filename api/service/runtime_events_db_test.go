@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func (f *deployFixture) eventCount(t *testing.T, kind string) int {
+	t.Helper()
+	var n int
+	const query = `SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`
+	if err := f.pool.QueryRow(t.Context(), query, f.resourceID, kind).Scan(&n); err != nil {
+		t.Fatalf("count %s events: %v", kind, err)
+	}
+	return n
+}
+
 func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -25,7 +36,6 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
 		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)},
-		RuntimeMessage: "private Kubernetes detail",
 	}
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
 	if err != nil {
@@ -128,9 +138,8 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	report.ObservedRevision = placement.DesiredRevision
 	server.recordStatus(t.Context(), f.otherCluster, 0, report)
-	stored := f.placement(t, f.clusterID)
-	if stored.RuntimeReason != "" {
-		t.Fatalf("stale report changed condition: %v", stored)
+	if stored := f.placement(t, f.clusterID).ProblemReason; stored != "" {
+		t.Fatalf("stale report changed condition: %q", stored)
 	}
 }
 
@@ -206,15 +215,10 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	// The old handler resumes at the same placement revision after recovery.
 	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
-	if stored := f.placement(t, f.clusterID); stored.RuntimeReason != "" {
-		t.Fatalf("old stream reopened %q", stored.RuntimeReason)
+	if stored := f.placement(t, f.clusterID).ProblemReason; stored != "" {
+		t.Fatalf("old stream reopened %q", stored)
 	}
-	var count int
-	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2",
-		f.resourceID, events.ResourceDegraded).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
+	if count := f.eventCount(t, events.ResourceDegraded); count != 1 {
 		t.Fatalf("degradation events = %d, want 1", count)
 	}
 }
@@ -252,19 +256,133 @@ func TestRuntimeEventsDuringRollout(t *testing.T) {
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
-				var count int
-				if queryErr := f.pool.QueryRow(
-					t.Context(),
-					`SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`,
-					f.resourceID,
-					kind,
-				).Scan(&count); queryErr != nil {
-					t.Fatal(queryErr)
-				}
-				if count != 1 {
+				if count := f.eventCount(t, kind); count != 1 {
 					t.Fatalf("%s events = %d, want 1", kind, count)
 				}
 			}
 		})
+	}
+}
+
+func TestProblemEventsAcrossPlacementRevisions(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	report := &agentv1.PlacementStatus{
+		PlacementId:      strings.ToUpper(p.ID.String()),
+		ObservedRevision: p.DesiredRevision,
+		Available:        true,
+		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)},
+	}
+	server := f.agentServer()
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	report.ObservedRevision = f.placement(t, f.clusterID).DesiredRevision
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	report.Problem = nil
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
+		if count := f.eventCount(t, kind); count != 1 {
+			t.Fatalf("%s events=%d", kind, count)
+		}
+	}
+}
+
+func TestProblemEventsWithPrunedDeploymentHistory(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	previous, err := f.deploy(t.Context(), staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	server := f.agentServer()
+	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	for range 3 {
+		if _, deployErr := f.deploy(t.Context(), staticSpec); deployErr != nil {
+			t.Fatal(deployErr)
+		}
+	}
+	p = f.placement(t, f.clusterID)
+	report.ObservedRevision = p.DesiredRevision - 1
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	if _, deleteErr := f.queries.MarkPlacementDeleted(t.Context(), genDb.MarkPlacementDeletedParams{
+		ResourceID: f.resourceID, ClusterID: f.clusterID,
+	}); deleteErr != nil {
+		t.Fatal(deleteErr)
+	}
+	prune := genDb.PruneDeploymentHistoryParams{ResourceID: f.resourceID, EnvironmentID: f.envID, Keep: 0}
+	if _, pruneErr := f.queries.PruneDeploymentHistory(t.Context(), prune); pruneErr != nil {
+		t.Fatal(pruneErr)
+	}
+	if f.deploymentExists(t, previous) {
+		t.Fatal("the finished deployment survived pruning")
+	}
+	if _, deployErr := f.deploy(t.Context(), staticSpec); deployErr != nil {
+		t.Fatal(deployErr)
+	}
+	current := f.placement(t, f.clusterID)
+	if current.ID != p.ID {
+		t.Fatalf("replacement placement=%s, want %s", current.ID, p.ID)
+	}
+	report.ObservedRevision = current.DesiredRevision
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	report.Problem = nil
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
+		if count := f.eventCount(t, kind); count != 1 {
+			t.Fatalf("%s events=%d", kind, count)
+		}
+	}
+}
+
+func TestProblemEventsForARecreatedPlacement(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	server := f.agentServer()
+	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	removed, err := f.queries.MarkPlacementDeleted(
+		t.Context(),
+		genDb.MarkPlacementDeletedParams{ResourceID: f.resourceID, ClusterID: f.clusterID},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(removed) != 1 {
+		t.Fatalf("deleted placements=%v", removed)
+	}
+	if _, err = f.queries.DeleteAppliedPlacement(
+		t.Context(),
+		genDb.DeleteAppliedPlacementParams{
+			ID:              p.ID,
+			ClusterID:       f.clusterID,
+			DesiredRevision: removed[0].DesiredRevision,
+		},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	p = f.placement(t, f.clusterID)
+	report.PlacementId = p.ID.String()
+	report.ObservedRevision = p.DesiredRevision
+	server.recordStatus(t.Context(), f.clusterID, 0, report)
+	if count := f.eventCount(t, events.ResourceDegraded); count != 2 {
+		t.Fatalf("degraded events=%d", count)
 	}
 }

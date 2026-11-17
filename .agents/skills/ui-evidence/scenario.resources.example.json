@@ -8,7 +8,6 @@
       "environment": "production",
       "region": "us-east-1",
       "status": "running",
-      "phase": "Ready",
       "ready_replicas": 1,
       "spec": {
         "observability": {"injectOtel": true},

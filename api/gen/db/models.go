@@ -685,12 +685,8 @@ type Placement struct {
 	ApplyAttempts    int32      `json:"applyAttempts"`
 	ApplyFailed      bool       `json:"applyFailed"`
 	ObservedRevision int64      `json:"observedRevision"`
-	Ready            bool       `json:"ready"`
 	ReadyReplicas    int32      `json:"readyReplicas"`
-	RuntimeReason    string     `json:"runtimeReason"`
-	RuntimeMessage   string     `json:"runtimeMessage"`
-	StatusPhase      string     `json:"statusPhase"`
-	StatusMessage    string     `json:"statusMessage"`
+	ProblemReason    string     `json:"problemReason"`
 	StatusUpdatedAt  *time.Time `json:"statusUpdatedAt"`
 	CreatedAt        time.Time  `json:"createdAt"`
 	UpdatedAt        time.Time  `json:"updatedAt"`

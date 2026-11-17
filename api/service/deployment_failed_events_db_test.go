@@ -6,11 +6,12 @@ import (
 	"sync"
 	"testing"
 
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
+
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -116,7 +117,7 @@ func (f *deployFixture) apiToken(t *testing.T) uuid.UUID {
 	return id
 }
 
-func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any, id uuid.UUID) {
+func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any, id uuid.UUID, message string) {
 	t.Helper()
 	want := map[string]any{
 		events.FieldDeploymentID:  id.String(),
@@ -124,7 +125,7 @@ func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any
 		events.FieldEnvironmentID: f.envID.String(),
 		events.FieldBuildID:       failedDeployBuild,
 		events.FieldRegion:        f.paramsFor(f.clusterID).Region,
-		events.FieldMessage:       failedDeployMessage,
+		events.FieldMessage:       message,
 		events.FieldResourceName:  planSvc,
 		events.FieldCreatorID:     f.userID.String(),
 		events.FieldCreatorEmail:  deployFixtureEmail,
@@ -141,11 +142,14 @@ func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 	f.nameUser(t)
 	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	placement := f.placement(t, f.clusterID)
-	report := &agentv1.PlacementStatus{ProgressDeadlineExceeded: true,
-		PlacementId:      placement.ID.String(),
-		ObservedRevision: placement.DesiredRevision,
-		Phase:            locov1alpha1.ApplicationPhaseFailed,
-		Message:          failedDeployMessage,
+	report := &agentv1.PlacementStatus{
+		Problem: &agentv1.ProblemReport{
+			Reason: string(loco.ProblemRolloutTimeout),
+			Detail: failedDeployMessage,
+		},
+		ProgressDeadlineExceeded: true,
+		PlacementId:              placement.ID.String(),
+		ObservedRevision:         placement.DesiredRevision,
 	}
 	// Separate servers model API replicas reporting the same failure concurrently.
 	var wg sync.WaitGroup
@@ -166,7 +170,13 @@ func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 	if ev.actorType != string(genDb.DeploymentActorTypeUser) || ev.actorID != f.userID || ev.envID != f.envID {
 		t.Fatalf("deployment.failed actor = %s/%s, environment %s", ev.actorType, ev.actorID, ev.envID)
 	}
-	wantDeploymentFailedData(t, f, ev.data, id)
+	wantDeploymentFailedData(
+		t,
+		f,
+		ev.data,
+		id,
+		"The service exceeded its rollout progress deadline. Check its replicas and logs. "+failedDeployMessage,
+	)
 }
 
 func TestDeploymentFailedFromApplyErrorNamesTheTokenAndItsCreator(t *testing.T) {
@@ -197,7 +207,7 @@ func TestDeploymentFailedFromApplyErrorNamesTheTokenAndItsCreator(t *testing.T) 
 	if ev.actorType != string(genDb.DeploymentActorTypeApiToken) || ev.actorID != tokenID {
 		t.Fatalf("deployment.failed actor = %s/%s, want api_token/%s", ev.actorType, ev.actorID, tokenID)
 	}
-	wantDeploymentFailedData(t, f, ev.data, id)
+	wantDeploymentFailedData(t, f, ev.data, id, failedDeployMessage)
 }
 
 func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
@@ -208,7 +218,7 @@ func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		Ready:            true, Available: true,
+		Available:        true,
 	})
 	canceled := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	latest := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
@@ -244,7 +254,6 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 				report := &agentv1.PlacementStatus{
 					PlacementId:      placement.ID.String(),
 					ObservedRevision: placement.DesiredRevision,
-					Ready:            true,
 					Available:        true,
 				}
 				var wg sync.WaitGroup

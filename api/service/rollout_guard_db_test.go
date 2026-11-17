@@ -14,7 +14,6 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const rolloutDeleteOperation = "delete"
@@ -40,16 +39,14 @@ func (f *deployFixture) rolloutContext(t *testing.T) context.Context {
 	)
 }
 
-func (f *deployFixture) reportRollout(t *testing.T, phase string, ready bool) {
+func (f *deployFixture) reportRollout(t *testing.T, expired, ready bool) {
 	t.Helper()
 	p := f.placement(t, f.clusterID)
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:              p.ID.String(),
 		ObservedRevision:         p.DesiredRevision,
-		Phase:                    phase,
-		Ready:                    ready,
 		Available:                ready,
-		ProgressDeadlineExceeded: phase == locoControllerV1.ApplicationPhaseFailed,
+		ProgressDeadlineExceeded: expired,
 		ReadyReplicas:            1,
 	})
 }
@@ -63,7 +60,7 @@ func TestScaleRejectsAnActiveRollout(t *testing.T) {
 				t.Fatal(err)
 			}
 			if phase == "deploying" {
-				f.reportRollout(t, "Deploying", false)
+				f.reportRollout(t, false, false)
 			}
 			before := f.placement(t, f.clusterID)
 			revision := f.revision(t, f.envID)
@@ -120,7 +117,7 @@ func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	server := f.secretServer(provider)
 	ctx := f.rolloutContext(t)
 	request := &secretv1.SetSecretsRequest{
@@ -139,17 +136,16 @@ func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 		recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 			PlacementId:      p.ID.String(),
 			ObservedRevision: p.DesiredRevision - 1,
-			Phase:            testPhaseReady,
-			Ready:            true, Available: true,
-			ReadyReplicas: 1,
+			Available:        true,
+			ReadyReplicas:    1,
 		})
 	wantCode(t, scaleResource(t, f, 2), connect.CodeFailedPrecondition)
-	f.reportRollout(t, "Deploying", false)
+	f.reportRollout(t, false, false)
 	wantCode(t, scaleResource(t, f, 2), connect.CodeFailedPrecondition)
 	request.Values[stripeKey] = "another rotation"
 	_, err := server.SetSecrets(ctx, request)
 	wantCode(t, err, connect.CodeFailedPrecondition)
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -240,7 +236,7 @@ func TestScaleAllowsRecoveryAfterFailedRollout(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, locoControllerV1.ApplicationPhaseFailed, false)
+	f.reportRollout(t, true, false)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +248,7 @@ func TestConcurrentAPIInstancesAcceptOnlyOneScale(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	release := sync.OnceFunc(f.holdResourceLock(t))
 	t.Cleanup(release)
 	results := make(chan error, 2)
@@ -287,7 +283,7 @@ func TestScaleGuardRespectsTheRequestedRegion(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	params := f.paramsFor(f.otherCluster)
 	params.Region = "us-west-2"
 	if _, err := f.queries.CreateDeployment(t.Context(), params); err != nil {
@@ -319,8 +315,8 @@ func TestLaterHealthDegradationDoesNotBlockChanges(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
-	f.reportRollout(t, "Deploying", false)
+	f.reportRollout(t, false, true)
+	f.reportRollout(t, false, false)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -372,9 +368,8 @@ func (f *deployFixture) finishRollouts(t *testing.T) {
 			recordStatus(t.Context(), r.clusterID, 0, &agentv1.PlacementStatus{
 				PlacementId:      r.placementID.String(),
 				ObservedRevision: r.revision,
-				Phase:            testPhaseReady,
-				Ready:            true, Available: true,
-				ReadyReplicas: 1,
+				Available:        true,
+				ReadyReplicas:    1,
 			})
 	}
 }
@@ -383,7 +378,7 @@ func TestOtherEnvironmentRolloutDoesNotBlockScale(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.deployToProductionAndStaging(t)
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	staging := f.activeDeployment(t, stagingID)
 	if staging.Status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("other environment = %s, want pending", staging.Status)
@@ -406,7 +401,7 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	resourceID, err := f.queries.CreateResource(
 		t.Context(),
 		genDb.CreateResourceParams{
@@ -448,7 +443,7 @@ func TestFailedSecretRotationAllowsAnotherSecretChange(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	server := f.secretServer(provider)
 	request := &secretv1.SetSecretsRequest{
 		ResourceId:    f.resourceID.String(),
@@ -458,7 +453,7 @@ func TestFailedSecretRotationAllowsAnotherSecretChange(t *testing.T) {
 	if _, err := server.SetSecrets(f.rolloutContext(t), request); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, locoControllerV1.ApplicationPhaseFailed, false)
+	f.reportRollout(t, true, false)
 	request.Values[stripeKey] = "repaired value"
 	if _, err := server.SetSecrets(f.rolloutContext(t), request); err != nil {
 		t.Fatal(err)

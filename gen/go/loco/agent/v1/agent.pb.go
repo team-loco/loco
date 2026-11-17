@@ -740,12 +740,7 @@ type PlacementStatus struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	PlacementId              string                 `protobuf:"bytes,1,opt,name=placement_id,json=placementId,proto3" json:"placement_id,omitempty"`
 	ObservedRevision         int64                  `protobuf:"varint,2,opt,name=observed_revision,json=observedRevision,proto3" json:"observed_revision,omitempty"`
-	Ready                    bool                   `protobuf:"varint,3,opt,name=ready,proto3" json:"ready,omitempty"`
 	ReadyReplicas            int32                  `protobuf:"varint,4,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
-	Phase                    string                 `protobuf:"bytes,5,opt,name=phase,proto3" json:"phase,omitempty"`
-	Message                  string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
-	RuntimeReason            string                 `protobuf:"bytes,7,opt,name=runtime_reason,json=runtimeReason,proto3" json:"runtime_reason,omitempty"`
-	RuntimeMessage           string                 `protobuf:"bytes,8,opt,name=runtime_message,json=runtimeMessage,proto3" json:"runtime_message,omitempty"`
 	DesiredReplicas          int32                  `protobuf:"varint,9,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
 	Available                bool                   `protobuf:"varint,10,opt,name=available,proto3" json:"available,omitempty"`
 	ProgressDeadlineExceeded bool                   `protobuf:"varint,11,opt,name=progress_deadline_exceeded,json=progressDeadlineExceeded,proto3" json:"progress_deadline_exceeded,omitempty"`
@@ -799,46 +794,11 @@ func (x *PlacementStatus) GetObservedRevision() int64 {
 	return 0
 }
 
-func (x *PlacementStatus) GetReady() bool {
-	if x != nil {
-		return x.Ready
-	}
-	return false
-}
-
 func (x *PlacementStatus) GetReadyReplicas() int32 {
 	if x != nil {
 		return x.ReadyReplicas
 	}
 	return 0
-}
-
-func (x *PlacementStatus) GetPhase() string {
-	if x != nil {
-		return x.Phase
-	}
-	return ""
-}
-
-func (x *PlacementStatus) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *PlacementStatus) GetRuntimeReason() string {
-	if x != nil {
-		return x.RuntimeReason
-	}
-	return ""
-}
-
-func (x *PlacementStatus) GetRuntimeMessage() string {
-	if x != nil {
-		return x.RuntimeMessage
-	}
-	return ""
 }
 
 func (x *PlacementStatus) GetDesiredReplicas() int32 {
@@ -1816,16 +1776,11 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\x97\x04\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\x81\x03\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
-	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12\x14\n" +
-	"\x05ready\x18\x03 \x01(\bR\x05ready\x12%\n" +
-	"\x0eready_replicas\x18\x04 \x01(\x05R\rreadyReplicas\x12\x14\n" +
-	"\x05phase\x18\x05 \x01(\tR\x05phase\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\x12%\n" +
-	"\x0eruntime_reason\x18\a \x01(\tR\rruntimeReason\x12'\n" +
-	"\x0fruntime_message\x18\b \x01(\tR\x0eruntimeMessage\x12)\n" +
+	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12%\n" +
+	"\x0eready_replicas\x18\x04 \x01(\x05R\rreadyReplicas\x12)\n" +
 	"\x10desired_replicas\x18\t \x01(\x05R\x0fdesiredReplicas\x12\x1c\n" +
 	"\tavailable\x18\n" +
 	" \x01(\bR\tavailable\x12<\n" +

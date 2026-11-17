@@ -324,11 +324,11 @@ def dashboard(page):
             deployment = str(uuid.uuid4())
             runtime = evidence.sql_literal(json.dumps({"build": {"type": "image", "image": "example.invalid/dashboard:1"}, "cpu": f"{(index + 1) * 100}m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080}))
             sql.append(f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES ('user','{owner['id']}','cli','{deployment}','{resource_id}','{cluster}','us-east-1',1,'running',true,'{environment}',{runtime},1,NOW());")
-            sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource_id}','{cluster}','us-east-1','{deployment}','{environment}','{{}}',true,1,'Ready',NOW());")
+            sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES ('{resource_id}','{cluster}','us-east-1','{deployment}','{environment}','{{}}',1,NOW());")
         evidence.psql(state["container"], "\n".join(sql))
         state["dashboard_resources"] = True
         evidence.write_json(Path(args.state), state)
-    evidence.psql(state["container"], f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END, ready=resources.name<>'dashboard-0', status_phase=CASE WHEN resources.name='dashboard-0' THEN 'Failed' ELSE 'Ready' END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');")
+    evidence.psql(state["container"], f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');")
     for color, mode in ((color, mode) for color in ("loco", "catppuccin", "rose-pine", "solarized", "paper", "neobrutal") for mode in ("light", "dark")):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
@@ -408,7 +408,7 @@ def dashboard(page):
         expect(action).to_have_attribute("aria-checked", "true")
         assert page.evaluate("localStorage.getItem('loco:mode:v1')") == ("dark" if next_mode == "Dark" else None)
         page.keyboard.press("Escape")
-    evidence.psql(state["container"], f"UPDATE placements SET ready_replicas=48, ready=true, status_phase='Ready' FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name='dashboard-0';")
+    evidence.psql(state["container"], f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name='dashboard-0';")
     page.reload()
     ready = page.get_by_label("48 of 48 ready\nus-east-1: 48/48", exact=True)
     expect(ready).to_be_visible()

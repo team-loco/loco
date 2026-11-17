@@ -385,11 +385,10 @@ SELECT d.resource_id,
        d.id AS deployment_id,
        d.status AS deployment_status,
        d.replicas AS desired_replicas,
-       COALESCE((SELECT ro.snapshot->'problem'->>'detail' FROM deployment_rollouts ro
-                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '')::text AS deployment_problem_detail,
+       COALESCE((SELECT ro.snapshot->'problem' FROM deployment_rollouts ro
+                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
-       COALESCE(p.status_message, '')::text AS status_message,
        p.status_updated_at,
        c.last_heartbeat,
        c.health_status,
@@ -410,21 +409,20 @@ ORDER BY d.resource_id, e.name, d.region
 `
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID              uuid.UUID        `json:"resourceId"`
-	EnvironmentID           uuid.UUID        `json:"environmentId"`
-	EnvironmentName         string           `json:"environmentName"`
-	Region                  string           `json:"region"`
-	DeploymentID            uuid.UUID        `json:"deploymentId"`
-	DeploymentStatus        DeploymentStatus `json:"deploymentStatus"`
-	DesiredReplicas         int32            `json:"desiredReplicas"`
-	DeploymentProblemDetail string           `json:"deploymentProblemDetail"`
-	Placed                  bool             `json:"placed"`
-	ReadyReplicas           int32            `json:"readyReplicas"`
-	StatusMessage           string           `json:"statusMessage"`
-	StatusUpdatedAt         *time.Time       `json:"statusUpdatedAt"`
-	LastHeartbeat           *time.Time       `json:"lastHeartbeat"`
-	HealthStatus            *string          `json:"healthStatus"`
-	UnservedDomains         []string         `json:"unservedDomains"`
+	ResourceID       uuid.UUID        `json:"resourceId"`
+	EnvironmentID    uuid.UUID        `json:"environmentId"`
+	EnvironmentName  string           `json:"environmentName"`
+	Region           string           `json:"region"`
+	DeploymentID     uuid.UUID        `json:"deploymentId"`
+	DeploymentStatus DeploymentStatus `json:"deploymentStatus"`
+	DesiredReplicas  int32            `json:"desiredReplicas"`
+	Problem          []byte           `json:"problem"`
+	Placed           bool             `json:"placed"`
+	ReadyReplicas    int32            `json:"readyReplicas"`
+	StatusUpdatedAt  *time.Time       `json:"statusUpdatedAt"`
+	LastHeartbeat    *time.Time       `json:"lastHeartbeat"`
+	HealthStatus     *string          `json:"healthStatus"`
+	UnservedDomains  []string         `json:"unservedDomains"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -444,10 +442,9 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.DeploymentID,
 			&i.DeploymentStatus,
 			&i.DesiredReplicas,
-			&i.DeploymentProblemDetail,
+			&i.Problem,
 			&i.Placed,
 			&i.ReadyReplicas,
-			&i.StatusMessage,
 			&i.StatusUpdatedAt,
 			&i.LastHeartbeat,
 			&i.HealthStatus,

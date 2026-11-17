@@ -13,7 +13,7 @@ func TestRuntimePayloadIncludesResourceAndEnvironment(t *testing.T) {
 	resourceID, environmentID := uuid.New(), uuid.New()
 	payload := payloadFrom(genDb.GetWebhookDeliveryPayloadRow{
 		Type: events.ResourceDegraded, ResourceID: &resourceID, EnvironmentID: &environmentID,
-		Data: []byte(`{"reason":"crash_looping","message":"The service keeps exiting."}`),
+		Data: []byte(`{"reason":"crash_loop","message":"The service keeps exiting."}`),
 	})
 	raw, err := json.Marshal(payload)
 	if err != nil {

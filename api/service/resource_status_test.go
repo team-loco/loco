@@ -17,7 +17,7 @@ const (
 	testFreshHeartbeat     = 10 * time.Second
 	testStaleHeartbeat     = 2 * time.Minute
 	testDesiredReplicas    = 2
-	testStatusMessage      = "Waiting for pods to be ready..."
+	testStatusMessage      = "The service keeps exiting soon after it starts. Check its logs for the error."
 	testFailureMessage     = "container exited with code 1"
 )
 
@@ -37,7 +37,7 @@ func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatu
 		DesiredReplicas:  testDesiredReplicas,
 		Placed:           true,
 		ReadyReplicas:    ready,
-		StatusMessage:    testStatusMessage,
+		Problem:          []byte(`{"reason":"crash_loop"}`),
 		StatusUpdatedAt:  &reported,
 		LastHeartbeat:    &heartbeat,
 		HealthStatus:     &health,
@@ -92,7 +92,7 @@ func TestRegionStatus(t *testing.T) {
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.DeploymentStatusDeploying, 0)
 				row.StatusUpdatedAt = nil
-				row.StatusMessage = ""
+				row.Problem = []byte(`null`)
 				return row
 			},
 			want: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
@@ -106,21 +106,25 @@ func TestRegionStatus(t *testing.T) {
 			name: "failed redeploy while the previous replicas still serve",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.DeploymentStatusFailed, 2)
-				row.DeploymentProblemDetail = testFailureMessage
+				row.Problem = []byte(
+					`{"reason":"rollout_timeout","detail":"` + testFailureMessage + `"}`,
+				)
 				return row
 			},
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			message: testFailureMessage,
+			message: "The service exceeded its rollout progress deadline. Check its replicas and logs. " + testFailureMessage,
 		},
 		{
 			name: "failed deployment with nothing serving",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.DeploymentStatusFailed, 0)
-				row.DeploymentProblemDetail = testFailureMessage
+				row.Problem = []byte(
+					`{"reason":"rollout_timeout","detail":"` + testFailureMessage + `"}`,
+				)
 				return row
 			},
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-			message: testFailureMessage,
+			message: "The service exceeded its rollout progress deadline. Check its replicas and logs. " + testFailureMessage,
 		},
 		{
 			name: "healthy report from a cluster that stopped heartbeating",

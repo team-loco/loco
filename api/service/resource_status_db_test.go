@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
+
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -14,15 +16,11 @@ import (
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
 	statusSecondRegion  = "eu-west-1"
-	statusPhaseReady    = "Ready"
-	statusPhaseRollout  = "Deploying"
-	statusWaitingMsg    = "Waiting for pods to be ready..."
-	statusCrashMsg      = "container app is crash looping: exit code 1"
+	statusCrashMsg      = "The service keeps exiting soon after it starts. Check its logs for the error."
 	statusTwoReplicas   = 2
 	statusProduction    = "prod"
 	statusClusterSilent = 5 * time.Minute
@@ -111,9 +109,8 @@ func (f *resourceStatusFixture) report(t *testing.T, clusterID uuid.UUID, status
 func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
 	f.report(t, clusterID, &agentv1.PlacementStatus{
-		Ready: true, Available: true,
+		Available:     true,
 		ReadyReplicas: replicas,
-		Phase:         statusPhaseReady,
 	})
 }
 
@@ -121,18 +118,20 @@ func (f *resourceStatusFixture) notReady(t *testing.T, clusterID uuid.UUID, repl
 	t.Helper()
 	f.report(t, clusterID, &agentv1.PlacementStatus{
 		ReadyReplicas: replicas,
-		Phase:         statusPhaseRollout,
-		Message:       statusWaitingMsg,
 	})
 }
 
 func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
-	f.report(t, clusterID, &agentv1.PlacementStatus{ProgressDeadlineExceeded: true,
-		ReadyReplicas: replicas,
-		Phase:         locoControllerV1.ApplicationPhaseFailed,
-		Message:       statusCrashMsg,
-	})
+	f.report(
+		t,
+		clusterID,
+		&agentv1.PlacementStatus{
+			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemCrashLoop)},
+			ProgressDeadlineExceeded: true,
+			ReadyReplicas:            replicas,
+		},
+	)
 }
 
 func (f *resourceStatusFixture) server() *ResourceServer {
@@ -283,7 +282,7 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
 		ready: 0, desired: 2, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
-		message: statusWaitingMsg,
+		message: "",
 	})
 }
 

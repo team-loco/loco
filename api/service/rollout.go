@@ -288,3 +288,11 @@ func writeDeploymentActivity(
 	}
 	return qtx.NotifyDeploymentActivity(ctx, deploymentID.String())
 }
+
+func problemReportMessage(problem *agentv1.ProblemReport) string {
+	message, _ := loco.ProblemMessage(loco.ProblemReason(problem.GetReason()))
+	if problem.GetDetail() != "" {
+		message += " " + problem.GetDetail()
+	}
+	return message
+}

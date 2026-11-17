@@ -34,7 +34,7 @@ for name, cpu, memory, replicas in (("scale-small", "500m", "512Mi", 1), ("scale
     deployment = str(uuid.uuid4())
     runtime = json.dumps({"build": {"type": "image", "image": f"registry.example.com/{name}:1"}, "port": 8080, **size})
     sql.append(f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',{replicas},'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());")
-    sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',true,{replicas},'Ready',NOW());")
+    sql.append(f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',{replicas},NOW());")
 evidence.psql(state["container"], "BEGIN;\n" + "\n".join(sql) + "\nCOMMIT;")
 for resource in resources:
     assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production}) == {}

@@ -135,12 +135,7 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 	status := &agentv1.PlacementStatus{
 		PlacementId:      placementID,
 		ObservedRevision: app.Status.ObservedPlacementRevision,
-		Ready:            app.Status.Phase == locoControllerV1.ApplicationPhaseReady,
 		ReadyReplicas:    app.Status.ReadyReplicas,
-		Phase:            app.Status.Phase,
-		Message:          app.Status.Message,
-		RuntimeReason:    app.Status.RuntimeReason,
-		RuntimeMessage:   app.Status.RuntimeMessage,
 	}
 	if rollout := app.Status.Rollout; rollout != nil {
 		status.DesiredReplicas = rollout.DesiredReplicas

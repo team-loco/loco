@@ -550,8 +550,10 @@ func dumpPlacement(t *testing.T, w *platform.Workspace, resourceID string) {
 	ctx := context.WithoutCancel(t.Context())
 	rows, err := p.DB.Query(
 		ctx,
-		`SELECT desired_revision, applied_revision, ready, ready_replicas, status_phase, status_message,
-		runtime_reason, status_updated_at FROM placements WHERE resource_id = $1`,
+		`SELECT p.desired_revision, p.applied_revision, p.ready_replicas, p.status_updated_at, ro.snapshot
+ FROM placements p LEFT JOIN deployment_rollouts ro
+ ON ro.deployment_id = p.deployment_id AND ro.revision = p.observed_revision
+ WHERE p.resource_id = $1`,
 		resourceID,
 	)
 	if err == nil {

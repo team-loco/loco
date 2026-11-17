@@ -22,7 +22,7 @@ func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
@@ -66,7 +66,7 @@ func TestDeploymentMergesTheResourceSpecThatCommitsWhileItWaits(t *testing.T) {
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	ctx := t.Context()
 	resource, err := f.queries.GetResourceByID(ctx, f.resourceID)
 	if err != nil {

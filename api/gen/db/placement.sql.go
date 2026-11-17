@@ -116,31 +116,22 @@ func (q *Queries) BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlac
 	return items, nil
 }
 
-const changePlacementRuntimeCondition = `-- name: ChangePlacementRuntimeCondition :one
-UPDATE placements
-SET runtime_reason = $1, runtime_message = $2
-WHERE id = $3
-  AND (runtime_reason <> $1 OR runtime_message <> $2)
-RETURNING resource_id, environment_id, region
+const changePlacementProblemReason = `-- name: ChangePlacementProblemReason :execrows
+UPDATE placements SET problem_reason = $1
+WHERE id = $2 AND problem_reason <> $1
 `
 
-type ChangePlacementRuntimeConditionParams struct {
-	Reason  string    `json:"reason"`
-	Message string    `json:"message"`
-	ID      uuid.UUID `json:"id"`
+type ChangePlacementProblemReasonParams struct {
+	Reason string    `json:"reason"`
+	ID     uuid.UUID `json:"id"`
 }
 
-type ChangePlacementRuntimeConditionRow struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-	Region        string    `json:"region"`
-}
-
-func (q *Queries) ChangePlacementRuntimeCondition(ctx context.Context, arg ChangePlacementRuntimeConditionParams) (ChangePlacementRuntimeConditionRow, error) {
-	row := q.db.QueryRow(ctx, changePlacementRuntimeCondition, arg.Reason, arg.Message, arg.ID)
-	var i ChangePlacementRuntimeConditionRow
-	err := row.Scan(&i.ResourceID, &i.EnvironmentID, &i.Region)
-	return i, err
+func (q *Queries) ChangePlacementProblemReason(ctx context.Context, arg ChangePlacementProblemReasonParams) (int64, error) {
+	result, err := q.db.Exec(ctx, changePlacementProblemReason, arg.Reason, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const closePlacementWindow = `-- name: ClosePlacementWindow :exec
@@ -190,7 +181,7 @@ func (q *Queries) GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (i
 }
 
 const getPlacementForResourceCluster = `-- name: GetPlacementForResourceCluster :one
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, runtime_reason, runtime_message, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND cluster_id = $2
 `
 
@@ -220,12 +211,8 @@ func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPla
 		&i.ApplyAttempts,
 		&i.ApplyFailed,
 		&i.ObservedRevision,
-		&i.Ready,
 		&i.ReadyReplicas,
-		&i.RuntimeReason,
-		&i.RuntimeMessage,
-		&i.StatusPhase,
-		&i.StatusMessage,
+		&i.ProblemReason,
 		&i.StatusUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -351,7 +338,7 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 }
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
-SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_names, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_at, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready, placements.ready_replicas, placements.runtime_reason, placements.runtime_message, placements.status_phase, placements.status_message, placements.status_updated_at, placements.created_at, placements.updated_at,
+SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_names, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_at, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.created_at, placements.updated_at,
        resource_suspended(placements.resource_id)::boolean AS suspended
 FROM placements
 WHERE cluster_id = $1 AND id = ANY($2::uuid[])
@@ -396,12 +383,8 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 			&i.Placement.ApplyAttempts,
 			&i.Placement.ApplyFailed,
 			&i.Placement.ObservedRevision,
-			&i.Placement.Ready,
 			&i.Placement.ReadyReplicas,
-			&i.Placement.RuntimeReason,
-			&i.Placement.RuntimeMessage,
-			&i.Placement.StatusPhase,
-			&i.Placement.StatusMessage,
+			&i.Placement.ProblemReason,
 			&i.Placement.StatusUpdatedAt,
 			&i.Placement.CreatedAt,
 			&i.Placement.UpdatedAt,
@@ -418,7 +401,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 }
 
 const listResourceEnvironmentPlacements = `-- name: ListResourceEnvironmentPlacements :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, runtime_reason, runtime_message, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
 ORDER BY id
 FOR UPDATE
@@ -456,12 +439,8 @@ func (q *Queries) ListResourceEnvironmentPlacements(ctx context.Context, arg Lis
 			&i.ApplyAttempts,
 			&i.ApplyFailed,
 			&i.ObservedRevision,
-			&i.Ready,
 			&i.ReadyReplicas,
-			&i.RuntimeReason,
-			&i.RuntimeMessage,
-			&i.StatusPhase,
-			&i.StatusMessage,
+			&i.ProblemReason,
 			&i.StatusUpdatedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -844,10 +823,7 @@ SET desired_revision = placements.desired_revision + 1,
     retry_after = NULL,
     apply_attempts = 0,
     apply_failed = false,
-    ready = false,
     ready_replicas = 0,
-    status_phase = '',
-    status_message = '',
     updated_at = NOW()
 FROM resources r
 JOIN workspaces w ON w.id = r.workspace_id
@@ -886,27 +862,21 @@ func (q *Queries) SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]
 const updatePlacementStatus = `-- name: UpdatePlacementStatus :one
 UPDATE placements
 SET observed_revision = $1,
-    ready = $2,
-    ready_replicas = $3,
-    status_phase = $4,
-    status_message = $5,
+    ready_replicas = $2,
     status_updated_at = NOW(),
     updated_at = NOW()
-WHERE id = $6
-  AND cluster_id = $7
+WHERE id = $3
+  AND cluster_id = $4
   AND NOT desired_deleted
   AND NOT resource_suspended(placements.resource_id)
   AND $1::bigint >= observed_revision
   AND $1::bigint <= desired_revision
-RETURNING deployment_id, desired_revision
+RETURNING deployment_id, desired_revision, resource_id, environment_id, region
 `
 
 type UpdatePlacementStatusParams struct {
 	ObservedRevision int64     `json:"observedRevision"`
-	Ready            bool      `json:"ready"`
 	ReadyReplicas    int32     `json:"readyReplicas"`
-	StatusPhase      string    `json:"statusPhase"`
-	StatusMessage    string    `json:"statusMessage"`
 	ID               uuid.UUID `json:"id"`
 	ClusterID        uuid.UUID `json:"clusterId"`
 }
@@ -914,20 +884,26 @@ type UpdatePlacementStatusParams struct {
 type UpdatePlacementStatusRow struct {
 	DeploymentID    *uuid.UUID `json:"deploymentId"`
 	DesiredRevision int64      `json:"desiredRevision"`
+	ResourceID      uuid.UUID  `json:"resourceId"`
+	EnvironmentID   uuid.UUID  `json:"environmentId"`
+	Region          string     `json:"region"`
 }
 
 func (q *Queries) UpdatePlacementStatus(ctx context.Context, arg UpdatePlacementStatusParams) (UpdatePlacementStatusRow, error) {
 	row := q.db.QueryRow(ctx, updatePlacementStatus,
 		arg.ObservedRevision,
-		arg.Ready,
 		arg.ReadyReplicas,
-		arg.StatusPhase,
-		arg.StatusMessage,
 		arg.ID,
 		arg.ClusterID,
 	)
 	var i UpdatePlacementStatusRow
-	err := row.Scan(&i.DeploymentID, &i.DesiredRevision)
+	err := row.Scan(
+		&i.DeploymentID,
+		&i.DesiredRevision,
+		&i.ResourceID,
+		&i.EnvironmentID,
+		&i.Region,
+	)
 	return i, err
 }
 

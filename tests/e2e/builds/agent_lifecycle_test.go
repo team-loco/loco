@@ -159,7 +159,7 @@ func TestAgentLifecycle(t *testing.T) {
 }
 
 const (
-	readyAtRevisionOne = "SELECT ready AND observed_revision = 1 FROM placements WHERE resource_id = $1"
+	readyAtRevisionOne = "SELECT ready_replicas > 0 AND observed_revision = 1 FROM placements WHERE resource_id = $1"
 	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters WHERE id = $1"
 )
 

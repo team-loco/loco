@@ -218,10 +218,8 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      running.ID.String(),
 		ObservedRevision: 1,
-		Ready:            true,
 		Available:        true,
 		ReadyReplicas:    1,
-		Phase:            testPhaseReady,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
 		t.Fatalf("deployment status = %s, want running", status)
@@ -234,8 +232,8 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 		t.Fatalf("suspended placement = deleted %v spec %q rev %d, want the spec kept at rev 2",
 			stopped.DesiredDeleted, stopped.DesiredSpec, stopped.DesiredRevision)
 	}
-	if stopped.Ready || stopped.ReadyReplicas != 0 {
-		t.Fatalf("suspended placement reports ready %v with %d replicas", stopped.Ready, stopped.ReadyReplicas)
+	if stopped.ReadyReplicas != 0 {
+		t.Fatalf("suspended placement reports %d replicas", stopped.ReadyReplicas)
 	}
 	sent := f.pendingMessages(t)
 	if len(sent) != 1 || sent[0].GetDelete().GetPlacementId() != running.ID.String() ||
@@ -250,12 +248,10 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      running.ID.String(),
 		ObservedRevision: 1,
-		Ready:            true,
 		Available:        true,
 		ReadyReplicas:    1,
-		Phase:            testPhaseReady,
 	})
-	if got := f.placement(t, f.clusterID); got.Ready || got.ReadyReplicas != 0 {
+	if got := f.placement(t, f.clusterID); got.ReadyReplicas != 0 {
 		t.Fatal("a late status report marked the suspended placement ready")
 	}
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {

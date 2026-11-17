@@ -42,8 +42,8 @@ if "progress" not in state:
     VALUES('{previous}','{resource}','{cluster}','us-east-1',2,'running',true,'{production}',{evidence.sql_literal(json.dumps(old_spec))},1,'user','{owner['id']}','web',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '9 minutes');
     INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,commit_sha)
     VALUES('{current}','{resource}','{cluster}','us-east-1',2,'building',false,'{production}',{evidence.sql_literal(json.dumps(spec))},2,'user','{owner['id']}','web',NOW()-INTERVAL '45 seconds',NOW()-INTERVAL '45 seconds','{'a' * 40}');
-    INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
-    VALUES('{resource}','{cluster}','us-east-1','{previous}','{production}','{{}}',true,2,'Ready',NOW());
+    INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at)
+    VALUES('{resource}','{cluster}','us-east-1','{previous}','{production}','{{}}',2,NOW());
     COMMIT;""")
     state["progress"] = {"org": org, "environment": production, "resource": resource, "cluster": cluster, "previous": previous, "current": current, "old_image": old_image}
     evidence.write_json(Path(args.state), state)
@@ -54,13 +54,12 @@ path = f"/org/{p['org']}/wks/{workspace}/resource/{p['resource']}?env=production
 
 def phase(status):
     building = status in ("building", "canceled")
-    message = {"building": "", "deploying": "Waiting for replicas to become ready", "failed": "The service keeps exiting soon after it starts. Check its logs for the error.", "canceled": "", "running": ""}[status]
     sql(f"""BEGIN;
     UPDATE clusters SET last_heartbeat=NOW() WHERE id='{p['cluster']}';
     UPDATE deployments SET is_active=false WHERE resource_id='{p['resource']}';
     UPDATE deployments SET is_active=true WHERE id='{p['previous'] if building else p['current']}';
     UPDATE deployments SET status='{status}',updated_at=NOW(),completed_at={'NULL' if status in ('building', 'deploying', 'running') else 'NOW()'} WHERE id='{p['current']}';
-    UPDATE placements SET deployment_id='{p['previous'] if building else p['current']}',ready={'true' if building or status == 'running' else 'false'},ready_replicas={2 if building or status == 'running' else 1},status_phase='{'Ready' if status == 'running' or building else 'Deploying'}',status_message={evidence.sql_literal(message)},status_updated_at=NOW() WHERE resource_id='{p['resource']}';
+    UPDATE placements SET deployment_id='{p['previous'] if building else p['current']}',ready_replicas={2 if building or status == 'running' else 1},status_updated_at=NOW() WHERE resource_id='{p['resource']}';
     INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
     VALUES('{p['current']}',1,{evidence.sql_literal(json.dumps({'problem': {'reason': 'crash_loop'}} if status == 'failed' else {}))})
     ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;

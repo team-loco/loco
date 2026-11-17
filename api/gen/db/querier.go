@@ -27,7 +27,7 @@ type Querier interface {
 	CancelBuild(ctx context.Context, arg CancelBuildParams) (CancelBuildRow, error)
 	CancelOrgActiveBuilds(ctx context.Context, arg CancelOrgActiveBuildsParams) ([]CancelOrgActiveBuildsRow, error)
 	CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherActiveBuildsParams) ([]CancelOtherActiveBuildsRow, error)
-	ChangePlacementRuntimeCondition(ctx context.Context, arg ChangePlacementRuntimeConditionParams) (ChangePlacementRuntimeConditionRow, error)
+	ChangePlacementProblemReason(ctx context.Context, arg ChangePlacementProblemReasonParams) (int64, error)
 	CheckDomainAvailability(ctx context.Context, domain string) (bool, error)
 	CheckUserHasOrganizations(ctx context.Context, createdBy uuid.UUID) (bool, error)
 	CheckUserHasWorkspaces(ctx context.Context, userID uuid.UUID) (bool, error)

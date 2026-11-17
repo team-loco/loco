@@ -37,8 +37,8 @@ def resource_fixture():
         cluster = clusters[region]
         evidence.psql(state["container"], f"""INSERT INTO deployments(actor_type,actor_id,method,commit_sha,commit_dirty,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at)
 VALUES('user','{owner['id']}','web','{source_commit['sha']}',true,'{deployment}','{resource}','{cluster}','{region}',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
-VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app_spec":{{}}}}',true,1,'Ready',NOW());""")
+INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at)
+VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app_spec":{{}}}}',1,NOW());""")
     return resource
 
 

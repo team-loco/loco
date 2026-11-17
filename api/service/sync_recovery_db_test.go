@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
@@ -23,12 +24,20 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server.recordApplied(ctx, f.clusterID, applied(p.ID, 1))
 
-	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{ProgressDeadlineExceeded: true,
-		PlacementId:      p.ID.String(),
-		ObservedRevision: 1,
-		Phase:            locoControllerV1.ApplicationPhaseFailed,
-		Message:          "pull secret",
-	})
+	server.recordStatus(
+		ctx,
+		f.clusterID,
+		0,
+		&agentv1.PlacementStatus{
+			Problem: &agentv1.ProblemReport{
+				Reason: string(loco.ProblemRolloutTimeout),
+				Detail: "pull secret",
+			},
+			ProgressDeadlineExceeded: true,
+			PlacementId:              p.ID.String(),
+			ObservedRevision:         1,
+		},
+	)
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusFailed {
 		t.Fatalf("deployment status = %s, want failed", status)
 	}
@@ -36,10 +45,8 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
 		ObservedRevision: 1,
-		Ready:            true,
 		Available:        true,
 		ReadyReplicas:    1,
-		Phase:            testPhaseReady,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
 		t.Fatalf("deployment status after a ready report = %s, want running", status)
@@ -55,8 +62,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 
 func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	t.Parallel()
-	const message = "The image runs as root. " +
-		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
+	const detail = "container has runAsNonRoot and image will run as root"
 	f := newDeployFixture(t)
 	ctx := context.Background()
 	server := f.agentServer()
@@ -68,21 +74,20 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server.recordApplied(ctx, f.clusterID, applied(p.ID, 1))
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: 1, Phase: "Deploying",
-		Message: "Waiting for replicas to become ready",
+		PlacementId: p.ID.String(), ObservedRevision: 1,
 	})
-	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{ProgressDeadlineExceeded: true,
-		PlacementId:      p.ID.String(),
-		ObservedRevision: 1,
-		Phase:            locoControllerV1.ApplicationPhaseFailed,
-		Message:          message,
-	})
+	server.recordStatus(
+		ctx,
+		f.clusterID,
+		0,
+		&agentv1.PlacementStatus{
+			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemImageUser), Detail: detail},
+			ProgressDeadlineExceeded: true,
+			PlacementId:              p.ID.String(),
+			ObservedRevision:         1,
+		},
+	)
 
-	placement := f.placement(t, f.clusterID)
-	if placement.StatusPhase != locoControllerV1.ApplicationPhaseFailed || placement.StatusMessage != message {
-		t.Fatalf("placement status = %q %q, want %q %q",
-			placement.StatusPhase, placement.StatusMessage, locoControllerV1.ApplicationPhaseFailed, message)
-	}
 	row, err := f.queries.GetDeploymentView(ctx, deploymentID)
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
@@ -90,6 +95,10 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	deployment, err := deploymentToProto(row)
 	if err != nil {
 		t.Fatalf("deployment to proto: %v", err)
+	}
+	if deployment.GetProblem().GetReason() != string(loco.ProblemImageUser) ||
+		deployment.GetProblem().GetDetail() != detail {
+		t.Fatalf("deployment problem=%v", deployment.GetProblem())
 	}
 	if deployment.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("deployment phase = %s, want failed", deployment.GetStatus())
@@ -121,10 +130,8 @@ func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
 		ObservedRevision: 1,
-		Ready:            true,
 		Available:        true,
 		ReadyReplicas:    1,
-		Phase:            testPhaseReady,
 	})
 	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusFailed {
 		t.Fatalf("a ready report for the previous revision moved the deployment to %s", status)

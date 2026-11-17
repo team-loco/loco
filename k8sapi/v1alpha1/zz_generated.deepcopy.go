@@ -21,7 +21,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -131,29 +130,6 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		in, out := &in.Rollout, &out.Rollout
 		*out = new(RolloutStatus)
 		(*in).DeepCopyInto(*out)
-	}
-	if in.CreatedAt != nil {
-		in, out := &in.CreatedAt, &out.CreatedAt
-		*out = (*in).DeepCopy()
-	}
-	if in.StartedAt != nil {
-		in, out := &in.StartedAt, &out.StartedAt
-		*out = (*in).DeepCopy()
-	}
-	if in.CompletedAt != nil {
-		in, out := &in.CompletedAt, &out.CompletedAt
-		*out = (*in).DeepCopy()
-	}
-	if in.UpdatedAt != nil {
-		in, out := &in.UpdatedAt, &out.UpdatedAt
-		*out = (*in).DeepCopy()
-	}
-	if in.Conditions != nil {
-		in, out := &in.Conditions, &out.Conditions
-		*out = make([]v1.Condition, len(*in))
-		for i := range *in {
-			(*in)[i].DeepCopyInto(&(*out)[i])
-		}
 	}
 }
 

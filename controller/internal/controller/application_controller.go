@@ -58,6 +58,7 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/isolation"
 	"github.com/team-loco/loco/controller/internal/managed"
+	"github.com/team-loco/loco/internal/clip"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -139,7 +140,7 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		original := app.DeepCopy()
 		message := fmt.Sprintf("validation failed: %v", err)
 		observePlacementRevision(app)
-		setPhase(app, locov1alpha1.ApplicationPhaseFailed, message)
+		setApplicationProblem(app, locov1alpha1.ProblemConfigError, message)
 		wrapped := fmt.Errorf("invalid application spec: %w", err)
 		statusErr := r.patchStatus(ctx, app, original)
 		joined := errors.Join(wrapped, statusErr)
@@ -155,14 +156,14 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	result, err := r.reconcileResources(ctx, app)
 	if err != nil {
 		message := fmt.Sprintf("failed to %v", err)
-		setPhase(app, locov1alpha1.ApplicationPhaseFailed, message)
+		setApplicationProblem(app, locov1alpha1.ProblemApplyFailed, message)
 	}
 
 	if statusErr := r.patchStatus(ctx, app, original); statusErr != nil {
 		return ctrl.Result{}, errors.Join(err, statusErr)
 	}
 
-	slog.DebugContext(ctx, "reconcile complete", "phase", app.Status.Phase, "resource", app.Name)
+	slog.DebugContext(ctx, "reconcile complete", "resource", app.Name)
 	return result, err
 }
 
@@ -199,7 +200,6 @@ func (r *ApplicationReconciler) reconcileResources(
 	err := r.ensureWorkspacePullSecret(ctx, app)
 	if errors.Is(err, errRegistryPullSecretPending) {
 		slog.DebugContext(ctx, "waiting for the registry pull secret", "error", err)
-		setPhase(app, locov1alpha1.ApplicationPhaseDeploying, messageRegistryPullSecretWait)
 		return ctrl.Result{RequeueAfter: registryPullSecretRequeue}, nil
 	}
 	if err != nil {
@@ -208,7 +208,7 @@ func (r *ApplicationReconciler) reconcileResources(
 
 	envSecret, err := r.ensureEnvSecret(ctx, app)
 	if errors.Is(err, errEnvSecretPending) {
-		setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "Waiting for the environment secrets...")
+		slog.DebugContext(ctx, "waiting for environment secrets", "resource", app.Name)
 		return ctrl.Result{RequeueAfter: envSecretRequeue}, nil
 	}
 	if err != nil {
@@ -230,14 +230,7 @@ func (r *ApplicationReconciler) reconcileResources(
 	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
 		return ctrl.Result{}, err
 	}
-	setReplicaCounts(app, dep)
-	if runtimeErr := r.observeRuntimeProblem(
-		ctx,
-		app,
-		dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision],
-	); runtimeErr != nil {
-		return ctrl.Result{}, runtimeErr
-	}
+	setReadyReplicas(app, dep)
 
 	err = r.ensureService(ctx, app)
 	if err != nil {
@@ -259,31 +252,7 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
-	replicas := app.Status.DesiredReplicas
-	if !deploymentReady(dep, replicas) {
-		envSecretRevision := dep.Spec.Template.Annotations[locolabels.AnnotationEnvSecretRevision]
-		failure, expired := deploymentFailure(dep)
-		stuck, found, err := r.findStuckReplica(ctx, app, envSecretRevision, expired)
-		if err != nil {
-			return ctrl.Result{}, fmt.Errorf("find stuck replicas: %w", err)
-		}
-		if expired && !found {
-			stuck, found = failure, true
-		}
-		if found {
-			setDegraded(app, stuck)
-			setPhase(app, locov1alpha1.ApplicationPhaseFailed, stuck.message)
-			return ctrl.Result{RequeueAfter: deployingRequeue}, nil
-		}
-		clearDegraded(app)
-		setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "Waiting for replicas to become ready")
-		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
-	}
-
-	clearDegraded(app)
-	app.Status.DeployedGeneration = app.Generation
-	setPhase(app, locov1alpha1.ApplicationPhaseReady, "Deployment ready")
-	if app.Status.RuntimeReason != "" {
+	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil {
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 	return ctrl.Result{}, nil
@@ -297,20 +266,16 @@ func observePlacementRevision(app *locov1alpha1.Application) {
 	app.Status.ObservedPlacementRevision = revision
 }
 
-func setPhase(app *locov1alpha1.Application, phase, message string) {
-	if app.Status.Phase == phase && app.Status.Message == message {
-		return
+func setApplicationProblem(app *locov1alpha1.Application, reason locov1alpha1.ProblemReason, detail string) {
+	if app.Status.Rollout == nil {
+		app.Status.Rollout = &locov1alpha1.RolloutStatus{}
 	}
-	now := metav1.Now()
-	if app.Status.StartedAt == nil {
-		app.Status.StartedAt = &now
+	since := new(metav1.Now())
+	if old := app.Status.Rollout.Problem; old != nil && old.Reason == reason {
+		since = old.Since
 	}
-	if phase == locov1alpha1.ApplicationPhaseReady && app.Status.Phase != locov1alpha1.ApplicationPhaseReady {
-		app.Status.CompletedAt = &now
-	}
-	app.Status.Phase = phase
-	app.Status.Message = message
-	app.Status.UpdatedAt = &now
+	app.Status.Rollout.Available = false
+	app.Status.Rollout.Problem = &locov1alpha1.Problem{Reason: reason, Detail: clip.Bytes(detail, 1024), Since: since}
 }
 
 func (r *ApplicationReconciler) patchStatus(
@@ -841,8 +806,7 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32)
 	return generation > 0 && observed == generation && updated == replicas && available == replicas && total == replicas
 }
 
-func setReplicaCounts(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApplyConfiguration) {
-	app.Status.DesiredReplicas = ptr.Deref(dep.Spec.Replicas, 0)
+func setReadyReplicas(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApplyConfiguration) {
 	app.Status.ReadyReplicas = 0
 	if dep.Status != nil {
 		app.Status.ReadyReplicas = ptr.Deref(dep.Status.ReadyReplicas, 0)

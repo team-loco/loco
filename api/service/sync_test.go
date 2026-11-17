@@ -7,8 +7,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-const testPhaseReady = "Ready"
-
 func TestDiffInventory(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

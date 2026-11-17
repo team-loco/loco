@@ -111,11 +111,10 @@ SELECT d.resource_id,
        d.id AS deployment_id,
        d.status AS deployment_status,
        d.replicas AS desired_replicas,
-       COALESCE((SELECT ro.snapshot->'problem'->>'detail' FROM deployment_rollouts ro
-                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '')::text AS deployment_problem_detail,
+       COALESCE((SELECT ro.snapshot->'problem' FROM deployment_rollouts ro
+                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
-       COALESCE(p.status_message, '')::text AS status_message,
        p.status_updated_at,
        c.last_heartbeat,
        c.health_status,

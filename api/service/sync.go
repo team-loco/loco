@@ -659,10 +659,7 @@ func (s *AgentServer) recordStatus(
 		}
 		row, updateErr := qtx.UpdatePlacementStatus(ctx, genDb.UpdatePlacementStatusParams{
 			ObservedRevision: status.GetObservedRevision(),
-			Ready:            status.GetReady(),
 			ReadyReplicas:    status.GetReadyReplicas(),
-			StatusPhase:      status.GetPhase(),
-			StatusMessage:    status.GetMessage(),
 			ID:               placementID,
 			ClusterID:        clusterID,
 		})
@@ -674,14 +671,14 @@ func (s *AgentServer) recordStatus(
 		}
 		if status.GetObservedRevision() == row.DesiredRevision {
 			reason := status.GetProblem().GetReason()
-			message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
-			changed, changeErr := qtx.ChangePlacementRuntimeCondition(ctx, genDb.ChangePlacementRuntimeConditionParams{
-				ID: placementID, Reason: reason, Message: message,
+			changed, changeErr := qtx.ChangePlacementProblemReason(ctx, genDb.ChangePlacementProblemReasonParams{
+				ID: placementID, Reason: reason,
 			})
-			if changeErr != nil && !errors.Is(changeErr, pgx.ErrNoRows) {
-				return fmt.Errorf("change runtime condition: %w", changeErr)
+			if changeErr != nil {
+				return fmt.Errorf("change placement problem: %w", changeErr)
 			}
-			if changeErr == nil {
+			if changed > 0 {
+				message, _ := locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
 				kind := events.ResourceDegraded
 				if reason == "" {
 					kind = events.ResourceRecovered
@@ -689,21 +686,22 @@ func (s *AgentServer) recordStatus(
 				if recordErr := events.Record(ctx, qtx, events.Event{
 					Type:          kind,
 					ActorType:     events.ActorSystem,
-					ResourceID:    &changed.ResourceID,
-					EnvironmentID: &changed.EnvironmentID,
+					ResourceID:    &row.ResourceID,
+					EnvironmentID: &row.EnvironmentID,
 					SubjectType:   events.SubjectResource,
-					SubjectID:     &changed.ResourceID,
+					SubjectID:     &row.ResourceID,
 					Data: map[string]any{
 						events.FieldReason:      reason,
 						events.FieldMessage:     message,
 						events.FieldPlacementID: placementID.String(),
-						events.FieldRegion:      changed.Region,
+						events.FieldRegion:      row.Region,
 					},
 				}); recordErr != nil {
 					return recordErr
 				}
 			}
 		}
+
 		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
 			return nil
 		}
@@ -726,7 +724,7 @@ func (s *AgentServer) recordStatus(
 					ID:           deployment.ID,
 					Status:       next,
 					FromStatuses: deploymentStatusNames(deployment.Status),
-				}, status.GetMessage(), s.config.ServiceDefaults,
+				}, problemReportMessage(status.GetProblem()), s.config.ServiceDefaults,
 			); transitionErr != nil {
 				return transitionErr
 			}
