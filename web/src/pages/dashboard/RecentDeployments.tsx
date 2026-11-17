@@ -88,16 +88,16 @@ export function RecentDeployments({
 			{recent.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
-				<Table className="min-w-[1000px] table-fixed">
+				<Table className="min-w-[880px] table-fixed">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[120px]">Status</TableHead>
-							<TableHead className="w-[180px]">Resource</TableHead>
+							<TableHead className="w-[140px]">Resource</TableHead>
 							<TableHead className="w-[110px]">Region</TableHead>
-							<TableHead className="w-[150px]">Commit</TableHead>
-							<TableHead className="w-[200px]">Deployed by</TableHead>
+							<TableHead className="w-[110px]">Commit</TableHead>
+							<TableHead className="w-[180px]">Deployed by</TableHead>
 							<TableHead>Message</TableHead>
-							<TableHead className="w-[100px] text-right">When</TableHead>
+							<TableHead className="w-[130px] text-right">When</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>

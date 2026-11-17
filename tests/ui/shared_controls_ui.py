@@ -329,7 +329,7 @@ def dashboard(page):
         state["dashboard_resources"] = True
         evidence.write_json(Path(args.state), state)
     evidence.psql(state["container"], f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END, ready=resources.name<>'dashboard-0', status_phase=CASE WHEN resources.name='dashboard-0' THEN 'Failed' ELSE 'Ready' END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');")
-    for color, mode in ((color, mode) for color in ("loco", "catppuccin", "solarized", "paper", "neobrutal") for mode in ("light", "dark")):
+    for color, mode in ((color, mode) for color in ("loco", "catppuccin", "rose-pine", "solarized", "paper", "neobrutal") for mode in ("light", "dark")):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
         # The authentication init script starts every navigation in light mode.
@@ -355,6 +355,25 @@ def dashboard(page):
         replicas.focus()
         expect(page.locator('[data-slot="tooltip-content"]')).to_contain_text("us-east-1: 47/48")
         page.keyboard.press("Escape")
+        table = page.get_by_role("region", name="Deployments", exact=True).get_by_role("table")
+        for viewport in (evidence.DESKTOP, evidence.NARROW):
+            page.set_viewport_size(viewport)
+            bounds = table.evaluate("""table => {
+                const scroller = table.parentElement;
+                scroller.scrollLeft = window.innerWidth < 600 ? scroller.scrollWidth : 0;
+                const cell = table.querySelector('tbody tr td:last-child');
+                const range = document.createRange();
+                range.selectNodeContents(cell);
+                const text = range.getBoundingClientRect(), box = scroller.getBoundingClientRect();
+                return {width: scroller.clientWidth, content: scroller.scrollWidth, scroll: scroller.scrollLeft,
+                    left: text.left, right: text.right, edgeLeft: box.left, edgeRight: box.right};
+            }""")
+            if viewport == evidence.DESKTOP:
+                assert bounds["content"] <= bounds["width"] + 1, (color, mode, bounds)
+            else:
+                assert bounds["scroll"] > 0, (color, mode, bounds)
+            assert bounds["edgeLeft"] <= bounds["left"] <= bounds["right"] <= bounds["edgeRight"], (color, mode, bounds)
+        page.set_viewport_size(evidence.DESKTOP)
         totals = page.get_by_role("region", name="Totals", exact=True)
         allocated = page.get_by_role("group", name=re.compile("^Allocated:"))
         expect(allocated).to_be_visible()
