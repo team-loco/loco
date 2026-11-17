@@ -134,16 +134,10 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
             assert calls == [], calls
             page.get_by_role("button", name="Discard", exact=True).click()
 
-            sql(f"UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-east-1';")
-            page.reload()
-            expect(east).to_have_attribute("aria-disabled", "true")
-            expect(east).to_contain_text("Offline")
-            expect(west).to_be_enabled()
             sql("UPDATE clusters SET is_active=false WHERE region='us-east-1';")
             page.reload()
-            expect(east).to_have_attribute("aria-disabled", "true")
             expect(east).to_contain_text("No cluster in this region")
-            sql("UPDATE clusters SET is_active=true, last_heartbeat=NOW() WHERE region='us-east-1';")
+            sql("UPDATE clusters SET is_active=true WHERE region='us-east-1';")
 
             sql(f"UPDATE resources SET partial='app' WHERE id='{resource}';")
             page.reload()

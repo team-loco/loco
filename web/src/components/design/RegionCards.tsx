@@ -32,7 +32,7 @@ export function RegionCard({
 			: health.availability === RegionAvailability.OFFLINE
 				? "Offline"
 				: undefined;
-	const shownNote = noteTone === "rm" ? note : (unavailable ?? note);
+	const warn = unavailable !== undefined && noteTone !== "rm";
 	return (
 		<ToggleGroupItem
 			className={cn("reg-card", className)}
@@ -43,9 +43,9 @@ export function RegionCard({
 				<span className="font-mono text-[12.5px]">{name}</span>
 				{unavailable === undefined && <RegionHealth region={health} />}
 			</span>
-			{shownNote !== undefined && (
-				<span className="reg-note" data-tone={unavailable === undefined || noteTone === "rm" ? noteTone : "warn"}>
-					{shownNote}
+			{(warn || note !== undefined) && (
+				<span className="reg-note" data-tone={warn ? "warn" : noteTone}>
+					{warn ? unavailable : note}
 				</span>
 			)}
 		</ToggleGroupItem>
