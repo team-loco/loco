@@ -140,6 +140,7 @@ with session(out) as browser:
     open_trace.wait_for()
     assert len(config_requests) > cached_requests and config_requests[-1]['observabilityMaxTimeRange'] == '21600s'
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
+    expect(page.get_by_role('button', name=re.compile(r'^Time.*sorted descending$'))).to_be_visible()
     wait_for_query(page, lambda query: query.get('env') == ['production'] and query.get('view') == ['traces'])
     expect(page.get_by_role('button', name=re.compile(r'^All\s*7$'))).to_be_visible()
     expect(open_trace).to_contain_text('200')
@@ -191,6 +192,7 @@ with session(out) as browser:
     attributes.get_by_role('tab', name='Telemetry', exact=True).click()
     expect(attributes.get_by_role('button', name='Only traces with this value: scope.name', exact=True)).to_be_disabled()
     attributes.get_by_role('tab', name='Attributes', exact=True).click()
+    expect(drawer.get_by_role('button', name='Copy trace ID ' + trace, exact=True)).to_have_text('Trace' + trace[:8])
     drawer.get_by_role('button', name='Copy trace ID ' + trace, exact=True).click()
     assert page.evaluate('navigator.clipboard.readText()') == trace
     drawer.get_by_role('button', name='More for this trace', exact=True).click()
@@ -207,8 +209,9 @@ with session(out) as browser:
     with page.expect_download() as download_info:
         page.get_by_role('menuitem', name='Download JSON', exact=True).click()
     assert download_info.value.suggested_filename == f'trace-{trace}.json'
-    ranking = drawer.get_by_role('group', name='Time by resource')
+    ranking = drawer.get_by_role('group', name='Time spent per resource')
     expect(ranking.get_by_role('button', name='+7 more', exact=True)).to_be_visible()
+    expect(ranking.get_by_role('button').filter(has_text='payment')).to_contain_text(re.compile(r'ms \(<?[0-9]+%\)'))
     expect(ranking.locator('button i')).to_have_count(4)
     ranking.get_by_role('button', name='+7 more', exact=True).click()
     expect(ranking.locator('button i')).to_have_count(11)
@@ -387,6 +390,7 @@ with session(out) as browser:
     failed_drawer = page.get_by_role('dialog', name='Trace', exact=True)
     expect(failed_drawer.get_by_role('heading', name='Couldn’t load this trace')).to_be_visible()
     expect(failed_drawer.get_by_text('ObservabilityService/GetTrace', exact=True)).to_be_visible()
+    expect(failed_drawer.get_by_role('button', name='Copy trace ID ' + trace, exact=True)).to_have_text('Trace' + trace[:8])
     failed_drawer.get_by_role('button', name='Copy trace ID ' + trace, exact=True).click()
     assert page.evaluate('navigator.clipboard.readText()') == trace
     mode[0] = 'normal'
