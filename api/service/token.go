@@ -87,10 +87,17 @@ func (s *TokenServer) CreateToken(
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
+	required := genDb.ScopeAdmin
+	if targetEntity.Type == genDb.EntityTypeUser {
+		if p.UserID == uuid.Nil || targetEntity.ID != p.UserID {
+			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
+		}
+		required = genDb.ScopeWrite
+	}
 	if err = check(ctx, s.authz, p, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
-		Scope:      genDb.ScopeWrite,
+		Scope:      required,
 	}); err != nil {
 		return nil, err
 	}
@@ -111,23 +118,62 @@ func (s *TokenServer) CreateToken(
 		}
 	}
 
+	if targetEntity.Type != genDb.EntityTypeUser {
+		ceiling := make([]genDb.EntityScope, len(dbScopes))
+		for i, scope := range dbScopes {
+			ceiling[i] = genDb.EntityScope{EntityType: targetEntity.Type, EntityID: targetEntity.ID, Scope: scope.Scope}
+		}
+		if scopeErr := s.authz.Check(ctx, ceiling, dbScopes...); scopeErr != nil {
+			if accessDenied(scopeErr) {
+				return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(scopeErr)
+			}
+			return nil, fmt.Errorf("check token scope targets: %w", scopeErr)
+		}
+	}
+
 	duration := time.Duration(req.GetExpiresInSec()) * time.Second
+	requiredScopes := append([]genDb.EntityScope{{
+		EntityType: targetEntity.Type, EntityID: targetEntity.ID, Scope: required,
+	}}, dbScopes...)
+	issuer := p.UserID
+	if issuer == uuid.Nil {
+		issuer = p.ActorID
+	}
 	var token string
 	var tokenData genDb.CreateAPITokenRow
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		fresh := p
+		authorizer := authz.New(qtx)
+		if p.UserID != uuid.Nil {
+			live, scopeErr := authorizer.UserScopes(ctx, p.UserID)
+			if scopeErr != nil {
+				return fmt.Errorf("reload issuing user permissions: %w", scopeErr)
+			}
+			if p.Method == genDb.DeploymentMethodApiToken {
+				fresh.Scopes, scopeErr = authorizer.Intersect(ctx, p.Scopes, live)
+				if scopeErr != nil {
+					return fmt.Errorf("bound issuing token permissions: %w", scopeErr)
+				}
+			} else {
+				fresh.Scopes = live
+			}
+		}
+		if accessErr := check(ctx, authorizer, fresh, requiredScopes...); accessErr != nil {
+			return accessErr
+		}
 		if limitErr := s.checkTokenLimit(ctx, qtx, targetEntity); limitErr != nil {
 			return limitErr
 		}
 		var issueErr error
 		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, req.GetName(), p.Entity.ID, targetEntity, dbScopes, duration)
+			Issue(ctx, req.GetName(), issuer, targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
 		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, req.GetName()))
 	})
 	if err != nil {
-		if errors.Is(err, authz.ErrInsufficientPermissions) {
+		if accessDenied(err) {
 			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if errors.Is(err, tvm.ErrTokenNameTaken) {
@@ -306,12 +352,13 @@ func (s *TokenServer) RevokeToken(
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
-	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == p.Entity.ID
+	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == p.UserID &&
+		p.ActorType == genDb.DeploymentActorTypeUser
 	if !isOwnToken {
 		if err = check(ctx, s.authz, p, genDb.EntityScope{
 			EntityType: targetEntity.Type,
 			EntityID:   targetEntity.ID,
-			Scope:      genDb.ScopeWrite,
+			Scope:      genDb.ScopeAdmin,
 		}); err != nil {
 			return nil, err
 		}

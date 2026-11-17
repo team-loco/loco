@@ -17,30 +17,18 @@ const tokenDisplaySuffixLength = 4
 // the token_hash constraint also raises unique violations and must not read as a taken name.
 const pgNameEntityUnique = "api_tokens_name_entity_type_entity_id_key"
 
-// Issue issues an API token for the given entity and scopes and returns it with the stored
-// token metadata. The user is the one requesting the token; that user must already hold all
-// the requested scopes (explicitly or implicitly), otherwise authz.ErrInsufficientPermissions
-// is returned. It is the caller's responsibility to verify that the request is coming from
-// this user before calling Issue.
+// Issue stores an API token with its owning entity, scopes and historical issuer.
+// The caller must authorize the owner and requested scopes before issuing a token.
 func (tvm *VendingMachine) Issue(
 	ctx context.Context,
 	name string,
-	user uuid.UUID,
+	issuer uuid.UUID,
 	entity queries.Entity,
 	entityScopes []queries.EntityScope,
 	duration time.Duration,
 ) (string, queries.CreateAPITokenRow, error) {
 	if duration > tvm.Cfg.MaxAPITokenDuration {
 		return "", queries.CreateAPITokenRow{}, ErrDurationExceedsMaxAllowed
-	}
-
-	userScopes, err := tvm.authz.UserScopes(ctx, user)
-	if err != nil {
-		return "", queries.CreateAPITokenRow{}, fmt.Errorf("load scopes of the issuing user: %w", err)
-	}
-
-	if err = tvm.authz.Check(ctx, userScopes, entityScopes...); err != nil {
-		return "", queries.CreateAPITokenRow{}, err
 	}
 
 	token, hash := generateToken(prefixAPIKey)
@@ -52,7 +40,7 @@ func (tvm *VendingMachine) Issue(
 		EntityType:    entity.Type,
 		EntityID:      entity.ID,
 		Scopes:        entityScopes,
-		CreatedBy:     user,
+		CreatedBy:     issuer,
 		ExpiresAt:     time.Now().Add(duration),
 	})
 	if err != nil {

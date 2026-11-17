@@ -19,6 +19,7 @@ export interface Owner {
 	label: string;
 	canList: boolean;
 	canCreate: boolean;
+	createHint: string | null;
 }
 
 interface OwnerTokens {
@@ -124,20 +125,25 @@ export function useTokenData(): TokenData {
 	const activeOrg = orgs.find((o) => o.id === activeOrgId);
 	const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
 
-	const can = (entityType: EntityType, id: string | null, level: 1 | 2): boolean => {
+	const can = (entityType: EntityType, id: string | null, level: 1 | 2 | 3): boolean => {
 		if (id === null || scopesQuery.data === undefined) return false;
 		const key = nodeKey(entityType, id);
 		return holds(held, tree, key, level);
 	};
 
-	const mkOwner = (key: OwnerKey, entityType: EntityType, id: string | null, label: string): Owner => ({
-		key,
-		entityType,
-		id,
-		label,
-		canList: can(entityType, id, 1),
-		canCreate: can(entityType, id, 2),
-	});
+	const mkOwner = (key: OwnerKey, entityType: EntityType, id: string | null, label: string): Owner => {
+		const personal = entityType === EntityType.USER;
+		const canCreate = can(entityType, id, personal ? 2 : 3);
+		return {
+			key,
+			entityType,
+			id,
+			label,
+			canList: can(entityType, id, 1),
+			canCreate,
+			createHint: canCreate ? null : `You need ${personal ? "write" : "admin"} access to ${label} to create tokens`,
+		};
+	};
 
 	const orgOwner = mkOwner("org", EntityType.ORGANIZATION, activeOrgId, activeOrg?.name ?? "Organization");
 	const wsOwner = mkOwner("workspace", EntityType.WORKSPACE, activeWorkspaceId, activeWs?.name ?? "Workspace");

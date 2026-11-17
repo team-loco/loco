@@ -183,10 +183,8 @@ function CreateForm({
 		return node === undefined ? [] : [{ node, level: it.level }];
 	});
 	const allows = allowsFor(resolved.map((r) => ({ kind: r.node.kind, level: r.level })));
-	const createHint = owner.canCreate ? undefined : `You need write access to ${owner.label} to create tokens`;
-
 	const submit = async () => {
-		if (mutation.isPending || owner.id === null || !valid) return;
+		if (mutation.isPending || owner.id === null || !owner.canCreate || !valid) return;
 		try {
 			const res = await mutation.mutateAsync({
 				name,
@@ -251,7 +249,7 @@ function CreateForm({
 									key={k}
 									value={k}
 									disabled={!o.canCreate}
-									title={o.canCreate ? o.label : `You need write access to ${o.label}`}
+									title={o.createHint ?? o.label}
 									className="disabled:opacity-45 [&_svg]:size-[13px] [&_svg]:text-fg3"
 								>
 									{ownerIcon(k)}
@@ -339,7 +337,11 @@ function CreateForm({
 				<Button type="button" variant="outline" onClick={onCancel}>
 					Cancel
 				</Button>
-				<Button type="submit" disabled={mutation.isPending || !owner.canCreate || !valid} title={createHint}>
+				<Button
+					type="submit"
+					disabled={mutation.isPending || !owner.canCreate || !valid}
+					title={owner.createHint ?? undefined}
+				>
 					{mutation.isPending ? "Creating…" : "Create token"}
 				</Button>
 			</SheetFooter>
