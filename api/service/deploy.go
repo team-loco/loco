@@ -357,3 +357,48 @@ func (e *invalidSpecError) Error() string {
 func (e *invalidSpecError) Unwrap() []error {
 	return []error{rpcerr.NewCoded(connect.CodeInvalidArgument, e.Error()), e.err}
 }
+
+func placeDeployment(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resource genDb.Resource,
+	deployment genDb.Deployment,
+	spec *deploymentv1.DeploymentSpec,
+	defaults servicedefaults.Defaults,
+) error {
+	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+	if err != nil {
+		return err
+	}
+	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
+	if err != nil {
+		return err
+	}
+	env, err := qtx.GetEnvironmentByID(ctx, deployment.EnvironmentID)
+	if err != nil {
+		return err
+	}
+	hostname, err := primaryHostname(ctx, qtx, resource.ID, env.ID)
+	if err != nil {
+		return err
+	}
+	desired := desiredApplicationSpec(
+		resource,
+		owner.OrgID,
+		resourceSpec,
+		hostname,
+		spec,
+		deployment.Region,
+		env.ID,
+		env.Name,
+		defaults,
+	)
+	payload, err := desired(deployment.ID)
+	if err != nil {
+		return err
+	}
+	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+		ResourceID: resource.ID, EnvironmentID: env.ID, Region: deployment.Region, ClusterID: deployment.ClusterID,
+		DeploymentID: &deployment.ID, SecretNames: deployment.SecretNames, DesiredSpec: payload,
+	})
+}

@@ -76,7 +76,8 @@ func (s *DeploymentServer) WatchDeployment(
 		if hasMore {
 			continue
 		}
-		if isTerminalDeploymentStatus(deployment.GetStatus()) {
+		failed := deployment.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED
+		if isTerminalDeploymentStatus(deployment.GetStatus()) || failed && !deployment.GetIsActive() {
 			return nil
 		}
 		select {

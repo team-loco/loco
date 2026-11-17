@@ -91,7 +91,7 @@ func updateBuildingDeployments(
 		if status != deployment.Status {
 			if err := advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 				ID: deployment.ID, Status: status, FromStatuses: []string{string(genDb.DeploymentStatusBuilding)},
-			}, build.Message); err != nil {
+			}, build.Message, defaults); err != nil {
 				return err
 			}
 		}
@@ -128,51 +128,14 @@ func placeBuiltDeployment(
 	if err != nil {
 		return fmt.Errorf("read build deployment resource: %w", err)
 	}
-	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-	if err != nil {
-		return err
-	}
 	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, resource.Type)
 	if err != nil {
 		return err
 	}
 	image := buildImage(build)
 	spec.GetService().GetBuild().Image = image
-	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
-	if err != nil {
+	if err := placeDeployment(ctx, qtx, resource, deployment, spec, defaults); err != nil {
 		return err
 	}
-	env, err := qtx.GetEnvironmentByID(ctx, deployment.EnvironmentID)
-	if err != nil {
-		return err
-	}
-	hostname, err := primaryHostname(ctx, qtx, resource.ID, env.ID)
-	if err != nil {
-		return err
-	}
-	desired := desiredApplicationSpec(
-		resource,
-		owner.OrgID,
-		resourceSpec,
-		hostname,
-		spec,
-		deployment.Region,
-		env.ID,
-		env.Name,
-		defaults,
-	)
-	payload, err := desired(deployment.ID)
-	if err != nil {
-		return err
-	}
-	if err := qtx.SetDeploymentBuildImage(
-		ctx,
-		genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image},
-	); err != nil {
-		return err
-	}
-	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID: resource.ID, EnvironmentID: env.ID, Region: deployment.Region, ClusterID: deployment.ClusterID,
-		DeploymentID: &deployment.ID, SecretNames: deployment.SecretNames, DesiredSpec: payload,
-	})
+	return qtx.SetDeploymentBuildImage(ctx, genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image})
 }

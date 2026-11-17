@@ -332,7 +332,7 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
 SELECT DISTINCT ON (environment_id, region) id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
-ORDER BY environment_id, region, created_at DESC, id DESC
+ORDER BY environment_id, region, is_active DESC, created_at DESC, id DESC
 `
 
 func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error) {

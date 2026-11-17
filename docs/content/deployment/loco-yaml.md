@@ -219,6 +219,10 @@ services:
 
 Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
 
+When the newest deployment in an environment and region misses its rollout deadline or runs out of apply retries, Loco restores the newest earlier deployment there that ran. The restored deployment keeps its own configuration, takes the service's current environment variables, and shows `deploying` until it is available, then `running`. The failed deployment stays `failed` and becomes inactive. The activity of both deployments records the rollback.
+
+Nothing is rolled back, and the failed deployment stays active, when the setting is off, the build failed, no earlier deployment ran, or the earlier deployment's cluster or build image is no longer available. A restored deployment that fails is not rolled back again.
+
 ## Variables and secrets
 
 `env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.

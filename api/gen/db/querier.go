@@ -269,7 +269,9 @@ type Querier interface {
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
 	OpenRollout(ctx context.Context, arg OpenRolloutParams) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
+	PlacementForDeployment(ctx context.Context, deploymentID *uuid.UUID) (Placement, error)
 	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
+	PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error)
 	// Deletes the resource's builds past the newest keep once their source and, for a succeeded
 	// build, image are gone: the sweepers find what to delete through these rows. The image
 	// sweeper treats a failed or canceled build's tags like those of a missing row.

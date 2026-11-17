@@ -169,7 +169,8 @@ FROM deployments current
 WHERE current.id = $1 AND old.resource_id = current.resource_id
  AND old.environment_id = current.environment_id AND old.region = current.region
  AND NOT old.is_active AND old.started_at IS NOT NULL
- AND old.status IN ('running','deploying','failed');
+ AND old.status IN ('running','deploying','failed')
+ AND (old.created_at, old.id) < (current.created_at, current.id);
 
 -- name: LockPlacementResource :one
 SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
@@ -189,3 +190,21 @@ WHERE id = sqlc.arg(id);
 UPDATE deployments
 SET spec = jsonb_set(spec, '{env}', COALESCE(sqlc.arg(desired_spec)::jsonb #> '{app_spec,serviceSpec,deployment,env}', '{}'::jsonb))
 WHERE id = sqlc.arg(id);
+
+-- name: PreviousDeploymentForRollback :one
+SELECT previous.* FROM deployments previous JOIN deployments failed ON failed.id = $1
+WHERE previous.resource_id = failed.resource_id
+ AND previous.environment_id = failed.environment_id AND previous.region = failed.region
+ AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
+ AND previous.started_at IS NOT NULL
+ AND NOT previous.is_active
+ AND NOT EXISTS (
+ SELECT 1 FROM deployments newer
+ WHERE newer.resource_id = failed.resource_id
+ AND newer.environment_id = failed.environment_id AND newer.region = failed.region
+ AND (newer.created_at, newer.id) > (failed.created_at, failed.id)
+ )
+ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1 FOR UPDATE OF previous;
+
+-- name: PlacementForDeployment :one
+SELECT * FROM placements WHERE deployment_id = $1 AND NOT desired_deleted;

@@ -67,6 +67,8 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		`AUTH_ISSUERS=[{"issuer":"` + p.authIssuer() + `","audience":"loco-e2e"}]`,
 		"AUTH_SIGNUP_MODE=open",
 		"LOCO_SYSTEM_ADMINS=" + SystemAdmin,
+		// Every test tenant is an organization of the one e2e user.
+		"LOCO_LIMIT_ORGS_PER_USER=50",
 		"DATABASE_URL=" + p.databaseURL,
 		"CACHE_TYPE=in-memory",
 		"APP_PORT=" + bind + ":" + strconv.Itoa(port),

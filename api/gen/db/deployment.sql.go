@@ -731,6 +731,89 @@ func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resource
 	return err
 }
 
+const placementForDeployment = `-- name: PlacementForDeployment :one
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, runtime_reason, runtime_message, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements WHERE deployment_id = $1 AND NOT desired_deleted
+`
+
+func (q *Queries) PlacementForDeployment(ctx context.Context, deploymentID *uuid.UUID) (Placement, error) {
+	row := q.db.QueryRow(ctx, placementForDeployment, deploymentID)
+	var i Placement
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.ClusterID,
+		&i.Region,
+		&i.DeploymentID,
+		&i.EnvironmentID,
+		&i.SecretNames,
+		&i.DesiredRevision,
+		&i.DesiredSpec,
+		&i.DesiredDeleted,
+		&i.AppliedRevision,
+		&i.AppliedAt,
+		&i.AppliedError,
+		&i.RetryAfter,
+		&i.ApplyAttempts,
+		&i.ApplyFailed,
+		&i.ObservedRevision,
+		&i.Ready,
+		&i.ReadyReplicas,
+		&i.RuntimeReason,
+		&i.RuntimeMessage,
+		&i.StatusPhase,
+		&i.StatusMessage,
+		&i.StatusUpdatedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const previousDeploymentForRollback = `-- name: PreviousDeploymentForRollback :one
+SELECT previous.id, previous.resource_id, previous.cluster_id, previous.region, previous.replicas, previous.status, previous.is_active, previous.environment_id, previous.spec, previous.spec_version, previous.actor_type, previous.actor_id, previous.method, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployments previous JOIN deployments failed ON failed.id = $1
+WHERE previous.resource_id = failed.resource_id
+ AND previous.environment_id = failed.environment_id AND previous.region = failed.region
+ AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
+ AND previous.started_at IS NOT NULL
+ AND NOT previous.is_active
+ AND NOT EXISTS (
+ SELECT 1 FROM deployments newer
+ WHERE newer.resource_id = failed.resource_id
+ AND newer.environment_id = failed.environment_id AND newer.region = failed.region
+ AND (newer.created_at, newer.id) > (failed.created_at, failed.id)
+ )
+ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1 FOR UPDATE OF previous
+`
+
+func (q *Queries) PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error) {
+	row := q.db.QueryRow(ctx, previousDeploymentForRollback, id)
+	var i Deployment
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.ClusterID,
+		&i.Region,
+		&i.Replicas,
+		&i.Status,
+		&i.IsActive,
+		&i.EnvironmentID,
+		&i.Spec,
+		&i.SpecVersion,
+		&i.ActorType,
+		&i.ActorID,
+		&i.Method,
+		&i.CommitSha,
+		&i.CommitDirty,
+		&i.SecretNames,
+		&i.ActivitySeq,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const pruneDeploymentHistory = `-- name: PruneDeploymentHistory :execrows
 DELETE FROM deployments d
 WHERE d.id IN (
@@ -798,6 +881,7 @@ WHERE current.id = $1 AND old.resource_id = current.resource_id
  AND old.environment_id = current.environment_id AND old.region = current.region
  AND NOT old.is_active AND old.started_at IS NOT NULL
  AND old.status IN ('running','deploying','failed')
+ AND (old.created_at, old.id) < (current.created_at, current.id)
 `
 
 func (q *Queries) SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error {
