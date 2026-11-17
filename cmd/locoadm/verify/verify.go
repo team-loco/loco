@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/installation"
-	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
 const verificationTimeout = 30 * time.Minute
@@ -19,7 +18,6 @@ const verificationTimeout = 30 * time.Minute
 var errTimeout = errors.New("verification timeout must be positive")
 
 func Command() *cobra.Command {
-	var file string
 	var timeout time.Duration
 	var target installation.VerificationTarget
 	command := &cobra.Command{
@@ -30,32 +28,20 @@ func Command() *cobra.Command {
 			if timeout <= 0 {
 				return errTimeout
 			}
-			config, err := installation.Load(file)
-			if err != nil {
-				return err
-			}
 			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 			defer cancel()
-			release, err := installation.LoadRelease(ctx, *config, file, cmd.Root().Version, cmd.ErrOrStderr())
+			login, err := auth.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
-			store, err := keychain.ForCurrentUser()
-			if err != nil {
-				return err
-			}
-			session, err := auth.FreshToken(ctx, config.ControlPlane.APIURL, store)
-			if err != nil {
-				return err
-			}
-			status, err := installation.VerifySource(ctx, *config, release, session.Token, target)
+			status, err := installation.VerifyAPI(ctx, login.Clients, target)
 			if err != nil {
 				return err
 			}
 			return json.MarshalWrite(cmd.OutOrStdout(), status)
 		},
 	}
-	command.Flags().StringVar(&file, "file", installation.DefaultFile, installation.FileFlagUsage)
+	command.Flags().String("host", "", "API host URL")
 	command.Flags().StringVar(&target.Worker, "worker", "", "Build-enabled worker to verify")
 	command.Flags().
 		StringVar(&target.EnvironmentID, "environment", "", "Authorized environment for the disposable probe")

@@ -397,7 +397,7 @@ func newDeps(
 		imageSweeper:      imageSweeper,
 		registrySweeper:   registrySweeper,
 
-		config: service.NewConfigServer(
+		config: service.NewConfigServer(ac.Version,
 			ac.MinCLIVersion,
 			ac.SchemaURL,
 			ac.ServiceDefaults,

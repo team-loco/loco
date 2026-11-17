@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"sigs.k8s.io/yaml"
+
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectproto"
@@ -251,6 +253,7 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		append(createArgs[:len(createArgs)-1:len(createArgs)-1], "qa"),
 		{clusterJoinToken},
 		{clusterJoinToken, "invalid"},
+		{clusterJoinToken, testClusterID, "-o", "unsupported"},
 	} {
 		fake := &fakeClusterAdmin{t: t}
 		cmd, _ := clusterTestCommand(t, fake)
@@ -261,5 +264,42 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		if len(fake.calls) != 0 {
 			t.Fatalf("made RPC for invalid args: %v", args)
 		}
+	}
+}
+
+func TestClusterCreatePrintsSecretWithRequestedTTL(t *testing.T) {
+	fake := &fakeClusterAdmin{t: t}
+	command, output := clusterTestCommand(t, fake)
+	args := append(
+		append([]string{}, createArgs...),
+		"--ttl",
+		"72h",
+		"-o",
+		"secret",
+		"--namespace",
+		"worker",
+		"--secret-name",
+		"join",
+	)
+	command.SetArgs(args)
+	if err := command.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if fake.created.GetTtl().AsDuration() != 72*time.Hour {
+		t.Fatalf("ttl = %v", fake.created.GetTtl())
+	}
+	var secret struct {
+		APIVersion string                           `json:"apiVersion"`
+		Kind       string                           `json:"kind"`
+		Metadata   struct{ Name, Namespace string } `json:"metadata"`
+		StringData map[string]string                `json:"stringData"`
+	}
+	if err := yaml.Unmarshal(output.Bytes(), &secret); err != nil {
+		t.Fatal(err)
+	}
+	if secret.APIVersion != "v1" || secret.Kind != "Secret" || secret.Metadata.Name != "join" ||
+		secret.Metadata.Namespace != "worker" ||
+		secret.StringData["join-token"] != testJoinToken {
+		t.Fatalf("invalid join Secret: %+v", secret)
 	}
 }

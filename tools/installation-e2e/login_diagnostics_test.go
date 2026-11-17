@@ -125,3 +125,85 @@ func TestSignInStopsLoginWhenApprovalFails(t *testing.T) {
 		t.Fatalf("signIn = %v after %s, want the approval error without waiting for login", err, time.Since(started))
 	}
 }
+
+func TestSignInUsesExplicitFixtureEndpoints(t *testing.T) {
+	fakeLocoadm(t, deviceCodeOutput, "", `
+[ "$*" = "login --api http://api.installation.test --web http://console.installation.test --device" ] || exit 42
+`)
+	captureStderr(t, func() {
+		if err := signIn(t.Context(), func(context.Context, string) error { return nil }); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
+
+func TestAdminClaimCheckUsesAPIStatus(t *testing.T) {
+	for _, tc := range []struct {
+		name, response string
+		unclaimed      bool
+	}{
+		{"claimed", `{"unclaimedAdmins":[]}`, false},
+		{"unclaimed", `{"unclaimedAdmins":["admin@example.test"]}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeLocoadm(t, tc.response, "", `[ "$*" = "status --host http://api.installation.test" ] || exit 42`)
+			err := requireAdminsClaimed(t.Context())
+			if (err != nil) != tc.unclaimed || tc.unclaimed && !errors.Is(err, errAdminsUnclaimed) {
+				t.Fatalf("admin status: %v", err)
+			}
+		})
+	}
+}
+
+func TestSignInRetriesDNSBeforeDeviceApproval(t *testing.T) {
+	bin := t.TempDir()
+	script := `#!/bin/sh
+if [ ! -f "$LOGIN_ATTEMPT" ]; then
+  touch "$LOGIN_ATTEMPT"
+  echo 'Login to http://api failed: could not reach the Loco API: dial tcp: lookup api: no such host' >&2
+  exit 1
+fi
+printf '%b' "$LOGIN_TEST_STDOUT"
+`
+	if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("LOGIN_ATTEMPT", filepath.Join(bin, "attempt"))
+	t.Setenv("LOGIN_TEST_STDOUT", deviceCodeOutput)
+	approved := 0
+	output := captureStderr(t, func() {
+		if err := signIn(t.Context(), func(context.Context, string) error { approved++; return nil }); err != nil {
+			t.Error(err)
+		}
+	})
+	if approved != 1 || strings.Contains(output, loginFailurePrefix) {
+		t.Fatalf("approval count = %d; diagnostic = %q", approved, output)
+	}
+}
+
+func TestSignInDNSRetryHonorsContext(t *testing.T) {
+	fakeLocoadm(t, "", "Login to http://api failed: could not reach the Loco API: lookup api: no such host", "exit 1")
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	var loginErr error
+	output := captureStderr(t, func() {
+		loginErr = signIn(ctx, func(context.Context, string) error { t.Fatal("unexpected approval"); return nil })
+	})
+	if !errors.Is(loginErr, context.DeadlineExceeded) || !strings.Contains(output, loginFailurePrefix+loginFailureDNS) {
+		t.Fatalf("bounded DNS retry: %v, %q", loginErr, output)
+	}
+}
+
+func TestSignInCancelsBlockedDeviceCodeRequest(t *testing.T) {
+	fakeLocoadm(t, "", "", "exec sleep 30")
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	var loginErr error
+	captureStderr(t, func() {
+		loginErr = signIn(ctx, func(context.Context, string) error { t.Fatal("unexpected approval"); return nil })
+	})
+	if !errors.Is(loginErr, context.DeadlineExceeded) {
+		t.Fatalf("blocked device request: %v", loginErr)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 )
 
 func (a *Agent) sendHeartbeats(ctx context.Context, enqueue func(*agentv1.SyncRequest)) {
@@ -27,10 +28,11 @@ func (a *Agent) heartbeat(ctx context.Context) *agentv1.Heartbeat {
 	health := a.getHealth(ctx)
 	served := a.servedDomains(ctx)
 	return &agentv1.Heartbeat{
-		Capacity: capacity,
-		Health:   health,
-		Role:     a.cfg.Role,
-		Domains:  served,
+		Capacity:   capacity,
+		Health:     health,
+		Role:       a.cfg.Role,
+		Domains:    served,
+		DnsRecords: a.dnsRecords(ctx),
 	}
 }
 
@@ -58,4 +60,17 @@ func (a *Agent) getHealth(ctx context.Context) *agentv1.AgentHealth {
 		slog.WarnContext(ctx, "cluster unhealthy", "message", health.GetMessage())
 	}
 	return health
+}
+
+func (a *Agent) dnsRecords(ctx context.Context) []*clusterv1.DNSRecord {
+	targets, err := a.domains.Targets(ctx)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to read gateway DNS targets", "error", err)
+		return nil
+	}
+	records := make([]*clusterv1.DNSRecord, 0, len(a.cfg.AppDomains))
+	for _, domain := range a.cfg.AppDomains {
+		records = append(records, &clusterv1.DNSRecord{Domain: domain, Targets: targets})
+	}
+	return records
 }

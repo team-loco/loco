@@ -91,6 +91,7 @@ type RegisterRequest struct {
 	ClusterKey    string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
 	Enrollment    *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
 	Domains       []string               `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
+	DnsRecords    []*v1.DNSRecord        `protobuf:"bytes,7,rep,name=dns_records,json=dnsRecords,proto3" json:"dns_records,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -163,6 +164,13 @@ func (x *RegisterRequest) GetEnrollment() *Enrollment {
 func (x *RegisterRequest) GetDomains() []string {
 	if x != nil {
 		return x.Domains
+	}
+	return nil
+}
+
+func (x *RegisterRequest) GetDnsRecords() []*v1.DNSRecord {
+	if x != nil {
+		return x.DnsRecords
 	}
 	return nil
 }
@@ -1308,6 +1316,7 @@ type Heartbeat struct {
 	Health        *AgentHealth           `protobuf:"bytes,2,opt,name=health,proto3" json:"health,omitempty"`
 	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
 	Domains       []string               `protobuf:"bytes,4,rep,name=domains,proto3" json:"domains,omitempty"`
+	DnsRecords    []*v1.DNSRecord        `protobuf:"bytes,5,rep,name=dns_records,json=dnsRecords,proto3" json:"dns_records,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1366,6 +1375,13 @@ func (x *Heartbeat) GetRole() v1.ClusterRole {
 func (x *Heartbeat) GetDomains() []string {
 	if x != nil {
 		return x.Domains
+	}
+	return nil
+}
+
+func (x *Heartbeat) GetDnsRecords() []*v1.DNSRecord {
+	if x != nil {
+		return x.DnsRecords
 	}
 	return nil
 }
@@ -1520,7 +1536,7 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1dloco/cluster/v1/cluster.proto\"\xbc\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1dloco/cluster/v1/cluster.proto\"\xf9\x02\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12<\n" +
@@ -1531,7 +1547,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"enrollment\x18\x05 \x01(\v2\x19.loco.agent.v1.EnrollmentR\n" +
 	"enrollment\x12&\n" +
-	"\adomains\x18\x06 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\"\\\n" +
+	"\adomains\x18\x06 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\x12;\n" +
+	"\vdns_records\x18\a \x03(\v2\x1a.loco.cluster.v1.DNSRecordR\n" +
+	"dnsRecords\"\\\n" +
 	"\n" +
 	"Enrollment\x12&\n" +
 	"\n" +
@@ -1625,13 +1643,15 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x13registry_credential\x18\n" +
 	" \x01(\tR\x12registryCredential\"2\n" +
 	"\vCancelBuild\x12#\n" +
-	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xdf\x01\n" +
+	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\x9c\x02\n" +
 	"\tHeartbeat\x128\n" +
 	"\bcapacity\x18\x01 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x122\n" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\"\x8d\x02\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\x12;\n" +
+	"\vdns_records\x18\x05 \x03(\v2\x1a.loco.cluster.v1.DNSRecordR\n" +
+	"dnsRecords\"\x8d\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +
@@ -1693,40 +1713,43 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(*AgentHealth)(nil),         // 19: loco.agent.v1.AgentHealth
 	nil,                         // 20: loco.agent.v1.EnvSecret.DataEntry
 	(v1.ClusterRole)(0),         // 21: loco.cluster.v1.ClusterRole
-	(*durationpb.Duration)(nil), // 22: google.protobuf.Duration
+	(*v1.DNSRecord)(nil),        // 22: loco.cluster.v1.DNSRecord
+	(*durationpb.Duration)(nil), // 23: google.protobuf.Duration
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	18, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
 	21, // 1: loco.agent.v1.RegisterRequest.role:type_name -> loco.cluster.v1.ClusterRole
 	2,  // 2: loco.agent.v1.RegisterRequest.enrollment:type_name -> loco.agent.v1.Enrollment
-	22, // 3: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
-	5,  // 4: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
-	9,  // 5: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
-	10, // 6: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
-	8,  // 7: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
-	17, // 8: loco.agent.v1.SyncRequest.heartbeat:type_name -> loco.agent.v1.Heartbeat
-	6,  // 9: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
-	7,  // 10: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
-	0,  // 11: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
-	0,  // 12: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
-	12, // 13: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	14, // 14: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	15, // 15: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	16, // 16: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	13, // 17: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	20, // 18: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	18, // 19: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	19, // 20: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	21, // 21: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
-	1,  // 22: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	4,  // 23: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	3,  // 24: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	11, // 25: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	24, // [24:26] is the sub-list for method output_type
-	22, // [22:24] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	22, // 3: loco.agent.v1.RegisterRequest.dns_records:type_name -> loco.cluster.v1.DNSRecord
+	23, // 4: loco.agent.v1.RegisterResponse.heartbeat_interval:type_name -> google.protobuf.Duration
+	5,  // 5: loco.agent.v1.SyncRequest.inventory:type_name -> loco.agent.v1.Inventory
+	9,  // 6: loco.agent.v1.SyncRequest.applied:type_name -> loco.agent.v1.Applied
+	10, // 7: loco.agent.v1.SyncRequest.status:type_name -> loco.agent.v1.PlacementStatus
+	8,  // 8: loco.agent.v1.SyncRequest.build_status:type_name -> loco.agent.v1.BuildStatus
+	17, // 9: loco.agent.v1.SyncRequest.heartbeat:type_name -> loco.agent.v1.Heartbeat
+	6,  // 10: loco.agent.v1.Inventory.entries:type_name -> loco.agent.v1.InventoryEntry
+	7,  // 11: loco.agent.v1.Inventory.builds:type_name -> loco.agent.v1.InventoryBuild
+	0,  // 12: loco.agent.v1.InventoryBuild.phase:type_name -> loco.agent.v1.BuildPhase
+	0,  // 13: loco.agent.v1.BuildStatus.phase:type_name -> loco.agent.v1.BuildPhase
+	12, // 14: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	14, // 15: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	15, // 16: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	16, // 17: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	13, // 18: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	20, // 19: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	18, // 20: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	19, // 21: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	21, // 22: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	22, // 23: loco.agent.v1.Heartbeat.dns_records:type_name -> loco.cluster.v1.DNSRecord
+	1,  // 24: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	4,  // 25: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	3,  // 26: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	11, // 27: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	26, // [26:28] is the sub-list for method output_type
+	24, // [24:26] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }

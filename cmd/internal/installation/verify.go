@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json/v2"
 	"errors"
@@ -23,7 +24,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"go.yaml.in/yaml/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
@@ -67,77 +67,12 @@ type VerificationTarget struct {
 	CAFile        string
 }
 
-// VerifySource creates and deletes only its own disposable resource in the selected environment.
-func VerifySource(
-	ctx context.Context,
-	config Config,
-	resolved ResolvedRelease,
-	token string,
-	target VerificationTarget,
-) (Status, error) {
-	probe, err := verificationClient(target.CAFile)
-	if err != nil {
-		return Status{}, err
-	}
-	status, err := StatusInstallation(ctx, config, token)
-	if err != nil {
-		return Status{}, err
-	}
-	if status.Phase != "running" {
-		return Status{}, errVerificationTarget
-	}
-	var worker Worker
-	for _, candidate := range config.Workers {
-		if candidate.Name == target.Worker {
-			worker = candidate
-		}
-	}
-	// Verification builds its source and deploys the result on the same worker.
-	if worker.Name == "" || workerRoles[worker.Role] != clusterv1.ClusterRole_CLUSTER_ROLE_ALL {
-		return Status{}, errVerificationTarget
-	}
-	clients := rpc.ForHost(config.ControlPlane.APIURL, token)
-	environment, lookupErr := clients.Environment.GetEnvironment(
-		ctx,
-		&environmentv1.GetEnvironmentRequest{EnvironmentId: target.EnvironmentID},
-	)
-	if lookupErr != nil {
-		return Status{}, errVerificationTarget
-	}
-	var tier string
-	switch environment.GetEnvironment().GetType() {
-	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING:
-		tier = "staging"
-	case environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION:
-		tier = "production"
-	default:
-		return Status{}, errVerificationTarget
-	}
-	if tier != worker.Tier {
-		return Status{}, errVerificationTarget
-	}
-	release, loadErr := loadArtifacts(ctx, resolved)
-	if loadErr != nil {
-		return Status{}, loadErr
-	}
-	base, baseErr := verificationBase(release.worker)
-	if baseErr != nil {
-		return Status{}, baseErr
-	}
-	if err := verifyApplication(ctx, clients, probe, worker, environment.GetEnvironment(), base); err != nil {
-		return Status{}, err
-	}
-	status.Phase = "verified"
-	return status, nil
-}
-
 func verifyApplication(
 	ctx context.Context,
 	clients *rpc.Clients,
 	probe *http.Client,
 	worker Worker,
 	environment *environmentv1.Environment,
-	base string,
 ) (err error) {
 	started := timestamppb.Now()
 	name := "verify-" + uuid.NewString()
@@ -224,7 +159,7 @@ func verifyApplication(
 	}); setErr != nil {
 		return errVerificationSecretStorage
 	}
-	archive, archiveErr := verificationArchive(base, marker)
+	archive, archiveErr := verificationArchive(marker)
 	if archiveErr != nil {
 		return archiveErr
 	}
@@ -282,38 +217,13 @@ func verificationResourceKey(workspace, name string) *resourcev1.GetResourceRequ
 	}
 }
 
-func verificationBase(chart []byte) (string, error) {
-	files, err := archiveFiles(chart)
-	if err != nil {
-		return "", err
-	}
-	var values struct {
-		Collector struct {
-			InitContainers []struct {
-				Image string `yaml:"image"`
-			} `yaml:"initContainers"`
-		} `yaml:"otel-col-daemon"`
-	}
-	if decodeErr := yaml.Unmarshal(files["loco-worker/values.yaml"], &values); decodeErr != nil {
-		return "", errInvalidRelease
-	}
-	if len(values.Collector.InitContainers) == 0 {
-		return "", errInvalidRelease
-	}
-	image := values.Collector.InitContainers[0].Image
-	if !digestReference.MatchString(image) {
-		return "", errInvalidRelease
-	}
-	return image, nil
-}
-
-func verificationArchive(base, marker string) ([]byte, error) {
+func verificationArchive(marker string) ([]byte, error) {
 	files := map[string]string{
 		"Dockerfile": fmt.Sprintf(
-			"FROM %s\nCOPY --chmod=0444 index.html /www/index.html\n"+
+			probeDockerfile+"COPY --chmod=0444 index.html /www/index.html\n"+
 				"COPY --chmod=0555 proof /www/cgi-bin/proof\nRUN chmod 0555 /www\nUSER 65534\n"+
 				"CMD [\"sh\",\"-c\",\"while :; do echo %s; sleep %d; done & exec httpd -f -p %d -h /www\"]\n",
-			base, marker, verificationLogSeconds, verificationPort,
+			marker, verificationLogSeconds, verificationPort,
 		),
 		"index.html": marker,
 		"proof": "#!/bin/sh\nprintf 'Content-Type: text/plain\\r\\n\\r\\n'\n" +
@@ -455,4 +365,48 @@ func verificationWait(ctx context.Context) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+//go:embed probe.Dockerfile
+var probeDockerfile string
+
+func VerifyAPI(ctx context.Context, clients *rpc.Clients, target VerificationTarget) (Status, error) {
+	probe, err := verificationClient(target.CAFile)
+	if err != nil {
+		return Status{}, err
+	}
+	listed, err := clients.ClusterAdmin.ListClusters(ctx, &clusterv1.ListClustersRequest{})
+	if err != nil {
+		return Status{}, err
+	}
+	var selected *clusterv1.Cluster
+	for _, cluster := range listed.GetClusters() {
+		if cluster.GetName() == target.Worker || cluster.GetId() == target.Worker {
+			selected = cluster
+			break
+		}
+	}
+	if selected == nil || selected.GetRemovedAt() != nil ||
+		selected.GetRole() != clusterv1.ClusterRole_CLUSTER_ROLE_ALL ||
+		len(selected.GetDomains()) == 0 {
+		return Status{}, errVerificationTarget
+	}
+	environment, err := clients.Environment.GetEnvironment(
+		ctx,
+		&environmentv1.GetEnvironmentRequest{EnvironmentId: target.EnvironmentID},
+	)
+	if err != nil {
+		return Status{}, err
+	}
+	if environment.GetEnvironment().GetType() != selected.GetTier() {
+		return Status{}, errVerificationTarget
+	}
+	worker := Worker{Name: selected.GetName(), Region: selected.GetRegion(), AppsDomain: selected.GetDomains()[0]}
+	if err := verifyApplication(ctx, clients, probe, worker, environment.GetEnvironment()); err != nil {
+		return Status{}, err
+	}
+	return Status{
+		Phase:   "verified",
+		Workers: []WorkerStatus{{Name: worker.Name, ClusterID: selected.GetId(), Ready: true}},
+	}, nil
 }

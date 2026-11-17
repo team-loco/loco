@@ -61,6 +61,30 @@ func TestClusterAttachment(t *testing.T) {
 		}
 	})
 
+	t.Run("status reads the enrolled cluster from the API", func(t *testing.T) {
+		var report struct {
+			APIVersion string `json:"apiVersion"`
+			Clusters   []struct {
+				Cluster struct {
+					ID            string `json:"id"`
+					LastHeartbeat string `json:"lastHeartbeat"`
+				} `json:"cluster"`
+				Enrollment string `json:"enrollment"`
+			} `json:"clusters"`
+		}
+		if err := json.Unmarshal([]byte(locoadm(t, "status")), &report); err != nil {
+			t.Fatal(err)
+		}
+		if report.APIVersion != p.Version {
+			t.Errorf("API version = %q, want %q", report.APIVersion, p.Version)
+		}
+		if len(report.Clusters) != 1 || report.Clusters[0].Cluster.ID != p.ClusterID ||
+			report.Clusters[0].Enrollment != "enrolled" ||
+			report.Clusters[0].Cluster.LastHeartbeat == "" {
+			t.Fatalf("status = %+v", report)
+		}
+	})
+
 	t.Run("a join token enrolls once", func(t *testing.T) {
 		if code := enroll(t, p.JoinToken); code != connect.CodeUnauthenticated {
 			t.Errorf("second enrollment with the join token: code %v, want unauthenticated", code)

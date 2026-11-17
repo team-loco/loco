@@ -40,6 +40,8 @@ func TestOperatorBuildContextExcludesDestinationCredentials(t *testing.T) {
 	for _, path := range []string{
 		"cmd/locoadm/main.go",
 		"tools/installation-e2e/main.go",
+		"tools/internal/devicelogin/login.go",
+		"examples/gitops/clusters/control-plane/loco.yaml",
 		"tests/e2e/fixtures/build-app/main.go",
 		"tests/e2e/fixtures/installation/recovery.yaml",
 	} {

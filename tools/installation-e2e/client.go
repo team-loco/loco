@@ -225,17 +225,14 @@ func applyAndAttach(ctx context.Context) error {
 }
 
 func requireAdminsClaimed(ctx context.Context) error {
-	output, err := locoadm(ctx, "status", "--file", clientFile)
+	output, err := locoadm(ctx, "status", "--host", fixtureAPIURL)
 	if err != nil {
 		return err
 	}
 	var status struct {
-		Admins struct {
-			Checked   bool     `json:"checked"`
-			Unclaimed []string `json:"unclaimed"`
-		} `json:"admins"`
+		Unclaimed []string `json:"unclaimedAdmins"`
 	}
-	if json.Unmarshal(output, &status) != nil || !status.Admins.Checked || len(status.Admins.Unclaimed) != 0 {
+	if json.Unmarshal(output, &status) != nil || len(status.Unclaimed) != 0 {
 		return errAdminsUnclaimed
 	}
 	return nil
@@ -249,21 +246,56 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
 		}
 	}()
-	cmd := exec.CommandContext(ctx, "locoadm", "login", "--file", clientFile, "--device")
-	cmd.Stderr = &stderr
-	transcript := io.Discard
-	if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
-		cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
-		transcript = auditWriter{audit, "CLI output (stdout)"}
-	}
-	return devicelogin.Run(ctx, cmd, transcript, func(ctx context.Context, code string) error {
-		operatorPhase(phaseLoginApprove)
-		if err := approve(ctx, code); err != nil {
-			return err
+	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
+	defer cancel()
+	retry := time.NewTicker(time.Second)
+	defer retry.Stop()
+	for {
+		stderr = boundedOutput{}
+		cmd := exec.CommandContext(
+			ctx,
+			"locoadm",
+			"login",
+			"--api",
+			fixtureAPIURL,
+			"--web",
+			"http://console.installation.test",
+			"--device",
+		)
+		cmd.Stderr = &stderr
+		transcript := io.Discard
+		if audit, auditing := ctx.Value(auditKey{}).(*leakAudit); auditing {
+			cmd.Stderr = io.MultiWriter(&stderr, auditWriter{audit, "CLI output (stderr)"})
+			transcript = auditWriter{audit, "CLI output (stdout)"}
 		}
-		operatorPhase(phaseLoginApproved)
-		return nil
-	})
+		approvalStarted := false
+		loginErr := devicelogin.Run(ctx, cmd, transcript, func(ctx context.Context, code string) error {
+			approvalStarted = true
+			operatorPhase(phaseLoginApprove)
+			if err := approve(ctx, code); err != nil {
+				return err
+			}
+			operatorPhase(phaseLoginApproved)
+			return nil
+		})
+		if loginErr == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return errors.Join(loginErr, ctx.Err())
+		}
+		if approvalStarted || classifyLoginFailure(stderr.Bytes()) != loginFailureDNS {
+			return loginErr
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(loginErr, ctx.Err())
+		case <-retry.C:
+			if ctx.Err() != nil {
+				return errors.Join(loginErr, ctx.Err())
+			}
+		}
+	}
 }
 
 func approveDeviceCode(ctx context.Context, code string) error {
@@ -445,8 +477,8 @@ services:
 		ctx,
 		"verify",
 		"--timeout", verifyTimeout,
-		"--file",
-		clientFile,
+		"--host",
+		fixtureAPIURL,
 		"--worker",
 		"staging",
 		"--environment",

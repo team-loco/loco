@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/team-loco/loco/cmd/internal/gitops"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
 
@@ -91,10 +95,18 @@ func operations() []operation {
 			},
 			run: createCluster,
 		},
-		byID(clusterJoinToken, "issue a one-time join token that enrolls an agent into the cluster",
-			func(ctx context.Context, c adminClient, id string) (proto.Message, error) {
-				return c.IssueJoinToken(ctx, &clusterv1.IssueJoinTokenRequest{ClusterId: id})
-			}),
+		{
+			use:   clusterJoinToken + " <cluster-id>",
+			short: "Issue a one-time enrollment token",
+			args:  cobra.ExactArgs(1),
+			run: func(cmd *cobra.Command, c adminClient, args []string) (proto.Message, error) {
+				ttl, err := tokenTTL(cmd)
+				if err != nil {
+					return nil, err
+				}
+				return c.IssueJoinToken(cmd.Context(), &clusterv1.IssueJoinTokenRequest{ClusterId: args[0], Ttl: ttl})
+			},
+		},
 		{
 			use:   clusterList,
 			short: "list cluster",
@@ -133,7 +145,24 @@ func (op operation) command() *cobra.Command {
 	if op.flags != nil {
 		op.flags(command)
 	}
+	tokenCommand := strings.Fields(op.use)[0] == clusterCreate || strings.Fields(op.use)[0] == clusterJoinToken
+	var output, namespace, secretName string
+	if tokenCommand {
+		command.Flags().Duration("ttl", 0, "Join-token lifetime; omission uses the API default")
+		command.Flags().StringVarP(&output, "output", "o", "json", "Output format: json or secret")
+		command.Flags().StringVar(&namespace, "namespace", "loco-system", "Namespace of the worker join-token Secret")
+		command.Flags().
+			StringVar(&secretName, "secret-name", "loco-agent-join-token", "Name of the worker join-token Secret")
+	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
+		if tokenCommand {
+			if _, err := tokenTTL(cmd); err != nil {
+				return err
+			}
+			if output != "json" && output != "secret" {
+				return errors.New("output must be json or secret")
+			}
+		}
 		if len(args) > 0 {
 			if _, err := uuid.Parse(args[0]); err != nil {
 				return fmt.Errorf("invalid cluster ID: %w", err)
@@ -146,6 +175,24 @@ func (op operation) command() *cobra.Command {
 		response, err := op.run(cmd, login.Clients.ClusterAdmin, args)
 		if err != nil {
 			printWorkloads(cmd, err)
+			return err
+		}
+		if tokenCommand && output == "secret" {
+			var token *clusterv1.JoinToken
+			switch result := response.(type) {
+			case *clusterv1.CreateClusterResponse:
+				token = result.GetJoinToken()
+			case *clusterv1.IssueJoinTokenResponse:
+				token = result.GetJoinToken()
+			}
+			if token == nil {
+				return errors.New("cluster is enrolled; no join token was issued")
+			}
+			data, encodeErr := gitops.Secret(namespace, secretName, map[string]string{"join-token": token.GetToken()})
+			if encodeErr != nil {
+				return encodeErr
+			}
+			_, err = cmd.OutOrStdout().Write(data)
 			return err
 		}
 		encoded, err := protojson.MarshalOptions{Indent: "  "}.Marshal(response)
@@ -173,6 +220,10 @@ func createCluster(
 		*field = value
 	}
 	tierFlag, err := cmd.Flags().GetString(flagTier)
+	if err != nil {
+		return nil, err
+	}
+	request.Ttl, err = tokenTTL(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -211,4 +262,18 @@ func printWorkloads(cmd *cobra.Command, err error) {
 	for _, workload := range workloads.GetWorkloads() {
 		fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", workload.GetKind(), workload.GetId())
 	}
+}
+
+func tokenTTL(cmd *cobra.Command) (*durationpb.Duration, error) {
+	if !cmd.Flags().Changed("ttl") {
+		return nil, nil
+	}
+	ttl, err := cmd.Flags().GetDuration("ttl")
+	if err != nil {
+		return nil, err
+	}
+	if ttl <= time.Duration(0) {
+		return nil, errors.New("ttl must be positive")
+	}
+	return durationpb.New(ttl), nil
 }

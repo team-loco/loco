@@ -22,8 +22,8 @@ const operationTimeout = 30 * time.Minute
 var errTimeout = errors.New("installation timeout must be positive")
 
 func Commands() []*cobra.Command {
-	commands := make([]*cobra.Command, 0, 3)
-	for _, operation := range []string{"plan", "apply", "status"} {
+	commands := make([]*cobra.Command, 0, 2)
+	for _, operation := range []string{"plan", "apply"} {
 		var file string
 		var timeout time.Duration
 		command := &cobra.Command{
@@ -47,8 +47,6 @@ func Commands() []*cobra.Command {
 			switch operation {
 			case "plan":
 				return plan(ctx, cmd, *config, file)
-			case "status":
-				return status(ctx, cmd, *config)
 			default:
 				return apply(ctx, cmd, *config, file)
 			}
@@ -68,18 +66,6 @@ func plan(ctx context.Context, cmd *cobra.Command, config installation.Config, f
 		return err
 	}
 	return json.NewEncoder(cmd.OutOrStdout()).Encode(planned)
-}
-
-func status(ctx context.Context, cmd *cobra.Command, config installation.Config) error {
-	token, err := session(ctx, config.ControlPlane.APIURL)
-	if err != nil {
-		return err
-	}
-	inspected, err := installation.StatusInstallation(ctx, config, token)
-	if err != nil {
-		return err
-	}
-	return json.NewEncoder(cmd.OutOrStdout()).Encode(inspected)
 }
 
 // apply installs or upgrades the control plane only; workers attach with locoadm cluster attach.
