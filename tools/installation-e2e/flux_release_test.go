@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"io"
 	"log"
 	"net/http/httptest"
@@ -19,11 +18,12 @@ import (
 )
 
 func TestPublishedBaseline(t *testing.T) {
+	const stableVersion = "0.1.2"
 	server := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0))))
 	defer server.Close()
 	repository := strings.TrimPrefix(server.URL, "http://") + "/platform"
 	refs := map[string]string{}
-	for _, version := range []string{"0.1.1", "0.1.2", "0.2.0"} {
+	for _, version := range []string{"0.1.1", stableVersion, "0.2.0"} {
 		tag, err := name.NewTag(repository + ":" + version)
 		if err != nil {
 			t.Fatal(err)
@@ -43,9 +43,8 @@ func TestPublishedBaseline(t *testing.T) {
 	}
 	bin := t.TempDir()
 	gh := `#!/bin/sh
-[ "$1 $2 $3 $4" = 'api --paginate repos/team-loco/loco/releases --jq' ] || exit 41
-[ "$5" = '.[] | select(.draft == false and .prerelease == false) | .tag_name' ] || exit 41
-printf '%s\n' "$PUBLISHED_TAGS"
+[ "$*" = 'api repos/team-loco/loco/releases/latest --jq .tag_name' ] || exit 41
+printf '%s\n' "$PUBLISHED_VERSION"
 `
 	flux := `#!/bin/sh
 [ "$1 $2" = 'pull artifact' ] || exit 42
@@ -66,46 +65,39 @@ done
 	t.Setenv("V1_REF", "oci://"+refs["0.2.0"])
 	t.Setenv("PULL_LOG", filepath.Join(bin, "pulls"))
 	for _, tc := range []struct {
-		name, tags, want, pulls string
-		fail                    bool
-		noBaseline              bool
+		name, version, wantErr string
+		fail                   bool
 	}{
-		{
-			name:  "newest stable v2",
-			tags:  "v0.1.1\nv0.3.0-rc.1\nv0.2.0\nv0.1.2\ninvalid",
-			want:  refs["0.1.2"],
-			pulls: "oci://" + refs["0.2.0"] + "\noci://" + refs["0.1.2"] + "\n",
-		},
-		{name: "no compatible bundle", tags: "v0.2.0\nv0.0.9", pulls: "oci://" + refs["0.2.0"] + "\n", noBaseline: true},
-		{name: "pull failure", tags: "v0.1.2\nv0.1.1", pulls: "oci://" + refs["0.1.2"] + "\n", fail: true},
+		{name: "newest stable v2", version: stableVersion},
+		{name: "newest bundle lacks v2", version: "0.2.0", wantErr: "published bundle v0.2.0 lacks v2 entry points"},
+		{name: "pull failure", version: stableVersion, wantErr: "exit status 43", fail: true},
+		{name: "missing published bundle", version: "0.0.9", wantErr: "resolve published bundle v0.0.9"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("PUBLISHED_TAGS", tc.tags)
+			t.Setenv("PUBLISHED_VERSION", "v"+tc.version)
 			t.Setenv("PULL_FAIL", map[bool]string{true: "yes", false: "no"}[tc.fail])
 			if err := os.WriteFile(filepath.Join(bin, "pulls"), nil, 0600); err != nil {
 				t.Fatal(err)
 			}
 			actual, err := publishedBaseline(t.Context(), repository)
-			switch {
-			case tc.noBaseline:
-				if !errors.Is(err, errPublishedBaseline) {
-					t.Fatalf("error = %v", err)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("error = %v, want %q", err, tc.wantErr)
 				}
-			case tc.fail:
-				if err == nil || !strings.Contains(err.Error(), "exit status 43") {
-					t.Fatalf("error = %v", err)
-				}
-			default:
-				if err != nil || actual != tc.want {
-					t.Fatalf("baseline = %q, %v; want %q", actual, err, tc.want)
-				}
+			} else if err != nil || actual != refs[tc.version] {
+				t.Fatalf("baseline = %q, %v; want %q", actual, err, refs[tc.version])
 			}
+			wantPulls := ""
+			if ref, ok := refs[tc.version]; ok {
+				wantPulls = "oci://" + ref + "\n"
+			}
+
 			pulls, err := os.ReadFile(filepath.Join(bin, "pulls"))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if string(pulls) != tc.pulls {
-				t.Fatalf("pulled %q, want %q", pulls, tc.pulls)
+			if string(pulls) != wantPulls {
+				t.Fatalf("pulled %q, want %q", pulls, wantPulls)
 			}
 		})
 	}

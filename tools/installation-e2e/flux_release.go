@@ -4,19 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	registryname "github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
-	"golang.org/x/mod/semver"
 )
-
-var errPublishedBaseline = errors.New("no published bundle v2 release found")
 
 func (f *fixture) releases(ctx context.Context) (string, string, error) {
 	previous, err := publishedBaseline(ctx, "ghcr.io/team-loco/loco/platform")
@@ -39,39 +33,28 @@ func (f *fixture) releases(ctx context.Context) (string, string, error) {
 }
 
 func publishedBaseline(ctx context.Context, repository string) (string, error) {
-	output, err := command(ctx, "", nil, "gh", "api", "--paginate", "repos/team-loco/loco/releases",
-		"--jq", `.[] | select(.draft == false and .prerelease == false) | .tag_name`)
+	output, err := command(ctx, "", nil, "gh", "api", "repos/team-loco/loco/releases/latest", "--jq", ".tag_name")
 	if err != nil {
 		return "", err
 	}
-	versions := strings.Fields(string(output))
-	slices.SortFunc(versions, func(a, b string) int { return semver.Compare(b, a) })
-	for _, version := range versions {
-		if !semver.IsValid(version) || semver.Prerelease(version) != "" {
-			continue
-		}
-		tag, tagErr := registryname.NewTag(repository + ":" + strings.TrimPrefix(version, "v"))
-		if tagErr != nil {
-			return "", tagErr
-		}
-		descriptor, headErr := remote.Head(tag, remote.WithContext(ctx))
-		if headErr != nil {
-			var response *transport.Error
-			if errors.As(headErr, &response) && response.StatusCode == http.StatusNotFound {
-				continue
-			}
-			return "", fmt.Errorf("resolve published bundle %s: %w", version, headErr)
-		}
-		reference := tag.Context().Digest(descriptor.Digest.String()).Name()
-		compatible, pullErr := bundleV2(ctx, reference)
-		if pullErr != nil {
-			return "", pullErr
-		}
-		if compatible {
-			return reference, nil
-		}
+	version := strings.TrimSpace(string(output))
+	tag, err := registryname.NewTag(repository + ":" + strings.TrimPrefix(version, "v"))
+	if err != nil {
+		return "", err
 	}
-	return "", errPublishedBaseline
+	descriptor, err := remote.Head(tag, remote.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("resolve published bundle %s: %w", version, err)
+	}
+	reference := tag.Context().Digest(descriptor.Digest.String()).Name()
+	compatible, err := bundleV2(ctx, reference)
+	if err != nil {
+		return "", fmt.Errorf("inspect published bundle %s: %w", version, err)
+	}
+	if !compatible {
+		return "", fmt.Errorf("published bundle %s lacks v2 entry points (control-plane, worker, all)", version)
+	}
+	return reference, nil
 }
 
 func bundleV2(ctx context.Context, reference string) (compatible bool, result error) {
