@@ -38,7 +38,6 @@ type activityEntry struct {
 	ReplicaUID  string
 	ReplicaName string
 	At          time.Time
-	Problem     bool
 }
 
 func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []activityEntry {
@@ -106,7 +105,7 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 				message += " · " + problem.GetDetail()
 			}
 		}
-		entries = append(entries, activityEntry{Message: message, Severity: severity, Problem: true})
+		entries = append(entries, activityEntry{Message: message, Severity: severity})
 	}
 	if hadPrevious && !livePrevious {
 		entries = append(entries, activityEntry{Message: "Previous version gone", Severity: activityOK})
@@ -114,7 +113,7 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 	count := previous.Count
 	var limited []activityEntry
 	for _, entry := range entries {
-		if count > rolloutActivityLimit && !entry.Problem {
+		if count > rolloutActivityLimit {
 			continue
 		}
 		limited = append(limited, entry)

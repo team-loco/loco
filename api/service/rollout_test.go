@@ -65,8 +65,8 @@ func TestDiffRolloutProblemAndScale(t *testing.T) {
 			[]string{"Scaled to 3 replicas", activityLimitMessage},
 		},
 		{
-			"problem beyond limit", rolloutSnapshot{Count: 501},
-			&agentv1.PlacementStatus{DesiredReplicas: 3, Problem: problem}, []string{message},
+			"nothing beyond limit", rolloutSnapshot{Count: 501},
+			&agentv1.PlacementStatus{DesiredReplicas: 3, Problem: problem}, nil,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) { assertActivityMessages(t, diffRollout(tt.previous, tt.report), tt.want) })

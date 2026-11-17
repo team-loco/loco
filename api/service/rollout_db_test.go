@@ -235,8 +235,8 @@ func TestRolloutActivityLimit(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	report.Problem = nil
 	server.recordStatus(ctx, f.clusterID, 0, report)
-	if got := activityRows(t, f, id); got != 503 {
-		t.Fatalf("problem rows beyond limit=%d", got)
+	if got := activityRows(t, f, id); got != 501 {
+		t.Fatalf("problem entry escaped limit: %d", got)
 	}
 }
 
