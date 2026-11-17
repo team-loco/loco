@@ -128,6 +128,7 @@ const (
 	defaultRPCTimeout            = 30 * time.Second
 	defaultShutdownDrainTimeout  = 30 * time.Second
 	defaultPlacementPollInterval = 5 * time.Second
+	defaultActivityPollInterval  = 30 * time.Second
 
 	defaultWebhookTimeout      = 10 * time.Second
 	defaultWebhookBatch        = 50
@@ -204,6 +205,7 @@ type APIConfig struct {
 	Database              db.Config
 	DatabaseListenConfig  *pgx.ConnConfig
 	PlacementPollInterval time.Duration
+	ActivityPollInterval  time.Duration
 	Tokens                tvm.Config
 	TokenCleanupInterval  time.Duration
 	ImageResolveTimeout   time.Duration
@@ -297,6 +299,7 @@ func newAPIConfig() *APIConfig {
 		Database:              database,
 		DatabaseListenConfig:  databaseListenConfig,
 		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
+		ActivityPollInterval:  envconfig.PositiveDuration("LOCO_ACTIVITY_POLL_INTERVAL", defaultActivityPollInterval),
 		Tokens:                newTokenConfig(),
 		TokenCleanupInterval:  envconfig.PositiveDuration("LOCO_TOKEN_CLEANUP_INTERVAL", defaultTokenCleanupInterval),
 		PublicImageMaxBytes:   publicImageMaxBytes,

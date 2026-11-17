@@ -313,7 +313,7 @@ func newDeps(
 		return nil, fmt.Errorf("start placement listener: %w", err)
 	}
 
-	deploymentNotifier := pgnotify.New(ac.DatabaseListenConfig, "deployment_activity", 30*time.Second)
+	deploymentNotifier := pgnotify.New(ac.DatabaseListenConfig, "deployment_activity", ac.ActivityPollInterval)
 	if err := deploymentNotifier.Connect(ctx); err != nil {
 		return nil, fmt.Errorf("start deployment listener: %w", err)
 	}
