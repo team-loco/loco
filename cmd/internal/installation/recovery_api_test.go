@@ -16,6 +16,13 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+const (
+	sealSecretName      = "fixture-seal"
+	controlPlaneRelease = "loco-control-plane"
+	testNamespace       = "loco-system"
+	testJSON            = "application/json"
+)
+
 func TestRecoveryExportReadsOnlyTheSelectedSecrets(t *testing.T) {
 	for _, tc := range []struct {
 		name, sealName string

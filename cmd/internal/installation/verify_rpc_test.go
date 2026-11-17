@@ -127,7 +127,6 @@ func TestVerificationCleansProvisionedResourceAfterFailure(t *testing.T) {
 				httpServer.Client(),
 				Worker{
 					Region: "us-east-1", AppsDomain: "apps.example.com",
-					MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
 				},
 				&environmentv1.Environment{Id: "fixture-environment", WorkspaceId: "fixture-workspace"},
 			)

@@ -61,6 +61,17 @@ var (
 	errVerificationCAFile         = errors.New("CA file contains no PEM certificate")
 )
 
+type Worker struct{ Name, Region, AppsDomain string }
+type Status struct {
+	Phase   string         `json:"phase"`
+	Workers []WorkerStatus `json:"workers"`
+}
+type WorkerStatus struct {
+	Name      string `json:"name"`
+	ClusterID string `json:"clusterID"`
+	Ready     bool   `json:"ready"`
+}
+
 type VerificationTarget struct {
 	Worker        string
 	EnvironmentID string

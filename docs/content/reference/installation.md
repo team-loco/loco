@@ -1,167 +1,94 @@
 ---
-title: "Installation file"
+title: "Installation"
 ---
 
-`loco-install.yaml` describes a Loco installation on existing Kubernetes infrastructure. It keeps operator intent separate from application `loco.yaml` files.
+A Loco installation uses Flux to reconcile a versioned platform bundle and an operator repository containing cluster values and encrypted Secrets. PostgreSQL and the cluster network are supplied by the operator.
 
-> **Unreleased**
->
-> The development CLI provides validation, a read-only plan, control-plane apply, operator sign-in, worker attachment and status. These commands target existing Kubernetes clusters. A running installation still requires a source deployment and HTTPS check before serving users.
+## Prepare infrastructure
 
-```sh
-locoadm validate
-locoadm plan
-locoadm apply
-locoadm login --api https://api.example.com --web https://app.example.com
-locoadm cluster attach
-locoadm status --host https://api.example.com
-locoadm verify --host https://api.example.com --worker staging-us --environment ENVIRONMENT_UUID
-```
+Provide Kubernetes with its CNI, PostgreSQL, an OIDC provider, an S3-compatible source bucket, a registry and DNS. Allow the cluster to pull the platform charts, images and OCI artifacts. The [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) documents the minimum Flux version and the input Secrets.
 
-Every `locoadm` command that reads the installation file reads `loco-install.yaml` in the current directory; `--file` names another file. See the [JSON Schema](https://github.com/team-loco/loco/blob/main/schemas/installation.v1.json). Unknown fields, duplicate keys and additional YAML documents fail validation. Errors identify known field paths without printing source values.
+Each cluster runs its own Flux and reads its own directory. The control plane uses `./control-plane`, a worker uses `./worker`, and a single-cluster installation uses `./all`. Keep staging and production workers on separate clusters.
 
-Every field below except `release`, `controlPlane.tls` and `workers[].tls` is required, including explicit boolean settings. `workers: []` declares a control plane without attached workers. Kubernetes contexts must already exist in the operator's kubeconfig. The operator supplies PostgreSQL, OIDC, S3-compatible storage, a registry, DNS and Kubernetes clusters; this file does not provision those services. Certificate issuers come from the operator or, for a self-signed issuer, from the Loco charts.
+Create one age identity per cluster and a separate offline administrator identity. Keep private keys outside Git. Register one public OIDC client with authorization code and PKCE; allow the dashboard origin followed by `/auth/callback`. Use a provider that verifies administrator email addresses.
 
-| Field | Value |
-| --- | --- |
-| `version` | `1` |
-| `name` | Installation identity, a lowercase Kubernetes DNS label |
-| `release.version` | Published platform bundle version, such as `0.1.0`; defaults to the version of `locoadm` |
-| `release.manifest` | Path to a local `release.json`, for installs without registry access; replaces `release.version` |
-| `controlPlane.kubernetes.context` | Existing kubeconfig context |
-| `controlPlane.kubernetes.clusterUID` | Existing cluster's `kube-system` Namespace UID; pins the target independently of the context name |
-| `controlPlane.kubernetes.namespace` | Destination namespace, a lowercase Kubernetes DNS label |
-| `controlPlane.apiURL`, `controlPlane.webURL` | Public API and dashboard URLs |
-| `controlPlane.tls.minVersion` | Optional `"1.2"` or `"1.3"`; minimum TLS version for all control-plane Gateway HTTPS listeners; omitted keeps Envoy Gateway defaults |
-| `controlPlane.admins` | Emails that become system admins on their first verified sign-in; at least one |
-| `controlPlane.database.secretRef` | Database URL input Secret's `name` and `key` |
-| `controlPlane.auth.issuer` | OIDC issuer URL |
-| `controlPlane.auth.clientId` | Public OIDC client ID shared by dashboard and operator sign-in; the API accepts this ID-token audience |
-| `controlPlane.auth.signupMode` | `open` or `closed` |
-| `controlPlane.sourceBucket` | Source storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
-| `controlPlane.registry.endpoint` | HTTP or HTTPS registry origin, optionally with a port; no non-root path |
-| `controlPlane.registry.credentialsSecretRef.name` | Registry input Secret name |
-| `controlPlane.openbao.managed` | `true`; external OpenBao is unsupported |
-| `controlPlane.openbao.seal.type` | `static` |
-| `controlPlane.openbao.snapshots` | Backup storage: `endpoint`, `region`, `bucket`, `credentialsSecretRef.name` |
-| `controlPlane.observability.enabled` | `true`; disabled observability is unsupported |
-| `controlPlane.observability.ingestURL` | Public OTLP ingest URL |
-| `controlPlane.certificates.issuerRef` | Existing issuer's `name` and `kind` (`Issuer` or `ClusterIssuer`); set this or `issuer` |
-| `controlPlane.certificates.issuer` | `{name, selfSigned: {}}`: a self-signed ClusterIssuer the control-plane chart creates and owns; set this or `issuerRef` |
-| `workers[].name` | Unique worker identity, a lowercase Kubernetes DNS label |
-| `workers[].kubernetes` | Existing `context`, pinned `clusterUID` and destination `namespace` |
-| `workers[].region` | Region registered with the API |
-| `workers[].tier` | `staging` or `production` |
-| `workers[].role` | `apps` runs only applications, `builds` only source builds, `all` both; installed as the worker chart's `cluster.role` |
-| `workers[].tls.minVersion` | Optional `"1.2"` or `"1.3"`; minimum TLS version for all application and platform HTTPS listeners on this worker; omitted keeps Envoy Gateway defaults |
-| `workers[].appsDomain` | DNS domain for applications, without a wildcard prefix |
-| `workers[].builds.privateEgress` | Explicit build-network allowances as `{cidr, port}` pairs; use `[]` when none are needed |
-| `workers[].metricsServer.enabled` | `false` uses an existing `metrics.k8s.io` provider instead of installing metrics-server |
-| `workers[].metricsServer.kubeletInsecureTLS` | `true` skips kubelet certificate verification for clusters without CA-signed kubelet serving certificates |
-| `workers[].certificates.issuerRef` | Existing issuer's `name` and `kind`; set this or `issuer` |
-| `workers[].certificates.issuer` | `{name, selfSigned: {}}`: a self-signed ClusterIssuer the worker chart creates and owns; set this or `issuerRef` |
+## Scaffold the repository
 
-URLs use HTTP or HTTPS and contain no user information, query string or fragment. Use HTTPS for public services. HTTP permits isolated local fixtures. Domains contain lowercase DNS labels. Input Secret names resolve in the control-plane context and namespace; certificate issuer references resolve at their declared target.
-
-A declared `issuer` lets a fresh install finish in one `apply`, because the chart creates the ClusterIssuer after cert-manager is installed, including when the control plane serves HTTP. `selfSigned` is the only issuer type the file can declare, and clients do not trust its certificates; reference an ACME or CA issuer you manage with `issuerRef`. A worker on the control plane's cluster cannot declare an issuer with the control plane's issuer name, since one ClusterIssuer belongs to one chart release; reference it with `issuerRef: {name: <name>, kind: ClusterIssuer}` instead. Plan and apply stop when a ClusterIssuer with the declared name exists and that chart release does not own it.
-
-Register one public OIDC client for authorization code with PKCE. Allow the dashboard's `webURL` origin followed by `/auth/callback`. Operators sign in through the dashboard too: `locoadm login` has the dashboard approve the CLI session, so the dashboard sends this client's ID token to the API, which validates its audience against `clientId`.
-
-`controlPlane.admins` reaches the API as `LOCO_SYSTEM_ADMINS`. The first sign-in whose verified email matches an entry makes that account a system admin, also when `signupMode` is `closed`; [self-hosting](../operations/self-hosting.md#first-system-admin) describes claims and revocation. List admins only on an identity provider that verifies email addresses. Never enable Dex's `insecureSkipEmailVerified`. With GitHub Enterprise Server, Dex treats every email as verified.
-
-Store credential values in Kubernetes Secrets populated by an operator or external secret manager. The installation file accepts references only: no database password, registry credential, token or arbitrary Helm values. Generated installation credentials belong in destination Secrets, outside this file. Authorized cluster administrators can still read those Secrets; avoiding routine display does not remove that trust boundary.
-
-Builds deny private-network access by default. For a private registry or source bucket, list only the destination CIDRs and TCP ports builds need. CIDRs must be masked and canonical, ports range from 1 through 65535, and duplicate pairs fail validation. These entries match the worker controller's `privateEgress` contract; broader ranges are an explicit operator choice. DNS resolution does not create allowances automatically. With Kubernetes Services, account for the destinations your CNI evaluates after Service address translation.
-
-Read each cluster's nonsecret identity before writing its target:
+Supply a published bundle digest and an environment file containing operator-supplied API credentials:
 
 ```sh
-kubectl --context example-control-plane get namespace kube-system -o jsonpath='{.metadata.uid}'
+locoadm init --output ./fleet \
+  --api https://api.example.com --web https://app.example.com \
+  --domain apps.example.com --region example-east --admin admin@example.com \
+  --bundle oci://ghcr.io/team-loco/loco/platform@sha256:BUNDLE_DIGEST \
+  --api-env-file ./api.env \
+  --control-plane-recipient CONTROL_PLANE_AGE_RECIPIENT \
+  --worker-recipient WORKER_AGE_RECIPIENT --admin-recipient OFFLINE_AGE_RECIPIENT
 ```
 
-Set `clusterUID` to that exact value. The context is the connection route; the UID identifies the external cluster. Plan and apply must reject a context that resolves to another cluster, including an empty cluster without installation state. Recreating a cluster changes this UID and requires an explicit new target configuration.
+`init` generates a static OpenBao seal key and encrypts it and the API environment in memory. Each encrypted file includes its cluster recipient and the offline administrator recipient. The worker token starts empty. Review the generated values and supply storage, database, OIDC, registry and DNS credentials before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
 
-Each worker definition must pin a different physical cluster UID. Context aliases and different namespaces do not permit two worker registrations on one cluster. A control plane and one worker may share a cluster; staging and production workers require separate clusters.
+The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and one directory under `clusters/` per cluster. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
 
-## Release and input Secrets
+## Bootstrap Flux
 
-`release` selects the platform bundle to install and takes exactly one of `version` or `manifest`:
+Bootstrap Flux against the cluster's directory with your Git host's supported authentication. For example:
 
-```yaml
-release:
-  version: 0.1.0
+```sh
+flux bootstrap git --url=ssh://git@example.com/operator/fleet \
+  --branch=main --path=clusters/control-plane --private-key-file=./deploy.key
+kubectl -n flux-system create secret generic sops-age \
+  --from-file=age.agekey=./control-plane.agekey
 ```
 
-With `version`, `locoadm` resolves `ghcr.io/team-loco/loco/platform:<version>` to a digest, downloads it anonymously, checks the digest, and reads `release.json` from the bundle. That file must name the same version. Without `release`, `locoadm` installs the bundle matching its own version, so `locoadm` 0.1.0 installs bundle `0.1.0`; a development build has no matching bundle and requires `release.version` or `release.manifest`. When the bundle version differs from the version of `locoadm`, the command prints a warning and continues. `plan` reports the resolved bundle as `releaseBundle`, and the installer records the applied bundle in its state.
+Use a different deploy key and age identity on each cluster. The deploy key and decryption key are bootstrap inputs. Flux needs them before it can read and decrypt its configuration.
 
-`release.manifest` points to a `release.json` copied from a platform bundle, relative to the installation file. Each release also attaches its bundle's `release.json` as a release asset. Use it where the operator machine cannot reach the bundle's registry; the artifacts and images it pins must still be pullable. `plan` and `status` report no bundle digest for a local manifest. The JSON object contains a release `version`, its `coreCommit`, and digest-pinned `artifacts` and `images`. Required artifacts are `loco-control-plane`, `loco-worker`, `cert-manager-chart`, `loco-applications-crd`, `loco-builds-crd` and `loco-gateway-crd`. Required images are `api`, `ui`, `obs-proxy`, `agent`, `controller` and `builder`. Mutable image tags cannot replace digest references.
+The bundle supplies namespaces and the reconciler service account. Its namespace layer runs first; the operator's `loco-cluster-config` applies Secrets and optional issuers. CRDs are never pruned. Infrastructure installs cert-manager and an independent gateway release. Control-plane and worker releases wait for infrastructure and cluster configuration.
 
-Create these external input Secrets in the control-plane namespace before applying:
+Each HelmRelease accepts an optional `<release>-values` ConfigMap and `<release>-secrets` Secret in `flux-system`, with a `values.yaml` key. Standalone credential Secrets live in the workload namespace and are referenced by name. Image digests remain pinned inside the bundle. The control-plane chart's credential Job creates missing ClickHouse credentials and preserves existing ones. OpenBao initialization and auto-unseal run through chart Jobs.
 
-| Reference | Required keys |
-| --- | --- |
-| `database.secretRef` | The declared key, containing the PostgreSQL URL |
-| `sourceBucket.credentialsSecretRef` | `access-key-id`, `secret-access-key` |
-| `registry.credentialsSecretRef` | `api-username`, `api-password`, `push-username`, `push-password`, `pull-username`, `pull-password` |
-| `openbao.snapshots.credentialsSecretRef` | `access-key-id`, `secret-access-key` |
-
-
-The initial installation contract uses static registry credentials. Token-based registry signing is outside this file contract.
-
-Use separate registry identities: the API identity reads and deletes build images, the push identity builds images, and the pull identity reads them. Only the corresponding push or pull credential reaches each worker. A worker never receives the complete input Secret. An HTTP registry endpoint enables the chart's insecure-registry transport; public registries should use HTTPS.
-
-## Apply and resume
-
-The initial installer requires a cluster-admin context for every target and checks that permission with a non-persistent SelfSubjectAccessReview; it creates no operator grant. Apply renders the pinned charts without Secrets before changing any target. It validates destinations, preserves owned credentials, establishes a destination lock, applies pinned CRDs and waits for them, and installs prerequisite controllers before installing the control plane. Compatible existing prerequisite controllers are reused only after their current replicas are available; cert-manager controller, webhook and cainjector are all gated. The Gateway controller comes from the pinned worker chart and uses its `GatewayNamespace` deployment configuration. Reused controllers must have that mode, the pinned controller identity and the default all-namespace watch scope in their mounted configuration so they handle Loco's Gateways and keep proxies inside the namespace application ingress policies allow. Apply rejects incompatible configuration rather than changing an existing controller. Cert-manager comes from its pinned release artifact. If a referenced certificate issuer (`issuerRef`) does not exist or is not Ready, apply stops with an issuer-required checkpoint. Create that issuer and run apply again. API, dashboard and ingest URLs must use the same HTTP or HTTPS scheme.
-
-Apply installs or upgrades the control plane and never needs an API session. It then reports the configured admins nobody has claimed (every configured admin when no system-admin session is saved) and the next two commands:
+## Sign in and enroll workers
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
-locoadm cluster attach
+locoadm status
 ```
 
-`locoadm login --api API_URL --web WEB_URL` signs in to the supplied API through the supplied dashboard, like `loco login`, and saves the same session, so `loco` and `locoadm` share it. `--device` prints a code to approve on another device, for machines without a browser. Sign in as one of `controlPlane.admins` to claim it.
+Sign in with a verified email listed in `api.systemAdmins` to claim the first system administrator. `--device` supports approval from another machine. `loco` and `locoadm` share the resulting session.
 
-`locoadm cluster attach` needs a system-admin session. For every worker in the file, or only the one named (`locoadm cluster attach staging-us`), it registers the cluster, issues the join token, stores the enrollment Secret and installs `loco-worker`, then waits for the agent to report. Rerunning it on an attached worker upgrades its chart without enrolling it again. Worker namespaces it creates carry the restricted Pod Security policy. Existing worker namespaces must already match that policy; attach does not patch unrelated namespaces. Each worker registration request is persisted before its API call; a retry recovers the same registration. The agent creates and retains its private key through its existing Kubernetes identity store. `locoadm cluster create` remains for operators who install the agent themselves.
-
-Generated seal material and ClickHouse user and operator credentials go directly to destination Secrets. The operator's Secret name and username come from the pinned chart. Helm receives references only. Reapply preserves owned secrets and rejects malformed or missing material after credential establishment. It does not rotate keys or credentials. Changing external input credential values requires a separate rotation procedure; apply does not silently replace the API's existing copy.
-
-`locoadm status --host API_URL` reads cluster enrollment, heartbeats, agent and API versions, DNS targets and unclaimed administrators from the API. It requires a system-admin session. It does not read the installation file or Kubernetes installation state.
-
-`plan`, `apply` and `cluster attach` accept `--timeout` (30 minutes by default). Apply locks use API-server time sampled through a non-persistent dry-run ConfigMap creation and expire after the operation deadline plus a recovery margin; a concurrent apply fails. Operator wall-clock skew does not determine expiry. Lease recovery requires a stable, synchronized control-plane clock. Expiry does not roll back previously accepted remote operations; reapply relies on owned state, atomic creation and resource-version checks to preserve keys and identities. Secret values and raw child-process diagnostics are excluded from command output.
-
-## Source verification
-
-`locoadm verify --host https://api.example.com --worker staging-us --environment ENVIRONMENT_UUID` uses the stored operator session and an existing authorized environment whose tier matches the worker. The worker must enable builds. DNS and an HTTPS certificate must already serve its application domain. The HTTPS checks trust the operating system's certificate roots; `--ca-file PATH` adds the PEM certificates in that file for a domain whose certificate comes from a private or self-signed CA. `SSL_CERT_FILE` has no effect on macOS. The flag applies only to the application-domain checks; API requests and the source upload use the system roots.
-
-Verification provisions a uniquely named disposable service through the plan API, stores a random application secret, uploads source and waits for its build. It deploys that build in the worker's region and checks the HTTPS response, the SHA-256 hash of the delivered secret, and a unique log record through the observability query API. The generated source contains no secret value. The API schedules the build on an eligible build cluster; the command does not pin the build executor to the selected worker. Verification deletes its service after success or failure and reports cleanup errors. A process crash can leave a `verify-<UUID>` resource for an operator to remove.
-
-The command reports `verified` only after every probe and cleanup succeeds. This proves source build, secret delivery, deployment, HTTPS and log query functionality; it does not prove backups can restore the installation.
-
-## Encrypted recovery export
-
-`locoadm recovery export` reads the existing destination material, encrypts it in memory and writes only age ciphertext to a new directory:
+Register each worker and commit its encrypted join-token Secret:
 
 ```sh
-locoadm recovery export --context example-control-plane --namespace loco-system \
-  --output ./recovery-export \
-  --recipient AGE_MATERIAL_RECIPIENT \
-  --share-recipient AGE_FIRST_CUSTODIAN \
-  --share-recipient AGE_SECOND_CUSTODIAN \
-  --share-recipient AGE_THIRD_CUSTODIAN \
-  --share-recipient AGE_FOURTH_CUSTODIAN \
-  --share-recipient AGE_FIFTH_CUSTODIAN
+locoadm cluster create --name worker-staging --region example-east --tier staging \
+  --ttl 72h --sops-recipient WORKER_AGE_RECIPIENT,OFFLINE_AGE_RECIPIENT \
+  --output ./fleet/clusters/worker-staging/config/join-token.sops.yaml
 ```
 
-Supply one distinct age X25519 public recipient per recovery share, in share order, and a separate recipient for the seal material and generate-root token. Match the share count in the pinned control-plane chart. Keep private age identities with their custodians. `material.age` contains the seal key and generate-root token; `share-1.age`, `share-2.age` and subsequent files each contain one recovery share. No recipient receives multiple payloads. The directory uses mode `0700` and files use `0600`; an existing output directory is rejected. Retry a failed export with a new directory.
+Bootstrap that worker's Flux against its directory. The agent waits for the mounted token, enrolls once and stores its identity in the cluster. A consumed token can be removed from Git together with its resource entry. [Cluster enrollment](cluster-attachment.md) describes token renewal and enrollment status.
 
-| Material | Destination owner | Export |
-| --- | --- | --- |
-| OpenBao seal key | Seal Secret selected by `--seal-secret` (default `openbao-seal`) | `material.age` |
-| Generate-root token | Chart setup's `loco-control-plane-openbao-init` Secret | `material.age` |
-| Recovery shares | Chart setup's `loco-control-plane-openbao-init` Secret | One encrypted file per custodian |
-| Agent private keys | Each worker agent's identity store | Excluded |
-| Database, storage, registry credentials | Operator-managed input Secrets | Excluded |
+## Upgrade and verify
 
-Export retains the source Secrets and writes no installation-state marker. Set `--seal-secret ""` for KMS or transit auto-unseal; `--init-secret` selects the chart initialization Secret. Keep source material until a separate restoration exercise succeeds. The export does not include PostgreSQL data, OpenBao snapshots, persistent volumes or external-service backups; retain those through their own backup procedures. This command does not implement restore.
+Bump the control-plane cohort's bundle digest, wait for Flux readiness, then update staging workers and production workers. The API supports agents at its own minor version and the preceding minor; workers must not run ahead of the API. `locoadm status` reports enrollment, heartbeats, DNS targets, version skew and unclaimed administrators from the API.
+
+Revert the cohort pin to roll back platform software. Database migrations retain compatibility through a rollout; reverting a bundle does not roll back the database. Flux corrects drift and retries or rolls back failed chart upgrades.
+
+Configure the reported DNS targets and wait for trusted application certificates. Verify an authorized environment on a worker that runs applications and builds:
+
+```sh
+locoadm verify --worker worker-staging --environment ENVIRONMENT_UUID
+```
+
+Verification builds disposable source, delivers a random secret, checks HTTPS and queries its logs. `--ca-file PATH` supplies a private CA for application checks. API and source-upload requests use system certificate roots. The command removes its disposable resource after success or failure; a process crash can leave a `verify-<UUID>` resource to remove.
+
+## Export recovery material
+
+```sh
+locoadm recovery export --context control-plane --namespace loco-system \
+  --output ./recovery-export --recipient MATERIAL_AGE_RECIPIENT \
+  --share-recipient FIRST_CUSTODIAN_AGE_RECIPIENT \
+  --share-recipient SECOND_CUSTODIAN_AGE_RECIPIENT
+```
+
+Supply one distinct recipient per configured recovery share, in share order, plus a separate material recipient. Match the chart's share count. `--seal-secret` defaults to `openbao-seal`; pass an empty name for KMS or transit auto-unseal. `--init-secret` defaults to `loco-control-plane-openbao-init`.
+
+Only ciphertext reaches the new output directory. `material.age` contains the static seal key, when selected, and generate-root token; each `share-N.age` belongs to one custodian. Source Secrets remain intact. Verify restoration before removing source material. Preserve PostgreSQL backups, OpenBao snapshots, volumes and external-service backups through their respective backup procedures.

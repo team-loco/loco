@@ -383,8 +383,6 @@ def publication():
         publication.directory = tempfile.TemporaryDirectory()
         cleanup.callback(publication.directory.cleanup)
         publication.root = Path(publication.directory.name)
-        (publication.root / "schemas").mkdir()
-        (publication.root / "schemas/installation.v1.json").write_bytes((release.ROOT / "schemas/installation.v1.json").read_bytes())
         (publication.root / "charts/loco-worker/charts").mkdir(parents=True)
         (
             publication.root / "charts/loco-worker/charts/gateway-helm-test.tgz"

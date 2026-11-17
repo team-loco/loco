@@ -26,7 +26,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 
 - **`cmd/`**: Two Go CLIs running on client/operator machines, using Cobra + Charm (Fang, Lipgloss; Bubble Tea for `loco`'s interactive UI):
   - `loco`: For clients connecting to Loco: deploy applications and manage resources, environments, workspaces and organizations.
-  - `locoadm`: For administrators running their own Loco installation: install the control plane and workers from `loco-install.yaml`, manage system admins, clusters and users.
+  - `locoadm`: For administrators running their own Loco installation: scaffold a Flux operator repository, manage system admins, clusters and users, verify deployments and export recovery material.
 
 ### Control plane (`charts/loco-control-plane/`)
 
