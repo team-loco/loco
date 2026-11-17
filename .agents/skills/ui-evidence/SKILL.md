@@ -36,6 +36,8 @@ mise exec -- uv run --script "$E" <command>
    `maxReplicas` and optional `port`. Use one deployment per environment and region.
    Start from `.agents/skills/ui-evidence/scenario.resources.example.json`. Resources use the API; synthetic
    clusters, deployments and placements use SQL without contacting a registry or worker.
+   The evidence API uses the two-hour run lease as its heartbeat interval; synthetic clusters
+   stay live for six hours after seeding, covering long light/dark and narrow capture batches.
    The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths.
 2. Write a shot spec JSON. Each shot names a path, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,

@@ -37,6 +37,7 @@ VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
 VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"app_spec":{{}}}}',true,2,'Ready',NOW());
 """)
+        evidence.psql(state["container"], f"UPDATE clusters SET last_heartbeat=NOW() - INTERVAL '5 minutes' WHERE name IN ('east-{resource}', 'west-{resource}');")
         context, page, errors = open_page(browser, state=state)
         calls = []
 
