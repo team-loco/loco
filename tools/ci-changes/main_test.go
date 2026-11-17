@@ -172,16 +172,20 @@ func TestChangedFiles(t *testing.T) {
 }
 
 func TestAffectedE2EShards(t *testing.T) {
+	const (
+		apps     = "apps"
+		appsTest = "tests/e2e/apps/a_test.go"
+	)
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
-	all := []string{"apps", "builds", "telemetry"}
+	all := []string{apps, "builds", "telemetry"}
 	for _, tc := range []struct {
 		files, want []string
 	}{
 		{nil, all},
-		{[]string{"tests/e2e/apps/a_test.go", "docs/content/example.md"}, []string{"apps"}},
-		{[]string{"tests/e2e/telemetry/a_test.go", "tests/e2e/apps/a_test.go"}, []string{"apps", "telemetry"}},
-		{[]string{"tests/e2e/apps/a_test.go", "api/service/resource.go"}, all},
+		{[]string{appsTest, "docs/content/example.md"}, []string{apps}},
+		{[]string{"tests/e2e/telemetry/a_test.go", appsTest}, []string{apps, "telemetry"}},
+		{[]string{appsTest, "api/service/resource.go"}, all},
 		{[]string{"tests/e2e/platform/setup_test.go"}, all},
 		{[]string{"tests/e2e/fixtures/example"}, all},
 	} {
@@ -193,10 +197,10 @@ func TestInstallationRunnerUnitTests(t *testing.T) {
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
 	for _, dir := range []string{"tools/installation-e2e/", "tools/internal/devicelogin/"} {
-		files := []string{dir + "client_test.go"}
-		selected := selectOwn(filters, "pull_request", files)
+		files := []string{dir + "client_test.go", dir + "client.go"}
+		selected := selectOwn(filters, "pull_request", files[:1])
 		assert.False(t, selected["e2e-installation"])
 		assert.True(t, selected["go-lint-and-test"])
-		assert.True(t, selectOwn(filters, "pull_request", append(files, dir+"client.go"))["e2e-installation"])
+		assert.True(t, selectOwn(filters, "pull_request", files)["e2e-installation"])
 	}
 }
