@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -73,5 +74,73 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := read(); got.Status != genDb.DeploymentStatusRunning || !got.StartedAt.Equal(*running.StartedAt) {
 		t.Fatalf("restarted=%+v", got)
+	}
+}
+
+func TestReplacingDeploymentsFinalizesTimestamps(t *testing.T) {
+	t.Parallel()
+	for _, status := range []genDb.DeploymentStatus{
+		genDb.DeploymentStatusBuilding,
+		genDb.DeploymentStatusDeploying,
+		genDb.DeploymentStatusRunning,
+		genDb.DeploymentStatusFailed,
+	} {
+		t.Run(string(status), func(t *testing.T) {
+			t.Parallel()
+			f := newDeployFixture(t)
+			ctx := t.Context()
+			previous, err := f.deploy(ctx, staticSpec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var started, completed *time.Time
+			prior := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+			if status == genDb.DeploymentStatusRunning || status == genDb.DeploymentStatusFailed {
+				started = &prior
+			}
+			if status == genDb.DeploymentStatusFailed {
+				completed = &prior
+			}
+			if _, err = f.pool.Exec(
+				ctx,
+				"UPDATE deployments SET status=$2, started_at=$3, completed_at=$4 WHERE id=$1",
+				previous,
+				status,
+				started,
+				completed,
+			); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = f.deploy(ctx, staticSpec); err != nil {
+				t.Fatal(err)
+			}
+			if status == genDb.DeploymentStatusRunning {
+				old, readErr := f.queries.GetDeploymentByID(ctx, previous)
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
+				if old.Status != status || old.CompletedAt != nil {
+					t.Fatalf("still-serving deployment = %+v", old)
+				}
+				f.finishRollouts(t)
+			}
+			old, err := f.queries.GetDeploymentByID(ctx, previous)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := genDb.DeploymentStatusCanceled
+			if status == genDb.DeploymentStatusRunning {
+				want = genDb.DeploymentStatusSuperseded
+			}
+			if status == genDb.DeploymentStatusFailed {
+				want = status
+			}
+			if old.Status != want || old.IsActive || old.CompletedAt == nil {
+				t.Fatalf("finalized deployment = %+v, want inactive %s with completion time", old, want)
+			}
+			if completed != nil && !old.CompletedAt.Equal(*completed) {
+				t.Fatalf("completion = %v, want preserved %v", old.CompletedAt, completed)
+			}
+		})
 	}
 }
