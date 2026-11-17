@@ -6,24 +6,23 @@ Cluster enrollment binds a worker's agent identity to its API registration. Flux
 
 ## Register a worker
 
-Sign in as a system administrator, then issue an encrypted token:
+Sign in as a system administrator, then print a join-token Secret manifest:
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h --sops-recipient WORKER_AGE_RECIPIENT,OFFLINE_AGE_RECIPIENT \
-  --output clusters/worker-staging/config/join-token.sops.yaml
+  --ttl 72h -o secret > clusters/worker-staging/config/join-token.yaml
 ```
 
-`--sops-recipient` accepts comma-separated age public recipients. Supply it together with `--output` to write a Kubernetes Secret without printing its token. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret` and include the encrypted file in the cluster's configuration Kustomization.
+`-o secret` prints a plaintext Kubernetes Secret manifest. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. Encrypt the file with your own tooling before committing and configure Flux decryption, or supply the same Secret through External Secrets. Core requires no SOPS executable or recipient flags.
 
-Omitting `--output` returns the token in the API response for callers delivering credentials through another mechanism. Avoid saving that response in logs.
+Default output is the JSON API response, including the token. Keep both forms out of logs.
 
 Tokens default to one hour. A positive `--ttl` is capped by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL`, which defaults to seven days. Operators configure the default through `LOCO_CLUSTER_JOIN_TOKEN_TTL`. The API stores a hash of each token and accepts it once.
 
 ## Reconcile and inspect
 
-Bootstrap the worker's Flux against its own repository directory and provision its age key. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token.
+Bootstrap the worker's Flux against its own repository directory and provision any decryption key your chosen Secret tooling requires. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token.
 
 ```sh
 locoadm cluster list
@@ -36,11 +35,10 @@ Status reports pending or enrolled clusters, last heartbeats, API and agent vers
 
 ```sh
 locoadm cluster join-token CLUSTER_UUID --ttl 72h \
-  --sops-recipient WORKER_AGE_RECIPIENT,OFFLINE_AGE_RECIPIENT \
-  --output clusters/worker-staging/config/join-token.sops.yaml
+  -o secret > clusters/worker-staging/config/join-token.yaml
 ```
 
-A fresh token invalidates the preceding one. Commit the encrypted file and let Flux deliver it. After enrollment, remove consumed ciphertext and its resource entry when desired; the agent identity remains in the cluster.
+A fresh token invalidates the preceding one. Encrypt the file before committing and let Flux deliver it, or apply it through your own Secret delivery tooling. After enrollment, remove the consumed token manifest and its resource entry when desired; the agent identity remains in the cluster.
 
 `CreateCluster` requires a UUID request ID. Programmatic callers persist it and reuse it after a lost response: retries recover the same registration, while changed identity fields fail. Each CLI create invocation generates a fresh request ID. Use `join-token` for an existing registration.
 

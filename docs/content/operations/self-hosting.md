@@ -22,7 +22,7 @@ The control-plane chart is `charts/loco-control-plane`; the worker chart is `cha
 
 Provide Kubernetes and its CNI, PostgreSQL, OIDC, an S3-compatible source bucket, a registry and DNS. Postgres is outside the bundle. Each worker environment uses its own clusters. A single-cluster installation can host one control plane and one worker.
 
-Follow the [installation guide](../reference/installation.md) to scaffold the operator repository, review chart values, encrypt Secrets and bootstrap Flux. Each cluster has its own Git directory and age key; encrypted files also include an offline administrator recipient. Credential Secrets are referenced by name. Chart values expose API limits, service defaults, retention and join-token lifetimes; `values.schema.json` validates their types and supported forms. The API validates configuration at startup.
+Follow the [installation guide](../reference/installation.md) to scaffold the operator repository, review chart values, encrypt Secrets and bootstrap Flux. Each cluster has its own Git directory. `locoadm` emits plaintext Secret manifests; operators choose encryption or external Secret delivery. With SOPS, configure Flux decryption and keep an offline recipient for recovery. Credential Secrets are referenced by name. Chart values expose API limits, service defaults, retention and join-token lifetimes; `values.schema.json` validates their types and supported forms. The API validates configuration at startup.
 
 The control-plane chart generates missing ClickHouse credentials and preserves existing ones. OpenBao supports static, KMS or transit auto-unseal. Keep the seal material, recovery shares and snapshots under separate backup and custody procedures. External ClickHouse and OpenBao remain supported through their chart settings.
 
@@ -37,7 +37,7 @@ locoadm admin list
 
 Only use an identity provider that verifies email addresses. Register a public authorization-code client with PKCE and allow the dashboard's `/auth/callback`. `locoadm login --device` supports browser approval on another machine. Configure OIDC, API endpoints, source storage and registry settings in the control-plane values and referenced Secret.
 
-Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USER_UUID`. Status lists configured emails that remain unclaimed. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and encrypted join tokens.
+Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USER_UUID`. Status lists configured emails that remain unclaimed. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
 
 ## Releases and operations
 
