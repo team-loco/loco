@@ -17,7 +17,7 @@ import { sizeOptions } from "@/lib/sizing";
 import { cn } from "@/lib/utils";
 
 import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
-import type { Notice as NoticeState, RegionView } from "./model";
+import { isDeployed, type Notice as NoticeState, type RegionView } from "./model";
 import { NetworkingSection } from "./NetworkingSection";
 import {
 	changeCount,
@@ -108,7 +108,7 @@ export function SettingsView({
 	const managed = resource.partial !== undefined;
 	const worker = isWorker(
 		resource,
-		regions.flatMap((r) => (r.current === undefined ? [] : [r.current])),
+		regions.filter(isDeployed).flatMap((r) => (r.current === undefined ? [] : [r.current])),
 	);
 	const locked = managed || !canWrite;
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
