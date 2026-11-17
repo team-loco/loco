@@ -21,12 +21,20 @@ function Code({ code, language = "plaintext", className }: CodeProps) {
 }
 
 interface CodeBlockProps {
+	copyLabel?: string;
+	lineNumbers?: boolean;
 	children: string;
 	language?: LanguageName | undefined;
 	className?: string | undefined;
 }
 
-function CodeBlock({ children, language = "plaintext", className }: CodeBlockProps) {
+function CodeBlock({
+	children,
+	language = "plaintext",
+	className,
+	copyLabel = "Copy code",
+	lineNumbers = true,
+}: CodeBlockProps) {
 	const [copiedKey, copy] = useCopy(COPIED_RESET_MS);
 	const copied = copiedKey !== null;
 	const lineCount = children.split("\n").length;
@@ -47,12 +55,20 @@ function CodeBlock({ children, language = "plaintext", className }: CodeBlockPro
 					"m-0 min-h-0 overflow-auto py-3 font-mono text-sm leading-[1.6] text-(--sh-identifier) outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
 				}
 			>
-				<Code code={children} language={language} className="code-lines" />
+				<Code
+					code={children}
+					language={language}
+					className={
+						lineNumbers
+							? "code-lines"
+							: "block w-max min-w-full px-4 whitespace-normal [&_.sh__line]:block [&_.sh__line]:whitespace-pre"
+					}
+				/>
 			</pre>
 			<Button
 				variant="ghost"
 				size="icon-xs"
-				aria-label={copied ? "Copied" : "Copy code"}
+				aria-label={copied ? "Copied" : copyLabel}
 				className={cn(
 					"absolute top-1.5 right-1.5 border-line bg-code-bg/85 backdrop-blur-xs hover:bg-panel2 dark:hover:bg-panel2",
 					"opacity-0 group-focus-within/code:opacity-100 group-hover/code:opacity-100 pointer-coarse:opacity-100",

@@ -24,7 +24,19 @@ export function levelOf(severity: string): Level {
 	return "info";
 }
 
-export type FieldKey = "resource" | "level" | "replica" | "build" | "region" | "type" | "status" | "trace" | "duration";
+export type FieldKey =
+	| "resource"
+	| "level"
+	| "replica"
+	| "build"
+	| "region"
+	| "type"
+	| "status"
+	| "trace"
+	| "duration"
+	| "severity"
+	| "reason"
+	| "actor";
 
 export interface FieldDef {
 	key: FieldKey;
@@ -40,7 +52,10 @@ export const FIELDS: FieldDef[] = [
 	{ key: "level", label: "Level", views: ["logs"], negate: ["logs"] },
 	{ key: "replica", label: "Replica", views: ["logs"], negate: ["logs"] },
 	{ key: "build", label: "Build ID", views: ["logs"], negate: ["logs"] },
-	{ key: "region", label: "Region", views: ["logs", "metrics"], negate: ["logs", "metrics"] },
+	{ key: "region", label: "Region", views: ["logs", "metrics", "events"], negate: ["logs", "metrics", "events"] },
+	{ key: "severity", label: "Severity", views: ["events"], negate: ["events"] },
+	{ key: "reason", label: "Reason", views: ["events"], negate: ["events"] },
+	{ key: "actor", label: "Actor", views: ["events"], negate: ["events"] },
 	{ key: "type", label: "Event type", views: ["events"], negate: ["events"] },
 	{ key: "status", label: "Trace status", views: ["traces"], negate: ["traces"] },
 	{ key: "trace", label: "Trace ID", views: ["logs", "traces"], negate: ["logs"] },

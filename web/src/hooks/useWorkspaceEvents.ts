@@ -8,13 +8,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import {
-	ENVIRONMENT_EVENT_TYPES,
-	ROLLOUT_EVENT_TYPES,
-	RUNTIME_EVENT_TYPES,
-	runtimeEvent,
-	type RuntimeEvent,
-} from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, ROLLOUT_EVENT_TYPES, runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { mergeEvents, runtimeEventsOptions } from "@/hooks/runtimeEvents";
@@ -22,7 +16,6 @@ import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { tsMs } from "@/lib/time";
 
 export interface WorkspaceEventWithResource extends RuntimeEvent {
-	id: string;
 	resourceId: string;
 	resourceName: string;
 }
@@ -77,7 +70,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 						orgId: activeOrgId,
 						workspaceId,
 						startTime: msToTimestamp(openedAt),
-						query: eventTypesQuery(RUNTIME_EVENT_TYPES),
+						query: eventTypesQuery([...ENVIRONMENT_EVENT_TYPES, ...ROLLOUT_EVENT_TYPES]),
 					},
 					{ signal: abort.signal },
 				)) {
@@ -110,7 +103,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 			const e = runtimeEvent(event);
 			// Builds belong to no environment; deploys and scaling name theirs only in their data.
 			if (e.environmentId !== "" && e.environmentId !== environmentId) return;
-			events.push({ ...e, id: event.id, resourceId: resource.id, resourceName: resource.name });
+			events.push({ ...e, resourceId: resource.id, resourceName: resource.name });
 		});
 	});
 	events.sort((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));

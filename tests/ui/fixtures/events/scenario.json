@@ -1,0 +1,62 @@
+{
+  "users": {
+    "owner": {
+      "email": "owner@acme.test",
+      "name": "Olivia Owner"
+    },
+    "reader": {
+      "email": "reader@acme.test",
+      "name": "Riley Reader"
+    }
+  },
+  "orgs": [
+    {
+      "name": "acme",
+      "owner": "owner",
+      "workspaces": [
+        "shared"
+      ],
+      "members": [
+        "reader"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "workspace": "acme/shared",
+      "name": "web",
+      "deployments": [
+        {
+          "environment": "production",
+          "region": "us-east-1",
+          "status": "running",
+          "phase": "Ready",
+          "ready_replicas": 1,
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "cpu": "100m",
+            "memory": "128Mi",
+            "minReplicas": 1,
+            "maxReplicas": 1,
+            "port": 8080
+          }
+        }
+      ]
+    }
+  ],
+  "grants": [
+    {
+      "user": "reader",
+      "workspace": "acme/shared",
+      "scopes": [
+        "read"
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { useListNavigation } from "@/hooks/useListNavigation";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
@@ -282,6 +283,11 @@ export function LogsView() {
 		setView(idx >= 0 ? Math.floor(idx / size) : curPage, key);
 		if (freezeTs === null || selectedKey === null) setFreezeTs(rows[0]?.ts ?? nowMs);
 	};
+	useListNavigation(
+		pageRows.map((row) => row.key),
+		selRow?.key ?? null,
+		select,
+	);
 	const toOlderBatch = () => {
 		setPlayback({ ...playback, on: false, pending: null, paused: null });
 		setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
