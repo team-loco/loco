@@ -177,8 +177,7 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
             assert bounds["x"] <= box["x"] and box["x"] + box["width"] <= bounds["x"] + bounds["width"], box
 
         drawer.get_by_role("button", name="Close", exact=True).click()
-        page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/settings?hook=new&types=build.failed")
-        page.wait_for_url(re.compile(r"/webhooks\?.*new=1"))
+        page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/webhooks?new=1&types=build.failed")
         creation = page.get_by_role("dialog", name="New webhook in shared", exact=True)
         expect(creation.get_by_role("button", name="Choose events", exact=True)).to_have_attribute("aria-pressed", "true")
         endpoint = creation.get_by_role("textbox", name="Endpoint URL", exact=True)

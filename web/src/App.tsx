@@ -21,7 +21,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams 
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
 import { notFound } from "@/lib/not-found";
-import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath, webhooksPath } from "@/lib/routes";
+import { accountSettingsPath, newResourcePath, PROFILE_PATH, settingsPath } from "@/lib/routes";
 import { readStorage, removeStorage, writeStorage } from "@/lib/storage";
 
 import { pageImporters } from "@/lib/lazy-pages";
@@ -96,15 +96,6 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 }
 
 function WorkspaceRoutes() {
-	const { orgId = "", workspaceId = "" } = useParams();
-	const { pathname, search } = useLocation();
-	const params = new URLSearchParams(search);
-	if (pathname.endsWith("/settings") && params.get("hook") === "new")
-		return <Navigate replace to={webhooksPath(orgId, workspaceId, params.get("types") ?? "")} />;
-	return <EnvironmentRoutes />;
-}
-
-function EnvironmentRoutes() {
 	useEnvironmentInUrl();
 	return <Outlet />;
 }
