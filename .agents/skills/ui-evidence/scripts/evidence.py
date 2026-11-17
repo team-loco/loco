@@ -256,6 +256,11 @@ def validate_spec(spec):
             selector = shot["ready_selector"]
             if not isinstance(selector, str) or not selector.strip():
                 raise EvidenceError(f"shot {name}: ready_selector must be a non-empty selector")
+        for field in ("exclude_animations", "permissions"):
+            if field in shot and (not isinstance(shot[field], list) or any(
+                not isinstance(value, str) or not value.strip() for value in shot[field]
+            )):
+                raise EvidenceError(f"shot {name}: {field} must be a list of non-empty strings")
         if "hold_requests" in shot:
             patterns = shot["hold_requests"]
             if not isinstance(patterns, list) or not patterns or any(
@@ -741,10 +746,11 @@ def cmd_serve_ui(args):
         server.serve_forever()
 
 
-SETTLE_SCRIPT = """async (timeout) => {
+SETTLE_SCRIPT = """async ({timeout, excluded}) => {
   const finite = () => document.getAnimations().filter((a) => {
     const end = a.effect && a.effect.getComputedTiming().endTime;
-    return a.playState !== "finished" && Number.isFinite(end);
+    return a.playState !== "finished" && Number.isFinite(end)
+      && !excluded.some((selector) => a.effect?.target?.matches(selector));
   });
   const deadline = performance.now() + timeout;
   while (finite().length > 0) {
@@ -757,10 +763,10 @@ SETTLE_SCRIPT = """async (timeout) => {
 }"""
 
 
-def settle(page, *, wait_for_network=True):
+def settle(page, *, wait_for_network=True, exclude_animations=()):
     if wait_for_network:
         page.wait_for_load_state("networkidle")
-    if not page.evaluate(SETTLE_SCRIPT, SETTLE_TIMEOUT_MS):
+    if not page.evaluate(SETTLE_SCRIPT, {"timeout": SETTLE_TIMEOUT_MS, "excluded": exclude_animations}):
         raise EvidenceError("animations did not finish")
 
 
@@ -772,6 +778,8 @@ def capture(browser, state, shot, theme, narrow, target):
         raise EvidenceError(f"state has no user {shot['user']!r}")
     viewport = dict(NARROW if narrow else DESKTOP)
     context = browser.new_context(viewport=viewport, device_scale_factor=SCALE, color_scheme=theme)
+    if "permissions" in shot:
+        context.grant_permissions(shot["permissions"], origin=state["ui_url"])
     script = f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
     if user is not None:
         stored = json.dumps({"idToken": user["token"], "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS})
@@ -797,7 +805,7 @@ def capture(browser, state, shot, theme, narrow, target):
         steps = [*steps, {"wait": ready_selector}]
     try:
         page.goto(state["ui_url"] + shot["path"], wait_until="load" if wait_for_network else "domcontentloaded")
-        settle(page, wait_for_network=wait_for_network)
+        settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
         for step in steps:
             action, value = next(iter(step.items()))
             selector = value["selector"] if isinstance(value, dict) else value
@@ -822,7 +830,7 @@ def capture(browser, state, shot, theme, narrow, target):
                 page.mouse.down()
                 page.mouse.move(*at(value["to"]), steps=8)
                 page.mouse.up()
-            settle(page, wait_for_network=wait_for_network)
+            settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
         applied = f"""() => {{
           const root = document.documentElement;
           const scheme = getComputedStyle(root).colorScheme;
@@ -834,13 +842,13 @@ def capture(browser, state, shot, theme, narrow, target):
             page.wait_for_function(applied, timeout=STEP_TIMEOUT_MS)
         except PlaywrightTimeout:
             raise EvidenceError(f"{shot['name']}: the page did not apply the {theme} theme") from None
-        settle(page, wait_for_network=wait_for_network)
+        settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
         crop = shot.get("crop", "viewport")
         if crop == "full" or isinstance(crop, dict) and "selector" in crop:
             viewport["height"] = max(viewport["height"], page.evaluate("document.documentElement.scrollHeight"))
             page.set_viewport_size(viewport)
             page.evaluate("window.scrollTo(0, 0)")
-            settle(page, wait_for_network=wait_for_network)
+            settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
         tmp = target.with_suffix(".partial.png")
         if crop in ("full", "viewport"):
             page.screenshot(path=tmp)

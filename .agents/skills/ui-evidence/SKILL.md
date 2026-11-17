@@ -66,6 +66,11 @@ mise exec -- uv run --script "$E" <command>
    with Playwright URL glob patterns and a `ready_selector` for that state. Matching requests
    stay pending from navigation through capture; closing the shot's browser context cancels them.
    Keep navigation and assets outside these patterns.
+   To capture an intentional running animation, set `"exclude_animations"` to CSS selectors
+   for its animated elements, for example `["button[aria-label=\"Hide PORT\"] circle"]`.
+   Only animations on matching elements skip settling; ordinary finite animations still finish.
+   To grant browser permissions before navigation, set `"permissions"`, for example
+   `["clipboard-read", "clipboard-write"]`. Permissions apply only to the preview origin.
 3. Commit source changes before capturing the current HEAD; `up` rejects uncommitted files
    when its ref resolves to HEAD. Historical refs can be captured from a dirty checkout.
    Bring up both refs. Each prints the path of its state file on stdout:

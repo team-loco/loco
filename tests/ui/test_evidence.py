@@ -126,3 +126,43 @@ def test_suite_failure_records_browser_diagnostics(tmp_path):
         {"url": "http://evidence.test/broken", "failure": "net::ERR_FAILED"},
         {"url": "http://evidence.test/unavailable", "status": 503},
     ]
+
+
+def test_settle_excludes_only_named_targets():
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content('<div id="countdown"></div><div id="transition"></div>')
+        page.evaluate("""() => {
+          window.countdown = document.querySelector('#countdown').animate({opacity: [1, 0]}, 30000);
+          window.transition = document.querySelector('#transition').animate({opacity: [0, 1]}, 300);
+        }""")
+        evidence.settle(page, exclude_animations=["#countdown"])
+        assert page.evaluate("countdown.playState") == "running"
+        assert page.evaluate("transition.playState") == "finished"
+        browser.close()
+
+
+def test_capture_grants_clipboard_permissions(tmp_path):
+    from playwright.sync_api import sync_playwright
+
+    html = '''<button onclick="navigator.clipboard.writeText('prompt').then(() => this.textContent = 'Copied')">Copy</button>'''
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        browser_context = browser.new_context
+
+        def context(**options):
+            result = browser_context(**options)
+            result.route("http://localhost/**", lambda route: route.fulfill(body=html, content_type="text/html"))
+            return result
+
+        browser.new_context = context
+        target = tmp_path / "copied.png"
+        evidence.capture(browser, {"users": {}, "ui_url": "http://localhost"}, {
+            "name": "copied", "path": "/", "permissions": ["clipboard-read", "clipboard-write"],
+            "steps": [{"click": "button"}], "ready_selector": "button:text-is('Copied')",
+        }, "light", False, target)
+        assert target.exists()
+        browser.close()
