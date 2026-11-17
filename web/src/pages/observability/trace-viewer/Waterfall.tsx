@@ -173,7 +173,7 @@ export function Waterfall({
 									onHoverSpan(null);
 								}}
 								className={cn(
-									"min-w-0 truncate text-left font-mono text-[11.5px] hover:underline focus-visible:ring-2 focus-visible:ring-ring",
+									"min-w-0 truncate text-left font-mono text-[11.5px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
 									spanError(span) && "text-bad-fg",
 								)}
 							>

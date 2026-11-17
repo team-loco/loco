@@ -104,7 +104,7 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 	);
 }
 
-const NAME_CLASS = "truncate text-left text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline";
+const NAME_CLASS = "truncate text-left text-[14.5px] font-medium text-foreground";
 
 function Regions({ item }: { item: DashboardItem }) {
 	return (
@@ -485,7 +485,7 @@ export function ResourcesTable({
 				}}
 			/>
 			{hasFilters && (
-				<Button variant="link" className="px-1" onClick={clearFilters}>
+				<Button variant="plain-link" className="px-1" onClick={clearFilters}>
 					Clear filters
 				</Button>
 			)}

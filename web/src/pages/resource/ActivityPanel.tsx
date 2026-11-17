@@ -139,7 +139,7 @@ export function ActivityPanel({
 			{query.hasNextPage && !query.isFetchNextPageError && (
 				<div className="border-t border-line2 pt-2.5 pb-1.5" aria-busy={query.isFetchingNextPage}>
 					<Button
-						variant="link"
+						variant="plain-link"
 						disabled={query.isFetching}
 						onClick={() => {
 							void query.fetchNextPage();

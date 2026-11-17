@@ -114,7 +114,7 @@ export function ReplicasPanel({
 				<>
 					{selected !== null && (
 						<Button
-							variant="link"
+							variant="plain-link"
 							onClick={() => {
 								onSelect(null);
 							}}

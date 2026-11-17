@@ -1,9 +1,9 @@
+import "./Activity.css";
 import { useQuery } from "@tanstack/react-query";
-import { BellIcon, ScrollTextIcon } from "lucide-react";
+import { XIcon, ScrollTextIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
@@ -84,27 +84,49 @@ export function AlertsDrawer() {
 		<>
 			<Button
 				variant="outline"
-				aria-label={`Alerts, ${count.toString()} active`}
+				aria-label={`Activity, ${count.toString()} active`}
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				onClick={() => {
 					setOpen(true);
 				}}
-				className="px-2.5"
+				className="act-btn px-2.5"
 			>
-				<BellIcon aria-hidden />
-				<span className="hidden md:inline">Alerts</span>
-				{count > 0 && <Badge tone="count">{count}</Badge>}
+				<span className="act-ico" aria-hidden>
+					<svg
+						viewBox="0 0 24 24"
+						width="15"
+						height="15"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<path className="act-pulse" pathLength="100" d="M2 12h4l3-8 6 16 3-8h4" />
+					</svg>
+				</span>
+				<span className="hidden md:inline">Activity</span>
+				{count > 0 && <span className="act-n font-mono">{count}</span>}
 			</Button>
 			<Sheet open={open} onOpenChange={setOpen}>
-				<SheetContent>
+				<SheetContent showCloseButton={false}>
 					<SheetHeader>
-						<SheetTitle>Alerts</SheetTitle>
-						<span className="font-mono text-[13px] text-fg3">{count}</span>
+						<SheetTitle className="font-medium">Activity</SheetTitle>
+						{count > 0 && <span className="act-n act-heading-count font-mono">{count}</span>}
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Close activity"
+							onClick={close}
+							className="absolute top-[18px] right-4"
+						>
+							<XIcon />
+						</Button>
 					</SheetHeader>
 					<SheetBody className="p-4">
 						{alerts.length === 0 ? (
-							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">No active alerts</p>
+							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">Nothing needs attention.</p>
 						) : (
 							<ul className="flex flex-col gap-2.5">
 								{alerts.map((a) => (
@@ -128,7 +150,7 @@ export function AlertsDrawer() {
 								<Link to={observabilityPath(activeOrgId, activeWorkspaceId, "events", envParams)} onClick={close} />
 							}
 						>
-							All events →
+							All events
 						</Button>
 					</SheetFooter>
 				</SheetContent>

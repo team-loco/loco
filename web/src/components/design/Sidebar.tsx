@@ -1,8 +1,9 @@
-import { createContext, use, useState } from "react";
+import { createContext, use, useId, useState } from "react";
+import { LayoutGroup, MotionConfig, useReducedMotion, motion as motionElement } from "motion/react";
 
 import {
 	Sidebar as SidebarBase,
-	SidebarContent,
+	SidebarContent as SidebarContentBase,
 	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupLabel as SidebarGroupLabelBase,
@@ -171,7 +172,7 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	return (
 		<SidebarMenuButtonBase
 			className={cn(
-				"h-8 gap-2.5 rounded-[5px] px-2.5 text-[13.5px] text-fg2 transition-colors duration-150 ease-out hover:bg-shell-hover hover:text-fg2 active:bg-shell-hover active:text-fg2 data-active:bg-shell-active data-active:font-medium data-active:text-foreground data-active:hover:bg-shell-active data-active:hover:text-foreground [&_svg]:size-4 [&_svg]:text-fg3 data-active:[&_svg]:text-foreground",
+				"relative isolate h-8 gap-2.5 rounded-[5px] px-2.5 text-[13.5px] text-fg2 transition-colors duration-150 ease-out hover:bg-shell-hover hover:text-fg2 active:bg-shell-hover active:text-fg2 data-active:bg-transparent data-active:font-medium data-active:text-foreground data-active:hover:bg-transparent data-active:hover:text-foreground [&_svg]:size-4 [&_svg]:text-fg3 data-active:[&_svg]:text-foreground",
 				className,
 			)}
 			{...props}
@@ -179,7 +180,37 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	);
 }
 
+function SidebarContent(props: React.ComponentProps<typeof SidebarContentBase>) {
+	const id = useId();
+	return (
+		<MotionConfig reducedMotion="user">
+			<LayoutGroup id={id}>
+				<SidebarContentBase {...props} />
+			</LayoutGroup>
+		</MotionConfig>
+	);
+}
+
+function SidebarHighlight() {
+	const reduced = useReducedMotion();
+	return (
+		<motionElement.span
+			aria-hidden
+			data-slot="sidebar-highlight"
+			layoutId="sidebar-highlight"
+			initial={reduced ? false : { opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{
+				layout: { duration: reduced ? 0 : 0.22, ease: [0.2, 0.8, 0.2, 1] },
+				opacity: { duration: reduced ? 0 : 0.12 },
+			}}
+			className="pointer-events-none absolute inset-0 -z-10 rounded-[5px] bg-shell-active"
+		/>
+	);
+}
+
 export {
+	SidebarHighlight,
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,

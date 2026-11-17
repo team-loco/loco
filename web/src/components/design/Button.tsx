@@ -22,7 +22,8 @@ const buttonVariants = cva(
 				destructive: cn(solid, "bg-err text-background hover:bg-err dark:bg-err dark:hover:bg-err"),
 				"destructive-outline":
 					"border-[color-mix(in_oklch,var(--err)_38%,var(--line2))] bg-raise font-normal text-bad-fg hover:border-[color-mix(in_oklch,var(--err)_70%,var(--line2))] hover:bg-[color-mix(in_oklch,var(--err)_6%,var(--raise))] hover:text-bad-fg dark:border-[color-mix(in_oklch,var(--err)_38%,var(--line2))] dark:bg-raise dark:hover:border-[color-mix(in_oklch,var(--err)_70%,var(--line2))] dark:hover:bg-[color-mix(in_oklch,var(--err)_6%,var(--raise))]",
-				link: "font-normal text-fg2 underline decoration-line2 underline-offset-3 hover:text-foreground hover:decoration-foreground",
+				link: "gap-1 font-normal text-fg2 no-underline after:inline-block after:content-['→'/''] after:transition-transform after:duration-140 hover:text-foreground hover:no-underline hover:after:translate-x-0.5 motion-reduce:after:transition-none",
+				"plain-link": "font-normal text-fg2 no-underline hover:text-foreground hover:no-underline",
 			},
 			size: {
 				default: "h-8 px-[13px] text-[13px]",
@@ -38,7 +39,7 @@ const buttonVariants = cva(
 		compoundVariants: [
 			{ variant: "outline", size: ["icon", "icon-sm", "icon-xs"], class: "text-fg2 hover:text-foreground" },
 			{ variant: "ghost", size: ["icon", "icon-sm", "icon-xs"], class: "text-fg3" },
-			{ variant: "link", class: "h-auto p-0 text-[12.5px]" },
+			{ variant: ["link", "plain-link"], class: "h-auto p-0 text-[12.5px]" },
 		],
 		defaultVariants: {
 			variant: "default",
@@ -62,6 +63,7 @@ function baseVariant(variant: ButtonVariant): BaseVariant {
 			return "destructive";
 		case "destructive-outline":
 			return "outline";
+		case "plain-link":
 		case "link":
 			return "link";
 	}

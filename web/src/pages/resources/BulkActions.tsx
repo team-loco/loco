@@ -242,7 +242,7 @@ export function BulkActions({
 				<Trash2Icon />
 				Delete
 			</Button>
-			<Button variant="link" className="ml-auto" onClick={onClear}>
+			<Button variant="plain-link" className="ml-auto" onClick={onClear}>
 				Clear selection
 			</Button>
 			<Dialog

@@ -139,7 +139,7 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 										>
 											<span className="flex items-center justify-between gap-2.5">
 												<span
-													className="min-w-0 flex-1 truncate text-[13.5px] font-medium underline-offset-3 group-hover:underline"
+													className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground"
 													title={r.name}
 												>
 													{r.name}

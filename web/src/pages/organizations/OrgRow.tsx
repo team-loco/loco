@@ -56,7 +56,7 @@ export function OrgRow({
 			<TableCell className="w-full min-w-0 max-w-0">
 				<span className="flex min-w-0 items-center gap-2.5">
 					<Building2 className="size-4 shrink-0 text-fg3" />
-					<span className="truncate font-semibold group-hover:underline">{org.name}</span>
+					<span className="truncate font-semibold text-foreground">{org.name}</span>
 					{active && (
 						<Badge tone="pill" className="font-mono">
 							current

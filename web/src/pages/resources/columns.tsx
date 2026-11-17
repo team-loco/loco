@@ -95,10 +95,7 @@ function NameCell({ row }: { row: ListRow }) {
 		<div className="flex min-w-0 flex-col gap-0.5">
 			<Link
 				to={draft ? draftSearch(search, row.draft.id) : resourcePath(orgId, workspaceId, row.resource.id)}
-				className={cn(
-					"truncate text-[14.5px] font-medium text-foreground underline-offset-3 hover:underline",
-					draft && DRAFT_NAME,
-				)}
+				className={cn("truncate text-[14.5px] font-medium text-foreground", draft && DRAFT_NAME)}
 			>
 				{rowName(row)}
 			</Link>

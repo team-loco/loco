@@ -119,7 +119,7 @@ export function RecentDeployments({
 									<TableCell className="truncate">
 										<Link
 											to={href}
-											className="text-[14px] font-medium text-foreground underline-offset-3 hover:underline"
+											className="text-[14px] font-medium text-foreground"
 											onClick={(e) => {
 												e.stopPropagation();
 											}}

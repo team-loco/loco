@@ -184,7 +184,7 @@ export function TraceHeader({
 					)}
 					{pinned !== null && (
 						<Button
-							variant="link"
+							variant="plain-link"
 							size="sm"
 							className="h-auto p-0 text-[12px]"
 							onClick={() => {

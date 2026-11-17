@@ -34,6 +34,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import {
 	Sidebar,
+	SidebarHighlight,
 	SidebarContent,
 	SidebarFooter,
 	SidebarGroup,
@@ -157,6 +158,7 @@ export function AppSidebar() {
 									) : item.to !== undefined ? (
 										<SidebarMenuButton
 											isActive={item.active}
+											aria-current={item.active ? "page" : undefined}
 											render={<Link to={item.to} />}
 											onMouseEnter={() => {
 												preloadPage(item.preload);
@@ -165,6 +167,7 @@ export function AppSidebar() {
 												preloadPage(item.preload);
 											}}
 										>
+											{item.active && <SidebarHighlight />}
 											{item.icon}
 											<span>{item.name}</span>
 										</SidebarMenuButton>
