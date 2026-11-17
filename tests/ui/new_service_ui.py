@@ -435,7 +435,7 @@ with session(out) as browser:
             route.fulfill(json={"deploymentId": str(uuid.uuid4())})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_failing_deployment)
-        event = json.dumps({"status": "DEPLOYMENT_PHASE_FAILED", "message": "ImagePullBackOff: manifest unknown"}).encode()
+        event = json.dumps({"deployment": {"status": "DEPLOYMENT_STATUS_FAILED", "problem": {"message": "ImagePullBackOff: manifest unknown"}}}).encode()
         stream = b"\x00" + len(event).to_bytes(4, "big") + event + b"\x02" + (2).to_bytes(4, "big") + b"{}"
         context.route("**/loco.deployment.v1.DeploymentService/WatchDeployment", lambda route: route.fulfill(content_type="application/connect+json", body=stream))
         try:

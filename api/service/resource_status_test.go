@@ -106,7 +106,7 @@ func TestRegionStatus(t *testing.T) {
 			name: "failed redeploy while the previous replicas still serve",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.DeploymentStatusFailed, 2)
-				row.DeploymentMessage = testFailureMessage
+				row.DeploymentProblemDetail = testFailureMessage
 				return row
 			},
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
@@ -116,7 +116,7 @@ func TestRegionStatus(t *testing.T) {
 			name: "failed deployment with nothing serving",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
 				row := regionRow(genDb.DeploymentStatusFailed, 0)
-				row.DeploymentMessage = testFailureMessage
+				row.DeploymentProblemDetail = testFailureMessage
 				return row
 			},
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,

@@ -128,13 +128,13 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 
 func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
 	requireArgs(ts, neg, args, 3, "fakeapi deployment <id> <running|failed|canceled|deploying>")
-	phase, ok := deploymentv1.DeploymentPhase_value["DEPLOYMENT_PHASE_"+strings.ToUpper(args[2])]
+	phase, ok := deploymentv1.DeploymentStatus_value["DEPLOYMENT_STATUS_"+strings.ToUpper(args[2])]
 	if !ok {
 		ts.Fatalf("fakeapi: unknown deployment phase %q", args[2])
 	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
-	api.platform.deploymentOutcomes[args[1]] = deploymentv1.DeploymentPhase(phase)
+	api.platform.deploymentOutcomes[args[1]] = deploymentv1.DeploymentStatus(phase)
 }
 
 func requireArgs(ts *testscript.TestScript, neg bool, args []string, n int, usage string) {

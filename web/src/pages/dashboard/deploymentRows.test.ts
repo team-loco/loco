@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
-import { DeploymentPhase, DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, DeploymentSchema } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { msToTimestamp } from "@/lib/time";
 
@@ -16,7 +16,7 @@ import {
 
 const NOW = 1_800_000_000_000;
 
-function row(id: string, status: DeploymentPhase, isActive: boolean, ageMs = 0) {
+function row(id: string, status: DeploymentStatus, isActive: boolean, ageMs = 0) {
 	return {
 		deployment: create(DeploymentSchema, {
 			id,
@@ -29,21 +29,21 @@ function row(id: string, status: DeploymentPhase, isActive: boolean, ageMs = 0) 
 
 describe("deploymentState", () => {
 	test("the reported phase determines whether a deployment is running or superseded", () => {
-		expect(deploymentState(row("a", DeploymentPhase.RUNNING, false).deployment)).toBe("running");
-		expect(deploymentState(row("b", DeploymentPhase.SUCCEEDED, false).deployment)).toBe("superseded");
-		expect(deploymentState(row("c", DeploymentPhase.RUNNING, true).deployment)).toBe("running");
-		expect(deploymentState(row("d", DeploymentPhase.FAILED, false).deployment)).toBe("failed");
-		expect(deploymentState(row("e", DeploymentPhase.PENDING, true).deployment)).toBe("progress");
+		expect(deploymentState(row("a", DeploymentStatus.RUNNING, false).deployment)).toBe("running");
+		expect(deploymentState(row("b", DeploymentStatus.SUPERSEDED, false).deployment)).toBe("superseded");
+		expect(deploymentState(row("c", DeploymentStatus.RUNNING, true).deployment)).toBe("running");
+		expect(deploymentState(row("d", DeploymentStatus.FAILED, false).deployment)).toBe("failed");
+		expect(deploymentState(row("e", DeploymentStatus.BUILDING, true).deployment)).toBe("progress");
 	});
 });
 
 describe("filters", () => {
 	const rows = [
-		row("live", DeploymentPhase.RUNNING, true),
-		row("old", DeploymentPhase.SUCCEEDED, false),
-		row("previous", DeploymentPhase.RUNNING, false),
-		row("rolling", DeploymentPhase.DEPLOYING, true),
-		row("broken", DeploymentPhase.FAILED, true),
+		row("live", DeploymentStatus.RUNNING, true),
+		row("old", DeploymentStatus.SUPERSEDED, false),
+		row("previous", DeploymentStatus.RUNNING, false),
+		row("rolling", DeploymentStatus.DEPLOYING, true),
+		row("broken", DeploymentStatus.FAILED, true),
 	];
 
 	test("counts each state and filters to one", () => {
@@ -59,9 +59,9 @@ describe("filters", () => {
 
 	test("keeps the last 24 hours and shows at most ten rows", () => {
 		const many = Array.from({ length: DEPLOYMENT_LIMIT + 2 }, (_, i) =>
-			row(`d${i.toString()}`, DeploymentPhase.FAILED, true),
+			row(`d${i.toString()}`, DeploymentStatus.FAILED, true),
 		);
-		const stale = row("stale", DeploymentPhase.FAILED, true, DEPLOYMENT_WINDOW_MS + 1);
+		const stale = row("stale", DeploymentStatus.FAILED, true, DEPLOYMENT_WINDOW_MS + 1);
 		const recent = withinWindow([...many, stale], NOW);
 		expect(recent).toHaveLength(DEPLOYMENT_LIMIT + 2);
 		expect(filterDeployments(recent, "failed")).toHaveLength(DEPLOYMENT_LIMIT);

@@ -217,7 +217,6 @@ CREATE TABLE
         replicas INT NOT NULL,
         status deployment_status NOT NULL,
         is_active BOOLEAN NOT NULL,
-        message TEXT NOT NULL,
         environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
@@ -422,6 +421,18 @@ CREATE INDEX idx_registry_credentials_build_id ON registry_credentials (build_id
 
 CREATE INDEX idx_registry_credentials_workspace_id ON registry_credentials (workspace_id);
 
+-- +goose StatementBegin
+CREATE FUNCTION notify_deployment_change() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('deployment_activity', NEW.id::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+-- +goose StatementEnd
+
+CREATE TRIGGER deployment_change AFTER INSERT OR UPDATE ON deployments
+FOR EACH ROW EXECUTE FUNCTION notify_deployment_change();
+
 -- +goose Down
 DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
@@ -431,6 +442,7 @@ DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployment_activity;
 DROP TABLE IF EXISTS deployment_rollouts;
 DROP TABLE IF EXISTS deployments;
+DROP FUNCTION IF EXISTS notify_deployment_change;
 DROP TYPE IF EXISTS deployment_method;
 DROP TYPE IF EXISTS deployment_actor_type;
 DROP TABLE IF EXISTS resource_domains;

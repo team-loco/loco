@@ -1,3 +1,4 @@
+import { deploymentMessage } from "@/hooks/deployment-watch";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { ArrowRightIcon, RocketIcon } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
@@ -9,7 +10,7 @@ import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
 import { DeploymentActor, DeploymentCommit } from "@/components/design/DeploymentOrigin";
-import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
+import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { observabilityPath, resourcePath } from "@/lib/routes";
@@ -114,7 +115,7 @@ export function RecentDeployments({
 							return (
 								<TableRow key={d.id} onClick={() => void navigate(href)}>
 									<TableCell>
-										<DeploymentPhaseBadge phase={d.status} superseded={deploymentState(d) === "superseded"} />
+										<DeploymentStatusBadge phase={d.status} superseded={deploymentState(d) === "superseded"} />
 									</TableCell>
 									<TableCell className="truncate">
 										<Link
@@ -134,8 +135,8 @@ export function RecentDeployments({
 									<TableCell>
 										<DeploymentActor deployment={d} />
 									</TableCell>
-									<TableCell className="truncate text-fg2" title={d.message}>
-										{d.message}
+									<TableCell className="truncate text-fg2" title={deploymentMessage(d)}>
+										{deploymentMessage(d)}
 									</TableCell>
 									<TableCell
 										className="text-right font-mono text-[12px] whitespace-nowrap text-fg3"

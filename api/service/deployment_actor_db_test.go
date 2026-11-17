@@ -220,6 +220,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 		testMaxPlacementBytes,
 		limits.Defaults(),
 		8,
+		nil,
 	))
 	planv1connect.RegisterPlanServiceHandler(server, newPlanServer(f))
 	resourcev1connect.RegisterResourceServiceHandler(

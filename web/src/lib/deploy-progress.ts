@@ -1,4 +1,4 @@
-import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { healthSummary, type NewResourceForm } from "./new-resource";
 
@@ -12,15 +12,15 @@ export interface ProgressStep {
 
 const DEPLOYING_STEPS = 2;
 
-function isLive(phase: DeploymentPhase | undefined): boolean {
-	return phase === DeploymentPhase.RUNNING || phase === DeploymentPhase.SUCCEEDED;
+function isLive(phase: DeploymentStatus | undefined): boolean {
+	return phase === DeploymentStatus.RUNNING || phase === DeploymentStatus.SUPERSEDED;
 }
 
 export interface RegionProgress {
 	form: Omit<NewResourceForm, "vars">;
 	created: boolean;
 	region: string;
-	phase: DeploymentPhase | undefined;
+	phase: DeploymentStatus | undefined;
 	message: string;
 	error: string | null;
 }
@@ -28,7 +28,7 @@ export interface RegionProgress {
 function stepState(i: number, { created, phase }: RegionProgress): StepState {
 	if (isLive(phase)) return "done";
 	if (!created) return "todo";
-	const active = phase === DeploymentPhase.DEPLOYING ? DEPLOYING_STEPS : 1;
+	const active = phase === DeploymentStatus.DEPLOYING ? DEPLOYING_STEPS : 1;
 	return i < active ? "active" : "todo";
 }
 
@@ -42,8 +42,8 @@ export function regionDeploySteps(progress: RegionProgress): ProgressStep[] {
 		["Route traffic", form.isPublic ? `${form.subdomain}.${form.platformDomain}` : "Internal"],
 		["Live", region],
 	];
-	const canceled = phase === DeploymentPhase.CANCELED;
-	if (error !== null || phase === DeploymentPhase.FAILED || canceled) {
+	const canceled = phase === DeploymentStatus.CANCELED;
+	if (error !== null || phase === DeploymentStatus.FAILED || canceled) {
 		return [
 			...steps.map(([label, meta]): ProgressStep => ({ label, state: "todo", meta })),
 			{ label: canceled ? "Canceled" : "Failed", state: "failed", meta: error ?? message },

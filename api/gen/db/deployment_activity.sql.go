@@ -29,6 +29,25 @@ func (q *Queries) AllocateActivitySeq(ctx context.Context, arg AllocateActivityS
 	return activity_seq, err
 }
 
+const getDeploymentRollout = `-- name: GetDeploymentRollout :one
+SELECT COALESCE(
+ (SELECT desired_revision FROM placements p WHERE p.deployment_id = $1 AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts r WHERE r.deployment_id = $1), 0)::bigint AS current_revision,
+ COALESCE((SELECT snapshot FROM deployment_rollouts r WHERE r.deployment_id = $1 ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS snapshot
+`
+
+type GetDeploymentRolloutRow struct {
+	CurrentRevision int64  `json:"currentRevision"`
+	Snapshot        []byte `json:"snapshot"`
+}
+
+func (q *Queries) GetDeploymentRollout(ctx context.Context, deploymentID *uuid.UUID) (GetDeploymentRolloutRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentRollout, deploymentID)
+	var i GetDeploymentRolloutRow
+	err := row.Scan(&i.CurrentRevision, &i.Snapshot)
+	return i, err
+}
+
 const insertDeploymentActivity = `-- name: InsertDeploymentActivity :exec
 INSERT INTO deployment_activity(deployment_id, seq, revision, at, severity, replica_uid, replica_name, message)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -59,8 +78,48 @@ func (q *Queries) InsertDeploymentActivity(ctx context.Context, arg InsertDeploy
 	return err
 }
 
+const listDeploymentActivity = `-- name: ListDeploymentActivity :many
+SELECT deployment_id, seq, revision, at, severity, replica_uid, replica_name, message FROM deployment_activity WHERE deployment_id = $1 AND seq > $2
+ORDER BY seq LIMIT $3
+`
+
+type ListDeploymentActivityParams struct {
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	AfterSeq     int64     `json:"afterSeq"`
+	PageSize     int32     `json:"pageSize"`
+}
+
+func (q *Queries) ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error) {
+	rows, err := q.db.Query(ctx, listDeploymentActivity, arg.DeploymentID, arg.AfterSeq, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeploymentActivity
+	for rows.Next() {
+		var i DeploymentActivity
+		if err := rows.Scan(
+			&i.DeploymentID,
+			&i.Seq,
+			&i.Revision,
+			&i.At,
+			&i.Severity,
+			&i.ReplicaUid,
+			&i.ReplicaName,
+			&i.Message,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockRollout = `-- name: LockRollout :one
-SELECT snapshot FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE
+SELECT snapshot FROM deployment_rollouts r WHERE r.deployment_id = $1 AND revision = $2 FOR UPDATE
 `
 
 type LockRolloutParams struct {

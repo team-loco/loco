@@ -96,7 +96,7 @@ func regionStatus(
 		ReadyReplicas:    row.ReadyReplicas,
 		DesiredReplicas:  row.DesiredReplicas,
 		DeploymentId:     row.DeploymentID.String(),
-		DeploymentStatus: parseDeploymentPhase(row.DeploymentStatus),
+		DeploymentStatus: parseDeploymentStatus(row.DeploymentStatus),
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
@@ -159,10 +159,11 @@ func clusterSilence(row genDb.ListRegionStatusesForResourcesRow, now time.Time, 
 }
 
 func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev1.ResourceStatus) *string {
-	if row.DeploymentStatus == genDb.DeploymentStatusFailed && row.DeploymentMessage != "" {
-		return new(row.DeploymentMessage)
+	if row.DeploymentStatus == genDb.DeploymentStatusFailed && row.DeploymentProblemDetail != "" {
+		return new(row.DeploymentProblemDetail)
 	}
-	if status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY && row.StatusMessage != "" {
+	if row.StatusMessage != "" && (status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY ||
+		row.DeploymentStatus == genDb.DeploymentStatusFailed) {
 		return new(row.StatusMessage)
 	}
 	return nil

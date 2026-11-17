@@ -20,7 +20,7 @@ func TestDeploymentCreationRequiresAPrincipal(t *testing.T) {
 		wantCode(t, err, connect.CodeUnauthenticated)
 	})
 	t.Run("scale", func(t *testing.T) {
-		_, err := (&ResourceServer{}).planRegionRedeploy(t.Context(), nil, genDb.Deployment{}, nil, 1, "")
+		_, err := (&ResourceServer{}).planRegionRedeploy(t.Context(), nil, genDb.Deployment{}, nil, 1)
 		wantCode(t, err, connect.CodeUnauthenticated)
 	})
 }

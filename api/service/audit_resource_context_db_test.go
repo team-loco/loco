@@ -67,6 +67,7 @@ func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
 		testMaxPlacementBytes,
 		limits.Defaults(),
 		8,
+		nil,
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},

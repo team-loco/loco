@@ -2,7 +2,7 @@ import { DefaultServiceConfigSchema } from "@gen/loco/config/v1/config_pb";
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
 import {
-	DeploymentPhase,
+	DeploymentStatus,
 	DeploymentSchema,
 	DeploymentSpecSchema,
 	HealthCheckConfigSchema,
@@ -37,10 +37,10 @@ function deployment(id: string, regionName: string, replicas = 2): Deployment {
 	return create(DeploymentSchema, {
 		id,
 		region: regionName,
-		replicas,
+		desiredReplicas: replicas,
 		isActive: true,
 		commit: { sha: "a".repeat(40), dirty: true },
-		status: DeploymentPhase.RUNNING,
+		status: DeploymentStatus.RUNNING,
 		spec: create(DeploymentSpecSchema, {
 			spec: {
 				case: "service",

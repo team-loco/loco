@@ -1,7 +1,7 @@
 import {
 	DeploymentActorType,
 	DeploymentMethod,
-	DeploymentPhase,
+	DeploymentStatus,
 	type Deployment,
 	type ServiceDeploymentSpec,
 } from "@gen/loco/deployment/v1/deployment_pb";
@@ -22,21 +22,21 @@ export function deploymentImage(d: Deployment): string {
 	return getServiceSpec(d)?.build?.image ?? "";
 }
 
-export function isInFlight(phase: DeploymentPhase): boolean {
+export function isInFlight(phase: DeploymentStatus): boolean {
 	switch (phase) {
-		case DeploymentPhase.PENDING:
+		case DeploymentStatus.BUILDING:
 			return true;
-		case DeploymentPhase.DEPLOYING:
+		case DeploymentStatus.DEPLOYING:
 			return true;
-		case DeploymentPhase.UNSPECIFIED:
+		case DeploymentStatus.UNSPECIFIED:
 			return false;
-		case DeploymentPhase.RUNNING:
+		case DeploymentStatus.RUNNING:
 			return false;
-		case DeploymentPhase.SUCCEEDED:
+		case DeploymentStatus.SUPERSEDED:
 			return false;
-		case DeploymentPhase.FAILED:
+		case DeploymentStatus.FAILED:
 			return false;
-		case DeploymentPhase.CANCELED:
+		case DeploymentStatus.CANCELED:
 			return false;
 	}
 }

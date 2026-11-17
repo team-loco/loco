@@ -91,11 +91,8 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deployment to proto: %v", err)
 	}
-	if deployment.GetStatus() != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
+	if deployment.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("deployment phase = %s, want failed", deployment.GetStatus())
-	}
-	if deployment.GetMessage() != message {
-		t.Fatalf("deployment message = %q, want %q", deployment.GetMessage(), message)
 	}
 }
 

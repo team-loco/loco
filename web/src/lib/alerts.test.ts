@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { alertedResourceCount, buildAlerts } from "./alerts";
@@ -33,7 +33,7 @@ const api = create(ResourceSchema, {
 			environmentId: STAGING,
 			regions: [
 				{ region: "us-east", status: ResourceStatus.DEPLOYING },
-				{ region: "eu-west", status: ResourceStatus.HEALTHY, deploymentStatus: DeploymentPhase.FAILED },
+				{ region: "eu-west", status: ResourceStatus.HEALTHY, deploymentStatus: DeploymentStatus.FAILED },
 			],
 		},
 	],

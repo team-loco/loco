@@ -11,7 +11,7 @@ import { diffLines, sideBySide, specChanges } from "./spec";
 
 function deployment(image: string, replicas: number, env: Record<string, string>): Deployment {
 	return create(DeploymentSchema, {
-		replicas,
+		desiredReplicas: replicas,
 		spec: create(DeploymentSpecSchema, {
 			spec: {
 				case: "service",

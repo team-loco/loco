@@ -711,7 +711,6 @@ func (s *ResourceServer) scaleCurrentDeployments(
 			current,
 			serviceDeploymentSpec,
 			replicas,
-			"Scheduled scaling event.",
 		)
 		if planErr != nil {
 			return planErr
@@ -835,7 +834,6 @@ func (s *ResourceServer) planRegionRedeploy(
 	current genDb.Deployment,
 	serviceDeploymentSpec *deploymentv1.ServiceDeploymentSpec,
 	replicas int32,
-	message string,
 ) (regionRedeploy, error) {
 	principal, err := principalFrom(ctx)
 	if err != nil {
@@ -864,7 +862,6 @@ func (s *ResourceServer) planRegionRedeploy(
 			Replicas:      replicas,
 			Status:        genDb.DeploymentStatusDeploying,
 			IsActive:      true,
-			Message:       message,
 			Spec:          specJSON,
 			SpecVersion:   specVersion,
 			EnvironmentID: current.EnvironmentID,

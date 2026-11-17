@@ -7,21 +7,14 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/deployment/v1;deploymentv1";
 
-// DeploymentPhase indicates the current state of a deployment lifecycle.
-enum DeploymentPhase {
-  DEPLOYMENT_PHASE_UNSPECIFIED = 0;
-  // Pre-deployment: created in DB, waiting for controller to pick it up
-  DEPLOYMENT_PHASE_PENDING = 1;
-  // Active: controller is actively deploying (pulling image, creating pods, etc)
-  DEPLOYMENT_PHASE_DEPLOYING = 2;
-  // Running: pods are up, healthy, ready to serve traffic
-  DEPLOYMENT_PHASE_RUNNING = 3;
-  // Terminal: one-off jobs completed successfully
-  DEPLOYMENT_PHASE_SUCCEEDED = 4;
-  // Terminal: error during deployment or runtime
-  DEPLOYMENT_PHASE_FAILED = 5;
-  // Terminal: user explicitly cancelled
-  DEPLOYMENT_PHASE_CANCELED = 6;
+enum DeploymentStatus {
+  DEPLOYMENT_STATUS_UNSPECIFIED = 0;
+  DEPLOYMENT_STATUS_BUILDING = 1;
+  DEPLOYMENT_STATUS_DEPLOYING = 2;
+  DEPLOYMENT_STATUS_RUNNING = 3;
+  DEPLOYMENT_STATUS_FAILED = 4;
+  DEPLOYMENT_STATUS_CANCELED = 5;
+  DEPLOYMENT_STATUS_SUPERSEDED = 6;
 }
 
 // DeploymentService manages resource deployments.
@@ -34,6 +27,7 @@ service DeploymentService {
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
   // WatchDeployment streams deployment events in real-time.
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
+  rpc ListDeploymentActivity(ListDeploymentActivityRequest) returns (ListDeploymentActivityResponse);
   // DeleteDeployment deletes/inactivates a deployment.
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
   // ResolveImage returns the digest-pinned image reference.
@@ -184,10 +178,9 @@ message Deployment {
   string resource_id = 2;
   string cluster_id = 3;
   string region = 4;
-  int32 replicas = 5;
-  DeploymentPhase status = 6;
+  int32 desired_replicas = 5;
+  DeploymentStatus status = 6;
   bool is_active = 7;
-  string message = 8;
   google.protobuf.Timestamp created_at = 9;
   optional google.protobuf.Timestamp started_at = 10;
   optional google.protobuf.Timestamp completed_at = 11;
@@ -201,6 +194,9 @@ message Deployment {
   string actor_avatar_url = 19;
   DeploymentMethod method = 20;
   SourceCommit commit = 21;
+  int64 current_revision = 22;
+  Problem problem = 23;
+  repeated Replica replicas = 24;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
@@ -281,17 +277,59 @@ message ListDeploymentsResponse {
   string next_page_token = 2; // empty if no more pages
 }
 
-// WatchDeploymentRequest is the request to stream deployment events.
-message WatchDeploymentRequest {
-  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
+message Replica {
+  string uid = 1;
+  string name = 2;
+  string node = 3;
+  int64 placement_revision = 4;
+  string state = 5;
+  google.protobuf.Timestamp state_since = 6;
+  google.protobuf.Timestamp state_deadline = 7;
+  int32 restarts = 8;
+  optional int32 exit_code = 9;
+  string detail = 10;
 }
 
-// WatchDeploymentResponse represents a deployment event stream response.
+message Problem {
+  string reason = 1;
+  string message = 2;
+  string detail = 3;
+  string replica_name = 4;
+  google.protobuf.Timestamp since = 5;
+}
+
+message Activity {
+  int64 seq = 1;
+  int64 revision = 2;
+  google.protobuf.Timestamp at = 3;
+  string severity = 4;
+  string replica_name = 5;
+  string message = 6;
+}
+
+message WatchDeploymentRequest {
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
+  int64 after_seq = 2 [(buf.validate.field).int64.gte = 0];
+}
+
 message WatchDeploymentResponse {
-  string deployment_id = 1;
-  DeploymentPhase status = 2;
-  string message = 3;
-  google.protobuf.Timestamp timestamp = 4;
+  Deployment deployment = 1;
+  repeated Activity activity = 2;
+  bool has_more_activity = 3;
+}
+
+message ListDeploymentActivityRequest {
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
+  int64 after_seq = 2 [(buf.validate.field).int64.gte = 0];
+  int32 page_size = 3 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+}
+
+message ListDeploymentActivityResponse {
+  repeated Activity activity = 1;
+  int64 next_seq = 2;
 }
 
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.

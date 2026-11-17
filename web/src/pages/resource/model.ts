@@ -1,7 +1,7 @@
 import { createQueryOptions, skipToken, useInfiniteQuery, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import { DeploymentPhase, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment, type ServiceDeploymentSpec } from "@gen/loco/deployment/v1/deployment_pb";
 import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import {
 	ResourceStatus,
@@ -120,12 +120,13 @@ export function isDeployed(region: RegionView): boolean {
 }
 
 export function canRollBackTo(dep: Deployment, region: RegionView): boolean {
-	return dep.id !== region.current?.id && dep.status !== DeploymentPhase.FAILED && dep.spec !== undefined;
+	return dep.id !== region.current?.id && dep.status !== DeploymentStatus.FAILED && dep.spec !== undefined;
 }
 
 export function lastGoodDeployment(region: RegionView): Deployment | undefined {
 	return region.history.find(
-		(d) => canRollBackTo(d, region) && (d.status === DeploymentPhase.RUNNING || d.status === DeploymentPhase.SUCCEEDED),
+		(d) =>
+			canRollBackTo(d, region) && (d.status === DeploymentStatus.RUNNING || d.status === DeploymentStatus.SUPERSEDED),
 	);
 }
 

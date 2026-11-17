@@ -1,3 +1,4 @@
+import { deploymentMessage } from "@/hooks/deployment-watch";
 import type { TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useTransport } from "@connectrpc/connect-query";
@@ -15,7 +16,7 @@ import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
-import { DeploymentPhaseBadge } from "@/components/design/StatusBadge";
+import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -328,7 +329,7 @@ export function DeploymentsSection({
 												</CollapsibleTrigger>
 											</TableCell>
 											<TableCell>
-												<DeploymentPhaseBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
+												<DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />
 											</TableCell>
 											<TableCell>
 												<span className="flex min-w-0 items-center gap-1.5">
@@ -342,8 +343,8 @@ export function DeploymentsSection({
 											{multiRegion && (
 												<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
 											)}
-											<TableCell className="max-w-0 truncate text-fg2" title={dep.message}>
-												{dep.message}
+											<TableCell className="max-w-0 truncate text-fg2" title={deploymentMessage(dep)}>
+												{deploymentMessage(dep)}
 											</TableCell>
 											<TableCell className="text-right font-mono text-[12px] text-fg2">
 												{took === undefined ? "—" : formatDuration(took)}

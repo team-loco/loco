@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	applyDeploymentMessage = "Applied loco.yaml"
-	specVersion            = 1
+	specVersion = 1
 )
 
 var errNoBuildToDeploy = errors.New("the service has no build to deploy")
@@ -311,7 +310,6 @@ func (a *applier) deploy(
 			Replicas:      service.GetMinReplicas(),
 			Status:        genDb.DeploymentStatusDeploying,
 			IsActive:      true,
-			Message:       applyDeploymentMessage,
 			Spec:          specJSON,
 			SpecVersion:   specVersion,
 			EnvironmentID: a.env.ID,

@@ -119,7 +119,7 @@ type Querier interface {
 	// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
 	GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDeploymentEventRow, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
-	GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error)
+	GetDeploymentRollout(ctx context.Context, deploymentID *uuid.UUID) (GetDeploymentRolloutRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
@@ -179,6 +179,7 @@ type Querier interface {
 	ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID) ([]ListClusterWorkloadsRow, error)
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
+	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error)
 	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
@@ -314,7 +315,6 @@ type Querier interface {
 	TouchIdentity(ctx context.Context, arg TouchIdentityParams) error
 	TouchSessionLastUsed(ctx context.Context, id uuid.UUID) error
 	TryAdvisoryLock(ctx context.Context, lockKey int64) (bool, error)
-	UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error
 	// Cluster queries for agent operations
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error

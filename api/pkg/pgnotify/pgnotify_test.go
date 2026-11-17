@@ -1,4 +1,4 @@
-package clusternotify_test
+package pgnotify_test
 
 import (
 	"context"
@@ -11,15 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/clusternotify"
+	"github.com/team-loco/loco/api/pkg/pgnotify"
 )
 
-func startNotifier(t *testing.T, pool *pgxpool.Pool) *clusternotify.Notifier {
+func startNotifier(t *testing.T, pool *pgxpool.Pool) *pgnotify.Notifier {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	poolConfig := pool.Config()
-	n := clusternotify.New(poolConfig.ConnConfig, time.Hour)
+	n := pgnotify.New(poolConfig.ConnConfig, "placements", time.Hour)
 	if err := n.Connect(ctx); err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestListenersHoldNoPoolConnections(t *testing.T) {
 	ctx := context.Background()
 
 	maxConns := int(pool.Config().MaxConns)
-	listeners := make([]*clusternotify.Listener, 0, maxConns*2+1)
+	listeners := make([]*pgnotify.Listener, 0, maxConns*2+1)
 	for range maxConns * 2 {
 		listeners = append(listeners, n.Listen(uuid.New()))
 	}
@@ -151,7 +151,7 @@ func TestListenerUsesItsOwnConnectionAfterQueryPoolCloses(t *testing.T) {
 	t.Parallel()
 	pool := dbtest.NewPool(t)
 	config := pool.Config().ConnConfig
-	notifier := clusternotify.New(config, time.Hour)
+	notifier := pgnotify.New(config, "placements", time.Hour)
 	pool.Close()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -186,7 +186,7 @@ func TestCancelledContextClosesListenConnectionBeforeWaitReturns(t *testing.T) {
 	pool := dbtest.NewPool(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	n := clusternotify.New(pool.Config().ConnConfig, time.Hour)
+	n := pgnotify.New(pool.Config().ConnConfig, "placements", time.Hour)
 	if err := n.Connect(ctx); err != nil {
 		t.Fatal(err)
 	}

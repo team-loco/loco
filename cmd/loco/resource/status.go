@@ -18,7 +18,7 @@ import (
 
 const (
 	notDeployedMessage    = "Not deployed to any environment."
-	deploymentPhasePrefix = "DEPLOYMENT_PHASE_"
+	deploymentPhasePrefix = "DEPLOYMENT_STATUS_"
 )
 
 var (
@@ -213,7 +213,7 @@ func statusColor(status resourcev1.ResourceStatus) ui.Color {
 	}
 }
 
-func deploymentLabel(phase deploymentv1.DeploymentPhase) string {
+func deploymentLabel(phase deploymentv1.DeploymentStatus) string {
 	name := strings.TrimPrefix(phase.String(), deploymentPhasePrefix)
 	return strings.ToLower(name)
 }

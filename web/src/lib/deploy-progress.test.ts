@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { regionDeploySteps, runOutcome, type RegionProgress } from "./deploy-progress";
 
@@ -34,10 +34,10 @@ test("regionDeploySteps waits on nothing until the resource exists", () => {
 });
 
 test("regionDeploySteps pulls while queued and starts replicas while deploying", () => {
-	expect(states({ phase: DeploymentPhase.PENDING })).toEqual(["active", "todo", "todo", "todo", "todo"]);
+	expect(states({ phase: DeploymentStatus.BUILDING })).toEqual(["active", "todo", "todo", "todo", "todo"]);
 	const deploying = regionDeploySteps({
 		...progress,
-		phase: DeploymentPhase.DEPLOYING,
+		phase: DeploymentStatus.DEPLOYING,
 		message: "Scheduling deployment",
 	});
 	expect(deploying.map((s) => s.state)).toEqual(["active", "active", "todo", "todo", "todo"]);
@@ -48,9 +48,9 @@ test("regionDeploySteps leaves every step to do and adds one failed line", () =>
 	const steps = regionDeploySteps({ ...progress, error: "region has no cluster" });
 	expect(steps.map((s) => s.state)).toEqual(["todo", "todo", "todo", "todo", "todo", "failed"]);
 	expect(steps.at(-1)).toEqual({ label: "Failed", state: "failed", meta: "region has no cluster" });
-	const failed = regionDeploySteps({ ...progress, phase: DeploymentPhase.FAILED, message: "image pull backoff" });
+	const failed = regionDeploySteps({ ...progress, phase: DeploymentStatus.FAILED, message: "image pull backoff" });
 	expect(failed.at(-1)).toEqual({ label: "Failed", state: "failed", meta: "image pull backoff" });
-	const canceled = regionDeploySteps({ ...progress, phase: DeploymentPhase.CANCELED, message: "superseded" });
+	const canceled = regionDeploySteps({ ...progress, phase: DeploymentStatus.CANCELED, message: "superseded" });
 	expect(canceled.at(-1)).toEqual({ label: "Canceled", state: "failed", meta: "superseded" });
 });
 
@@ -64,7 +64,7 @@ test("regionDeploySteps marks every step done once the deployment runs", () => {
 			platformDomain: "apps.test",
 			health: { ...progress.form.health, path: "/healthz" },
 		},
-		phase: DeploymentPhase.RUNNING,
+		phase: DeploymentStatus.RUNNING,
 	});
 	expect(steps.map((s) => [s.label, s.state, s.meta])).toEqual([
 		["Pull image", "done", "web:1"],
@@ -77,10 +77,10 @@ test("regionDeploySteps marks every step done once the deployment runs", () => {
 });
 
 test("runOutcome is failed only once every region failed", () => {
-	const live = regionDeploySteps({ ...progress, phase: DeploymentPhase.RUNNING });
-	const failed = regionDeploySteps({ ...progress, phase: DeploymentPhase.FAILED, message: "image pull backoff" });
+	const live = regionDeploySteps({ ...progress, phase: DeploymentStatus.RUNNING });
+	const failed = regionDeploySteps({ ...progress, phase: DeploymentStatus.FAILED, message: "image pull backoff" });
 	const rejected = regionDeploySteps({ ...progress, error: "region has no cluster" });
-	const pending = regionDeploySteps({ ...progress, phase: DeploymentPhase.PENDING });
+	const pending = regionDeploySteps({ ...progress, phase: DeploymentStatus.BUILDING });
 	expect(runOutcome([failed, rejected])).toBe("failed");
 	expect(runOutcome([live, live])).toBe("live");
 	expect(runOutcome([failed, pending])).toBe("deploying");

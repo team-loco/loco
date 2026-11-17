@@ -36,20 +36,20 @@ func TestNextDeploymentStatus(t *testing.T) {
 	}
 }
 
-func TestDeploymentPhaseMapping(t *testing.T) {
+func TestDeploymentStatusMapping(t *testing.T) {
 	for _, tt := range []struct {
 		status   genDb.DeploymentStatus
-		phase    deploymentv1.DeploymentPhase
+		phase    deploymentv1.DeploymentStatus
 		terminal bool
 	}{
-		{genDb.DeploymentStatusBuilding, deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING, false},
-		{genDb.DeploymentStatusDeploying, deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING, false},
-		{genDb.DeploymentStatusRunning, deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING, false},
-		{genDb.DeploymentStatusFailed, deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED, true},
-		{genDb.DeploymentStatusCanceled, deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED, true},
-		{genDb.DeploymentStatusSuperseded, deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED, true},
+		{genDb.DeploymentStatusBuilding, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING, false},
+		{genDb.DeploymentStatusDeploying, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING, false},
+		{genDb.DeploymentStatusRunning, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING, false},
+		{genDb.DeploymentStatusFailed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, false},
+		{genDb.DeploymentStatusCanceled, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED, true},
+		{genDb.DeploymentStatusSuperseded, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED, true},
 	} {
-		if parseDeploymentPhase(tt.status) != tt.phase || isTerminalDeploymentStatus(tt.status) != tt.terminal {
+		if parseDeploymentStatus(tt.status) != tt.phase || isTerminalDeploymentStatus(tt.phase) != tt.terminal {
 			t.Fatalf("mapping %s", tt.status)
 		}
 	}

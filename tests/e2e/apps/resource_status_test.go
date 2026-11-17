@@ -164,7 +164,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 				t,
 				w,
 				app,
-			); region.GetDeploymentStatus() != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING {
+			); region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
 				return fmt.Errorf("deployment %v", region.GetDeploymentStatus())
 			}
 			return nil
@@ -265,7 +265,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	if status := getDeployment(
 		t,
 		newDeployment,
-	).GetStatus(); status != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
+	).GetStatus(); status != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Errorf("the API reports the new deployment %v, want failed", status)
 	}
 	checkDeploymentFailedEvent(t, w, id, newDeployment, app)
@@ -449,7 +449,7 @@ func waitRolloutFinished(t *testing.T, w *platform.Workspace, app string) {
 		if err != nil {
 			return err
 		}
-		if current.region.GetDeploymentStatus() != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING ||
+		if current.region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING ||
 			current.status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY {
 			return fmt.Errorf("deployment %v, status %v", current.region.GetDeploymentStatus(), current.status)
 		}
@@ -684,7 +684,7 @@ func (s *status) unavailable(t *testing.T) {
 	waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE)
 	region := regionStatus(t, w, app)
 	p.MustKubectl(t, "uncordon", p.Node())
-	if region.GetDeploymentStatus() != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING {
+	if region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
 		t.Errorf("the deployment reads %v while its pods cannot run, want running", region.GetDeploymentStatus())
 	}
 	if region.GetReadyReplicas() != 0 {

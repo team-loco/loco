@@ -26,6 +26,11 @@ export const getDeployment = DeploymentService.method.getDeployment;
 export const listDeployments = DeploymentService.method.listDeployments;
 
 /**
+ * @generated from rpc loco.deployment.v1.DeploymentService.ListDeploymentActivity
+ */
+export const listDeploymentActivity = DeploymentService.method.listDeploymentActivity;
+
+/**
  * DeleteDeployment deletes/inactivates a deployment.
  *
  * @generated from rpc loco.deployment.v1.DeploymentService.DeleteDeployment

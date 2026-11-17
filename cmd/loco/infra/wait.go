@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
+
+	"connectrpc.com/connect/v2"
 
 	"github.com/spf13/cobra"
 
@@ -17,7 +20,6 @@ const waitUsage = "Wait until every deployment the command starts runs, and fail
 
 var (
 	errDeploymentNotRunning = errors.New("deployment did not run")
-	errWatchEnded           = errors.New("the deployment watch ended before the deployment ran")
 )
 
 func addWaitFlag(cmd *cobra.Command) {
@@ -35,7 +37,7 @@ func readWait(cmd *cobra.Command) (bool, error) {
 // waitRunning returns once every deployment runs, and on the first one that fails or is canceled.
 func waitRunning(ctx context.Context, t cmdutil.Target, w io.Writer, deployments []*planv1.StartedDeployment) error {
 	for _, deployment := range deployments {
-		if err := waitDeployment(ctx, t, deployment); err != nil {
+		if err := waitDeployment(ctx, t, w, deployment); err != nil {
 			return err
 		}
 		if _, err := fmt.Fprintf(w, "Deployment %s for %s in %s is running.\n",
@@ -46,35 +48,81 @@ func waitRunning(ctx context.Context, t cmdutil.Target, w io.Writer, deployments
 	return nil
 }
 
-func waitDeployment(ctx context.Context, t cmdutil.Target, deployment *planv1.StartedDeployment) error {
+func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployment *planv1.StartedDeployment) error {
 	id := deployment.GetDeploymentId()
-	stream, err := t.Clients.Deployment.WatchDeployment(ctx, &deploymentv1.WatchDeploymentRequest{DeploymentId: id})
-	if err != nil {
-		return fmt.Errorf("watch deployment %s: %w", id, err)
-	}
+	var cursor int64
 	for {
-		event, receiveErr := stream.Receive()
-		if receiveErr != nil {
-			closeErr := stream.Close()
-			if errors.Is(receiveErr, io.EOF) {
-				return errors.Join(fmt.Errorf("%w: %s", errWatchEnded, id), closeErr)
+		stream, err := t.Clients.Deployment.WatchDeployment(
+			ctx,
+			&deploymentv1.WatchDeploymentRequest{DeploymentId: id, AfterSeq: cursor},
+		)
+		if err == nil {
+			for {
+				event, receiveErr := stream.Receive()
+				if receiveErr != nil {
+					err = errors.Join(receiveErr, stream.Close())
+					break
+				}
+				for _, entry := range event.GetActivity() {
+					if entry.GetSeq() <= cursor {
+						continue
+					}
+					prefix := entry.GetReplicaName()
+					if prefix != "" {
+						prefix += " · "
+					}
+					if _, writeErr := fmt.Fprintf(w, "%s%s\n", prefix, entry.GetMessage()); writeErr != nil {
+						return errors.Join(writeErr, stream.Close())
+					}
+					cursor = entry.GetSeq()
+				}
+				if event.GetHasMoreActivity() {
+					continue
+				}
+				current := event.GetDeployment()
+				switch current.GetStatus() {
+				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED:
+					return stream.Close()
+				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED:
+					outcome := "failed"
+					if current.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED {
+						outcome = "was canceled"
+					}
+					problem := current.GetProblem()
+					message := problem.GetMessage()
+					if problem.GetDetail() != "" {
+						message += " · " + problem.GetDetail()
+					}
+					return errors.Join(
+						fmt.Errorf(
+							"%w: deployment %s for %s in %s %s: %s",
+							errDeploymentNotRunning,
+							id,
+							deployment.GetService(),
+							deployment.GetRegion(),
+							outcome,
+							message,
+						),
+						stream.Close(),
+					)
+				}
 			}
-			return errors.Join(fmt.Errorf("watch deployment %s: %w", id, receiveErr), closeErr)
 		}
-		var outcome string
-		switch event.GetStatus() {
-		case deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
-			deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED:
-			return stream.Close()
-		case deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED:
-			outcome = "failed"
-		case deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED:
-			outcome = "was canceled"
-		default:
-			continue
+		if ctx.Err() != nil {
+			return fmt.Errorf("watch deployment %s: %w", id, ctx.Err())
 		}
-		closeErr := stream.Close()
-		return errors.Join(fmt.Errorf("%w: deployment %s for %s in %s %s: %s", errDeploymentNotRunning,
-			id, deployment.GetService(), deployment.GetRegion(), outcome, event.GetMessage()), closeErr)
+		if !errors.Is(err, io.EOF) && connect.CodeOf(err) != connect.CodeUnavailable &&
+			connect.CodeOf(err) != connect.CodeDeadlineExceeded {
+			return fmt.Errorf("watch deployment %s: %w", id, err)
+		}
+		timer := time.NewTimer(time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
 	}
 }

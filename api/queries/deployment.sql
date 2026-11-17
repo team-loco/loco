@@ -1,18 +1,18 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 RETURNING id;
 
 -- name: GetDeploymentByID :one
 SELECT * FROM deployments WHERE id = $1;
 
--- name: GetDeploymentStatus :one
-SELECT status, message FROM deployments WHERE id = $1;
-
 -- name: ListResourceDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -38,6 +38,9 @@ LIMIT sqlc.arg('page_size');
 
 -- name: ListEnvironmentDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -87,11 +90,6 @@ UPDATE deployments
 SET status = $2, updated_at = NOW()
 WHERE id = $1;
 
--- name: UpdateActiveDeploymentStatus :exec
-UPDATE deployments
-SET status = $2, message = $3, updated_at = NOW()
-WHERE resource_id = $1 AND is_active = true;
-
 -- name: ListActiveDeployments :many
 SELECT resource_id FROM deployments WHERE is_active = true;
 
@@ -107,7 +105,6 @@ SET status = sqlc.arg(status),
         WHEN sqlc.arg(status)::deployment_status = 'running' THEN COALESCE(started_at, NOW())
         ELSE started_at
     END,
-    message = sqlc.arg(message),
     completed_at = CASE
         WHEN sqlc.arg(status)::deployment_status IN ('superseded', 'failed', 'canceled') THEN NOW()
         ELSE NULL
@@ -130,7 +127,7 @@ ORDER BY resource_id, created_at DESC;
 
 -- name: GetDeploymentEvent :one
 -- creator_* is NULL when the creating user, or the API token that names it, no longer exists.
-SELECT d.resource_id, d.environment_id, d.region, d.spec, d.message, d.actor_type, d.actor_id,
+SELECT d.resource_id, d.environment_id, d.region, d.spec, d.actor_type, d.actor_id,
        r.name AS resource_name, r.type AS resource_type,
        u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
 FROM deployments d

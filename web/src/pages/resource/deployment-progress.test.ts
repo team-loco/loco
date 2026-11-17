@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import { BuildSchema, BuildStatus } from "@gen/loco/build/v1/build_pb";
-import { DeploymentSchema, DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentSchema, DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { expect, test } from "bun:test";
 
 import { deploymentSteps, progressDeployments } from "./deployment-progress";
@@ -10,7 +10,7 @@ import type { RegionView } from "./model";
 const previous = create(DeploymentSchema, {
 	id: "previous",
 	region: "east",
-	status: DeploymentPhase.RUNNING,
+	status: DeploymentStatus.RUNNING,
 	isActive: true,
 	createdAt: timestampFromMs(1000),
 	spec: { spec: { case: "service", value: { build: { type: "image", image: "example.test/app:v1" } } } },
@@ -18,7 +18,7 @@ const previous = create(DeploymentSchema, {
 const pending = create(DeploymentSchema, {
 	id: "pending",
 	region: "east",
-	status: DeploymentPhase.PENDING,
+	status: DeploymentStatus.BUILDING,
 	createdAt: timestampFromMs(3000),
 });
 const region: RegionView = { name: "east", history: [pending, previous], current: previous, status: undefined };
@@ -30,9 +30,9 @@ test("a new pending deployment appears while the region still runs its previous 
 });
 
 test("a failed newest deployment offers the previous running release", () => {
-	const failed = create(DeploymentSchema, { ...pending, status: DeploymentPhase.FAILED });
+	const failed = create(DeploymentSchema, { ...pending, status: DeploymentStatus.FAILED });
 	expect(progressDeployments([{ ...region, history: [failed, previous] }])[0]?.previous?.id).toBe("previous");
-	const running = create(DeploymentSchema, { ...pending, status: DeploymentPhase.RUNNING });
+	const running = create(DeploymentSchema, { ...pending, status: DeploymentStatus.RUNNING });
 	expect(progressDeployments([{ ...region, history: [running, previous] }])).toEqual([]);
 });
 
@@ -51,18 +51,18 @@ test("progress does not use a sibling region's deployments", () => {
 });
 
 test("queued, deploying and running follow deployment phases", () => {
-	const states = (status: DeploymentPhase) =>
+	const states = (status: DeploymentStatus) =>
 		deploymentSteps(create(DeploymentSchema, { ...pending, status }), undefined).map((s) => s.state);
-	expect(states(DeploymentPhase.PENDING)).toEqual(["active", "todo", "todo"]);
-	expect(states(DeploymentPhase.DEPLOYING)).toEqual(["done", "active", "todo"]);
-	expect(states(DeploymentPhase.RUNNING)).toEqual(["done", "done", "done"]);
-	expect(states(DeploymentPhase.CANCELED)).toEqual(["done", "failed", "todo"]);
+	expect(states(DeploymentStatus.BUILDING)).toEqual(["active", "todo", "todo"]);
+	expect(states(DeploymentStatus.DEPLOYING)).toEqual(["done", "active", "todo"]);
+	expect(states(DeploymentStatus.RUNNING)).toEqual(["done", "done", "done"]);
+	expect(states(DeploymentStatus.CANCELED)).toEqual(["done", "failed", "todo"]);
 });
 
 test("a failed deployment marks the deployment phase and leaves Running incomplete", () => {
 	const failed = create(DeploymentSchema, {
 		...pending,
-		status: DeploymentPhase.FAILED,
+		status: DeploymentStatus.FAILED,
 	});
 	expect(deploymentSteps(failed, undefined)).toEqual([
 		{ label: "Queued", detail: "", state: "done" },

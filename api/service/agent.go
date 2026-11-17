@@ -17,7 +17,7 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/clusternotify"
+	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/internal/bearer"
@@ -45,7 +45,7 @@ type AgentConfig struct {
 type AgentServer struct {
 	db                *pgxpool.Pool
 	queries           genDb.Querier
-	notifier          *clusternotify.Notifier
+	notifier          *pgnotify.Notifier
 	sources           SourceBucket
 	provider          secretkeys.Provider
 	config            AgentConfig
@@ -57,7 +57,7 @@ type AgentServer struct {
 func NewAgentServer(
 	db *pgxpool.Pool,
 	queries genDb.Querier,
-	notifier *clusternotify.Notifier,
+	notifier *pgnotify.Notifier,
 	sources SourceBucket,
 	provider secretkeys.Provider,
 	heartbeatInterval time.Duration,

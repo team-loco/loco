@@ -300,7 +300,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	f.ready(t, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
 	})
 
 	f.agentServer().recordHeartbeat(t.Context(), f.clusterID, &agentv1.Heartbeat{
@@ -309,7 +309,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	})
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
 		message: regionMessageDomainsUnserved + domainsServedHostname,
 	})
 	if n := f.count(t, `SELECT count(*) FROM resource_domains WHERE resource_id = $1`); n != 1 {
@@ -324,7 +324,7 @@ VALUES ($1, $2, $3, 'platform_provided', 'app', $4, true)`
 	f.heartbeat(t, f.clusterID, time.Now(), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
 	})
 }
 
