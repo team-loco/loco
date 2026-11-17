@@ -92,14 +92,9 @@ func (r *ApplicationReconciler) observeReplicas(
 	dep *appsv1ac.DeploymentApplyConfiguration,
 	now time.Time,
 ) error {
-	var listed corev1.PodList
-	if err := r.List(
-		ctx,
-		&listed,
-		client.InNamespace(r.workspaceNamespace(app)),
-		client.MatchingLabels{labelApp: locov1alpha1.ApplicationName(app.Spec.ResourceID)},
-	); err != nil {
-		return fmt.Errorf("list rollout replicas: %w", err)
+	listed, pulls, err := r.listRolloutPods(ctx, app)
+	if err != nil {
+		return err
 	}
 	pods := make(map[types.UID]corev1.Pod)
 	for _, pod := range r.deletedReplicas(client.ObjectKeyFromObject(app), now) {
@@ -109,7 +104,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	for uid := range pods {
 		deleted[uid] = true
 	}
-	for _, pod := range listed.Items {
+	for _, pod := range listed {
 		delete(deleted, pod.UID)
 		pods[pod.UID] = pod
 	}
@@ -120,7 +115,8 @@ func (r *ApplicationReconciler) observeReplicas(
 	var current []corev1.Pod
 	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
-		replica := replicaState(&pod, r.RuntimeRecoveryWindow, now)
+		pull := pulls[pod.UID]
+		replica := replicaState(&pod, &pull, r.RuntimeRecoveryWindow, now)
 		if deleted[pod.UID] && replica.State != locov1alpha1.ReplicaKilled &&
 			replica.State != locov1alpha1.ReplicaStopped {
 			replica.State = locov1alpha1.ReplicaStopped
@@ -143,7 +139,8 @@ func (r *ApplicationReconciler) observeReplicas(
 		}
 		if app.Status.Rollout != nil {
 			for _, old := range app.Status.Rollout.Replicas {
-				if old.UID == replica.UID && old.State == replica.State {
+				if old.UID == replica.UID && old.State == replica.State &&
+					replica.State != locov1alpha1.ReplicaPulling {
 					replica.StateSince = old.StateSince
 				}
 			}

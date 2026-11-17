@@ -62,7 +62,7 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 	return cache.Options{
 		DefaultTransform: stripManagedFields,
 		ByObject: map[client.Object]cache.ByObject{
-			&corev1.Namespace{}:                      managedObjects,
+			&corev1.Namespace{}:                      {Label: workspaceNamespaceSelector()},
 			&corev1.Secret{}:                         secrets,
 			&corev1.Service{}:                        managedObjects,
 			&corev1.ServiceAccount{}:                 managedObjects,

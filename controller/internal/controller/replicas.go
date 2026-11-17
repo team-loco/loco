@@ -15,15 +15,19 @@ import (
 
 const replicaDetailBytes = 512
 
-const detailWaitingForReadiness = "waiting for readiness"
+const (
+	detailWaitingForReadiness = "waiting for readiness"
+	reasonContainerCreating   = "ContainerCreating"
+	reasonPodInitializing     = "PodInitializing"
+)
 
-func replicaState(pod *corev1.Pod, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
-	result := classifyReplica(pod, recoveryWindow, now)
+func replicaState(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
+	result := classifyReplica(pod, pull, recoveryWindow, now)
 	result.Detail = clip.Bytes(result.Detail, replicaDetailBytes)
 	return result
 }
 
-func classifyReplica(pod *corev1.Pod, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
+func classifyReplica(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
 	result := loco.ReplicaStatus{State: loco.ReplicaUnknown, StateSince: pod.CreationTimestamp.DeepCopy()}
 	for _, status := range pod.Status.ContainerStatuses {
 		result.Restarts += status.RestartCount
@@ -73,6 +77,12 @@ func classifyReplica(pod *corev1.Pod, recoveryWindow time.Duration, now time.Tim
 			result.State = loco.ReplicaStarting
 			if status.State.Waiting != nil {
 				result.Detail = status.State.Waiting.Message
+				reason := status.State.Waiting.Reason
+				if (reason == reasonContainerCreating || reason == reasonPodInitializing) && pull != nil &&
+					pull.reason == pullReasonPulling {
+					result.State = loco.ReplicaPulling
+					result.StateSince = pull.at.DeepCopy()
+				}
 			} else {
 				result.StateSince = status.State.Running.StartedAt.DeepCopy()
 				result.Detail = detailWaitingForReadiness

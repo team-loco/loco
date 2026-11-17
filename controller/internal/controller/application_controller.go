@@ -53,6 +53,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayac "sigs.k8s.io/gateway-api/applyconfiguration/apis/v1"
 
@@ -81,6 +82,8 @@ var (
 
 // ApplicationReconciler reconciles an Application object
 type ApplicationReconciler struct {
+	pullMu                sync.Mutex
+	pullEvents            map[types.UID]pullEvent
 	deletedMu             sync.Mutex
 	deletedPods           map[types.NamespacedName]map[types.UID]deletedReplica
 	RuntimeRecoveryWindow time.Duration
@@ -110,6 +113,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;list;watch;patch;update;delete
@@ -868,6 +872,10 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	pullEvents := make(chan event.GenericEvent)
+	if err := r.watchWorkspacePulls(mgr, pullEvents); err != nil {
+		return err
+	}
 	applicationChanged := predicate.Or[client.Object](
 		predicate.GenerationChangedPredicate{},
 		predicate.AnnotationChangedPredicate{},
@@ -894,6 +902,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&appsv1.Deployment{}, applicationHandler).
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, r.podHandler(applicationHandler)).
+		WatchesRawSource(source.Channel(pullEvents, handler.EnqueueRequestsFromMapFunc(r.applicationForPullEvent))).
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).
@@ -920,6 +929,9 @@ func (r *ApplicationReconciler) podHandler(base handler.EventHandler) handler.Ev
 			e event.DeleteEvent,
 			q workqueue.TypedRateLimitingInterface[reconcile.Request],
 		) {
+			r.pullMu.Lock()
+			delete(r.pullEvents, e.Object.GetUID())
+			r.pullMu.Unlock()
 			if !e.DeleteStateUnknown {
 				if pod, ok := e.Object.(*corev1.Pod); ok {
 					for _, request := range applicationForObject(ctx, pod) {
