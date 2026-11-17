@@ -1,15 +1,10 @@
 import argparse
-import importlib.util
 import subprocess
 from pathlib import Path
 
 import pytest
 
-spec = importlib.util.spec_from_file_location(
-    "evidence", Path(__file__).resolve().parents[2] / ".agents/skills/ui-evidence/scripts/evidence.py",
-)
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
+from harness import evidence
 
 
 def test_reap_removed_checkout(tmp_path, monkeypatch):
