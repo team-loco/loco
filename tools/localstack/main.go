@@ -15,11 +15,11 @@ import (
 )
 
 type config struct {
-	Cluster, Domain, State, Project                                                          string
-	AppPort, AppsPort, WebPort, DexPort, RegistryPort, S3Port                                string
-	PrivateEgress                                                                            string
-	BundleVersion, EntryPoint, SealKey, PushAuth, PullAuth, ControlPlaneValues, WorkerValues string
-	Timeout                                                                                  time.Duration
+	Cluster, Domain, State, Project                           string
+	AppPort, AppsPort, WebPort, DexPort, RegistryPort, S3Port string
+	PrivateEgress                                             string
+	BundleVersion, PushAuth, PullAuth                         string
+	Timeout                                                   time.Duration
 }
 
 func main() {

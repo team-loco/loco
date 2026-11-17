@@ -2,160 +2,187 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/team-loco/loco/tools/internal/operatorrepo"
 )
 
 const (
 	fluxData            = "data"
-	fluxPrune           = "prune"
-	fluxSourceRef       = "sourceRef"
 	fluxSpec            = "spec"
-	fluxAPIVersion      = "apiVersion"
-	fluxMetadata        = "metadata"
-	fluxKind            = "kind"
-	fluxInterval        = "interval"
-	fluxName            = "name"
-	fluxPath            = "path"
-	fluxURL             = "url"
-	ociRepositoryKind   = "OCIRepository"
 	secretKind          = "Secret"
 	platformSource      = "platform-bundle"
 	controlPlaneRelease = "loco-control-plane"
 )
 
-func fluxObject(kind, name string, spec map[string]any) map[string]any {
-	group := "kustomize.toolkit.fluxcd.io/v1"
-	if kind == ociRepositoryKind {
-		group = "source.toolkit.fluxcd.io/v1"
-	}
-	return map[string]any{
-		fluxAPIVersion: group,
-		fluxKind:       kind,
-		fluxMetadata:   metadata(name, "flux-system"),
-		fluxSpec:       spec,
-	}
-}
+const fluxKustomization = "kustomization"
+const fluxOCI = "oci"
+const fluxReconcile = "reconcile"
+const fluxSource = "source"
 
-func fixtureSource(name, reference string) map[string]any {
-	repository, digest, _ := strings.Cut(reference, "@")
-	return fluxObject(
-		ociRepositoryKind,
-		name,
-		map[string]any{
-			fluxInterval: "1m",
-			fluxURL:      "oci://" + repository,
-			"insecure":   true,
-			"ref":        map[string]string{"digest": digest},
-		},
-	)
-}
+const fixtureRepoSource = "loco-fixture-config"
 
-func (f *fixture) installFlux(ctx context.Context, allowances []map[string]any, previous string) error {
+func (f *fixture) installFlux(
+	ctx context.Context,
+	allowances []map[string]any,
+	previous, current string,
+) (string, string, error) {
 	if _, err := command(ctx, f.root, nil, "flux", "install"); err != nil {
-		return err
+		return "", "", err
 	}
-	values := map[string]string{}
-	for _, name := range []string{"control-plane", "worker"} {
+	repo := operatorrepo.Repository{
+		Path:    filepath.Join(f.dir, "repo"),
+		Cluster: "installation",
+		Source:  fixtureRepoSource,
+	}
+	if err := os.RemoveAll(repo.Path); err != nil {
+		return "", "", err
+	}
+	overrides := filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "values")
+	if _, err := command(
+		ctx,
+		f.root,
+		nil,
+		"go",
+		"-C",
+		"cmd",
+		"run",
+		"./locoadm",
+		"init",
+		"--single-cluster",
+		"--name",
+		repo.Cluster,
+		"--output",
+		repo.Path,
+		"--api",
+		"http://api.installation.test",
+		"--web",
+		"http://console.installation.test",
+		"--domain",
+		"apps.installation.test",
+		"--region",
+		"us-east-1",
+		"--admin",
+		fixtureEmail,
+		"--bundle",
+		"oci://"+previous,
+		"--api-env-file",
+		filepath.Join(overrides, "api.env"),
+	); err != nil {
+		return "", "", err
+	}
+	for _, release := range []string{"loco-control-plane", "loco-worker"} {
 		data, err := renderFixtureFile(
-			filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", name+"-values.yaml"),
+			filepath.Join(overrides, release+".yaml"),
 			map[string]any{"PrivateEgress": allowances},
 		)
 		if err != nil {
-			return err
+			return "", "", err
 		}
-		values[name] = string(data)
+		if err = operatorrepo.Merge(repo.Values(release), data); err != nil {
+			return "", "", err
+		}
 	}
-	seal := make([]byte, 32)
-	if _, err := rand.Read(seal); err != nil {
-		return err
-	}
-	resources, err := renderFixtureFile(
-		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "cluster-config.yaml"),
-		map[string]any{
-			"ControlPlane": values["control-plane"], "Worker": values["worker"],
-			"SealKey":         base64.StdEncoding.EncodeToString(seal),
-			"ClickHouseUsers": []string{"migrator", "ingest", "reader"},
-			"PushAuth":        base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":" + fixturePushPassword)),
-			"PullAuth":        base64.StdEncoding.EncodeToString([]byte("nodes:loco-dev-nodes")),
-		},
-	)
-	if err != nil {
-		return err
-	}
-	databaseURL, err := command(ctx, f.root, resources, "yq", "-r",
-		`select(.kind == "Secret" and .metadata.name == "loco-api-env") | .stringData.DATABASE_URL`)
-	if err != nil {
-		return err
-	}
-	if err = f.prepareSchema(ctx, strings.TrimSpace(string(databaseURL))); err != nil {
-		return err
-	}
-	archive, err := bundle(map[string][]byte{
-		"resources.yaml": resources,
-		"kustomization.yaml": []byte("apiVersion: kustomize.config.k8s.io/v1beta1\n" +
-			"kind: Kustomization\nresources: [resources.yaml]\n"),
+	resources, err := renderFixtureFile(filepath.Join(overrides, "secrets.yaml"), map[string]any{
+		"ClickHouseUsers": []string{"migrator", "ingest", "reader"},
+		"PushAuth":        base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":" + fixturePushPassword)),
+		"PullAuth":        base64.StdEncoding.EncodeToString([]byte("nodes:loco-dev-nodes")),
 	})
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	configRef, err := f.publish(ctx, "platform/fixture-config", archive, bundleLayer)
+	if err = repo.AddResources(resources); err != nil {
+		return "", "", err
+	}
+	apiEnv, err := os.ReadFile(repo.Config("api-env.yaml"))
 	if err != nil {
-		return err
+		return "", "", err
 	}
-	return f.apply(
-		ctx,
-		fixtureSource(platformSource, previous),
-		fixtureSource("loco-fixture-config", configRef),
-		fluxObject(
-			"Kustomization",
-			"loco-cluster-config",
-			map[string]any{
-				fluxInterval:  "1m",
-				fluxSourceRef: map[string]string{fluxKind: ociRepositoryKind, fluxName: "loco-fixture-config"},
-				fluxPath:      "./",
-				fluxPrune:     true,
-				"wait":        true,
-				"dependsOn":   []map[string]string{{fluxName: "loco-namespaces"}},
-			},
-		),
-		fluxObject(
-			"Kustomization",
-			platformSource,
-			map[string]any{
-				fluxInterval:  "1m",
-				fluxSourceRef: map[string]string{fluxKind: ociRepositoryKind, fluxName: platformSource},
-				fluxPath:      "./control-plane",
-				fluxPrune:     true,
-			},
-		),
-	)
+	databaseURL, err := command(ctx, f.root, apiEnv, "yq", "-r", ".stringData.DATABASE_URL")
+	if err != nil {
+		return "", "", err
+	}
+	if err = f.prepareSchema(ctx, strings.TrimSpace(string(databaseURL))); err != nil {
+		return "", "", err
+	}
+	initial, err := f.publishRepo(ctx, repo, previous, "./control-plane")
+	if err != nil {
+		return "", "", err
+	}
+	enrolled, err := f.publishRepo(ctx, repo, previous, "./all")
+	if err != nil {
+		return "", "", err
+	}
+	upgraded, err := f.publishRepo(ctx, repo, current, "./all")
+	if err != nil {
+		return "", "", err
+	}
+	bootstrap, err := repo.Bootstrap(initial)
+	if err != nil {
+		return "", "", err
+	}
+	if _, err = command(ctx, f.root, bootstrap, "kubectl", "apply", "-f", "-"); err != nil {
+		return "", "", err
+	}
+	for _, args := range [][]string{{fluxReconcile, fluxSource, fluxOCI, repo.Source}, {fluxReconcile, fluxKustomization, repo.Source}} {
+		if _, err = command(ctx, f.root, nil, "flux", args...); err != nil {
+			return "", "", err
+		}
+	}
+	return enrolled, upgraded, nil
+}
+
+func (f *fixture) publishRepo(
+	ctx context.Context,
+	repo operatorrepo.Repository,
+	reference, entry string,
+) (string, error) {
+	if err := repo.Configure(reference, entry); err != nil {
+		return "", err
+	}
+	root, err := os.OpenRoot(repo.Path)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	files := map[string][]byte{}
+	err = filepath.WalkDir(repo.Path, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		relative, relErr := filepath.Rel(repo.Path, path)
+		if relErr != nil {
+			return relErr
+		}
+		data, readErr := root.ReadFile(relative)
+		if readErr != nil {
+			return readErr
+		}
+		files[filepath.ToSlash(relative)] = data
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	archive, err := bundle(files)
+	if err != nil {
+		return "", err
+	}
+	return f.publish(ctx, "platform/fixture-config", archive, bundleLayer)
 }
 
 func reconcilePlatform(ctx context.Context, path string) error {
-	patch, err := json.Marshal(map[string]any{fluxSpec: map[string]string{fluxPath: path}})
-	if err != nil {
-		return err
-	}
-	if _, err = kubectl(
-		ctx,
-		"-n",
-		"flux-system",
-		"patch",
-		"kustomization",
-		platformSource,
-		"--type=merge",
-		"--patch",
-		string(patch),
-	); err != nil {
-		return err
-	}
-	for _, args := range [][]string{{"reconcile", "source", "oci", platformSource},
-		{"reconcile", "kustomization", platformSource}} {
+	var err error
+	for _, args := range [][]string{{fluxReconcile, fluxSource, fluxOCI, platformSource},
+		{fluxReconcile, fluxKustomization, "loco"}} {
 		if _, err = command(ctx, "", nil, "flux", args...); err != nil {
 			return err
 		}
@@ -163,18 +190,31 @@ func reconcilePlatform(ctx context.Context, path string) error {
 	for _, layer := range []string{
 		"loco-namespaces", "loco-crds", "loco-infra", "loco-cluster-config", controlPlaneRelease,
 	} {
-		if _, err = command(ctx, "", nil, "flux", "reconcile", "kustomization", layer, "--timeout=10m"); err != nil {
+		if _, err = command(
+			ctx,
+			"",
+			nil,
+			"flux",
+			fluxReconcile,
+			fluxKustomization,
+			layer,
+			"--timeout=10m",
+		); err != nil {
 			return err
 		}
 	}
 	if path == "./all" {
-		_, err = command(ctx, "", nil, "flux", "reconcile", "kustomization", "loco-worker", "--timeout=10m")
+		_, err = command(ctx, "", nil, "flux", fluxReconcile, fluxKustomization, "loco-worker", "--timeout=10m")
 	}
 	return err
 }
 
 func upgradePlatform(ctx context.Context) error {
-	reference, err := os.ReadFile("/installation/current")
+	return switchRepository(ctx, "/installation/current")
+}
+
+func switchRepository(ctx context.Context, path string) error {
+	reference, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -189,12 +229,20 @@ func upgradePlatform(ctx context.Context) error {
 		"flux-system",
 		"patch",
 		"ocirepository",
-		platformSource,
+		fixtureRepoSource,
 		"--type=merge",
 		"--patch",
 		string(patch),
 	); err != nil {
 		return err
+	}
+	for _, args := range [][]string{
+		{fluxReconcile, fluxSource, fluxOCI, fixtureRepoSource},
+		{fluxReconcile, fluxKustomization, fixtureRepoSource},
+	} {
+		if _, err = command(ctx, "", nil, "flux", args...); err != nil {
+			return err
+		}
 	}
 	return reconcilePlatform(ctx, "./all")
 }
@@ -209,15 +257,15 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		"us-east-1",
 		"--tier",
 		"staging",
+		"-o",
+		secretOutputFormat,
 		"--secret-name",
 		"loco-worker-enrollment",
 	}
 	if head {
-		args = append(args, "--ttl", "72h", "-o", secretOutputFormat)
-	} else {
-		args = append(args, "--kube-context", "fixture")
+		args = append(args, "--ttl", "72h")
 	}
-	_, err := locoadm(ctx, args...)
+	secret, err := locoadm(ctx, args...)
 	if err != nil {
 		return err
 	}
@@ -225,9 +273,8 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 	if head {
 		return nil
 	}
-	if err = reconcilePlatform(ctx, "./all"); err != nil {
+	if _, err = command(ctx, "", secret, "kubectl", "apply", "-f", "-"); err != nil {
 		return err
 	}
-	_, err = kubectl(ctx, "-n", workerNamespace, "rollout", "status", "deployment/loco-worker-agent", "--timeout=300s")
-	return err
+	return nil
 }

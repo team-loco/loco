@@ -67,12 +67,12 @@ spec:
 		return err
 	}
 	var resources bytes.Buffer
+	if err = checkSingleCluster(ctx, root, scratch, spec, &resources); err != nil {
+		return err
+	}
 	var chartCommands [][]string
 	for _, cluster := range clusters {
 		dir := filepath.Join(example, "clusters", cluster.name)
-		if err = checkCohort(example, dir); err != nil {
-			return err
-		}
 		for _, path := range []string{dir, filepath.Join(dir, "config")} {
 			built, buildErr := command(
 				ctx,
@@ -218,26 +218,65 @@ func strictSchema(value any) {
 	}
 }
 
-func checkCohort(repo, cluster string) error {
-	data, err := os.ReadFile(filepath.Join(cluster, "kustomization.yaml"))
-	if err != nil {
+func checkSingleCluster(ctx context.Context, root, scratch, spec string, resources *bytes.Buffer) error {
+	env := filepath.Join(scratch, "api.env")
+	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\n"), 0600); err != nil {
 		return err
 	}
-	var root struct {
-		Resources []string `yaml:"resources"`
-	}
-	if err = yaml.Unmarshal(data, &root); err != nil {
+	output := filepath.Join(scratch, "combined")
+	if _, err := command(
+		ctx,
+		root,
+		nil,
+		"go",
+		"-C",
+		"cmd",
+		"run",
+		"./locoadm",
+		"init",
+		"--single-cluster",
+		"--name",
+		"combined",
+		"--output",
+		output,
+		"--api",
+		"https://api.test",
+		"--web",
+		"https://console.test",
+		"--domain",
+		"apps.test",
+		"--region",
+		"test-east",
+		"--admin",
+		"admin@test.local",
+		"--bundle",
+		"oci://registry.test/platform@sha256:"+strings.Repeat("a", 64),
+		"--api-env-file",
+		env,
+	); err != nil {
 		return err
 	}
-	count := 0
-	for _, resource := range root.Resources {
-		path := filepath.Clean(filepath.Join(cluster, resource))
-		if filepath.Dir(path) == filepath.Join(repo, "releases") && filepath.Ext(path) == ".yaml" {
-			count++
+	cluster := filepath.Join(output, "clusters", "combined")
+	for _, path := range []string{cluster, filepath.Join(cluster, "config")} {
+		built, err := command(
+			ctx,
+			root,
+			nil,
+			"flux",
+			"build",
+			"kustomization",
+			"example",
+			"--dry-run",
+			"--path",
+			path,
+			"--kustomization-file",
+			spec,
+		)
+		if err != nil {
+			return err
 		}
-	}
-	if count != 1 {
-		return fmt.Errorf("cluster %s selects %d releases files; select exactly one cohort", cluster, count)
+		resources.Write(built)
+		resources.WriteString("\n---\n")
 	}
 	return nil
 }

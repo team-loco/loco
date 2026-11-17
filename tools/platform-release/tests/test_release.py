@@ -718,6 +718,7 @@ def test_local_release_builds_and_pushes_each_image(local_release):
 def test_local_release_names_everything_at_the_cluster_address(local_release):
     assert local_release.lock["version"] == "0.0.0-local.g" + local_release.commit[:12]
     assert local_release.lock["coreCommit"] == local_release.commit
+    assert local_release.lock["bundle"].startswith("registry.example.localhost:15000/example/platform/platform@sha256:")
     references = [*local_release.lock["artifacts"].values(), *local_release.lock["images"].values()]
     assert len(references) == len(VERSIONS) + len(release.IMAGES)
     for reference in references:

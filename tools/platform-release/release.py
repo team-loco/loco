@@ -496,7 +496,7 @@ def local_release(registry, address, images=None, cache=None):
         Path(cache).parent.mkdir(parents=True, exist_ok=True)
         Path(cache).write_text(json.dumps(next_cache))
     print('published ' + address + '/' + names['platform'] + ':' + version + '@' + result, file=sys.stderr)
-    print(json.dumps(release_manifest(version, commit, refs, images), indent=2))
+    print(json.dumps(dict(release_manifest(version, commit, refs, images), bundle=address + '/' + names['platform'] + '@' + result), indent=2))
 
 
 def main():
