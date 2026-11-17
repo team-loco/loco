@@ -14,6 +14,8 @@ Tool versions live in `mise.toml` and `mise.lock`. Start the platform and host d
 mise run dev
 ```
 
+`dev` checks Docker with `mise run doctor` before starting the platform. If `DOCKER_HOST` is unset, it uses the OrbStack socket when available. Team members can run `infisical login` once to supply `GH_OAUTH_CLIENT_ID` and `GH_OAUTH_CLIENT_SECRET` for Dex’s GitHub connector. These variables can also be exported directly. Without credentials, the stack starts with password login and prints a message about the missing GitHub button.
+
 Flux runs in kind and pulls the platform bundle and `dev/flux/local/` configuration from the local registry. Postgres, Dex, the registry and source bucket use `dev/compose.local.yaml`. OpenBao and ClickHouse run in Kubernetes. Device login and worker enrollment run automatically. Sign in as `dev@loco.test` with password `loco-dev`.
 
 Each worktree receives an isolated stack slot, private kubeconfig and credential home. Run `mise run stack` for its URLs. Slot N adds 100×N to the base ports: API 8000, dashboard 5173, Dex 5556 and apps 8443. Platform state and the image cache live beneath the shared git directory's `loco-stacks/state/<slot>/`.

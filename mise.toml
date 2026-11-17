@@ -195,7 +195,7 @@ run = "bun run dev"
 description = "Reconcile this checkout's platform through Flux and run the web dev server"
 alias = "start"
 env = { _.source = "dev/stack.sh" }
-run = ["go run ./tools/localstack install", "mise run ui"]
+run = "bash dev/start.sh"
 
 [tasks."dev:deploy"]
 description = "Publish changed platform images and reconcile Flux; --suspend pauses platform releases"
