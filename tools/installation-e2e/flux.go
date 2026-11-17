@@ -129,7 +129,10 @@ func (f *fixture) installFlux(
 	if _, err = command(ctx, f.root, bootstrap, "kubectl", "apply", "-f", "-"); err != nil {
 		return "", "", err
 	}
-	for _, args := range [][]string{{fluxReconcile, fluxSource, fluxOCI, repo.Source}, {fluxReconcile, fluxKustomization, repo.Source}} {
+	for _, args := range [][]string{
+		{fluxReconcile, fluxSource, fluxOCI, repo.Source},
+		{fluxReconcile, fluxKustomization, repo.Source},
+	} {
 		if _, err = command(ctx, f.root, nil, "flux", args...); err != nil {
 			return "", "", err
 		}
