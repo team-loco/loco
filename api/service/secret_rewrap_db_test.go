@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -63,6 +65,16 @@ func TestRewrapEnvironmentKeysActsOnTheNamedEnvironmentOnly(t *testing.T) {
 	res := rewrapKeys(t, rotated, &secretv1.RewrapEnvironmentKeysRequest{EnvironmentId: f.environmentID.String()})
 	if res.GetRewrapped() != 1 || res.GetSkipped() != 0 {
 		t.Fatalf("rewrap = %+v, want one rewrapped", res)
+	}
+	response, err := NewEventServer(f.pool, f.queries).ListEvents(systemAdminContext(t), &eventv1.ListEventsRequest{
+		OrgId: f.orgID.String(), WorkspaceId: f.workspaceID.String(), EnvironmentId: f.environmentID.String(),
+		Query: "@type:" + events.SecretKeyRewrapped,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(response.GetEvents()) != 1 || response.GetEvents()[0].GetEnvironmentId() != f.environmentID.String() {
+		t.Fatalf("rewrap events = %v, want the named environment", response.GetEvents())
 	}
 	untouched, err := f.queries.GetEnvironmentKey(t.Context(), other.environmentID)
 	if err != nil {

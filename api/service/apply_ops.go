@@ -196,12 +196,13 @@ func (a *applier) removeFromEnvironment(ctx context.Context, qtx *genDb.Queries,
 			return fmt.Errorf("delete domain %s: %w", domain.Domain, err)
 		}
 		if err := events.Record(ctx, qtx, events.Event{
-			Type:        events.DomainDeleted,
-			WorkspaceID: new(res.WorkspaceID),
-			ResourceID:  new(res.ID),
-			SubjectType: events.SubjectDomain,
-			SubjectID:   new(domain.ID),
-			Data:        map[string]any{events.FieldDomain: domain.Domain},
+			Type:          events.DomainDeleted,
+			EnvironmentID: new(a.env.ID),
+			WorkspaceID:   new(res.WorkspaceID),
+			ResourceID:    new(res.ID),
+			SubjectType:   events.SubjectDomain,
+			SubjectID:     new(domain.ID),
+			Data:          map[string]any{events.FieldDomain: domain.Domain},
 		}); err != nil {
 			return err
 		}
@@ -235,12 +236,13 @@ func (a *applier) createDomain(
 		return uuid.UUID{}, fmt.Errorf("create domain %s: %w", domain, err)
 	}
 	return domainID, events.Record(ctx, qtx, events.Event{
-		Type:        events.DomainCreated,
-		WorkspaceID: new(a.env.WorkspaceID),
-		ResourceID:  new(resourceID),
-		SubjectType: events.SubjectDomain,
-		SubjectID:   new(domainID),
-		Data:        map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
+		Type:          events.DomainCreated,
+		EnvironmentID: new(a.env.ID),
+		WorkspaceID:   new(a.env.WorkspaceID),
+		ResourceID:    new(resourceID),
+		SubjectType:   events.SubjectDomain,
+		SubjectID:     new(domainID),
+		Data:          map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
 	})
 }
 

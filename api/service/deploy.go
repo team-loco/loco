@@ -220,12 +220,13 @@ func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resourc
 		return fmt.Errorf("finalize deployment %s: %w", deployment.ID, err)
 	}
 	return events.Record(ctx, qtx, events.Event{
-		Type:        events.DeploymentDeleted,
-		WorkspaceID: new(res.WorkspaceID),
-		ResourceID:  new(res.ID),
-		SubjectType: events.SubjectDeployment,
-		SubjectID:   new(deployment.ID),
-		Data:        map[string]any{events.FieldResourceID: res.ID.String()},
+		Type:          events.DeploymentDeleted,
+		EnvironmentID: new(deployment.EnvironmentID),
+		WorkspaceID:   new(res.WorkspaceID),
+		ResourceID:    new(res.ID),
+		SubjectType:   events.SubjectDeployment,
+		SubjectID:     new(deployment.ID),
+		Data:          map[string]any{events.FieldResourceID: res.ID.String()},
 	})
 }
 

@@ -191,6 +191,9 @@ func Record(ctx context.Context, q genDb.Querier, ev Event) error {
 	if actorErr != nil {
 		return actorErr
 	}
+	if ev.EnvironmentID == nil && ev.SubjectType == SubjectEnvironment {
+		ev.EnvironmentID = ev.SubjectID
+	}
 	if ev.ResourceID == nil && ev.SubjectType == SubjectResource {
 		ev.ResourceID = ev.SubjectID
 	}

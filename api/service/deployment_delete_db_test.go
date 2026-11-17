@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/db/dbtest"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -54,6 +55,7 @@ func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	wantEnvironmentEvent(t, f, f.resourceID, f.envID, events.DeploymentDeleted)
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusCanceled {
 		t.Fatalf("status after delete = %s, want canceled", status)
 	}
