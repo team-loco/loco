@@ -16,12 +16,12 @@ const advanceDeploymentStatus = `-- name: AdvanceDeploymentStatus :execrows
 UPDATE deployments
 SET status = $1,
     started_at = CASE
-        WHEN $1::deployment_status = 'deploying' THEN COALESCE(started_at, NOW())
+        WHEN $1::deployment_status = 'running' THEN COALESCE(started_at, NOW())
         ELSE started_at
     END,
     message = $2,
     completed_at = CASE
-        WHEN $1::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
+        WHEN $1::deployment_status IN ('superseded', 'failed', 'canceled') THEN NOW()
         ELSE NULL
     END,
     updated_at = NOW()
@@ -637,6 +637,23 @@ func (q *Queries) ListResourcesRunningOutsideEnvironment(ctx context.Context, ar
 	return items, nil
 }
 
+const lockPlacementResource = `-- name: LockPlacementResource :one
+SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
+WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r
+`
+
+type LockPlacementResourceParams struct {
+	ID        uuid.UUID `json:"id"`
+	ClusterID uuid.UUID `json:"clusterId"`
+}
+
+func (q *Queries) LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, lockPlacementResource, arg.ID, arg.ClusterID)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const markPreviousDeploymentsNotActive = `-- name: MarkPreviousDeploymentsNotActive :exec
 UPDATE deployments
 SET is_active = false, updated_at = NOW()
@@ -657,7 +674,7 @@ WHERE d.id IN (
     OFFSET $3::int
 )
   AND NOT d.is_active
-  AND d.status IN ('succeeded', 'failed', 'canceled')
+  AND d.status IN ('superseded', 'failed', 'canceled')
   AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id)
 `
 
@@ -675,6 +692,20 @@ func (q *Queries) PruneDeploymentHistory(ctx context.Context, arg PruneDeploymen
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const supersedePreviousDeployments = `-- name: SupersedePreviousDeployments :exec
+UPDATE deployments old SET status = 'superseded', completed_at = NOW(), updated_at = NOW()
+FROM deployments current
+WHERE current.id = $1 AND old.resource_id = current.resource_id
+ AND old.environment_id = current.environment_id AND old.region = current.region
+ AND NOT old.is_active AND old.started_at IS NOT NULL
+ AND old.status IN ('running','deploying','failed')
+`
+
+func (q *Queries) SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, supersedePreviousDeployments, id)
+	return err
 }
 
 const updateActiveDeploymentStatus = `-- name: UpdateActiveDeploymentStatus :exec
@@ -712,7 +743,9 @@ func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeployme
 
 const updateDeploymentStatusAndActive = `-- name: UpdateDeploymentStatusAndActive :exec
 UPDATE deployments
-SET status = $2, is_active = $3, updated_at = NOW()
+SET status = $2, is_active = $3,
+ completed_at = CASE WHEN $2::deployment_status IN ('failed','canceled','superseded') THEN COALESCE(completed_at,NOW()) ELSE NULL END,
+ updated_at = NOW()
 WHERE id = $1
 `
 

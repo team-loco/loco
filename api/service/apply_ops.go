@@ -309,7 +309,7 @@ func (a *applier) deploy(
 			ClusterID:     cluster.ID,
 			Region:        region,
 			Replicas:      service.GetMinReplicas(),
-			Status:        genDb.DeploymentStatusPending,
+			Status:        genDb.DeploymentStatusDeploying,
 			IsActive:      true,
 			Message:       applyDeploymentMessage,
 			Spec:          specJSON,

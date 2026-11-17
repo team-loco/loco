@@ -21,18 +21,18 @@ describe("runtime events", () => {
 		expect(
 			recentWarningCount(
 				[
-					event("crash_looping", "resource.degraded", 5),
+					event("crash_loop", "resource.degraded", 5),
 					event("", "resource.recovered", 1),
 					event("health_check_failing", "resource.degraded", 59),
-					event("crash_looping", "resource.degraded", 61),
-					event("crash_looping", "resource.degraded", -1),
+					event("crash_loop", "resource.degraded", 61),
+					event("crash_loop", "resource.degraded", -1),
 				],
 				NOW_MS,
 			),
 		).toBe(2);
 	});
 	test("recovery and a changed problem clear the crash card per placement", () => {
-		const crash = event("crash_looping", "resource.degraded", 30);
+		const crash = event("crash_loop", "resource.degraded", 30);
 		expect(latestBackOff([crash, event("", "resource.recovered", 2)])).toBeUndefined();
 		expect(latestBackOff([crash, event("image_pull_failed", "resource.degraded", 2)])).toBeUndefined();
 		expect(latestBackOff([crash, event("", "resource.recovered", 2, "p2")])).toBe(crash);

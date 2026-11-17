@@ -24,8 +24,8 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	report := &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		RuntimeReason:    locov1alpha1.RuntimeCrashLooping,
-		RuntimeMessage:   "private Kubernetes detail",
+		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)},
+		RuntimeMessage: "private Kubernetes detail",
 	}
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
 	if err != nil {
@@ -50,9 +50,9 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	wg.Wait()
 	server := f.agentServer()
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	report.RuntimeReason = locov1alpha1.RuntimeImagePullFailed
+	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemImagePullFailed)}
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	report.RuntimeReason = ""
+	report.Problem = nil
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 
@@ -86,7 +86,9 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(second.GetEvents()) != 1 ||
-		second.GetEvents()[0].GetData().GetFields()["reason"].GetStringValue() != locov1alpha1.RuntimeCrashLooping ||
+		second.GetEvents()[0].GetData().GetFields()["reason"].GetStringValue() != string(
+			locov1alpha1.ProblemCrashLoop,
+		) ||
 		second.GetNextBeforeSeq() != 0 {
 		t.Fatalf("second = %v", second)
 	}
@@ -121,7 +123,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		t.Fatalf("time filter = %v, %v", empty, err)
 	}
 	// A report from an older revision, or another cluster, cannot resurrect the problem.
-	report.RuntimeReason = locov1alpha1.RuntimeCrashLooping
+	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}
 	report.ObservedRevision = 0
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	report.ObservedRevision = placement.DesiredRevision
@@ -142,7 +144,7 @@ func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		RuntimeReason:    locov1alpha1.RuntimeOutOfMemory,
+		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemOutOfMemory)},
 	})
 	parents, err := f.queries.GetWorkspaceOrganizationIDByResourceID(t.Context(), f.resourceID)
 	if err != nil {
@@ -189,7 +191,7 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	placement := f.placement(t, f.clusterID)
 	oldServer, newServer := f.agentServer(), f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
-		RuntimeReason: locov1alpha1.RuntimeCrashLooping}
+		Available: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
 	// The old handler passed its preflight before the new stream connected.
 	if err := oldServer.checkSyncGeneration(t.Context(), f.clusterID, 0); err != nil {
@@ -199,10 +201,10 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report.RuntimeReason = ""
+	report.Problem = nil
 	newServer.recordStatus(t.Context(), f.clusterID, generation, report)
 	// The old handler resumes at the same placement revision after recovery.
-	report.RuntimeReason = locov1alpha1.RuntimeCrashLooping
+	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
 	if stored := f.placement(t, f.clusterID); stored.RuntimeReason != "" {
 		t.Fatalf("old stream reopened %q", stored.RuntimeReason)
@@ -214,5 +216,55 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("degradation events = %d, want 1", count)
+	}
+}
+
+func TestRuntimeEventsDuringRollout(t *testing.T) {
+	t.Parallel()
+	for _, status := range []genDb.DeploymentStatus{
+		genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying, genDb.DeploymentStatusFailed,
+	} {
+		t.Run(string(status), func(t *testing.T) {
+			f := newDeployFixture(t)
+			id, err := f.deploy(t.Context(), staticSpec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, updateErr := f.pool.Exec(
+				t.Context(),
+				`UPDATE deployments SET status=$2 WHERE id=$1`,
+				id,
+				status,
+			); updateErr != nil {
+				t.Fatal(updateErr)
+			}
+			p := f.placement(t, f.clusterID)
+			report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
+				Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+			f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
+			generation, err := f.queries.BeginClusterSync(t.Context(), f.clusterID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			server := f.agentServer()
+			server.recordStatus(t.Context(), f.clusterID, generation, report)
+			report.Problem = nil
+			server.recordStatus(t.Context(), f.clusterID, generation, report)
+			server.recordStatus(t.Context(), f.clusterID, generation, report)
+			for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
+				var count int
+				if queryErr := f.pool.QueryRow(
+					t.Context(),
+					`SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`,
+					f.resourceID,
+					kind,
+				).Scan(&count); queryErr != nil {
+					t.Fatal(queryErr)
+				}
+				if count != 1 {
+					t.Fatalf("%s events = %d, want 1", kind, count)
+				}
+			}
+		})
 	}
 }

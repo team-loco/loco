@@ -40,13 +40,13 @@ var (
 
 func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
 	switch status {
-	case genDb.DeploymentStatusPending:
+	case genDb.DeploymentStatusBuilding:
 		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
 	case genDb.DeploymentStatusDeploying:
 		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
 	case genDb.DeploymentStatusRunning:
 		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
-	case genDb.DeploymentStatusSucceeded:
+	case genDb.DeploymentStatusSuperseded:
 		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
 	case genDb.DeploymentStatusFailed:
 		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
@@ -308,7 +308,7 @@ func (s *DeploymentServer) CreateDeployment(
 			ClusterID:     cluster.ID,
 			Region:        region,
 			Replicas:      replicas,
-			Status:        genDb.DeploymentStatusPending,
+			Status:        genDb.DeploymentStatusDeploying,
 			IsActive:      true,
 			Message:       "Scheduling deployment",
 			Spec:          specJSON,
@@ -600,7 +600,7 @@ func (s *DeploymentServer) releaseWatch(entity genDb.Entity) {
 
 func isTerminalDeploymentStatus(status genDb.DeploymentStatus) bool {
 	switch status {
-	case genDb.DeploymentStatusSucceeded:
+	case genDb.DeploymentStatusSuperseded:
 		return true
 	case genDb.DeploymentStatusFailed:
 		return true

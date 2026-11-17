@@ -81,13 +81,13 @@ test("retains event context for filters and raw JSON", () => {
 
 test("labels degraded reasons while keeping filter values raw", () => {
 	const event = eventItem({
-		...runtimeEvent(create(EventSchema, { type: "resource.degraded", data: { reason: "crash_looping" } })),
+		...runtimeEvent(create(EventSchema, { type: "resource.degraded", data: { reason: "crash_loop" } })),
 		resourceId: "resource",
 		resourceName: "web",
 	});
 	expect(eventSummary(event)).toBe("Restarting after crash");
 	expect(eventReasonLabel("out_of_memory")).toBe("Out of memory");
-	expect(eventValue(event, "reason")).toBe("crash_looping");
+	expect(eventValue(event, "reason")).toBe("crash_loop");
 	expect(eventSummary({ ...event, message: "Restart backoff" })).toBe("Restart backoff");
 	expect(eventDataLabel("deploymentId")).toBe("deployment_id");
 	expect(eventDataLabel("actor_type")).toBe("actor_type");

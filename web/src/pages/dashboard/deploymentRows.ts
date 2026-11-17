@@ -17,9 +17,9 @@ export const DEPLOYMENT_FILTERS: { value: DeploymentState; label: string }[] = [
 export function deploymentState(d: Deployment): DeploymentState {
 	switch (d.status) {
 		case DeploymentPhase.RUNNING:
-			return d.isActive ? "running" : "superseded";
+			return "running";
 		case DeploymentPhase.SUCCEEDED:
-			return d.isActive ? "running" : "superseded";
+			return "superseded";
 		case DeploymentPhase.PENDING:
 			return "progress";
 		case DeploymentPhase.DEPLOYING:

@@ -29,7 +29,7 @@ func ensureNoRollout(
 		if deployment.EnvironmentID != environmentID || (region != "" && deployment.Region != region) {
 			continue
 		}
-		if deployment.Status == genDb.DeploymentStatusPending || deployment.Status == genDb.DeploymentStatusDeploying {
+		if deployment.Status == genDb.DeploymentStatusBuilding || deployment.Status == genDb.DeploymentStatusDeploying {
 			return errRolloutInProgress
 		}
 	}

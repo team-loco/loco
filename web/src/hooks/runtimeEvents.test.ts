@@ -21,7 +21,7 @@ test("warning counts include later pages with the same environment scope", async
 								id: i.toString(),
 								type: "resource.degraded",
 								createdAt: msToTimestamp(now),
-								data: { reason: "crash_looping" },
+								data: { reason: "crash_loop" },
 							})),
 							nextBeforeSeq: 10n,
 						}

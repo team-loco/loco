@@ -43,7 +43,7 @@ func TestLateAckNeverAcksNewerRevision(t *testing.T) {
 	if got := f.placement(t, f.clusterID); got.AppliedRevision != 0 {
 		t.Fatalf("applied revision after a late ack = %d, want 0", got.AppliedRevision)
 	}
-	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusPending {
+	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("deployment status after a late ack = %s, want pending", status)
 	}
 
@@ -81,7 +81,7 @@ func TestApplyErrorFailsDeploymentOnlyWhenNotRetrying(t *testing.T) {
 	if got.AppliedError == nil || *got.AppliedError != "conflict" {
 		t.Fatalf("applied error = %v, want conflict", got.AppliedError)
 	}
-	if status := f.deploymentStatus(t, id); status != genDb.DeploymentStatusPending {
+	if status := f.deploymentStatus(t, id); status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("deployment status while retrying = %s, want pending", status)
 	}
 
@@ -157,14 +157,14 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 		return &agentv1.PlacementStatus{
 			PlacementId:      p.ID.String(),
 			ObservedRevision: revision,
-			Ready:            true,
-			ReadyReplicas:    1,
-			Phase:            testPhaseReady,
+			Ready:            true, Available: true,
+			ReadyReplicas: 1,
+			Phase:         testPhaseReady,
 		}
 	}
 
 	server.recordStatus(ctx, f.clusterID, 0, ready(1))
-	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusPending {
+	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("deployment status after an old-revision report = %s, want pending", status)
 	}
 

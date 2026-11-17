@@ -68,7 +68,7 @@ def fixture():
         region = "eu-west-1" if index == len(release_ids) else "us-east-1"
         cluster = clusters[1] if region == "eu-west-1" else clusters[0]
         active = index in (1, len(release_ids))
-        status = "running" if active else "succeeded"
+        status = "running" if active else "superseded"
         source = {"type": "image", "image": f"example.invalid/browser-pilot:release-{index:03}"}
         if index == 2:
             source = dict(source, type="dockerfile", buildId=builds["deployed"])

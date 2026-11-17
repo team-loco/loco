@@ -111,7 +111,7 @@ func (f *resourceStatusFixture) report(t *testing.T, clusterID uuid.UUID, status
 func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
 	f.report(t, clusterID, &agentv1.PlacementStatus{
-		Ready:         true,
+		Ready: true, Available: true,
 		ReadyReplicas: replicas,
 		Phase:         statusPhaseReady,
 	})
@@ -128,7 +128,7 @@ func (f *resourceStatusFixture) notReady(t *testing.T, clusterID uuid.UUID, repl
 
 func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
-	f.report(t, clusterID, &agentv1.PlacementStatus{
+	f.report(t, clusterID, &agentv1.PlacementStatus{ProgressDeadlineExceeded: true,
 		ReadyReplicas: replicas,
 		Phase:         locoControllerV1.ApplicationPhaseFailed,
 		Message:       statusCrashMsg,
@@ -270,7 +270,7 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 	f.deployProduction(t, statusTwoReplicas)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
-		ready: 0, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING,
+		ready: 0, desired: 2, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING,
 	})
 
 	f.ready(t, f.clusterID, statusTwoReplicas)
@@ -352,7 +352,7 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
 		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
-			ready: 0, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING,
+			ready: 0, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING,
 		},
 		wantRegion{
 			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
@@ -383,7 +383,7 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	f.deployProduction(t, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING,
+		ready: 1, desired: 1, deployment: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING,
 	})
 
 	f.failed(t, f.clusterID, 1)

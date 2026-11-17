@@ -117,7 +117,7 @@ func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentPar
 		ClusterID:     clusterID,
 		Region:        "us-east-1",
 		Replicas:      1,
-		Status:        genDb.DeploymentStatusPending,
+		Status:        genDb.DeploymentStatusDeploying,
 		IsActive:      true,
 		Spec:          []byte("{}"),
 		SpecVersion:   1,

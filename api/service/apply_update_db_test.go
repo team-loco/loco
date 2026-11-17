@@ -117,8 +117,8 @@ func TestApplyUpdateRollsADeploymentForRuntimeChanges(t *testing.T) {
 	if len(resp.GetDeployments()) != 1 || resp.GetDeployments()[0].GetDeploymentId() == firstDeployment.String() {
 		t.Fatalf("deployments = %v, want one new deployment", resp.GetDeployments())
 	}
-	if status := f.deploymentStatus(t, firstDeployment); status != genDb.DeploymentStatusSucceeded {
-		t.Fatalf("first deployment status = %s, want succeeded before the new one", status)
+	if status := f.deploymentStatus(t, firstDeployment); status != genDb.DeploymentStatusRunning {
+		t.Fatalf("first deployment status = %s, want running while the replacement deploys", status)
 	}
 	service := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
 	if service.Deployment.Env["LOG_LEVEL"] != "debug" || service.Resources.CPU != biggerCPU {

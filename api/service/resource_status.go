@@ -128,7 +128,7 @@ func regionStatus(
 
 func deploymentInFlight(status genDb.DeploymentStatus) (bool, error) {
 	switch status {
-	case genDb.DeploymentStatusPending:
+	case genDb.DeploymentStatusBuilding:
 		return true, nil
 	case genDb.DeploymentStatusDeploying:
 		return true, nil
@@ -136,7 +136,7 @@ func deploymentInFlight(status genDb.DeploymentStatus) (bool, error) {
 		return false, nil
 	case genDb.DeploymentStatusFailed:
 		return false, nil
-	case genDb.DeploymentStatusSucceeded:
+	case genDb.DeploymentStatusSuperseded:
 		return false, fmt.Errorf("%w: %s", errFinishedDeploymentActive, status)
 	case genDb.DeploymentStatusCanceled:
 		return false, fmt.Errorf("%w: %s", errFinishedDeploymentActive, status)

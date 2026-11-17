@@ -238,6 +238,7 @@ type Querier interface {
 	LockOrgForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error)
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
+	LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error)
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
@@ -254,7 +255,7 @@ type Querier interface {
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
-	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) (MarkPlacementAppliedRow, error)
+	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
 	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
@@ -305,6 +306,7 @@ type Querier interface {
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
+	SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)

@@ -168,25 +168,6 @@ func ingestRollout(
 	revision int64,
 	report *agentv1.PlacementStatus,
 ) error {
-	for _, replica := range report.GetReplicas() {
-		if !slices.Contains(loco.ReplicaStates, loco.ReplicaState(replica.GetState())) {
-			slog.WarnContext(
-				ctx,
-				"ignoring rollout with invalid replica state",
-				"deployment_id",
-				deploymentID,
-				"state",
-				replica.GetState(),
-			)
-			return nil
-		}
-	}
-	if problem := report.GetProblem(); problem != nil {
-		if _, valid := loco.ProblemMessage(loco.ProblemReason(problem.GetReason())); !valid {
-			slog.WarnContext(ctx, "ignoring rollout with invalid problem reason", "deployment_id", deploymentID)
-			return nil
-		}
-	}
 	if err := qtx.OpenRollout(
 		ctx,
 		genDb.OpenRolloutParams{DeploymentID: deploymentID, Revision: revision},
@@ -268,4 +249,32 @@ func ingestRollout(
 		return fmt.Errorf("notify activity: %w", err)
 	}
 	return nil
+}
+
+func validRolloutReport(ctx context.Context, report *agentv1.PlacementStatus) bool {
+	for _, replica := range report.GetReplicas() {
+		if !slices.Contains(loco.ReplicaStates, loco.ReplicaState(replica.GetState())) {
+			slog.WarnContext(
+				ctx,
+				"ignoring rollout with invalid replica state",
+				"placement_id",
+				report.GetPlacementId(),
+				"state",
+				replica.GetState(),
+			)
+			return false
+		}
+	}
+	if problem := report.GetProblem(); problem != nil {
+		if _, valid := loco.ProblemMessage(loco.ProblemReason(problem.GetReason())); !valid {
+			slog.WarnContext(
+				ctx,
+				"ignoring rollout with invalid problem reason",
+				"placement_id",
+				report.GetPlacementId(),
+			)
+			return false
+		}
+	}
+	return true
 }

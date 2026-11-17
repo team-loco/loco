@@ -1,10 +1,10 @@
 -- +goose Up
 -- Deployment status enum
 CREATE TYPE deployment_status AS ENUM (
-    'pending',
+    'building',
     'deploying',
     'running',
-    'succeeded',
+    'superseded',
     'failed',
     'canceled'
 );

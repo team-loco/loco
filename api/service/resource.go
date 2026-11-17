@@ -862,7 +862,7 @@ func (s *ResourceServer) planRegionRedeploy(
 			ClusterID:     cluster.ID,
 			Region:        current.Region,
 			Replicas:      replicas,
-			Status:        genDb.DeploymentStatusPending,
+			Status:        genDb.DeploymentStatusDeploying,
 			IsActive:      true,
 			Message:       message,
 			Spec:          specJSON,

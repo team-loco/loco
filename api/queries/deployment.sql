@@ -74,7 +74,9 @@ LIMIT 1;
 
 -- name: UpdateDeploymentStatusAndActive :exec
 UPDATE deployments
-SET status = $2, is_active = $3, updated_at = NOW()
+SET status = $2, is_active = $3,
+ completed_at = CASE WHEN $2::deployment_status IN ('failed','canceled','superseded') THEN COALESCE(completed_at,NOW()) ELSE NULL END,
+ updated_at = NOW()
 WHERE id = $1;
 
 -- name: GetDeploymentResourceID :one
@@ -102,12 +104,12 @@ ORDER BY created_at DESC;
 UPDATE deployments
 SET status = sqlc.arg(status),
     started_at = CASE
-        WHEN sqlc.arg(status)::deployment_status = 'deploying' THEN COALESCE(started_at, NOW())
+        WHEN sqlc.arg(status)::deployment_status = 'running' THEN COALESCE(started_at, NOW())
         ELSE started_at
     END,
     message = sqlc.arg(message),
     completed_at = CASE
-        WHEN sqlc.arg(status)::deployment_status IN ('succeeded', 'failed', 'canceled') THEN NOW()
+        WHEN sqlc.arg(status)::deployment_status IN ('superseded', 'failed', 'canceled') THEN NOW()
         ELSE NULL
     END,
     updated_at = NOW()
@@ -156,5 +158,17 @@ WHERE d.id IN (
     OFFSET sqlc.arg(keep)::int
 )
   AND NOT d.is_active
-  AND d.status IN ('succeeded', 'failed', 'canceled')
+  AND d.status IN ('superseded', 'failed', 'canceled')
   AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id);
+
+-- name: SupersedePreviousDeployments :exec
+UPDATE deployments old SET status = 'superseded', completed_at = NOW(), updated_at = NOW()
+FROM deployments current
+WHERE current.id = $1 AND old.resource_id = current.resource_id
+ AND old.environment_id = current.environment_id AND old.region = current.region
+ AND NOT old.is_active AND old.started_at IS NOT NULL
+ AND old.status IN ('running','deploying','failed');
+
+-- name: LockPlacementResource :one
+SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
+WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r;

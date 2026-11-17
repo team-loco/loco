@@ -42,8 +42,8 @@ func TestDeploymentHistoryKeepsActiveUnfinishedAndPlacedDeployments(t *testing.T
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.DeploymentHistory, 2)
-	finished := f.seedDeployment(t, f.clusterID, testRegion, "succeeded", false, "5 days")
-	unfinished := f.seedDeployment(t, f.clusterID, testRegion, "pending", false, "4 days")
+	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", false, "5 days")
+	unfinished := f.seedDeployment(t, f.clusterID, testRegion, "building", false, "4 days")
 	placed := f.seedDeployment(t, f.otherCluster, testRegion, "failed", false, "3 days")
 	active := f.seedDeployment(t, f.otherCluster, "eu-west-1", "running", true, "2 days")
 	if _, err := f.pool.Exec(t.Context(), `
@@ -71,7 +71,7 @@ VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, pl
 func TestDeployWithoutLoadedLimitsDeletesNoHistory(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	finished := f.seedDeployment(t, f.clusterID, testRegion, "succeeded", false, "5 days")
+	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", false, "5 days")
 
 	err := withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
 		_, err := createDeploymentWithCleanup(

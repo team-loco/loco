@@ -21,7 +21,7 @@ base = f"/org/{org}/wks/{workspace}"
 evidence.psql(state["container"], f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' THEN '{environment}'::uuid ELSE NULL END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
 jsonb_build_object('region','us-east-1','environmentId','{environment}') || CASE
-WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'crash_looping' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app' ELSE '' END)
+WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'crash_loop' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app' ELSE '' END)
 WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
 ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','message','Build failed: package installation exited with code 1.') END,NOW()-n*INTERVAL '1 minute'
 FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind);""")
@@ -50,7 +50,7 @@ with session(out) as browser:
         expect(attributes).to_contain_text("Restarting after crash")
         expect(attributes.get_by_text("environmentId", exact=True)).to_have_count(0)
         expect(attributes.get_by_text("environment_id", exact=True)).to_have_count(0)
-        expect(drawer.get_by_role("button", name="Only events with reason crash_looping", exact=True)).to_be_visible()
+        expect(drawer.get_by_role("button", name="Only events with reason crash_loop", exact=True)).to_be_visible()
         assert drawer.locator("code").first.locator(".sh__line").first.evaluate("el => getComputedStyle(el, '::before').content") == "none"
         expect(drawer.get_by_role("region", name="Raw event")).to_contain_text('"actor_type": "user"')
         wait_for_query(page, lambda query: "event" in query)
