@@ -1,5 +1,5 @@
 -- name: ListAccountDeletionBlockingOrganizations :many
--- Keep the active-administrator predicate aligned with UserIsLastActiveOrgAdmin.
+-- Keep the active-successor predicate aligned with OrgAdminHasNoActiveSuccessor.
 SELECT o.id, o.name
 FROM organizations o
 JOIN user_scopes s ON s.entity_type = 'organization' AND s.entity_id = o.id

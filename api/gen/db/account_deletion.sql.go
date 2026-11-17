@@ -74,7 +74,7 @@ type ListAccountDeletionBlockingOrganizationsRow struct {
 	Name string    `json:"name"`
 }
 
-// Keep the active-administrator predicate aligned with UserIsLastActiveOrgAdmin.
+// Keep the active-successor predicate aligned with OrgAdminHasNoActiveSuccessor.
 func (q *Queries) ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error) {
 	rows, err := q.db.Query(ctx, listAccountDeletionBlockingOrganizations, arg.UserID, arg.PageSize)
 	if err != nil {
