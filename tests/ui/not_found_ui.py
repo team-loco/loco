@@ -362,6 +362,24 @@ with session(out) as browser:
             page.goto(ui + "/")
             expect(page).to_have_url(ui + "/")
             expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+            context.grant_permissions(["clipboard-read", "clipboard-write"], origin=ui)
+            prompt = "Deploy my app to Loco: https://loco.build/skills.md"
+            assert prompt in (repo / "docs/content/reference/ai.md").read_text()
+            onboard = page.get_by_role("button", name="Onboard your agent to Loco", exact=True)
+            expect(onboard).to_have_attribute("title", "Copies: " + prompt)
+            onboard.click()
+            expect(page.get_by_role("button", name="Copied. Paste it into your agent", exact=True)).to_be_visible()
+            assert page.evaluate("navigator.clipboard.readText()") == prompt
+            expect(onboard).to_be_visible()
+            page.set_viewport_size(evidence.NARROW)
+            page.emulate_media(reduced_motion="reduce")
+            onboard.focus()
+            page.keyboard.press("Enter")
+            expect(page.get_by_role("button", name="Copied. Paste it into your agent", exact=True)).to_be_visible()
+            assert page.evaluate("navigator.clipboard.readText()") == prompt
+            expect(onboard).to_be_visible()
+            page.set_viewport_size(evidence.DESKTOP)
+            page.emulate_media(reduced_motion="no-preference")
 
             page.goto(ui + "/auth/callback?error=access_denied")
             expect(page).to_have_url(ui + "/login")

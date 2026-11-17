@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@/lib/utils";
+
 export const ART_STRONG = "color-mix(in oklab, var(--fg) 42%, var(--bg))";
 export const ART_SOFT = "color-mix(in oklab, var(--fg) 22%, var(--bg))";
 
@@ -10,14 +12,14 @@ const PODS: [number, number][] = [
 	[11, 11],
 ];
 
-export function ClusterArt({ children }: { children: ReactNode }) {
+export function ClusterArt({ children, className }: { children: ReactNode; className?: string }) {
 	return (
 		<svg
 			viewBox="14 10 226 100"
 			width={300}
 			height={133}
 			aria-hidden="true"
-			className="block max-w-full overflow-visible"
+			className={cn("block max-w-full overflow-visible", className)}
 		>
 			<path d="M24 60 L58 77 L58 85 L24 68 Z" fill="var(--panel2)" stroke={ART_STRONG} strokeLinejoin="round" />
 			<path

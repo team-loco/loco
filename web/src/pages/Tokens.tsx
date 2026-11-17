@@ -29,7 +29,7 @@ import { DOCS_URL } from "./splash/links";
 import { CreateTokenDrawer } from "./tokens/CreateTokenDrawer";
 import type { CreateDraft } from "./tokens/CreateTokenDrawer";
 import { ownerIcon } from "./tokens/icons";
-import { LockArt } from "./tokens/LockArt";
+import { TokensArt } from "./tokens/TokensArt";
 import { heldLevel, matchesQuery, OWNER_KEYS, OWNER_TITLE, tokenGrants, tokenStatus } from "./tokens/model";
 import type { Level, OwnerKey } from "./tokens/model";
 import { RevokeDialog } from "./tokens/RevokeDialog";
@@ -49,44 +49,24 @@ const TOKENS_PARAMS = {
 	q: parseAsString.withDefault(""),
 };
 
-function firstRun(owner: Owner): { title: string; body: string; snippet: string[] } {
+function firstRun(owner: Owner): { title: string; body: string } {
 	switch (owner.key) {
 		case "org":
 			return {
 				title: "No organization tokens yet",
 				body: `Organization tokens belong to ${owner.label}, so automation keeps working when people leave.`,
-				snippet: ["# provisioning and org-wide automation", "export LOCO_TOKEN=…", "loco workspace list"],
 			};
 		case "workspace":
 			return {
 				title: "No workspace tokens yet",
 				body: `Workspace tokens let CI deploy to ${owner.label}, or to just a few of its resources.`,
-				snippet: [
-					"# .github/workflows/deploy.yml",
-					"- run: loco deploy --env production",
-					"  env:",
-					"    LOCO_TOKEN: ${{ secrets.LOCO_TOKEN }}",
-				],
 			};
 		case "personal":
 			return {
 				title: "No personal tokens yet",
 				body: "Personal tokens act as you, for scripts on your own machine.",
-				snippet: ["# ~/.zshrc", "export LOCO_TOKEN=…", "loco resource logs web --follow"],
 			};
 	}
-}
-
-function SnippetArt({ lines }: { lines: string[] }) {
-	return (
-		<pre className="m-0 w-[min(420px,100%)] overflow-x-auto rounded-[10px] border border-line2 bg-background px-3.5 py-3 text-left font-mono text-[12px] leading-[1.7]">
-			{lines.map((line) => (
-				<div key={line} className={line.startsWith("#") ? "text-fg3" : "text-foreground"}>
-					{line}
-				</div>
-			))}
-		</pre>
-	);
 }
 
 export function Tokens() {
@@ -261,12 +241,7 @@ export function Tokens() {
 					/>
 				) : firstRunEmpty && !current.isLoading ? (
 					<EmptyHero
-						art={
-							<div className="flex w-full flex-col items-center gap-5">
-								<LockArt />
-								<SnippetArt lines={intro.snippet} />
-							</div>
-						}
+						art={<TokensArt />}
 						title={intro.title}
 						subtitle={intro.body}
 						className="rounded-none border-t border-line2"
