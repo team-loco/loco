@@ -87,13 +87,13 @@ func TestContextEnrollmentCreatesAndUpdatesSecretWithoutPrintingToken(t *testing
 
 func TestContextEnrollmentChecksNamespaceAndExpiry(t *testing.T) {
 	for _, tc := range []struct {
-		name                     string
-		missing, expired, denied bool
-		message                  string
+		name             string
+		missing, expired bool
+		message          string
 	}{
 		{name: "missing namespace", missing: true, message: "bootstrap Flux first"},
 		{name: "expired", expired: true, message: "cluster join-token " + testClusterID + " --kube-context worker"},
-		{name: "server echoes credentials", denied: true, message: "Kubernetes HTTP 403"},
+		{name: "server echoes credentials", message: "Kubernetes HTTP 403"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			fake := &fakeClusterAdmin{t: t}
