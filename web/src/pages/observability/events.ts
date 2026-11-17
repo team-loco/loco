@@ -65,7 +65,7 @@ export function eventSummary(e: WorkspaceEventWithResource): string {
 		["deploymentId", "deployment"],
 		["buildId", "build"],
 	] as const) {
-		const value = e.data[key];
+		const value = e.event.data?.[key];
 		if (typeof value === "string" && value !== "") return `${label} ${value.slice(0, 8)}`;
 	}
 	return "";
@@ -131,7 +131,7 @@ export function eventValue(e: EventItem, key: string): string {
 		case "reason":
 			return e.reason;
 		case "actor":
-			return e.actorType === "system" ? "system" : e.actorName;
+			return e.event.actorType === "system" ? "system" : e.event.actorName;
 		default:
 			return "";
 	}
@@ -140,14 +140,14 @@ export function eventValue(e: EventItem, key: string): string {
 export function eventJson(e: EventItem): string {
 	return JSON.stringify(
 		{
-			seq: e.seq,
+			seq: e.event.seq.toString(),
 			id: e.id,
 			type: e.type,
-			actor_type: e.actorType,
-			actor_name: e.actorName,
-			subject_type: e.subjectType,
-			request_id: e.requestId,
-			data: e.data,
+			actor_type: e.event.actorType,
+			actor_name: e.event.actorName,
+			subject_type: e.event.subjectType,
+			request_id: e.event.requestId,
+			data: e.event.data ?? {},
 			created_at: new Date(e.ts).toISOString(),
 		},
 		null,

@@ -65,8 +65,8 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 		{ key: "region", value: item.region, filter: true },
 		{ key: "reason", value: item.reason, filter: true },
 		{ key: "actor", value: eventValue(item, "actor"), filter: true },
-		{ key: "email", value: item.actorEmail, filter: false },
-		...Object.entries(item.data)
+		{ key: "email", value: item.event.actorEmail, filter: false },
+		...Object.entries(item.event.data ?? {})
 			.filter(
 				([key, value]) =>
 					value !== null &&
@@ -120,9 +120,11 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 						<ArrowDownIcon />
 					</Button>
 					<RowMenu label="Event actions">
-						{item.requestId !== "" && (
+						{item.event.requestId !== "" && (
 							<DropdownMenuItem
-								render={<Link to={`${auditPath(orgId)}?${new URLSearchParams({ q: `@request:${item.requestId}` })}`} />}
+								render={
+									<Link to={`${auditPath(orgId)}?${new URLSearchParams({ q: `@request:${item.event.requestId}` })}`} />
+								}
 							>
 								Open in audit log
 							</DropdownMenuItem>
@@ -228,16 +230,16 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 								</span>
 							</div>
 						))}
-						{item.requestId !== "" && (
+						{item.event.requestId !== "" && (
 							<div className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-2 py-1.5">
 								<dt className="font-mono text-[12px] text-fg3">request</dt>
 								<dd className="m-0 min-w-0">
 									<CopyId
-										value={item.requestId}
+										value={item.event.requestId}
 										title="Copy request ID"
 										className="max-w-full bg-panel2 font-mono text-[12px]"
 									>
-										<span className="truncate">{item.requestId}</span>
+										<span className="truncate">{item.event.requestId}</span>
 									</CopyId>
 								</dd>
 							</div>
