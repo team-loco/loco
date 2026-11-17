@@ -15,14 +15,6 @@ import (
 	"time"
 )
 
-func (cfg config) writeState(name string, data []byte) error {
-	path := filepath.Join(cfg.State, name)
-	if err := os.WriteFile(path+".tmp", data, 0600); err != nil {
-		return err
-	}
-	return os.Rename(path+".tmp", path)
-}
-
 func (cfg config) cluster(ctx context.Context) error {
 	clusters, err := command(ctx, nil, nil, "kind", "get", "clusters")
 	if err != nil {

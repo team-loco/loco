@@ -89,7 +89,6 @@ func Init(options InitOptions) error {
 			map[string]string{"key": base64.StdEncoding.EncodeToString(seal)},
 		},
 		{"control-plane/config/api-env.yaml", "loco-api-env", env},
-		{"worker-staging/config/join-token.yaml", "loco-agent-join-token", map[string]string{"join-token": ""}},
 	} {
 		data, marshalErr := Secret("loco-system", secret.name, secret.data)
 		if marshalErr != nil {

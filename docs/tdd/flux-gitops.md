@@ -91,7 +91,7 @@ With SOPS, operators install it themselves, select cluster and offline recipient
 | OpenBao recovery shares and root token | Chart setup Job | Cluster custody; `locoadm recovery export` for offline custody |
 | ClickHouse users and passwords | Chart credentials Job | Generated in cluster if missing |
 | DNS-01 token | Operator | Operator secret delivery |
-| Worker join token | `locoadm cluster create` | Operator secret delivery |
+| Worker join token | `locoadm cluster create` | Direct Kubernetes Secret application |
 | Agent identity key | Agent | Cluster Secret; never Git |
 | Worker registry pull/push credentials | Operator, static mode only | Operator secret delivery; token mode needs none |
 | Ingest token | API, fetched by agent | Never Git |
@@ -103,11 +103,11 @@ With SOPS, operators install it themselves, select cluster and offline recipient
 Join tokens are single-use and stored by the API only as hashes. `CreateCluster` and `IssueJoinToken` accept an optional TTL. The default is one hour; `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` caps requested lifetimes, such as seven days.
 
 ```sh
-locoadm cluster create --name worker-staging --ttl 72h \
-  -o secret > join-token.yaml
+locoadm cluster create --name worker-staging \
+  -o secret | kubectl --context worker-staging apply -f -
 ```
 
-The command prints a plaintext Secret manifest. Encrypt it with your own tooling before committing it. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. Operators can delete the spent token manifest from Git.
+The command prints a plaintext Secret manifest for direct application to the worker. Direct application keeps tokens outside Git by default. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. The default one-hour token TTL covers immediate application.
 
 An approval-based join flow is outside this design. Pulling a token from the API would itself require a credential.
 

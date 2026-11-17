@@ -6,19 +6,21 @@ Cluster enrollment binds a worker's agent identity to its API registration. Flux
 
 ## Register a worker
 
-Sign in as a system administrator, then print a join-token Secret manifest:
+Sign in as a system administrator, then apply the one-time join-token Secret directly to the worker:
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h -o secret > clusters/worker-staging/config/join-token.yaml
+  -o secret | kubectl --context worker-staging apply -f -
 ```
 
-`-o secret` prints a plaintext Kubernetes Secret manifest. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. Encrypt the file with your own tooling before committing and configure Flux decryption, or supply the same Secret through External Secrets. Core requires no SOPS executable or recipient flags.
+`-o secret` prints a plaintext Kubernetes Secret manifest. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. Apply it to the worker with kubectl; it is bootstrap material outside the operator repository. Core requires no SOPS executable or recipient flags.
 
 Default output is the JSON API response, including the token. Keep both forms out of logs.
 
 Tokens default to one hour. A positive `--ttl` is capped by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL`, which defaults to seven days. Operators configure the default through `LOCO_CLUSTER_JOIN_TOKEN_TTL`. The API stores a hash of each token and accepts it once.
+
+For fully unattended installs, an encrypted token committed to the worker configuration is an option. Use a longer `--ttl`, encrypt the manifest with operator tooling, add its resource entry and configure Flux decryption. Remove the spent file after enrollment.
 
 ## Reconcile and inspect
 
@@ -34,11 +36,11 @@ Status reports pending or enrolled clusters, last heartbeats, API and agent vers
 ## Renew a pending token
 
 ```sh
-locoadm cluster join-token CLUSTER_UUID --ttl 72h \
-  -o secret > clusters/worker-staging/config/join-token.yaml
+locoadm cluster join-token CLUSTER_UUID -o secret | \
+  kubectl --context worker-staging apply -f -
 ```
 
-A fresh token invalidates the preceding one. Encrypt the file before committing and let Flux deliver it, or apply it through your own Secret delivery tooling. After enrollment, remove the consumed token manifest and its resource entry when desired; the agent identity remains in the cluster.
+A fresh token invalidates the preceding one. Apply the new Secret directly to the pending worker. The agent identity remains in the cluster after enrollment.
 
 `CreateCluster` requires a UUID request ID. Programmatic callers persist it and reuse it after a lost response: retries recover the same registration, while changed identity fields fail. Each CLI create invocation generates a fresh request ID. Use `join-token` for an existing registration.
 
