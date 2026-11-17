@@ -101,7 +101,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 		);
 		list.forEach((event) => {
 			const e = runtimeEvent(event);
-			// Builds belong to no environment; deploys and scaling name theirs only in their data.
+			// The workspace stream spans environments; build events belong to none.
 			if (e.environmentId !== "" && e.environmentId !== environmentId) return;
 			events.push({ ...e, resourceId: resource.id, resourceName: resource.name });
 		});
