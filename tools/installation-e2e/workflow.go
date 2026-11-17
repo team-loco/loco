@@ -61,6 +61,9 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 	if stderr.failure != "" {
 		output.failure = stderr.failure
 	}
+	if err != nil && strings.HasPrefix(output.failure, "login failure ") {
+		loginDNSDiagnostics(ctx, dir)
+	}
 	if output.exceeded || stderr.exceeded || len(output.Bytes())+len(stderr.Bytes()) > auditLimit {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
 	}

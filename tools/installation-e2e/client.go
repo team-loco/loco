@@ -207,6 +207,7 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 	defer func() {
 		if result != nil {
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
+			reportLoginDNSFailure(stderr.Bytes())
 		}
 	}()
 	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)

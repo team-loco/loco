@@ -61,8 +61,10 @@ exit 1
 	if closeErr := writer.Close(); closeErr != nil {
 		t.Error(closeErr)
 	}
-	if forwarded := <-output; forwarded != want {
-		t.Errorf("forwarded output = %q, want only %q before operator exit", forwarded, want)
+	forwarded := <-output
+	phases, _, _ := strings.Cut(forwarded, dnsDiagnosticPrefix)
+	if phases != want || strings.Contains(forwarded, "credential-canary") {
+		t.Errorf("forwarded output = %q, want phases %q followed by safe DNS evidence", forwarded, want)
 	}
 	if runErr == nil || !strings.Contains(runErr.Error(), "phase network-policy, login failure api-unavailable") {
 		t.Errorf("operator failure lost its safe phase/category: %v", runErr)
