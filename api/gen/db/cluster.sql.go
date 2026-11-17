@@ -164,7 +164,7 @@ func (q *Queries) GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnro
 
 const listAdminClusters = `-- name: ListAdminClusters :many
 SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
-       last_heartbeat, agent_version, agent_public_key, role, domains, dns_records
+       last_heartbeat, agent_version, agent_public_key, role, domains
 FROM clusters ORDER BY created_at, id
 `
 
@@ -182,7 +182,6 @@ type ListAdminClustersRow struct {
 	AgentPublicKey []byte      `json:"agentPublicKey"`
 	Role           ClusterRole `json:"role"`
 	Domains        []string    `json:"domains"`
-	DnsRecords     []byte      `json:"dnsRecords"`
 }
 
 func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error) {
@@ -208,7 +207,6 @@ func (q *Queries) ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow
 			&i.AgentPublicKey,
 			&i.Role,
 			&i.Domains,
-			&i.DnsRecords,
 		); err != nil {
 			return nil, err
 		}
@@ -409,7 +407,6 @@ SET agent_version = $2,
     capacity_memory_bytes = $4,
     role = $5,
     domains = $6::text[],
-    dns_records = $7::jsonb,
     updated_at = NOW()
 WHERE id = $1
 `
@@ -421,7 +418,6 @@ type UpdateClusterAgentInfoParams struct {
 	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
 	Role                  ClusterRole `json:"role"`
 	Domains               []string    `json:"domains"`
-	DnsRecords            []byte      `json:"dnsRecords"`
 }
 
 // Cluster queries for agent operations
@@ -433,7 +429,6 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 		arg.CapacityMemoryBytes,
 		arg.Role,
 		arg.Domains,
-		arg.DnsRecords,
 	)
 	return err
 }
@@ -446,7 +441,6 @@ SET last_heartbeat = $2,
     health_status = $5,
     role = $6,
     domains = $7::text[],
-    dns_records = $8::jsonb,
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL
 `
@@ -459,7 +453,6 @@ type UpdateClusterHeartbeatParams struct {
 	HealthStatus          *string     `json:"healthStatus"`
 	Role                  ClusterRole `json:"role"`
 	Domains               []string    `json:"domains"`
-	DnsRecords            []byte      `json:"dnsRecords"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -471,7 +464,6 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.HealthStatus,
 		arg.Role,
 		arg.Domains,
-		arg.DnsRecords,
 	)
 	return err
 }

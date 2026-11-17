@@ -98,8 +98,7 @@ CREATE TABLE
         role cluster_role NOT NULL DEFAULT 'all',
         tier TEXT NOT NULL DEFAULT 'production' CHECK (tier IN ('staging', 'production')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        dns_records JSONB NOT NULL DEFAULT '[]'
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
     );
 
 CREATE INDEX idx_clusters_region ON clusters (region);

@@ -15,7 +15,7 @@ loco config --help
 | Command | Purpose |
 | --- | --- |
 | `locoadm init` | Scaffold an operator GitOps repository with plaintext bootstrap Secrets |
-| `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, DNS targets, version skew and unclaimed admins from the API |
+| `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, version skew and unclaimed admins from the API |
 | `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured admin's first sign-in makes it a system admin |
 | `locoadm admin list`, `grant <user-id>`, `revoke <user-id>` | List, grant and revoke [system admins](../operations/self-hosting.md#first-system-admin) |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
@@ -88,3 +88,5 @@ locoadm cluster create --name worker-staging --region example-east --tier stagin
 ```
 
 `status` requires a system-admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.
+
+Read a worker gateway’s load balancer address with `kubectl --context WORKER get gateway -n loco-system` or through the provider. Point the apps wildcard at it once, or run external-dns.

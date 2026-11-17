@@ -162,20 +162,3 @@ func listenerReady(gateway *gatewayv1.Gateway, name gatewayv1.SectionName) bool 
 	}
 	return true
 }
-
-func (r *Reporter) Targets(ctx context.Context) ([]string, error) {
-	gateway := &gatewayv1.Gateway{}
-	key := client.ObjectKey{Namespace: r.config.Namespace, Name: r.config.Gateway}
-	if err := r.reader.Get(ctx, key, gateway); err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("get gateway addresses: %w", err)
-	}
-	targets := make([]string, 0, len(gateway.Status.Addresses))
-	for _, address := range gateway.Status.Addresses {
-		targets = append(targets, address.Value)
-	}
-	slices.Sort(targets)
-	return slices.Compact(targets), nil
-}

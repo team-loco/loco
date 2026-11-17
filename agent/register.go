@@ -66,7 +66,6 @@ func (a *Agent) register(ctx context.Context) error {
 		Capacity:     capacity,
 		Role:         a.cfg.Role,
 		Domains:      a.servedDomains(ctx),
-		DnsRecords:   a.dnsRecords(ctx),
 	}
 	if stored.ClusterID == "" {
 		token := a.cfg.JoinToken
