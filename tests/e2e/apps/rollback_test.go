@@ -10,6 +10,7 @@ import (
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
@@ -61,6 +62,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		}
 		return nil
 	})
+	shortenFailureDeadline(t, w, resourceID)
 	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
 	platform.WriteLocoFile(t, dir, file)
 	result := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")
@@ -105,4 +107,12 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	).GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("failed deployment became %s", got)
 	}
+}
+
+// The next revision intentionally cannot serve. Give Kubernetes enough time to
+// observe restarts and collect traffic samples before it reports the stalled rollout.
+func shortenFailureDeadline(t *testing.T, w *platform.Workspace, resourceID string) {
+	t.Helper()
+	p.MustKubectl(t, "-n", w.Namespace, "patch", "deployment", locov1alpha1.ApplicationName(resourceID),
+		"--type=merge", "-p", `{"spec":{"progressDeadlineSeconds":90}}`)
 }
