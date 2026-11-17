@@ -87,6 +87,14 @@ func (f *fixture) installFlux(ctx context.Context, allowances []map[string]any, 
 	if err != nil {
 		return err
 	}
+	databaseURL, err := command(ctx, f.root, resources, "yq", "-r",
+		`select(.kind == "Secret" and .metadata.name == "loco-api-env") | .stringData.DATABASE_URL`)
+	if err != nil {
+		return err
+	}
+	if err = f.prepareSchema(ctx, strings.TrimSpace(string(databaseURL))); err != nil {
+		return err
+	}
 	archive, err := bundle(map[string][]byte{
 		"resources.yaml": resources,
 		"kustomization.yaml": []byte("apiVersion: kustomize.config.k8s.io/v1beta1\n" +

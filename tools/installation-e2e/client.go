@@ -174,9 +174,10 @@ func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 }
 
 func requireAdminsClaimed(ctx context.Context) error {
+	operatorPhase(phaseAdminStatus)
 	output, err := locoadm(ctx, "status", "--host", fixtureAPIURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("read administrator status from the API: %w", err)
 	}
 	var status struct {
 		Unclaimed []string `json:"unclaimedAdmins"`

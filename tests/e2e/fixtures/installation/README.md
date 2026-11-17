@@ -2,7 +2,7 @@
 
 `mise run e2e:installation` installs a platform bundle through Flux on a disposable kind cluster, upgrades it, and runs the public operator and application commands. `tools/installation-e2e` owns the runner; this directory owns its external fixtures.
 
-The baseline uses the merge base's charts and images, packaged by the head's bundle tooling. The head supplies the upgrade bundle. [2186](https://github.com/team-loco/loco/issues/2186) tracks selecting the newest published v2 bundle as the baseline. Both generations use digest-pinned artifacts. The baseline worktree lives beside the tested checkout.
+The baseline uses the merge base's charts and images, packaged by the head's bundle tooling. The head supplies the upgrade bundle. [2186](https://github.com/team-loco/loco/issues/2186) tracks selecting the newest published v2 bundle as the baseline. Both generations use digest-pinned artifacts. The disposable database is initialized with the head schema before N−1 starts: unreleased migrations are edited in place, so this test covers software upgrades and retained state rather than unreleased migration history. The baseline worktree lives beside the tested checkout.
 
 Flux reconciles the bundle's control-plane entry point, then its combined entry point after registration. The operator signs in with the device flow and a verified Dex identity under closed signup. `locoadm cluster create -o secret` prints a Kubernetes Secret manifest that the harness applies directly. Secret encryption and Flux decryption belong to operator tooling and are outside this test.
 
@@ -14,4 +14,4 @@ Recovery exports ciphertext to separate throwaway age custodians. A disposable O
 
 `--no-teardown` keeps the fixture for inspection. `--skip-build` reuses built images. The default path removes the fixture and baseline worktree after success or failure. External credentials are public test identities. The operator image's Docker context excludes run directories, kubeconfigs and local credentials.
 
-`--timeout` bounds host setup and acceptance. Cleanup has a separate deadline after cancellation. Failures report allowlisted build, pod, event and node states plus numeric capacity; specs and provider messages stay private.
+`--timeout` bounds host setup and acceptance. Cleanup has a separate deadline after cancellation. Failures report allowlisted build, pod, event and node states plus numeric capacity; stdout, specs and provider response bodies stay private. Failed operator execution includes bounded stderr and identifies administrator-status checks separately from login approval.

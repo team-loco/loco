@@ -15,6 +15,7 @@ const (
 	phasePrefix          = "installation-e2e phase: "
 	phasePreflight       = "preflight"
 	phaseControlPlane    = "control-plane"
+	phaseAdminStatus     = "admin-status"
 	phasePreLoginAudit   = "pre-login-audit"
 	phaseLogin           = "login"
 	phaseLoginApprove    = "login-approve"
@@ -116,7 +117,7 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
 			phasePrefix + phasePreLoginAudit, phasePrefix + phaseLogin,
 			phasePrefix + phaseLoginApprove, phasePrefix + phaseLoginApproved,
-			phasePrefix + phasePostLoginAudit,
+			phasePrefix + phasePostLoginAudit, phasePrefix + phaseAdminStatus,
 			phasePrefix + phaseWorkers, phasePrefix + phaseUpgrade,
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,
