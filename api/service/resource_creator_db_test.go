@@ -10,9 +10,10 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-func TestCreateResourceReturnsTheCredentialUser(t *testing.T) {
+func TestCreateResourceReturnsTheCredentialActor(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
+	creators := map[string]string{f.resourceID.String(): f.ownerID.String()}
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	for _, credential := range []genDb.DeploymentActorType{
 		genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken,
@@ -21,6 +22,7 @@ func TestCreateResourceReturnsTheCredentialUser(t *testing.T) {
 		if credential == genDb.DeploymentActorTypeApiToken {
 			ctx = creationTokenContext(t, f, genDb.EntityTypeWorkspace, f.workspaceID, genDb.ScopeWrite)
 		}
+		principal, _ := reqctx.PrincipalFrom(ctx)
 		created, err := server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
 			WorkspaceId: f.workspaceID.String(), Name: string(credential),
 			Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE, Spec: testResourceSpec(),
@@ -34,9 +36,10 @@ func TestCreateResourceReturnsTheCredentialUser(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := resource.GetResource().GetCreatedBy(); got != f.ownerID.String() {
-			t.Fatalf("%s resource creator = %q, want %s", credential, got, f.ownerID)
+		if got := resource.GetResource().GetCreatedBy(); got != principal.ActorID.String() {
+			t.Fatalf("%s resource creator = %q, want %s", credential, got, principal.ActorID)
 		}
+		creators[created.GetResourceId()] = principal.ActorID.String()
 	}
 	var ids []string
 	cursor := ""
@@ -48,8 +51,8 @@ func TestCreateResourceReturnsTheCredentialUser(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, resource := range page.GetResources() {
-			if got := resource.GetCreatedBy(); got != f.ownerID.String() {
-				t.Errorf("listed resource creator = %q, want %s", got, f.ownerID)
+			if got := resource.GetCreatedBy(); got != creators[resource.GetId()] {
+				t.Errorf("listed resource creator = %q, want %s", got, creators[resource.GetId()])
 			}
 			ids = append(ids, resource.GetId())
 		}
@@ -63,7 +66,7 @@ func TestCreateResourceReturnsTheCredentialUser(t *testing.T) {
 	}
 }
 
-func TestApplyResourceRecordsTheCredentialUser(t *testing.T) {
+func TestApplyResourceRecordsTheCredentialActor(t *testing.T) {
 	t.Parallel()
 	for _, actor := range []genDb.DeploymentActorType{genDb.DeploymentActorTypeUser, genDb.DeploymentActorTypeApiToken} {
 		t.Run(string(actor), func(t *testing.T) {
@@ -88,8 +91,8 @@ func TestApplyResourceRecordsTheCredentialUser(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := resource.GetCreatedBy(); got != f.userID.String() {
-				t.Fatalf("applied resource creator = %q, want %s", got, f.userID)
+			if got := resource.GetCreatedBy(); got != actorID.String() {
+				t.Fatalf("applied resource creator = %q, want %s", got, actorID)
 			}
 		})
 	}
