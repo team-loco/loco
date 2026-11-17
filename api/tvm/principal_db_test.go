@@ -139,8 +139,12 @@ func TestPersonalTokenFollowsLiveUserGrants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(principal.Scopes) != 0 {
-		t.Fatalf("removed human grant left token scopes: %v", principal.Scopes)
+	if len(principal.Scopes) != 1 || principal.Scopes[0].EntityType != queries.EntityTypeOrganization ||
+		principal.Scopes[0].EntityID != f.org || principal.Scopes[0].Scope != queries.ScopeMember {
+		t.Fatalf("removed read grant retained more than shared organization membership: %v", principal.Scopes)
+	}
+	if err = authz.New(f.q).Check(ctx, principal.Scopes, read); !errors.Is(err, authz.ErrInsufficientPermissions) {
+		t.Fatalf("removed read grant still permits workspace reads: %v", err)
 	}
 	if _, err = f.q.SetUserStatus(
 		ctx,

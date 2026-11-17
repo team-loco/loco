@@ -39,23 +39,36 @@ func (a *Authorizer) Check(ctx context.Context, granted []queries.EntityScope, r
 	return nil
 }
 
-// Intersect returns the scopes shared by both grants, including narrower descendant grants.
+// Intersect returns shared grants, including narrower descendants and implied organization membership.
 func (a *Authorizer) Intersect(ctx context.Context, left, right []queries.EntityScope) ([]queries.EntityScope, error) {
 	var common []queries.EntityScope
 	parents := make(map[queries.Entity][]queries.EntityScope)
 	for _, l := range left {
 		for _, r := range right {
-			for _, pair := range [][2]queries.EntityScope{{l, r}, {r, l}} {
-				err := a.check(ctx, []queries.EntityScope{pair[0]}, pair[1], parents)
-				if errors.Is(err, ErrInsufficientPermissions) || errors.Is(err, ErrEntityNotFound) {
+			candidates := []queries.EntityScope{l, r}
+			if l.Scope != r.Scope && l.Scope != queries.ScopeMember && r.Scope != queries.ScopeMember {
+				for _, scope := range []queries.EntityScope{l, r} {
+					if scope.EntityType == queries.EntityTypeOrganization {
+						scope.Scope = queries.ScopeMember
+						candidates = append(candidates, scope)
+					}
+				}
+			}
+		candidateLoop:
+			for _, candidate := range candidates {
+				if slices.Contains(common, candidate) {
 					continue
 				}
-				if err != nil {
-					return nil, err
+				for _, grant := range []queries.EntityScope{l, r} {
+					err := a.check(ctx, []queries.EntityScope{grant}, candidate, parents)
+					if errors.Is(err, ErrInsufficientPermissions) || errors.Is(err, ErrEntityNotFound) {
+						continue candidateLoop
+					}
+					if err != nil {
+						return nil, err
+					}
 				}
-				if !slices.Contains(common, pair[1]) {
-					common = append(common, pair[1])
-				}
+				common = append(common, candidate)
 			}
 		}
 	}

@@ -33,6 +33,16 @@ func TestIntersectNarrowsToSharedHierarchyAndPermission(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	orgWrite := queries.EntityScope{
+		EntityType: queries.EntityTypeOrganization,
+		EntityID:   org.ID,
+		Scope:      queries.ScopeWrite,
+	}
+	orgMember := queries.EntityScope{
+		EntityType: queries.EntityTypeOrganization,
+		EntityID:   org.ID,
+		Scope:      queries.ScopeMember,
+	}
 	orgRead := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
 		EntityID:   org.ID,
@@ -61,6 +71,10 @@ func TestIntersectNarrowsToSharedHierarchyAndPermission(t *testing.T) {
 			live: []queries.EntityScope{workspaceRead}, want: []queries.EntityScope{workspaceRead}},
 		{name: "stored child live parent", ceiling: []queries.EntityScope{workspaceRead},
 			live: []queries.EntityScope{orgRead}, want: []queries.EntityScope{workspaceRead}},
+		{name: "different org permissions retain membership", ceiling: []queries.EntityScope{orgRead},
+			live: []queries.EntityScope{orgWrite}, want: []queries.EntityScope{orgMember}},
+		{name: "inverse org permissions retain membership", ceiling: []queries.EntityScope{orgWrite},
+			live: []queries.EntityScope{orgRead}, want: []queries.EntityScope{orgMember}},
 		{name: "different permission", ceiling: []queries.EntityScope{orgRead}, live: []queries.EntityScope{workspaceWrite}},
 		{name: "another organization", ceiling: []queries.EntityScope{orgRead}, live: []queries.EntityScope{otherRead}},
 		{name: "no live grants", ceiling: []queries.EntityScope{orgRead}},
