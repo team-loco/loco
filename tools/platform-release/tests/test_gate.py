@@ -16,6 +16,12 @@ JOBS = {
     4: {OSV: "failure", "Tests / unit": "failure", "CI Gate": "failure"},
     5: {"Changes": "failure", OSV: "skipped", "CI Gate": "failure"},
     6: {"Changes": "success", OSV: "success", "CI Gate": "success"},
+    7: {
+        "Changes": "success",
+        OSV: "cancelled",
+        "Tests / unit": "success",
+        "CI Gate": "cancelled",
+    },
 }
 
 
@@ -62,7 +68,12 @@ def test_the_released_commit_needs_its_own_successful_run():
     assert blocking(("a", None), ("b", ci(3, ""))) == [("b", "in progress")]
 
 
-def test_runs_that_did_not_fail_are_not_cleared_by_later_runs():
-    assert blocking(("a", ci(1, "cancelled")), ("b", ci(3, "success"))) == [
-        ("a", "cancelled")
+def test_a_cancelled_run_is_cleared_by_later_runs_of_its_unfinished_jobs():
+    assert blocking(("a", ci(7, "cancelled")), ("b", ci(3, "success"))) == []
+    assert blocking(("a", ci(7, "cancelled")), ("b", ci(2, "success"))) == [
+        ("a", "cancelled (" + OSV + ")")
     ]
+
+
+def test_runs_in_progress_are_not_cleared_by_later_runs():
+    assert blocking(("a", ci(1, "")), ("b", ci(3, "success"))) == [("a", "in progress")]
