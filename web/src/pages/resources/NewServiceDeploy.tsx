@@ -5,7 +5,7 @@ import { ExternalLinkIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
-import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentService, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { SecretService } from "@gen/loco/secret/v1/secret_pb";
@@ -14,10 +14,14 @@ import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb
 import { Button } from "@/components/design/Button";
 import { SheetBody, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
-import { StepList } from "@/components/design/StepList";
-import { deploymentMessage } from "@/hooks/deployment-watch";
+import { Banner } from "@/components/design/Banner";
+import { useNow } from "@/hooks/useNow";
+import { isInFlight, shortSha } from "@/lib/deployment-utils";
+import { formatBuildDuration } from "@/pages/resource/builds";
+import { deploymentElapsedMs, deploymentStatusLabel } from "@/pages/resource/deployment-progress";
+import { DeploymentRollout } from "@/pages/resource/DeploymentRollout";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
-import { regionDeploySteps, runOutcome, type RunOutcome } from "@/lib/deploy-progress";
+import { runOutcome, type RunOutcome } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
 import {
 	apiFieldError,
@@ -27,7 +31,7 @@ import {
 	type ApiFieldError,
 	type NewResourceForm,
 } from "@/lib/new-resource";
-import { resourcePath } from "@/lib/routes";
+import { observabilityPath, resourcePath } from "@/lib/routes";
 
 interface RegionRun {
 	region: string;
@@ -232,26 +236,26 @@ function useDeployProgress(run: DeployRun) {
 	const watchFor = useDeploymentWatch(
 		run.regions.flatMap((r) => (r.deploymentId === undefined ? [] : [r.deploymentId])),
 	);
-	const regions = run.regions.map((r) => {
-		const watch = watchFor(r.deploymentId);
-		return {
-			region: r.region,
-			steps: regionDeploySteps({
-				form: run.form,
-				created: run.resourceId !== undefined,
-				region: r.region,
-				phase: watch.deployment?.status,
-				message:
-					watch.error !== undefined
-						? `Disconnected. Reconnecting… ${watch.error}`
-						: watch.deployment === undefined
-							? ""
-							: deploymentMessage(watch.deployment) || (watch.activity.at(-1)?.message ?? ""),
-				error: r.error,
-			}),
-		};
-	});
-	return { regions, outcome: runOutcome(regions.map((r) => r.steps)) };
+	const regions = run.regions.map((r) => ({ ...r, watch: watchFor(r.deploymentId) }));
+	return { regions, outcome: runOutcome(regions.map((r) => ({ phase: r.watch.deployment?.status, error: r.error }))) };
+}
+
+function DeploymentHeading({ deployment }: { deployment: Deployment }) {
+	const now = useNow(isInFlight(deployment.status) ? 1000 : undefined).getTime();
+	const elapsed = deploymentElapsedMs(deployment, now);
+	return (
+		<div className="flex flex-wrap items-baseline justify-between gap-2 text-[13px]">
+			<span role="status" className="font-medium">
+				{deploymentStatusLabel(deployment)}
+			</span>
+			{elapsed !== undefined && (
+				<span className="font-mono text-[12px] text-fg3">Elapsed {formatBuildDuration(elapsed)}</span>
+			)}
+			{deployment.commit?.sha && (
+				<span className="basis-full font-mono text-[12px] text-fg3">{shortSha(deployment.commit.sha)}</span>
+			)}
+		</div>
+	);
 }
 
 function progressTitle(run: DeployRun, outcome: RunOutcome): string {
@@ -274,6 +278,7 @@ export function DeployRunView({
 	onDone: () => void;
 }) {
 	const { regions, outcome } = useDeployProgress(run);
+	const logsHref = observabilityPath(orgId, workspaceId, "logs", { env: env.name, r: [run.form.name] });
 	const host = `${run.form.subdomain}.${run.form.platformDomain}`;
 	return (
 		<>
@@ -293,11 +298,32 @@ export function DeployRunView({
 						</a>
 					)}
 				</div>
-				<div className="flex flex-col" aria-live="polite">
+				<div className="flex flex-col gap-4 pt-3">
 					{regions.map((r) => (
-						<section key={r.region} aria-label={r.region} className="flex flex-col">
+						<section key={r.region} aria-label={r.region} className="flex min-w-0 flex-col gap-3">
 							{regions.length > 1 && <span className="pt-2 font-mono text-[12px] text-fg3">{r.region}</span>}
-							<StepList steps={r.steps} />
+							{r.error !== null ? (
+								<Banner title="Failed" className="mx-0 mt-0">
+									{r.error}
+								</Banner>
+							) : r.watch.deployment === undefined ? (
+								<p role="status" className="m-0 text-[13px] text-fg3">
+									{run.resourceId === undefined ? "Creating service…" : "Waiting for deployment…"}
+								</p>
+							) : (
+								<>
+									<DeploymentHeading deployment={r.watch.deployment} />
+									<DeploymentRollout deployment={r.watch.deployment} activity={r.watch.activity} logsHref={logsHref} />
+									<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
+										View logs
+									</Button>
+								</>
+							)}
+							{r.watch.error !== undefined && (
+								<p role="status" className="m-0 text-[12px] text-warn-fg">
+									Disconnected. Reconnecting… {r.watch.error}
+								</p>
+							)}
 						</section>
 					))}
 				</div>
