@@ -98,6 +98,10 @@ CREATE TABLE api_tokens (
 );
 
 CREATE INDEX api_tokens_entity_idx ON api_tokens (entity_type, entity_id);
+CREATE INDEX api_tokens_personal_user_idx ON api_tokens (personal_user_id) WHERE personal_user_id IS NOT NULL;
+CREATE INDEX api_tokens_organization_idx ON api_tokens (organization_ref) WHERE organization_ref IS NOT NULL;
+CREATE INDEX api_tokens_workspace_idx ON api_tokens (workspace_ref) WHERE workspace_ref IS NOT NULL;
+CREATE INDEX api_tokens_resource_idx ON api_tokens (resource_ref) WHERE resource_ref IS NOT NULL;
 CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
 CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 
