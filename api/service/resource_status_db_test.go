@@ -98,9 +98,13 @@ func (f *resourceStatusFixture) deployProduction(t *testing.T, replicas int32) {
 	f.deployTo(t, f.clusterID, f.envID, testRegion, replicas)
 }
 
-func (f *resourceStatusFixture) report(t *testing.T, clusterID uuid.UUID, status *agentv1.PlacementStatus) {
+func (f *resourceStatusFixture) report(
+	t *testing.T,
+	environmentID, clusterID uuid.UUID,
+	status *agentv1.PlacementStatus,
+) {
 	t.Helper()
-	p := f.placement(t, clusterID)
+	p := f.placementIn(t, environmentID, clusterID)
 	status.PlacementId = p.ID.String()
 	status.ObservedRevision = p.DesiredRevision
 	f.agentServer().recordStatus(context.Background(), clusterID, 0, status)
@@ -108,7 +112,7 @@ func (f *resourceStatusFixture) report(t *testing.T, clusterID uuid.UUID, status
 
 func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
-	f.report(t, clusterID, &agentv1.PlacementStatus{
+	f.report(t, f.envID, clusterID, &agentv1.PlacementStatus{
 		Available:     true,
 		ReadyReplicas: replicas,
 	})
@@ -116,15 +120,16 @@ func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replica
 
 func (f *resourceStatusFixture) notReady(t *testing.T, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
-	f.report(t, clusterID, &agentv1.PlacementStatus{
+	f.report(t, f.envID, clusterID, &agentv1.PlacementStatus{
 		ReadyReplicas: replicas,
 	})
 }
 
-func (f *resourceStatusFixture) failed(t *testing.T, clusterID uuid.UUID, replicas int32) {
+func (f *resourceStatusFixture) failed(t *testing.T, environmentID, clusterID uuid.UUID, replicas int32) {
 	t.Helper()
 	f.report(
 		t,
+		environmentID,
 		clusterID,
 		&agentv1.PlacementStatus{
 			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemCrashLoop)},
@@ -321,7 +326,7 @@ func TestResourceStatusIsPerEnvironment(t *testing.T) {
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
 	f.deployTo(t, f.stagingCluster, f.stagingID, testRegion, 1)
-	f.failed(t, f.stagingCluster, 0)
+	f.failed(t, f.stagingID, f.stagingCluster, 0)
 
 	statuses := f.statuses(t)
 	if len(statuses) != 2 {
@@ -359,7 +364,7 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 		},
 	)
 
-	f.failed(t, f.regionCluster, 0)
+	f.failed(t, f.envID, f.regionCluster, 0)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
@@ -385,7 +390,7 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING,
 	})
 
-	f.failed(t, f.clusterID, 1)
+	f.failed(t, f.envID, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
@@ -397,7 +402,7 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployTo(t, f.regionCluster, f.envID, statusSecondRegion, 1)
-	f.failed(t, f.regionCluster, 0)
+	f.failed(t, f.envID, f.regionCluster, 0)
 	f.deployProduction(t, 1)
 	f.ready(t, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,

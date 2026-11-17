@@ -94,15 +94,29 @@ WHERE d.id = $1`, *bound.DeploymentID, f.resourceID, worker, []string{databaseUR
 	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
 		t.Fatal(err)
 	}
-	sent := f.sendPending(t, agent)
-	if len(sent) != 1 || string(sent[0].GetApply().GetEnvSecret().GetData()[databaseURL]) != stripeValue {
-		t.Fatalf("restart did not send current secret: %v", sent)
+	wantPendingSecret := func(want string) {
+		t.Helper()
+		sent := f.sendPending(t, agent)
+		matching := 0
+		for _, message := range sent {
+			apply := message.GetApply()
+			data := apply.GetEnvSecret().GetData()
+			if apply.GetPlacementId() == bound.ID.String() {
+				matching++
+				if string(data[databaseURL]) != want {
+					t.Fatalf("production placement did not receive current secret: %v", apply)
+				}
+			} else if len(data) != 0 {
+				t.Fatalf("production secret leaked to another placement: %v", apply)
+			}
+		}
+		if matching != 1 {
+			t.Fatalf("sent %d production applies, want one: %v", matching, sent)
+		}
 	}
+	wantPendingSecret(stripeValue)
 	f.finishRollouts(t)
 	set(sessionKeyValue)
 	f.deployWithSecrets(t, []string{databaseURL})
-	sent = f.sendPending(t, agent)
-	if len(sent) != 1 || string(sent[0].GetApply().GetEnvSecret().GetData()[databaseURL]) != sessionKeyValue {
-		t.Fatalf("deploy did not send current secret: %v", sent)
-	}
+	wantPendingSecret(sessionKeyValue)
 }
