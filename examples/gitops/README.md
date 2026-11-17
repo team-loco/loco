@@ -20,7 +20,7 @@ After Flux bootstrap creates `loco-system` on the worker, sign in as the configu
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
-locoadm cluster create --name worker-staging --region example-east --tier staging \
+locoadm cluster create --name worker-staging --region example-east \
   --kube-context worker-staging
 ```
 

@@ -79,7 +79,6 @@ func TestCreateEnvironmentRecordsTheCredentialUser(t *testing.T) {
 			server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 			request := &environmentv1.CreateEnvironmentRequest{
 				WorkspaceId: f.workspaceID.String(), Name: "automated",
-				Type: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
 			}
 			created, err := server.CreateEnvironment(ctx, request)
 			if err != nil {

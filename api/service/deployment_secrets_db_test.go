@@ -78,7 +78,7 @@ func TestCreateDeploymentRejectsUnavailableOrOversizedSecrets(t *testing.T) {
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, databaseURLName, stripeValue)
 	f.envID = f.addStagingEnvironment(t)
-	f.setStagingTier(t, f.otherCluster)
+
 	f.storeSecret(t, provider, sessionKeyName, strings.Repeat("x", testMaxPlacementBytes))
 	seedDeployment(t, f, sameRegionSpec)
 
@@ -247,7 +247,6 @@ func TestRedeployReadsEnvironmentFromThePreviousCluster(t *testing.T) {
 	if !old.DesiredDeleted {
 		t.Fatal("previous cluster placement was not removed")
 	}
-	f.clusterID = f.otherCluster
 	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, original.GetEnv()) {
 		t.Fatalf("replacement cluster environment = %v, want %v", got, original.GetEnv())
 	}
@@ -270,8 +269,7 @@ func TestFirstDeploymentDoesNotInheritAnotherEnvironmentsValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.envID = f.addStagingEnvironment(t)
-	f.setStagingTier(t, f.otherCluster)
-	f.clusterID = f.otherCluster
+
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
 		t.Fatal(err)
 	}

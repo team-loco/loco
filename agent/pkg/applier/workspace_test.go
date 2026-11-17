@@ -18,6 +18,8 @@ func TestWorkspaceTeardownWaitsForApplicationFinalizersAndConverges(t *testing.T
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
 		locolabels.LabelLocoApp:   "true", locolabels.LabelWorkspaceID: "workspace-id",
 	}}
+	sibling := namespace.DeepCopy()
+	sibling.Name = "second-environment"
 	other := namespace.DeepCopy()
 	other.Name = "other"
 	other.Labels[locolabels.LabelWorkspaceID] = "other-id"
@@ -28,7 +30,7 @@ func TestWorkspaceTeardownWaitsForApplicationFinalizersAndConverges(t *testing.T
 		Finalizers: []string{locov1alpha1.FinalizerAppResourcesCleanup},
 		Spec:       locov1alpha1.ApplicationSpec{WorkspaceID: "workspace-id"},
 	}
-	a := newTestApplier(t, namespace, other, unmanaged, app)
+	a := newTestApplier(t, namespace, sibling, other, unmanaged, app)
 	ids, err := a.WorkspaceIDs(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +61,9 @@ func TestWorkspaceTeardownWaitsForApplicationFinalizersAndConverges(t *testing.T
 	}
 	if err = a.client.Get(ctx, client.ObjectKeyFromObject(namespace), &corev1.Namespace{}); !apierrors.IsNotFound(err) {
 		t.Fatalf("workspace namespace remains: %v", err)
+	}
+	if err = a.client.Get(ctx, client.ObjectKeyFromObject(sibling), &corev1.Namespace{}); !apierrors.IsNotFound(err) {
+		t.Fatalf("second environment namespace remains: %v", err)
 	}
 	for _, ns := range []*corev1.Namespace{other, unmanaged} {
 		if err = a.client.Get(ctx, client.ObjectKeyFromObject(ns), &corev1.Namespace{}); err != nil {

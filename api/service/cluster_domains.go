@@ -35,12 +35,11 @@ type domainCheck struct {
 func resourceDomainCheck(
 	ctx context.Context,
 	q genDb.Querier,
-	tier string,
 	regions []string,
 	placedClusters []uuid.UUID,
 	silentAfter time.Duration,
 ) (domainCheck, error) {
-	eligible, err := eligibleClusters(ctx, q, tier, silentAfter)
+	eligible, err := eligibleClusters(ctx, q, silentAfter)
 	if err != nil {
 		return domainCheck{}, err
 	}

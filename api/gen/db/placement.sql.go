@@ -79,9 +79,13 @@ func (q *Queries) ChangePlacementProblemReason(ctx context.Context, arg ChangePl
 }
 
 const closePlacementWindow = `-- name: ClosePlacementWindow :exec
-UPDATE placement_windows
+UPDATE placement_windows pw
 SET removed_at = NOW()
-WHERE resource_id = $1 AND cluster_id = $2 AND removed_at IS NULL
+WHERE pw.resource_id = $1 AND pw.cluster_id = $2 AND pw.removed_at IS NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM placements p
+    WHERE p.resource_id = $1 AND p.cluster_id = $2 AND NOT p.desired_deleted
+  )
 `
 
 type ClosePlacementWindowParams struct {
@@ -124,18 +128,19 @@ func (q *Queries) GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (i
 	return sync_generation, err
 }
 
-const getPlacementForResourceCluster = `-- name: GetPlacementForResourceCluster :one
+const getResourceEnvironmentPlacement = `-- name: GetResourceEnvironmentPlacement :one
 SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements
-WHERE resource_id = $1 AND cluster_id = $2
+WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3
 `
 
-type GetPlacementForResourceClusterParams struct {
-	ResourceID uuid.UUID `json:"resourceId"`
-	ClusterID  uuid.UUID `json:"clusterId"`
+type GetResourceEnvironmentPlacementParams struct {
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	ClusterID     uuid.UUID `json:"clusterId"`
 }
 
-func (q *Queries) GetPlacementForResourceCluster(ctx context.Context, arg GetPlacementForResourceClusterParams) (Placement, error) {
-	row := q.db.QueryRow(ctx, getPlacementForResourceCluster, arg.ResourceID, arg.ClusterID)
+func (q *Queries) GetResourceEnvironmentPlacement(ctx context.Context, arg GetResourceEnvironmentPlacementParams) (Placement, error) {
+	row := q.db.QueryRow(ctx, getResourceEnvironmentPlacement, arg.ResourceID, arg.EnvironmentID, arg.ClusterID)
 	var i Placement
 	err := row.Scan(
 		&i.ID,
@@ -441,13 +446,14 @@ SET desired_deleted = true,
     apply_attempts = 0,
     apply_failed = false,
     updated_at = NOW()
-WHERE resource_id = $1 AND cluster_id = $2 AND NOT desired_deleted
+WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3 AND NOT desired_deleted
 RETURNING id, cluster_id, desired_revision
 `
 
 type MarkPlacementDeletedParams struct {
-	ResourceID uuid.UUID `json:"resourceId"`
-	ClusterID  uuid.UUID `json:"clusterId"`
+	ResourceID    uuid.UUID `json:"resourceId"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	ClusterID     uuid.UUID `json:"clusterId"`
 }
 
 type MarkPlacementDeletedRow struct {
@@ -457,7 +463,7 @@ type MarkPlacementDeletedRow struct {
 }
 
 func (q *Queries) MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error) {
-	rows, err := q.db.Query(ctx, markPlacementDeleted, arg.ResourceID, arg.ClusterID)
+	rows, err := q.db.Query(ctx, markPlacementDeleted, arg.ResourceID, arg.EnvironmentID, arg.ClusterID)
 	if err != nil {
 		return nil, err
 	}
@@ -850,11 +856,10 @@ func (q *Queries) UpdatePlacementStatus(ctx context.Context, arg UpdatePlacement
 const upsertPlacement = `-- name: UpsertPlacement :one
 INSERT INTO placements (resource_id, cluster_id, region, deployment_id, desired_spec, environment_id, secret_names)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-ON CONFLICT (resource_id, cluster_id) DO UPDATE
+ON CONFLICT (resource_id, environment_id, cluster_id) DO UPDATE
 SET region = EXCLUDED.region,
     deployment_id = EXCLUDED.deployment_id,
     desired_spec = EXCLUDED.desired_spec,
-    environment_id = EXCLUDED.environment_id,
     secret_names = EXCLUDED.secret_names,
     desired_deleted = false,
     desired_revision = placements.desired_revision + 1,

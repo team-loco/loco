@@ -225,7 +225,7 @@ func TestInventoryResendsOnlyWhatDiffers(t *testing.T) {
 	}
 
 	err = withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		return removePlacement(ctx, qtx, f.resourceID, f.clusterID)
+		return removePlacement(ctx, qtx, f.resourceID, f.envID, f.clusterID)
 	})
 	if err != nil {
 		t.Fatalf("remove placement: %v", err)

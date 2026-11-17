@@ -40,7 +40,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 - **`controller/`**: Kubebuilder operators: reconcile `Application` CRs into workloads, services, routing and network policies; reconcile `Build` CRs into BuildKit jobs.
 - **`builder/`**: Runs inside build jobs: fetch source, restore build cache, and push built images and cache to the registry. BuildKit builds the images.
 - Application workloads run here, alongside Envoy Gateway for ingress, cert-manager for certificates and OpenTelemetry collectors exporting to the control plane.
-- **Each environment runs on its own clusters.** Staging and production never share a cluster; a resource has at most one placement per cluster.
+- **Platform staging and production use separate clusters.** User environments within an installation can share worker clusters. A resource has at most one placement per environment and cluster; each user environment has its own workload namespace.
 
 ### Shared code and tooling
 

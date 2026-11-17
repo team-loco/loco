@@ -207,8 +207,7 @@ FROM (
     SELECT DISTINCT ON (region) region, is_default, health_status,
            COALESCE(last_heartbeat >= $1::timestamptz, false)::boolean AS available
     FROM clusters
-    WHERE tier = $2
-      AND is_active = true
+    WHERE is_active = true
       AND role IN ('apps', 'all')
       AND (health_status IN ('healthy', 'degraded')
            OR last_heartbeat < $1::timestamptz
@@ -218,11 +217,6 @@ FROM (
 ORDER BY available DESC, (health_status = 'healthy') DESC, region
 `
 
-type ListClusterRegionsParams struct {
-	HeardSince time.Time `json:"heardSince"`
-	Tier       string    `json:"tier"`
-}
-
 type ListClusterRegionsRow struct {
 	Region       string  `json:"region"`
 	IsDefault    bool    `json:"isDefault"`
@@ -230,8 +224,8 @@ type ListClusterRegionsRow struct {
 	Available    bool    `json:"available"`
 }
 
-func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error) {
-	rows, err := q.db.Query(ctx, listClusterRegions, arg.HeardSince, arg.Tier)
+func (q *Queries) ListClusterRegions(ctx context.Context, heardSince time.Time) ([]ListClusterRegionsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterRegions, heardSince)
 	if err != nil {
 		return nil, err
 	}
@@ -260,18 +254,12 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
        last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at, domains
 FROM clusters
-WHERE tier = $1
-  AND is_active = true
+WHERE is_active = true
   AND role IN ('apps', 'all')
   AND health_status = 'healthy'
-  AND last_heartbeat >= $2::timestamptz
+  AND last_heartbeat >= $1::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC
 `
-
-type ListEligibleClustersParams struct {
-	Tier       string    `json:"tier"`
-	HeardSince time.Time `json:"heardSince"`
-}
 
 type ListEligibleClustersRow struct {
 	ID                    uuid.UUID  `json:"id"`
@@ -292,8 +280,8 @@ type ListEligibleClustersRow struct {
 	Domains               []string   `json:"domains"`
 }
 
-func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error) {
-	rows, err := q.db.Query(ctx, listEligibleClusters, arg.Tier, arg.HeardSince)
+func (q *Queries) ListEligibleClusters(ctx context.Context, heardSince time.Time) ([]ListEligibleClustersRow, error) {
+	rows, err := q.db.Query(ctx, listEligibleClusters, heardSince)
 	if err != nil {
 		return nil, err
 	}

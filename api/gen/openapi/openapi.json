@@ -2743,7 +2743,7 @@
           "loco.environment.v1.EnvironmentService"
         ],
         "summary": "ListEnvironments",
-        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name and type.",
+        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name.",
         "operationId": "loco.environment.v1.EnvironmentService.ListEnvironments",
         "parameters": [
           {
@@ -9201,10 +9201,6 @@
             "type": "string",
             "title": "region"
           },
-          "tier": {
-            "title": "tier",
-            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-          },
           "isActive": {
             "type": "boolean",
             "title": "is_active"
@@ -9318,15 +9314,6 @@
             "title": "region",
             "maxLength": 255,
             "minLength": 1
-          },
-          "tier": {
-            "not": {
-              "enum": [
-                "ENVIRONMENT_TYPE_UNSPECIFIED"
-              ]
-            },
-            "title": "tier",
-            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           }
         },
         "title": "CreateClusterRequest",
@@ -11141,15 +11128,6 @@
             ],
             "title": "description",
             "maxLength": 256
-          },
-          "type": {
-            "not": {
-              "enum": [
-                "ENVIRONMENT_TYPE_UNSPECIFIED"
-              ]
-            },
-            "title": "type",
-            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
           }
         },
         "title": "CreateEnvironmentRequest",
@@ -11209,10 +11187,6 @@
             ],
             "title": "description"
           },
-          "type": {
-            "title": "type",
-            "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-          },
           "createdBy": {
             "type": "string",
             "title": "created_by"
@@ -11234,16 +11208,6 @@
         "title": "Environment",
         "additionalProperties": false,
         "description": "Environment represents an isolation boundary within a workspace."
-      },
-      "loco.environment.v1.EnvironmentType": {
-        "type": "string",
-        "title": "EnvironmentType",
-        "enum": [
-          "ENVIRONMENT_TYPE_UNSPECIFIED",
-          "ENVIRONMENT_TYPE_STAGING",
-          "ENVIRONMENT_TYPE_PRODUCTION"
-        ],
-        "description": "EnvironmentType is the tier of an environment, which controls which clusters it can deploy to."
       },
       "loco.environment.v1.GetEnvironmentRequest": {
         "type": "object",
@@ -11322,22 +11286,6 @@
             ],
             "title": "description",
             "maxLength": 256
-          },
-          "type": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/loco.environment.v1.EnvironmentType"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "not": {
-              "enum": [
-                "ENVIRONMENT_TYPE_UNSPECIFIED"
-              ]
-            },
-            "title": "type"
           }
         },
         "title": "UpdateEnvironmentRequest",
@@ -16248,10 +16196,6 @@
       "description": "SystemAdminService lists, grants and revokes system:admin. Every RPC requires system admin."
     },
     {
-      "name": "loco.environment.v1.EnvironmentService",
-      "description": "EnvironmentService manages environments within a workspace."
-    },
-    {
       "name": "loco.cluster.v1.ClusterAdminService"
     },
     {
@@ -16275,6 +16219,10 @@
     {
       "name": "loco.domain.v1.DomainService",
       "description": "DomainService manages domains for resources."
+    },
+    {
+      "name": "loco.environment.v1.EnvironmentService",
+      "description": "EnvironmentService manages environments within a workspace."
     },
     {
       "name": "loco.event.v1.EventService"

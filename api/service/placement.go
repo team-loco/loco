@@ -40,7 +40,10 @@ func placeApplication(
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)
 	}
-	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
+	window := genDb.OpenPlacementWindowParams{
+		ResourceID: params.ResourceID,
+		ClusterID:  params.ClusterID,
+	}
 	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
 		return fmt.Errorf("open placement window: %w", err)
 	}
@@ -57,10 +60,11 @@ func placeApplication(
 	return nil
 }
 
-func removePlacement(ctx context.Context, qtx *genDb.Queries, resourceID, clusterID uuid.UUID) error {
+func removePlacement(ctx context.Context, qtx *genDb.Queries, resourceID, environmentID, clusterID uuid.UUID) error {
 	removed, err := qtx.MarkPlacementDeleted(ctx, genDb.MarkPlacementDeletedParams{
-		ResourceID: resourceID,
-		ClusterID:  clusterID,
+		ResourceID:    resourceID,
+		EnvironmentID: environmentID,
+		ClusterID:     clusterID,
 	})
 	if err != nil {
 		return fmt.Errorf("mark placement deleted: %w", err)
@@ -87,7 +91,10 @@ func notifyRemovedPlacements(
 	removed []genDb.MarkPlacementDeletedRow,
 ) error {
 	for _, placement := range removed {
-		window := genDb.ClosePlacementWindowParams{ResourceID: resourceID, ClusterID: placement.ClusterID}
+		window := genDb.ClosePlacementWindowParams{
+			ResourceID: resourceID,
+			ClusterID:  placement.ClusterID,
+		}
 		if err := qtx.ClosePlacementWindow(ctx, window); err != nil {
 			return fmt.Errorf("close placement window: %w", err)
 		}
@@ -108,11 +115,12 @@ func notifyRemovedPlacements(
 func desiredEnv(
 	ctx context.Context,
 	q genDb.Querier,
-	resourceID, clusterID uuid.UUID,
+	resourceID, environmentID, clusterID uuid.UUID,
 ) (map[string]string, error) {
-	placement, err := q.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
-		ResourceID: resourceID,
-		ClusterID:  clusterID,
+	placement, err := q.GetResourceEnvironmentPlacement(ctx, genDb.GetResourceEnvironmentPlacementParams{
+		ResourceID:    resourceID,
+		EnvironmentID: environmentID,
+		ClusterID:     clusterID,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil

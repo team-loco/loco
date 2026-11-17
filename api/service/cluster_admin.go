@@ -34,7 +34,7 @@ var (
 		"cluster registration is removed or its requested fields differ",
 	)
 	errInvalidClusterFields = errors.New(
-		"cluster name and region are required and tier must be staging or production",
+		"cluster name and region are required",
 	)
 )
 
@@ -107,12 +107,11 @@ func (s *ClusterAdminServer) CreateCluster(
 	if err != nil {
 		return nil, err
 	}
-	tier := protoEnvTypeToString(req.GetTier())
 	response := &clusterv1.CreateClusterResponse{}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		queries := genDb.New(tx)
 		if createErr := queries.CreateCluster(ctx, genDb.CreateClusterParams{
-			Name: req.GetName(), Region: req.GetRegion(), Tier: tier, ID: requestID,
+			Name: req.GetName(), Region: req.GetRegion(), ID: requestID,
 		}); createErr != nil {
 			return fmt.Errorf("insert cluster: %w", createErr)
 		}
@@ -120,7 +119,7 @@ func (s *ClusterAdminServer) CreateCluster(
 		if lookupErr != nil {
 			return fmt.Errorf("lock cluster registration: %w", lookupErr)
 		}
-		if row.RemovedAt != nil || row.Name != req.GetName() || row.Region != req.GetRegion() || row.Tier != tier {
+		if row.RemovedAt != nil || row.Name != req.GetName() || row.Region != req.GetRegion() {
 			return errRegistrationChanged
 		}
 		response.ClusterId = row.ID.String()
@@ -188,7 +187,7 @@ func (s *ClusterAdminServer) ListClusters(
 	result := &clusterv1.ListClustersResponse{}
 	for _, row := range rows {
 		cluster := &clusterv1.Cluster{
-			Id: row.ID.String(), Name: row.Name, Region: row.Region, Tier: stringToProtoEnvType(row.Tier),
+			Id: row.ID.String(), Name: row.Name, Region: row.Region,
 			IsActive: row.IsActive, RemovedAt: optionalTimestamp(row.RemovedAt),
 			LastHeartbeat: optionalTimestamp(row.LastHeartbeat),
 			HealthStatus:  row.HealthStatus, AgentVersion: row.AgentVersion,

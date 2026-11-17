@@ -114,10 +114,9 @@ func createWorkspaceInTx(
 	}
 
 	if _, err := qtx.CreateEnvironment(ctx, genDb.CreateEnvironmentParams{
-		WorkspaceID:     wsID,
-		Name:            environmentTypeProduction,
-		EnvironmentType: environmentTypeProduction,
-		CreatedBy:       params.CreatedBy,
+		WorkspaceID: wsID,
+		Name:        defaultEnvironmentName,
+		CreatedBy:   params.CreatedBy,
 	}); err != nil {
 		return uuid.Nil, fmt.Errorf("create production environment of workspace %s: %w", wsID, err)
 	}

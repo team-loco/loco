@@ -86,7 +86,7 @@ func appliedApplication(revision int64, withRef bool) *locoControllerV1.Applicat
 		}
 	}
 	return &locoControllerV1.Application{
-		Name:      locoControllerV1.ApplicationName(testResourceID),
+		Name:      locoControllerV1.ApplicationName(testPlacementID),
 		Namespace: testNamespace,
 		UID:       testAppUID,
 		Annotations: map[string]string{
@@ -94,9 +94,10 @@ func appliedApplication(revision int64, withRef bool) *locoControllerV1.Applicat
 			locoControllerV1.KeyPlacementRevision: strconv.FormatInt(revision, 10),
 		},
 		Spec: locoControllerV1.ApplicationSpec{
-			Type:        testAppType,
-			ResourceID:  testResourceID,
-			ServiceSpec: &locoControllerV1.ServiceSpec{Deployment: deployment},
+			Type:          testAppType,
+			ResourceID:    testResourceID,
+			EnvironmentID: testEnvironmentID,
+			ServiceSpec:   &locoControllerV1.ServiceSpec{Deployment: deployment},
 		},
 	}
 }
@@ -313,8 +314,9 @@ func TestAPayloadRefWithoutAnEnvSecretIsCleared(t *testing.T) {
 	a, _ := newRecordingApplier(t)
 	p := placement(t, testPlacementID, 1)
 	p.Application = marshalPayload(t, &locoControllerV1.ApplicationSpec{
-		Type:       testAppType,
-		ResourceID: testResourceID,
+		Type:          testAppType,
+		ResourceID:    testResourceID,
+		EnvironmentID: testEnvironmentID,
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
 				Image:        testImage,

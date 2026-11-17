@@ -77,7 +77,7 @@ func TestObservability(t *testing.T) {
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 	resourceID := w.ResourceID(t, otelApp)
-	application, err := p.Application(t.Context(), resourceID)
+	application, err := p.Application(t.Context(), resourceID, w.EnvironmentID)
 	if err != nil {
 		t.Fatal(err)
 	}

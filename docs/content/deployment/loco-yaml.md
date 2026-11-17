@@ -46,7 +46,7 @@ A service with `port` and without `domains` is private. Each entry of `domains` 
 
 ## Private service discovery
 
-Applications in the same workspace on the same cluster reach services that declare `port` through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
+Applications in the same workspace on the same cluster reach services that declare `port` through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<environment UUID>`; replace the example UUID with the target environment’s UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.
 
 For example, a caller can pass dependency addresses through its environment:
 
@@ -58,7 +58,7 @@ services:
       PAYMENT_ADDRESS: payment.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local:50051
 ```
 
-Use the cluster's configured DNS suffix in place of `cluster.local` when it has a custom cluster domain. Namespace-qualified names distinguish identical service names in different workspaces. Loco uses the cluster's DNS. Namespace-qualified names identify Services; network policies control which callers can reach them.
+Use the cluster's configured DNS suffix in place of `cluster.local` when it has a custom cluster domain. Namespace-qualified names distinguish a service’s environments and separate identical service names in different workspaces. Loco uses the cluster's DNS. Namespace-qualified names identify Services; network policies control which callers can reach them.
 
 The operator creates a ClusterIP Service named after the slug. It exposes TCP port 80 and the configured application port, both forwarding to each ready replica's application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use the configured port or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
 
@@ -66,7 +66,7 @@ A resource's name is a display label of at most 63 characters. Its private hostn
 
 Renaming a resource through the Resource API moves its logical endpoint without an image build. The operator creates the new alias before removing the old alias. Port changes update the logical endpoint while preserving its ClusterIP. Port 80 keeps reaching ready replicas on their own application ports while old and new replicas overlap. The additional port follows the latest configured application port, so callers that must survive a port change use port 80. Resource deletion removes its aliases. Replacing a resource with another of the same slug waits for the previous resource to release it. An unmanaged Service or a Service owned by another Application causes reconciliation to fail; the operator does not adopt or overwrite it.
 
-Workspace namespaces separate identical names in different workspaces. The workspace network policies permit communication between all applications in that namespace. Other workspaces remain isolated, and each environment runs on its own clusters.
+Each environment has its own namespace, so the same service can run independently in several environments on one worker cluster. A short name such as `cart` reaches the caller’s own environment; a namespace-qualified name reaches the named environment. The workspace network policies allow communication across that workspace’s environment namespaces. Other workspaces remain isolated.
 
 Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation.
 

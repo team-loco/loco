@@ -51,10 +51,6 @@ var (
 	ErrClusterNotFound     = errors.New("cluster not found")
 	ErrInvalidResourceType = errors.New("invalid resource type")
 
-	errClusterHeldByEnvironment = rpcerr.NewCoded(
-		connect.CodeFailedPrecondition,
-		"each environment needs its own cluster, and this cluster already runs the service for another environment",
-	)
 	errDeploymentInProgress = rpcerr.NewCoded(
 		connect.CodeAborted,
 		"another deployment for this resource and region is in progress",
@@ -213,7 +209,7 @@ func (s *ResourceServer) createPlatformDomain(
 		return err
 	}
 	regions := enabledRegions(req.GetSpec().GetService().GetRegions())
-	check, err := resourceDomainCheck(ctx, qtx, env.EnvironmentType, regions, nil, s.clusterSilentAfter)
+	check, err := resourceDomainCheck(ctx, qtx, regions, nil, s.clusterSilentAfter)
 	if err != nil {
 		return fmt.Errorf("list domain clusters: %w", err)
 	}
@@ -248,7 +244,7 @@ func resourceDomainEnvironment(
 	requestedID *string,
 ) (genDb.Environment, error) {
 	if requestedID == nil {
-		return workspaceProductionEnvironment(ctx, qtx, workspaceID)
+		return workspaceDefaultEnvironment(ctx, qtx, workspaceID)
 	}
 	id, err := parseID("environment_id", *requestedID)
 	if err != nil {
@@ -614,14 +610,11 @@ func (s *ResourceServer) ListRegions(
 	req *resourcev1.ListRegionsRequest,
 ) (*resourcev1.ListRegionsResponse, error) {
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
-	env, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListRegions)
+	_, err := visibleEnvironment(ctx, s.queries, s.authz, environmentID, actions.ListRegions)
 	if err != nil {
 		return nil, err
 	}
-	clusters, err := s.queries.ListClusterRegions(ctx, genDb.ListClusterRegionsParams{
-		Tier:       env.EnvironmentType,
-		HeardSince: time.Now().Add(-s.clusterSilentAfter),
-	})
+	clusters, err := s.queries.ListClusterRegions(ctx, time.Now().Add(-s.clusterSilentAfter))
 	if err != nil {
 		return nil, fmt.Errorf("list cluster regions: %w", err)
 	}
@@ -726,7 +719,7 @@ func (s *ResourceServer) scaleCurrentDeployments(
 			continue
 		}
 
-		plainEnv, envErr := desiredEnv(ctx, qtx, resourceID, current.ClusterID)
+		plainEnv, envErr := desiredEnv(ctx, qtx, resourceID, current.EnvironmentID, current.ClusterID)
 		if envErr != nil {
 			return fmt.Errorf("read scaling environment: %w", envErr)
 		}
@@ -876,7 +869,7 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, fmt.Errorf("get deployment environment: %w", err)
 	}
 
-	cluster, err := eligibleCluster(ctx, qtx, current.Region, deploymentEnv.EnvironmentType, s.clusterSilentAfter)
+	cluster, err := eligibleCluster(ctx, qtx, current.Region, s.clusterSilentAfter)
 	if err != nil {
 		return regionRedeploy{}, err
 	}
@@ -1120,7 +1113,7 @@ func (s *ResourceServer) GetResourceEnv(
 		if deployment.EnvironmentID != env.ID {
 			continue
 		}
-		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.ClusterID)
+		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
 		if envErr != nil {
 			return nil, fmt.Errorf("read the desired env: %w", envErr)
 		}

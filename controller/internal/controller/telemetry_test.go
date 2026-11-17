@@ -49,7 +49,7 @@ func buildDeployment(t *testing.T, app *locov1alpha1.Application) *appsv1ac.Depl
 	t.Helper()
 	dep, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,
@@ -123,7 +123,7 @@ func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
 	app := telemetryTestApplication()
 	dep, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		telemetry,
 		testMinReadySeconds,

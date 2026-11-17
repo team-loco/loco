@@ -8,7 +8,7 @@ A Loco installation uses Flux to reconcile a versioned platform bundle and an op
 
 Provide Kubernetes with its CNI, PostgreSQL, an OIDC provider, an S3-compatible source bucket, a registry and DNS. Allow the cluster to pull the platform charts, images and OCI artifacts. The [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) documents the minimum Flux version and the input Secrets.
 
-Each cluster runs its own Flux and reads its own directory. The control plane uses `./control-plane`, a worker uses `./worker`, and a single-cluster installation uses `./all`. Keep staging and production workers on separate clusters.
+Each cluster runs its own Flux and reads its own directory. The control plane uses `./control-plane`, a worker uses `./worker`, and a single-cluster installation uses `./all`. Keep the staging and production installations of Loco on separate clusters. A team’s user environments can share worker clusters within one installation.
 
 Register one public OIDC client with authorization code and PKCE; allow the dashboard origin followed by `/auth/callback`. Use a provider that verifies administrator email addresses.
 
@@ -57,7 +57,7 @@ Sign in with a verified email listed in `api.systemAdmins` to claim the first sy
 Bootstrap each worker’s Flux against its directory first. Once the bundle creates `loco-system`, register the worker and deliver its one-time join-token Secret directly:
 
 ```sh
-locoadm cluster create --name worker-staging --region example-east --tier staging \
+locoadm cluster create --name worker-staging --region example-east \
   --kube-context worker-staging
 ```
 

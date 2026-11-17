@@ -406,11 +406,12 @@ func statusOf(ctx context.Context, w *platform.Workspace, app string) (appStatus
 	if err != nil {
 		return appStatus{}, err
 	}
-	environments := resource.GetEnvironmentStatuses()
-	if len(environments) == 0 || len(environments[0].GetRegions()) == 0 {
-		return appStatus{}, fmt.Errorf("%s reports no region status", app)
+	for _, environment := range resource.GetEnvironmentStatuses() {
+		if environment.GetEnvironmentId() == w.EnvironmentID && len(environment.GetRegions()) > 0 {
+			return appStatus{status: environment.GetStatus(), region: environment.GetRegions()[0]}, nil
+		}
 	}
-	return appStatus{status: environments[0].GetStatus(), region: environments[0].GetRegions()[0]}, nil
+	return appStatus{}, fmt.Errorf("%s reports no region status in environment %s", app, w.EnvironmentID)
 }
 
 func regionStatus(t *testing.T, w *platform.Workspace, app string) *resourcev1.RegionStatus {
@@ -564,7 +565,7 @@ func dumpPlacement(t *testing.T, w *platform.Workspace, resourceID string) {
 		rows.Close()
 	}
 	for _, args := range [][]string{
-		{"-n", p.Namespace, "get", "application", "resource-" + resourceID, "-o", "jsonpath={.status}"},
+		{"-n", p.Namespace, "get", "applications", "-l", "loco.io/resource-id=" + resourceID, "-o", "jsonpath={.status}"},
 		{"-n", w.Namespace, "get", "pods", "-l", "app=resource-" + resourceID, "-o", "yaml"},
 	} {
 		out, err := p.Kubectl(ctx, args...)

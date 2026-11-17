@@ -66,7 +66,7 @@ func mountTelemetryDeployment(
 	}
 	dep, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		mount,
 		testTelemetry(),
 		testMinReadySeconds,

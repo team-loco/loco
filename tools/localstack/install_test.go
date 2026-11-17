@@ -212,7 +212,7 @@ func TestEnrollmentResumesAnExistingRegistration(t *testing.T) {
 		strings.Join(
 			args,
 			" ",
-		) != "cluster create --name local --region local --tier production --kube-context kind-worker" {
+		) != "cluster create --name local --region local --kube-context kind-worker" {
 		t.Fatalf("new enrollment=%v,%v", args, err)
 	}
 }

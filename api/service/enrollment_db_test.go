@@ -19,7 +19,6 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
-	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
@@ -65,7 +64,6 @@ func (e *enrollmentFixture) createCluster(t *testing.T) (uuid.UUID, string) {
 	t.Helper()
 	resp, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
 		RequestId: uuid.NewString(), Name: "enrolled", Region: testRegion,
-		Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -404,7 +402,7 @@ func TestClusterJoinTokenRequestedTTL(t *testing.T) {
 		started := time.Now()
 		response, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
 			RequestId: uuid.NewString(), Name: "ttl", Region: testRegion,
-			Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING, Ttl: requested,
+			Ttl: requested,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -427,7 +425,7 @@ func TestClusterJoinTokenRequestedTTL(t *testing.T) {
 		for _, invalid := range []time.Duration{0, -time.Second, 8 * 24 * time.Hour} {
 			_, err := e.admin.CreateCluster(systemAdminContext(t), &clusterv1.CreateClusterRequest{
 				RequestId: uuid.NewString(), Name: "invalid-ttl", Region: testRegion,
-				Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING, Ttl: durationpb.New(invalid),
+				Ttl: durationpb.New(invalid),
 			})
 			requireCode(t, err, connect.CodeInvalidArgument, "create ttl")
 			_, err = e.admin.IssueJoinToken(

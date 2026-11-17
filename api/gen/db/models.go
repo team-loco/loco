@@ -515,7 +515,6 @@ type Cluster struct {
 	JoinTokenExpiresAt    *time.Time  `json:"joinTokenExpiresAt"`
 	JoinTokenUsedAt       *time.Time  `json:"joinTokenUsedAt"`
 	Role                  ClusterRole `json:"role"`
-	Tier                  string      `json:"tier"`
 	CreatedAt             time.Time   `json:"createdAt"`
 	UpdatedAt             time.Time   `json:"updatedAt"`
 }
@@ -568,15 +567,14 @@ type DeploymentRollout struct {
 }
 
 type Environment struct {
-	ID              uuid.UUID `json:"id"`
-	WorkspaceID     uuid.UUID `json:"workspaceId"`
-	Name            string    `json:"name"`
-	Description     *string   `json:"description"`
-	EnvironmentType string    `json:"environmentType"`
-	CreatedBy       uuid.UUID `json:"createdBy"`
-	Revision        int64     `json:"revision"`
-	CreatedAt       time.Time `json:"createdAt"`
-	UpdatedAt       time.Time `json:"updatedAt"`
+	ID          uuid.UUID `json:"id"`
+	WorkspaceID uuid.UUID `json:"workspaceId"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedBy   uuid.UUID `json:"createdBy"`
+	Revision    int64     `json:"revision"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 type EnvironmentKey struct {

@@ -41,8 +41,12 @@ func storedDeployPolicy(res genDb.Resource) [2]int32 {
 
 func (f *deployFixture) workerPlacement(t *testing.T) genDb.Placement {
 	t.Helper()
-	key := genDb.GetPlacementForResourceClusterParams{ResourceID: f.workerResource(t).ID, ClusterID: f.clusterID}
-	placement, err := f.queries.GetPlacementForResourceCluster(t.Context(), key)
+	key := genDb.GetResourceEnvironmentPlacementParams{
+		EnvironmentID: f.envID,
+		ResourceID:    f.workerResource(t).ID,
+		ClusterID:     f.clusterID,
+	}
+	placement, err := f.queries.GetResourceEnvironmentPlacement(t.Context(), key)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}

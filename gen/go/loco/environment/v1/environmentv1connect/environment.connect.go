@@ -87,7 +87,7 @@ type EnvironmentServiceClient interface {
 	GetEnvironment(context.Context, *v1.GetEnvironmentRequest) (*v1.GetEnvironmentResponse, error)
 	// ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
 	// but has a grant on one of its resources gets each environment with only id, workspace_id,
-	// name and type.
+	// name.
 	ListEnvironments(context.Context, *v1.ListEnvironmentsRequest) (*v1.ListEnvironmentsResponse, error)
 	// UpdateEnvironment updates an environment.
 	UpdateEnvironment(context.Context, *v1.UpdateEnvironmentRequest) (*v1.UpdateEnvironmentResponse, error)
@@ -110,7 +110,7 @@ type EnvironmentServiceHandler interface {
 	GetEnvironment(context.Context, *v1.GetEnvironmentRequest) (*v1.GetEnvironmentResponse, error)
 	// ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
 	// but has a grant on one of its resources gets each environment with only id, workspace_id,
-	// name and type.
+	// name.
 	ListEnvironments(context.Context, *v1.ListEnvironmentsRequest) (*v1.ListEnvironmentsResponse, error)
 	// UpdateEnvironment updates an environment.
 	UpdateEnvironment(context.Context, *v1.UpdateEnvironmentRequest) (*v1.UpdateEnvironmentResponse, error)

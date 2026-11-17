@@ -86,7 +86,7 @@ func TestObserveDeletedReplica(t *testing.T) {
 	app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
 	app.Status.ObservedPlacementRevision = 2
 	pod := &corev1.Pod{
-		UID: "deleted-uid", Name: "deleted-name", Namespace: testWorkspaceNamespace(app),
+		UID: "deleted-uid", Name: "deleted-name", Namespace: testEnvironmentNamespace(app),
 		Labels:            map[string]string{labelApp: testAppName(app)},
 		Annotations:       map[string]string{locov1alpha1.KeyPlacementRevision: "1"},
 		DeletionTimestamp: new(metav1.NewTime(now)),
@@ -213,7 +213,7 @@ func TestProblemIgnoresEarlierRevisions(t *testing.T) {
 		app := workspaceApp("problem-revision", "problem-revision")
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
 		pod := &corev1.Pod{
-			UID: "crash-uid", Name: "crash-replica", Namespace: testWorkspaceNamespace(app),
+			UID: "crash-uid", Name: "crash-replica", Namespace: testEnvironmentNamespace(app),
 			Labels:      map[string]string{labelApp: testAppName(app)},
 			Annotations: map[string]string{locov1alpha1.KeyPlacementRevision: tt.revision},
 			Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{

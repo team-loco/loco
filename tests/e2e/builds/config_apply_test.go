@@ -392,7 +392,15 @@ func autoscalerMatches(ctx context.Context, w *platform.Workspace, target int32)
 func waitApplicationGone(t *testing.T, resourceID string) {
 	t.Helper()
 	platform.Eventually(t, time.Minute, "the Application to be removed", func(ctx context.Context) error {
-		if found, err := p.Exists(ctx, "-n", p.Namespace, "application", "resource-"+resourceID); err != nil || found {
+		if found, err := p.Exists(
+			ctx,
+			"-n",
+			p.Namespace,
+			"applications",
+			"-l",
+			"loco.io/resource-id="+resourceID,
+		); err != nil ||
+			found {
 			return fmt.Errorf("the Application exists (%w)", err)
 		}
 		return nil

@@ -71,12 +71,24 @@ func wantCleanPlan(t *testing.T, f *deployFixture, file string) {
 
 func (f *deployFixture) workerPayload(t *testing.T, clusterID uuid.UUID) locoControllerV1.PlacementPayload {
 	t.Helper()
+	return f.workerPayloadIn(t, clusterID, f.envID)
+}
+
+func (f *deployFixture) workerPayloadIn(
+	t *testing.T,
+	clusterID, environmentID uuid.UUID,
+) locoControllerV1.PlacementPayload {
+	t.Helper()
 	res, found := f.resourceByName(t, applyWorker)
 	if !found {
 		t.Fatal("worker does not exist")
 	}
-	key := genDb.GetPlacementForResourceClusterParams{ResourceID: res.ID, ClusterID: clusterID}
-	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), key)
+	key := genDb.GetResourceEnvironmentPlacementParams{
+		EnvironmentID: environmentID,
+		ResourceID:    res.ID,
+		ClusterID:     clusterID,
+	}
+	placement, err := f.queries.GetResourceEnvironmentPlacement(context.Background(), key)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}
@@ -218,8 +230,12 @@ VALUES ('c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
 		t.Fatalf("active deployments = %+v, want only %s", active, otherRegion)
 	}
 	res, _ := f.resourceByName(t, applyWorker)
-	key := genDb.GetPlacementForResourceClusterParams{ResourceID: res.ID, ClusterID: f.clusterID}
-	removed, getErr := f.queries.GetPlacementForResourceCluster(context.Background(), key)
+	key := genDb.GetResourceEnvironmentPlacementParams{
+		EnvironmentID: f.envID,
+		ResourceID:    res.ID,
+		ClusterID:     f.clusterID,
+	}
+	removed, getErr := f.queries.GetResourceEnvironmentPlacement(context.Background(), key)
 	if getErr != nil {
 		t.Fatalf("get placement: %v", getErr)
 	}
@@ -255,8 +271,12 @@ func TestApplyStopsAndRestartsADisabledService(t *testing.T) {
 	if !found || derefString(res.Partial) != planPartial {
 		t.Fatalf("resource = %+v found %v, want worker still owned by %s", res, found, planPartial)
 	}
-	key := genDb.GetPlacementForResourceClusterParams{ResourceID: res.ID, ClusterID: f.clusterID}
-	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), key)
+	key := genDb.GetResourceEnvironmentPlacementParams{
+		EnvironmentID: f.envID,
+		ResourceID:    res.ID,
+		ClusterID:     f.clusterID,
+	}
+	placement, err := f.queries.GetResourceEnvironmentPlacement(context.Background(), key)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}

@@ -209,8 +209,12 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	if !deployment.IsActive || deployment.Replicas != 1 || deployment.EnvironmentID != f.envID {
 		t.Fatalf("deployment = %+v, want an active one in the environment with one replica", deployment)
 	}
-	placementKey := genDb.GetPlacementForResourceClusterParams{ResourceID: res.ID, ClusterID: f.clusterID}
-	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), placementKey)
+	placementKey := genDb.GetResourceEnvironmentPlacementParams{
+		EnvironmentID: f.envID,
+		ResourceID:    res.ID,
+		ClusterID:     f.clusterID,
+	}
+	placement, err := f.queries.GetResourceEnvironmentPlacement(context.Background(), placementKey)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}

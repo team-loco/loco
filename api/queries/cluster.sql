@@ -32,13 +32,13 @@ FROM clusters
 WHERE id = $1;
 
 -- name: CreateCluster :exec
-INSERT INTO clusters (name, region, tier, provider, is_active, is_default, id)
-VALUES (sqlc.arg(name), sqlc.arg(region), sqlc.arg(tier), 'kubernetes', true, false,
+INSERT INTO clusters (name, region, provider, is_active, is_default, id)
+VALUES (sqlc.arg(name), sqlc.arg(region), 'kubernetes', true, false,
         sqlc.arg(id))
 ON CONFLICT (id) DO NOTHING;
 
 -- name: LockClusterRegistration :one
-SELECT id, name, region, tier, removed_at, agent_public_key
+SELECT id, name, region, removed_at, agent_public_key
 FROM clusters WHERE id = $1 FOR UPDATE;
 
 -- name: SetClusterJoinToken :one
@@ -75,7 +75,7 @@ VALUES (sqlc.arg(cluster_id), sqlc.arg(jti), sqlc.arg(expires_at))
 ON CONFLICT (cluster_id, jti) DO NOTHING;
 
 -- name: ListAdminClusters :many
-SELECT id, cluster_key, name, region, tier, is_active, removed_at, health_status,
+SELECT id, cluster_key, name, region, is_active, removed_at, health_status,
        last_heartbeat, agent_version, agent_public_key, role, domains
 FROM clusters ORDER BY created_at, id;
 

@@ -146,7 +146,7 @@ func TestScaleResourceKeepsTheWorkspaceOrganization(t *testing.T) {
 func (f *deployFixture) deployToProductionAndStaging(t *testing.T) uuid.UUID {
 	t.Helper()
 	stagingID := f.addStagingEnvironment(t)
-	f.setStagingTier(t, f.otherCluster)
+
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("deploy production: %v", err)
 	}

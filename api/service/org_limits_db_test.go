@@ -124,7 +124,6 @@ func TestOrgLimitOverrideRaisesAndLowersACap(t *testing.T) {
 		_, err := server.CreateEnvironment(ctx, &environmentv1.CreateEnvironmentRequest{
 			WorkspaceId: f.workspaceID(t).String(),
 			Name:        name,
-			Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
 		})
 		return err
 	}

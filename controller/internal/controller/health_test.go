@@ -35,7 +35,7 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 			app.Spec.ServiceSpec.Deployment.HealthCheck = tc.health
 			deployment, err := desiredDeployment(
 				app,
-				testWorkspaceNamespace(app),
+				testEnvironmentNamespace(app),
 				envSecretMount{},
 				testTelemetry(),
 				testMinReadySeconds,
@@ -79,7 +79,7 @@ func TestDesiredDeploymentKeepsOldReplicasUntilNewOnesStayReady(t *testing.T) {
 	app := testApplication()
 	deployment, err := desiredDeployment(
 		app,
-		testWorkspaceNamespace(app),
+		testEnvironmentNamespace(app),
 		envSecretMount{},
 		testTelemetry(),
 		17,
@@ -106,7 +106,7 @@ func TestDesiredDeploymentReservesDrainTimeBeforeProcessShutdown(t *testing.T) {
 	for _, drain := range []int32{testDrainSeconds, 1<<31 - 1} {
 		app := testApplication()
 		deployment, err := desiredDeployment(
-			app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, drain,
+			app, testEnvironmentNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, drain,
 		)
 		if err != nil {
 			t.Fatal(err)
@@ -128,7 +128,7 @@ func TestDesiredDeploymentDoesNotDelayPortlessWorkerShutdown(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Deployment.Port = nil
 	deployment, err := desiredDeployment(
-		app, testWorkspaceNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, testDrainSeconds,
+		app, testEnvironmentNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, testDrainSeconds,
 	)
 	if err != nil {
 		t.Fatal(err)
