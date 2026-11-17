@@ -123,7 +123,7 @@ spec:
 			return err
 		}
 	}
-	return nil
+	return checkCombinedCharts(ctx, root, filepath.Join(scratch, "combined"))
 }
 
 func command(ctx context.Context, dir string, input []byte, name string, args ...string) ([]byte, error) {
@@ -264,6 +264,10 @@ func checkSingleCluster(ctx context.Context, root, scratch, spec string, resourc
 		resources.Write(built)
 		resources.WriteString("\n---\n")
 	}
+	return nil
+}
+
+func checkCombinedCharts(ctx context.Context, root, output string) error {
 	issuers := 0
 	for _, role := range []string{"control-plane", "worker"} {
 		chart := "loco-" + role

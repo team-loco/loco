@@ -74,13 +74,6 @@ func TestValidationRejectsAnInvalidProductionCohort(t *testing.T) {
 	if err := os.CopyFS(example, os.DirFS("../../examples/gitops")); err != nil {
 		t.Fatal(err)
 	}
-	charts, err := filepath.Abs("../../charts")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.Symlink(charts, filepath.Join(root, "charts")); err != nil {
-		t.Fatal(err)
-	}
 	cmdRoot, err := filepath.Abs("../../cmd")
 	if err != nil {
 		t.Fatal(err)

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -56,7 +59,7 @@ func (f *fixture) installFlux(
 		"--single-cluster",
 		"--name",
 		repo.Cluster,
-		"--output",
+		outputFlag,
 		repo.Path,
 		"--api",
 		"http://api.installation.test",
@@ -147,17 +150,22 @@ func (f *fixture) publishRepo(
 	if err := repo.Configure(reference, entry); err != nil {
 		return "", err
 	}
-	output, err := command(ctx, f.root, nil, "flux", "push", "artifact",
-		"oci://"+strings.TrimPrefix(f.registryURL, "http://")+"/platform/fixture-config:"+f.version,
+	args := []string{"push", "artifact",
+		"oci://" + strings.TrimPrefix(f.registryURL, "http://") + "/platform/fixture-config:" + f.version,
 		"--path", repo.Path, "--source", f.root, "--revision", f.version,
-		"--creds", fixtureBuilder+":"+fixturePushPassword, "--insecure-registry", "--output", "json")
-	if err != nil {
-		return "", err
+		"--creds", fixtureBuilder + ":" + fixturePushPassword, "--insecure-registry", outputFlag, "json"}
+	cmd := exec.CommandContext(ctx, "flux", args...)
+	cmd.Dir = f.root
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("publish operator repository: %w", err)
 	}
 	var artifact struct {
 		Digest string `json:"digest"`
 	}
-	if err = json.Unmarshal(output, &artifact); err != nil {
+	if err := json.Unmarshal(output.Bytes(), &artifact); err != nil {
 		return "", err
 	}
 	return registryHost + "/platform/fixture-config@" + artifact.Digest, nil
