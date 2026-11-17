@@ -147,8 +147,15 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(delete).to_be_focused()
     delete.click()
     dialog.get_by_role("textbox").fill(state["users"]["departing"]["email"])
+    # The evidence install has no provider UI; stop at the real sign-in handoff.
+    context.route(
+        "**/dex/auth?**",
+        lambda route: route.fulfill(content_type="text/html", body="<h1>Sign in</h1>"),
+    )
     confirm.click()
-    expect(page).to_have_url(re.compile(r"/login(?:\?.*)?$"))
+    expect(page).to_have_url(re.compile(r"/dex/auth\?"))
+    expect(page.get_by_role("heading", name="Sign in", exact=True)).to_be_visible()
+    assert page.evaluate("localStorage.getItem('loco:auth:oidc:v1')") is None
     assert errors == [], errors
     context.close()
 
