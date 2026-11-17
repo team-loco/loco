@@ -29,11 +29,14 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 	if _, err := f.pool.Exec(t.Context(), buildRegionQuery, f.clusterID); err != nil {
 		t.Fatal(err)
 	}
-	regions, err := f.queries.ListClusterRegions(t.Context(), time.Now().Add(-testClusterSilentAfter))
+	regions, err := f.queries.ListClusterRegions(t.Context(), genDb.ListClusterRegionsParams{
+		Platform:   testPlatform,
+		HeardSince: time.Now().Add(-testClusterSilentAfter),
+	})
 	if err != nil || len(regions) != 1 || regions[0].Region != testRegion {
 		t.Fatalf("application regions = %v, err = %v", regions, err)
 	}
-	clusters, err := eligibleClusters(t.Context(), f.queries, testClusterSilentAfter)
+	clusters, err := eligibleClusters(t.Context(), f.queries, testClusterSilentAfter, testPlatform)
 	if err != nil || len(clusters) != 1 || clusters[0].ID != f.otherCluster {
 		t.Fatalf("application clusters = %v, err = %v", clusters, err)
 	}
@@ -77,7 +80,13 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 	f.setRole(t, f.clusterID, genDb.ClusterRoleApps)
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleApps)
 	heardSince := time.Now().Add(-testClusterSilentAfter)
-	if _, lookupErr := f.queries.GetBuildCluster(t.Context(), heardSince); !errors.Is(lookupErr, pgx.ErrNoRows) {
+	if _, lookupErr := f.queries.GetBuildCluster(
+		t.Context(),
+		genDb.GetBuildClusterParams{HeardSince: heardSince, Platform: testPlatform},
+	); !errors.Is(
+		lookupErr,
+		pgx.ErrNoRows,
+	) {
 		t.Fatalf("build cluster among apps clusters: %v", lookupErr)
 	}
 }

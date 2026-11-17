@@ -195,12 +195,13 @@ metadata:
 spec:
   buildId: %s
   workspaceId: e2e-workspace
+  platform: %s
   resourceId: e2e-resource
   sourceURL: %q
   dockerfilePath: %s
   context: .
   imageRepository: %s%s
-`, name, p.BuildNamespace, name, sourceURL, dockerfile, repository, cache))
+`, name, p.BuildNamespace, name, p.TargetPlatform, sourceURL, dockerfile, repository, cache))
 	var build v1alpha1.Build
 	platform.Eventually(t, buildTimeout, "build "+name+" to finish", func(ctx context.Context) error {
 		if err := p.Get(ctx, &build, "-n", p.BuildNamespace, "build", name); err != nil {

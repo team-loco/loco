@@ -82,6 +82,11 @@ spec:
                 maxLength: 63
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                 type: string
+              platform:
+                enum:
+                - linux/amd64
+                - linux/arm64
+                type: string
               resourceId:
                 maxLength: 63
                 pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
@@ -99,6 +104,7 @@ spec:
             - context
             - dockerfilePath
             - imageRepository
+            - platform
             - resourceId
             - sourceURL
             - workspaceId

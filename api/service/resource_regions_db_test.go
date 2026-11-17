@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -192,8 +194,8 @@ func TestUpdateResourceRegionsValidatesEveryEnvironmentAtomically(t *testing.T) 
 	targets, revision := regionTargets(t, f)
 	targets[otherRegion] = proto.CloneOf(targets[testRegion])
 	insert := `
-INSERT INTO clusters(name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES('extra',$1,'kind',true,false,'unhealthy',NOW())`
+INSERT INTO clusters(platforms, name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES(ARRAY['linux/amd64'], 'extra',$1,'kind',true,false,'unhealthy',NOW())`
 	if _, err := f.pool.Exec(t.Context(), insert, otherRegion); err != nil {
 		t.Fatal(err)
 	}
@@ -329,4 +331,54 @@ func TestUpdateResourceRegionsDeploysAutoscaling(t *testing.T) {
 		return
 	}
 	t.Fatal("autoscaled region was not deployed")
+}
+
+func TestRegionUpdatesRetainDeploymentPlatformAfterTargetChanges(t *testing.T) {
+	t.Parallel()
+	for _, mixed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mixed=%v", mixed), func(t *testing.T) {
+			f := prepareRegionUpdate(t)
+			if mixed {
+				if _, err := f.pool.Exec(
+					t.Context(),
+					"UPDATE clusters SET platforms = ARRAY['linux/amd64','linux/arm64'] WHERE id IN ($1, $2)",
+					f.clusterID, f.otherCluster,
+				); err != nil {
+					t.Fatal(err)
+				}
+			}
+			targets, revision := regionTargets(t, f)
+			targets[otherRegion] = proto.CloneOf(targets[testRegion])
+			defaults := testServiceDefaults()
+			defaults.TargetPlatform = workloadplatform.ARM64
+			server := NewResourceServer(f.pool, f.queries, defaults, testClusterSilentAfter, limits.Defaults())
+			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
+				ActorType: genDb.DeploymentActorTypeUser, Method: genDb.DeploymentMethodWeb,
+				Scopes: []genDb.EntityScope{{
+					EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite,
+				}},
+			})
+			_, err := server.UpdateResource(ctx, &resourcev1.UpdateResourceRequest{
+				ResourceId: f.resourceID.String(),
+				Regions:    &resourcev1.RegionTargets{Targets: targets},
+				Revision:   revision,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			active := f.activeDeployments(t, f.envID)
+			if len(active) != 2 {
+				t.Fatalf("added deployments = %v", active)
+			}
+			for _, deployment := range active {
+				spec, err := currentServiceSpec(deployment, genDb.ResourceTypeService)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if spec.GetPlatform() != string(testPlatform) {
+					t.Fatalf("%s deployment target = %s, want %s", deployment.Region, spec.GetPlatform(), testPlatform)
+				}
+			}
+		})
+	}
 }

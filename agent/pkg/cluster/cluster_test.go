@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -131,5 +132,22 @@ func TestHealth(t *testing.T) {
 				t.Error("message is empty for an unhealthy controller")
 			}
 		})
+	}
+}
+
+func TestCapacityReportsMixedWorkerPlatforms(t *testing.T) {
+	amd := node("amd", "2", "4Gi", "10")
+	amd.Status.NodeInfo = corev1.NodeSystemInfo{OperatingSystem: "linux", Architecture: "amd64"}
+	arm := node("arm", "2", "4Gi", "10")
+	arm.Status.NodeInfo = corev1.NodeSystemInfo{OperatingSystem: "linux", Architecture: "arm64"}
+	secondARM := arm.DeepCopy()
+	secondARM.Name = "arm-2"
+	inspector := NewInspector(fake.NewClientset(amd, arm, secondARM), "loco-system", "loco-controller")
+	capacity, err := inspector.Capacity(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(capacity.GetPlatforms(), ","); got != "linux/amd64,linux/arm64" {
+		t.Fatalf("platforms %s", got)
 	}
 }

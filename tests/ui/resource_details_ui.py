@@ -67,6 +67,7 @@ cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
 image = f"registry.example.com/recommendation-{resource}:{deployment}"
 runtime = json.dumps(
     {
+        "platform": "linux/amd64",
         "observability": {"injectOtel": True},
         "build": {"type": "image", "image": image},
         "cpu": "500m",
@@ -87,7 +88,7 @@ evidence.psql(
     state["container"],
     f"""BEGIN;
 UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','resource-details','us-east-1','fixture',true,false,'healthy',NOW());
+INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','resource-details','us-east-1','fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES('user','{owner["id"]}','web','{deployment}','{resource}','{cluster}','us-east-1',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',1,NOW());
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)

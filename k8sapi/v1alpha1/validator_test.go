@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+const testPlatform = "linux/amd64"
+
 func TestResourcesSpecValidate(t *testing.T) {
 	at := func(cpuMillis int64, memory int64, maxReplicas int32) ResourcesSpec {
 		return ResourcesSpec{
@@ -66,6 +68,7 @@ func TestResourcesSpecValidate(t *testing.T) {
 
 func TestServiceDeploymentSpecValidatesEnvSecretRef(t *testing.T) {
 	valid := ServiceDeploymentSpec{
+		Platform:     testPlatform,
 		Image:        "ghcr.io/team-loco/app:v1",
 		Port:         new(int32(8080)),
 		EnvSecretRef: &EnvSecretRef{Name: "env-p1", Revision: 3},
@@ -92,7 +95,7 @@ func TestPortlessServiceTakesNoTrafficOrHealthCheck(t *testing.T) {
 	health := &HealthCheckSpec{Path: "/healthz", Interval: 5, Timeout: 1, FailThreshold: 1}
 	worker := func() *ServiceSpec {
 		return &ServiceSpec{
-			Deployment: &ServiceDeploymentSpec{Image: "ghcr.io/team-loco/worker:v1"},
+			Deployment: &ServiceDeploymentSpec{Platform: testPlatform, Image: "ghcr.io/team-loco/worker:v1"},
 			Resources:  &ResourcesSpec{CPU: "100m", Memory: "64Mi", Replicas: ReplicasSpec{Min: 1, Max: 1}},
 		}
 	}

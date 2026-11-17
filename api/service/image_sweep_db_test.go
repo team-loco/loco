@@ -121,10 +121,10 @@ func (f *imageSweepFixture) succeededWith(t *testing.T, image, cache string) swe
 	finished := time.Now().Add(time.Duration(f.built) * testBuildSpacing)
 	repository := testRegistryHost + "/" + f.repoPath
 	if _, err := f.pool.Exec(f.ctx, `
-INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+INSERT INTO builds (platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, image_digest, cache_digest, created_by,
                     finished_at)
-VALUES ($1, $2, $3, 'succeeded', 'upload', $4, 10, 'Dockerfile', $5, $6, $7, $8, $9)`,
+VALUES ('linux/amd64', $1, $2, $3, 'succeeded', 'upload', $4, 10, 'Dockerfile', $5, $6, $7, $8, $9)`,
 		id, f.resourceID, f.clusterID, buildsource.Key(id), repository, image, cache, uuid.New(), finished,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)

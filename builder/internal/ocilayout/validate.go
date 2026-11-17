@@ -10,6 +10,10 @@ import (
 	"os"
 	"path"
 	"regexp"
+
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 const maxIndexBytes = 4 << 20
@@ -96,4 +100,65 @@ func checkBlob(root *os.Root, name string) (int64, error) {
 		return 0, fmt.Errorf("blob %s has digest sha256:%s", name, got)
 	}
 	return n, nil
+}
+
+// ValidatePlatform checks the image BuildKit produced before it can be published as a successful build.
+func ValidatePlatform(dir string, platform workloadplatform.Platform) error {
+	index, err := layout.ImageIndexFromPath(dir)
+	if err != nil {
+		return fmt.Errorf("read built image: %w", err)
+	}
+	supported, err := indexSupportsPlatform(index, platform)
+	if err != nil {
+		return err
+	}
+	if !supported {
+		return fmt.Errorf("built image has no %s variant", platform)
+	}
+	return nil
+}
+
+func indexSupportsPlatform(index v1.ImageIndex, platform workloadplatform.Platform) (bool, error) {
+	manifest, err := index.IndexManifest()
+	if err != nil {
+		return false, fmt.Errorf("read built image index: %w", err)
+	}
+	found := false
+	for _, descriptor := range manifest.Manifests {
+		if declared := descriptor.Platform; declared != nil &&
+			(declared.OS != "linux" || declared.Architecture != platform.Architecture()) {
+			continue
+		}
+		if descriptor.MediaType.IsIndex() {
+			child, readErr := index.ImageIndex(descriptor.Digest)
+			if readErr != nil {
+				return false, fmt.Errorf("read built child index: %w", readErr)
+			}
+			supported, checkErr := indexSupportsPlatform(child, platform)
+			if checkErr != nil {
+				return false, checkErr
+			}
+			if !supported {
+				return false, fmt.Errorf("built child index has no %s variant", platform)
+			}
+			found = true
+			continue
+		}
+		if !descriptor.MediaType.IsImage() {
+			continue
+		}
+		image, readErr := index.Image(descriptor.Digest)
+		if readErr != nil {
+			return false, fmt.Errorf("read built image manifest: %w", readErr)
+		}
+		config, configErr := image.ConfigFile()
+		if configErr != nil {
+			return false, fmt.Errorf("read built image configuration: %w", configErr)
+		}
+		if config.OS != "linux" || config.Architecture != platform.Architecture() {
+			return false, fmt.Errorf("built image targets %s/%s, expected %s", config.OS, config.Architecture, platform)
+		}
+		found = true
+	}
+	return found, nil
 }

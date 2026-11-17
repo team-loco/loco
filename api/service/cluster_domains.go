@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/team-loco/loco/internal/workloadplatform"
+
 	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -38,8 +40,9 @@ func resourceDomainCheck(
 	regions []string,
 	placedClusters []uuid.UUID,
 	silentAfter time.Duration,
+	platform workloadplatform.Platform,
 ) (domainCheck, error) {
-	eligible, err := eligibleClusters(ctx, q, silentAfter)
+	eligible, err := eligibleClusters(ctx, q, silentAfter, platform)
 	if err != nil {
 		return domainCheck{}, err
 	}

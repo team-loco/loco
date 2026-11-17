@@ -166,6 +166,7 @@ func (s *AgentServer) startBuildMessage(
 	return &agentv1.SyncResponse{
 		Message: &agentv1.SyncResponse_StartBuild{
 			StartBuild: &agentv1.StartBuild{
+				Platform:           build.Platform,
 				BuildId:            buildID,
 				OrganizationId:     organizationID,
 				WorkspaceId:        workspaceID,

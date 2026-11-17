@@ -483,6 +483,7 @@ type Build struct {
 	GitBranch        *string     `json:"gitBranch"`
 	GitCommitMessage *string     `json:"gitCommitMessage"`
 	ImageRepository  string      `json:"imageRepository"`
+	Platform         string      `json:"platform"`
 	ImageDigest      *string     `json:"imageDigest"`
 	CacheDigest      *string     `json:"cacheDigest"`
 	Message          string      `json:"message"`
@@ -508,6 +509,7 @@ type Cluster struct {
 	HealthStatus          *string     `json:"healthStatus"`
 	LastHealthCheck       *time.Time  `json:"lastHealthCheck"`
 	LastHeartbeat         *time.Time  `json:"lastHeartbeat"`
+	Platforms             []string    `json:"platforms"`
 	CapacityCpuMillicores *int64      `json:"capacityCpuMillicores"`
 	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
 	AgentVersion          *string     `json:"agentVersion"`

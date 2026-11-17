@@ -98,6 +98,7 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
 	ctx := t.Context()
+	buildID := uuid.MustParse(f.create(t, 10).GetBuildId())
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,6 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	if _, err := f.deploy(ctx, staticSpec); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("deploy while paused: %v", err)
 	}
-	buildID := uuid.New()
 	if _, err := queueBuild(ctx, f.pool, buildID, f.resourceID, f.clusterID); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("queue build while paused: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	qtx := genDb.New(tx)
-	if lockErr := lockAssignableCluster(ctx, qtx, f.clusterID, false); lockErr != nil {
+	if lockErr := lockAssignableCluster(ctx, qtx, f.clusterID, false, testPlatform); lockErr != nil {
 		t.Fatal(lockErr)
 	}
 	result := make(chan error, 1)
@@ -171,7 +171,16 @@ func TestPauseWaitsForAnInFlightAssignment(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	if err := lockAssignableCluster(ctx, genDb.New(tx), f.clusterID, false); !errors.Is(err, ErrClusterNotAssignable) {
+	if err := lockAssignableCluster(
+		ctx,
+		genDb.New(tx),
+		f.clusterID,
+		false,
+		testPlatform,
+	); !errors.Is(
+		err,
+		ErrClusterNotAssignable,
+	) {
 		t.Fatalf("assignment after pause: %v", err)
 	}
 	if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {

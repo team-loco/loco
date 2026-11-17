@@ -75,6 +75,7 @@ var _ = Describe("Application reconcile", func() {
 				EnvironmentID: "env-ws",
 				ServiceSpec: &locov1alpha1.ServiceSpec{
 					Deployment: &locov1alpha1.ServiceDeploymentSpec{
+						Platform:      testPlatform,
 						Image:         "registry.example.com/app:v1",
 						Observability: locov1alpha1.ObservabilityConfig{InjectOtel: true},
 						Port:          new(int32(8080)),

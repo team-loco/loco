@@ -559,8 +559,10 @@ type ServiceDeploymentSpec struct {
 	Observability *ObservabilityConfig `protobuf:"bytes,13,opt,name=observability,proto3" json:"observability,omitempty"`
 	// Overrides the service's current rollback setting; omitted inherits it, off by default.
 	RollbackOnFailure *bool `protobuf:"varint,14,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The API assigns the installation target when recording this immutable snapshot.
+	Platform      string `protobuf:"bytes,15,opt,name=platform,proto3" json:"platform,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ServiceDeploymentSpec) Reset() {
@@ -689,6 +691,13 @@ func (x *ServiceDeploymentSpec) GetRollbackOnFailure() bool {
 		return *x.RollbackOnFailure
 	}
 	return false
+}
+
+func (x *ServiceDeploymentSpec) GetPlatform() string {
+	if x != nil {
+		return x.Platform
+	}
+	return ""
 }
 
 // ServiceRouting is the HTTP routing of one environment's deployment of a service.
@@ -2400,7 +2409,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xc2\n" +
+	"\f_inject_otel\"\xde\n" +
 	"\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
@@ -2421,7 +2430,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"runAsGroup\x88\x01\x01\x12M\n" +
 	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x123\n" +
 	"\x13rollback_on_failure\x18\x0e \x01(\bH\n" +
-	"R\x11rollbackOnFailure\x88\x01\x01\x1a6\n" +
+	"R\x11rollbackOnFailure\x88\x01\x01\x12\x1a\n" +
+	"\bplatform\x18\x0f \x01(\tR\bplatform\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xc1\x02\xbaH\xbd\x02\x1a\x9a\x01\n" +

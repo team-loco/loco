@@ -38,7 +38,17 @@ func createDeploymentWithCleanup(
 	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
-	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID, false); assignErr != nil {
+	var service deploymentv1.ServiceDeploymentSpec
+	if err := protojson.Unmarshal(params.Spec, &service); err != nil {
+		return uuid.UUID{}, fmt.Errorf("read deployment target: %w", err)
+	}
+	if assignErr := lockAssignableCluster(
+		ctx,
+		qtx,
+		params.ClusterID,
+		false,
+		service.GetPlatform(),
+	); assignErr != nil {
 		return uuid.UUID{}, assignErr
 	}
 
@@ -71,10 +81,6 @@ func createDeploymentWithCleanup(
 	}
 
 	var pendingBuild genDb.Build
-	var service deploymentv1.ServiceDeploymentSpec
-	if decodeErr := protojson.Unmarshal(params.Spec, &service); decodeErr != nil {
-		return uuid.Nil, fmt.Errorf("decode deployment spec: %w", decodeErr)
-	}
 	if rawBuildID := service.GetBuild().GetBuildId(); rawBuildID != "" {
 		buildID := uuid.MustParse(rawBuildID)
 		build, getErr := qtx.GetBuildByID(ctx, buildID)

@@ -18,8 +18,8 @@ import (
 func (f *deployFixture) addAvailableRegionCluster(t *testing.T) {
 	t.Helper()
 	insert := `
-INSERT INTO clusters (name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES ($1, $2, 'kind', true, true, 'healthy', NOW())`
+INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
+VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true, 'healthy', NOW())`
 	if _, err := f.pool.Exec(
 		context.Background(),
 		insert,
@@ -127,7 +127,7 @@ func TestListRegionsReportsDegradedRegions(t *testing.T) {
 		t.Fatalf("regions = %v, want the healthy region first and the degraded region without a default", regions)
 	}
 
-	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, testClusterSilentAfter)
+	_, err := eligibleCluster(ctx, f.queries, statusSecondRegion, testClusterSilentAfter, testPlatform)
 	wantCode(t, err, connect.CodeFailedPrecondition)
 }
 

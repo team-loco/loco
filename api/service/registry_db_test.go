@@ -586,9 +586,9 @@ func (f *registryFixture) insertBuild(t *testing.T, status genDb.BuildStatus) (u
 	id := uuid.Must(uuid.NewV7())
 	repository := imagepath.Repository(testRegistryHost, testRegistryPrefix, f.workspaceID, f.resourceID)
 	f.exec(t, `
-INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+INSERT INTO builds (platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, created_by)
-VALUES ($1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7)`,
+VALUES ('linux/amd64', $1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7)`,
 		id, f.resourceID, f.clusterID, status, buildsource.Key(id), repository, uuid.New(),
 	)
 	path, err := imagepath.Path(testRegistryHost, repository)

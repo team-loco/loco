@@ -1378,6 +1378,7 @@ type StartBuild struct {
 	// registry_credential is the password the build presents to the registry token endpoint as user loco-build,
 	// set in token mode; it is valid while this build is queued or running on the cluster.
 	RegistryCredential string `protobuf:"bytes,10,opt,name=registry_credential,json=registryCredential,proto3" json:"registry_credential,omitempty"`
+	Platform           string `protobuf:"bytes,11,opt,name=platform,proto3" json:"platform,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1478,6 +1479,13 @@ func (x *StartBuild) GetOrganizationId() string {
 func (x *StartBuild) GetRegistryCredential() string {
 	if x != nil {
 		return x.RegistryCredential
+	}
+	return ""
+}
+
+func (x *StartBuild) GetPlatform() string {
+	if x != nil {
+		return x.Platform
 	}
 	return ""
 }
@@ -1604,6 +1612,7 @@ type AgentCapacity struct {
 	MemoryBytesUsed    int64                  `protobuf:"varint,4,opt,name=memory_bytes_used,json=memoryBytesUsed,proto3" json:"memory_bytes_used,omitempty"`
 	PodsTotal          int32                  `protobuf:"varint,5,opt,name=pods_total,json=podsTotal,proto3" json:"pods_total,omitempty"`
 	PodsRunning        int32                  `protobuf:"varint,6,opt,name=pods_running,json=podsRunning,proto3" json:"pods_running,omitempty"`
+	Platforms          []string               `protobuf:"bytes,7,rep,name=platforms,proto3" json:"platforms,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1678,6 +1687,13 @@ func (x *AgentCapacity) GetPodsRunning() int32 {
 		return x.PodsRunning
 	}
 	return 0
+}
+
+func (x *AgentCapacity) GetPlatforms() []string {
+	if x != nil {
+		return x.Platforms
+	}
+	return nil
 }
 
 // AgentHealth reports agent and cluster health status.
@@ -1860,7 +1876,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x1f\n" +
 	"\vresource_id\x18\x03 \x01(\tR\n" +
-	"resourceId\"\xbf\x03\n" +
+	"resourceId\"\xfc\x03\n" +
 	"\n" +
 	"StartBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\x12+\n" +
@@ -1875,7 +1891,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\acontext\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\acontext\x124\n" +
 	"\x0forganization_id\x18\t \x01(\tB\v\xbaH\b\xd8\x01\x01r\x03\xb0\x01\x01R\x0eorganizationId\x12/\n" +
 	"\x13registry_credential\x18\n" +
-	" \x01(\tR\x12registryCredential\"2\n" +
+	" \x01(\tR\x12registryCredential\x12;\n" +
+	"\bplatform\x18\v \x01(\tB\x1f\xbaH\x1cr\x1aR\vlinux/amd64R\vlinux/arm64R\bplatform\"2\n" +
 	"\vCancelBuild\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\"\xf2\x01\n" +
 	"\tHeartbeat\x128\n" +
@@ -1883,7 +1900,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x06health\x18\x02 \x01(\v2\x1a.loco.agent.v1.AgentHealthR\x06health\x12<\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x1c.loco.cluster.v1.ClusterRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12&\n" +
-	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06R\vdns_records\"\x8d\x02\n" +
+	"\adomains\x18\x04 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\x05\x10\x06R\vdns_records\"\xce\x02\n" +
 	"\rAgentCapacity\x120\n" +
 	"\x14cpu_millicores_total\x18\x01 \x01(\x03R\x12cpuMillicoresTotal\x12.\n" +
 	"\x13cpu_millicores_used\x18\x02 \x01(\x03R\x11cpuMillicoresUsed\x12,\n" +
@@ -1891,7 +1908,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x11memory_bytes_used\x18\x04 \x01(\x03R\x0fmemoryBytesUsed\x12\x1d\n" +
 	"\n" +
 	"pods_total\x18\x05 \x01(\x05R\tpodsTotal\x12!\n" +
-	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\"\x85\x01\n" +
+	"\fpods_running\x18\x06 \x01(\x05R\vpodsRunning\x12?\n" +
+	"\tplatforms\x18\a \x03(\tB!\xbaH\x1e\x92\x01\x1b\"\x19r\x172\x15^linux/(amd64|arm64)$R\tplatforms\"\x85\x01\n" +
 	"\vAgentHealth\x12-\n" +
 	"\x12kubernetes_healthy\x18\x01 \x01(\bR\x11kubernetesHealthy\x12-\n" +
 	"\x12controller_healthy\x18\x02 \x01(\bR\x11controllerHealthy\x12\x18\n" +

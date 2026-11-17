@@ -15,6 +15,8 @@ import (
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
+const testPlatform = "linux/amd64"
+
 const testImage = "registry.loco.test/app@sha256:" +
 	"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -35,6 +37,7 @@ const (
 
 func testServiceDefaults() servicedefaults.Defaults {
 	return servicedefaults.Defaults{
+		TargetPlatform:           testPlatform,
 		CPU:                      testDefaultCPU,
 		CPUTarget:                65,
 		Memory:                   testDefaultMemory,

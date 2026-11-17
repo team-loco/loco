@@ -60,7 +60,7 @@ func rollbackDeploymentIfEnabled(
 	if err != nil {
 		return err
 	}
-	targetErr := lockAssignableCluster(ctx, qtx, previous.ClusterID, false)
+	targetErr := lockAssignableCluster(ctx, qtx, previous.ClusterID, false, previousSpec.GetService().GetPlatform())
 	if targetErr == nil {
 		targetErr = lockPinnedBuildImage(ctx, qtx, previousSpec.GetService().GetBuild())
 	}

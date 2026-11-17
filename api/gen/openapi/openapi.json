@@ -8000,6 +8000,14 @@
             "type": "integer",
             "title": "pods_running",
             "format": "int32"
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^linux/(amd64|arm64)$"
+            },
+            "title": "platforms"
           }
         },
         "title": "AgentCapacity",
@@ -8551,6 +8559,14 @@
             "type": "string",
             "title": "registry_credential",
             "description": "registry_credential is the password the build presents to the registry token endpoint as user loco-build,\n set in token mode; it is valid while this build is queued or running on the cluster."
+          },
+          "platform": {
+            "type": "string",
+            "title": "platform",
+            "enum": [
+              "linux/amd64",
+              "linux/arm64"
+            ]
           }
         },
         "title": "StartBuild",
@@ -9047,6 +9063,10 @@
             ],
             "title": "git_commit_message",
             "description": "git_commit_message is the commit's subject line."
+          },
+          "platform": {
+            "type": "string",
+            "title": "platform"
           }
         },
         "title": "Build",
@@ -10774,6 +10794,11 @@
             ],
             "title": "rollback_on_failure",
             "description": "Overrides the service's current rollback setting; omitted inherits it, off by default."
+          },
+          "platform": {
+            "type": "string",
+            "title": "platform",
+            "description": "The API assigns the installation target when recording this immutable snapshot."
           }
         },
         "title": "ServiceDeploymentSpec",

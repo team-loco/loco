@@ -31,8 +31,9 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 			Region:         "us-east-1",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
-					Image: testImage,
-					Port:  new(int32(8000)),
+					Platform: testPlatform,
+					Image:    testImage,
+					Port:     new(int32(8000)),
 				},
 				Resources: &locov1alpha1.ResourcesSpec{
 					CPU:      testCPU,

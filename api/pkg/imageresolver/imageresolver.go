@@ -13,25 +13,22 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-const (
-	requiredOS           = "linux"
-	requiredArchitecture = "amd64"
-)
-
-var ErrPlatformUnsupported = errors.New("image has no " + requiredOS + "/" + requiredArchitecture + " variant")
+var ErrPlatformUnsupported = errors.New("image has no requested platform variant")
 
 type Resolver struct {
+	platform  workloadplatform.Platform
 	timeout   time.Duration
 	maxBytes  int64
 	transport http.RoundTripper
 }
 
-func New(timeout time.Duration, maxBytes int64) *Resolver {
+func New(timeout time.Duration, maxBytes int64, platform workloadplatform.Platform) *Resolver {
 	transport := otelhttp.NewTransport(remote.DefaultTransport)
-	return &Resolver{timeout: timeout, transport: transport, maxBytes: maxBytes}
+	return &Resolver{platform: platform, timeout: timeout, transport: transport, maxBytes: maxBytes}
 }
 
 func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, error) {
@@ -52,13 +49,13 @@ func (r *Resolver) Resolve(ctx context.Context, ref name.Reference) (string, err
 		if indexErr != nil {
 			return "", fmt.Errorf("read image index: %w", indexErr)
 		}
-		err = checkIndex(index, r.maxBytes)
+		err = checkIndex(index, r.maxBytes, r.platform)
 	case desc.MediaType.IsImage():
 		img, imageErr := desc.Image()
 		if imageErr != nil {
 			return "", fmt.Errorf("read image: %w", imageErr)
 		}
-		err = checkImage(img, r.maxBytes)
+		err = checkImage(img, r.maxBytes, r.platform)
 	default:
 		return "", fmt.Errorf("unsupported manifest media type %s", desc.MediaType)
 	}
@@ -109,14 +106,14 @@ func checkSize(img v1.Image, limit int64) error {
 // The runtime chooses a variant from the pinned index. Check each eligible
 // variant independently so CPU-specific variants cannot bypass the budget.
 // An omitted platform can also be selected by runtimes; check its image config.
-func checkIndex(index v1.ImageIndex, limit int64) error {
+func checkIndex(index v1.ImageIndex, limit int64, platform workloadplatform.Platform) error {
 	manifest, err := index.IndexManifest()
 	if err != nil {
 		return fmt.Errorf("read index manifest: %w", err)
 	}
 	found := false
 	for _, m := range manifest.Manifests {
-		if m.Platform != nil && (m.Platform.OS != requiredOS || m.Platform.Architecture != requiredArchitecture) {
+		if m.Platform != nil && (m.Platform.OS != "linux" || m.Platform.Architecture != platform.Architecture()) {
 			continue
 		}
 		found = true
@@ -125,7 +122,7 @@ func checkIndex(index v1.ImageIndex, limit int64) error {
 			if childErr != nil {
 				return fmt.Errorf("read child index: %w", childErr)
 			}
-			if checkErr := checkIndex(child, limit); checkErr != nil {
+			if checkErr := checkIndex(child, limit, platform); checkErr != nil {
 				return checkErr
 			}
 			continue
@@ -137,17 +134,17 @@ func checkIndex(index v1.ImageIndex, limit int64) error {
 		if imageErr != nil {
 			return fmt.Errorf("read child image: %w", imageErr)
 		}
-		if checkErr := checkImage(img, limit); checkErr != nil {
+		if checkErr := checkImage(img, limit, platform); checkErr != nil {
 			return checkErr
 		}
 	}
 	if !found {
-		return ErrPlatformUnsupported
+		return fmt.Errorf("%w: %s", ErrPlatformUnsupported, platform)
 	}
 	return nil
 }
 
-func checkImage(img v1.Image, limit int64) error {
+func checkImage(img v1.Image, limit int64, platform workloadplatform.Platform) error {
 	if err := checkSize(img, limit); err != nil {
 		return err
 	}
@@ -155,8 +152,8 @@ func checkImage(img v1.Image, limit int64) error {
 	if err != nil {
 		return fmt.Errorf("read image config: %w", err)
 	}
-	if cfg.OS == requiredOS && cfg.Architecture == requiredArchitecture {
+	if cfg.OS == "linux" && cfg.Architecture == platform.Architecture() {
 		return nil
 	}
-	return ErrPlatformUnsupported
+	return fmt.Errorf("%w: %s", ErrPlatformUnsupported, platform)
 }

@@ -504,7 +504,7 @@ def dashboard(page):
         )
         cluster = str(uuid.uuid4())
         sql = [
-            f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES ('{cluster}','dashboard-pilot','us-east-1','fixture',true,false,'healthy',NOW());"
+            f"INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES (ARRAY['linux/amd64'], '{cluster}','dashboard-pilot','us-east-1','fixture',true,false,'healthy',NOW());"
         ]
         for index in range(7):
             resource_id = evidence.rpc(
@@ -533,6 +533,7 @@ def dashboard(page):
             runtime = evidence.sql_literal(
                 json.dumps(
                     {
+                        "platform": "linux/amd64",
                         "build": {
                             "type": "image",
                             "image": "example.invalid/dashboard:1",

@@ -25,6 +25,9 @@ const (
 )
 
 type BuildSpec struct {
+	// +kubebuilder:validation:Enum=linux/amd64;linux/arm64
+	Platform string `json:"platform"`
+
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
 	BuildID string `json:"buildId"`

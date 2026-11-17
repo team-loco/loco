@@ -129,6 +129,7 @@ func (w *Watcher) create(ctx context.Context, start *agentv1.StartBuild) error {
 			locolabels.LabelBuildID:   buildID,
 		},
 		Spec: locoControllerV1.BuildSpec{
+			Platform:        start.GetPlatform(),
 			BuildID:         buildID,
 			OrganizationID:  start.GetOrganizationId(),
 			WorkspaceID:     start.GetWorkspaceId(),

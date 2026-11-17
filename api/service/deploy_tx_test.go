@@ -91,11 +91,11 @@ WITH u AS (
 ), e AS (
     INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'prod', u.id FROM w, u RETURNING id
 ), c AS (
-    INSERT INTO clusters (name, region, provider, is_active, is_default)
-    VALUES ('c1', 'us-east-1', 'kind', true, true) RETURNING id
+    INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
+    VALUES (ARRAY['linux/amd64'], 'c1', 'us-east-1', 'kind', true, true) RETURNING id
 ), c2 AS (
-    INSERT INTO clusters (name, region, provider, is_active, is_default)
-    VALUES ('c2', 'us-east-1', 'kind', true, false) RETURNING id
+    INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
+    VALUES (ARRAY['linux/amd64'], 'c2', 'us-east-1', 'kind', true, false) RETURNING id
 ), r AS (
     INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
     SELECT w.id, 'svc', 'svc', 'service', '', '{"routing":{"port":8080}}', 1, u.id FROM w, u RETURNING id
@@ -119,7 +119,7 @@ func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentPar
 		Replicas:      1,
 		Status:        genDb.DeploymentStatusDeploying,
 		IsActive:      true,
-		Spec:          []byte("{}"),
+		Spec:          []byte(`{"platform":"linux/amd64"}`),
 		SpecVersion:   1,
 		EnvironmentID: f.envID,
 		SecretNames:   []string{},

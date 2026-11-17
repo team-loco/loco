@@ -38,7 +38,7 @@ production = next(
 )
 cluster = str(uuid.uuid4())
 sql = [
-    f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','scale-dialog','us-east-1','fixture',true,false,'healthy',NOW());"
+    f"INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','scale-dialog','us-east-1','fixture',true,false,'healthy',NOW());"
 ]
 resources = []
 for name, cpu, memory, replicas in (

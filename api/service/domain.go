@@ -80,7 +80,7 @@ func (s *DomainServer) ListPlatformDomains(
 	if err != nil {
 		return nil, err
 	}
-	eligible, err := eligibleClusters(ctx, s.queries, s.silentAfter)
+	eligible, err := eligibleClusters(ctx, s.queries, s.silentAfter, s.defaults.TargetPlatform)
 	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
@@ -490,7 +490,14 @@ func (s *DomainServer) checkResourceDomain(
 		placed = append(placed, placement.ClusterID)
 	}
 	regions := enabledRegions(spec.GetService().GetRegions())
-	check, err := resourceDomainCheck(ctx, s.queries, regions, placed, s.silentAfter)
+	check, err := resourceDomainCheck(
+		ctx,
+		s.queries,
+		regions,
+		placed,
+		s.silentAfter,
+		s.defaults.TargetPlatform,
+	)
 	if err != nil {
 		return "", "", fmt.Errorf("list domain clusters: %w", err)
 	}

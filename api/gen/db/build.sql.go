@@ -139,10 +139,10 @@ func (q *Queries) CancelOtherActiveBuilds(ctx context.Context, arg CancelOtherAc
 
 const createBuild = `-- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    api_token_id, git_commit, git_branch, git_commit_message)
+                    api_token_id, git_commit, git_branch, git_commit_message, platform)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
-        $10, $11, $12, $13)
-RETURNING id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
+        $10, $11, $12, $13, $14)
+RETURNING id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, platform, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
 `
 
 type CreateBuildParams struct {
@@ -159,6 +159,7 @@ type CreateBuildParams struct {
 	GitCommit        *string    `json:"gitCommit"`
 	GitBranch        *string    `json:"gitBranch"`
 	GitCommitMessage *string    `json:"gitCommitMessage"`
+	Platform         string     `json:"platform"`
 }
 
 func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build, error) {
@@ -176,6 +177,7 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		arg.GitCommit,
 		arg.GitBranch,
 		arg.GitCommitMessage,
+		arg.Platform,
 	)
 	var i Build
 	err := row.Scan(
@@ -193,6 +195,7 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		&i.GitBranch,
 		&i.GitCommitMessage,
 		&i.ImageRepository,
+		&i.Platform,
 		&i.ImageDigest,
 		&i.CacheDigest,
 		&i.Message,
@@ -346,7 +349,7 @@ func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (Finis
 }
 
 const getBuildByID = `-- name: GetBuildByID :one
-SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, platform, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
 `
 
 func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -367,6 +370,7 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 		&i.GitBranch,
 		&i.GitCommitMessage,
 		&i.ImageRepository,
+		&i.Platform,
 		&i.ImageDigest,
 		&i.CacheDigest,
 		&i.Message,
@@ -385,14 +389,20 @@ const getBuildCluster = `-- name: GetBuildCluster :one
 SELECT id FROM clusters
 WHERE is_active = true
   AND role IN ('builds', 'all')
+  AND $1::text = ANY(platforms)
   AND health_status = 'healthy'
-  AND last_heartbeat >= $1::timestamptz
+  AND last_heartbeat >= $2::timestamptz
 ORDER BY created_at, id
 LIMIT 1
 `
 
-func (q *Queries) GetBuildCluster(ctx context.Context, heardSince time.Time) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, getBuildCluster, heardSince)
+type GetBuildClusterParams struct {
+	Platform   string    `json:"platform"`
+	HeardSince time.Time `json:"heardSince"`
+}
+
+func (q *Queries) GetBuildCluster(ctx context.Context, arg GetBuildClusterParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getBuildCluster, arg.Platform, arg.HeardSince)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
@@ -526,7 +536,7 @@ func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]Li
 }
 
 const listBuildsForResource = `-- name: ListBuildsForResource :many
-SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, platform, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
@@ -573,6 +583,7 @@ func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForRe
 			&i.GitBranch,
 			&i.GitCommitMessage,
 			&i.ImageRepository,
+			&i.Platform,
 			&i.ImageDigest,
 			&i.CacheDigest,
 			&i.Message,
@@ -798,6 +809,7 @@ SELECT b.id,
        b.dockerfile_path,
        b.context,
        b.image_repository,
+       b.platform,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
          FROM builds p
@@ -806,6 +818,7 @@ SELECT b.id,
            AND p.cache_digest IS NOT NULL
            AND p.image_deleted_at IS NULL
            AND p.image_repository = b.image_repository
+           AND p.platform = b.platform
          ORDER BY p.finished_at DESC, p.id DESC
          LIMIT 1
        ), '')::text AS cache_ref
@@ -825,6 +838,7 @@ type ListQueuedClusterBuildsRow struct {
 	DockerfilePath  string    `json:"dockerfilePath"`
 	Context         string    `json:"context"`
 	ImageRepository string    `json:"imageRepository"`
+	Platform        string    `json:"platform"`
 	CacheRef        string    `json:"cacheRef"`
 }
 
@@ -846,6 +860,7 @@ func (q *Queries) ListQueuedClusterBuilds(ctx context.Context, clusterID *uuid.U
 			&i.DockerfilePath,
 			&i.Context,
 			&i.ImageRepository,
+			&i.Platform,
 			&i.CacheRef,
 		); err != nil {
 			return nil, err
@@ -892,7 +907,7 @@ func (q *Queries) ListUndeletedBuildSources(ctx context.Context, maxBuilds int32
 }
 
 const lockBuild = `-- name: LockBuild :one
-SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR UPDATE
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, platform, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockBuild(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -913,6 +928,7 @@ func (q *Queries) LockBuild(ctx context.Context, id uuid.UUID) (Build, error) {
 		&i.GitBranch,
 		&i.GitCommitMessage,
 		&i.ImageRepository,
+		&i.Platform,
 		&i.ImageDigest,
 		&i.CacheDigest,
 		&i.Message,
@@ -939,7 +955,7 @@ func (q *Queries) LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*t
 }
 
 const lockBuildImageForDeploy = `-- name: LockBuildImageForDeploy :one
-SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR SHARE
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, platform, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR SHARE
 `
 
 func (q *Queries) LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -960,6 +976,7 @@ func (q *Queries) LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Bu
 		&i.GitBranch,
 		&i.GitCommitMessage,
 		&i.ImageRepository,
+		&i.Platform,
 		&i.ImageDigest,
 		&i.CacheDigest,
 		&i.Message,

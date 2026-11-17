@@ -139,6 +139,9 @@ type ObservabilityConfig struct {
 
 // ServiceDeploymentSpec contains service deployment-specific configuration
 type ServiceDeploymentSpec struct {
+	// +kubebuilder:validation:Enum=linux/amd64;linux/arm64
+	Platform string `json:"platform"`
+
 	// +optional
 	// +kubebuilder:default={}
 	Observability ObservabilityConfig `json:"observability"`

@@ -2,8 +2,10 @@ package builds
 
 import (
 	"fmt"
+	"maps"
 	"path"
 	"strconv"
+	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -197,6 +199,7 @@ func (r *Reconciler) buildkitContainer(build *locov1alpha1.Build) corev1.Contain
 		"--local=context=" + contextDir,
 		"--local=dockerfile=" + dockerfileDir,
 		"--opt=filename=" + dockerfileName,
+		"--opt=platform=" + build.Spec.Platform,
 		"--output=type=oci,tar=false,dest=" + buildImageDir,
 		"--export-cache=type=local,mode=max,dest=" + buildCacheOutDir,
 		"--import-cache=type=local,src=" + buildCacheDir,
@@ -225,6 +228,7 @@ func (r *Reconciler) pushContainer(build *locov1alpha1.Build) corev1.Container {
 	args := []string{
 		"push",
 		"--image-dir=" + buildImageDir,
+		"--platform=" + build.Spec.Platform,
 		"--cache-dir=" + buildCacheOutDir,
 		"--image-ref=" + buildImageRef(build),
 		"--cache-ref=" + buildCacheRef(build),
@@ -284,6 +288,12 @@ func (r *Reconciler) buildJob(build *locov1alpha1.Build) (*batchv1.Job, error) {
 		SeccompProfile: &corev1.SeccompProfile{Type: corev1.SeccompProfileTypeRuntimeDefault},
 	}
 
+	nodeSelector := maps.Clone(cfg.NodeSelector)
+	if nodeSelector == nil {
+		nodeSelector = map[string]string{}
+	}
+	nodeSelector[corev1.LabelOSStable] = "linux"
+	nodeSelector[corev1.LabelArchStable] = strings.TrimPrefix(build.Spec.Platform, "linux/")
 	job := &batchv1.Job{
 		Name:      build.Name,
 		Namespace: build.Namespace,
@@ -302,7 +312,7 @@ func (r *Reconciler) buildJob(build *locov1alpha1.Build) (*batchv1.Job, error) {
 					InitContainers:               []corev1.Container{fetch, buildkit},
 					Containers:                   []corev1.Container{push},
 					Volumes:                      volumes,
-					NodeSelector:                 cfg.NodeSelector,
+					NodeSelector:                 nodeSelector,
 					Tolerations:                  cfg.Tolerations,
 					RuntimeClassName:             runtimeClassName,
 				},

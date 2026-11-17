@@ -132,7 +132,8 @@ func (s *AgentServer) Register(
 			CapacityCpuMillicores: &cpuCores,
 			CapacityMemoryBytes:   &memBytes,
 			Role:                  clusterRoleFromProto(req.GetRole()),
-			Domains:               reportedDomains(req.GetDomains()),
+			Domains:               sortedReportedValues(req.GetDomains()),
+			Platforms:             sortedReportedValues(req.GetCapacity().GetPlatforms()),
 		}); updateErr != nil {
 			return fmt.Errorf("update cluster %s agent info: %w", cluster.id, updateErr)
 		}
@@ -220,14 +221,15 @@ func (s *AgentServer) recordHeartbeat(ctx context.Context, clusterID uuid.UUID, 
 		CapacityMemoryBytes:   &memBytes,
 		HealthStatus:          &healthStatus,
 		Role:                  clusterRoleFromProto(heartbeat.GetRole()),
-		Domains:               reportedDomains(heartbeat.GetDomains()),
+		Domains:               sortedReportedValues(heartbeat.GetDomains()),
+		Platforms:             sortedReportedValues(heartbeat.GetCapacity().GetPlatforms()),
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update heartbeat", "error", err, "cluster_id", clusterID)
 	}
 }
 
-func reportedDomains(domains []string) []string {
+func sortedReportedValues(domains []string) []string {
 	reported := append([]string{}, domains...)
 	slices.Sort(reported)
 	return slices.Compact(reported)

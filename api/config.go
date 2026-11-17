@@ -25,6 +25,7 @@ import (
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/internal/envconfig"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"golang.org/x/mod/semver"
 )
@@ -199,6 +200,7 @@ func (c RegistryAuthConfig) TokenMode() bool {
 }
 
 type APIConfig struct {
+	TargetPlatform        workloadplatform.Platform
 	ClickHouse            ClickHouseConfig
 	Observability         service.ObservabilityConfig
 	Agent                 service.AgentConfig
@@ -252,6 +254,12 @@ type APIConfig struct {
 }
 
 func newAPIConfig() *APIConfig {
+	targetPlatform, err := workloadplatform.Parse(
+		envconfig.String("LOCO_TARGET_PLATFORM", string(workloadplatform.AMD64)),
+	)
+	if err != nil {
+		panic(err)
+	}
 	database := newDatabaseConfig()
 	ingestConfig := newIngestConfig()
 	databaseListenConfig := newDatabaseListenConfig(database.URL)
@@ -264,6 +272,7 @@ func newAPIConfig() *APIConfig {
 	)
 	sourceBucket := newSourceBucketConfig()
 	serviceDefaults := newServiceDefaults()
+	serviceDefaults.TargetPlatform = targetPlatform
 	agentConfig := newAgentConfig(serviceDefaults)
 	registry := newRegistryConfig(registryHost)
 	imageSweep := newImageSweepConfig(registryHost, registryPrefix)
@@ -300,6 +309,7 @@ func newAPIConfig() *APIConfig {
 	}
 
 	return &APIConfig{
+		TargetPlatform:        targetPlatform,
 		Agent:                 agentConfig,
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),

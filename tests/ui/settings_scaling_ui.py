@@ -33,7 +33,7 @@ clusters = {region: str(uuid.uuid4()) for region in regions}
 for region, cluster in clusters.items():
     evidence.psql(
         state["container"],
-        f"INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','scaling-{cluster}','{region}','fixture',true,false,'healthy',NOW());",
+        f"INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','scaling-{cluster}','{region}','fixture',true,false,'healthy',NOW());",
     )
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
@@ -68,6 +68,7 @@ def resource_fixture():
     )["resourceId"]
     runtime = json.dumps(
         {
+            "platform": "linux/amd64",
             "build": {"type": "image", "image": "registry.example.com/app:1"},
             "cpu": "100m",
             "memory": "128Mi",

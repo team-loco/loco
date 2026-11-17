@@ -273,7 +273,7 @@ func (s *PlanServer) resolveBuilds(
 		}
 		buildID := requested[service]
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID}
-		pinned, err := pinDockerfileBuild(ctx, s.queries, res.ID, src)
+		pinned, err := pinDockerfileBuild(ctx, s.queries, res.ID, src, s.defaults.TargetPlatform)
 		if err != nil {
 			return nil, err
 		}

@@ -16,6 +16,7 @@ const (
 	flagDockerfile = "--dockerfile=Dockerfile"
 	flagImageDir   = "--image-dir=/i"
 	flagTermLog    = "--termination-log=/t"
+	flagPlatform   = "--platform=linux/amd64"
 )
 
 func testEnv(values map[string]string) func(string) string {
@@ -61,14 +62,15 @@ func TestNewConfigFetch(t *testing.T) {
 }
 
 func TestNewConfigPush(t *testing.T) {
-	args := []string{commandPush, "--image-dir=/out/image", "--termination-log=/dev/termination-log",
+	args := []string{commandPush, flagPlatform, "--image-dir=/out/image", "--termination-log=/dev/termination-log",
 		"--image-ref=" + testImageRef, "--max-image-bytes=500"}
 	cfg, err := newConfig(args, testEnv(nil))
 	if err != nil {
 		t.Fatalf("newConfig: %v", err)
 	}
 	push := cfg.Push
-	if cfg.Command != commandPush || push.ImageRef != testImageRef || push.MaxImageBytes != 500 {
+	if cfg.Command != commandPush || push.Platform != "linux/amd64" || push.ImageRef != testImageRef ||
+		push.MaxImageBytes != 500 {
 		t.Errorf("command %q, push %+v", cfg.Command, push)
 	}
 	if push.ImageDir != "/out/image" || push.TerminationLog != "/dev/termination-log" || push.Insecure {
@@ -109,16 +111,22 @@ func TestNewConfigRejectsInvalid(t *testing.T) {
 			env:  fetchEnv(), want: errMissingFlag,
 		},
 		"push no image ref": {
-			args: []string{commandPush, flagImageDir, flagTermLog}, want: errMissingFlag,
+			args: []string{commandPush, flagPlatform, flagImageDir, flagTermLog}, want: errMissingFlag,
 		},
 		"push no image dir": {
-			args: []string{commandPush, "--image-ref=" + testImageRef, flagTermLog}, want: errMissingFlag,
+			args: []string{commandPush, flagPlatform, "--image-ref=" + testImageRef, flagTermLog}, want: errMissingFlag,
 		},
 		"push no termination log": {
-			args: []string{commandPush, flagImageDir, "--image-ref=" + testImageRef}, want: errMissingFlag,
+			args: []string{
+				commandPush,
+				flagPlatform,
+				flagImageDir,
+				"--image-ref=" + testImageRef,
+			},
+			want: errMissingFlag,
 		},
 		"push cache ref without dir": {
-			args: []string{commandPush, flagImageDir, "--image-ref=" + testImageRef, flagTermLog,
+			args: []string{commandPush, flagPlatform, flagImageDir, "--image-ref=" + testImageRef, flagTermLog,
 				"--cache-ref=" + testCacheRef}, want: errMissingFlag,
 		},
 	}
@@ -136,5 +144,15 @@ func TestNewConfigRejectsUnparsableFlag(t *testing.T) {
 	args := []string{commandFetch, flagWorkspace, flagDockerfile, "--max-entries=many"}
 	if _, err := newConfig(args, testEnv(fetchEnv())); err == nil {
 		t.Error("newConfig accepted an unparsable flag")
+	}
+}
+
+func TestPushRequiresAnExplicitSupportedPlatform(t *testing.T) {
+	args := []string{flagImageDir, "--image-ref=" + testImageRef, flagTermLog}
+	if _, err := newPushConfig(args); !errors.Is(err, errMissingFlag) {
+		t.Fatalf("missing target: %v", err)
+	}
+	if _, err := newPushConfig(append(args, "--platform=darwin/arm64")); err == nil {
+		t.Fatal("unsupported target accepted")
 	}
 }

@@ -122,6 +122,8 @@ message ServiceDeploymentSpec {
   ObservabilityConfig observability = 13;
   // Overrides the service's current rollback setting; omitted inherits it, off by default.
   optional bool rollback_on_failure = 14;
+  // The API assigns the installation target when recording this immutable snapshot.
+  string platform = 15;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"

@@ -18,6 +18,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/imageresolver"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -59,6 +60,7 @@ func pinBuildSource(
 	registryHost string,
 	resourceID uuid.UUID,
 	src *deploymentv1.BuildSource,
+	platform workloadplatform.Platform,
 ) (*deploymentv1.BuildSource, error) {
 	if src == nil {
 		return nil, errBuildSourceRequired
@@ -67,7 +69,7 @@ func pinBuildSource(
 	sourceType := src.GetType()
 	switch sourceType {
 	case buildSourceTypeDockerfile:
-		return pinDockerfileBuild(ctx, builds, resourceID, src)
+		return pinDockerfileBuild(ctx, builds, resourceID, src, platform)
 	case buildSourceTypeImage:
 		return pinPublicImage(ctx, resolver, registryHost, src)
 	default:
@@ -82,6 +84,7 @@ func pinDockerfileBuild(
 	builds genDb.Querier,
 	resourceID uuid.UUID,
 	src *deploymentv1.BuildSource,
+	platform workloadplatform.Platform,
 ) (*deploymentv1.BuildSource, error) {
 	rawBuildID := src.GetBuildId()
 	if rawBuildID == "" {
@@ -109,6 +112,17 @@ func pinDockerfileBuild(
 	}
 	if build.ImageDeletedAt != nil {
 		return nil, errBuildImageDeleted
+	}
+
+	if build.Platform != string(platform) {
+		return nil, rpcerr.New(
+			connect.CodeFailedPrecondition,
+			fmt.Errorf(
+				"build targets %s; this installation requires %s; build the source again",
+				build.Platform,
+				platform,
+			),
+		)
 	}
 
 	image := buildImage(build)
@@ -202,7 +216,7 @@ func imageResolutionFailure(image string, err error) (message, reason string) {
 	}
 	if errors.Is(err, imageresolver.ErrPlatformUnsupported) {
 		return fmt.Sprintf(
-			"Cannot deploy image %q: %s.", image, imageresolver.ErrPlatformUnsupported,
+			"Cannot deploy image %q: %s.", image, err,
 		), imagePlatformUnsupportedReason
 	}
 	registryErr, ok := errors.AsType[*transport.Error](err)

@@ -20,7 +20,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
+
+const requiredOS, requiredArchitecture, armArchitecture = "linux", "amd64", "arm64"
 
 func newRegistry(t *testing.T) string {
 	t.Helper()
@@ -89,12 +92,12 @@ func pushIndex(t *testing.T, host, repo string, platforms ...v1.Platform) name.R
 
 func TestResolve(t *testing.T) {
 	host := newRegistry(t)
-	resolver := New(10*time.Second, 1<<30)
+	resolver := New(10*time.Second, 1<<30, workloadplatform.AMD64)
 
 	amd64Image := platformImage(t, "linux", "amd64")
-	armImage := platformImage(t, "linux", "arm64")
+	armImage := platformImage(t, "linux", armArchitecture)
 	amd64Platform := v1.Platform{OS: requiredOS, Architecture: requiredArchitecture}
-	armPlatform := v1.Platform{OS: requiredOS, Architecture: "arm64"}
+	armPlatform := v1.Platform{OS: requiredOS, Architecture: armArchitecture}
 	amd64Ref := pushImage(t, host, "single/amd64", amd64Image)
 	armRef := pushImage(t, host, "single/arm64", armImage)
 	multiRef := pushIndex(t, host, "multi/amd64", armPlatform, amd64Platform)
@@ -141,7 +144,7 @@ func TestResolveMissingImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse reference: %v", err)
 	}
-	resolver := New(10*time.Second, 1<<30)
+	resolver := New(10*time.Second, 1<<30, workloadplatform.AMD64)
 	ctx := context.Background()
 	if _, resolveErr := resolver.Resolve(ctx, ref); resolveErr == nil {
 		t.Fatal("resolve of a missing image succeeded")
@@ -163,7 +166,7 @@ func TestResolveTagAndDigestUsesDigest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse reference: %v", err)
 	}
-	resolver := New(10*time.Second, 1<<30)
+	resolver := New(10*time.Second, 1<<30, workloadplatform.AMD64)
 	ctx := context.Background()
 	digest, err := resolver.Resolve(ctx, ref)
 	if err != nil {
@@ -282,7 +285,7 @@ func TestResolveSizeBudget(t *testing.T) {
 								MediaType: manifest.MediaType,
 								Digest:    armDigest,
 								Size:      int64(len(armRaw)),
-								Platform:  &v1.Platform{OS: requiredOS, Architecture: "arm64"},
+								Platform:  &v1.Platform{OS: requiredOS, Architecture: armArchitecture},
 							},
 							{
 								MediaType: manifest.MediaType,
@@ -304,7 +307,7 @@ func TestResolveSizeBudget(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				got, err := New(10*time.Second, tt.limit).Resolve(t.Context(), ref)
+				got, err := New(10*time.Second, tt.limit, workloadplatform.AMD64).Resolve(t.Context(), ref)
 				if tt.want != "" {
 					if err == nil || !strings.Contains(err.Error(), tt.want) {
 						t.Fatalf("resolve = %q, %v; want %q", got, err, tt.want)
@@ -329,7 +332,7 @@ func TestResolveIndexChecksConfigPlatform(t *testing.T) {
 		Add: platformImage(
 			t,
 			"linux",
-			"arm64",
+			armArchitecture,
 		),
 		Platform: &v1.Platform{OS: requiredOS, Architecture: requiredArchitecture},
 	})
@@ -340,7 +343,14 @@ func TestResolveIndexChecksConfigPlatform(t *testing.T) {
 	if err := remote.WriteIndex(ref, index); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(10*time.Second, 1<<30).Resolve(t.Context(), ref); !errors.Is(err, ErrPlatformUnsupported) {
+	if _, err := New(
+		10*time.Second,
+		1<<30,
+		workloadplatform.AMD64,
+	).Resolve(t.Context(), ref); !errors.Is(
+		err,
+		ErrPlatformUnsupported,
+	) {
 		t.Fatalf("resolve mislabeled index: %v", err)
 	}
 }
@@ -440,7 +450,7 @@ func TestResolveChecksEveryRuntimeVariant(t *testing.T) {
 				if headErr != nil {
 					t.Fatal(headErr)
 				}
-				digest, resolveErr := New(10*time.Second, limit).Resolve(t.Context(), ref)
+				digest, resolveErr := New(10*time.Second, limit, workloadplatform.AMD64).Resolve(t.Context(), ref)
 				if oversized {
 					if _, ok := errors.AsType[*SizeLimitError](resolveErr); !ok {
 						t.Fatalf("resolve = %s, %v, want size limit error", digest, resolveErr)
@@ -455,5 +465,35 @@ func TestResolveChecksEveryRuntimeVariant(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestResolveConfiguredPlatform(t *testing.T) {
+	host := newRegistry(t)
+	for _, target := range []workloadplatform.Platform{workloadplatform.AMD64, workloadplatform.ARM64} {
+		t.Run(string(target), func(t *testing.T) {
+			resolver := New(10*time.Second, 1<<30, target)
+			for _, arch := range []string{"amd64", armArchitecture} {
+				ref := pushImage(t, host, "configured-"+arch, platformImage(t, "linux", arch))
+				_, err := resolver.Resolve(t.Context(), ref)
+				if arch == target.Architecture() {
+					if err != nil {
+						t.Fatal(err)
+					}
+				} else if !errors.Is(err, ErrPlatformUnsupported) {
+					t.Fatalf("%s image for %s: %v", arch, target, err)
+				}
+			}
+			ref := pushIndex(
+				t,
+				host,
+				"configured-index",
+				v1.Platform{OS: "linux", Architecture: "amd64"},
+				v1.Platform{OS: "linux", Architecture: armArchitecture},
+			)
+			if _, err := resolver.Resolve(t.Context(), ref); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

@@ -50,6 +50,7 @@ message Build {
   optional string git_branch = 19;
   // git_commit_message is the commit's subject line.
   optional string git_commit_message = 20;
+  string platform = 21;
 }
 
 message BuildsUnavailable {}

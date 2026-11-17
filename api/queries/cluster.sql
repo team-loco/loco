@@ -7,6 +7,7 @@ SET agent_version = $2,
     capacity_memory_bytes = $4,
     role = $5,
     domains = sqlc.arg(domains)::text[],
+    platforms = sqlc.arg(platforms)::text[],
     updated_at = NOW()
 WHERE id = $1;
 
@@ -18,6 +19,7 @@ SET last_heartbeat = $2,
     health_status = $5,
     role = $6,
     domains = sqlc.arg(domains)::text[],
+    platforms = sqlc.arg(platforms)::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL;
 
@@ -83,7 +85,7 @@ FROM clusters ORDER BY created_at, id;
 SELECT id, is_active, removed_at FROM clusters WHERE id = $1 FOR UPDATE;
 
 -- name: LockAssignableCluster :one
-SELECT id, role FROM clusters
+SELECT id, role, platforms FROM clusters
 WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE;
 
 -- name: UpdateClusterLifecycle :exec

@@ -78,7 +78,11 @@ func newRecordingApplier(t *testing.T, existing ...client.Object) (*Applier, *wr
 }
 
 func appliedApplication(revision int64, withRef bool) *locoControllerV1.Application {
-	deployment := &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: new(int32(8080))}
+	deployment := &locoControllerV1.ServiceDeploymentSpec{
+		Platform: testPlatform,
+		Image:    testImage,
+		Port:     new(int32(8080)),
+	}
 	if withRef {
 		deployment.EnvSecretRef = &locoControllerV1.EnvSecretRef{
 			Name:     locoControllerV1.EnvSecretName(testPlacementID),
@@ -319,6 +323,7 @@ func TestAPayloadRefWithoutAnEnvSecretIsCleared(t *testing.T) {
 		EnvironmentID: testEnvironmentID,
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
+				Platform:     testPlatform,
 				Image:        testImage,
 				Port:         new(int32(8080)),
 				EnvSecretRef: &locoControllerV1.EnvSecretRef{Name: locoControllerV1.EnvSecretName("p2"), Revision: 1},

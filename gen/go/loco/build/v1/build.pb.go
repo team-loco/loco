@@ -110,6 +110,7 @@ type Build struct {
 	GitBranch *string `protobuf:"bytes,19,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
 	// git_commit_message is the commit's subject line.
 	GitCommitMessage *string `protobuf:"bytes,20,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
+	Platform         string  `protobuf:"bytes,21,opt,name=platform,proto3" json:"platform,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -280,6 +281,13 @@ func (x *Build) GetGitBranch() string {
 func (x *Build) GetGitCommitMessage() string {
 	if x != nil && x.GitCommitMessage != nil {
 		return *x.GitCommitMessage
+	}
+	return ""
+}
+
+func (x *Build) GetPlatform() string {
+	if x != nil {
+		return x.Platform
 	}
 	return ""
 }
@@ -855,7 +863,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcc\a\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\a\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -888,7 +896,8 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"git_commit\x18\x12 \x01(\tH\x05R\tgitCommit\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"git_branch\x18\x13 \x01(\tH\x06R\tgitBranch\x88\x01\x01\x121\n" +
-	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01B\r\n" +
+	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01\x12\x1a\n" +
+	"\bplatform\x18\x15 \x01(\tR\bplatformB\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
