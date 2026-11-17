@@ -24,7 +24,7 @@ func TestIngress(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	const public, private, unserved = "e2e-ingress-public", "e2e-ingress-private", "e2e-ingress-unserved"
-	publicHost := platform.Host(public)
+	publicHost := w.Host(public)
 
 	t.Run("the cluster reports the domain its gateway serves", func(t *testing.T) {
 		var seeded bool

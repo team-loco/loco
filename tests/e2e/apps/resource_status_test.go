@@ -123,7 +123,7 @@ type status struct {
 func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	w := s.w
 	const app = "e2e-rollout"
-	host := platform.Host(app)
+	host := w.Host(app)
 	dir := t.TempDir()
 	// No health check: the next version runs for a few seconds without listening and exits, and
 	// must not displace any old replica in that time.

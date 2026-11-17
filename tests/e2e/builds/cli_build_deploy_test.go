@@ -37,7 +37,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		dir,
 		locofile.File{
 			Partial:  app,
-			Services: map[string]locofile.Service{app: platform.SourceService(platform.Host(app))},
+			Services: map[string]locofile.Service{app: platform.SourceService(w.Host(app))},
 		},
 	)
 	git := func(args ...string) string {
@@ -58,7 +58,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		started := time.Now()
 		deployed := w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 		t.Logf("loco deploy took %s", time.Since(started))
-		url := app + ": https://" + platform.Host(app)
+		url := app + ": https://" + w.Host(app)
 		for _, want := range []string{"Packed", "Build succeeded", "Started deployment", url} {
 			if !strings.Contains(deployed.Stdout, want) {
 				t.Errorf("loco deploy output lacks %q:\n%s", want, deployed.Stdout)
