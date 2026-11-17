@@ -116,9 +116,19 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(page.get_by_text("private-owner", exact=True)).to_have_count(0)
     tokens = page.get_by_role("list", name="Surviving automation tokens", exact=True)
     expect(tokens.get_by_role("listitem")).to_have_count(10)
-    page.get_by_role("button", name="Next", exact=True).click()
+    pending_pages = []
+    context.route(preview, lambda route: pending_pages.append(route))
+    next_page = page.get_by_role("button", name=re.compile(r"^Next(?: page)?$"))
+    with page.expect_request(preview):
+        next_page.click()
+    expect(tokens.get_by_role("listitem")).to_have_count(10)
+    expect(next_page).to_be_focused()
+    next_page.click()
+    assert len(pending_pages) == 1, "Paging dispatched again while a page was loading"
+    pending_pages[0].continue_()
+    context.unroute(preview)
     expect(tokens.get_by_role("listitem")).to_have_count(2)
-    page.get_by_role("button", name="Previous", exact=True).click()
+    page.get_by_role("button", name="Previous page", exact=True).click()
     expect(tokens.get_by_role("listitem")).to_have_count(10)
     row = tokens.get_by_role("listitem").filter(
         has=page.get_by_text("automation-10", exact=True)

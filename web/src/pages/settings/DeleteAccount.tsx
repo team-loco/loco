@@ -3,7 +3,7 @@ import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { deleteUser, getAccountDeletionImpact } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
 import { TokenSchema, type Token } from "@gen/loco/token/v1/token_pb";
-import { useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/design/Button";
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { DangerZone } from "@/components/design/DangerZone";
+import { Pager } from "@/components/design/Pager";
 import { Spinner } from "@/components/design/Spinner";
 import { getErrorMessage } from "@/lib/error-handler";
 import { RevokeDialog } from "@/pages/tokens/RevokeDialog";
@@ -20,16 +21,18 @@ import { SettingsCard } from "./parts";
 
 const SURVIVING_TOKENS =
 	"Organization, workspace and resource tokens you issued keep working after you delete your account. Revoke unused tokens or arrange a handover with their administrators.";
+const TOKEN_PAGE_SIZE = 10;
 
 export function DeleteAccount({ user }: { user: User }) {
 	const { logout } = useAuth();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [pages, setPages] = useState([""]);
-	const impact = useQuery(getAccountDeletionImpact, {
-		pageSize: 10,
-		pageToken: pages.at(-1) ?? "",
-	});
+	const impact = useQuery(
+		getAccountDeletionImpact,
+		{ pageSize: TOKEN_PAGE_SIZE, pageToken: pages.at(-1) ?? "" },
+		{ placeholderData: keepPreviousData },
+	);
 	const remove = useMutation(deleteUser);
 	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -176,28 +179,27 @@ export function DeleteAccount({ user }: { user: User }) {
 								))}
 							</ul>
 						)}
-						<div className="flex flex-wrap gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={pages.length === 1 || impact.isFetching}
-								onClick={() => {
-									setPages((current) => current.slice(0, -1));
-								}}
-							>
-								Previous
-							</Button>
-							<Button
-								variant="outline"
-								size="sm"
-								disabled={!impact.data.nextPageToken || impact.isFetching}
-								onClick={() => {
-									const next = impact.data.nextPageToken;
-									if (next) setPages((current) => [...current, next]);
-								}}
-							>
-								Next
-							</Button>
+						<div className="flex flex-wrap items-center gap-2" aria-busy={impact.isFetching}>
+							<Pager
+								label={`Page ${pages.length.toString()}`}
+								total={impact.data.ownedTokens.length}
+								pageSizes={[TOKEN_PAGE_SIZE]}
+								onPrev={
+									pages.length === 1
+										? null
+										: () => {
+												if (!impact.isFetching) setPages((current) => current.slice(0, -1));
+											}
+								}
+								onNext={
+									!impact.data.nextPageToken
+										? null
+										: () => {
+												if (!impact.isFetching) setPages((current) => [...current, impact.data.nextPageToken]);
+											}
+								}
+								className="flex-1 border-t-0 p-0"
+							/>
 							<Button variant="ghost" size="sm" disabled={impact.isFetching} onClick={refresh}>
 								Check again
 							</Button>
