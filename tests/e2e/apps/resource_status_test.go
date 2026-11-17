@@ -210,6 +210,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	servedBefore := count("ok")
 	samples := sampleReplicaSets(t, w.Namespace, selector)
 
+	shortenFailureDeadline(t, w, id)
 	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
 	platform.WriteLocoFile(t, dir, file)
 	crashing := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")
