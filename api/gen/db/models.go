@@ -190,12 +190,12 @@ func (ns NullDeploymentMethod) Value() (driver.Value, error) {
 type DeploymentStatus string
 
 const (
-	DeploymentStatusPending   DeploymentStatus = "pending"
-	DeploymentStatusDeploying DeploymentStatus = "deploying"
-	DeploymentStatusRunning   DeploymentStatus = "running"
-	DeploymentStatusSucceeded DeploymentStatus = "succeeded"
-	DeploymentStatusFailed    DeploymentStatus = "failed"
-	DeploymentStatusCanceled  DeploymentStatus = "canceled"
+	DeploymentStatusBuilding   DeploymentStatus = "building"
+	DeploymentStatusDeploying  DeploymentStatus = "deploying"
+	DeploymentStatusRunning    DeploymentStatus = "running"
+	DeploymentStatusSuperseded DeploymentStatus = "superseded"
+	DeploymentStatusFailed     DeploymentStatus = "failed"
+	DeploymentStatusCanceled   DeploymentStatus = "canceled"
 )
 
 func (e *DeploymentStatus) Scan(src interface{}) error {
@@ -544,6 +544,7 @@ type Deployment struct {
 	CommitDirty   bool                `json:"commitDirty"`
 	SecretNames   []string            `json:"secretNames"`
 	ActivitySeq   int64               `json:"activitySeq"`
+	Problem       []byte              `json:"problem"`
 	CreatedAt     time.Time           `json:"createdAt"`
 	StartedAt     *time.Time          `json:"startedAt"`
 	CompletedAt   *time.Time          `json:"completedAt"`

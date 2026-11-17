@@ -44,7 +44,13 @@ func (f *deployFixture) reportRollout(t *testing.T, phase string, ready bool) {
 	t.Helper()
 	p := f.placement(t, f.clusterID)
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Phase: phase, Ready: ready, ReadyReplicas: 1,
+		PlacementId:              p.ID.String(),
+		ObservedRevision:         p.DesiredRevision,
+		Phase:                    phase,
+		Ready:                    ready,
+		Available:                ready,
+		ProgressDeadlineExceeded: phase == locoControllerV1.ApplicationPhaseFailed,
+		ReadyReplicas:            1,
 	})
 }
 
@@ -71,14 +77,19 @@ func TestScaleRejectsAnActiveRollout(t *testing.T) {
 	}
 }
 
-func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
+func TestDeploymentReplacesAnActiveRollout(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	created, err := createDeployment(t, f, sameRegionSpec)
+	if err != nil {
 		t.Fatal(err)
 	}
-	_, err := deployService(t, f, imageService())
-	wantCode(t, err, connect.CodeFailedPrecondition)
+	if _, err := deployService(t, f, imageService()); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.deploymentStatus(t, uuid.MustParse(created.GetDeploymentId())); got != genDb.DeploymentStatusCanceled {
+		t.Fatalf("replaced status=%s", got)
+	}
 }
 
 func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
@@ -117,8 +128,8 @@ func TestSecretRotationKeepsTheRolloutBlockedUntilReady(t *testing.T) {
 			PlacementId:      p.ID.String(),
 			ObservedRevision: p.DesiredRevision - 1,
 			Phase:            testPhaseReady,
-			Ready:            true,
-			ReadyReplicas:    1,
+			Ready:            true, Available: true,
+			ReadyReplicas: 1,
 		})
 	wantCode(t, scaleResource(t, f, 2), connect.CodeFailedPrecondition)
 	f.reportRollout(t, "Deploying", false)
@@ -350,8 +361,8 @@ func (f *deployFixture) finishRollouts(t *testing.T) {
 				PlacementId:      r.placementID.String(),
 				ObservedRevision: r.revision,
 				Phase:            testPhaseReady,
-				Ready:            true,
-				ReadyReplicas:    1,
+				Ready:            true, Available: true,
+				ReadyReplicas: 1,
 			})
 	}
 }
@@ -362,7 +373,7 @@ func TestOtherEnvironmentRolloutDoesNotBlockScale(t *testing.T) {
 	stagingID := f.deployToProductionAndStaging(t)
 	f.reportRollout(t, testPhaseReady, true)
 	staging := f.activeDeployment(t, stagingID)
-	if staging.Status != genDb.DeploymentStatusPending {
+	if staging.Status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("other environment = %s, want pending", staging.Status)
 	}
 	if err := scaleResource(t, f, 2); err != nil {
@@ -372,7 +383,7 @@ func TestOtherEnvironmentRolloutDoesNotBlockScale(t *testing.T) {
 		t,
 		stagingID,
 	); other.ID != staging.ID ||
-		other.Status != genDb.DeploymentStatusPending {
+		other.Status != genDb.DeploymentStatusDeploying {
 		t.Fatal("scaling changed the other environment's rollout")
 	}
 }

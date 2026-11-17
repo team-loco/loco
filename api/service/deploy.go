@@ -58,11 +58,10 @@ func createDeploymentWithCleanup(
 	}
 
 	if hadPreviousDeployment {
-		newStatus := finalizedDeploymentStatus(activeDeployment.Status)
-		slog.InfoContext(ctx, "finalizing previous deployment",
-			"deploymentId", activeDeployment.ID,
-			"oldStatus", activeDeployment.Status,
-			"newStatus", newStatus)
+		newStatus := activeDeployment.Status
+		if activeDeployment.StartedAt == nil {
+			newStatus = genDb.DeploymentStatusCanceled
+		}
 
 		if updateErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
 			ID:       activeDeployment.ID,
@@ -172,19 +171,21 @@ func checkClusterEnvironment(ctx context.Context, qtx *genDb.Queries, params gen
 	return errClusterHeldByEnvironment.Detail("cluster %s already runs it for environment %s", cluster.Name, other.Name)
 }
 
-// retireDeployment takes a deployment out of service: it drops the deployment's placement,
-// finalizes its status and records the deletion.
 func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, deployment genDb.Deployment) error {
-	// an inactive deployment was superseded, and its cluster's placement now belongs to the
-	// replacement.
+	// Only the active deployment owns the placement.
 	if deployment.IsActive {
 		if err := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); err != nil {
 			return err
 		}
 	}
+	status := deployment.Status
+	switch status {
+	case genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying, genDb.DeploymentStatusRunning:
+		status = genDb.DeploymentStatusCanceled
+	}
 	err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
 		ID:       deployment.ID,
-		Status:   finalizedDeploymentStatus(deployment.Status),
+		Status:   status,
 		IsActive: false,
 	})
 	if err != nil {
@@ -198,19 +199,6 @@ func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resourc
 		SubjectID:   new(deployment.ID),
 		Data:        map[string]any{events.FieldResourceID: res.ID.String()},
 	})
-}
-
-func finalizedDeploymentStatus(status genDb.DeploymentStatus) genDb.DeploymentStatus {
-	switch status {
-	case genDb.DeploymentStatusPending:
-		return genDb.DeploymentStatusCanceled
-	case genDb.DeploymentStatusDeploying:
-		return genDb.DeploymentStatusCanceled
-	case genDb.DeploymentStatusRunning:
-		return genDb.DeploymentStatusSucceeded
-	default:
-		return status
-	}
 }
 
 func desiredApplicationSpec(

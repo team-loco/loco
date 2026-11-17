@@ -63,7 +63,8 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, deployment *planv1.St
 		}
 		var outcome string
 		switch event.GetStatus() {
-		case deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING:
+		case deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING,
+			deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED:
 			return stream.Close()
 		case deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED:
 			outcome = "failed"

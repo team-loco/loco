@@ -10,6 +10,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
@@ -52,8 +53,19 @@ func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusSucceeded {
-		t.Fatalf("status after delete = %s, want succeeded", status)
+	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusCanceled {
+		t.Fatalf("status after delete = %s, want canceled", status)
+	}
+	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	report := &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true,
+	}
+	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
+	if got := f.deploymentStatus(t, deploymentID); got != genDb.DeploymentStatusCanceled {
+		t.Fatalf("deleted deployment changed to %s", got)
 	}
 }
 

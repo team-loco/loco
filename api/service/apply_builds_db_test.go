@@ -119,8 +119,8 @@ func TestApplyDeploysASourceServiceFromTheNamedBuild(t *testing.T) {
 	if deployed := f.deployedBuild(t, again.GetDeployments()[0]); deployed != next.String() {
 		t.Fatalf("deployment runs build %s, want %s", deployed, next)
 	}
-	if status := f.deploymentStatus(t, first); status != genDb.DeploymentStatusSucceeded {
-		t.Fatalf("first deployment status = %s, want succeeded before the new one", status)
+	if status := f.deploymentStatus(t, first); status != genDb.DeploymentStatusRunning {
+		t.Fatalf("first deployment status = %s, want running while the replacement deploys", status)
 	}
 	wantCleanPlan(t, f, file)
 }

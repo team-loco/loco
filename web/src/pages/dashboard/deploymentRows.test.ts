@@ -17,12 +17,19 @@ import {
 const NOW = 1_800_000_000_000;
 
 function row(id: string, status: DeploymentPhase, isActive: boolean, ageMs = 0) {
-	return { deployment: create(DeploymentSchema, { id, status, isActive, createdAt: msToTimestamp(NOW - ageMs) }) };
+	return {
+		deployment: create(DeploymentSchema, {
+			id,
+			status,
+			isActive,
+			createdAt: msToTimestamp(NOW - ageMs),
+		}),
+	};
 }
 
 describe("deploymentState", () => {
-	test("a finished deployment that is no longer active is superseded", () => {
-		expect(deploymentState(row("a", DeploymentPhase.RUNNING, false).deployment)).toBe("superseded");
+	test("the reported phase determines whether a deployment is running or superseded", () => {
+		expect(deploymentState(row("a", DeploymentPhase.RUNNING, false).deployment)).toBe("running");
 		expect(deploymentState(row("b", DeploymentPhase.SUCCEEDED, false).deployment)).toBe("superseded");
 		expect(deploymentState(row("c", DeploymentPhase.RUNNING, true).deployment)).toBe("running");
 		expect(deploymentState(row("d", DeploymentPhase.FAILED, false).deployment)).toBe("failed");
@@ -33,17 +40,19 @@ describe("deploymentState", () => {
 describe("filters", () => {
 	const rows = [
 		row("live", DeploymentPhase.RUNNING, true),
-		row("old", DeploymentPhase.RUNNING, false),
+		row("old", DeploymentPhase.SUCCEEDED, false),
+		row("previous", DeploymentPhase.RUNNING, false),
 		row("rolling", DeploymentPhase.DEPLOYING, true),
 		row("broken", DeploymentPhase.FAILED, true),
 	];
 
 	test("counts each state and filters to one", () => {
 		const counts = deploymentCounts(rows);
-		expect(counts.get("running")).toBe(1);
+		expect(counts.get("running")).toBe(2);
 		expect(counts.get("superseded")).toBe(1);
 		expect(counts.get("progress")).toBe(1);
 		expect(counts.get("failed")).toBe(1);
+		expect(filterDeployments(rows, "running").map((r) => r.deployment.id)).toEqual(["live", "previous"]);
 		expect(filterDeployments(rows, "failed").map((r) => r.deployment.id)).toEqual(["broken"]);
 		expect(filterDeployments(rows, ALL_DEPLOYMENTS)).toHaveLength(rows.length);
 	});

@@ -129,7 +129,7 @@ func TestDeploymentFailedRecordedOnceAcrossRepeatedReports(t *testing.T) {
 	f.nameUser(t)
 	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	placement := f.placement(t, f.clusterID)
-	report := &agentv1.PlacementStatus{
+	report := &agentv1.PlacementStatus{ProgressDeadlineExceeded: true,
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
 		Phase:            locov1alpha1.ApplicationPhaseFailed,
@@ -196,14 +196,14 @@ func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		Ready:            true,
+		Ready:            true, Available: true,
 	})
 	canceled := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	latest := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	for id, want := range map[uuid.UUID]genDb.DeploymentStatus{
-		succeeded: genDb.DeploymentStatusSucceeded,
+		succeeded: genDb.DeploymentStatusRunning,
 		canceled:  genDb.DeploymentStatusCanceled,
-		latest:    genDb.DeploymentStatusPending,
+		latest:    genDb.DeploymentStatusDeploying,
 	} {
 		if status := f.deploymentStatus(t, id); status != want {
 			t.Fatalf("deployment %s status = %s, want %s", id, status, want)
@@ -230,7 +230,10 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 			for _, clusterID := range []uuid.UUID{f.clusterID, f.otherCluster} {
 				placement := f.placement(t, clusterID)
 				report := &agentv1.PlacementStatus{
-					PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision, Ready: true,
+					PlacementId:      placement.ID.String(),
+					ObservedRevision: placement.DesiredRevision,
+					Ready:            true,
+					Available:        true,
 				}
 				var wg sync.WaitGroup
 				for range 8 {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -495,7 +496,7 @@ func (s *AgentServer) advancePastRevision(
 
 func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uuid.UUID, revision int64) {
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		marked, markErr := qtx.MarkPlacementApplied(ctx, genDb.MarkPlacementAppliedParams{
+		_, markErr := qtx.MarkPlacementApplied(ctx, genDb.MarkPlacementAppliedParams{
 			ID:              placementID,
 			ClusterID:       clusterID,
 			DesiredRevision: revision,
@@ -506,15 +507,7 @@ func (s *AgentServer) markApplied(ctx context.Context, clusterID, placementID uu
 		if markErr != nil {
 			return fmt.Errorf("mark placement applied: %w", markErr)
 		}
-		if marked.DeploymentID == nil || marked.Suspended {
-			return nil
-		}
-		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
-			Status:       genDb.DeploymentStatusDeploying,
-			Message:      "Applied to the cluster",
-			ID:           *marked.DeploymentID,
-			FromStatuses: deploymentStatusNames(genDb.DeploymentStatusPending),
-		})
+		return nil
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record applied placement",
@@ -588,6 +581,18 @@ func (s *AgentServer) recordApplyError(
 	)
 
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		if _, resourceErr := qtx.LockPlacementResource(
+			ctx,
+			genDb.LockPlacementResourceParams{ID: placementID, ClusterID: clusterID},
+		); errors.Is(
+			resourceErr,
+			pgx.ErrNoRows,
+		) {
+			return nil
+		} else if resourceErr != nil {
+			return fmt.Errorf("lock apply resource: %w", resourceErr)
+		}
+
 		row, setErr := qtx.SetPlacementApplyError(ctx, genDb.SetPlacementApplyErrorParams{
 			ID:                       placementID,
 			ClusterID:                clusterID,
@@ -611,7 +616,7 @@ func (s *AgentServer) recordApplyError(
 			Message: errMessage,
 			ID:      *row.DeploymentID,
 			FromStatuses: deploymentStatusNames(
-				genDb.DeploymentStatusPending,
+				genDb.DeploymentStatusBuilding,
 				genDb.DeploymentStatusDeploying,
 				genDb.DeploymentStatusRunning,
 			),
@@ -637,9 +642,7 @@ func (s *AgentServer) recordStatus(
 		return
 	}
 
-	message, valid := locoControllerV1.RuntimeProblemMessage(status.GetRuntimeReason())
-	if !valid {
-		slog.WarnContext(ctx, "ignoring status with invalid runtime reason", "placement_id", placementID)
+	if !validRolloutReport(ctx, status) {
 		return
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -652,6 +655,17 @@ func (s *AgentServer) recordStatus(
 		}
 		if current != generation {
 			return nil
+		}
+		if _, resourceErr := qtx.LockPlacementResource(
+			ctx,
+			genDb.LockPlacementResourceParams{ID: placementID, ClusterID: clusterID},
+		); errors.Is(
+			resourceErr,
+			pgx.ErrNoRows,
+		) {
+			return nil
+		} else if resourceErr != nil {
+			return fmt.Errorf("lock status resource: %w", resourceErr)
 		}
 		row, updateErr := qtx.UpdatePlacementStatus(ctx, genDb.UpdatePlacementStatusParams{
 			ObservedRevision: status.GetObservedRevision(),
@@ -668,18 +682,63 @@ func (s *AgentServer) recordStatus(
 		if updateErr != nil {
 			return fmt.Errorf("update placement status: %w", updateErr)
 		}
-		// UpdatePlacementStatus locks the placement row until this transaction commits.
-		// Only a report for the desired revision may change the runtime condition.
-		if status.GetObservedRevision() == row.DesiredRevision {
+		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
+			return nil
+		}
+		deployment, readErr := qtx.GetDeploymentByID(ctx, *row.DeploymentID)
+		if readErr != nil {
+			return fmt.Errorf("read reported deployment: %w", readErr)
+		}
+		if !deployment.IsActive {
+			return nil
+		}
+		next := nextDeploymentStatus(deployment.Status, status)
+		if next != deployment.Status {
+			if transitionErr := advanceDeploymentStatus(
+				ctx,
+				qtx,
+				genDb.AdvanceDeploymentStatusParams{
+					ID:           deployment.ID,
+					Status:       next,
+					Message:      status.GetMessage(),
+					FromStatuses: deploymentStatusNames(deployment.Status),
+				},
+			); transitionErr != nil {
+				return transitionErr
+			}
+		}
+		var problemData []byte
+		if status.GetProblem() != nil {
+			data, encodeErr := json.Marshal(status.GetProblem())
+			if encodeErr != nil {
+				return fmt.Errorf("encode deployment problem: %w", encodeErr)
+			}
+			problemData = data
+		}
+		if problemErr := qtx.SetDeploymentProblem(
+			ctx,
+			genDb.SetDeploymentProblemParams{ID: deployment.ID, Problem: problemData},
+		); problemErr != nil {
+			return fmt.Errorf("store deployment problem: %w", problemErr)
+		}
+		if next == genDb.DeploymentStatusRunning {
+			if supersedeErr := qtx.SupersedePreviousDeployments(ctx, deployment.ID); supersedeErr != nil {
+				return fmt.Errorf("supersede deployments: %w", supersedeErr)
+			}
+			reason := status.GetProblem().GetReason()
+			message := ""
+			if reason != "" {
+				message, _ = locoControllerV1.ProblemMessage(locoControllerV1.ProblemReason(reason))
+			}
 			changed, changeErr := qtx.ChangePlacementRuntimeCondition(ctx, genDb.ChangePlacementRuntimeConditionParams{
-				ID: placementID, Reason: status.GetRuntimeReason(), Message: message,
+				ID: placementID, Reason: reason, Message: message,
 			})
 			if changeErr != nil && !errors.Is(changeErr, pgx.ErrNoRows) {
 				return fmt.Errorf("change runtime condition: %w", changeErr)
 			}
 			if changeErr == nil {
 				kind := events.ResourceDegraded
-				if status.GetRuntimeReason() == "" {
+				if reason == "" {
 					kind = events.ResourceRecovered
 				}
 				if recordErr := events.Record(ctx, qtx, events.Event{
@@ -690,7 +749,7 @@ func (s *AgentServer) recordStatus(
 					SubjectType:   events.SubjectResource,
 					SubjectID:     &changed.ResourceID,
 					Data: map[string]any{
-						events.FieldReason:      status.GetRuntimeReason(),
+						events.FieldReason:      reason,
 						events.FieldMessage:     message,
 						events.FieldPlacementID: placementID.String(),
 						events.FieldRegion:      changed.Region,
@@ -699,18 +758,6 @@ func (s *AgentServer) recordStatus(
 					return recordErr
 				}
 			}
-		}
-		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
-			return nil
-		}
-		transition := deploymentTransitionForStatus(status)
-		if transitionErr := advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
-			Status:       transition.status,
-			Message:      status.GetMessage(),
-			ID:           *row.DeploymentID,
-			FromStatuses: deploymentStatusNames(transition.from...),
-		}); transitionErr != nil {
-			return transitionErr
 		}
 		return ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status)
 	})
@@ -767,37 +814,6 @@ func advanceDeploymentStatus(
 		SubjectID:     &params.ID,
 		Data:          data,
 	})
-}
-
-type deploymentTransition struct {
-	status genDb.DeploymentStatus
-	from   []genDb.DeploymentStatus
-}
-
-func deploymentTransitionForStatus(status *agentv1.PlacementStatus) deploymentTransition {
-	if status.GetPhase() == locoControllerV1.ApplicationPhaseFailed {
-		return deploymentTransition{
-			status: genDb.DeploymentStatusFailed,
-			from: []genDb.DeploymentStatus{
-				genDb.DeploymentStatusPending,
-				genDb.DeploymentStatusDeploying,
-			},
-		}
-	}
-	if status.GetReady() {
-		return deploymentTransition{
-			status: genDb.DeploymentStatusRunning,
-			from: []genDb.DeploymentStatus{
-				genDb.DeploymentStatusPending,
-				genDb.DeploymentStatusDeploying,
-				genDb.DeploymentStatusFailed,
-			},
-		}
-	}
-	return deploymentTransition{
-		status: genDb.DeploymentStatusDeploying,
-		from:   []genDb.DeploymentStatus{genDb.DeploymentStatusPending},
-	}
 }
 
 func deploymentStatusNames(statuses ...genDb.DeploymentStatus) []string {

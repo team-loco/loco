@@ -5,57 +5,73 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	id, err := f.deploy(t.Context(), staticSpec)
+	ctx := t.Context()
+	id, err := f.deploy(ctx, staticSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
-	read := func() *deploymentv1.Deployment {
+	read := func() genDb.Deployment {
 		t.Helper()
-		row, readErr := f.queries.GetDeploymentByID(t.Context(), id)
+		row, readErr := f.queries.GetDeploymentByID(ctx, id)
 		if readErr != nil {
 			t.Fatal(readErr)
 		}
-		deployment, convertErr := deploymentToProto(row, genDb.ResourceTypeService, "", "")
-		if convertErr != nil {
-			t.Fatal(convertErr)
-		}
-		return deployment
+		return row
 	}
-	pending := read()
-	if pending.GetStartedAt() != nil || pending.GetCompletedAt() != nil {
-		t.Fatalf("pending timestamps = %v, %v", pending.GetStartedAt(), pending.GetCompletedAt())
-	}
-	placement := f.placement(t, f.clusterID)
-	report := &agentv1.PlacementStatus{
-		PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
-		Phase: locov1alpha1.ApplicationPhaseDeploying,
-	}
+	p := f.placement(t, f.clusterID)
 	server := f.agentServer()
-	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	started := read()
-	if started.GetStartedAt() == nil || started.GetStartedAt().AsTime().Before(pending.GetCreatedAt().AsTime()) {
-		t.Fatalf("deploying start = %v, created = %v", started.GetStartedAt(), pending.GetCreatedAt())
+	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision}
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if got := read(); got.StartedAt != nil || got.CompletedAt != nil {
+		t.Fatalf("deploying timestamps=%+v", got)
 	}
-	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	if got := read().GetStartedAt(); !got.AsTime().Equal(started.GetStartedAt().AsTime()) {
-		t.Fatalf("repeated report start = %v, want %v", got, started.GetStartedAt())
+	report.Available = true
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	running := read()
+	if running.StartedAt == nil || running.StartedAt.Before(running.CreatedAt) {
+		t.Fatalf("running start=%v", running.StartedAt)
 	}
-	report.Phase = locov1alpha1.ApplicationPhaseFailed
-	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	finished := read()
-	if finished.GetCompletedAt() == nil || !finished.GetStartedAt().AsTime().Equal(started.GetStartedAt().AsTime()) {
-		t.Fatalf("failed timestamps = %v, %v", finished.GetStartedAt(), finished.GetCompletedAt())
+	report.Available = false
+	report.ProgressDeadlineExceeded = true
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	failed := read()
+	if failed.CompletedAt == nil || !failed.StartedAt.Equal(*running.StartedAt) {
+		t.Fatalf("failed timestamps=%+v", failed)
 	}
-	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	if got := read(); !got.GetStartedAt().AsTime().Equal(started.GetStartedAt().AsTime()) ||
-		!got.GetCompletedAt().AsTime().Equal(finished.GetCompletedAt().AsTime()) {
-		t.Fatalf("repeated failure timestamps = %v, %v", got.GetStartedAt(), got.GetCompletedAt())
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if got := read(); !got.CompletedAt.Equal(*failed.CompletedAt) {
+		t.Fatal("replay changed completion time")
+	}
+	report.Available = true
+	report.ProgressDeadlineExceeded = false
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if got := read(); got.CompletedAt != nil || !got.StartedAt.Equal(*running.StartedAt) {
+		t.Fatalf("recovered timestamps=%+v", got)
+	}
+	if _, err := f.queries.RestartResourcePlacements(
+		ctx,
+		genDb.RestartResourcePlacementsParams{ResourceID: f.resourceID, EnvironmentID: f.envID},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); got.Status != genDb.DeploymentStatusDeploying {
+		t.Fatalf("restart=%s", got.Status)
+	}
+	p = f.placement(t, f.clusterID)
+	report.ObservedRevision = p.DesiredRevision
+	report.Available = false
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if got := read(); got.Status != genDb.DeploymentStatusDeploying {
+		t.Fatalf("waiting restart=%s", got.Status)
+	}
+	report.Available = true
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if got := read(); got.Status != genDb.DeploymentStatusRunning || !got.StartedAt.Equal(*running.StartedAt) {
+		t.Fatalf("restarted=%+v", got)
 	}
 }

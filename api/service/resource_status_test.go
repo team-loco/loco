@@ -90,7 +90,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "pending deployment the agent has not reported on",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusPending, 0)
+				row := regionRow(genDb.DeploymentStatusDeploying, 0)
 				row.StatusUpdatedAt = nil
 				row.StatusMessage = ""
 				return row
@@ -215,7 +215,7 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 	}{
 		{
 			name: "succeeded deployment still active",
-			row:  regionRow(genDb.DeploymentStatusSucceeded, 2),
+			row:  regionRow(genDb.DeploymentStatusSuperseded, 2),
 			want: errFinishedDeploymentActive,
 		},
 		{
@@ -260,7 +260,7 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 func TestRegionStatusNeverOverstatesHealth(t *testing.T) {
 	t.Parallel()
 	deploymentStatuses := []genDb.DeploymentStatus{
-		genDb.DeploymentStatusPending,
+		genDb.DeploymentStatusBuilding,
 		genDb.DeploymentStatusDeploying,
 		genDb.DeploymentStatusRunning,
 		genDb.DeploymentStatusFailed,
@@ -300,7 +300,7 @@ func assertStatusMatchesInputs(
 	fresh := row.LastHeartbeat != nil &&
 		testStatusNow.Sub(*row.LastHeartbeat) <= testClusterSilentAfter &&
 		row.HealthStatus != nil && *row.HealthStatus == clusterHealthHealthy
-	inFlight := row.DeploymentStatus == genDb.DeploymentStatusPending ||
+	inFlight := row.DeploymentStatus == genDb.DeploymentStatusBuilding ||
 		row.DeploymentStatus == genDb.DeploymentStatusDeploying
 	var want resourcev1.ResourceStatus
 	switch {

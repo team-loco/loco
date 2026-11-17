@@ -238,6 +238,7 @@ type Querier interface {
 	LockOrgForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organization, error)
 	LockOrgWorkspacesForDeletion(ctx context.Context, orgID uuid.UUID) error
+	LockPlacementResource(ctx context.Context, arg LockPlacementResourceParams) (uuid.UUID, error)
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
@@ -298,6 +299,7 @@ type Querier interface {
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
+	SetDeploymentProblem(ctx context.Context, arg SetDeploymentProblemParams) error
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
@@ -305,6 +307,7 @@ type Querier interface {
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
+	SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)
