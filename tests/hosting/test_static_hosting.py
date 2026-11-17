@@ -1,4 +1,5 @@
 import json
+from html import unescape
 import re
 import subprocess
 import time
@@ -160,6 +161,50 @@ def check_dashboard_reaches_http_issuer(address):
         browser.close()
 
 
+def check_docs_reading_layout(address, out_dir):
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            args=[f"--host-resolver-rules=MAP {DOCS_HOST} {address}"]
+        )
+        page = browser.new_page(viewport={"width": 1440, "height": 1024})
+        navigate(page, f"http://{DOCS_HOST}/getting-started/install/")
+        expect(page.get_by_role("link", name="API reference").first).to_have_attribute(
+            "href", f"https://{API_HOST}"
+        )
+        page.evaluate("document.fonts.ready")
+        assert page.locator("body").evaluate(
+            "el => getComputedStyle(el).fontFamily"
+        ).startswith('"Geist Variable"')
+        for family in ("Geist Variable", "Geist Mono Variable"):
+            assert page.evaluate(
+                "family => [...document.fonts].some(font => font.family.replaceAll(/['\"]/g, '') === family && font.status === 'loaded')",
+                family,
+            )
+        article = page.locator("#nd-page")
+        assert article.bounding_box()["width"] <= 780
+        logo = page.get_by_role("img", name="Loco", exact=True).first
+        assert logo.bounding_box()["width"] <= 64
+        assert logo.bounding_box()["height"] <= 32
+        page.screenshot(path=out_dir / "docs-install-light.png")
+        page.emulate_media(color_scheme="dark")
+        expect(page.locator("html")).to_have_class(re.compile(r"dark"))
+        page.screenshot(path=out_dir / "docs-install-dark.png")
+        # A text-heavy guide must reflow without losing navigation or page actions.
+        page.set_viewport_size({"width": 390, "height": 844})
+        expect(page.locator("#nd-notebook-layout")).to_have_css("--fd-sidebar-col", "0px")
+        page.screenshot(path=out_dir / "docs-install-narrow.png")
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+        assert article.bounding_box()["width"] >= 350
+        expect(page.get_by_role("heading", name="Install the CLI", exact=True)).to_be_visible()
+        expect(page.get_by_role("link", name="View Markdown", exact=True)).to_be_visible()
+        page.get_by_role("button", name="Open Sidebar", exact=True).click()
+        expect(page.get_by_role("link", name="API reference").last).to_be_visible()
+        page.get_by_role("link", name="Connect to Loco", exact=True).last.click()
+        expect(page).to_have_url(re.compile(r"/getting-started/connect/?$"))
+        expect(page.get_by_role("heading", name="Connect to Loco", exact=True)).to_be_visible()
+        browser.close()
+
+
 def ui_routes():
     route_source = (ROOT / "web/src/App.tsx").read_text()
     return re.findall('<Route\\s+path="(/[^\\"]*)"', route_source)
@@ -270,7 +315,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             status, body, _ = response(base + "/deployment/modes/", host)
             assert status == 200
             assert "Multi-tenant SaaS" in body
-            logo = re.search(r'src="([^"]+)"[^>]*alt="Loco"', html).group(1)
+            logo = re.search(r'mask-image:url\("([^\"]+)"\)', unescape(html)).group(1)
             status, _, asset_headers = response(url + logo, host)
             assert status == 200
             assert "immutable" in asset_headers["Cache-Control"]
@@ -317,6 +362,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
         )
         check_unknown_path_opens_ui(address, [UNKNOWN_PATH, UNKNOWN_PATH + "/bar"])
         check_dashboard_reaches_http_issuer(address)
+        check_docs_reading_layout(address, tmp_path)
     finally:
         docker("stop", container)
 
