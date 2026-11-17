@@ -18,20 +18,36 @@ function memoryStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem"> {
 	};
 }
 
-async function startSignIn(loginHint: string | null): Promise<{ client: AuthClient; url: URL }> {
-	spyOn(globalThis, "fetch").mockResolvedValue(
-		Response.json({ issuer: ISSUER, authorization_endpoint: `${ISSUER}/authorize` }),
+async function startSignIn(loginHint: string | null): Promise<{ client: AuthClient; url: URL; discoveryURL: unknown }> {
+	const discovery = spyOn(globalThis, "fetch").mockResolvedValue(
+		Response.json({
+			issuer: ISSUER,
+			authorization_endpoint: `${ISSUER}/authorize`,
+		}),
 	);
 	const assign = mock((_url: string) => undefined);
 	Object.defineProperty(globalThis, "window", {
-		value: { location: { assign }, sessionStorage: memoryStorage() },
+		value: {
+			location: { assign },
+			sessionStorage: memoryStorage(),
+			localStorage: memoryStorage(),
+		},
 		configurable: true,
 	});
-	const client = await createAuthClient({ issuer: ISSUER, clientId: "loco-web", scopes: "openid email" });
+	const client = await createAuthClient({
+		issuer: ISSUER,
+		clientId: "loco-web",
+		scopes: "openid email",
+		apiURL: "/api",
+	});
 	await client.signIn(REDIRECT, loginHint);
 	const target = assign.mock.calls[0]?.[0];
 	if (target === undefined) throw new Error("sign-in did not redirect");
-	return { client, url: new URL(target) };
+	return {
+		client,
+		url: new URL(target),
+		discoveryURL: discovery.mock.calls[0]?.[0],
+	};
 }
 
 function callback(params: Record<string, string>): URL {
@@ -53,8 +69,39 @@ describe("sign-in redirect", () => {
 	});
 
 	test("sends no login_hint without an address", async () => {
-		const { url } = await startSignIn(null);
+		const { url, discoveryURL } = await startSignIn(null);
 		expect(url.searchParams.has("login_hint")).toBe(false);
+		expect(discoveryURL).toBe("/api/auth/oidc/discovery");
+		expect(url.origin).toBe(ISSUER);
+		expect(url.searchParams.get("code_challenge_method")).toBe("S256");
+	});
+
+	test("refreshes through the API and clears a rejected refresh", async () => {
+		await startSignIn(null);
+		mock.restore();
+		window.localStorage.setItem(
+			"loco:auth:oidc:v1",
+			JSON.stringify({
+				idToken: "expired",
+				refreshToken: "refresh-token",
+				expiresAt: 0,
+			}),
+		);
+		const fetch = spyOn(globalThis, "fetch")
+			.mockResolvedValueOnce(Response.json({ issuer: ISSUER, token_endpoint: `${ISSUER}/token` }))
+			.mockResolvedValueOnce(Response.json({ error: "invalid_grant" }, { status: 400 }));
+		const client = await createAuthClient({
+			issuer: ISSUER,
+			clientId: "loco-web",
+			scopes: "openid",
+			apiURL: "/api",
+		});
+		expect(await client.getAccessToken()).toBeNull();
+		expect(fetch.mock.calls.map(([url]) => url)).toEqual(["/api/auth/oidc/discovery", "/api/auth/oidc/token"]);
+		const body = fetch.mock.calls[1]?.[1]?.body as URLSearchParams;
+		expect(body.get("grant_type")).toBe("refresh_token");
+		expect(body.get("client_id")).toBe("loco-web");
+		expect(window.localStorage.getItem("loco:auth:oidc:v1")).toBeNull();
 	});
 
 	test("reports the same refusal for existing and missing accounts", async () => {
@@ -64,7 +111,10 @@ describe("sign-in redirect", () => {
 			{ error: "server_error", error_description: "Upstream down" },
 		]) {
 			const { client, url } = await startSignIn(null);
-			const failed = callback({ ...response, state: url.searchParams.get("state") ?? "" });
+			const failed = callback({
+				...response,
+				state: url.searchParams.get("state") ?? "",
+			});
 			expect(await client.completeSignIn(failed).catch(String)).toBe(
 				"Error: The identity provider could not sign you in. Try again.",
 			);
@@ -73,7 +123,10 @@ describe("sign-in redirect", () => {
 
 	test("reports an expired sign-in when the callback is replayed", async () => {
 		const { client, url } = await startSignIn(null);
-		const cancelled = callback({ error: "access_denied", state: url.searchParams.get("state") ?? "" });
+		const cancelled = callback({
+			error: "access_denied",
+			state: url.searchParams.get("state") ?? "",
+		});
 		expect(await client.completeSignIn(cancelled).catch(String)).toContain(
 			"The identity provider could not sign you in. Try again.",
 		);

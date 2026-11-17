@@ -252,6 +252,7 @@ type deps struct {
 	machine            *tvm.VendingMachine
 	queries            *genDb.Queries
 	verifier           *auth.Verifier
+	webOIDC            *auth.WebOIDC
 	resolver           *auth.Resolver
 	authorizer         *authz.Authorizer
 	webhookDispatcher  *webhooks.Dispatcher
@@ -400,6 +401,7 @@ func newDeps(
 		machine:            machine,
 		queries:            queries,
 		verifier:           verifier,
+		webOIDC:            auth.NewWebOIDC(authClient, ac.AuthIssuers),
 		resolver:           resolver,
 		authorizer:         authorizer,
 		webhookDispatcher:  webhookDispatcher,
@@ -514,6 +516,10 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 }
 
 func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *connect.Server, d *deps) {
+	if d.webOIDC != nil {
+		mux.HandleFunc("GET "+auth.WebOIDCDiscoveryPath, d.webOIDC.Discovery)
+		mux.HandleFunc("POST "+auth.WebOIDCTokenPath, d.webOIDC.Token)
+	}
 	mux.HandleFunc(healthPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, "Server is healthy.")

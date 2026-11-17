@@ -36,6 +36,7 @@ export interface OIDCConfig {
 	issuer: string;
 	clientId: string;
 	scopes: string;
+	apiURL: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -93,12 +94,13 @@ function callbackParams(
 export async function createAuthClient(cfg: OIDCConfig): Promise<AuthClient> {
 	const issuer = new URL(cfg.issuer);
 	const insecure = issuer.protocol === "http:";
-	// eslint-disable-next-line @typescript-eslint/no-deprecated
-	const requestOptions = { [oauth.allowInsecureRequests]: insecure };
-	const as = await oauth.processDiscoveryResponse(
-		issuer,
-		await oauth.discoveryRequest(issuer, { algorithm: "oidc", ...requestOptions }),
-	);
+	const requestOptions = {
+		// eslint-disable-next-line @typescript-eslint/no-deprecated
+		[oauth.allowInsecureRequests]: insecure,
+		[oauth.customFetch]: async (_url: string, options: oauth.CustomFetchOptions<"POST", URLSearchParams>) =>
+			await fetch(`${cfg.apiURL}/auth/oidc/token`, options),
+	};
+	const as = await oauth.processDiscoveryResponse(issuer, await fetch(`${cfg.apiURL}/auth/oidc/discovery`));
 	const oauthClient: oauth.Client = { client_id: cfg.clientId };
 	const clientAuth = oauth.None();
 	let tokens = parseJSON(readStorage(TOKENS_KEY), isStoredTokens);

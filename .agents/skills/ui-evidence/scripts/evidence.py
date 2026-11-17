@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import urllib.error
 import urllib.request
 import uuid
@@ -1016,15 +1017,17 @@ def runtime_config(api_url):
 
 
 class UIHandler(http.server.SimpleHTTPRequestHandler):
-    """Serve web/dist like the UI image: the discovery document and runtime config
-    this run's addresses need, then files, then index.html for app routes."""
+    """Serve the production UI with the chart's same-origin /api forwarding."""
 
-    def __init__(self, *args, api_url, **kwargs):
+    def __init__(self, *args, api_url, csp="", **kwargs):
         self.api_url = api_url
+        self.csp = csp
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path.startswith("/api/"):
+            return self.proxy_api()
         if path == DISCOVERY_PATH:
             host, port = self.server.server_address[:2]
             return self.send_body(
@@ -1032,8 +1035,51 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
                 json.dumps(discovery_document(f"http://{host}:{port}/dex")),
             )
         if path == RUNTIME_CONFIG_PATH:
-            return self.send_body("text/javascript", runtime_config(self.api_url))
+            return self.send_body("text/javascript", runtime_config("/api"))
         return super().do_GET()
+
+    def do_POST(self):
+        if self.path.startswith("/api/"):
+            return self.proxy_api()
+        self.send_error(501, "Unsupported method")
+
+    def end_headers(self):
+        if self.csp and not self.path.startswith("/api/"):
+            self.send_header("Content-Security-Policy", self.csp)
+        super().end_headers()
+
+    def proxy_api(self):
+        request = urllib.request.Request(
+            self.api_url + self.path.removeprefix("/api"),
+            data=self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            if self.command == "POST"
+            else None,
+            headers={
+                key: value
+                for key, value in self.headers.items()
+                if key.lower() not in ("host", "connection")
+            },
+            method=self.command,
+        )
+        try:
+            response = urllib.request.urlopen(request)
+        except urllib.error.HTTPError as error:
+            response = error
+        except urllib.error.URLError:
+            self.send_error(502, "API unavailable")
+            return
+        with response:
+            self.send_response(response.status)
+            for key, value in response.headers.items():
+                if key.lower() not in ("connection", "transfer-encoding"):
+                    self.send_header(key, value)
+            self.end_headers()
+            try:
+                while chunk := response.read1(64 * 1024):
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+            except BrokenPipeError, ConnectionResetError:
+                pass  # The page left while a stream was being forwarded.
 
     def send_body(self, content_type, text):
         body = text.encode()
@@ -1059,8 +1105,15 @@ class UIServer(http.server.ThreadingHTTPServer):
 
 
 def cmd_serve_ui(args):
+    config = tomllib.loads((Path(args.root).parent / "sws.toml").read_text())
+    csp = next(
+        header["headers"]["Content-Security-Policy"]
+        for header in config["advanced"]["headers"]
+        if header["source"] == "**"
+    )
+
     def handler(*a, **kw):
-        return UIHandler(*a, directory=args.root, api_url=args.api_url, **kw)
+        return UIHandler(*a, directory=args.root, api_url=args.api_url, csp=csp, **kw)
 
     with UIServer((HOST, args.port), handler) as server:
         server.serve_forever()

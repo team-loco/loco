@@ -1,9 +1,75 @@
 import argparse
+import http.server
+import json
 import subprocess
+import threading
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import pytest
 from harness import evidence
+
+
+def test_ui_forwards_only_the_api_prefix(tmp_path):
+    received = []
+
+    class Backend(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            received.append(
+                (self.path, self.rfile.read(int(self.headers["Content-Length"])))
+            )
+            self.send_response(400)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error":"upstream"}')
+
+        def log_message(self, *args):
+            pass
+
+    (tmp_path / "index.html").write_text("Dashboard")
+    backend = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Backend)
+    api_url = f"http://127.0.0.1:{backend.server_port}"
+
+    def handler(*args, **kwargs):
+        return evidence.UIHandler(
+            *args,
+            api_url=api_url,
+            directory=tmp_path,
+            csp="connect-src 'self';",
+            **kwargs,
+        )
+
+    ui = evidence.UIServer(("127.0.0.1", 0), handler)
+    threads = [
+        threading.Thread(target=server.serve_forever) for server in (backend, ui)
+    ]
+    for thread in threads:
+        thread.start()
+    origin = f"http://127.0.0.1:{ui.server_port}"
+    try:
+        with urllib.request.urlopen(origin + "/runtime-config.js") as response:
+            assert json.loads(
+                response.read().decode().split("=", 1)[1].strip().rstrip(";")
+            ) == {"apiURL": "/api"}
+        request = urllib.request.Request(
+            origin + "/api/example?cursor=one", data=b"payload"
+        )
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(request)
+        assert error.value.code == 400
+        assert error.value.read() == b'{"error":"upstream"}'
+        assert received == [("/example?cursor=one", b"payload")]
+        with urllib.request.urlopen(origin + "/apix/example") as response:
+            assert response.read() == b"Dashboard"
+            assert response.headers["Content-Security-Policy"] == "connect-src 'self';"
+        assert len(received) == 1
+    finally:
+        for server in (backend, ui):
+            server.shutdown()
+            server.server_close()
+        for thread in threads:
+            thread.join()
 
 
 def test_reap_removed_checkout(tmp_path, monkeypatch):
