@@ -82,7 +82,7 @@ The command generates the static seal key and writes it and the supplied API env
 
 ```sh
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h -o secret > ./fleet/clusters/worker-staging/config/join-token.yaml
+  -o secret | kubectl --context worker-staging apply -f -
 ```
 
 `status` requires a system-admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.

@@ -66,13 +66,6 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "encrypt them before committing") {
 		t.Fatalf("missing encryption guidance: %v", err)
 	}
-	worker := readSecret(
-		t,
-		filepath.Join(options.Output, "clusters", "worker-staging", "config", "join-token.yaml"),
-	)
-	if worker["join-token"] != "" {
-		t.Fatal("scaffold issues an enrollment token without registering a cluster")
-	}
 	for _, cluster := range []string{"control-plane", "worker-staging"} {
 		data, readErr := os.ReadFile(filepath.Join(options.Output, "clusters", cluster, "loco.yaml"))
 		if readErr != nil {

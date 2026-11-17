@@ -203,11 +203,12 @@ func TestRegistryConfigPreservesImageCompatibilityAndAnonymousArtifacts(t *testi
 
 func TestEnrollmentResumesAnExistingRegistration(t *testing.T) {
 	args, err := enrollmentArgs([]byte(`{"clusters":[{"id":"pending-id","name":"local"}]}`))
-	if err != nil || strings.Join(args, " ") != "cluster join-token pending-id" {
+	if err != nil || strings.Join(args, " ") != "cluster join-token pending-id -o secret" {
 		t.Fatalf("enrollment=%v,%v", args, err)
 	}
 	args, err = enrollmentArgs([]byte(`{"clusters":[]}`))
-	if err != nil || len(args) < 2 || args[1] != "create" {
+	if err != nil ||
+		strings.Join(args, " ") != "cluster create --name local --region local --tier production -o secret" {
 		t.Fatalf("new enrollment=%v,%v", args, err)
 	}
 }
