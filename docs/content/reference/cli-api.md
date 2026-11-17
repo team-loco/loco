@@ -28,7 +28,7 @@ loco config --help
 | `loco resource` | Inspect and manage applications |
 | `loco builds` | List, inspect, follow and cancel builds |
 | `loco env` | Set, remove and list a service's secrets in an environment |
-| `loco token` | Manage API tokens; creation requires a signed-in session, and owned tokens require owner admin access |
+| `loco token` | Manage API tokens with a saved login or authorized API token; owned tokens require owner admin access |
 | `loco web` | Open the configured dashboard |
 | `loco config` | Manage local CLI settings |
 | `loco update` | Update the installed CLI |

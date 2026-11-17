@@ -79,9 +79,6 @@ func (s *TokenServer) CreateToken(
 	if err != nil {
 		return nil, err
 	}
-	if p.ActorType != genDb.DeploymentActorTypeUser {
-		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
-	}
 	entityID, err := parseID("entity_id", req.GetEntityId())
 	if err != nil {
 		return nil, err
@@ -92,7 +89,7 @@ func (s *TokenServer) CreateToken(
 	}
 	required := genDb.ScopeAdmin
 	if targetEntity.Type == genDb.EntityTypeUser {
-		if targetEntity.ID != p.UserID {
+		if p.UserID == uuid.Nil || targetEntity.ID != p.UserID {
 			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 		}
 		required = genDb.ScopeWrite
@@ -135,22 +132,48 @@ func (s *TokenServer) CreateToken(
 	}
 
 	duration := time.Duration(req.GetExpiresInSec()) * time.Second
+	requiredScopes := append([]genDb.EntityScope{{
+		EntityType: targetEntity.Type, EntityID: targetEntity.ID, Scope: required,
+	}}, dbScopes...)
+	issuer := p.UserID
+	if issuer == uuid.Nil {
+		issuer = p.ActorID
+	}
 	var token string
 	var tokenData genDb.CreateAPITokenRow
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		fresh := p
+		authorizer := authz.New(qtx)
+		if p.UserID != uuid.Nil {
+			live, scopeErr := authorizer.UserScopes(ctx, p.UserID)
+			if scopeErr != nil {
+				return fmt.Errorf("reload issuing user permissions: %w", scopeErr)
+			}
+			if p.Method == genDb.DeploymentMethodApiToken {
+				fresh.Scopes, scopeErr = authorizer.Intersect(ctx, p.Scopes, live)
+				if scopeErr != nil {
+					return fmt.Errorf("bound issuing token permissions: %w", scopeErr)
+				}
+			} else {
+				fresh.Scopes = live
+			}
+		}
+		if accessErr := check(ctx, authorizer, fresh, requiredScopes...); accessErr != nil {
+			return accessErr
+		}
 		if limitErr := s.checkTokenLimit(ctx, qtx, targetEntity); limitErr != nil {
 			return limitErr
 		}
 		var issueErr error
 		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, req.GetName(), p.UserID, targetEntity, dbScopes, duration)
+			Issue(ctx, req.GetName(), issuer, targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
 		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, req.GetName()))
 	})
 	if err != nil {
-		if errors.Is(err, authz.ErrInsufficientPermissions) {
+		if accessDenied(err) {
 			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(err)
 		}
 		if errors.Is(err, tvm.ErrTokenNameTaken) {

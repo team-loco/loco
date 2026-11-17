@@ -14,7 +14,7 @@ An account that belongs to no organization gets one on its first sign-in from th
 
 An account signs in through the identity that created it: the same identity-provider account each time. If sign-in fails, check that you selected the correct identity-provider account and verified its email address, or contact the instance administrator.
 
-To create API tokens, sign in with `loco login` and leave `LOCO_TOKEN` unset. Organization, workspace and resource tokens require admin access on their owner; a user can create personal tokens for their own account.
+Create API tokens with a saved login or a token in `LOCO_TOKEN` that has the required permissions. Organization, workspace and resource tokens require `admin` on their owner; personal tokens require `user:write` on the caller's own account. Requested scopes cannot exceed the caller's current permissions or the owner's hierarchy.
 
 ## Staging
 

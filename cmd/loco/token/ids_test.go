@@ -194,6 +194,19 @@ func TestTokenCommandsUseUUIDs(t *testing.T) {
 	}
 }
 
+func TestTokenCreateAcceptsAPICredentials(t *testing.T) {
+	fake := &tokenIDsServer{t: t, entityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, entityID: testEntityID}
+	cmd := tokenIDCommand(t, fake, testCreateAction)
+	t.Setenv("LOCO_TOKEN", fake.credential)
+	cmd.SetArgs([]string{testTokenName, testEntityTypeFlag, testWorkspaceEntity, testEntityIDFlag, testEntityID})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if fake.calls != 1 || fake.whoAmICalls != 0 {
+		t.Fatalf("create calls = %d, WhoAmI calls = %d", fake.calls, fake.whoAmICalls)
+	}
+}
+
 func TestTokenCommandsRequireNonUserEntityID(t *testing.T) {
 	for _, action := range []string{testCreateAction, testListAction, testDeleteAction} {
 		t.Run(action, func(t *testing.T) {

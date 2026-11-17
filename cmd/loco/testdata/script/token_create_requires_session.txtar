@@ -1,6 +1,0 @@
-env LOCO_TOKEN=test-token
-! exec loco token create successor --entity-type workspace --entity-id 00000000-0000-7000-8000-000000000002
-stderr '[Cc]reating tokens needs an interactive login; unset LOCO_TOKEN and run loco login'
-! fakeapi called CreateToken
-! fakeapi called GetConfig
-! fakeapi called WhoAmI

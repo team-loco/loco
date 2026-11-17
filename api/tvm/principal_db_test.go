@@ -246,9 +246,10 @@ func TestPersonalTokenRejectsExpiry(t *testing.T) {
 	}
 }
 
-func TestIssueSeesTransactionLocalGrants(t *testing.T) {
+func TestPersonalTokenSeesTransactionLocalHierarchy(t *testing.T) {
 	t.Parallel()
 	f := newPrincipalFixture(t)
+	token, _ := f.issue(t, queries.Entity{Type: queries.EntityTypeUser, ID: f.user})
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
 		t.Fatal(err)
@@ -262,10 +263,21 @@ func TestIssueSeesTransactionLocalGrants(t *testing.T) {
 		}
 	})
 	q := f.q.WithTx(tx)
+	workspace, err := q.CreateWorkspace(t.Context(), queries.CreateWorkspaceParams{
+		OrgID: f.org, Name: "transaction", CreatedBy: f.user,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = q.RemoveUserScope(t.Context(), queries.RemoveUserScopeParams{
+		UserID: f.user, EntityType: queries.EntityTypeOrganization, EntityID: f.org, Scope: queries.ScopeRead,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	scope := queries.EntityScope{
 		EntityType: queries.EntityTypeWorkspace,
-		EntityID:   f.workspace,
-		Scope:      queries.ScopeWrite,
+		EntityID:   workspace,
+		Scope:      queries.ScopeRead,
 	}
 	if err = q.AddUserScope(
 		t.Context(),
@@ -278,12 +290,11 @@ func TestIssueSeesTransactionLocalGrants(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err = f.machine.WithQueries(q).
-		Issue(
-			t.Context(), "transaction", f.user,
-			queries.Entity{Type: scope.EntityType, ID: scope.EntityID},
-			[]queries.EntityScope{scope}, time.Hour,
-		); err != nil {
-		t.Fatalf("issue with transaction-local grants: %v", err)
+	principal, err := f.machine.WithQueries(q).GetToken(t.Context(), token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(principal.Scopes) != 1 || principal.Scopes[0] != scope {
+		t.Fatalf("transaction-local permission intersection = %v, want %v", principal.Scopes, scope)
 	}
 }

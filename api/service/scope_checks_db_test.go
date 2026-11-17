@@ -3,57 +3,22 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/tvm"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
 type scopeOwnerQueries struct {
 	genDb.Querier
 	workspaceCalls int
-	resourceCalls  int
 }
 
 func (q *scopeOwnerQueries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
 	q.workspaceCalls++
 	return q.Querier.GetOrganizationIDByWorkspaceID(ctx, id)
-}
-
-func (q *scopeOwnerQueries) GetWorkspaceOrganizationIDByResourceID(
-	ctx context.Context,
-	id uuid.UUID,
-) (genDb.GetWorkspaceOrganizationIDByResourceIDRow, error) {
-	q.resourceCalls++
-	return q.Querier.GetWorkspaceOrganizationIDByResourceID(ctx, id)
-}
-
-func TestIssueSharesScopeOwners(t *testing.T) {
-	f := newSecretFixture(t)
-	q := &scopeOwnerQueries{Querier: f.queries}
-	machine := tvm.NewVendingMachine(q, tvm.Config{MaxAPITokenDuration: time.Hour})
-	scopes := make([]genDb.EntityScope, 0, 3)
-	for _, scope := range []genDb.Scope{genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
-		scopes = append(
-			scopes,
-			genDb.EntityScope{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: scope},
-		)
-	}
-	_, row, err := machine.Issue(t.Context(), "scope-owners", f.ownerID,
-		genDb.Entity{Type: genDb.EntityTypeResource, ID: f.resourceID}, scopes, time.Hour)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(row.Scopes) != len(scopes) {
-		t.Fatalf("stored scopes = %v", row.Scopes)
-	}
-	if q.resourceCalls != 1 {
-		t.Fatalf("resource owner queries = %d, want 1", q.resourceCalls)
-	}
 }
 
 func TestCreateMemberSharesScopeOwners(t *testing.T) {

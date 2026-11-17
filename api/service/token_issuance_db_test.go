@@ -6,6 +6,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -30,7 +31,7 @@ func tokenRequest(target genDb.Entity, scopes ...genDb.Scope) *tokenv1.CreateTok
 	}
 }
 
-func TestCreateTokenRequiresSession(t *testing.T) {
+func TestAPITokensCanCreateTokensWithinTheirPermissions(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
@@ -49,11 +50,39 @@ func TestCreateTokenRequiresSession(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = server.CreateToken(
-				issuanceTokenContext(t, f, issued.GetToken()),
+			caller := issuanceTokenContext(t, f, issued.GetToken())
+			created, err := server.CreateToken(
+				caller,
 				tokenRequest(target, genDb.ScopeRead),
 			)
-			wantCode(t, err, connect.CodePermissionDenied)
+			if err != nil {
+				t.Fatalf("delegate token: %v", err)
+			}
+			principal, _ := reqctx.PrincipalFrom(caller)
+			issuer := principal.UserID
+			if issuer == uuid.Nil {
+				issuer = principal.ActorID
+			}
+			if created.GetTokenMetadata().GetCreatedBy() != issuer.String() {
+				t.Fatalf("issuer = %s, want %s", created.GetTokenMetadata().GetCreatedBy(), issuer)
+			}
+			var actorType string
+			var actorID uuid.UUID
+			if err = f.pool.QueryRow(t.Context(),
+				"SELECT actor_type, actor_id FROM events WHERE type = $1 AND data->>$2 = $3",
+				events.TokenCreated, events.FieldName, created.GetTokenMetadata().GetName(),
+			).Scan(&actorType, &actorID); err != nil {
+				t.Fatal(err)
+			}
+			if actorType != string(genDb.DeploymentActorTypeApiToken) || actorID != principal.ActorID {
+				t.Fatalf("creation actor = %s/%s, want API token %s", actorType, actorID, principal.ActorID)
+			}
+			if target.Type != genDb.EntityTypeUser {
+				_, err = server.CreateToken(caller, tokenRequest(
+					genDb.Entity{Type: genDb.EntityTypeUser, ID: f.ownerID}, genDb.ScopeRead,
+				))
+				wantCode(t, err, connect.CodePermissionDenied)
+			}
 		})
 	}
 	other := f.signUp(t, "other", "other@tokens.test")
@@ -68,6 +97,79 @@ func TestCreateTokenRequiresSession(t *testing.T) {
 		tokenRequest(genDb.Entity{Type: genDb.EntityTypeUser, ID: other}, genDb.ScopeRead),
 	)
 	wantCode(t, err, connect.CodePermissionDenied)
+}
+
+func TestAPITokenDelegationCannotBroadenPermissionOrOwner(t *testing.T) {
+	t.Parallel()
+	f := newSecretFixture(t)
+	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
+	org := genDb.Entity{Type: genDb.EntityTypeOrganization, ID: f.orgID}
+	workspace := genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: f.workspaceID}
+	sibling := genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: f.workspace(t, "other")}
+	for _, owner := range []genDb.Entity{{Type: genDb.EntityTypeUser, ID: f.ownerID}, org} {
+		for _, scopes := range [][]genDb.Scope{
+			{genDb.ScopeRead}, {genDb.ScopeWrite}, {genDb.ScopeRead, genDb.ScopeAdmin},
+		} {
+			parentRequest := tokenRequest(owner, genDb.ScopeRead)
+			parentRequest.Scopes = tokenRequest(org, scopes...).GetScopes()
+			parent, err := server.CreateToken(f.owner, parentRequest)
+			if err != nil {
+				t.Fatal(err)
+			}
+			caller := issuanceTokenContext(t, f, parent.GetToken())
+			_, err = server.CreateToken(caller, tokenRequest(workspace, genDb.ScopeRead))
+			if len(scopes) == 1 {
+				wantCode(t, err, connect.CodePermissionDenied)
+				continue
+			}
+			if err != nil {
+				t.Fatalf("delegate descendant read: %v", err)
+			}
+			_, err = server.CreateToken(caller, tokenRequest(workspace, genDb.ScopeWrite))
+			wantCode(t, err, connect.CodePermissionDenied)
+			outside := tokenRequest(workspace, genDb.ScopeRead)
+			outside.Scopes = tokenRequest(sibling, genDb.ScopeRead).GetScopes()
+			_, err = server.CreateToken(caller, outside)
+			wantCode(t, err, connect.CodePermissionDenied)
+		}
+	}
+}
+
+func TestTokenDelegationUsesThePrincipalsCurrentAuthority(t *testing.T) {
+	t.Parallel()
+	f := newSecretFixture(t)
+	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
+	org := genDb.Entity{Type: genDb.EntityTypeOrganization, ID: f.orgID}
+	parents := make([]string, 0, 2)
+	for _, owner := range []genDb.Entity{{Type: genDb.EntityTypeUser, ID: f.ownerID}, org} {
+		request := tokenRequest(owner, genDb.ScopeRead)
+		request.Scopes = tokenRequest(org, genDb.ScopeRead, genDb.ScopeAdmin).GetScopes()
+		parent, err := server.CreateToken(f.owner, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		parents = append(parents, parent.GetToken())
+	}
+	successor := f.signUp(t, "successor", "successor@tokens.test")
+	if err := f.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: successor, EntityType: org.Type, EntityID: org.ID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.queries.RemoveUserScope(t.Context(), genDb.RemoveUserScopeParams{
+		UserID: f.ownerID, EntityType: org.Type, EntityID: org.ID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	workspace := genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: f.workspaceID}
+	_, err := server.CreateToken(issuanceTokenContext(t, f, parents[0]), tokenRequest(workspace, genDb.ScopeRead))
+	wantCode(t, err, connect.CodePermissionDenied)
+	if _, err = server.CreateToken(
+		issuanceTokenContext(t, f, parents[1]),
+		tokenRequest(workspace, genDb.ScopeRead),
+	); err != nil {
+		t.Fatalf("owned principal inherited its issuer's permission loss: %v", err)
+	}
 }
 
 func TestEntityTokenRequiresAdmin(t *testing.T) {
