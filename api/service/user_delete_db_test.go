@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
@@ -16,13 +15,18 @@ import (
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
-func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
+func TestDeleteUserRemovesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	var userID uuid.UUID
 	err := f.pool.QueryRow(ctx, `INSERT INTO users (email) VALUES ('doomed@example.com') RETURNING id`).Scan(&userID)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := f.pool.Begin(ctx)
@@ -43,7 +47,14 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
 	}
-	deleteCtx := reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: scopes})
+	deleteCtx := reqctx.WithPrincipal(
+		ctx,
+		reqctx.Principal{
+			Scopes: scopes, UserID: userID, Method: genDb.DeploymentMethodCli,
+			ActorType: genDb.DeploymentActorTypeUser, ActorID: userID,
+			Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+		},
+	)
 	deleted := make(chan error, 1)
 	go func() {
 		_, deleteErr := server.DeleteUser(deleteCtx, &userv1.DeleteUserRequest{UserId: userID.String()})
@@ -62,7 +73,17 @@ func TestDeleteUserRefusesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	if err = tx.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
-	wantCode(t, <-deleted, connect.CodeFailedPrecondition)
+	if err := <-deleted; err != nil {
+		t.Fatalf("delete user after grant: %v", err)
+	}
+	var count int
+	if err := f.pool.QueryRow(ctx, "SELECT count(*) FROM user_scopes WHERE user_id = $1", userID).
+		Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatal("grant survived account deletion")
+	}
 }
 
 func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
@@ -118,9 +139,24 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 			if _, err := f.pool.Exec(ctx, tt.insert, userID, workspaceID); err != nil {
 				t.Fatal(err)
 			}
-			ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
-				{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
-			}})
+			if err := f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+				UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+			}); err != nil {
+				t.Fatal(err)
+			}
+			ctx = reqctx.WithPrincipal(
+				ctx,
+				reqctx.Principal{
+					UserID:    userID,
+					Method:    genDb.DeploymentMethodCli,
+					ActorType: genDb.DeploymentActorTypeUser,
+					ActorID:   userID,
+					Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+					Scopes: []genDb.EntityScope{
+						{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
+					},
+				},
+			)
 
 			_, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()})
 			if err != nil {
@@ -152,9 +188,24 @@ func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
 		VALUES ($1, 'https://idp.example.com', 'sub-1')`, userID); err != nil {
 		t.Fatal(err)
 	}
-	ctx = reqctx.WithPrincipal(ctx, reqctx.Principal{Scopes: []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
-	}})
+	if err := f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ctx = reqctx.WithPrincipal(
+		ctx,
+		reqctx.Principal{
+			UserID:    userID,
+			Method:    genDb.DeploymentMethodCli,
+			ActorType: genDb.DeploymentActorTypeUser,
+			ActorID:   userID,
+			Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+			Scopes: []genDb.EntityScope{
+				{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
+			},
+		},
+	)
 	server := NewUserServer(f.pool, f.queries, nil)
 
 	if _, err := server.DeleteUser(ctx, &userv1.DeleteUserRequest{UserId: userID.String()}); err != nil {

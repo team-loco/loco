@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -162,9 +163,13 @@ func claimInvitations(
 	user genDb.User,
 	invitations []genDb.Invitation,
 ) ([]ClaimedOrg, error) {
-	if user.Status != genDb.UserStatusActive {
-		return nil, nil
+	var lockErr error
+	user, lockErr = lockActiveUser(ctx, qtx, user.ID)
+	if lockErr != nil {
+		return nil, lockErr
 	}
+	invitations = slices.Clone(invitations)
+	slices.SortFunc(invitations, func(a, b genDb.Invitation) int { return slices.Compare(a.OrgID[:], b.OrgID[:]) })
 	var claimedOrgs []ClaimedOrg
 	for _, invitation := range invitations {
 		full, err := orgFull(ctx, qtx, counts, invitation.OrgID)
@@ -253,6 +258,10 @@ func (r *Resolver) recordVerifiedEmail(ctx context.Context, user genDb.User, id 
 		}
 	}()
 	qtx := r.queries.WithTx(tx)
+	user, err = lockActiveUser(ctx, qtx, user.ID)
+	if err != nil {
+		return genDb.User{}, err
+	}
 	if touchErr := qtx.TouchIdentity(ctx, genDb.TouchIdentityParams{
 		Issuer:        id.Issuer,
 		Subject:       id.Subject,

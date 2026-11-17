@@ -76,20 +76,27 @@ func (s *OrgServer) InviteOrgMember(
 
 	var result *orgv1.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		isMember, memberErr := qtx.IsOrgMemberEmail(ctx, genDb.IsOrgMemberEmailParams{OrgID: orgID, Email: email})
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx)
+		if lockErr != nil {
+			return lockErr
+		}
+		if lockErr = lockOrgMembership(lockedCtx, qtx, orgID, actions.InviteOrgMember); lockErr != nil {
+			return lockErr
+		}
+		isMember, memberErr := qtx.IsOrgMemberEmail(lockedCtx, genDb.IsOrgMemberEmailParams{OrgID: orgID, Email: email})
 		if memberErr != nil {
 			return fmt.Errorf("check organization membership: %w", memberErr)
 		}
 		if isMember {
 			return ErrAlreadyOrgMember
 		}
-		if revokeErr := revokeExpiredInvitations(ctx, qtx, orgID, email); revokeErr != nil {
+		if revokeErr := revokeExpiredInvitations(lockedCtx, qtx, orgID, email); revokeErr != nil {
 			return revokeErr
 		}
-		if limitErr := s.checkInvitationLimits(ctx, qtx, orgID); limitErr != nil {
+		if limitErr := s.checkInvitationLimits(lockedCtx, qtx, orgID); limitErr != nil {
 			return limitErr
 		}
-		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
+		created, createErr := qtx.CreateInvitation(lockedCtx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
 			InvitedBy: inviterID,
@@ -102,7 +109,7 @@ func (s *OrgServer) InviteOrgMember(
 			return fmt.Errorf("insert invitation: %w", createErr)
 		}
 		var recordErr error
-		result, recordErr = s.recordInvitationEvent(ctx, qtx, created, events.InvitationCreated)
+		result, recordErr = s.recordInvitationEvent(lockedCtx, qtx, created, events.InvitationCreated)
 		return recordErr
 	})
 	if err != nil {
@@ -115,11 +122,6 @@ func (s *OrgServer) InviteOrgMember(
 // checkInvitationLimits refuses an invitation when the organization's open invitations or its
 // members are at their limit, since the claim of one more could not add a member.
 func (s *OrgServer) checkInvitationLimits(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID) error {
-	if _, err := qtx.LockOrgForMembership(ctx, orgID); errors.Is(err, pgx.ErrNoRows) {
-		return ErrOrgNotFound
-	} else if err != nil {
-		return fmt.Errorf("lock organization: %w", err)
-	}
 	effective, err := limits.ForOrg(ctx, qtx, s.counts, orgID)
 	if err != nil {
 		return err
@@ -211,14 +213,21 @@ func (s *OrgServer) RevokeInvitation(
 		return nil, ErrInvitationClaimed
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		revoked, revokeErr := qtx.RevokeInvitation(ctx, invitation.ID)
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx)
+		if lockErr != nil {
+			return lockErr
+		}
+		if lockErr = lockOrgMembership(lockedCtx, qtx, invitation.OrgID, actions.RevokeInvitation); lockErr != nil {
+			return lockErr
+		}
+		revoked, revokeErr := qtx.RevokeInvitation(lockedCtx, invitation.ID)
 		if errors.Is(revokeErr, pgx.ErrNoRows) {
 			return ErrInvitationNotOpen
 		}
 		if revokeErr != nil {
 			return fmt.Errorf("revoke invitation: %w", revokeErr)
 		}
-		return events.Record(ctx, qtx, events.Event{
+		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.InvitationRevoked,
 			OrgID:       new(revoked.OrgID),
 			SubjectType: events.SubjectInvitation,
@@ -242,7 +251,14 @@ func (s *OrgServer) ResendInvitation(
 	}
 	var result *orgv1.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		extended, extendErr := qtx.ExtendInvitation(ctx, genDb.ExtendInvitationParams{
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx)
+		if lockErr != nil {
+			return lockErr
+		}
+		if lockErr = lockOrgMembership(lockedCtx, qtx, invitation.OrgID, actions.ResendInvitation); lockErr != nil {
+			return lockErr
+		}
+		extended, extendErr := qtx.ExtendInvitation(lockedCtx, genDb.ExtendInvitationParams{
 			ID: invitation.ID, ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
 		if errors.Is(extendErr, pgx.ErrNoRows) {
@@ -252,7 +268,7 @@ func (s *OrgServer) ResendInvitation(
 			return fmt.Errorf("extend invitation: %w", extendErr)
 		}
 		var recordErr error
-		result, recordErr = s.recordInvitationEvent(ctx, qtx, extended, events.InvitationResent)
+		result, recordErr = s.recordInvitationEvent(lockedCtx, qtx, extended, events.InvitationResent)
 		return recordErr
 	})
 	if err != nil {

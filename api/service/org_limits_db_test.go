@@ -90,6 +90,12 @@ func (f *deployFixture) setLimit(t *testing.T, limit limits.Limit, value int32) 
 func TestConcurrentWorkspaceCreatesStopAtTheLimit(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	if err := f.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: f.creatorID(t), EntityType: genDb.EntityTypeOrganization,
+		EntityID: uuid.MustParse(f.organizationID(t)), Scope: genDb.ScopeWrite,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	f.setLimit(t, limits.WorkspacesPerOrg, 2)
 	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	ctx := f.orgAdmin(t)
@@ -313,6 +319,12 @@ func TestApplyPastTheDomainLimitChangesNothing(t *testing.T) {
 func TestCreateOrgStopsAtTheCreatorsLimit(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	if err := f.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: f.creatorID(t), EntityType: genDb.EntityTypeUser,
+		EntityID: f.creatorID(t), Scope: genDb.ScopeWrite,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	counts := limits.Defaults()
 	limits.OrgsPerUser.Set(counts, 1)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, counts)

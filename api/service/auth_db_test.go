@@ -80,7 +80,10 @@ func newAuthFixture(t *testing.T) *authFixture {
 	transport := connectinprocess.New(rpcServer)
 	f.client = authv1connect.NewAuthServiceClient(connect.NewClient(transport))
 	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID}
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity})
+	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
+		Entity: entity, UserID: user.ID, Method: genDb.DeploymentMethodWeb,
+		ActorType: genDb.DeploymentActorTypeUser, ActorID: user.ID,
+	})
 	f.webCtx = auth.WithLogin(ctx, auth.Login{Identity: identity})
 	return f
 }

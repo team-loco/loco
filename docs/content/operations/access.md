@@ -17,7 +17,7 @@ A user holds one or more scopes on an organization:
 
 `read`, `write` and `admin` each include `member`. The user who creates an organization holds all three.
 
-`OrgService.SetOrgMemberRole` lets an organization admin set an existing member to Admin (`read`, `write`, `admin`) or Member (`member` only). Workspace and resource grants stay unchanged. Demoting or removing the last organization admin fails with `FailedPrecondition`; self-demotion follows the same rule. Role changes record an `org_member.role_changed` audit event. Organization admins can also change roles from the dashboard’s Team page.
+`OrgService.SetOrgMemberRole` lets an organization admin set an existing member to Admin (`read`, `write`, `admin`) or Member (`member` only). Workspace and resource grants stay unchanged. Demoting or removing an organization admin requires another active admin, even when the target admin is suspended. Otherwise it fails with `FailedPrecondition`; self-demotion follows the same rule. Role changes record an `org_member.role_changed` audit event. Organization admins can also change roles from the dashboard’s Team page.
 
 ## Invite and remove members
 
@@ -66,6 +66,14 @@ A personal API token acts as its user. Its effective permissions are the interse
 Organization, workspace and resource tokens act as themselves. Their issuing user's later permissions or suspension do not change their stored access, and removing the issuing user does not revoke them. The owning entity's administrators manage these tokens. Deleting the owning entity revokes its tokens. Token issuance records the issuer for attribution without creating a user account or user grants for the token.
 
 API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An invitation whose issuer no longer exists displays **Unavailable inviter** and can still be claimed under the organization's normal invitation rules.
+
+## Delete an account
+
+`UserService.DeleteUser` requires `user:admin` on the target account, using a session or API token. It removes the account's organization, workspace and resource grants, sign-in identities, CLI sessions and personal API tokens in one transaction. The user does not need to leave each organization first.
+
+Deletion fails with `FailedPrecondition` naming any organization the target administers without another active human administrator, even when the target is suspended. Promote another active member to administrator or delete that organization first. Having created an organization, workspace or environment does not otherwise block account deletion.
+
+Shared resources and organization-owned tokens stay with their owning entities. Historical creator and issuer IDs confer no access. A pending CLI or device-login approval cannot create a session after its account is deleted or suspended, and a suspended account cannot refresh a CLI session.
 
 ## API token lifetime
 

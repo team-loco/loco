@@ -23,14 +23,7 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-var (
-	ErrUserNotFound           = rpcerr.NewCoded(connect.CodeNotFound, "user not found")
-	ErrUserHasActiveResources = rpcerr.NewCoded(
-		connect.CodeFailedPrecondition,
-		"user owns workspaces with active resources",
-	)
-	ErrUserHasOrganizations = rpcerr.NewCoded(connect.CodeFailedPrecondition, "user owns organizations")
-)
+var ErrUserNotFound = rpcerr.NewCoded(connect.CodeNotFound, "user not found")
 
 // UserServer implements the UserService gRPC server
 type UserServer struct {
@@ -206,7 +199,7 @@ func (s *UserServer) ListUsers(
 	}, nil
 }
 
-// DeleteUser deletes a user when no memberships or owned records block deletion.
+// DeleteUser removes the account and its access after preserving each organization's administration.
 func (s *UserServer) DeleteUser(
 	ctx context.Context,
 	req *userv1.DeleteUserRequest,
@@ -220,32 +213,35 @@ func (s *UserServer) DeleteUser(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, lockErr := qtx.LockUserForMembership(ctx, userID)
-		if errors.Is(lockErr, pgx.ErrNoRows) {
-			return ErrUserNotFound
-		}
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
 		if lockErr != nil {
-			return fmt.Errorf("lock user: %w", lockErr)
+			return lockErr
 		}
-		hasWorkspaces, checkErr := qtx.CheckUserHasWorkspaces(ctx, userID)
-		if checkErr != nil {
-			return fmt.Errorf("check user workspaces: %w", checkErr)
+		if accessErr := authorize(lockedCtx, authz.New(qtx), actions.DeleteUser, userID); accessErr != nil {
+			return accessErr
 		}
-		if hasWorkspaces {
-			return ErrUserHasActiveResources
+		orgs, lockErr := qtx.LockUserAdminOrganizations(lockedCtx, userID)
+		if lockErr != nil {
+			return fmt.Errorf("lock user organizations: %w", lockErr)
 		}
-		hasOrganizations, checkErr := qtx.CheckUserHasOrganizations(ctx, userID)
-		if checkErr != nil {
-			return fmt.Errorf("check user organizations: %w", checkErr)
+		for _, org := range orgs {
+			needsSuccessor, checkErr := qtx.OrgAdminHasNoActiveSuccessor(
+				lockedCtx,
+				genDb.OrgAdminHasNoActiveSuccessorParams{OrgID: org.ID, UserID: userID},
+			)
+			if checkErr != nil {
+				return fmt.Errorf("check active organization admins: %w", checkErr)
+			}
+			if needsSuccessor {
+				return rpcerr.NewCoded(connect.CodeFailedPrecondition,
+					fmt.Sprintf("organization %q must keep at least one active admin", org.Name))
+			}
 		}
-		if hasOrganizations {
-			return ErrUserHasOrganizations
-		}
-		identities, listErr := qtx.ListIdentitiesForUser(ctx, userID)
+		identities, listErr := qtx.ListIdentitiesForUser(lockedCtx, userID)
 		if listErr != nil {
 			return fmt.Errorf("list user identities: %w", listErr)
 		}
-		if deleteErr := qtx.DeleteUser(ctx, userID); deleteErr != nil {
+		if deleteErr := qtx.DeleteUser(lockedCtx, userID); deleteErr != nil {
 			return fmt.Errorf("delete user: %w", deleteErr)
 		}
 		removed := make([]map[string]string, 0, len(identities))
@@ -255,7 +251,7 @@ func (s *UserServer) DeleteUser(
 				events.FieldSubject: identity.Subject,
 			})
 		}
-		return events.Record(ctx, qtx, events.Event{
+		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.UserDeleted,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(userID),
@@ -299,14 +295,24 @@ func (s *UserServer) SetUserStatus(
 		status, eventType = genDb.UserStatusSuspended, events.UserSuspended
 	}
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, setErr := qtx.SetUserStatus(ctx, genDb.SetUserStatusParams{ID: userID, Status: status})
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if err := authorizeSystem(lockedCtx, authz.New(qtx), actions.SetUserStatus); err != nil {
+			return err
+		}
+		if _, err := qtx.LockUserAdminOrganizations(lockedCtx, userID); err != nil {
+			return fmt.Errorf("lock user organizations: %w", err)
+		}
+		_, setErr := qtx.SetUserStatus(lockedCtx, genDb.SetUserStatusParams{ID: userID, Status: status})
 		if errors.Is(setErr, pgx.ErrNoRows) {
 			return ErrUserNotFound
 		}
 		if setErr != nil {
 			return fmt.Errorf("set user status: %w", setErr)
 		}
-		return events.Record(ctx, qtx, events.Event{
+		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        eventType,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(userID),

@@ -83,24 +83,31 @@ func (s *SystemAdminServer) GrantSystemAdmin(
 	}
 	userID := uuid.MustParse(req.GetUserId())
 	err := withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
-		user, lookupErr := qtx.GetUserByID(ctx, userID)
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if err := authorizeSystem(lockedCtx, authz.New(qtx), actions.ManageSystemAdmins); err != nil {
+			return err
+		}
+		user, lookupErr := qtx.GetUserByID(lockedCtx, userID)
 		if errors.Is(lookupErr, pgx.ErrNoRows) {
 			return ErrUserNotFound
 		}
 		if lookupErr != nil {
 			return fmt.Errorf("look up user: %w", lookupErr)
 		}
-		added, grantErr := qtx.AddSystemAdminGrant(ctx, userID)
+		added, grantErr := qtx.AddSystemAdminGrant(lockedCtx, userID)
 		if grantErr != nil {
 			return fmt.Errorf("record system admin grant: %w", grantErr)
 		}
 		if added == 0 {
 			return errAlreadyGranted
 		}
-		if scopeErr := qtx.AddUserScope(ctx, auth.SystemAdminScope(userID)); scopeErr != nil {
+		if scopeErr := qtx.AddUserScope(lockedCtx, auth.SystemAdminScope(userID)); scopeErr != nil {
 			return fmt.Errorf("grant system admin: %w", scopeErr)
 		}
-		return recordAdminChange(ctx, qtx, events.SystemAdminGranted, user)
+		return recordAdminChange(lockedCtx, qtx, events.SystemAdminGranted, user)
 	})
 	if err != nil {
 		return nil, err
@@ -117,14 +124,21 @@ func (s *SystemAdminServer) RevokeSystemAdmin(
 	}
 	userID := uuid.MustParse(req.GetUserId())
 	err := withTx(ctx, s.pool, func(qtx *genDb.Queries) error {
-		admins, lockErr := qtx.LockSystemAdmins(ctx)
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
+		if lockErr != nil {
+			return lockErr
+		}
+		if err := authorizeSystem(lockedCtx, authz.New(qtx), actions.ManageSystemAdmins); err != nil {
+			return err
+		}
+		admins, lockErr := qtx.LockSystemAdmins(lockedCtx)
 		if lockErr != nil {
 			return fmt.Errorf("lock system admins: %w", lockErr)
 		}
 		if !slices.Contains(admins, userID) {
 			return errNotSystemAdmin
 		}
-		configured, claimErr := qtx.SystemAdminClaimed(ctx, &userID)
+		configured, claimErr := qtx.SystemAdminClaimed(lockedCtx, &userID)
 		if claimErr != nil {
 			return fmt.Errorf("check system admin claim: %w", claimErr)
 		}
@@ -134,19 +148,19 @@ func (s *SystemAdminServer) RevokeSystemAdmin(
 		if len(admins) == 1 {
 			return errLastAdmin
 		}
-		if _, removeErr := qtx.RemoveSystemAdminGrant(ctx, userID); removeErr != nil {
+		if _, removeErr := qtx.RemoveSystemAdminGrant(lockedCtx, userID); removeErr != nil {
 			return fmt.Errorf("remove system admin grant: %w", removeErr)
 		}
 		if scopeErr := qtx.RemoveUserScope(
-			ctx, genDb.RemoveUserScopeParams(auth.SystemAdminScope(userID)),
+			lockedCtx, genDb.RemoveUserScopeParams(auth.SystemAdminScope(userID)),
 		); scopeErr != nil {
 			return fmt.Errorf("revoke system admin: %w", scopeErr)
 		}
-		user, lookupErr := qtx.GetUserByID(ctx, userID)
+		user, lookupErr := qtx.GetUserByID(lockedCtx, userID)
 		if lookupErr != nil {
 			return fmt.Errorf("look up user: %w", lookupErr)
 		}
-		return recordAdminChange(ctx, qtx, events.SystemAdminRevoked, user)
+		return recordAdminChange(lockedCtx, qtx, events.SystemAdminRevoked, user)
 	})
 	if err != nil {
 		return nil, err

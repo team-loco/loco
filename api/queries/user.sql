@@ -44,15 +44,6 @@ LIMIT $1;
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;
 
--- name: CheckUserHasOrganizations :one
-SELECT EXISTS(SELECT 1 FROM organizations WHERE created_by = $1) AS has_orgs;
-
--- name: CheckUserHasWorkspaces :one
-SELECT EXISTS(
-  SELECT 1 FROM user_scopes
-  WHERE user_id = $1 AND entity_type = 'workspace'
-) AS has_workspaces;
-
 -- Organization queries
 
 -- name: CreateOrganization :one

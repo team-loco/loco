@@ -55,6 +55,37 @@ func (q *Queries) ClaimSystemAdmin(ctx context.Context, arg ClaimSystemAdminPara
 	return result.RowsAffected(), nil
 }
 
+const listSystemAdminEntriesExcept = `-- name: ListSystemAdminEntriesExcept :many
+SELECT email, user_id FROM system_admin_claims
+WHERE NOT (email = ANY($1::text[]))
+ORDER BY email
+`
+
+type ListSystemAdminEntriesExceptRow struct {
+	Email  string     `json:"email"`
+	UserID *uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) ListSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]ListSystemAdminEntriesExceptRow, error) {
+	rows, err := q.db.Query(ctx, listSystemAdminEntriesExcept, emails)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSystemAdminEntriesExceptRow
+	for rows.Next() {
+		var i ListSystemAdminEntriesExceptRow
+		if err := rows.Scan(&i.Email, &i.UserID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSystemAdmins = `-- name: ListSystemAdmins :many
 SELECT u.id, u.email, i.issuer, i.subject,
     (c.user_id IS NOT NULL)::boolean AS configured,
@@ -128,9 +159,42 @@ func (q *Queries) ListUnclaimedSystemAdminEmails(ctx context.Context) ([]string,
 	return items, nil
 }
 
+const lockSystemAdminEntriesExcept = `-- name: LockSystemAdminEntriesExcept :many
+SELECT email, user_id FROM system_admin_claims
+WHERE NOT (email = ANY($1::text[]))
+ORDER BY email
+FOR UPDATE
+`
+
+type LockSystemAdminEntriesExceptRow struct {
+	Email  string     `json:"email"`
+	UserID *uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) LockSystemAdminEntriesExcept(ctx context.Context, emails []string) ([]LockSystemAdminEntriesExceptRow, error) {
+	rows, err := q.db.Query(ctx, lockSystemAdminEntriesExcept, emails)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LockSystemAdminEntriesExceptRow
+	for rows.Next() {
+		var i LockSystemAdminEntriesExceptRow
+		if err := rows.Scan(&i.Email, &i.UserID); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockSystemAdmins = `-- name: LockSystemAdmins :many
 SELECT user_id FROM user_scopes
 WHERE scope = 'admin' AND entity_type = 'system' AND entity_id = '00000000-0000-0000-0000-000000000000'
+ORDER BY user_id
 FOR UPDATE
 `
 

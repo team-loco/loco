@@ -74,6 +74,26 @@ func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (Ident
 	return i, err
 }
 
+const getIdentityByID = `-- name: GetIdentityByID :one
+SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at FROM identities WHERE id = $1
+`
+
+func (q *Queries) GetIdentityByID(ctx context.Context, id uuid.UUID) (Identity, error) {
+	row := q.db.QueryRow(ctx, getIdentityByID, id)
+	var i Identity
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Issuer,
+		&i.Subject,
+		&i.Email,
+		&i.EmailVerified,
+		&i.CreatedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const getUserByIdentity = `-- name: GetUserByIdentity :one
 SELECT u.id, u.email, u.name, u.avatar_url, u.status, u.created_at, u.updated_at, i.id, i.user_id, i.issuer, i.subject, i.email, i.email_verified, i.created_at, i.last_login_at
 FROM identities i
