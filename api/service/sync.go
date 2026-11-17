@@ -702,18 +702,18 @@ func (s *AgentServer) recordStatus(
 			}
 		}
 
-		if row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision {
+		// Older agents report only current-revision rollout context.
+		if status.GetDeploymentId() == "" &&
+			(row.DeploymentID == nil || status.GetObservedRevision() != row.DesiredRevision) {
 			return nil
 		}
-		deployment, readErr := qtx.GetDeploymentByID(ctx, *row.DeploymentID)
-		if readErr != nil {
-			return fmt.Errorf("read reported deployment: %w", readErr)
+		deployment, captureErr := capturePlacementRollout(ctx, qtx, clusterID, row, status)
+		if captureErr != nil {
+			return captureErr
 		}
-		if !deployment.IsActive {
+		if row.DeploymentID == nil || deployment.ID != *row.DeploymentID ||
+			status.GetObservedRevision() != row.DesiredRevision || !deployment.IsActive {
 			return nil
-		}
-		if ingestErr := ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status); ingestErr != nil {
-			return ingestErr
 		}
 		next := nextDeploymentStatus(deployment.Status, status)
 		if next != deployment.Status {

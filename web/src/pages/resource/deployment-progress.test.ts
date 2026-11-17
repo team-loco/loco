@@ -11,6 +11,7 @@ import {
 	progressDeployments,
 	replicaState,
 	stoppingCountdown,
+	servingDeployments,
 } from "./deployment-progress";
 import type { RegionView } from "./model";
 
@@ -60,11 +61,20 @@ test("progress does not use a sibling region's deployments", () => {
 test("replicas group by placement revision, retaining stopped replicas", () => {
 	const old = create(ReplicaSchema, { name: "old", placementRevision: 1n, state: "Stopped" });
 	const next = create(ReplicaSchema, { name: "next", placementRevision: 2n });
-	expect(groupReplicas([old, next], 2n)).toEqual([
+	expect(groupReplicas([old, next], 2n, "next")).toEqual([
 		{ label: "New version", replicas: [next] },
 		{ label: "Previous version", replicas: [old] },
 	]);
-	expect(groupReplicas([], 0n).map((g) => g.replicas)).toEqual([[], []]);
+	expect(groupReplicas([], 0n, "next").map((g) => g.replicas)).toEqual([[], []]);
+});
+
+test("a retiring placement's revision one stays separate from the desired deployment", () => {
+	const old = create(ReplicaSchema, { deploymentId: "old-deployment", placementRevision: 1n, ready: true });
+	const next = create(ReplicaSchema, { deploymentId: "next-deployment", placementRevision: 1n, ready: true });
+	expect(groupReplicas([old, next], 1n, "next-deployment")).toEqual([
+		{ label: "New version", replicas: [next] },
+		{ label: "Previous version", replicas: [old] },
+	]);
 });
 
 test("replica states have readable labels and semantic tones", () => {
@@ -140,4 +150,20 @@ test("elapsed rollout time includes the build and stops when ready or finished",
 	).toBe(15000);
 	expect(deploymentElapsedMs({ ...pending, createdAt: undefined }, 20000)).toBeUndefined();
 	expect(deploymentElapsedMs(pending, 0)).toBe(0);
+});
+
+test("serving deployments use reported readiness and Pod identity across mixed revisions", () => {
+	const replicas = [
+		create(ReplicaSchema, { deploymentId: "old", ready: true, state: "Serving" }),
+		create(ReplicaSchema, { deploymentId: "old", ready: true, state: "Failing" }),
+		create(ReplicaSchema, { deploymentId: "next", ready: true, state: "Serving" }),
+		create(ReplicaSchema, { deploymentId: "stopping", state: "Stopping" }),
+		create(ReplicaSchema, { deploymentId: "failed", state: "Serving" }),
+		create(ReplicaSchema, { ready: true, state: "Serving" }),
+	];
+	expect(servingDeployments(replicas)).toEqual([
+		{ id: "old", readyReplicas: 2 },
+		{ id: "next", readyReplicas: 1 },
+	]);
+	expect(servingDeployments([])).toEqual([]);
 });

@@ -29,11 +29,22 @@ export function deploymentElapsedMs(deployment: Deployment, nowMs: number): numb
 	return Math.max(0, end - created);
 }
 
-export function groupReplicas(replicas: readonly Replica[], revision: bigint) {
+export function groupReplicas(replicas: readonly Replica[], revision: bigint, deploymentId: string) {
+	const current = (replica: Replica) =>
+		replica.placementRevision === revision && (replica.deploymentId === "" || replica.deploymentId === deploymentId);
 	return [
-		{ label: "New version", replicas: replicas.filter((r) => r.placementRevision === revision) },
-		{ label: "Previous version", replicas: replicas.filter((r) => r.placementRevision !== revision) },
+		{ label: "New version", replicas: replicas.filter(current) },
+		{ label: "Previous version", replicas: replicas.filter((replica) => !current(replica)) },
 	];
+}
+
+export function servingDeployments(replicas: readonly Replica[]) {
+	const counts = new Map<string, number>();
+	for (const replica of replicas) {
+		if (replica.ready && replica.deploymentId !== "")
+			counts.set(replica.deploymentId, (counts.get(replica.deploymentId) ?? 0) + 1);
+	}
+	return [...counts].map(([id, readyReplicas]) => ({ id, readyReplicas }));
 }
 
 export function replicaState(state: string): { label: string; tone: BadgeTone } {

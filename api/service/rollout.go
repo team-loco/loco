@@ -26,6 +26,7 @@ const (
 )
 
 type rolloutSnapshot struct {
+	PlacementID     string                   `json:"placementId,omitempty"`
 	Replicas        []*agentv1.ReplicaReport `json:"replicas,omitempty"`
 	Problem         *agentv1.ProblemReport   `json:"problem,omitempty"`
 	DesiredReplicas int32                    `json:"desiredReplicas,omitempty"`
@@ -184,6 +185,7 @@ func ingestRollout(
 	}
 	entries := diffRollout(previous, report)
 	next := rolloutSnapshot{
+		PlacementID:     report.GetPlacementId(),
 		Replicas:        report.GetReplicas(),
 		Problem:         report.GetProblem(),
 		DesiredReplicas: report.GetDesiredReplicas(),
@@ -193,7 +195,8 @@ func ingestRollout(
 		return err
 	}
 	next.Count += int32(len(entries))
-	if len(entries) == 0 && previous.DesiredReplicas == next.DesiredReplicas &&
+	if len(entries) == 0 && previous.PlacementID == next.PlacementID &&
+		previous.DesiredReplicas == next.DesiredReplicas &&
 		proto.Equal(previous.Problem, next.Problem) &&
 		slices.EqualFunc(
 			previous.Replicas,
@@ -216,6 +219,41 @@ func ingestRollout(
 		return fmt.Errorf("notify activity: %w", err)
 	}
 	return nil
+}
+
+func capturePlacementRollout(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	clusterID uuid.UUID,
+	placement genDb.UpdatePlacementStatusRow,
+	report *agentv1.PlacementStatus,
+) (genDb.Deployment, error) {
+	var id uuid.UUID
+	if report.GetDeploymentId() == "" {
+		id = *placement.DeploymentID
+	} else {
+		var err error
+		id, err = uuid.Parse(report.GetDeploymentId())
+		if err != nil {
+			return genDb.Deployment{}, fmt.Errorf("reported deployment id: %w", err)
+		}
+	}
+	deployment, err := qtx.GetDeploymentByID(ctx, id)
+	if err != nil {
+		return genDb.Deployment{}, fmt.Errorf("read reported deployment: %w", err)
+	}
+	if deployment.ResourceID != placement.ResourceID || deployment.EnvironmentID != placement.EnvironmentID ||
+		deployment.ClusterID != clusterID {
+		return genDb.Deployment{}, fmt.Errorf(
+			"reported deployment %s does not belong to placement %s",
+			id,
+			report.GetPlacementId(),
+		)
+	}
+	if err := ingestRollout(ctx, qtx, id, report.GetObservedRevision(), report); err != nil {
+		return genDb.Deployment{}, err
+	}
+	return deployment, nil
 }
 
 func validRolloutReport(ctx context.Context, report *agentv1.PlacementStatus) bool {

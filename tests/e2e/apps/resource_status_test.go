@@ -281,13 +281,35 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	if err := twoReady(t.Context()); err != nil {
 		t.Errorf("the API does not report the app healthy while the old replicas serve: %v", err)
 	}
-	// The API still treats the failed deployment as active and the serving one as replaced;
-	// https://github.com/team-loco/loco/issues/1774 tracks reporting the serving deployment.
-	if !getDeployment(t, newDeployment).GetIsActive() {
-		t.Error("the failed deployment is not the active one")
+	desired := getDeployment(t, newDeployment)
+	requireServingReplicas(t, desired, oldDeployment, 2)
+	if !slices.ContainsFunc(desired.GetReplicas(), func(replica *deploymentv1.Replica) bool {
+		return replica.GetDeploymentId() == newDeployment
+	}) {
+		t.Error("the failed desired deployment has no identified unready replica")
 	}
 	if getDeployment(t, oldDeployment).GetIsActive() {
 		t.Error("the serving deployment is reported active")
+	}
+}
+
+func requireServingReplicas(t *testing.T, observed *deploymentv1.Deployment, deploymentID string, want int) {
+	t.Helper()
+	if !observed.GetIsActive() {
+		t.Fatal("the observed desired deployment is not active")
+	}
+	ready := 0
+	for _, replica := range observed.GetReplicas() {
+		if !replica.GetReady() {
+			continue
+		}
+		if replica.GetDeploymentId() != deploymentID {
+			t.Fatalf("ready replica belongs to %q, want %q", replica.GetDeploymentId(), deploymentID)
+		}
+		ready++
+	}
+	if ready != want {
+		t.Fatalf("deployment %s has %d reported ready replicas, want %d", deploymentID, ready, want)
 	}
 }
 

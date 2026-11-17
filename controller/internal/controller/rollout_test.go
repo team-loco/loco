@@ -138,6 +138,17 @@ func TestObserveDeletedReplica(t *testing.T) {
 	if got := app.Status.Rollout.Problem; got == nil || got.Reason != locov1alpha1.ProblemRolloutTimeout {
 		t.Fatalf("timeout priority=%+v", got)
 	}
+	pod.DeletionTimestamp = nil
+	pod.Status.ContainerStatuses = nil
+	pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionTrue}}
+	r.recordDeletedPod(client.ObjectKeyFromObject(app), pod, now)
+	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+		t.Fatal(err)
+	}
+	setReadyReplicas(app)
+	if app.Status.Rollout.Replicas[0].Ready || app.Status.ReadyReplicas != 0 {
+		t.Fatalf("force-deleted Pod still reported ready: %+v", app.Status)
+	}
 	listed := pod.DeepCopy()
 	listed.DeletionTimestamp = nil
 	listed.Status.ContainerStatuses = nil

@@ -638,6 +638,17 @@ type Invitation struct {
 	RevokedAt *time.Time `json:"revokedAt"`
 }
 
+type ObservedPlacementRollout struct {
+	PlacementID          uuid.UUID `json:"placementId"`
+	ResourceID           uuid.UUID `json:"resourceId"`
+	EnvironmentID        uuid.UUID `json:"environmentId"`
+	ClusterID            uuid.UUID `json:"clusterId"`
+	Region               string    `json:"region"`
+	ReportedDeploymentID uuid.UUID `json:"reportedDeploymentId"`
+	Snapshot             []byte    `json:"snapshot"`
+	Replicas             []byte    `json:"replicas"`
+}
+
 type OrgLimitOverride struct {
 	OrgID                    uuid.UUID  `json:"orgId"`
 	WorkspacesPerOrg         *int32     `json:"workspacesPerOrg"`

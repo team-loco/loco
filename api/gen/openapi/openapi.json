@@ -8346,6 +8346,10 @@
           "problem": {
             "title": "problem",
             "$ref": "#/components/schemas/loco.agent.v1.ProblemReport"
+          },
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id"
           }
         },
         "title": "PlacementStatus",
@@ -8482,6 +8486,14 @@
             "type": "string",
             "title": "detail",
             "maxLength": 512
+          },
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "ready"
           }
         },
         "title": "ReplicaReport",
@@ -10125,7 +10137,8 @@
             "items": {
               "$ref": "#/components/schemas/loco.deployment.v1.Replica"
             },
-            "title": "replicas"
+            "title": "replicas",
+            "description": "Active deployments expose the live placement's latest reported replicas,\n including previous deployment IDs. Inactive deployments retain historical replicas."
           }
         },
         "title": "Deployment",
@@ -10532,6 +10545,16 @@
           "detail": {
             "type": "string",
             "title": "detail"
+          },
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id",
+            "description": "The deployment that created this Pod."
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "ready",
+            "description": "The Pod was ready and not terminating in this observation."
           }
         },
         "title": "Replica",

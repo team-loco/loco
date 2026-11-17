@@ -746,6 +746,7 @@ type PlacementStatus struct {
 	ProgressDeadlineExceeded bool                   `protobuf:"varint,11,opt,name=progress_deadline_exceeded,json=progressDeadlineExceeded,proto3" json:"progress_deadline_exceeded,omitempty"`
 	Replicas                 []*ReplicaReport       `protobuf:"bytes,12,rep,name=replicas,proto3" json:"replicas,omitempty"`
 	Problem                  *ProblemReport         `protobuf:"bytes,13,opt,name=problem,proto3" json:"problem,omitempty"`
+	DeploymentId             string                 `protobuf:"bytes,14,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -836,6 +837,13 @@ func (x *PlacementStatus) GetProblem() *ProblemReport {
 	return nil
 }
 
+func (x *PlacementStatus) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
 type ReplicaReport struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Uid               string                 `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
@@ -848,6 +856,8 @@ type ReplicaReport struct {
 	Restarts          int32                  `protobuf:"varint,8,opt,name=restarts,proto3" json:"restarts,omitempty"`
 	ExitCode          *int32                 `protobuf:"varint,9,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
 	Detail            string                 `protobuf:"bytes,10,opt,name=detail,proto3" json:"detail,omitempty"`
+	DeploymentId      string                 `protobuf:"bytes,11,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	Ready             bool                   `protobuf:"varint,12,opt,name=ready,proto3" json:"ready,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -950,6 +960,20 @@ func (x *ReplicaReport) GetDetail() string {
 		return x.Detail
 	}
 	return ""
+}
+
+func (x *ReplicaReport) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *ReplicaReport) GetReady() bool {
+	if x != nil {
+		return x.Ready
+	}
+	return false
 }
 
 type ProblemReport struct {
@@ -1776,7 +1800,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\x81\x03\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xa6\x03\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
 	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12%\n" +
@@ -1786,7 +1810,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	" \x01(\bR\tavailable\x12<\n" +
 	"\x1aprogress_deadline_exceeded\x18\v \x01(\bR\x18progressDeadlineExceeded\x128\n" +
 	"\breplicas\x18\f \x03(\v2\x1c.loco.agent.v1.ReplicaReportR\breplicas\x126\n" +
-	"\aproblem\x18\r \x01(\v2\x1c.loco.agent.v1.ProblemReportR\aproblem\"\xfc\x02\n" +
+	"\aproblem\x18\r \x01(\v2\x1c.loco.agent.v1.ProblemReportR\aproblem\x12#\n" +
+	"\rdeployment_id\x18\x0e \x01(\tR\fdeploymentId\"\xb7\x03\n" +
 	"\rReplicaReport\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1799,7 +1824,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\brestarts\x18\b \x01(\x05R\brestarts\x12 \n" +
 	"\texit_code\x18\t \x01(\x05H\x00R\bexitCode\x88\x01\x01\x12 \n" +
 	"\x06detail\x18\n" +
-	" \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x06detailB\f\n" +
+	" \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x06detail\x12#\n" +
+	"\rdeployment_id\x18\v \x01(\tR\fdeploymentId\x12\x14\n" +
+	"\x05ready\x18\f \x01(\bR\x05readyB\f\n" +
 	"\n" +
 	"_exit_code\"\x9e\x01\n" +
 	"\rProblemReport\x12\x16\n" +

@@ -27,6 +27,8 @@ type ReplicaStatus struct {
 	Name              string       `json:"name"`
 	Node              string       `json:"node,omitempty"`
 	PlacementRevision int64        `json:"placementRevision,omitzero"`
+	DeploymentID      string       `json:"deploymentId,omitempty"`
+	Ready             bool         `json:"ready,omitzero"`
 	State             ReplicaState `json:"state"`
 	StateSince        *metav1.Time `json:"stateSince,omitempty"`
 	// StateDeadline is set only while Stopping.

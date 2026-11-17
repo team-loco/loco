@@ -109,6 +109,7 @@ message PlacementStatus {
   bool progress_deadline_exceeded = 11;
   repeated ReplicaReport replicas = 12;
   ProblemReport problem = 13;
+  string deployment_id = 14;
 }
 
 message ReplicaReport {
@@ -122,6 +123,8 @@ message ReplicaReport {
   int32 restarts = 8;
   optional int32 exit_code = 9;
   string detail = 10 [(buf.validate.field).string.max_len = 512];
+  string deployment_id = 11;
+  bool ready = 12;
 }
 
 message ProblemReport {

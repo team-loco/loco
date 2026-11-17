@@ -89,7 +89,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		Commit:          commit,
 		CurrentRevision: row.CurrentRevision,
 	}
-	if err := setDeploymentRollout(deployment, row.RolloutSnapshot); err != nil {
+	if err := setDeploymentRollout(deployment, row.RolloutSnapshot, row.ObservedReplicas); err != nil {
 		return nil, err
 	}
 	return deployment, nil

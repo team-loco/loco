@@ -996,9 +996,11 @@ type Deployment struct {
 	Commit          *SourceCommit          `protobuf:"bytes,21,opt,name=commit,proto3" json:"commit,omitempty"`
 	CurrentRevision int64                  `protobuf:"varint,22,opt,name=current_revision,json=currentRevision,proto3" json:"current_revision,omitempty"`
 	Problem         *Problem               `protobuf:"bytes,23,opt,name=problem,proto3" json:"problem,omitempty"`
-	Replicas        []*Replica             `protobuf:"bytes,24,rep,name=replicas,proto3" json:"replicas,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Active deployments expose the live placement's latest reported replicas,
+	// including previous deployment IDs. Inactive deployments retain historical replicas.
+	Replicas      []*Replica `protobuf:"bytes,24,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Deployment) Reset() {
@@ -1626,8 +1628,12 @@ type Replica struct {
 	Restarts          int32                  `protobuf:"varint,8,opt,name=restarts,proto3" json:"restarts,omitempty"`
 	ExitCode          *int32                 `protobuf:"varint,9,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
 	Detail            string                 `protobuf:"bytes,10,opt,name=detail,proto3" json:"detail,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The deployment that created this Pod.
+	DeploymentId string `protobuf:"bytes,11,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	// The Pod was ready and not terminating in this observation.
+	Ready         bool `protobuf:"varint,12,opt,name=ready,proto3" json:"ready,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Replica) Reset() {
@@ -1728,6 +1734,20 @@ func (x *Replica) GetDetail() string {
 		return x.Detail
 	}
 	return ""
+}
+
+func (x *Replica) GetDeploymentId() string {
+	if x != nil {
+		return x.DeploymentId
+	}
+	return ""
+}
+
+func (x *Replica) GetReady() bool {
+	if x != nil {
+		return x.Ready
+	}
+	return false
 }
 
 type Problem struct {
@@ -2502,7 +2522,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xec\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa7\x03\n" +
 	"\aReplica\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2515,7 +2535,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\brestarts\x18\b \x01(\x05R\brestarts\x12 \n" +
 	"\texit_code\x18\t \x01(\x05H\x00R\bexitCode\x88\x01\x01\x12\x16\n" +
 	"\x06detail\x18\n" +
-	" \x01(\tR\x06detailB\f\n" +
+	" \x01(\tR\x06detail\x12#\n" +
+	"\rdeployment_id\x18\v \x01(\tR\fdeploymentId\x12\x14\n" +
+	"\x05ready\x18\f \x01(\bR\x05readyB\f\n" +
 	"\n" +
 	"_exit_code\"\xa8\x01\n" +
 	"\aProblem\x12\x16\n" +

@@ -67,6 +67,7 @@ import (
 const (
 	labelApp                = "app"
 	envRegion               = "LOCO_REGION"
+	envDeploymentID         = "LOCO_DEPLOYMENT_ID"
 	componentApplication    = "application"
 	servicePort             = int32(80)
 	applicationPortName     = "http"
@@ -234,7 +235,7 @@ func (r *ApplicationReconciler) reconcileResources(
 	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
 		return ctrl.Result{}, err
 	}
-	setReadyReplicas(app, dep)
+	setReadyReplicas(app)
 
 	err = r.ensureService(ctx, app)
 	if err != nil {
@@ -268,6 +269,7 @@ func observePlacementRevision(app *locov1alpha1.Application) {
 		return
 	}
 	app.Status.ObservedPlacementRevision = revision
+	app.Status.ObservedDeploymentID = app.Spec.DeploymentID
 }
 
 func setApplicationProblem(app *locov1alpha1.Application, reason locov1alpha1.ProblemReason, detail string) {
@@ -590,7 +592,7 @@ func systemEnvVars(
 		{Name: "LOCO_APP_NAME", Value: app.Name},
 		{Name: "LOCO_RESOURCE_ID", Value: app.Spec.ResourceID},
 		{Name: "LOCO_WORKSPACE_ID", Value: app.Spec.WorkspaceID},
-		{Name: "LOCO_DEPLOYMENT_ID", Value: app.Spec.DeploymentID},
+		{Name: envDeploymentID, Value: app.Spec.DeploymentID},
 		{Name: envRegion, Value: app.Spec.Region},
 		{Name: "LOCO_ENVIRONMENT", Value: app.Spec.EnvironmentName},
 		{Name: "LOCO_INTERNAL_DOMAIN", Value: internalDomain},
@@ -810,10 +812,12 @@ func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32)
 	return generation > 0 && observed == generation && updated == replicas && available == replicas && total == replicas
 }
 
-func setReadyReplicas(app *locov1alpha1.Application, dep *appsv1ac.DeploymentApplyConfiguration) {
+func setReadyReplicas(app *locov1alpha1.Application) {
 	app.Status.ReadyReplicas = 0
-	if dep.Status != nil {
-		app.Status.ReadyReplicas = ptr.Deref(dep.Status.ReadyReplicas, 0)
+	for _, replica := range app.Status.Rollout.Replicas {
+		if replica.Ready {
+			app.Status.ReadyReplicas++
+		}
 	}
 }
 

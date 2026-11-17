@@ -213,7 +213,7 @@ func isTerminalDeploymentStatus(status deploymentv1.DeploymentStatus) bool {
 		status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED
 }
 
-func setDeploymentRollout(deployment *deploymentv1.Deployment, data []byte) error {
+func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []byte) error {
 	var snapshot rolloutSnapshot
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		return fmt.Errorf("decode rollout: %w", err)
@@ -231,6 +231,12 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data []byte) erro
 			Since:       report.GetSince(),
 		}
 	}
+	if deployment.GetIsActive() {
+		snapshot.Replicas = nil
+		if err := json.Unmarshal(observed, &snapshot.Replicas); err != nil {
+			return fmt.Errorf("decode observed rollout: %w", err)
+		}
+	}
 	for _, r := range snapshot.Replicas {
 		deployment.Replicas = append(
 			deployment.Replicas,
@@ -239,6 +245,8 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data []byte) erro
 				Name:              r.GetName(),
 				Node:              r.GetNode(),
 				PlacementRevision: r.GetPlacementRevision(),
+				DeploymentId:      r.GetDeploymentId(),
+				Ready:             r.GetReady(),
 				State:             r.GetState(),
 				StateSince:        r.GetStateSince(),
 				StateDeadline:     r.GetStateDeadline(),

@@ -6,9 +6,10 @@ import { Link } from "react-router";
 import { Badge } from "@/components/design/Badge";
 import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
+import { CopyId } from "@/components/design/CopyId";
 import { Progress } from "@/components/design/Progress";
 import { useNow } from "@/hooks/useNow";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { activityTime, groupReplicas, problemLogsHref, replicaState, stoppingCountdown } from "./deployment-progress";
 
@@ -67,7 +68,7 @@ export function DeploymentRollout({
 				</Banner>
 			)}
 			<div className="grid min-w-0 gap-4">
-				{groupReplicas(deployment.replicas, deployment.currentRevision).map((group) => (
+				{groupReplicas(deployment.replicas, deployment.currentRevision, deployment.id).map((group) => (
 					<section key={group.label} aria-label={group.label}>
 						<h3 className="mt-0 mb-2 text-[12px] font-medium text-fg3">
 							{group.label} <span className="font-mono">({group.replicas.length})</span>
@@ -87,6 +88,11 @@ export function DeploymentRollout({
 									>
 										<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
 											<span className="min-w-0 break-all font-mono text-[12px]">{replica.name}</span>
+											{replica.deploymentId !== "" && (
+												<CopyId value={replica.deploymentId} className="font-mono text-[11px] text-fg3">
+													Deployment {formatShortId(replica.deploymentId)}
+												</CopyId>
+											)}
 											<span className="min-w-0 break-all font-mono text-[11px] text-fg3">
 												{replica.node || "Node pending"}
 											</span>

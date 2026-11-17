@@ -23,6 +23,18 @@ const (
 
 func replicaState(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
 	result := classifyReplica(pod, pull, recoveryWindow, now)
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			result.Ready = condition.Status == corev1.ConditionTrue && pod.DeletionTimestamp == nil
+		}
+	}
+	for _, container := range pod.Spec.Containers {
+		for _, env := range container.Env {
+			if env.Name == envDeploymentID {
+				result.DeploymentID = env.Value
+			}
+		}
+	}
 	result.Detail = clip.Bytes(result.Detail, replicaDetailBytes)
 	return result
 }

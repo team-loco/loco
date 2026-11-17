@@ -288,8 +288,11 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 
 func TestRolloutForwarding(t *testing.T) {
 	const currentReplicaName = "new"
+	const observedDeploymentID = "deployment-new"
 	w := newWatcher(nil, nil, testNamespace)
 	application := app("rollout", testPlacementID, "5")
+	application.Spec.DeploymentID = "deployment-later"
+	application.Status.ObservedDeploymentID = observedDeploymentID
 	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 123, time.UTC))
 	application.Status.Rollout = &locoControllerV1.RolloutStatus{
 		DesiredReplicas:          2,
@@ -301,6 +304,8 @@ func TestRolloutForwarding(t *testing.T) {
 				Name:              currentReplicaName,
 				Node:              "node-a",
 				PlacementRevision: 5,
+				DeploymentID:      observedDeploymentID,
+				Ready:             true,
 				State:             locoControllerV1.ReplicaServing,
 				StateSince:        &at,
 				Restarts:          2,
@@ -311,6 +316,7 @@ func TestRolloutForwarding(t *testing.T) {
 				UID:               "previous",
 				Name:              "old",
 				PlacementRevision: 4,
+				DeploymentID:      "deployment-old",
 				State:             locoControllerV1.ReplicaStopping,
 				StateDeadline:     &at,
 			},
@@ -327,6 +333,7 @@ func TestRolloutForwarding(t *testing.T) {
 	w.observe(application)
 	want := &agentv1.PlacementStatus{
 		PlacementId:              testPlacementID,
+		DeploymentId:             observedDeploymentID,
 		ObservedRevision:         5,
 		DesiredReplicas:          2,
 		Available:                true,
@@ -337,6 +344,8 @@ func TestRolloutForwarding(t *testing.T) {
 				Name:              currentReplicaName,
 				Node:              "node-a",
 				PlacementRevision: 5,
+				DeploymentId:      observedDeploymentID,
+				Ready:             true,
 				State:             "Serving",
 				StateSince:        timestamppb.New(at.Time),
 				Restarts:          2,
@@ -347,6 +356,7 @@ func TestRolloutForwarding(t *testing.T) {
 				Uid:               "previous",
 				Name:              "old",
 				PlacementRevision: 4,
+				DeploymentId:      "deployment-old",
 				State:             "Stopping",
 				StateDeadline:     timestamppb.New(at.Time),
 			},
@@ -371,6 +381,7 @@ func TestRolloutForwarding(t *testing.T) {
 	w.observe(application)
 	want = &agentv1.PlacementStatus{
 		PlacementId:      testPlacementID,
+		DeploymentId:     observedDeploymentID,
 		ObservedRevision: 5,
 	}
 	if len(got) != 3 || !proto.Equal(got[2], want) {
