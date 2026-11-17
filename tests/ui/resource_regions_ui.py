@@ -32,8 +32,8 @@ with session(out) as browser:
 INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES
 ('{cluster}','east-{resource}','us-east-1','fixture',true,false,'healthy',NOW()),
 ('{uuid.uuid4()}','west-{resource}','eu-west-1','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at)
-VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',2,'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());
+INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at)
+VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',2,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
 VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"app_spec":{{}}}}',true,2,'Ready',NOW());
 """)
@@ -90,7 +90,7 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
             assert added["enabled"] and added["cpu"] == "500m" and added["minReplicas"] == 2, added
             assert stored()["eu-west-1"]["enabled"], stored()
             assert sql(f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;") == "1"
-            # The API leaves new deployments pending without a worker; finish them so later
+            # The API leaves new deployments deploying without a worker; finish them so later
             # saves are not refused as a rollout in progress.
             sql(f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;")
             expect(west).to_have_attribute("aria-pressed", "true")
