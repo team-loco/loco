@@ -704,12 +704,15 @@ func (s *AgentServer) recordStatus(
 			return nil
 		}
 		transition := deploymentTransitionForStatus(status)
-		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
+		if transitionErr := advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 			Status:       transition.status,
 			Message:      status.GetMessage(),
 			ID:           *row.DeploymentID,
 			FromStatuses: deploymentStatusNames(transition.from...),
-		})
+		}); transitionErr != nil {
+			return transitionErr
+		}
+		return ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record placement status", "placement_id", placementID, "error", err)
