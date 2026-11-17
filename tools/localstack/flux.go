@@ -15,6 +15,8 @@ import (
 	"github.com/team-loco/loco/tools/internal/devicelogin"
 )
 
+const localIdentity = "local"
+
 func (cfg config) install(ctx context.Context) error {
 	if err := os.MkdirAll(filepath.Dir(cfg.kubeconfig()), 0700); err != nil {
 		return err
@@ -36,10 +38,28 @@ func (cfg config) install(ctx context.Context) error {
 	if _, err := cfg.flux(ctx, "install"); err != nil {
 		return err
 	}
-	if err := cfg.deployEntry(ctx, false, "./control-plane"); err != nil {
+	identity, err := cfg.kubectl(
+		ctx,
+		"-n",
+		"loco-system",
+		"get",
+		"secret",
+		"loco-worker-agent-key",
+		"--ignore-not-found",
+		"-o",
+		"json",
+	)
+	if err != nil {
 		return err
 	}
-	if _, err := command(ctx, nil, nil, "go", "-C", "cmd", "build", "-o", "../bin/locoadm", "./locoadm"); err != nil {
+	entry := "./control-plane"
+	if len(identity) > 0 {
+		entry = "./all"
+	}
+	if err = cfg.deployEntry(ctx, false, entry); err != nil {
+		return err
+	}
+	if _, err = command(ctx, nil, nil, "go", "-C", "cmd", "build", "-o", "../bin/locoadm", "./locoadm"); err != nil {
 		return err
 	}
 	login := exec.CommandContext(
@@ -54,34 +74,32 @@ func (cfg config) install(ctx context.Context) error {
 	)
 	login.Env = append(os.Environ(), cfg.cliEnv()...)
 	login.Stderr = os.Stderr
-	if err := devicelogin.Run(ctx, login, os.Stderr, func(ctx context.Context, code string) error {
+	if err = devicelogin.Run(ctx, login, os.Stderr, func(ctx context.Context, code string) error {
 		identity := devicelogin.Identity{
 			Issuer:   "http://dex." + cfg.Domain + ":" + cfg.DexPort + "/dex",
 			ClientID: "loco",
 			Email:    "dev@loco.test",
 			Password: "loco-dev",
 		}
-		token, err := identity.Token(ctx)
-		if err != nil {
-			return err
+		token, tokenErr := identity.Token(ctx)
+		if tokenErr != nil {
+			return tokenErr
 		}
 		return devicelogin.Approve(ctx, cfg.apiURL(), token, code)
 	}); err != nil {
 		return err
 	}
 	// An existing identity enrolls independently of the single-use bootstrap token.
-	if _, err := cfg.kubectl(ctx, "-n", "loco-system", "get", "secret", "loco-worker-agent-key"); err != nil {
-		created, createErr := cfg.locoadm(
-			ctx,
-			"cluster",
-			"create",
-			"--name",
-			"local",
-			"--region",
-			"local",
-			"--tier",
-			"production",
-		)
+	if len(identity) == 0 {
+		listed, listErr := cfg.locoadm(ctx, "cluster", "list")
+		if listErr != nil {
+			return listErr
+		}
+		args, parseErr := enrollmentArgs(listed)
+		if parseErr != nil {
+			return parseErr
+		}
+		created, createErr := cfg.locoadm(ctx, args...)
 		if createErr != nil {
 			return createErr
 		}
@@ -145,7 +163,7 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		"mise",
 		"run",
 		"--quiet",
-		"release:local",
+		"release:local", "--cache", filepath.Join(cfg.State, "images.json"),
 		"--repository",
 		"team-loco/loco",
 		"--push",
@@ -199,7 +217,7 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	}
 	cfg.SealKey = string(seal)
 	auth := func(user, password string) (string, error) {
-		data, err := json.Marshal(
+		data, marshalErr := json.Marshal(
 			map[string]any{
 				"auths": map[string]any{
 					"registry." + cfg.Domain + ":" + cfg.RegistryPort: map[string]string{
@@ -208,7 +226,7 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 				},
 			},
 		)
-		return string(data), err
+		return string(data), marshalErr
 	}
 	if cfg.PushAuth, err = auth("builder", "loco-dev-builder"); err != nil {
 		return err
@@ -240,6 +258,7 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	}
 	resources := "resources:\n  - resources.yaml\n"
 	if token, readErr := os.ReadFile(filepath.Join(cfg.State, "join-token.yaml")); readErr == nil {
+		// #nosec G703 -- directory is this stack's private state directory.
 		if err = os.WriteFile(filepath.Join(directory, "join-token.yaml"), token, 0600); err != nil {
 			return err
 		}
@@ -304,4 +323,32 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		}
 	}
 	return nil
+}
+
+func enrollmentArgs(data []byte) ([]string, error) {
+	var listed struct {
+		Clusters []struct {
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			RemovedAt string `json:"removedAt"`
+		} `json:"clusters"`
+	}
+	if err := json.Unmarshal(data, &listed); err != nil {
+		return nil, err
+	}
+	for _, cluster := range listed.Clusters {
+		if cluster.Name == localIdentity && cluster.RemovedAt == "" {
+			return []string{"cluster", "join-token", cluster.ID}, nil
+		}
+	}
+	return []string{
+		"cluster",
+		"create",
+		"--name",
+		localIdentity,
+		"--region",
+		localIdentity,
+		"--tier",
+		"production",
+	}, nil
 }

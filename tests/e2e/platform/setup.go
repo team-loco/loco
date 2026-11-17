@@ -362,23 +362,6 @@ type egressRule struct {
 	Port int    `json:"port"`
 }
 
-func (p *Platform) connectRegistry(ctx context.Context) error {
-	auth := "static"
-	if p.RegistryToken {
-		auth = "token"
-	}
-	_, err := p.mise(ctx, []string{
-		"KIND_CLUSTER=" + p.cluster,
-		"COMPOSE_PROJECT_NAME=" + p.composeProject,
-		"REGISTRY_PORT=" + strconv.Itoa(p.ports.registry),
-		"REGISTRY_ALIAS=" + p.registryAlias(),
-		"REGISTRY_AUTH=" + auth,
-		"S3_ALIAS=" + p.s3Alias(),
-	}, "cluster:registry")
-	return err
-}
-
-// startRealmProxy puts the API's token endpoint on the kind network under a DNS name.
 func (p *Platform) startRealmProxy(ctx context.Context) error {
 	if err := mkdirReadable(p.registryTokenDir()); err != nil {
 		return err
@@ -498,32 +481,7 @@ exec nginx -c /tmp/e2e-nginx.conf -g 'daemon off;'`,
 	); err != nil {
 		return err
 	}
-	hosts := fmt.Sprintf(
-		"[host.\"http://%s-public-image:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n",
-		p.composeProject,
-	)
-	if _, err = p.Command(
-		ctx,
-		"docker",
-		"exec",
-		p.Node(),
-		"mkdir",
-		"-p",
-		"/etc/containerd/certs.d/"+host,
-	); err != nil {
-		return err
-	}
-	_, err = p.commandStdin(
-		ctx,
-		[]byte(hosts),
-		"docker",
-		"exec",
-		"-i",
-		p.Node(),
-		"tee",
-		"/etc/containerd/certs.d/"+host+"/hosts.toml",
-	)
-	return err
+	return p.registryHosts(ctx, host, p.composeProject+"-public-image:5000")
 }
 
 // resetClusterState removes what a previous run of a reused cluster left.

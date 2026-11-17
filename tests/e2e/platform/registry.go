@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -167,4 +168,70 @@ func (p *Platform) RegistrySecret(ctx context.Context, namespace, name string) (
 		}
 	}
 	return DockerConfigAuth{}, fmt.Errorf("secret %s/%s holds no registry password", namespace, name)
+}
+
+func (p *Platform) connectRegistry(ctx context.Context) error {
+	hosts := []string{"localhost:" + strconv.Itoa(p.ports.registry), p.RegistryHost}
+	for _, host := range hosts {
+		if err := p.registryHosts(ctx, host, p.RegistryHost); err != nil {
+			return err
+		}
+	}
+	if p.RegistryToken {
+		_, err := p.Kubectl(
+			ctx,
+			"-n",
+			locoNamespace,
+			"delete",
+			"secret",
+			"loco-registry",
+			"loco-registry-push",
+			"--ignore-not-found",
+		)
+		return err
+	}
+	for name, account := range map[string]Account{
+		"loco-registry": RegistryNodesUser, "loco-registry-push": RegistryBuilderUser,
+	} {
+		config, err := registryDockerConfig(account, hosts)
+		if err != nil {
+			return err
+		}
+		secret, err := json.Marshal(map[string]any{
+			"apiVersion": "v1", "kind": "Secret",
+			"metadata":   map[string]string{"name": name, "namespace": locoNamespace},
+			"type":       "kubernetes.io/dockerconfigjson",
+			"stringData": map[string]string{".dockerconfigjson": config},
+		})
+		if err != nil {
+			return err
+		}
+		if err = p.Apply(ctx, string(secret)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func registryDockerConfig(account Account, hosts []string) (string, error) {
+	auths := make(map[string]DockerConfigAuth, len(hosts))
+	for _, host := range hosts {
+		auths[host] = DockerConfigAuth{
+			Auth: base64.StdEncoding.EncodeToString([]byte(account.Name + ":" + account.Password)),
+		}
+	}
+	data, err := json.Marshal(map[string]any{"auths": auths})
+	return string(data), err
+}
+
+func (p *Platform) registryHosts(ctx context.Context, host, endpoint string) error {
+	directory := "/etc/containerd/certs.d/" + host
+	if _, err := p.Command(ctx, "docker", "exec", p.Node(), "mkdir", "-p", directory); err != nil {
+		return err
+	}
+	config := fmt.Sprintf("[host.\"http://%s\"]\n  capabilities = [\"pull\", \"resolve\"]\n", endpoint)
+	_, err := p.commandStdin(
+		ctx, []byte(config), "docker", "exec", "-i", p.Node(), "tee", directory+"/hosts.toml",
+	)
+	return err
 }

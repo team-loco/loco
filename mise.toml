@@ -30,7 +30,6 @@ helm = "4.3.1"
 "github:helm-unittest/helm-unittest" = { version = "1.2.1", rename_exe = "untt" }
 kubectl = "1.37.2"
 kind = "0.33.0"
-tilt = "0.37.8"
 infisical = "0.45.4"
 
 
@@ -260,7 +259,7 @@ env = { _.source = "dev/stack.sh" }
 run = [
   "mise run stop",
   "mise run cluster:down",
-  "docker compose down --volumes",
+  "docker compose --file dev/compose.local.yaml down --volumes",
   'docker rm -fv "$CLICKHOUSE_CONTAINER" >/dev/null 2>&1 || true',
   'docker volume rm -f "$CLICKHOUSE_CONTAINER" >/dev/null',
   'if [ -n "$LOCO_STACK_CLAIM" ]; then rm -f "$LOCO_STACK_CLAIM"; fi',
@@ -276,7 +275,6 @@ slot             $LOCO_STACK_SLOT
 web UI           $WEB_URL
 API              $PUBLIC_API_URL
 Dex              http://localhost:$DEX_PORT/dex
-Tilt UI          http://localhost:$TILT_PORT
 kube context     kind-$KIND_CLUSTER
 compose project  $COMPOSE_PROJECT_NAME
 EOF
@@ -392,3 +390,9 @@ run = "go run ./tools/localstack ca"
 description = "Build the GitOps example clusters with Flux and validate chart values and resource schemas"
 depends = ["helm:deps"]
 run = "go run ./tools/gitops-check"
+
+[tasks.loco]
+env = { _.source = "dev/stack.sh" }
+
+[tasks.locoadm]
+env = { _.source = "dev/stack.sh" }

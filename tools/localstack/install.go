@@ -209,7 +209,7 @@ func running(data []byte) (bool, error) {
 		return false, nil
 	}
 	for _, cluster := range status.Clusters {
-		if cluster.Cluster.Name == "local" && cluster.Enrollment == "enrolled" {
+		if cluster.Cluster.Name == localIdentity && cluster.Enrollment == "enrolled" {
 			return true, nil
 		}
 	}

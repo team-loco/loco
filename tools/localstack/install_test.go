@@ -200,3 +200,14 @@ func TestRegistryConfigPreservesImageCompatibilityAndAnonymousArtifacts(t *testi
 		t.Fatalf("registry: %+v", registry)
 	}
 }
+
+func TestEnrollmentResumesAnExistingRegistration(t *testing.T) {
+	args, err := enrollmentArgs([]byte(`{"clusters":[{"id":"pending-id","name":"local"}]}`))
+	if err != nil || strings.Join(args, " ") != "cluster join-token pending-id" {
+		t.Fatalf("enrollment=%v,%v", args, err)
+	}
+	args, err = enrollmentArgs([]byte(`{"clusters":[]}`))
+	if err != nil || len(args) < 2 || args[1] != "create" {
+		t.Fatalf("new enrollment=%v,%v", args, err)
+	}
+}
