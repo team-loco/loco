@@ -98,6 +98,7 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
 	ctx := t.Context()
+	buildID := uuid.MustParse(f.create(t, 10).GetBuildId())
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,6 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 	if _, err := f.deploy(ctx, staticSpec); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("deploy while paused: %v", err)
 	}
-	buildID := uuid.New()
 	if _, err := queueBuild(ctx, f.pool, buildID, f.resourceID, f.clusterID); !errors.Is(err, ErrClusterNotAssignable) {
 		t.Fatalf("queue build while paused: %v", err)
 	}

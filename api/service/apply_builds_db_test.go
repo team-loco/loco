@@ -47,9 +47,10 @@ func applyBuilds(t *testing.T, f *deployFixture, file string, builds map[string]
 func (f *deployFixture) addRunningBuild(t *testing.T, resourceName string) uuid.UUID {
 	t.Helper()
 	insert := `
-INSERT INTO builds (resource_id, status, source_type, source_key, source_size, dockerfile_path, context,
+INSERT INTO builds (platform, resource_id, status, source_type, source_key, source_size, dockerfile_path, context,
                     image_repository, created_by)
-SELECT r.id, 'running', 'upload', 'src/' || gen_random_uuid(), 1, $2, '.', 'registry.loco.test/' || r.name, u.id
+SELECT 'linux/amd64', r.id, 'running', 'upload', 'src/' || gen_random_uuid(), 1, $2, '.',
+       'registry.loco.test/' || r.name, u.id
 FROM resources r, users u WHERE r.name = $1
 RETURNING id`
 	var id uuid.UUID

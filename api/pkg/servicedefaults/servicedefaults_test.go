@@ -9,6 +9,7 @@ import (
 
 func validDefaults() Defaults {
 	return Defaults{
+		TargetPlatform:      "linux/amd64",
 		CPU:                 "100m",
 		CPUTarget:           65,
 		Memory:              "256Mi",
@@ -80,6 +81,7 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 		Type:          "SERVICE",
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
+				Platform:    string(d.TargetPlatform),
 				Image:       "nginx:1.27",
 				Port:        new(int32(8080)),
 				HealthCheck: &health,

@@ -79,7 +79,7 @@ func TestStartBuildSkipsClustersWithoutBuilds(t *testing.T) {
 	f.uploadFor(t, id, 10)
 	f.disableBuilds(t, f.clusterID)
 	_, err = f.start(id)
-	wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
+	wantBuildsUnavailable(t, err, errNoBuildCluster.Error()+" for "+testPlatform)
 	wantStatus(t, f.get(t, id), buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD)
 }
 
@@ -95,7 +95,7 @@ func TestCreateBuildFailsBeforeUploadWhenNoClusterAcceptsBuilds(t *testing.T) {
 		SourceSize:     10,
 	}
 	_, err := f.server.CreateBuild(f.ctx, req)
-	wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
+	wantBuildsUnavailable(t, err, errNoBuildCluster.Error()+" for "+testPlatform)
 	if len(f.bucket.presigned) != 0 {
 		t.Fatalf("presigned %d uploads for a build no cluster can run", len(f.bucket.presigned))
 	}
@@ -239,7 +239,7 @@ func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {
 			f.uploadFor(t, pending, 10)
 			invalidate(f.otherCluster)
 			_, err = f.start(pending)
-			wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
+			wantBuildsUnavailable(t, err, errNoBuildCluster.Error()+" for "+testPlatform)
 			wantStatus(t, f.get(t, pending), buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD)
 			if !strings.Contains(err.Error(), "healthy") || !strings.Contains(err.Error(), "heartbeat") {
 				t.Fatal(err)
@@ -249,7 +249,7 @@ func TestBuildSelectionRequiresHealthyRecentHeartbeats(t *testing.T) {
 			_, err = f.server.CreateBuild(f.ctx, &buildv1.CreateBuildRequest{
 				ResourceId: f.resourceID.String(), DockerfilePath: testDockerfile, SourceSize: 10,
 			})
-			wantBuildsUnavailable(t, err, errNoBuildCluster.Error())
+			wantBuildsUnavailable(t, err, errNoBuildCluster.Error()+" for "+testPlatform)
 			if len(f.bucket.presigned) != presigned {
 				t.Fatal("created an upload without a live builder")
 			}

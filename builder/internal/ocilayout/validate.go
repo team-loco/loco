@@ -123,16 +123,25 @@ func indexSupportsPlatform(index v1.ImageIndex, platform workloadplatform.Platfo
 	if err != nil {
 		return false, fmt.Errorf("read built image index: %w", err)
 	}
+	found := false
 	for _, descriptor := range manifest.Manifests {
+		if declared := descriptor.Platform; declared != nil &&
+			(declared.OS != "linux" || declared.Architecture != platform.Architecture()) {
+			continue
+		}
 		if descriptor.MediaType.IsIndex() {
 			child, readErr := index.ImageIndex(descriptor.Digest)
 			if readErr != nil {
 				return false, fmt.Errorf("read built child index: %w", readErr)
 			}
 			supported, checkErr := indexSupportsPlatform(child, platform)
-			if checkErr != nil || supported {
-				return supported, checkErr
+			if checkErr != nil {
+				return false, checkErr
 			}
+			if !supported {
+				return false, fmt.Errorf("built child index has no %s variant", platform)
+			}
+			found = true
 			continue
 		}
 		if !descriptor.MediaType.IsImage() {
@@ -146,9 +155,10 @@ func indexSupportsPlatform(index v1.ImageIndex, platform workloadplatform.Platfo
 		if configErr != nil {
 			return false, fmt.Errorf("read built image configuration: %w", configErr)
 		}
-		if config.OS == "linux" && config.Architecture == platform.Architecture() {
-			return true, nil
+		if config.OS != "linux" || config.Architecture != platform.Architecture() {
+			return false, fmt.Errorf("built image targets %s/%s, expected %s", config.OS, config.Architecture, platform)
 		}
+		found = true
 	}
-	return false, nil
+	return found, nil
 }

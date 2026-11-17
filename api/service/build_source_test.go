@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"testing"
@@ -234,8 +235,8 @@ func TestImageErrorsOnWire(t *testing.T) {
 		{
 			name:   "unsupported platform",
 			reason: "IMAGE_PLATFORM_UNSUPPORTED",
-			cause:  imageresolver.ErrPlatformUnsupported,
-			want:   `Cannot deploy image "nginx:1.27": image has no linux/amd64 variant.`,
+			cause:  fmt.Errorf("%w: %s", imageresolver.ErrPlatformUnsupported, testPlatform),
+			want:   `Cannot deploy image "nginx:1.27": image has no requested platform variant: linux/amd64.`,
 		},
 		{
 			name:  "registry outage",

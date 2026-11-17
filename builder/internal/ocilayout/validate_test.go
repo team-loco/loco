@@ -16,7 +16,12 @@ import (
 	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
-const notRegular = "not a regular file"
+const (
+	notRegular        = "not a regular file"
+	testOS            = "linux"
+	amd64Architecture = "amd64"
+	arm64Architecture = "arm64"
+)
 
 func writeLayout(t *testing.T) (string, int64) {
 	t.Helper()
@@ -177,13 +182,13 @@ func TestValidateRejectsTampering(t *testing.T) {
 }
 
 func TestBuiltImagePlatformMustMatchTarget(t *testing.T) {
-	for _, arch := range []string{"amd64", "arm64"} {
+	for _, arch := range []string{amd64Architecture, arm64Architecture} {
 		dir := t.TempDir()
 		output, err := layout.Write(dir, empty.Index)
 		if err != nil {
 			t.Fatal(err)
 		}
-		config := &v1.ConfigFile{OS: "linux", Architecture: arch}
+		config := &v1.ConfigFile{OS: testOS, Architecture: arch}
 		image, err := mutate.ConfigFile(empty.Image, config)
 		if err != nil {
 			t.Fatal(err)
@@ -196,6 +201,54 @@ func TestBuiltImagePlatformMustMatchTarget(t *testing.T) {
 			if (err == nil) != (arch == target.Architecture()) {
 				t.Fatalf("%s output for %s: %v", arch, target, err)
 			}
+		}
+	}
+}
+
+func TestBuiltImageDescriptorAndConfigMustSupportTarget(t *testing.T) {
+	for _, tc := range []struct {
+		descriptor, config string
+		extraWrongVariant  bool
+		valid              bool
+	}{
+		{arm64Architecture, arm64Architecture, false, true},
+		{amd64Architecture, arm64Architecture, false, false},
+		{arm64Architecture, amd64Architecture, false, false},
+		{arm64Architecture, arm64Architecture, true, false},
+	} {
+		dir := t.TempDir()
+		output, err := layout.Write(dir, empty.Index)
+		if err != nil {
+			t.Fatal(err)
+		}
+		image, err := mutate.ConfigFile(empty.Image, &v1.ConfigFile{OS: testOS, Architecture: tc.config})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = output.AppendImage(
+			image,
+			layout.WithPlatform(v1.Platform{OS: testOS, Architecture: tc.descriptor}),
+		); err != nil {
+			t.Fatal(err)
+		}
+		if tc.extraWrongVariant {
+			wrong, wrongErr := mutate.ConfigFile(
+				empty.Image,
+				&v1.ConfigFile{OS: testOS, Architecture: amd64Architecture},
+			)
+			if wrongErr != nil {
+				t.Fatal(wrongErr)
+			}
+			if err = output.AppendImage(
+				wrong,
+				layout.WithPlatform(v1.Platform{OS: testOS, Architecture: arm64Architecture}),
+			); err != nil {
+				t.Fatal(err)
+			}
+		}
+		err = ValidatePlatform(dir, workloadplatform.ARM64)
+		if (err == nil) != tc.valid {
+			t.Fatalf("descriptor=%s config=%s extra-wrong=%v: %v", tc.descriptor, tc.config, tc.extraWrongVariant, err)
 		}
 	}
 }

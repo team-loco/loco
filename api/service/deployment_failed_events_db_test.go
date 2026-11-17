@@ -84,8 +84,10 @@ func (f *deployFixture) deployAs(
 		params := f.paramsFor(f.clusterID)
 		params.ActorType = actorType
 		params.ActorID = actorID
-		params.Spec = []byte(`{"build":{"type":"dockerfile","image":"registry.test/svc@sha256:0","buildId":"` +
-			failedDeployBuild + `"}}`)
+		params.Spec = []byte(
+			`{"platform":"linux/amd64","build":{"type":"dockerfile","image":"registry.test/svc@sha256:0","buildId":"` +
+				failedDeployBuild + `"}}`,
+		)
 		id, err = createDeploymentWithCleanup(t.Context(), qtx, counts, params, staticSpec)
 		return err
 	})
