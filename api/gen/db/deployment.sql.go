@@ -760,8 +760,24 @@ func (q *Queries) PruneDeploymentHistory(ctx context.Context, arg PruneDeploymen
 	return result.RowsAffected(), nil
 }
 
+const setBuildingDeploymentEnv = `-- name: SetBuildingDeploymentEnv :exec
+UPDATE deployments
+SET spec = jsonb_set(spec, '{env}', COALESCE($1::jsonb #> '{app_spec,serviceSpec,deployment,env}', '{}'::jsonb))
+WHERE id = $2
+`
+
+type SetBuildingDeploymentEnvParams struct {
+	DesiredSpec []byte    `json:"desiredSpec"`
+	ID          uuid.UUID `json:"id"`
+}
+
+func (q *Queries) SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error {
+	_, err := q.db.Exec(ctx, setBuildingDeploymentEnv, arg.DesiredSpec, arg.ID)
+	return err
+}
+
 const setDeploymentBuildImage = `-- name: SetDeploymentBuildImage :exec
-UPDATE deployments SET spec = jsonb_set(spec, '{build,image}', to_jsonb($1::text))
+UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb($1::text))
 WHERE id = $2
 `
 

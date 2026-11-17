@@ -182,5 +182,10 @@ WHERE spec->'build'->>'buildId' = sqlc.arg(build_id)::text
 ORDER BY id FOR UPDATE;
 
 -- name: SetDeploymentBuildImage :exec
-UPDATE deployments SET spec = jsonb_set(spec, '{build,image}', to_jsonb(sqlc.arg(image)::text))
+UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb(sqlc.arg(image)::text))
+WHERE id = sqlc.arg(id);
+
+-- name: SetBuildingDeploymentEnv :exec
+UPDATE deployments
+SET spec = jsonb_set(spec, '{env}', COALESCE(sqlc.arg(desired_spec)::jsonb #> '{app_spec,serviceSpec,deployment,env}', '{}'::jsonb))
 WHERE id = sqlc.arg(id);

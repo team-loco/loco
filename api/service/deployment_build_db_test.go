@@ -2,12 +2,14 @@ package service
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/converter"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -80,6 +82,100 @@ func TestDeploymentWaitsForBuild(t *testing.T) {
 				buildID,
 			).ImageRepository+"@"+testImageDigest {
 				t.Fatalf("image=%s", got)
+			}
+		})
+	}
+}
+
+func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
+	t.Parallel()
+	for _, inherit := range []bool{false, true} {
+		t.Run(map[bool]string{false: "requested", true: "inherited"}[inherit], func(t *testing.T) {
+			f := newBuildFixture(t)
+			seedDeployment(t, f.deployFixture, sameRegionSpec)
+			provider := newTestKeyProvider(t, "k1")
+			f.storeSecret(t, provider, databaseURLName, stripeValue)
+			f.storeSecret(t, provider, sessionKeyName, sessionKeyValue)
+			wantEnv := map[string]string{"BUILD_MODE": "release", "BUILD_LABEL": "queued-build"}
+			bindings := &deploymentv1.DeploymentSecretBindings{Names: testSecretNames}
+			request := &deploymentv1.CreateDeploymentRequest{
+				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Region: testRegion,
+				SecretBindings: bindings,
+			}
+			if inherit {
+				previous := imageService()
+				previous.Env = wantEnv
+				request.Spec = &deploymentv1.DeploymentSpec{
+					Spec: &deploymentv1.DeploymentSpec_Service{Service: previous},
+				}
+				if _, err := deployRequest(t, f.deployFixture, request); err != nil {
+					t.Fatal(err)
+				}
+				f.finishRollouts(t)
+				request.SecretBindings = nil
+			}
+			buildID := f.queued(t)
+			service := &deploymentv1.ServiceDeploymentSpec{
+				Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
+			}
+			if !inherit {
+				service.Env = wantEnv
+			}
+			request.Spec = &deploymentv1.DeploymentSpec{
+				Spec: &deploymentv1.DeploymentSpec_Service{Service: service},
+			}
+			response, err := deployRequest(t, f.deployFixture, request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			id := uuid.MustParse(response.GetDeploymentId())
+			if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusBuilding {
+				t.Fatalf("status=%s", got)
+			}
+			view, err := f.queries.GetDeploymentView(f.ctx, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			deployment, err := deploymentToProto(view)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := deployment.GetSpec().GetService().GetEnv(); len(got) != 0 {
+				t.Errorf("deployment spec env=%v", got)
+			}
+			status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+			status.ImageDigest = testImageDigest
+			if statusErr := f.agentServer().
+				recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status); statusErr != nil {
+				t.Fatal(statusErr)
+			}
+			if got := desiredPayload(t, f.deployFixture).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, wantEnv) {
+				t.Errorf("env=%v, want %v", got, wantEnv)
+			}
+			if got := f.placement(t, f.clusterID).SecretNames; !slices.Equal(got, testSecretNames) {
+				t.Errorf("secret names=%v, want %v", got, testSecretNames)
+			}
+			stored, err := f.queries.GetDeploymentByID(f.ctx, id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rollback, err := converter.DeserializeDeploymentSpec(stored.Spec, genDb.ResourceTypeService)
+			if err != nil {
+				t.Fatal(err)
+			}
+			latest := imageService()
+			latest.Env = map[string]string{"BUILD_MODE": "updated"}
+			f.finishRollouts(t)
+			if _, err := deployService(t, f.deployFixture, latest); err != nil {
+				t.Fatal(err)
+			}
+			f.finishRollouts(t)
+			if _, err := deployService(t, f.deployFixture, rollback.GetService()); err != nil {
+				t.Fatal(err)
+			}
+			got := desiredPayload(t, f.deployFixture).AppSpec.ServiceSpec.Deployment.Env
+			if !maps.Equal(got, latest.GetEnv()) {
+				t.Errorf("rollback env=%v, want %v", got, latest.GetEnv())
 			}
 		})
 	}

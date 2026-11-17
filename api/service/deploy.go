@@ -103,6 +103,11 @@ func createDeploymentWithCleanup(
 	}
 
 	if params.Status == genDb.DeploymentStatusBuilding {
+		if envErr := qtx.SetBuildingDeploymentEnv(ctx, genDb.SetBuildingDeploymentEnvParams{
+			ID: deploymentID, DesiredSpec: spec,
+		}); envErr != nil {
+			return uuid.Nil, fmt.Errorf("store building deployment environment: %w", envErr)
+		}
 		if activityErr := writeDeploymentActivity(
 			ctx,
 			qtx,
