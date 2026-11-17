@@ -5,35 +5,9 @@ release:
 values:
   - ../ci/default-values.yaml
 templates:
-  - templates/clickhouse-credentials.yaml
   - templates/openbao-setup.yaml
   - templates/api-deployment.yaml
 tests:
-  - it: creates ClickHouse credentials in a restricted Job
-    set:
-      clickhouse.enabled: true
-    template: templates/clickhouse-credentials.yaml
-    documentSelector: {path: kind, value: Job}
-    asserts:
-      - equal:
-          path: spec.ttlSecondsAfterFinished
-          value: 3600
-      - equal:
-          path: spec.template.spec.restartPolicy
-          value: OnFailure
-      - lengthEqual:
-          path: spec.template.spec.containers
-          count: 4
-      - equal:
-          path: spec.template.spec.containers[0].env[0]
-          value: {name: SECRET_NAME, value: loco-clickhouse-operator}
-      - equal:
-          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
-          value: false
-  - it: leaves external ClickHouse credentials to the operator
-    template: templates/clickhouse-credentials.yaml
-    asserts:
-      - hasDocuments: {count: 0}
   - it: cleans up the OpenBao setup Job
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Job}

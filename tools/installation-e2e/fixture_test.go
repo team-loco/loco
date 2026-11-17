@@ -127,12 +127,11 @@ func servicePodTemplates(t *testing.T, revision string) map[string]map[string]an
 	return templates
 }
 
-func TestFluxClusterConfigurationCarriesCredentialsAndValues(t *testing.T) {
+func TestInstallationRegistryCredentials(t *testing.T) {
 	data, err := renderFixtureFile(
 		filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "values", "secrets.yaml"),
 		map[string]any{
-			"ClickHouseUsers": []string{"migrator", "ingest", "reader"},
-			"PushAuth":        "fixture-push", "PullAuth": "fixture-pull",
+			"PushAuth": "fixture-push", "PullAuth": "fixture-pull",
 		},
 	)
 	if err != nil {
@@ -166,15 +165,8 @@ func TestFluxClusterConfigurationCarriesCredentialsAndValues(t *testing.T) {
 		}
 		objects[object.Metadata.Name] = object
 	}
-	if len(objects) != 6 {
-		t.Fatalf("configuration has %d resources, want 6", len(objects))
-	}
-	for _, role := range []string{"migrator", "ingest", "reader"} {
-		values := objects["loco-clickhouse-"+role].StringData
-		if values["password"] != "fixture-clickhouse-"+role ||
-			!strings.Contains(values["url"], "loco_"+role+":"+values["password"]+"@") {
-			t.Fatalf("configuration lost %s credentials", role)
-		}
+	if len(objects) != 2 {
+		t.Fatalf("configuration has %d resources, want 2", len(objects))
 	}
 	for _, role := range []string{"push", "pull"} {
 		var config struct {

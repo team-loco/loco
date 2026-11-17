@@ -244,3 +244,38 @@ func TestBoundedCommandOutput(t *testing.T) {
 		t.Fatal("command output must be bounded without blocking its child")
 	}
 }
+
+func TestAuditAllowsRenderedCredentialsAndChecksOtherFields(t *testing.T) {
+	for _, tc := range []struct {
+		name, config, extra string
+		leaks               bool
+	}{
+		{name: "rendered Secret"},
+		{name: "Helm values", config: testCanary, leaks: true},
+		{name: "other manifest", extra: "---\nkind: ConfigMap\ndata: {password: " + testCanary + "}\n", leaks: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data, err := json.Marshal(
+				map[string]any{
+					"config": map[string]string{"password": tc.config},
+					"manifest": "kind: Secret\nmetadata:\n  name: loco-clickhouse-reader\n  annotations: {helm.sh/resource-policy: keep}\ndata: {password: " + base64.StdEncoding.EncodeToString(
+						[]byte(testCanary),
+					) + "}\n" + tc.extra,
+				},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			filtered, err := auditRelease(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			audit := newLeakAudit()
+			audit.add([]byte(testCanary))
+			audit.capture("Helm history", filtered)
+			if err = audit.check("rendered credentials"); (err != nil) != tc.leaks {
+				t.Fatalf("leaks=%v err=%v", tc.leaks, err)
+			}
+		})
+	}
+}
