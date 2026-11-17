@@ -5,7 +5,6 @@ metrics-server:
   args: [--kubelet-insecure-tls]
 agent:
   joinToken: {existingSecret: loco-worker-enrollment}
-cluster: {role: all}
 builds:
   privateEgress: {{ .PrivateEgress | json }}
   pushSecretName: loco-registry-push
@@ -14,15 +13,9 @@ registry:
   auth: static
   pullSecretName: loco-registry-pull
 global:
-  region: us-east-1
-  domain:
-    apps: [apps.installation.test]
   exporter:
     endpoint: http://ingest.installation.test
-    ingestToken: {enabled: true}
-gateway-helm: {enabled: false}
 env:
   LOCO_REGISTRY_HOST: registry.installation.localhost:5000
-  CONTROL_PLANE_URL: http://api.installation.test
 certManager:
   issuer: {create: false, name: installation-ca, kind: ClusterIssuer}

@@ -234,6 +234,15 @@ func singleCluster(options InitOptions) error {
 	if err != nil {
 		return err
 	}
+	var workerValues map[string]any
+	if err = yaml.Unmarshal(values, &workerValues); err != nil {
+		return err
+	}
+	workerValues["certManager"] = map[string]any{"issuer": map[string]any{"create": false, "email": options.Admin}}
+	values, err = yaml.Marshal(workerValues)
+	if err != nil {
+		return err
+	}
 	if err = root.WriteFile(filepath.Join(control, "values", "loco-worker.yaml"), values, 0600); err != nil {
 		return err
 	}
