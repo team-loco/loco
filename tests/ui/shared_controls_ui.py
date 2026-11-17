@@ -405,21 +405,34 @@ def limit_display(page):
 
     page.route(config_url, config)
     try:
-        for limit, label in ((11, None), (10, "9 / 10"), (9, "9 / 9")):
+        for limit, label in ((11, None), (10, "9 of 10 used"), (9, "Personal limit reached")):
             page.goto(state["ui_url"] + "/tokens?owner=personal")
             heading = page.get_by_role("heading", name=re.compile("^Tokens"))
             expect(page.get_by_text("limit-display-1", exact=True)).to_be_visible()
-            badge = heading.locator('[data-slot="badge"]')
+            pill = heading.get_by_role("link")
             if label is None:
-                expect(badge).to_have_count(0)
+                expect(pill).to_have_count(0)
             else:
-                expect(badge).to_have_text(label)
-                expect(page.get_by_text(label, exact=True)).to_have_count(1)
+                expect(pill).to_have_accessible_name(label)
+                expect(page.get_by_role("link", name=label, exact=True)).to_have_count(1)
+                expect(pill).to_have_attribute("href", re.compile(r"/org/.*(?:scope=org|/settings)#s-lim$"))
+                if limit == 10:
+                    expect(pill).not_to_have_attribute("title", re.compile(".+"))
             create = page.get_by_role("button", name="New token", exact=True).first
             if limit == 9:
                 expect(create).to_be_disabled()
                 create.hover(force=True)
                 expect(page.get_by_text("You've reached the limit of 9 personal tokens. Delete one, or ask a Loco admin to raise it.", exact=True)).to_be_visible()
+                expect(pill).to_have_attribute("title", "You've reached the limit of 9 personal tokens. Delete one, or ask a Loco admin to raise it.")
+                page.keyboard.press("Escape")
+                pill.click()
+                expect(page).to_have_url(re.compile(r"scope=org#s-lim$"))
+                limits_section = page.locator("#s-lim")
+                expect(limits_section.get_by_role("heading", name="Limits", exact=True)).to_be_in_viewport()
+                page.reload()
+                expect(limits_section.get_by_role("heading", name="Limits", exact=True)).to_be_in_viewport()
+                page.goto(state["ui_url"] + base + "/settings?scope=org#organization-danger")
+                expect(page.locator("#organization-danger").get_by_role("heading", name="Danger zone", exact=True)).to_be_in_viewport()
             else:
                 expect(create).to_be_enabled()
     finally:

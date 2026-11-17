@@ -6,7 +6,7 @@ export type LimitUsage = {
 	limit: number;
 	/** The plural of what is counted, such as "workspaces". */
 	noun: string;
-	/** What holds them, completing "in this ...": "organization", "workspace". */
+	/** The owner or containing entity: "organization", "workspace", "personal", "account". */
 	scope: string;
 };
 
@@ -22,6 +22,20 @@ export function usageLabel(usage: LimitUsage): string {
 	return `${formatCount(usage.count)} / ${formatCount(usage.limit)}`;
 }
 
+const SCOPE_LABEL: Record<string, string> = {
+	organization: "Org",
+	workspace: "Workspace",
+	resource: "Resource",
+	personal: "Personal",
+	account: "Account",
+};
+
+export function limitPillLabel(usage: LimitUsage): string {
+	const scope = SCOPE_LABEL[usage.scope];
+	if (usage.count >= usage.limit) return scope === undefined ? "Limit reached" : `${scope} limit reached`;
+	return `${formatCount(usage.count)} of ${formatCount(usage.limit)} used`;
+}
+
 /** Usage only matters from 90% of the limit: amber near it, red at it. */
 export function limitTone(usage: LimitUsage | null): LimitTone | null {
 	if (usage === null) return null;
@@ -32,5 +46,5 @@ export function limitTone(usage: LimitUsage | null): LimitTone | null {
 /** Why a create is blocked at the limit, or null below it. */
 export function limitReason(usage: LimitUsage | null): string | null {
 	if (usage === null || usage.count < usage.limit) return null;
-	return `You've reached the limit of ${formatCount(usage.limit)} ${usage.noun}${usage.scope === "" ? "" : ` in this ${usage.scope}`}. Delete one, or ask a Loco admin to raise it.`;
+	return `You've reached the limit of ${formatCount(usage.limit)} ${usage.noun}${["", "personal", "account"].includes(usage.scope) ? "" : ` in this ${usage.scope}`}. Delete one, or ask a Loco admin to raise it.`;
 }

@@ -37,6 +37,7 @@ export function PageHeader({
 const CARD = "min-w-0 rounded-card bg-panel";
 
 export function Section({
+	id,
 	title,
 	count,
 	meta,
@@ -48,6 +49,7 @@ export function Section({
 	bodyClassName,
 	children,
 }: {
+	id?: string;
 	title?: ReactNode;
 	count?: number | undefined;
 	meta?: ReactNode;
@@ -60,6 +62,9 @@ export function Section({
 	children?: ReactNode;
 }) {
 	const headingId = useId();
+	const scrollToHash = (node: HTMLElement | null) => {
+		if (node !== null && id !== undefined && window.location.hash === `#${id}`) node.scrollIntoView();
+	};
 	const body = (
 		<>
 			{(filters !== undefined || search !== undefined) && (
@@ -73,9 +78,19 @@ export function Section({
 			<div className={bodyClassName}>{children}</div>
 		</>
 	);
-	if (title === undefined) return <section className={cn(CARD, className)}>{body}</section>;
+	if (title === undefined)
+		return (
+			<section id={id} ref={scrollToHash} className={cn(CARD, className)}>
+				{body}
+			</section>
+		);
 	return (
-		<section aria-labelledby={headingId} className={cn("flex min-w-0 flex-col gap-2.5", className)}>
+		<section
+			id={id}
+			ref={scrollToHash}
+			aria-labelledby={headingId}
+			className={cn("flex min-w-0 flex-col gap-2.5", className)}
+		>
 			<div className="flex flex-wrap items-baseline gap-3 pt-1.5">
 				<h2 id={headingId} className="m-0 flex items-baseline gap-2 text-[18px] font-normal tracking-[-0.02em]">
 					{title}

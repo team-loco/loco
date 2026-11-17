@@ -57,7 +57,7 @@ export function Organizations() {
 	const usage =
 		isLoading || error
 			? null
-			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations you created", "");
+			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations you created", "account");
 	const blocked = limitReason(usage);
 
 	const openCreate = () => {

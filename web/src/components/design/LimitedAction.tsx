@@ -1,12 +1,15 @@
 import type { ReactElement } from "react";
+import { Link } from "react-router";
 
-import { Badge } from "@/components/design/Badge";
+import { useOrgWorkspace } from "@/context/ContextProvider";
+import { orgSettingsPath } from "@/lib/routes";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { type LimitTone, type LimitUsage, limitTone, usageLabel } from "@/lib/limits";
+import { type LimitTone, type LimitUsage, limitTone, limitPillLabel, limitReason, usageLabel } from "@/lib/limits";
 import { cn } from "@/lib/utils";
+import "./LimitedAction.css";
 
 export const LIMIT_TONE_TEXT: Record<LimitTone, string> = { warn: "text-warn-fg", bad: "text-bad-fg" };
-const TONE_PILL: Record<LimitTone, string> = { warn: "bg-warn-bg text-warn-fg", bad: "bg-bad-bg text-bad-fg" };
 
 /** "used / max" in amber or red from 90% of the limit; nothing below it. */
 export function LimitUsageText({ usage, className }: { usage: LimitUsage | null; className?: string }) {
@@ -19,14 +22,22 @@ export function LimitUsageText({ usage, className }: { usage: LimitUsage | null;
 	);
 }
 
-/** Title usage appears from 90% of the limit. */
 export function LimitCount({ usage }: { usage: LimitUsage | null }) {
+	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const tone = limitTone(usage);
 	if (usage === null || tone === null) return null;
+	const reason = limitReason(usage);
 	return (
-		<Badge tone="count" className={TONE_PILL[tone]}>
-			{usageLabel(usage)}
-		</Badge>
+		<Link
+			className={cn("lim-pill", tone === "bad" ? "full" : "near")}
+			to={activeOrgId === null ? "/organizations" : `${orgSettingsPath(activeOrgId, activeWorkspaceId)}#s-lim`}
+			title={reason ?? undefined}
+		>
+			{limitPillLabel(usage)}
+			<span className="lim-go" aria-hidden>
+				→
+			</span>
+		</Link>
 	);
 }
 

@@ -17,13 +17,14 @@ export function SettingsCard({ className, children }: { className?: string; chil
 }
 
 export function SettingsSection(props: {
+	id?: string;
 	title: string;
 	count?: number | undefined;
 	meta?: ReactNode;
 	actions?: ReactNode;
 	children: ReactNode;
 }) {
-	return <Section {...props} card={false} className="max-w-[960px]" />;
+	return <Section {...props} card={false} className="max-w-[960px] scroll-mt-20" />;
 }
 
 export function KeyValues({ items }: { items: readonly (readonly [string, ReactNode])[] }) {
