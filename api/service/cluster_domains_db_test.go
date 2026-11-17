@@ -190,12 +190,17 @@ func TestCreateResourceDomainNeedsTheDomainOnTheClusterThatRunsIt(t *testing.T) 
 	t.Parallel()
 	f := newDeployFixture(t)
 	client := newDomainClient(t, f)
-	if _, err := f.deployTo(context.Background(), f.otherCluster, staticSpec); err != nil {
+	id, err := f.deployTo(t.Context(), f.otherCluster, staticSpec)
+	if err != nil {
 		t.Fatalf("deploy to c2: %v", err)
+	}
+	if _, updateErr := f.pool.Exec(t.Context(),
+		`UPDATE deployments SET spec = '{"platform":"linux/amd64","port":8080}' WHERE id = $1`, id); updateErr != nil {
+		t.Fatal(updateErr)
 	}
 	f.setClusterDomains(t, f.otherCluster)
 
-	err := client.add(domainsServedHostname)
+	err = client.add(domainsServedHostname)
 	wantCode(t, err, connect.CodeFailedPrecondition)
 	if !strings.Contains(err.Error(), "which c2 (us-east-1) does not serve") {
 		t.Fatalf("err = %v, want it to name c2, the cluster the resource runs on", err)
