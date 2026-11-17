@@ -235,7 +235,7 @@ export function BuildsTable({
 						<TableHead className="w-[220px]">Started by</TableHead>
 						<TableHead>Image</TableHead>
 						<TableHead className="w-[72px] text-right">Took</TableHead>
-						<TableHead className="w-[100px] text-right">When</TableHead>
+						<TableHead className="w-[100px] text-right">Time</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
