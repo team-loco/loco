@@ -18,6 +18,7 @@ func TestOperatorFailureReportsOnlyKnownPhase(t *testing.T) {
 		{"last-known", "installation-e2e phase: preflight\n" +
 			"installation-e2e phase: pre-login-audit\n" +
 			"installation-e2e phase: credential-canary\n", "pre-login-audit"},
+		{"administrator status", "installation-e2e phase: admin-status\n", phaseAdminStatus},
 		{"login-boundary", "installation-e2e phase: login-approved\ncredential-canary\n", phaseLoginApproved},
 		{"unknown-login", "installation-e2e phase: login-credential-canary\n", unknownPhase},
 		{"incomplete", "installation-e2e phase: pre-login-audit", unknownPhase},
