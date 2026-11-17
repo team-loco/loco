@@ -111,7 +111,10 @@ def test_crds_health_requires_the_expected_artifact_revision(bundle):
     spec = json.loads(bundle.files["all/crds.yaml"])["spec"]
     assert spec["prune"] is False
     health = spec["healthCheckExprs"][0]["current"]
-    assert bundle.digest in health
+    assert "platform.loco.io/artifact-digest" in health
+    for name in ("applications", "builds", "gateway"):
+        resource = json.loads(bundle.files[f"layers/crds/loco-{name}-crd-kustomization.yaml"])
+        assert resource["metadata"]["annotations"]["platform.loco.io/artifact-digest"] == bundle.digest
     assert "status.lastAppliedRevision" in health and "status.observedGeneration" in health
 
 
@@ -758,3 +761,11 @@ def test_control_plane_installs_embedded_operator_crds(bundle):
     spec = helm_release(bundle, "control-plane", "loco-control-plane")["spec"]
     assert spec["install"]["crds"] == "Create"
     assert spec["upgrade"]["crds"] == "CreateReplace"
+
+
+def test_crd_readiness_expression_survives_artifact_revision_changes(bundle):
+    changed = {name: reference.replace(bundle.digest, "sha256:" + "c" * 64) for name, reference in bundle.refs.items()}
+    updated = release.bundle("0.8.0", "d" * 40, changed, bundle.images)
+    old = json.loads(bundle.files["all/crds.yaml"])
+    new = json.loads(updated["all/crds.yaml"])
+    assert old["spec"]["healthCheckExprs"] == new["spec"]["healthCheckExprs"]

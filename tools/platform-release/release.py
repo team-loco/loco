@@ -234,13 +234,11 @@ def bundle(version, commit, refs, images):
     write_layer('namespaces', [loco_namespace, namespace('cert-manager'), account, binding])
 
     crds = []
-    revision_checks = []
     for name in ('applications', 'builds', 'gateway'):
         source_name = 'loco-' + name + '-crd'
         crds.append(source(source_name, refs[source_name]))
         crds.append(resource('Kustomization', source_name, {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': source_name}, 'path': './', 'prune': False, 'wait': True, 'timeout': '5m', 'serviceAccountName': 'platform-reconciler', 'postBuild': {'substitute': {'PLATFORM_RELEASE': revision}}}))
-        expected = refs[source_name].split('@')[1]
-        revision_checks.append(f"(metadata.name == '{source_name}' && status.lastAppliedRevision == '{expected}')")
+        crds[-1]['metadata']['annotations'] = {'platform.loco.io/artifact-digest': refs[source_name].split('@')[1]}
     write_layer('crds', crds)
 
     def helm_release(name, chart, namespace, values, dependencies=()):
@@ -271,7 +269,7 @@ def bundle(version, commit, refs, images):
         if name in ('control-plane', 'worker'):
             spec['dependsOn'].append({'name': 'loco-cluster-config'})
         if name == 'crds':
-            health = "metadata.generation == status.observedGeneration && status.conditions.exists(c, c.type == 'Ready' && c.status == 'True') && (" + ' || '.join(revision_checks) + ')'
+            health = "metadata.generation == status.observedGeneration && status.conditions.exists(c, c.type == 'Ready' && c.status == 'True') && status.lastAppliedRevision == metadata.annotations['platform.loco.io/artifact-digest']"
             spec['healthCheckExprs'] = [{'apiVersion': 'kustomize.toolkit.fluxcd.io/v1', 'kind': 'Kustomization', 'current': health}]
         layer = resource('Kustomization', 'loco-' + name, spec)
         layer['metadata'].update({'labels': labels, 'annotations': annotations})
