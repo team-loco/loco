@@ -189,7 +189,7 @@ Worker clusters must encrypt Secrets at rest: a KMS provider where the platform 
 | GitLab token | KV, read by the API only. Pull credentials for each app's image are minted by the control plane and delivered over Sync like env, so workers hold only per-app, short-lived pull credentials |
 | Postgres credentials | KV with a rotation runbook while the database is on Railway. On the control-plane cluster: OpenBao's database secrets engine issues per-instance credentials with a lease, and the pool fetches fresh ones through pgx's `BeforeConnect` |
 | Valkey password | KV |
-| Join token and agent identity | A single-use join token is stored as a hash in Postgres and delivered as a per-cluster SOPS-encrypted Secret. Issue-time TTL is capped by the API. The agent waits for its mounted token, enrolls and stores its identity key in a cluster Secret; the identity key never enters Git |
+| Join token and agent identity | A single-use join token is stored as a hash in Postgres and delivered directly to the worker with `locoadm cluster create --kube-context`. An encrypted Git manifest is an option for fully unattended installation. Issue-time TTL is capped by the API. The agent waits for its mounted token, enrolls and stores its identity key in a cluster Secret; the identity key never enters Git |
 | ClickHouse credentials | The control-plane chart credentials Job creates missing user credentials in standalone Secrets and preserves them across upgrades |
 | Cloudflare API token | Per-cluster SOPS, scoped to the zones that cluster issues certificates for |
 | SOPS age keys | Unchanged; they sit below OpenBao in the bootstrap order |

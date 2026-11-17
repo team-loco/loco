@@ -70,6 +70,9 @@ spec:
 	var chartCommands [][]string
 	for _, cluster := range clusters {
 		dir := filepath.Join(example, "clusters", cluster.name)
+		if err = checkCohort(example, dir); err != nil {
+			return err
+		}
 		for _, path := range []string{dir, filepath.Join(dir, "config")} {
 			built, buildErr := command(
 				ctx,
@@ -97,8 +100,8 @@ spec:
 			filepath.Join(root, "charts", cluster.chart),
 			"--namespace",
 			"loco-system",
-			"-f",
-			filepath.Join(dir, "values", cluster.chart+".yaml"),
+			"-f", filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
+			"-f", filepath.Join(dir, "values", cluster.chart+".yaml"),
 		}
 		components := []string{"api.image.tag", "ui.image.tag", "obsProxy.image.tag"}
 		if cluster.chart == "loco-worker" {
@@ -213,4 +216,28 @@ func strictSchema(value any) {
 			strictSchema(child)
 		}
 	}
+}
+
+func checkCohort(repo, cluster string) error {
+	data, err := os.ReadFile(filepath.Join(cluster, "kustomization.yaml"))
+	if err != nil {
+		return err
+	}
+	var root struct {
+		Resources []string `yaml:"resources"`
+	}
+	if err = yaml.Unmarshal(data, &root); err != nil {
+		return err
+	}
+	count := 0
+	for _, resource := range root.Resources {
+		path := filepath.Clean(filepath.Join(cluster, resource))
+		if filepath.Dir(path) == filepath.Join(repo, "releases") && filepath.Ext(path) == ".yaml" {
+			count++
+		}
+	}
+	if count != 1 {
+		return fmt.Errorf("cluster %s selects %d releases files; select exactly one cohort", cluster, count)
+	}
+	return nil
 }

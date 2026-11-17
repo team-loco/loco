@@ -26,7 +26,7 @@ locoadm init --output ./fleet \
 
 `init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. Join tokens are applied directly to worker clusters. Review the generated values and supply storage, database, OIDC, registry and DNS credentials before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
 
-The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and one directory under `clusters/` per cluster. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
+The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and shared role defaults under `bases/`, and one directory under `clusters/` per cluster. Each cluster kustomization selects exactly one release cohort file, references a role base and provides a small values file with endpoints, domains, administrator and region settings. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
 
 ## Bootstrap Flux
 
@@ -41,7 +41,7 @@ Use a different deploy key on each cluster. If you choose SOPS, install it throu
 
 The bundle supplies namespaces and the reconciler service account. Its namespace layer runs first; the operator's `loco-cluster-config` applies Secrets and optional issuers. Namespaces and CRDs are never pruned. Infrastructure installs cert-manager and an independent gateway release. Control-plane and worker releases wait for infrastructure and cluster configuration.
 
-Each HelmRelease accepts an optional `<release>-values` ConfigMap and `<release>-secrets` Secret in `flux-system`, with a `values.yaml` key. Standalone credential Secrets live in the workload namespace and are referenced by name. Image digests remain pinned inside the bundle. The control-plane chart's credential Job creates missing ClickHouse credentials and preserves existing ones. OpenBao initialization and auto-unseal run through chart Jobs.
+Each HelmRelease reads an optional `<release>-base-values` ConfigMap before an optional `<release>-values` ConfigMap and `<release>-secrets` Secret in `flux-system`, with a `values.yaml` key. Standalone credential Secrets live in the workload namespace and are referenced by name. Image digests remain pinned inside the bundle. The control-plane chart's credential Job creates missing ClickHouse credentials and preserves existing ones. OpenBao initialization and auto-unseal run through chart Jobs.
 
 ## Sign in and enroll workers
 

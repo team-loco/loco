@@ -1,20 +1,13 @@
 global:
   region: example-east
   domain:
-    apps: [apps.example.com]
+    apps:
+      - apps.example.com
   exporter:
     endpoint: https://ingest.example.com
-    ingestToken:
-      enabled: true
-registry:
-  auth: token
-agent:
-  joinToken:
-    existingSecret: loco-agent-join-token
 certManager:
   issuer:
     email: admin@example.com
-
 env:
   CONTROL_PLANE_URL: https://api.example.com
   LOCO_REGISTRY_HOST: registry.example.com

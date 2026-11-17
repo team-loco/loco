@@ -64,7 +64,7 @@ Flux applies these layers in dependency order and checks health before proceedin
 
 CRDs are never pruned. Changes must be additive because worker clusters upgrade independently. Envoy Gateway has its own chart and release; the worker bundle disables the `gateway-helm` subchart. Third-party versions remain pinned in tracked chart metadata.
 
-Each release accepts an optional `<release>-values` ConfigMap and an optional values Secret. Image digests stay pinned in the bundle. Credentials are standalone Secrets referenced by name, never Helm values. The bundle has no `configVersion` field.
+Each release accepts optional `<release>-base-values` and `<release>-values` ConfigMaps in that order and an optional values Secret. Image digests stay pinned in the bundle. Credentials are standalone Secrets referenced by name, never Helm values. The bundle has no `configVersion` field.
 
 The control-plane bundle supports external ClickHouse and external OpenBao. Postgres is operator-supplied and sits outside the bundle. The worker entry point accepts an API endpoint without assuming where the control plane runs. Registry authentication defaults to token mode; static credentials remain supported.
 
