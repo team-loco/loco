@@ -14,12 +14,9 @@ loco config --help
 
 | Command | Purpose |
 | --- | --- |
-| `locoadm validate` | Validate the unreleased [installation file](installation.md) contract, `loco-install.yaml` unless `--file` names another |
-| `locoadm plan`, `locoadm apply` | Plan and install the control plane from the installation file |
 | `locoadm init` | Scaffold an operator GitOps repository with encrypted bootstrap Secrets |
 | `locoadm status --host API_URL` | Read clusters, enrollment, heartbeats, DNS targets, version skew and unclaimed admins from the API |
 | `locoadm login` | Sign in with explicit `--api` and `--web` URLs with the same session as `loco login`; a configured admin's first sign-in makes it a system admin |
-| `locoadm cluster attach [worker-name]` | Register, enroll and install the installation file's workers |
 | `locoadm admin list`, `grant <user-id>`, `revoke <user-id>` | List, grant and revoke [system admins](../operations/self-hosting.md#first-system-admin) |
 | `locoadm verify` | Build disposable source and verify secret delivery, HTTPS and logs |
 | `locoadm recovery export --context CONTEXT --namespace NAMESPACE` | Encrypt seal material and individual recovery shares for separate custodians |

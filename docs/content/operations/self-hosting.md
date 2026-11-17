@@ -2,135 +2,47 @@
 title: "Self-hosting"
 ---
 
-A self-hosted Loco installation puts platform operation under your team's control. The repository contains the platform components and Helm charts; production operation requires instance-specific configuration.
+Self-hosting runs Loco's control plane and worker software on operator-managed Kubernetes clusters through Flux. Operators own infrastructure, credentials, release pins and backups.
 
-Start by running the [local development environment](../contributing/development.md) to exercise the components together:
+## Components
 
-```sh
-mise run setup
-mise run tilt
-```
+| Component | Responsibility |
+| --- | --- |
+| API and dashboard | Platform state, authentication and application management |
+| PostgreSQL | Operator-supplied platform database |
+| OpenBao | Application encryption and telemetry signing; managed or external |
+| ClickHouse and observability proxy | Telemetry storage and ingest; managed or external |
+| Agent and controllers | Apply applications and builds on workers |
+| Gateway and cert-manager | Routing and certificates |
+| Flux | Reconcile the versioned platform bundle and per-cluster configuration |
 
-The local environment is a development installation. Review the repository's environment configuration before adapting it to a production cluster.
-
-## Invitation delivery
-
-Core sends no email. The inviter copies and shares the invitation link from the dashboard or CLI. Installations that want invitation email subscribe to `invitation.created` and `invitation.resent` through [`INSTALL_WEBHOOKS`](webhooks.md); their consumer renders and sends the email. `INVITATION_TTL` sets the invitation lifetime.
-
-## Supported Kubernetes versions
-
-Loco supports Kubernetes **1.36–1.37**, with current patch releases recommended. The agent rejects servers below 1.36 before starting watches or registering. Newer minors are unverified. The minimum follows required server behavior, not the Go client version: private Service names accept digit-leading resource slugs, requiring [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/) (enabled by default in 1.36, stable in 1.37). Keep that gate enabled on 1.36. Both supported minors remain in the [upstream patch-support window](https://kubernetes.io/releases/patch-releases/) and the pinned [Envoy Gateway compatibility matrix](https://gateway.envoyproxy.io/news/releases/matrix/).
-
-Clusters need `apiextensions.k8s.io/v1` CRDs with CEL validation (Build path checks and immutable specs), server-side apply with field ownership and conflict handling, `autoscaling/v2` for collector HPAs, and a CNI enforcing standard `networking.k8s.io/v1` NetworkPolicy ingress and egress. CEL validation and server-side apply are stable before the supported range. Loco does not install ValidatingAdmissionPolicy resources or require that feature gate. Installing API objects alone does not prove CNI enforcement; the e2e lifecycle suite checks traffic between namespaces.
-
-Nightly and manually dispatched compatibility tests exercise installation, deployment, networking, secrets and deletion on the oldest and newest minors using digest-pinned kind images in `agent/pkg/cluster/kubernetes.json`; the oldest image also supplies the agent's minimum minor. PR CI runs only the newest endpoint. Renovate updates endpoint patches and digests without changing their minors. Expand the range only after the endpoint suites pass; remove an old minor when upstream support ends or a required capability moves the minimum, publishing the change with the Loco release.
-
-Use the same Loco release for the agent, controller and CRDs; mixed Loco releases are untested. Upgrade Kubernetes one minor at a time, API servers before nodes, following the [upstream skew policy](https://kubernetes.io/releases/version-skew-policy/). Every API server and node must remain inside Loco's supported range during an upgrade. Apply release CRDs before rolling the controller and agent, and upgrade clusters to a new minimum before deploying a Loco release that requires it.
-
-## Platform components
-
-| Component | Repository location | Responsibility |
-| --- | --- | --- |
-| API | `api/` | ConnectRPC services and PostgreSQL state |
-| Dashboard | `web/` | Browser access to the API |
-| Regional agent | `agent/` | Connect the region to the control plane |
-| Application controller | `controller/` | Reconcile Application custom resources |
-| Custom resource definitions | `k8sapi/` | Kubernetes API types |
-| Platform charts | `charts/` | Kubernetes platform configuration |
-| Observability proxy | `observability-proxy/` | OTLP ingest into ClickHouse and its schema migrations, on the control plane |
-
-The development CLI also plans and applies declarative [installation files](../reference/installation.md). This unreleased contract targets existing Kubernetes infrastructure and references external credentials through Secrets.
+The control-plane chart is `charts/loco-control-plane`; the worker chart is `charts/loco-worker`. The platform bundle pins charts, CRDs and images by digest. Use its `./control-plane`, `./worker` or `./all` entry point. Customer workloads continue through the API, agent and `Application` resources.
 
 ## Installation inputs
 
-Configure the API's database, cache, authentication, registry, and API/dashboard endpoints through its environment variables. The [`loco-control-plane` chart README](https://github.com/team-loco/loco/blob/main/charts/loco-control-plane/README.md) lists the ones an installation needs, and [`api/config.go`](https://github.com/team-loco/loco/blob/main/api/config.go) reads every variable with its default. Check them against the deployed release; authentication and registry changes are under active review. The chart runs the region's OpenBao for the [secrets key provider](secrets-key-provider.md#openbao-in-the-control-plane-chart); create its seal key Secret before the first install.
+Provide Kubernetes and its CNI, PostgreSQL, OIDC, an S3-compatible source bucket, a registry and DNS. Postgres is outside the bundle. Each worker environment uses its own clusters. A single-cluster installation can host one control plane and one worker.
 
-Set `DATABASE_LISTEN_URL` to a direct PostgreSQL or session-pooler URL when `DATABASE_URL` uses a transaction-mode pooler. The API holds this connection for placement notifications and uses `DATABASE_URL` for ordinary queries. Both URLs must reach the same database. With `DATABASE_LISTEN_URL` empty, the listener uses `DATABASE_URL`.
+Follow the [installation guide](../reference/installation.md) to scaffold the operator repository, review chart values, encrypt Secrets and bootstrap Flux. Each cluster has its own Git directory. `locoadm` emits plaintext Secret manifests; operators choose encryption or external Secret delivery. With SOPS, configure Flux decryption and keep an offline recipient for recovery. Credential Secrets are referenced by name. Chart values expose API limits, service defaults, retention and join-token lifetimes; `values.schema.json` validates their types and supported forms. The API validates configuration at startup.
 
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` to export the API's own traces over OTLP/HTTP; with neither set, the API records no traces. The exporter reads the other standard `OTEL_EXPORTER_OTLP_*` variables, such as `OTEL_EXPORTER_OTLP_HEADERS`. `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` set the resource; without them `service.name` is `loco-api`, and `service.version` is the API's version. The API continues the W3C Trace Context (`traceparent`) of incoming requests and records a span for every HTTP request and RPC except `/`, `/health` and the agent's `Sync` stream. Its calls to PostgreSQL, Valkey, OpenBao, the source bucket, image registries and the authentication issuers record child spans, and those made over HTTP send `traceparent`. Each webhook delivery attempt, sweep, event retention run and OpenBao token refresh starts its own trace. An event stores the `traceparent` of the request that recorded it, and each delivery of that event links to it. Install-wide webhooks (`INSTALL_WEBHOOKS`) receive the delivery's `traceparent`; workspace webhooks receive no trace headers. The API keeps every trace it starts except one whose first span is an outgoing call, and ignores `OTEL_TRACES_SAMPLER`. Log lines written inside a span carry its `trace_id` and `span_id`.
-
-Set `ORG_LINKS` to add links to tools outside Loco, such as a support desk or a status page, to the Manage section of the dashboard sidebar. The value is a JSON array of at most 10 objects, each with a unique `label` of at most 32 characters and an absolute HTTP or HTTPS `url`. The dashboard replaces `{orgId}` in the URL with the current organization's ID and opens the link in a new tab; no other placeholder is allowed. The API refuses to start when the value is invalid, and an empty value shows no links. With the `loco-control-plane` chart, set it under `api.env`:
-
-```yaml
-api:
-  env:
-    ORG_LINKS: '[{"label":"Support","url":"https://support.example.com/orgs/{orgId}"}]'
-```
-
-The API reads service defaults once at startup and reports them through `GetConfig` to the CLI and dashboard. With the control-plane chart, set service defaults through `api.defaults`, count limits through `api.limits`, and event/image retention through `api.retention`. Null numbers and empty strings use the API defaults. Other deployments configure these environment variables in the API environment Secret; explicit service settings take precedence. Startup rejects defaults that fail the same validation as a service spec, including `MIN_REPLICAS <= MAX_REPLICAS`. CPU and memory use Kubernetes quantities; durations below are integer seconds.
-
-| Variable | Default | Meaning and bounds |
-| --- | --- | --- |
-| `LOCO_DEFAULT_CPU` | `100m` | CPU request, `100m`–`2000m` |
-| `LOCO_DEFAULT_MEMORY` | `256Mi` | Memory request, `32Mi`–`4Gi` |
-| `LOCO_DEFAULT_MIN_REPLICAS` | `1` | Minimum replicas, 1–10 |
-| `LOCO_DEFAULT_MAX_REPLICAS` | `1` | Maximum replicas, 1–10 and at least the minimum |
-| `LOCO_DEFAULT_CPU_TARGET` | `70` | CPU autoscaling target, 1–100 percent of the CPU request; does not enable autoscaling |
-| `LOCO_DEFAULT_PATH_PREFIX` | `/` | Route path prefix, must start with `/` |
-| `LOCO_DEFAULT_IDLE_TIMEOUT` | `60` | Route idle timeout in seconds, at least 1 |
-| `LOCO_DEFAULT_HEALTH_PATH` | `/health` | HTTP health path, must start with `/` |
-| `LOCO_DEFAULT_HEALTH_INTERVAL` | `30` | Seconds between HTTP checks, at least 5 |
-| `LOCO_DEFAULT_HEALTH_TIMEOUT` | `5` | HTTP check timeout in seconds, 1–60 |
-| `LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD` | `3` | Consecutive failed HTTP checks, 1–10 |
-| `LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD` | `0` | HTTP check startup grace in seconds, 0–180 |
-| `LOCO_DEFAULT_DEPLOY_ATTEMPTS` | `2` | Deployment attempts including the first, 1–10 |
-| `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` | `300` | Seconds between failed apply attempts, at least 60 |
-
-Health defaults apply when the service enables HTTP health checks. A service without `port` is a worker; the API supplies no default port. See the [service sizing rules](../deployment/loco-yaml.md#create-a-file), [health checks](../deployment/loco-yaml.md#health-checks) and [failed applies](../deployment/loco-yaml.md#failed-applies).
-
-With `LOCO_REGISTRY_AUTH=token` the API is the registry's [token endpoint](../reference/architecture.md#registry-access) at `/registry/token`, signing with the key the [secrets key provider](secrets-key-provider.md#configure-the-api) settings name. It reads these settings and refuses to start when one is invalid:
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `LOCO_REGISTRY_TOKEN_SERVICE` | required for `token` | Name of the registry service; the token endpoint requires it as `service` and sets it as `aud`. It must match the registry's bearer `service`. The chart sets it from `api.registry.service` |
-| `LOCO_REGISTRY_ACCESS_TOKEN_LIFETIME` | `5m` | Lifetime of a registry access token, positive |
-| `LOCO_REGISTRY_PULL_CREDENTIAL_LIFETIME` | `24h` | Lifetime of a workspace pull credential issued by `RegistryService.IssuePullCredential`, positive |
-| `LOCO_REGISTRY_CREDENTIAL_SWEEP_INTERVAL` | `10m` | How often the API deletes expired pull credentials and build credentials whose build is no longer running on their cluster, positive |
-
-Each worker cluster needs a CNI that enforces Kubernetes NetworkPolicy, cert-manager and the `loco-worker` chart, which runs the agent, the Loco controllers, Envoy Gateway and the OpenTelemetry collectors. The worker chart installs metrics-server for application autoscaling by default. Set `metrics-server.enabled: false` on clusters that already serve `metrics.k8s.io`. Create its release namespace `loco-system` with the Pod Security labels in `manifests/namespaces/loco-system.yaml` before installing it. The collectors export every log, trace and metric over OTLP/HTTP to one endpoint and store nothing in the cluster. The control plane cluster needs Envoy Gateway and cert-manager, and runs the API, dashboard, observability proxy, ClickHouse and OpenBao from the `loco-control-plane` chart.
-
-As a [system admin](#first-system-admin), attach each cluster by creating its record with `locoadm cluster create` and passing the printed join token to the agent's first start; see [cluster attachment](../reference/cluster-attachment.md). Set the platform domains a cluster serves in `global.domain.apps` of its `loco-worker` values and point `*.<domain>` at its gateway; the API stores no domains of its own.
-
-Envoy Gateway must use `config.envoyGateway.provider.kubernetes.deploy.type: GatewayNamespace`. The worker chart enables this mode so proxies run in their Gateway's namespace, as application ingress policies require. A shared controller can serve the control plane and worker without moving worker proxies into the controller namespace.
-
-The `loco-control-plane` chart points the proxy at its own API Service; a standalone proxy reads the API URL from `CONTROL_PLANE_URL`.
-
-The observability proxy reports ready once its ClickHouse migrations complete, the exporter's tables exist and a database ping succeeds.
-
-Set `obsProxy.enabled: false` to install the control plane without the proxy and ClickHouse. The API then gets no `CLICKHOUSE_URL` and answers observability requests with `Unavailable`, and the dashboard's logs, traces and metrics show their error state. With `obsProxy.enabled: true` the chart runs the proxy as the `obs-proxy-ingest` Deployment, configured under `obsProxy.ingest` and scaled by `obsProxy.ingest.replicaCount`, with the `loco_ingest` URL in the Secret named by `obsProxy.ingest.clickhouse.existingSecret` and the `loco_migrator` URL in the Secret named by `obsProxy.ingest.clickhouse.migratorExistingSecret`, and gives the API the `loco_reader` URL from the Secret named by `api.clickhouse.existingSecret` as `CLICKHOUSE_URL`. Its Service serves OTLP/gRPC on `obsProxy.ingest.grpcPort` (4317) and OTLP/HTTP on `obsProxy.ingest.httpPort` (4318) to pods in the control-plane namespace only. A standalone proxy reads `CLICKHOUSE_INGEST_URL`, `CLICKHOUSE_MIGRATOR_URL`, `OTLP_GRPC_PORT`, `OTLP_HTTP_PORT`, `OTLP_MAX_REQUEST_BYTES` (4 MiB), `CLICKHOUSE_INGEST_TIMEOUT` (5s) and `CLICKHOUSE_INGEST_DIAL_TIMEOUT` (10s). A standalone API reads `CLICKHOUSE_URL` and `CLICKHOUSE_DB`, and bounds queries with `CLICKHOUSE_MAX_CONNS` (5), `CLICKHOUSE_QUERY_TIMEOUT` (10s, whole seconds), `LOCO_OBSERVABILITY_DEFAULT_LIMIT` (1000), `LOCO_OBSERVABILITY_MAX_LIMIT` (10000), `LOCO_OBSERVABILITY_MAX_TIME_RANGE` (24h), `LOCO_OBSERVABILITY_MAX_BUCKETS` (1440) and `LOCO_OBSERVABILITY_MAX_TAIL_DURATION` (30m). `ConfigService.GetConfig` returns the effective maximum query range as `observability_max_time_range`; the dashboard uses it to bound time ranges and finished-build log queries.
-
-Set `global.exporter.endpoint` in the `loco-worker` values to the OTLP/HTTP base URL the collectors export to; the exporter appends `/v1/logs`, `/v1/traces` and `/v1/metrics`, and the chart fails to render without it. For Loco's own ingest, that is `https://<obsProxy.ingest.hostname>`. `global.exporter.headers` adds request headers. `global.exporter.ingestToken.enabled: true` sends the `token` key of the Secret named by `global.exporter.ingestToken.secretName` (`loco-otlp-exporter`) as a bearer token from both collector namespaces, `loco-obs` and `loco-obs-node`. Each collector persists requests on disk before batching, up to `global.exporter.queue.queue_size`, and retries without a time limit: the node collector in a hostPath directory, the two StatefulSet collectors on a PersistentVolumeClaim per replica. Batching uses `global.exporter.queue.batch`: 100 items or a 1s flush timeout by default. A full queue blocks senders (`block_on_overflow: true`). Telemetry survives an unreachable endpoint and collector pod replacement. Any OTLP/HTTP backend can replace the proxy.
-
-`loco-control-plane` creates its own Gateway by default: a GatewayClass named `gateway.className`, an EnvoyProxy that takes Envoy Service settings from `gateway.service`, and a Gateway named `gateway.name` in `gatewayNamespace` with one listener for each of `ui.hostname`, `controlPlaneHostname` and, when published, `obsProxy.ingest.hostname`. Listeners serve HTTPS on port 443 with a certificate cert-manager issues for those hostnames, configured by `certManager.*` as in `loco-worker` (`certManager.issuer.solvers` takes any cert-manager solver list, Cloudflare DNS-01 by default); `gateway.tlsSecretName` serves your own Secret instead, and `certManager.enabled: false` serves HTTP on port 80. Set `gateway.create: false` and `gateway.name` to attach the routes to an existing Gateway instead. The chart publishes ingest at `obsProxy.ingest.hostname` only when `obsProxy.enabled` is true and the hostname is set. The hostname has no default.
-Set `gateway.tls.minVersion: "1.3"` in `loco-control-plane` and `envoyProxy.tls.minVersion: "1.3"` in `loco-worker` to require TLS 1.3 on every HTTPS listener. Both values accept `"1.2"` or `"1.3"`; the default empty string leaves the minimum to Envoy Gateway. The worker uses its existing HTTP/3 policy for this setting. The control-plane chart creates a Gateway-wide `ClientTrafficPolicy` when the minimum is set and `gateway.create` is true; manage the policy yourself for an existing Gateway. In an [installation file](../reference/installation.md), set `controlPlane.tls.minVersion` and each `workers[].tls.minVersion` independently. These settings do not enable HTTPS on HTTP listeners.
-
-Ingest accepts only clusters with an ingest token from the API; see [architecture](../reference/architecture.md#observability). The API signs tokens with the OpenBao Transit key `openbao.transit.ingestKey`, which the setup Job creates; [rotate it](secrets-key-provider.md#rotation) in OpenBao. Set `global.exporter.ingestToken.enabled: true` in the `loco-worker` values to send the token; `dev/worker-chart.yaml` sets it for the local stack. The agent then writes its token to the Secret and key named by `global.exporter.ingestToken.secretName` and `secretKey`, the Secret the collectors' `bearertokenauth` extension reads, in `loco-obs` and `loco-obs-node`; the chart lets it create Secrets there and `get` and `update` only that one. Every collector pod runs an `exporter-token-wait` init container that polls every `global.exporter.ingestToken.waitIntervalSeconds` (2) until the token file exists and is not empty, because a collector authenticates only if the file is present when it starts.
-The ingest proxy reads the API from `CONTROL_PLANE_URL`, which the chart sets, and accepts records up to `INGEST_CLOCK_SKEW` (5m) outside a placement window; raise it when worker clocks drift further. A standalone ingest proxy also reads `INGEST_AUTH_TIMEOUT` (5s), `INGEST_JWKS_REFRESH_INTERVAL` (30s), `INGEST_PLACEMENT_CACHE_TTL` (30s), `INGEST_PLACEMENT_REFETCH_INTERVAL` (5s) and `INGEST_RETRY_AFTER` (30s).
-
-With `clickhouse.enabled: true`, `loco-control-plane` runs ClickHouse in its namespace with three users, each limited to the `loco_obs` database: `loco_migrator` creates the schema for the observability proxy, `loco_ingest` inserts for the proxy, and `loco_reader` serves the API's queries. The chart's credentials Job creates missing Secrets named by `clickhouse.clickhouse.users[].password_secret_name`, with a `password` and a `url` for each user, and the operator Secret named by `clickhouse.operator.fullnameOverride`. Existing Secrets are preserved across retries and upgrades. Credentials stay outside Helm values and release history. Only the proxy pods, the API pods and the ClickHouse operator can reach the server. `clickhouse.enabled` requires `obsProxy.enabled`.
-
-Set `global.region` in the `loco-worker` values to the region the cluster is registered under in the API. The collectors stamp it on every log, trace and metric as `loco.region`, and the dashboard's per-region metrics filter on it; the chart fails to render without it.
-
-ClickHouse is off by default. To use an external server such as ClickHouse Cloud, leave `clickhouse.enabled: false`, create the three users with the grants listed in `clickhouse.clickhouse.users`, and store their connection URLs in Secrets named in `api.clickhouse.existingSecret`, `obsProxy.ingest.clickhouse.migratorExistingSecret` and `obsProxy.ingest.clickhouse.existingSecret`; the API and a standalone proxy read the database name from `CLICKHOUSE_DB`, the API reads the reader URL from `CLICKHOUSE_URL`, and the proxy reads `CLICKHOUSE_MIGRATOR_URL` and `CLICKHOUSE_INGEST_URL`. Keep `clickhouse.clickhouse.database` equal to the database in those grants. ClickHouse Cloud serves the native protocol over TLS on port `9440`. `clickhouse.clickhouse.extraConfig`, `keeperConfig`, `settings` and `resources` apply only to the in-cluster server. To keep ingest inserts out of `system.query_log`, set `log_queries = 0` in the `loco_ingest` user's settings profile; the proxy does not set it.
-
-The proxy serializes its migrations through a KeeperMap table, so the ClickHouse server needs ClickHouse Keeper and a `keeper_map_path_prefix`. The in-cluster server runs a single-node Keeper from `clickhouse.clickhouse.keeperConfig`. An external server must provide both, and `loco_migrator` must be allowed to create KeeperMap tables.
-
-Your team supplies DNS records, certificate issuance, persistent storage, backups, and capacity. Keep credentials separate across installations and environments. Use [architecture](../reference/architecture.md) to identify the control-plane and regional boundaries.
+The control-plane chart generates missing ClickHouse credentials and preserves existing ones. OpenBao supports static, KMS or transit auto-unseal. Keep the seal material, recovery shares and snapshots under separate backup and custody procedures. External ClickHouse and OpenBao remain supported through their chart settings.
 
 ## First system admin
 
-Operator commands in `locoadm` require the `system:admin` grant. The API grants it to the emails in `LOCO_SYSTEM_ADMINS`, a comma-separated list such as `LOCO_SYSTEM_ADMINS=ada@example.com,grace@example.com`. Each entry is a one-time claim: the first sign-in whose verified email matches an unclaimed entry grants `system:admin` to that account, including when signup is closed. The grant then belongs to the account and the one identity (issuer and subject) it signs in through. The API does not consult the email for it again, so a later account with the same address gets nothing.
+Set verified email addresses in `api.systemAdmins`. Their first sign-in claims system-admin access, including under closed signup:
 
-The API applies the list at startup. Removing an email revokes the grant from the account that claimed it; adding it back opens a new claim for the next verified sign-in with that email. A claimed entry stays spent when its account is deleted, so a new holder of the address gets nothing until the email is removed from the list and added back. Each claim and revocation records a `system_admin.claimed` or `system_admin.revoked` event with the email, issuer and subject.
+```sh
+locoadm login --api https://api.example.com --web https://app.example.com
+locoadm admin list
+```
 
-An [installation file](../reference/installation.md) lists them in `controlPlane.admins`; after `locoadm apply`, sign in with `locoadm login --api API_URL --web WEB_URL` as one of them.
+Only use an identity provider that verifies email addresses. Register a public authorization-code client with PKCE and allow the dashboard's `/auth/callback`. `locoadm login --device` supports browser approval on another machine. Configure OIDC, API endpoints, source storage and registry settings in the control-plane values and referenced Secret.
 
-List admins only on an identity provider that verifies email addresses: whoever first signs in with a listed address the provider reports as verified becomes a system admin. Never enable Dex's `insecureSkipEmailVerified`. With GitHub Enterprise Server, Dex treats every email as verified.
+Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USER_UUID`. Status lists configured emails that remain unclaimed. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
 
-After the first admin signs in, `locoadm admin` manages the rest (`SystemAdminService`, system admins only). `locoadm admin grant <user-id>` makes an existing user a system admin; the user must have signed in once, and the grant attaches to that user, never to an email address. `locoadm admin revoke <user-id>` removes a grant. It refuses an admin who claimed a configured email (remove the email from `LOCO_SYSTEM_ADMINS` instead) and the last system admin. A user with both a claim and a grant keeps `system:admin` when the email leaves the list. `locoadm admin list` prints each admin's user ID, email, identity issuer and subject, and source (`config`, `grant` or both), plus the configured emails nobody has claimed. Grants and revocations record `system_admin.granted` and `system_admin.revoked` events with the acting admin, the user and the source.
+## Releases and operations
 
-## Upgrades
+Upgrade the control plane first, staging workers second and production workers last by changing cohort pins in `releases/`. Staging cohorts can follow stable semver releases; production cohorts pin reviewed digests. The API supports agents at its own minor version and one minor behind. `locoadm status` reports unsupported or ahead versions, heartbeats and DNS targets from the API.
 
-Every commit to `main` publishes the agent, builder, controller, API, observability proxy and UI images tagged `sha-<commit>`, and each binary reports that tag as its version. The charts have no default tag for these images: set `agent.image.tag`, `controller.image.tag`, `builds.builderImage.tag` and, in `loco-control-plane`, `obsProxy.image.tag` to the same `sha-<commit>`. Each chart ships a `values.schema.json`, so Helm rejects a missing image tag, an unknown key or a value of the wrong type before it renders anything. No chart installs CRDs. Before installing or upgrading a chart, apply `controller/config/crd/bases/*.yaml` and the Gateway API CRDs from the `gateway-helm` chart `loco-worker` pins with `kubectl apply --server-side`; the platform release bundle applies them in its `crds` layer, and `mise run crds:apply` does it for a local kind cluster. Regenerate CRDs through `mise run controller:gen` when developing schema changes. Each chart and CRD bundle carries its own version, in its `Chart.yaml` or `tools/platform-release/crds.yaml`, and a push to `main` publishes every version not yet published; `tools/platform-release/README.md` describes the artifacts and the platform bundle that pins them. Review database migrations and infrastructure changes before upgrading a running installation.
+Flux installs CRDs before dependent releases and never prunes them. Database migrations retain compatibility through a rollout. Roll back software by reverting a cohort pin; databases retain their applied migrations. Failed chart upgrades use the bundle's retry and rollback policy.
 
-A supported production packaging and upgrade procedure is not established by these docs. Inspect the chart values and the release's configuration before deployment.
+Use `locoadm verify` against a configured worker and authorized environment to check source builds, encrypted secret delivery, HTTPS and logs. Export recovery material with explicit Kubernetes context and namespace flags. Verification and export do not prove backups can restore; run a separate restoration exercise and retain external-service backups.

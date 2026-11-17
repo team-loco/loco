@@ -12,6 +12,7 @@ import (
 
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	"github.com/team-loco/loco/gen/go/loco/build/v1/buildv1connect"
+	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
@@ -125,9 +126,8 @@ func TestVerificationCleansProvisionedResourceAfterFailure(t *testing.T) {
 				ctx,
 				rpc.ForHost(httpServer.URL, "fixture-session"),
 				httpServer.Client(),
-				Worker{
-					Region: "us-east-1", AppsDomain: "apps.example.com",
-					MetricsServer: MetricsServer{Enabled: true, KubeletInsecureTLS: false},
+				&clusterv1.Cluster{
+					Region: "us-east-1", Domains: []string{"apps.example.com"},
 				},
 				&environmentv1.Environment{Id: "fixture-environment", WorkspaceId: "fixture-workspace"},
 			)

@@ -43,8 +43,7 @@ const (
 type adminClient = clusterv1connect.ClusterAdminServiceClient
 
 var (
-	errInvalidTier   = errors.New("tier must be staging or production")
-	errAttachTimeout = errors.New("attach timeout must be positive")
+	errInvalidTier = errors.New("tier must be staging or production")
 )
 
 // operation describes one cluster subcommand. Every operation names its own RPC
@@ -62,7 +61,6 @@ func BuildClusterCmd() *cobra.Command {
 	for _, op := range operations() {
 		cluster.AddCommand(op.command())
 	}
-	cluster.AddCommand(attachCmd())
 	return cluster
 }
 

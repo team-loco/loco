@@ -123,3 +123,27 @@ func TestVerificationRejectsCAFileWithoutCertificate(t *testing.T) {
 		t.Fatalf("accepted CA file without certificate: %v", err)
 	}
 }
+
+func archiveFiles(data []byte) (map[string][]byte, error) {
+	compressed, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer compressed.Close()
+	archive := tar.NewReader(compressed)
+	result := map[string][]byte{}
+	for {
+		header, err := archive.Next()
+		if errors.Is(err, io.EOF) {
+			return result, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		content, err := io.ReadAll(archive)
+		if err != nil {
+			return nil, err
+		}
+		result[header.Name] = content
+	}
+}

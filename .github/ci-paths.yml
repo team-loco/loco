@@ -368,7 +368,6 @@ platform-release:
     - "tools/platform-release/**"
     - "tools/gitops-check/**"
     - "examples/gitops/**"
-    - "schemas/installation.v1.json"
     - "charts/**"
     - "controller/config/crd/bases/**"
     - ".github/workflows/platform-release.yml"
