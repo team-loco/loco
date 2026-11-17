@@ -17,6 +17,10 @@ const reasonOOMKilled = "OOMKilled"
 
 // Priority is independent of API list order when replicas have different problems.
 func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, string) {
+	return runtimeProblemAt(pods, recoveryWindow, time.Now())
+}
+
+func runtimeProblemAt(pods []corev1.Pod, recoveryWindow time.Duration, now time.Time) (string, string) {
 	reasons := []string{
 		locov1alpha1.RuntimeOutOfMemory,
 		locov1alpha1.RuntimeCrashLooping,
@@ -34,7 +38,7 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, st
 		}
 		for _, status := range pod.Status.ContainerStatuses {
 			running := status.State.Running
-			recovering := runtimeRecovering(pod, status, recoveryWindow)
+			recovering := runtimeRecoveringAt(pod, status, recoveryWindow, now)
 			waiting := status.State.Waiting
 			backoff := waiting != nil && waiting.Reason == reasonCrashLoopBackOff
 			lastExit := status.LastTerminationState.Terminated
@@ -75,7 +79,7 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, st
 					grace := time.Duration(probe.InitialDelaySeconds)*time.Second +
 						time.Duration(probe.PeriodSeconds)*time.Duration(probe.FailureThreshold)*time.Second
 					startedAt := status.State.Running.StartedAt
-					if !startedAt.IsZero() && time.Since(startedAt.Time) >= grace {
+					if !startedAt.IsZero() && now.Sub(startedAt.Time) >= grace {
 						found[locov1alpha1.RuntimeHealthCheckFailing] = true
 					}
 				}
@@ -93,12 +97,17 @@ func runtimeProblem(pods []corev1.Pod, recoveryWindow time.Duration) (string, st
 
 // A long-running retry has not recovered while its pod has stayed unready
 // since before the run began. A later readiness failure leaves old exits historical.
-func runtimeRecovering(pod corev1.Pod, status corev1.ContainerStatus, recoveryWindow time.Duration) bool {
+func runtimeRecoveringAt(
+	pod corev1.Pod,
+	status corev1.ContainerStatus,
+	recoveryWindow time.Duration,
+	now time.Time,
+) bool {
 	running := status.State.Running
 	if running == nil {
 		return false
 	}
-	if running.StartedAt.IsZero() || time.Since(running.StartedAt.Time) < recoveryWindow {
+	if running.StartedAt.IsZero() || now.Sub(running.StartedAt.Time) < recoveryWindow {
 		return true
 	}
 	if status.Ready {

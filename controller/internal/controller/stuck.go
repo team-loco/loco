@@ -68,10 +68,10 @@ func stuckMessage(reason, detail string) (string, bool) {
 }
 
 func configErrorMessage(detail string) string {
-	if strings.Contains(detail, kubeletRootImage) {
+	if configErrorReason(detail) == locov1alpha1.ProblemImageUser && strings.Contains(detail, kubeletRootImage) {
 		return messageRootImage
 	}
-	if strings.Contains(detail, kubeletNonNumericUser) {
+	if configErrorReason(detail) == locov1alpha1.ProblemImageUser {
 		return messageNonNumericUser
 	}
 	return messageConfigError
@@ -186,4 +186,11 @@ func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (stuckReplica
 		}
 	}
 	return stuckReplica{}, false
+}
+
+func configErrorReason(detail string) locov1alpha1.ProblemReason {
+	if strings.Contains(detail, kubeletRootImage) || strings.Contains(detail, kubeletNonNumericUser) {
+		return locov1alpha1.ProblemImageUser
+	}
+	return locov1alpha1.ProblemConfigError
 }

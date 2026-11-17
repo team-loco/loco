@@ -46,8 +46,15 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		namespace := testWorkspaceNamespace(app)
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
-		seed := *r
-		seed.Client, seed.APIReader = k8sClient, k8sClient
+		seed := &ApplicationReconciler{
+			Client:                   k8sClient,
+			APIReader:                k8sClient,
+			Scheme:                   r.Scheme,
+			LocoNamespace:            r.LocoNamespace,
+			Gateway:                  r.Gateway,
+			WorkspaceNamespacePrefix: r.WorkspaceNamespacePrefix,
+			Telemetry:                r.Telemetry,
+		}
 		// Seed the watched Services before the manager starts so their create events cannot repair a route.
 		Expect(seed.ensureService(ctx, app)).To(Succeed())
 		Expect(seed.ensurePrivateService(ctx, app)).To(Succeed())

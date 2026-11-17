@@ -24,6 +24,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -36,16 +37,19 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	corev1ac "k8s.io/client-go/applyconfigurations/core/v1"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	crcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -76,6 +80,8 @@ var (
 
 // ApplicationReconciler reconciles an Application object
 type ApplicationReconciler struct {
+	deletedMu             sync.Mutex
+	deletedPods           map[types.NamespacedName]map[types.UID]deletedReplica
 	RuntimeRecoveryWindow time.Duration
 	client.Client
 	APIReader client.Reader
@@ -163,7 +169,25 @@ func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *ApplicationReconciler) reconcileResources(
 	ctx context.Context,
 	app *locov1alpha1.Application,
-) (ctrl.Result, error) {
+) (result ctrl.Result, reconcileErr error) {
+	defer func() {
+		if app.Status.Rollout == nil {
+			return
+		}
+		now := time.Now()
+		for _, replica := range app.Status.Rollout.Replicas {
+			if replica.State != locov1alpha1.ReplicaStopping || replica.StateDeadline == nil {
+				continue
+			}
+			delay := replica.StateDeadline.Sub(now)
+			if delay <= 0 {
+				delay = deployingRequeue
+			}
+			if result.RequeueAfter == 0 || delay < result.RequeueAfter {
+				result.RequeueAfter = delay
+			}
+		}
+	}()
 	if err := r.ensureNamespace(ctx, app); err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure namespace: %w", err)
 	}
@@ -199,6 +223,9 @@ func (r *ApplicationReconciler) reconcileResources(
 	dep, err := r.ensureDeployment(ctx, app, envSecret)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
+	}
+	if err = r.observeReplicas(ctx, app, dep, time.Now()); err != nil {
+		return ctrl.Result{}, err
 	}
 	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
 		return ctrl.Result{}, err
@@ -902,7 +929,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&locov1alpha1.Application{}, applicationPredicates).
 		Watches(&appsv1.Deployment{}, applicationHandler).
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
-		Watches(&corev1.Pod{}, applicationHandler).
+		Watches(&corev1.Pod{}, r.podHandler(applicationHandler)).
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).
@@ -917,4 +944,26 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		WithOptions(options).
 		Named("application").
 		Complete(r)
+}
+
+func (r *ApplicationReconciler) podHandler(base handler.EventHandler) handler.EventHandler {
+	return handler.Funcs{
+		CreateFunc:  base.Create,
+		UpdateFunc:  base.Update,
+		GenericFunc: base.Generic,
+		DeleteFunc: func(
+			ctx context.Context,
+			e event.DeleteEvent,
+			q workqueue.TypedRateLimitingInterface[reconcile.Request],
+		) {
+			if !e.DeleteStateUnknown {
+				if pod, ok := e.Object.(*corev1.Pod); ok {
+					for _, request := range applicationForObject(ctx, pod) {
+						r.recordDeletedPod(request.NamespacedName, pod, time.Now())
+					}
+				}
+			}
+			base.Delete(ctx, e, q)
+		},
+	}
 }
