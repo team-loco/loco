@@ -11,7 +11,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/internal/rpc"
 )
 
 func TestSetOrgMemberRole(t *testing.T) {
@@ -60,24 +59,19 @@ func TestSetOrgMemberRole(t *testing.T) {
 	) != connect.CodeFailedPrecondition {
 		t.Fatalf("last admin self-demotion: %v", err)
 	}
-	o.api.machine.Cfg.MaxAPITokenDuration = membershipSessionDuration
 	orgID := uuid.MustParse(o.orgID)
-	adminToken, _, tokenErr := o.api.machine.Issue(ctx, "org-admin", o.owner.id,
+	client, _ := administrativeToken(t, o.api, o.owner,
 		genDb.Entity{Type: genDb.EntityTypeOrganization, ID: orgID},
-		[]genDb.EntityScope{{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeAdmin}},
-		membershipSessionDuration,
+		genDb.EntityScope{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeAdmin},
 	)
-	if tokenErr != nil {
-		t.Fatal(tokenErr)
-	}
-	orgAdmin := membershipUser{clients: rpc.ForHost(o.api.url, adminToken)}
+	orgAdmin := membershipUser{clients: client}
 	if err := set(
 		orgAdmin,
 		o.owner.id.String(),
 		orgv1.OrgRole_ORG_ROLE_MEMBER,
 	); codeOf(
 		err,
-	) != connect.CodePermissionDenied {
+	) != connect.CodeFailedPrecondition {
 		t.Fatalf("last admin demotion by organization token: %v", err)
 	}
 	if err := set(o.owner, member.id.String(), orgv1.OrgRole_ORG_ROLE_ADMIN); err != nil {

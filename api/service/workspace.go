@@ -108,8 +108,8 @@ func createWorkspaceInTx(
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if p.ActorType != genDb.DeploymentActorTypeApiToken {
-		err = authz.ApplyRoles(ctx, qtx, params.CreatedBy, []genDb.EntityScope{
+	if p.UserID != uuid.Nil {
+		err = authz.ApplyRoles(ctx, qtx, p.UserID, []genDb.EntityScope{
 			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeRead},
 			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeWrite},
 			{EntityType: genDb.EntityTypeWorkspace, EntityID: wsID, Scope: genDb.ScopeAdmin},
@@ -407,7 +407,7 @@ func (s *WorkspaceServer) CreateMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := sessionPrincipal(ctx)
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -488,10 +488,6 @@ func (s *WorkspaceServer) DeleteMember(
 	ctx context.Context,
 	req *workspacev1.DeleteMemberRequest,
 ) (*workspacev1.DeleteMemberResponse, error) {
-	if _, err := sessionPrincipal(ctx); err != nil {
-		return nil, err
-	}
-
 	wsID, err := parseID("workspace_id", req.GetWorkspaceId())
 	if err != nil {
 		return nil, err

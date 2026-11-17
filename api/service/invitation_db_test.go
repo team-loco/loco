@@ -17,10 +17,11 @@ import (
 )
 
 const (
-	invitationTestTTL = 48 * time.Hour
-	invitationWebURL  = "https://app.loco.test"
-	invitationEmail   = "bob@acme.test"
-	invitationLink    = invitationWebURL + "/login?login_hint=bob%40acme.test"
+	invitationUnavailableName = "Unavailable inviter"
+	invitationTestTTL         = 48 * time.Hour
+	invitationWebURL          = "https://app.loco.test"
+	invitationEmail           = "bob@acme.test"
+	invitationLink            = invitationWebURL + "/login?login_hint=bob%40acme.test"
 )
 
 func newInvitationOrg(t *testing.T) *membershipOrg {
@@ -382,7 +383,8 @@ func TestInvitationSurvivesDeletedInviter(t *testing.T) {
 	check := func(got *orgv1.Invitation) {
 		t.Helper()
 		inviter := got.GetInvitedBy()
-		if inviter.GetId() != o.owner.id.String() || inviter.GetName() != "Deleted user" || inviter.GetEmail() != "" {
+		if inviter.GetId() != o.owner.id.String() || inviter.GetName() != invitationUnavailableName ||
+			inviter.GetEmail() != "" {
 			t.Fatalf("historical inviter = %v", inviter)
 		}
 	}
@@ -404,7 +406,7 @@ func TestInvitationSurvivesDeletedInviter(t *testing.T) {
 	if err := json.Unmarshal(data, &fields); err != nil {
 		t.Fatal(err)
 	}
-	if fields[events.FieldInviterName] != "Deleted user" || fields[events.FieldInviterEmail] != "" {
+	if fields[events.FieldInviterName] != invitationUnavailableName || fields[events.FieldInviterEmail] != "" {
 		t.Fatalf("resent inviter fields = %v", fields)
 	}
 }

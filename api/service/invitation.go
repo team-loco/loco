@@ -57,7 +57,7 @@ func (s *OrgServer) InviteOrgMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := sessionPrincipal(ctx)
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +69,10 @@ func (s *OrgServer) InviteOrgMember(
 		return nil, ErrInvalidInviteEmail
 	}
 	email := strings.ToLower(address.Address)
+	inviterID := p.UserID
+	if inviterID == uuid.Nil {
+		inviterID = p.ActorID
+	}
 
 	var result *orgv1.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -88,7 +92,7 @@ func (s *OrgServer) InviteOrgMember(
 		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
-			InvitedBy: p.UserID,
+			InvitedBy: inviterID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
 		if isUniqueViolation(createErr, pgOpenInvitationUnique) {
@@ -258,9 +262,6 @@ func (s *OrgServer) ResendInvitation(
 }
 
 func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, id string) (genDb.Invitation, error) {
-	if _, err := sessionPrincipal(ctx); err != nil {
-		return genDb.Invitation{}, err
-	}
 	invitationID, err := parseID("invitation_id", id)
 	if err != nil {
 		return genDb.Invitation{}, err
@@ -313,7 +314,7 @@ func (s *OrgServer) recordInvitationEvent(
 func invitationInviter(ctx context.Context, q genDb.Querier, id uuid.UUID) (genDb.User, error) {
 	user, err := q.GetUserByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return genDb.User{ID: id, Name: new("Deleted user")}, nil
+		return genDb.User{ID: id, Name: new("Unavailable inviter")}, nil
 	}
 	return user, err
 }

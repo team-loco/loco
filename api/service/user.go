@@ -273,10 +273,6 @@ func (s *UserServer) SetUserStatus(
 	ctx context.Context,
 	req *userv1.SetUserStatusRequest,
 ) (*userv1.SetUserStatusResponse, error) {
-	if _, err := sessionPrincipal(ctx); err != nil {
-		return nil, err
-	}
-
 	if err := authorizeSystem(ctx, s.authz, actions.SetUserStatus); err != nil {
 		return nil, err
 	}

@@ -82,9 +82,12 @@ func (s *OrgServer) CreateOrg(
 	ctx context.Context,
 	req *orgv1.CreateOrgRequest,
 ) (*orgv1.CreateOrgResponse, error) {
-	p, err := sessionPrincipal(ctx)
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if p.UserID == uuid.Nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
 	if err = check(ctx, s.authz, p, actions.New(actions.CreateOrg, p.UserID)); err != nil {
 		return nil, err
@@ -253,9 +256,6 @@ func (s *OrgServer) ListUserOrgs(
 }
 
 func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, userID uuid.UUID) error {
-	if _, err := sessionPrincipal(ctx); err != nil {
-		return err
-	}
 	if p.UserID != userID {
 		return errCreateIfMissingForOtherUser
 	}
@@ -454,10 +454,6 @@ func (s *OrgServer) SetOrgMemberRole(
 	ctx context.Context,
 	req *orgv1.SetOrgMemberRoleRequest,
 ) (*orgv1.SetOrgMemberRoleResponse, error) {
-	if _, err := sessionPrincipal(ctx); err != nil {
-		return nil, err
-	}
-
 	orgID, err := parseID("org_id", req.GetOrgId())
 	if err != nil {
 		return nil, err
@@ -582,7 +578,7 @@ func (s *OrgServer) RemoveOrgMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := sessionPrincipal(ctx)
+	p, err := principalFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
