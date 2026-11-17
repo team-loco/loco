@@ -1,61 +1,57 @@
-name: E2E
-
+name: Envoy native timestamp proof
 on:
+  workflow_dispatch:
   workflow_call:
     inputs:
       images:
-        description: Prebuilt images, with * standing for the image name; empty builds them here.
         type: string
         default: ""
-  workflow_dispatch:
-
 permissions:
   contents: read
-
-env:
-  E2E_RUN_ID: ci
-  E2E_IMAGES: ${{ inputs.images }}
-  E2E_VERSION: ${{ inputs.images != '' && format('sha-{0}', github.sha) || 'e2e' }}
-
 jobs:
-
-  # Each shard is one tests/e2e package: one install that its tests share, each in its own
-  # organization and workspace.
-  shard:
-    name: ${{ matrix.name }}
+  capture:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    permissions:
-      contents: read
-      packages: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Builds E2E
-            shard: builds
-          - name: Apps E2E
-            shard: apps
-          - name: Telemetry E2E
-            shard: telemetry
-
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
       - uses: ./.github/actions/setup-tools
         with:
-          go-cache: e2e
-
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        if: inputs.images != ''
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # The runner is discarded with the run, so --keep skips the teardown.
-      - name: Run the shard
-        env:
-          SHARD: ${{ matrix.shard }}
-        run: mise run e2e --keep "$SHARD"
+          go-cache: obs
+      - name: Resolve the deployed image and verify diagnostic transport
+        run: |
+          python3 - <<'PYTHON'
+          import os, pathlib, re, urllib.request
+          chart = pathlib.Path("charts/loco-worker/Chart.yaml").read_text()
+          version = re.search(r"- name: gateway-helm\s+version: ([^\s]+)", chart).group(1)
+          gateway_url = f"https://raw.githubusercontent.com/envoyproxy/gateway/v{version}/api/v1alpha1/shared_types.go"
+          source = urllib.request.urlopen(gateway_url, timeout=30).read().decode()
+          image = re.search(r'DefaultEnvoyProxyImage = "([^"]+)"', source).group(1)
+          assert "@sha256:" in image, image
+          envoy_tag = re.search(r":distroless-(v[^@]+)@", image).group(1)
+          base = f"https://raw.githubusercontent.com/envoyproxy/envoy/{envoy_tag}"
+          factory_url = base + "/source/extensions/stat_sinks/open_telemetry/config.cc"
+          proto_url = base + "/api/envoy/extensions/stat_sinks/open_telemetry/v3/open_telemetry.proto"
+          factory = urllib.request.urlopen(factory_url, timeout=30).read().decode()
+          proto = urllib.request.urlopen(proto_url, timeout=30).read().decode()
+          assert "kHttpService" in factory and "http_service =" in proto
+          assert factory.count("std::make_unique<OpenTelemetrySink>") == 2
+          print(f"GATEWAY_PIN {version} SOURCE {gateway_url}")
+          print(f"ENVOY_IMAGE {image}")
+          print(f"HTTP_PROTO_SOURCE {proto_url}")
+          print(f"SHARED_SINK_FACTORY_SOURCE {factory_url}")
+          print("RAW_CLOCK_COUNT_CALLS", factory.count("systemTime().time_since_epoch().count()"))
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write(f"CODEX_ENVOY_IMAGE={image}\n")
+          PYTHON
+      - name: Capture the native producer timestamps
+        shell: bash
+        run: |
+          set -o pipefail
+          mise exec -- go -C observability-proxy run ./codex-native-proof | tee /tmp/envoy-native-proof.log
+          grep -E '^(IMAGE|HTTP_REQUEST_OK|TIMESTAMP_BOUNDS|START_SAMPLE_RATIO|RAW_OTLP)' /tmp/envoy-native-proof.log >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove the owned diagnostic container
+        if: always()
+        run: |
+          if docker container inspect codex-envoy-start-proof >/dev/null 2>&1; then
+            docker container rm --force codex-envoy-start-proof
+          fi
