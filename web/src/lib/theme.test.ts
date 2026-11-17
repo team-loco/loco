@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { nextMode, pageTheme, parseColorTheme, parseMode, resolveMode } from "./theme";
+import { pageTheme, parseColorTheme, parseMode, resolveMode } from "./theme";
 
 describe("theme mode", () => {
 	test("reads a stored explicit mode", () => {
@@ -21,12 +21,6 @@ describe("theme mode", () => {
 	test("an explicit mode ignores the system preference", () => {
 		expect(resolveMode("light", true)).toBe("light");
 		expect(resolveMode("dark", false)).toBe("dark");
-	});
-
-	test("the toggle cycles light, dark and system", () => {
-		expect(nextMode("light")).toBe("dark");
-		expect(nextMode("dark")).toBe("system");
-		expect(nextMode("system")).toBe("light");
 	});
 });
 

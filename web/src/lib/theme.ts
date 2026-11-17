@@ -34,13 +34,6 @@ export function resolveMode(mode: Mode, systemDark: boolean): ResolvedTheme {
 	return mode;
 }
 
-const MODE_CYCLE: Record<Mode, Mode> = { light: "dark", dark: "system", system: "light" };
-
-/** The mode a click on the theme toggle switches to: light, dark, system, then light again. */
-export function nextMode(mode: Mode): Mode {
-	return MODE_CYCLE[mode];
-}
-
 export function parseColorTheme(value: string | null): ColorTheme {
 	if (value === "gruvbox") return "solarized";
 	return colorThemes.find((theme) => theme.id === value)?.id ?? defaultColorTheme;

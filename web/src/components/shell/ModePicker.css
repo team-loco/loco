@@ -1,0 +1,27 @@
+.mt-thumb {
+	position: absolute;
+	z-index: 4;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--fg);
+	height: 24px;
+	border-radius: 99px;
+	background: var(--raise);
+	box-shadow:
+		0 0 0 1px color-mix(in oklch, var(--fg) 9%, transparent),
+		0 1px 3px color-mix(in oklch, var(--fg) 12%, transparent);
+	transition: left 320ms cubic-bezier(0.32, 0.72, 0, 1);
+	pointer-events: none;
+}
+.dark .mt-thumb {
+	background: var(--panel2);
+	box-shadow:
+		0 0 0 1px var(--line2),
+		0 1px 3px color-mix(in oklch, var(--bg) 40%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+	.mt-thumb {
+		transition: none;
+	}
+}

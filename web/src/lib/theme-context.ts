@@ -6,7 +6,6 @@ export interface ThemeContextType {
 	theme: ResolvedTheme;
 	mode: Mode;
 	setMode: (mode: Mode) => void;
-	toggle: () => void;
 	color: ColorTheme;
 	setColor: (color: ColorTheme) => void;
 }

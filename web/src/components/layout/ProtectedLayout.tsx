@@ -7,6 +7,7 @@ import { nextPathState } from "@/auth/next";
 import { ClaimedOrgsBanner } from "@/components/ClaimedOrgsBanner";
 import { ErrorCard } from "@/components/ErrorCard";
 import { AppShell } from "@/components/shell/AppShell";
+import { KeyboardShortcutsProvider } from "@/components/shell/KeyboardShortcuts";
 import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
@@ -81,15 +82,17 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 
 	return (
 		<ContextProvider availableOrgs={orgs} availableWorkspaces={workspaces} workspacesSettled={workspacesSettled}>
-			<CommandPaletteProvider>
-				{routeNotFound ? (
-					<NotFound unknownWorkspace />
-				) : (
-					<NotFoundBoundary path={pathname}>
-						<AppShell>{children}</AppShell>
-					</NotFoundBoundary>
-				)}
-			</CommandPaletteProvider>
+			<KeyboardShortcutsProvider>
+				<CommandPaletteProvider>
+					{routeNotFound ? (
+						<NotFound unknownWorkspace />
+					) : (
+						<NotFoundBoundary path={pathname}>
+							<AppShell>{children}</AppShell>
+						</NotFoundBoundary>
+					)}
+				</CommandPaletteProvider>
+			</KeyboardShortcutsProvider>
 			<ClaimedOrgsBanner />
 		</ContextProvider>
 	);

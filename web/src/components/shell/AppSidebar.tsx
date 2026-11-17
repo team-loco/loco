@@ -1,6 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import {
 	BookOpenIcon,
+	KeyboardIcon,
 	SearchIcon,
 	Building2Icon,
 	ChevronsUpDownIcon,
@@ -47,7 +48,7 @@ import {
 } from "@/components/design/Sidebar";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { expandOrgLink } from "@/lib/org-links";
-import { colorThemes, modes, nextMode, parseColorTheme, type Mode } from "@/lib/theme";
+import { colorThemes, parseColorTheme } from "@/lib/theme";
 import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/lib/use-theme";
@@ -57,7 +58,8 @@ import { useNavSections } from "./nav";
 import { SidebarToggle } from "./SidebarToggle";
 import { Kbd } from "@/components/design/Kbd";
 import { SHORTCUT_LABEL, useOpenPalette } from "./CommandMenu";
-import { ThemeIcon } from "./ThemeIcon";
+import { ModePicker } from "./ModePicker";
+import { useOpenShortcuts } from "./KeyboardShortcuts";
 
 interface NavItem {
 	name: string;
@@ -85,8 +87,8 @@ function preloadPage(load: (() => Promise<unknown>) | undefined) {
 export function AppSidebar() {
 	const navigate = useNavigate();
 	const { user, logout } = useAuth();
-	const { theme, mode, toggle, color, setColor } = useTheme();
-	const next = nextMode(mode);
+	const { theme, color, setColor } = useTheme();
+	const openShortcuts = useOpenShortcuts();
 	const openPalette = useOpenPalette();
 	const { isMobile, setOpenMobile } = useSidebar();
 	const dark = theme === "dark";
@@ -237,6 +239,9 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
+							<MenuLink icon={<KeyboardIcon />} onClick={openShortcuts}>
+								Keyboard shortcuts
+							</MenuLink>
 							<ExternalMenuLink icon={<BookOpenIcon />} href="https://github.com/team-loco/loco">
 								Documentation
 							</ExternalMenuLink>
@@ -246,9 +251,7 @@ export function AppSidebar() {
 						</MenuGroup>
 						<MenuSeparator />
 						<MenuGroup>
-							<MenuLink icon={<ThemeIcon mode={MODE_ICONS[next]} />} onClick={toggle} closeOnClick={false}>
-								{`${modes.find((item) => item.id === next)?.name ?? ""} mode`}
-							</MenuLink>
+							<ModePicker />
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger className={cn(menuItem, "gap-2 [&>svg:last-child]:ml-0")}>
 									<span className="flex-1">Color theme</span>
@@ -304,7 +307,6 @@ function MenuSeparator() {
 }
 
 const menuItem = "h-10 justify-between rounded-none px-4 text-[14px]";
-const MODE_ICONS: Record<Mode, "sun" | "moon" | "monitor"> = { light: "sun", dark: "moon", system: "monitor" };
 
 function MenuLink({
 	icon,

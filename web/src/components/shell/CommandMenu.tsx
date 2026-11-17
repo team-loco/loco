@@ -2,6 +2,8 @@ import { Scope } from "@gen/loco/token/v1/token_pb";
 import { useQuery } from "@tanstack/react-query";
 import {
 	Building2Icon,
+	KeyboardIcon,
+	SunMoonIcon,
 	ChartLineIcon,
 	CornerDownLeftIcon,
 	KeyRoundIcon,
@@ -16,7 +18,7 @@ import {
 	WaypointsIcon,
 	WebhookIcon,
 } from "lucide-react";
-import { createContext, use, useEffect, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryState } from "nuqs";
 import { useLocation, useNavigate } from "react-router";
 
@@ -52,17 +54,18 @@ import {
 	switchWorkspacePath,
 	type ObservabilityView,
 } from "@/lib/routes";
+import { shortcutLabel } from "@/lib/keyboard";
 import { colorThemes, modes } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
+
+import { useOpenShortcuts } from "./KeyboardShortcuts";
 
 import { useNavSections } from "./nav";
 
 const SHORTCUT_KEY = "k";
-const IS_MAC = /Mac|iPhone|iPad/.test(navigator.userAgent);
-export const shortcutLabel = (key: string) => (IS_MAC ? `⌘${key}` : `Ctrl ${key}`);
 export const SHORTCUT_LABEL = shortcutLabel("K");
-const PLACEHOLDER = "Search resources, pages and actions";
-const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces", "Appearance"] as const;
+const PLACEHOLDER = "Search pages, resources and actions";
+const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces", "Appearance", "Help"] as const;
 const BROWSE_LIMIT = 8;
 
 interface PaletteItem {
@@ -72,7 +75,8 @@ interface PaletteItem {
 	keywords?: string;
 	meta?: string | undefined;
 	icon: ReactNode;
-	run: () => void;
+	run: (() => void) | "mode" | "theme";
+	list?: "mode" | "theme";
 	// Shown only once the person types, so browsing lists each resource once.
 	searchOnly?: boolean;
 }
@@ -85,6 +89,7 @@ const RESOURCE_VIEWS: { view: ObservabilityView; label: string; icon: ReactNode 
 
 function usePaletteItems(open: boolean): PaletteItem[] {
 	const navigate = useNavigate();
+	const openShortcuts = useOpenShortcuts();
 	const { pathname, search } = useLocation();
 	const [env] = useQueryState("env");
 	const { mode, setMode, color, setColor } = useTheme();
@@ -227,11 +232,42 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		});
 	}
 
+	items.push(
+		{
+			id: "set-mode",
+			group: "Appearance",
+			label: "Set mode…",
+			keywords: "appearance dark light system",
+			meta: modes.find((item) => item.id === mode)?.name,
+			icon: <SunMoonIcon />,
+			run: "mode",
+		},
+		{
+			id: "set-theme",
+			group: "Appearance",
+			label: "Set theme…",
+			keywords: "appearance color colour",
+			meta: colorThemes.find((item) => item.id === color)?.name,
+			icon: <PaletteIcon />,
+			run: "theme",
+		},
+		{
+			id: "keyboard-shortcuts",
+			group: "Help",
+			label: "Keyboard shortcuts",
+			keywords: "keys hotkeys help",
+			meta: "?",
+			icon: <KeyboardIcon />,
+			run: openShortcuts,
+		},
+	);
+
 	for (const m of modes) {
 		items.push({
 			id: `mode-${m.id}`,
+			list: "mode",
 			group: "Appearance",
-			label: `${m.name} mode`,
+			label: m.name,
 			keywords: `appearance theme mode${m.id === "system" ? " auto os" : ""}`,
 			meta: mode === m.id ? "current" : undefined,
 			icon: <ModeIcon mode={m.id} />,
@@ -243,8 +279,9 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	for (const t of colorThemes) {
 		items.push({
 			id: `color-${t.id}`,
+			list: "theme",
 			group: "Appearance",
-			label: `${t.name} theme`,
+			label: t.name,
 			keywords: "appearance color colour theme",
 			meta: color === t.id ? "current" : undefined,
 			icon: <PaletteIcon />,
@@ -259,15 +296,57 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 
 function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClose: () => void }) {
 	const [query, setQuery] = useState("");
+	const [selected, setSelected] = useState("");
+	const [list, setList] = useState<"mode" | "theme" | null>(null);
+	const inputRef = useRef<HTMLInputElement>(null);
+	const placeholder = list === null ? PLACEHOLDER : `Choose a ${list}`;
+	const back = () => {
+		setList(null);
+		setSelected("");
+		setQuery("");
+		inputRef.current?.focus();
+	};
 	const browsing = query.trim() === "";
 	const groups = PALETTE_GROUPS.filter((group) => !browsing || group !== "Workspaces").map((group) => {
-		const inGroup = items.filter((item) => item.group === group && !(browsing && item.searchOnly === true));
+		const inGroup = items.filter(
+			(item) => item.group === group && (item.list ?? null) === list && !(browsing && item.searchOnly === true),
+		);
 		return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
 	});
 
 	return (
-		<Command label={PLACEHOLDER} filter={scorePaletteItem}>
-			<CommandInput value={query} onValueChange={setQuery} placeholder={PLACEHOLDER}>
+		<Command
+			value={selected}
+			onValueChange={setSelected}
+			label={placeholder}
+			filter={scorePaletteItem}
+			onKeyDownCapture={(event) => {
+				if (list !== null && (event.key === "Escape" || (event.key === "Backspace" && query === ""))) {
+					event.preventDefault();
+					event.stopPropagation();
+					back();
+				}
+			}}
+		>
+			<CommandInput
+				ref={inputRef}
+				value={query}
+				onValueChange={setQuery}
+				placeholder={placeholder}
+				leading={
+					list !== null ? (
+						<Button
+							variant="ghost"
+							size="xs"
+							className="cmd-crumb h-6 shrink-0 bg-panel2 px-2 text-[12.5px] text-foreground hover:bg-line"
+							aria-label="Back to all commands"
+							onClick={back}
+						>
+							{list === "mode" ? "Mode" : "Theme"}
+						</Button>
+					) : undefined
+				}
+			>
 				<Kbd>esc</Kbd>
 			</CommandInput>
 			<CommandList label="Results">
@@ -275,15 +354,21 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 				{groups.map(
 					(g) =>
 						g.items.length > 0 && (
-							<CommandGroup key={g.group} heading={g.group}>
+							<CommandGroup key={g.group} heading={list === "mode" ? "Mode" : list === "theme" ? "Theme" : g.group}>
 								{g.items.map((item) => (
 									<CommandItem
 										key={item.id}
 										value={item.id}
 										keywords={[item.label, item.keywords ?? ""]}
 										onSelect={() => {
-											onClose();
-											item.run();
+											if (typeof item.run === "string") {
+												setList(item.run);
+												setSelected(items.find((option) => option.list === item.run)?.id ?? "");
+												setQuery("");
+											} else {
+												onClose();
+												item.run();
+											}
 										}}
 									>
 										<span aria-hidden className="flex w-4 justify-center text-fg3">
@@ -315,7 +400,7 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 				</span>
 				<span className="flex items-center gap-1.5">
 					<Kbd>esc</Kbd>
-					to close
+					{list === null ? "to close" : "to go back"}
 				</span>
 			</CommandFooter>
 		</Command>
