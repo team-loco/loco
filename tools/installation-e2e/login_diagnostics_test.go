@@ -194,3 +194,16 @@ func TestSignInDNSRetryHonorsContext(t *testing.T) {
 		t.Fatalf("bounded DNS retry: %v, %q", loginErr, output)
 	}
 }
+
+func TestSignInCancelsBlockedDeviceCodeRequest(t *testing.T) {
+	fakeLocoadm(t, "", "", "exec sleep 30")
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	var loginErr error
+	captureStderr(t, func() {
+		loginErr = signIn(ctx, func(context.Context, string) error { t.Fatal("unexpected approval"); return nil })
+	})
+	if !errors.Is(loginErr, context.DeadlineExceeded) {
+		t.Fatalf("blocked device request: %v", loginErr)
+	}
+}

@@ -246,8 +246,8 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
 		}
 	}()
-	deadline := time.NewTimer(gatewayReadyTimeout)
-	defer deadline.Stop()
+	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
+	defer cancel()
 	retry := time.NewTicker(time.Second)
 	defer retry.Stop()
 	for {
@@ -281,15 +281,19 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 		if loginErr == nil {
 			return nil
 		}
+		if ctx.Err() != nil {
+			return errors.Join(loginErr, ctx.Err())
+		}
 		if approvalStarted || classifyLoginFailure(stderr.Bytes()) != loginFailureDNS {
 			return loginErr
 		}
 		select {
 		case <-ctx.Done():
 			return errors.Join(loginErr, ctx.Err())
-		case <-deadline.C:
-			return loginErr
 		case <-retry.C:
+			if ctx.Err() != nil {
+				return errors.Join(loginErr, ctx.Err())
+			}
 		}
 	}
 }
