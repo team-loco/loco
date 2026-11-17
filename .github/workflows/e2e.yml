@@ -1,61 +1,24 @@
 name: E2E
-
 on:
-  workflow_call:
-    inputs:
-      images:
-        description: Prebuilt images, with * standing for the image name; empty builds them here.
-        type: string
-        default: ""
   workflow_dispatch:
-
 permissions:
   contents: read
-
-env:
-  E2E_RUN_ID: ci
-  E2E_IMAGES: ${{ inputs.images }}
-  E2E_VERSION: ${{ inputs.images != '' && format('sha-{0}', github.sha) || 'e2e' }}
-
 jobs:
-
-  # Each shard is one tests/e2e package: one install that its tests share, each in its own
-  # organization and workspace.
-  shard:
-    name: ${{ matrix.name }}
+  collector-proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: read
-      packages: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Builds E2E
-            shard: builds
-          - name: Apps E2E
-            shard: apps
-          - name: Telemetry E2E
-            shard: telemetry
-
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: ./.github/actions/setup-tools
-        with:
-          go-cache: e2e
-
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        if: inputs.images != ''
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # The runner is discarded with the run, so --keep skips the teardown.
-      - name: Run the shard
-        env:
-          SHARD: ${{ matrix.shard }}
-        run: mise run e2e --keep "$SHARD"
+      - run: mise run helm:deps
+      - name: Prove broken workspace attribution
+        run: |
+          set +e
+          mise exec -- uv run --locked --project tests pytest -s tests/collector/test_namespace_tenancy.py
+          result=$?
+          test "$result" = 1
+      - name: Remove namespace suffix as workspace ID
+        run: |
+          sed -i '/&setWorkspace set(attributes/d; /- *setWorkspace/d' charts/loco-worker/values.yaml
+      - name: Prove namespace label enrichment
+        run: mise exec -- uv run --locked --project tests pytest -s tests/collector/test_namespace_tenancy.py

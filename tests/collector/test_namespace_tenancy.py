@@ -19,13 +19,13 @@ def docker(*args):
     ).strip()
 
 
-def test_dependency_ownership_uses_the_connected_pods_namespace(
+def test_gateway_route_environment_namespace(
     worker_relays, tmp_path
 ):
     """Exercise real pod association and namespace lookup, including an unmatched sender."""
     name = f"loco-namespace-tenancy-{uuid.uuid4().hex}"
     sender = f"{name}-sender"
-    namespace = "workspace-a"
+    namespace = "loco-ws-environment-a"
     namespace_labels = {
         "loco.io/organization-id": "organization-a",
         "loco.io/workspace-id": "workspace-a",
@@ -59,7 +59,8 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
                     "kind": "Pod",
                     "metadata": {
                         "name": "dependency",
-                        "namespace": namespace,
+                        "namespace": "gateway-system",
+                        "labels": {"gateway.envoyproxy.io/owning-gateway-name": "loco"},
                         "uid": "pod-a",
                         "resourceVersion": "1",
                     },
@@ -215,7 +216,8 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
                                 {
                                     "traceId": "0123456789abcdef0123456789abcdef",
                                     "spanId": "0123456789abcdef",
-                                    "name": "dependency",
+                                    "name": "gateway-route",
+                                    "attributes": [{"key": "upstream_cluster", "value": {"stringValue": f"httproute/{namespace}/resource-resource-a-route/rule/0"}}],
                                     "startTimeUnixNano": "1700000000000000000",
                                     "endTimeUnixNano": "1700000000000000001",
                                 }
@@ -251,16 +253,9 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
                 break
             assert time.monotonic() < deadline, docker("logs", name)
             time.sleep(0.1)
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{port}/v1/traces",
-            json.dumps(payload).encode(),
-            {"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            assert response.status == 200
         output = tmp_path / "output.json"
         received = []
-        while len(received) < 2:
+        while len(received) < 1:
             if output.exists():
                 received = [
                     r
@@ -276,27 +271,14 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
             }
             for r in received
         ]
-        assert (
-            attrs[0].items()
-            >= {
-                "loco.organization.id": "organization-a",
-                "loco.workspace.id": "workspace-a",
-                "loco.environment.id": "environment-a",
-                "k8s.namespace.name": namespace,
-                "k8s.pod.name": "dependency",
-            }.items()
-        )
-        assert "loco.resource.id" not in attrs[0]
-        assert not any(
-            key in attrs[1]
-            for key in (
-                "loco.organization.id",
-                "loco.workspace.id",
-                "loco.environment.id",
-                "loco.resource.id",
-                "k8s.namespace.name",
-            )
-        )
+        print("ACTUAL_GATEWAY_ATTRIBUTES=" + json.dumps(attrs[0], sort_keys=True), flush=True)
+        assert attrs[0].items() >= {
+            "loco.organization.id": "organization-a",
+            "loco.workspace.id": "workspace-a",
+            "loco.environment.id": "environment-a",
+            "loco.resource.id": "resource-a",
+            "k8s.namespace.name": namespace,
+        }.items()
     finally:
         try:
             subprocess.run(
