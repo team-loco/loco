@@ -32,7 +32,7 @@ const (
 
 var errAgentCrashed = errors.New("agent stopped between the Application and the Secret write")
 
-func app(name, placementID, revision, phase string) *locoControllerV1.Application {
+func app(name, placementID, revision string) *locoControllerV1.Application {
 	annotations := map[string]string{}
 	if placementID != "" {
 		annotations[locoControllerV1.KeyPlacementID] = placementID
@@ -44,13 +44,13 @@ func app(name, placementID, revision, phase string) *locoControllerV1.Applicatio
 	}
 	return &locoControllerV1.Application{
 		Name: name, Namespace: testNamespace, Annotations: annotations,
-		Status: locoControllerV1.ApplicationStatus{Phase: phase, ObservedPlacementRevision: observed},
+		Status: locoControllerV1.ApplicationStatus{ObservedPlacementRevision: observed},
 	}
 }
 
 func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
 	w := newWatcher(nil, nil, testNamespace)
-	lagging := app("resource-a", "p1", "5", "Ready")
+	lagging := app("resource-a", "p1", "5")
 	lagging.Status.ObservedPlacementRevision = 4
 
 	var got []*agentv1.PlacementStatus
@@ -61,9 +61,9 @@ func TestStatusReportsTheRevisionTheControllerObserved(t *testing.T) {
 	}
 }
 
-func TestStatusForwardsReplicaChangesWithoutAPhaseChange(t *testing.T) {
+func TestStatusForwardsReadyReplicaChanges(t *testing.T) {
 	w := newWatcher(nil, nil, testNamespace)
-	application := app("resource-a", "p1", "5", "Deploying")
+	application := app("resource-a", "p1", "5")
 	application.Status.ReadyReplicas = 1
 	var got []*agentv1.PlacementStatus
 	w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
@@ -77,29 +77,9 @@ func TestStatusForwardsReplicaChangesWithoutAPhaseChange(t *testing.T) {
 		t.Fatalf("statuses = %v, want three replica changes", got)
 	}
 	for index, count := range []int32{1, 2, 0} {
-		if got[index].GetReadyReplicas() != count || got[index].GetReady() {
-			t.Errorf("status = %v, want %d ready replicas while Deploying", got[index], count)
+		if got[index].GetReadyReplicas() != count {
+			t.Errorf("status = %v, want %d ready replicas", got[index], count)
 		}
-	}
-}
-
-func TestFailedStatusCarriesTheControllerMessage(t *testing.T) {
-	const message = "The image runs as root. " +
-		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
-	w := newWatcher(nil, nil, testNamespace)
-	var got []*agentv1.PlacementStatus
-	w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
-
-	failed := app("resource-a", "p1", "3", "Failed")
-	failed.Status.Message = message
-	w.observe(failed)
-
-	if len(got) != 1 {
-		t.Fatalf("statuses = %v, want one", got)
-	}
-	status := got[0]
-	if status.GetPhase() != "Failed" || status.GetReady() || status.GetMessage() != message {
-		t.Fatalf("status = %v, want phase Failed, not ready, message %q", status, message)
 	}
 }
 
@@ -112,8 +92,8 @@ func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
 		t.Fatalf("add core scheme: %v", err)
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
-		app("resource-a", "p1", "4", ""),
-		app("resource-b", "", "", ""),
+		app("resource-a", "p1", "4"),
+		app("resource-b", "", ""),
 	).Build()
 
 	inventory, err := newWatcher(c, c, testNamespace).inventory(context.Background())
@@ -128,27 +108,29 @@ func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
 
 func TestStatusIsForwardedOnlyWhenItChanges(t *testing.T) {
 	w := newWatcher(nil, nil, testNamespace)
-	w.observe(app("resource-a", "p1", "2", "Deploying"))
+	w.observe(app("resource-a", "p1", "2"))
 
 	var got []*agentv1.PlacementStatus
 	detach := w.Attach(func(s *agentv1.PlacementStatus) { got = append(got, s) })
-	if len(got) != 1 || got[0].GetPhase() != "Deploying" || got[0].GetObservedRevision() != 2 {
+	if len(got) != 1 || got[0].GetAvailable() || got[0].GetObservedRevision() != 2 {
 		t.Fatalf("attach replay = %v", got)
 	}
 
-	w.observe(app("resource-a", "p1", "2", "Deploying"))
-	w.observe(app("resource-a", "p1", "2", "Ready"))
-	if len(got) != 2 || !got[1].GetReady() {
+	w.observe(app("resource-a", "p1", "2"))
+	available := app("resource-a", "p1", "2")
+	available.Status.Rollout = &locoControllerV1.RolloutStatus{Available: true}
+	w.observe(available)
+	if len(got) != 2 || !got[1].GetAvailable() {
 		t.Fatalf("statuses = %v, want one more, ready", got)
 	}
 
 	detach()
-	w.observe(app("resource-a", "p1", "3", "Deploying"))
+	w.observe(app("resource-a", "p1", "3"))
 	if len(got) != 2 {
 		t.Fatal("status forwarded after detach")
 	}
 
-	deleted := app("resource-a", "p1", "3", "Deploying")
+	deleted := app("resource-a", "p1", "3")
 	w.forget(deleted)
 	var replay []*agentv1.PlacementStatus
 	w.Attach(func(s *agentv1.PlacementStatus) { replay = append(replay, s) })
@@ -283,7 +265,7 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 	if err := corev1.AddToScheme(scheme); err != nil {
 		t.Fatalf("add core scheme: %v", err)
 	}
-	referencing := app("resource-a", testPlacementID, "3", "")
+	referencing := app("resource-a", testPlacementID, "3")
 	ref := &locoControllerV1.EnvSecretRef{Name: locoControllerV1.EnvSecretName(testPlacementID), Revision: 3}
 	deployment := &locoControllerV1.ServiceDeploymentSpec{EnvSecretRef: ref}
 	referencing.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{Deployment: deployment}
@@ -305,23 +287,23 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 
 func TestRuntimeConditionReportsAndReplaysRecovery(t *testing.T) {
 	w := newWatcher(nil, nil, testNamespace)
-	application := app("resource-a", "p1", "1", "Failed")
-	application.Status.RuntimeReason = locoControllerV1.RuntimeCrashLooping
-	application.Status.RuntimeMessage, _ = locoControllerV1.RuntimeProblemMessage(application.Status.RuntimeReason)
+	application := app("resource-a", "p1", "1")
+	application.Status.Rollout = &locoControllerV1.RolloutStatus{
+		Problem: &locoControllerV1.Problem{Reason: locoControllerV1.ProblemCrashLoop},
+	}
 	var got []*agentv1.PlacementStatus
 	detach := w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
 	w.observe(application)
-	if len(got) != 1 || got[0].GetRuntimeReason() != application.Status.RuntimeReason ||
-		got[0].GetRuntimeMessage() != application.Status.RuntimeMessage {
-		t.Fatalf("reported = %v", got)
+	if len(got) != 1 || got[0].GetProblem().GetReason() != string(locoControllerV1.ProblemCrashLoop) {
+		t.Fatalf("reported=%v", got)
 	}
+
 	detach()
-	application.Status.RuntimeReason = ""
-	application.Status.RuntimeMessage = ""
+	application.Status.Rollout.Problem = nil
 	w.observe(application)
 	var replay []*agentv1.PlacementStatus
 	w.Attach(func(status *agentv1.PlacementStatus) { replay = append(replay, status) })
-	if len(replay) != 1 || replay[0].GetRuntimeReason() != "" || replay[0].GetRuntimeMessage() != "" {
+	if len(replay) != 1 || replay[0].GetProblem() != nil {
 		t.Fatalf("replay = %v", replay)
 	}
 }
@@ -329,7 +311,7 @@ func TestRuntimeConditionReportsAndReplaysRecovery(t *testing.T) {
 func TestRolloutForwarding(t *testing.T) {
 	const currentReplicaName = "new"
 	w := newWatcher(nil, nil, testNamespace)
-	application := app("rollout", testPlacementID, "5", locoControllerV1.ApplicationPhaseDeploying)
+	application := app("rollout", testPlacementID, "5")
 	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 123, time.UTC))
 	application.Status.Rollout = &locoControllerV1.RolloutStatus{
 		DesiredReplicas:          2,
@@ -368,7 +350,6 @@ func TestRolloutForwarding(t *testing.T) {
 	want := &agentv1.PlacementStatus{
 		PlacementId:              testPlacementID,
 		ObservedRevision:         5,
-		Phase:                    locoControllerV1.ApplicationPhaseDeploying,
 		DesiredReplicas:          2,
 		Available:                true,
 		ProgressDeadlineExceeded: true,
@@ -413,7 +394,6 @@ func TestRolloutForwarding(t *testing.T) {
 	want = &agentv1.PlacementStatus{
 		PlacementId:      testPlacementID,
 		ObservedRevision: 5,
-		Phase:            locoControllerV1.ApplicationPhaseDeploying,
 	}
 	if len(got) != 3 || !proto.Equal(got[2], want) {
 		t.Fatalf("nil rollout=%v", got)

@@ -157,9 +157,8 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 		return &agentv1.PlacementStatus{
 			PlacementId:      p.ID.String(),
 			ObservedRevision: revision,
-			Ready:            true, Available: true,
-			ReadyReplicas: 1,
-			Phase:         testPhaseReady,
+			Available:        true,
+			ReadyReplicas:    1,
 		}
 	}
 
@@ -174,8 +173,8 @@ func TestStatusAtAnOlderRevisionDoesNotMoveTheDeployment(t *testing.T) {
 	}
 
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: 1})
-	if got := f.placement(t, f.clusterID); got.ObservedRevision != 2 || !got.Ready {
-		t.Fatalf("an older report overwrote the status: observed %d ready %v", got.ObservedRevision, got.Ready)
+	if got := f.placement(t, f.clusterID); got.ObservedRevision != 2 || got.ReadyReplicas != 1 {
+		t.Fatalf("an older report overwrote the status: observed %d ready %v", got.ObservedRevision, got.ReadyReplicas)
 	}
 }
 

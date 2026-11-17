@@ -1,196 +1,60 @@
 package controller
 
 import (
-	"context"
-	"fmt"
 	"strings"
 
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	locolabels "github.com/team-loco/loco/k8sapi/labels"
-	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	conditionDegraded              = "Degraded"
-	reasonProgressDeadlineExceeded = "ProgressDeadlineExceeded"
-	messageUnschedulable           = "The service cannot be scheduled. " +
-		"Check the region's available capacity and the service's resource requests."
-	messageProgressDeadline = "The service exceeded its rollout progress deadline. Check its replicas and logs."
-
+	reasonProgressDeadlineExceeded   = "ProgressDeadlineExceeded"
 	reasonCreateContainerConfigError = "CreateContainerConfigError"
 	reasonImagePullBackOff           = "ImagePullBackOff"
 	reasonErrImagePull               = "ErrImagePull"
 	reasonInvalidImageName           = "InvalidImageName"
 	reasonCrashLoopBackOff           = "CrashLoopBackOff"
-
-	kubeletRootImage      = "image will run as root"
-	kubeletNonNumericUser = "non-numeric user"
-
-	messageRootImage = "The image runs as root. " +
-		"Loco runs containers as a non-root user; use an image that sets a non-root USER."
-	messageNonNumericUser = "The image sets its USER by name. " +
-		"Loco runs containers as a non-root user and needs a numeric USER, such as USER 1000, to check it."
-	messageConfigError     = "The service could not start with this image and its settings."
-	messageImagePullFailed = "Loco could not pull the image. " +
-		"Check that the image name and tag exist and that the registry allows access."
-	messageInvalidImage = "The image name is not valid."
-	messageCrashLoop    = "The service keeps exiting soon after it starts. Check its logs for the error."
+	kubeletRootImage                 = "image will run as root"
+	kubeletNonNumericUser            = "non-numeric user"
 )
 
-type stuckReplica struct {
-	reason  string
-	detail  string
-	message string
-}
-
-func stuckMessage(reason, detail string) (string, bool) {
+func waitingProblemReason(reason, detail string) loco.ProblemReason {
 	switch reason {
 	case reasonCreateContainerConfigError:
-		return configErrorMessage(detail), true
-	case reasonImagePullBackOff:
-		return messageImagePullFailed, true
-	case reasonErrImagePull:
-		return messageImagePullFailed, true
-	case reasonInvalidImageName:
-		return messageInvalidImage, true
+		return configErrorReason(detail)
+	case reasonImagePullBackOff, reasonErrImagePull, reasonInvalidImageName:
+		return loco.ProblemImagePullFailed
 	case reasonCrashLoopBackOff:
-		return messageCrashLoop, true
+		return loco.ProblemCrashLoop
 	default:
+		return ""
+	}
+}
+
+func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (string, bool) {
+	if dep.Status == nil {
 		return "", false
 	}
-}
-
-func configErrorMessage(detail string) string {
-	if configErrorReason(detail) == locov1alpha1.ProblemImageUser && strings.Contains(detail, kubeletRootImage) {
-		return messageRootImage
-	}
-	if configErrorReason(detail) == locov1alpha1.ProblemImageUser {
-		return messageNonNumericUser
-	}
-	return messageConfigError
-}
-
-func (r *ApplicationReconciler) findStuckReplica(
-	ctx context.Context,
-	app *locov1alpha1.Application,
-	envSecretRevision string,
-	deadlineExpired bool,
-) (stuckReplica, bool, error) {
-	namespace := r.workspaceNamespace(app)
-	name := locov1alpha1.ApplicationName(app.Spec.ResourceID)
-	var pods corev1.PodList
-	selector := client.MatchingLabels{labelApp: name}
-	if err := r.List(ctx, &pods, client.InNamespace(namespace), selector); err != nil {
-		return stuckReplica{}, false, fmt.Errorf("list pods %s/%s: %w", namespace, name, err)
-	}
-	image := app.Spec.ServiceSpec.Deployment.Image
-	for i := range pods.Items {
-		pod := &pods.Items[i]
-		if !runsCurrentTemplate(pod, image, envSecretRevision) {
-			continue
-		}
-		if stuck, ok := stuckContainer(pod); ok {
-			if !deadlineExpired && (stuck.reason == reasonErrImagePull || stuck.reason == reasonImagePullBackOff) {
-				continue
-			}
-			return stuck, true, nil
-		}
-	}
-	return stuckReplica{}, false, nil
-}
-
-func runsCurrentTemplate(pod *corev1.Pod, image, envSecretRevision string) bool {
-	if pod.DeletionTimestamp != nil {
-		return false
-	}
-	if pod.Annotations[locolabels.AnnotationEnvSecretRevision] != envSecretRevision {
-		return false
-	}
-	for _, container := range pod.Spec.Containers {
-		if container.Image != image {
-			return false
-		}
-	}
-	return true
-}
-
-func stuckContainer(pod *corev1.Pod) (stuckReplica, bool) {
-	for _, condition := range pod.Status.Conditions {
-		if condition.Type == corev1.PodScheduled &&
-			condition.Status == corev1.ConditionFalse &&
-			condition.Reason == corev1.PodReasonUnschedulable {
-			message := messageUnschedulable
-			if condition.Message != "" {
-				message += " " + condition.Message
-			}
-			return stuckReplica{reason: condition.Reason, detail: condition.Message, message: message}, true
-		}
-	}
-	for _, status := range pod.Status.ContainerStatuses {
-		waiting := status.State.Waiting
-		if waiting == nil {
-			continue
-		}
-		message, ok := stuckMessage(waiting.Reason, waiting.Message)
-		if !ok {
-			continue
-		}
-		return stuckReplica{reason: waiting.Reason, detail: waiting.Message, message: message}, true
-	}
-	return stuckReplica{}, false
-}
-
-func setDegraded(app *locov1alpha1.Application, stuck stuckReplica) {
-	condition := metav1.Condition{
-		Type:               conditionDegraded,
-		Status:             metav1.ConditionTrue,
-		Reason:             stuck.reason,
-		Message:            stuck.detail,
-		ObservedGeneration: app.Generation,
-	}
-	meta.SetStatusCondition(&app.Status.Conditions, condition)
-}
-
-func clearDegraded(app *locov1alpha1.Application) {
-	meta.RemoveStatusCondition(&app.Status.Conditions, conditionDegraded)
-}
-
-func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (stuckReplica, bool) {
-	if dep.Status == nil {
-		return stuckReplica{}, false
-	}
 	generation := ptr.Deref(dep.Generation, 0)
-	observed := ptr.Deref(dep.Status.ObservedGeneration, 0)
-	if generation <= 0 || observed != generation {
-		return stuckReplica{}, false
+	if generation <= 0 || ptr.Deref(dep.Status.ObservedGeneration, 0) != generation {
+		return "", false
 	}
 	for _, condition := range dep.Status.Conditions {
-		conditionType := ptr.Deref(condition.Type, "")
-		status := ptr.Deref(condition.Status, "")
-		reason := ptr.Deref(condition.Reason, "")
-		if conditionType == appsv1.DeploymentProgressing &&
-			status == corev1.ConditionFalse && reason == reasonProgressDeadlineExceeded {
-			detail := ptr.Deref(condition.Message, "")
-			return stuckReplica{
-				reason:  reason,
-				detail:  detail,
-				message: messageProgressDeadline,
-			}, true
+		if ptr.Deref(condition.Type, "") == appsv1.DeploymentProgressing &&
+			ptr.Deref(condition.Status, "") == corev1.ConditionFalse &&
+			ptr.Deref(condition.Reason, "") == reasonProgressDeadlineExceeded {
+			return ptr.Deref(condition.Message, ""), true
 		}
 	}
-	return stuckReplica{}, false
+	return "", false
 }
 
-func configErrorReason(detail string) locov1alpha1.ProblemReason {
+func configErrorReason(detail string) loco.ProblemReason {
 	if strings.Contains(detail, kubeletRootImage) || strings.Contains(detail, kubeletNonNumericUser) {
-		return locov1alpha1.ProblemImageUser
+		return loco.ProblemImageUser
 	}
-	return locov1alpha1.ProblemConfigError
+	return loco.ProblemConfigError
 }

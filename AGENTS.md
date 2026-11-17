@@ -36,7 +36,7 @@ Loco separates the control plane (platform state and APIs) from the data plane (
 
 ### Data plane (`charts/loco-worker/`)
 
-- **`agent/`**: In-cluster bridge to the control plane: apply desired applications and builds, report runtime status, and renew telemetry credentials.
+- **`agent/`**: In-cluster bridge to the control plane: apply desired applications and builds, report rollout replicas, problems and build stages, and renew telemetry credentials.
 - **`controller/`**: Kubebuilder operators: reconcile `Application` CRs into workloads, services, routing and network policies; reconcile `Build` CRs into BuildKit jobs.
 - **`builder/`**: Runs inside build jobs: fetch source, restore build cache, and push built images and cache to the registry. BuildKit builds the images.
 - Application workloads run here, alongside Envoy Gateway for ingress, cert-manager for certificates and OpenTelemetry collectors exporting to the control plane.

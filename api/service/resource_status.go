@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
@@ -118,7 +120,10 @@ func regionStatus(
 	default:
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE
 	}
-	region.Message = regionMessage(row, region.GetStatus())
+	region.Message, err = regionMessage(row, region.GetStatus())
+	if err != nil {
+		return nil, err
+	}
 	if region.GetStatus() == resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY && len(row.UnservedDomains) > 0 {
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED
 		region.Message = new(regionMessageDomainsUnserved + strings.Join(row.UnservedDomains, ", "))
@@ -158,15 +163,17 @@ func clusterSilence(row genDb.ListRegionStatusesForResourcesRow, now time.Time, 
 	return ""
 }
 
-func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev1.ResourceStatus) *string {
-	if row.DeploymentStatus == genDb.DeploymentStatusFailed && row.DeploymentProblemDetail != "" {
-		return new(row.DeploymentProblemDetail)
+func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev1.ResourceStatus) (*string, error) {
+	var problem *agentv1.ProblemReport
+	if err := json.Unmarshal(row.Problem, &problem); err != nil {
+		return nil, fmt.Errorf("decode stored rollout: %w", err)
 	}
-	if row.StatusMessage != "" && (status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY ||
+	if problem != nil && (status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY ||
 		row.DeploymentStatus == genDb.DeploymentStatusFailed) {
-		return new(row.StatusMessage)
+		message := problemReportMessage(problem)
+		return new(message), nil
 	}
-	return nil
+	return nil, nil
 }
 
 func summarizeRegions(regions []*resourcev1.RegionStatus) (resourcev1.ResourceStatus, error) {

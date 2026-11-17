@@ -44,6 +44,7 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 
 		app := isolationTestApplication("ws-route-watch", "route-watch")
 		namespace := testWorkspaceNamespace(app)
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "1"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		seed := &ApplicationReconciler{
@@ -85,7 +86,8 @@ var _ = Describe("Application manager HTTPRoutes", func() {
 		appKey := client.ObjectKeyFromObject(app)
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-			g.Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseReady))
+			g.Expect(app.Status.Rollout).NotTo(BeNil())
+			g.Expect(app.Status.Rollout.Available).To(BeTrue())
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
 		appVersion, depVersion := app.ResourceVersion, dep.ResourceVersion
 		route := &v1Gateway.HTTPRoute{}

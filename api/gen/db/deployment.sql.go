@@ -732,7 +732,7 @@ func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resource
 }
 
 const placementForDeployment = `-- name: PlacementForDeployment :one
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready, ready_replicas, runtime_reason, runtime_message, status_phase, status_message, status_updated_at, created_at, updated_at FROM placements WHERE deployment_id = $1 AND NOT desired_deleted
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_at, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements WHERE deployment_id = $1 AND NOT desired_deleted
 `
 
 func (q *Queries) PlacementForDeployment(ctx context.Context, deploymentID *uuid.UUID) (Placement, error) {
@@ -756,12 +756,8 @@ func (q *Queries) PlacementForDeployment(ctx context.Context, deploymentID *uuid
 		&i.ApplyAttempts,
 		&i.ApplyFailed,
 		&i.ObservedRevision,
-		&i.Ready,
 		&i.ReadyReplicas,
-		&i.RuntimeReason,
-		&i.RuntimeMessage,
-		&i.StatusPhase,
-		&i.StatusMessage,
+		&i.ProblemReason,
 		&i.StatusUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,

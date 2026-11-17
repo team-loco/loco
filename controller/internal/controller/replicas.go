@@ -41,14 +41,14 @@ func classifyReplica(pod *corev1.Pod, recoveryWindow time.Duration, now time.Tim
 	for _, status := range pod.Status.ContainerStatuses {
 		waiting := status.State.Waiting
 		if waiting != nil {
-			if _, ok := stuckMessage(waiting.Reason, waiting.Message); ok {
+			if waitingProblemReason(waiting.Reason, waiting.Message) != "" {
 				result.State = loco.ReplicaFailing
 				result.Detail = waiting.Reason + ": " + waiting.Message
 				return result
 			}
 		}
 		if status.State.Terminated != nil && status.RestartCount > 0 ||
-			status.LastTerminationState.Terminated != nil && runtimeRecoveringAt(*pod, status, recoveryWindow, now) {
+			status.LastTerminationState.Terminated != nil && replicaRecoveringAt(*pod, status, recoveryWindow, now) {
 			result.State = loco.ReplicaFailing
 			result.Detail = fmt.Sprintf("restarting · %d restarts", result.Restarts)
 			return result

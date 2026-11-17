@@ -8256,30 +8256,10 @@
             "title": "observed_revision",
             "format": "int64"
           },
-          "ready": {
-            "type": "boolean",
-            "title": "ready"
-          },
           "readyReplicas": {
             "type": "integer",
             "title": "ready_replicas",
             "format": "int32"
-          },
-          "phase": {
-            "type": "string",
-            "title": "phase"
-          },
-          "message": {
-            "type": "string",
-            "title": "message"
-          },
-          "runtimeReason": {
-            "type": "string",
-            "title": "runtime_reason"
-          },
-          "runtimeMessage": {
-            "type": "string",
-            "title": "runtime_message"
           },
           "desiredReplicas": {
             "type": "integer",

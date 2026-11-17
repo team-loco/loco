@@ -522,8 +522,8 @@ INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,
 VALUES({q(cluster_id)},{q('evidence-' + cluster_id)},{q(deployment['region'])},'fixture',true,false,'healthy',NOW(),{q(env['type'])});
 INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,started_at)
 VALUES({q(deployment_id)},{q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{runtime['minReplicas']},{q(deployment['status'])},true,{q(env['id'])},{q(json.dumps(runtime))},1,'user',{q(owner['id'])},'web',NOW());
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,ready,ready_replicas,status_phase,status_updated_at)
-VALUES({q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{q(deployment_id)},{q(env['id'])},{q(json.dumps({'app_spec': app}))},1,1,{str(deployment['phase'] == 'Ready').lower()},{deployment['ready_replicas']},{q(deployment['phase'])},NOW());
+INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,ready_replicas,status_updated_at)
+VALUES({q(resource_id)},{q(cluster_id)},{q(deployment['region'])},{q(deployment_id)},{q(env['id'])},{q(json.dumps({'app_spec': app}))},1,1,{deployment['ready_replicas']},NOW());
 COMMIT;""")
     return resources
 

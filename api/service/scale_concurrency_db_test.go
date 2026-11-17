@@ -21,7 +21,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, initial); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, testPhaseReady, true)
+	f.reportRollout(t, false, true)
 	server := NewDeploymentServer(
 		f.pool,
 		f.queries,

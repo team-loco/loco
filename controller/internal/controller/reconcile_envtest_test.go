@@ -112,7 +112,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(envSecretRequeue))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
+		Expect(app.Status.Rollout == nil || !app.Status.Rollout.Available).To(BeTrue())
 		dep := &appsv1.Deployment{}
 		err = k8sClient.Get(ctx, depKey, dep)
 		Expect(apierrors.IsNotFound(err)).To(BeTrue(), "a Deployment was created before its secrets arrived")
@@ -179,7 +179,7 @@ var _ = Describe("Application reconcile", func() {
 		err = k8sClient.Get(ctx, gatewayPolicyKey, &networkingv1.NetworkPolicy{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
+		Expect(app.Status.Rollout == nil || !app.Status.Rollout.Available).To(BeTrue())
 		Expect(app.Finalizers).To(ConsistOf(locov1alpha1.FinalizerAppResourcesCleanup))
 		depVersion := dep.ResourceVersion
 		appVersion := app.ResourceVersion
@@ -382,8 +382,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(result.RequeueAfter).To(Equal(registryPullSecretRequeue))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseDeploying))
-		Expect(app.Status.Message).To(Equal(messageRegistryPullSecretWait))
+		Expect(app.Status.Rollout == nil || !app.Status.Rollout.Available).To(BeTrue())
 		err = k8sClient.Get(ctx, copyKey, &corev1.Secret{})
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
@@ -410,7 +409,6 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Get(ctx, saKey, sa)).To(Succeed())
 		Expect(sa.ImagePullSecrets).To(ConsistOf(corev1.LocalObjectReference{Name: workspacePullSecretName}))
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Message).NotTo(Equal(messageRegistryPullSecretWait))
 
 		renewed := []byte(`{"auths":{"registry.example.com":{"username":"loco-pull","password":"second"}}}`)
 		source.Data = map[string][]byte{corev1.DockerConfigJsonKey: renewed}
@@ -552,7 +550,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(err).To(HaveOccurred())
 		Expect(errors.Is(err, reconcile.TerminalError(nil))).To(BeTrue())
 		Expect(k8sClient.Get(ctx, appKey, app)).To(Succeed())
-		Expect(app.Status.Phase).To(Equal(locov1alpha1.ApplicationPhaseFailed))
+		Expect(app.Status.Rollout.Problem.Reason).To(Equal(locov1alpha1.ProblemConfigError))
 
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		_, err = r.Reconcile(ctx, req)
@@ -602,24 +600,22 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		stale := app.DeepCopy()
 		rolledOut := metav1.NewTime(time.Date(2026, time.January, 2, 3, 4, 5, 0, time.UTC))
-		app.Status = locov1alpha1.ApplicationStatus{
-			Phase:       locov1alpha1.ApplicationPhaseReady,
-			Message:     "Deployment ready",
-			StartedAt:   &rolledOut,
-			CompletedAt: &rolledOut,
-			UpdatedAt:   &rolledOut,
+		app.Status.Rollout = &locov1alpha1.RolloutStatus{
+			Available: true,
+			Replicas: []locov1alpha1.ReplicaStatus{
+				{UID: "serving", State: locov1alpha1.ReplicaServing, StateSince: &rolledOut},
+			},
 		}
 		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
 		r := &ApplicationReconciler{Client: k8sClient}
 		restamped := stale.DeepCopy()
-		setPhase(restamped, locov1alpha1.ApplicationPhaseReady, "Deployment ready")
+		restamped.Status.Rollout = &locov1alpha1.RolloutStatus{Available: true}
 		err := r.patchStatus(ctx, restamped, stale)
 		Expect(apierrors.IsConflict(err)).To(BeTrue(), "patching status from a stale copy returned %v", err)
 
 		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(app), app)).To(Succeed())
-		Expect(app.Status.StartedAt.Time).To(BeTemporally("==", rolledOut.Time))
-		Expect(app.Status.CompletedAt.Time).To(BeTemporally("==", rolledOut.Time))
+		Expect(app.Status.Rollout.Replicas[0].StateSince.Time).To(BeTemporally("==", rolledOut.Time))
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 	})
 	It("rejects an Application without the values the controller requires", func() {

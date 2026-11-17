@@ -267,14 +267,14 @@ func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 	for _, count := range []int32{0, 1, 2, 0} {
 		status := appsv1ac.DeploymentStatus().WithReadyReplicas(count)
 		deployment.WithStatus(status)
-		setReplicaCounts(app, deployment)
-		if app.Status.ReadyReplicas != count || app.Status.DesiredReplicas != 2 {
+		setReadyReplicas(app, deployment)
+		if app.Status.ReadyReplicas != count {
 			t.Fatalf("status = %+v, want ready=%d desired=2", app.Status, count)
 		}
 	}
 	deployment.Status = nil
-	setReplicaCounts(app, deployment)
-	if app.Status.ReadyReplicas != 0 || app.Status.DesiredReplicas != 2 {
+	setReadyReplicas(app, deployment)
+	if app.Status.ReadyReplicas != 0 {
 		t.Fatalf("status without deployment status = %+v", app.Status)
 	}
 }
@@ -342,26 +342,6 @@ func TestEnsureHTTPRouteAttachesToTheConfiguredGateway(t *testing.T) {
 	if len(parents) != 1 || string(parents[0].Name) != testGateway ||
 		parents[0].Namespace == nil || string(*parents[0].Namespace) != testLocoNamespace {
 		t.Errorf("parent refs = %+v, want %s/%s", parents, testLocoNamespace, testGateway)
-	}
-}
-
-func TestSetPhaseOnlyTouchesStatusOnChange(t *testing.T) {
-	app := testApplication()
-	setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "waiting")
-	updatedAt := app.Status.UpdatedAt
-	if updatedAt == nil || app.Status.StartedAt == nil {
-		t.Fatal("expected timestamps to be set on the first transition")
-	}
-
-	original := app.DeepCopy()
-	setPhase(app, locov1alpha1.ApplicationPhaseDeploying, "waiting")
-	if app.Status.UpdatedAt != updatedAt || app.Status.Phase != original.Status.Phase {
-		t.Fatal("status changed although phase and message did not")
-	}
-
-	setPhase(app, locov1alpha1.ApplicationPhaseReady, "ready")
-	if app.Status.CompletedAt == nil {
-		t.Fatal("expected completedAt on the transition to ready")
 	}
 }
 

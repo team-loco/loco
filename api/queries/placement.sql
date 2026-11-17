@@ -131,10 +131,7 @@ RETURNING desired_revision;
 -- name: UpdatePlacementStatus :one
 UPDATE placements
 SET observed_revision = sqlc.arg(observed_revision),
-    ready = sqlc.arg(ready),
     ready_replicas = sqlc.arg(ready_replicas),
-    status_phase = sqlc.arg(status_phase),
-    status_message = sqlc.arg(status_message),
     status_updated_at = NOW(),
     updated_at = NOW()
 WHERE id = sqlc.arg(id)
@@ -143,7 +140,7 @@ WHERE id = sqlc.arg(id)
   AND NOT resource_suspended(placements.resource_id)
   AND sqlc.arg(observed_revision)::bigint >= observed_revision
   AND sqlc.arg(observed_revision)::bigint <= desired_revision
-RETURNING deployment_id, desired_revision;
+RETURNING deployment_id, desired_revision, resource_id, environment_id, region;
 
 -- name: NotifyClusterPlacements :exec
 SELECT pg_notify('placements', sqlc.arg(cluster_id)::text);
@@ -193,10 +190,7 @@ SET desired_revision = placements.desired_revision + 1,
     retry_after = NULL,
     apply_attempts = 0,
     apply_failed = false,
-    ready = false,
     ready_replicas = 0,
-    status_phase = '',
-    status_message = '',
     updated_at = NOW()
 FROM resources r
 JOIN workspaces w ON w.id = r.workspace_id
@@ -236,12 +230,9 @@ JOIN workspaces w ON w.id = pw.workspace_id
 WHERE pw.cluster_id = $1
 ORDER BY pw.placed_at, pw.id;
 
--- name: ChangePlacementRuntimeCondition :one
-UPDATE placements
-SET runtime_reason = sqlc.arg(reason), runtime_message = sqlc.arg(message)
-WHERE id = sqlc.arg(id)
-  AND (runtime_reason <> sqlc.arg(reason) OR runtime_message <> sqlc.arg(message))
-RETURNING resource_id, environment_id, region;
+-- name: ChangePlacementProblemReason :execrows
+UPDATE placements SET problem_reason = sqlc.arg(reason)
+WHERE id = sqlc.arg(id) AND problem_reason <> sqlc.arg(reason);
 
 -- name: LockClusterSyncGeneration :one
 SELECT sync_generation FROM clusters

@@ -28,7 +28,7 @@ func TestRolloutActivityReports(t *testing.T) {
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
 		DesiredReplicas:  1,
-		Phase:            statusPhaseRollout,
+
 		Replicas: []*agentv1.ReplicaReport{
 			{
 				Uid:               activityReplicaUID,
@@ -161,8 +161,10 @@ func TestRolloutConcurrentSequences(t *testing.T) {
 	for _, revision := range []int64{2, 3} {
 		wg.Go(func() {
 			errs <- withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
-				report := &agentv1.PlacementStatus{ObservedRevision: revision, DesiredReplicas: 1,
-					Replicas: []*agentv1.ReplicaReport{{Uid: uuid.NewString(), State: "Serving", PlacementRevision: revision}},
+				report := &agentv1.PlacementStatus{
+					ObservedRevision: revision,
+					DesiredReplicas:  1,
+					Replicas:         []*agentv1.ReplicaReport{{Uid: uuid.NewString(), State: "Serving", PlacementRevision: revision}},
 				}
 				return ingestRollout(t.Context(), qtx, id, revision, report)
 			})

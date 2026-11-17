@@ -78,27 +78,9 @@ func replicaProblem(pods []corev1.Pod, window time.Duration, now time.Time) *loc
 		if pod.DeletionTimestamp != nil {
 			continue
 		}
-		reason, _ := runtimeProblemAt([]corev1.Pod{pod}, window, now)
-		detail := runtimeReplicaDetail(pod, reason)
-		switch reason {
-		case locov1alpha1.RuntimeOutOfMemory:
-			consider(locov1alpha1.ProblemOutOfMemory, pod, detail)
-		case locov1alpha1.RuntimeCrashLooping:
-			consider(locov1alpha1.ProblemCrashLoop, pod, detail)
-		case locov1alpha1.RuntimeImagePullFailed:
-			consider(locov1alpha1.ProblemImagePullFailed, pod, detail)
-		case locov1alpha1.RuntimeUnschedulable:
-			consider(locov1alpha1.ProblemUnschedulable, pod, detail)
-		case locov1alpha1.RuntimeHealthCheckFailing:
-			consider(locov1alpha1.ProblemHealthCheckFailing, pod, detail)
-		}
-		if stuck, ok := stuckContainer(&pod); ok {
-			switch stuck.reason {
-			case reasonCreateContainerConfigError:
-				consider(configErrorReason(stuck.detail), pod, stuck.detail)
-			case reasonErrImagePull, reasonImagePullBackOff, reasonInvalidImageName:
-				consider(locov1alpha1.ProblemImagePullFailed, pod, stuck.detail)
-			}
+		reason := replicaProblemReason([]corev1.Pod{pod}, window, now)
+		if reason != "" {
+			consider(reason, pod, replicaProblemDetail(pod, reason))
 		}
 	}
 	return best
@@ -176,7 +158,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		at := metav1.NewTime(now)
 		rollout.Problem = &locov1alpha1.Problem{
 			Reason: locov1alpha1.ProblemRolloutTimeout,
-			Detail: clip.Bytes(failure.detail, 1024),
+			Detail: clip.Bytes(failure, 1024),
 			Since:  &at,
 		}
 	}
@@ -201,8 +183,8 @@ func (r *ApplicationReconciler) observeReplicas(
 	return nil
 }
 
-func runtimeReplicaDetail(pod corev1.Pod, reason string) string {
-	if reason == locov1alpha1.RuntimeHealthCheckFailing {
+func replicaProblemDetail(pod corev1.Pod, reason locov1alpha1.ProblemReason) string {
+	if reason == locov1alpha1.ProblemHealthCheckFailing {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodReady && condition.Message != "" {
 				return condition.Message
@@ -210,7 +192,7 @@ func runtimeReplicaDetail(pod corev1.Pod, reason string) string {
 		}
 		return detailWaitingForReadiness
 	}
-	if reason == locov1alpha1.RuntimeUnschedulable {
+	if reason == locov1alpha1.ProblemUnschedulable {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodScheduled {
 				return condition.Message
@@ -218,7 +200,7 @@ func runtimeReplicaDetail(pod corev1.Pod, reason string) string {
 		}
 	}
 	for _, status := range pod.Status.ContainerStatuses {
-		if reason == locov1alpha1.RuntimeOutOfMemory {
+		if reason == locov1alpha1.ProblemOutOfMemory {
 			for _, exit := range []*corev1.ContainerStateTerminated{
 				status.State.Terminated,
 				status.LastTerminationState.Terminated,
