@@ -34,7 +34,7 @@ rounded:
   DEFAULT: "6px"
   sm: "4px"
 spacing:
-  page-max: "84rem"
+  page-max: "100%"
   section-gap: "2rem"
 components:
   navigation: {}
@@ -64,7 +64,7 @@ Geist handles headings, body, and navigation; Geist Mono handles commands. Fonts
 
 ## Layout
 
-One UI container serves the docs at their canonical hostname and at the dashboard’s `/docs/` path. Separate prerendered builds with router basenames `/` and `/docs/` preserve the active entry point. The 84rem grid contains a 64px top header, a 244px desktop navigation rail, an article up to 760px including 40px side padding, and a 200px table of contents on wide screens. On narrow screens article padding is 20px. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Fumadocs owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
+One UI container serves the docs at their canonical hostname and at the dashboard’s `/docs/` path. Separate prerendered builds with router basenames `/` and `/docs/` preserve the active entry point. The full-width grid contains a 64px top header, a 244px desktop navigation rail, an article up to 760px including 32px side padding, and a 200px table of contents on wide screens. On narrow screens article padding is 20px. Sections expand by default. Neither scrolling nor changing pages hides desktop navigation. Below the upstream drawer breakpoint, Fumadocs owns the mobile navigation drawer. Tables and code scroll horizontally within their content containers.
 
 Track unfinished work in the owning repository’s GitHub issues. Do not maintain parallel HTML notes or checklists.
 
@@ -78,7 +78,7 @@ Controls and code use a 6px radius. Navigation uses 4px. Blue marks navigation a
 
 ## Components
 
-Fumadocs owns navigation, search, theme switching, page actions, code-copy feedback, and mobile drawer behavior. The notebook layout supplies the top header and responsive navigation. Custom styling adapts those owners instead of replacing their event handling. Links have hover color and visible keyboard focus. Primary and secondary actions use the same geometry. The staging notice sits in the article flow and links to production documentation without covering navigation or content. The top header links to the API reference for the current documentation environment and its dashboard. View Markdown is a small page-title utility.
+Fumadocs owns navigation, search, theme switching, page actions, code-copy feedback, and mobile drawer behavior. The notebook layout supplies the top header and responsive navigation. Custom styling adapts those owners instead of replacing their event handling. Links have hover color and visible keyboard focus. Primary and secondary actions use the same geometry. The staging notice uses an in-flow tinted callout with an information icon and blue border, linking to production documentation without covering navigation or content. The top header links to the API reference for the current documentation environment and its dashboard. API and dashboard links carry external-link arrows. The theme control uses small rectangular light, dark, and system segments. View Markdown is a small page-title utility.
 
 The table of contents is visible on wide screens without hover or a toggle. Scrollbars have global track/thumb tokens and remain operable. Reduced motion disables animation and transitions. Documentation uses sentence case and real commands; unreleased interfaces carry a visible notice that also appears in Markdown exports.
 

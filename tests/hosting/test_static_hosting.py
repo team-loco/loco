@@ -180,6 +180,14 @@ def check_docs_reading_layout(address, out_dir):
                 "family => [...document.fonts].some(font => font.family.replaceAll(/['\"]/g, '') === family && font.status === 'loaded')",
                 family,
             )
+        assert page.locator("#nd-sidebar").bounding_box()["x"] == 0
+        for label in ("API reference", "Dashboard"):
+            expect(page.get_by_role("link", name=label, exact=True).first.locator("svg")).to_be_visible()
+        page.get_by_role("button", name="Dark", exact=True).first.click()
+        expect(page.locator("html")).to_have_class(re.compile(r"dark"))
+        page.get_by_role("button", name="Light", exact=True).first.click()
+        expect(page.locator("html")).not_to_have_class(re.compile(r"dark"))
+        page.get_by_role("button", name="System", exact=True).first.click()
         article = page.locator("#nd-page")
         assert article.bounding_box()["width"] <= 780
         logo = page.get_by_role("img", name="Loco", exact=True).first

@@ -12,7 +12,7 @@ import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { getMDXComponents } from "@/components/mdx";
 import { use } from "react";
 import { Link } from "react-router";
-import { FileText } from "lucide-react";
+import { ArrowUpRight, FileText, Info } from "lucide-react";
 import NotFound from "./not-found";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -51,8 +51,11 @@ export default function Page({ loaderData }: Route.ComponentProps) {
             className="staging-banner"
             aria-label="Documentation environment"
           >
-            Staging documentation ·{" "}
-            <a href="https://docs.loco.build/">Read production docs</a>
+            <Info aria-hidden="true" size={16} />
+            <strong>Staging documentation</strong>
+            <a href="https://docs.loco.build/" className="docs-external-link">
+              Read production docs <ArrowUpRight aria-hidden="true" size={13} />
+            </a>
           </aside>
         )}
         <div className="docs-page-heading">

@@ -63,7 +63,7 @@ pre {
   color: var(--fg);
 }
 #nd-notebook-layout {
-  --fd-layout-width: 84rem;
+  --fd-layout-width: 100%;
   --fd-header-height: 64px;
 }
 #nd-subnav {
@@ -92,7 +92,7 @@ pre {
   max-width: 760px;
   justify-self: center;
   gap: 18px;
-  padding: 40px;
+  padding: 32px;
 }
 #nd-page > * {
   max-width: 100%;
@@ -123,11 +123,46 @@ pre {
   color: var(--brand);
 }
 .staging-banner {
-  padding-block: 8px;
-  border-bottom: 1px solid var(--line);
-  color: var(--fg3);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--brand) 20%, var(--line));
+  border-inline-start: 3px solid var(--brand);
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--brand) 6%, var(--bg));
+  color: var(--fg2);
   font-size: 12px;
   line-height: 1.5;
+}
+.staging-banner > svg {
+  color: var(--brand);
+  flex: none;
+}
+.staging-banner strong {
+  font-weight: 600;
+}
+.docs-external-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.docs-external-link > svg {
+  flex: none;
+}
+[data-theme-toggle] {
+  border-radius: 6px;
+  gap: 2px;
+  padding: 3px;
+}
+[data-theme-toggle] > button {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+[data-theme-toggle] svg {
+  fill: none;
 }
 .staging-banner a {
   color: var(--brand);
@@ -180,7 +215,7 @@ pre {
   content: none;
 }
 #nd-toc {
-  padding-top: 40px;
+  padding-top: 32px;
   font-size: 12px;
   line-height: 1.6;
 }

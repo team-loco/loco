@@ -1,5 +1,7 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
 
+import { ArrowUpRight } from "lucide-react";
+
 import logo from "../../../web/public/logo.svg?url";
 
 export function baseOptions(): BaseLayoutProps {
@@ -21,16 +23,27 @@ export function baseOptions(): BaseLayoutProps {
     },
     links: [
       {
-        text: "API reference",
+        text: (
+          <span className="docs-external-link">
+            API reference
+            <ArrowUpRight aria-hidden="true" size={13} />
+          </span>
+        ),
         url: origin.replace("://docs.", "://api."),
         external: true,
       },
       {
-        text: "Dashboard",
+        text: (
+          <span className="docs-external-link">
+            Dashboard
+            <ArrowUpRight aria-hidden="true" size={13} />
+          </span>
+        ),
         url: origin.replace("://docs.", "://"),
         external: true,
       },
     ],
+    themeSwitch: { mode: "light-dark-system" },
     githubUrl: "https://github.com/team-loco/loco",
   };
 }
