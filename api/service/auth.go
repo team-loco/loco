@@ -190,7 +190,7 @@ func (s *AuthServer) issue(
 		}
 		identity, err := qtx.GetIdentityByID(ctx, identityID)
 		if errors.Is(err, pgx.ErrNoRows) || err == nil && identity.UserID != grant.UserID {
-			return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+			return tvm.ErrInvalidExpiredToken
 		}
 		if err != nil {
 			return fmt.Errorf("get CLI identity: %w", err)
@@ -209,6 +209,9 @@ func (s *AuthServer) issue(
 			Data:        map[string]any{events.FieldIP: ip, events.FieldUserAgent: ua},
 		})
 	})
+	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("issue cli session: %w", err)
 	}
@@ -483,7 +486,7 @@ func (s *AuthServer) RefreshCLIToken(
 // suspension without resolving an identity or provisioning a replacement user.
 func lockCLIAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID) error {
 	if err := authz.LockUsers(ctx, qtx, userID); errors.Is(err, pgx.ErrNoRows) {
-		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+		return tvm.ErrInvalidExpiredToken
 	} else if err != nil {
 		return fmt.Errorf("lock CLI account: %w", err)
 	}
@@ -492,7 +495,7 @@ func lockCLIAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID) e
 		return fmt.Errorf("read CLI account: %w", err)
 	}
 	if user.Status != genDb.UserStatusActive {
-		return connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+		return tvm.ErrInvalidExpiredToken
 	}
 	return nil
 }
