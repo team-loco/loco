@@ -572,22 +572,27 @@ type EnvironmentKey struct {
 }
 
 type Event struct {
-	Seq           int64      `json:"seq"`
-	Txid          uint64     `json:"txid"`
-	ID            uuid.UUID  `json:"id"`
-	Type          string     `json:"type"`
-	OrgID         *uuid.UUID `json:"orgId"`
-	WorkspaceID   *uuid.UUID `json:"workspaceId"`
-	ResourceID    *uuid.UUID `json:"resourceId"`
-	EnvironmentID *uuid.UUID `json:"environmentId"`
-	ActorType     string     `json:"actorType"`
-	ActorID       *uuid.UUID `json:"actorId"`
-	SubjectType   *string    `json:"subjectType"`
-	SubjectID     *uuid.UUID `json:"subjectId"`
-	RequestID     *string    `json:"requestId"`
-	Traceparent   *string    `json:"traceparent"`
-	Data          []byte     `json:"data"`
-	CreatedAt     time.Time  `json:"createdAt"`
+	Seq            int64      `json:"seq"`
+	StreamPosition *int64     `json:"streamPosition"`
+	ID             uuid.UUID  `json:"id"`
+	Type           string     `json:"type"`
+	OrgID          *uuid.UUID `json:"orgId"`
+	WorkspaceID    *uuid.UUID `json:"workspaceId"`
+	ResourceID     *uuid.UUID `json:"resourceId"`
+	EnvironmentID  *uuid.UUID `json:"environmentId"`
+	ActorType      string     `json:"actorType"`
+	ActorID        *uuid.UUID `json:"actorId"`
+	SubjectType    *string    `json:"subjectType"`
+	SubjectID      *uuid.UUID `json:"subjectId"`
+	RequestID      *string    `json:"requestId"`
+	Traceparent    *string    `json:"traceparent"`
+	Data           []byte     `json:"data"`
+	CreatedAt      time.Time  `json:"createdAt"`
+}
+
+type EventStreamCounter struct {
+	Singleton bool  `json:"singleton"`
+	Position  int64 `json:"position"`
 }
 
 type Identity struct {

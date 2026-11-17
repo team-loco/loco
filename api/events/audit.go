@@ -19,8 +19,7 @@ type AuditQuery struct {
 	EnvironmentID *uuid.UUID
 	Start, End    *time.Time
 	BeforeSeq     int64
-	AfterTxid     uint64
-	AfterSeq      int64
+	AfterPosition int64
 	Stream        bool
 	Filter        logquery.Expr
 	Limit         int32
@@ -33,8 +32,9 @@ type AuditEvent struct {
 	ActorName  *string
 }
 
-const auditSelect = `SELECT e.seq, e.txid, e.id, e.type, e.org_id, e.workspace_id, e.resource_id, e.environment_id,
-	e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id, e.traceparent, e.data, e.created_at,
+const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id,
+	e.environment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
+	e.traceparent, e.data, e.created_at,
 	u.email, u.name
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
@@ -51,9 +51,24 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (AuditEvent, error) {
 		var event AuditEvent
 		err := row.Scan(
-			&event.Seq, &event.Txid, &event.ID, &event.Type, &event.OrgID, &event.WorkspaceID, &event.ResourceID,
-			&event.EnvironmentID, &event.ActorType, &event.ActorID, &event.SubjectType, &event.SubjectID,
-			&event.RequestID, &event.Traceparent, &event.Data, &event.CreatedAt, &event.ActorEmail, &event.ActorName,
+			&event.Seq,
+			&event.StreamPosition,
+			&event.ID,
+			&event.Type,
+			&event.OrgID,
+			&event.WorkspaceID,
+			&event.ResourceID,
+			&event.EnvironmentID,
+			&event.ActorType,
+			&event.ActorID,
+			&event.SubjectType,
+			&event.SubjectID,
+			&event.RequestID,
+			&event.Traceparent,
+			&event.Data,
+			&event.CreatedAt,
+			&event.ActorEmail,
+			&event.ActorName,
 		)
 		return event, err
 	})
@@ -84,8 +99,7 @@ func auditSQL(q AuditQuery) (string, []any) {
 		sql += " AND " + querySQL(q.Filter, b)
 	}
 	if q.Stream {
-		sql += " AND (e.txid, e.seq) > (" + b.bind(q.AfterTxid) + "::xid8, " + b.bind(q.AfterSeq) + "::bigint)"
-		sql += " AND e.txid < pg_snapshot_xmin(pg_current_snapshot()) ORDER BY e.txid, e.seq"
+		sql += " AND e.stream_position > " + b.bind(q.AfterPosition) + " ORDER BY e.stream_position"
 	} else {
 		sql += " ORDER BY e.seq DESC"
 	}

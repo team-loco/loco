@@ -187,6 +187,13 @@ func TestListOrganizationEventsAuthorizationPagingAndFilter(t *testing.T) {
 	}
 }
 
+func publishEvents(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	if err := events.Publish(t.Context(), pool); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func (f *eventFixture) streamClient(t *testing.T, asSystem *atomic.Bool) eventv1connect.EventServiceClient {
 	t.Helper()
 	systemScopes := []genDb.EntityScope{
@@ -212,6 +219,7 @@ func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
+	publishEvents(t, f.pool)
 	stream, err := client.StreamEvents(ctx, &eventv1.StreamEventsRequest{})
 	if err != nil {
 		t.Fatalf("stream: %v", err)
@@ -231,6 +239,7 @@ func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 	if recordErr := events.Record(f.owner, f.queries, events.Event{Type: events.TokenCreated}); recordErr != nil {
 		t.Fatalf("record: %v", recordErr)
 	}
+	publishEvents(t, f.pool)
 	streamMessage, receiveErr := stream.Receive()
 	if receiveErr != nil {
 		t.Fatalf("no follow-up batch: %v", receiveErr)
@@ -247,6 +256,7 @@ func TestStreamEventsRequiresSystemAndFollows(t *testing.T) {
 		); recordErr != nil {
 			t.Fatal(recordErr)
 		}
+		publishEvents(t, f.pool)
 		runtimeBatch, batchErr := stream.Receive()
 		if batchErr != nil {
 			t.Fatal(batchErr)
@@ -291,7 +301,7 @@ func receiveBatches(stream eventv1connect.EventServiceStreamEventsClientStream) 
 	return out
 }
 
-func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
+func TestStreamEventsDeliversLateCommitsAfterPublishedEvents(t *testing.T) {
 	f := newEventFixture(t)
 	f.events.poll = 10 * time.Millisecond
 	var asSystem atomic.Bool
@@ -327,6 +337,7 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 		t.Fatalf("record committed: %v", recordErr)
 	}
 
+	publishEvents(t, f.pool)
 	stream, err := client.StreamEvents(ctx, &eventv1.StreamEventsRequest{})
 	if err != nil {
 		t.Fatalf("stream: %v", err)
@@ -334,7 +345,7 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	batches := receiveBatches(stream)
 	var delivered []string
 	var cursor string
-	for len(delivered) < 2 {
+	for len(delivered) < 3 {
 		next, ok := <-batches
 		if !ok {
 			t.Fatalf("stream ended after %v", delivered)
@@ -342,19 +353,22 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 		delivered = append(delivered, next.types...)
 		cursor = next.cursor
 	}
-	if want := []string{events.UserCreated, events.OrgCreated}; !slices.Equal(delivered, want) {
+	if want := []string{
+		events.UserCreated,
+		events.OrgCreated,
+		events.WorkspaceUpdated,
+	}; !slices.Equal(
+		delivered,
+		want,
+	) {
 		t.Fatalf("delivered while a transaction was open = %v, want %v", delivered, want)
-	}
-	select {
-	case early := <-batches:
-		t.Fatalf("delivered %v past a transaction that is still open", early.types)
-	case <-time.After(20 * f.events.poll):
 	}
 
 	if commitErr := open.Commit(ctx); commitErr != nil {
 		t.Fatalf("commit: %v", commitErr)
 	}
-	want := []string{events.UserCreated, events.OrgCreated, events.WorkspaceCreated, events.WorkspaceUpdated}
+	publishEvents(t, f.pool)
+	want := []string{events.UserCreated, events.OrgCreated, events.WorkspaceUpdated, events.WorkspaceCreated}
 	for len(delivered) < len(want) {
 		next, ok := <-batches
 		if !ok {
@@ -375,6 +389,7 @@ func TestStreamEventsWaitsForEarlierTransactions(t *testing.T) {
 	); recordErr != nil {
 		t.Fatalf("record after reconnect: %v", recordErr)
 	}
+	publishEvents(t, f.pool)
 	resumeCtx, resumeCancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer resumeCancel()
 	resumed, err := client.StreamEvents(resumeCtx, &eventv1.StreamEventsRequest{Cursor: cursor})

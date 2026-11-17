@@ -16,7 +16,7 @@ const deleteEventsBefore = `-- name: DeleteEventsBefore :execrows
 DELETE FROM events
 WHERE seq IN (
     SELECT e.seq FROM events e
-    WHERE e.created_at < $1
+    WHERE e.created_at < $1 AND e.stream_position IS NOT NULL
     LIMIT $2
 )
 `
@@ -76,22 +76,20 @@ func (q *Queries) InsertEvent(ctx context.Context, arg InsertEventParams) (int64
 }
 
 const listEventsAfter = `-- name: ListEventsAfter :many
-SELECT seq, txid, id, type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data, created_at
+SELECT seq, stream_position, id, type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data, created_at
 FROM events
-WHERE (txid, seq) > ($1::xid8, $2::bigint)
-  AND txid < pg_snapshot_xmin(pg_current_snapshot())
-ORDER BY txid, seq
-LIMIT $3
+WHERE stream_position > $1::bigint
+ORDER BY stream_position
+LIMIT $2
 `
 
 type ListEventsAfterParams struct {
-	AfterTxid uint64 `json:"afterTxid"`
-	AfterSeq  int64  `json:"afterSeq"`
-	MaxRows   int32  `json:"maxRows"`
+	AfterPosition int64 `json:"afterPosition"`
+	MaxRows       int32 `json:"maxRows"`
 }
 
 func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams) ([]Event, error) {
-	rows, err := q.db.Query(ctx, listEventsAfter, arg.AfterTxid, arg.AfterSeq, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listEventsAfter, arg.AfterPosition, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +99,7 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 		var i Event
 		if err := rows.Scan(
 			&i.Seq,
-			&i.Txid,
+			&i.StreamPosition,
 			&i.ID,
 			&i.Type,
 			&i.OrgID,
@@ -125,4 +123,41 @@ func (q *Queries) ListEventsAfter(ctx context.Context, arg ListEventsAfterParams
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockEventStreamCounter = `-- name: LockEventStreamCounter :one
+SELECT position FROM event_stream_counter WHERE singleton FOR UPDATE
+`
+
+func (q *Queries) LockEventStreamCounter(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, lockEventStreamCounter)
+	var position int64
+	err := row.Scan(&position)
+	return position, err
+}
+
+const publishEvents = `-- name: PublishEvents :one
+WITH batch AS (
+    SELECT seq, $1::bigint + row_number() OVER (ORDER BY seq) AS position
+    FROM (SELECT seq FROM events WHERE stream_position IS NULL ORDER BY seq LIMIT $2) unpublished
+), published AS (
+    UPDATE events SET stream_position = batch.position FROM batch WHERE events.seq = batch.seq
+    RETURNING events.stream_position
+)
+UPDATE event_stream_counter
+SET position = COALESCE((SELECT max(stream_position) FROM published), position)
+WHERE singleton
+RETURNING position
+`
+
+type PublishEventsParams struct {
+	Position  int64 `json:"position"`
+	BatchSize int32 `json:"batchSize"`
+}
+
+func (q *Queries) PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, publishEvents, arg.Position, arg.BatchSize)
+	var position int64
+	err := row.Scan(&position)
+	return position, err
 }

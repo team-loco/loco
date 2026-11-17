@@ -30,35 +30,28 @@ const (
 	defaultEventPage   = 100
 	streamBatch        = 500
 	streamPollInterval = time.Second
-	cursorTxidBytes    = 8
-	cursorBytes        = 16
+	cursorBytes        = 8
 )
 
 var ErrInvalidCursor = errors.New("invalid event stream cursor")
 
-type streamPosition struct {
-	txid uint64
-	seq  int64
-}
+type streamPosition int64
 
 func (p streamPosition) encode() string {
 	buf := make([]byte, 0, cursorBytes)
-	buf = binary.BigEndian.AppendUint64(buf, p.txid)
-	buf = binary.BigEndian.AppendUint64(buf, uint64(p.seq))
+	buf = binary.BigEndian.AppendUint64(buf, uint64(p))
 	return base64.RawURLEncoding.EncodeToString(buf)
 }
 
 func decodeStreamCursor(cursor string) (streamPosition, error) {
 	if cursor == "" {
-		return streamPosition{}, nil
+		return streamPosition(0), nil
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil || len(raw) != cursorBytes {
-		return streamPosition{}, ErrInvalidCursor
+		return streamPosition(0), ErrInvalidCursor
 	}
-	txid := binary.BigEndian.Uint64(raw[:cursorTxidBytes])
-	seq := binary.BigEndian.Uint64(raw[cursorTxidBytes:])
-	return streamPosition{txid: txid, seq: int64(seq)}, nil
+	return streamPosition(binary.BigEndian.Uint64(raw)), nil
 }
 
 type EventServer struct {
@@ -278,7 +271,7 @@ func (s *EventServer) StreamEvents(
 		if scoped == nil {
 			rows, err = s.queries.ListEventsAfter(
 				ctx,
-				genDb.ListEventsAfterParams{AfterTxid: position.txid, AfterSeq: position.seq, MaxRows: streamBatch},
+				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
 			)
 		} else {
 			var scope eventScope
@@ -290,7 +283,7 @@ func (s *EventServer) StreamEvents(
 			if queryErr != nil {
 				return queryErr
 			}
-			query.Stream, query.AfterTxid, query.AfterSeq = true, position.txid, position.seq
+			query.Stream, query.AfterPosition = true, int64(position)
 			var audit []events.AuditEvent
 			audit, err = events.ListAudit(ctx, s.db, query)
 			for _, row := range audit {
@@ -314,7 +307,7 @@ func (s *EventServer) StreamEvents(
 				batch[i] = eventToProto(row)
 			}
 			last := rows[len(rows)-1]
-			position = streamPosition{txid: last.Txid, seq: last.Seq}
+			position = streamPosition(*last.StreamPosition)
 			resp := &eventv1.StreamEventsResponse{Events: batch, Cursor: position.encode()}
 			if sendErr := stream.Send(resp); sendErr != nil {
 				return sendErr

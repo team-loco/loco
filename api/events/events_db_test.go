@@ -86,7 +86,17 @@ func TestRecordFillsActorScopeAndRequest(t *testing.T) {
 		t.Fatal("events could be updated")
 	}
 
-	deleted, err := q.DeleteEventsBefore(ctx, genDb.DeleteEventsBeforeParams{
+	deleted, err := q.DeleteEventsBefore(
+		ctx,
+		genDb.DeleteEventsBeforeParams{Cutoff: time.Now().Add(time.Minute), BatchSize: 10},
+	)
+	if err != nil || deleted != 0 {
+		t.Fatalf("unpublished deleted %d (%v)", deleted, err)
+	}
+	if publishErr := events.Publish(ctx, pool); publishErr != nil {
+		t.Fatal(publishErr)
+	}
+	deleted, err = q.DeleteEventsBefore(ctx, genDb.DeleteEventsBeforeParams{
 		Cutoff:    time.Now().Add(time.Minute),
 		BatchSize: 1,
 	})
@@ -172,6 +182,11 @@ func TestDeleteExpiredRemovesEveryBatchAndSparesRecentEvents(t *testing.T) {
 	_, err = pool.Exec(t.Context(), "INSERT INTO events (type, actor_type) VALUES ('org.created', 'system')")
 	if err != nil {
 		t.Fatalf("insert recent event: %v", err)
+	}
+	for range expired/500 + 1 {
+		if publishErr := events.Publish(t.Context(), pool); publishErr != nil {
+			t.Fatal(publishErr)
+		}
 	}
 	events.DeleteExpired(t.Context(), q, time.Hour)
 	var left int

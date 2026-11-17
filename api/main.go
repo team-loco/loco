@@ -248,6 +248,7 @@ func run() error {
 }
 
 type deps struct {
+	eventPool         *pgxpool.Pool
 	machine           *tvm.VendingMachine
 	queries           *genDb.Queries
 	verifier          *auth.Verifier
@@ -390,6 +391,7 @@ func newDeps(
 		resolver:          resolver,
 		authorizer:        authorizer,
 		webhookDispatcher: webhookDispatcher,
+		eventPool:         pool,
 		placementNotifier: placementNotifier,
 		sourceSweeper:     sourceSweeper,
 		imageSweeper:      imageSweeper,
@@ -537,6 +539,7 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
+	background.Go(func() { events.RunPublisher(ctx, d.eventPool) })
 	background.Go(func() { d.placementNotifier.Run(ctx) })
 	if d.sourceSweeper != nil {
 		background.Go(func() { d.sourceSweeper.Run(ctx) })
