@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run each collector's rendered OTLP pipelines and OTLP/HTTP exporter in the collector image against the observability proxy and ClickHouse, with pod labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the route of each request, and that every row carries the chart's region"
+#MISE description="Run each collector's rendered OTLP pipelines and OTLP/HTTP exporter in the collector image against the observability proxy and ClickHouse, with pod and namespace labels standing in for the Kubernetes API, and check that tenancy columns come only from pod labels or, for the Envoy gateway, from the namespace of each request route, and that every row carries the chart's region"
 #MISE depends=["helm:deps"]
 set -euo pipefail
 
@@ -18,26 +18,32 @@ pod_resource=pod-resource
 pod_build=pod-build
 forged_build=forged-build
 label_prefix=fixture.pod.label.
+namespace_label_prefix=fixture.namespace.label.
 envoy_collector=otel-col-deploy
 route_workspace=01a12668-411a-73d6-80e3-c21f044d5e71
+route_environment=01a1266a-411a-73d6-80e3-c21f044d5e71
+route_organization=route-organization
 route_resource=01a126f5-020e-7f3c-ac04-822067278d4b
 workspace_prefix=$(yq .global.workspaceNamespacePrefix "$chart/values.yaml")
-route_cluster=httproute/$workspace_prefix$route_workspace/resource-$route_resource-route/rule/0
+route_cluster=httproute/$workspace_prefix$route_environment/resource-$route_resource-route/rule/0
 # keep in sync with loco-worker.gateway in charts/loco-worker/templates/_helpers.tpl
 gateway_name=eg
 gateway_namespace=$namespace
 start_control_plane "$pod_workspace" "$route_workspace"
 
 test_config() {
-	LABEL_PREFIX="$label_prefix" yq '
+	LABEL_PREFIX="$label_prefix" NAMESPACE_LABEL_PREFIX="$namespace_label_prefix" yq '
 		.service.pipelines |= with_entries(select(.value.receivers | any_c(. == "otlp"))) |
 		.service.pipelines[].receivers = ["otlp"] |
 		.service.pipelines[].processors |= map(sub("^k8s_attributes/?", "resource/fixture_")) |
 		.processors |= with_entries(
 			select(.key | test("^k8s_attributes")) |= (
+				(.key == "k8s_attributes/route_namespace") as $route_namespace |
 				.key |= sub("^k8s_attributes/?", "resource/fixture_") |
 				.value = {"attributes": [.value.extract.labels[] | select(has("key")) |
-					{"action": "insert", "key": .tag_name, "from_attribute": strenv(LABEL_PREFIX) + .key}]})) |
+					select(.from == "pod" or $route_namespace) |
+					{"action": "insert", "key": .tag_name, "from_attribute":
+						(select(.from == "namespace") | strenv(NAMESPACE_LABEL_PREFIX) + .key) // (strenv(LABEL_PREFIX) + .key)}]})) |
 		del(.processors[] | select(has("attributes") and (.attributes | length) == 0)) |
 		. as $config |
 		.service.pipelines[].processors |= map(select(. as $name | $config.processors | has($name))) |
@@ -173,7 +179,10 @@ done
 
 otlp=$(otlp_endpoint "$envoy_collector")
 gateway_labels="$(attribute "${label_prefix}gateway.envoyproxy.io/owning-gateway-name" "$gateway_name"),
-	$(attribute "${label_prefix}gateway.envoyproxy.io/owning-gateway-namespace" "$gateway_namespace")"
+	$(attribute "${label_prefix}gateway.envoyproxy.io/owning-gateway-namespace" "$gateway_namespace"),
+	$(attribute "${namespace_label_prefix}loco.io/organization-id" "$route_organization"),
+	$(attribute "${namespace_label_prefix}loco.io/workspace-id" "$route_workspace"),
+	$(attribute "${namespace_label_prefix}loco.io/environment-id" "$route_environment")"
 client_gateway="$(attribute gateway.envoyproxy.io/owning-gateway-name "$gateway_name"),
 	$(attribute gateway.envoyproxy.io/owning-gateway-namespace "$gateway_namespace")"
 envoy=tenancy-envoy
@@ -187,7 +196,7 @@ for signal in logs traces metrics; do
 	send "$otlp" "$signal" "$impostor_payload"
 	otel_table=$(table "$signal")
 	checked_tables="$checked_tables $otel_table"
-	route_tenancy="WorkspaceId = '$route_workspace' AND ResourceId = '$route_resource'"
+	route_tenancy="OrganizationId = '$route_organization' AND EnvironmentId = '$route_environment' AND WorkspaceId = '$route_workspace' AND ResourceId = '$route_resource'"
 	if ! wait_for "Envoy $signal rows with route tenancy" has_rows "$(rows "$otel_table" "$envoy" "$route_tenancy")"; then
 		fail "$envoy_collector did not take Envoy $signal tenancy from the upstream cluster"
 	fi
@@ -219,4 +228,4 @@ if [ "$failures" -gt 0 ]; then
 	echo "$failures check(s) failed"
 	exit 1
 fi
-echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, only Envoy's telemetry took it from the route, the ingest proxy stamped every row with the sending cluster, and every row carries the chart's region"
+echo "every OTLP pipeline dropped client-supplied tenancy and took it from the pod labels, only Envoy's telemetry took ownership from the route namespace labels, the ingest proxy stamped every row with the sending cluster, and every row carries the chart's region"
