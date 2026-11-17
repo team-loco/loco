@@ -557,7 +557,7 @@ type ServiceDeploymentSpec struct {
 	RunAsGroup *int64          `protobuf:"varint,12,opt,name=run_as_group,json=runAsGroup,proto3,oneof" json:"run_as_group,omitempty"`
 	// Defaults to the resource settings when omitted; stored in the deployment snapshot.
 	Observability *ObservabilityConfig `protobuf:"bytes,13,opt,name=observability,proto3" json:"observability,omitempty"`
-	// Restores the previous deployment on failure; off by default.
+	// Overrides the service's current rollback setting; omitted inherits it, off by default.
 	RollbackOnFailure *bool `protobuf:"varint,14,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

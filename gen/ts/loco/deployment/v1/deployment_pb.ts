@@ -425,7 +425,7 @@ export type ServiceDeploymentSpec = Message<"loco.deployment.v1.ServiceDeploymen
   observability?: ObservabilityConfig | undefined;
 
   /**
-   * Restores the previous deployment on failure; off by default.
+   * Overrides the service's current rollback setting; omitted inherits it, off by default.
    *
    * @generated from field: optional bool rollback_on_failure = 14;
    */
@@ -522,7 +522,7 @@ export type ServiceDeploymentSpecJson = {
   observability?: ObservabilityConfigJson;
 
   /**
-   * Restores the previous deployment on failure; off by default.
+   * Overrides the service's current rollback setting; omitted inherits it, off by default.
    *
    * @generated from field: optional bool rollback_on_failure = 14;
    */

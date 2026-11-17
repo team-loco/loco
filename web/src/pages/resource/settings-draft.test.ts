@@ -107,23 +107,27 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
-	test("rollback changes redeploy every running region and can be turned off", () => {
+	test("rollback changes update the service without planning deployments", () => {
 		expect(base.rollbackOnFailure).toBe(false);
 		expect(changeCount({ rollbackOnFailure: true }, base)).toBe(1);
-		const changed = plan({ rollbackOnFailure: true });
-		expect(changed.map((d) => d.region)).toEqual([EAST, WEST]);
-		for (const d of changed) {
-			expect(getServiceSpec(create(DeploymentSchema, { spec: d.spec }))?.rollbackOnFailure).toBe(true);
-		}
-		const enabledRegions = changed.map((d) =>
-			region(d.region, create(DeploymentSchema, { spec: d.spec, isActive: true, status: DeploymentStatus.RUNNING })),
-		);
-		const enabledBase = baseline("shop", "", enabledRegions, [EAST, WEST], true, defaults);
+		expect(plan({ rollbackOnFailure: true })).toEqual([]);
+		const enabledBase = baseline("shop", "", regions, [EAST, WEST], true, defaults, true);
 		expect(enabledBase.rollbackOnFailure).toBe(true);
-		expect(planSave(enabledRegions, { rollbackOnFailure: false }, enabledBase)).toHaveLength(2);
-		expect(changeCount({ rollbackOnFailure: false }, base)).toBe(0);
+		expect(planSave(regions, { rollbackOnFailure: false }, enabledBase)).toEqual([]);
 		expect(baseline("shop", "", [], [EAST], true, defaults).rollbackOnFailure).toBe(false);
 	});
+
+	test("the switch reads the service setting while preserving deployment overrides", () => {
+		const current = deployment("overridden", EAST);
+		getServiceSpec(current)!.rollbackOnFailure = true;
+		const running = [region(EAST, current)];
+		const serviceBase = baseline("shop", "", running, [EAST], true, defaults, false);
+		expect(serviceBase.rollbackOnFailure).toBe(false);
+		expect(planSave(running, { rollbackOnFailure: true }, serviceBase)).toEqual([]);
+		const changed = planSave(running, { port: "9090" }, serviceBase);
+		expect(getServiceSpec(create(DeploymentSchema, { spec: changed[0]!.spec }))?.rollbackOnFailure).toBe(true);
+	});
+
 	test("SDK environment configuration redeploys every running region and preserves application variables", () => {
 		expect(base.observability).toEqual(OBSERVABILITY);
 		const observability = { injectOtel: false };
@@ -271,7 +275,7 @@ describe("validateDraft", () => {
 
 	test("saves region map changes apart from deployment changes", () => {
 		expect(validateDraft({ cpu: "1", image: "ghcr.io/acme/shop:1.5.0" }, base, regions, SERVED, 10).regions).toBe(
-			"Save region, size and scaling changes separately from image, port, health, rollback, observability and domain changes",
+			"Save region, size and scaling changes separately from image, port, health, observability and domain changes",
 		);
 		expect(validateDraft({ cpu: "1", scaling: { [EAST]: scaling(4) } }, base, regions, SERVED, 10)).toEqual({});
 	});

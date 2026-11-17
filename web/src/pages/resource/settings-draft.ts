@@ -91,6 +91,7 @@ export function baseline(
 	configured: string[],
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
+	rollbackOnFailure?: boolean,
 ): Baseline {
 	const template = templateRegion(regions)?.current;
 	const svc = template === undefined ? undefined : getServiceSpec(template);
@@ -100,7 +101,7 @@ export function baseline(
 		name,
 		description,
 		image: svc?.build?.image ?? "",
-		rollbackOnFailure: svc?.rollbackOnFailure ?? defaults.rollbackOnFailure,
+		rollbackOnFailure: rollbackOnFailure ?? defaults.rollbackOnFailure,
 		observability: observabilitySettings(svc === undefined ? defaults.observability : svc.observability),
 		cpu: svc?.cpu ?? "",
 		memory: svc?.memory ?? "",
@@ -217,7 +218,7 @@ export function validateDraft(
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
 	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
 		errors.regions =
-			"Save region, size and scaling changes separately from image, port, health, rollback, observability and domain changes";
+			"Save region, size and scaling changes separately from image, port, health, observability and domain changes";
 	if (domainsChange(draft, base) === "add") {
 		if (draft.platformDomain === undefined || !served.includes(draft.platformDomain))
 			errors.platformDomain = "No platform domain is served in every region";
@@ -257,7 +258,6 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 		svc.build = create(BuildSourceSchema, { type: IMAGE_BUILD, image: want.image.trim() });
 	}
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
-	if (draft.rollbackOnFailure !== undefined) svc.rollbackOnFailure = want.rollbackOnFailure;
 	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
 	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
 	return next;

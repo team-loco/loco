@@ -1477,9 +1477,11 @@ type UpdateResourceRequest struct {
 	// regions replaces the resource's whole region map when set; omitted regions are torn down.
 	Regions *RegionTargets `protobuf:"bytes,4,opt,name=regions,proto3,oneof" json:"regions,omitempty"`
 	// revision is the Resource.revision the caller loaded; a regions update fails when it moved.
-	Revision      int64 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Revision int64 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Restores the previous deployment on failure; off by default.
+	RollbackOnFailure *bool `protobuf:"varint,6,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateResourceRequest) Reset() {
@@ -1545,6 +1547,13 @@ func (x *UpdateResourceRequest) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *UpdateResourceRequest) GetRollbackOnFailure() bool {
+	if x != nil && x.RollbackOnFailure != nil {
+		return *x.RollbackOnFailure
+	}
+	return false
 }
 
 // RegionTargets is a resource's desired region map, keyed by region name.
@@ -2415,18 +2424,20 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x98\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe5\x02\n" +
 	"\x15UpdateResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12>\n" +
 	"\aregions\x18\x04 \x01(\v2\x1f.loco.resource.v1.RegionTargetsH\x02R\aregions\x88\x01\x01\x12\x1a\n" +
-	"\brevision\x18\x05 \x01(\x03R\brevisionB\a\n" +
+	"\brevision\x18\x05 \x01(\x03R\brevision\x123\n" +
+	"\x13rollback_on_failure\x18\x06 \x01(\bH\x03R\x11rollbackOnFailure\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
-	"\b_regions\"\xb3\x01\n" +
+	"\b_regionsB\x16\n" +
+	"\x14_rollback_on_failure\"\xb3\x01\n" +
 	"\rRegionTargets\x12F\n" +
 	"\atargets\x18\x01 \x03(\v2,.loco.resource.v1.RegionTargets.TargetsEntryR\atargets\x1aZ\n" +
 	"\fTargetsEntry\x12\x10\n" +

@@ -443,7 +443,6 @@ func liveState(
 		if index > 0 {
 			continue
 		}
-		state.RollbackOnFailure = servicedefaults.RollbackOnFailure(spec.RollbackOnFailure, service.RollbackOnFailure)
 		state.Observability = observabilityconfig.Resolve(spec.GetObservability(), service.GetObservability())
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup

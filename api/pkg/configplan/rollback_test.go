@@ -18,7 +18,8 @@ func TestRollbackOnFailureChangeIsPlanned(t *testing.T) {
 			RunningRegions: []string{testRegion}, State: current,
 		}))
 		op := onlyOperation(t, plan)
-		if op.Kind != KindUpdate || len(op.Changes) != 1 || op.Changes[0].Path != "rollbackOnFailure" ||
+		if op.Kind != KindUpdate || op.NeedsDeploy || len(op.Changes) != 1 ||
+			op.Changes[0].Path != "rollbackOnFailure" ||
 			op.Desired.RollbackOnFailure != enabled ||
 			op.Changes[0].Before != strconv.FormatBool(!enabled) ||
 			op.Changes[0].After != strconv.FormatBool(enabled) {

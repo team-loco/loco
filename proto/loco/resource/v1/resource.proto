@@ -241,6 +241,8 @@ message UpdateResourceRequest {
   optional RegionTargets regions = 4;
   // revision is the Resource.revision the caller loaded; a regions update fails when it moved.
   int64 revision = 5;
+  // Restores the previous deployment on failure; off by default.
+  optional bool rollback_on_failure = 6;
 }
 
 // RegionTargets is a resource's desired region map, keyed by region name.

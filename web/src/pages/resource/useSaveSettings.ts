@@ -29,7 +29,6 @@ const SPEC_KEYS = [
 	"healthTimeout",
 	"healthFailures",
 	"observability",
-	"rollbackOnFailure",
 ] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
@@ -163,6 +162,14 @@ export function useSaveSettings({
 				failures.push(`Regions: ${getErrorMessage(err, "failed")}`);
 			}
 		}
+		if (draft.rollbackOnFailure !== undefined) {
+			await attempt(
+				"Deployment behavior",
+				["rollbackOnFailure"],
+				async () => await update.mutateAsync({ resourceId, rollbackOnFailure: draft.rollbackOnFailure }),
+			);
+		}
+
 		const deploys = planSave(regions, effective, base);
 		const savedRegions: string[] = [];
 		for (const d of deploys) {
