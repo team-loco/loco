@@ -9,6 +9,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/setup-tools
       - run: mise run helm:deps
       - name: Prove broken workspace attribution
