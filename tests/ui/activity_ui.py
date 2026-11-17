@@ -54,7 +54,7 @@ def check_scoped_user(browser):
         ('logs', base + '/observability?view=logs', lambda page: expect(page.get_by_text('checkout order placed').first).to_be_visible()),
         ('metrics', base + '/observability?view=metrics', lambda page: expect(page.get_by_role('heading', name='Metrics')).to_be_visible()),
         ('traces', base + '/observability?view=traces', lambda page: expect(page.get_by_text('POST /api/checkout').first).to_be_visible()),
-        ('events', base + '/observability?view=events', lambda page: (expect(page.get_by_text('Back-off restarting failed container').first).to_be_visible(), expect(page.get_by_text('Rollout started', exact=True)).to_be_visible(), expect(page.get_by_text('Scaled', exact=True)).to_have_count(0))),
+        ('events', base + '/observability?view=events', lambda page: (expect(page.get_by_text('Back-off restarting failed container').first).to_be_visible(), expect(page.get_by_text('Deploy created', exact=True)).to_be_visible(), expect(page.get_by_text('Scaled', exact=True)).to_have_count(0))),
         ('settings', base + '/settings?scope=workspace', lambda page: expect(page.get_by_text('You have access to 1 resource in this workspace', exact=True)).to_be_visible()),
         ('team', f"/org/{activity['orgId']}/team", lambda page: expect(page.get_by_role('heading', name='Team')).to_be_visible()),
         ('tokens', '/tokens', lambda page: expect(page.get_by_role('heading', name='Tokens')).to_be_visible()),

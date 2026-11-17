@@ -13,50 +13,72 @@ const REASON_TITLES: Record<string, string> = {
 	unschedulable: "Couldn't schedule service",
 	health_check_failing: "Health check failing",
 };
+
+export function eventReasonLabel(reason: string): string {
+	return REASON_TITLES[reason] ?? reason.replaceAll("_", " ");
+}
+
+export function eventDataLabel(key: string): string {
+	return key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+}
+
 const TYPE_TITLES: Record<string, string> = {
-	"resource.recovered": "Service recovered",
+	"resource.degraded": "Degraded",
+	"resource.recovered": "Recovered",
 	"resource.restarted": "Restarted",
 	"resource.scaled": "Scaled",
-	"deployment.created": "Rollout started",
+	"deployment.created": "Deploy created",
+	"deployment.ready": "Deploy ready",
+	"deployment.failed": "Deploy failed",
 	"build.created": "Build queued",
 	"build.started": "Build started",
 	"build.succeeded": "Build succeeded",
 	"build.failed": "Build failed",
 	"build.canceled": "Build canceled",
 };
+const REGIONAL_TITLES = new Set([
+	"resource.degraded",
+	"resource.recovered",
+	"resource.restarted",
+	"deployment.ready",
+	"deployment.failed",
+]);
 
-export function eventTitle(type: string, reason: string): string {
-	if (type !== "resource.degraded") return TYPE_TITLES[type] ?? type;
-	return REASON_TITLES[reason] ?? reason.replaceAll("_", " ");
+export function eventTitle(type: string, region = ""): string {
+	return `${TYPE_TITLES[type] ?? type}${REGIONAL_TITLES.has(type) && region !== "" ? ` in ${region}` : ""}`;
 }
 
-/** A one-line summary for events whose data has no message of its own. */
 export function eventSummary(e: WorkspaceEventWithResource): string {
 	if (e.message !== "") return e.message;
-	const parts =
-		e.type === "resource.scaled"
-			? [
-					e.replicas !== "" ? `${e.replicas} replicas` : "",
-					e.cpu !== "" ? `${e.cpu} CPU` : "",
-					e.memory !== "" ? `${e.memory} memory` : "",
-					e.region,
-				]
-			: [e.region];
-	return parts.filter((p) => p !== "").join(" · ");
+	if (e.type === "resource.degraded") return eventReasonLabel(e.reason);
+	if (e.type === "resource.scaled")
+		return [
+			["replicas", e.replicas],
+			["cpu", e.cpu],
+			["memory", e.memory],
+			["region", e.region],
+		]
+			.filter(([, value]) => value !== "")
+			.map(([key, value]) => `${key} ${value}`)
+			.join(" · ");
+	for (const [key, label] of [
+		["deploymentId", "deployment"],
+		["buildId", "build"],
+	] as const) {
+		const value = e.data[key];
+		if (typeof value === "string" && value !== "") return `${label} ${value.slice(0, 8)}`;
+	}
+	return "";
 }
 
-export function severityOf(type: string, reason: string): Severity {
-	if (type === "build.failed") return "error";
-	if (type !== "resource.degraded") return "normal";
-	return reason === "health_check_failing" || reason === "unschedulable" ? "warning" : "error";
+export function severityOf(type: string): Severity {
+	if (type === "build.failed" || type === "deployment.failed") return "error";
+	return type === "resource.degraded" ? "warning" : "normal";
 }
 
 export interface SeverityStyle {
 	glyph: Glyph;
-	dot: string;
 	fg: string;
-	badge: string;
-	label: string;
 }
 
 export function severityStyle(s: Severity): SeverityStyle {
@@ -64,72 +86,73 @@ export function severityStyle(s: Severity): SeverityStyle {
 		case "error":
 			return {
 				glyph: "err",
-				dot: "bg-err",
 				fg: "text-bad-fg",
-				badge: "bg-bad-bg text-bad-fg",
-				label: "Error",
 			};
 		case "warning":
 			return {
 				glyph: "warn",
-				dot: "bg-warn",
 				fg: "text-warn-fg",
-				badge: "bg-warn-bg text-warn-fg",
-				label: "Warning",
 			};
 		case "normal":
 			return {
 				glyph: "off",
-				dot: "bg-line2",
 				fg: "text-foreground",
-				badge: "bg-neutral-bg text-neutral-fg",
-				label: "Normal",
 			};
 	}
 }
 
-export interface EventGroup {
-	key: string;
+export interface EventItem extends WorkspaceEventWithResource {
 	title: string;
-	resourceId: string;
-	resourceName: string;
-	reason: string;
-	message: string;
-	object: string;
+	detail: string;
 	severity: Severity;
-	type: string;
 	ts: number;
-	occ: number[];
 }
 
-export function groupEvents(events: WorkspaceEventWithResource[]): EventGroup[] {
-	const m = new Map<string, EventGroup>();
-	for (const e of events) {
-		const object = e.resourceName;
-		const message = eventSummary(e);
-		const key = `${e.resourceId}|${e.type}|${e.reason}|${e.placementId}|${object}|${message}`;
-		const ts = tsMs(e.timestamp);
-		const g = m.get(key);
-		if (g !== undefined) {
-			g.occ.push(ts);
-			if (ts > g.ts) g.ts = ts;
-		} else {
-			m.set(key, {
-				key,
-				title: eventTitle(e.type, e.reason),
-				resourceId: e.resourceId,
-				resourceName: e.resourceName,
-				reason: e.reason,
-				message,
-				object,
-				severity: severityOf(e.type, e.reason),
-				type: e.type,
-				ts,
-				occ: [ts],
-			});
-		}
+export function eventItem(e: WorkspaceEventWithResource): EventItem {
+	return {
+		...e,
+		title: eventTitle(e.type, e.region),
+		detail: eventSummary(e),
+		severity: severityOf(e.type),
+		ts: tsMs(e.timestamp),
+	};
+}
+
+export function eventValue(e: EventItem, key: string): string {
+	switch (key) {
+		case "resource":
+			return e.resourceName;
+		case "severity":
+			return e.severity;
+		case "type":
+			return e.type;
+		case "region":
+			return e.region;
+		case "reason":
+			return e.reason;
+		case "actor":
+			return e.actorType === "system" ? "system" : e.actorName;
+		default:
+			return "";
 	}
-	return [...m.values()].toSorted((a, b) => b.ts - a.ts);
+}
+
+export function eventJson(e: EventItem): string {
+	return JSON.stringify(
+		{
+			seq: e.seq,
+			id: e.id,
+			type: e.type,
+			actor_type: e.actorType,
+			actor_name: e.actorName,
+			subject_type: e.subjectType,
+			request_id: e.requestId,
+			data: e.data,
+			created_at: new Date(e.ts).toISOString(),
+		},
+		null,
+		2,
+	);
 }
 
 export function eventWindow(range: TimeWindow, now: number, latest: number) {

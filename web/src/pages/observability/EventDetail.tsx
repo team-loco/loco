@@ -1,152 +1,256 @@
-import { useTimePreferences } from "@/lib/use-time-preferences";
-import { BoxIcon, ChartLineIcon, ScrollTextIcon } from "lucide-react";
-import { useNavigate } from "react-router";
+import { ArrowDownIcon, ArrowUpIcon, MinusIcon, PlusIcon, WebhookIcon } from "lucide-react";
+import type { KeyboardEventHandler } from "react";
+import { Scope } from "@gen/loco/token/v1/token_pb";
+import { Link } from "react-router";
 
-import { SoonTag } from "@/components/design/SoonTag";
+import { Button } from "@/components/design/Button";
+import { CodeBlock } from "@/components/design/CodeBlock";
+import { CopyId } from "@/components/design/CopyId";
+import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
+import { RowMenu } from "@/components/design/RowMenu";
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { useCopy } from "@/hooks/useCopy";
+import { useEnvironments } from "@/hooks/useEnvironment";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
+import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
+import { useNow } from "@/hooks/useNow";
 import { aroundWindow } from "@/lib/obs-time";
-import { resourcePath } from "@/lib/routes";
-import { formatClock, formatHourMinute } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { auditPath, resourcePath, webhooksPath } from "@/lib/routes";
+import { agoLabel, formatFullTime } from "@/lib/time";
+import { useTimePreferences } from "@/lib/use-time-preferences";
 
 import { useObs } from "./context";
-import { severityStyle, type EventGroup } from "./events";
-import { fmtTs } from "./format";
-import { CopyButton, DetailPanel, JumpButton, PanelNav } from "./shared";
+import { eventDataLabel, eventReasonLabel, eventJson, eventValue, severityStyle, type EventItem } from "./events";
+import { quoteValue, withToken } from "./query";
 
-const OCC_BUCKETS = 24;
-
-export function EventDetail({
-	item,
-	onPrev,
-	onNext,
-	onClose,
-}: {
-	item: EventGroup;
+type Props = {
+	onKeyDown: KeyboardEventHandler<HTMLDivElement>;
+	item: EventItem | null;
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
 	onClose: () => void;
-}) {
-	const timePref = useTimePreferences();
-	const { orgId, workspaceId, resourceByName, goTo } = useObs();
-	const navigate = useNavigate();
-	const [copied, copy] = useCopy();
-	const st = severityStyle(item.severity);
-	const res = resourceByName.get(item.resourceName);
-	const first = Math.min(...item.occ);
-	const last = Math.max(...item.occ);
-	const span = Math.max(1, last - first);
-	const ob = Array.from({ length: OCC_BUCKETS }, () => 0);
-	for (const t of item.occ) {
-		const i = Math.min(OCC_BUCKETS - 1, Math.floor(((t - first) / span) * OCC_BUCKETS));
-		ob[i] = (ob[i] ?? 0) + 1;
-	}
-	const obmax = Math.max(1, ...ob);
-	const around = () => aroundWindow(item.ts, Date.now());
+};
 
-	const fields: { k: string; v: string; copyable?: boolean; soon?: boolean }[] = [
-		{ k: "Resource", v: item.resourceName },
-		{ k: "Object", v: item.object, copyable: true },
-		{ k: "Deployment", v: "", soon: true },
-		{ k: "Reason", v: item.reason === "" ? item.type : item.reason },
-		{ k: "Regions", v: res === undefined || res.regions.length === 0 ? "—" : res.regions.join(", ") },
-		{ k: "Last seen", v: fmtTs(last, true, timePref) },
-		{ k: "First seen", v: fmtTs(first, true, timePref) },
-	];
-
+export function EventDetail({ item, onClose, onKeyDown, ...nav }: Props) {
+	const shown = useHeldWhileClosed(item, item !== null);
 	return (
-		<DetailPanel
-			label="Event"
-			header={
-				<>
-					<span className={cn("size-2 rounded-[2px]", st.dot)} />
-					<span className={cn("min-w-0 truncate font-semibold", st.fg)}>{item.title}</span>
-					<span className={cn("inline-flex h-5 items-center rounded-sm px-[7px] text-xs font-medium", st.badge)}>
-						{st.label}
-					</span>
-					<div className="flex-1" />
-					<PanelNav onPrev={onPrev} onNext={onNext} onClose={onClose} />
-				</>
-			}
+		<Sheet
+			open={item !== null}
+			onOpenChange={(open) => {
+				if (!open) onClose();
+			}}
 		>
-			<div className="flex flex-1 flex-col overflow-y-auto">
-				<div className="border-b border-line p-3.5 font-mono text-[12.5px] leading-[1.55] break-words whitespace-pre-wrap">
-					{item.message}
-				</div>
-				<div className="grid grid-cols-[104px_minmax(0,1fr)] gap-x-3 gap-y-2 border-b border-line p-3.5">
-					{fields.map((f) => (
-						<div key={f.k} className="contents">
-							<span className="text-fg3">{f.k}</span>
-							<span className="flex min-w-0 items-center gap-1.5 font-mono text-sm break-all">
-								{f.soon === true ? <SoonTag /> : f.v}
-								{f.copyable === true && (
-									<CopyButton
-										copied={copied === f.k}
-										onCopy={() => {
-											copy(f.k, f.v, `Copied ${f.k.toLowerCase()}`);
-										}}
-										className="size-5"
-									/>
-								)}
-							</span>
-						</div>
-					))}
-				</div>
-				<div className="flex flex-col gap-1.5 border-b border-line p-3.5">
-					<JumpButton
-						icon={<ScrollTextIcon />}
-						label={`Logs from ${item.resourceName}`}
-						hint={`around ${formatHourMinute(item.ts, timePref)}`}
+			<SheetContent size="wide" onKeyDown={onKeyDown}>
+				{shown !== null && <EventBody item={shown} {...nav} />}
+			</SheetContent>
+		</Sheet>
+	);
+}
+
+function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "onKeyDown"> & { item: EventItem }) {
+	const { orgId, workspaceId, tokens, text, setQuery, goTo } = useObs();
+	const { environments } = useEnvironments();
+	const admin = useMyScopes().workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.ADMIN);
+	const pref = useTimePreferences();
+	const now = useNow();
+	const [, copy] = useCopy();
+	const raw = eventJson(item);
+	const style = severityStyle(item.severity);
+	const environment = environments.find((e) => e.id === item.environmentId)?.name ?? item.environmentId;
+	const fields = [
+		{ key: "type", value: item.type, filter: true },
+		{ key: "resource", value: item.resourceName, filter: true },
+		{ key: "environment", value: environment, filter: false },
+		{ key: "region", value: item.region, filter: true },
+		{ key: "reason", value: item.reason, filter: true },
+		{ key: "actor", value: eventValue(item, "actor"), filter: true },
+		{ key: "email", value: item.actorEmail, filter: false },
+		...Object.entries(item.data)
+			.filter(
+				([key, value]) =>
+					value !== null &&
+					value !== "" &&
+					![
+						"region",
+						"reason",
+						"message",
+						"resource_name",
+						"creator_name",
+						"creator_email",
+						"environmentId",
+						"environment_id",
+					].includes(key),
+			)
+			.map(([key, value]) => ({
+				key: eventDataLabel(key),
+				value: typeof value === "string" ? value : JSON.stringify(value),
+				filter: false,
+			})),
+	].filter((field) => field.value !== "");
+	const filter = (key: string, value: string, neg: boolean) => {
+		setQuery(withToken(tokens, { key, value: quoteValue(value), neg }), text);
+	};
+	return (
+		<>
+			<SheetHeader>
+				<StatusGlyph glyph={style.glyph} className={style.fg} />
+				<SheetTitle className="min-w-0 flex-1 truncate font-medium">{item.title}</SheetTitle>
+				<div className="flex shrink-0 items-center gap-1">
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						aria-label="Newer event"
+						disabled={onPrev === null}
 						onClick={() => {
-							goTo("logs", {
-								range: around(),
-								tokens: [{ neg: false, key: "resource", value: item.resourceName }],
-								focusTs: item.ts,
-							});
+							onPrev?.();
 						}}
-					/>
-					<JumpButton
-						icon={<ChartLineIcon />}
-						label={`Metrics at ${formatClock(item.ts, false, timePref)}`}
-						hint={item.resourceName}
+					>
+						<ArrowUpIcon />
+					</Button>
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						aria-label="Older event"
+						disabled={onNext === null}
 						onClick={() => {
-							goTo("metrics", {
-								range: around(),
-								tokens: [{ neg: false, key: "resource", value: item.resourceName }],
-								focusTs: item.ts,
-							});
+							onNext?.();
 						}}
-					/>
-					<JumpButton
-						icon={<BoxIcon />}
-						label={`Open ${item.resourceName}`}
-						onClick={() => {
-							void navigate(resourcePath(orgId, workspaceId, item.resourceId));
-						}}
-					/>
+					>
+						<ArrowDownIcon />
+					</Button>
+					<RowMenu label="Event actions">
+						{item.requestId !== "" && (
+							<DropdownMenuItem
+								render={<Link to={`${auditPath(orgId)}?${new URLSearchParams({ q: `@request:${item.requestId}` })}`} />}
+							>
+								Open in audit log
+							</DropdownMenuItem>
+						)}
+						<DropdownMenuItem
+							onClick={() => {
+								copy("id", item.id, "Copied event ID");
+							}}
+						>
+							Copy event ID
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={() => {
+								copy("json", raw, "Copied event as JSON");
+							}}
+						>
+							Copy as JSON
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						{(["logs", "metrics"] as const).map((view) => (
+							<DropdownMenuItem
+								key={view}
+								onClick={() => {
+									goTo(view, {
+										range: aroundWindow(item.ts, Date.now()),
+										tokens: [{ neg: false, key: "resource", value: item.resourceName }],
+										focusTs: item.ts,
+									});
+								}}
+							>
+								{view === "logs" ? "Logs" : "Metrics"} around this event
+							</DropdownMenuItem>
+						))}
+						<DropdownMenuItem render={<Link to={resourcePath(orgId, workspaceId, item.resourceId)} />}>
+							Open resource
+						</DropdownMenuItem>
+					</RowMenu>
 				</div>
-				{item.occ.length > 1 && (
-					<div className="flex flex-col gap-2 p-3.5">
-						<span className="font-semibold">
-							Occurrences <span className="font-normal text-fg3">{item.occ.length} times</span>
-						</span>
-						<div className="flex h-9 items-end gap-0.5">
-							{ob.map((n, i) => (
-								<div
-									key={String(i)}
-									title={`${String(n)} at ${fmtTs(first + (i * span) / OCC_BUCKETS, false, timePref)}`}
-									className={cn("min-h-px flex-1 rounded-[1px]", n > 0 ? st.dot : "bg-panel2")}
-									style={{ height: `${String((n / obmax) * 100)}%` }}
-								/>
-							))}
-						</div>
-						<div className="flex justify-between text-xs text-fg4">
-							<span>{fmtTs(first, false, timePref)}</span>
-							<span>{fmtTs(last, false, timePref)}</span>
-						</div>
-					</div>
+			</SheetHeader>
+			<SheetBody>
+				<div className="flex flex-wrap items-center gap-2 text-[12px] text-fg3">
+					<time dateTime={new Date(item.ts).toISOString()}>{formatFullTime(item.ts, false, pref)}</time>
+					<span>{agoLabel(item.ts, now.getTime())}</span>
+					{admin && (
+						<Button
+							className="ml-auto"
+							variant="ghost"
+							nativeButton={false}
+							render={<Link to={webhooksPath(orgId, workspaceId, item.type)} />}
+							title={`Get a webhook for every ${item.type}`}
+						>
+							<WebhookIcon />
+							Subscribe
+						</Button>
+					)}
+				</div>
+				{item.message !== "" && (
+					<CodeBlock className="shrink-0" copyLabel="Copy message" lineNumbers={false}>
+						{item.message}
+					</CodeBlock>
 				)}
-			</div>
-		</DetailPanel>
+				<section aria-label="Attributes" className="flex min-w-0 flex-col gap-1">
+					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Attributes</h3>
+					<dl className="m-0">
+						{fields.map((field) => (
+							<div
+								key={field.key}
+								className="group/attr grid grid-cols-[100px_minmax(0,1fr)_auto] items-center gap-2 border-b border-line py-1.5 last:border-b-0"
+							>
+								<dt className="truncate font-mono text-[12px] text-fg3" title={field.key}>
+									{field.key}
+								</dt>
+								<dd className="m-0 break-words font-mono text-[12px]">
+									{field.key === "reason" ? eventReasonLabel(field.value) : field.value}
+								</dd>
+								<span className="flex opacity-60 group-hover/attr:opacity-100 group-focus-within/attr:opacity-100">
+									{field.filter && (
+										<>
+											<Button
+												variant="ghost"
+												size="icon-xs"
+												title="Only this value"
+												aria-label={`Only events with ${field.key} ${field.value}`}
+												onClick={() => {
+													filter(field.key, field.value, false);
+												}}
+											>
+												<PlusIcon />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon-xs"
+												title="Hide this value"
+												aria-label={`Hide events with ${field.key} ${field.value}`}
+												onClick={() => {
+													filter(field.key, field.value, true);
+												}}
+											>
+												<MinusIcon />
+											</Button>
+										</>
+									)}
+								</span>
+							</div>
+						))}
+						{item.requestId !== "" && (
+							<div className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-2 py-1.5">
+								<dt className="font-mono text-[12px] text-fg3">request</dt>
+								<dd className="m-0 min-w-0">
+									<CopyId
+										value={item.requestId}
+										title="Copy request ID"
+										className="max-w-full bg-panel2 font-mono text-[12px]"
+									>
+										<span className="truncate">{item.requestId}</span>
+									</CopyId>
+								</dd>
+							</div>
+						)}
+					</dl>
+				</section>
+				<section aria-label="Raw event" className="flex min-w-0 flex-col gap-1">
+					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Raw event</h3>
+					<CodeBlock language="json" className="max-h-[min(60vh,640px)] shrink-0" copyLabel="Copy raw event">
+						{raw}
+					</CodeBlock>
+				</section>
+			</SheetBody>
+		</>
 	);
 }

@@ -1,3 +1,4 @@
+import { useListNavigation } from "@/hooks/useListNavigation";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { listTraces } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { TraceStatus, TraceSummarySort, type TraceSummary } from "@gen/loco/observability/v1/observability_pb";
@@ -192,6 +193,11 @@ function TraceSession({
 	const open = (id: string) => {
 		void setParams({ trace: id, span: null });
 	};
+	const onListKeyDown = useListNavigation(
+		traces.map((trace) => trace.traceId),
+		params.span === null ? openId || null : null,
+		open,
+	);
 	const close = () => {
 		void setParams({ trace: null, span: null });
 	};
@@ -382,6 +388,7 @@ function TraceSession({
 				/>
 			</section>
 			<TraceDrawer
+				onKeyDown={onListKeyDown}
 				key={shownId}
 				open={openId !== ""}
 				traceId={shownId}

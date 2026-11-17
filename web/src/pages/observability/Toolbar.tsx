@@ -185,6 +185,22 @@ export function TimePicker() {
 							}}
 						/>
 					</div>
+					<div className="flex flex-col gap-2 border-t border-line pt-2.5">
+						<span className="text-[12px] text-fg3">Clock</span>
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Clock"
+							className="self-start"
+							value={[pref.clock]}
+							onValueChange={(values) => {
+								const value = values[0];
+								if (value === "24" || value === "12") pref.setClock(value);
+							}}
+						>
+							<ToggleGroupItem value="24">24-hour</ToggleGroupItem>
+							<ToggleGroupItem value="12">12-hour</ToggleGroupItem>
+						</ToggleGroup>
+					</div>
 				</PopoverContent>
 			</Popover>
 			<button

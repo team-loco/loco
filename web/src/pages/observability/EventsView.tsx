@@ -1,3 +1,4 @@
+import { useListNavigation } from "@/hooks/useListNavigation";
 import { useState } from "react";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
@@ -15,21 +16,13 @@ import { useNow } from "@/hooks/useNow";
 import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { formatCount } from "@/lib/format";
 import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
-import { newResourcePath, resourcePath } from "@/lib/routes";
+import { newResourcePath } from "@/lib/routes";
 import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
 import { EventDetail } from "./EventDetail";
-import {
-	eventSummary,
-	eventTitle,
-	eventWindow,
-	groupEvents,
-	severityStyle,
-	type EventGroup,
-	type Severity,
-} from "./events";
+import { eventValue, eventItem, eventWindow, severityStyle, type EventItem, type Severity } from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
@@ -47,36 +40,24 @@ const NOW_TICK_MS = 30_000;
 
 type Show = "all" | "warning" | "error";
 
-function EventIcon({ group }: { group: EventGroup }) {
+function EventIcon({ item }: { item: EventItem }) {
 	const icon = "size-3.5 text-fg3";
-	if (group.type === "deployment.created") return <RocketIcon aria-hidden className={icon} />;
-	if (group.type === "resource.scaled") return <ScalingIcon aria-hidden className={icon} />;
-	if (group.type === "resource.restarted") return <RotateCwIcon aria-hidden className={icon} />;
-	if (group.type.startsWith("build.") && group.severity === "normal")
-		return <HammerIcon aria-hidden className={icon} />;
+	if (item.type === "deployment.created") return <RocketIcon aria-hidden className={icon} />;
+	if (item.type === "resource.scaled") return <ScalingIcon aria-hidden className={icon} />;
+	if (item.type === "resource.restarted") return <RotateCwIcon aria-hidden className={icon} />;
+	if (item.type.startsWith("build.") && item.severity === "normal") return <HammerIcon aria-hidden className={icon} />;
 	return (
 		<StatusGlyph
-			glyph={group.type === "resource.recovered" ? "ok" : severityStyle(group.severity).glyph}
-			className={cn(group.severity === "normal" && "opacity-60")}
+			glyph={item.type === "resource.recovered" ? "ok" : severityStyle(item.severity).glyph}
+			className={cn(item.severity === "normal" && "opacity-60")}
 		/>
 	);
 }
 
 const SHOW_TOKENS: Record<Exclude<Show, "all">, Token> = {
-	warning: { neg: false, key: "type", value: "warning" },
-	error: { neg: false, key: "type", value: "error" },
+	warning: { neg: false, key: "severity", value: "warning" },
+	error: { neg: false, key: "severity", value: "error" },
 };
-
-function typeValues(severity: Severity): string[] {
-	switch (severity) {
-		case "error":
-			return ["error", "warning"];
-		case "warning":
-			return ["warning"];
-		case "normal":
-			return ["normal"];
-	}
-}
 
 export function EventsView() {
 	const { orgId, workspaceId, resources, resourcesLoading, range, tokens, text, setQuery } = useObs();
@@ -95,20 +76,24 @@ export function EventsView() {
 	const { from, to } = eventWindow(range, nowMs, tsMs(events[0]?.timestamp));
 	const visible = new Set(filteredResources("events", resources, tokens).map((r) => r.id));
 	const words = text.toLowerCase().split(" ").filter(Boolean);
-	const inRange = events.filter((e) => {
-		const ts = tsMs(e.timestamp);
-		if (ts < from || ts > to || !visible.has(e.resourceId)) return false;
-		const hay = `${eventTitle(e.type, e.reason)} ${e.reason} ${eventSummary(e)} ${e.resourceName}`.toLowerCase();
-		return words.every((w) => hay.includes(w));
-	});
-	const typeTokens = liveTokens("events", tokens, "type");
-	const all = groupEvents(inRange);
+	const inRange = events
+		.filter((e) => {
+			const ts = tsMs(e.timestamp);
+			return ts >= from && ts <= to;
+		})
+		.map(eventItem);
+	const all = inRange.filter((e) => visible.has(e.resourceId));
 	const sevCounts: Record<Severity, number> = { error: 0, warning: 0, normal: 0 };
-	for (const g of all) sevCounts[g.severity]++;
-	const items = all.filter((g) => passes(typeValues(g.severity), typeTokens));
-	const show: Show = tokens.some((t) => t.key === "type" && !t.neg && t.value === "error")
+	for (const e of all) sevCounts[e.severity]++;
+	const keys = ["type", "severity", "region", "reason", "actor"] as const;
+	const items = all.filter(
+		(e) =>
+			keys.every((key) => passes([eventValue(e, key)], liveTokens("events", tokens, key))) &&
+			words.every((w) => `${e.type} ${e.title} ${e.reason} ${e.detail} ${e.resourceName}`.toLowerCase().includes(w)),
+	);
+	const show: Show = tokens.some((t) => t.key === "severity" && !t.neg && t.value === "error")
 		? "error"
-		: tokens.some((t) => t.key === "type" && !t.neg && t.value === "warning")
+		: tokens.some((t) => t.key === "severity" && !t.neg && t.value === "warning")
 			? "warning"
 			: "all";
 
@@ -118,24 +103,27 @@ export function EventsView() {
 	};
 	const paged = pagedRows(items, paging, setPaging, PAGE_SIZES, "0");
 	const selKey = params.event;
-	const selIdx = selKey !== null ? items.findIndex((x) => x.key === selKey) : -1;
+	const selIdx = selKey !== null ? items.findIndex((x) => x.id === selKey) : -1;
 	const selItem = selIdx >= 0 ? items[selIdx] : undefined;
 	const select = (key: string | null) => {
-		const idx = key === null ? -1 : items.findIndex((x) => x.key === key);
+		const idx = key === null ? -1 : items.findIndex((x) => x.id === key);
 		void setParams(idx >= 0 ? { event: key, page: Math.floor(idx / paging.size) } : { event: key });
 	};
 	const loading = isLoading || resourcesLoading;
 	const query = queryStr(tokens, text);
 	const valueCounts = (key: FieldKey): [string, number][] => {
-		if (key === "resource") return resources.map((r) => [r.name, 0]);
-		if (key === "type")
-			return [
-				["warning", sevCounts.warning + sevCounts.error],
-				["error", sevCounts.error],
-				["normal", sevCounts.normal],
-			];
-		return [];
+		const counts = new Map<string, number>();
+		for (const e of inRange) {
+			const value = eventValue(e, key);
+			if (value !== "") counts.set(value, (counts.get(value) ?? 0) + 1);
+		}
+		return [...counts];
 	};
+	const onListKeyDown = useListNavigation(
+		paged.rows.map((e) => e.id),
+		selItem?.id ?? null,
+		select,
+	);
 
 	const header = (
 		<ViewHeader
@@ -191,14 +179,7 @@ export function EventsView() {
 		<>
 			{header}
 			<QueryBar valueCounts={valueCounts} />
-			<div
-				className="grid grid-cols-1 items-start gap-4 xl:grid-cols-(--ev-cols)"
-				style={
-					{
-						"--ev-cols": selItem !== undefined ? "minmax(0,1fr) minmax(340px,400px)" : "minmax(0,1fr)",
-					} as React.CSSProperties
-				}
-			>
+			<div>
 				<section aria-label="Events" className="flex min-w-0 flex-col rounded-card bg-panel">
 					<div className="flex flex-wrap items-center gap-2.5 px-5 pt-3.5 pb-2.5">
 						<ToggleGroup
@@ -206,7 +187,7 @@ export function EventsView() {
 							aria-label="Show"
 							value={[show]}
 							onValueChange={(v: string[]) => {
-								const rest = tokens.filter((t) => t.key !== "type");
+								const rest = tokens.filter((t) => t.key !== "severity");
 								const next = v[0];
 								setQuery(next === "warning" || next === "error" ? [...rest, SHOW_TOKENS[next]] : rest, text);
 							}}
@@ -214,7 +195,7 @@ export function EventsView() {
 							<ToggleGroupItem value="all" count={formatCount(all.length)}>
 								All
 							</ToggleGroupItem>
-							<ToggleGroupItem value="warning" count={formatCount(sevCounts.warning + sevCounts.error)}>
+							<ToggleGroupItem value="warning" count={formatCount(sevCounts.warning)}>
 								Warnings
 							</ToggleGroupItem>
 							<ToggleGroupItem value="error" count={formatCount(sevCounts.error)}>
@@ -231,71 +212,58 @@ export function EventsView() {
 									</th>
 									<th className="px-3 font-normal">Event</th>
 									<th className="w-[160px] px-3 font-normal">Resource</th>
-									<th className="w-[72px] px-3 text-right font-normal">Count</th>
-									<th className="w-[110px] pl-3 text-right font-normal">Last seen</th>
+									<th className="w-[110px] pl-3 text-right font-normal">Time</th>
 								</tr>
 							</thead>
 							<tbody>
 								{loading &&
 									Array.from({ length: 8 }, (_, i) => (
 										<tr key={String(i)} className="h-[58px] border-b border-line2">
-											<td colSpan={5}>
+											<td colSpan={4}>
 												<Skeleton className="h-3 w-full" />
 											</td>
 										</tr>
 									))}
 								{!loading &&
 									paged.rows.map((e) => {
-										const on = e.key === selItem?.key;
+										const on = e.id === selItem?.id;
 										return (
 											<tr
-												key={e.key}
+												key={e.id}
+												role="button"
+												tabIndex={0}
+												aria-label={e.title}
+												aria-pressed={on}
+												onClick={() => {
+													select(e.id);
+												}}
+												onKeyDown={(ev) => {
+													if (ev.key === "Enter" || ev.key === " ") {
+														ev.preventDefault();
+														select(e.id);
+													}
+												}}
 												className={cn(
-													"h-[58px] border-b border-line2 last:border-b-0",
+													"h-[58px] border-b border-line2 last:border-b-0 hover:bg-panel2",
 													on && "bg-background",
 													e.ts > openedAt && "animate-row-flash motion-reduce:animate-none",
 												)}
 											>
 												<td>
-													<EventIcon group={e} />
+													<EventIcon item={e} />
 													<span className="sr-only">{e.severity}</span>
 												</td>
 												<td className="max-w-0 px-3">
-													<button
-														type="button"
-														aria-pressed={on}
-														onClick={() => {
-															select(on ? null : e.key);
-														}}
-														className="flex w-full min-w-0 flex-col items-start rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-													>
-														<span
-															className={cn("font-medium", e.severity === "error" && "text-bad-fg")}
-															title={e.reason === "" ? e.type : e.reason}
-														>
+													<div className="flex min-w-0 flex-col gap-1">
+														<span className={cn("font-medium", e.severity === "error" && "text-bad-fg")}>
 															{e.title}
 														</span>
-														<span className="w-full truncate font-mono text-[12px] text-fg3" title={e.message}>
-															{e.object !== e.resourceName ? `${e.object} · ` : ""}
-															{e.message}
+														<span className="w-full truncate font-mono text-[12px] text-fg3" title={e.detail}>
+															{e.detail}
 														</span>
-													</button>
+													</div>
 												</td>
-												<td className="px-3">
-													<Link
-														to={resourcePath(orgId, workspaceId, e.resourceId)}
-														className="text-fg2 hover:text-foreground hover:underline"
-													>
-														{e.resourceName}
-													</Link>
-												</td>
-												<td className="px-3 text-right">
-													{e.occ.length > 1 && (
-														<span className="rounded-sm border border-line2 px-1.5 font-mono text-[11.5px] text-fg2">
-															×{e.occ.length}
-														</span>
-													)}
-												</td>
+												<td className="px-3 text-fg2">{e.resourceName}</td>
 												<td className="pl-3 text-right font-mono text-[12px] whitespace-nowrap text-fg3">
 													{agoLabel(e.ts, nowMs)}
 												</td>
@@ -308,28 +276,27 @@ export function EventsView() {
 					</div>
 					<Pager {...paged.pager} {...paged.ends} />
 				</section>
-				{selItem !== undefined && (
-					<EventDetail
-						item={selItem}
-						onPrev={
-							selIdx > 0
-								? () => {
-										select(items[selIdx - 1]?.key ?? null);
-									}
-								: null
-						}
-						onNext={
-							selIdx < items.length - 1
-								? () => {
-										select(items[selIdx + 1]?.key ?? null);
-									}
-								: null
-						}
-						onClose={() => {
-							select(null);
-						}}
-					/>
-				)}
+				<EventDetail
+					onKeyDown={onListKeyDown}
+					item={selItem ?? null}
+					onPrev={
+						selIdx > 0
+							? () => {
+									select(items[selIdx - 1]?.id ?? null);
+								}
+							: null
+					}
+					onNext={
+						selIdx < items.length - 1
+							? () => {
+									select(items[selIdx + 1]?.id ?? null);
+								}
+							: null
+					}
+					onClose={() => {
+						select(null);
+					}}
+				/>
 			</div>
 		</>
 	);

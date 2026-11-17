@@ -3,7 +3,7 @@ import { EmptyHero } from "@/components/design/EmptyHero";
 import { ErrorState } from "@/components/design/ErrorState";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { Spinner } from "@/components/design/Spinner";
-import { useState } from "react";
+import { useState, type KeyboardEventHandler } from "react";
 
 import { useQueryState } from "nuqs";
 
@@ -25,6 +25,7 @@ import { traceServiceLabel } from "./trace-service";
 import { type TraceSummary } from "./traces";
 
 export function TraceDrawer({
+	onKeyDown,
 	open,
 	traceId,
 	trace,
@@ -33,6 +34,7 @@ export function TraceDrawer({
 	onRetry,
 	onClose,
 }: {
+	onKeyDown: KeyboardEventHandler<HTMLDivElement>;
 	open: boolean;
 	traceId: string;
 	trace: TraceSummary | undefined;
@@ -64,6 +66,7 @@ export function TraceDrawer({
 				}}
 			>
 				<SheetContent
+					onKeyDown={onKeyDown}
 					ref={drawerRef}
 					size="full"
 					className="data-[side=right]:w-[min(1480px,calc(100vw-16px))]"
