@@ -340,7 +340,6 @@ func TestRolloutForwarding(t *testing.T) {
 				UID:               "current",
 				Name:              currentReplicaName,
 				Node:              "node-a",
-				Version:           locoControllerV1.ReplicaCurrent,
 				PlacementRevision: 5,
 				State:             locoControllerV1.ReplicaServing,
 				StateSince:        &at,
@@ -351,7 +350,6 @@ func TestRolloutForwarding(t *testing.T) {
 			{
 				UID:               "previous",
 				Name:              "old",
-				Version:           locoControllerV1.ReplicaPrevious,
 				PlacementRevision: 4,
 				State:             locoControllerV1.ReplicaStopping,
 				StateDeadline:     &at,
