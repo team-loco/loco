@@ -251,12 +251,7 @@ CREATE INDEX idx_deployments_environment_created_id_desc ON deployments (environ
 CREATE TABLE deployment_rollouts (
     deployment_id UUID NOT NULL REFERENCES deployments (id) ON DELETE CASCADE,
     revision BIGINT NOT NULL,
-    cause TEXT NOT NULL,
-    desired_replicas INT NOT NULL DEFAULT 0,
-    replicas JSONB NOT NULL DEFAULT '[]',
-    activity_count INT NOT NULL DEFAULT 0,
-    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-    finished_at TIMESTAMPTZ,
+    snapshot JSONB NOT NULL DEFAULT '{}',
     PRIMARY KEY (deployment_id, revision)
 );
 

@@ -562,14 +562,9 @@ type DeploymentActivity struct {
 }
 
 type DeploymentRollout struct {
-	DeploymentID    uuid.UUID  `json:"deploymentId"`
-	Revision        int64      `json:"revision"`
-	Cause           string     `json:"cause"`
-	DesiredReplicas int32      `json:"desiredReplicas"`
-	Replicas        []byte     `json:"replicas"`
-	ActivityCount   int32      `json:"activityCount"`
-	StartedAt       time.Time  `json:"startedAt"`
-	FinishedAt      *time.Time `json:"finishedAt"`
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	Revision     int64     `json:"revision"`
+	Snapshot     []byte    `json:"snapshot"`
 }
 
 type Environment struct {

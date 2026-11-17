@@ -661,14 +661,14 @@ WITH restarted AS (
       AND placements.environment_id = $2
       AND ($3::text = '' OR placements.region = $3)
       AND NOT desired_deleted
-    RETURNING id, cluster_id, deployment_id
+    RETURNING cluster_id, deployment_id
 ), deploying AS (
     UPDATE deployments
     SET status = 'deploying', message = 'Restarting replicas', completed_at = NULL, updated_at = NOW()
     FROM restarted
     WHERE deployments.id = restarted.deployment_id AND deployments.is_active
 )
-SELECT id, cluster_id FROM restarted
+SELECT cluster_id FROM restarted
 `
 
 type RestartResourcePlacementsParams struct {
@@ -677,24 +677,19 @@ type RestartResourcePlacementsParams struct {
 	Region        string    `json:"region"`
 }
 
-type RestartResourcePlacementsRow struct {
-	ID        uuid.UUID `json:"id"`
-	ClusterID uuid.UUID `json:"clusterId"`
-}
-
-func (q *Queries) RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]RestartResourcePlacementsRow, error) {
+func (q *Queries) RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]uuid.UUID, error) {
 	rows, err := q.db.Query(ctx, restartResourcePlacements, arg.ResourceID, arg.EnvironmentID, arg.Region)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RestartResourcePlacementsRow
+	var items []uuid.UUID
 	for rows.Next() {
-		var i RestartResourcePlacementsRow
-		if err := rows.Scan(&i.ID, &i.ClusterID); err != nil {
+		var cluster_id uuid.UUID
+		if err := rows.Scan(&cluster_id); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, cluster_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

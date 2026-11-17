@@ -263,11 +263,11 @@ WITH restarted AS (
       AND placements.environment_id = sqlc.arg(environment_id)
       AND (sqlc.arg(region)::text = '' OR placements.region = sqlc.arg(region))
       AND NOT desired_deleted
-    RETURNING id, cluster_id, deployment_id
+    RETURNING cluster_id, deployment_id
 ), deploying AS (
     UPDATE deployments
     SET status = 'deploying', message = 'Restarting replicas', completed_at = NULL, updated_at = NOW()
     FROM restarted
     WHERE deployments.id = restarted.deployment_id AND deployments.is_active
 )
-SELECT id, cluster_id FROM restarted;
+SELECT cluster_id FROM restarted;

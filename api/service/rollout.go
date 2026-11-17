@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -18,10 +17,6 @@ import (
 )
 
 const (
-	rolloutCauseDeploy   = "deploy"
-	rolloutCauseRestart  = "restart"
-	rolloutCauseConfig   = "config"
-	rolloutCauseRollback = "rollback"
 	activityInfo         = "info"
 	activityOK           = "ok"
 	activityWarn         = "warn"
@@ -34,7 +29,7 @@ type rolloutSnapshot struct {
 	Replicas        []*agentv1.ReplicaReport `json:"replicas,omitempty"`
 	Problem         *agentv1.ProblemReport   `json:"problem,omitempty"`
 	DesiredReplicas int32                    `json:"desiredReplicas,omitempty"`
-	Count           int32                    `json:"-"`
+	Count           int32                    `json:"count,omitempty"`
 }
 
 type activityEntry struct {
@@ -119,10 +114,6 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 	count := previous.Count
 	var limited []activityEntry
 	for _, entry := range entries {
-		if count == rolloutActivityLimit {
-			limited = append(limited, activityEntry{Message: activityLimitMessage, Severity: activityWarn})
-			count++
-		}
 		if count > rolloutActivityLimit && !entry.Problem {
 			continue
 		}
@@ -197,27 +188,20 @@ func ingestRollout(
 			return nil
 		}
 	}
-	inserted, openErr := qtx.OpenRollout(
+	if err := qtx.OpenRollout(
 		ctx,
-		genDb.OpenRolloutParams{DeploymentID: deploymentID, Revision: revision, Cause: rolloutCauseConfig},
-	)
-	if openErr != nil {
-		return fmt.Errorf("open rollout: %w", openErr)
+		genDb.OpenRolloutParams{DeploymentID: deploymentID, Revision: revision},
+	); err != nil {
+		return fmt.Errorf("open rollout: %w", err)
 	}
-	if inserted != 0 {
-		slog.WarnContext(ctx, "report opened a missing rollout", "deployment_id", deploymentID, "revision", revision)
-	}
-	row, loadErr := qtx.LockRollout(ctx, genDb.LockRolloutParams{DeploymentID: deploymentID, Revision: revision})
+	snapshot, loadErr := qtx.LockRollout(ctx, genDb.LockRolloutParams{DeploymentID: deploymentID, Revision: revision})
 	if loadErr != nil {
 		return fmt.Errorf("lock rollout: %w", loadErr)
 	}
 	var previous rolloutSnapshot
-	if !bytes.Equal(row.Replicas, []byte("[]")) {
-		if err := json.Unmarshal(row.Replicas, &previous); err != nil {
-			return fmt.Errorf("decode rollout snapshot: %w", err)
-		}
+	if err := json.Unmarshal(snapshot, &previous); err != nil {
+		return fmt.Errorf("decode rollout snapshot: %w", err)
 	}
-	previous.Count = row.ActivityCount
 	entries := diffRollout(previous, report)
 	now := time.Now()
 	next := rolloutSnapshot{
@@ -239,7 +223,6 @@ func ingestRollout(
 		}
 		seq = last - count
 	}
-	var finished *time.Time
 	for _, entry := range entries {
 		at := entry.At
 		if at.IsZero() {
@@ -263,10 +246,6 @@ func ingestRollout(
 			return fmt.Errorf("insert activity: %w", err)
 		}
 	}
-	// Finishing a rollout is independent of the activity row limit.
-	if hasPrevious(previous.Replicas, revision) && !hasPrevious(report.GetReplicas(), revision) {
-		finished = &now
-	}
 	if len(entries) == 0 && previous.DesiredReplicas == next.DesiredReplicas &&
 		proto.Equal(previous.Problem, next.Problem) &&
 		slices.EqualFunc(
@@ -282,38 +261,12 @@ func ingestRollout(
 	}
 	if err := qtx.StoreRollout(
 		ctx,
-		genDb.StoreRolloutParams{
-			DeploymentID:    deploymentID,
-			Revision:        revision,
-			Snapshot:        data,
-			DesiredReplicas: next.DesiredReplicas,
-			ActivityCount:   next.Count,
-			FinishedAt:      finished,
-		},
+		genDb.StoreRolloutParams{DeploymentID: deploymentID, Revision: revision, Snapshot: data},
 	); err != nil {
 		return fmt.Errorf("store rollout: %w", err)
 	}
 	if err := qtx.NotifyDeploymentActivity(ctx, deploymentID.String()); err != nil {
 		return fmt.Errorf("notify activity: %w", err)
-	}
-	return nil
-}
-
-func hasPrevious(replicas []*agentv1.ReplicaReport, revision int64) bool {
-	for _, replica := range replicas {
-		if replica.GetPlacementRevision() < revision && !terminalReplica(replica) {
-			return true
-		}
-	}
-	return false
-}
-
-func openPlacementRollout(ctx context.Context, qtx *genDb.Queries, placementID uuid.UUID, cause string) error {
-	if err := qtx.OpenPlacementRollout(
-		ctx,
-		genDb.OpenPlacementRolloutParams{PlacementID: placementID, Cause: cause},
-	); err != nil {
-		return fmt.Errorf("open placement rollout: %w", err)
 	}
 	return nil
 }

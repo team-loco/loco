@@ -60,7 +60,7 @@ func (q *Queries) InsertDeploymentActivity(ctx context.Context, arg InsertDeploy
 }
 
 const lockRollout = `-- name: LockRollout :one
-SELECT deployment_id, revision, cause, desired_replicas, replicas, activity_count, started_at, finished_at FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE
+SELECT snapshot FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE
 `
 
 type LockRolloutParams struct {
@@ -68,20 +68,11 @@ type LockRolloutParams struct {
 	Revision     int64     `json:"revision"`
 }
 
-func (q *Queries) LockRollout(ctx context.Context, arg LockRolloutParams) (DeploymentRollout, error) {
+func (q *Queries) LockRollout(ctx context.Context, arg LockRolloutParams) ([]byte, error) {
 	row := q.db.QueryRow(ctx, lockRollout, arg.DeploymentID, arg.Revision)
-	var i DeploymentRollout
-	err := row.Scan(
-		&i.DeploymentID,
-		&i.Revision,
-		&i.Cause,
-		&i.DesiredReplicas,
-		&i.Replicas,
-		&i.ActivityCount,
-		&i.StartedAt,
-		&i.FinishedAt,
-	)
-	return i, err
+	var snapshot []byte
+	err := row.Scan(&snapshot)
+	return snapshot, err
 }
 
 const notifyDeploymentActivity = `-- name: NotifyDeploymentActivity :exec
@@ -93,65 +84,32 @@ func (q *Queries) NotifyDeploymentActivity(ctx context.Context, deploymentID str
 	return err
 }
 
-const openPlacementRollout = `-- name: OpenPlacementRollout :exec
-INSERT INTO deployment_rollouts(deployment_id, revision, cause)
-SELECT deployment_id, desired_revision, $1 FROM placements
-WHERE id = $2 AND deployment_id IS NOT NULL AND NOT desired_deleted
-ON CONFLICT DO NOTHING
-`
-
-type OpenPlacementRolloutParams struct {
-	Cause       string    `json:"cause"`
-	PlacementID uuid.UUID `json:"placementId"`
-}
-
-func (q *Queries) OpenPlacementRollout(ctx context.Context, arg OpenPlacementRolloutParams) error {
-	_, err := q.db.Exec(ctx, openPlacementRollout, arg.Cause, arg.PlacementID)
-	return err
-}
-
-const openRollout = `-- name: OpenRollout :execrows
-INSERT INTO deployment_rollouts(deployment_id, revision, cause)
-VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+const openRollout = `-- name: OpenRollout :exec
+INSERT INTO deployment_rollouts(deployment_id, revision)
+VALUES ($1, $2) ON CONFLICT DO NOTHING
 `
 
 type OpenRolloutParams struct {
 	DeploymentID uuid.UUID `json:"deploymentId"`
 	Revision     int64     `json:"revision"`
-	Cause        string    `json:"cause"`
 }
 
-func (q *Queries) OpenRollout(ctx context.Context, arg OpenRolloutParams) (int64, error) {
-	result, err := q.db.Exec(ctx, openRollout, arg.DeploymentID, arg.Revision, arg.Cause)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+func (q *Queries) OpenRollout(ctx context.Context, arg OpenRolloutParams) error {
+	_, err := q.db.Exec(ctx, openRollout, arg.DeploymentID, arg.Revision)
+	return err
 }
 
 const storeRollout = `-- name: StoreRollout :exec
-UPDATE deployment_rollouts SET replicas = $1, desired_replicas = $2,
-activity_count = $3, finished_at = COALESCE(finished_at, $4::timestamptz)
-WHERE deployment_id = $5 AND revision = $6
+UPDATE deployment_rollouts SET snapshot = $3 WHERE deployment_id = $1 AND revision = $2
 `
 
 type StoreRolloutParams struct {
-	Snapshot        []byte     `json:"snapshot"`
-	DesiredReplicas int32      `json:"desiredReplicas"`
-	ActivityCount   int32      `json:"activityCount"`
-	FinishedAt      *time.Time `json:"finishedAt"`
-	DeploymentID    uuid.UUID  `json:"deploymentId"`
-	Revision        int64      `json:"revision"`
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	Revision     int64     `json:"revision"`
+	Snapshot     []byte    `json:"snapshot"`
 }
 
 func (q *Queries) StoreRollout(ctx context.Context, arg StoreRolloutParams) error {
-	_, err := q.db.Exec(ctx, storeRollout,
-		arg.Snapshot,
-		arg.DesiredReplicas,
-		arg.ActivityCount,
-		arg.FinishedAt,
-		arg.DeploymentID,
-		arg.Revision,
-	)
+	_, err := q.db.Exec(ctx, storeRollout, arg.DeploymentID, arg.Revision, arg.Snapshot)
 	return err
 }

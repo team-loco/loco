@@ -13,8 +13,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-const rolloutCauseQuery = `SELECT cause FROM deployment_rollouts WHERE deployment_id=$1 AND revision=$2`
-
 func TestRolloutActivityReports(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -25,12 +23,6 @@ func TestRolloutActivityReports(t *testing.T) {
 	}
 	p := f.placement(t, f.clusterID)
 	server := f.agentServer()
-	var cause string
-	if err := f.pool.QueryRow(ctx, rolloutCauseQuery, id, p.DesiredRevision).
-		Scan(&cause); err != nil ||
-		cause != rolloutCauseDeploy {
-		t.Fatalf("deploy rollout=%q %v", cause, err)
-	}
 	at := time.Now().Add(-time.Minute).Truncate(time.Microsecond)
 	report := &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
@@ -193,28 +185,7 @@ func TestRolloutConcurrentSequences(t *testing.T) {
 	}
 }
 
-func TestRestartOpensRollout(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
-		t.Fatal(err)
-	}
-	f.finishRollouts(t)
-	if err := restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
-		t.Fatal(err)
-	}
-	p := f.placement(t, f.clusterID)
-	var cause string
-	if err := f.pool.QueryRow(context.Background(), rolloutCauseQuery,
-		p.DeploymentID, p.DesiredRevision,
-	).
-		Scan(&cause); err != nil ||
-		cause != rolloutCauseRestart {
-		t.Fatalf("restart cause=%s err=%v", cause, err)
-	}
-}
-
-func TestRolloutActivityLimitAndFinish(t *testing.T) {
+func TestRolloutActivityLimit(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
@@ -237,8 +208,9 @@ func TestRolloutActivityLimitAndFinish(t *testing.T) {
 	}
 	if _, err := f.pool.Exec(
 		ctx,
-		`UPDATE deployment_rollouts SET activity_count=499 WHERE deployment_id=$1`,
+		`INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES ($1,$2,'{"count":499}')`,
 		id,
+		p.DesiredRevision,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -256,12 +228,6 @@ func TestRolloutActivityLimitAndFinish(t *testing.T) {
 	}
 	report.Replicas = nil
 	server.recordStatus(ctx, f.clusterID, 0, report)
-	var finished *time.Time
-	if err := f.pool.QueryRow(ctx, `SELECT finished_at FROM deployment_rollouts WHERE deployment_id=$1`, id).
-		Scan(&finished); err != nil ||
-		finished == nil {
-		t.Fatalf("finished=%v err=%v", finished, err)
-	}
 	if got := activityRows(t, f, id); got != 501 {
 		t.Fatalf("replica entry escaped limit: %d", got)
 	}

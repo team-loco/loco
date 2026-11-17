@@ -61,10 +61,6 @@ func TestDiffRolloutProblemAndScale(t *testing.T) {
 		{"problem", rolloutSnapshot{}, &agentv1.PlacementStatus{Problem: problem}, []string{message}},
 		{"clear", rolloutSnapshot{Problem: problem}, &agentv1.PlacementStatus{}, []string{"Problem cleared"}},
 		{
-			"limit", rolloutSnapshot{Count: 500}, &agentv1.PlacementStatus{DesiredReplicas: 3},
-			[]string{activityLimitMessage},
-		},
-		{
 			"hit limit", rolloutSnapshot{Count: 499}, &agentv1.PlacementStatus{DesiredReplicas: 3},
 			[]string{"Scaled to 3 replicas", activityLimitMessage},
 		},

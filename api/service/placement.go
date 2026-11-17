@@ -19,14 +19,10 @@ func placeApplication(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	params genDb.UpsertPlacementParams,
-	cause string,
 ) error {
 	placement, err := qtx.UpsertPlacement(ctx, params)
 	if err != nil {
 		return fmt.Errorf("upsert placement: %w", err)
-	}
-	if err := openPlacementRollout(ctx, qtx, placement.ID, cause); err != nil {
-		return err
 	}
 	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
 	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
@@ -104,9 +100,6 @@ func rollPlacementsForSecrets(ctx context.Context, qtx *genDb.Queries, target se
 	}
 	notified := make(map[uuid.UUID]struct{}, len(rolled))
 	for _, placement := range rolled {
-		if err := openPlacementRollout(ctx, qtx, placement.ID, rolloutCauseConfig); err != nil {
-			return err
-		}
 		slog.InfoContext(ctx, "placement rolled for a secret change",
 			"placement_id", placement.ID,
 			"revision", placement.DesiredRevision,
@@ -211,5 +204,5 @@ func rewritePlacement(
 		DesiredSpec:   desired,
 		EnvironmentID: placement.EnvironmentID,
 		SecretNames:   placement.SecretNames,
-	}, rolloutCauseConfig)
+	})
 }

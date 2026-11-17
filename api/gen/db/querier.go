@@ -241,7 +241,7 @@ type Querier interface {
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
-	LockRollout(ctx context.Context, arg LockRolloutParams) (DeploymentRollout, error)
+	LockRollout(ctx context.Context, arg LockRolloutParams) ([]byte, error)
 	// Locks every system:admin row so concurrent revocations cannot remove the last admin.
 	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
@@ -262,9 +262,8 @@ type Querier interface {
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
 	NotifyDeploymentActivity(ctx context.Context, deploymentID string) error
-	OpenPlacementRollout(ctx context.Context, arg OpenPlacementRolloutParams) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
-	OpenRollout(ctx context.Context, arg OpenRolloutParams) (int64, error)
+	OpenRollout(ctx context.Context, arg OpenRolloutParams) error
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
 	// Deletes the resource's builds past the newest keep once their source and, for a succeeded
@@ -290,7 +289,7 @@ type Querier interface {
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
-	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]RestartResourcePlacementsRow, error)
+	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]uuid.UUID, error)
 	ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error)
 	ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]ResumeOrgPlacementsRow, error)
 	RevokeExpiredInvitations(ctx context.Context, arg RevokeExpiredInvitationsParams) ([]Invitation, error)
