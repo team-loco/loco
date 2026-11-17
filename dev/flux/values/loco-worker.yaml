@@ -1,9 +1,6 @@
 metrics-server:
   enabled: true
   args: [--kubelet-insecure-tls]
-agent:
-  joinToken: {existingSecret: loco-agent-join-token}
-cluster: {role: all}
 builds:
   privateEgress: {{ .PrivateEgress }}
   pushSecretName: loco-registry-push
@@ -12,15 +9,9 @@ registry:
   auth: static
   pullSecretName: loco-registry-pull
 global:
-  region: local
-  domain:
-    apps: [apps.{{ .Domain }}]
   exporter:
     endpoint: http://ingest.{{ .Domain }}:{{ .AppPort }}
-    ingestToken: {enabled: true}
-gateway-helm: {enabled: false}
 env:
   LOCO_REGISTRY_HOST: registry.{{ .Domain }}:{{ .RegistryPort }}
-  CONTROL_PLANE_URL: http://api.{{ .Domain }}:{{ .AppPort }}
 certManager:
   issuer: {create: true, name: local-apps, kind: ClusterIssuer, type: selfSigned}

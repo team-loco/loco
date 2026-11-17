@@ -94,23 +94,9 @@ spec:
 			resources.Write(built)
 			resources.WriteString("\n---\n")
 		}
-		args := []string{
-			"template",
-			cluster.chart,
-			filepath.Join(root, "charts", cluster.chart),
-			"--namespace",
-			"loco-system",
-			"-f", filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
-			"-f", filepath.Join(dir, "values", cluster.chart+".yaml"),
-		}
-		components := []string{"api.image.tag", "ui.image.tag", "obsProxy.image.tag"}
-		if cluster.chart == "loco-worker" {
-			components = []string{"agent.image.tag", "controller.image.tag", "builds.builderImage.tag"}
-			args = append(args, "--set", "gateway-helm.enabled=false")
-		}
-		for _, component := range components {
-			args = append(args, "--set", component+"=validation@sha256:"+strings.Repeat("a", 64))
-		}
+		args := chartArgs(root, cluster.chart,
+			filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
+			filepath.Join(dir, "values", cluster.chart+".yaml"))
 		chartCommands = append(chartCommands, args)
 	}
 	cohorts, listErr := filepath.Glob(filepath.Join(example, "releases", "*.yaml"))
@@ -278,5 +264,41 @@ func checkSingleCluster(ctx context.Context, root, scratch, spec string, resourc
 		resources.Write(built)
 		resources.WriteString("\n---\n")
 	}
+	issuers := 0
+	for _, role := range []string{"control-plane", "worker"} {
+		chart := "loco-" + role
+		args := chartArgs(root, chart, filepath.Join(output, "bases", role, "values", "values.yaml"),
+			filepath.Join(output, "clusters", "combined", "values", chart+".yaml"))
+		rendered, err := command(ctx, root, nil, "helm", args...)
+		if err != nil {
+			return err
+		}
+		issuers += bytes.Count(rendered, []byte("\nkind: ClusterIssuer\n"))
+	}
+	if issuers != 1 {
+		return fmt.Errorf("combined installation renders %d ClusterIssuers, want one shared issuer", issuers)
+	}
+
 	return nil
+}
+
+func chartArgs(root, chart, base, values string) []string {
+	args := []string{
+		"template",
+		chart,
+		filepath.Join(root, "charts", chart),
+		"--namespace",
+		"loco-system",
+		"-f", base,
+		"-f", values,
+	}
+	components := []string{"api.image.tag", "ui.image.tag", "obsProxy.image.tag"}
+	if chart == "loco-worker" {
+		components = []string{"agent.image.tag", "controller.image.tag", "builds.builderImage.tag"}
+		args = append(args, "--set", "gateway-helm.enabled=false")
+	}
+	for _, component := range components {
+		args = append(args, "--set", component+"=validation@sha256:"+strings.Repeat("a", 64))
+	}
+	return args
 }

@@ -1,12 +1,6 @@
-controlPlaneHostname: api.{{ .Domain }}
-ui: {hostname: localhost}
 api:
   registry: {auth: static}
-  existingSecret: loco-api-env
-  systemAdmins: [dev@loco.test]
   env:
-    WEB_URL: http://localhost:{{ .WebPort }}
-    CORS_ALLOWED_ORIGINS: http://localhost:{{ .WebPort }}
     AUTH_ISSUERS: '[{"name":"local","issuer":"http://dex.{{ .Domain }}:{{ .DexPort }}/dex","audience":"loco","web":{"clientId":"loco","scopes":"openid profile email"}}]'
     AUTH_SIGNUP_MODE: open
     LOCO_SOURCE_BUCKET_ENDPOINT: http://s3.{{ .Domain }}:{{ .S3Port }}
@@ -15,12 +9,5 @@ api:
     LOCO_REGISTRY_HOST: registry.{{ .Domain }}:{{ .RegistryPort }}
     LOCO_REGISTRY_URL: http://registry.{{ .Domain }}:{{ .RegistryPort }}
 certManager: {enabled: false}
-openbao:
-  seal:
-    static:
-      existingSecret: {name: openbao-seal, key: key}
-  snapshots: {enabled: false}
-clickhouse: {enabled: true}
 obsProxy:
-  enabled: true
   ingest: {hostname: ingest.{{ .Domain }}}

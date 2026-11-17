@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -148,38 +147,20 @@ func (f *fixture) publishRepo(
 	if err := repo.Configure(reference, entry); err != nil {
 		return "", err
 	}
-	root, err := os.OpenRoot(repo.Path)
+	output, err := command(ctx, f.root, nil, "flux", "push", "artifact",
+		"oci://"+strings.TrimPrefix(f.registryURL, "http://")+"/platform/fixture-config:"+f.version,
+		"--path", repo.Path, "--source", f.root, "--revision", f.version,
+		"--creds", fixtureBuilder+":"+fixturePushPassword, "--insecure-registry", "--output", "json")
 	if err != nil {
 		return "", err
 	}
-	defer root.Close()
-	files := map[string][]byte{}
-	err = filepath.WalkDir(repo.Path, func(path string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		relative, relErr := filepath.Rel(repo.Path, path)
-		if relErr != nil {
-			return relErr
-		}
-		data, readErr := root.ReadFile(relative)
-		if readErr != nil {
-			return readErr
-		}
-		files[filepath.ToSlash(relative)] = data
-		return nil
-	})
-	if err != nil {
+	var artifact struct {
+		Digest string `json:"digest"`
+	}
+	if err = json.Unmarshal(output, &artifact); err != nil {
 		return "", err
 	}
-	archive, err := bundle(files)
-	if err != nil {
-		return "", err
-	}
-	return f.publish(ctx, "platform/fixture-config", archive, bundleLayer)
+	return registryHost + "/platform/fixture-config@" + artifact.Digest, nil
 }
 
 func reconcilePlatform(ctx context.Context, path string) error {
