@@ -2,7 +2,6 @@ import json
 import re
 
 import pytest
-
 from helpers import chart_values, collector_relays, render_chart
 
 IDENTITY = {

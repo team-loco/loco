@@ -45,6 +45,8 @@ mise run test:charts
 mise tasks
 mise run test:cli
 mise run lint:go
+mise run lint:python
+mise run fmt:python
 mise run docs:serve
 ```
 

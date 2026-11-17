@@ -1,7 +1,7 @@
 import argparse
 
+from harness import evidence, load_state, open_page, repo, session
 from playwright.sync_api import expect
-from harness import evidence, load_state, open_page, session, repo
 
 parser = argparse.ArgumentParser(
     description="Check invitation links in the production UI"

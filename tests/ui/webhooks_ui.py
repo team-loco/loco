@@ -2,8 +2,8 @@ import argparse
 import re
 from pathlib import Path
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Exercise webhook management and server delivery paging in Chromium"

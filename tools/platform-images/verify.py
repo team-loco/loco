@@ -1,9 +1,9 @@
 import argparse
 import json
-from pathlib import Path
 import struct
 import subprocess
 import tempfile
+from pathlib import Path
 
 ELF_HEADER_SIZE = 64
 ELF_MACHINE_OFFSET = 18

@@ -1,13 +1,14 @@
 import argparse
 import calendar
-import sys
 import json
-import time
-from pathlib import Path
 import re
+import sys
+import time
 import urllib.parse
+from pathlib import Path
+
+from harness import evidence, load_state, open_page, repo, session, wait_for_query
 from playwright.sync_api import expect
-from harness import wait_for_query, evidence, load_state, open_page, repo, session
 
 sys.dont_write_bytecode = True
 parser = argparse.ArgumentParser(
@@ -1147,7 +1148,7 @@ with session(out) as browser:
                 ),
                 "value": value,
             }
-            for offset, value in zip((-60, 60, 120), values)
+            for offset, value in zip((-60, 60, 120), values, strict=True)
         ]
         route.fulfill(json={"series": [{"resourceId": workspace_id, "points": points}]})
 
@@ -1571,13 +1572,11 @@ with session(out) as browser:
         assert not errors, errors
         context.close()
     browser.close()
-assert all((row.get("scope", {}).get("environmentId") for row in recorded))
+assert all(row.get("scope", {}).get("environmentId") for row in recorded)
 assert all(
-    (
-        not row.get("scope", {}).get("resourceIds")
-        for row in recorded
-        if row.get("traceId")
-    )
+    not row.get("scope", {}).get("resourceIds")
+    for row in recorded
+    if row.get("traceId")
 )
 print(
     "PASS browser trace list, complete drawer spans, span selection and attributes, span attribute filters, query text requests, frozen bounds, whole-row trace buttons, resizable trace columns, recent queries per view with per-item removal, pinning and unpinning, typed-text suggestions, and production UI; trace responses use explicit browser fixtures."

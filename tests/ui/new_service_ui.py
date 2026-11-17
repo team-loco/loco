@@ -1,13 +1,13 @@
-from functools import partial
 import argparse
 import json
 import re
 import uuid
+from functools import partial
 from pathlib import Path
 from urllib.parse import urlparse
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page as new_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Create and deploy a service from the resources page against an isolated API"
@@ -587,14 +587,17 @@ with session(out) as browser:
             )
             assert stored_drafts(page) == [name], stored_drafts(page)
             assert not order, order
+
             # Resource creation errors leave the draft ready to retry.
-            resource_error = lambda route: route.fulfill(
-                status=503,
-                json={
-                    "code": "unavailable",
-                    "message": "Resource creation unavailable",
-                },
-            )
+            def resource_error(route):
+                return route.fulfill(
+                    status=503,
+                    json={
+                        "code": "unavailable",
+                        "message": "Resource creation unavailable",
+                    },
+                )
+
             page.route(
                 "**/loco.resource.v1.ResourceService/CreateResource", resource_error
             )
@@ -611,14 +614,17 @@ with session(out) as browser:
             page.unroute(
                 "**/loco.resource.v1.ResourceService/CreateResource", resource_error
             )
+
             # Failed deployment creation cleans up the resource and permits retry.
-            deployment_error = lambda route: route.fulfill(
-                status=503,
-                json={
-                    "code": "unavailable",
-                    "message": "Deployment creation unavailable",
-                },
-            )
+            def deployment_error(route):
+                return route.fulfill(
+                    status=503,
+                    json={
+                        "code": "unavailable",
+                        "message": "Deployment creation unavailable",
+                    },
+                )
+
             page.route(
                 "**/loco.deployment.v1.DeploymentService/CreateDeployment",
                 deployment_error,
@@ -645,10 +651,11 @@ with session(out) as browser:
                 "**/loco.deployment.v1.DeploymentService/CreateDeployment",
                 deployment_error,
             )
+
             # A retained resource keeps its error and cannot be deployed twice.
-            unavailable = lambda route: route.fulfill(
-                status=503, json={"code": "unavailable"}
-            )
+            def unavailable(route):
+                return route.fulfill(status=503, json={"code": "unavailable"})
+
             page.route("**/loco.secret.v1.SecretService/SetSecrets", unavailable)
             page.route(
                 "**/loco.resource.v1.ResourceService/DeleteResource", unavailable
@@ -923,7 +930,12 @@ with session(out) as browser:
                 lambda route: route.fulfill(json={"image": pinned_image}),
             )
 
-            def regional_deployment(route):
+            def regional_deployment(
+                route,
+                *,
+                regional_requests=regional_requests,
+                partial_failure=partial_failure,
+            ):
                 body = route.request.post_data_json
                 regional_requests.append(body)
                 if partial_failure and body["region"] == "eu-west-1":

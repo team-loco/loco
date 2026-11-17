@@ -1,12 +1,12 @@
-import contextlib
 import argparse
+import contextlib
 import json
 import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Check settings field names, focus and descriptions in the production UI"

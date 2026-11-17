@@ -1,10 +1,10 @@
-import asyncio
 import os
 import time
-from fastapi import FastAPI, Request
+
+import aiofiles
 import psutil
 import requests
-import aiofiles
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 

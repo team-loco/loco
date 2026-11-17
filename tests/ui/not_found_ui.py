@@ -1,15 +1,15 @@
-from functools import partial
 import argparse
 import base64
 import json
 import re
 import time
 import uuid
+from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page as new_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Test the not-found page for signed-in and signed-out visitors against an isolated API"

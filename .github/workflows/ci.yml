@@ -54,6 +54,7 @@ jobs:
       obs-chart: ${{ steps.select.outputs.obs-chart }}
       osv: ${{ steps.select.outputs.osv }}
       platform-release: ${{ steps.select.outputs.platform-release }}
+      python: ${{ steps.select.outputs.python }}
       transit-conformance: ${{ steps.select.outputs.transit-conformance }}
       web: ${{ steps.select.outputs.web }}
       workflows: ${{ steps.select.outputs.workflows }}
@@ -249,6 +250,14 @@ jobs:
       packages: write
     uses: ./.github/workflows/platform-release.yml
 
+  python:
+    name: Python
+    needs: [changes]
+    if: needs.changes.outputs.python == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/python.yml
+
   transit-conformance:
     name: Transit Conformance
     needs: [changes]
@@ -292,6 +301,7 @@ jobs:
       - obs-chart
       - osv
       - platform-release
+      - python
       - transit-conformance
       - web
       - workflows

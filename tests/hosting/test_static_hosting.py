@@ -1,8 +1,8 @@
 import json
-from html import unescape
 import re
 import subprocess
 import time
+from html import unescape
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen

@@ -1,14 +1,14 @@
-from functools import partial
 import argparse
 import datetime
 import json
 import re
 import uuid
+from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Check resource details against an isolated production dashboard"

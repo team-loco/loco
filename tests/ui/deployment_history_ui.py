@@ -1,15 +1,15 @@
-import contextlib
-from functools import partial
 import argparse
+import contextlib
 import json
 import re
 import sys
 import time
 import uuid
+from functools import partial
 from pathlib import Path
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Exercise deployment history against an isolated production API and database"

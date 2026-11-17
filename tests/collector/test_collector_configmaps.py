@@ -1,5 +1,4 @@
 import pytest
-
 from helpers import collector_relays, render_chart
 
 

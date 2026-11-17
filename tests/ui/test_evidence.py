@@ -3,7 +3,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-
 from harness import evidence
 
 
@@ -144,6 +143,7 @@ def test_capture_scrolls_drag_target_into_view(tmp_path):
 
 def test_suite_failure_records_browser_diagnostics(tmp_path):
     import json
+
     from harness import open_page, session
 
     with pytest.raises(RuntimeError, match="suite failed"):

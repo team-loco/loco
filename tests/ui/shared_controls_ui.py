@@ -6,8 +6,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from harness import evidence, load_state, open_page, repo, session, wait_for_query
 from playwright.sync_api import expect
-from harness import wait_for_query, evidence, load_state, open_page, repo, session
 
 parser = argparse.ArgumentParser(
     description="Check compact controls, segmented motion and settings navigation"

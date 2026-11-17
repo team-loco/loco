@@ -428,14 +428,17 @@ def validate_spec(spec):
                     )
             if "drag" in step:
                 value = step["drag"]
-                point = lambda v: (
-                    isinstance(v, list)
-                    and len(v) == 2
-                    and all(
-                        isinstance(n, (int, float)) and not isinstance(n, bool)
-                        for n in v
+
+                def point(v):
+                    return (
+                        isinstance(v, list)
+                        and len(v) == 2
+                        and all(
+                            isinstance(n, (int, float)) and not isinstance(n, bool)
+                            for n in v
+                        )
                     )
-                )
+
                 if (
                     not isinstance(value, dict)
                     or set(value) != {"selector", "from", "to"}
@@ -1056,9 +1059,9 @@ class UIServer(http.server.ThreadingHTTPServer):
 
 
 def cmd_serve_ui(args):
-    handler = lambda *a, **kw: UIHandler(
-        *a, directory=args.root, api_url=args.api_url, **kw
-    )
+    def handler(*a, **kw):
+        return UIHandler(*a, directory=args.root, api_url=args.api_url, **kw)
+
     with UIServer((HOST, args.port), handler) as server:
         server.serve_forever()
 
@@ -1177,10 +1180,13 @@ def capture(browser, state, shot, theme, narrow, target):
             elif action == "drag":
                 locator.first.hover(timeout=STEP_TIMEOUT_MS)
                 box = locator.first.bounding_box()
-                at = lambda f: (
-                    box["x"] + f[0] * box["width"],
-                    box["y"] + f[1] * box["height"],
-                )
+
+                def at(f, box=box):
+                    return (
+                        box["x"] + f[0] * box["width"],
+                        box["y"] + f[1] * box["height"],
+                    )
+
                 page.mouse.move(*at(value["from"]))
                 page.mouse.down()
                 page.mouse.move(*at(value["to"]), steps=8)

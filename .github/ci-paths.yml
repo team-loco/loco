@@ -381,6 +381,19 @@ platform-release:
     - "controller/config/crd/bases/**"
     - ".github/workflows/platform-release.yml"
 
+python:
+  pull_request: &python
+    - "**/*.py"
+    - "**/pyproject.toml"
+    - "ruff.toml"
+    - "mise-tasks/lint/python"
+    - "mise-tasks/fmt/python"
+    - "mise.toml"
+    - "mise.lock"
+    - ".github/workflows/python.yml"
+    - ".github/actions/setup-tools/**"
+  push: *python
+
 transit-conformance:
   pull_request: &transit-conformance
     - "api/pkg/transit/**"

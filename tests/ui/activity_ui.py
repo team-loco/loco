@@ -6,9 +6,9 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from playwright.sync_api import expect
-from harness import evidence, load_state, open_page, repo, session
 from activity_fixture import prepare_activity, verify_activity_access
+from harness import evidence, load_state, open_page, repo, session
+from playwright.sync_api import expect
 
 sys.dont_write_bytecode = True
 parser = argparse.ArgumentParser(
@@ -45,9 +45,7 @@ def check_scoped_user(browser):
     production = next(
         e["id"] for e in environments if e["type"] == "ENVIRONMENT_TYPE_PRODUCTION"
     )
-    minute_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
-        minutes=1
-    )
+    minute_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)
     stamp = minute_ago.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     telemetry = {
         "QueryLogBuckets": {
@@ -237,7 +235,7 @@ def check_scoped_user(browser):
         )
         recorded = []
 
-        def route_request(route):
+        def route_request(route, *, recorded=recorded, scene=scene):
             url = urllib.parse.urlparse(route.request.url)
             if url.path == "/runtime-config.js":
                 route.fulfill(
@@ -315,7 +313,9 @@ def check_scoped_user(browser):
         context.route("**/*", route_request)
         page.on(
             "console",
-            lambda message: message.type == "error" and errors.append(message.text),
+            lambda message, *, errors=errors: (
+                message.type == "error" and errors.append(message.text)
+            ),
         )
         if scene == "metrics":
             with page.expect_response(
@@ -386,7 +386,7 @@ with session(out) as browser:
         }
         held = []
 
-        def route_request(route):
+        def route_request(route, *, mode=mode, held=held, recorded=recorded):
             url = urllib.parse.urlparse(route.request.url)
             if url.path == "/runtime-config.js":
                 route.fulfill(

@@ -1,4 +1,3 @@
-from functools import partial
 import argparse
 import base64
 import hashlib
@@ -8,6 +7,8 @@ import json
 import queue
 import threading
 import time
+from functools import partial
+
 from harness import call as api_call, evidence, load_state
 
 parser = argparse.ArgumentParser(

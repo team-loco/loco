@@ -3,8 +3,8 @@ import base64
 import re
 from pathlib import Path
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page as new_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Check the audit log page for organization admins, workspace admins and members"

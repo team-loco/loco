@@ -3,8 +3,8 @@ import json
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Exercise resource autoscaling, observability settings and failed-save recovery"

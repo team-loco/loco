@@ -5,7 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-
 from helpers import (
     COLLECTOR_CONFIGMAPS,
     TEST_EXPORTER_ENDPOINT,
@@ -259,11 +258,9 @@ def test_file_logs_associate_pods_by_uid(worker_relays):
 def test_build_logs_keep_their_build_id(worker_relays):
     config = worker_relays["otel-col-daemon-agent"]
     pipeline = next(
-        (
-            pipeline
-            for pipeline in config["service"]["pipelines"].values()
-            if "file_log" in pipeline["receivers"]
-        )
+        pipeline
+        for pipeline in config["service"]["pipelines"].values()
+        if "file_log" in pipeline["receivers"]
     )
     extract = config["processors"][_k8s_attributes(pipeline)[0]]["extract"]
     assert {
@@ -274,7 +271,7 @@ def test_build_logs_keep_their_build_id(worker_relays):
 
 
 def test_tenancy_comes_from_namespace_ownership_and_pod_resource_labels(worker_relays):
-    for collector, config, name, pipeline in _pipelines(worker_relays):
+    for collector, config, _name, pipeline in _pipelines(worker_relays):
         for enricher in _k8s_attributes(pipeline):
             if enricher == "k8s_attributes/route_namespace":
                 continue
@@ -297,7 +294,7 @@ def test_tenancy_comes_from_namespace_ownership_and_pod_resource_labels(worker_r
                 for key, value in TENANT_LABELS.items()
                 if key != "loco.io/resource-id"
             }
-            assert all(("key_regex" not in rule for rule in extract["labels"])), (
+            assert all("key_regex" not in rule for rule in extract["labels"]), (
                 f"{collector} {enricher}"
             )
             assert "annotations" not in extract, f"{collector} {enricher}"
@@ -329,12 +326,10 @@ def test_ingest_keeps_only_push_pipelines(worker_relays):
 
 def _ingest_collector(worker_documents):
     return next(
-        (
-            document
-            for document in worker_documents
-            if document["kind"] == "StatefulSet"
-            and document["metadata"]["name"] == "otel-col-deploy"
-        )
+        document
+        for document in worker_documents
+        if document["kind"] == "StatefulSet"
+        and document["metadata"]["name"] == "otel-col-deploy"
     )
 
 

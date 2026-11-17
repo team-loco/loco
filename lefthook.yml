@@ -16,6 +16,10 @@ pre-commit:
       glob: ["web/**", "gen/ts/**"]
       run: mise run lint:web
 
+    - name: lint:python
+      glob: ["*.py", "**/*.py", "ruff.toml", "**/pyproject.toml", "mise-tasks/lint/python", "mise-tasks/fmt/python"]
+      run: mise run lint:python
+
     - name: lint:actions
       glob: [".github/workflows/*"]
       run: mise run lint:actions

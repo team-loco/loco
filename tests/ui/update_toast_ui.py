@@ -1,10 +1,10 @@
-from functools import partial
 import argparse
 import json
+from functools import partial
 from pathlib import Path
 
-from playwright.sync_api import expect
 from harness import load_state, open_page as new_page, repo, session
+from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
     description="Test the toast that offers a reload once a newer dashboard build is served"

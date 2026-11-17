@@ -1,11 +1,10 @@
 import argparse
 import base64
-import hashlib
 import gzip
+import hashlib
 import io
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
@@ -14,6 +13,7 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CHARTS = ("loco-worker", "loco-control-plane")
@@ -391,11 +391,13 @@ def bundle(version, commit, refs, images):
             }
         )
 
-    namespace = lambda name: {
-        "apiVersion": "v1",
-        "kind": "Namespace",
-        "metadata": {"name": name},
-    }
+    def namespace(name):
+        return {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {"name": name},
+        }
+
     loco_namespace = value("manifests/namespaces/loco-system.yaml", ".")
     account = {
         "apiVersion": "v1",
