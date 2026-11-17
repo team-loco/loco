@@ -237,77 +237,55 @@ func (r *Reconciler) completeBuild(
 	return ctrl.Result{}, nil
 }
 
+var buildSteps = []struct {
+	container string
+	stage     locov1alpha1.BuildStage
+}{
+	{buildContainerFetch, locov1alpha1.BuildStageFetch},
+	{buildContainerBuild, locov1alpha1.BuildStageBuild},
+	{buildContainerPush, locov1alpha1.BuildStagePush},
+}
+
 func observeBuildStage(build *locov1alpha1.Build, pod *corev1.Pod) {
 	if pod == nil {
 		return
 	}
-	status := buildStageContainer(pod)
-	stage := containerBuildStage(status.Name)
+	stage, started := buildStage(pod)
 	if build.Status.Stage != stage {
 		build.Status.Stage = stage
 		build.Status.StageSince = nil
 	}
-	if build.Status.StageSince != nil {
-		return
-	}
-	var started metav1.Time
-	if status.State.Running != nil {
-		started = status.State.Running.StartedAt
-	} else if status.State.Terminated != nil {
-		started = status.State.Terminated.StartedAt
-	}
-	if !started.IsZero() {
+	if build.Status.StageSince == nil && !started.IsZero() {
 		build.Status.StageSince = &started
 	}
 }
 
-func buildStageContainer(pod *corev1.Pod) corev1.ContainerStatus {
+// buildStage returns the earliest step that has not succeeded, or Push once every step has.
+func buildStage(pod *corev1.Pod) (locov1alpha1.BuildStage, metav1.Time) {
 	statuses := allContainerStatuses(pod)
+	steps := buildSteps
 	if pod.Status.Phase == corev1.PodSucceeded {
-		for _, status := range statuses {
-			if status.Name == buildContainerPush {
-				return status
-			}
-		}
+		steps = buildSteps[len(buildSteps)-1:]
 	}
-	for _, status := range statuses {
-		if exit := status.State.Terminated; exit != nil && exit.ExitCode != 0 {
-			return status
+	stage := steps[0].stage
+	for i, step := range steps {
+		at := slices.IndexFunc(statuses, func(s corev1.ContainerStatus) bool { return s.Name == step.container })
+		if at < 0 {
+			continue
 		}
-		if waiting := status.State.Waiting; waiting != nil && slices.Contains(stuckReasons, waiting.Reason) {
-			return status
+		stage = step.stage
+		state := statuses[at].State
+		switch {
+		case state.Running != nil:
+			return stage, state.Running.StartedAt
+		case state.Terminated == nil:
+			return stage, metav1.Time{}
+		case state.Terminated.ExitCode != 0 || i == len(steps)-1:
+			return stage, state.Terminated.StartedAt
 		}
+		stage = steps[i+1].stage
 	}
-	next := buildContainerFetch
-	for _, name := range []string{buildContainerFetch, buildContainerBuild, buildContainerPush} {
-		for _, status := range statuses {
-			if status.Name != name {
-				continue
-			}
-			if name == buildContainerPush || status.State.Terminated == nil {
-				return status
-			}
-			if name == buildContainerFetch {
-				next = buildContainerBuild
-			} else {
-				next = buildContainerPush
-			}
-		}
-	}
-	return corev1.ContainerStatus{Name: next}
-}
-
-func containerBuildStage(name string) locov1alpha1.BuildStage {
-	switch name {
-	case buildContainerFetch:
-		return locov1alpha1.BuildStageFetch
-	case buildContainerBuild:
-		return locov1alpha1.BuildStageBuild
-	case buildContainerPush:
-		return locov1alpha1.BuildStagePush
-	default:
-		return ""
-	}
+	return stage, metav1.Time{}
 }
 
 func newestBuildPod(ctx context.Context, reader client.Reader, job *batchv1.Job) (*corev1.Pod, error) {
