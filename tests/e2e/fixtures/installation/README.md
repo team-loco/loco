@@ -8,7 +8,7 @@ The baseline uses the merge base's charts and images, packaged by the head's bun
 
 Flux reconciles the bundle's control-plane entry point, then its combined entry point after registration. The operator signs in with the device flow and a verified Dex identity under closed signup. `locoadm cluster create --kube-context fixture` writes the join-token Secret directly through its Kubernetes client; the token stays outside the configuration artifact. Secret encryption and Flux decryption belong to operator tooling and are outside this test.
 
-Upgrade checks compare agent identity, seal material, initialization material and ClickHouse credentials before and after reconciliation. A transit ciphertext created before the upgrade must decrypt afterwards, and the ingest signing key must retain its public identity. A fresh operator login and a 72-hour token issuance exercise the upgraded API.
+Upgrade checks compare agent identity, seal material and initialization material before and after reconciliation. A transit ciphertext created before the upgrade must decrypt afterwards, and the ingest signing key must retain its public identity. A fresh operator login and a 72-hour token issuance exercise the upgraded API.
 
 The application workflow builds source, checks CA-verified HTTPS and enforces build-network isolation. `locoadm verify` creates its own source service and checks secret and log delivery. Fixture DNS points at cloud-provider-kind LoadBalancers, including wildcard application routing.
 

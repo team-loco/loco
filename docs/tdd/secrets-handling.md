@@ -38,7 +38,7 @@ So plaintext env exists in Postgres, in the `Application` object in the worker's
 | Agent key | Agent | `<release>-agent-key` Secret in the agent namespace; the API stores only the public key |
 | User session and API tokens | API | Only SHA-256 hashes in Postgres (`access_token_hash`, `refresh_token_hash`, `token_hash`) |
 | OAuth state markers | API | Valkey, 10-minute TTL |
-| ClickHouse credentials | API, ingest proxy | Standalone Secrets for the migrator, ingest and reader users; the control-plane chart credentials Job creates missing credentials and preserves existing ones |
+| ClickHouse credentials | API, ingest proxy | Standalone Secrets for the migrator, ingest and reader users; the control-plane chart renders credentials with Helm `lookup` and retains existing values |
 | Cloudflare API token | cert-manager (DNS-01) | Chart value rendered into a Secret |
 | SOPS age keys | Flux on each cluster (planned) | In-cluster Secret plus an offline admin key, per the Flux TDD |
 | CI tokens (Buf, Railway, Renovate, Terraform, DigitalOcean, Cloudflare) | GitHub Actions | Repository secrets |
@@ -190,7 +190,7 @@ Worker clusters must encrypt Secrets at rest: a KMS provider where the platform 
 | Postgres credentials | KV with a rotation runbook while the database is on Railway. On the control-plane cluster: OpenBao's database secrets engine issues per-instance credentials with a lease, and the pool fetches fresh ones through pgx's `BeforeConnect` |
 | Valkey password | KV |
 | Join token and agent identity | A single-use join token is stored as a hash in Postgres and delivered as a per-cluster SOPS-encrypted Secret. Issue-time TTL is capped by the API. The agent waits for its mounted token, enrolls and stores its identity key in a cluster Secret; the identity key never enters Git |
-| ClickHouse credentials | The control-plane chart credentials Job creates missing user credentials in standalone Secrets and preserves them across upgrades |
+| ClickHouse credentials | The control-plane chart renders standalone credential Secrets, reuses existing values through Helm `lookup`, and retains them on uninstall |
 | Cloudflare API token | Per-cluster SOPS, scoped to the zones that cluster issues certificates for |
 | SOPS age keys | Unchanged; they sit below OpenBao in the bootstrap order |
 | CI tokens | Deploy credentials disappear with the Flux migration. Remaining publish tokens are fetched per job through GitHub's OIDC token and OpenBao's JWT auth, with a role per workflow |

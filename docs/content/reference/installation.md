@@ -43,7 +43,7 @@ Use a different deploy key on each cluster. If you choose SOPS, install it throu
 
 The bundle supplies namespaces and the reconciler service account. Its namespace layer runs first; the operator's `loco-cluster-config` applies Secrets and optional issuers. Namespaces and CRDs are never pruned. Infrastructure installs cert-manager and an independent gateway release. Control-plane and worker releases wait for infrastructure and cluster configuration.
 
-Each HelmRelease reads an optional `<release>-base-values` ConfigMap before an optional `<release>-values` ConfigMap and `<release>-secrets` Secret in `flux-system`, with a `values.yaml` key. Standalone credential Secrets live in the workload namespace and are referenced by name. Image digests remain pinned inside the bundle. The control-plane chart's credential Job creates missing ClickHouse credentials and preserves existing ones. OpenBao initialization and auto-unseal run through chart Jobs.
+Each HelmRelease reads an optional `<release>-base-values` ConfigMap before an optional `<release>-values` ConfigMap and `<release>-secrets` Secret in `flux-system`, with a `values.yaml` key. Standalone credential Secrets live in the workload namespace and are referenced by name. Image digests remain pinned inside the bundle. The control-plane chart renders ClickHouse credential Secrets, reads existing data through Helm `lookup`, and retains those Secrets on uninstall. OpenBao initialization and auto-unseal run through chart Jobs.
 
 ## Sign in and enroll workers
 

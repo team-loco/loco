@@ -869,14 +869,6 @@
     "setup": {
       "type": "object",
       "properties": {
-        "requestTimeoutSeconds": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "timeoutSeconds": {
-          "type": "integer",
-          "minimum": 1
-        },
         "ttlSecondsAfterFinished": {
           "type": "integer",
           "minimum": 1

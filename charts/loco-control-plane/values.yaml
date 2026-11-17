@@ -457,7 +457,3 @@ openbao:
 setup:
   # @schema minimum: 1
   ttlSecondsAfterFinished: 3600
-  # @schema minimum: 1
-  timeoutSeconds: 300
-  # @schema minimum: 1
-  requestTimeoutSeconds: 10

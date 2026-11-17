@@ -91,9 +91,8 @@ func (f *fixture) installFlux(
 		}
 	}
 	resources, err := renderFixtureFile(filepath.Join(overrides, "secrets.yaml"), map[string]any{
-		"ClickHouseUsers": []string{"migrator", "ingest", "reader"},
-		"PushAuth":        base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":" + fixturePushPassword)),
-		"PullAuth":        base64.StdEncoding.EncodeToString([]byte("nodes:loco-dev-nodes")),
+		"PushAuth": base64.StdEncoding.EncodeToString([]byte(fixtureBuilder + ":" + fixturePushPassword)),
+		"PullAuth": base64.StdEncoding.EncodeToString([]byte("nodes:loco-dev-nodes")),
 	})
 	if err != nil {
 		return "", "", err

@@ -24,6 +24,8 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/internal/bearer"
+	yamlv3 "go.yaml.in/yaml/v3"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -402,6 +404,10 @@ func (a *leakAudit) collectSecrets(secrets []auditSecret) error {
 		if decodeErr != nil {
 			return decodeErr
 		}
+		data, decodeErr = auditRelease(data)
+		if decodeErr != nil {
+			return decodeErr
+		}
 		a.capture("Helm history", data)
 	}
 	return nil
@@ -441,4 +447,49 @@ func sensitiveSecretField(key string) bool {
 		}
 	}
 	return normalized == "url" || normalized == "database-url" || normalized == ".dockerconfigjson"
+}
+
+// Rendered ClickHouse Secrets belong in Helm history; values and other fields do not.
+func auditRelease(data []byte) ([]byte, error) {
+	var release map[string]any
+	if err := json.Unmarshal(data, &release); err != nil {
+		return nil, errHelmAuditRelease
+	}
+	manifest, ok := release["manifest"].(string)
+	if !ok {
+		return data, nil
+	}
+	decoder := yamlv3.NewDecoder(strings.NewReader(manifest))
+	var output bytes.Buffer
+	for {
+		var resource map[string]any
+		err := decoder.Decode(&resource)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, errHelmAuditRelease
+		}
+		if resource == nil {
+			continue
+		}
+		metadata, hasMetadata := resource["metadata"].(map[string]any)
+		if resource["kind"] == "Secret" && hasMetadata {
+			name, validName := metadata["name"].(string)
+			annotations, hasAnnotations := metadata["annotations"].(map[string]any)
+			if validName && hasAnnotations && strings.HasPrefix(name, "loco-clickhouse-") &&
+				annotations["helm.sh/resource-policy"] == "keep" {
+				delete(resource, "data")
+				delete(resource, "stringData")
+			}
+		}
+		encoded, err := yaml.Marshal(resource)
+		if err != nil {
+			return nil, errHelmAuditRelease
+		}
+		output.Write(encoded)
+		output.WriteString("---\n")
+	}
+	release["manifest"] = output.String()
+	return json.Marshal(release)
 }

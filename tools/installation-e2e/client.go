@@ -16,7 +16,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -313,8 +312,7 @@ func identitySnapshot(ctx context.Context) (string, error) {
 	values := make(map[string]map[string]string)
 	for _, item := range result.Items {
 		if item.Metadata.Namespace == controlNamespace &&
-			(strings.HasPrefix(item.Metadata.Name, "loco-clickhouse-") ||
-				item.Metadata.Name == "loco-control-plane-openbao-init" || item.Metadata.Name == "openbao-seal") {
+			(item.Metadata.Name == "loco-control-plane-openbao-init" || item.Metadata.Name == "openbao-seal") {
 			values[item.Metadata.Namespace+"/"+item.Metadata.Name] = item.Data
 		}
 	}

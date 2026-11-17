@@ -74,7 +74,7 @@ The CNI must run before Flux and enforce NetworkPolicy. Provisioning owns it.
 
 Both Loco charts publish `values.schema.json`. Typed values expose operator-tuned API settings: `api.limits.*` maps to the `LOCO_*` count-limit settings in `api/config.go` and internal limits; `api.defaults.*` and retention settings expose their corresponding API configuration. Chart lint and delivery validation reject invalid values.
 
-Setup Jobs have `ttlSecondsAfterFinished`. The OpenBao setup Job initializes OpenBao and configures its API access. A ClickHouse credentials Job creates missing user credentials and preserves existing credentials across retries and upgrades. Chart consumers read those credentials from Secrets.
+Setup Jobs have `ttlSecondsAfterFinished`. The OpenBao setup Job initializes OpenBao and configures its API access. Helm renders ClickHouse credential Secrets, reuses existing data through `lookup`, and retains them on uninstall. Chart consumers read those credentials from Secrets.
 
 The first administrator is listed in `api.systemAdmins` and claims access by signing in with `locoadm login`. DNS records belong to the operator or external-dns; `locoadm status` reports the targets.
 
@@ -89,7 +89,7 @@ With SOPS, operators install it themselves, select cluster and offline recipient
 | OpenBao static seal key | `locoadm init` | Operator secret delivery and offline custody |
 | OpenBao KMS/transit credentials | Operator | Operator secret delivery or workload identity |
 | OpenBao recovery shares and root token | Chart setup Job | Cluster custody; `locoadm recovery export` for offline custody |
-| ClickHouse users and passwords | Chart credentials Job | Generated in cluster if missing |
+| ClickHouse users and passwords | Chart templates | Existing Secret data or generated passwords |
 | DNS-01 token | Operator | Operator secret delivery |
 | Worker join token | `locoadm cluster create` | Direct Kubernetes Secret application |
 | Agent identity key | Agent | Cluster Secret; never Git |
