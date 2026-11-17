@@ -464,3 +464,25 @@
 	background: var(--btn);
 	color: var(--btn-fg);
 }
+
+[data-theme="neobrutal"] .umode .mt-thumb {
+	color: var(--btn-fg);
+	border-radius: 3px;
+	background: var(--btn);
+	box-shadow: inset 0 0 0 2px var(--ink);
+}
+[data-theme="neobrutal"] .umode [data-slot="radio-group-item"][data-checked] {
+	color: var(--btn-fg);
+}
+
+[data-theme="neobrutal"] .cmd-crumb {
+	border: 2px solid var(--ink);
+	border-radius: 4px;
+	background: var(--btn);
+	color: var(--btn-fg);
+}
+
+[data-theme="neobrutal"] .kbd-modal [data-slot="kbd"] {
+	border: 2px solid var(--ink);
+	box-shadow: 2px 2px 0 var(--ink);
+}

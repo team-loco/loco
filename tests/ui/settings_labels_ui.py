@@ -277,7 +277,7 @@ with session(out) as browser:
                         page.get_by_role("columnheader", name="Name", exact=True).wait_for()
                         if mode == "dark":
                             page.get_by_role("button").filter(has_text="Olivia Owner").click()
-                            page.get_by_role("menuitem", name="Dark mode", exact=True).click()
+                            page.get_by_role("radiogroup", name="Mode").get_by_role("radio", name="Dark", exact=True).click()
                             page.keyboard.press("Escape")
                             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
                         else:

@@ -335,7 +335,7 @@ def dashboard(page):
         # The authentication init script starts every navigation in light mode.
         if mode == "dark":
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
-            page.get_by_role("menuitem", name="Dark mode", exact=True).click()
+            page.get_by_role("radiogroup", name="Mode").get_by_role("radio", name="Dark", exact=True).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
         else:
@@ -376,15 +376,9 @@ def dashboard(page):
         expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
         page.get_by_role("button").filter(has_text="Olivia Owner").click()
         next_mode = "Dark" if mode == "light" else "System"
-        action = page.get_by_role("menuitem", name=next_mode + " mode", exact=True)
-        icon = action.locator(".theme-icon")
-        ink = icon.evaluate("node => getComputedStyle(node.parentElement).color")
-        expect(icon).to_have_css("color", ink)
-        if next_mode == "Dark":
-            assert ink in icon.evaluate("node => getComputedStyle(node).boxShadow")
-        else:
-            expect(icon).to_have_css("border-top-color", ink)
+        action = page.get_by_role("radiogroup", name="Mode").get_by_role("radio", name=next_mode, exact=True)
         action.click()
+        expect(action).to_have_attribute("aria-checked", "true")
         assert page.evaluate("localStorage.getItem('loco:mode:v1')") == ("dark" if next_mode == "Dark" else None)
         page.keyboard.press("Escape")
     evidence.psql(state["container"], f"UPDATE placements SET ready_replicas=48, ready=true, status_phase='Ready' FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name='dashboard-0';")

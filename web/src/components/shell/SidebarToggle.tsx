@@ -4,7 +4,7 @@ import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { useSidebar } from "@/components/design/Sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { shortcutLabel } from "@/components/shell/CommandMenu";
+import { shortcutLabel } from "@/lib/keyboard";
 import { cn } from "@/lib/utils";
 
 // The vendored sidebar listens for Cmd/Ctrl + "b" (SIDEBAR_KEYBOARD_SHORTCUT in ui/sidebar.tsx).

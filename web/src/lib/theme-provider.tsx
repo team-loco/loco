@@ -13,7 +13,6 @@ import {
 	storeMode,
 	subscribeSystemTheme,
 	systemPrefersDark,
-	nextMode,
 	type ColorTheme,
 	type Mode,
 } from "./theme";
@@ -48,16 +47,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 		if (nextResolved !== resolved) playThemeSound(nextResolved === "dark");
 	};
 
-	const toggle = () => {
-		changeMode(nextMode(mode));
-	};
-
 	const changeColor = (next: ColorTheme) => {
 		setColor(next);
 		storeColorTheme(next);
 	};
 
-	const contextValue = { theme: page.mode, mode, setMode: changeMode, toggle, color, setColor: changeColor };
+	const contextValue = { theme: page.mode, mode, setMode: changeMode, color, setColor: changeColor };
 
 	return (
 		<ThemeContext value={contextValue}>

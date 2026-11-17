@@ -3,11 +3,14 @@ import {
 	CommandDialog as CommandDialogBase,
 	CommandEmpty as CommandEmptyBase,
 	CommandGroup as CommandGroupBase,
-	CommandInput as CommandInputBase,
 	CommandItem as CommandItemBase,
 	CommandList as CommandListBase,
 	CommandShortcut as CommandShortcutBase,
 } from "@/components/ui/command";
+import { Command as CommandPrimitive } from "cmdk";
+import { InputGroup, InputGroupAddon } from "@/components/design/InputGroup";
+import { SearchIcon } from "lucide-react";
+
 import { modalSurface } from "@/components/design/Dialog";
 import { cn } from "@/lib/utils";
 
@@ -31,16 +34,32 @@ function Command({ className, ...props }: React.ComponentProps<typeof CommandBas
 function CommandInput({
 	className,
 	children,
+	leading,
 	...props
-}: React.ComponentProps<typeof CommandInputBase> & { children?: React.ReactNode }) {
+}: React.ComponentProps<typeof CommandPrimitive.Input> & {
+	children?: React.ReactNode;
+	leading?: React.ReactNode;
+}) {
 	return (
 		<div className="flex h-[52px] shrink-0 items-center gap-2.5 border-b border-line pr-3.5 pl-4 *:data-[slot=command-input-wrapper]:min-w-0 *:data-[slot=command-input-wrapper]:flex-1 *:data-[slot=command-input-wrapper]:p-0 **:data-[slot=input-group]:h-auto! **:data-[slot=input-group]:border-0 **:data-[slot=input-group]:bg-transparent! **:data-[slot=input-group]:ring-0! **:data-[slot=input-group-addon]:pl-0! **:data-[slot=input-group-addon]:text-fg3 **:data-[slot=input-group-addon]:[&>svg]:opacity-100">
-			<CommandInputBase
-				className={cn("pl-2.5! text-[15px] text-foreground placeholder:text-fg4", className)}
-				autoComplete="off"
-				spellCheck={false}
-				{...props}
-			/>
+			<div data-slot="command-input-wrapper">
+				<InputGroup className="shadow-none">
+					<InputGroupAddon>
+						<SearchIcon className="size-4 shrink-0" />
+						{leading !== undefined && <span className="flex">{leading}</span>}
+					</InputGroupAddon>
+					<CommandPrimitive.Input
+						data-slot="command-input"
+						className={cn(
+							"w-full min-w-0 pl-2.5! text-[15px] text-foreground outline-hidden placeholder:text-fg4 disabled:opacity-50",
+							className,
+						)}
+						autoComplete="off"
+						spellCheck={false}
+						{...props}
+					/>
+				</InputGroup>
+			</div>
 			{children}
 		</div>
 	);
