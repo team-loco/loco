@@ -2,7 +2,10 @@ package controller
 
 import (
 	"context"
+	"net/http"
 	"time"
+
+	"k8s.io/client-go/rest"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -72,7 +75,13 @@ var _ = Describe("Replica rollout reports", func() {
 
 var _ = Describe("Pull event watch", func() {
 	It("reports Pulling from regarding and updates to Starting after Pulled", func() {
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		observed := &pullWatchTransport{active: make(map[string]int), selectors: make(map[string][]string)}
+		managerConfig := rest.CopyConfig(cfg)
+		managerConfig.Wrap(func(base http.RoundTripper) http.RoundTripper {
+			observed.base = base
+			return observed
+		})
+		mgr, err := ctrl.NewManager(managerConfig, ctrl.Options{
 			Scheme: k8sClient.Scheme(), Cache: CacheOptions(testNamespace, "", false),
 			Controller: config.Controller{SkipNameValidation: new(true)},
 			Metrics:    metricsserver.Options{BindAddress: disabledListener}, HealthProbeBindAddress: disabledListener,
@@ -82,6 +91,11 @@ var _ = Describe("Pull event watch", func() {
 			LocoNamespace: testNamespace, Gateway: testGateway, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 			Telemetry: testTelemetry()}
 		Expect(r.SetupWithManager(mgr)).To(Succeed())
+		managerCtx, stop := context.WithCancel(ctx)
+		done := make(chan error, 1)
+		go func() { done <- mgr.Start(managerCtx) }()
+		DeferCleanup(func() { stop(); Eventually(done, routeManagerWait).Should(Receive(BeNil())) })
+		Expect(mgr.GetCache().WaitForCacheSync(managerCtx)).To(BeTrue())
 		app := isolationTestApplication("ws-pull-watch", "pull-watch")
 		app.Annotations = map[string]string{loco.KeyPlacementRevision: "1"}
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -98,10 +112,6 @@ var _ = Describe("Pull event watch", func() {
 		pod.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: pod.Spec.Containers[0].Name,
 			State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: reasonContainerCreating}}}}
 		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
-		managerCtx, stop := context.WithCancel(ctx)
-		done := make(chan error, 1)
-		go func() { done <- mgr.Start(managerCtx) }()
-		DeferCleanup(func() { stop(); Eventually(done, routeManagerWait).Should(Receive(BeNil())) })
 		key := client.ObjectKeyFromObject(app)
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
@@ -127,6 +137,11 @@ var _ = Describe("Pull event watch", func() {
 				UID:        pod.UID,
 			},
 		}
+		Eventually(
+			func() int { return observed.watches(pod.Namespace) },
+			routeManagerWait,
+			routeManagerPoll,
+		).Should(BeNumerically(">", 0))
 		Expect(k8sClient.Create(ctx, pull)).To(Succeed())
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
@@ -141,8 +156,36 @@ var _ = Describe("Pull event watch", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			g.Expect(app.Status.Rollout.Replicas[0].State).To(Equal(loco.ReplicaStarting))
-			g.Expect(app.Status.Rollout.Replicas[0].Detail).To(Equal(pull.Note))
 		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+		outside := &corev1.Namespace{Name: testWorkspaceNamespacePrefix + "outside-pulls"}
+		Expect(k8sClient.Create(ctx, outside)).To(Succeed())
+		outsidePod := pod.DeepCopy()
+		outsidePod.Namespace, outsidePod.UID, outsidePod.ResourceVersion = outside.Name, "", ""
+		Expect(k8sClient.Create(ctx, outsidePod)).To(Succeed())
+		outsideEvent := pull.DeepCopy()
+		outsideEvent.Namespace, outsideEvent.UID, outsideEvent.ResourceVersion = outside.Name, "", ""
+		outsideEvent.Regarding.Namespace, outsideEvent.Regarding.UID = outside.Name, outsidePod.UID
+		Expect(k8sClient.Create(ctx, outsideEvent)).To(Succeed())
+		Consistently(func() bool {
+			r.pullMu.Lock()
+			defer r.pullMu.Unlock()
+			_, found := r.pullEvents[outsidePod.UID]
+			return found
+		}, 200*time.Millisecond, routeManagerPoll).Should(BeFalse())
+		observed.expectScoped(pod.Namespace, outside.Name)
+		ns := &corev1.Namespace{Name: pod.Namespace}
+		Expect(k8sClient.Delete(ctx, ns)).To(Succeed())
+		Eventually(
+			func() int { return observed.watches(pod.Namespace) },
+			routeManagerWait,
+			routeManagerPoll,
+		).Should(Equal(0))
+		Eventually(func() bool {
+			r.pullMu.Lock()
+			defer r.pullMu.Unlock()
+			_, found := r.pullEvents[pod.UID]
+			return found
+		}, routeManagerWait, routeManagerPoll).Should(BeFalse())
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 	})
 })

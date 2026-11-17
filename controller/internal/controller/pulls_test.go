@@ -26,7 +26,7 @@ func TestPullEvents(t *testing.T) {
 	r := &ApplicationReconciler{
 		Client: fake.NewClientBuilder().
 			WithScheme(workspaceTestScheme(t)).
-			WithObjects(pod, other).
+			WithObjects(pod, other, &corev1.Namespace{Name: pod.Namespace, Labels: workspaceNamespaceLabels(app)}).
 			Build(),
 		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
 	}
@@ -51,8 +51,7 @@ func TestPullEvents(t *testing.T) {
 	e.Series = &eventsv1.EventSeries{LastObservedTime: metav1.NewMicroTime(now.Add(time.Second)), Count: 2}
 	r.applicationForPullEvent(t.Context(), e)
 	if got := r.pullEvents[pod.UID]; got.reason != pullReasonPulled ||
-		!got.at.Time.Equal(e.Series.LastObservedTime.Time) ||
-		got.detail != e.Note {
+		!got.at.Time.Equal(e.Series.LastObservedTime.Time) {
 		t.Fatalf("series update = %+v", got)
 	}
 	for _, change := range []func(*eventsv1.Event){
@@ -108,17 +107,4 @@ func TestPullEventTime(t *testing.T) {
 			t.Fatalf("time = %v, want %v", got, tt.want)
 		}
 	}
-}
-
-func TestPullCacheSelector(t *testing.T) {
-	for obj, options := range CacheOptions("", "", false).ByObject {
-		if _, ok := obj.(*eventsv1.Event); !ok {
-			continue
-		}
-		if options.Field == nil || options.Field.String() != "regarding.kind=Pod" {
-			t.Fatalf("selector = %v", options.Field)
-		}
-		return
-	}
-	t.Fatal("events missing from manager cache")
 }

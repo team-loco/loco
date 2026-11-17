@@ -282,9 +282,7 @@ func TestReplicaPullState(t *testing.T) {
 		{"pulling", reasonContainerCreating, &pullEvent{reason: pullReasonPulling, at: at}, loco.ReplicaPulling, ""},
 		{"initializing", reasonPodInitializing, &pullEvent{reason: pullReasonPulling, at: at}, loco.ReplicaPulling, ""},
 		{"missing", reasonContainerCreating, nil, loco.ReplicaStarting, ""},
-		{"pulled", reasonContainerCreating,
-			&pullEvent{reason: pullReasonPulled, detail: "Successfully pulled image in 1.2s. Image size: 42 bytes.", at: at},
-			loco.ReplicaStarting, "Successfully pulled image in 1.2s. Image size: 42 bytes."},
+		{"pulled", reasonContainerCreating, &pullEvent{reason: pullReasonPulled, at: at}, loco.ReplicaStarting, ""},
 		{"failed ignored", reasonContainerCreating, &pullEvent{reason: pullReasonFailed, at: at}, loco.ReplicaStarting, ""},
 		{"failed container", reasonErrImagePull,
 			&pullEvent{reason: pullReasonFailed, at: at},
@@ -292,9 +290,6 @@ func TestReplicaPullState(t *testing.T) {
 		{"pull cannot hide failure", reasonImagePullBackOff,
 			&pullEvent{reason: pullReasonPulling, at: at},
 			loco.ReplicaFailing, "ImagePullBackOff: "},
-		{"clipped pulled detail", reasonPodInitializing,
-			&pullEvent{reason: pullReasonPulled, detail: strings.Repeat("x", 600), at: at},
-			loco.ReplicaStarting, strings.Repeat("x", replicaDetailBytes)},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			pod := &corev1.Pod{Status: corev1.PodStatus{

@@ -23,9 +23,6 @@ const (
 
 func replicaState(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
 	result := classifyReplica(pod, pull, recoveryWindow, now)
-	if result.State == loco.ReplicaStarting && pull != nil && pull.reason == pullReasonPulled {
-		result.Detail = pull.detail
-	}
 	result.Detail = clip.Bytes(result.Detail, replicaDetailBytes)
 	return result
 }

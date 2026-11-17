@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	eventsv1 "k8s.io/api/events/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/team-loco/loco/internal/clip"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -26,8 +25,8 @@ const (
 
 type pullEvent struct {
 	application types.NamespacedName
+	namespace   string
 	reason      string
-	detail      string
 	at          metav1.Time
 }
 
@@ -36,7 +35,7 @@ func (r *ApplicationReconciler) applicationForPullEvent(ctx context.Context, obj
 	if !ok {
 		return nil
 	}
-	if !strings.HasPrefix(e.Namespace, r.WorkspaceNamespacePrefix) || e.Regarding.Kind != "Pod" {
+	if e.Regarding.Kind != "Pod" {
 		return nil
 	}
 	switch e.Reason {
@@ -46,6 +45,16 @@ func (r *ApplicationReconciler) applicationForPullEvent(ctx context.Context, obj
 	}
 	r.pullMu.Lock()
 	defer r.pullMu.Unlock()
+	ns := &corev1.Namespace{}
+	if err := r.Get(ctx, client.ObjectKey{Name: e.Namespace}, ns); err != nil {
+		if !apierrors.IsNotFound(err) {
+			slog.WarnContext(ctx, "failed to resolve pull event namespace", "namespace", e.Namespace, "error", err)
+		}
+		return nil
+	}
+	if !ns.DeletionTimestamp.IsZero() || !workspaceNamespaceSelector().Matches(labels.Set(ns.Labels)) {
+		return nil
+	}
 	pod := &corev1.Pod{}
 	key := client.ObjectKey{Namespace: e.Namespace, Name: e.Regarding.Name}
 	if err := r.Get(ctx, key, pod); err != nil {
@@ -70,7 +79,8 @@ func (r *ApplicationReconciler) applicationForPullEvent(ctx context.Context, obj
 	}
 	r.pullEvents[pod.UID] = pullEvent{
 		application: requests[0].NamespacedName,
-		reason:      e.Reason, detail: clip.Bytes(e.Note, replicaDetailBytes), at: at,
+		namespace:   e.Namespace,
+		reason:      e.Reason, at: at,
 	}
 	return requests
 }

@@ -30,7 +30,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	eventsv1 "k8s.io/api/events/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -54,6 +53,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	v1Gateway "sigs.k8s.io/gateway-api/apis/v1"
 	gatewayac "sigs.k8s.io/gateway-api/applyconfiguration/apis/v1"
 
@@ -872,6 +872,10 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	pullEvents := make(chan event.GenericEvent)
+	if err := r.watchWorkspacePulls(mgr, pullEvents); err != nil {
+		return err
+	}
 	applicationChanged := predicate.Or[client.Object](
 		predicate.GenerationChangedPredicate{},
 		predicate.AnnotationChangedPredicate{},
@@ -898,7 +902,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&appsv1.Deployment{}, applicationHandler).
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, r.podHandler(applicationHandler)).
-		Watches(&eventsv1.Event{}, handler.EnqueueRequestsFromMapFunc(r.applicationForPullEvent)).
+		WatchesRawSource(source.Channel(pullEvents, handler.EnqueueRequestsFromMapFunc(r.applicationForPullEvent))).
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).

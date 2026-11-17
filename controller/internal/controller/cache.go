@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
-	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -63,7 +62,7 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 	return cache.Options{
 		DefaultTransform: stripManagedFields,
 		ByObject: map[client.Object]cache.ByObject{
-			&corev1.Namespace{}:                      managedObjects,
+			&corev1.Namespace{}:                      {Label: workspaceNamespaceSelector()},
 			&corev1.Secret{}:                         secrets,
 			&corev1.Service{}:                        managedObjects,
 			&corev1.ServiceAccount{}:                 managedObjects,
@@ -71,8 +70,6 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 			&autoscalingv2.HorizontalPodAutoscaler{}: managedObjects,
 			&v1Gateway.HTTPRoute{}:                   managedObjects,
 			&corev1.Pod{}:                            applicationPods,
-			// Field selectors cannot OR reasons or match namespace prefixes.
-			&eventsv1.Event{}: {Field: fields.OneTermEqualSelector("regarding.kind", "Pod")},
 		},
 	}
 }
