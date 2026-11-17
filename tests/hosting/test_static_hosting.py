@@ -120,6 +120,23 @@ def check_not_found_renders(address, pages, out_dir):
     assert problems == []
 
 
+def check_path_opens_ui(page, path):
+    errors = []
+    page.on(
+        "console",
+        lambda message: message.type == "error"
+        and errors.append(f"{message.location['url']}: {message.text}"),
+    )
+    page.on("pageerror", lambda error: errors.append(f"Uncaught: {error}"))
+    navigate(page, f"http://{UI_HOST}{path}")
+    try:
+        page.wait_for_url(f"http://{UI_HOST}/login")
+    except Error as error:
+        console = "\n".join(errors) or "(none)"
+        pytest.fail(f"{path} stopped at {page.url}\nConsole errors:\n{console}\n{error}")
+    expect(page, path).to_have_title("Sign in | Loco")
+
+
 def check_unknown_path_opens_ui(address, paths):
     # Without a session the UI sends every protected path, including an unknown
     # one, to sign-in. Its NotFound page needs a session, so tests/ui covers it.
@@ -129,9 +146,7 @@ def check_unknown_path_opens_ui(address, paths):
         )
         for path in paths:
             page = browser.new_page()
-            navigate(page, f"http://{UI_HOST}{path}")
-            page.wait_for_url(f"http://{UI_HOST}/login")
-            expect(page, path).to_have_title("Sign in | Loco")
+            check_path_opens_ui(page, path)
             page.close()
         browser.close()
 
