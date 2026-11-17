@@ -30,7 +30,7 @@ The repository has `releases/control-plane.yaml`, staging and production worker 
 
 ## Bootstrap Flux
 
-Bootstrap Flux against the cluster's directory with your Git host's supported authentication. For example:
+Each cluster needs Flux 2.10 or later. Bootstrap Flux against the cluster's directory with your Git host's supported authentication. For example:
 
 ```sh
 flux bootstrap git --url=ssh://git@example.com/operator/fleet \
