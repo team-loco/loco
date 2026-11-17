@@ -107,6 +107,12 @@ def test_layers_wait_for_their_dependencies(bundle):
                 assert "platform.loco.io/revision" in dep["readyExpr"]
 
 
+@pytest.mark.parametrize("entry", ["control-plane", "worker", "all"])
+@pytest.mark.parametrize("layer", ["namespaces", "crds"])
+def test_persistent_layers_do_not_prune(bundle, entry, layer):
+    assert json.loads(bundle.files[f"{entry}/{layer}.yaml"])["spec"]["prune"] is False
+
+
 def test_crds_health_requires_the_expected_artifact_revision(bundle):
     spec = json.loads(bundle.files["all/crds.yaml"])["spec"]
     assert spec["prune"] is False

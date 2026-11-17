@@ -263,7 +263,7 @@ def bundle(version, commit, refs, images):
 
     layers = {}
     for name, dependencies in (('namespaces', ()), ('crds', ('namespaces',)), ('infra', ('crds',)), ('control-plane', ('infra',)), ('worker', ('infra',))):
-        spec = {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': 'platform-bundle'}, 'path': './layers/' + name, 'prune': name != 'crds', 'wait': True, 'timeout': '10m', 'postBuild': {'substitute': {'PLATFORM_RELEASE': revision}}, 'dependsOn': [dependency('loco-' + dep) for dep in dependencies]}
+        spec = {'interval': '5m', 'sourceRef': {'kind': 'OCIRepository', 'name': 'platform-bundle'}, 'path': './layers/' + name, 'prune': name not in ('namespaces', 'crds'), 'wait': True, 'timeout': '10m', 'postBuild': {'substitute': {'PLATFORM_RELEASE': revision}}, 'dependsOn': [dependency('loco-' + dep) for dep in dependencies]}
         if name != 'namespaces':
             spec['serviceAccountName'] = 'platform-reconciler'
         if name in ('control-plane', 'worker'):
