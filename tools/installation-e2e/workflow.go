@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"slices"
@@ -47,10 +48,11 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 		"--client",
 	)
 	cmd.Dir = dir
-	// Keep raw child output bounded and private even when kubectl fails.
+	// Keep stdout private on failure; stderr carries the operator and kubectl diagnostics.
 	output := operatorOutput{phase: "unknown"}
 	cmd.Stdout = &output
-	cmd.Stderr = &output
+	var stderr boundedOutput
+	cmd.Stderr = io.MultiWriter(&output, &stderr)
 	err := cmd.Run()
 	if output.exceeded {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
@@ -58,10 +60,19 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 	if err != nil {
 		if output.failure != "" {
 			return nil, fmt.Errorf(
-				"operator phase %s, %s: kubectl failed: %w", output.phase, output.failure, err,
+				"operator phase %s, %s: kubectl failed: %w; stderr: %s",
+				output.phase,
+				output.failure,
+				err,
+				strings.TrimSpace(string(stderr.Bytes())),
 			)
 		}
-		return nil, fmt.Errorf("operator phase %s: kubectl failed: %w", output.phase, err)
+		return nil, fmt.Errorf(
+			"operator phase %s: kubectl failed: %w; stderr: %s",
+			output.phase,
+			err,
+			strings.TrimSpace(string(stderr.Bytes())),
+		)
 	}
 	return output.Bytes(), nil
 }
