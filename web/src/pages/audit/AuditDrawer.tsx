@@ -107,7 +107,7 @@ export function AuditDrawer({
 										<CopyId
 											value={row.event.requestId}
 											title="Copy request ID"
-											className="w-fit max-w-full justify-start p-0 font-mono text-[12.5px] font-normal hover:bg-transparent hover:underline"
+											className="w-fit max-w-full justify-start p-0 font-mono text-[12.5px] font-normal hover:bg-transparent hover:text-foreground"
 										>
 											<span className="min-w-0 truncate">{row.event.requestId}</span>
 										</CopyId>

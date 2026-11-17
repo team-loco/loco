@@ -155,7 +155,7 @@ export function SpecDialogContent({
 				/>
 				{b === undefined && firstOther !== undefined && (
 					<Button
-						variant="link"
+						variant="plain-link"
 						onClick={() => {
 							onChange(a.id, firstOther.id);
 						}}
@@ -178,7 +178,7 @@ export function SpecDialogContent({
 							<span className="text-ok-fg">+{diff.add}</span> <span className="text-bad-fg">−{diff.del}</span>
 						</span>
 						<Button
-							variant="link"
+							variant="plain-link"
 							onClick={() => {
 								onChange(a.id, null);
 							}}

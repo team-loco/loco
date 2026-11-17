@@ -166,11 +166,7 @@
 		font-weight: 700;
 	}
 	& [data-slot="sidebar-menu-button"][data-active] {
-		background-color: var(--shell-active);
 		color: #000000;
-		box-shadow:
-			inset 0 0 0 2px var(--ink),
-			3px 3px 0 0 var(--ink);
 		& svg {
 			color: #000000;
 		}
@@ -455,4 +451,16 @@
 		box-shadow: 3px 3px 0 var(--ink);
 		background: var(--raise);
 	}
+}
+
+[data-theme="neobrutal"] [data-slot="sidebar-highlight"] {
+	background: var(--btn);
+	border: 2px solid var(--ink);
+	box-shadow: 3px 3px 0 var(--ink);
+}
+[data-theme="neobrutal"] .act-n {
+	border: 2px solid var(--ink);
+	border-radius: 4px;
+	background: var(--btn);
+	color: var(--btn-fg);
 }

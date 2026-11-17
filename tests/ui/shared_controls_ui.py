@@ -60,6 +60,31 @@ def mock_telemetry(context):
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", lambda route: route.fulfill(json={"series": [{"resourceId": resource, "points": points}]}))
 
 
+def shell_navigation(page):
+    page.set_viewport_size(evidence.DESKTOP)
+    page.goto(state["ui_url"] + base + "?env=production")
+    activity = page.get_by_role("button", name="Activity, 0 active", exact=True)
+    activity.click()
+    drawer = page.get_by_role("dialog", name="Activity", exact=True)
+    expect(drawer).to_contain_text("Nothing needs attention.")
+    events = drawer.get_by_role("link", name="All events", exact=True)
+    expect(events).to_be_visible()
+    drawer.get_by_role("button", name="Close activity", exact=True).click()
+    expect(drawer).not_to_be_visible()
+    expect(activity).to_be_focused()
+    sidebar = page.locator('[data-slot="sidebar-content"]')
+    resources = sidebar.get_by_role("link", name="Resources", exact=True)
+    resources.click()
+    expect(resources).to_have_attribute("aria-current", "page")
+    sidebar.get_by_role("link", name="Dashboard", exact=True).click()
+    expect(sidebar.get_by_role("link", name="Dashboard", exact=True)).to_have_attribute("aria-current", "page")
+    page.emulate_media(reduced_motion="reduce")
+    activity.hover()
+    activity.click()
+    page.keyboard.press("Escape")
+    page.emulate_media(reduced_motion="no-preference")
+
+
 def log_levels(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs&q=" + urllib.parse.quote("@level:warn"))
     levels = page.get_by_role("group", name="Log levels")
@@ -596,7 +621,7 @@ with session(out) as browser:
             name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
             box = name.bounding_box()
             assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
-            for check in (log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, limit_display, dashboard):
+            for check in (shell_navigation, log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, limit_display, dashboard):
                 check(page)
             assert not errors, errors
             results.append({"passed": True})

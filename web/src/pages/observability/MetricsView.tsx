@@ -493,7 +493,7 @@ export function MetricsView() {
 													event.stopPropagation();
 													focusRow(p);
 												}}
-												className="flex items-center gap-1.5 rounded-sm text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+												className="flex items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 											>
 												<span className="size-2 rounded-[2px]" style={{ background: p.resource.color }} />
 												{p.resource.name}

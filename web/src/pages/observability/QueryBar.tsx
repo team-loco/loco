@@ -397,7 +397,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					)}
 					{curQuery !== "" && (
 						<Button
-							variant="link"
+							variant="plain-link"
 							onClick={(e) => {
 								e.stopPropagation();
 								setText("");
@@ -444,7 +444,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 										<ComboboxLabel className="p-0 text-[11.5px] text-fg3">{g.title}</ComboboxLabel>
 										{g.clear !== undefined && (
 											<Button
-												variant="link"
+												variant="plain-link"
 												aria-label={g.clear.label}
 												className="h-auto p-0 text-[11.5px] text-fg3"
 												onClick={() => {
