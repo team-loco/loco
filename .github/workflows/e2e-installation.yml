@@ -23,8 +23,6 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: e2e
@@ -34,7 +32,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Install and upgrade with Flux, then exercise the public commands
+      - name: Install the newest published bundle and upgrade with Flux
         env:
+          GH_TOKEN: ${{ github.token }}
           E2E_IMAGES: ${{ inputs.images }}
         run: mise run e2e:installation

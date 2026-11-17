@@ -54,11 +54,11 @@ Use the repository's tasks for builds, tests, code generation, and linting so lo
 
 ## Installation end-to-end suite
 
-The installation suite uses Flux to install the merge-base bundle and upgrade to the head bundle, checks retained identities and encryption keys, then exercises login, enrollment, source deployment, verification and recovery.
+The installation suite uses Flux to install the newest stable published release and upgrade to the head bundle, checks retained identities and encryption keys, then exercises login, enrollment, source deployment, verification and recovery.
 
 ```sh
 mise run e2e:installation --no-teardown
 mise run e2e:installation --skip-build
 ```
 
-The installation fixture runs `locoadm init --single-cluster` and merges `tests/e2e/fixtures/installation/values/` overrides into the generated repository. The fixture registry holds that repository and digest-pinned charts, images and CRDs. The baseline and head use the current bundle tooling. Each checkout owns its kind cluster; `--no-teardown` keeps it for inspection and `--skip-build` reuses its images. Default cleanup removes fixtures after success or failure.
+The installation fixture runs `locoadm init --single-cluster` and merges `tests/e2e/fixtures/installation/values/` overrides into the generated repository. The fixture registry holds that repository and digest-pinned charts, images and CRDs. The published baseline must have the bundle v2 entry points; otherwise the suite fails with the release version. The published baseline and the head bundle are pinned by digest. The fixture initializes the database with the head schema before the baseline API starts because migrations are edited in place. Each checkout owns its kind cluster; `--no-teardown` keeps it for inspection and `--skip-build` reuses its images. Default cleanup removes fixtures after success or failure.

@@ -7,73 +7,86 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	registryname "github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// releases uses the head's bundle tooling for both chart generations. See #2186
-// for selecting a published baseline after the first bundle v2 release.
 func (f *fixture) releases(ctx context.Context) (string, string, error) {
-	if err := f.pullPrebuilt(ctx); err != nil {
-		return "", "", err
-	}
-	base, err := command(ctx, f.root, nil, "git", "merge-base", "HEAD", "origin/main")
+	previous, err := publishedBaseline(ctx, "ghcr.io/team-loco/loco/platform")
 	if err != nil {
 		return "", "", err
 	}
-	f.baselineRoot = filepath.Join(filepath.Dir(f.root), f.name+"-baseline")
-	if _, err = os.Stat(f.baselineRoot); os.IsNotExist(err) {
-		if _, err = command(
-			ctx,
-			f.root,
-			nil,
-			"git",
-			"worktree",
-			"add",
-			"--detach",
-			f.baselineRoot,
-			strings.TrimSpace(string(base)),
-		); err != nil {
-			return "", "", err
-		}
-	} else if err != nil {
-		return "", "", err
-	}
-	actual, err := command(ctx, f.baselineRoot, nil, "git", "rev-parse", "HEAD")
-	if err != nil {
-		return "", "", err
-	}
-	if strings.TrimSpace(string(actual)) != strings.TrimSpace(string(base)) {
-		return "", "", errors.New("baseline checkout differs from merge base")
-	}
-	if local, readErr := os.ReadFile(filepath.Join(f.root, "CLAUDE.local.md")); readErr == nil {
-		// #nosec G703 -- baselineRoot is the checkout-adjacent fixture worktree created above.
-		if err = os.WriteFile(filepath.Join(f.baselineRoot, "CLAUDE.local.md"), local, 0600); err != nil {
-			return "", "", err
-		}
-	} else if !os.IsNotExist(readErr) {
-		return "", "", readErr
-	}
-	for _, args := range [][]string{{"trust"}, {"run", "setup"}} {
-		if _, err = command(ctx, f.baselineRoot, nil, "mise", args...); err != nil {
-			return "", "", err
-		}
-	}
-	previous := *f
-	previous.dir, previous.images = filepath.Join(f.dir, "baseline"), ""
-	if err = os.MkdirAll(previous.dir, 0700); err != nil {
-		return "", "", err
-	}
-	fmt.Println("Publishing merge-base charts and images with current bundle tooling")
-	oldRef, err := previous.release(ctx, f.baselineRoot)
-	if err != nil {
+	fmt.Println("Published upgrade baseline:", previous)
+	if err = f.pullPrebuilt(ctx); err != nil {
 		return "", "", err
 	}
 	fmt.Println("Publishing head charts and images")
-	newRef, err := f.release(ctx, f.root)
+	current, err := f.release(ctx)
 	if err != nil {
 		return "", "", err
 	}
 	if err = f.buildLocoadm(ctx, f.version); err != nil {
 		return "", "", err
 	}
-	return oldRef, newRef, nil
+	return previous, current, nil
+}
+
+func publishedBaseline(ctx context.Context, repository string) (string, error) {
+	output, err := command(ctx, "", nil, "gh", "api", "repos/team-loco/loco/releases/latest", "--jq", ".tag_name")
+	if err != nil {
+		return "", err
+	}
+	version := strings.TrimSpace(string(output))
+	tag, err := registryname.NewTag(repository + ":" + strings.TrimPrefix(version, "v"))
+	if err != nil {
+		return "", err
+	}
+	descriptor, err := remote.Head(tag, remote.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("resolve published bundle %s: %w", version, err)
+	}
+	reference := tag.Context().Digest(descriptor.Digest.String()).Name()
+	compatible, err := bundleV2(ctx, reference)
+	if err != nil {
+		return "", fmt.Errorf("inspect published bundle %s: %w", version, err)
+	}
+	if !compatible {
+		return "", fmt.Errorf("published bundle %s lacks v2 entry points (control-plane, worker, all)", version)
+	}
+	return reference, nil
+}
+
+func bundleV2(ctx context.Context, reference string) (compatible bool, result error) {
+	directory, err := os.MkdirTemp("", "loco-published-bundle-")
+	if err != nil {
+		return false, err
+	}
+	defer func() { result = errors.Join(result, os.RemoveAll(directory)) }()
+	if _, err = command(
+		ctx,
+		"",
+		nil,
+		"flux",
+		"pull",
+		"artifact",
+		"oci://"+reference,
+		"--output",
+		directory,
+	); err != nil {
+		return false, err
+	}
+	for _, entry := range []string{"control-plane", "worker", "all"} {
+		info, statErr := os.Stat(filepath.Join(directory, entry, "kustomization.yaml"))
+		if os.IsNotExist(statErr) {
+			return false, nil
+		}
+		if statErr != nil {
+			return false, statErr
+		}
+		if !info.Mode().IsRegular() {
+			return false, fmt.Errorf("bundle entry point %s is not a file", entry)
+		}
+	}
+	return true, nil
 }

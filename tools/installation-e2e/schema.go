@@ -52,26 +52,5 @@ func (f *fixture) prepareSchema(ctx context.Context, databaseURL string) (result
 	if output, migrateErr := migrate.CombinedOutput(); migrateErr != nil {
 		return fmt.Errorf("initialize fixture database schema: %w; output: %s", migrateErr, output)
 	}
-	// Migrations are edited in place, so N-1's API expects a column N's schema lacks.
-	return fixtureSchemaQuery(
-		ctx,
-		"ALTER TABLE clusters ADD COLUMN IF NOT EXISTS dns_records JSONB NOT NULL DEFAULT '[]'",
-	)
-}
-
-func fixtureSchemaQuery(ctx context.Context, statement string) error {
-	_, err := kubectl(
-		ctx,
-		"-n",
-		fixtureNamespace,
-		"exec",
-		"deployment/postgres",
-		"--",
-		"sh",
-		"-c",
-		`exec psql --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" --no-psqlrc --set ON_ERROR_STOP=on --command "$1"`,
-		"--",
-		statement,
-	)
-	return err
+	return nil
 }
