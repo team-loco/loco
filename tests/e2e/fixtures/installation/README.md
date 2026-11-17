@@ -4,7 +4,7 @@
 
 The baseline uses the merge base's charts and images, packaged by the head's bundle tooling. The head supplies the upgrade bundle. [2186](https://github.com/team-loco/loco/issues/2186) tracks selecting the newest published v2 bundle as the baseline. Both generations use digest-pinned artifacts. The baseline worktree lives beside the tested checkout.
 
-Flux reconciles the bundle's control-plane entry point, then its combined entry point after registration. The operator signs in with the device flow and a verified Dex identity under closed signup. `locoadm cluster create` writes a SOPS-encrypted join-token Secret; Flux decrypts the enrollment artifact with a throwaway age identity.
+Flux reconciles the bundle's control-plane entry point, then its combined entry point after registration. The operator signs in with the device flow and a verified Dex identity under closed signup. `locoadm cluster create -o secret` prints a Kubernetes Secret manifest that the harness applies directly. Secret encryption and Flux decryption belong to operator tooling and are outside this test.
 
 Upgrade checks compare agent identity, seal material, initialization material and ClickHouse credentials before and after reconciliation. A transit ciphertext created before the upgrade must decrypt afterwards, and the ingest signing key must retain its public identity. A fresh operator login and a 72-hour token issuance exercise the upgraded API.
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +39,13 @@ func TestFluxWorkerAppliesGeneratedSecret(t *testing.T) {
 			t.Setenv("CLI_ARGS", argsPath)
 			t.Setenv("SECRET_INPUT", input)
 			t.Setenv("SECRET_APPLIED", applied)
-			if err := createFluxWorker(t.Context(), "fixture-worker", head); err != nil {
+			audit := newLeakAudit()
+			ctx := context.WithValue(t.Context(), auditKey{}, audit)
+			if err := createFluxWorker(ctx, "fixture-worker", head); err != nil {
+				t.Fatal(err)
+			}
+			audit.add([]byte("fixture-token"))
+			if err := audit.check("enrollment"); err != nil {
 				t.Fatal(err)
 			}
 			args, err := os.ReadFile(argsPath)
@@ -59,5 +66,24 @@ func TestFluxWorkerAppliesGeneratedSecret(t *testing.T) {
 				t.Fatalf("applied Secret differs: %v", err)
 			}
 		})
+	}
+}
+
+func TestSecretOutputKeepsDiagnosticsAudited(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\nprintf 'manifest'\nprintf 'diagnostic-canary' >&2\n"
+	if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	audit := newLeakAudit()
+	ctx := context.WithValue(t.Context(), auditKey{}, audit)
+	output, err := locoadm(ctx, "cluster", "join-token", "fixture-id", "--output", "secret")
+	if err != nil || string(output) != "manifest" {
+		t.Fatalf("manifest contains diagnostics: %q, %v", output, err)
+	}
+	audit.add([]byte("diagnostic-canary"))
+	if err := audit.check("diagnostics"); err == nil {
+		t.Fatal("Secret output disabled stderr audit")
 	}
 }

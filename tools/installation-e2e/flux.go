@@ -194,7 +194,7 @@ func upgradePlatform(ctx context.Context) error {
 func createFluxWorker(ctx context.Context, name string, head bool) error {
 	args := []string{
 		"cluster",
-		"create",
+		clusterCreateCommand,
 		"--name",
 		name,
 		"--region",
@@ -202,7 +202,7 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		"--tier",
 		"staging",
 		"-o",
-		"secret",
+		secretOutputFormat,
 		"--secret-name",
 		"loco-worker-enrollment",
 	}

@@ -93,16 +93,19 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 	if input != nil {
 		cmd.Stdin = bytes.NewReader(input)
 	}
+	privateOutput := secretManifestOutput(program, args)
 	var out []byte
 	var err error
-	if audit, ok := ctx.Value(auditKey{}).(*leakAudit); ok && (program == "locoadm" || program == "loco") {
+	if audit, ok := ctx.Value(auditKey{}).(*leakAudit); ok && (program == locoadmExecutable || program == "loco") {
 		var stdout, stderr boundedOutput
 		cmd.Stdout = &stdout
 		cmd.Stderr = &stderr
 		err = cmd.Run()
-		audit.capture("CLI output (stdout)", stdout.Bytes())
+		if !privateOutput {
+			audit.capture("CLI output (stdout)", stdout.Bytes())
+		}
 		audit.capture("CLI output (stderr)", stderr.Bytes())
-		if err != nil && program == "locoadm" && len(args) > 0 && args[0] == "verify" {
+		if err != nil && program == locoadmExecutable && len(args) > 0 && args[0] == "verify" {
 			category := verificationFailureUnknown
 			if !stderr.exceeded {
 				category = classifyVerificationFailure(stderr.Bytes())
@@ -110,12 +113,17 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 			_, writeErr := fmt.Fprintln(os.Stderr, verificationFailurePrefix+category)
 			err = errors.Join(err, writeErr)
 		}
-		out = append(stdout.Bytes(), stderr.Bytes()...)
+		out = stdout.Bytes()
+		if !privateOutput {
+			out = append(out, stderr.Bytes()...)
+		}
 		if stdout.exceeded || stderr.exceeded {
 			audit.mu.Lock()
 			audit.exceeded = true
 			audit.mu.Unlock()
 		}
+	} else if privateOutput {
+		out, err = cmd.Output()
 	} else {
 		out, err = cmd.CombinedOutput()
 	}
@@ -123,6 +131,26 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 		return nil, fmt.Errorf("%s failed: %w", program, err)
 	}
 	return out, nil
+}
+
+const (
+	locoadmExecutable    = "locoadm"
+	clusterCreateCommand = "create"
+	secretOutputFormat   = "secret"
+)
+
+// Secret manifests are requested payloads, kept separate from diagnostic output.
+func secretManifestOutput(program string, args []string) bool {
+	if program != locoadmExecutable || len(args) < 4 || args[0] != "cluster" ||
+		(args[1] != clusterCreateCommand && args[1] != "join-token") {
+		return false
+	}
+	for i := 2; i+1 < len(args); i++ {
+		if (args[i] == "-o" || args[i] == "--output") && args[i+1] == secretOutputFormat {
+			return true
+		}
+	}
+	return false
 }
 
 func stopProcess(cmd *exec.Cmd) error {
