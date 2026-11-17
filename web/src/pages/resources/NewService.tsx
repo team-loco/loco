@@ -467,6 +467,7 @@ function ServiceForm({
 	const { deployError, deploy } = deployment;
 
 	const selected = draftRegions(draft, regions);
+	const regionNames = [...new Set([...regions.map((region) => region.region), ...selected])];
 	const size = draftSizing(draft, defaults);
 	const served = servedDomains(platformDomains, selected);
 	const form: NewResourceForm = {
@@ -536,7 +537,7 @@ function ServiceForm({
 					</Field>
 				</div>
 				<DrawerSection title="Regions">
-					{regions.length === 0 ? (
+					{regionNames.length === 0 ? (
 						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>
 					) : (
 						<RegionCards
@@ -546,14 +547,16 @@ function ServiceForm({
 								if (next.length > 0) set({ regions: next });
 							}}
 						>
-							{regions.map((region) => {
-								const last = selected.includes(region.region) && selected.length === 1;
+							{regionNames.map((regionName) => {
+								const region = regions.find((info) => info.region === regionName);
+								const last = selected.includes(regionName) && selected.length === 1;
 								return (
 									<RegionCard
-										key={region.region}
-										name={region.region}
-										value={region.region}
+										key={regionName}
+										name={regionName}
+										value={regionName}
 										health={region}
+										configured={selected.includes(regionName)}
 										aria-disabled={last || undefined}
 										title={last ? "A resource needs at least one region" : undefined}
 									/>

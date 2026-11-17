@@ -2,6 +2,7 @@ import { useQuery } from "@connectrpc/connect-query";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
+	RegionAvailability,
 	ResourceStatus,
 	type EnvironmentStatus,
 	type RegionInfo,
@@ -81,7 +82,9 @@ export function useDashboardData(orgId: string | null, workspaceId: string | nul
 
 	envDeployments.sort((a, b) => tsMs(b.deployment.createdAt) - tsMs(a.deployment.createdAt));
 
-	const regionInfos: RegionInfo[] = regionsQuery.data?.regions ?? [];
+	const regionInfos: RegionInfo[] = (regionsQuery.data?.regions ?? []).filter(
+		(region) => region.availability !== RegionAvailability.OFFLINE,
+	);
 
 	return {
 		resources,
