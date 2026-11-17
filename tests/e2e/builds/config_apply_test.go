@@ -33,7 +33,7 @@ func TestConfigApply(t *testing.T) {
 	w := p.NewTenant(t)
 	repo := t.TempDir()
 	p.CopyFixture(t, "build-app", filepath.Join(repo, "services", "web"))
-	web := platform.SourceService(platform.Host(configWeb))
+	web := platform.SourceService(w.Host(configWeb))
 	web.Context = "services/web"
 	web.Env = map[string]string{"TIER": "base"}
 	web.Environments = map[string]locofile.Override{
@@ -103,7 +103,7 @@ func TestConfigApply(t *testing.T) {
 		t.Logf("loco deploy took %s", time.Since(started))
 		requireDeploymentOrigin(t, w, repo, configWeb, true)
 		requireContains(t, out, "Building "+configWeb+" from deploy/Dockerfile in services/web", "Build succeeded",
-			configWeb+": https://"+platform.Host(configWeb))
+			configWeb+": https://"+w.Host(configWeb))
 	})
 
 	t.Run("a second plan is clean", func(t *testing.T) {

@@ -19,7 +19,7 @@ func TestPortRollout(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	const app = "e2e-port-rollout"
-	host := platform.Host(app)
+	host := w.Host(app)
 	dir := t.TempDir()
 	service := platform.ImageService(p.PublicImage, host)
 	service.Regions[p.Region] = locofile.Region{

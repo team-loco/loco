@@ -69,7 +69,7 @@ func TestObservability(t *testing.T) {
 	second := w.NewWorkspace(t, w.Name+"-isolation")
 	dir := t.TempDir()
 	p.CopyFixture(t, "otel-app", dir)
-	host := platform.Host(otelApp)
+	host := w.Host(otelApp)
 	file := locofile.File{
 		Partial:  otelApp,
 		Services: map[string]locofile.Service{otelApp: platform.SourceService(host)},

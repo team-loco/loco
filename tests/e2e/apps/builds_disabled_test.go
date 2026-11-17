@@ -61,7 +61,7 @@ func TestBuildsDisabled(t *testing.T) {
 	t.Run("a public image deploys", func(t *testing.T) {
 		dir := t.TempDir()
 		platform.WriteLocoFile(t, dir, locofile.File{Partial: imageApp, Services: map[string]locofile.Service{
-			imageApp: platform.ImageService(p.PublicImage, platform.Host(imageApp)),
+			imageApp: platform.ImageService(p.PublicImage, w.Host(imageApp)),
 		}})
 		if out := w.MustLoco(t, dir, "deploy", "--yes", "--wait").Stdout; !strings.Contains(out, "Started deployment") {
 			t.Errorf("the CLI did not apply the file without a build:\n%s", out)
@@ -80,7 +80,7 @@ func TestBuildsDisabled(t *testing.T) {
 	source := t.TempDir()
 	p.CopyFixture(t, "build-app", source)
 	platform.WriteLocoFile(t, source, locofile.File{Partial: sourceApp, Services: map[string]locofile.Service{
-		sourceApp: platform.SourceService(platform.Host(sourceApp)),
+		sourceApp: platform.SourceService(w.Host(sourceApp)),
 	}})
 
 	t.Run("a source deploy explains builds are unavailable", func(t *testing.T) {

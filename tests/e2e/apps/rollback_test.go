@@ -17,7 +17,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	const app = "e2e-rollback"
-	host := platform.Host(app)
+	host := w.Host(app)
 	service := platform.ImageService(p.PublicImage, host)
 	service.RollbackOnFailure = new(true)
 	service.Health = nil
