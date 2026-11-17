@@ -1,6 +1,10 @@
 import type { Route } from "./+types/docs";
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
-import { DocsBody, DocsPage, DocsTitle } from "fumadocs-ui/layouts/docs/page";
+import { DocsLayout } from "fumadocs-ui/layouts/notebook";
+import {
+  DocsBody,
+  DocsPage,
+  DocsTitle,
+} from "fumadocs-ui/layouts/notebook/page";
 import { docs } from "@/lib/source";
 import { source } from "@/lib/source.server";
 import { baseOptions } from "@/lib/layout.shared";
@@ -8,6 +12,7 @@ import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { getMDXComponents } from "@/components/mdx";
 import { use } from "react";
 import { Link } from "react-router";
+import { ArrowUpRight, FileText, Info } from "lucide-react";
 import NotFound from "./not-found";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -28,28 +33,41 @@ export default function Page({ loaderData }: Route.ComponentProps) {
   const Mdx = page.body;
   const canonical = `${import.meta.env.VITE_DOCS_URL}${url === "/" ? "" : `${url.slice(1)}/`}`;
 
+  const layout = baseOptions();
+
   return (
     <DocsLayout
-      {...baseOptions()}
+      {...layout}
       tree={pageTree}
-      sidebar={{ defaultOpenLevel: 2 }}
+      tabs={false}
+      nav={{ ...layout.nav, mode: "top" }}
+      sidebar={{ defaultOpenLevel: 2, collapsible: false }}
     >
-      {import.meta.env.VITE_DOCS_ENVIRONMENT === "staging" && (
-        <div className="staging-banner">
-          Staging documentation ·{" "}
-          <a href="https://docs.loco.build/">Read production docs</a>
-        </div>
-      )}
       <DocsPage toc={toc} tableOfContent={{ style: "normal" }}>
         <title>{`${page.title} | Loco docs`}</title>
         <link rel="canonical" href={canonical} />
-        <DocsTitle>{page.title}</DocsTitle>
-        <a
-          href={`${import.meta.env.BASE_URL}${path}`}
-          className="text-sm text-fd-muted-foreground"
-        >
-          View Markdown
-        </a>
+        {import.meta.env.VITE_DOCS_ENVIRONMENT === "staging" && (
+          <aside
+            className="staging-banner"
+            aria-label="Documentation environment"
+          >
+            <Info aria-hidden="true" size={16} />
+            <strong>Staging documentation</strong>
+            <a href="https://docs.loco.build/" className="docs-external-link">
+              Read production docs <ArrowUpRight aria-hidden="true" size={13} />
+            </a>
+          </aside>
+        )}
+        <div className="docs-page-heading">
+          <DocsTitle>{page.title}</DocsTitle>
+          <a
+            href={`${import.meta.env.BASE_URL}${path}`}
+            className="docs-markdown-link"
+          >
+            <FileText aria-hidden="true" size={14} />
+            View Markdown
+          </a>
+        </div>
         <DocsBody>
           <Mdx
             components={getMDXComponents({

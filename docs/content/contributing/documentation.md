@@ -27,7 +27,7 @@ Bun dependencies are pinned in `docs/package.json` and the root `bun.lock`. The 
 
 ## Theme and navigation
 
-`docs/app/app.css` maps the palette in `docs/DESIGN.md` to Fumadocs theme tokens. Fumadocs owns the sidebar, mobile drawer, search dialog, theme switching, table of contents, and code-copy controls. Desktop sections expand by default. System fonts keep the site independent of third-party font requests.
+`docs/app/app.css` maps the dashboard palette in `web/src/theme.css` to Fumadocs theme tokens; `docs/DESIGN.md` records the reading scale and layout. Fumadocs owns the sidebar, mobile drawer, search dialog, theme switching, table of contents, and code-copy controls. Desktop sections expand by default. The dashboard and docs share locally hosted Geist and Geist Mono font faces through `web/src/fonts.css`, with no third-party font requests.
 
 The site imports its favicon and wordmark from `web/public/`; Vite bundles them with the correct base path and content hashes. Edit the web sources to update both surfaces. The staging build includes a visible banner and crawler restrictions.
 
