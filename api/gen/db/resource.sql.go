@@ -210,6 +210,9 @@ FROM (
     WHERE tier = $2
       AND is_active = true
       AND role IN ('apps', 'all')
+      AND (health_status IN ('healthy', 'degraded')
+           OR last_heartbeat < $1::timestamptz
+           OR last_heartbeat IS NULL)
     ORDER BY region, available DESC, (health_status = 'healthy') DESC, is_default DESC, created_at ASC
 ) AS region_clusters
 ORDER BY available DESC, (health_status = 'healthy') DESC, region

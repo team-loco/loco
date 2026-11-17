@@ -58,6 +58,10 @@ func TestListRegionsListsOnlyTheRegionsOfTheEnvironmentsEligibleClusters(t *test
 	f := newDeployFixture(t)
 	f.markClustersHealthy(t)
 	f.markClusterUnhealthy(t, f.clusterID)
+	move := `UPDATE clusters SET region = $2 WHERE id = $1`
+	if _, err := f.pool.Exec(t.Context(), move, f.clusterID, statusSecondRegion); err != nil {
+		t.Fatal(err)
+	}
 	f.addStagingRegionCluster(t)
 	staging := f.addStagingEnvironment(t)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
@@ -149,15 +153,5 @@ func TestListRegionsReportsOfflineClusters(t *testing.T) {
 		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_OFFLINE ||
 		regions[1].GetIsDefault() {
 		t.Fatalf("regions = %v, want the offline region without a default", regions)
-	}
-
-	unhealthy := `UPDATE clusters SET last_heartbeat = NOW(), health_status = 'unhealthy' WHERE id = $1`
-	if _, err := f.pool.Exec(t.Context(), unhealthy, f.clusterID); err != nil {
-		t.Fatal(err)
-	}
-	regions = listRegions(t, server, scopes, f.envID.String())
-	if len(regions) != 2 || regions[1].GetHealthStatus() != "unhealthy" ||
-		regions[1].GetAvailability() != resourcev1.RegionAvailability_REGION_AVAILABILITY_AVAILABLE {
-		t.Fatalf("regions = %v, want the reported health of the available cluster", regions)
 	}
 }
