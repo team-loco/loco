@@ -8,85 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/team-loco/loco/api/reqctx"
 )
-
-type blockedStreamWriter struct {
-	header  http.Header
-	writing chan struct{}
-	expired chan struct{}
-	once    sync.Once
-}
-
-func (w *blockedStreamWriter) Header() http.Header { return w.header }
-func (*blockedStreamWriter) WriteHeader(int)       {}
-func (w *blockedStreamWriter) Write([]byte) (int, error) {
-	close(w.writing)
-	<-w.expired
-	return 0, context.DeadlineExceeded
-}
-func (w *blockedStreamWriter) SetWriteDeadline(deadline time.Time) error {
-	if deadline.IsZero() {
-		return nil
-	}
-	if delay := time.Until(deadline); delay > 0 {
-		time.AfterFunc(delay, func() { w.once.Do(func() { close(w.expired) }) })
-		return nil
-	}
-	w.once.Do(func() { close(w.expired) })
-	return nil
-}
-
-func TestStreamRevocationInterruptsBlockedHTTPWrite(t *testing.T) {
-	t.Parallel()
-	var revoked atomic.Bool
-	denied := errors.New("revoked")
-	w := &blockedStreamWriter{header: make(http.Header), writing: make(chan struct{}), expired: make(chan struct{})}
-	finished := make(chan error, 1)
-	handler := StreamTransport(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := WithStreamValidation(
-			r.Context(),
-			StreamConfig{Interval: time.Millisecond, Timeout: time.Millisecond},
-			func(context.Context) (reqctx.Principal, error) {
-				if revoked.Load() {
-					return reqctx.Principal{}, denied
-				}
-				return reqctx.Principal{}, nil
-			},
-		)
-		_, stop, err := GuardStream(ctx, func(context.Context) error { return nil })
-		if err != nil {
-			finished <- err
-			return
-		}
-		_, writeErr := w.Write([]byte("data"))
-		failure := stop()
-		if writeErr == nil {
-			failure = errors.New("blocked write unexpectedly succeeded")
-		}
-		finished <- failure
-	}))
-	go handler.ServeHTTP(w, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
-	select {
-	case <-w.writing:
-	case <-time.After(time.Second):
-		t.Fatal("stream did not start writing")
-	}
-	revoked.Store(true)
-	select {
-	case err := <-finished:
-		if !errors.Is(err, denied) {
-			t.Fatalf("stream error = %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("revocation left handler blocked in HTTP write")
-	}
-}
 
 func TestStreamRevocationClosesBlockedSocket(t *testing.T) {
 	t.Parallel()
@@ -150,6 +77,7 @@ func TestStreamRevocationClosesBlockedSocket(t *testing.T) {
 func TestStreamRevocationDeadlineIsScopedToHTTP2Stream(t *testing.T) {
 	t.Parallel()
 	var revoked atomic.Bool
+	var connections atomic.Int32
 	writing := make(chan struct{})
 	finished := make(chan error, 1)
 	denied := errors.New("revoked")
@@ -190,6 +118,11 @@ func TestStreamRevocationDeadlineIsScopedToHTTP2Stream(t *testing.T) {
 			finished <- failure
 		})),
 	)
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			connections.Add(1)
+		}
+	}
 	server.EnableHTTP2 = true
 	server.StartTLS()
 	defer server.Close()
@@ -227,5 +160,8 @@ func TestStreamRevocationDeadlineIsScopedToHTTP2Stream(t *testing.T) {
 	body, err := io.ReadAll(healthy.Body)
 	if err != nil || string(body) != "healthy" {
 		t.Fatalf("other stream body = %q, error = %v", body, err)
+	}
+	if connections.Load() != 1 {
+		t.Fatalf("healthy stream opened a new connection after revocation: %d connections", connections.Load())
 	}
 }
