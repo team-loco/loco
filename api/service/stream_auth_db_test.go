@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
@@ -25,6 +26,8 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
+	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	"github.com/team-loco/loco/gen/go/loco/token/v1/tokenv1connect"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -147,6 +150,19 @@ func TestOwnedEventStreamSurvivesIssuerDeletionUntilRevocation(t *testing.T) {
 	t.Parallel()
 	f, userID, workspaceID := newStreamCredentialFixture(t)
 	f.events.poll = time.Millisecond
+	revoker, _, err := f.machine.Issue(
+		t.Context(),
+		"revoker",
+		userID,
+		genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: workspaceID},
+		[]genDb.EntityScope{
+			{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeAdmin},
+		},
+		time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	token := issueStreamCredential(t, f, userID, workspaceID, streamOwned, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	})
@@ -174,11 +190,26 @@ func TestOwnedEventStreamSurvivesIssuerDeletionUntilRevocation(t *testing.T) {
 	if _, err = stream.Receive(); err != nil {
 		t.Fatalf("owned token after issuer deletion: %v", err)
 	}
-	if err = f.machine.Revoke(t.Context(), token); err != nil {
+	// A second API instance revokes the first instance's credential through the RPC.
+	// Its independently authenticated workspace token also survives issuer deletion.
+	secondMachine := tvm.NewVendingMachine(f.queries, f.machine.Cfg)
+	secondAPI := streamCredentialServer(secondMachine, f.queries)
+	tokenv1connect.RegisterTokenServiceHandler(
+		secondAPI,
+		NewTokenServer(f.pool, f.queries, secondMachine, limits.Defaults()),
+	)
+	if _, err = streamHTTPClients(t, secondAPI, revoker).Token.RevokeToken(t.Context(), &tokenv1.RevokeTokenRequest{
+		Name: "stream", EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, EntityId: workspaceID.String(),
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = stream.Receive(); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("owned token after revocation = %v", err)
+	for {
+		if _, err = stream.Receive(); err != nil {
+			if connect.CodeOf(err) != connect.CodeUnauthenticated {
+				t.Fatalf("owned token after second API revocation = %v", err)
+			}
+			break
+		}
 	}
 }
 
