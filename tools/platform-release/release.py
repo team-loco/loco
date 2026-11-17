@@ -256,7 +256,11 @@ def bundle(version, commit, refs, images):
     gateway = helm_release('envoy-gateway', 'gateway-chart', 'loco-system', {'crds': {'enabled': False}, 'config': {'envoyGateway': {'provider': {'type': 'Kubernetes', 'kubernetes': {'deploy': {'type': 'GatewayNamespace'}}}}}})
     write_layer('infra', cert + gateway)
     pinned = {name: {'repository': reference.split('@')[0], 'tag': f'sha-{commit}@{reference.split("@")[1]}'} for name, reference in images.items()}
-    write_layer('control-plane', helm_release('loco-control-plane', 'loco-control-plane', 'loco-system', {'api': {'image': pinned['api']}, 'ui': {'image': pinned['ui']}, 'obsProxy': {'image': pinned['obs-proxy']}}, ('cert-manager', 'envoy-gateway')))
+    control_plane = helm_release('loco-control-plane', 'loco-control-plane', 'loco-system', {'api': {'image': pinned['api']}, 'ui': {'image': pinned['ui']}, 'obsProxy': {'image': pinned['obs-proxy']}}, ('cert-manager', 'envoy-gateway'))
+    # Embedded operator CRDs precede their custom resources and remain installed.
+    control_plane[1]['spec']['install']['crds'] = 'Create'
+    control_plane[1]['spec']['upgrade']['crds'] = 'CreateReplace'
+    write_layer('control-plane', control_plane)
     write_layer('worker', helm_release('loco-worker', 'loco-worker', 'loco-system', {'agent': {'image': pinned['agent']}, 'controller': {'image': pinned['controller']}, 'builds': {'builderImage': pinned['builder']}, 'gateway-helm': {'enabled': False}}, ('cert-manager', 'envoy-gateway')))
 
     layers = {}

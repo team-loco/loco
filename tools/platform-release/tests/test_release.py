@@ -752,3 +752,9 @@ def test_local_release_reuses_images_and_isolates_push_credentials(publication, 
 def test_prerelease_bundle_is_rejected():
     with pytest.raises(ValueError, match="stable X.Y.Z"):
         release.publish_bundle("0.7.0-rc.1", "b" * 40, Mock())
+
+
+def test_control_plane_installs_embedded_operator_crds(bundle):
+    spec = helm_release(bundle, "control-plane", "loco-control-plane")["spec"]
+    assert spec["install"]["crds"] == "Create"
+    assert spec["upgrade"]["crds"] == "CreateReplace"
