@@ -18,7 +18,7 @@ import { Banner } from "@/components/design/Banner";
 import { useNow } from "@/hooks/useNow";
 import { isInFlight, shortSha } from "@/lib/deployment-utils";
 import { formatBuildDuration } from "@/pages/resource/builds";
-import { deploymentElapsedMs, deploymentStatusLabel } from "@/pages/resource/deployment-progress";
+import { deploymentElapsedMs, deploymentStatusLabel, showDeploymentLogs } from "@/pages/resource/deployment-progress";
 import { DeploymentRollout } from "@/pages/resource/DeploymentRollout";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { runOutcome, type RunOutcome } from "@/lib/deploy-progress";
@@ -314,9 +314,11 @@ export function DeployRunView({
 								<>
 									<DeploymentHeading deployment={r.watch.deployment} />
 									<DeploymentRollout deployment={r.watch.deployment} activity={r.watch.activity} logsHref={logsHref} />
-									<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
-										View logs
-									</Button>
+									{showDeploymentLogs(logsHref, r.watch.deployment) && (
+										<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
+											View logs
+										</Button>
+									)}
 								</>
 							)}
 							{r.watch.error !== undefined && (

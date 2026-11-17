@@ -19,7 +19,12 @@ import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { formatBuildDuration, isBuildFinished } from "./builds";
-import { deploymentElapsedMs, deploymentStatusLabel, progressDeployments } from "./deployment-progress";
+import {
+	deploymentElapsedMs,
+	deploymentStatusLabel,
+	progressDeployments,
+	showDeploymentLogs,
+} from "./deployment-progress";
 import { DeploymentRollout } from "./DeploymentRollout";
 import { depImage, depTag, type RegionView } from "./model";
 
@@ -175,7 +180,7 @@ function ProgressPanel({
 			)}
 			{failed && (
 				<div className="flex flex-wrap gap-2">
-					{logsHref !== undefined && (
+					{showDeploymentLogs(logsHref, deployment) && logsHref !== undefined && (
 						<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
 							<LogsIcon />
 							View logs

@@ -30,10 +30,7 @@ export function deploymentStatusLabel(deployment: Deployment): string {
 		[DeploymentStatus.CANCELED]: "Canceled",
 		[DeploymentStatus.SUPERSEDED]: "Superseded",
 	};
-	return (
-		labels[deployment.status] +
-		(deployment.status === DeploymentStatus.RUNNING && deployment.problem !== undefined ? " · problem" : "")
-	);
+	return labels[deployment.status];
 }
 
 export function deploymentElapsedMs(deployment: Deployment, nowMs: number): number | undefined {
@@ -118,4 +115,8 @@ export function problemLogsHref(logsHref: string | undefined, deployment: Deploy
 	const params = new URLSearchParams(search);
 	params.set("q", query);
 	return `${path}?${params}`;
+}
+
+export function showDeploymentLogs(logsHref: string | undefined, deployment: Deployment): boolean {
+	return logsHref !== undefined && problemLogsHref(logsHref, deployment) === undefined;
 }

@@ -17,6 +17,7 @@ import {
 	progressDeployments,
 	replicaState,
 	stoppingCountdown,
+	showDeploymentLogs,
 } from "./deployment-progress";
 import type { RegionView } from "./model";
 
@@ -133,7 +134,7 @@ test("activity keeps sequence order and formats time from deployment start witho
 	expect(activityRows([create(ActivitySchema)], undefined)[0]?.time).toBe("—");
 });
 
-test("headers name each deployment status, including a running problem", () => {
+test("headers name each deployment status, without adding the problem to the status label", () => {
 	expect(
 		[
 			DeploymentStatus.BUILDING,
@@ -148,7 +149,7 @@ test("headers name each deployment status, including a running problem", () => {
 		deploymentStatusLabel(
 			create(DeploymentSchema, { status: DeploymentStatus.RUNNING, problem: { message: "Unhealthy" } }),
 		),
-	).toBe("Running · problem");
+	).toBe("Running");
 });
 
 test("problem log links preserve scope and target replica or failed build", () => {
@@ -177,4 +178,19 @@ test("elapsed rollout time includes the build and stops when ready or finished",
 	).toBe(15000);
 	expect(deploymentElapsedMs({ ...pending, createdAt: undefined }, 20000)).toBeUndefined();
 	expect(deploymentElapsedMs(pending, 0)).toBe(0);
+});
+
+test("the panel offers logs only when the problem card has no targeted link", () => {
+	const replicaProblem = create(DeploymentSchema, { problem: { replicaName: "web-1" } });
+	const buildProblem = create(DeploymentSchema, {
+		problem: { reason: "build_failed" },
+		spec: { spec: { case: "service", value: { build: { buildId: "build-1" } } } },
+	});
+	expect(showDeploymentLogs("/logs", replicaProblem)).toBe(false);
+	expect(showDeploymentLogs("/logs", buildProblem)).toBe(false);
+	expect(showDeploymentLogs("/logs", pending)).toBe(true);
+	expect(showDeploymentLogs("/logs", create(DeploymentSchema, { problem: { message: "No target replica" } }))).toBe(
+		true,
+	);
+	expect(showDeploymentLogs(undefined, pending)).toBe(false);
 });
