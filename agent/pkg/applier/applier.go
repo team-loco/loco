@@ -28,12 +28,13 @@ const (
 )
 
 var (
-	ErrInvalidPayload     = errors.New("invalid payload")
-	ErrStaleRevision      = errors.New("revision is older than the one applied")
-	errNoServiceSpec      = errors.New("env secret needs a service deployment spec")
-	errEnvironmentChanged = errors.New("application environment cannot change within a placement")
-	errNoEnvironmentID    = errors.New("application has no environment id")
-	errNoWorkspaceID      = errors.New("application has no workspace id")
+	ErrInvalidPayload      = errors.New("invalid payload")
+	ErrStaleRevision       = errors.New("revision is older than the one applied")
+	errNoServiceSpec       = errors.New("env secret needs a service deployment spec")
+	errEnvironmentChanged  = errors.New("application environment cannot change within a placement")
+	errApplicationDeleting = errors.New("application cleanup is still in progress")
+	errNoEnvironmentID     = errors.New("application has no environment id")
+	errNoWorkspaceID       = errors.New("application has no workspace id")
 
 	errEnvSecretRevision = errors.New("env secret revision differs from the apply revision")
 )
@@ -193,6 +194,9 @@ func (a *Applier) readPlacement(ctx context.Context, name string, placement Plac
 		return live, err
 	}
 	if err == nil {
+		if !app.DeletionTimestamp.IsZero() {
+			return live, applicationDeletionPending(name)
+		}
 		live.application = app
 		storedID, storedRevision, ok := app.Placement()
 		if ok && storedID == placement.ID && storedRevision > placement.Revision {
@@ -427,6 +431,9 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			return fmt.Errorf("%w: have %d, got %d", ErrStaleRevision, storedRevision, placement.Revision)
 		}
 
+		if !live.DeletionTimestamp.IsZero() {
+			return applicationDeletionPending(name)
+		}
 		precondition := client.Preconditions{ResourceVersion: &live.ResourceVersion}
 		if err := a.client.Delete(ctx, live, precondition); err != nil {
 			if client.IgnoreNotFound(err) == nil {
@@ -436,7 +443,7 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 		}
 		slog.InfoContext(
 			ctx,
-			"deleted Application",
+			"requested Application deletion",
 			"name",
 			name,
 			"namespace",
@@ -444,6 +451,12 @@ func (a *Applier) DeletePlacement(ctx context.Context, placement Placement) erro
 			"placement_id",
 			placement.ID,
 		)
-		return nil
+		// Keep the API's tombstone until cleanup cannot delete a replacement's objects.
+		return applicationDeletionPending(name)
 	})
+}
+
+func applicationDeletionPending(name string) error {
+	resource := locoControllerV1.GroupVersion.WithResource("applications").GroupResource()
+	return apierrors.NewConflict(resource, name, errApplicationDeleting)
 }
