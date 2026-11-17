@@ -94,6 +94,7 @@ func TestPortRollout(t *testing.T) {
 	// A subsequent change to another port fails before any new replica listens. Both stable
 	// endpoints must continue reaching the old replicas, now listening on 9090.
 	checkpoint("before failed port change", false)
+	shortenFailureDeadline(t, w, id)
 	service.Image = p.CrashingImage
 	service.Port = new(int32(10000))
 	file.Services[app] = service
