@@ -215,6 +215,8 @@ type ApplicationStatus struct {
 	ReadyReplicas       int32  `json:"readyReplicas,omitzero"`
 	DesiredReplicas     int32  `json:"desiredReplicas,omitzero"`
 
+	Rollout *RolloutStatus `json:"rollout,omitempty"`
+
 	CreatedAt   *metav1.Time `json:"createdAt,omitempty"`
 	StartedAt   *metav1.Time `json:"startedAt,omitempty"`
 	CompletedAt *metav1.Time `json:"completedAt,omitempty"`

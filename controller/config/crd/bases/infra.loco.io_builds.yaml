@@ -125,6 +125,15 @@ spec:
                 - Failed
                 - Canceled
                 type: string
+              stage:
+                enum:
+                - Fetch
+                - Build
+                - Push
+                type: string
+              stageSince:
+                format: date-time
+                type: string
               startedAt:
                 format: date-time
                 type: string

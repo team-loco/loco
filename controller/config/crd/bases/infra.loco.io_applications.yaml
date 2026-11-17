@@ -319,6 +319,92 @@ spec:
               readyReplicas:
                 format: int32
                 type: integer
+              rollout:
+                properties:
+                  available:
+                    type: boolean
+                  desiredReplicas:
+                    format: int32
+                    type: integer
+                  problem:
+                    properties:
+                      detail:
+                        maxLength: 1024
+                        type: string
+                      reason:
+                        enum:
+                        - build_failed
+                        - apply_failed
+                        - unschedulable
+                        - image_pull_failed
+                        - image_user
+                        - config_error
+                        - crash_loop
+                        - out_of_memory
+                        - health_check_failing
+                        - rollout_timeout
+                        - unclean_shutdown
+                        type: string
+                      replica:
+                        type: string
+                      since:
+                        format: date-time
+                        type: string
+                    required:
+                    - reason
+                    type: object
+                  progressDeadlineExceeded:
+                    type: boolean
+                  replicas:
+                    items:
+                      properties:
+                        detail:
+                          maxLength: 512
+                          type: string
+                        exitCode:
+                          format: int32
+                          type: integer
+                        name:
+                          type: string
+                        node:
+                          type: string
+                        placementRevision:
+                          format: int64
+                          type: integer
+                        restarts:
+                          format: int32
+                          type: integer
+                        state:
+                          enum:
+                          - Scheduling
+                          - Pulling
+                          - Starting
+                          - Serving
+                          - Failing
+                          - Stopping
+                          - Stopped
+                          - Killed
+                          - Unknown
+                          type: string
+                        stateDeadline:
+                          description: StateDeadline is set only while Stopping.
+                          format: date-time
+                          type: string
+                        stateSince:
+                          format: date-time
+                          type: string
+                        uid:
+                          type: string
+                      required:
+                      - name
+                      - state
+                      - uid
+                      type: object
+                    type: array
+                    x-kubernetes-list-map-keys:
+                    - uid
+                    x-kubernetes-list-type: map
+                type: object
               runtimeMessage:
                 type: string
               runtimeReason:

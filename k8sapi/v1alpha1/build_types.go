@@ -15,6 +15,15 @@ const (
 	BuildCacheTagPrefix = "buildcache-"
 )
 
+// +kubebuilder:validation:Enum=Fetch;Build;Push
+type BuildStage string
+
+const (
+	BuildStageFetch BuildStage = "Fetch"
+	BuildStageBuild BuildStage = "Build"
+	BuildStagePush  BuildStage = "Push"
+)
+
 type BuildSpec struct {
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
@@ -61,6 +70,12 @@ type BuildStatus struct {
 	// +optional
 	// +kubebuilder:validation:Enum=Pending;Running;Succeeded;Failed;Canceled
 	Phase string `json:"phase,omitempty"`
+
+	// +optional
+	Stage BuildStage `json:"stage,omitempty"`
+
+	// +optional
+	StageSince *metav1.Time `json:"stageSince,omitempty"`
 
 	// +optional
 	ImageDigest string `json:"imageDigest,omitempty"`
