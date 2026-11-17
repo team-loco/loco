@@ -153,6 +153,7 @@ type Querier interface {
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
+	HasInaccessibleAccountDeletionTokens(ctx context.Context, arg HasInaccessibleAccountDeletionTokensParams) (bool, error)
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
@@ -160,6 +161,9 @@ type Querier interface {
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
 	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
+	// Keep the active-administrator predicate aligned with UserIsLastActiveOrgAdmin.
+	ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error)
+	ListAccountDeletionTokens(ctx context.Context, arg ListAccountDeletionTokensParams) ([]ListAccountDeletionTokensRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
 	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)

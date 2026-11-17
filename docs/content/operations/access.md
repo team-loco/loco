@@ -65,11 +65,15 @@ A personal API token acts as its user. Its effective permissions are the interse
 
 Organization, workspace and resource tokens act as themselves. Their issuing user's later permissions or suspension do not change their stored access, and removing the issuing user does not revoke them. The owning entity's administrators manage these tokens. Deleting the owning entity revokes its tokens. Token issuance records the issuer for attribution without creating a user account or user grants for the token.
 
-API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An invitation whose issuer no longer exists displays **Unavailable inviter** and can still be claimed under the organization's normal invitation rules.
+API-token activity records the token as actor. Historical creator, issuer and invitation references can remain after a user's deletion; they confer no access. An unresolved invitation issuer displays **Unavailable inviter** and the invitation can still be claimed under the organization's normal rules.
 
 ## Delete an account
 
 `UserService.DeleteUser` requires `user:admin` on the target account, using a session or API token. It removes the account's organization, workspace and resource grants, sign-in identities, CLI sessions and personal API tokens in one transaction. The user does not need to leave each organization first.
+
+Settings → Personal checks the account's deletion impact before confirmation. It lists organizations that need another active administrator and pages through active organization, workspace and resource tokens the user issued. Token details appear only while the user can read the owner; only an owner administrator can revoke them. A generic notice covers tokens belonging to owners the user can no longer access. Surviving tokens do not block deletion: arrange a handover or revoke unused tokens before continuing.
+
+`UserService.GetAccountDeletionImpact` provides the same preview for the caller's real user account with `user:read`. Personal API tokens can request it, with owner visibility and revocation controls bounded by their stored scopes and current user grants. A preview does not reserve permission or guarantee deletion; the final delete checks current administration again.
 
 Deletion fails with `FailedPrecondition` naming any organization the target administers without another active human administrator, even when the target is suspended. Promote another active member to administrator or delete that organization first. Having created an organization, workspace or environment does not otherwise block account deletion.
 

@@ -4,6 +4,7 @@ package loco.user.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
+import "loco/token/v1/token.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/user/v1;userv1";
 
@@ -17,6 +18,8 @@ service UserService {
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   // ListUsers lists users with pagination.
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  // GetAccountDeletionImpact previews deleting the current session account.
+  rpc GetAccountDeletionImpact(GetAccountDeletionImpactRequest) returns (GetAccountDeletionImpactResponse);
   // DeleteUser deletes a user account.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Logout logs out the current user.
@@ -134,3 +137,40 @@ message LogoutRequest {}
 
 // LogoutResponse is the response after logging out.
 message LogoutResponse {}
+
+// GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+message GetAccountDeletionImpactRequest {
+  int32 page_size = 1 [(buf.validate.field).int32 = {
+    gte: 0
+    lte: 200
+  }];
+  string page_token = 2;
+}
+
+// AccountDeletionOrganization needs another active administrator before deletion.
+message AccountDeletionOrganization {
+  string org_id = 1;
+  string org_name = 2;
+}
+
+// AccountDeletionToken is a surviving token whose owner the caller can currently read.
+message AccountDeletionToken {
+  string name = 1;
+  loco.token.v1.EntityType entity_type = 2;
+  string entity_id = 3;
+  string owner_name = 4;
+  google.protobuf.Timestamp expires_at = 5;
+  string display_suffix = 6;
+  bool can_revoke = 7;
+}
+
+// GetAccountDeletionImpactResponse is a preview; DeleteUser rechecks blockers atomically.
+message GetAccountDeletionImpactResponse {
+  repeated AccountDeletionOrganization last_active_admin_organizations = 1;
+  repeated AccountDeletionToken owned_tokens = 2;
+  string next_page_token = 3;
+  // No inaccessible-owner names, identifiers, token metadata or counts are exposed.
+  bool has_inaccessible_owned_tokens = 4;
+  // Resolve the listed blockers and refresh to review remaining organizations.
+  bool has_more_blocking_organizations = 5;
+}

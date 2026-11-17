@@ -7,13 +7,15 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
 import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { EntityType, EntityTypeJson } from "../../token/v1/token_pb";
+import { file_loco_token_v1_token } from "../../token/v1/token_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file loco/user/v1/user.proto.
  */
 export const file_loco_user_v1_user: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIqMBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJOCg5HZXRVc2VyUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSABCBQoDa2V5IjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIizwEKEVVwZGF0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEmoKCmF2YXRhcl91cmwYAiABKAlCUbpITroBSwoPdXNlci5hdmF0YXJfdXJsEhxtdXN0IGJlIGVtcHR5IG9yIGEgdmFsaWQgVVJJGhp0aGlzID09ICcnIHx8IHRoaXMuaXNVcmkoKUgAiAEBEhsKBG5hbWUYAyABKAlCCLpIBXIDGMgBSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkiRQoQTGlzdFVzZXJzUmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIPCg1XaG9BbUlSZXF1ZXN0ImIKDldob0FtSVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIuCgxjbGFpbWVkX29yZ3MYAiADKAsyGC5sb2NvLnVzZXIudjEuQ2xhaW1lZE9yZyJECgpDbGFpbWVkT3JnEg4KBm9yZ19pZBgBIAEoCRIQCghvcmdfbmFtZRgCIAEoCRIUCgxpbnZpdGVyX25hbWUYAyABKAkikQEKFFNldFVzZXJTdGF0dXNSZXF1ZXN0EhsKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBSAASGAoFZW1haWwYAiABKAlCB7pIBHICYAFIABI0CgZzdGF0dXMYAyABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1c0IKukgHggEEEAEgAEIMCgNrZXkSBbpIAggBIhcKFVNldFVzZXJTdGF0dXNSZXNwb25zZSIuChFEZWxldGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSpcCgpVc2VyU3RhdHVzEhsKF1VTRVJfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSVVNFUl9TVEFUVVNfQUNUSVZFEAESGQoVVVNFUl9TVEFUVVNfU1VTUEVOREVEEAIyqQQKC1VzZXJTZXJ2aWNlEkYKB0dldFVzZXISHC5sb2NvLnVzZXIudjEuR2V0VXNlclJlcXVlc3QaHS5sb2NvLnVzZXIudjEuR2V0VXNlclJlc3BvbnNlEkMKBldob0FtSRIbLmxvY28udXNlci52MS5XaG9BbUlSZXF1ZXN0GhwubG9jby51c2VyLnYxLldob0FtSVJlc3BvbnNlEk8KClVwZGF0ZVVzZXISHy5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuVXBkYXRlVXNlclJlc3BvbnNlEkwKCUxpc3RVc2VycxIeLmxvY28udXNlci52MS5MaXN0VXNlcnNSZXF1ZXN0Gh8ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1Jlc3BvbnNlEk8KCkRlbGV0ZVVzZXISHy5sb2NvLnVzZXIudjEuRGVsZXRlVXNlclJlcXVlc3QaIC5sb2NvLnVzZXIudjEuRGVsZXRlVXNlclJlc3BvbnNlEkMKBkxvZ291dBIbLmxvY28udXNlci52MS5Mb2dvdXRSZXF1ZXN0GhwubG9jby51c2VyLnYxLkxvZ291dFJlc3BvbnNlElgKDVNldFVzZXJTdGF0dXMSIi5sb2NvLnVzZXIudjEuU2V0VXNlclN0YXR1c1JlcXVlc3QaIy5sb2NvLnVzZXIudjEuU2V0VXNlclN0YXR1c1Jlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vdXNlci92MTt1c2VydjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chdsb2NvL3VzZXIvdjEvdXNlci5wcm90bxIMbG9jby51c2VyLnYxIqMBCgRVc2VyEgoKAmlkGAEgASgJEg0KBWVtYWlsGAIgASgJEhIKCmF2YXRhcl91cmwYAyABKAkSDAoEbmFtZRgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJOCg5HZXRVc2VyUmVxdWVzdBIbCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABAUgAEhgKBWVtYWlsGAIgASgJQge6SARyAmABSABCBQoDa2V5IjMKD0dldFVzZXJSZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXIizwEKEVVwZGF0ZVVzZXJSZXF1ZXN0EhkKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBEmoKCmF2YXRhcl91cmwYAiABKAlCUbpITroBSwoPdXNlci5hdmF0YXJfdXJsEhxtdXN0IGJlIGVtcHR5IG9yIGEgdmFsaWQgVVJJGhp0aGlzID09ICcnIHx8IHRoaXMuaXNVcmkoKUgAiAEBEhsKBG5hbWUYAyABKAlCCLpIBXIDGMgBSAGIAQFCDQoLX2F2YXRhcl91cmxCBwoFX25hbWUiJQoSVXBkYXRlVXNlclJlc3BvbnNlEg8KB3VzZXJfaWQYASABKAkiRQoQTGlzdFVzZXJzUmVxdWVzdBIdCglwYWdlX3NpemUYASABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgCIAEoCSJPChFMaXN0VXNlcnNSZXNwb25zZRIhCgV1c2VycxgBIAMoCzISLmxvY28udXNlci52MS5Vc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIPCg1XaG9BbUlSZXF1ZXN0ImIKDldob0FtSVJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIuCgxjbGFpbWVkX29yZ3MYAiADKAsyGC5sb2NvLnVzZXIudjEuQ2xhaW1lZE9yZyJECgpDbGFpbWVkT3JnEg4KBm9yZ19pZBgBIAEoCRIQCghvcmdfbmFtZRgCIAEoCRIUCgxpbnZpdGVyX25hbWUYAyABKAkikQEKFFNldFVzZXJTdGF0dXNSZXF1ZXN0EhsKB3VzZXJfaWQYASABKAlCCLpIBXIDsAEBSAASGAoFZW1haWwYAiABKAlCB7pIBHICYAFIABI0CgZzdGF0dXMYAyABKA4yGC5sb2NvLnVzZXIudjEuVXNlclN0YXR1c0IKukgHggEEEAEgAEIMCgNrZXkSBbpIAggBIhcKFVNldFVzZXJTdGF0dXNSZXNwb25zZSIuChFEZWxldGVVc2VyUmVxdWVzdBIZCgd1c2VyX2lkGAEgASgJQgi6SAVyA7ABASIUChJEZWxldGVVc2VyUmVzcG9uc2UiDwoNTG9nb3V0UmVxdWVzdCIQCg5Mb2dvdXRSZXNwb25zZSJUCh9HZXRBY2NvdW50RGVsZXRpb25JbXBhY3RSZXF1ZXN0Eh0KCXBhZ2Vfc2l6ZRgBIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAIgASgJIj8KG0FjY291bnREZWxldGlvbk9yZ2FuaXphdGlvbhIOCgZvcmdfaWQYASABKAkSEAoIb3JnX25hbWUYAiABKAki1wEKFEFjY291bnREZWxldGlvblRva2VuEgwKBG5hbWUYASABKAkSLgoLZW50aXR5X3R5cGUYAiABKA4yGS5sb2NvLnRva2VuLnYxLkVudGl0eVR5cGUSEQoJZW50aXR5X2lkGAMgASgJEhIKCm93bmVyX25hbWUYBCABKAkSLgoKZXhwaXJlc19hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFgoOZGlzcGxheV9zdWZmaXgYBiABKAkSEgoKY2FuX3Jldm9rZRgHIAEoCCKZAgogR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVzcG9uc2USUgofbGFzdF9hY3RpdmVfYWRtaW5fb3JnYW5pemF0aW9ucxgBIAMoCzIpLmxvY28udXNlci52MS5BY2NvdW50RGVsZXRpb25Pcmdhbml6YXRpb24SOAoMb3duZWRfdG9rZW5zGAIgAygLMiIubG9jby51c2VyLnYxLkFjY291bnREZWxldGlvblRva2VuEhcKD25leHRfcGFnZV90b2tlbhgDIAEoCRIlCh1oYXNfaW5hY2Nlc3NpYmxlX293bmVkX3Rva2VucxgEIAEoCBInCh9oYXNfbW9yZV9ibG9ja2luZ19vcmdhbml6YXRpb25zGAUgASgIKlwKClVzZXJTdGF0dXMSGwoXVVNFUl9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJVU0VSX1NUQVRVU19BQ1RJVkUQARIZChVVU0VSX1NUQVRVU19TVVNQRU5ERUQQAjKkBQoLVXNlclNlcnZpY2USRgoHR2V0VXNlchIcLmxvY28udXNlci52MS5HZXRVc2VyUmVxdWVzdBodLmxvY28udXNlci52MS5HZXRVc2VyUmVzcG9uc2USQwoGV2hvQW1JEhsubG9jby51c2VyLnYxLldob0FtSVJlcXVlc3QaHC5sb2NvLnVzZXIudjEuV2hvQW1JUmVzcG9uc2USTwoKVXBkYXRlVXNlchIfLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5VcGRhdGVVc2VyUmVzcG9uc2USTAoJTGlzdFVzZXJzEh4ubG9jby51c2VyLnYxLkxpc3RVc2Vyc1JlcXVlc3QaHy5sb2NvLnVzZXIudjEuTGlzdFVzZXJzUmVzcG9uc2USeQoYR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0Ei0ubG9jby51c2VyLnYxLkdldEFjY291bnREZWxldGlvbkltcGFjdFJlcXVlc3QaLi5sb2NvLnVzZXIudjEuR2V0QWNjb3VudERlbGV0aW9uSW1wYWN0UmVzcG9uc2USTwoKRGVsZXRlVXNlchIfLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVxdWVzdBogLmxvY28udXNlci52MS5EZWxldGVVc2VyUmVzcG9uc2USQwoGTG9nb3V0EhsubG9jby51c2VyLnYxLkxvZ291dFJlcXVlc3QaHC5sb2NvLnVzZXIudjEuTG9nb3V0UmVzcG9uc2USWAoNU2V0VXNlclN0YXR1cxIiLmxvY28udXNlci52MS5TZXRVc2VyU3RhdHVzUmVxdWVzdBojLmxvY28udXNlci52MS5TZXRVc2VyU3RhdHVzUmVzcG9uc2VCNlo0Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby91c2VyL3YxO3VzZXJ2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_token_v1_token]);
 
 /**
  * User represents a user account with OAuth identity and profile information.
@@ -652,6 +654,258 @@ export const LogoutResponseSchema: GenMessage<LogoutResponse, {jsonType: LogoutR
   messageDesc(file_loco_user_v1_user, 15);
 
 /**
+ * GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+ *
+ * @generated from message loco.user.v1.GetAccountDeletionImpactRequest
+ */
+export type GetAccountDeletionImpactRequest = Message<"loco.user.v1.GetAccountDeletionImpactRequest"> & {
+  /**
+   * @generated from field: int32 page_size = 1;
+   */
+  pageSize: number;
+
+  /**
+   * @generated from field: string page_token = 2;
+   */
+  pageToken: string;
+};
+
+/**
+ * GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+ *
+ * @generated from message loco.user.v1.GetAccountDeletionImpactRequest
+ */
+export type GetAccountDeletionImpactRequestJson = {
+  /**
+   * @generated from field: int32 page_size = 1;
+   */
+  pageSize?: number;
+
+  /**
+   * @generated from field: string page_token = 2;
+   */
+  pageToken?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.GetAccountDeletionImpactRequest.
+ * Use `create(GetAccountDeletionImpactRequestSchema)` to create a new message.
+ */
+export const GetAccountDeletionImpactRequestSchema: GenMessage<GetAccountDeletionImpactRequest, {jsonType: GetAccountDeletionImpactRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_user_v1_user, 16);
+
+/**
+ * AccountDeletionOrganization needs another active administrator before deletion.
+ *
+ * @generated from message loco.user.v1.AccountDeletionOrganization
+ */
+export type AccountDeletionOrganization = Message<"loco.user.v1.AccountDeletionOrganization"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string org_name = 2;
+   */
+  orgName: string;
+};
+
+/**
+ * AccountDeletionOrganization needs another active administrator before deletion.
+ *
+ * @generated from message loco.user.v1.AccountDeletionOrganization
+ */
+export type AccountDeletionOrganizationJson = {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId?: string;
+
+  /**
+   * @generated from field: string org_name = 2;
+   */
+  orgName?: string;
+};
+
+/**
+ * Describes the message loco.user.v1.AccountDeletionOrganization.
+ * Use `create(AccountDeletionOrganizationSchema)` to create a new message.
+ */
+export const AccountDeletionOrganizationSchema: GenMessage<AccountDeletionOrganization, {jsonType: AccountDeletionOrganizationJson}> = /*@__PURE__*/
+  messageDesc(file_loco_user_v1_user, 17);
+
+/**
+ * AccountDeletionToken is a surviving token whose owner the caller can currently read.
+ *
+ * @generated from message loco.user.v1.AccountDeletionToken
+ */
+export type AccountDeletionToken = Message<"loco.user.v1.AccountDeletionToken"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: loco.token.v1.EntityType entity_type = 2;
+   */
+  entityType: EntityType;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId: string;
+
+  /**
+   * @generated from field: string owner_name = 4;
+   */
+  ownerName: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp expires_at = 5;
+   */
+  expiresAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string display_suffix = 6;
+   */
+  displaySuffix: string;
+
+  /**
+   * @generated from field: bool can_revoke = 7;
+   */
+  canRevoke: boolean;
+};
+
+/**
+ * AccountDeletionToken is a surviving token whose owner the caller can currently read.
+ *
+ * @generated from message loco.user.v1.AccountDeletionToken
+ */
+export type AccountDeletionTokenJson = {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name?: string;
+
+  /**
+   * @generated from field: loco.token.v1.EntityType entity_type = 2;
+   */
+  entityType?: EntityTypeJson;
+
+  /**
+   * @generated from field: string entity_id = 3;
+   */
+  entityId?: string;
+
+  /**
+   * @generated from field: string owner_name = 4;
+   */
+  ownerName?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp expires_at = 5;
+   */
+  expiresAt?: TimestampJson;
+
+  /**
+   * @generated from field: string display_suffix = 6;
+   */
+  displaySuffix?: string;
+
+  /**
+   * @generated from field: bool can_revoke = 7;
+   */
+  canRevoke?: boolean;
+};
+
+/**
+ * Describes the message loco.user.v1.AccountDeletionToken.
+ * Use `create(AccountDeletionTokenSchema)` to create a new message.
+ */
+export const AccountDeletionTokenSchema: GenMessage<AccountDeletionToken, {jsonType: AccountDeletionTokenJson}> = /*@__PURE__*/
+  messageDesc(file_loco_user_v1_user, 18);
+
+/**
+ * GetAccountDeletionImpactResponse is a preview; DeleteUser rechecks blockers atomically.
+ *
+ * @generated from message loco.user.v1.GetAccountDeletionImpactResponse
+ */
+export type GetAccountDeletionImpactResponse = Message<"loco.user.v1.GetAccountDeletionImpactResponse"> & {
+  /**
+   * @generated from field: repeated loco.user.v1.AccountDeletionOrganization last_active_admin_organizations = 1;
+   */
+  lastActiveAdminOrganizations: AccountDeletionOrganization[];
+
+  /**
+   * @generated from field: repeated loco.user.v1.AccountDeletionToken owned_tokens = 2;
+   */
+  ownedTokens: AccountDeletionToken[];
+
+  /**
+   * @generated from field: string next_page_token = 3;
+   */
+  nextPageToken: string;
+
+  /**
+   * No inaccessible-owner names, identifiers, token metadata or counts are exposed.
+   *
+   * @generated from field: bool has_inaccessible_owned_tokens = 4;
+   */
+  hasInaccessibleOwnedTokens: boolean;
+
+  /**
+   * Resolve the listed blockers and refresh to review remaining organizations.
+   *
+   * @generated from field: bool has_more_blocking_organizations = 5;
+   */
+  hasMoreBlockingOrganizations: boolean;
+};
+
+/**
+ * GetAccountDeletionImpactResponse is a preview; DeleteUser rechecks blockers atomically.
+ *
+ * @generated from message loco.user.v1.GetAccountDeletionImpactResponse
+ */
+export type GetAccountDeletionImpactResponseJson = {
+  /**
+   * @generated from field: repeated loco.user.v1.AccountDeletionOrganization last_active_admin_organizations = 1;
+   */
+  lastActiveAdminOrganizations?: AccountDeletionOrganizationJson[];
+
+  /**
+   * @generated from field: repeated loco.user.v1.AccountDeletionToken owned_tokens = 2;
+   */
+  ownedTokens?: AccountDeletionTokenJson[];
+
+  /**
+   * @generated from field: string next_page_token = 3;
+   */
+  nextPageToken?: string;
+
+  /**
+   * No inaccessible-owner names, identifiers, token metadata or counts are exposed.
+   *
+   * @generated from field: bool has_inaccessible_owned_tokens = 4;
+   */
+  hasInaccessibleOwnedTokens?: boolean;
+
+  /**
+   * Resolve the listed blockers and refresh to review remaining organizations.
+   *
+   * @generated from field: bool has_more_blocking_organizations = 5;
+   */
+  hasMoreBlockingOrganizations?: boolean;
+};
+
+/**
+ * Describes the message loco.user.v1.GetAccountDeletionImpactResponse.
+ * Use `create(GetAccountDeletionImpactResponseSchema)` to create a new message.
+ */
+export const GetAccountDeletionImpactResponseSchema: GenMessage<GetAccountDeletionImpactResponse, {jsonType: GetAccountDeletionImpactResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_user_v1_user, 19);
+
+/**
  * UserStatus is whether a user may sign in.
  *
  * @generated from enum loco.user.v1.UserStatus
@@ -731,6 +985,16 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof ListUsersRequestSchema;
     output: typeof ListUsersResponseSchema;
+  },
+  /**
+   * GetAccountDeletionImpact previews deleting the current session account.
+   *
+   * @generated from rpc loco.user.v1.UserService.GetAccountDeletionImpact
+   */
+  getAccountDeletionImpact: {
+    methodKind: "unary";
+    input: typeof GetAccountDeletionImpactRequestSchema;
+    output: typeof GetAccountDeletionImpactResponseSchema;
   },
   /**
    * DeleteUser deletes a user account.

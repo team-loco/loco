@@ -1,0 +1,12 @@
+{
+  "users": {
+    "owner": {"email": "owner@acme.test", "name": "Olivia Owner"},
+    "departing": {"email": "departing@acme.test", "name": "Dana Departing"},
+    "other": {"email": "other@acme.test", "name": "Oscar Other"}
+  },
+  "orgs": [
+    {"name": "acme", "owner": "owner", "members": ["departing"], "workspaces": ["shared"]},
+    {"name": "private-owner", "owner": "other", "members": ["departing"], "workspaces": ["private-workspace"]}
+  ],
+  "grants": []
+}
