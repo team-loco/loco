@@ -177,7 +177,7 @@ func TestBuildMutationsFailWithoutTheirEvents(t *testing.T) {
 	wantStatus(t, f.get(t, buildID), buildv1.BuildStatus_BUILD_STATUS_AWAITING_UPLOAD)
 }
 
-func TestTokenBuildFailureNamesTheTokenAndItsCreator(t *testing.T) {
+func TestTokenBuildFailureNamesTheTokenActor(t *testing.T) {
 	t.Parallel()
 	f := newBuildFixture(t)
 	tokenID := f.apiToken(t)
@@ -188,12 +188,14 @@ func TestTokenBuildFailureNamesTheTokenAndItsCreator(t *testing.T) {
 	p.Entity = genDb.Entity{Type: genDb.EntityTypeResource, ID: f.resourceID}
 	p.ActorType = genDb.DeploymentActorTypeApiToken
 	p.ActorID = tokenID
+	p.UserID = uuid.Nil
+	p.Method = genDb.DeploymentMethodApiToken
 	f.ctx = reqctx.WithPrincipal(f.ctx, p)
 
 	id := f.queued(t)
-	if row := f.row(t, id); row.CreatedBy != f.userID || row.ApiTokenID == nil || *row.ApiTokenID != tokenID {
+	if row := f.row(t, id); row.CreatedBy != tokenID || row.ApiTokenID == nil || *row.ApiTokenID != tokenID {
 		t.Fatalf("build created by %s with token %v, want %s with token %s",
-			row.CreatedBy, row.ApiTokenID, f.userID, tokenID)
+			row.CreatedBy, row.ApiTokenID, tokenID, tokenID)
 	}
 	session, _ := f.dispatchSession()
 	if err := session.handleBuildStatus(f.ctx, buildStatus(id, agentv1.BuildPhase_BUILD_PHASE_FAILED)); err != nil {
@@ -212,9 +214,12 @@ func TestTokenBuildFailureNamesTheTokenAndItsCreator(t *testing.T) {
 	if ev.actorType != string(genDb.DeploymentActorTypeApiToken) || ev.actorID == nil || *ev.actorID != tokenID {
 		t.Fatalf("build.failed actor = %s/%v, want api_token/%s", ev.actorType, ev.actorID, tokenID)
 	}
-	if ev.data[events.FieldCreatorID] != f.userID.String() ||
-		ev.data[events.FieldCreatorEmail] != deployFixtureEmail ||
-		ev.data[events.FieldReason] != events.BuildFailureBuild {
+	for _, field := range []string{events.FieldCreatorID, events.FieldCreatorEmail, events.FieldCreatorName} {
+		if _, exists := ev.data[field]; exists {
+			t.Fatalf("token actor has human creator field %s: %v", field, ev.data)
+		}
+	}
+	if ev.data[events.FieldReason] != events.BuildFailureBuild {
 		t.Fatalf("build.failed data = %v", ev.data)
 	}
 }
