@@ -124,25 +124,6 @@ func TestReplicaState(t *testing.T) {
 		}
 	}
 }
-func TestReplicaVersion(t *testing.T) {
-	for _, tt := range []struct {
-		revision string
-		want     loco.ReplicaVersion
-	}{
-		{"2", loco.ReplicaCurrent},
-		{"1", loco.ReplicaPrevious},
-		{"", loco.ReplicaPrevious},
-	} {
-		p := corev1.Pod{
-			Annotations:       map[string]string{loco.KeyPlacementRevision: tt.revision},
-			DeletionTimestamp: &metav1.Time{},
-			Spec:              corev1.PodSpec{Containers: []corev1.Container{{Image: "same"}}},
-		}
-		if got := replicaVersion(&p, 2); got != tt.want {
-			t.Fatalf("revision %q=%s", tt.revision, got)
-		}
-	}
-}
 func TestRolloutAvailable(t *testing.T) {
 	app := &loco.Application{
 		Annotations: map[string]string{loco.KeyPlacementRevision: "2"},

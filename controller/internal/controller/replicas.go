@@ -2,7 +2,6 @@ package controller
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -17,13 +16,6 @@ import (
 const replicaDetailBytes = 512
 
 const detailWaitingForReadiness = "waiting for readiness"
-
-func replicaVersion(pod *corev1.Pod, revision int64) loco.ReplicaVersion {
-	if pod.Annotations[loco.KeyPlacementRevision] == strconv.FormatInt(revision, 10) {
-		return loco.ReplicaCurrent
-	}
-	return loco.ReplicaPrevious
-}
 
 func replicaState(pod *corev1.Pod, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
 	result := classifyReplica(pod, recoveryWindow, now)

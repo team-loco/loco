@@ -200,3 +200,36 @@ func TestRuntimeProblemDetail(t *testing.T) {
 		})
 	}
 }
+
+func TestProblemIgnoresEarlierRevisions(t *testing.T) {
+	for _, tt := range []struct {
+		revision string
+		want     bool
+	}{
+		{"2", true},
+		{"1", false},
+		{"", false},
+	} {
+		app := workspaceApp("problem-revision", "problem-revision")
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+		pod := &corev1.Pod{
+			UID: "crash-uid", Name: "crash-replica", Namespace: testWorkspaceNamespace(app),
+			Labels:      map[string]string{labelApp: testAppName(app)},
+			Annotations: map[string]string{locov1alpha1.KeyPlacementRevision: tt.revision},
+			Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
+				Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff},
+			}}}},
+		}
+		r := &ApplicationReconciler{
+			Client:                   fake.NewClientBuilder().WithScheme(scheme.Scheme).WithObjects(pod).Build(),
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+		}
+		dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
+		if err := r.observeReplicas(context.Background(), app, dep, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		if got := app.Status.Rollout.Problem != nil; got != tt.want {
+			t.Errorf("revision %q problem = %+v", tt.revision, app.Status.Rollout.Problem)
+		}
+	}
+}

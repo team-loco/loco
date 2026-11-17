@@ -136,7 +136,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		Available:       rolloutAvailable(dep, app),
 	}
 	var current []corev1.Pod
-	revision, _ := app.PlacementRevision()
+	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
 		replica := replicaState(&pod, r.RuntimeRecoveryWindow, now)
 		if deleted[pod.UID] && replica.State != locov1alpha1.ReplicaKilled &&
@@ -156,8 +156,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		replica.UID = string(pod.UID)
 		replica.Name = pod.Name
 		replica.Node = pod.Spec.NodeName
-		replica.Version = replicaVersion(&pod, revision)
-		if replica.Version == locov1alpha1.ReplicaCurrent {
+		if placed && replica.PlacementRevision == revision {
 			current = append(current, pod)
 		}
 		if app.Status.Rollout != nil {
@@ -169,13 +168,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		}
 		rollout.Replicas = append(rollout.Replicas, replica)
 	}
-	sort.Slice(rollout.Replicas, func(i, j int) bool {
-		a, b := rollout.Replicas[i], rollout.Replicas[j]
-		if a.Version != b.Version {
-			return a.Version < b.Version
-		}
-		return a.Name < b.Name
-	})
+	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
 	rollout.Problem = replicaProblem(current, r.RuntimeRecoveryWindow, now)
 	failure, expired := deploymentFailure(dep)
 	rollout.ProgressDeadlineExceeded = expired
