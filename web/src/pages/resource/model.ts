@@ -1,3 +1,4 @@
+import { formatShortId } from "@/lib/utils";
 import { createQueryOptions, skipToken, useInfiniteQuery, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -17,7 +18,6 @@ import { imageVersion } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
-import { shortId } from "./format";
 import { configuredRegions } from "@/lib/resource-regions";
 
 export const PAGE_SIZES = [10, 25, 50, 100];
@@ -112,7 +112,11 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 		case ResourceStatus.UNSPECIFIED:
 			break;
 	}
-	return { region: region.name, title: `Deployment ${shortId(status.deploymentId)} failed in ${region.name}`, message };
+	return {
+		region: region.name,
+		title: `Deployment ${formatShortId(status.deploymentId)} failed in ${region.name}`,
+		message,
+	};
 }
 
 export function isDeployed(region: RegionView): boolean {

@@ -59,7 +59,7 @@ with session(out) as browser:
             events.get_by_role("button", name="Deploy failed in us-east-1", exact=True)
         ).to_be_visible()
         expect(events.get_by_text("Out of memory", exact=True)).to_be_visible()
-        expect(events.get_by_text("deployment 7c41e90a", exact=True)).to_have_count(2)
+        expect(events.get_by_text("deployment 8d7c6b5a", exact=True)).to_have_count(2)
         events.get_by_role("button", name=re.compile(r"^Warnings")).click()
         wait_for_query(page, lambda query: query.get("q") == ["@severity:warning"])
         expect(

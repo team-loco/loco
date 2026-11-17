@@ -13,9 +13,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { useCopy } from "@/hooks/useCopy";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
-import { shortId } from "./format";
 import { depTag, startedMs } from "./model";
 import { diffLines, sideBySide, specText } from "./spec";
 
@@ -23,7 +22,7 @@ const COPIED_MS = 1500;
 const JSON_TYPE = "application/json";
 
 function optionLabel(dep: Deployment, pref: TimePreferences): string {
-	return [shortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep), pref)].join(" · ");
+	return [formatShortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep), pref)].join(" · ");
 }
 
 function Picker({
@@ -70,7 +69,7 @@ function download(dep: Deployment, text: string) {
 	const url = URL.createObjectURL(new Blob([text], { type: JSON_TYPE }));
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = `deployment-${shortId(dep.id)}.json`;
+	a.download = `deployment-${formatShortId(dep.id)}.json`;
 	a.click();
 	URL.revokeObjectURL(url);
 }

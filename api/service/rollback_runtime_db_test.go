@@ -103,8 +103,8 @@ func TestAutomaticRollback(t *testing.T) {
 					messages = append(messages, row.Message)
 				}
 			}
-			if !slices.Contains(messages, "Rolled back to "+previous.String()[:8]) ||
-				!slices.Contains(messages, "Restored after "+failed.String()[:8]+" failed") {
+			if !slices.Contains(messages, "Rolled back to "+previous.String()[28:]) ||
+				!slices.Contains(messages, "Restored after "+failed.String()[28:]+" failed") {
 				t.Fatalf("activity=%v", messages)
 			}
 			var ready int

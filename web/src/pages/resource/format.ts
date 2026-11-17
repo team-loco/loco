@@ -1,9 +1,5 @@
 import { formatFullTime as fullTime, type TimePreferences } from "@/lib/time";
 
-export function shortId(id: string): string {
-	return id.slice(0, 8);
-}
-
 export function formatFullTime(ms: number, withMs: boolean, pref: TimePreferences): string {
 	return fullTime(ms, withMs, pref);
 }
