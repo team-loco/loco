@@ -175,6 +175,7 @@ func (r *Reconciler) observeJob(
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+		observeBuildStage(build, pod)
 		message := r.failureMessage(cond, pod)
 		finishBuild(build, locov1alpha1.BuildPhaseFailed, message)
 		return ctrl.Result{}, nil
@@ -186,6 +187,7 @@ func (r *Reconciler) observeJob(
 	if pod == nil {
 		return ctrl.Result{}, nil
 	}
+	observeBuildStage(build, pod)
 	if message, stuck := stuckContainer(pod); stuck {
 		finishBuild(build, locov1alpha1.BuildPhaseFailed, message)
 		propagation := client.PropagationPolicy(metav1.DeletePropagationBackground)
@@ -219,6 +221,7 @@ func (r *Reconciler) completeBuild(
 		finishBuild(build, locov1alpha1.BuildPhaseFailed, errBuildPodGone.Error())
 		return ctrl.Result{}, nil
 	}
+	observeBuildStage(build, pod)
 	terminated := pushStatus(pod)
 	if terminated == nil {
 		return ctrl.Result{RequeueAfter: buildCacheLagRequeue}, nil
@@ -232,6 +235,79 @@ func (r *Reconciler) completeBuild(
 	build.Status.CacheDigest = result.CacheDigest
 	finishBuild(build, locov1alpha1.BuildPhaseSucceeded, buildMessageSucceeded)
 	return ctrl.Result{}, nil
+}
+
+func observeBuildStage(build *locov1alpha1.Build, pod *corev1.Pod) {
+	if pod == nil {
+		return
+	}
+	status := buildStageContainer(pod)
+	stage := containerBuildStage(status.Name)
+	if build.Status.Stage != stage {
+		build.Status.Stage = stage
+		build.Status.StageSince = nil
+	}
+	if build.Status.StageSince != nil {
+		return
+	}
+	var started metav1.Time
+	if status.State.Running != nil {
+		started = status.State.Running.StartedAt
+	} else if status.State.Terminated != nil {
+		started = status.State.Terminated.StartedAt
+	}
+	if !started.IsZero() {
+		build.Status.StageSince = &started
+	}
+}
+
+func buildStageContainer(pod *corev1.Pod) corev1.ContainerStatus {
+	statuses := allContainerStatuses(pod)
+	if pod.Status.Phase == corev1.PodSucceeded {
+		for _, status := range statuses {
+			if status.Name == buildContainerPush {
+				return status
+			}
+		}
+	}
+	for _, status := range statuses {
+		if exit := status.State.Terminated; exit != nil && exit.ExitCode != 0 {
+			return status
+		}
+		if waiting := status.State.Waiting; waiting != nil && slices.Contains(stuckReasons, waiting.Reason) {
+			return status
+		}
+	}
+	next := buildContainerFetch
+	for _, name := range []string{buildContainerFetch, buildContainerBuild, buildContainerPush} {
+		for _, status := range statuses {
+			if status.Name != name {
+				continue
+			}
+			if name == buildContainerPush || status.State.Terminated == nil {
+				return status
+			}
+			if name == buildContainerFetch {
+				next = buildContainerBuild
+			} else {
+				next = buildContainerPush
+			}
+		}
+	}
+	return corev1.ContainerStatus{Name: next}
+}
+
+func containerBuildStage(name string) locov1alpha1.BuildStage {
+	switch name {
+	case buildContainerFetch:
+		return locov1alpha1.BuildStageFetch
+	case buildContainerBuild:
+		return locov1alpha1.BuildStageBuild
+	case buildContainerPush:
+		return locov1alpha1.BuildStagePush
+	default:
+		return ""
+	}
 }
 
 func newestBuildPod(ctx context.Context, reader client.Reader, job *batchv1.Job) (*corev1.Pod, error) {
