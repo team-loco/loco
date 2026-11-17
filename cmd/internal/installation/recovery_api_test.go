@@ -77,7 +77,7 @@ func TestRecoveryExportReadsOnlyTheSelectedSecrets(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			kube := Kubernetes{Core: client, Target: KubernetesTarget{Namespace: testNamespace}}
+			kube := kubernetes{Core: client, Target: KubernetesTarget{Namespace: testNamespace}}
 			err = kube.exportRecovery(
 				t.Context(),
 				tc.sealName, controlPlaneRelease+"-openbao-init",

@@ -122,14 +122,14 @@ func ExportRecoveryFromCluster(
 	sealName, initName string,
 	options RecoveryExport,
 ) error {
-	kube, err := NewKubernetes(target)
+	kube, err := newKubernetes(target)
 	if err != nil {
 		return err
 	}
 	return kube.exportRecovery(ctx, sealName, initName, options)
 }
 
-func (kube *Kubernetes) exportRecovery(ctx context.Context, sealName, initName string, options RecoveryExport) error {
+func (kube *kubernetes) exportRecovery(ctx context.Context, sealName, initName string, options RecoveryExport) error {
 	var seal *corev1.Secret
 	var err error
 	if sealName != "" {

@@ -61,7 +61,6 @@ var (
 	errVerificationCAFile         = errors.New("CA file contains no PEM certificate")
 )
 
-type Worker struct{ Name, Region, AppsDomain string }
 type Status struct {
 	Phase   string         `json:"phase"`
 	Workers []WorkerStatus `json:"workers"`
@@ -82,7 +81,7 @@ func verifyApplication(
 	ctx context.Context,
 	clients *rpc.Clients,
 	probe *http.Client,
-	worker Worker,
+	cluster *clusterv1.Cluster,
 	environment *environmentv1.Environment,
 ) (err error) {
 	started := timestamppb.Now()
@@ -91,7 +90,7 @@ func verifyApplication(
 	secret := rand.Text()
 	secretDigest := sha256.Sum256([]byte(secret))
 	secretProof := hex.EncodeToString(secretDigest[:])
-	domain := name + "." + worker.AppsDomain
+	domain := name + "." + cluster.GetDomains()[0]
 	configuration, configErr := clients.Config.GetConfig(ctx, &configv1.GetConfigRequest{})
 	if configErr != nil {
 		return errVerification
@@ -106,7 +105,7 @@ func verifyApplication(
 			Path: "/",
 		},
 		Regions: map[string]locofile.Region{
-			worker.Region: {
+			cluster.GetRegion(): {
 				CPU:      defaults.GetCpu(),
 				Memory:   defaults.GetMemory(),
 				Replicas: &locofile.Replicas{Min: new(defaults.GetMinReplicas()), Max: new(defaults.GetMaxReplicas())},
@@ -210,7 +209,7 @@ func verifyApplication(
 	}
 	request := &observabilityv1.QueryLogsRequest{
 		WorkspaceId: environment.GetWorkspaceId(), EnvironmentId: environment.GetId(),
-		Query:       logquery.Quote(marker) + " @region:" + logquery.Quote(worker.Region),
+		Query:       logquery.Quote(marker) + " @region:" + logquery.Quote(cluster.GetRegion()),
 		ResourceIds: []string{resourceID},
 		StartTime:   started,
 	}
@@ -412,12 +411,11 @@ func VerifyAPI(ctx context.Context, clients *rpc.Clients, target VerificationTar
 	if environment.GetEnvironment().GetType() != selected.GetTier() {
 		return Status{}, errVerificationTarget
 	}
-	worker := Worker{Name: selected.GetName(), Region: selected.GetRegion(), AppsDomain: selected.GetDomains()[0]}
-	if err := verifyApplication(ctx, clients, probe, worker, environment.GetEnvironment()); err != nil {
+	if err := verifyApplication(ctx, clients, probe, selected, environment.GetEnvironment()); err != nil {
 		return Status{}, err
 	}
 	return Status{
 		Phase:   "verified",
-		Workers: []WorkerStatus{{Name: worker.Name, ClusterID: selected.GetId(), Ready: true}},
+		Workers: []WorkerStatus{{Name: selected.GetName(), ClusterID: selected.GetId(), Ready: true}},
 	}, nil
 }

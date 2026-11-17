@@ -15,16 +15,16 @@ import (
 
 const secretKeyField = "key"
 
-var errKubernetes = errors.New("Kubernetes operation failed")
+var errKubernetes = errors.New("kubernetes operation failed")
 var errSecretInvalid = errors.New("existing secret is incomplete; restore its original material")
 
 type KubernetesTarget struct{ Context, Namespace string }
-type Kubernetes struct {
+type kubernetes struct {
 	Core   *coreclient.CoreV1Client
 	Target KubernetesTarget
 }
 
-func NewKubernetes(target KubernetesTarget) (*Kubernetes, error) {
+func newKubernetes(target KubernetesTarget) (*kubernetes, error) {
 	loading := clientcmd.NewDefaultClientConfigLoadingRules()
 	overrides := &clientcmd.ConfigOverrides{CurrentContext: target.Context}
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loading, overrides).ClientConfig()
@@ -35,7 +35,7 @@ func NewKubernetes(target KubernetesTarget) (*Kubernetes, error) {
 	if err != nil {
 		return nil, fmt.Errorf("initialize Kubernetes client: %w", errKubernetes)
 	}
-	return &Kubernetes{Core: core, Target: target}, nil
+	return &kubernetes{Core: core, Target: target}, nil
 }
 func validSeal(secret *corev1.Secret) bool {
 	key, err := base64.StdEncoding.DecodeString(string(secret.Data[secretKeyField]))
