@@ -219,7 +219,7 @@ func singleCluster(options InitOptions) error {
 		if name == "kustomization.yaml" {
 			data = []byte(
 				"apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n" +
-					"resources: [../../releases/control-plane.yaml, loco.yaml, ../control-plane/values, ../worker/values]\n",
+					"resources: [loco.yaml, ../control-plane/values, ../worker/values]\n",
 			)
 		} else {
 			data = bytes.ReplaceAll(data, []byte("./control-plane"), []byte("./all"))
@@ -255,7 +255,7 @@ func singleCluster(options InitOptions) error {
 	if err = yaml.Unmarshal(data, &cluster); err != nil {
 		return err
 	}
-	cluster["resources"] = []string{"../../bases/all"}
+	cluster["resources"] = []string{"../../releases/control-plane.yaml", "../../bases/all"}
 	generators, ok := cluster["configMapGenerator"].([]any)
 	if !ok {
 		return errors.New("cluster has no values generators")

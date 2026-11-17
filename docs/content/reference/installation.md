@@ -28,7 +28,7 @@ For a control plane and worker on one cluster, add `--single-cluster --name loca
 
 `init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. Join tokens are applied directly to worker clusters. Review the generated values and supply storage, database, OIDC, registry and DNS credentials before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
 
-The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and shared role defaults under `bases/`, and one directory under `clusters/` per cluster. Cluster kustomizations reference a role base and provide a small values file with endpoints, domains, administrator and region settings. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
+The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and shared role defaults under `bases/`, and one directory under `clusters/` per cluster. Each cluster kustomization selects exactly one release cohort file, references a role base and provides a small values file with endpoints, domains, administrator and region settings. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
 
 ## Bootstrap Flux
 

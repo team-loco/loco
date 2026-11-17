@@ -102,3 +102,39 @@ func TestValidationRejectsAnInvalidProductionCohort(t *testing.T) {
 		t.Fatalf("invalid production cohort: %v, want schema rejection", err)
 	}
 }
+
+func TestClusterSelectsExactlyOneCohort(t *testing.T) {
+	t.Parallel()
+	const workerBase = "../../bases/worker"
+	for _, tc := range []struct {
+		name      string
+		resources []string
+		valid     bool
+	}{
+		{name: "staging", resources: []string{"../../releases/workers-staging.yaml", workerBase}, valid: true},
+		{name: "production",
+			resources: []string{"../../releases/workers-production.yaml", workerBase}, valid: true},
+		{name: "inherited cohort", resources: []string{workerBase}},
+		{name: "two cohorts", resources: []string{
+			"../../releases/workers-staging.yaml", "../../releases/workers-production.yaml", workerBase,
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := t.TempDir()
+			cluster := filepath.Join(repo, "clusters", "worker")
+			if err := os.MkdirAll(cluster, 0700); err != nil {
+				t.Fatal(err)
+			}
+			data, err := yaml.Marshal(map[string]any{"resources": tc.resources})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(filepath.Join(cluster, "kustomization.yaml"), data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err = checkCohort(repo, cluster); (err == nil) != tc.valid {
+				t.Fatalf("valid=%v err=%v", tc.valid, err)
+			}
+		})
+	}
+}
