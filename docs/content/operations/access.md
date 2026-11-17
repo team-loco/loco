@@ -69,9 +69,9 @@ API-token activity records the token as actor. Historical creator, issuer and in
 
 ## Delete an account
 
-`UserService.DeleteUser` deletes the signed-in user's account through a human session. It removes their organization, workspace and resource grants, sign-in identities, CLI sessions and personal API tokens in one transaction. The user does not need to leave each organization first.
+`UserService.DeleteUser` requires `user:admin` on the target account, using a session or API token. It removes the account's organization, workspace and resource grants, sign-in identities, CLI sessions and personal API tokens in one transaction. The user does not need to leave each organization first.
 
-Deletion fails with `FailedPrecondition` naming any organization where the user is its last active administrator. Promote another active member to administrator or delete that organization first. Having created an organization, workspace or environment does not otherwise block account deletion.
+Deletion fails with `FailedPrecondition` naming any organization the target administers without another active human administrator, even when the target is suspended. Promote another active member to administrator or delete that organization first. Having created an organization, workspace or environment does not otherwise block account deletion.
 
 Shared resources and organization-owned tokens stay with their owning entities. Historical creator and issuer IDs confer no access. A pending CLI or device-login approval cannot create a session after its account is deleted or suspended, and a suspended account cannot refresh a CLI session.
 

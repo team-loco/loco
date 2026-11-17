@@ -103,6 +103,35 @@ func TestOrganizationAdministrationUsesTokenPermissions(t *testing.T) {
 	}
 	u = inviteLifecycleUser(t, automation, w.OrgID, operationsEmail)
 	setLifecycleRole(t, automation, w.OrgID, u.id, orgv1.OrgRole_ORG_ROLE_ADMIN)
+	setLifecycleStatus(t, u.id, userv1.UserStatus_USER_STATUS_SUSPENDED)
+	for _, call := range []func() error{
+		func() error {
+			_, callErr := automation.Org.SetOrgMemberRole(
+				t.Context(),
+				&orgv1.SetOrgMemberRoleRequest{
+					OrgId:  w.OrgID,
+					UserId: issuerID,
+					Role:   orgv1.OrgRole_ORG_ROLE_MEMBER,
+				},
+			)
+			return callErr
+		},
+		func() error {
+			_, callErr := automation.Org.RemoveOrgMember(
+				t.Context(),
+				&orgv1.RemoveOrgMemberRequest{
+					OrgId:  w.OrgID,
+					UserId: issuerID,
+				},
+			)
+			return callErr
+		},
+	} {
+		if err = call(); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("handover to suspended admin = %v, want FailedPrecondition", err)
+		}
+	}
+	setLifecycleStatus(t, u.id, userv1.UserStatus_USER_STATUS_ACTIVE)
 	if _, err = automation.Org.RemoveOrgMember(
 		t.Context(),
 		&orgv1.RemoveOrgMemberRequest{OrgId: w.OrgID, UserId: issuerID},
