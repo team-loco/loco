@@ -410,7 +410,11 @@ func (r *registryRun) firstDeploys(t *testing.T) {
 			t.Errorf("build of %s is %s", app, status)
 		}
 		secretLine := logLine(t, `"msg":"wrote registry pull Secret","name":"`+pullSecret(w)+`"`)
-		applied := logLine(t, `"msg":"applied Application","name":"resource-`+w.ResourceID(t, app)+`"`)
+		appliedApp, err := p.Application(t.Context(), w.ResourceID(t, app), w.EnvironmentID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		applied := logLine(t, `"msg":"applied Application","name":"`+appliedApp.Name+`"`)
 		if secretLine == 0 || applied == 0 || secretLine > applied {
 			t.Errorf(
 				"the agent wrote %s at log line %d and applied %s's first Application at line %d, want the Secret first",

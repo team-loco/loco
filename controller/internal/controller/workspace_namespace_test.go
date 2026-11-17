@@ -43,7 +43,7 @@ func workspaceApp(name, resourceID string) *locov1alpha1.Application {
 
 func appObjects(app *locov1alpha1.Application) []client.Object {
 	name := testAppName(app)
-	namespace := testWorkspaceNamespace(app)
+	namespace := testEnvironmentNamespace(app)
 	envSecretName := getEnvSecretName(app)
 	return []client.Object{
 		&appsv1.Deployment{Name: name, Namespace: namespace},
@@ -69,11 +69,24 @@ func objectExists(t *testing.T, kubeClient client.Client, obj client.Object) boo
 func TestAppsInAWorkspaceShareANamespace(t *testing.T) {
 	first := workspaceApp("first", "1")
 	second := workspaceApp("second", "3")
-	if testWorkspaceNamespace(first) != testWorkspaceNamespace(second) {
-		t.Fatalf("namespaces differ: %q and %q", testWorkspaceNamespace(first), testWorkspaceNamespace(second))
+	if testEnvironmentNamespace(first) != testEnvironmentNamespace(second) {
+		t.Fatalf("namespaces differ: %q and %q", testEnvironmentNamespace(first), testEnvironmentNamespace(second))
 	}
 	if testAppName(first) == testAppName(second) {
 		t.Fatalf("apps share the object name %q", testAppName(first))
+	}
+}
+
+func TestEnvironmentsSeparateWorkloadsForTheSameResource(t *testing.T) {
+	production := workspaceApp("production", "shared-resource")
+	production.Spec.EnvironmentID = testProductionEnvironmentID
+	staging := production.DeepCopy()
+	staging.Spec.EnvironmentID = testPreviewEnvironmentID
+	if testEnvironmentNamespace(production) == testEnvironmentNamespace(staging) {
+		t.Fatal("environments share a workload namespace")
+	}
+	if testAppName(production) != testAppName(staging) {
+		t.Fatal("resource workload names differ across environment namespaces")
 	}
 }
 
@@ -81,7 +94,7 @@ func TestDeletingAnAppKeepsTheWorkspaceNamespace(t *testing.T) {
 	scheme := workspaceTestScheme(t)
 	deleted := workspaceApp("first", "1")
 	remaining := workspaceApp("second", "3")
-	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(deleted)}
+	namespace := &corev1.Namespace{Name: testEnvironmentNamespace(deleted)}
 	pullSecret := &corev1.Secret{Name: workspacePullSecretName, Namespace: namespace.Name}
 	deletedObjects := appObjects(deleted)
 	remainingObjects := appObjects(remaining)
@@ -125,7 +138,7 @@ func TestApplicationCreatedDuringCleanupKeepsWorkspaceInfrastructure(t *testing.
 	app := workspaceApp("old", "1")
 	app.Finalizers = []string{locov1alpha1.FinalizerAppResourcesCleanup}
 	replacement := workspaceApp("new", "3")
-	namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app), Labels: managed.Labels()}
+	namespace := &corev1.Namespace{Name: testEnvironmentNamespace(app), Labels: managed.Labels()}
 	secret := &corev1.Secret{Name: workspacePullSecretName, Namespace: namespace.Name}
 	policy := &networkingv1.NetworkPolicy{Name: "workspace-isolation", Namespace: namespace.Name}
 	base := fake.NewClientBuilder().

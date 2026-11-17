@@ -52,7 +52,11 @@ spec:
               deploymentId:
                 type: string
               environmentId:
+                minLength: 1
                 type: string
+                x-kubernetes-validations:
+                - message: environmentId is immutable
+                  rule: self == oldSelf
               environmentName:
                 type: string
               organizationId:
@@ -226,6 +230,7 @@ spec:
               workspaceId:
                 type: string
             required:
+            - environmentId
             - type
             type: object
           status:

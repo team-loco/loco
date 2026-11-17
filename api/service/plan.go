@@ -134,7 +134,7 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		return nil, fmt.Errorf("list environments: %w", err)
 	}
-	clusters, err := eligibleClusters(ctx, s.queries, env.EnvironmentType, s.silentAfter)
+	clusters, err := eligibleClusters(ctx, s.queries, s.silentAfter)
 	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}
@@ -463,7 +463,7 @@ func liveState(
 			state.Dockerfile = deployed.DockerfilePath
 			state.Context = deployed.Context
 		}
-		env, envErr := desiredEnv(ctx, queries, res.ID, deployment.ClusterID)
+		env, envErr := desiredEnv(ctx, queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
 		if envErr != nil {
 			return configplan.State{}, fmt.Errorf("deployment %s env: %w", deployment.ID, envErr)
 		}

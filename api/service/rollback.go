@@ -62,11 +62,6 @@ func rollbackDeploymentIfEnabled(
 	}
 	targetErr := lockAssignableCluster(ctx, qtx, previous.ClusterID, false)
 	if targetErr == nil {
-		targetErr = checkClusterEnvironment(ctx, qtx, genDb.CreateDeploymentParams{
-			ResourceID: previous.ResourceID, ClusterID: previous.ClusterID, EnvironmentID: previous.EnvironmentID,
-		})
-	}
-	if targetErr == nil {
 		targetErr = lockPinnedBuildImage(ctx, qtx, previousSpec.GetService().GetBuild())
 	}
 	_, unavailable := errors.AsType[*rpcerr.CodedError](targetErr)
@@ -82,7 +77,7 @@ func rollbackDeploymentIfEnabled(
 	if targetErr != nil {
 		return targetErr
 	}
-	plainEnv, err := desiredEnv(ctx, qtx, failed.ResourceID, failed.ClusterID)
+	plainEnv, err := desiredEnv(ctx, qtx, failed.ResourceID, failed.EnvironmentID, failed.ClusterID)
 	if err != nil {
 		return err
 	}

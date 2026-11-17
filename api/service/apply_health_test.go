@@ -115,7 +115,7 @@ func TestApplyHealthIsIsolatedAcrossEnvironments(t *testing.T) {
 	wantCleanPlanIn(t, f, f.envID, file)
 	wantCleanPlanIn(t, f, staging, file)
 	productionHealth := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.Deployment.HealthCheck
-	stagingHealth := f.workerPayload(t, f.otherCluster).AppSpec.ServiceSpec.Deployment.HealthCheck
+	stagingHealth := f.workerPayloadIn(t, f.clusterID, staging).AppSpec.ServiceSpec.Deployment.HealthCheck
 	if productionHealth != nil || stagingHealth == nil {
 		t.Fatalf("production health = %v, staging health = %v", productionHealth, stagingHealth)
 	}

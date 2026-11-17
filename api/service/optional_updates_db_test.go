@@ -63,11 +63,6 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 	auditBefore := optionalAuditCount(t, f)
 	for _, request := range []*environmentv1.UpdateEnvironmentRequest{
 		{EnvironmentId: f.envID.String(), Name: new(""), Description: new("rejected")},
-		{
-			EnvironmentId: f.envID.String(),
-			Type:          new(environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED),
-			Description:   new("rejected"),
-		},
 	} {
 		_, updateErr := server.UpdateEnvironment(ctx, request)
 		if codeOf(updateErr) != connect.CodeInvalidArgument {
@@ -332,8 +327,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if env.Name != "renamed-env" || derefString(env.Description) != optionalRetained ||
-		env.EnvironmentType != environmentTypeProduction {
+	if env.Name != "renamed-env" || derefString(env.Description) != optionalRetained {
 		t.Fatalf("environment=%+v", env)
 	}
 	if res.Name != "renamed-svc" || res.Description != optionalRetained {

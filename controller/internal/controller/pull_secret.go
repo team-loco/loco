@@ -40,7 +40,7 @@ func (r *ApplicationReconciler) ensureWorkspacePullSecret(
 	ctx context.Context,
 	app *locov1alpha1.Application,
 ) error {
-	namespace := r.workspaceNamespace(app)
+	namespace := r.environmentNamespace(app)
 	key := client.ObjectKey{Namespace: namespace, Name: workspacePullSecretName}
 
 	if !r.copiesPullSecret() {
@@ -93,7 +93,7 @@ func (r *ApplicationReconciler) applicationsForPullSecret(
 	obj client.Object,
 ) []reconcile.Request {
 	if !r.RegistryTokenMode {
-		return r.applicationPerWorkspace(ctx, obj)
+		return r.applicationPerEnvironment(ctx, obj)
 	}
 	workspaceID := obj.GetLabels()[locov1alpha1.LabelRegistryPull]
 	var apps locov1alpha1.ApplicationList

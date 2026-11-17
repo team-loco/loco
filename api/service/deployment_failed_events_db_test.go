@@ -249,8 +249,10 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 			id := f.deployAs(t, actor, actorID)
 			stagingID := f.prepareStaging(t)
 			f.deployStaging(t, stagingID)
-			for _, clusterID := range []uuid.UUID{f.clusterID, f.otherCluster} {
-				placement := f.placement(t, clusterID)
+			for _, environmentID := range []uuid.UUID{f.envID, stagingID} {
+				deployment := f.activeDeployment(t, environmentID)
+				clusterID := deployment.ClusterID
+				placement := f.placementIn(t, environmentID, clusterID)
 				report := &agentv1.PlacementStatus{
 					PlacementId:      placement.ID.String(),
 					ObservedRevision: placement.DesiredRevision,

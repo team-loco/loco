@@ -75,7 +75,7 @@ Envoy Gateway creates and reconciles this Service. `externalTrafficPolicy: Clust
 
 `registry.auth` selects how the worker cluster authenticates to the image registry, and must match the API's `LOCO_REGISTRY_AUTH`. The chart passes it to the agent and both controllers as `LOCO_REGISTRY_AUTH`.
 
-With `static`, the default, the operator creates `kubernetes.io/dockerconfigjson` Secrets in the release namespace and names them in `registry.pullSecretName` and `builds.pushSecretName`. The Application controller copies the pull Secret into each workspace namespace as `loco-registry-pull` and attaches it to every workload ServiceAccount. The build controller copies both Secrets into the builds namespace as `registry-pull` and `registry-push`, mounts the pull Secret in the build's `fetch` step and the push Secret in its `push` step, and fails every build when `builds.pushSecretName` is empty. The chart lets the build controller `get` only the Secrets these two values name in the release namespace.
+With `static`, the default, the operator creates `kubernetes.io/dockerconfigjson` Secrets in the release namespace and names them in `registry.pullSecretName` and `builds.pushSecretName`. The Application controller copies the pull Secret into each environment namespace as `loco-registry-pull` and attaches it to every workload ServiceAccount. The build controller copies both Secrets into the builds namespace as `registry-pull` and `registry-push`, mounts the pull Secret in the build's `fetch` step and the push Secret in its `push` step, and fails every build when `builds.pushSecretName` is empty. The chart lets the build controller `get` only the Secrets these two values name in the release namespace.
 
 ```yaml
 registry:
@@ -84,7 +84,7 @@ builds:
   pushSecretName: loco-registry-push
 ```
 
-With `token`, the cluster holds no shared registry Secret and the chart fails when `registry.pullSecretName` or `builds.pushSecretName` is set. The agent writes `loco-registry-pull-<workspace id>` in the release namespace before it applies a workspace's first Application, and the Application controller copies it into the workspace namespace as `loco-registry-pull`. Until the copy source exists, the Application stays `Deploying` with the message `Waiting for the agent to write the registry pull secret...`. For each build the agent writes `build-<build id>-registry` in the builds namespace, and the build controller mounts it in both the `fetch` and `push` steps.
+With `token`, the cluster holds no shared registry Secret and the chart fails when `registry.pullSecretName` or `builds.pushSecretName` is set. The agent writes `loco-registry-pull-<workspace id>` in the release namespace before it applies a workspace's first Application, and the Application controller copies it into each environment namespace as `loco-registry-pull`. Until the copy source exists, the Application stays `Deploying` with the message `Waiting for the agent to write the registry pull secret...`. For each build the agent writes `build-<build id>-registry` in the builds namespace, and the build controller mounts it in both the `fetch` and `push` steps.
 
 ```yaml
 registry:

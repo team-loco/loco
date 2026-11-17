@@ -170,8 +170,6 @@ func (p *Platform) enrollCluster(ctx context.Context) error {
 		clusterName,
 		"--region",
 		clusterRegion,
-		"--tier",
-		clusterTier,
 	)
 	if err != nil {
 		return err

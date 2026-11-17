@@ -108,7 +108,7 @@ func (f *secretFixture) workspace(t *testing.T, name string) uuid.UUID {
 func (f *secretFixture) environment(t *testing.T, workspaceID uuid.UUID, name string) uuid.UUID {
 	t.Helper()
 	env, err := f.queries.CreateEnvironment(t.Context(), genDb.CreateEnvironmentParams{
-		WorkspaceID: workspaceID, Name: name, EnvironmentType: environmentTypeProduction, CreatedBy: f.ownerID,
+		WorkspaceID: workspaceID, Name: name, CreatedBy: f.ownerID,
 	})
 	if err != nil {
 		t.Fatalf("environment %s: %v", name, err)

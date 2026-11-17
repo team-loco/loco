@@ -246,8 +246,6 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		name,
 		"--region",
 		"us-east-1",
-		"--tier",
-		"staging",
 		"--secret-name",
 		"loco-worker-enrollment",
 	}

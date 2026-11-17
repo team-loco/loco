@@ -36,7 +36,7 @@ type Workspace struct {
 	ID            string
 	Name          string
 	EnvironmentID string
-	// Namespace is the namespace of the workspace's workloads.
+	// Namespace is the namespace of the default environment's workloads.
 	Namespace string
 	// Home is the home directory the workspace's CLI runs with.
 	Home string
@@ -82,15 +82,16 @@ func (p *Platform) newWorkspace(t *testing.T, orgID, orgName, name string) *Work
 		t.Fatal(err)
 	}
 	w := &Workspace{p: p, OrgID: orgID, OrgName: orgName, ID: created.GetWorkspaceId(), Name: name,
-		Namespace: p.WorkspaceNamespace(created.GetWorkspaceId()), Home: t.TempDir()}
+		Home: t.TempDir()}
 	for _, environment := range environments.GetEnvironments() {
-		if environment.GetType() == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_PRODUCTION {
+		if environment.GetName() == Production {
 			w.EnvironmentID = environment.GetId()
 		}
 	}
 	if w.EnvironmentID == "" {
 		t.Fatalf("workspace %s has no production environment", name)
 	}
+	w.Namespace = p.EnvironmentNamespace(w.EnvironmentID)
 	w.WriteCLIConfig(t)
 	return w
 }
@@ -184,13 +185,22 @@ func IsNotFound(err error) bool {
 	return connect.CodeOf(err) == connect.CodeNotFound
 }
 
-// Application returns the Application of a resource.
-func (p *Platform) Application(ctx context.Context, resourceID string) (*v1alpha1.Application, error) {
-	var application v1alpha1.Application
-	if err := p.Get(ctx, &application, "-n", locoNamespace, "application", "resource-"+resourceID); err != nil {
+// Application returns the Application of a resource in one environment.
+func (p *Platform) Application(ctx context.Context, resourceID, environmentID string) (*v1alpha1.Application, error) {
+	var applications v1alpha1.ApplicationList
+	selector := "loco.io/resource-id=" + resourceID + ",loco.io/environment-id=" + environmentID
+	if err := p.Get(ctx, &applications, "-n", locoNamespace, "applications", "-l", selector); err != nil {
 		return nil, err
 	}
-	return &application, nil
+	if len(applications.Items) != 1 {
+		return nil, fmt.Errorf(
+			"resource %s environment %s has %d Applications",
+			resourceID,
+			environmentID,
+			len(applications.Items),
+		)
+	}
+	return &applications.Items[0], nil
 }
 
 // WriteLocoFile writes file as dir/loco.yaml.

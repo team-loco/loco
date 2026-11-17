@@ -79,8 +79,7 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
        last_health_check, last_heartbeat, capacity_cpu_millicores,
        capacity_memory_bytes, agent_version, created_at, updated_at, domains
 FROM clusters
-WHERE tier = sqlc.arg(tier)
-  AND is_active = true
+WHERE is_active = true
   AND role IN ('apps', 'all')
   AND health_status = 'healthy'
   AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
@@ -93,8 +92,7 @@ FROM (
     SELECT DISTINCT ON (region) region, is_default, health_status,
            COALESCE(last_heartbeat >= sqlc.arg(heard_since)::timestamptz, false)::boolean AS available
     FROM clusters
-    WHERE tier = sqlc.arg(tier)
-      AND is_active = true
+    WHERE is_active = true
       AND role IN ('apps', 'all')
       AND (health_status IN ('healthy', 'degraded')
            OR last_heartbeat < sqlc.arg(heard_since)::timestamptz

@@ -102,7 +102,7 @@ func TestRuntimePodRoutesToApplication(t *testing.T) {
 	application := testApplication()
 	deployment, err := desiredDeployment(
 		application,
-		testWorkspaceNamespace(application),
+		testEnvironmentNamespace(application),
 		envSecretMount{},
 		testTelemetry(),
 		testMinReadySeconds,

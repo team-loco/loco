@@ -8,15 +8,13 @@ import (
 	"github.com/google/uuid"
 
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
-	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 )
 
 func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T) {
 	t.Parallel()
 	e := newEnrollmentFixture(t)
 	ctx := systemAdminContext(t)
-	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion,
-		Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING}
+	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion}
 	first, err := e.admin.CreateCluster(ctx, request)
 	if err != nil {
 		t.Fatal(err)
@@ -52,8 +50,7 @@ func TestClusterRegistrationResumesWithoutReplacingEnrolledIdentity(t *testing.T
 func TestConcurrentClusterRegistrationCreatesOneRecord(t *testing.T) {
 	t.Parallel()
 	e := newEnrollmentFixture(t)
-	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion,
-		Tier: environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING}
+	request := &clusterv1.CreateClusterRequest{RequestId: uuid.NewString(), Name: "installed", Region: testRegion}
 	const contenders = 8
 	responses := make([]*clusterv1.CreateClusterResponse, contenders)
 	errs := make([]error, contenders)

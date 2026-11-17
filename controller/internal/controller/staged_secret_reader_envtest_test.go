@@ -20,6 +20,7 @@ var _ = Describe("Staged environment secret reads", func() {
 	It("reads staging revisions excluded by the production cache", func() {
 		app := workspaceApp("stage-reader", "stage-reader")
 		app.Spec.WorkspaceID = "staged-reader-cache"
+		app.Spec.EnvironmentID = "staged-reader-cache"
 		app.Namespace = testNamespace
 		stage := &corev1.Secret{
 			Name:      "env-staged-reader",
@@ -32,7 +33,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		}
 		Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, stage)).To(Succeed()) })
-		namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
+		namespace := &corev1.Namespace{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementID: testStagedPlacementID}
@@ -64,7 +65,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(mount.Revision).To(Equal(int64(1)))
 		deployment, err := desiredDeployment(
 			app,
-			testWorkspaceNamespace(app),
+			testEnvironmentNamespace(app),
 			mount,
 			testTelemetry(),
 			testMinReadySeconds,
@@ -90,7 +91,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(target.Data).To(Equal(stage.Data))
 		deployment, err = desiredDeployment(
 			app,
-			testWorkspaceNamespace(app),
+			testEnvironmentNamespace(app),
 			mount,
 			testTelemetry(),
 			testMinReadySeconds,
@@ -109,7 +110,7 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(err).NotTo(HaveOccurred())
 		deployment, err = desiredDeployment(
 			app,
-			testWorkspaceNamespace(app),
+			testEnvironmentNamespace(app),
 			mount,
 			testTelemetry(),
 			testMinReadySeconds,

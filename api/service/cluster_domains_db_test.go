@@ -263,8 +263,13 @@ func TestListPlatformDomainsListsTheRegionsWhoseClusterServesEachDomain(t *testi
 	if err != nil {
 		t.Fatalf("ListPlatformDomains staging: %v", err)
 	}
-	if len(resp.GetPlatformDomains()) != 0 {
-		t.Fatalf("staging domains = %v, want none without a staging cluster", resp.GetPlatformDomains())
+	if len(resp.GetPlatformDomains()) != len(want) {
+		t.Fatalf("staging domains = %v, want the same eligible domains as production", resp.GetPlatformDomains())
+	}
+	for _, domain := range resp.GetPlatformDomains() {
+		if !slices.Equal(domain.GetRegions(), want[domain.GetDomain()]) {
+			t.Fatalf("staging domain = %v, want the same eligible regions as production", domain)
+		}
 	}
 
 	resourceScopes := []genDb.EntityScope{

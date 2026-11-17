@@ -144,7 +144,7 @@ func run(t *testing.T, rec *Reconciler) {
 const (
 	testPlacementID     = "p1"
 	testResourceID      = "r"
-	testApplicationName = "resource-" + testResourceID
+	testApplicationName = "placement-" + testPlacementID
 	testNamespace       = "loco-system"
 	testAppType         = "SERVICE"
 	testRetryDelay      = time.Millisecond
@@ -158,7 +158,7 @@ func testConfig(workers int) Config {
 
 func placement(t *testing.T, revision int64) applier.Placement {
 	t.Helper()
-	spec := &locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID}
+	spec := &locov1alpha1.ApplicationSpec{Type: testAppType, ResourceID: testResourceID, EnvironmentID: "env-test"}
 	payload, err := json.Marshal(locov1alpha1.PlacementPayload{AppSpec: spec})
 	if err != nil {
 		t.Fatal(err)

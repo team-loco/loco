@@ -21,7 +21,7 @@ export const getEnvironment = EnvironmentService.method.getEnvironment;
 /**
  * ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
  * but has a grant on one of its resources gets each environment with only id, workspace_id,
- * name and type.
+ * name.
  *
  * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
  */

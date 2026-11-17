@@ -31,14 +31,14 @@ func renameResource(t *testing.T, f *deployFixture, name string) error {
 func TestRenameResourceUpdatesAllLivePlacementsWithoutDeploying(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.deployToProductionAndStaging(t)
-	before := []genDb.Placement{f.placement(t, f.clusterID), f.placement(t, f.otherCluster)}
+	stagingID := f.deployToProductionAndStaging(t)
+	before := []genDb.Placement{f.placementIn(t, f.envID, f.clusterID), f.placementIn(t, stagingID, f.clusterID)}
 	count := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
 	if err := renameResource(t, f, testRenamedResource); err != nil {
 		t.Fatal(err)
 	}
 	for _, previous := range before {
-		after := f.placement(t, previous.ClusterID)
+		after := f.placementIn(t, previous.EnvironmentID, previous.ClusterID)
 		desired, revision := after.DesiredSpec, after.DesiredRevision
 		var fields map[string]any
 		if err := json.Unmarshal(desired, &fields); err != nil {

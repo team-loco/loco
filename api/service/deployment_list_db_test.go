@@ -77,7 +77,7 @@ func TestListDeploymentsFiltersByEnvironmentAcrossPages(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
-	f.setStagingTier(t, f.otherCluster)
+
 	ctx := context.Background()
 
 	first, err := f.deploy(ctx, staticSpec)

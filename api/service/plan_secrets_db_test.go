@@ -201,8 +201,12 @@ func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
 	if len(deployments) != 1 || !slices.Equal(deployments[0].SecretNames, want) {
 		t.Fatalf("deployments = %+v, want one with secret names %v", deployments, want)
 	}
-	placementKey := genDb.GetPlacementForResourceClusterParams{ResourceID: worker, ClusterID: f.clusterID}
-	placement, err := f.queries.GetPlacementForResourceCluster(context.Background(), placementKey)
+	placementKey := genDb.GetResourceEnvironmentPlacementParams{
+		EnvironmentID: f.envID,
+		ResourceID:    worker,
+		ClusterID:     f.clusterID,
+	}
+	placement, err := f.queries.GetResourceEnvironmentPlacement(context.Background(), placementKey)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}

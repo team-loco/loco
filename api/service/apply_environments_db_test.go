@@ -54,7 +54,7 @@ const (
 func (f *deployFixture) prepareStaging(t *testing.T) uuid.UUID {
 	t.Helper()
 	stagingID := f.addStagingEnvironment(t)
-	f.setStagingTier(t, f.otherCluster)
+
 	return stagingID
 }
 
@@ -86,7 +86,7 @@ func TestApplyKeepsTheValuesOfEachEnvironment(t *testing.T) {
 		t.Fatalf("staging active deployments = %d, want 1", got)
 	}
 	production := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec
-	staging := f.workerPayload(t, f.otherCluster).AppSpec.ServiceSpec
+	staging := f.workerPayloadIn(t, f.clusterID, stagingID).AppSpec.ServiceSpec
 	if production.Resources.CPU != testRegionCPU || production.Deployment.Env["LOG_LEVEL"] != "info" ||
 		production.Routing.HostName != applyWorkerDomain || production.Routing.PathPrefix == stagingPathPrefix {
 		t.Fatalf("production spec = %+v, want the base values", production)

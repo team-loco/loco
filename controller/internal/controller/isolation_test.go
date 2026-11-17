@@ -27,7 +27,7 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 			ResourceID:     resourceID,
 			Slug:           resourceID,
 			WorkspaceID:    workspaceID,
-			EnvironmentID:  "env-production",
+			EnvironmentID:  "env-" + workspaceID,
 			Region:         "us-east-1",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
@@ -83,7 +83,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 
 		ns := &corev1.Namespace{}
-		key := client.ObjectKey{Name: testWorkspaceNamespace(app)}
+		key := client.ObjectKey{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Get(ctx, key, ns)).To(Succeed())
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/audit", "restricted"))
@@ -91,20 +91,20 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelLocoApp, "true"))
 		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelOrganizationID, testOrganizationID))
 		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, "ws-labels"))
-		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelEnvironmentID, "env-production"))
+		Expect(ns.Labels).To(HaveKeyWithValue(locolabels.LabelEnvironmentID, "env-ws-labels"))
 		Expect(ns.Labels).NotTo(HaveKey(locolabels.LabelResourceID))
 	})
 
 	It("keeps labels it does not own on an existing namespace", func() {
 		app := isolationTestApplication("ws-existing", "existing")
 		existing := &corev1.Namespace{
-			Name:   testWorkspaceNamespace(app),
+			Name:   testEnvironmentNamespace(app),
 			Labels: map[string]string{"unrelated": "kept"}}
 		Expect(k8sClient.Create(ctx, existing)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 
 		ns := &corev1.Namespace{}
-		key := client.ObjectKey{Name: testWorkspaceNamespace(app)}
+		key := client.ObjectKey{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Get(ctx, key, ns)).To(Succeed())
 		Expect(ns.Labels).To(HaveKeyWithValue("pod-security.kubernetes.io/enforce", "restricted"))
 		Expect(ns.Labels).To(HaveKeyWithValue("unrelated", "kept"))
@@ -113,7 +113,7 @@ var _ = Describe("Workspace isolation", func() {
 	It("creates the workspace policies once for every app in the workspace", func() {
 		first := isolationTestApplication("ws-policies", "policies-first")
 		second := isolationTestApplication("ws-policies", "policies-second")
-		namespace := testWorkspaceNamespace(first)
+		namespace := testEnvironmentNamespace(first)
 		Expect(ensureTestNamespace(ctx, k8sClient, first)).To(Succeed())
 		Expect(reconciler.ensureWorkspaceNetworkPolicies(ctx, first)).To(Succeed())
 
@@ -139,14 +139,18 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(access.Spec.PodSelector.MatchLabels).To(BeEmpty())
 		Expect(access.Spec.Ingress).To(HaveLen(1))
 		Expect(access.Spec.Ingress[0].Ports).To(BeEmpty())
-		Expect(access.Spec.Ingress[0].From[0].NamespaceSelector).To(BeNil())
+		Expect(
+			access.Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels,
+		).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, first.Spec.WorkspaceID))
 		Expect(access.Spec.Ingress[0].From[0].PodSelector).NotTo(BeNil())
 		Expect(access.Spec.Ingress[0].From).To(HaveLen(1))
 		Expect(access.Spec.Ingress[0].From[0].PodSelector.MatchLabels).To(BeEmpty())
 		Expect(access.Spec.Egress).To(HaveLen(1))
 		Expect(access.Spec.Egress[0].Ports).To(BeEmpty())
 		Expect(access.Spec.Egress[0].To).To(HaveLen(1))
-		Expect(access.Spec.Egress[0].To[0].NamespaceSelector).To(BeNil())
+		Expect(
+			access.Spec.Egress[0].To[0].NamespaceSelector.MatchLabels,
+		).To(HaveKeyWithValue(locolabels.LabelWorkspaceID, first.Spec.WorkspaceID))
 		Expect(access.Spec.Egress[0].To[0].PodSelector).NotTo(BeNil())
 		Expect(access.Spec.Egress[0].To[0].PodSelector.MatchLabels).To(BeEmpty())
 
@@ -167,7 +171,7 @@ var _ = Describe("Workspace isolation", func() {
 
 	It("gives a routed app its own gateway policy and removes it with the route and the app", func() {
 		app := isolationTestApplication("ws-gateway", "gateway")
-		namespace := testWorkspaceNamespace(app)
+		namespace := testEnvironmentNamespace(app)
 		policyName := getGatewayPolicyName(app)
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureGatewayIngressPolicy(ctx, app)).To(Succeed())
@@ -197,7 +201,7 @@ var _ = Describe("Workspace isolation", func() {
 
 	It("runs the app without a service account token under restricted pod security", func() {
 		app := isolationTestApplication("ws-pods", "pods")
-		namespace := testWorkspaceNamespace(app)
+		namespace := testEnvironmentNamespace(app)
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
 		_, err := reconciler.ensureDeployment(ctx, app, envSecretMount{})
@@ -232,7 +236,7 @@ var _ = Describe("Workspace isolation", func() {
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 		Expect(reconciler.ensureServiceAccount(ctx, app)).To(Succeed())
 		key := client.ObjectKey{
-			Namespace: testWorkspaceNamespace(app),
+			Namespace: testEnvironmentNamespace(app),
 			Name:      testAppName(app),
 		}
 		for _, id := range []int64{1654, 82, 0} {

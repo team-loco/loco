@@ -314,9 +314,12 @@ func TestProblemEventsWithPrunedDeploymentHistory(t *testing.T) {
 	p = f.placement(t, f.clusterID)
 	report.ObservedRevision = p.DesiredRevision - 1
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	if _, deleteErr := f.queries.MarkPlacementDeleted(t.Context(), genDb.MarkPlacementDeletedParams{
-		ResourceID: f.resourceID, ClusterID: f.clusterID,
-	}); deleteErr != nil {
+	if _, deleteErr := f.queries.MarkPlacementDeleted(
+		t.Context(),
+		genDb.MarkPlacementDeletedParams{EnvironmentID: f.envID,
+			ResourceID: f.resourceID, ClusterID: f.clusterID,
+		},
+	); deleteErr != nil {
 		t.Fatal(deleteErr)
 	}
 	prune := genDb.PruneDeploymentHistoryParams{ResourceID: f.resourceID, EnvironmentID: f.envID, Keep: 0}
@@ -357,7 +360,7 @@ func TestProblemEventsForARecreatedPlacement(t *testing.T) {
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	removed, err := f.queries.MarkPlacementDeleted(
 		t.Context(),
-		genDb.MarkPlacementDeletedParams{ResourceID: f.resourceID, ClusterID: f.clusterID},
+		genDb.MarkPlacementDeletedParams{EnvironmentID: f.envID, ResourceID: f.resourceID, ClusterID: f.clusterID},
 	)
 	if err != nil {
 		t.Fatal(err)

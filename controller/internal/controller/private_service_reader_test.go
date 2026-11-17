@@ -37,7 +37,7 @@ func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 	}
 	old := &corev1.Service{
 		Name:        "old-cart",
-		Namespace:   testWorkspaceNamespace(app),
+		Namespace:   testEnvironmentNamespace(app),
 		UID:         "old-alias-uid",
 		Labels:      labels,
 		Annotations: ownerAnnotations(app),

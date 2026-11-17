@@ -212,7 +212,7 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, ErrEnvironmentNotFound
 	}
 
-	cluster, err := eligibleCluster(ctx, s.queries, region, env.EnvironmentType, s.silentAfter)
+	cluster, err := eligibleCluster(ctx, s.queries, region, s.silentAfter)
 	if err != nil {
 		return nil, fmt.Errorf("get active cluster: %w", err)
 	}

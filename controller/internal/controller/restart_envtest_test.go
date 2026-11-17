@@ -14,7 +14,7 @@ var _ = Describe("Replica restart", func() {
 	It("rolls the pod template when only the placement revision changes", func() {
 		app := workspaceApp("restart", "restart")
 		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "1"}
-		namespace := &corev1.Namespace{Name: testWorkspaceNamespace(app)}
+		namespace := &corev1.Namespace{Name: testEnvironmentNamespace(app)}
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		r := &ApplicationReconciler{

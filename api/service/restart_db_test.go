@@ -67,9 +67,9 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 				t.Fatal(err)
 			}
 			for _, before := range placements {
-				after, err := f.queries.GetPlacementForResourceCluster(
+				after, err := f.queries.GetResourceEnvironmentPlacement(
 					t.Context(),
-					genDb.GetPlacementForResourceClusterParams{
+					genDb.GetResourceEnvironmentPlacementParams{EnvironmentID: before.EnvironmentID,
 						ResourceID: f.resourceID, ClusterID: before.ClusterID,
 					},
 				)

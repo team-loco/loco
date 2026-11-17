@@ -33,11 +33,10 @@ VALUES (
 ) ON CONFLICT DO NOTHING;
 
 -- Test environment for deployments
-INSERT INTO environments (id, workspace_id, name, environment_type, created_by)
+INSERT INTO environments (id, workspace_id, name, created_by)
 VALUES (
     '00000000-0000-7000-8000-000000000004',
     '00000000-0000-7000-8000-000000000003',
-    'production',
     'production',
     '00000000-0000-7000-8000-000000000001'
 ) ON CONFLICT DO NOTHING;

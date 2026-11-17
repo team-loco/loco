@@ -49,9 +49,8 @@ RETURNING id`, workspaceID).Scan(&otherResource)
 		t.Fatalf("resource reader environments = %v, want one", envs)
 	}
 	env := envs[0]
-	if env.GetId() != f.envID.String() || env.GetWorkspaceId() != workspaceID.String() || env.GetName() == "" ||
-		env.GetType() == environmentv1.EnvironmentType_ENVIRONMENT_TYPE_UNSPECIFIED {
-		t.Fatalf("resource reader got %+v, want id, workspace, name and type", env)
+	if env.GetId() != f.envID.String() || env.GetWorkspaceId() != workspaceID.String() || env.GetName() == "" {
+		t.Fatalf("resource reader got %+v, want id, workspace and name", env)
 	}
 	if env.Description != nil || env.GetCreatedBy() != "" || env.GetCreatedAt() != nil ||
 		env.GetUpdatedAt() != nil || env.GetRevision() != 0 {

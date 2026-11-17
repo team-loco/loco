@@ -26,7 +26,7 @@ type recordingPullSecrets struct {
 func (r *recordingPullSecrets) Ensure(ctx context.Context, workspaceID string) error {
 	r.workspaces = append(r.workspaces, workspaceID)
 	app := &locoControllerV1.Application{}
-	key := client.ObjectKey{Namespace: testNamespace, Name: locoControllerV1.ApplicationName(testResourceID)}
+	key := client.ObjectKey{Namespace: testNamespace, Name: locoControllerV1.ApplicationName(testPlacementID)}
 	if err := r.client.Get(ctx, key, app); !apierrors.IsNotFound(err) {
 		r.appExisted = true
 	}
@@ -52,9 +52,10 @@ func workspacePlacement(t *testing.T, workspaceID string) Placement {
 	t.Helper()
 	p := placement(t, testPlacementID, 1)
 	p.Application = marshalPayload(t, &locoControllerV1.ApplicationSpec{
-		Type:        testAppType,
-		ResourceID:  testResourceID,
-		WorkspaceID: workspaceID,
+		Type:          testAppType,
+		ResourceID:    testResourceID,
+		EnvironmentID: testEnvironmentID,
+		WorkspaceID:   workspaceID,
 	})
 	return p
 }

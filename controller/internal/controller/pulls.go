@@ -107,8 +107,8 @@ func (r *ApplicationReconciler) listRolloutPods(
 	r.pullMu.Lock()
 	defer r.pullMu.Unlock()
 	var listed corev1.PodList
-	if err := r.List(ctx, &listed, client.InNamespace(r.workspaceNamespace(app)),
-		client.MatchingLabels{labelApp: loco.ApplicationName(app.Spec.ResourceID)}); err != nil {
+	if err := r.List(ctx, &listed, client.InNamespace(r.environmentNamespace(app)),
+		client.MatchingLabels{labelApp: loco.WorkloadName(app.Spec.ResourceID)}); err != nil {
 		return nil, nil, fmt.Errorf("list rollout replicas: %w", err)
 	}
 	events := make(map[types.UID]pullEvent, len(listed.Items))

@@ -29,13 +29,11 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 	if _, err := f.pool.Exec(t.Context(), buildRegionQuery, f.clusterID); err != nil {
 		t.Fatal(err)
 	}
-	regions, err := f.queries.ListClusterRegions(t.Context(), genDb.ListClusterRegionsParams{
-		Tier: environmentTypeProduction, HeardSince: time.Now().Add(-testClusterSilentAfter),
-	})
+	regions, err := f.queries.ListClusterRegions(t.Context(), time.Now().Add(-testClusterSilentAfter))
 	if err != nil || len(regions) != 1 || regions[0].Region != testRegion {
 		t.Fatalf("application regions = %v, err = %v", regions, err)
 	}
-	clusters, err := eligibleClusters(t.Context(), f.queries, environmentTypeProduction, testClusterSilentAfter)
+	clusters, err := eligibleClusters(t.Context(), f.queries, testClusterSilentAfter)
 	if err != nil || len(clusters) != 1 || clusters[0].ID != f.otherCluster {
 		t.Fatalf("application clusters = %v, err = %v", clusters, err)
 	}

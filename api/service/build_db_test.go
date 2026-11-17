@@ -417,14 +417,14 @@ func TestStartBuildPicksTheOldestEligibleCluster(t *testing.T) {
 		t.Fatalf("build queued on %q, want the oldest cluster %q", got, want)
 	}
 
-	exec(`UPDATE clusters SET tier = 'production', health_status = 'healthy' WHERE id = $1`, f.clusterID)
+	exec(`UPDATE clusters SET health_status = 'healthy' WHERE id = $1`, f.clusterID)
 	exec(
-		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours', tier = 'staging',
+		`UPDATE clusters SET created_at = NOW() - INTERVAL '2 hours',
 		 region = 'eu-west-1', is_default = false WHERE id = $1`,
 		f.otherCluster,
 	)
 	if got, want := queuedOn(), f.otherCluster.String(); got != want {
-		t.Fatalf("build queued on %q, want the oldest cluster %q whatever its tier or region", got, want)
+		t.Fatalf("build queued on %q, want the oldest cluster %q whatever its region", got, want)
 	}
 
 	exec(`UPDATE clusters SET is_active = false WHERE id = $1`, f.otherCluster)

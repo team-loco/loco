@@ -14,8 +14,9 @@ var _ = Describe("Rollout", func() {
 		app := workspaceApp("rollout", "rollout")
 		// Envtest never finishes deleting a namespace, so this spec needs its own.
 		app.Spec.WorkspaceID = "rollout"
+		app.Spec.EnvironmentID = "rollout"
 		namespace := &corev1.Namespace{}
-		namespace.Name = testWorkspaceNamespace(app)
+		namespace.Name = testEnvironmentNamespace(app)
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		r := &ApplicationReconciler{
@@ -51,9 +52,10 @@ var _ = Describe("Rollout", func() {
 	It("gives a service without a port no probe but the same rollout", func() {
 		app := workspaceApp("rollout-worker", "rollout-worker")
 		app.Spec.WorkspaceID = "rollout-worker"
+		app.Spec.EnvironmentID = "rollout-worker"
 		app.Spec.ServiceSpec.Deployment.Port = nil
 		namespace := &corev1.Namespace{}
-		namespace.Name = testWorkspaceNamespace(app)
+		namespace.Name = testEnvironmentNamespace(app)
 		Expect(k8sClient.Create(ctx, namespace)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, namespace)).To(Succeed()) })
 		r := &ApplicationReconciler{

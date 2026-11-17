@@ -285,8 +285,6 @@ func enrollmentArgs(data []byte, kubeContext string) ([]string, error) {
 		localIdentity,
 		"--region",
 		localIdentity,
-		"--tier",
-		"production",
 		"--kube-context", kubeContext,
 	}, nil
 }

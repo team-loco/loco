@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const workspaceRuntimeLogTimeout = time.Minute
@@ -80,9 +82,9 @@ func (c *Cluster) MustApply(tb testing.TB, manifest string) {
 	}
 }
 
-// WorkspaceNamespace is the namespace of a workspace's workloads.
-func (p *Platform) WorkspaceNamespace(workspaceID string) string {
-	return p.values.workspacePrefix + workspaceID
+// EnvironmentNamespace is the namespace of one environment's workloads.
+func (p *Platform) EnvironmentNamespace(environmentID string) string {
+	return v1alpha1.EnvironmentNamespace(p.values.workspacePrefix, environmentID)
 }
 
 // Node is the name of the run's one kind node.

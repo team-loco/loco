@@ -171,10 +171,18 @@ func (f *deployFixture) count(t *testing.T, query string) int {
 
 func (f *deployFixture) placement(t *testing.T, clusterID uuid.UUID) genDb.Placement {
 	t.Helper()
-	p, err := f.queries.GetPlacementForResourceCluster(context.Background(), genDb.GetPlacementForResourceClusterParams{
-		ResourceID: f.resourceID,
-		ClusterID:  clusterID,
-	})
+	return f.placementIn(t, f.envID, clusterID)
+}
+
+func (f *deployFixture) placementIn(t *testing.T, environmentID, clusterID uuid.UUID) genDb.Placement {
+	t.Helper()
+	p, err := f.queries.GetResourceEnvironmentPlacement(
+		context.Background(),
+		genDb.GetResourceEnvironmentPlacementParams{EnvironmentID: environmentID,
+			ResourceID: f.resourceID,
+			ClusterID:  clusterID,
+		},
+	)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}

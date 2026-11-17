@@ -41,9 +41,6 @@ func createDeploymentWithCleanup(
 	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID, false); assignErr != nil {
 		return uuid.UUID{}, assignErr
 	}
-	if heldErr := checkClusterEnvironment(ctx, qtx, params); heldErr != nil {
-		return uuid.UUID{}, heldErr
-	}
 
 	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
 		ctx,
@@ -170,39 +167,10 @@ func pruneDeploymentHistory(
 	return nil
 }
 
-// checkClusterEnvironment refuses a deployment to a cluster whose placement of the resource
-// belongs to another environment. Loco runs one dedicated cluster per environment, and the
-// cluster names the service's Application after the resource alone, so a second environment
-// on the same cluster would overwrite the first one's workload.
-func checkClusterEnvironment(ctx context.Context, qtx *genDb.Queries, params genDb.CreateDeploymentParams) error {
-	placement, err := qtx.GetPlacementForResourceCluster(ctx, genDb.GetPlacementForResourceClusterParams{
-		ResourceID: params.ResourceID,
-		ClusterID:  params.ClusterID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("get placement: %w", err)
-	}
-	if placement.DesiredDeleted || placement.EnvironmentID == params.EnvironmentID {
-		return nil
-	}
-	cluster, err := qtx.GetClusterByID(ctx, params.ClusterID)
-	if err != nil {
-		return fmt.Errorf("get cluster: %w", err)
-	}
-	other, err := qtx.GetEnvironmentByID(ctx, placement.EnvironmentID)
-	if err != nil {
-		return fmt.Errorf("get environment: %w", err)
-	}
-	return errClusterHeldByEnvironment.Detail("cluster %s already runs it for environment %s", cluster.Name, other.Name)
-}
-
 func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, deployment genDb.Deployment) error {
 	// Only the active deployment owns the placement.
 	if deployment.IsActive {
-		if err := removePlacement(ctx, qtx, res.ID, deployment.ClusterID); err != nil {
+		if err := removePlacement(ctx, qtx, res.ID, deployment.EnvironmentID, deployment.ClusterID); err != nil {
 			return err
 		}
 	}

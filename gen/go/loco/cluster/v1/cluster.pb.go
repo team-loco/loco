@@ -8,7 +8,6 @@ package clusterv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	v1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -84,7 +83,6 @@ type Cluster struct {
 	ClusterKey          string                 `protobuf:"bytes,2,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
 	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Region              string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
-	Tier                v1.EnvironmentType     `protobuf:"varint,5,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
 	IsActive            bool                   `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
 	RemovedAt           *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=removed_at,json=removedAt,proto3" json:"removed_at,omitempty"`
 	HealthStatus        *string                `protobuf:"bytes,8,opt,name=health_status,json=healthStatus,proto3,oneof" json:"health_status,omitempty"`
@@ -153,13 +151,6 @@ func (x *Cluster) GetRegion() string {
 		return x.Region
 	}
 	return ""
-}
-
-func (x *Cluster) GetTier() v1.EnvironmentType {
-	if x != nil {
-		return x.Tier
-	}
-	return v1.EnvironmentType(0)
 }
 
 func (x *Cluster) GetIsActive() bool {
@@ -371,10 +362,9 @@ type CreateClusterRequest struct {
 	// Omit for the server default; positive and bounded by the server maximum.
 	Ttl *durationpb.Duration `protobuf:"bytes,5,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	// persist before sending; reuse only for the same worker registration
-	RequestId     string             `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Name          string             `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Region        string             `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
-	Tier          v1.EnvironmentType `protobuf:"varint,3,opt,name=tier,proto3,enum=loco.environment.v1.EnvironmentType" json:"tier,omitempty"`
+	RequestId     string `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Name          string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Region        string `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -435,13 +425,6 @@ func (x *CreateClusterRequest) GetRegion() string {
 		return x.Region
 	}
 	return ""
-}
-
-func (x *CreateClusterRequest) GetTier() v1.EnvironmentType {
-	if x != nil {
-		return x.Tier
-	}
-	return v1.EnvironmentType(0)
 }
 
 type CreateClusterResponse struct {
@@ -1053,14 +1036,13 @@ var File_loco_cluster_v1_cluster_proto protoreflect.FileDescriptor
 
 const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\n" +
-	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a%loco/environment/v1/environment.proto\"\xe5\x04\n" +
+	"\x1dloco/cluster/v1/cluster.proto\x12\x0floco.cluster.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb7\x04\n" +
 	"\aCluster\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcluster_key\x18\x02 \x01(\tR\n" +
 	"clusterKey\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
-	"\x06region\x18\x04 \x01(\tR\x06region\x128\n" +
-	"\x04tier\x18\x05 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeR\x04tier\x12\x1b\n" +
+	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1b\n" +
 	"\tis_active\x18\x06 \x01(\bR\bisActive\x129\n" +
 	"\n" +
 	"removed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tremovedAt\x12(\n" +
@@ -1073,7 +1055,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\adomains\x18\r \x03(\tR\adomainsB\x10\n" +
 	"\x0e_health_statusB\x10\n" +
 	"\x0e_agent_versionB\x18\n" +
-	"\x16_agent_key_fingerprintJ\x04\b\x0e\x10\x0fR\vdns_records\"5\n" +
+	"\x16_agent_key_fingerprintJ\x04\b\x05\x10\x06J\x04\b\x0e\x10\x0fR\x04tierR\vdns_records\"5\n" +
 	"\x0fClusterWorkload\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\"R\n" +
@@ -1082,7 +1064,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\tJoinToken\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xf6\x01\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xbc\x01\n" +
 	"\x14CreateClusterRequest\x12+\n" +
 	"\x03ttl\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\x03ttl\x12'\n" +
 	"\n" +
@@ -1090,9 +1072,7 @@ const file_loco_cluster_v1_cluster_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x04name\x12\"\n" +
 	"\x06region\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x06region\x12D\n" +
-	"\x04tier\x18\x03 \x01(\x0e2$.loco.environment.v1.EnvironmentTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04tier\"q\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xff\x01R\x06regionJ\x04\b\x03\x10\x04R\x04tier\"q\n" +
 	"\x15CreateClusterResponse\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x01 \x01(\tR\tclusterId\x129\n" +
@@ -1184,43 +1164,40 @@ var file_loco_cluster_v1_cluster_proto_goTypes = []any{
 	(*RemoveClusterResponse)(nil),  // 16: loco.cluster.v1.RemoveClusterResponse
 	(*RestoreClusterRequest)(nil),  // 17: loco.cluster.v1.RestoreClusterRequest
 	(*RestoreClusterResponse)(nil), // 18: loco.cluster.v1.RestoreClusterResponse
-	(v1.EnvironmentType)(0),        // 19: loco.environment.v1.EnvironmentType
-	(*timestamppb.Timestamp)(nil),  // 20: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),    // 21: google.protobuf.Duration
+	(*timestamppb.Timestamp)(nil),  // 19: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),    // 20: google.protobuf.Duration
 }
 var file_loco_cluster_v1_cluster_proto_depIdxs = []int32{
-	19, // 0: loco.cluster.v1.Cluster.tier:type_name -> loco.environment.v1.EnvironmentType
-	20, // 1: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
-	20, // 2: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
-	0,  // 3: loco.cluster.v1.Cluster.role:type_name -> loco.cluster.v1.ClusterRole
-	2,  // 4: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	20, // 5: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
-	21, // 6: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
-	19, // 7: loco.cluster.v1.CreateClusterRequest.tier:type_name -> loco.environment.v1.EnvironmentType
-	4,  // 8: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	21, // 9: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
-	4,  // 10: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
-	1,  // 11: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
-	2,  // 12: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
-	5,  // 13: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
-	7,  // 14: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
-	9,  // 15: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
-	11, // 16: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
-	13, // 17: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
-	15, // 18: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
-	17, // 19: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
-	6,  // 20: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
-	8,  // 21: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
-	10, // 22: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
-	12, // 23: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
-	14, // 24: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
-	16, // 25: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
-	18, // 26: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
-	20, // [20:27] is the sub-list for method output_type
-	13, // [13:20] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	19, // 0: loco.cluster.v1.Cluster.removed_at:type_name -> google.protobuf.Timestamp
+	19, // 1: loco.cluster.v1.Cluster.last_heartbeat:type_name -> google.protobuf.Timestamp
+	0,  // 2: loco.cluster.v1.Cluster.role:type_name -> loco.cluster.v1.ClusterRole
+	2,  // 3: loco.cluster.v1.ClusterWorkloads.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	19, // 4: loco.cluster.v1.JoinToken.expires_at:type_name -> google.protobuf.Timestamp
+	20, // 5: loco.cluster.v1.CreateClusterRequest.ttl:type_name -> google.protobuf.Duration
+	4,  // 6: loco.cluster.v1.CreateClusterResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	20, // 7: loco.cluster.v1.IssueJoinTokenRequest.ttl:type_name -> google.protobuf.Duration
+	4,  // 8: loco.cluster.v1.IssueJoinTokenResponse.join_token:type_name -> loco.cluster.v1.JoinToken
+	1,  // 9: loco.cluster.v1.ListClustersResponse.clusters:type_name -> loco.cluster.v1.Cluster
+	2,  // 10: loco.cluster.v1.RemoveClusterResponse.workloads:type_name -> loco.cluster.v1.ClusterWorkload
+	5,  // 11: loco.cluster.v1.ClusterAdminService.CreateCluster:input_type -> loco.cluster.v1.CreateClusterRequest
+	7,  // 12: loco.cluster.v1.ClusterAdminService.IssueJoinToken:input_type -> loco.cluster.v1.IssueJoinTokenRequest
+	9,  // 13: loco.cluster.v1.ClusterAdminService.ListClusters:input_type -> loco.cluster.v1.ListClustersRequest
+	11, // 14: loco.cluster.v1.ClusterAdminService.PauseCluster:input_type -> loco.cluster.v1.PauseClusterRequest
+	13, // 15: loco.cluster.v1.ClusterAdminService.ResumeCluster:input_type -> loco.cluster.v1.ResumeClusterRequest
+	15, // 16: loco.cluster.v1.ClusterAdminService.RemoveCluster:input_type -> loco.cluster.v1.RemoveClusterRequest
+	17, // 17: loco.cluster.v1.ClusterAdminService.RestoreCluster:input_type -> loco.cluster.v1.RestoreClusterRequest
+	6,  // 18: loco.cluster.v1.ClusterAdminService.CreateCluster:output_type -> loco.cluster.v1.CreateClusterResponse
+	8,  // 19: loco.cluster.v1.ClusterAdminService.IssueJoinToken:output_type -> loco.cluster.v1.IssueJoinTokenResponse
+	10, // 20: loco.cluster.v1.ClusterAdminService.ListClusters:output_type -> loco.cluster.v1.ListClustersResponse
+	12, // 21: loco.cluster.v1.ClusterAdminService.PauseCluster:output_type -> loco.cluster.v1.PauseClusterResponse
+	14, // 22: loco.cluster.v1.ClusterAdminService.ResumeCluster:output_type -> loco.cluster.v1.ResumeClusterResponse
+	16, // 23: loco.cluster.v1.ClusterAdminService.RemoveCluster:output_type -> loco.cluster.v1.RemoveClusterResponse
+	18, // 24: loco.cluster.v1.ClusterAdminService.RestoreCluster:output_type -> loco.cluster.v1.RestoreClusterResponse
+	18, // [18:25] is the sub-list for method output_type
+	11, // [11:18] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_loco_cluster_v1_cluster_proto_init() }

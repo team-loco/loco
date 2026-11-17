@@ -142,8 +142,9 @@ func TestStatusIsForwardedOnlyWhenItChanges(t *testing.T) {
 func envSecretPlacement(t *testing.T, revision int64) applier.Placement {
 	t.Helper()
 	spec := &locoControllerV1.ApplicationSpec{
-		Type:       "SERVICE",
-		ResourceID: testResourceID,
+		Type:          "SERVICE",
+		ResourceID:    testResourceID,
+		EnvironmentID: "env-test",
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
 				Image: "ghcr.io/team-loco/app:v1",

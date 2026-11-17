@@ -262,7 +262,7 @@ func TestPlacementWindowsFollowPlacements(t *testing.T) {
 	}
 
 	if removeErr := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		return removePlacement(ctx, qtx, f.resourceID, f.clusterID)
+		return removePlacement(ctx, qtx, f.resourceID, f.envID, f.clusterID)
 	}); removeErr != nil {
 		t.Fatal(removeErr)
 	}

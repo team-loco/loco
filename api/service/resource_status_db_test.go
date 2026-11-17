@@ -45,7 +45,7 @@ func newResourceStatusFixture(t *testing.T) *resourceStatusFixture {
 	f.workspaceID = f.deployFixture.workspaceID(t)
 	f.stagingID = f.addStagingEnvironment(t)
 	f.stagingCluster = f.otherCluster
-	f.setStagingTier(t, f.stagingCluster)
+
 	row := f.pool.QueryRow(ctx, `
 WITH c AS (
     INSERT INTO clusters (name, region, provider, is_active, is_default)

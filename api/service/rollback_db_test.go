@@ -43,8 +43,8 @@ func TestCreateDeploymentPreservesRollbackOverride(t *testing.T) {
 func TestUpdateRollbackOnFailureDoesNotDeploy(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.deployToProductionAndStaging(t)
-	before := []genDb.Placement{f.placement(t, f.clusterID), f.placement(t, f.otherCluster)}
+	stagingID := f.deployToProductionAndStaging(t)
+	before := []genDb.Placement{f.placementIn(t, f.envID, f.clusterID), f.placementIn(t, stagingID, f.clusterID)}
 	count := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`)
 	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
@@ -76,7 +76,7 @@ func TestUpdateRollbackOnFailureDoesNotDeploy(t *testing.T) {
 			t.Fatalf("deployments=%d, want %d", got, count)
 		}
 		for _, previous := range before {
-			after := f.placement(t, previous.ClusterID)
+			after := f.placementIn(t, previous.EnvironmentID, previous.ClusterID)
 			if after.DesiredRevision != previous.DesiredRevision ||
 				!bytes.Equal(after.DesiredSpec, previous.DesiredSpec) {
 				t.Fatal("setting change modified placement")

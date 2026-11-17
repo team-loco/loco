@@ -17,7 +17,7 @@ const missedHeartbeats = 3
 
 var errNoActiveCluster = rpcerr.NewCoded(
 	connect.CodeFailedPrecondition,
-	"no healthy cluster accepting applications for the region and environment type",
+	"no healthy cluster accepting applications for the region",
 )
 
 var clusterRoles = map[clusterv1.ClusterRole]genDb.ClusterRole{
@@ -53,21 +53,17 @@ func ClusterSilentAfter(heartbeatInterval time.Duration) time.Duration {
 	return missedHeartbeats * heartbeatInterval
 }
 
-// eligibleClusters returns, for each region with an eligible cluster, the cluster an environment of
-// the given type deploys to there: the default cluster first, then the oldest. ListEligibleClusters
+// eligibleClusters returns, for each region with an eligible cluster, the cluster applications
+// deploy to there: the default cluster first, then the oldest. ListEligibleClusters
 // holds the one predicate and orders its rows so that cluster comes first within its region, so
 // Plan's region check and every deploy agree.
 func eligibleClusters(
 	ctx context.Context,
 	queries genDb.Querier,
-	tier string,
 	silentAfter time.Duration,
 ) ([]genDb.ListEligibleClustersRow, error) {
 	heardSince := time.Now().Add(-silentAfter)
-	clusters, err := queries.ListEligibleClusters(ctx, genDb.ListEligibleClustersParams{
-		Tier:       tier,
-		HeardSince: heardSince,
-	})
+	clusters, err := queries.ListEligibleClusters(ctx, heardSince)
 	if err != nil {
 		return nil, fmt.Errorf("list eligible clusters: %w", err)
 	}
@@ -92,16 +88,15 @@ func eligibleCluster(
 	ctx context.Context,
 	queries genDb.Querier,
 	region string,
-	tier string,
 	silentAfter time.Duration,
 ) (genDb.ListEligibleClustersRow, error) {
-	clusters, err := eligibleClusters(ctx, queries, tier, silentAfter)
+	clusters, err := eligibleClusters(ctx, queries, silentAfter)
 	if err != nil {
 		return genDb.ListEligibleClustersRow{}, err
 	}
 	cluster, found := clusterForRegion(clusters, region)
 	if !found {
-		return genDb.ListEligibleClustersRow{}, errNoActiveCluster.Detail("%s (%s)", region, tier)
+		return genDb.ListEligibleClustersRow{}, errNoActiveCluster.Detail("%s", region)
 	}
 	return cluster, nil
 }
