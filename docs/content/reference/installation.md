@@ -24,7 +24,7 @@ locoadm init --output ./fleet \
   --api-env-file ./api.env
 ```
 
-`init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. The worker token starts empty. Review the generated values and supply storage, database, OIDC, registry and DNS credentials before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
+`init` generates a static OpenBao seal key and writes it and the API environment as plaintext Secret files with mode `0600`. Encrypt these files before committing, or deliver the named Secrets through External Secrets. Core has no SOPS dependency; the generated README documents operator-managed encryption and Flux decryption. Join tokens are applied directly to worker clusters. Review the generated values and supply storage, database, OIDC, registry and DNS credentials before reconciliation. Chart defaults define shared settings; each cluster overrides them in `values/`.
 
 The repository has `releases/control-plane.yaml`, staging and production worker cohorts, and one directory under `clusters/` per cluster. Staging can follow stable releases through a semver range. Production pins an exact bundle digest.
 
@@ -52,14 +52,16 @@ locoadm status
 
 Sign in with a verified email listed in `api.systemAdmins` to claim the first system administrator. `--device` supports approval from another machine. `loco` and `locoadm` share the resulting session.
 
-Register each worker and capture its plaintext join-token Secret:
+Bootstrap each worker’s Flux against its directory first. Once the bundle creates `loco-system`, register the worker and deliver its one-time join-token Secret directly:
 
 ```sh
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h -o secret > ./fleet/clusters/worker-staging/config/join-token.yaml
+  --kube-context worker-staging
 ```
 
-Encrypt the manifest before committing it, or apply it through your own Secret delivery tooling. Bootstrap that worker's Flux against its directory. The agent waits for the mounted token, enrolls once and stores its identity in the cluster. A consumed token can be removed from Git together with its resource entry. [Cluster enrollment](cluster-attachment.md) describes token renewal and enrollment status.
+Keep the join token out of Git. The default one-hour TTL covers immediate application. `--kube-context` applies the Secret through the Kubernetes client and prints only a confirmation. The agent waits for the mounted token, enrolls once and stores its identity in the cluster.  [Cluster enrollment](cluster-attachment.md) describes token renewal and enrollment status.
+
+For fully unattended installation, an encrypted join-token file in the worker configuration is an option. Set a longer `--ttl`, encrypt it with operator tooling and configure Flux decryption; remove the spent file after enrollment.
 
 ## Upgrade and verify
 

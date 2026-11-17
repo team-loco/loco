@@ -6,23 +6,25 @@ Cluster enrollment binds a worker's agent identity to its API registration. Flux
 
 ## Register a worker
 
-Sign in as a system administrator, then print a join-token Secret manifest:
+Bootstrap the worker’s Flux against its repository directory first and wait for the bundle to create `loco-system`. Sign in as a system administrator, then deliver the one-time join-token Secret directly to the worker:
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h -o secret > clusters/worker-staging/config/join-token.yaml
+  --kube-context worker-staging
 ```
 
-`-o secret` prints a plaintext Kubernetes Secret manifest. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. Encrypt the file with your own tooling before committing and configure Flux decryption, or supply the same Secret through External Secrets. Core requires no SOPS executable or recipient flags.
+`--kube-context` creates or updates the Secret through the Kubernetes client and prints only a confirmation. A missing namespace fails with instructions to bootstrap Flux first. `-o secret` prints a plaintext Kubernetes Secret manifest for operator-managed delivery and cannot be combined with `--kube-context`. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Reference that Secret through the worker chart's `agent.joinToken.existingSecret`. The token is bootstrap material outside the operator repository. Core requires no SOPS executable or recipient flags.
 
 Default output is the JSON API response, including the token. Keep both forms out of logs.
 
 Tokens default to one hour. A positive `--ttl` is capped by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL`, which defaults to seven days. Operators configure the default through `LOCO_CLUSTER_JOIN_TOKEN_TTL`. The API stores a hash of each token and accepts it once.
 
+For fully unattended installs, an encrypted token committed to the worker configuration is an option. Use a longer `--ttl`, encrypt the manifest with operator tooling, add its resource entry and configure Flux decryption. Remove the spent file after enrollment.
+
 ## Reconcile and inspect
 
-Bootstrap the worker's Flux against its own repository directory and provision any decryption key your chosen Secret tooling requires. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token.
+Provision any decryption key your chosen Secret tooling requires. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token.
 
 ```sh
 locoadm cluster list
@@ -34,11 +36,10 @@ Status reports pending or enrolled clusters, last heartbeats, API and agent vers
 ## Renew a pending token
 
 ```sh
-locoadm cluster join-token CLUSTER_UUID --ttl 72h \
-  -o secret > clusters/worker-staging/config/join-token.yaml
+locoadm cluster join-token CLUSTER_UUID --kube-context worker-staging
 ```
 
-A fresh token invalidates the preceding one. Encrypt the file before committing and let Flux deliver it, or apply it through your own Secret delivery tooling. After enrollment, remove the consumed token manifest and its resource entry when desired; the agent identity remains in the cluster.
+If a pending token expires, re-run `locoadm cluster join-token CLUSTER_UUID --kube-context worker-staging`. A fresh token invalidates the preceding one. Apply the new Secret directly to the pending worker. The agent identity remains in the cluster after enrollment.
 
 `CreateCluster` requires a UUID request ID. Programmatic callers persist it and reuse it after a lost response: retries recover the same registration, while changed identity fields fail. Each CLI create invocation generates a fresh request ID. Use `join-token` for an existing registration.
 

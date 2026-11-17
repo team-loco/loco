@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -95,38 +94,13 @@ func (cfg config) install(ctx context.Context) error {
 		if listErr != nil {
 			return listErr
 		}
-		args, parseErr := enrollmentArgs(listed)
+		args, parseErr := enrollmentArgs(listed, "kind-"+cfg.Cluster)
 		if parseErr != nil {
 			return parseErr
 		}
-		created, createErr := cfg.locoadm(ctx, args...)
+		_, createErr := cfg.locoadm(ctx, args...)
 		if createErr != nil {
 			return createErr
-		}
-		var result struct {
-			JoinToken struct {
-				Token string `json:"token"`
-			} `json:"joinToken"`
-		}
-		if err = json.Unmarshal(created, &result); err != nil {
-			return err
-		}
-		if result.JoinToken.Token == "" {
-			return errors.New("cluster creation returned no join token")
-		}
-		secret, marshalErr := json.Marshal(
-			map[string]any{
-				"apiVersion": "v1",
-				"kind":       "Secret",
-				"metadata":   map[string]string{"name": "loco-agent-join-token", "namespace": "loco-system"},
-				"stringData": map[string]string{"join-token": result.JoinToken.Token},
-			},
-		)
-		if marshalErr != nil {
-			return marshalErr
-		}
-		if err = cfg.writeState(filepath.Join("flux", "join-token.yaml"), secret); err != nil {
-			return err
 		}
 		if err = cfg.deploy(ctx, false); err != nil {
 			return err
@@ -232,6 +206,9 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		return err
 	}
 	directory := filepath.Join(cfg.State, "flux")
+	if err = os.RemoveAll(directory); err != nil {
+		return err
+	}
 	if err = os.MkdirAll(directory, 0700); err != nil {
 		return err
 	}
@@ -254,11 +231,6 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		return err
 	}
 	resources := "resources:\n  - resources.yaml\n"
-	if _, statErr := os.Stat(filepath.Join(directory, "join-token.yaml")); statErr == nil {
-		resources += "  - join-token.yaml\n"
-	} else if !os.IsNotExist(statErr) {
-		return statErr
-	}
 	if err = os.WriteFile(
 		filepath.Join(directory, "kustomization.yaml"),
 		[]byte("apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\n"+resources),
@@ -318,7 +290,7 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	return nil
 }
 
-func enrollmentArgs(data []byte) ([]string, error) {
+func enrollmentArgs(data []byte, kubeContext string) ([]string, error) {
 	var listed struct {
 		Clusters []struct {
 			ID        string `json:"id"`
@@ -331,7 +303,7 @@ func enrollmentArgs(data []byte) ([]string, error) {
 	}
 	for _, cluster := range listed.Clusters {
 		if cluster.Name == localIdentity && cluster.RemovedAt == "" {
-			return []string{"cluster", "join-token", cluster.ID}, nil
+			return []string{"cluster", "join-token", cluster.ID, "--kube-context", kubeContext}, nil
 		}
 	}
 	return []string{
@@ -343,5 +315,6 @@ func enrollmentArgs(data []byte) ([]string, error) {
 		localIdentity,
 		"--tier",
 		"production",
+		"--kube-context", kubeContext,
 	}, nil
 }

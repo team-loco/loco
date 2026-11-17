@@ -16,29 +16,19 @@ Bootstrap Flux to `clusters/control-plane` and `clusters/worker-staging`, using 
 
 `loco.yaml` selects the bundle entry point and declares `loco-cluster-config`, which applies configuration after namespaces exist. The bundle's role layer waits for that configuration and infrastructure. Values ConfigMaps are generated without a name suffix so Helm releases can reference them.
 
-Sign in as the configured administrator and register the worker:
+After Flux bootstrap creates `loco-system` on the worker, sign in as the configured administrator and register it:
 
 ```sh
 locoadm login --api https://api.example.com --web https://app.example.com
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h -o secret > clusters/worker-staging/config/join-token.yaml
+  --kube-context worker-staging
 ```
 
-Encrypt the token file before committing it. For example, install SOPS with your own tooling and pipe the manifest into it:
+`--kube-context` writes the one-time join-token Secret directly to the worker and prints only a confirmation. The default one-hour TTL covers bootstrap delivery; keep the token out of Git. The agent waits for delivery and retains its identity after enrollment.
 
-```sh
-cat clusters/worker-staging/config/join-token.yaml | \
-  sops encrypt --input-type yaml --output-type yaml \
-  --age CLUSTER_AGE_RECIPIENT,OFFLINE_AGE_RECIPIENT \
-  --encrypted-regex '^(data|stringData)$' /dev/stdin \
-  > clusters/worker-staging/config/join-token.encrypted.yaml
-mv clusters/worker-staging/config/join-token.encrypted.yaml \
-  clusters/worker-staging/config/join-token.yaml
-```
+For fully unattended installation, an encrypted token file committed to the worker configuration is an option. Print its manifest with `-o secret` and a longer `--ttl`, encrypt it with operator tooling, add it to that configuration's resources, and configure Flux decryption. Remove the spent file after enrollment. Other credential Secrets can use SOPS or External Secrets; core requires neither tool.
 
-If you use SOPS, configure `spec.decryption` on each `loco-cluster-config` Kustomization with `provider: sops` and its cluster key Secret in `flux-system`. Keep the offline recovery key outside the cluster. Alternatively, remove the plaintext Secret files from the config resources and supply External Secrets resources for the same Secret names.
-
-The agent waits for it and retains its identity after enrollment; the spent ciphertext can be deleted. For production workers, select `releases/workers-production.yaml` from their cluster directory and pin a digest. Upgrade the control plane first, then staging workers, then production workers, checking each cohort's health before proceeding. Each cluster's Flux reconciles only its own configuration.
+For production workers, select `releases/workers-production.yaml` from their cluster directory and pin a digest. Upgrade the control plane first, then staging workers, then production workers, checking each cohort's health before proceeding. Each cluster's Flux reconciles only its own configuration.
 
 ## Validate
 
