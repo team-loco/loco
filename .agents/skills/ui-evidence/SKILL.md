@@ -51,6 +51,10 @@ mise exec -- uv run --script "$E" <command>
    A `type` step fills the field, replacing its contents; empty text clears it. A `press` step
    sends one key to the element. A `drag` step presses the mouse at `from` and releases it at `to`,
    each an `[x, y]` fraction of the element's box; values outside 0–1 land outside it.
+   Drag targets are scrolled into view and checked for stability before measuring their box.
+   For trace brush captures, assert the selected range with a state-specific `ready_selector`,
+   for example `.tv-range-wrap[data-open="true"] [aria-valuetext="20–60% of trace"]`.
+   The overview slider remains in the DOM when closed, so its presence alone cannot prove zoom.
    To show data or errors the seeded API cannot produce (traces, metrics, a rejected request),
    add `"respond": [{"url": "**/Service/Method", "json": {...}, "status": 400, "headers": {...}}]`.
    Matching requests get that response; `status` defaults to 200 and `headers` is optional.
@@ -85,7 +89,15 @@ mise exec -- uv run --script "$E" <command>
    saves nothing for a shot whose selector is missing or whose theme did not apply. Fix the spec
    or the scenario; never keep a shot that shows the wrong screen.
 5. Open every PNG with Read and check it shows what the shot claims.
-6. Stop everything: `mise exec -- uv run --script "$E" down --all`. Every `up`, `shoot` and `down`
+6. Stop each run you started:
+
+   ```sh
+   mise exec -- uv run --script "$E" down --state "$before"
+   mise exec -- uv run --script "$E" down --state "$after"
+   ```
+
+   Reserve `down --all` for manual machine-wide cleanup; it stops other callers' runs.
+   Every `up`, `shoot` and `down`
    also stops runs nobody has used for two hours, and a failed `up` stops itself after printing
    its API and UI logs, so an interrupted capture does not leave containers behind.
 
@@ -128,7 +140,8 @@ current checkout's built API and UI; it does not build or check out `--ref`. The
 owns these checkouts and the shared OpenBao. After capture:
 
 ```sh
-mise exec -- uv run --script "$E" down --all
+mise exec -- uv run --script "$E" down --state "$before"
+mise exec -- uv run --script "$E" down --state "$after"
 mise exec -- uv run --script "$E" stop-openbao --project "$project"
 unset UI_EVIDENCE_OPENBAO
 git worktree remove --force "$capture/before-src"

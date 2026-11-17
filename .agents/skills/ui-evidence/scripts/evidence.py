@@ -169,6 +169,8 @@ def start_openbao(worktree, project, env):
 
 def stop_compose(project, worktree=None):
     worktree = Path(worktree) if worktree else repo_root()
+    if not worktree.exists():
+        worktree = Path(__file__).resolve().parents[4]
     compose(worktree, project, openbao_env(worktree, dict(os.environ)), "down", "-v", "--remove-orphans")
 
 
@@ -638,9 +640,10 @@ def cmd_up(args):
 
         image = compose_postgres_image((worktree / "dev" / "compose.yaml").read_text())
         container = f"{LABEL}-{run_id}"
+        run(["mise", "exec", "--", "go", "run", "./tools/pullimage", image], cwd=worktree, env=env)
         run(
             [
-                "docker", "run", "-d", "--name", container, "--label", f"{LABEL}={run_id}",
+                "docker", "run", "--pull", "never", "-d", "--name", container, "--label", f"{LABEL}={run_id}",
                 "-e", f"POSTGRES_USER={DB_USER}", "-e", f"POSTGRES_PASSWORD={DB_PASSWORD}",
                 "-e", f"POSTGRES_DB={DB_NAME}", "-p", f"{HOST}:{db_port}:5432", image,
             ],
@@ -812,6 +815,7 @@ def capture(browser, state, shot, theme, narrow, target):
             elif action == "press":
                 locator.first.press(value["key"])
             elif action == "drag":
+                locator.first.hover(timeout=STEP_TIMEOUT_MS)
                 box = locator.first.bounding_box()
                 at = lambda f: (box["x"] + f[0] * box["width"], box["y"] + f[1] * box["height"])
                 page.mouse.move(*at(value["from"]))

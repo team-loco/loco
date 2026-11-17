@@ -48,6 +48,8 @@ for suite in ${suites[@]+"${suites[@]}"}; do
 	fi
 done
 
+uv run --frozen --project tests pytest tests/ui/test_evidence.py
+
 evidence=(uv run --frozen --project tests python .agents/skills/ui-evidence/scripts/evidence.py)
 start=$SECONDS
 # The suites share one OpenBao. It holds only the seeded transit keys; each API
