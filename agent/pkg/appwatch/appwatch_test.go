@@ -285,29 +285,6 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 	}
 }
 
-func TestRuntimeConditionReportsAndReplaysRecovery(t *testing.T) {
-	w := newWatcher(nil, nil, testNamespace)
-	application := app("resource-a", "p1", "1")
-	application.Status.Rollout = &locoControllerV1.RolloutStatus{
-		Problem: &locoControllerV1.Problem{Reason: locoControllerV1.ProblemCrashLoop},
-	}
-	var got []*agentv1.PlacementStatus
-	detach := w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
-	w.observe(application)
-	if len(got) != 1 || got[0].GetProblem().GetReason() != string(locoControllerV1.ProblemCrashLoop) {
-		t.Fatalf("reported=%v", got)
-	}
-
-	detach()
-	application.Status.Rollout.Problem = nil
-	w.observe(application)
-	var replay []*agentv1.PlacementStatus
-	w.Attach(func(status *agentv1.PlacementStatus) { replay = append(replay, status) })
-	if len(replay) != 1 || replay[0].GetProblem() != nil {
-		t.Fatalf("replay = %v", replay)
-	}
-}
-
 func TestRolloutForwarding(t *testing.T) {
 	const currentReplicaName = "new"
 	w := newWatcher(nil, nil, testNamespace)

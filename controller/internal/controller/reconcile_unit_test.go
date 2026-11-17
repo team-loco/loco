@@ -269,7 +269,7 @@ func TestReplicaCountsTrackDeploymentStatus(t *testing.T) {
 		deployment.WithStatus(status)
 		setReadyReplicas(app, deployment)
 		if app.Status.ReadyReplicas != count {
-			t.Fatalf("status = %+v, want ready=%d desired=2", app.Status, count)
+			t.Fatalf("status = %+v, want ready=%d", app.Status, count)
 		}
 	}
 	deployment.Status = nil

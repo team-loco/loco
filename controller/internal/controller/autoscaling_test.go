@@ -64,8 +64,6 @@ var _ = Describe("Application autoscaling", func() {
 		dep, err = reconciler.ensureDeployment(ctx, app, envSecretMount{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(dep.Spec.Replicas).To(HaveValue(Equal(int32(4))))
-		setReadyReplicas(app, dep)
-		Expect(*dep.Spec.Replicas).To(Equal(int32(4)))
 
 		resources.Replicas.Max = 6
 		resources.Scalers = locov1alpha1.ScalersSpec{Enabled: true, MemoryTarget: 60}

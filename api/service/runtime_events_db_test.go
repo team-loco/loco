@@ -15,6 +15,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+func (f *deployFixture) eventCount(t *testing.T, kind string) int {
+	t.Helper()
+	var n int
+	const query = `SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`
+	if err := f.pool.QueryRow(t.Context(), query, f.resourceID, kind).Scan(&n); err != nil {
+		t.Fatalf("count %s events: %v", kind, err)
+	}
+	return n
+}
+
 func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -208,12 +218,7 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	if stored := f.placement(t, f.clusterID).ProblemReason; stored != "" {
 		t.Fatalf("old stream reopened %q", stored)
 	}
-	var count int
-	if err := f.pool.QueryRow(t.Context(), "SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2",
-		f.resourceID, events.ResourceDegraded).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
+	if count := f.eventCount(t, events.ResourceDegraded); count != 1 {
 		t.Fatalf("degradation events = %d, want 1", count)
 	}
 }
@@ -251,16 +256,7 @@ func TestRuntimeEventsDuringRollout(t *testing.T) {
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			server.recordStatus(t.Context(), f.clusterID, generation, report)
 			for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
-				var count int
-				if queryErr := f.pool.QueryRow(
-					t.Context(),
-					`SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`,
-					f.resourceID,
-					kind,
-				).Scan(&count); queryErr != nil {
-					t.Fatal(queryErr)
-				}
-				if count != 1 {
+				if count := f.eventCount(t, kind); count != 1 {
 					t.Fatalf("%s events = %d, want 1", kind, count)
 				}
 			}
@@ -292,13 +288,7 @@ func TestProblemEventsAcrossPlacementRevisions(t *testing.T) {
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
-		var count int
-		const query = `SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`
-		if err := f.pool.QueryRow(t.Context(), query, f.resourceID, kind).
-			Scan(&count); err != nil {
-			t.Fatal(err)
-		}
-		if count != 1 {
+		if count := f.eventCount(t, kind); count != 1 {
 			t.Fatalf("%s events=%d", kind, count)
 		}
 	}
@@ -348,12 +338,7 @@ func TestProblemEventsWithPrunedDeploymentHistory(t *testing.T) {
 	report.Problem = nil
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered} {
-		var count int
-		const query = `SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`
-		if queryErr := f.pool.QueryRow(t.Context(), query, f.resourceID, kind).Scan(&count); queryErr != nil {
-			t.Fatal(queryErr)
-		}
-		if count != 1 {
+		if count := f.eventCount(t, kind); count != 1 {
 			t.Fatalf("%s events=%d", kind, count)
 		}
 	}
@@ -397,12 +382,7 @@ func TestProblemEventsForARecreatedPlacement(t *testing.T) {
 	report.PlacementId = p.ID.String()
 	report.ObservedRevision = p.DesiredRevision
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
-	var count int
-	const query = `SELECT count(*) FROM events WHERE resource_id=$1 AND type=$2`
-	if err = f.pool.QueryRow(t.Context(), query, f.resourceID, events.ResourceDegraded).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
+	if count := f.eventCount(t, events.ResourceDegraded); count != 2 {
 		t.Fatalf("degraded events=%d", count)
 	}
 }

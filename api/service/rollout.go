@@ -290,9 +290,6 @@ func writeDeploymentActivity(
 }
 
 func problemReportMessage(problem *agentv1.ProblemReport) string {
-	if problem == nil {
-		return ""
-	}
 	message, _ := loco.ProblemMessage(loco.ProblemReason(problem.GetReason()))
 	if problem.GetDetail() != "" {
 		message += " " + problem.GetDetail()

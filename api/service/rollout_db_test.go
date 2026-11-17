@@ -28,7 +28,6 @@ func TestRolloutActivityReports(t *testing.T) {
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
 		DesiredReplicas:  1,
-
 		Replicas: []*agentv1.ReplicaReport{
 			{
 				Uid:               activityReplicaUID,

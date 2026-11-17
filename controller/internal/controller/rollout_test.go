@@ -168,7 +168,7 @@ func TestObserveDeletedReplica(t *testing.T) {
 	}
 }
 
-func TestRuntimeProblemDetail(t *testing.T) {
+func TestReplicaProblemDetail(t *testing.T) {
 	now := time.Now()
 	for _, tt := range []struct {
 		name string

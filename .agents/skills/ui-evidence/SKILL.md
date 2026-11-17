@@ -31,7 +31,7 @@ mise exec -- uv run --script "$E" <command>
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
    An optional `resources` list seeds synthetic services. Each entry names a `workspace`
    (`org/workspace`), a `name` and a non-empty `deployments` list. Each deployment specifies
-   an existing `environment`, `region`, deployment `status`, placement `phase`, `ready_replicas`
+   an existing `environment`, `region`, deployment `status`, placement `ready_replicas`
    and a service deployment `spec` with `observability`, an image `build`, `cpu`, `memory`, `minReplicas`,
    `maxReplicas` and optional `port`. Use one deployment per environment and region.
    Start from `.agents/skills/ui-evidence/scenario.resources.example.json`. Resources use the API; synthetic

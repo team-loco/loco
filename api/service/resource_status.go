@@ -170,8 +170,7 @@ func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev
 	}
 	if problem != nil && (status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY ||
 		row.DeploymentStatus == genDb.DeploymentStatusFailed) {
-		message := problemReportMessage(problem)
-		return new(message), nil
+		return new(problemReportMessage(problem)), nil
 	}
 	return nil, nil
 }

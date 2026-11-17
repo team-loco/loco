@@ -78,7 +78,7 @@ func replicaProblem(pods []corev1.Pod, window time.Duration, now time.Time) *loc
 		if pod.DeletionTimestamp != nil {
 			continue
 		}
-		reason := replicaProblemReason([]corev1.Pod{pod}, window, now)
+		reason := replicaProblemReason(pod, window, now)
 		if reason != "" {
 			consider(reason, pod, replicaProblemDetail(pod, reason))
 		}
