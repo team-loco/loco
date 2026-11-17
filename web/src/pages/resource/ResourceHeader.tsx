@@ -79,7 +79,6 @@ export function ResourceHeader({
 	switcher,
 	warnings,
 	isSettings,
-	dirty,
 	redeploying,
 	restarting,
 	onRestart,
@@ -102,7 +101,6 @@ export function ResourceHeader({
 	switcher: SwitcherItem[];
 	warnings: number;
 	isSettings: boolean;
-	dirty: boolean;
 	redeploying: boolean;
 	restarting: boolean;
 	onRestart: () => void;
@@ -185,7 +183,6 @@ export function ResourceHeader({
 				<ToggleChip variant="button" pressed={isSettings} onPressedChange={onSettings}>
 					<Settings2Icon />
 					Settings
-					{dirty && <span aria-label="unsaved changes" className="size-1.5 rounded-full bg-warn" />}
 				</ToggleChip>
 				<Button variant="outline" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
 					<RotateCwIcon />

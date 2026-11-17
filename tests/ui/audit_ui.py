@@ -110,6 +110,7 @@ with session(out) as browser:
     rows.first.click()
     drawer = page.get_by_role("dialog")
     expect(drawer.get_by_role("heading", name="Created a resource", exact=True)).to_be_visible()
+    expect(drawer.get_by_text("Time", exact=True)).to_be_visible()
     expect(drawer.get_by_role("button", name="Newer event", exact=True)).to_be_disabled()
     expect(drawer.get_by_title("Copy request ID", exact=True)).to_be_visible()
     request_id = drawer.get_by_title("Copy request ID", exact=True).inner_text().strip()

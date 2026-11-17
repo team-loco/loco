@@ -1,8 +1,8 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { ClipboardPasteIcon, PlusIcon, Trash2Icon, Undo2Icon } from "lucide-react";
-import { useState } from "react";
+import { ClipboardPasteIcon, EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon, Undo2Icon } from "lucide-react";
+import { useEffect, useState } from "react";
 import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 
@@ -10,6 +10,7 @@ import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Input } from "@/components/design/Input";
+import { SoonTag } from "@/components/design/SoonTag";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
@@ -105,6 +106,89 @@ function ImportDialog({
 	);
 }
 
+function useTimedReveal() {
+	const [shown, setShown] = useState(false);
+	useEffect(() => {
+		if (!shown) return;
+		const timer = setTimeout(() => {
+			setShown(false);
+		}, 30_000);
+		return () => {
+			clearTimeout(timer);
+		};
+	}, [shown]);
+	const toggle = () => {
+		setShown((value) => !value);
+	};
+	return { shown, toggle };
+}
+
+function countdown(circle: SVGCircleElement | null) {
+	if (circle === null || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+	const animation = circle.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: 100 }], {
+		duration: 30_000,
+		fill: "forwards",
+	});
+	return () => {
+		animation.cancel();
+	};
+}
+
+function RevealButton({
+	name,
+	reveal,
+	disabled = false,
+}: {
+	name: string;
+	reveal: ReturnType<typeof useTimedReveal>;
+	disabled?: boolean;
+}) {
+	const { shown, toggle } = reveal;
+	const label = shown ? `Hide ${name}` : `Show ${name} for 30 seconds`;
+	return (
+		<Button
+			type="button"
+			variant="ghost"
+			size="icon-xs"
+			className="relative size-[22px]"
+			aria-label={label}
+			title={label}
+			disabled={disabled}
+			onClick={toggle}
+		>
+			{shown ? <EyeOffIcon /> : <EyeIcon />}
+			{shown && (
+				<svg
+					viewBox="0 0 24 24"
+					aria-hidden="true"
+					className="pointer-events-none absolute -inset-[3px] size-7 -rotate-90 fill-none stroke-fg2 stroke-[1.5] in-data-[theme=neobrutal]:stroke-(--ink) in-data-[theme=neobrutal]:stroke-[2.5]"
+				>
+					<circle ref={countdown} cx="12" cy="12" r="10.5" pathLength="100" strokeDasharray="100" />
+				</svg>
+			)}
+		</Button>
+	);
+}
+
+function PlainVariable({ name, value }: { name: string; value: string }) {
+	const reveal = useTimedReveal();
+	return (
+		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_92px]">
+			<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
+			<Input
+				type={reveal.shown ? "text" : "password"}
+				aria-label={`Value of ${name}`}
+				className="font-mono"
+				value={value}
+				readOnly
+			/>
+			<div className="flex items-center justify-end">
+				<RevealButton name={name} reveal={reveal} />
+			</div>
+		</div>
+	);
+}
+
 function SecretLine({
 	row,
 	members,
@@ -123,13 +207,14 @@ function SecretLine({
 	onRemove: (removed: boolean) => void;
 }) {
 	const timePref = useTimePreferences();
+	const reveal = useTimedReveal();
 	const secret = row.secret;
 	const meta =
 		secret === undefined
 			? "No value stored"
 			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt), timePref)}`;
 	return (
-		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_auto]">
+		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_92px]">
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="flex items-center gap-2">
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
@@ -144,7 +229,7 @@ function SecretLine({
 				<span className="text-[11.5px] text-fg3">{removed ? "Removed when you save" : meta}</span>
 			</div>
 			<Input
-				type="password"
+				type={reveal.shown ? "text" : "password"}
 				aria-label={`New value for ${row.name}`}
 				className="font-mono"
 				autoComplete="new-password"
@@ -155,7 +240,9 @@ function SecretLine({
 					onValue(e.target.value);
 				}}
 			/>
-			<div className="flex justify-end">
+			<div className="flex items-center justify-end gap-2">
+				<RevealButton name={row.name} reveal={reveal} disabled={value === "" || removed} />
+				{value === "" && secret !== undefined && <SoonTag />}
 				{secret !== undefined && (
 					<Button
 						variant="ghost"
@@ -231,7 +318,7 @@ export function VariablesSection({
 					<span className="font-mono text-[12.5px] font-normal text-fg3">{rows.length + plain.length}</span>
 				</>
 			}
-			hint="Secret values are never shown after they are saved."
+			hint="Values stay hidden. Revealing one shows it for 30 seconds."
 			actions={
 				canWrite && (
 					<Button
@@ -288,7 +375,7 @@ export function VariablesSection({
 					{canWrite && (
 						<form
 							noValidate
-							className="grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_auto]"
+							className="grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_92px]"
 							onSubmit={(e) => {
 								e.preventDefault();
 								if (secretNameProblem(newName) !== undefined || newValue === "") return;
@@ -344,14 +431,8 @@ export function VariablesSection({
 				</span>
 				{plain.length > 0 && (
 					<div className="overflow-hidden rounded-card border border-line bg-background">
-						{plain.map(([k, v]) => (
-							<div
-								key={k}
-								className="grid grid-cols-1 gap-1 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)]"
-							>
-								<span className="font-mono text-[12.5px] font-medium break-all">{k}</span>
-								<span className="font-mono text-[12.5px] break-all text-fg2">{v}</span>
-							</div>
+						{plain.map(([name, value]) => (
+							<PlainVariable key={name} name={name} value={value} />
 						))}
 					</div>
 				)}

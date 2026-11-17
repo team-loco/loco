@@ -257,7 +257,7 @@ export function DeploymentsSection({
 				}}
 			>
 				<div className="px-5 pt-3">
-					<TabsList aria-label="History">
+					<TabsList variant="segmented" aria-label="History">
 						<TabsTrigger value="deploys">
 							Deployments{" "}
 							<TabsCount>
@@ -286,7 +286,7 @@ export function DeploymentsSection({
 									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
 									<TableHead>Message</TableHead>
 									<TableHead className="w-[72px] text-right">Took</TableHead>
-									<TableHead className="w-[100px] text-right">When</TableHead>
+									<TableHead className="w-[100px] text-right">Time</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>

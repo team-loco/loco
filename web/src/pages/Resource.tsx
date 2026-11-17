@@ -59,7 +59,8 @@ import { ReplicasPanel } from "@/pages/resource/ReplicasPanel";
 import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { DeploymentProgress } from "@/pages/resource/DeploymentProgress";
-import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
+import { queryStr, quoteValue } from "@/pages/observability/query";
+import { baseline, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
@@ -175,7 +176,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		resource.domains.length > 0,
 		defaults,
 	);
-	const dirty = changeCount(draft, base) > 0;
 	const level =
 		activeOrgId !== null && activeWorkspaceId !== null ? resourceLevel(activeOrgId, activeWorkspaceId, resourceId) : 0;
 	const canWrite = level >= scopeLevel(Scope.WRITE);
@@ -183,11 +183,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
-	const obsLink = (obsView: "logs" | "metrics" | "events"): string | undefined =>
+	const obsLink = (obsView: "logs" | "metrics" | "events", region: string | null = null): string | undefined =>
 		hasWs
 			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
 					...envParam,
 					r: [resource.name],
+					q: region === null ? null : queryStr([{ key: "region", value: quoteValue(region), neg: false }], ""),
 				})
 			: undefined;
 	const switcher = hasWs
@@ -321,7 +322,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				switcher={switcher}
 				warnings={recentWarningCount(events, nowMs)}
 				isSettings={view !== "overview"}
-				dirty={dirty}
 				redeploying={redeploying}
 				restarting={restart.isPending}
 				onRestart={() => void handleRestart()}
@@ -405,7 +405,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 								void setParams({ range: next });
 							}}
 							markers={markers}
-							metricsHref={obsLink("metrics")}
+							metricsHref={obsLink("metrics", selectedRegion)}
 						/>
 					) : (
 						<Section>

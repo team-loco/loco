@@ -80,7 +80,7 @@ export function AuditDrawer({
 						</SheetHeader>
 						<SheetBody>
 							<dl className="m-0 grid grid-cols-[110px_minmax(0,1fr)] gap-x-4 gap-y-3 text-[13px]">
-								<Item term="When">
+								<Item term="Time">
 									<span>{formatFullTime(row.ms, false, timePref)}</span>
 									<span className="text-[11.5px] text-fg3">{agoLabel(row.ms, nowMs)}</span>
 								</Item>
