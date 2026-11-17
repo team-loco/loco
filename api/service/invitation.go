@@ -38,7 +38,6 @@ var (
 	ErrInvitationNotFound = rpcerr.NewCoded(connect.CodeNotFound, "invitation not found")
 	ErrInvitationClaimed  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "invitation was already claimed")
 	ErrInvitationNotOpen  = rpcerr.NewCoded(connect.CodeFailedPrecondition, "invitation is no longer open")
-	ErrInviterMustBeUser  = rpcerr.NewCoded(connect.CodePermissionDenied, "only users can send invitations")
 )
 
 type InvitationConfig struct {
@@ -58,15 +57,12 @@ func (s *OrgServer) InviteOrgMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := sessionPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if err = check(ctx, s.authz, p, actions.New(actions.InviteOrgMember, orgID)); err != nil {
 		return nil, err
-	}
-	if p.Entity.Type != genDb.EntityTypeUser {
-		return nil, ErrInviterMustBeUser
 	}
 	address, err := netmail.ParseAddress(req.GetEmail())
 	if err != nil || address.Name != "" || address.Address != strings.TrimSpace(req.GetEmail()) {
@@ -92,7 +88,7 @@ func (s *OrgServer) InviteOrgMember(
 		created, createErr := qtx.CreateInvitation(ctx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
-			InvitedBy: p.Entity.ID,
+			InvitedBy: p.UserID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
 		if isUniqueViolation(createErr, pgOpenInvitationUnique) {
@@ -262,6 +258,9 @@ func (s *OrgServer) ResendInvitation(
 }
 
 func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, id string) (genDb.Invitation, error) {
+	if _, err := sessionPrincipal(ctx); err != nil {
+		return genDb.Invitation{}, err
+	}
 	invitationID, err := parseID("invitation_id", id)
 	if err != nil {
 		return genDb.Invitation{}, err

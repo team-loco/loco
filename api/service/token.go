@@ -63,6 +63,12 @@ func (s *TokenServer) CreateToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
 	}
 
+	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_SYSTEM {
+		return nil, connect.NewError(
+			connect.CodeInvalidArgument,
+			"API tokens require a user, organization, workspace or resource owner",
+		)
+	}
 	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
 		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
 	}
@@ -75,7 +81,7 @@ func (s *TokenServer) CreateToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
-	p, err := principalFrom(ctx)
+	p, err := sessionPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}

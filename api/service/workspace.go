@@ -407,7 +407,7 @@ func (s *WorkspaceServer) CreateMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := sessionPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -488,6 +488,10 @@ func (s *WorkspaceServer) DeleteMember(
 	ctx context.Context,
 	req *workspacev1.DeleteMemberRequest,
 ) (*workspacev1.DeleteMemberResponse, error) {
+	if _, err := sessionPrincipal(ctx); err != nil {
+		return nil, err
+	}
+
 	wsID, err := parseID("workspace_id", req.GetWorkspaceId())
 	if err != nil {
 		return nil, err

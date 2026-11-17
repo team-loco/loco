@@ -82,18 +82,14 @@ func (s *OrgServer) CreateOrg(
 	ctx context.Context,
 	req *orgv1.CreateOrgRequest,
 ) (*orgv1.CreateOrgResponse, error) {
-	p, err := principalFrom(ctx)
+	p, err := sessionPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// Only a user can create an organization, and only with user:write on itself.
-	if p.Entity.Type != genDb.EntityTypeUser {
-		return nil, rpcerr.New(connect.CodePermissionDenied, ErrImproperUsage)
-	}
-	if err = check(ctx, s.authz, p, actions.New(actions.CreateOrg, p.Entity.ID)); err != nil {
+	if err = check(ctx, s.authz, p, actions.New(actions.CreateOrg, p.UserID)); err != nil {
 		return nil, err
 	}
-	user, err := s.queries.GetUserByID(ctx, p.Entity.ID)
+	user, err := s.queries.GetUserByID(ctx, p.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
 	}
@@ -106,7 +102,7 @@ func (s *OrgServer) CreateOrg(
 	var org genDb.Organization
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		var createErr error
-		org, createErr = createOrgInTx(ctx, qtx, s.counts, p.Entity.ID, orgName)
+		org, createErr = createOrgInTx(ctx, qtx, s.counts, p.UserID, orgName)
 		return createErr
 	})
 	if err != nil {
@@ -257,7 +253,10 @@ func (s *OrgServer) ListUserOrgs(
 }
 
 func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, userID uuid.UUID) error {
-	if p.Entity.Type != genDb.EntityTypeUser || p.Entity.ID != userID {
+	if _, err := sessionPrincipal(ctx); err != nil {
+		return err
+	}
+	if p.UserID != userID {
 		return errCreateIfMissingForOtherUser
 	}
 	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -455,6 +454,10 @@ func (s *OrgServer) SetOrgMemberRole(
 	ctx context.Context,
 	req *orgv1.SetOrgMemberRoleRequest,
 ) (*orgv1.SetOrgMemberRoleResponse, error) {
+	if _, err := sessionPrincipal(ctx); err != nil {
+		return nil, err
+	}
+
 	orgID, err := parseID("org_id", req.GetOrgId())
 	if err != nil {
 		return nil, err
@@ -579,7 +582,7 @@ func (s *OrgServer) RemoveOrgMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := sessionPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -588,7 +591,7 @@ func (s *OrgServer) RemoveOrgMember(
 	}
 
 	userID := uuid.MustParse(req.GetUserId())
-	if userID == p.Entity.ID {
+	if userID == p.UserID {
 		return nil, ErrRemoveSelfFromOrg
 	}
 

@@ -77,7 +77,7 @@ func TestSetOrgMemberRole(t *testing.T) {
 		orgv1.OrgRole_ORG_ROLE_MEMBER,
 	); codeOf(
 		err,
-	) != connect.CodeFailedPrecondition {
+	) != connect.CodePermissionDenied {
 		t.Fatalf("last admin demotion by organization token: %v", err)
 	}
 	if err := set(o.owner, member.id.String(), orgv1.OrgRole_ORG_ROLE_ADMIN); err != nil {

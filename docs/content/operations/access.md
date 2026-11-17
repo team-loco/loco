@@ -21,6 +21,8 @@ A user holds one or more scopes on an organization:
 
 ## Invite and remove members
 
+Creating organizations, managing invitations, changing human membership or roles, and suspending or reinstating users require a signed-in human session. API tokens keep their scoped application access but cannot perform these account-administration operations. A token-created workspace receives no extra creator grants; organization admins manage it through their organization access.
+
 A user joins an organization only by accepting an invitation. An organization admin invites an email address with `loco org invite <email>` (`OrgService.InviteOrgMember`), and the user becomes a `member` the next time they sign in with that verified email address. `loco org invitations` lists pending invitations and `loco org revoke-invite <id>` revokes one.
 
 The dashboard and CLI return a sign-in link for the inviter to copy and share. Core sends no email. Installations that want invitation email consume the [`invitation.created` and `invitation.resent` webhook events](webhooks.md#invitation-events). Resending extends the invitation expiry and records a new event.
