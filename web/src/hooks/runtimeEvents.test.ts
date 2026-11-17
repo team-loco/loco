@@ -4,9 +4,53 @@ import { QueryClient } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { EventSchema, EventService, type ListEventsRequest } from "@gen/loco/event/v1/event_pb";
 import { mergeEvents, runtimeEventsOptions } from "./runtimeEvents";
-import { runtimeEvent } from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, ROLLOUT_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
 import { recentWarningCount } from "@/pages/resource/events";
 import { msToTimestamp } from "@/lib/time";
+
+test("deployment and scaling history is requested in the selected environment while builds span environments", async () => {
+	const requests: ListEventsRequest[] = [];
+	const transport = createRouterTransport((router) => {
+		router.service(EventService, {
+			listEvents(request) {
+				requests.push(request);
+				return {};
+			},
+		});
+	});
+	const client = new QueryClient();
+	const scope = {
+		orgId: "org",
+		workspaceId: "workspace",
+		resourceId: "resource",
+		environmentId: "production",
+	};
+	try {
+		await client.query(
+			runtimeEventsOptions(transport, scope, {
+				types: ENVIRONMENT_EVENT_TYPES,
+			}),
+		);
+		await client.query(
+			runtimeEventsOptions(transport, scope, {
+				types: ROLLOUT_EVENT_TYPES,
+				anyEnvironment: true,
+			}),
+		);
+		expect(requests.map((r) => [r.environmentId, r.query])).toEqual([
+			[
+				"production",
+				"(@type:resource.degraded OR @type:resource.recovered OR @type:resource.restarted OR @type:deployment.created OR @type:resource.scaled)",
+			],
+			[
+				"",
+				"(@type:deployment.ready OR @type:deployment.failed OR @type:build.created OR @type:build.started OR @type:build.succeeded OR @type:build.failed OR @type:build.canceled)",
+			],
+		]);
+	} finally {
+		client.clear();
+	}
+});
 
 test("warning counts include later pages with the same environment scope", async () => {
 	const requests: ListEventsRequest[] = [];

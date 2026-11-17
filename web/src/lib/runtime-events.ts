@@ -18,14 +18,17 @@ export type RuntimeEvent = {
 export const RUNTIME_EVENT_TYPES = ["resource.degraded", "resource.recovered"];
 
 /** Types the API records with an environment, so ListEvents can filter them by one. */
-export const ENVIRONMENT_EVENT_TYPES = [...RUNTIME_EVENT_TYPES, "resource.restarted"];
-
-/** Types recorded without an environment: deploys and scaling name it in their data, builds have none. */
-export const ROLLOUT_EVENT_TYPES = [
+export const ENVIRONMENT_EVENT_TYPES = [
+	...RUNTIME_EVENT_TYPES,
+	"resource.restarted",
 	"deployment.created",
+	"resource.scaled",
+];
+
+/** Build events have no environment; rollout outcomes still name theirs in their data. */
+export const ROLLOUT_EVENT_TYPES = [
 	"deployment.ready",
 	"deployment.failed",
-	"resource.scaled",
 	"build.created",
 	"build.started",
 	"build.succeeded",
