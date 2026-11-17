@@ -496,6 +496,9 @@ func (s *DeploymentServer) DeleteDeployment(
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
+		if lockErr := lockResource(ctx, qtx, resource.ID); lockErr != nil {
+			return lockErr
+		}
 		current, getErr := qtx.GetDeploymentByID(ctx, deploymentID)
 		if getErr != nil {
 			return fmt.Errorf("read deployment before deletion: %w", getErr)
