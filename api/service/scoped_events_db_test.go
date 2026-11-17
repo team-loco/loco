@@ -517,7 +517,6 @@ func TestEnvironmentLifecycleEventsStayInTheirEnvironment(t *testing.T) {
 	created, err := server.CreateEnvironment(f.owner, &environmentv1.CreateEnvironmentRequest{
 		WorkspaceId: f.workspaceID.String(),
 		Name:        "preview",
-		Type:        environmentv1.EnvironmentType_ENVIRONMENT_TYPE_STAGING,
 	})
 	if err != nil {
 		t.Fatal(err)
