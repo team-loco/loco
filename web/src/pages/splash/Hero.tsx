@@ -1,3 +1,4 @@
+import { AgentPrompt } from "./AgentPrompt";
 import { DeployDemo } from "./DeployDemo";
 import { SplashCtas } from "./SplashCtas";
 
@@ -9,6 +10,7 @@ export function Hero({ onSignIn, redirecting }: { onSignIn: () => void; redirect
 				className="absolute inset-x-0 top-0 bottom-[30%] -z-10 bg-[radial-gradient(color-mix(in_oklch,var(--fg)_9%,transparent)_1px,transparent_1px)] bg-size-[22px_22px] bg-top mask-[linear-gradient(#000_50%,transparent)]"
 			/>
 			<div className="mx-auto flex w-full max-w-[1160px] flex-col items-center gap-[22px] px-4 pb-16 text-center sm:px-7">
+				<AgentPrompt />
 				<h1 className="m-0 text-[clamp(44px,6.4vw,78px)] leading-[1.02] font-medium tracking-[-0.045em] text-balance">
 					From Dockerfile
 					<br />

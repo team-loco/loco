@@ -1,0 +1,93 @@
+.sp-agent {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+	height: 40px;
+	max-width: 100%;
+	padding: 0 8px 0 18px;
+	border: 1px solid var(--line2);
+	border-radius: 999px;
+	background: var(--raise);
+	color: var(--fg);
+	font-size: 14px;
+	font-weight: 400;
+	box-shadow: 0 1px 2px color-mix(in oklch, var(--fg) 4%, transparent);
+	transition:
+		border-color 140ms ease,
+		transform 140ms ease;
+	animation: sp-agent-rise 500ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.sp-agent:hover {
+	border-color: var(--fg4);
+	background: var(--raise);
+	transform: translateY(-1px);
+}
+.sp-agent-t {
+	min-width: 0;
+}
+.sp-agent-ics {
+	display: flex;
+	gap: 4px;
+	flex-shrink: 0;
+}
+.sp-agent-ic {
+	display: grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	background: var(--panel2);
+	color: var(--fg2);
+}
+.sp-agent-ic svg {
+	width: 14px;
+	height: 14px;
+}
+.sp-agent-ic:last-child {
+	background: var(--fg);
+	color: var(--bg);
+}
+[data-theme="neobrutal"] .sp-agent {
+	border: 2px solid var(--ink);
+	box-shadow: 3px 3px 0 var(--ink);
+	font-weight: 500;
+}
+[data-theme="neobrutal"] .sp-agent-ic {
+	border: 2px solid var(--ink);
+	background: var(--raise);
+	color: var(--fg);
+}
+[data-theme="neobrutal"] .sp-agent-ic:last-child {
+	background: var(--btn);
+	color: var(--btn-fg);
+}
+@keyframes sp-agent-rise {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.sp-agent {
+		animation: none;
+		transition: none;
+	}
+}
+@media (max-width: 480px) {
+	.sp-agent {
+		gap: 8px;
+		padding-left: 12px;
+		font-size: 12px;
+	}
+	.sp-agent-ics {
+		gap: 3px;
+	}
+	.sp-agent-ic {
+		width: 22px;
+		height: 22px;
+	}
+}

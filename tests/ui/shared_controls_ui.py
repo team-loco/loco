@@ -391,6 +391,22 @@ def dashboard(page):
     page.evaluate("localStorage.setItem('loco:color:v1', 'loco'); localStorage.setItem('loco:mode:v1', 'light')")
 
 
+def token_empty(page):
+    page.goto(state["ui_url"] + "/tokens?owner=personal")
+    expect(page.get_by_role("heading", name="No personal tokens yet", exact=True)).to_be_visible()
+    art = page.locator("svg.es-tokens")
+    expect(art).to_be_visible()
+    page.wait_for_function("document.querySelector('svg.es-tokens').getAnimations({subtree: true}).some(a => a.playState === 'running')")
+    page.emulate_media(reduced_motion="reduce")
+    page.wait_for_function("document.querySelector('svg.es-tokens').getAnimations({subtree: true}).length === 0")
+    create = page.get_by_role("button", name="New token", exact=True).last
+    create.click()
+    expect(page.get_by_role("dialog", name="New token", exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(create).to_be_focused()
+    page.emulate_media(reduced_motion="no-preference")
+
+
 def limit_display(page):
     user_id = owner["id"]
     evidence.psql(state["container"], f"INSERT INTO api_tokens (display_suffix,token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'test','limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;")
@@ -628,7 +644,7 @@ with session(out) as browser:
             name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
             box = name.bounding_box()
             assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
-            for check in (shell_navigation, log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, limit_display, dashboard):
+            for check in (shell_navigation, log_levels, log_paging, live_focus, time_presets, calendar, metrics, query_enter, query_suggestions, volume, access_picker, resources, token_empty, limit_display, dashboard):
                 check(page)
             assert not errors, errors
             results.append({"passed": True})
