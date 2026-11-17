@@ -32,6 +32,9 @@ const (
 	UserServiceUpdateUserProcedure = "/loco.user.v1.UserService/UpdateUser"
 	// UserServiceListUsersProcedure is the procedure name of the UserService's ListUsers RPC.
 	UserServiceListUsersProcedure = "/loco.user.v1.UserService/ListUsers"
+	// UserServiceGetAccountDeletionImpactProcedure is the procedure name of the UserService's
+	// GetAccountDeletionImpact RPC.
+	UserServiceGetAccountDeletionImpactProcedure = "/loco.user.v1.UserService/GetAccountDeletionImpact"
 	// UserServiceDeleteUserProcedure is the procedure name of the UserService's DeleteUser RPC.
 	UserServiceDeleteUserProcedure = "/loco.user.v1.UserService/DeleteUser"
 	// UserServiceLogoutProcedure is the procedure name of the UserService's Logout RPC.
@@ -69,6 +72,13 @@ var (
 			Procedure:  UserServiceListUsersProcedure,
 		}
 	})
+	userServiceGetAccountDeletionImpactSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods().ByName("GetAccountDeletionImpact"),
+			Procedure:  UserServiceGetAccountDeletionImpactProcedure,
+		}
+	})
 	userServiceDeleteUserSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -102,6 +112,8 @@ type UserServiceClient interface {
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
 	// ListUsers lists users with pagination.
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
+	// GetAccountDeletionImpact previews deleting the current session account.
+	GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error)
 	// DeleteUser deletes a user account.
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
@@ -126,6 +138,8 @@ type UserServiceHandler interface {
 	UpdateUser(context.Context, *v1.UpdateUserRequest) (*v1.UpdateUserResponse, error)
 	// ListUsers lists users with pagination.
 	ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error)
+	// GetAccountDeletionImpact previews deleting the current session account.
+	GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error)
 	// DeleteUser deletes a user account.
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
@@ -143,6 +157,7 @@ func RegisterUserServiceHandler(server *connect.Server, svc UserServiceHandler) 
 		connect.Method{Spec: userServiceWhoAmISpec(), Handler: adapter.whoAmI},
 		connect.Method{Spec: userServiceUpdateUserSpec(), Handler: adapter.updateUser},
 		connect.Method{Spec: userServiceListUsersSpec(), Handler: adapter.listUsers},
+		connect.Method{Spec: userServiceGetAccountDeletionImpactSpec(), Handler: adapter.getAccountDeletionImpact},
 		connect.Method{Spec: userServiceDeleteUserSpec(), Handler: adapter.deleteUser},
 		connect.Method{Spec: userServiceLogoutSpec(), Handler: adapter.logout},
 		connect.Method{Spec: userServiceSetUserStatusSpec(), Handler: adapter.setUserStatus},
@@ -166,6 +181,10 @@ func (UnimplementedUserServiceHandler) UpdateUser(context.Context, *v1.UpdateUse
 
 func (UnimplementedUserServiceHandler) ListUsers(context.Context, *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.ListUsers is not implemented")
+}
+
+func (UnimplementedUserServiceHandler) GetAccountDeletionImpact(context.Context, *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.GetAccountDeletionImpact is not implemented")
 }
 
 func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error) {
@@ -211,6 +230,14 @@ func (c *userServiceClient) UpdateUser(ctx context.Context, req *v1.UpdateUserRe
 func (c *userServiceClient) ListUsers(ctx context.Context, req *v1.ListUsersRequest) (*v1.ListUsersResponse, error) {
 	var res v1.ListUsersResponse
 	if err := c.client.CallUnary(ctx, userServiceListUsersSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *userServiceClient) GetAccountDeletionImpact(ctx context.Context, req *v1.GetAccountDeletionImpactRequest) (*v1.GetAccountDeletionImpactResponse, error) {
+	var res v1.GetAccountDeletionImpactResponse
+	if err := c.client.CallUnary(ctx, userServiceGetAccountDeletionImpactSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -284,6 +311,18 @@ func (h userServiceHandler) listUsers(ctx context.Context, _ connect.Spec, strea
 		return err
 	}
 	res, err := h.svc.ListUsers(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h userServiceHandler) getAccountDeletionImpact(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetAccountDeletionImpactRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetAccountDeletionImpact(ctx, &req)
 	if err != nil {
 		return err
 	}

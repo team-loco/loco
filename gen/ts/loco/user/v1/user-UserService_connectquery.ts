@@ -33,6 +33,13 @@ export const updateUser = UserService.method.updateUser;
 export const listUsers = UserService.method.listUsers;
 
 /**
+ * GetAccountDeletionImpact previews deleting the current session account.
+ *
+ * @generated from rpc loco.user.v1.UserService.GetAccountDeletionImpact
+ */
+export const getAccountDeletionImpact = UserService.method.getAccountDeletionImpact;
+
+/**
  * DeleteUser deletes a user account.
  *
  * @generated from rpc loco.user.v1.UserService.DeleteUser

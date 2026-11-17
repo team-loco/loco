@@ -8,6 +8,7 @@ package userv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -934,11 +935,289 @@ func (*LogoutResponse) Descriptor() ([]byte, []int) {
 	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{15}
 }
 
+// GetAccountDeletionImpactRequest pages the current user's surviving owned tokens.
+type GetAccountDeletionImpactRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetAccountDeletionImpactRequest) Reset() {
+	*x = GetAccountDeletionImpactRequest{}
+	mi := &file_loco_user_v1_user_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountDeletionImpactRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountDeletionImpactRequest) ProtoMessage() {}
+
+func (x *GetAccountDeletionImpactRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_user_v1_user_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountDeletionImpactRequest.ProtoReflect.Descriptor instead.
+func (*GetAccountDeletionImpactRequest) Descriptor() ([]byte, []int) {
+	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetAccountDeletionImpactRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *GetAccountDeletionImpactRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// AccountDeletionOrganization needs another active administrator before deletion.
+type AccountDeletionOrganization struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	OrgName       string                 `protobuf:"bytes,2,opt,name=org_name,json=orgName,proto3" json:"org_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AccountDeletionOrganization) Reset() {
+	*x = AccountDeletionOrganization{}
+	mi := &file_loco_user_v1_user_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountDeletionOrganization) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountDeletionOrganization) ProtoMessage() {}
+
+func (x *AccountDeletionOrganization) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_user_v1_user_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountDeletionOrganization.ProtoReflect.Descriptor instead.
+func (*AccountDeletionOrganization) Descriptor() ([]byte, []int) {
+	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *AccountDeletionOrganization) GetOrgId() string {
+	if x != nil {
+		return x.OrgId
+	}
+	return ""
+}
+
+func (x *AccountDeletionOrganization) GetOrgName() string {
+	if x != nil {
+		return x.OrgName
+	}
+	return ""
+}
+
+// AccountDeletionToken is a surviving token whose owner the caller can currently read.
+type AccountDeletionToken struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	EntityType    v1.EntityType          `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
+	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	OwnerName     string                 `protobuf:"bytes,4,opt,name=owner_name,json=ownerName,proto3" json:"owner_name,omitempty"`
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	DisplaySuffix string                 `protobuf:"bytes,6,opt,name=display_suffix,json=displaySuffix,proto3" json:"display_suffix,omitempty"`
+	CanRevoke     bool                   `protobuf:"varint,7,opt,name=can_revoke,json=canRevoke,proto3" json:"can_revoke,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AccountDeletionToken) Reset() {
+	*x = AccountDeletionToken{}
+	mi := &file_loco_user_v1_user_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountDeletionToken) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountDeletionToken) ProtoMessage() {}
+
+func (x *AccountDeletionToken) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_user_v1_user_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountDeletionToken.ProtoReflect.Descriptor instead.
+func (*AccountDeletionToken) Descriptor() ([]byte, []int) {
+	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AccountDeletionToken) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *AccountDeletionToken) GetEntityType() v1.EntityType {
+	if x != nil {
+		return x.EntityType
+	}
+	return v1.EntityType(0)
+}
+
+func (x *AccountDeletionToken) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *AccountDeletionToken) GetOwnerName() string {
+	if x != nil {
+		return x.OwnerName
+	}
+	return ""
+}
+
+func (x *AccountDeletionToken) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *AccountDeletionToken) GetDisplaySuffix() string {
+	if x != nil {
+		return x.DisplaySuffix
+	}
+	return ""
+}
+
+func (x *AccountDeletionToken) GetCanRevoke() bool {
+	if x != nil {
+		return x.CanRevoke
+	}
+	return false
+}
+
+// GetAccountDeletionImpactResponse is a preview; DeleteUser rechecks blockers atomically.
+type GetAccountDeletionImpactResponse struct {
+	state                        protoimpl.MessageState         `protogen:"open.v1"`
+	LastActiveAdminOrganizations []*AccountDeletionOrganization `protobuf:"bytes,1,rep,name=last_active_admin_organizations,json=lastActiveAdminOrganizations,proto3" json:"last_active_admin_organizations,omitempty"`
+	OwnedTokens                  []*AccountDeletionToken        `protobuf:"bytes,2,rep,name=owned_tokens,json=ownedTokens,proto3" json:"owned_tokens,omitempty"`
+	NextPageToken                string                         `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// No inaccessible-owner names, identifiers, token metadata or counts are exposed.
+	HasInaccessibleOwnedTokens bool `protobuf:"varint,4,opt,name=has_inaccessible_owned_tokens,json=hasInaccessibleOwnedTokens,proto3" json:"has_inaccessible_owned_tokens,omitempty"`
+	// Resolve the listed blockers and refresh to review remaining organizations.
+	HasMoreBlockingOrganizations bool `protobuf:"varint,5,opt,name=has_more_blocking_organizations,json=hasMoreBlockingOrganizations,proto3" json:"has_more_blocking_organizations,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *GetAccountDeletionImpactResponse) Reset() {
+	*x = GetAccountDeletionImpactResponse{}
+	mi := &file_loco_user_v1_user_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetAccountDeletionImpactResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetAccountDeletionImpactResponse) ProtoMessage() {}
+
+func (x *GetAccountDeletionImpactResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_user_v1_user_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetAccountDeletionImpactResponse.ProtoReflect.Descriptor instead.
+func (*GetAccountDeletionImpactResponse) Descriptor() ([]byte, []int) {
+	return file_loco_user_v1_user_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetAccountDeletionImpactResponse) GetLastActiveAdminOrganizations() []*AccountDeletionOrganization {
+	if x != nil {
+		return x.LastActiveAdminOrganizations
+	}
+	return nil
+}
+
+func (x *GetAccountDeletionImpactResponse) GetOwnedTokens() []*AccountDeletionToken {
+	if x != nil {
+		return x.OwnedTokens
+	}
+	return nil
+}
+
+func (x *GetAccountDeletionImpactResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+func (x *GetAccountDeletionImpactResponse) GetHasInaccessibleOwnedTokens() bool {
+	if x != nil {
+		return x.HasInaccessibleOwnedTokens
+	}
+	return false
+}
+
+func (x *GetAccountDeletionImpactResponse) GetHasMoreBlockingOrganizations() bool {
+	if x != nil {
+		return x.HasMoreBlockingOrganizations
+	}
+	return false
+}
+
 var File_loco_user_v1_user_proto protoreflect.FileDescriptor
 
 const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd5\x01\n" +
+	"\x17loco/user/v1/user.proto\x12\floco.user.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x19loco/token/v1/token.proto\"\xd5\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1d\n" +
@@ -993,18 +1272,45 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\"\x14\n" +
 	"\x12DeleteUserResponse\"\x0f\n" +
 	"\rLogoutRequest\"\x10\n" +
-	"\x0eLogoutResponse*\\\n" +
+	"\x0eLogoutResponse\"i\n" +
+	"\x1fGetAccountDeletionImpactRequest\x12'\n" +
+	"\tpage_size\x18\x01 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"O\n" +
+	"\x1bAccountDeletionOrganization\x12\x15\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x19\n" +
+	"\borg_name\x18\x02 \x01(\tR\aorgName\"\xa3\x02\n" +
+	"\x14AccountDeletionToken\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12:\n" +
+	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeR\n" +
+	"entityType\x12\x1b\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\x12\x1d\n" +
+	"\n" +
+	"owner_name\x18\x04 \x01(\tR\townerName\x129\n" +
+	"\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12%\n" +
+	"\x0edisplay_suffix\x18\x06 \x01(\tR\rdisplaySuffix\x12\x1d\n" +
+	"\n" +
+	"can_revoke\x18\a \x01(\bR\tcanRevoke\"\x8d\x03\n" +
+	" GetAccountDeletionImpactResponse\x12p\n" +
+	"\x1flast_active_admin_organizations\x18\x01 \x03(\v2).loco.user.v1.AccountDeletionOrganizationR\x1clastActiveAdminOrganizations\x12E\n" +
+	"\fowned_tokens\x18\x02 \x03(\v2\".loco.user.v1.AccountDeletionTokenR\vownedTokens\x12&\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken\x12A\n" +
+	"\x1dhas_inaccessible_owned_tokens\x18\x04 \x01(\bR\x1ahasInaccessibleOwnedTokens\x12E\n" +
+	"\x1fhas_more_blocking_organizations\x18\x05 \x01(\bR\x1chasMoreBlockingOrganizations*\\\n" +
 	"\n" +
 	"UserStatus\x12\x1b\n" +
 	"\x17USER_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12USER_STATUS_ACTIVE\x10\x01\x12\x19\n" +
-	"\x15USER_STATUS_SUSPENDED\x10\x022\xa9\x04\n" +
+	"\x15USER_STATUS_SUSPENDED\x10\x022\xa4\x05\n" +
 	"\vUserService\x12F\n" +
 	"\aGetUser\x12\x1c.loco.user.v1.GetUserRequest\x1a\x1d.loco.user.v1.GetUserResponse\x12C\n" +
 	"\x06WhoAmI\x12\x1b.loco.user.v1.WhoAmIRequest\x1a\x1c.loco.user.v1.WhoAmIResponse\x12O\n" +
 	"\n" +
 	"UpdateUser\x12\x1f.loco.user.v1.UpdateUserRequest\x1a .loco.user.v1.UpdateUserResponse\x12L\n" +
-	"\tListUsers\x12\x1e.loco.user.v1.ListUsersRequest\x1a\x1f.loco.user.v1.ListUsersResponse\x12O\n" +
+	"\tListUsers\x12\x1e.loco.user.v1.ListUsersRequest\x1a\x1f.loco.user.v1.ListUsersResponse\x12y\n" +
+	"\x18GetAccountDeletionImpact\x12-.loco.user.v1.GetAccountDeletionImpactRequest\x1a..loco.user.v1.GetAccountDeletionImpactResponse\x12O\n" +
 	"\n" +
 	"DeleteUser\x12\x1f.loco.user.v1.DeleteUserRequest\x1a .loco.user.v1.DeleteUserResponse\x12C\n" +
 	"\x06Logout\x12\x1b.loco.user.v1.LogoutRequest\x1a\x1c.loco.user.v1.LogoutResponse\x12X\n" +
@@ -1023,54 +1329,65 @@ func file_loco_user_v1_user_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_user_v1_user_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_loco_user_v1_user_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_loco_user_v1_user_proto_goTypes = []any{
-	(UserStatus)(0),               // 0: loco.user.v1.UserStatus
-	(*User)(nil),                  // 1: loco.user.v1.User
-	(*GetUserRequest)(nil),        // 2: loco.user.v1.GetUserRequest
-	(*GetUserResponse)(nil),       // 3: loco.user.v1.GetUserResponse
-	(*UpdateUserRequest)(nil),     // 4: loco.user.v1.UpdateUserRequest
-	(*UpdateUserResponse)(nil),    // 5: loco.user.v1.UpdateUserResponse
-	(*ListUsersRequest)(nil),      // 6: loco.user.v1.ListUsersRequest
-	(*ListUsersResponse)(nil),     // 7: loco.user.v1.ListUsersResponse
-	(*WhoAmIRequest)(nil),         // 8: loco.user.v1.WhoAmIRequest
-	(*WhoAmIResponse)(nil),        // 9: loco.user.v1.WhoAmIResponse
-	(*ClaimedOrg)(nil),            // 10: loco.user.v1.ClaimedOrg
-	(*SetUserStatusRequest)(nil),  // 11: loco.user.v1.SetUserStatusRequest
-	(*SetUserStatusResponse)(nil), // 12: loco.user.v1.SetUserStatusResponse
-	(*DeleteUserRequest)(nil),     // 13: loco.user.v1.DeleteUserRequest
-	(*DeleteUserResponse)(nil),    // 14: loco.user.v1.DeleteUserResponse
-	(*LogoutRequest)(nil),         // 15: loco.user.v1.LogoutRequest
-	(*LogoutResponse)(nil),        // 16: loco.user.v1.LogoutResponse
-	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(UserStatus)(0),                          // 0: loco.user.v1.UserStatus
+	(*User)(nil),                             // 1: loco.user.v1.User
+	(*GetUserRequest)(nil),                   // 2: loco.user.v1.GetUserRequest
+	(*GetUserResponse)(nil),                  // 3: loco.user.v1.GetUserResponse
+	(*UpdateUserRequest)(nil),                // 4: loco.user.v1.UpdateUserRequest
+	(*UpdateUserResponse)(nil),               // 5: loco.user.v1.UpdateUserResponse
+	(*ListUsersRequest)(nil),                 // 6: loco.user.v1.ListUsersRequest
+	(*ListUsersResponse)(nil),                // 7: loco.user.v1.ListUsersResponse
+	(*WhoAmIRequest)(nil),                    // 8: loco.user.v1.WhoAmIRequest
+	(*WhoAmIResponse)(nil),                   // 9: loco.user.v1.WhoAmIResponse
+	(*ClaimedOrg)(nil),                       // 10: loco.user.v1.ClaimedOrg
+	(*SetUserStatusRequest)(nil),             // 11: loco.user.v1.SetUserStatusRequest
+	(*SetUserStatusResponse)(nil),            // 12: loco.user.v1.SetUserStatusResponse
+	(*DeleteUserRequest)(nil),                // 13: loco.user.v1.DeleteUserRequest
+	(*DeleteUserResponse)(nil),               // 14: loco.user.v1.DeleteUserResponse
+	(*LogoutRequest)(nil),                    // 15: loco.user.v1.LogoutRequest
+	(*LogoutResponse)(nil),                   // 16: loco.user.v1.LogoutResponse
+	(*GetAccountDeletionImpactRequest)(nil),  // 17: loco.user.v1.GetAccountDeletionImpactRequest
+	(*AccountDeletionOrganization)(nil),      // 18: loco.user.v1.AccountDeletionOrganization
+	(*AccountDeletionToken)(nil),             // 19: loco.user.v1.AccountDeletionToken
+	(*GetAccountDeletionImpactResponse)(nil), // 20: loco.user.v1.GetAccountDeletionImpactResponse
+	(*timestamppb.Timestamp)(nil),            // 21: google.protobuf.Timestamp
+	(v1.EntityType)(0),                       // 22: loco.token.v1.EntityType
 }
 var file_loco_user_v1_user_proto_depIdxs = []int32{
-	17, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	17, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
+	21, // 0: loco.user.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	21, // 1: loco.user.v1.User.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: loco.user.v1.GetUserResponse.user:type_name -> loco.user.v1.User
 	1,  // 3: loco.user.v1.ListUsersResponse.users:type_name -> loco.user.v1.User
 	1,  // 4: loco.user.v1.WhoAmIResponse.user:type_name -> loco.user.v1.User
 	10, // 5: loco.user.v1.WhoAmIResponse.claimed_orgs:type_name -> loco.user.v1.ClaimedOrg
 	0,  // 6: loco.user.v1.SetUserStatusRequest.status:type_name -> loco.user.v1.UserStatus
-	2,  // 7: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
-	8,  // 8: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
-	4,  // 9: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
-	6,  // 10: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
-	13, // 11: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
-	15, // 12: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
-	11, // 13: loco.user.v1.UserService.SetUserStatus:input_type -> loco.user.v1.SetUserStatusRequest
-	3,  // 14: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
-	9,  // 15: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
-	5,  // 16: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
-	7,  // 17: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
-	14, // 18: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
-	16, // 19: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
-	12, // 20: loco.user.v1.UserService.SetUserStatus:output_type -> loco.user.v1.SetUserStatusResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	22, // 7: loco.user.v1.AccountDeletionToken.entity_type:type_name -> loco.token.v1.EntityType
+	21, // 8: loco.user.v1.AccountDeletionToken.expires_at:type_name -> google.protobuf.Timestamp
+	18, // 9: loco.user.v1.GetAccountDeletionImpactResponse.last_active_admin_organizations:type_name -> loco.user.v1.AccountDeletionOrganization
+	19, // 10: loco.user.v1.GetAccountDeletionImpactResponse.owned_tokens:type_name -> loco.user.v1.AccountDeletionToken
+	2,  // 11: loco.user.v1.UserService.GetUser:input_type -> loco.user.v1.GetUserRequest
+	8,  // 12: loco.user.v1.UserService.WhoAmI:input_type -> loco.user.v1.WhoAmIRequest
+	4,  // 13: loco.user.v1.UserService.UpdateUser:input_type -> loco.user.v1.UpdateUserRequest
+	6,  // 14: loco.user.v1.UserService.ListUsers:input_type -> loco.user.v1.ListUsersRequest
+	17, // 15: loco.user.v1.UserService.GetAccountDeletionImpact:input_type -> loco.user.v1.GetAccountDeletionImpactRequest
+	13, // 16: loco.user.v1.UserService.DeleteUser:input_type -> loco.user.v1.DeleteUserRequest
+	15, // 17: loco.user.v1.UserService.Logout:input_type -> loco.user.v1.LogoutRequest
+	11, // 18: loco.user.v1.UserService.SetUserStatus:input_type -> loco.user.v1.SetUserStatusRequest
+	3,  // 19: loco.user.v1.UserService.GetUser:output_type -> loco.user.v1.GetUserResponse
+	9,  // 20: loco.user.v1.UserService.WhoAmI:output_type -> loco.user.v1.WhoAmIResponse
+	5,  // 21: loco.user.v1.UserService.UpdateUser:output_type -> loco.user.v1.UpdateUserResponse
+	7,  // 22: loco.user.v1.UserService.ListUsers:output_type -> loco.user.v1.ListUsersResponse
+	20, // 23: loco.user.v1.UserService.GetAccountDeletionImpact:output_type -> loco.user.v1.GetAccountDeletionImpactResponse
+	14, // 24: loco.user.v1.UserService.DeleteUser:output_type -> loco.user.v1.DeleteUserResponse
+	16, // 25: loco.user.v1.UserService.Logout:output_type -> loco.user.v1.LogoutResponse
+	12, // 26: loco.user.v1.UserService.SetUserStatus:output_type -> loco.user.v1.SetUserStatusResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_loco_user_v1_user_proto_init() }
@@ -1093,7 +1410,7 @@ func file_loco_user_v1_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_user_v1_user_proto_rawDesc), len(file_loco_user_v1_user_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

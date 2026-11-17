@@ -1,31 +1,23 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { createQueryOptions, useMutation, useTransport } from "@connectrpc/connect-query";
-import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { deleteUser, updateUser } from "@gen/loco/user/v1/user-UserService_connectquery";
+import { useMutation } from "@connectrpc/connect-query";
+import { updateUser } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
-import { useQueries, useQueryClient } from "@tanstack/react-query";
-import { Building2Icon, ChevronRightIcon, KeyRoundIcon, LayersIcon, LogOutIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronRightIcon, KeyRoundIcon, LogOutIcon } from "lucide-react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/design/Button";
-import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
 import { CopyId } from "@/components/design/CopyId";
-import { DangerZone } from "@/components/design/DangerZone";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { SaveBar } from "@/components/design/SaveBar";
-import { useOrgWorkspace } from "@/context/ContextProvider";
-import { useMyScopes } from "@/hooks/useMyScopes";
 import { toastConnectError } from "@/lib/error-handler";
-import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
-import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
-import { accountBlockers } from "./account";
+import { DeleteAccount } from "./DeleteAccount";
 import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
@@ -43,11 +35,8 @@ export function PersonalTab({
 }) {
 	const timePref = useTimePreferences();
 	const { logout } = useAuth();
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const update = useMutation(updateUser);
-	const remove = useMutation(deleteUser);
-	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	const name = draft ?? user.name;
 	const nameT = name.trim();
@@ -67,23 +56,6 @@ export function PersonalTab({
 				},
 				onError: (err) => {
 					toastConnectError(err, "Failed to update your name");
-				},
-			},
-		);
-	};
-
-	const confirmDelete = () => {
-		remove.mutate(
-			{ userId: user.id },
-			{
-				onSuccess: () => {
-					toast.success("Account deleted");
-					setDeleteOpen(false);
-					void logout();
-					void navigate("/login", { replace: true });
-				},
-				onError: (err) => {
-					toastConnectError(err, "Failed to delete account");
 				},
 			},
 		);
@@ -163,12 +135,7 @@ export function PersonalTab({
 			</SettingsSection>
 
 			<SettingsSection title="Danger zone">
-				<DeleteAccount
-					userId={user.id}
-					onDelete={() => {
-						setDeleteOpen(true);
-					}}
-				/>
+				<DeleteAccount user={user} />
 			</SettingsSection>
 
 			{dirty && (
@@ -181,121 +148,6 @@ export function PersonalTab({
 					disabledReason={nameErr}
 				/>
 			)}
-
-			<ConfirmDeleteDialog
-				open={deleteOpen}
-				onOpenChange={setDeleteOpen}
-				title="Delete your account"
-				text="This permanently deletes your user and your organization memberships, and signs you out."
-				target={user.email}
-				confirmLabel="Delete account"
-				pending={remove.isPending}
-				onConfirm={confirmDelete}
-			/>
 		</div>
-	);
-}
-
-function DeleteAccount({ userId, onDelete }: { userId: string; onDelete: () => void }) {
-	const transport = useTransport();
-	const { orgs, workspacesSettled } = useOrgWorkspace();
-	const scopes = useMyScopes();
-	const blockers = accountBlockers(userId, orgs, scopes.scopes);
-	const workspaceResults = useQueries({
-		queries: blockers.workspaceIds.map((workspaceId) =>
-			createQueryOptions(getWorkspace, { workspaceId }, { transport }),
-		),
-	});
-
-	const ownsOrgs = blockers.orgs.length > 0;
-	const hasWorkspaces = blockers.workspaceIds.length > 0;
-	const blocked = ownsOrgs || hasWorkspaces;
-	const blockedReason =
-		scopes.isLoading || !workspacesSettled
-			? "Checking your memberships"
-			: ownsOrgs && hasWorkspaces
-				? "Delete your organizations and leave your workspaces first"
-				: ownsOrgs
-					? "Delete the organizations you created first"
-					: hasWorkspaces
-						? "Leave your workspaces first"
-						: null;
-	const description = blocked
-		? "Your account can be deleted once you no longer own an organization or have access to a workspace."
-		: "Permanently deletes your user and signs you out.";
-
-	return (
-		<>
-			<DangerZone
-				title="Delete your account"
-				description={description}
-				warn={blocked}
-				actionLabel="Delete account"
-				blockedReason={blockedReason}
-				onAction={onDelete}
-			/>
-			{blocked && (
-				<SettingsCard>
-					<ul className="m-0 list-none p-0">
-						{blockers.orgs.map((o) => (
-							<BlockerRow
-								key={o.id}
-								to={`/org/${o.id}/settings`}
-								icon={<Building2Icon />}
-								name={o.name}
-								detail="Organization you created. Delete it in its settings."
-							/>
-						))}
-						{blockers.workspaceIds.map((id, i) => {
-							const ws = workspaceResults[i]?.data?.workspace;
-							return (
-								<BlockerRow
-									key={id}
-									to={ws ? settingsPath(ws.orgId, ws.id, "workspace") : null}
-									icon={<LayersIcon />}
-									name={ws ? ws.name : id}
-									detail={
-										ws
-											? `Workspace in ${ws.orgName}. Delete it, or remove your access on the Team page.`
-											: "Workspace you have access to."
-									}
-								/>
-							);
-						})}
-					</ul>
-				</SettingsCard>
-			)}
-		</>
-	);
-}
-
-function BlockerRow({ to, icon, name, detail }: { to: string | null; icon: ReactNode; name: string; detail: string }) {
-	const body = (
-		<>
-			<span className="flex shrink-0 text-fg3 [&_svg]:size-4">{icon}</span>
-			<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-				<span className="truncate font-mono text-[13px]">{name}</span>
-				<span className="text-[12.5px] text-fg3">{detail}</span>
-			</span>
-			{to !== null && <ChevronRightIcon className="size-3.5 shrink-0 text-fg3" />}
-		</>
-	);
-	const rowClass = "flex items-center gap-3 px-5 py-3";
-	return (
-		<li className="border-b border-line last:border-b-0">
-			{to === null ? (
-				<div className={rowClass}>{body}</div>
-			) : (
-				<Link
-					to={to}
-					className={cn(
-						rowClass,
-						"text-foreground no-underline hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
-					)}
-				>
-					{body}
-				</Link>
-			)}
-		</li>
 	);
 }

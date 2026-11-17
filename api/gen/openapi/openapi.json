@@ -6228,6 +6228,68 @@
         }
       }
     },
+    "/loco.user.v1.UserService/GetAccountDeletionImpact": {
+      "post": {
+        "tags": [
+          "loco.user.v1.UserService"
+        ],
+        "summary": "GetAccountDeletionImpact",
+        "description": "GetAccountDeletionImpact previews deleting the current session account.",
+        "operationId": "loco.user.v1.UserService.GetAccountDeletionImpact",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.user.v1.GetAccountDeletionImpactRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.user.v1.GetAccountDeletionImpactResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.user.v1.UserService/GetUser": {
       "post": {
         "tags": [
@@ -15119,6 +15181,58 @@
         "additionalProperties": false,
         "description": "Token represents token metadata (without the actual token string)."
       },
+      "loco.user.v1.AccountDeletionOrganization": {
+        "type": "object",
+        "properties": {
+          "orgId": {
+            "type": "string",
+            "title": "org_id"
+          },
+          "orgName": {
+            "type": "string",
+            "title": "org_name"
+          }
+        },
+        "title": "AccountDeletionOrganization",
+        "additionalProperties": false,
+        "description": "AccountDeletionOrganization needs another active administrator before deletion."
+      },
+      "loco.user.v1.AccountDeletionToken": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "entityType": {
+            "title": "entity_type",
+            "$ref": "#/components/schemas/loco.token.v1.EntityType"
+          },
+          "entityId": {
+            "type": "string",
+            "title": "entity_id"
+          },
+          "ownerName": {
+            "type": "string",
+            "title": "owner_name"
+          },
+          "expiresAt": {
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "displaySuffix": {
+            "type": "string",
+            "title": "display_suffix"
+          },
+          "canRevoke": {
+            "type": "boolean",
+            "title": "can_revoke"
+          }
+        },
+        "title": "AccountDeletionToken",
+        "additionalProperties": false,
+        "description": "AccountDeletionToken is a surviving token whose owner the caller can currently read."
+      },
       "loco.user.v1.ClaimedOrg": {
         "type": "object",
         "properties": {
@@ -15157,6 +15271,61 @@
         "title": "DeleteUserResponse",
         "additionalProperties": false,
         "description": "DeleteUserResponse is the response after deleting a user."
+      },
+      "loco.user.v1.GetAccountDeletionImpactRequest": {
+        "type": "object",
+        "properties": {
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32"
+          },
+          "pageToken": {
+            "type": "string",
+            "title": "page_token"
+          }
+        },
+        "title": "GetAccountDeletionImpactRequest",
+        "additionalProperties": false,
+        "description": "GetAccountDeletionImpactRequest pages the current user's surviving owned tokens."
+      },
+      "loco.user.v1.GetAccountDeletionImpactResponse": {
+        "type": "object",
+        "properties": {
+          "lastActiveAdminOrganizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.user.v1.AccountDeletionOrganization"
+            },
+            "title": "last_active_admin_organizations"
+          },
+          "ownedTokens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.user.v1.AccountDeletionToken"
+            },
+            "title": "owned_tokens"
+          },
+          "nextPageToken": {
+            "type": "string",
+            "title": "next_page_token"
+          },
+          "hasInaccessibleOwnedTokens": {
+            "type": "boolean",
+            "title": "has_inaccessible_owned_tokens",
+            "description": "No inaccessible-owner names, identifiers, token metadata or counts are exposed."
+          },
+          "hasMoreBlockingOrganizations": {
+            "type": "boolean",
+            "title": "has_more_blocking_organizations",
+            "description": "Resolve the listed blockers and refresh to review remaining organizations."
+          }
+        },
+        "title": "GetAccountDeletionImpactResponse",
+        "additionalProperties": false,
+        "description": "GetAccountDeletionImpactResponse is a preview; DeleteUser rechecks blockers atomically."
       },
       "loco.user.v1.GetUserRequest": {
         "type": "object",
