@@ -1,3 +1,4 @@
+import { formatShortId } from "@/lib/utils";
 import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -38,7 +39,6 @@ import { DeleteResourceDialog, RedeployDialogContent, RollbackDialogContent } fr
 import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
-import { shortId } from "@/pages/resource/format";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
 import { METRIC_RANGES } from "@/pages/resource/metric";
 import {
@@ -283,7 +283,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setNotice({
 			tone: "info",
 			title: `Rolling back ${resource.name} in ${target.region}`,
-			message: `New deployment created from ${shortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
+			message: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
 		});
 	};
 

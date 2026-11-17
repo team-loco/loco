@@ -16,7 +16,7 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 import { levelOf } from "@/pages/observability/query";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
@@ -30,7 +30,7 @@ import {
 	emptyBuildLogText,
 	formatBuildDuration,
 } from "./builds";
-import { formatFullTime, shortId } from "./format";
+import { formatFullTime } from "./format";
 import { BUILD_LOG_LIMIT, useBuildLog } from "./useBuilds";
 
 const COLUMNS = 7;
@@ -166,7 +166,7 @@ function Detail({
 							Open in Logs
 						</Button>
 					)}
-					<CopyButton text={build.id} label="Copy ID" name={`Copy build ID ${shortId(build.id)}`} />
+					<CopyButton text={build.id} label="Copy ID" name={`Copy build ID ${formatShortId(build.id)}`} />
 					{canWrite && canCancelBuild(build.status) && (
 						<Button variant="destructive-outline" size="sm" onClick={onCancel}>
 							<XIcon />
@@ -208,7 +208,7 @@ export function BuildsTable({
 
 	const confirmCancel = () => {
 		if (confirming === null) return;
-		const short = shortId(confirming.id);
+		const short = formatShortId(confirming.id);
 		cancel.mutate(
 			{ buildId: confirming.id },
 			{
@@ -251,7 +251,7 @@ export function BuildsTable({
 					const expanded = openId === build.id;
 					const style = buildStatusStyle(build.status);
 					const actor = actors.get(build.createdBy);
-					const actorName = actor === undefined ? shortId(build.createdBy) : actor.name || actor.email;
+					const actorName = actor === undefined ? formatShortId(build.createdBy) : actor.name || actor.email;
 					const image = buildImageLabel(build);
 					const took = buildTookMs(build);
 					const created = maybeTsMs(build.createdAt);
@@ -271,7 +271,7 @@ export function BuildsTable({
 								<TableCell>
 									<CollapsibleTrigger
 										render={<Button variant="ghost" size="icon-xs" />}
-										aria-label={`${expanded ? "Hide" : "Show"} build ${shortId(build.id)}`}
+										aria-label={`${expanded ? "Hide" : "Show"} build ${formatShortId(build.id)}`}
 										onClick={(e) => {
 											e.stopPropagation();
 										}}
@@ -285,7 +285,7 @@ export function BuildsTable({
 										{style.label}
 									</span>
 								</TableCell>
-								<TableCell className="font-mono text-[12.5px]">{shortId(build.id)}</TableCell>
+								<TableCell className="font-mono text-[12.5px]">{formatShortId(build.id)}</TableCell>
 								<TableCell>
 									<span className="flex min-w-0 items-center gap-2">
 										<MemberAvatar
@@ -330,7 +330,7 @@ export function BuildsTable({
 			</Table>
 			<ConfirmDialog
 				open={confirming !== null}
-				title={`Cancel build ${confirming === null ? "" : shortId(confirming.id)}?`}
+				title={`Cancel build ${confirming === null ? "" : formatShortId(confirming.id)}?`}
 				description="The build stops and produces no image."
 				confirmLabel="Cancel build"
 				pendingLabel="Canceling…"

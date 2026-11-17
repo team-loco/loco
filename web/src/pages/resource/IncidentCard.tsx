@@ -8,10 +8,9 @@ import { Button } from "@/components/design/Button";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
 import { HOUR_MS } from "@/lib/obs-time";
 import { agoLabel, formatClock, maybeTsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { latestBackOff } from "./events";
-import { shortId } from "./format";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 
 import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
@@ -169,7 +168,7 @@ export function IncidentCard({
 					{current !== undefined && (
 						<Fact label="Running">
 							<span className="font-mono">
-								{depTag(current)} · {shortId(current.id)}
+								{depTag(current)} · {formatShortId(current.id)}
 							</span>
 						</Fact>
 					)}
@@ -180,7 +179,7 @@ export function IncidentCard({
 							"No earlier healthy deployment in this region"
 						) : (
 							<span className="font-mono">
-								{depTag(lastGood)} · {shortId(lastGood.id)}
+								{depTag(lastGood)} · {formatShortId(lastGood.id)}
 								{goodMs !== undefined && ` · ${agoLabel(goodMs, nowMs)}`}
 							</span>
 						)}

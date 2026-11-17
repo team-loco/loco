@@ -5,9 +5,8 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
-import { shortId } from "./format";
 import { depTag } from "./model";
 import { specChanges } from "./spec";
 
@@ -88,8 +87,8 @@ export function RollbackDialogContent({
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
 				{changes.length === 0 && (
 					<RunningSwap
-						from={current === undefined ? "—" : `${depTag(current)} · ${shortId(current.id)}`}
-						to={`${depTag(target)} · ${shortId(target.id)}`}
+						from={current === undefined ? "—" : `${depTag(current)} · ${formatShortId(current.id)}`}
+						to={`${depTag(target)} · ${formatShortId(target.id)}`}
 					/>
 				)}
 				{current !== undefined && changes.length === 0 && (
@@ -137,7 +136,7 @@ export function RollbackDialogContent({
 				)}
 				<span>
 					Creates a new deployment in <span className="font-mono text-foreground">{target.region}</span> from the spec
-					of <span className="font-mono text-foreground">{shortId(target.id)}</span>.
+					of <span className="font-mono text-foreground">{formatShortId(target.id)}</span>.
 					{current !== undefined && " The running deployment is superseded once the new replicas are ready."}
 				</span>
 			</DialogBody>

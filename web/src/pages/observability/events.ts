@@ -2,6 +2,7 @@ import { resolveWindow, type TimeWindow } from "@/lib/obs-time";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { WorkspaceEventWithResource } from "@/hooks/useWorkspaceEvents";
 import { tsMs } from "@/lib/time";
+import { formatShortId } from "@/lib/utils";
 
 export type Severity = "error" | "warning" | "normal";
 
@@ -69,7 +70,7 @@ export function eventSummary(e: WorkspaceEventWithResource): string {
 		["buildId", "build"],
 	] as const) {
 		const value = e.event.data?.[key];
-		if (typeof value === "string" && value !== "") return `${label} ${value.slice(0, 8)}`;
+		if (typeof value === "string" && value !== "") return `${label} ${formatShortId(value)}`;
 	}
 	return "";
 }

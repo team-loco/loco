@@ -25,7 +25,7 @@ import { deploymentImage } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -33,7 +33,7 @@ import { formatCount } from "@/lib/format";
 
 import { deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
 import { BuildsTable, type BuildActor } from "./BuildsTable";
-import { formatDuration, formatFullTime, shortId } from "./format";
+import { formatDuration, formatFullTime } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
@@ -106,7 +106,7 @@ function Detail({
 				<span className="text-[12px] text-fg3">Changes from previous</span>
 				{prev === undefined && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
 				{prev !== undefined && changes.length === 0 && (
-					<span className="text-[12.5px] text-fg3">Same spec as {shortId(prev.id)}</span>
+					<span className="text-[12.5px] text-fg3">Same spec as {formatShortId(prev.id)}</span>
 				)}
 				{changes.map((c) => (
 					<div key={c.label} className="flex min-w-0 flex-wrap gap-x-2 font-mono text-[12px]">
@@ -155,7 +155,7 @@ function Detail({
 						}}
 					>
 						<HammerIcon />
-						Build <span className="font-mono">{shortId(buildId)}</span>
+						Build <span className="font-mono">{formatShortId(buildId)}</span>
 					</Button>
 				)}
 				{dep.commit !== undefined && (
@@ -320,7 +320,7 @@ export function DeploymentsSection({
 											<TableCell>
 												<CollapsibleTrigger
 													render={<Button variant="ghost" size="icon-xs" />}
-													aria-label={`${expanded ? "Hide" : "Show"} details for ${shortId(dep.id)}`}
+													aria-label={`${expanded ? "Hide" : "Show"} details for ${formatShortId(dep.id)}`}
 													onClick={(e) => {
 														e.stopPropagation();
 													}}

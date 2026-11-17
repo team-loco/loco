@@ -122,7 +122,11 @@ def fixture():
         },
     )["resourceId"]
     clusters = [str(uuid.uuid4()) for _ in range(3)]
-    release_ids = [str(uuid.uuid4()) for _ in range(221)]
+    release_ids = [str(uuid.uuid7()) for _ in range(221)]
+    release_ids[:2] = [
+        "019ab668-1111-7000-8000-000011112222",
+        "019ab668-1112-7000-8000-000033334444",
+    ]
     staging_release = str(uuid.uuid4())
     builds = {
         name: str(uuid.uuid4())
@@ -380,7 +384,7 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][0][:8]}",
+                    name=f"Show details for {data['releases'][0][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
@@ -396,13 +400,38 @@ with session(out) as browser:
                 section.get_by_text("loco deploy · CLI", exact=True).first
             ).to_be_visible()
             section.get_by_role(
-                "button", name=f"Show details for {data['releases'][0][:8]}", exact=True
+                "button",
+                name=f"Show details for {data['releases'][0][-8:]}",
+                exact=True,
             ).click()
             expect(
                 section.get_by_role("button", name="Copy SHA", exact=True)
             ).to_have_attribute("title", f"Copy {'7c41e9a'.ljust(40, '0')}")
+            section.get_by_role("button", name="View spec", exact=True).click()
+            spec_dialog = page.get_by_role("dialog", name="Deployment spec", exact=True)
+            for index, deployment_id in enumerate(data["releases"][:2]):
+                picker = spec_dialog.get_by_role(
+                    "button", name="Deployment", exact=True
+                )
+                if index:
+                    picker.click()
+                    page.get_by_role(
+                        "menuitemradio", name=re.compile(deployment_id[-8:])
+                    ).click()
+                expect(picker).to_contain_text(deployment_id[-8:])
+                with page.expect_download() as download:
+                    spec_dialog.get_by_role(
+                        "button", name="Download spec", exact=True
+                    ).click()
+                assert (
+                    download.value.suggested_filename
+                    == f"deployment-{deployment_id[-8:]}.json"
+                )
+            page.keyboard.press("Escape")
             section.get_by_role(
-                "button", name=f"Hide details for {data['releases'][0][:8]}", exact=True
+                "button",
+                name=f"Hide details for {data['releases'][0][-8:]}",
+                exact=True,
             ).click()
             expect(
                 section.get_by_role("columnheader", name="Region", exact=True)
@@ -431,7 +460,7 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][150][:8]}",
+                    name=f"Show details for {data['releases'][150][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
@@ -440,7 +469,7 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][150][:8]}",
+                    name=f"Show details for {data['releases'][150][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
@@ -452,7 +481,7 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][220][:8]}",
+                    name=f"Show details for {data['releases'][220][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
@@ -474,7 +503,7 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['staging_release'][:8]}",
+                    name=f"Show details for {data['staging_release'][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
@@ -482,7 +511,7 @@ with session(out) as browser:
             expect(section.get_by_text("1–1 of 1", exact=False)).to_have_count(0)
             assert not section.get_by_role(
                 "button",
-                name=f"Show details for {data['releases'][220][:8]}",
+                name=f"Show details for {data['releases'][220][-8:]}",
                 exact=True,
             ).count()
             assert any(
@@ -504,14 +533,14 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][0][:8]}",
+                    name=f"Show details for {data['releases'][0][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][150][:8]}",
+                    name=f"Show details for {data['releases'][150][-8:]}",
                     exact=True,
                 )
             ).to_have_count(0)
@@ -521,10 +550,12 @@ with session(out) as browser:
             stage = "builds"
             builds = data["builds"]
             section.get_by_role(
-                "button", name=f"Show details for {data['releases'][1][:8]}", exact=True
+                "button",
+                name=f"Show details for {data['releases'][1][-8:]}",
+                exact=True,
             ).click()
             section.get_by_role(
-                "button", name=f"Build {builds['deployed'][:8]}", exact=True
+                "button", name=f"Build {builds['deployed'][-8:]}", exact=True
             ).click()
             expect(page).to_have_url(re.compile(r"[?&]hist=builds"))
             expect(
@@ -534,7 +565,7 @@ with session(out) as browser:
             assert section.evaluate(SEPARATED_ROWS), "build rows lost their separators"
             expect(
                 section.get_by_role(
-                    "button", name=f"Hide build {builds['deployed'][:8]}", exact=True
+                    "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
                 )
             ).to_be_visible()
             expect(
@@ -550,7 +581,7 @@ with session(out) as browser:
             expect(
                 section.get_by_role(
                     "button",
-                    name=f"Hide details for {data['releases'][1][:8]}",
+                    name=f"Hide details for {data['releases'][1][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()
@@ -561,10 +592,10 @@ with session(out) as browser:
                 ).get_by_role("columnheader", name="Time", exact=True)
             ).to_be_visible()
             section.get_by_role(
-                "button", name=f"Hide build {builds['deployed'][:8]}", exact=True
+                "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True
             ).click()
             section.get_by_role(
-                "button", name=f"Show build {builds['failed'][:8]}", exact=True
+                "button", name=f"Show build {builds['failed'][-8:]}", exact=True
             ).click()
             expect(
                 section.get_by_text(
@@ -589,7 +620,7 @@ with session(out) as browser:
                 section.get_by_role("button", name="Cancel build", exact=True)
             ).to_have_count(0)
             section.get_by_role(
-                "button", name=f"Show build {builds['awaiting'][:8]}", exact=True
+                "button", name=f"Show build {builds['awaiting'][-8:]}", exact=True
             ).click()
             expect(
                 section.get_by_text("Waiting for the CLI to upload source.", exact=True)
@@ -599,7 +630,9 @@ with session(out) as browser:
                 "button", name="Cancel build", exact=True
             ).click()
             expect(
-                page.get_by_text(f"Canceled build {builds['awaiting'][:8]}", exact=True)
+                page.get_by_text(
+                    f"Canceled build {builds['awaiting'][-8:]}", exact=True
+                )
             ).to_be_visible(timeout=evidence.STEP_TIMEOUT_MS)
             expect(
                 section.get_by_role("button", name="Cancel build", exact=True)
@@ -754,7 +787,7 @@ with session(out) as browser:
             expect(
                 reader_section.get_by_role(
                     "button",
-                    name=f"Show details for {data['releases'][0][:8]}",
+                    name=f"Show details for {data['releases'][0][-8:]}",
                     exact=True,
                 )
             ).to_be_visible()

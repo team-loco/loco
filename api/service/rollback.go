@@ -101,7 +101,7 @@ func rollbackDeploymentIfEnabled(
 		return err
 	}
 	if err = writeDeploymentActivity(ctx, qtx, failed.ID, placement.DesiredRevision, []activityEntry{
-		{Message: "Rolled back to " + previous.ID.String()[:8], Severity: activityWarn},
+		{Message: "Rolled back to " + previous.ID.String()[28:], Severity: activityWarn},
 	}); err != nil {
 		return err
 	}
@@ -110,6 +110,6 @@ func rollbackDeploymentIfEnabled(
 		return err
 	}
 	return writeDeploymentActivity(ctx, qtx, previous.ID, restored.DesiredRevision, []activityEntry{
-		{Message: "Restored after " + failed.ID.String()[:8] + " failed", Severity: activityInfo},
+		{Message: "Restored after " + failed.ID.String()[28:] + " failed", Severity: activityInfo},
 	})
 }
