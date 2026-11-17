@@ -1,4 +1,5 @@
 import argparse
+import json
 import re
 
 from harness import evidence, load_state, open_page, repo, session
@@ -76,7 +77,18 @@ call(
 
 with session(repo / "tests/ui/out/account-deletion") as browser:
     # A pending/error preview cannot accidentally enable an irreversible action.
-    context, page, errors = open_page(browser, "departing", state=state)
+    context, page, errors = open_page(browser, None, state=state)
+    # Seed this tab once so a later document cannot recreate credentials after sign-out.
+    credentials = json.dumps(
+        {
+            "idToken": state["users"]["departing"]["token"],
+            "refreshToken": None,
+            "expiresAt": evidence.SESSION_EXPIRY_MS,
+        }
+    )
+    context.add_init_script(
+        f"if (!sessionStorage.getItem('account-deletion-fixture')) {{ localStorage.setItem({json.dumps(evidence.AUTH_KEY)}, {json.dumps(credentials)}); sessionStorage.setItem('account-deletion-fixture', '1'); }}"
+    )
     preview = "**/loco.user.v1.UserService/GetAccountDeletionImpact"
     context.route(
         preview,
