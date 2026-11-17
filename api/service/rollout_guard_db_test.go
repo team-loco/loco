@@ -79,7 +79,7 @@ func TestScaleRejectsAnActiveRollout(t *testing.T) {
 
 func TestDeploymentRejectsAnActiveRollout(t *testing.T) {
 	t.Parallel()
-	for _, status := range []genDb.DeploymentStatus{genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying} {
+	for _, status := range []genDb.DeploymentStatus{genDb.DeploymentStatusDeploying} {
 		t.Run(string(status), func(t *testing.T) {
 			f := newDeployFixture(t)
 			created, err := createDeployment(t, f, sameRegionSpec)

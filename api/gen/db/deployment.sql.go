@@ -225,16 +225,12 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 
 const getDeploymentView = `-- name: GetDeploymentView :one
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
- b.message AS build_failure_detail,
- b.finished_at AS build_finished_at,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
-LEFT JOIN builds b ON b.id = NULLIF(d.spec->'build'->>'buildId','')::uuid
- AND b.status = 'failed' AND d.status = 'failed'
 JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
@@ -242,14 +238,12 @@ WHERE d.id = $1
 `
 
 type GetDeploymentViewRow struct {
-	Deployment         Deployment   `json:"deployment"`
-	ResourceType       ResourceType `json:"resourceType"`
-	BuildFailureDetail *string      `json:"buildFailureDetail"`
-	BuildFinishedAt    *time.Time   `json:"buildFinishedAt"`
-	RolloutSnapshot    []byte       `json:"rolloutSnapshot"`
-	CurrentRevision    int64        `json:"currentRevision"`
-	ActorName          string       `json:"actorName"`
-	ActorAvatarUrl     string       `json:"actorAvatarUrl"`
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
 }
 
 func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error) {
@@ -278,8 +272,6 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.Deployment.CompletedAt,
 		&i.Deployment.UpdatedAt,
 		&i.ResourceType,
-		&i.BuildFailureDetail,
-		&i.BuildFinishedAt,
 		&i.RolloutSnapshot,
 		&i.CurrentRevision,
 		&i.ActorName,
@@ -459,16 +451,12 @@ func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) (
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
- b.message AS build_failure_detail,
- b.finished_at AS build_finished_at,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
-LEFT JOIN builds b ON b.id = NULLIF(d.spec->'build'->>'buildId','')::uuid
- AND b.status = 'failed' AND d.status = 'failed'
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
@@ -505,14 +493,12 @@ type ListEnvironmentDeploymentsParams struct {
 }
 
 type ListEnvironmentDeploymentsRow struct {
-	Deployment         Deployment   `json:"deployment"`
-	ResourceType       ResourceType `json:"resourceType"`
-	BuildFailureDetail *string      `json:"buildFailureDetail"`
-	BuildFinishedAt    *time.Time   `json:"buildFinishedAt"`
-	RolloutSnapshot    []byte       `json:"rolloutSnapshot"`
-	CurrentRevision    int64        `json:"currentRevision"`
-	ActorName          string       `json:"actorName"`
-	ActorAvatarUrl     string       `json:"actorAvatarUrl"`
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
 }
 
 func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error) {
@@ -559,8 +545,6 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
-			&i.BuildFailureDetail,
-			&i.BuildFinishedAt,
 			&i.RolloutSnapshot,
 			&i.CurrentRevision,
 			&i.ActorName,
@@ -578,16 +562,12 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
 SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
- b.message AS build_failure_detail,
- b.finished_at AS build_finished_at,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
-LEFT JOIN builds b ON b.id = NULLIF(d.spec->'build'->>'buildId','')::uuid
- AND b.status = 'failed' AND d.status = 'failed'
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
@@ -624,14 +604,12 @@ type ListResourceDeploymentsParams struct {
 }
 
 type ListResourceDeploymentsRow struct {
-	Deployment         Deployment   `json:"deployment"`
-	ResourceType       ResourceType `json:"resourceType"`
-	BuildFailureDetail *string      `json:"buildFailureDetail"`
-	BuildFinishedAt    *time.Time   `json:"buildFinishedAt"`
-	RolloutSnapshot    []byte       `json:"rolloutSnapshot"`
-	CurrentRevision    int64        `json:"currentRevision"`
-	ActorName          string       `json:"actorName"`
-	ActorAvatarUrl     string       `json:"actorAvatarUrl"`
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
 }
 
 func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error) {
@@ -678,8 +656,6 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
-			&i.BuildFailureDetail,
-			&i.BuildFinishedAt,
 			&i.RolloutSnapshot,
 			&i.CurrentRevision,
 			&i.ActorName,

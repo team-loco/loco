@@ -274,15 +274,10 @@ WHERE b.id IN (
 )
   AND b.status IN ('succeeded', 'failed', 'canceled')
   AND b.source_deleted_at IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM deployments d
-    WHERE d.status = 'failed' AND d.spec->'build'->>'buildId' = b.id::text)
   AND (b.status <> 'succeeded' OR b.image_deleted_at IS NOT NULL);
 
 -- name: UpdateBuildStage :exec
-UPDATE builds SET stage = sqlc.arg(stage),
- stage_since = CASE WHEN stage <> sqlc.arg(stage)::text OR stage_since IS NULL THEN sqlc.narg(stage_since)::timestamptz ELSE stage_since END
-WHERE id = sqlc.arg(id) AND cluster_id = sqlc.arg(cluster_id)
- AND status IN ('queued','running') AND sqlc.arg(stage)::text <> '';
+UPDATE builds SET stage = $2 WHERE id = $1;
 
 -- name: LockBuildResource :exec
 SELECT r.id FROM resources r JOIN builds b ON b.resource_id = r.id

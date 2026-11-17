@@ -142,7 +142,7 @@ INSERT INTO builds (id, resource_id, status, source_type, source_key, source_siz
                     api_token_id, git_commit, git_branch, git_commit_message)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
         $10, $11, $12, $13)
-RETURNING id, resource_id, cluster_id, status, source_type, stage, stage_since, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
+RETURNING id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at
 `
 
 type CreateBuildParams struct {
@@ -185,7 +185,6 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 		&i.Status,
 		&i.SourceType,
 		&i.Stage,
-		&i.StageSince,
 		&i.SourceKey,
 		&i.SourceSize,
 		&i.DockerfilePath,
@@ -347,7 +346,7 @@ func (q *Queries) FinishBuild(ctx context.Context, arg FinishBuildParams) (Finis
 }
 
 const getBuildByID = `-- name: GetBuildByID :one
-SELECT id, resource_id, cluster_id, status, source_type, stage, stage_since, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1
 `
 
 func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -360,7 +359,6 @@ func (q *Queries) GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 		&i.Status,
 		&i.SourceType,
 		&i.Stage,
-		&i.StageSince,
 		&i.SourceKey,
 		&i.SourceSize,
 		&i.DockerfilePath,
@@ -528,7 +526,7 @@ func (q *Queries) ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]Li
 }
 
 const listBuildsForResource = `-- name: ListBuildsForResource :many
-SELECT id, resource_id, cluster_id, status, source_type, stage, stage_since, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds b
 WHERE b.resource_id = $1
   AND ($3::text IS NULL
        OR (b.created_at, b.id) < (
@@ -567,7 +565,6 @@ func (q *Queries) ListBuildsForResource(ctx context.Context, arg ListBuildsForRe
 			&i.Status,
 			&i.SourceType,
 			&i.Stage,
-			&i.StageSince,
 			&i.SourceKey,
 			&i.SourceSize,
 			&i.DockerfilePath,
@@ -884,7 +881,7 @@ func (q *Queries) ListUndeletedBuildSources(ctx context.Context, maxBuilds int32
 }
 
 const lockBuild = `-- name: LockBuild :one
-SELECT id, resource_id, cluster_id, status, source_type, stage, stage_since, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR UPDATE
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR UPDATE
 `
 
 func (q *Queries) LockBuild(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -897,7 +894,6 @@ func (q *Queries) LockBuild(ctx context.Context, id uuid.UUID) (Build, error) {
 		&i.Status,
 		&i.SourceType,
 		&i.Stage,
-		&i.StageSince,
 		&i.SourceKey,
 		&i.SourceSize,
 		&i.DockerfilePath,
@@ -932,7 +928,7 @@ func (q *Queries) LockBuildImageForDelete(ctx context.Context, id uuid.UUID) (*t
 }
 
 const lockBuildImageForDeploy = `-- name: LockBuildImageForDeploy :one
-SELECT id, resource_id, cluster_id, status, source_type, stage, stage_since, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR SHARE
+SELECT id, resource_id, cluster_id, status, source_type, stage, source_key, source_size, dockerfile_path, context, git_commit, git_branch, git_commit_message, image_repository, image_digest, cache_digest, message, created_by, api_token_id, created_at, started_at, finished_at, source_deleted_at, image_deleted_at FROM builds WHERE id = $1 FOR SHARE
 `
 
 func (q *Queries) LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Build, error) {
@@ -945,7 +941,6 @@ func (q *Queries) LockBuildImageForDeploy(ctx context.Context, id uuid.UUID) (Bu
 		&i.Status,
 		&i.SourceType,
 		&i.Stage,
-		&i.StageSince,
 		&i.SourceKey,
 		&i.SourceSize,
 		&i.DockerfilePath,
@@ -1039,8 +1034,6 @@ WHERE b.id IN (
 )
   AND b.status IN ('succeeded', 'failed', 'canceled')
   AND b.source_deleted_at IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM deployments d
-    WHERE d.status = 'failed' AND d.spec->'build'->>'buildId' = b.id::text)
   AND (b.status <> 'succeeded' OR b.image_deleted_at IS NOT NULL)
 `
 
@@ -1095,26 +1088,16 @@ func (q *Queries) TryAdvisoryLock(ctx context.Context, lockKey int64) (bool, err
 }
 
 const updateBuildStage = `-- name: UpdateBuildStage :exec
-UPDATE builds SET stage = $1,
- stage_since = CASE WHEN stage <> $1::text OR stage_since IS NULL THEN $2::timestamptz ELSE stage_since END
-WHERE id = $3 AND cluster_id = $4
- AND status IN ('queued','running') AND $1::text <> ''
+UPDATE builds SET stage = $2 WHERE id = $1
 `
 
 type UpdateBuildStageParams struct {
-	Stage      string     `json:"stage"`
-	StageSince *time.Time `json:"stageSince"`
-	ID         uuid.UUID  `json:"id"`
-	ClusterID  *uuid.UUID `json:"clusterId"`
+	ID    uuid.UUID `json:"id"`
+	Stage string    `json:"stage"`
 }
 
 func (q *Queries) UpdateBuildStage(ctx context.Context, arg UpdateBuildStageParams) error {
-	_, err := q.db.Exec(ctx, updateBuildStage,
-		arg.Stage,
-		arg.StageSince,
-		arg.ID,
-		arg.ClusterID,
-	)
+	_, err := q.db.Exec(ctx, updateBuildStage, arg.ID, arg.Stage)
 	return err
 }
 

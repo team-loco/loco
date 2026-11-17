@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -26,7 +29,7 @@ func FinishBuildDeployments(ctx context.Context, qtx *genDb.Queries, buildID uui
 	)
 }
 
-func buildActivity(previous, current genDb.Build) []activityEntry {
+func buildActivity(previous, current genDb.Build, stageSince time.Time) []activityEntry {
 	var entries []activityEntry
 	if previous.StartedAt == nil && current.StartedAt != nil {
 		entries = append(
@@ -40,11 +43,7 @@ func buildActivity(previous, current genDb.Build) []activityEntry {
 			loco.BuildStageBuild: "Building image",
 			loco.BuildStagePush:  "Pushing image",
 		}[loco.BuildStage(current.Stage)]
-		entry := activityEntry{Message: message, Severity: activityInfo}
-		if current.StageSince != nil {
-			entry.At = *current.StageSince
-		}
-		entries = append(entries, entry)
+		entries = append(entries, activityEntry{Message: message, Severity: activityInfo, At: stageSince})
 	}
 	if previous.Status != current.Status && buildStatusFinished(current.Status) {
 		entries = append(entries, finishedBuildActivity(current))
@@ -88,6 +87,9 @@ func updateBuildingDeployments(
 			}
 			status = genDb.DeploymentStatusDeploying
 		case genDb.BuildStatusFailed:
+			if err := storeBuildProblem(ctx, qtx, deployment.ID, build); err != nil {
+				return err
+			}
 			status = genDb.DeploymentStatusFailed
 		case genDb.BuildStatusCanceled:
 			status = genDb.DeploymentStatusCanceled
@@ -104,6 +106,21 @@ func updateBuildingDeployments(
 		}
 	}
 	return nil
+}
+
+func storeBuildProblem(ctx context.Context, qtx *genDb.Queries, deploymentID uuid.UUID, build genDb.Build) error {
+	snapshot, err := json.Marshal(rolloutSnapshot{Problem: &agentv1.ProblemReport{
+		Reason: string(loco.ProblemBuildFailed),
+		Detail: build.Message,
+		Since:  optionalTimestamp(build.FinishedAt),
+	}})
+	if err != nil {
+		return fmt.Errorf("encode build problem: %w", err)
+	}
+	if err := qtx.OpenRollout(ctx, genDb.OpenRolloutParams{DeploymentID: deploymentID}); err != nil {
+		return fmt.Errorf("open build rollout: %w", err)
+	}
+	return qtx.StoreRollout(ctx, genDb.StoreRolloutParams{DeploymentID: deploymentID, Snapshot: snapshot})
 }
 
 func placeBuiltDeployment(

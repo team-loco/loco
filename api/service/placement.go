@@ -15,6 +15,48 @@ import (
 
 var errPlacementApplicationMissing = errors.New("placement application spec is missing")
 
+func placeApplication(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	params genDb.UpsertPlacementParams,
+) error {
+	retired, err := qtx.RetireOtherRegionPlacements(ctx, genDb.RetireOtherRegionPlacementsParams{
+		ResourceID:    params.ResourceID,
+		EnvironmentID: params.EnvironmentID,
+		Region:        params.Region,
+		ClusterID:     params.ClusterID,
+	})
+	if err != nil {
+		return fmt.Errorf("retire previous placements: %w", err)
+	}
+	removed := make([]genDb.MarkPlacementDeletedRow, 0, len(retired))
+	for _, row := range retired {
+		removed = append(removed, genDb.MarkPlacementDeletedRow(row))
+	}
+	if notifyErr := notifyRemovedPlacements(ctx, qtx, params.ResourceID, removed); notifyErr != nil {
+		return notifyErr
+	}
+	placement, err := qtx.UpsertPlacement(ctx, params)
+	if err != nil {
+		return fmt.Errorf("upsert placement: %w", err)
+	}
+	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
+	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
+		return fmt.Errorf("open placement window: %w", err)
+	}
+	clusterID := params.ClusterID.String()
+	if err := qtx.NotifyClusterPlacements(ctx, clusterID); err != nil {
+		return fmt.Errorf("notify placements: %w", err)
+	}
+	slog.InfoContext(ctx, "placement updated",
+		"placement_id", placement.ID,
+		"revision", placement.DesiredRevision,
+		"cluster_id", params.ClusterID,
+		"resource_id", params.ResourceID,
+	)
+	return nil
+}
+
 func removePlacement(ctx context.Context, qtx *genDb.Queries, resourceID, clusterID uuid.UUID) error {
 	removed, err := qtx.MarkPlacementDeleted(ctx, genDb.MarkPlacementDeletedParams{
 		ResourceID: resourceID,
@@ -179,50 +221,4 @@ func rewritePlacement(
 		EnvironmentID: placement.EnvironmentID,
 		SecretNames:   placement.SecretNames,
 	})
-}
-
-func placeApplication(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	params genDb.UpsertPlacementParams,
-) error {
-	retired, retireErr := qtx.RetireOtherRegionPlacements(ctx, genDb.RetireOtherRegionPlacementsParams{
-		ResourceID:    params.ResourceID,
-		EnvironmentID: params.EnvironmentID,
-		Region:        params.Region,
-		ClusterID:     params.ClusterID,
-	})
-	if retireErr != nil {
-		return fmt.Errorf("retire previous placements: %w", retireErr)
-	}
-	for _, clusterID := range retired {
-		if err := qtx.ClosePlacementWindow(
-			ctx,
-			genDb.ClosePlacementWindowParams{ResourceID: params.ResourceID, ClusterID: clusterID},
-		); err != nil {
-			return err
-		}
-		if err := qtx.NotifyClusterPlacements(ctx, clusterID.String()); err != nil {
-			return err
-		}
-	}
-	placement, err := qtx.UpsertPlacement(ctx, params)
-	if err != nil {
-		return fmt.Errorf("upsert placement: %w", err)
-	}
-	window := genDb.OpenPlacementWindowParams{ResourceID: params.ResourceID, ClusterID: params.ClusterID}
-	if err := qtx.OpenPlacementWindow(ctx, window); err != nil {
-		return fmt.Errorf("open placement window: %w", err)
-	}
-	clusterID := params.ClusterID.String()
-	if err := qtx.NotifyClusterPlacements(ctx, clusterID); err != nil {
-		return fmt.Errorf("notify placements: %w", err)
-	}
-	slog.InfoContext(ctx, "placement updated",
-		"placement_id", placement.ID,
-		"revision", placement.DesiredRevision,
-		"cluster_id", params.ClusterID,
-		"resource_id", params.ResourceID,
-	)
-	return nil
 }

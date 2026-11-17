@@ -26,7 +26,6 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
-	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 // MaxDeploymentWatchStreams caps concurrent streams per principal on an API replica.
@@ -91,15 +90,6 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 	}
 	if err := setDeploymentRollout(deployment, row.RolloutSnapshot); err != nil {
 		return nil, err
-	}
-	if row.CurrentRevision == 0 && row.BuildFailureDetail != nil {
-		message, _ := loco.ProblemMessage(loco.ProblemBuildFailed)
-		deployment.Problem = &deploymentv1.Problem{
-			Reason:  string(loco.ProblemBuildFailed),
-			Message: message,
-			Detail:  *row.BuildFailureDetail,
-			Since:   optionalTimestamp(row.BuildFinishedAt),
-		}
 	}
 	return deployment, nil
 }
@@ -251,13 +241,13 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, region); rolloutErr != nil {
+		building := genDb.DeploymentStatusBuilding
+		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, region, building); rolloutErr != nil {
 			return rolloutErr
 		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}
-		requestSpec.GetService().Build = proto.CloneOf(pinnedBuild)
 		resource, getErr := qtx.GetResourceByID(ctx, resourceID)
 		if getErr != nil {
 			return fmt.Errorf("read resource before deployment: %w", getErr)

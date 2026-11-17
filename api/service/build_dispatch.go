@@ -375,14 +375,9 @@ func (s *AgentServer) recordBuildStatus(
 		slog.WarnContext(ctx, "ignoring invalid build stage", "build_id", buildID, "stage", stage)
 		return nil
 	}
-	switch status.GetPhase() {
-	case agentv1.BuildPhase_BUILD_PHASE_PENDING,
-		agentv1.BuildPhase_BUILD_PHASE_RUNNING,
-		agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED,
-		agentv1.BuildPhase_BUILD_PHASE_FAILED,
-		agentv1.BuildPhase_BUILD_PHASE_CANCELED:
-	default:
-		return nil
+	var stageSince time.Time
+	if status.GetStageSince() != nil {
+		stageSince = status.GetStageSince().AsTime()
 	}
 	var finished *buildSource
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -399,20 +394,10 @@ func (s *AgentServer) recordBuildStatus(
 		if previous.ClusterID == nil || *previous.ClusterID != clusterID || buildStatusFinished(previous.Status) {
 			return nil
 		}
-		var since *time.Time
-		if status.GetStageSince() != nil {
-			since = new(status.GetStageSince().AsTime())
-		}
-		if err := qtx.UpdateBuildStage(
-			ctx,
-			genDb.UpdateBuildStageParams{
-				ID:         buildID,
-				ClusterID:  &clusterID,
-				Stage:      status.GetStage(),
-				StageSince: since,
-			},
-		); err != nil {
-			return err
+		if stage := status.GetStage(); stage != "" && stage != previous.Stage {
+			if err := qtx.UpdateBuildStage(ctx, genDb.UpdateBuildStageParams{ID: buildID, Stage: stage}); err != nil {
+				return err
+			}
 		}
 		switch status.GetPhase() {
 		case agentv1.BuildPhase_BUILD_PHASE_PENDING:
@@ -483,7 +468,13 @@ func (s *AgentServer) recordBuildStatus(
 		if getErr != nil {
 			return getErr
 		}
-		return updateBuildingDeployments(ctx, qtx, current, buildActivity(previous, current), s.config.ServiceDefaults)
+		return updateBuildingDeployments(
+			ctx,
+			qtx,
+			current,
+			buildActivity(previous, current, stageSince),
+			s.config.ServiceDefaults,
+		)
 	})
 	if err != nil {
 		return fmt.Errorf("record build %s status: %w", buildID, err)

@@ -36,11 +36,9 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	current := currentSpec.GetService()
 	regions := slices.Sorted(maps.Keys(op.Desired.Regions))
 	affected := a.affectedRegions(res.ID, op.Changes, regions)
-	if a.builds[res.Name] != nil {
-		affected = regions
-	}
 	var allowed []genDb.DeploymentStatus
 	if a.builds[res.Name] != nil {
+		affected = regions
 		allowed = []genDb.DeploymentStatus{genDb.DeploymentStatusBuilding}
 	}
 	for _, region := range affected {

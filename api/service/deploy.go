@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -107,7 +108,7 @@ func createDeploymentWithCleanup(
 			qtx,
 			deploymentID,
 			0,
-			buildActivity(genDb.Build{}, pendingBuild),
+			buildActivity(genDb.Build{}, pendingBuild, time.Time{}),
 		); activityErr != nil {
 			return uuid.Nil, activityErr
 		}

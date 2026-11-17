@@ -740,14 +740,7 @@ func (s *AgentServer) recordStatus(
 	}
 }
 
-func deploymentStatusNames(statuses ...genDb.DeploymentStatus) []string {
-	names := make([]string, 0, len(statuses))
-	for _, status := range statuses {
-		names = append(names, string(status))
-	}
-	return names
-}
-
+// advanceDeploymentStatus records rollout events with their status transition.
 func advanceDeploymentStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -796,4 +789,12 @@ func advanceDeploymentStatus(
 		SubjectID:     &params.ID,
 		Data:          data,
 	})
+}
+
+func deploymentStatusNames(statuses ...genDb.DeploymentStatus) []string {
+	names := make([]string, 0, len(statuses))
+	for _, status := range statuses {
+		names = append(names, string(status))
+	}
+	return names
 }

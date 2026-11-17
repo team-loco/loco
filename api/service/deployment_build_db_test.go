@@ -143,8 +143,11 @@ func TestDeploymentBuildActivity(t *testing.T) {
 	if _, err := conn.Exec(f.ctx, "LISTEN deployment_activity"); err != nil {
 		t.Fatal(err)
 	}
-	for _, stage := range []string{"Fetch", "Build", "Push"} {
+	stages := []string{"Fetch", "Build", "Push"}
+	stageTimes := make([]time.Time, 0, len(stages))
+	for _, stage := range stages {
 		since := time.Now().Add(-time.Second).Truncate(time.Microsecond)
+		stageTimes = append(stageTimes, since)
 		status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_RUNNING)
 		status.Stage, status.StageSince = stage, timestamppb.New(since)
 		for range 2 {
@@ -153,9 +156,6 @@ func TestDeploymentBuildActivity(t *testing.T) {
 				t.Fatal(err)
 			}
 			status.StageSince = timestamppb.New(since.Add(time.Second))
-		}
-		if stored := f.row(t, buildID).StageSince; stored == nil || !stored.Equal(since) {
-			t.Fatalf("stage since=%v want %v", stored, since)
 		}
 	}
 	ctx, cancel := context.WithTimeout(f.ctx, time.Second)
@@ -177,6 +177,9 @@ func TestDeploymentBuildActivity(t *testing.T) {
 			t.Fatalf("seq=%d", row.Seq)
 		}
 		messages = append(messages, row.Message)
+		if i > 0 && i <= len(stageTimes) && !row.At.Equal(stageTimes[i-1]) {
+			t.Fatalf("%s at %v, want %v", row.Message, row.At, stageTimes[i-1])
+		}
 	}
 	if want := []string{
 		"Build started",

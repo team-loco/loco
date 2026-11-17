@@ -736,7 +736,7 @@ UPDATE placements SET desired_deleted = true, desired_spec = NULL,
  apply_attempts = 0, apply_failed = false, updated_at = NOW()
 WHERE resource_id = $1 AND environment_id = $2
  AND region = $3 AND cluster_id <> $4 AND NOT desired_deleted
-RETURNING cluster_id
+RETURNING id, cluster_id, desired_revision
 `
 
 type RetireOtherRegionPlacementsParams struct {
@@ -746,7 +746,13 @@ type RetireOtherRegionPlacementsParams struct {
 	ClusterID     uuid.UUID `json:"clusterId"`
 }
 
-func (q *Queries) RetireOtherRegionPlacements(ctx context.Context, arg RetireOtherRegionPlacementsParams) ([]uuid.UUID, error) {
+type RetireOtherRegionPlacementsRow struct {
+	ID              uuid.UUID `json:"id"`
+	ClusterID       uuid.UUID `json:"clusterId"`
+	DesiredRevision int64     `json:"desiredRevision"`
+}
+
+func (q *Queries) RetireOtherRegionPlacements(ctx context.Context, arg RetireOtherRegionPlacementsParams) ([]RetireOtherRegionPlacementsRow, error) {
 	rows, err := q.db.Query(ctx, retireOtherRegionPlacements,
 		arg.ResourceID,
 		arg.EnvironmentID,
@@ -757,13 +763,13 @@ func (q *Queries) RetireOtherRegionPlacements(ctx context.Context, arg RetireOth
 		return nil, err
 	}
 	defer rows.Close()
-	var items []uuid.UUID
+	var items []RetireOtherRegionPlacementsRow
 	for rows.Next() {
-		var cluster_id uuid.UUID
-		if err := rows.Scan(&cluster_id); err != nil {
+		var i RetireOtherRegionPlacementsRow
+		if err := rows.Scan(&i.ID, &i.ClusterID, &i.DesiredRevision); err != nil {
 			return nil, err
 		}
-		items = append(items, cluster_id)
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

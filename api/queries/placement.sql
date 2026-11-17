@@ -276,4 +276,4 @@ UPDATE placements SET desired_deleted = true, desired_spec = NULL,
  apply_attempts = 0, apply_failed = false, updated_at = NOW()
 WHERE resource_id = sqlc.arg(resource_id) AND environment_id = sqlc.arg(environment_id)
  AND region = sqlc.arg(region) AND cluster_id <> sqlc.arg(cluster_id) AND NOT desired_deleted
-RETURNING cluster_id;
+RETURNING id, cluster_id, desired_revision;

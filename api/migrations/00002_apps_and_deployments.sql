@@ -344,7 +344,6 @@ CREATE TABLE
         status build_status NOT NULL,
         source_type TEXT NOT NULL CHECK (source_type IN ('upload')),
         stage TEXT NOT NULL DEFAULT '',
-        stage_since TIMESTAMPTZ,
         source_key TEXT NOT NULL UNIQUE,
         source_size BIGINT NOT NULL,
         dockerfile_path TEXT NOT NULL,

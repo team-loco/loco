@@ -10,16 +10,12 @@ SELECT * FROM deployments WHERE id = $1;
 
 -- name: ListResourceDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
- b.message AS build_failure_detail,
- b.finished_at AS build_finished_at,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
-LEFT JOIN builds b ON b.id = NULLIF(d.spec->'build'->>'buildId','')::uuid
- AND b.status = 'failed' AND d.status = 'failed'
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
@@ -42,16 +38,12 @@ LIMIT sqlc.arg('page_size');
 
 -- name: ListEnvironmentDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
- b.message AS build_failure_detail,
- b.finished_at AS build_finished_at,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
-LEFT JOIN builds b ON b.id = NULLIF(d.spec->'build'->>'buildId','')::uuid
- AND b.status = 'failed' AND d.status = 'failed'
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
@@ -146,16 +138,12 @@ WHERE d.id = $1;
 
 -- name: GetDeploymentView :one
 SELECT sqlc.embed(d), r.type AS resource_type,
- b.message AS build_failure_detail,
- b.finished_at AS build_finished_at,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
  (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
-LEFT JOIN builds b ON b.id = NULLIF(d.spec->'build'->>'buildId','')::uuid
- AND b.status = 'failed' AND d.status = 'failed'
 JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
