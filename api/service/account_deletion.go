@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
@@ -23,9 +24,11 @@ func (s *UserServer) GetAccountDeletionImpact(
 	if err != nil {
 		return nil, err
 	}
-	if p.UserID == uuid.Nil || p.Entity.Type != genDb.EntityTypeUser ||
-		(p.Method != genDb.DeploymentMethodWeb && p.Method != genDb.DeploymentMethodCli) {
+	if p.UserID == uuid.Nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
+	}
+	if err = check(ctx, s.authz, p, actions.New(actions.GetUser, p.UserID)); err != nil {
+		return nil, err
 	}
 	user, err := s.queries.GetUserByID(ctx, p.UserID)
 	if err != nil {
@@ -34,10 +37,15 @@ func (s *UserServer) GetAccountDeletionImpact(
 	if user.Status != genDb.UserStatusActive {
 		return nil, connect.NewError(connect.CodeUnauthenticated, "account is unavailable")
 	}
-	// Issuer attribution grants no access. Reload permissions for every preview/page.
 	scopes, err := s.authz.UserScopes(ctx, p.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("get account deletion scopes: %w", err)
+	}
+	if p.Method == genDb.DeploymentMethodApiToken {
+		scopes, err = s.authz.Intersect(ctx, p.Scopes, scopes)
+		if err != nil {
+			return nil, fmt.Errorf("bound account deletion scopes: %w", err)
+		}
 	}
 	readable := s.authz.ReadableEntities(scopes)
 	pageSize := normalizePageSize(req.GetPageSize())

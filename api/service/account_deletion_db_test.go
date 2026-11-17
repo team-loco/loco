@@ -140,7 +140,7 @@ func TestAccountDeletionImpactPagesOnlyCurrentlyReadableIssuedTokens(t *testing.
 	}
 }
 
-func TestAccountDeletionImpactRequiresHumanSession(t *testing.T) {
+func TestAccountDeletionImpactRequiresAccountReadPermission(t *testing.T) {
 	t.Parallel()
 	o := newMembershipOrg(t)
 	o.api.machine.Cfg.MaxAPITokenDuration = time.Hour
@@ -178,6 +178,53 @@ func TestAccountDeletionImpactRequiresHumanSession(t *testing.T) {
 		if codeOf(err) != connect.CodePermissionDenied {
 			t.Fatalf("API token preview = %v", err)
 		}
+	}
+}
+
+func TestAccountDeletionImpactRespectsPersonalTokenScopeCeiling(t *testing.T) {
+	t.Parallel()
+	o := newMembershipOrg(t)
+	addDeletionToken(t, o, o.owner.id,
+		genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: uuid.MustParse(o.shared)}, "visible")
+	addDeletionToken(t, o, o.owner.id,
+		genDb.Entity{Type: genDb.EntityTypeWorkspace, ID: uuid.MustParse(o.sibling)}, "outside-ceiling")
+	issued, err := o.owner.clients.Token.CreateToken(t.Context(), &tokenv1.CreateTokenRequest{
+		Name: "account-preview", EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
+		EntityId: o.owner.id.String(), ExpiresInSec: 3600,
+		Scopes: []*tokenv1.EntityScope{
+			{
+				EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
+				EntityId:   o.owner.id.String(), Scope: tokenv1.Scope_SCOPE_READ,
+			},
+			{
+				EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+				EntityId:   o.shared, Scope: tokenv1.Scope_SCOPE_READ,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	clients := rpc.NewHTTPClients(http.DefaultClient, o.api.url, issued.GetToken())
+	got, err := clients.User.GetAccountDeletionImpact(t.Context(), &userv1.GetAccountDeletionImpactRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.GetOwnedTokens()) != 1 || got.GetOwnedTokens()[0].GetName() != "visible" ||
+		got.GetOwnedTokens()[0].GetCanRevoke() || !got.GetHasInaccessibleOwnedTokens() {
+		t.Fatalf("scope-bounded preview = %v", got)
+	}
+	if _, err = o.api.pool.Exec(t.Context(),
+		"DELETE FROM user_scopes WHERE user_id = $1 AND scope = 'read' AND entity_type <> 'user'", o.owner.id,
+	); err != nil {
+		t.Fatal(err)
+	}
+	got, err = clients.User.GetAccountDeletionImpact(t.Context(), &userv1.GetAccountDeletionImpactRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.GetOwnedTokens()) != 0 || !got.GetHasInaccessibleOwnedTokens() {
+		t.Fatalf("preview after permission removal = %v", got)
 	}
 }
 
@@ -271,6 +318,11 @@ func TestAccountDeletionImpactMatchesOwnerReadHierarchy(t *testing.T) {
 		{genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeRead, 3, true},
 	} {
 		if _, err := o.api.pool.Exec(t.Context(), "DELETE FROM user_scopes WHERE user_id = $1", u.id); err != nil {
+			t.Fatal(err)
+		}
+		if err := o.api.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+			UserID: u.id, EntityType: genDb.EntityTypeUser, EntityID: u.id, Scope: genDb.ScopeRead,
+		}); err != nil {
 			t.Fatal(err)
 		}
 		if err := o.api.queries.AddUserScope(
