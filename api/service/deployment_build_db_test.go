@@ -273,12 +273,11 @@ func TestDeploymentBuildActivity(t *testing.T) {
 			t.Fatalf("seq=%d", row.Seq)
 		}
 		messages = append(messages, row.Message)
-		if i > 0 && i <= len(stageTimes) && !row.At.Equal(stageTimes[i-1]) {
-			t.Fatalf("%s at %v, want %v", row.Message, row.At, stageTimes[i-1])
+		if i < len(stageTimes) && !row.At.Equal(stageTimes[i]) {
+			t.Fatalf("%s at %v, want %v", row.Message, row.At, stageTimes[i])
 		}
 	}
 	if want := []string{
-		"Build started",
 		"Fetching source",
 		"Building image",
 		"Pushing image",

@@ -31,12 +31,6 @@ func FinishBuildDeployments(ctx context.Context, qtx *genDb.Queries, buildID uui
 
 func buildActivity(previous, current genDb.Build, stageSince time.Time) []activityEntry {
 	var entries []activityEntry
-	if previous.StartedAt == nil && current.StartedAt != nil {
-		entries = append(
-			entries,
-			activityEntry{Message: "Build started", Severity: activityInfo, At: *current.StartedAt},
-		)
-	}
 	if previous.Stage != current.Stage && current.Stage != "" {
 		message := map[loco.BuildStage]string{
 			loco.BuildStageFetch: "Fetching source",
