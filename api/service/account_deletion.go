@@ -30,23 +30,7 @@ func (s *UserServer) GetAccountDeletionImpact(
 	if err = check(ctx, s.authz, p, actions.New(actions.GetUser, p.UserID)); err != nil {
 		return nil, err
 	}
-	user, err := s.queries.GetUserByID(ctx, p.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("get account deletion user: %w", err)
-	}
-	if user.Status != genDb.UserStatusActive {
-		return nil, connect.NewError(connect.CodeUnauthenticated, "account is unavailable")
-	}
-	scopes, err := s.authz.UserScopes(ctx, p.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("get account deletion scopes: %w", err)
-	}
-	if p.Method == genDb.DeploymentMethodApiToken {
-		scopes, err = s.authz.Intersect(ctx, p.Scopes, scopes)
-		if err != nil {
-			return nil, fmt.Errorf("bound account deletion scopes: %w", err)
-		}
-	}
+	scopes := p.Scopes
 	readable := s.authz.ReadableEntities(scopes)
 	pageSize := normalizePageSize(req.GetPageSize())
 	orgs, err := s.queries.ListAccountDeletionBlockingOrganizations(ctx,
