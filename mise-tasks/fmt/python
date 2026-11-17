@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-#MISE description="Fix lint violations and format every Python file"
-set -euo pipefail
-
-status=0
-ruff check --fix || status=$?
-ruff format
-exit "$status"

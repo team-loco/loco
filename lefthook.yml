@@ -16,9 +16,9 @@ pre-commit:
       glob: ["web/**", "gen/ts/**"]
       run: mise run lint:web
 
-    - name: lint:python
+    - name: ruff
       glob: ["*.py", "ruff.toml"]
-      run: mise run lint:python
+      run: mise exec -- ruff check && mise exec -- ruff format --check
 
     - name: lint:actions
       glob: [".github/workflows/*"]

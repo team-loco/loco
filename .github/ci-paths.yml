@@ -386,7 +386,6 @@ python:
   pull_request: &python
     - "**/*.py"
     - "ruff.toml"
-    - "mise-tasks/lint/python"
     - "mise.toml"
     - "mise.lock"
     - ".github/workflows/python.yml"
