@@ -32,7 +32,6 @@ import { userLabel } from "@/lib/user";
 
 import { EnvironmentsSection } from "./EnvironmentsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
-import { WebhooksSection } from "./WebhooksSection";
 import type { ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 63;
@@ -215,8 +214,6 @@ export function WorkspaceTab({
 				canWrite={canWrite}
 				canAdmin={canAdmin}
 			/>
-
-			{canAdmin && <WebhooksSection orgId={ws.orgId} workspaceId={ws.id} workspaceName={ws.name} />}
 
 			<SettingsSection title="Danger zone">
 				<DangerZone

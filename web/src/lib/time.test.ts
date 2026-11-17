@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { shortAgoLabel } from "./time";
+import { shortAgoLabel, shortDurationLabel } from "./time";
 
 test("shortAgoLabel fits minutes, hours and days in a few characters", () => {
 	const now = Date.UTC(2026, 0, 10);
@@ -8,6 +8,21 @@ test("shortAgoLabel fits minutes, hours and days in a few characters", () => {
 	expect(shortAgoLabel(now - 5 * 60_000, now)).toBe("5m ago");
 	expect(shortAgoLabel(now - 3 * 3_600_000, now)).toBe("3h ago");
 	expect(shortAgoLabel(now - 2 * 86_400_000, now)).toBe("2d ago");
+});
+
+test("formats short durations with rounded seconds, minutes, hours and days", () => {
+	for (const [ms, label] of [
+		[0, "1s"],
+		[10_000, "10s"],
+		[29_000, "29s"],
+		[30_000, "1m"],
+		[5 * 60_000, "5m"],
+		[59.5 * 60_000, "1h"],
+		[3 * 3_600_000, "3h"],
+		[23.5 * 3_600_000, "1d"],
+		[2 * 86_400_000, "2d"],
+	] as const)
+		expect(shortDurationLabel(ms)).toBe(label);
 });
 
 import {

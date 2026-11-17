@@ -11,9 +11,11 @@ import {
 import { useState } from "react";
 
 import { Button } from "@/components/design/Button";
+import { RotateCwIcon } from "lucide-react";
+import { CopyId } from "@/components/design/CopyId";
 import { Badge } from "@/components/design/Badge";
 import { Pager } from "@/components/design/Pager";
-import { Sheet, SheetBody, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -24,15 +26,13 @@ import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { formatClock, tsMs } from "@/lib/time";
 
 import { WebhookActions } from "./WebhookActions";
-import { formatDay } from "./parts";
+import { formatDay } from "../settings/parts";
 import {
 	deliveryDetail,
 	deliveryLabel,
-	deliveryTick,
+	deliveryGlyph,
 	deliveryWhen,
-	eventsSummary,
 	STATUS_FAILED,
-	STATUS_PENDING,
 	STATUS_SUCCEEDED,
 } from "./webhooks";
 
@@ -46,9 +46,6 @@ const FAILING = "failing";
 const FILTERS = [
 	{ value: ALL, label: "All" },
 	{ value: FAILING, label: "Failing" },
-	{ value: STATUS_PENDING, label: "Pending" },
-	{ value: STATUS_SUCCEEDED, label: "Delivered" },
-	{ value: STATUS_FAILED, label: "Failed" },
 ] as const;
 type Filter = (typeof FILTERS)[number]["value"];
 
@@ -57,7 +54,9 @@ export function WebhookDrawer({
 	workspaceName,
 	webhook,
 	onClose,
+	onDelete,
 }: {
+	onDelete: () => void;
 	workspaceId: string;
 	workspaceName: string;
 	webhook: Webhook | null;
@@ -71,9 +70,15 @@ export function WebhookDrawer({
 				if (!next) onClose();
 			}}
 		>
-			<SheetContent size="wide">
+			<SheetContent size="wide" className="data-[side=right]:w-[min(560px,calc(100vw-16px))]">
 				{shown !== null && (
-					<WebhookDetail key={shown.id} workspaceId={workspaceId} workspaceName={workspaceName} webhook={shown} />
+					<WebhookDetail
+						onDelete={onDelete}
+						key={shown.id}
+						workspaceId={workspaceId}
+						workspaceName={workspaceName}
+						webhook={shown}
+					/>
 				)}
 			</SheetContent>
 		</Sheet>
@@ -84,7 +89,9 @@ function WebhookDetail({
 	workspaceId,
 	workspaceName,
 	webhook,
+	onDelete,
 }: {
+	onDelete: () => void;
 	workspaceId: string;
 	workspaceName: string;
 	webhook: Webhook;
@@ -98,7 +105,7 @@ function WebhookDetail({
 		{
 			workspaceId,
 			webhookId: webhook.id,
-			status: filter === ALL || filter === FAILING ? "" : filter,
+			status: "",
 			failing: filter === FAILING,
 			pageSize: paging.size,
 			pageToken: "",
@@ -128,38 +135,81 @@ function WebhookDetail({
 	};
 	const redeliver = useMutation(redeliverWebhookDelivery, {
 		onSuccess: () => {
-			toast.success("Redelivery queued");
 			refresh();
 		},
 		onError: (error) => {
 			toastConnectError(error, "Could not redeliver the event");
 		},
 	});
-	const chips = webhook.eventTypes.length === 0 ? [`Every event in ${workspaceName}`] : webhook.eventTypes;
+	const chips = webhook.eventTypes.length === 0 ? ["All events in this workspace"] : webhook.eventTypes;
 
 	return (
 		<>
 			<SheetHeader>
-				<div className="flex min-w-0 flex-col gap-0.5">
-					<SheetTitle className="truncate font-mono text-[13.5px] font-medium tracking-normal">
-						{webhook.url}
+				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
+					<span className="text-[12px] text-fg3">Webhook</span>
+					<SheetTitle className="truncate font-mono text-[15px] font-medium" title={webhook.url}>
+						{new URL(webhook.url).host}
 					</SheetTitle>
-					<SheetDescription className="text-[12px]">
-						{eventsSummary(webhook.eventTypes)} · created {formatDay(webhook.createdAt, timePref)}
-					</SheetDescription>
 				</div>
+				<WebhookActions
+					workspaceId={workspaceId}
+					workspaceName={workspaceName}
+					webhook={webhook}
+					onChanged={refresh}
+					onDelete={onDelete}
+				/>
 			</SheetHeader>
 			<SheetBody>
-				<WebhookActions workspaceId={workspaceId} workspaceName={workspaceName} webhook={webhook} onChanged={refresh} />
-				<ul aria-label="Events" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-					{chips.map((c) => (
-						<li key={c}>
-							<Badge tone="muted" size="sm" className="font-mono font-normal">
-								{c}
-							</Badge>
-						</li>
-					))}
-				</ul>
+				<dl className="grid grid-cols-[84px_minmax(0,1fr)] items-start gap-y-3 text-[12.5px]">
+					<dt className="text-fg3">URL</dt>
+					<dd className="m-0 flex min-w-0 items-start gap-1 font-mono">
+						<CopyId
+							value={webhook.url}
+							title="Copy URL"
+							toastText="Copied URL"
+							className="h-auto max-w-full justify-start border-0 px-0 py-0 font-mono text-[12.5px] font-normal whitespace-normal"
+						>
+							<span className="break-all text-left">{webhook.url}</span>
+						</CopyId>
+					</dd>
+					<dt className="text-fg3">Events</dt>
+					<dd className="m-0">
+						<ul aria-label="Events" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+							{chips.map((c) => (
+								<li key={c}>
+									<Badge tone="muted" size="sm" className="font-mono font-normal">
+										{c}
+									</Badge>
+								</li>
+							))}
+						</ul>
+					</dd>
+					<dt className="text-fg3">Created</dt>
+					<dd className="m-0">
+						{formatDay(webhook.createdAt, timePref)} · {formatClock(tsMs(webhook.createdAt), false, timePref)}
+					</dd>
+					<dt className="text-fg3">ID</dt>
+					<dd className="m-0">
+						<CopyId
+							value={webhook.id}
+							title="Copy webhook ID"
+							toastText="Copied webhook ID"
+							className="h-auto max-w-full justify-start border-0 px-0 py-0 font-mono text-[12.5px] font-normal whitespace-normal"
+						>
+							<span className="break-all text-left">{webhook.id}</span>
+						</CopyId>
+					</dd>
+					{webhook.previousSecretExpiresAt !== undefined && (
+						<>
+							<dt className="text-fg3">Signing</dt>
+							<dd className="m-0">
+								Also signed with the previous secret until {formatDay(webhook.previousSecretExpiresAt, timePref)} ·{" "}
+								{formatClock(tsMs(webhook.previousSecretExpiresAt), false, timePref)}
+							</dd>
+						</>
+					)}
+				</dl>
 				<div className="flex flex-wrap items-center justify-between gap-2.5">
 					<h3 className="m-0 text-[14px] font-medium">Deliveries</h3>
 					<ToggleGroup
@@ -177,7 +227,7 @@ function WebhookDetail({
 						{FILTERS.map((f) => (
 							<ToggleGroupItem key={f.value} value={f.value}>
 								{f.label}
-								{query.data !== undefined && (f.value === ALL || f.value === FAILING) && (
+								{query.data !== undefined && (
 									<span className="text-fg3">
 										{(f.value === ALL
 											? query.data.pages[0]?.totalCount
@@ -199,14 +249,18 @@ function WebhookDetail({
 					isLoading={query.isPending}
 					error={query.data === undefined ? query.error : null}
 					onRedeliver={(deliveryId) => {
-						redeliver.mutate({ workspaceId, webhookId: webhook.id, deliveryId });
+						const eventType = loaded.find((d) => d.id === deliveryId)?.eventType ?? "event";
+						redeliver.mutate(
+							{ workspaceId, webhookId: webhook.id, deliveryId },
+							{
+								onSuccess: () => {
+									toast.success(`Redelivering ${eventType}`);
+								},
+							},
+						);
 					}}
 					redelivering={redeliver.isPending}
-					empty={
-						filter === ALL
-							? "No deliveries yet. Events appear here as they are sent."
-							: "No deliveries with this status."
-					}
+					empty={filter === ALL ? "No deliveries yet. Events appear here as they are sent." : "Nothing failing."}
 				/>
 				{query.error !== null && (
 					<Button
@@ -273,10 +327,10 @@ function DeliveryList({
 				return (
 					<li
 						key={d.id}
-						className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-b border-line py-2.5 last:border-b-0"
+						className="grid grid-cols-[90px_minmax(0,1fr)_70px_28px] sm:grid-cols-[110px_minmax(0,1fr)_100px_28px] items-center gap-x-3 gap-y-1 border-b border-line py-2.5 last:border-b-0"
 					>
 						<span className="flex items-center gap-2 text-[12.5px]">
-							<StatusGlyph glyph={deliveryTick(d)} />
+							<StatusGlyph glyph={deliveryGlyph(d)} />
 							{deliveryLabel(d)}
 						</span>
 						<span className="truncate font-mono text-[12px]">{d.eventType}</span>
@@ -286,22 +340,24 @@ function DeliveryList({
 						>
 							{deliveryWhen(d, nowMs)}
 						</span>
+						<span className="col-start-4 row-start-1">
+							{(d.status === STATUS_SUCCEEDED || d.status === STATUS_FAILED) && (
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									title="Redeliver"
+									aria-label={`Redeliver ${d.eventType}`}
+									aria-disabled={redelivering}
+									onClick={() => {
+										if (!redelivering) onRedeliver(d.id);
+									}}
+								>
+									<RotateCwIcon />
+								</Button>
+							)}
+						</span>
 						{detail !== null && (
-							<span className="col-start-2 col-end-4 font-mono text-[11.5px] [overflow-wrap:anywhere] text-fg3">
-								{detail}
-							</span>
-						)}
-						{(d.status === STATUS_SUCCEEDED || d.status === STATUS_FAILED) && (
-							<Button
-								className="col-start-2 w-fit"
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									if (!redelivering) onRedeliver(d.id);
-								}}
-							>
-								Redeliver
-							</Button>
+							<span className="col-start-2 col-end-5 font-mono text-[11.5px] break-words text-fg3">{detail}</span>
 						)}
 					</li>
 				);

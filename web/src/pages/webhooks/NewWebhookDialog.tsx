@@ -1,6 +1,7 @@
 import { useMutation } from "@connectrpc/connect-query";
 import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import { createWebhook, updateWebhook } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
+import { toast } from "sonner";
 import { useRef, useState, type RefObject } from "react";
 
 import { Button } from "@/components/design/Button";
@@ -13,11 +14,12 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage } from "@/lib/error-handler";
 import { pageSelection, setPage, toggleId } from "@/lib/selection";
 
-import { groupCountLabel, isHttpsUrl, isUrlRejection, webhookEventGroups } from "./webhooks";
+import { groupCountLabel, isHttpsUrl, isPrivateAddress, isUrlRejection, webhookEventGroups } from "./webhooks";
 
 type Mode = "all" | "choose";
 
 const GROUPS = webhookEventGroups();
+const NO_TYPES: string[] = [];
 
 export function NewWebhookDialog({
 	workspaceId,
@@ -26,7 +28,9 @@ export function NewWebhookDialog({
 	open,
 	onClose,
 	onCreated,
+	initialTypes = NO_TYPES,
 }: {
+	initialTypes?: string[];
 	workspaceId: string;
 	workspaceName: string;
 	webhook?: Webhook | undefined;
@@ -61,6 +65,7 @@ export function NewWebhookDialog({
 				>
 					{secret === null ? (
 						<NewWebhookForm
+							initialTypes={initialTypes}
 							workspaceId={workspaceId}
 							webhook={webhook}
 							urlRef={urlRef}
@@ -82,11 +87,13 @@ export function NewWebhookDialog({
 
 function NewWebhookForm({
 	workspaceId,
+	initialTypes,
 	webhook,
 	urlRef,
 	onCancel,
 	onCreated,
 }: {
+	initialTypes: string[];
 	workspaceId: string;
 	urlRef: RefObject<HTMLInputElement | null>;
 	onCancel: () => void;
@@ -97,15 +104,20 @@ function NewWebhookForm({
 	const update = useMutation(updateWebhook);
 	const mutation = webhook === undefined ? create : update;
 	const [url, setUrl] = useState(webhook?.url ?? "");
-	const [mode, setMode] = useState<Mode>(webhook !== undefined && webhook.eventTypes.length > 0 ? "choose" : "all");
-	const [types, setTypes] = useState<ReadonlySet<string>>(() => new Set(webhook?.eventTypes));
+	const [mode, setMode] = useState<Mode>((webhook?.eventTypes ?? initialTypes).length > 0 ? "choose" : "all");
+	const [types, setTypes] = useState<ReadonlySet<string>>(() => new Set(webhook?.eventTypes ?? initialTypes));
 
 	const target = url.trim();
 	const rejected = isUrlRejection(mutation.error);
 	const httpsUrl = isHttpsUrl(target);
-	const urlError =
-		target !== "" && !httpsUrl ? "Use an https:// URL." : rejected ? getErrorMessage(mutation.error) : null;
-	const ok = httpsUrl && (mode === "all" || types.size > 0);
+	const urlError = isPrivateAddress(target)
+		? "Private and reserved addresses are blocked."
+		: target !== "" && !httpsUrl
+			? "Use an https:// URL."
+			: rejected
+				? getErrorMessage(mutation.error)
+				: null;
+	const ok = httpsUrl && !isPrivateAddress(target) && (mode === "all" || types.size > 0);
 
 	const submit = () => {
 		if (!ok || mutation.isPending) return;
@@ -115,6 +127,7 @@ function NewWebhookForm({
 				{ ...input, webhookId: webhook.id },
 				{
 					onSuccess: () => {
+						toast.success("Saved webhook");
 						onCreated(null);
 					},
 				},
@@ -138,11 +151,6 @@ function NewWebhookForm({
 			}}
 		>
 			<DialogBody>
-				<p className="m-0 text-[12.5px] text-fg3">
-					{webhook === undefined
-						? "Loco signs each request following the Standard Webhooks spec and retries failures for up to a day."
-						: "Pending retries will use the updated URL."}
-				</p>
 				<Field label="Endpoint URL" error={urlError}>
 					<Input
 						ref={urlRef}
@@ -202,7 +210,7 @@ function NewWebhookForm({
 							: "Create webhook"
 						: mutation.isPending
 							? "Saving…"
-							: "Save changes"}
+							: "Save"}
 				</Button>
 			</DialogFooter>
 		</form>
@@ -262,7 +270,7 @@ function EventPicker({
 								if (!pageSelection(next, open.types).some) groupChipsRef.current.get(open.label)?.focus();
 							}}
 						>
-							{t}
+							{t.slice(t.indexOf(".") + 1)}
 						</ToggleChip>
 					))}
 				</div>
@@ -281,7 +289,7 @@ export function SigningSecret({ secret, onDone }: { secret: string; onDone: () =
 				</p>
 				<div className="flex items-center gap-2.5 rounded-lg bg-panel2 py-2 pr-2 pl-3">
 					<code className="min-w-0 flex-1 font-mono text-[13px] break-all">{secret}</code>
-					<CopyButton text={secret} name="Copy signing secret" />
+					<CopyButton text={secret} name="Copy signing secret" toastText="Copied signing secret" />
 				</div>
 			</DialogBody>
 			<DialogFooter>

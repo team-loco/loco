@@ -8,11 +8,13 @@ import { msToTimestamp } from "@/lib/time";
 import {
 	DELIVERY_TICKS,
 	deliveryDetail,
+	deliveryGlyph,
 	deliveryLabel,
 	deliveryWhen,
 	eventsSummary,
 	groupCountLabel,
 	isHttpsUrl,
+	isPrivateAddress,
 	isUrlRejection,
 	tickStrip,
 	webhookEventGroups,
@@ -58,9 +60,9 @@ test("shows the next attempt for a pending retry and the age otherwise", () => {
 			nextAttemptAt: msToTimestamp(nextMs),
 			...(deliveredMs === undefined ? {} : { deliveredAt: msToTimestamp(deliveredMs) }),
 		});
-	expect(deliveryWhen(at("pending", now + 2 * 60_000), now)).toBe("next in 2 min");
-	expect(deliveryWhen(at("pending", now - 1), now)).toBe("10 min ago");
-	expect(deliveryWhen(at("succeeded", now, now - 60_000), now)).toBe("1 min ago");
+	expect(deliveryWhen(at("pending", now + 2 * 60_000), now)).toBe("retry in 2m");
+	expect(deliveryWhen(at("pending", now - 1), now)).toBe("10m ago");
+	expect(deliveryWhen(at("succeeded", now, now - 60_000), now)).toBe("1m ago");
 });
 
 test("describes the last error with the attempt count", () => {
@@ -136,4 +138,19 @@ test("offers workspace secret key events without targeted test or organization e
 	]);
 	expect(webhookEventGroups().find((g) => g.label === "Secrets")?.types).toContain("secret_key.rewrapped");
 	expect(webhookEventGroups().flatMap((g) => g.types)).not.toContain("webhook.test");
+});
+
+test("blocks private endpoint addresses before submission", () => {
+	for (const host of ["localhost", "127.0.0.1", "10.1.2.3", "192.168.0.1", "169.254.0.1", "172.16.0.1", "172.31.255.1"])
+		expect(isPrivateAddress(`https://${host}/hook`)).toBe(true);
+	for (const host of ["example.com", "172.15.0.1", "172.32.0.1"])
+		expect(isPrivateAddress(`https://${host}/hook`)).toBe(false);
+	expect(tickStrip([delivery("pending", "pending")])[0]?.tick).toBe("wait");
+});
+
+test("maps fresh pending deliveries to the neutral glyph", () => {
+	expect(deliveryGlyph(delivery("pending", "pending"))).toBe("off");
+	expect(deliveryGlyph(delivery("retry", "pending", "timeout"))).toBe("warn");
+	expect(deliveryGlyph(delivery("failed", "failed"))).toBe("err");
+	expect(deliveryGlyph(delivery("sent", "succeeded"))).toBe("ok");
 });

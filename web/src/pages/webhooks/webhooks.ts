@@ -1,10 +1,11 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 
+import type { Glyph } from "@/components/design/StatusGlyph";
 import { pluralize } from "@/lib/format";
-import { agoLabel, DAY_MS, maybeTsMs, tsMs } from "@/lib/time";
+import { maybeTsMs, shortAgoLabel, shortDurationLabel, tsMs } from "@/lib/time";
 
-import { AUDIT_EVENT_TYPES } from "./auditEvents";
+import { AUDIT_EVENT_TYPES } from "../settings/auditEvents";
 
 export const DELIVERY_TICKS = 24;
 
@@ -12,15 +13,17 @@ export const STATUS_SUCCEEDED = "succeeded";
 export const STATUS_FAILED = "failed";
 export const STATUS_PENDING = "pending";
 
-const MINUTE_MS = 60_000;
-const HOUR_MS = 3_600_000;
-
-export type Tick = "ok" | "warn" | "err";
+export type Tick = "ok" | "warn" | "err" | "wait";
 
 export function deliveryTick(d: WebhookDelivery): Tick {
 	if (d.status === STATUS_SUCCEEDED) return "ok";
 	if (d.status === STATUS_FAILED) return "err";
-	return "warn";
+	return d.lastError === "" ? "wait" : "warn";
+}
+
+export function deliveryGlyph(d: WebhookDelivery): Glyph {
+	const tick = deliveryTick(d);
+	return tick === "wait" ? "off" : tick;
 }
 
 export function deliveryLabel(d: WebhookDelivery): string {
@@ -46,17 +49,24 @@ export function tickStrip(newestFirst: readonly WebhookDelivery[]): TickMark[] {
 export function deliveryWhen(d: WebhookDelivery, nowMs: number): string {
 	const nextMs = maybeTsMs(d.nextAttemptAt);
 	if (d.status === STATUS_PENDING && nextMs !== undefined && nextMs > nowMs) {
-		return `next ${inLabel(nextMs, nowMs)}`;
+		return `retry in ${shortDurationLabel(nextMs - nowMs)}`;
 	}
-	return agoLabel(maybeTsMs(d.deliveredAt) ?? tsMs(d.createdAt), nowMs);
+	return shortAgoLabel(maybeTsMs(d.deliveredAt) ?? tsMs(d.createdAt), nowMs);
 }
 
-function inLabel(ms: number, nowMs: number): string {
-	const left = ms - nowMs;
-	if (left < MINUTE_MS) return "in under a minute";
-	if (left < HOUR_MS) return `in ${Math.round(left / MINUTE_MS).toString()} min`;
-	if (left < DAY_MS) return `in ${pluralize(Math.round(left / HOUR_MS), "hour")}`;
-	return `in ${pluralize(Math.round(left / DAY_MS), "day")}`;
+export function isPrivateAddress(value: string): boolean {
+	if (!URL.canParse(value)) return false;
+	const host = new URL(value).hostname.toLowerCase();
+	if (host === "localhost" || host.endsWith(".localhost")) return true;
+	const octets = host.split(".").map(Number);
+	return (
+		octets.length === 4 &&
+		(octets[0] === 127 ||
+			octets[0] === 10 ||
+			(octets[0] === 192 && octets[1] === 168) ||
+			(octets[0] === 169 && octets[1] === 254) ||
+			(octets[0] === 172 && octets[1] !== undefined && octets[1] >= 16 && octets[1] <= 31))
+	);
 }
 
 export function deliveryDetail(d: WebhookDelivery): string | null {
