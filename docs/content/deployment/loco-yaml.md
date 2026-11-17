@@ -44,6 +44,25 @@ services:
 
 A service with `port` and without `domains` is private. Each entry of `domains` is one label under a platform domain, such as `storefront.example.com` under `example.com`. A platform domain is one a cluster serves: the cluster's agent reports it once the Gateway listeners for `*.<domain>` are accepted and programmed and the certificate covering it is ready. The plan rejects a hostname unless the cluster of every region the service runs in serves its platform domain, and names the clusters that do not. When a cluster stops serving a domain, assigned hostnames stay, and the region's status turns degraded with the hostnames it no longer serves. Each region needs `cpu` from `100m` to `2000m`, `memory` from `32Mi` to `4Gi`, and `replicas.min` and `replicas.max` from 1 to 10. Without `autoscaling`, the service runs `replicas.min` replicas. Set `autoscaling: { cpuTarget: 70 }` or `autoscaling: { memoryTarget: 80 }` on a region to scale between `replicas.min` and `replicas.max`. The target is a percentage of the container’s resource request, from 1 to 100. `loco.yaml` accepts exactly one target per region. Removing `autoscaling` returns the service to `replicas.min` replicas. Partial names are DNS labels. A service name is any label of at most 63 characters with a letter or digit; see [private service discovery](#private-service-discovery) for its slug. The API checks resource limits when it plans the file, and `GetConfig` reports them as `size_limits`. The API accepts any Kubernetes quantity within them. The JSON Schema accepts CPU as whole millicores such as `250m` or as cores such as `0.5`, and memory as whole mebibytes such as `512Mi` or as gibibytes from `1Gi`, such as `1.5Gi`.
 
+## Public gRPC
+
+A service with `port` and `domains` accepts gRPC through its public HTTPS hostname without a protocol setting. The gateway terminates TLS and forwards requests with a gRPC content type to the application over cleartext HTTP/2 (h2c). The application must listen for h2c on `port`; it does not need its own TLS certificate. Unary and server-streaming RPCs preserve gRPC statuses and trailers.
+
+```yaml
+services:
+  rpc:
+    port: 50051
+    domains: [rpc.apps.example.com]
+```
+
+Omit `health` when the application has no HTTP health endpoint. HTTP and gRPC can share the same port and hostname: ordinary HTTP requests reach the application over HTTP/1.1. The configured `routing.pathPrefix` applies to both protocols; gRPC method paths have the form `/package.Service/Method`.
+
+The focused E2E case deploys a protobuf health service, verifies TLS, unary success and error statuses, trailers, server streaming, and HTTP on the same hostname:
+
+```sh
+mise run e2e builds '^TestGRPCIngress$' --keep
+```
+
 ## Private service discovery
 
 Applications in the same workspace on the same cluster reach services that declare `port` through native Kubernetes DNS, such as `http://cart.loco-ws-00000000-0000-7000-8000-000000000003.svc.cluster.local`. Port 80 forwards to the configured application port, so callers omit the port even when cart listens on 7070. Loco uses namespaces named `loco-ws-<workspace UUID>`; replace the example UUID with the caller's workspace UUID. A caller in that namespace can also use `http://cart`. Both private and publicly routed services have these endpoints. Callers need no resource IDs, OIDC tokens or discovery API calls. Declare dependent services in regions where they run on the same cluster; these DNS names do not connect separate clusters or regions.

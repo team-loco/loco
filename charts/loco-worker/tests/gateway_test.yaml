@@ -183,11 +183,14 @@ tests:
           path: spec.targetRefs
           value: [{group: gateway.networking.k8s.io, kind: Gateway, name: eg}]
 
-  - it: preserves HTTP3 and Envoy's default TLS minimum
+  - it: advertises HTTP2 for gRPC even when listener certificates overlap
     template: templates/gateway.yaml
     documentSelector: {path: kind, value: ClientTrafficPolicy}
     asserts:
       - exists:
           path: spec.http3
+      - equal:
+          path: spec.tls.alpnProtocols
+          value: [h2, http/1.1]
       - notExists:
-          path: spec.tls
+          path: spec.tls.minVersion

@@ -147,10 +147,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   http3: {}
-  {{- with .Values.envoyProxy.tls.minVersion }}
   tls:
+    alpnProtocols: [h2, http/1.1]
+    {{- with .Values.envoyProxy.tls.minVersion }}
     minVersion: {{ . | quote }}
-  {{- end }}
+    {{- end }}
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway

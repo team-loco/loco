@@ -63,6 +63,7 @@ const (
 	envRegion               = "LOCO_REGION"
 	componentApplication    = "application"
 	servicePort             = int32(80)
+	grpcServicePort         = int32(81)
 	applicationPortName     = "http"
 	deployingRequeue        = 15 * time.Second
 	envSecretRequeue        = 5 * time.Second
@@ -541,6 +542,16 @@ func (r *ApplicationReconciler) ensureService(ctx context.Context, app *locov1al
 		WithType(corev1.ServiceTypeClusterIP).
 		WithSelector(selector).
 		WithPorts(port)
+	if app.Spec.ServiceSpec.Routing != nil {
+		// A separate Service port lets Envoy use HTTP/2 for gRPC and HTTP/1.1 for
+		// ordinary requests to the same application port.
+		spec.WithPorts(corev1ac.ServicePort().
+			WithName("grpc").
+			WithProtocol(corev1.ProtocolTCP).
+			WithPort(grpcServicePort).
+			WithTargetPort(targetPort).
+			WithAppProtocol("kubernetes.io/h2c"))
+	}
 	svc := corev1ac.Service(name, namespace).
 		WithLabels(labels).
 		WithAnnotations(annotations).
@@ -856,10 +867,18 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 	rule := gatewayac.HTTPRouteRule().
 		WithMatches(match).
 		WithBackendRefs(backendRef)
+	grpcMatch := gatewayac.HTTPRouteMatch().WithPath(pathMatch).WithHeaders(
+		gatewayac.HTTPHeaderMatch().WithName("content-type").
+			WithType(v1Gateway.HeaderMatchRegularExpression).
+			WithValue(`^application/grpc(\+[^;]+)?(;.*)?$`))
+	grpcRule := gatewayac.HTTPRouteRule().
+		WithMatches(grpcMatch).
+		WithBackendRefs(gatewayac.HTTPBackendRef().WithKind("Service").
+			WithName(v1Gateway.ObjectName(name)).WithPort(grpcServicePort))
 	spec := gatewayac.HTTPRouteSpec().
 		WithHostnames(v1Gateway.Hostname(routing.HostName)).
 		WithParentRefs(parentRef).
-		WithRules(rule)
+		WithRules(grpcRule, rule)
 
 	labels := managedLabels(app)
 	annotations := ownerAnnotations(app)
