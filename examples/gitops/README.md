@@ -14,7 +14,7 @@ Set API and dashboard hostnames, the administrator email, region, application do
 
 Bootstrap Flux to `clusters/control-plane` and `clusters/worker-staging`, using the Git host and bootstrap method you operate. Bootstrap writes each cluster's `flux-system/` directory. Git access is a bootstrap input outside reconciliation.
 
-`bases/control-plane/` and `bases/worker/` define bundle selection, shared values and `loco-cluster-config`, which applies configuration after namespaces exist. The bundle's role layer waits for that configuration and infrastructure. Each cluster references its role base and supplies per-cluster values plus its configuration path. Shared `<release>-base-values` and cluster `<release>-values` ConfigMaps are merged in that order. ConfigMaps are generated without name suffixes so Helm releases can reference them.
+`bases/control-plane/` and `bases/worker/` define bundle entry points, shared values and `loco-cluster-config`, which applies configuration after namespaces exist. The bundle's role layer waits for that configuration and infrastructure. Each cluster references its role base and exactly one `releases/<cohort>.yaml` file, and supplies per-cluster values plus its configuration path. The worker base is shared across staging and production cohorts. Shared `<release>-base-values` and cluster `<release>-values` ConfigMaps are merged in that order. ConfigMaps are generated without name suffixes so Helm releases can reference them.
 
 After Flux bootstrap creates `loco-system` on the worker, sign in as the configured administrator and register it:
 
