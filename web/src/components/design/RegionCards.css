@@ -1,0 +1,60 @@
+.reg-cards {
+	display: grid;
+	align-items: stretch;
+	grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr));
+	gap: 8px;
+}
+.reg-card {
+	height: auto;
+	min-height: 44px;
+	flex-direction: column;
+	align-items: flex-start;
+	justify-content: flex-start;
+	gap: 2px;
+	padding: 7px 12px;
+	border: 1px solid var(--line2);
+	border-radius: 8px;
+	background: var(--bg);
+	color: var(--fg3);
+	text-align: left;
+	font-weight: 400;
+	white-space: normal;
+	transition:
+		border-color 120ms ease,
+		color 120ms ease,
+		background 120ms ease,
+		box-shadow 120ms ease;
+}
+.reg-card:hover {
+	color: var(--fg);
+	border-color: var(--fg4);
+	background: var(--bg);
+}
+.reg-card[aria-pressed="true"] {
+	color: var(--fg);
+	border-color: var(--fg);
+	box-shadow: inset 0 0 0 1px var(--fg);
+	background: var(--raise);
+}
+.reg-card[aria-disabled="true"] {
+	cursor: default;
+	opacity: 1;
+}
+.reg-note {
+	font-size: 11.5px;
+	color: var(--fg3);
+}
+.reg-note[data-tone="add"] {
+	color: color-mix(in oklch, var(--ok) 70%, var(--fg));
+}
+.reg-note[data-tone="rm"] {
+	color: color-mix(in oklch, var(--err) 70%, var(--fg));
+}
+.reg-note[data-tone="warn"] {
+	color: color-mix(in oklch, var(--warn) 70%, var(--fg));
+}
+@media (prefers-reduced-motion: reduce) {
+	.reg-card {
+		transition: none;
+	}
+}

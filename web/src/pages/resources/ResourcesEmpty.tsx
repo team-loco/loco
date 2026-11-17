@@ -1,10 +1,10 @@
 import { useQuery } from "@connectrpc/connect-query";
-import { ArrowUpRightIcon, GlobeIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
+import { GlobeIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
-import { Button } from "@/components/design/Button";
+import { DocsButton } from "@/components/design/DocsButton";
 import { CopyButton } from "@/components/design/CopyButton";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { DOCS_URL } from "@/pages/splash/links";
@@ -60,14 +60,7 @@ export function ResourcesEmpty({ environmentId, newHref }: { environmentId: stri
 				</span>
 				<CopyButton text={DEPLOY_COMMAND} name="Copy loco deploy" />
 			</div>
-			<Button
-				variant="outline"
-				nativeButton={false}
-				render={<a href={DOCS_URL} target="_blank" rel="noopener noreferrer" />}
-			>
-				Read the docs
-				<ArrowUpRightIcon />
-			</Button>
+			<DocsButton href={DOCS_URL} />
 		</EmptyHero>
 	);
 }

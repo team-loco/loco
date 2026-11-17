@@ -22,24 +22,14 @@ function SaveBar({
 	disabledReason: string | null;
 }) {
 	const save = (
-		<Button
-			className="bg-primary-foreground text-primary hover:bg-primary-foreground"
-			disabled={disabledReason !== null || saving}
-			onClick={onSave}
-		>
+		<Button disabled={disabledReason !== null || saving} onClick={onSave}>
 			{saving ? "Saving…" : saveLabel}
 		</Button>
 	);
 	return (
-		<div className="sticky bottom-4 z-20 flex animate-in items-center gap-3 rounded-card bg-primary py-2.5 pr-2.5 pl-4 text-[13px] text-primary-foreground shadow-bar duration-240 fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none">
+		<div className="sticky bottom-4 z-20 flex animate-in items-center gap-3 savebar rounded-card bg-raise py-2.5 pr-2.5 pl-4 text-[13px] text-foreground shadow-bar duration-240 fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none">
 			<span className="flex-1">{unsavedLabel(count)}</span>
-			<Button
-				variant="ghost"
-				size="sm"
-				className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground dark:hover:bg-primary-foreground/10"
-				disabled={saving}
-				onClick={onDiscard}
-			>
+			<Button variant="outline" size="sm" className="bg-background" disabled={saving} onClick={onDiscard}>
 				Discard
 			</Button>
 			{disabledReason === null ? (

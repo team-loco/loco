@@ -2,6 +2,7 @@ import type { Scaling } from "@/lib/new-resource";
 import type { ReplicaRange } from "@/lib/sizing";
 
 import { Field } from "./Field";
+import { RangeSlider } from "./RangeSlider";
 import { Stepper } from "./Stepper";
 
 export function ScalingFields({
@@ -49,7 +50,7 @@ export function ScalingFields({
 				</Field>
 				{value.maxReplicas !== value.replicas && (
 					<Field label="CPU target (%)">
-						<Stepper
+						<RangeSlider
 							label={`CPU target (%)${suffix}`}
 							value={value.cpuTarget}
 							min={1}

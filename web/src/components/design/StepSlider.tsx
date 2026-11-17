@@ -1,6 +1,6 @@
 import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 
-import { cn } from "@/lib/utils";
+import "./Slider.css";
 
 // Built on the Base UI primitive because the stock shadcn slider cannot label its thumb.
 export function StepSlider({
@@ -29,28 +29,41 @@ export function StepSlider({
 				step={1}
 				value={Math.max(0, index)}
 				disabled={disabled || options.length < 2}
-				thumbAlignment="edge"
+				thumbAlignment="center"
 				onValueChange={(next: number | readonly number[]) => {
 					const i: number | undefined = typeof next === "number" ? next : next[0];
 					const picked = i === undefined ? undefined : options[i];
 					if (picked !== undefined && picked.value !== value) onChange(picked.value);
 				}}
 			>
-				<SliderPrimitive.Control className="relative flex w-full touch-none items-center py-1.5 select-none data-disabled:opacity-50">
-					<SliderPrimitive.Track className="relative h-1 grow overflow-hidden rounded-full bg-line2">
-						<SliderPrimitive.Indicator className="h-full bg-foreground" />
+				<SliderPrimitive.Control className="dsl-box data-disabled:opacity-50">
+					<SliderPrimitive.Track className="dsl-rail">
+						<SliderPrimitive.Indicator className="dsl-fill" />
+						{options.map((option, i) => (
+							<span
+								key={option.value}
+								aria-hidden
+								className="dsl-stop"
+								data-on={i <= index ? "" : undefined}
+								style={{ left: `${(i / Math.max(1, options.length - 1)) * 100}%` }}
+							/>
+						))}
 					</SliderPrimitive.Track>
 					<SliderPrimitive.Thumb
 						aria-label={label}
 						aria-describedby={describedBy}
 						getAriaValueText={() => current?.label ?? value}
-						className="block size-3.5 rounded-full border border-foreground bg-background ring-ring/50 focus-visible:ring-3 focus-visible:outline-hidden"
+						className="dsl-thumb"
 					/>
 				</SliderPrimitive.Control>
 			</SliderPrimitive.Root>
-			<span className="flex justify-between font-mono text-[11px] text-fg3">
+			<span className="dsl-labels">
 				{options.map((o, i) => (
-					<span key={o.value} className={cn(i === index && "text-foreground")}>
+					<span
+						key={o.value}
+						data-on={i === index ? "" : undefined}
+						style={{ left: `${(i / Math.max(1, options.length - 1)) * 100}%` }}
+					>
 						{o.label}
 					</span>
 				))}

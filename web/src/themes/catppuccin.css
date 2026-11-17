@@ -1,4 +1,6 @@
 [data-theme="catppuccin"] {
+	--sl: var(--btn);
+	--sl-track: var(--line2);
 	--radius-control: 10px;
 	--radius-card: 16px;
 	--radius-overlay: 18px;

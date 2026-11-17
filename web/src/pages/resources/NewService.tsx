@@ -13,7 +13,7 @@ import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_conn
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
-import { RegionHealth } from "@/components/design/RegionHealth";
+import { RegionCard, RegionCards } from "@/components/design/RegionCards";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
 import { Button } from "@/components/design/Button";
 import { CodeBlock } from "@/components/design/CodeBlock";
@@ -539,27 +539,27 @@ function ServiceForm({
 					{regions.length === 0 ? (
 						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>
 					) : (
-						<ToggleGroup
-							multiple
-							variant="outline"
+						<RegionCards
 							aria-label="Regions"
-							className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2"
 							value={selected}
-							onValueChange={(v: string[]) => {
-								set({ regions: v });
+							onValueChange={(next: string[]) => {
+								if (next.length > 0) set({ regions: next });
 							}}
 						>
-							{regions.map((r) => (
-								<ToggleGroupItem
-									key={r.region}
-									value={r.region}
-									className="h-[38px] w-full min-w-0 gap-1.5 rounded-lg border-line2 px-3 font-mono text-[12.5px] font-normal text-fg3 hover:bg-transparent hover:text-foreground aria-pressed:border-foreground aria-pressed:bg-raise aria-pressed:text-foreground aria-pressed:ring-1 aria-pressed:ring-foreground aria-pressed:ring-inset"
-								>
-									<span className="truncate">{r.region}</span>
-									<RegionHealth region={r} />
-								</ToggleGroupItem>
-							))}
-						</ToggleGroup>
+							{regions.map((region) => {
+								const last = selected.includes(region.region) && selected.length === 1;
+								return (
+									<RegionCard
+										key={region.region}
+										name={region.region}
+										value={region.region}
+										health={region}
+										aria-disabled={last || undefined}
+										title={last ? "A resource needs at least one region" : undefined}
+									/>
+								);
+							})}
+						</RegionCards>
 					)}
 					{shown(errors.regions, "regions") !== null && (
 						<span className="text-[12.5px] text-bad-fg">{errors.regions}</span>

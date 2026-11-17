@@ -1,4 +1,6 @@
 [data-theme="solarized"] {
+	--sl: var(--btn);
+	--sl-track: var(--line2);
 	--shell: #eee8d5;
 	--shell-hover: #e6dfc8;
 	--shell-active: #ddd5bb;

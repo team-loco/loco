@@ -82,13 +82,14 @@ with session(out) as browser:
             for region in regions:
                 for _ in range(2):
                     section.get_by_role("button", name=f"Increase maximum replicas in {region}", exact=True).click()
-                section.get_by_role("button", name=f"Decrease cPU target (%) in {region}", exact=True).click()
+                section.get_by_role("slider", name=f"CPU target (%) in {region}", exact=True).focus()
+                page.keyboard.press("ArrowLeft")
             section.evaluate("node => node.scrollIntoView({block: 'start'})")
             page.wait_for_function("!document.documentElement.classList.contains('dark')")
 
             def assert_edits(region, target):
                 expect(section.get_by_role("group", name=f"Maximum replicas in {region}", exact=True)).to_contain_text("3")
-                expect(section.get_by_role("group", name=f"CPU target (%) in {region}", exact=True)).to_contain_text(str(target))
+                expect(section.get_by_role("slider", name=f"CPU target (%) in {region}", exact=True)).to_have_value(str(target))
 
             def stored_regions():
                 return json.loads(evidence.psql(state["container"], f"SELECT spec FROM resources WHERE id='{resource}';"))["regions"]
@@ -124,7 +125,8 @@ with session(out) as browser:
             commits = evidence.psql(state["container"], f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;")
             assert commits == f"{source_commit['sha']}:true", commits
 
-            section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
+            section.get_by_role("slider", name=f"CPU target (%) in {regions[0]}", exact=True).focus()
+            page.keyboard.press("ArrowLeft")
             save_and_settle()
             assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
 
@@ -135,7 +137,8 @@ with session(out) as browser:
             assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
             assert not fixed.get("scalers", {}).get("enabled", False), fixed
             section.get_by_role("button", name=f"Increase maximum replicas in {regions[0]}", exact=True).click()
-            section.get_by_role("button", name=f"Decrease cPU target (%) in {regions[0]}", exact=True).click()
+            section.get_by_role("slider", name=f"CPU target (%) in {regions[0]}", exact=True).focus()
+            page.keyboard.press("ArrowLeft")
             section.get_by_role("button", name=f"Decrease maximum replicas in {regions[0]}", exact=True).click()
             expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
             sdk = page.get_by_role("switch", name="Configure SDK environment", exact=True)

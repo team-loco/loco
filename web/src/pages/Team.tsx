@@ -7,13 +7,14 @@ import {
 } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { OrgRole, type Invitation } from "@gen/loco/org/v1/org_pb";
 import { Scope } from "@gen/loco/token/v1/token_pb";
-import { ExternalLinkIcon, LayersIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
+import { LayersIcon, PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { parseAsInteger, parseAsNumberLiteral, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useParams } from "react-router";
 import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
+import { DocsButton } from "@/components/design/DocsButton";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { EmptyState } from "@/components/design/EmptyState";
@@ -238,14 +239,7 @@ export function Team() {
 						</p>
 						<span className="mt-1 flex flex-wrap justify-center gap-2">
 							{inviteButton}
-							<Button
-								variant="outline"
-								nativeButton={false}
-								render={<a href={ACCESS_DOCS} target="_blank" rel="noopener" />}
-							>
-								Read the docs
-								<ExternalLinkIcon className="text-fg3" />
-							</Button>
+							<DocsButton href={ACCESS_DOCS} />
 						</span>
 					</section>
 				) : (
