@@ -6,13 +6,11 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"filippo.io/age"
+	"sigs.k8s.io/yaml"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -255,6 +253,7 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 		append(createArgs[:len(createArgs)-1:len(createArgs)-1], "qa"),
 		{clusterJoinToken},
 		{clusterJoinToken, "invalid"},
+		{clusterJoinToken, testClusterID, "-o", "unsupported"},
 	} {
 		fake := &fakeClusterAdmin{t: t}
 		cmd, _ := clusterTestCommand(t, fake)
@@ -268,38 +267,39 @@ func TestClusterRejectsBadArgumentsBeforeRPC(t *testing.T) {
 	}
 }
 
-func TestClusterCreateWritesAnEncryptedTokenWithRequestedTTL(t *testing.T) {
-	recipient, err := age.GenerateX25519Identity()
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestClusterCreatePrintsSecretWithRequestedTTL(t *testing.T) {
 	fake := &fakeClusterAdmin{t: t}
 	command, output := clusterTestCommand(t, fake)
-	path := filepath.Join(t.TempDir(), "join-token.sops.yaml")
 	args := append(
 		append([]string{}, createArgs...),
 		"--ttl",
 		"72h",
-		"--sops-recipient",
-		recipient.Recipient().String(),
-		"--output",
-		path,
+		"-o",
+		"secret",
+		"--namespace",
+		"worker",
+		"--secret-name",
+		"join",
 	)
 	command.SetArgs(args)
-	if err = command.Execute(); err != nil {
+	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	if fake.created.GetTtl().AsDuration() != 72*time.Hour {
 		t.Fatalf("ttl = %v", fake.created.GetTtl())
 	}
-	if strings.Contains(output.String(), testJoinToken) {
-		t.Fatal("encrypted token command printed plaintext")
+	var secret struct {
+		APIVersion string                           `json:"apiVersion"`
+		Kind       string                           `json:"kind"`
+		Metadata   struct{ Name, Namespace string } `json:"metadata"`
+		StringData map[string]string                `json:"stringData"`
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
+	if err := yaml.Unmarshal(output.Bytes(), &secret); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(data), testJoinToken) || !strings.Contains(string(data), "ENC[AES256_GCM") {
-		t.Fatal("output is not an encrypted Secret")
+	if secret.APIVersion != "v1" || secret.Kind != "Secret" || secret.Metadata.Name != "join" ||
+		secret.Metadata.Namespace != "worker" ||
+		secret.StringData["join-token"] != testJoinToken {
+		t.Fatalf("invalid join Secret: %+v", secret)
 	}
 }

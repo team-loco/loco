@@ -146,26 +146,21 @@ func (op operation) command() *cobra.Command {
 		op.flags(command)
 	}
 	tokenCommand := strings.Fields(op.use)[0] == clusterCreate || strings.Fields(op.use)[0] == clusterJoinToken
-	var recipients, output, namespace, secretName string
+	var output, namespace, secretName string
 	if tokenCommand {
 		command.Flags().Duration("ttl", 0, "Join-token lifetime; omission uses the API default")
-		command.Flags().
-			StringVar(&recipients, "sops-recipient", "", "Comma-separated age recipients for the encrypted Secret")
-		command.Flags().StringVar(&output, "output", "", "Write an encrypted join-token Secret to this file")
+		command.Flags().StringVarP(&output, "output", "o", "json", "Output format: json or secret")
 		command.Flags().StringVar(&namespace, "namespace", "loco-system", "Namespace of the worker join-token Secret")
 		command.Flags().
 			StringVar(&secretName, "secret-name", "loco-agent-join-token", "Name of the worker join-token Secret")
-		command.MarkFlagsRequiredTogether("sops-recipient", "output")
 	}
 	command.RunE = func(cmd *cobra.Command, args []string) error {
 		if tokenCommand {
 			if _, err := tokenTTL(cmd); err != nil {
 				return err
 			}
-			if output != "" {
-				if err := gitops.Recipients(recipients); err != nil {
-					return err
-				}
+			if output != "json" && output != "secret" {
+				return errors.New("output must be json or secret")
 			}
 		}
 		if len(args) > 0 {
@@ -182,32 +177,22 @@ func (op operation) command() *cobra.Command {
 			printWorkloads(cmd, err)
 			return err
 		}
-		if tokenCommand && output != "" {
+		if tokenCommand && output == "secret" {
 			var token *clusterv1.JoinToken
-			var id string
 			switch result := response.(type) {
 			case *clusterv1.CreateClusterResponse:
 				token = result.GetJoinToken()
-				id = result.GetClusterId()
 			case *clusterv1.IssueJoinTokenResponse:
 				token = result.GetJoinToken()
-				id = result.GetClusterId()
 			}
 			if token == nil {
-				_, err = fmt.Fprintln(cmd.OutOrStdout(), "Cluster", id, "is enrolled")
-				return err
+				return errors.New("cluster is enrolled; no join token was issued")
 			}
-			if err = gitops.WriteSecret(
-				cmd.Context(),
-				output,
-				recipients,
-				namespace,
-				secretName,
-				map[string]string{"join-token": token.GetToken()},
-			); err != nil {
-				return err
+			data, encodeErr := gitops.Secret(namespace, secretName, map[string]string{"join-token": token.GetToken()})
+			if encodeErr != nil {
+				return encodeErr
 			}
-			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Cluster %s: encrypted join token written to %s\n", id, output)
+			_, err = cmd.OutOrStdout().Write(data)
 			return err
 		}
 		encoded, err := protojson.MarshalOptions{Indent: "  "}.Marshal(response)

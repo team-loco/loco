@@ -2,77 +2,73 @@ package gitops
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"filippo.io/age"
+	"sigs.k8s.io/yaml"
 )
 
-func decryptSecret(t *testing.T, path string, key *age.X25519Identity) map[string]string {
+func readSecret(t *testing.T, path string) map[string]string {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), "sops", "decrypt", "--output-type", "json", path)
-	cmd.Env = append(os.Environ(), "SOPS_AGE_KEY="+key.String())
-	data, err := cmd.Output()
+	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	var secret struct {
 		StringData map[string]string `json:"stringData"`
 	}
-	if err := json.Unmarshal(data, &secret); err != nil {
+	if err = yaml.Unmarshal(data, &secret); err != nil {
 		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("secret mode: %v", info.Mode())
 	}
 	return secret.StringData
 }
 
 func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	t.Parallel()
-	keys := make([]*age.X25519Identity, 3)
-	for i := range keys {
-		var err error
-		keys[i], err = age.GenerateX25519Identity()
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
 	root := t.TempDir()
 	env := filepath.Join(root, "api.env")
 	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\nAUTH_ISSUERS=[]\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	options := InitOptions{
-		Output:                filepath.Join(root, "fleet"),
-		API:                   "https://api.test",
-		Web:                   "https://web.test",
-		Domain:                "apps.test",
-		Region:                "test-east",
-		Admin:                 "admin@test.local",
-		Bundle:                "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
-		APIEnvFile:            env,
-		ControlPlaneRecipient: keys[0].Recipient().String(),
-		WorkerRecipient:       keys[1].Recipient().String(),
-		AdminRecipient:        keys[2].Recipient().String(),
+		Output:     filepath.Join(root, "fleet"),
+		API:        "https://api.test",
+		Web:        "https://web.test",
+		Domain:     "apps.test",
+		Region:     "test-east",
+		Admin:      "admin@test.local",
+		Bundle:     "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
+		APIEnvFile: env,
 	}
-	if err := Init(t.Context(), options); err != nil {
+	if err := Init(options); err != nil {
 		t.Fatal(err)
 	}
-	sealFile := filepath.Join(options.Output, "clusters", "control-plane", "config", "openbao-seal.sops.yaml")
-	seal := decryptSecret(t, sealFile, keys[0])
+	sealFile := filepath.Join(options.Output, "clusters", "control-plane", "config", "openbao-seal.yaml")
+	seal := readSecret(t, sealFile)
 	key, err := base64.StdEncoding.DecodeString(seal["key"])
 	if err != nil || len(key) != 32 {
 		t.Fatalf("invalid seal key length: %d, %v", len(key), err)
 	}
-	if decryptSecret(t, sealFile, keys[2])["key"] != seal["key"] {
-		t.Fatal("offline administrator cannot recover the seal")
+	api := readSecret(t, filepath.Join(options.Output, "clusters", "control-plane", "config", "api-env.yaml"))
+	if api["DATABASE_URL"] != "postgres://fixture" {
+		t.Fatal("API environment differs from input")
 	}
-	worker := decryptSecret(
+	readme, err := os.ReadFile(filepath.Join(options.Output, "README.md"))
+	if err != nil || !strings.Contains(string(readme), "encrypt them before committing") {
+		t.Fatalf("missing encryption guidance: %v", err)
+	}
+	worker := readSecret(
 		t,
-		filepath.Join(options.Output, "clusters", "worker-staging", "config", "join-token.sops.yaml"),
-		keys[1],
+		filepath.Join(options.Output, "clusters", "worker-staging", "config", "join-token.yaml"),
 	)
 	if worker["join-token"] != "" {
 		t.Fatal("scaffold issues an enrollment token without registering a cluster")
@@ -92,35 +88,5 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	}
 	if !strings.Contains(string(cohort), "semver:") {
 		t.Fatal("staging lost automatic stable release selection")
-	}
-}
-
-func TestSecretEncryptionKeepsPlaintextOutOfFiles(t *testing.T) {
-	t.Parallel()
-	recipient, err := age.GenerateX25519Identity()
-	if err != nil {
-		t.Fatal(err)
-	}
-	file := filepath.Join(t.TempDir(), "token.sops.yaml")
-	const token = "fixture-enrollment-value"
-	if err = WriteSecret(
-		t.Context(),
-		file,
-		recipient.Recipient().String(),
-		"loco-system",
-		"join",
-		map[string]string{"join-token": token},
-	); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(file)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(data), token) {
-		t.Fatal("token written in plaintext")
-	}
-	if got := decryptSecret(t, file, recipient)["join-token"]; got != token {
-		t.Fatal("encrypted token differs from issued token")
 	}
 }

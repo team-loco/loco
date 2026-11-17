@@ -2,12 +2,10 @@ package gitops
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/url"
@@ -15,7 +13,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"filippo.io/age"
 	yamlv3 "go.yaml.in/yaml/v3"
 
 	"github.com/team-loco/loco/cmd/internal/dotenv"
@@ -25,10 +22,9 @@ import (
 
 type InitOptions struct {
 	Output, API, Web, Domain, Region, Admin, Bundle, APIEnvFile string
-	ControlPlaneRecipient, WorkerRecipient, AdminRecipient      string
 }
 
-func Init(ctx context.Context, options InitOptions) error {
+func Init(options InitOptions) error {
 	endpoints := make([]*url.URL, 0, 2)
 	for _, address := range []string{options.API, options.Web} {
 		endpoint, err := url.Parse(address)
@@ -39,16 +35,6 @@ func Init(ctx context.Context, options InitOptions) error {
 			return errors.New("api and web must be absolute HTTP URLs without credentials, queries or fragments")
 		}
 		endpoints = append(endpoints, endpoint)
-	}
-	for _, recipient := range []string{options.ControlPlaneRecipient, options.WorkerRecipient, options.AdminRecipient} {
-		if _, err := age.ParseX25519Recipient(recipient); err != nil {
-			return fmt.Errorf("invalid cluster or administrator recipient: %w", err)
-		}
-	}
-	if options.ControlPlaneRecipient == options.WorkerRecipient ||
-		options.ControlPlaneRecipient == options.AdminRecipient ||
-		options.WorkerRecipient == options.AdminRecipient {
-		return errors.New("each cluster and the offline administrator need distinct age recipients")
 	}
 	if options.Output == "" || options.Domain == "" || options.Region == "" || options.Admin == "" {
 		return errors.New("output, domain, region and admin are required")
@@ -90,57 +76,34 @@ func Init(ctx context.Context, options InitOptions) error {
 		return err
 	}
 
-	rules := fmt.Sprintf(
-		`creation_rules:
-  - path_regex: clusters/control-plane/config/.*[.]sops[.]yaml$
-    encrypted_regex: ^(data|stringData)$
-    age: %s,%s
-  - path_regex: clusters/worker-staging/config/.*[.]sops[.]yaml$
-    encrypted_regex: ^(data|stringData)$
-    age: %s,%s
-`,
-		options.ControlPlaneRecipient,
-		options.AdminRecipient,
-		options.WorkerRecipient,
-		options.AdminRecipient,
-	)
-	if err := os.WriteFile(filepath.Join(options.Output, ".sops.yaml"), []byte(rules), 0600); err != nil {
-		return err
-	}
 	seal := make([]byte, 32)
 	if _, err := rand.Read(seal); err != nil {
 		return err
 	}
-	cp := filepath.Join(options.Output, "clusters", "control-plane", "config")
-	recipients := options.ControlPlaneRecipient + "," + options.AdminRecipient
-	if err := WriteSecret(
-		ctx,
-		filepath.Join(cp, "openbao-seal.sops.yaml"),
-		recipients,
-		"loco-system",
-		"openbao-seal",
-		map[string]string{"key": base64.StdEncoding.EncodeToString(seal)},
-	); err != nil {
-		return err
+	for _, secret := range []struct {
+		path, name string
+		data       map[string]string
+	}{
+		{
+			"control-plane/config/openbao-seal.yaml", "openbao-seal",
+			map[string]string{"key": base64.StdEncoding.EncodeToString(seal)},
+		},
+		{"control-plane/config/api-env.yaml", "loco-api-env", env},
+		{"worker-staging/config/join-token.yaml", "loco-agent-join-token", map[string]string{"join-token": ""}},
+	} {
+		data, marshalErr := Secret("loco-system", secret.name, secret.data)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if writeErr := os.WriteFile(
+			filepath.Join(options.Output, "clusters", secret.path),
+			data,
+			0600,
+		); writeErr != nil {
+			return writeErr
+		}
 	}
-	if err := WriteSecret(
-		ctx,
-		filepath.Join(cp, "api-env.sops.yaml"),
-		recipients,
-		"loco-system",
-		"loco-api-env",
-		env,
-	); err != nil {
-		return err
-	}
-	return WriteSecret(
-		ctx,
-		filepath.Join(options.Output, "clusters", "worker-staging", "config", "join-token.sops.yaml"),
-		options.WorkerRecipient+","+options.AdminRecipient,
-		"loco-system",
-		"loco-agent-join-token",
-		map[string]string{"join-token": ""},
-	)
+	return nil
 }
 
 func substitute(value any, replacements *strings.Replacer) any {
@@ -193,9 +156,6 @@ func copyExample(options InitOptions, repository, pin string, replacements *stri
 				return nil
 			}
 			return os.MkdirAll(filepath.Join(options.Output, path), 0700)
-		}
-		if strings.HasSuffix(path, ".sops.yaml") || path == ".sops.yaml" {
-			return nil
 		}
 		data, err := example.Files.ReadFile(path)
 		if err != nil {

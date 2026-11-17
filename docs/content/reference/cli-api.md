@@ -69,26 +69,23 @@ Settings update requests use optional fields. Omitted fields and JSON `null` pre
 
 ## Operator repository
 
-`locoadm init` writes the [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) to a new directory. Supply public API and dashboard URLs, an application domain, region, administrator email, a digest-pinned bundle, an API environment file, and three distinct age public recipients:
+`locoadm init` writes the [GitOps example](https://github.com/team-loco/loco/tree/main/examples/gitops) to a new directory. Supply public API and dashboard URLs, an application domain, region, administrator email, a digest-pinned bundle, and an API environment file:
 
 ```sh
 locoadm init --output ./fleet \
   --api https://api.example.com --web https://app.example.com \
   --domain apps.example.com --region example-east --admin admin@example.com \
   --bundle oci://ghcr.io/team-loco/loco/platform@sha256:BUNDLE_DIGEST \
-  --api-env-file ./api.env \
-  --control-plane-recipient CONTROL_PLANE_AGE_RECIPIENT \
-  --worker-recipient WORKER_AGE_RECIPIENT --admin-recipient OFFLINE_AGE_RECIPIENT
+  --api-env-file ./api.env
 ```
 
-The command generates the static seal key and encrypts it and the supplied API environment in memory. Each cluster's Secrets include its recipient and the offline administrator's recipient. Keep private identities outside the repository. Review chart values, provide infrastructure credentials and bootstrap Flux separately. The worker token starts empty; the agent waits for an issued token.
+The command generates the static seal key and writes it and the supplied API environment as plaintext Kubernetes Secret files. Encrypt these files before committing, or deliver the named Secrets through External Secrets. The generated README describes optional encryption with operator-installed SOPS. Review chart values, provide infrastructure credentials and bootstrap Flux separately. The worker token starts empty; the agent waits for an issued token.
 
-`locoadm cluster create` and `cluster join-token` accept `--ttl`, `--sops-recipient` and `--output`. Supply the latter two together to write an encrypted Kubernetes Secret without printing the token. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Include both the worker and offline administrator recipients, separated by a comma.
+`locoadm cluster create` and `cluster join-token` accept `--ttl` and `-o secret` to print a plaintext Kubernetes Secret manifest. Default output is JSON. `--namespace` defaults to `loco-system`; `--secret-name` defaults to `loco-agent-join-token`. Redirect or pipe the manifest to your own secret-delivery tooling.
 
 ```sh
 locoadm cluster create --name worker-staging --region example-east --tier staging \
-  --ttl 72h --sops-recipient WORKER_AGE_RECIPIENT,OFFLINE_AGE_RECIPIENT \
-  --output ./fleet/clusters/worker-staging/config/join-token.sops.yaml
+  --ttl 72h -o secret > ./fleet/clusters/worker-staging/config/join-token.yaml
 ```
 
 `status` requires a system-admin session. It reports `pending` or `enrolled` for each cluster and compares agent and API versions: the API supports its own minor version and the preceding minor; agents ahead of the API are flagged. Development versions report `unknown`.

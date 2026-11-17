@@ -11,10 +11,10 @@ func Command() *cobra.Command {
 	var options gitops.InitOptions
 	command := &cobra.Command{
 		Use:   "init",
-		Short: "Scaffold an operator GitOps repository with encrypted bootstrap Secrets",
+		Short: "Scaffold an operator GitOps repository with plaintext bootstrap Secrets",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if err := gitops.Init(cmd.Context(), options); err != nil {
+			if err := gitops.Init(options); err != nil {
 				return err
 			}
 			_, err := fmt.Fprintln(cmd.OutOrStdout(), "GitOps repository written to", options.Output)
@@ -33,10 +33,7 @@ func Command() *cobra.Command {
 		{"region", &options.Region, "Worker region"},
 		{"admin", &options.Admin, "First system administrator's verified email"},
 		{"bundle", &options.Bundle, "Platform OCI reference pinned by SHA-256 digest"},
-		{"api-env-file", &options.APIEnvFile, "Environment file to encrypt as the API Secret"},
-		{"control-plane-recipient", &options.ControlPlaneRecipient, "Control-plane age public recipient"},
-		{"worker-recipient", &options.WorkerRecipient, "Worker age public recipient"},
-		{"admin-recipient", &options.AdminRecipient, "Offline administrator age public recipient"},
+		{"api-env-file", &options.APIEnvFile, "Environment file for the plaintext API Secret"},
 	}
 	for _, flag := range flags {
 		command.Flags().StringVar(flag.value, flag.name, "", flag.help)
