@@ -19,6 +19,10 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
         "id": "expired", "root": str(root), "worktree": str(root / "src"),
         "compose": "loco-ui-evidence-expired", "expires_at": 0,
     })
+    live = tmp_path / "live"
+    evidence.write_json(live / "state.json", {
+        "id": "live", "root": str(live), "expires_at": evidence.time.time() + evidence.LEASE_S,
+    })
     monkeypatch.setattr(evidence, "BASE_DIR", tmp_path)
     commands = []
 
@@ -32,11 +36,15 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
         return ""
 
     monkeypatch.setattr(evidence, "run", run)
-    monkeypatch.setattr(evidence.subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(a, 0, stdout=""))
+    monkeypatch.setattr(evidence.subprocess, "run", lambda *a, **kw: subprocess.CompletedProcess(
+        a, 0, stdout="live-openbao\tloco-ui-evidence-live\nforeign-openbao\tforeign-project\n",
+    ))
     evidence.reap()
     assert not root.exists()
+    assert (live / "state.json").exists()
     down = next(cmd for cmd in commands if "down" in cmd)
     assert down[down.index("-p") + 1] == "loco-ui-evidence-expired"
+    assert [cmd for cmd in commands if "down" in cmd] == [down]
 
 
 def test_postgres_pulled_before_start(tmp_path, monkeypatch):
