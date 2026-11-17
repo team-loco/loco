@@ -45,7 +45,11 @@ func TestDevStartup(t *testing.T) {
 				"mise": `echo "mise $*: $DOCKER_HOST ${GH_OAUTH_CLIENT_ID:-} ${GH_OAUTH_CLIENT_SECRET:-}" >> "$START_LOG"
 if [ "$*" = "run doctor" ] && [ "$DOCTOR_FAIL" = yes ]; then exit 1; fi`,
 				"go": `echo "go $*: $DOCKER_HOST ${GH_OAUTH_CLIENT_ID:-} ${GH_OAUTH_CLIENT_SECRET:-}" >> "$START_LOG"`,
-				"infisical": `if [ "$1" = export ]; then [ "$AUTH" = yes ]; exit; fi
+				"infisical": `case "$1 $2" in
+  "sm secrets") [ "$3" = export ] && [ "$AUTH" = yes ]; exit ;;
+  "sm run") shift 2 ;;
+  *) exit 1 ;;
+esac
 while [ "$1" != -- ]; do shift; done
 shift
 export GH_OAUTH_CLIENT_ID=fixture-id GH_OAUTH_CLIENT_SECRET=fixture-secret
