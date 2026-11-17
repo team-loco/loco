@@ -61,7 +61,7 @@ const TRACE_COLUMNS: {
 	right?: boolean;
 	title?: string;
 }[] = [
-	{ key: "when", label: "When", sort: TraceSummarySort.START_TIME },
+	{ key: "when", label: "Time", sort: TraceSummarySort.START_TIME },
 	{ key: "resource", label: "Resource", sort: TraceSummarySort.RESOURCE },
 	{ key: "span", label: "Root span", sort: TraceSummarySort.OPERATION },
 	{ key: "status", label: "Status", sort: TraceSummarySort.STATUS },

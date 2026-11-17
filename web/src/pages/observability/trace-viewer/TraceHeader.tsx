@@ -129,19 +129,21 @@ export function TraceHeader({
 					<SheetTitle className="min-w-0 truncate font-mono">
 						{trace === undefined || trace.root.name === "" ? "Trace" : trace.root.name}
 					</SheetTitle>
-					{trace !== undefined && <span className="font-mono text-fg3">{durationLabel(trace.duration)}</span>}
 					<Button
 						variant="ghost"
 						size="sm"
-						className="h-6 px-1.5 font-mono text-fg3"
-						title="Copy trace ID"
+						className="tv-tid-c group/tid ml-2 h-6 gap-[7px] rounded-[6px] border-0 bg-panel2 pr-[7px] pl-2 text-[12px] text-foreground shadow-[inset_0_0_0_1px_var(--line)] hover:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:shadow-[inset_0_0_0_1px_var(--line2)] focus-visible:ring-0 in-data-[theme=neobrutal]:rounded-[5px] in-data-[theme=neobrutal]:border-2 in-data-[theme=neobrutal]:border-(--ink) in-data-[theme=neobrutal]:bg-background in-data-[theme=neobrutal]:shadow-none in-data-[theme=neobrutal]:focus-visible:border-(--ink) in-data-[theme=neobrutal]:focus-visible:bg-panel2 in-data-[theme=neobrutal]:focus-visible:shadow-none"
+						title={`Copy trace ID ${traceId}`}
 						aria-label={`Copy trace ID ${traceId}`}
 						onClick={() => {
 							copy("trace", traceId);
 						}}
 					>
-						{traceId.slice(0, 8)}…{traceId.slice(-4)}
-						{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
+						<span className="text-[11.5px] text-fg3">Trace</span>
+						<span className="font-mono">{traceId.slice(0, 8)}</span>
+						<span className="text-fg3 group-hover/tid:text-foreground">
+							{copied === "trace" ? <CheckIcon /> : <CopyIcon />}
+						</span>
 					</Button>
 				</div>
 				<SheetDescription
@@ -153,12 +155,13 @@ export function TraceHeader({
 						"Trace details"
 					) : (
 						<>
+							<span className="font-mono text-[13px] font-medium text-foreground">{durationLabel(trace.duration)}</span>
 							{shares.length === 1 &&
 								(resource === undefined ? (
 									<span>{traceServiceLabel(trace.root)}</span>
 								) : (
 									<Link
-										className="inline-flex items-center gap-1.5 text-foreground hover:underline"
+										className="inline-flex items-center gap-1.5 text-foreground"
 										to={resourcePath(orgId, workspaceId, resource.id)}
 									>
 										<i
@@ -196,12 +199,10 @@ export function TraceHeader({
 			{items.length > 1 && (
 				<div
 					role="group"
-					aria-label="Time by resource"
+					aria-label="Time spent per resource"
 					className="col-span-2 col-start-1 row-start-2 flex min-w-0 flex-col gap-2 pt-1 min-[1180px]:col-span-1 min-[1180px]:col-start-2 min-[1180px]:row-start-1"
 				>
-					<div className="flex items-baseline gap-1.5 text-[11.5px] text-fg3">
-						Time by resource <span className="font-mono">{items.length}</span>
-					</div>
+					<div className="flex items-baseline gap-1.5 text-[11.5px] text-fg3">Time spent per resource</div>
 					<div className="tv-mix flex h-2.5 gap-0.5 overflow-hidden rounded-[3px]">
 						{top.map((item) => (
 							<button
@@ -209,8 +210,8 @@ export function TraceHeader({
 								key={item.key}
 								{...interactions(item.key)}
 								aria-pressed={pinned === item.key}
-								aria-label={`${item.name} · ${durationLabel(item.nanos)} · ${percent(item.share)}`}
-								title={`${item.name} · ${durationLabel(item.nanos)} · ${percent(item.share)}`}
+								aria-label={`${item.name} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
+								title={`${item.name} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								className={cn(
 									"tv-mseg min-w-1 border-0 p-0 transition-opacity focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
 									highlight !== null && highlight !== item.key && "opacity-25",
@@ -235,7 +236,7 @@ export function TraceHeader({
 								type="button"
 								key={item.key}
 								{...interactions(item.key)}
-								title={durationLabel(item.nanos)}
+								title={`${item.name} · ${durationLabel(item.nanos)} (${percent(item.share)})`}
 								aria-pressed={pinned === item.key}
 								className={cn(
 									"inline-flex h-[22px] min-w-0 items-center gap-1.5 rounded-sm px-1.5 text-left text-[12.5px] transition-opacity hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -245,7 +246,9 @@ export function TraceHeader({
 							>
 								<i className="size-2 shrink-0 rounded-[2px]" style={{ background: item.color }} />
 								<span className="truncate">{item.name}</span>
-								<span className="shrink-0 font-mono text-[11.5px] text-fg3">{percent(item.share)}</span>
+								<span className="shrink-0 font-mono text-[11.5px] text-fg3">
+									{durationLabel(item.nanos)} ({percent(item.share)})
+								</span>
 								{item.errors > 0 && (
 									<span
 										role="img"
