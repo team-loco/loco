@@ -88,6 +88,76 @@ func TestDomainNeedsAPort(t *testing.T) {
 	}
 }
 
+func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		resourcePort bool
+		runtimePort  bool
+	}{
+		{"web deployment from worker resource", false, true},
+		{"worker deployment from web resource", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newDeployFixture(t)
+			client := newDomainClient(t, f)
+			if !tc.resourcePort {
+				if _, err := f.pool.Exec(
+					t.Context(),
+					`UPDATE resources SET spec = '{}' WHERE id = $1`,
+					f.resourceID,
+				); err != nil {
+					t.Fatal(err)
+				}
+			}
+			params := f.paramsFor(f.clusterID)
+			if tc.runtimePort {
+				params.Spec = []byte(`{"platform":"linux/amd64","port":9090}`)
+			}
+			_, err := f.queries.CreateDeployment(t.Context(), params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			secondRegion := params
+			secondRegion.Region = otherRegion
+			secondRegion.Spec = []byte(`{"platform":"linux/amd64"}`)
+			if !tc.runtimePort {
+				// A retired web region must not make the current worker accept domains.
+				secondRegion.Spec = []byte(`{"platform":"linux/amd64","port":8080}`)
+				secondRegion.IsActive = false
+			}
+			if _, createErr := f.queries.CreateDeployment(t.Context(), secondRegion); createErr != nil {
+				t.Fatal(createErr)
+			}
+			resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			other, err := f.queries.CreateEnvironment(t.Context(), genDb.CreateEnvironmentParams{
+				WorkspaceID: resource.WorkspaceID, Name: "domain-port-isolation", CreatedBy: f.userID,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			params.EnvironmentID = other.ID
+			params.Spec = []byte(`{"platform":"linux/amd64","port":8080}`)
+			if tc.runtimePort {
+				params.Spec = []byte(`{"platform":"linux/amd64"}`)
+			}
+			if _, createErr := f.queries.CreateDeployment(t.Context(), params); createErr != nil {
+				t.Fatal(createErr)
+			}
+			err = client.add("runtime." + testDomainPlatform)
+			if tc.runtimePort && err != nil {
+				t.Fatalf("domain on web deployment: %v", err)
+			}
+			if !tc.runtimePort && !errors.Is(err, errDomainWithoutPort) {
+				t.Fatalf("domain on worker deployment: %v, want %v", err, errDomainWithoutPort)
+			}
+		})
+	}
+}
+
 func TestConcurrentDomainAddAndRemoveKeepOnePrimary(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

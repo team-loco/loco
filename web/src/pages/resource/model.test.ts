@@ -9,6 +9,8 @@ import {
 	type EnvironmentStatus,
 } from "@gen/loco/resource/v1/resource_pb";
 
+import { isWorker } from "@/lib/resource-regions";
+
 import { msToTimestamp } from "@/lib/time";
 
 import {
@@ -70,7 +72,12 @@ describe("buildRegions", () => {
 	});
 
 	test("keeps a long-lived current deployment outside the history page", () => {
-		const current = create(DeploymentSchema, { id: "current-europe", region: "eu-west-1", isActive: true });
+		const current = create(DeploymentSchema, {
+			id: "current-europe",
+			region: "eu-west-1",
+			isActive: true,
+			spec: { spec: { case: "service", value: { port: 9090 } } },
+		});
 		const history = Array.from({ length: 200 }, (_, i) =>
 			create(DeploymentSchema, {
 				id: `release-${i.toString()}`,
@@ -84,6 +91,13 @@ describe("buildRegions", () => {
 		const europe = regions.find((region) => region.name === "eu-west-1");
 		expect(europe?.current).toEqual(current);
 		expect(europe?.history).toEqual([]);
+		const resource = create(ResourceSchema, { spec: { spec: { case: "service", value: {} } } });
+		expect(
+			isWorker(
+				resource,
+				regions.flatMap((r) => (r.current === undefined ? [] : [r.current])),
+			),
+		).toBe(false);
 		expect(regions.flatMap((region) => region.history)).toHaveLength(200);
 	});
 

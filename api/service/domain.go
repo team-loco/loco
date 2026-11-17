@@ -475,7 +475,23 @@ func (s *DomainServer) checkResourceDomain(
 	if err != nil {
 		return "", "", fmt.Errorf("decode resource %s spec: %w", resourceID, err)
 	}
-	if spec.GetService().GetRouting().GetPort() == 0 {
+	deployments, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
+	if err != nil {
+		return "", "", fmt.Errorf("list resource deployments: %w", err)
+	}
+	hasDeployment, hasPort := false, false
+	for _, deployment := range deployments {
+		if deployment.EnvironmentID != env.ID {
+			continue
+		}
+		hasDeployment = true
+		current, specErr := currentServiceSpec(deployment, resource.Type)
+		if specErr != nil {
+			return "", "", specErr
+		}
+		hasPort = hasPort || current.GetPort() != 0
+	}
+	if (!hasDeployment && spec.GetService().GetRouting().GetPort() == 0) || (hasDeployment && !hasPort) {
 		return "", "", errDomainWithoutPort
 	}
 	placements, err := s.queries.ListResourceEnvironmentPlacements(

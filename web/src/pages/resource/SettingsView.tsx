@@ -106,7 +106,10 @@ export function SettingsView({
 	const configQuery = useQuery(getConfig, {});
 	const sizes = sizeOptions(configQuery.data?.sizeLimits);
 	const managed = resource.partial !== undefined;
-	const worker = isWorker(resource);
+	const worker = isWorker(
+		resource,
+		regions.flatMap((r) => (r.current === undefined ? [] : [r.current])),
+	);
 	const locked = managed || !canWrite;
 	const describedBy = managed ? MANAGED_NOTICE_ID : canWrite ? undefined : READ_ONLY_ID;
 	const want = resolved(draft, base);
