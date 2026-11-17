@@ -5,6 +5,7 @@ import json
 import re
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import expect
 from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
@@ -41,6 +42,10 @@ VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','ag
 UPDATE placements SET ready=false,ready_replicas=0,status_phase='Failed',status_message='The pod restarted' WHERE resource_id='{resource}';
 COMMIT;""")
 assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production}) == {}
+desired = json.dumps({"app_spec": {"serviceSpec": {"deployment": {"env": {"MODE": "production", "API_BASE_URL": "https://api.example.test"}}}}})
+evidence.psql(state["container"], f"UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';")
+rpc("secret", "SetSecrets", {"resourceId": resource, "environmentId": production, "values": {"API_TOKEN": "fixture-token"}})
+assert rpc("resource", "GetResourceEnv", {"resourceId": resource, "environmentId": production})["env"]["MODE"] == "production"
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 USAGE = {"min": 0.5, "p50": 0.6, "max": 0.9}
 STAMP = datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat()
@@ -65,6 +70,9 @@ with session(out) as browser:
             expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
             expect(page.get_by_label("Above 85% of the limit")).to_have_count(1)
             expect(page.get_by_text("band shows lowest to highest of 1 replica", exact=True).first).to_be_visible()
+            page.get_by_role("button", name=re.compile(r"^us-east-1")).click()
+            metrics_href = page.get_by_role("link", name="All metrics", exact=True).get_attribute("href")
+            assert parse_qs(urlparse(metrics_href).query)["q"] == ["@region:us-east-1"], metrics_href
             page.get_by_role("button", name=re.compile(r"^Events")).click()
             runtime_events = page.get_by_role("dialog", name="Events", exact=True)
             expect(runtime_events.get_by_text("crash looping", exact=True)).to_be_visible()
@@ -126,7 +134,34 @@ with session(out) as browser:
             dialog.get_by_role("button", name="Close", exact=True).click()
             expect(more).to_be_focused()
             page.goto(base + "?tab=settings")
-            expect(page.get_by_text("No secrets. Add them here or with", exact=False)).to_be_visible()
+            expect(page.get_by_text("Values stay hidden. Revealing one shows it for 30 seconds.", exact=True)).to_be_visible()
+            mode = page.get_by_label("Value of MODE", exact=True)
+            api_base = page.get_by_label("Value of API_BASE_URL", exact=True)
+            expect(mode).to_have_attribute("type", "password")
+            expect(api_base).to_have_attribute("type", "password")
+            expect(page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)).to_be_disabled()
+            expect(page.locator("#set-env").get_by_text("soon", exact=True)).to_be_visible()
+            page.clock.install()
+            page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
+            expect(mode).to_have_attribute("type", "text")
+            expect(mode).to_have_value("production")
+            expect(api_base).to_have_attribute("type", "password")
+            page.clock.fast_forward(29_000)
+            expect(mode).to_have_attribute("type", "text")
+            page.clock.fast_forward(1_000)
+            expect(mode).to_have_attribute("type", "password")
+            page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
+            page.get_by_role("button", name="Hide MODE", exact=True).click()
+            expect(mode).to_have_attribute("type", "password")
+            replacement = page.get_by_label("New value for API_TOKEN", exact=True)
+            replacement.fill("replacement-token")
+            expect(replacement).to_have_attribute("type", "password")
+            page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True).click()
+            expect(replacement).to_have_attribute("type", "text")
+            page.clock.fast_forward(30_000)
+            expect(replacement).to_have_attribute("type", "password")
+            page.clock.resume()
+            replacement.fill("")
             count = page.locator("#set-env-title > span")
             expect(count).to_have_text(re.compile(r"^\d+$"))
             delete = page.get_by_role("button", name="Delete resource", exact=True)
