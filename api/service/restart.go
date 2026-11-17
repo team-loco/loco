@@ -74,8 +74,11 @@ func (s *ResourceServer) RestartResource(
 			}
 			return errNoActiveDeployment
 		}
-		for _, clusterID := range clusters {
-			if notifyErr := notifyCluster(ctx, qtx, clusterID); notifyErr != nil {
+		for _, placement := range clusters {
+			if rolloutErr := openPlacementRollout(ctx, qtx, placement.ID, rolloutCauseRestart); rolloutErr != nil {
+				return rolloutErr
+			}
+			if notifyErr := notifyCluster(ctx, qtx, placement.ClusterID); notifyErr != nil {
 				return notifyErr
 			}
 		}

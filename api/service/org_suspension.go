@@ -56,6 +56,9 @@ func (s *OrgServer) SuspendOrg(
 		}
 		clusters := make([]uuid.UUID, 0, len(placements))
 		for _, placement := range placements {
+			if rolloutErr := openPlacementRollout(ctx, qtx, placement.ID, rolloutCauseConfig); rolloutErr != nil {
+				return rolloutErr
+			}
 			clusters = append(clusters, placement.ClusterID)
 		}
 		builds, cancelErr := qtx.CancelOrgActiveBuilds(ctx, genDb.CancelOrgActiveBuildsParams{
@@ -124,6 +127,9 @@ func (s *OrgServer) ResumeOrg(
 		}
 		clusters := make([]uuid.UUID, 0, len(placements))
 		for _, placement := range placements {
+			if rolloutErr := openPlacementRollout(ctx, qtx, placement.ID, rolloutCauseConfig); rolloutErr != nil {
+				return rolloutErr
+			}
 			clusters = append(clusters, placement.ClusterID)
 		}
 		if notifyErr := notifyClusters(ctx, qtx, clusters); notifyErr != nil {

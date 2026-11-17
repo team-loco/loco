@@ -18,6 +18,7 @@ type Querier interface {
 	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) (int64, error)
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
+	AllocateActivitySeq(ctx context.Context, arg AllocateActivitySeqParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpPlacementsForSecretNames(ctx context.Context, arg BumpPlacementsForSecretNamesParams) ([]BumpPlacementsForSecretNamesRow, error)
@@ -155,6 +156,7 @@ type Querier interface {
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
 	GetWorkspaceProductionEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
+	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
 	InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmentKeyParams) (EnvironmentKey, error)
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
@@ -239,6 +241,7 @@ type Querier interface {
 	LockResourceEnvironments(ctx context.Context, id uuid.UUID) ([]LockResourceEnvironmentsRow, error)
 	LockResourceOrganization(ctx context.Context, id uuid.UUID) (*string, error)
 	LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UUID, error)
+	LockRollout(ctx context.Context, arg LockRolloutParams) (DeploymentRollout, error)
 	// Locks every system:admin row so concurrent revocations cannot remove the last admin.
 	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
@@ -258,7 +261,10 @@ type Querier interface {
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
 	NotifyClusterPlacements(ctx context.Context, clusterID string) error
+	NotifyDeploymentActivity(ctx context.Context, deploymentID string) error
+	OpenPlacementRollout(ctx context.Context, arg OpenPlacementRolloutParams) error
 	OpenPlacementWindow(ctx context.Context, arg OpenPlacementWindowParams) error
+	OpenRollout(ctx context.Context, arg OpenRolloutParams) (int64, error)
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
 	// Deletes the resource's builds past the newest keep once their source and, for a succeeded
@@ -284,7 +290,7 @@ type Querier interface {
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
-	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]uuid.UUID, error)
+	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]RestartResourcePlacementsRow, error)
 	ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error)
 	ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]ResumeOrgPlacementsRow, error)
 	RevokeExpiredInvitations(ctx context.Context, arg RevokeExpiredInvitationsParams) ([]Invitation, error)
@@ -299,6 +305,7 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
+	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)

@@ -472,18 +472,30 @@ func (s *AgentServer) advancePastRevision(
 	clusterID, placementID uuid.UUID,
 	expectedRevision, observedRevision int64,
 ) (bool, error) {
-	revision, err := s.queries.AdvancePlacementPastRevision(ctx, genDb.AdvancePlacementPastRevisionParams{
-		ObservedRevision: observedRevision,
-		ID:               placementID,
-		ClusterID:        clusterID,
-		ExpectedRevision: expectedRevision,
+	var revision int64
+	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		var err error
+		revision, err = qtx.AdvancePlacementPastRevision(ctx, genDb.AdvancePlacementPastRevisionParams{
+			ObservedRevision: observedRevision,
+			ID:               placementID,
+			ClusterID:        clusterID,
+			ExpectedRevision: expectedRevision,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("advance placement revision: %w", err)
+		}
+		return openPlacementRollout(ctx, qtx, placementID, rolloutCauseConfig)
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
+	if err != nil {
+		return false, err
+	}
+	if revision == 0 {
 		return false, nil
 	}
-	if err != nil {
-		return false, fmt.Errorf("advance placement revision: %w", err)
-	}
+
 	slog.WarnContext(ctx, "cluster held a newer placement revision than desired; advanced past it",
 		"cluster_id", clusterID,
 		"placement_id", placementID,
@@ -704,12 +716,15 @@ func (s *AgentServer) recordStatus(
 			return nil
 		}
 		transition := deploymentTransitionForStatus(status)
-		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
+		if transitionErr := advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 			Status:       transition.status,
 			Message:      status.GetMessage(),
 			ID:           *row.DeploymentID,
 			FromStatuses: deploymentStatusNames(transition.from...),
-		})
+		}); transitionErr != nil {
+			return transitionErr
+		}
+		return ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record placement status", "placement_id", placementID, "error", err)

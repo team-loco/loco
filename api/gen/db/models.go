@@ -543,10 +543,33 @@ type Deployment struct {
 	CommitSha     *string             `json:"commitSha"`
 	CommitDirty   bool                `json:"commitDirty"`
 	SecretNames   []string            `json:"secretNames"`
+	ActivitySeq   int64               `json:"activitySeq"`
 	CreatedAt     time.Time           `json:"createdAt"`
 	StartedAt     *time.Time          `json:"startedAt"`
 	CompletedAt   *time.Time          `json:"completedAt"`
 	UpdatedAt     time.Time           `json:"updatedAt"`
+}
+
+type DeploymentActivity struct {
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	Seq          int64     `json:"seq"`
+	Revision     int64     `json:"revision"`
+	At           time.Time `json:"at"`
+	Severity     string    `json:"severity"`
+	ReplicaUid   string    `json:"replicaUid"`
+	ReplicaName  string    `json:"replicaName"`
+	Message      string    `json:"message"`
+}
+
+type DeploymentRollout struct {
+	DeploymentID    uuid.UUID  `json:"deploymentId"`
+	Revision        int64      `json:"revision"`
+	Cause           string     `json:"cause"`
+	DesiredReplicas int32      `json:"desiredReplicas"`
+	Replicas        []byte     `json:"replicas"`
+	ActivityCount   int32      `json:"activityCount"`
+	StartedAt       time.Time  `json:"startedAt"`
+	FinishedAt      *time.Time `json:"finishedAt"`
 }
 
 type Environment struct {

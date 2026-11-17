@@ -100,7 +100,7 @@ func createDeploymentWithCleanup(
 		DesiredSpec:   spec,
 		EnvironmentID: params.EnvironmentID,
 		SecretNames:   params.SecretNames,
-	})
+	}, rolloutCauseDeploy)
 	if err != nil {
 		return uuid.UUID{}, err
 	}

@@ -227,6 +227,7 @@ CREATE TABLE
         commit_sha TEXT,
         commit_dirty BOOLEAN NOT NULL DEFAULT false,
         secret_names TEXT[] NOT NULL DEFAULT '{}',
+        activity_seq BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,
@@ -246,6 +247,30 @@ CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_a
 CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deployments (resource_id, created_at DESC, id DESC);
 
 CREATE INDEX idx_deployments_environment_created_id_desc ON deployments (environment_id, created_at DESC, id DESC);
+
+CREATE TABLE deployment_rollouts (
+    deployment_id UUID NOT NULL REFERENCES deployments (id) ON DELETE CASCADE,
+    revision BIGINT NOT NULL,
+    cause TEXT NOT NULL,
+    desired_replicas INT NOT NULL DEFAULT 0,
+    replicas JSONB NOT NULL DEFAULT '[]',
+    activity_count INT NOT NULL DEFAULT 0,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+    finished_at TIMESTAMPTZ,
+    PRIMARY KEY (deployment_id, revision)
+);
+
+CREATE TABLE deployment_activity (
+    deployment_id UUID NOT NULL REFERENCES deployments (id) ON DELETE CASCADE,
+    seq BIGINT NOT NULL,
+    revision BIGINT NOT NULL,
+    at TIMESTAMPTZ NOT NULL,
+    severity TEXT NOT NULL,
+    replica_uid TEXT NOT NULL DEFAULT '',
+    replica_name TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL,
+    PRIMARY KEY (deployment_id, seq)
+);
 
 CREATE TABLE
     placements (
@@ -408,6 +433,8 @@ DROP TABLE IF EXISTS builds;
 DROP FUNCTION IF EXISTS resource_suspended;
 DROP TABLE IF EXISTS placement_windows;
 DROP TABLE IF EXISTS placements;
+DROP TABLE IF EXISTS deployment_activity;
+DROP TABLE IF EXISTS deployment_rollouts;
 DROP TABLE IF EXISTS deployments;
 DROP TYPE IF EXISTS deployment_method;
 DROP TYPE IF EXISTS deployment_actor_type;
