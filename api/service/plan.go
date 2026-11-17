@@ -381,9 +381,10 @@ func liveState(
 	spec := resourceSpec.GetService()
 
 	state := configplan.State{
-		Observability: observabilityconfig.Resolve(spec.GetObservability(), nil),
-		Health:        liveHealth(spec.GetHealthCheck()),
-		Regions:       make(map[string]configplan.Region, len(spec.GetRegions())),
+		RollbackOnFailure: servicedefaults.RollbackOnFailure(spec.RollbackOnFailure, nil),
+		Observability:     observabilityconfig.Resolve(spec.GetObservability(), nil),
+		Health:            liveHealth(spec.GetHealthCheck()),
+		Regions:           make(map[string]configplan.Region, len(spec.GetRegions())),
 	}
 	if routing := spec.GetRouting(); routing != nil {
 		state.Port = routing.Port
@@ -442,6 +443,7 @@ func liveState(
 		if index > 0 {
 			continue
 		}
+		state.RollbackOnFailure = servicedefaults.RollbackOnFailure(spec.RollbackOnFailure, service.RollbackOnFailure)
 		state.Observability = observabilityconfig.Resolve(spec.GetObservability(), service.GetObservability())
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup

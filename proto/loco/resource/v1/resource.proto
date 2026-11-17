@@ -98,6 +98,8 @@ message ServiceSpec {
   optional deployment.v1.HealthCheckConfig health_check = 3; // health check defaults
   // Application SDK environment injection defaults to true.
   deployment.v1.ObservabilityConfig observability = 4;
+  // Restores the previous deployment on failure; off by default.
+  optional bool rollback_on_failure = 5;
 }
 
 // DatabaseSpec is the spec of the corresponding resource type.

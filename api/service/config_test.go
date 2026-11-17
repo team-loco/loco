@@ -46,6 +46,9 @@ func TestGetConfigReturnsTheConfiguredDefaults(t *testing.T) {
 		t.Errorf("observability range = %v, want 6h", got)
 	}
 	got := resp.GetServiceDefaults()
+	if got.GetRollbackOnFailure() {
+		t.Fatal("rollback default must be false")
+	}
 	if got.GetCpuTarget() != defaults.CPUTarget {
 		t.Fatalf("CPU target = %d, want %d", got.GetCpuTarget(), defaults.CPUTarget)
 	}

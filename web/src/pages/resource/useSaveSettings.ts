@@ -29,6 +29,7 @@ const SPEC_KEYS = [
 	"healthTimeout",
 	"healthFailures",
 	"observability",
+	"rollbackOnFailure",
 ] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;

@@ -148,3 +148,16 @@ func FirstSet[T comparable](values ...T) T {
 	}
 	return zero
 }
+
+const DefaultRollbackOnFailure = false
+
+// RollbackOnFailure resolves the deployment override, then the resource, then the default.
+func RollbackOnFailure(resourceValue, deployment *bool) bool {
+	if deployment != nil {
+		return *deployment
+	}
+	if resourceValue != nil {
+		return *resourceValue
+	}
+	return DefaultRollbackOnFailure
+}

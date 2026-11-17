@@ -102,6 +102,10 @@ func MergeDeploymentSpec(
 		requestServiceSpec.GetObservability(),
 	)
 	mergedServiceSpec := &deploymentv1.ServiceDeploymentSpec{
+		RollbackOnFailure: new(servicedefaults.RollbackOnFailure(
+			resourceServiceSpec.RollbackOnFailure,
+			requestServiceSpec.RollbackOnFailure,
+		)),
 		Observability: observability.Proto(),
 		RunAsUser:     requestServiceSpec.RunAsUser,
 		RunAsGroup:    requestServiceSpec.RunAsGroup,

@@ -435,10 +435,11 @@ func serviceSpecFor(state configplan.State) *resourcev1.ServiceSpec {
 		}
 	}
 	return &resourcev1.ServiceSpec{
-		Observability: state.Observability.Proto(),
-		Routing:       routing,
-		HealthCheck:   healthCheckFor(state.Health),
-		Regions:       regions,
+		RollbackOnFailure: new(state.RollbackOnFailure),
+		Observability:     state.Observability.Proto(),
+		Routing:           routing,
+		HealthCheck:       healthCheckFor(state.Health),
+		Regions:           regions,
 	}
 }
 
@@ -449,19 +450,20 @@ func deploymentSpecFor(
 ) *deploymentv1.ServiceDeploymentSpec {
 	target := state.Regions[region]
 	return &deploymentv1.ServiceDeploymentSpec{
-		Observability: state.Observability.Proto(),
-		RunAsUser:     state.RunAsUser,
-		RunAsGroup:    state.RunAsGroup,
-		Build:         build,
-		HealthCheck:   healthCheckFor(state.Health),
-		Cpu:           &target.CPU,
-		Memory:        &target.Memory,
-		MinReplicas:   &target.MinReplicas,
-		MaxReplicas:   &target.MaxReplicas,
-		Scalers:       scalersFor(target.Autoscaling),
-		Env:           state.Env,
-		Port:          state.Port,
-		Routing:       deploymentRoutingFor(state.Routing),
+		RollbackOnFailure: new(state.RollbackOnFailure),
+		Observability:     state.Observability.Proto(),
+		RunAsUser:         state.RunAsUser,
+		RunAsGroup:        state.RunAsGroup,
+		Build:             build,
+		HealthCheck:       healthCheckFor(state.Health),
+		Cpu:               &target.CPU,
+		Memory:            &target.Memory,
+		MinReplicas:       &target.MinReplicas,
+		MaxReplicas:       &target.MaxReplicas,
+		Scalers:           scalersFor(target.Autoscaling),
+		Env:               state.Env,
+		Port:              state.Port,
+		Routing:           deploymentRoutingFor(state.Routing),
 	}
 }
 

@@ -557,8 +557,10 @@ type ServiceDeploymentSpec struct {
 	RunAsGroup *int64          `protobuf:"varint,12,opt,name=run_as_group,json=runAsGroup,proto3,oneof" json:"run_as_group,omitempty"`
 	// Defaults to the resource settings when omitted; stored in the deployment snapshot.
 	Observability *ObservabilityConfig `protobuf:"bytes,13,opt,name=observability,proto3" json:"observability,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Restores the previous deployment on failure; off by default.
+	RollbackOnFailure *bool `protobuf:"varint,14,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ServiceDeploymentSpec) Reset() {
@@ -680,6 +682,13 @@ func (x *ServiceDeploymentSpec) GetObservability() *ObservabilityConfig {
 		return x.Observability
 	}
 	return nil
+}
+
+func (x *ServiceDeploymentSpec) GetRollbackOnFailure() bool {
+	if x != nil && x.RollbackOnFailure != nil {
+		return *x.RollbackOnFailure
+	}
+	return false
 }
 
 // ServiceRouting is the HTTP routing of one environment's deployment of a service.
@@ -2371,7 +2380,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xf5\t\n" +
+	"\f_inject_otel\"\xc2\n" +
+	"\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +
@@ -2389,7 +2399,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\frun_as_group\x18\f \x01(\x03B\r\xbaH\n" +
 	"\"\b\x18\xff\xff\xff\xff\a \x00H\tR\n" +
 	"runAsGroup\x88\x01\x01\x12M\n" +
-	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x1a6\n" +
+	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x123\n" +
+	"\x13rollback_on_failure\x18\x0e \x01(\bH\n" +
+	"R\x11rollbackOnFailure\x88\x01\x01\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xc1\x02\xbaH\xbd\x02\x1a\x9a\x01\n" +
@@ -2406,7 +2418,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
 	"\b_routingB\x0e\n" +
 	"\f_run_as_userB\x0f\n" +
-	"\r_run_as_group\"T\n" +
+	"\r_run_as_groupB\x16\n" +
+	"\x14_rollback_on_failure\"T\n" +
 	"\x0eServiceRouting\x12\x1f\n" +
 	"\vpath_prefix\x18\x01 \x01(\tR\n" +
 	"pathPrefix\x12!\n" +

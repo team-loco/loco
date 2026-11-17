@@ -9692,6 +9692,11 @@
           "observability": {
             "title": "observability",
             "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
+          },
+          "rollbackOnFailure": {
+            "type": "boolean",
+            "title": "rollback_on_failure",
+            "description": "Restores the previous deployment on failure; off by default."
           }
         },
         "title": "DefaultServiceConfig",
@@ -10709,6 +10714,14 @@
             "title": "observability",
             "description": "Defaults to the resource settings when omitted; stored in the deployment snapshot.",
             "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
+          },
+          "rollbackOnFailure": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "rollback_on_failure",
+            "description": "Restores the previous deployment on failure; off by default."
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -14427,6 +14440,14 @@
             "title": "observability",
             "description": "Application SDK environment injection defaults to true.",
             "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
+          },
+          "rollbackOnFailure": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "rollback_on_failure",
+            "description": "Restores the previous deployment on failure; off by default."
           }
         },
         "title": "ServiceSpec",

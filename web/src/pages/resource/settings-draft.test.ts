@@ -107,6 +107,23 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
+	test("rollback changes redeploy every running region and can be turned off", () => {
+		expect(base.rollbackOnFailure).toBe(false);
+		expect(changeCount({ rollbackOnFailure: true }, base)).toBe(1);
+		const changed = plan({ rollbackOnFailure: true });
+		expect(changed.map((d) => d.region)).toEqual([EAST, WEST]);
+		for (const d of changed) {
+			expect(getServiceSpec(create(DeploymentSchema, { spec: d.spec }))?.rollbackOnFailure).toBe(true);
+		}
+		const enabledRegions = changed.map((d) =>
+			region(d.region, create(DeploymentSchema, { spec: d.spec, isActive: true, status: DeploymentStatus.RUNNING })),
+		);
+		const enabledBase = baseline("shop", "", enabledRegions, [EAST, WEST], true, defaults);
+		expect(enabledBase.rollbackOnFailure).toBe(true);
+		expect(planSave(enabledRegions, { rollbackOnFailure: false }, enabledBase)).toHaveLength(2);
+		expect(changeCount({ rollbackOnFailure: false }, base)).toBe(0);
+		expect(baseline("shop", "", [], [EAST], true, defaults).rollbackOnFailure).toBe(false);
+	});
 	test("SDK environment configuration redeploys every running region and preserves application variables", () => {
 		expect(base.observability).toEqual(OBSERVABILITY);
 		const observability = { injectOtel: false };
@@ -254,7 +271,7 @@ describe("validateDraft", () => {
 
 	test("saves region map changes apart from deployment changes", () => {
 		expect(validateDraft({ cpu: "1", image: "ghcr.io/acme/shop:1.5.0" }, base, regions, SERVED, 10).regions).toBe(
-			"Save region, size and scaling changes separately from image, port, health, observability and domain changes",
+			"Save region, size and scaling changes separately from image, port, health, rollback, observability and domain changes",
 		);
 		expect(validateDraft({ cpu: "1", scaling: { [EAST]: scaling(4) } }, base, regions, SERVED, 10)).toEqual({});
 	});
