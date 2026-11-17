@@ -90,3 +90,39 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 		t.Fatal("staging lost automatic stable release selection")
 	}
 }
+
+func TestInitSingleCluster(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	env := filepath.Join(root, "api.env")
+	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	options := InitOptions{Output: filepath.Join(root, "fleet"), API: "http://api.test:8000", Web: "http://web.test:5173", Domain: "apps.test", Region: "local", Admin: "admin@test.local", Bundle: "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64), APIEnvFile: env, SingleCluster: true, Name: "combined"}
+	if err := Init(options); err != nil {
+		t.Fatal(err)
+	}
+	clusters, err := os.ReadDir(filepath.Join(options.Output, "clusters"))
+	if err != nil || len(clusters) != 1 || clusters[0].Name() != "combined" {
+		t.Fatalf("clusters: %v, %v", clusters, err)
+	}
+	for _, release := range []string{"loco-control-plane", "loco-worker"} {
+		if _, err = os.Stat(filepath.Join(options.Output, "clusters", "combined", "values", release+".yaml")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	readSecret(t, filepath.Join(options.Output, "clusters", "combined", "config", "openbao-seal.yaml"))
+	base, err := os.ReadFile(filepath.Join(options.Output, "bases", "all", "loco.yaml"))
+	if err != nil || !strings.Contains(string(base), "path: ./all") {
+		t.Fatalf("combined entry: %s, %v", base, err)
+	}
+	cluster, err := os.ReadFile(filepath.Join(options.Output, "clusters", "combined", "kustomization.yaml"))
+	if err != nil || !strings.Contains(string(cluster), "./clusters/combined/config") {
+		t.Fatalf("config path: %s, %v", cluster, err)
+	}
+	options.Output = filepath.Join(root, "invalid")
+	options.Name = "../outside"
+	if err = Init(options); err == nil {
+		t.Fatal("accepted an unsafe cluster name")
+	}
+}
