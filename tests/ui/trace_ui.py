@@ -464,9 +464,12 @@ with session(out) as browser:
     with page.expect_response("**/ListTraces"):
         page.get_by_role('button', name=re.compile(r'^Errors')).click()
     assert last_page_request()['query'] == '@status:error'
+    wait_for_query(page, lambda query: query.get('q') == ['@status:error'])
     with page.expect_response(lambda response: response.url.endswith("/ListTraces") and response.request.post_data_json.get("query") == "@duration:>100" and response.request.post_data_json.get("limit") == 25):
         page.goto(state['ui_url'] + base + '&q=' + urllib.parse.quote('@duration:>100'))
+    wait_for_query(page, lambda query: query.get('q') == ['@duration:>100'])
     token_remove = page.get_by_role('button', name='Remove duration >100', exact=True)
+    expect(token_remove).to_be_visible()
     expect(page.get_by_role('heading', level=1)).to_have_text('Traces')
     page.goto(state['ui_url'] + base)
     chart = page.get_by_role('img', name=re.compile(r'^Traces per \d+-second bucket, 14 in range with 2 errors'))
