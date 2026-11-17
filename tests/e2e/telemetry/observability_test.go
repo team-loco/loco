@@ -41,7 +41,7 @@ const (
 	proxyLimit       = 50
 	metricInterval   = 60
 	crashRecords     = 50
-	crashFlush       = 30 * time.Second
+	crashFlush       = 6 * time.Minute
 	// The otel-app fixture's tracerName, span link and forged attributes, in tests/e2e/fixtures/otel-app/main.go.
 	fixtureScope         = "github.com/team-loco/loco/tests/e2e/fixtures/otel-app"
 	fixtureLinkTrace     = "0102030405060708090a0b0c0d0e0f10"
@@ -448,6 +448,17 @@ func collectorCrashReplay(t *testing.T) {
 	if err = p.Replace(t.Context(), string(manifest)); err != nil {
 		t.Fatal(err)
 	}
+	marker := "collector-crash-" + randomHex(6)
+	now := strconv.FormatInt(time.Now().Unix(), 10) + "000000000"
+	records := make([]string, crashRecords)
+	for i := range records {
+		records[i] = fmt.Sprintf(`{"timeUnixNano":%q,"body":{"stringValue":"%s-%d"}}`, now, marker, i+1)
+	}
+	body := `{"resourceLogs":[{"scopeLogs":[{"logRecords":[` + strings.Join(records, ",") + `]}]}]}`
+	if _, err = p.Command(t.Context(), "docker", "stop", p.IngestContainer()); err != nil {
+		t.Fatal(err)
+	}
+	// The restart request precedes collector startup and bounds the earliest possible flush.
 	windowStarted := time.Now()
 	p.MustKubectl(t, "-n", namespace, "rollout", "restart", "statefulset/"+collector)
 	p.MustKubectl(t, "-n", namespace, "rollout", "status", "statefulset/"+collector, "--timeout", routeTimeout.String())
@@ -481,17 +492,7 @@ func collectorCrashReplay(t *testing.T) {
 			otlpPort = int(port.ContainerPort)
 		}
 	}
-	if _, err = p.Command(t.Context(), "docker", "stop", p.IngestContainer()); err != nil {
-		t.Fatal(err)
-	}
 	local := p.PortForward(t, namespace, "pod/"+podName, otlpPort)
-	marker := "collector-crash-" + randomHex(6)
-	now := strconv.FormatInt(time.Now().Unix(), 10) + "000000000"
-	records := make([]string, crashRecords)
-	for i := range records {
-		records[i] = fmt.Sprintf(`{"timeUnixNano":%q,"body":{"stringValue":"%s-%d"}}`, now, marker, i+1)
-	}
-	body := `{"resourceLogs":[{"scopeLogs":[{"logRecords":[` + strings.Join(records, ",") + `]}]}]}`
 	request, err := http.NewRequestWithContext(
 		t.Context(),
 		http.MethodPost,
@@ -525,6 +526,7 @@ func collectorCrashReplay(t *testing.T) {
 			exported.PartialSuccess.RejectedLogRecords,
 		)
 	}
+	acknowledged := time.Since(windowStarted)
 	if _, err := p.Command(
 		t.Context(),
 		"docker",
@@ -536,8 +538,9 @@ func collectorCrashReplay(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(windowStarted); elapsed >= crashFlush {
-		t.Fatalf("the SIGKILL came %s after the restart, past the %s flush", elapsed, crashFlush)
+	if killed := time.Since(windowStarted); killed >= crashFlush {
+		t.Fatalf("invalid collector crash experiment: acknowledgment=%s, SIGKILL=%s, flush=%s",
+			acknowledged, killed, crashFlush)
 	}
 	platform.Eventually(t, routeTimeout, "the killed collector to restart", func(ctx context.Context) error {
 		var restarted corev1.Pod
@@ -553,9 +556,7 @@ func collectorCrashReplay(t *testing.T) {
 		}
 		return nil
 	})
-	if _, err := p.Command(t.Context(), "docker", "start", p.IngestContainer()); err != nil {
-		t.Fatal(err)
-	}
+	restoreCollector(t, original)
 	waitCount(t, fmt.Sprintf("all %d acknowledged logs to replay after SIGKILL", crashRecords),
 		fmt.Sprintf("SELECT count(DISTINCT Body) FROM otel_logs WHERE startsWith(Body, '%s-')", marker),
 		func(count int) bool { return count == crashRecords })
