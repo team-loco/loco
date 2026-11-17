@@ -1,6 +1,7 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -47,6 +48,10 @@ Tokens can be scoped to different entity types:
 			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
+			}
+
+			if target.APIToken {
+				return errors.New("creating tokens needs an interactive login; unset LOCO_TOKEN and run loco login")
 			}
 
 			name := args[0]

@@ -79,6 +79,9 @@ func (s *TokenServer) CreateToken(
 	if err != nil {
 		return nil, err
 	}
+	if p.ActorType != genDb.DeploymentActorTypeUser {
+		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
+	}
 	entityID, err := parseID("entity_id", req.GetEntityId())
 	if err != nil {
 		return nil, err
@@ -87,10 +90,17 @@ func (s *TokenServer) CreateToken(
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
+	required := genDb.ScopeAdmin
+	if targetEntity.Type == genDb.EntityTypeUser {
+		if targetEntity.ID != p.UserID {
+			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
+		}
+		required = genDb.ScopeWrite
+	}
 	if err = check(ctx, s.authz, p, genDb.EntityScope{
 		EntityType: targetEntity.Type,
 		EntityID:   targetEntity.ID,
-		Scope:      genDb.ScopeWrite,
+		Scope:      required,
 	}); err != nil {
 		return nil, err
 	}
@@ -111,6 +121,19 @@ func (s *TokenServer) CreateToken(
 		}
 	}
 
+	if targetEntity.Type != genDb.EntityTypeUser {
+		ceiling := make([]genDb.EntityScope, len(dbScopes))
+		for i, scope := range dbScopes {
+			ceiling[i] = genDb.EntityScope{EntityType: targetEntity.Type, EntityID: targetEntity.ID, Scope: scope.Scope}
+		}
+		if scopeErr := s.authz.Check(ctx, ceiling, dbScopes...); scopeErr != nil {
+			if accessDenied(scopeErr) {
+				return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied).WithCause(scopeErr)
+			}
+			return nil, fmt.Errorf("check token scope targets: %w", scopeErr)
+		}
+	}
+
 	duration := time.Duration(req.GetExpiresInSec()) * time.Second
 	var token string
 	var tokenData genDb.CreateAPITokenRow
@@ -120,7 +143,7 @@ func (s *TokenServer) CreateToken(
 		}
 		var issueErr error
 		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, req.GetName(), p.Entity.ID, targetEntity, dbScopes, duration)
+			Issue(ctx, req.GetName(), p.UserID, targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
@@ -306,12 +329,13 @@ func (s *TokenServer) RevokeToken(
 		Type: protoEntityTypeToDb(req.GetEntityType()),
 		ID:   entityID,
 	}
-	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == p.Entity.ID
+	isOwnToken := targetEntity.Type == genDb.EntityTypeUser && targetEntity.ID == p.UserID &&
+		p.ActorType == genDb.DeploymentActorTypeUser
 	if !isOwnToken {
 		if err = check(ctx, s.authz, p, genDb.EntityScope{
 			EntityType: targetEntity.Type,
 			EntityID:   targetEntity.ID,
-			Scope:      genDb.ScopeWrite,
+			Scope:      genDb.ScopeAdmin,
 		}); err != nil {
 			return nil, err
 		}

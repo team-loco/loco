@@ -133,9 +133,7 @@ export function Tokens() {
 		current.isLoading || current.error
 			? null
 			: limitUsage(tokens.length, tokenLimit, noun, ownerKey === "org" ? "organization" : ownerKey);
-	const createBlocked = owner.canCreate
-		? limitReason(usage)
-		: `You need write access to ${owner.label} to create tokens`;
+	const createBlocked = owner.canCreate ? limitReason(usage) : owner.createHint;
 	const newTokenButton = (
 		<Button disabled={createBlocked !== null} onClick={openCreate}>
 			<PlusIcon />
