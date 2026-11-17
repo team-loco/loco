@@ -279,31 +279,46 @@ func TestGitOpsChangesRunDeliveryValidation(t *testing.T) {
 }
 
 func TestDuplicatePRRun(t *testing.T) {
-	const created = "2026-11-17T19:02:01Z"
+	const (
+		created     = "2026-11-17T19:02:01Z"
+		head        = "head"
+		mergeCommit = "merge"
+		mergeRef    = "refs/pull/7/merge"
+		repository  = "org/repo"
+		success     = "success"
+	)
 	for _, tc := range []struct {
 		name, result, merge, ref, repo, head, created string
 		attempt                                       int
 		want                                          string
 	}{
-		{"same merge", "success", "merge", "refs/pull/7/merge", "org/repo", "head", created, 1, "11"},
-		{"different base", "success", "old", "refs/pull/7/merge", "org/repo", "head", created, 1, ""},
-		{"different PR", "success", "merge", "refs/pull/8/merge", "org/repo", "head", created, 1, ""},
-		{"fork", "success", "merge", "refs/pull/7/merge", "fork/repo", "head", created, 1, ""},
-		{"failed", "failure", "merge", "refs/pull/7/merge", "org/repo", "head", created, 1, ""},
-		{"rerun", "success", "merge", "refs/pull/7/merge", "org/repo", "head", created, 2, ""},
-		{"older", "success", "merge", "refs/pull/7/merge", "org/repo", "head", "2026-11-17T18:55:01Z", 1, ""},
+		{"same merge", success, mergeCommit, mergeRef, repository, head, created, 1, "11"},
+		{"different base", success, "old", mergeRef, repository, head, created, 1, ""},
+		{"different PR", success, mergeCommit, "refs/pull/8/merge", repository, head, created, 1, ""},
+		{"fork", success, mergeCommit, mergeRef, "fork/repo", head, created, 1, ""},
+		{"failed", "failure", mergeCommit, mergeRef, repository, head, created, 1, ""},
+		{"rerun", success, mergeCommit, mergeRef, repository, head, created, 2, ""},
+		{"older", success, mergeCommit, mergeRef, repository, head, "2026-11-17T18:55:01Z", 1, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runs := []map[string]any{
-				{"id": 12, "head_sha": "head", "created_at": created},
-				{"id": 11, "head_sha": tc.head, "created_at": tc.created, "conclusion": tc.result, "run_attempt": tc.attempt,
-					"head_repository":      map[string]string{"full_name": tc.repo},
-					"referenced_workflows": []map[string]string{{"ref": tc.ref, "path": "org/repo/.github/workflows/web.yml@" + tc.merge, "sha": tc.merge}}},
+				{"id": 12, "head_sha": head, "created_at": created},
+				{
+					"id":              11,
+					"head_sha":        tc.head,
+					"created_at":      tc.created,
+					"conclusion":      tc.result,
+					"run_attempt":     tc.attempt,
+					"head_repository": map[string]string{"full_name": tc.repo},
+					"referenced_workflows": []map[string]string{
+						{"ref": tc.ref, "path": "org/repo/.github/workflows/web.yml@" + tc.merge, "sha": tc.merge},
+					},
+				},
 			}
 			data, err := json.Marshal(map[string]any{"workflow_runs": runs})
 			require.NoError(t, err)
 			cmd := exec.CommandContext(t.Context(), "jq", "-r", "--argjson", "current", "12", "--argjson", "pr", "7",
-				"--arg", "repo", "org/repo", "--arg", "merge", "merge", "-f", "../../.github/ci-duplicate.jq")
+				"--arg", "repo", repository, "--arg", "merge", mergeCommit, "-f", "../../.github/ci-duplicate.jq")
 			cmd.Stdin = strings.NewReader(string(data))
 			out, err := cmd.CombinedOutput()
 			require.NoError(t, err, "%s", out)

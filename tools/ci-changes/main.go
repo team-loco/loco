@@ -26,7 +26,10 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-const zeroSHA = "0000000000000000000000000000000000000000"
+const (
+	zeroSHA          = "0000000000000000000000000000000000000000"
+	pullRequestEvent = "pull_request"
+)
 
 func main() {
 	config := flag.String("config", ".github/ci-paths.yml", "path filters for each called workflow")
@@ -38,7 +41,7 @@ func main() {
 	duplicate := flag.Bool("duplicate", false, "reuse deterministic checks of an identical successful PR run")
 	flag.Parse()
 	var lookup markerLookup
-	if *duplicate && *event == "pull_request" {
+	if *duplicate && *event == pullRequestEvent {
 		lookup = func(context.Context, string) (bool, error) { return true, nil }
 	} else if *markerRefs != "" {
 		lookup = cacheLookup(strings.Split(*markerRefs, ","))
@@ -79,7 +82,13 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 		return fmt.Errorf("open $GITHUB_OUTPUT: %w", err)
 	}
 	defer output.Close()
-	return writeSelection(io.MultiWriter(output, os.Stdout), withUsers(filters, own), keys, modules.affected(files), affectedShards(filters["e2e"].events[event], files))
+	return writeSelection(
+		io.MultiWriter(output, os.Stdout),
+		withUsers(filters, own),
+		keys,
+		modules.affected(files),
+		affectedShards(filters["e2e"].events[event], files),
+	)
 }
 
 // filter is one event's ordered pattern list; a later pattern overrides an
@@ -130,7 +139,7 @@ func loadFilters(path string) (filters, error) {
 		if entry.Reuse != nil {
 			w.reuse = *entry.Reuse && w.reuse
 		}
-		for event, patterns := range map[string][]string{"pull_request": entry.PullRequest, "push": entry.Push} {
+		for event, patterns := range map[string][]string{pullRequestEvent: entry.PullRequest, "push": entry.Push} {
 			if patterns == nil {
 				continue
 			}
@@ -158,7 +167,7 @@ func loadFilters(path string) (filters, error) {
 // commit before it to diff against.
 func changedFiles(ctx context.Context, dir, event, base, head string) ([]string, error) {
 	switch event {
-	case "pull_request":
+	case pullRequestEvent:
 		mergeBase, err := git(ctx, dir, "merge-base", base, head)
 		if err != nil {
 			return nil, err
@@ -239,7 +248,12 @@ func affectedShards(inputs filter, files []string) []string {
 	return slices.Compact(selected)
 }
 
-func writeSelection(w io.Writer, selected map[string]bool, markers map[string]string, goModules, shards []string) error {
+func writeSelection(
+	w io.Writer,
+	selected map[string]bool,
+	markers map[string]string,
+	goModules, shards []string,
+) error {
 	var b strings.Builder
 	for _, workflow := range slices.Sorted(maps.Keys(selected)) {
 		fmt.Fprintf(&b, "%s=%t\n", workflow, selected[workflow])
