@@ -72,15 +72,3 @@ func parseID(field, value string) (uuid.UUID, error) {
 	}
 	return id, nil
 }
-
-// sessionPrincipal requires a human session, including a saved CLI session.
-func sessionPrincipal(ctx context.Context) (reqctx.Principal, error) {
-	p, err := principalFrom(ctx)
-	if err != nil {
-		return reqctx.Principal{}, err
-	}
-	if p.Method != genDb.DeploymentMethodWeb && p.Method != genDb.DeploymentMethodCli {
-		return reqctx.Principal{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
-	}
-	return p, nil
-}
