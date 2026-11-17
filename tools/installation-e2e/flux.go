@@ -8,15 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"filippo.io/age"
-
-	"sigs.k8s.io/yaml"
 )
 
 const (
 	fluxData            = "data"
-	fluxStringData      = "stringData"
 	fluxPrune           = "prune"
 	fluxSourceRef       = "sourceRef"
 	fluxSpec            = "spec"
@@ -197,16 +192,6 @@ func upgradePlatform(ctx context.Context) error {
 }
 
 func createFluxWorker(ctx context.Context, name string, head bool) error {
-	identity, err := age.GenerateX25519Identity()
-	if err != nil {
-		return err
-	}
-	directory, err := os.MkdirTemp("", "loco-enrollment-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(directory)
-	path := filepath.Join(directory, "token.sops.yaml")
 	args := []string{
 		"cluster",
 		"create",
@@ -216,96 +201,23 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		"us-east-1",
 		"--tier",
 		"staging",
-		"--sops-recipient",
-		identity.Recipient().String(),
-		"--output",
-		path,
+		"-o",
+		"secret",
 		"--secret-name",
 		"loco-worker-enrollment",
 	}
 	if head {
 		args = append(args, "--ttl", "72h")
 	}
-	if _, err = locoadm(ctx, args...); err != nil {
+	secret, err := locoadm(ctx, args...)
+	if err != nil {
 		return err
 	}
 	// Issuance after the upgrade leaves the enrolled worker's token and identity intact.
 	if head {
 		return nil
 	}
-	ciphertext, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	resources, err := yaml.Marshal(
-		map[string]any{
-			fluxAPIVersion: "kustomize.config.k8s.io/v1beta1",
-			fluxKind:       "Kustomization",
-			"resources":    []string{"token.sops.yaml"},
-		},
-	)
-	if err != nil {
-		return err
-	}
-	archive, err := bundle(map[string][]byte{"token.sops.yaml": ciphertext, "kustomization.yaml": resources})
-	if err != nil {
-		return err
-	}
-	publisher := fixture{registryURL: "http://" + registryHost, version: name}
-	reference, err := publisher.publish(ctx, "platform/enrollment-"+name, archive, bundleLayer)
-	if err != nil {
-		return err
-	}
-	key, err := yaml.Marshal(
-		map[string]any{
-			fluxAPIVersion: "v1",
-			fluxKind:       secretKind,
-			fluxMetadata:   metadata("enrollment-"+name, "flux-system"),
-			fluxStringData: map[string]string{"age.agekey": identity.String()},
-		},
-	)
-	if err != nil {
-		return err
-	}
-	if _, err = command(ctx, "", key, "kubectl", "apply", "-f", "-"); err != nil {
-		return err
-	}
-	source, err := yaml.Marshal(fixtureSource("enrollment-"+name, reference))
-	if err != nil {
-		return err
-	}
-	if _, err = command(ctx, "", source, "kubectl", "apply", "-f", "-"); err != nil {
-		return err
-	}
-	spec := map[string]any{
-		fluxInterval:  "1m",
-		fluxSourceRef: map[string]string{fluxKind: ociRepositoryKind, fluxName: "enrollment-" + name},
-		fluxPath:      "./",
-		fluxPrune:     false,
-		"wait":        true,
-		"decryption": map[string]any{
-			"provider":  "sops",
-			"secretRef": map[string]string{fluxName: "enrollment-" + name},
-		},
-	}
-	reconciliation, err := yaml.Marshal(fluxObject("Kustomization", "loco-worker-enrollment", spec))
-	if err != nil {
-		return err
-	}
-	if _, err = command(ctx, "", reconciliation, "kubectl", "apply", "-f", "-"); err != nil {
-		return err
-	}
-	if _, err = command(
-		ctx,
-		"",
-		nil,
-		"flux",
-		"reconcile",
-		"kustomization",
-		"loco-worker-enrollment",
-		"--with-source",
-		"--timeout=5m",
-	); err != nil {
+	if _, err = command(ctx, "", secret, "kubectl", "apply", "-f", "-"); err != nil {
 		return err
 	}
 	if err = reconcilePlatform(ctx, "./all"); err != nil {

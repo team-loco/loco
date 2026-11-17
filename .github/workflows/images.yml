@@ -109,8 +109,7 @@ jobs:
           HELM_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["helm"])')
           KUBECTL_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["kubectl"])')
           FLUX_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["flux2"])')
-          SOPS_VERSION=$(python3 -I -c 'import tomllib; print(tomllib.load(open("mise.toml", "rb"))["tools"]["sops"])')
-          export REGISTRY=${REGISTRY,,} PLATFORMS=linux/$ARCH BINARIES=bin/images HELM_VERSION KUBECTL_VERSION FLUX_VERSION SOPS_VERSION
+          export REGISTRY=${REGISTRY,,} PLATFORMS=linux/$ARCH BINARIES=bin/images HELM_VERSION KUBECTL_VERSION FLUX_VERSION
           TAG=$tag docker buildx bake -f docker-bake.hcl -f "$LABELS" --push "${targets[@]}"
           echo "images=$REGISTRY-*:$TAG" >> "$GITHUB_OUTPUT"
 

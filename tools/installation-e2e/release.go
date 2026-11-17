@@ -101,16 +101,11 @@ func (f *fixture) buildOperator(ctx context.Context, version string) (string, er
 		if err != nil {
 			return "", err
 		}
-		sops, err := f.pin(ctx, "mise.toml", ".tools.sops")
-		if err != nil {
-			return "", err
-		}
 		if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform,
 			"--build-arg", "VERSION="+version,
 			"--build-arg", "HELM_VERSION="+helm,
 			"--build-arg", "KUBECTL_VERSION="+kubectl,
 			"--build-arg", "FLUX_VERSION="+flux,
-			"--build-arg", "SOPS_VERSION="+sops,
 			"-f", "tests/e2e/fixtures/installation/operator.Dockerfile", "-t", tag, "."); checkErr != nil {
 			return "", fmt.Errorf("build operator fixture: %w", checkErr)
 		}
