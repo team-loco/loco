@@ -77,18 +77,20 @@ def seeded_draft(name, image):
 
 
 def seed_deployment(body, status, replica_state, detail, problem=None):
-    cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
+    cluster, deployment, placement = (str(uuid.uuid4()) for _ in range(3))
     replica = {
         "uid": f"replica-{deployment}",
         "name": "service-new-1",
         "node": "worker-east-1",
         "placement_revision": 1,
+        "deployment_id": deployment,
+        "ready": False,
         "state": replica_state,
         "detail": detail,
     }
     spec = {**body["spec"]["service"], "observability": {"injectOtel": True}}
     replicas = spec["minReplicas"]
-    snapshot = {"replicas": [replica]}
+    snapshot = {"placementId": placement, "replicas": [replica]}
     if problem is not None:
         snapshot["problem"] = {
             "reason": problem,
@@ -102,8 +104,8 @@ INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,
 VALUES('{cluster}','service-{deployment}','{body["region"]}','fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
 VALUES('{deployment}','{body["resourceId"]}','{cluster}','{body["region"]}',{replicas},'{status}',true,'{body["environmentId"]}',{evidence.sql_literal(json.dumps(spec))},1,'user','{state["users"]["owner"]["id"]}','web');
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,status_updated_at)
-VALUES('{body["resourceId"]}','{cluster}','{body["region"]}','{deployment}','{body["environmentId"]}','{{}}',1,1,NOW());
+INSERT INTO placements(id,resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,status_updated_at)
+VALUES('{placement}','{body["resourceId"]}','{cluster}','{body["region"]}','{deployment}','{body["environmentId"]}','{{}}',1,1,NOW());
 INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
 VALUES('{deployment}',1,{evidence.sql_literal(json.dumps(snapshot))});
 INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message)
