@@ -1,10 +1,13 @@
 package events_test
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -16,6 +19,7 @@ func TestPublisherIgnoresOtherDatabasesAndRollbacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	rollbackOnCleanup(t, tx)
 	if _, err = tx.Exec(t.Context(), "SELECT pg_current_xact_id()"); err != nil {
 		t.Fatal(err)
 	}
@@ -31,6 +35,7 @@ func TestPublisherIgnoresOtherDatabasesAndRollbacks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	rollbackOnCleanup(t, rollback)
 	if err = events.Record(
 		t.Context(),
 		genDb.New(rollback),
@@ -51,9 +56,6 @@ func TestPublisherIgnoresOtherDatabasesAndRollbacks(t *testing.T) {
 	audit, err := events.ListAudit(t.Context(), pool, events.AuditQuery{OrgID: org, Stream: true, Limit: 10})
 	if err != nil || len(audit) != 1 {
 		t.Fatalf("audit stream = %v (%v)", audit, err)
-	}
-	if err = tx.Rollback(t.Context()); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -103,6 +105,7 @@ func TestPublisherStreamsLateCommitOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	rollbackOnCleanup(t, tx)
 	first := events.Event{Type: events.OrgCreated, ActorType: events.ActorSystem, OrgID: &org}
 	if err = events.Record(t.Context(), genDb.New(tx), first); err != nil {
 		t.Fatal(err)
@@ -136,4 +139,13 @@ func TestPublisherStreamsLateCommitOnce(t *testing.T) {
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("duplicates = %v (%v)", rows, err)
 	}
+}
+
+func rollbackOnCleanup(t *testing.T, tx pgx.Tx) {
+	t.Helper()
+	t.Cleanup(func() {
+		if err := tx.Rollback(context.Background()); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			t.Errorf("rollback: %v", err)
+		}
+	})
 }
