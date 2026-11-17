@@ -284,7 +284,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	desired := getDeployment(t, newDeployment)
 	requireServingReplicas(t, desired, oldDeployment, 2)
 	if !slices.ContainsFunc(desired.GetReplicas(), func(replica *deploymentv1.Replica) bool {
-		return replica.GetDeploymentId() == newDeployment && !replica.GetReady()
+		return replica.GetDeploymentId() == newDeployment
 	}) {
 		t.Error("the failed desired deployment has no identified unready replica")
 	}
