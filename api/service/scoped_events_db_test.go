@@ -455,6 +455,7 @@ func TestWorkspaceEventStreamFiltersReconnectAndRevocation(t *testing.T) {
 		ResourceId:  f.resourceID.String(),
 		Query:       "@type:" + events.ResourceUpdated,
 	}
+	publishEvents(t, f.pool)
 	stream, err := client.StreamEvents(ctx, request)
 	if err != nil {
 		t.Fatal(err)
@@ -477,6 +478,7 @@ func TestWorkspaceEventStreamFiltersReconnectAndRevocation(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	publishEvents(t, f.pool)
 	request.Cursor = first.GetCursor()
 	resumed, err := client.StreamEvents(ctx, request)
 	if err != nil {

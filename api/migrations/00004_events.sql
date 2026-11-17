@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE events (
     seq BIGSERIAL PRIMARY KEY,
-    txid XID8 NOT NULL DEFAULT pg_current_xact_id(),
+    stream_position BIGINT,
     id UUID NOT NULL UNIQUE DEFAULT uuidv7(),
     type TEXT NOT NULL,
     org_id UUID,
@@ -30,11 +30,22 @@ CREATE INDEX events_workspace_seq_idx ON events (workspace_id, seq DESC);
 CREATE INDEX events_resource_seq_idx ON events (resource_id, seq DESC);
 CREATE INDEX events_org_seq_idx ON events (org_id, seq DESC);
 CREATE INDEX events_created_at_idx ON events (created_at);
-CREATE INDEX events_txid_seq_idx ON events (txid, seq);
+CREATE INDEX events_unpublished_seq_idx ON events (seq) WHERE stream_position IS NULL;
+CREATE UNIQUE INDEX events_stream_position_idx ON events (stream_position);
+
+CREATE TABLE event_stream_counter (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    position BIGINT NOT NULL DEFAULT 0
+);
+INSERT INTO event_stream_counter DEFAULT VALUES;
 
 -- +goose StatementBegin
 CREATE FUNCTION events_reject_update() RETURNS trigger AS $$
 BEGIN
+    IF OLD.stream_position IS NULL AND NEW.stream_position > 0
+        AND (to_jsonb(OLD) - 'stream_position') = (to_jsonb(NEW) - 'stream_position') THEN
+        RETURN NEW;
+    END IF;
     RAISE EXCEPTION 'events are append-only';
 END;
 $$ LANGUAGE plpgsql;
@@ -135,6 +146,7 @@ DROP VIEW IF EXISTS webhook_delivery_results;
 DROP TABLE IF EXISTS webhook_deliveries;
 DROP TABLE IF EXISTS webhooks;
 DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS event_stream_counter;
 DROP FUNCTION IF EXISTS events_reject_update();
 DROP FUNCTION IF EXISTS events_notify();
 DROP FUNCTION IF EXISTS events_enqueue_webhooks();

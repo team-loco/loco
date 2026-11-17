@@ -229,6 +229,7 @@ type Querier interface {
 	LockClusterRegistration(ctx context.Context, id uuid.UUID) (LockClusterRegistrationRow, error)
 	LockClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	LockEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
+	LockEventStreamCounter(ctx context.Context) (int64, error)
 	LockInstallWebhooks(ctx context.Context, lockKey int64) error
 	LockOrgForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockOrgForDeletion(ctx context.Context, id uuid.UUID) error
@@ -267,6 +268,7 @@ type Querier interface {
 	// Deletes the resource's deployments in the environment past the newest keep, except active
 	// and unfinished ones and those a placement still runs.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
+	PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
