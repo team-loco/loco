@@ -10,6 +10,7 @@ import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import pytest
 from helpers import chart_values
 
 
@@ -19,13 +20,14 @@ def docker(*args):
     ).strip()
 
 
-def test_dependency_ownership_uses_the_connected_pods_namespace(
-    worker_relays, tmp_path
+@pytest.mark.parametrize("gateway", [False, True], ids=["dependency", "gateway"])
+def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
+    worker_relays, tmp_path, gateway
 ):
     """Exercise real pod association and namespace lookup, including an unmatched sender."""
     name = f"loco-namespace-tenancy-{uuid.uuid4().hex}"
     sender = f"{name}-sender"
-    namespace = "workspace-a"
+    namespace = "loco-ws-environment-a"
     namespace_labels = {
         "loco.io/organization-id": "organization-a",
         "loco.io/workspace-id": "workspace-a",
@@ -59,7 +61,12 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
                     "kind": "Pod",
                     "metadata": {
                         "name": "dependency",
-                        "namespace": namespace,
+                        "namespace": "gateway-system" if gateway else namespace,
+                        "labels": (
+                            {"gateway.envoyproxy.io/owning-gateway-name": "loco"}
+                            if gateway
+                            else {}
+                        ),
                         "uid": "pod-a",
                         "resourceVersion": "1",
                     },
@@ -216,6 +223,21 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
                                     "traceId": "0123456789abcdef0123456789abcdef",
                                     "spanId": "0123456789abcdef",
                                     "name": "dependency",
+                                    "attributes": (
+                                        [
+                                            {
+                                                "key": "upstream_cluster",
+                                                "value": {
+                                                    "stringValue": (
+                                                        f"httproute/{namespace}/"
+                                                        "resource-resource-a-route/rule/0"
+                                                    )
+                                                },
+                                            }
+                                        ]
+                                        if gateway
+                                        else []
+                                    ),
                                     "startTimeUnixNano": "1700000000000000000",
                                     "endTimeUnixNano": "1700000000000000001",
                                 }
@@ -286,7 +308,10 @@ def test_dependency_ownership_uses_the_connected_pods_namespace(
                 "k8s.pod.name": "dependency",
             }.items()
         )
-        assert "loco.resource.id" not in attrs[0]
+        if gateway:
+            assert attrs[0]["loco.resource.id"] == "resource-a"
+        else:
+            assert "loco.resource.id" not in attrs[0]
         assert not any(
             key in attrs[1]
             for key in (

@@ -781,9 +781,8 @@ otel-col-deploy:
               - resource.attributes["gateway.envoyproxy.io/owning-gateway-name"] != nil
             statements:
               - set(cache["cluster"], attributes["upstream_cluster"])
-              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/{{ regexQuoteMeta .Values.global.workspaceNamespacePrefix }}(?P<workspace>[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
-              - &setWorkspace set(attributes["loco.workspace.id"], cache["workspace"]) where cache["workspace"] != nil
-              - &setNamespace set(attributes["k8s.namespace.name"], Concat(["{{ .Values.global.workspaceNamespacePrefix }}", cache["workspace"]], "")) where cache["workspace"] != nil
+              - &parseRoute merge_maps(cache, ExtractPatterns(cache["cluster"], "^httproute/(?P<namespace>{{ regexQuoteMeta .Values.global.workspaceNamespacePrefix }}[^/]+)/resource-(?P<resource>[^/]+)-route/rule/[0-9]+$$"), "upsert") where cache["cluster"] != nil
+              - &setNamespace set(attributes["k8s.namespace.name"], cache["namespace"]) where cache["namespace"] != nil
               - &setResource set(attributes["loco.resource.id"], cache["resource"]) where cache["resource"] != nil
         log_statements:
           - context: log
@@ -793,7 +792,6 @@ otel-col-deploy:
             statements:
               - set(cache["cluster"], attributes["upstream_cluster"])
               - *parseRoute
-              - *setWorkspace
               - *setResource
               - *setNamespace
         metric_statements:
@@ -804,7 +802,6 @@ otel-col-deploy:
             statements:
               - set(cache["cluster"], attributes["envoy.cluster_name"])
               - *parseRoute
-              - *setWorkspace
               - *setResource
               - *setNamespace
       k8s_attributes/route_namespace:
