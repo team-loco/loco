@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/team-loco/loco/tools/internal/imagepull"
 )
 
 const operatorImage = "installation-operator"
@@ -150,8 +152,8 @@ func (f *fixture) pullPlatformImage(ctx context.Context, image string) error {
 			pull = image[:strings.LastIndex(image, ":")] + "@" + manifest.Digest
 		}
 	}
-	if _, checkErr = command(ctx, f.root, nil, "docker", "pull", "-q", pull); checkErr != nil {
-		return fmt.Errorf("pull %s: %w", pull, checkErr)
+	if checkErr = imagepull.Pull(ctx, pull); checkErr != nil {
+		return checkErr
 	}
 	if _, checkErr = command(ctx, f.root, nil, "docker", "tag", pull, image); checkErr != nil {
 		return fmt.Errorf("tag %s: %w", image, checkErr)

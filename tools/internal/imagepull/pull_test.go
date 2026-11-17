@@ -1,9 +1,11 @@
-package main
+package imagepull
 
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 )
 
 const testImage = "registry.test/image:tag@sha256:0"
@@ -50,7 +52,26 @@ func TestPullWithRetry(t *testing.T) {
 			if *calls != tc.wantCalls {
 				t.Fatalf("pulled %d times, want %d", *calls, tc.wantCalls)
 			}
+			if tc.wantErr &&
+				(!errors.Is(err, errPullFailed) || !strings.Contains(err.Error(), strings.TrimSpace(tc.outputs[tc.wantCalls-1]))) {
+				t.Fatalf("error = %v, want pull failure and docker output", err)
+			}
 		})
+	}
+}
+
+func TestPullCancellationStopsRetries(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	calls := 0
+	pull := func(context.Context, string) ([]byte, error) {
+		calls++
+		cancel()
+		return []byte("503 Service Unavailable"), errPullFailed
+	}
+	err := pullWithRetry(ctx, pull, testImage, pullAttempts, time.Hour)
+	if !errors.Is(err, context.Canceled) || calls != 1 {
+		t.Fatalf("calls = %d, error = %v, want one call and cancellation", calls, err)
 	}
 }
 
