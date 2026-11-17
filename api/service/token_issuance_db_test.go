@@ -154,7 +154,7 @@ func TestTokenScopesStayUnderTarget(t *testing.T) {
 	}
 }
 
-func TestRevokeOwnTokenNeedsSession(t *testing.T) {
+func TestRevokeOwnTokenShortcutRequiresSession(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := NewTokenServer(f.pool, f.queries, f.machine, limits.Defaults())
@@ -175,11 +175,23 @@ func TestRevokeOwnTokenNeedsSession(t *testing.T) {
 	}
 	_, err = server.RevokeToken(issuanceTokenContext(t, f, reader.GetToken()), request)
 	wantCode(t, err, connect.CodePermissionDenied)
-	if _, err := f.machine.GetToken(t.Context(), victim.GetToken()); err != nil {
+	if _, err = f.machine.GetToken(t.Context(), victim.GetToken()); err != nil {
 		t.Fatalf("target token: %v", err)
 	}
-	if _, err := server.RevokeToken(session, request); err != nil {
+	if _, err = server.RevokeToken(session, request); err != nil {
 		t.Fatalf("session revoke: %v", err)
+	}
+	admin, err := server.CreateToken(session, tokenRequest(target, genDb.ScopeAdmin))
+	if err != nil {
+		t.Fatal(err)
+	}
+	victim, err = server.CreateToken(session, tokenRequest(target, genDb.ScopeRead))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Name = victim.GetTokenMetadata().GetName()
+	if _, err = server.RevokeToken(issuanceTokenContext(t, f, admin.GetToken()), request); err != nil {
+		t.Fatalf("explicit token administrator revoke: %v", err)
 	}
 	for _, target := range []genDb.Entity{
 		{Type: genDb.EntityTypeOrganization, ID: f.orgID},
