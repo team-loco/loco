@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"slices"
@@ -12,6 +11,7 @@ import (
 )
 
 const (
+	phaseUnknown         = "unknown"
 	phasePrefix          = "installation-e2e phase: "
 	phasePreflight       = "preflight"
 	phaseControlPlane    = "control-plane"
@@ -49,12 +49,18 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 	)
 	cmd.Dir = dir
 	// Keep stdout private on failure; stderr carries the operator and kubectl diagnostics.
-	output := operatorOutput{phase: "unknown"}
+	output := operatorOutput{phase: phaseUnknown}
 	cmd.Stdout = &output
-	var stderr boundedOutput
-	cmd.Stderr = io.MultiWriter(&output, &stderr)
+	stderr := operatorOutput{phase: phaseUnknown}
+	cmd.Stderr = &stderr
 	err := cmd.Run()
-	if output.exceeded {
+	if stderr.phase != phaseUnknown {
+		output.phase = stderr.phase
+	}
+	if stderr.failure != "" {
+		output.failure = stderr.failure
+	}
+	if output.exceeded || stderr.exceeded || len(output.Bytes())+len(stderr.Bytes()) > auditLimit {
 		return nil, fmt.Errorf("operator phase %s: %w", output.phase, errOperatorOutputLimit)
 	}
 	if err != nil {
@@ -74,7 +80,7 @@ func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
 			strings.TrimSpace(string(stderr.Bytes())),
 		)
 	}
-	return output.Bytes(), nil
+	return append(output.Bytes(), stderr.Bytes()...), nil
 }
 
 type operatorOutput struct {
