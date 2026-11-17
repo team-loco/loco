@@ -127,6 +127,20 @@ func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 	if checkErr := createFluxWorker(ctx, "staging", false); checkErr != nil {
 		return checkErr
 	}
+	if checkErr := switchRepository(ctx, "/installation/previous"); checkErr != nil {
+		return checkErr
+	}
+	if _, checkErr := kubectl(
+		ctx,
+		"-n",
+		workerNamespace,
+		"rollout",
+		"status",
+		"deployment/loco-worker-agent",
+		"--timeout=300s",
+	); checkErr != nil {
+		return checkErr
+	}
 	if dnsErr := configureGatewayDNS(ctx, true); dnsErr != nil {
 		return dnsErr
 	}
@@ -300,7 +314,7 @@ func identitySnapshot(ctx context.Context) (string, error) {
 	for _, item := range result.Items {
 		if item.Metadata.Namespace == controlNamespace &&
 			(strings.HasPrefix(item.Metadata.Name, "loco-clickhouse-") ||
-				item.Metadata.Name == "loco-control-plane-openbao-init" || item.Metadata.Name == "loco-openbao-seal") {
+				item.Metadata.Name == "loco-control-plane-openbao-init" || item.Metadata.Name == "openbao-seal") {
 			values[item.Metadata.Namespace+"/"+item.Metadata.Name] = item.Data
 		}
 	}

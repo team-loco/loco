@@ -145,7 +145,7 @@ mise run dev
 mise run dev:deploy
 ```
 
-`dev` starts kind and the compose fixtures for Postgres, registry, S3 and Dex, installs pinned Flux controllers, builds and pushes the platform bundle with `release:local`, and pushes `dev/flux/local/` as an OCI artifact containing values and plaintext development Secrets. It waits for Flux health, signs in automatically, and registers and enrolls the worker. The UI runs on the host at port 5173 for hot reload. Fixtures, automatic login and the state directory use the local-stack harness.
+`dev` starts kind and the compose fixtures for Postgres, registry, S3 and Dex, installs pinned Flux controllers, builds and pushes the platform bundle with `release:local`, and runs `locoadm init --single-cluster` into its state directory on first start. It deep-merges `dev/flux/values/` overrides into the generated release values and publishes the repository as an OCI artifact. `dev:deploy` updates its bundle digest and preserves generated values and Secrets. It waits for Flux health, signs in automatically, and registers and enrolls the worker. The UI runs on the host at port 5173 for hot reload. Fixtures, automatic login and the state directory use the local-stack harness.
 
 `dev:deploy` rebuilds changed images, pushes a bundle and reconciles Flux. `dev:deploy --suspend` pauses Flux for a release to permit direct Helm iteration. Local development exercises the same bundle layers and dependencies as deployed clusters.
 

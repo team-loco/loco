@@ -1,6 +1,7 @@
 controlPlaneHostname: api.{{ .Domain }}
 ui: {hostname: localhost}
 api:
+  registry: {auth: static}
   existingSecret: loco-api-env
   systemAdmins: [dev@loco.test]
   env:

@@ -1,6 +1,7 @@
 controlPlaneHostname: api.installation.test
 ui: {hostname: console.installation.test}
 api:
+  registry: {auth: static}
   existingSecret: loco-api-env
   systemAdmins: [dev@loco.test]
   env:
@@ -18,8 +19,9 @@ certManager: {enabled: false}
 openbao:
   seal:
     static:
-      existingSecret: {name: loco-openbao-seal, key: key}
+      existingSecret: {name: openbao-seal, key: key}
   snapshots:
+    enabled: true
     s3:
       endpoint: http://s3.installation-fixtures.svc.cluster.local:8080
       region: us-east-1

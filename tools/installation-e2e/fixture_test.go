@@ -17,7 +17,7 @@ import (
 )
 
 func TestWorkerFluxValuesPreserveBuildNetworkInputs(t *testing.T) {
-	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "worker-values.yaml")
+	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "values", "loco-worker.yaml")
 	data, err := renderFixtureFile(
 		path,
 		map[string]any{"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}}},
@@ -129,11 +129,10 @@ func servicePodTemplates(t *testing.T, revision string) map[string]map[string]an
 
 func TestFluxClusterConfigurationCarriesCredentialsAndValues(t *testing.T) {
 	data, err := renderFixtureFile(
-		filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "cluster-config.yaml"),
+		filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "values", "secrets.yaml"),
 		map[string]any{
-			"ControlPlane": "api: {systemAdmins: [dev@loco.test]}\n", "Worker": "cluster: {role: all}\n",
-			"SealKey": "rendered-seal-key", "ClickHouseUsers": []string{"migrator", "ingest", "reader"},
-			"PushAuth": "fixture-push", "PullAuth": "fixture-pull",
+			"ClickHouseUsers": []string{"migrator", "ingest", "reader"},
+			"PushAuth":        "fixture-push", "PullAuth": "fixture-pull",
 		},
 	)
 	if err != nil {
@@ -167,14 +166,8 @@ func TestFluxClusterConfigurationCarriesCredentialsAndValues(t *testing.T) {
 		}
 		objects[object.Metadata.Name] = object
 	}
-	if len(objects) != 10 {
-		t.Fatalf("configuration has %d resources, want 10", len(objects))
-	}
-	if objects["loco-openbao-seal"].StringData["key"] != "rendered-seal-key" {
-		t.Fatal("configuration lost seal material")
-	}
-	if objects["loco-worker-values"].Data["values.yaml"] != "cluster: {role: all}\n" {
-		t.Fatal("configuration changed worker values")
+	if len(objects) != 6 {
+		t.Fatalf("configuration has %d resources, want 6", len(objects))
 	}
 	for _, role := range []string{"migrator", "ingest", "reader"} {
 		values := objects["loco-clickhouse-"+role].StringData

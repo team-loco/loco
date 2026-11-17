@@ -20,7 +20,7 @@ The control-plane chart is `charts/loco-control-plane`; the worker chart is `cha
 
 ## Installation inputs
 
-Provide Kubernetes and its CNI, PostgreSQL, OIDC, an S3-compatible source bucket, a registry and DNS. Postgres is outside the bundle. Each worker environment uses its own clusters. A single-cluster installation can host one control plane and one worker.
+Provide Kubernetes and its CNI, PostgreSQL, OIDC, an S3-compatible source bucket, a registry and DNS. Postgres is outside the bundle. Each worker environment uses its own clusters. A single-cluster installation can host one control plane and one worker. Use `locoadm init --single-cluster --name local` to generate its `clusters/local/` directory and combined bundle entry point.
 
 Follow the [installation guide](../reference/installation.md) to scaffold the operator repository, review chart values, encrypt Secrets and bootstrap Flux. Each cluster has its own Git directory referencing a shared role base in `bases/`. Shared values merge before per-cluster overrides. `locoadm` emits plaintext Secret manifests; operators choose encryption or external Secret delivery. With SOPS, configure Flux decryption and keep an offline recipient for recovery. Credential Secrets are referenced by name. Join tokens are one-time bootstrap material: pipe `locoadm cluster create -o secret` into `kubectl --context WORKER apply -f -` with the default one-hour TTL. An encrypted token in Git is an option for fully unattended installation. Chart values expose API limits, service defaults, retention and join-token lifetimes; `values.schema.json` validates their types and supported forms. The API validates configuration at startup.
 

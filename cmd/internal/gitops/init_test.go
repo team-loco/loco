@@ -32,6 +32,8 @@ func readSecret(t *testing.T, path string) map[string]string {
 	return secret.StringData
 }
 
+const controlPlaneCluster = "control-plane"
+
 func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
@@ -52,13 +54,13 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	if err := Init(options); err != nil {
 		t.Fatal(err)
 	}
-	sealFile := filepath.Join(options.Output, "clusters", "control-plane", "config", "openbao-seal.yaml")
+	sealFile := filepath.Join(options.Output, "clusters", controlPlaneCluster, "config", "openbao-seal.yaml")
 	seal := readSecret(t, sealFile)
 	key, err := base64.StdEncoding.DecodeString(seal["key"])
 	if err != nil || len(key) != 32 {
 		t.Fatalf("invalid seal key length: %d, %v", len(key), err)
 	}
-	api := readSecret(t, filepath.Join(options.Output, "clusters", "control-plane", "config", "api-env.yaml"))
+	api := readSecret(t, filepath.Join(options.Output, "clusters", controlPlaneCluster, "config", "api-env.yaml"))
 	if api["DATABASE_URL"] != "postgres://fixture" {
 		t.Fatal("API environment differs from input")
 	}
@@ -98,7 +100,18 @@ func TestInitSingleCluster(t *testing.T) {
 	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	options := InitOptions{Output: filepath.Join(root, "fleet"), API: "http://api.test:8000", Web: "http://web.test:5173", Domain: "apps.test", Region: "local", Admin: "admin@test.local", Bundle: "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64), APIEnvFile: env, SingleCluster: true, Name: "combined"}
+	options := InitOptions{
+		Output:        filepath.Join(root, "fleet"),
+		API:           "http://api.test:8000",
+		Web:           "http://web.test:5173",
+		Domain:        "apps.test",
+		Region:        "local",
+		Admin:         "admin@test.local",
+		Bundle:        "oci://registry.test/platform@sha256:" + strings.Repeat("a", 64),
+		APIEnvFile:    env,
+		SingleCluster: true,
+		Name:          "combined",
+	}
 	if err := Init(options); err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +120,9 @@ func TestInitSingleCluster(t *testing.T) {
 		t.Fatalf("clusters: %v, %v", clusters, err)
 	}
 	for _, release := range []string{"loco-control-plane", "loco-worker"} {
-		if _, err = os.Stat(filepath.Join(options.Output, "clusters", "combined", "values", release+".yaml")); err != nil {
+		if _, err = os.Stat(
+			filepath.Join(options.Output, "clusters", "combined", "values", release+".yaml"),
+		); err != nil {
 			t.Fatal(err)
 		}
 	}

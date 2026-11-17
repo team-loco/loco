@@ -67,6 +67,9 @@ spec:
 		return err
 	}
 	var resources bytes.Buffer
+	if err = checkSingleCluster(ctx, root, scratch, spec, &resources); err != nil {
+		return err
+	}
 	var chartCommands [][]string
 	for _, cluster := range clusters {
 		dir := filepath.Join(example, "clusters", cluster.name)
@@ -213,4 +216,67 @@ func strictSchema(value any) {
 			strictSchema(child)
 		}
 	}
+}
+
+func checkSingleCluster(ctx context.Context, root, scratch, spec string, resources *bytes.Buffer) error {
+	env := filepath.Join(scratch, "api.env")
+	if err := os.WriteFile(env, []byte("DATABASE_URL=postgres://fixture\n"), 0600); err != nil {
+		return err
+	}
+	output := filepath.Join(scratch, "combined")
+	if _, err := command(
+		ctx,
+		root,
+		nil,
+		"go",
+		"-C",
+		"cmd",
+		"run",
+		"./locoadm",
+		"init",
+		"--single-cluster",
+		"--name",
+		"combined",
+		"--output",
+		output,
+		"--api",
+		"https://api.test",
+		"--web",
+		"https://console.test",
+		"--domain",
+		"apps.test",
+		"--region",
+		"test-east",
+		"--admin",
+		"admin@test.local",
+		"--bundle",
+		"oci://registry.test/platform@sha256:"+strings.Repeat("a", 64),
+		"--api-env-file",
+		env,
+	); err != nil {
+		return err
+	}
+	cluster := filepath.Join(output, "clusters", "combined")
+	for _, path := range []string{cluster, filepath.Join(cluster, "config")} {
+		built, err := command(
+			ctx,
+			root,
+			nil,
+			"flux",
+			"build",
+			"kustomization",
+			"example",
+			"--dry-run",
+			"--path",
+			path,
+			"--kustomization-file",
+			spec,
+		)
+		if err != nil {
+			return err
+		}
+		resources.Write(built)
+		resources.WriteString("\n---\n")
+	}
+	return nil
 }

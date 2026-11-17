@@ -76,7 +76,7 @@ func recoveryDrill(ctx context.Context, upgrade func(context.Context) error) (er
 		"--namespace",
 		controlNamespace,
 		"--seal-secret",
-		"loco-openbao-seal",
+		"openbao-seal",
 		"--output",
 		output,
 	}

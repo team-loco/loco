@@ -44,7 +44,8 @@ func (f *fixture) configureClient(ctx context.Context, previous, current, image 
 			)
 		}
 	}
-	if err := f.installFlux(ctx, allowances, previous); err != nil {
+	previous, current, err := f.installFlux(ctx, allowances, previous, current)
+	if err != nil {
 		return err
 	}
 	probe, err := os.ReadFile(filepath.Join(f.root, "tests", "e2e", "fixtures", "public-image", "Dockerfile"))

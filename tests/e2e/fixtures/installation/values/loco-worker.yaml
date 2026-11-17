@@ -11,6 +11,7 @@ builds:
   pushSecretName: loco-registry-push
   insecureRegistry: true
 registry:
+  auth: static
   pullSecretName: loco-registry-pull
 global:
   region: us-east-1
@@ -21,6 +22,7 @@ global:
     ingestToken: {enabled: true}
 gateway-helm: {enabled: false}
 env:
+  LOCO_REGISTRY_HOST: registry.installation.localhost:5000
   CONTROL_PLANE_URL: http://api.installation.test
 certManager:
   issuer: {create: false, name: installation-ca, kind: ClusterIssuer}
