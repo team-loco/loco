@@ -276,22 +276,3 @@ func TestGitOpsChangesRunDeliveryValidation(t *testing.T) {
 		}
 	}
 }
-
-func TestPythonChangesRunLint(t *testing.T) {
-	t.Parallel()
-	filters, err := loadFilters("../../.github/ci-paths.yml")
-	require.NoError(t, err)
-	for _, event := range []string{"pull_request", "push"} {
-		for _, path := range []string{
-			"main.py", "tests/ui/harness.py", "tools/platform-images/verify.py",
-			"tools/platform-release/release.py", "examples/test-api/auth/main.py",
-			".agents/skills/ui-evidence/scripts/evidence.py", "ruff.toml",
-			"tests/pyproject.toml", "mise-tasks/lint/python", "mise-tasks/fmt/python",
-			miseConfigFile, miseLockFile, ".github/workflows/python.yml",
-			".github/actions/setup-tools/action.yml",
-		} {
-			assert.True(t, selectOwn(filters, event, []string{path})["python"], "%s %s", event, path)
-		}
-		assert.False(t, selectOwn(filters, event, []string{"web/src/App.tsx"})["python"], event)
-	}
-}

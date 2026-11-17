@@ -10,11 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	miseConfigFile = "mise.toml"
-	miseLockFile   = "mise.lock"
-)
-
 func TestFilterMatches(t *testing.T) {
 	for _, tc := range []struct {
 		pattern string
@@ -30,7 +25,7 @@ func TestFilterMatches(t *testing.T) {
 		{"api/{main,config}*.go", []string{"api/config_test.go"}, []string{"api/server.go"}},
 		{"docs?.md", []string{"doc.md", "docs.md"}, []string{"docss.md"}},
 		{".github/workflows/*.yml", []string{".github/workflows/ci.yml"}, []string{".github/workflows/a/b.yml"}},
-		{miseLockFile, []string{miseLockFile}, []string{"mise.lock.bak", "x/mise.lock"}},
+		{"mise.lock", []string{"mise.lock"}, []string{"mise.lock.bak", "x/mise.lock"}},
 	} {
 		t.Run(tc.pattern, func(t *testing.T) {
 			f, err := compileFilter([]string{tc.pattern})
@@ -83,9 +78,9 @@ review:
 	require.NoError(t, err)
 
 	assert.Equal(t, map[string]bool{release: true, review: false},
-		withUsers(filters, selectOwn(filters, "pull_request", []string{miseConfigFile})))
+		withUsers(filters, selectOwn(filters, "pull_request", []string{"mise.toml"})))
 	assert.Equal(t, map[string]bool{release: false, review: false},
-		withUsers(filters, selectOwn(filters, "push", []string{miseConfigFile})), "the push list omits mise.toml")
+		withUsers(filters, selectOwn(filters, "push", []string{"mise.toml"})), "the push list omits mise.toml")
 	assert.Equal(t, map[string]bool{release: true, review: false},
 		withUsers(filters, selectOwn(filters, "push", nil)), "a workflow without a push list never runs on push")
 	assert.Equal(t, map[string]bool{release: false, review: false},

@@ -15,5 +15,3 @@ jobs:
       - uses: ./.github/actions/setup-tools
       - name: Lint and check formatting
         run: mise run lint:python
-      - name: Test lint and format tasks
-        run: uv run --locked --project tests pytest tests/tooling

@@ -17,7 +17,7 @@ pre-commit:
       run: mise run lint:web
 
     - name: lint:python
-      glob: ["*.py", "**/*.py", "ruff.toml", "**/pyproject.toml", "mise-tasks/lint/python", "mise-tasks/fmt/python"]
+      glob: ["*.py", "ruff.toml"]
       run: mise run lint:python
 
     - name: lint:actions
@@ -29,5 +29,5 @@ pre-commit:
       run: mise run lint:docker
 
     - name: lint:versions
-      glob: ["**/Dockerfile", "**/*compose*.yaml", "**/*compose*.yml", "mise.toml", "tests/pyproject.toml", "bunfig.toml", "renovate.json5"]
+      glob: ["**/Dockerfile", "**/*compose*.yaml", "**/*compose*.yml", "mise.toml", "tests/pyproject.toml", "ruff.toml", "bunfig.toml", "renovate.json5"]
       run: mise run lint:versions

@@ -101,6 +101,7 @@ controller-helm-chart:
 docker:
   pull_request: &docker
     - "tests/pyproject.toml"
+    - "ruff.toml"
     - "tests/uv.lock"
     - "**/Dockerfile"
     - "**/*.dockerignore"
@@ -384,10 +385,8 @@ platform-release:
 python:
   pull_request: &python
     - "**/*.py"
-    - "**/pyproject.toml"
     - "ruff.toml"
     - "mise-tasks/lint/python"
-    - "mise-tasks/fmt/python"
     - "mise.toml"
     - "mise.lock"
     - ".github/workflows/python.yml"

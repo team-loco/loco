@@ -1,6 +1,6 @@
-# Python runtimes and project constraints are pinned in mise.toml and tests/pyproject.toml.
+# mise run lint:versions keeps target-version on the Python minor version mise.toml pins.
 target-version = "py315"
-line-length = 88
+extend-exclude = ["*.md"]
 
 [lint]
 select = [
@@ -20,6 +20,3 @@ select = [
 
 [lint.isort]
 combine-as-imports = true
-
-[format]
-docstring-code-format = true
