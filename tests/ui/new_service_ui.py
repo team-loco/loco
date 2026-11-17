@@ -48,6 +48,29 @@ def seeded_draft(name, image):
     return {"id": str(uuid.uuid4()), "name": name, "image": image, "createdMs": 0, "edits": {}}
 
 
+def seed_deployment(body, status, replica_state, detail, problem=None):
+    cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
+    replica = {"uid": f"replica-{deployment}", "name": "service-new-1", "node": "worker-east-1", "placement_revision": 1, "state": replica_state, "detail": detail}
+    replicas = body["spec"]["service"]["minReplicas"]
+    snapshot = {"replicas": [replica]}
+    if problem is not None:
+        snapshot["problem"] = {"reason": problem, "detail": detail, "replica_name": replica["name"]}
+    evidence.psql(state["container"], f"""BEGIN;
+INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES('{cluster}','service-{deployment}','{body['region']}','fixture',true,false,'healthy',NOW());
+INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
+VALUES('{deployment}','{body['resourceId']}','{cluster}','{body['region']}',{replicas},'{status}',true,'{body['environmentId']}',{evidence.sql_literal(json.dumps(body['spec']['service']))},1,'user','{state['users']['owner']['id']}','web');
+INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,status_updated_at)
+VALUES('{body['resourceId']}','{cluster}','{body['region']}','{deployment}','{body['environmentId']}','{{}}',1,1,NOW());
+INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
+VALUES('{deployment}',1,{evidence.sql_literal(json.dumps(snapshot))});
+INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message)
+VALUES('{deployment}',1,1,NOW(),'info','','Deployment requested.'),
+('{deployment}',2,1,NOW(),'{"error" if problem else "info"}','{replica["name"]}',{evidence.sql_literal(detail)});
+COMMIT;""")
+    return deployment
+
+
 with session(out) as browser:
     try:
         context, page, errors = open_page(browser, "member", storage={drafts_key: json.dumps([seeded_draft("member-draft", "registry.example.com/acme/member:1")])})
@@ -144,7 +167,7 @@ with session(out) as browser:
         def create_deployment(route):
             order.append(("CreateDeployment", route.request.post_data_json["resourceId"]))
             deployments.append(route.request.post_data_json)
-            route.fulfill(json={"deploymentId": str(uuid.uuid4())})
+            route.fulfill(json={"deploymentId": seed_deployment(route.request.post_data_json, "deploying", "Starting", "Starting application; waiting for readiness.")})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_deployment)
         try:
@@ -389,8 +412,16 @@ with session(out) as browser:
             open_button = drawer.get_by_role("link", name=f"Open {name}", exact=True)
             expect(open_button).to_be_visible()
             expect(drawer.get_by_text(f"Deploying {name}", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("Pull image", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("Route traffic", exact=True)).to_be_visible()
+            new_version = drawer.get_by_role("region", name="New version", exact=True)
+            expect(new_version.get_by_text("service-new-1", exact=True)).to_be_visible()
+            expect(new_version.get_by_text("worker-east-1", exact=True)).to_be_visible()
+            expect(new_version.get_by_text("Starting", exact=True)).to_be_visible()
+            expect(drawer.get_by_role("region", name="Previous version", exact=True).get_by_text("No replicas", exact=True)).to_be_visible()
+            activity = drawer.get_by_role("region", name="Activity feed", exact=True)
+            expect(activity.get_by_role("listitem")).to_have_count(2)
+            expect(activity.get_by_role("listitem").last).to_contain_text("Starting application; waiting for readiness.")
+            expect(activity.get_by_role("listitem").last).to_contain_text("service-new-1")
+            expect(drawer.get_by_role("link", name="View logs", exact=True)).to_be_visible()
             expect(drawer.get_by_role("button", name="Done", exact=True)).to_be_visible()
             header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
             expect(header.get_by_text("Deploying", exact=True)).to_be_visible()
@@ -433,15 +464,7 @@ with session(out) as browser:
         def create_failing_deployment(route):
             body = route.request.post_data_json
             deployments.append(body)
-            cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
-            evidence.psql(state["container"], f"""
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES('{cluster}','failed-{deployment}','{body['region']}','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
-VALUES('{deployment}','{body['resourceId']}','{cluster}','{body['region']}',1,'failed',true,'{body['environmentId']}',{evidence.sql_literal(json.dumps(body['spec']['service']))},1,'user','{state['users']['owner']['id']}','web');
-INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
-VALUES('{deployment}',1,'{{"problem":{{"reason":"image_pull_failed","detail":"ImagePullBackOff: manifest unknown"}}}}');
-""")
+            deployment = seed_deployment(body, "failed", "Failing", "ImagePullBackOff: manifest unknown", "image_pull_failed")
             route.fulfill(json={"deploymentId": deployment})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_failing_deployment)
@@ -493,7 +516,11 @@ VALUES('{deployment}',1,'{{"problem":{{"reason":"image_pull_failed","detail":"Im
             drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
             expect(drawer.get_by_text(f"Couldn't deploy {name}", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=False)).to_be_visible()
+            problem = drawer.get_by_role("status").filter(has_text="ImagePullBackOff: manifest unknown")
+            expect(problem.get_by_text("ImagePullBackOff: manifest unknown", exact=True)).to_be_visible()
+            expect(problem.get_by_text("service-new-1", exact=True)).to_be_visible()
+            expect(drawer.get_by_role("region", name="New version", exact=True).get_by_text("Failing", exact=True)).to_be_visible()
+            expect(drawer.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
             header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
             expect(header.get_by_text("Failed", exact=True)).to_be_visible()
             spec = deployments[0]["spec"]["service"]

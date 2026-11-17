@@ -305,7 +305,7 @@ export function DeployRunView({
 							{regions.length > 1 && <span className="pt-2 font-mono text-[12px] text-fg3">{r.region}</span>}
 							{r.error !== null ? (
 								<Banner title="Failed" className="mx-0 mt-0">
-									{r.error}
+									<p className="m-0 whitespace-pre-wrap [overflow-wrap:anywhere]">{r.error}</p>
 								</Banner>
 							) : r.watch.deployment === undefined ? (
 								<p role="status" className="m-0 text-[13px] text-fg3">
