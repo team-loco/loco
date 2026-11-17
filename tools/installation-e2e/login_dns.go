@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/netip"
-	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -18,20 +17,15 @@ const (
 	dnsQueryTimeout     = 5 * time.Second
 )
 
-func loginDNSHosts() []string {
-	issuer, err := url.Parse(fixtureIssuer)
-	if err != nil {
-		panic(err)
-	}
-	return []string{fixtureAPIHost, issuer.Hostname()}
-}
-
 // Only fixture names and fixed DNS result categories cross the CLI output boundary.
 func reportLoginDNSFailure(output []byte) {
-	for _, host := range loginDNSHosts() {
+	text := string(output)
+	for _, host := range []string{fixtureAPIHost, fixtureIssuerHost} {
+		if !strings.Contains(text, "lookup "+host+":") && !strings.Contains(text, "lookup "+host+" on ") {
+			continue
+		}
 		for _, result := range []string{"no such host", "server misbehaving"} {
-			if (strings.Contains(string(output), "lookup "+host+":") ||
-				strings.Contains(string(output), "lookup "+host+" on ")) && strings.Contains(string(output), ": "+result) {
+			if strings.Contains(text, ": "+result) {
 				fmt.Fprintf(os.Stderr, "%sfailed lookup host=%s result=%s\n", dnsDiagnosticPrefix, host, result)
 			}
 		}
@@ -75,7 +69,7 @@ func loginDNSDiagnostics(ctx context.Context, dir string) {
 			deployment.Status.UpdatedReplicas,
 		)
 	}
-	for _, host := range loginDNSHosts() {
+	for _, host := range []string{fixtureAPIHost, fixtureIssuerHost} {
 		for _, family := range []string{"A", "AAAA"} {
 			data, ok := query("-n", fixtureNamespace, "exec", "operator", "--", "nslookup", "-type="+family, host)
 			fmt.Fprintf(os.Stderr, "%snamespace=%s pod=operator host=%s type=%s result=%s\n",

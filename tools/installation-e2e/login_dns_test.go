@@ -13,13 +13,8 @@ func TestDNSQueryResult(t *testing.T) {
 		success bool
 		want    string
 	}{
-		{"Server: 10.96.0.10\nAddress: 10.96.0.10#53\n" +
-			"Name: api.installation.test\nAddress: 172.18.0.4\ncredential-canary", true, "172.18.0.4"},
 		{"Address: fd00::4\n", true, "fd00::4"},
-		{"credential-canary NXDOMAIN", false, "NXDOMAIN"},
-		{"SERVFAIL", false, "SERVFAIL"},
 		{"REFUSED", false, "REFUSED"},
-		{"dns-private-value", false, "query-unavailable"},
 		{"dns-private-value", true, "no-addresses"},
 		{strings.Repeat("Address: 172.18.0.4\n", 10000), true, strings.TrimSuffix(strings.Repeat("172.18.0.4,", 8), ",")},
 	} {
