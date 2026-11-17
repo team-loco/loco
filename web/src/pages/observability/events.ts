@@ -5,13 +5,16 @@ import { tsMs } from "@/lib/time";
 
 export type Severity = "error" | "warning" | "normal";
 
-// Public reason strings are owned by k8sapi/v1alpha1/runtime.go.
+// Public reason strings are owned by k8sapi/v1alpha1/problems.go.
 const REASON_TITLES: Record<string, string> = {
-	crash_looping: "Restarting after crash",
+	crash_loop: "Restarting after crash",
 	out_of_memory: "Out of memory",
 	image_pull_failed: "Image pull failed",
+	image_user: "Image runs as root",
+	config_error: "Couldn't start service",
 	unschedulable: "Couldn't schedule service",
 	health_check_failing: "Health check failing",
+	unclean_shutdown: "Replica killed at shutdown",
 };
 
 export function eventReasonLabel(reason: string): string {

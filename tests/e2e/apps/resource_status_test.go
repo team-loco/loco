@@ -507,7 +507,7 @@ func crashEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resou
 	t.Helper()
 	var crashes []*eventv1.Event
 	for _, event := range resourceEvents(ctx, t, w, resourceID, "resource.degraded") {
-		if event.GetData().GetFields()["reason"].GetStringValue() == "crash_looping" {
+		if event.GetData().GetFields()["reason"].GetStringValue() == "crash_loop" {
 			crashes = append(crashes, event)
 		}
 	}

@@ -43,7 +43,7 @@ def check_scoped_user(browser):
         'QueryMetrics': {'series': [{'resourceId': rid, 'points': [{'timestamp': stamp, 'value': 0.25}]}]},
         'QueryTraceBuckets': {'buckets': [], 'total': {'traceCount': '1', 'p50DurationNanos': '12000000', 'p95DurationNanos': '12000000'}},
     }
-    back_off = {'seq': '1', 'id': '01a1c8b3-0000-7000-8000-00000000b0ff', 'type': 'resource.degraded', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'environmentId': production, 'createdAt': stamp, 'data': {'reason': 'crash_looping', 'message': 'Back-off restarting failed container', 'placementId': 'checkout-us-east-1', 'region': 'us-east-1'}}
+    back_off = {'seq': '1', 'id': '01a1c8b3-0000-7000-8000-00000000b0ff', 'type': 'resource.degraded', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'environmentId': production, 'createdAt': stamp, 'data': {'reason': 'crash_loop', 'message': 'Back-off restarting failed container', 'placementId': 'checkout-us-east-1', 'region': 'us-east-1'}}
     rollout = {'seq': '2', 'id': '01a1c8b3-0000-7000-8000-00000000d001', 'type': 'deployment.created', 'orgId': activity['orgId'], 'workspaceId': activity['workspaceId'], 'resourceId': rid, 'createdAt': stamp, 'data': {'resourceId': rid, 'environmentId': production}}
     other_rollout = dict(rollout, id='01a1c8b3-0000-7000-8000-00000000d002', type='resource.scaled', data={'environmentId': '01a1c8b3-0000-7000-8000-0000000000ff', 'replicas': 3})
     down = {'environmentId': production, 'environmentName': 'production', 'status': 'RESOURCE_STATUS_UNAVAILABLE', 'regions': [{'region': 'us-east-1', 'status': 'RESOURCE_STATUS_UNAVAILABLE', 'desiredReplicas': 1, 'message': 'Back-off restarting failed container'}]}

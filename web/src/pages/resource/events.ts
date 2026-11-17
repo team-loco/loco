@@ -5,7 +5,7 @@ import { maybeTsMs, tsMs } from "@/lib/time";
 const WARNING_WINDOW_MS = 3_600_000;
 
 const WARNING = "resource.degraded";
-const BACK_OFF = "crash_looping";
+const BACK_OFF = "crash_loop";
 
 export function isWarning(event: Event): boolean {
 	return event.type === WARNING;
