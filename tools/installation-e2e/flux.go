@@ -201,7 +201,22 @@ func reconcilePlatform(ctx context.Context, path string) error {
 }
 
 func upgradePlatform(ctx context.Context) error {
-	return switchRepository(ctx, "/installation/current")
+	if err := fixtureSchemaQuery(ctx, `ALTER TABLE environments DROP COLUMN environment_type;
+ALTER TABLE clusters DROP COLUMN tier;`); err != nil {
+		return err
+	}
+	if err := switchRepository(ctx, "/installation/current"); err != nil {
+		return err
+	}
+	return activateHeadCLI()
+}
+
+func activateHeadCLI() error {
+	active, err := exec.LookPath(locoadmExecutable)
+	if err != nil {
+		return err
+	}
+	return os.Rename(filepath.Join(filepath.Dir(active), "locoadm-head"), active)
 }
 
 func switchRepository(ctx context.Context, path string) error {
@@ -253,6 +268,13 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		args = append(args, "--ttl", "72h", "-o", secretOutputFormat)
 	} else {
 		args = append(args, "--kube-context", "fixture")
+		help, err := locoadm(ctx, "cluster", clusterCreateCommand, "--help")
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(help), "--tier") {
+			args = append(args, "--tier", "production")
+		}
 	}
 	_, err := locoadm(ctx, args...)
 	if err != nil {
