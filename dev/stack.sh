@@ -95,7 +95,7 @@ export CLICKHOUSE_DB
 
 app_port=$(env_value APP_PORT)
 export APP_PORT="${app_port%:*}:$((${app_port##*:} + port_offset))"
-export PUBLIC_API_URL="http://localhost:${APP_PORT##*:}"
+export PUBLIC_API_URL="http://api.$STACK_DOMAIN:${APP_PORT##*:}"
 WEB_URL=$(shift_ports "$(env_value WEB_URL)")
 export WEB_URL
 export WEB_PORT=${WEB_URL##*:}

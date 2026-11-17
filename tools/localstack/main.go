@@ -17,7 +17,7 @@ import (
 type config struct {
 	Cluster, Domain, State, Project                                                          string
 	AppPort, AppsPort, WebPort, DexPort, RegistryPort, S3Port                                string
-	ClusterUID, PrivateEgress                                                                string
+	PrivateEgress                                                                            string
 	BundleVersion, EntryPoint, SealKey, PushAuth, PullAuth, ControlPlaneValues, WorkerValues string
 	Timeout                                                                                  time.Duration
 }
@@ -63,7 +63,8 @@ func newConfig() config {
 }
 
 func run(ctx context.Context, cfg config, args []string) error {
-	if len(args) == 0 {
+	if len(args) == 0 || len(args) > 2 ||
+		(len(args) == 2 && (args[0] != "deploy" || args[1] != "--suspend")) {
 		return errors.New("usage: localstack install|deploy [--suspend]|ca")
 	}
 	switch args[0] {

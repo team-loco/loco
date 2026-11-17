@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -30,7 +31,6 @@ func testConfig(t *testing.T) config {
 		DexPort:       "5756",
 		RegistryPort:  "5201",
 		S3Port:        "9200",
-		ClusterUID:    "00000000-0000-0000-0000-000000000001",
 		PrivateEgress: `[{"cidr":"172.18.0.0/16","port":5201}]`,
 	}
 }
@@ -209,5 +209,26 @@ func TestEnrollmentResumesAnExistingRegistration(t *testing.T) {
 	args, err = enrollmentArgs([]byte(`{"clusters":[]}`))
 	if err != nil || len(args) < 2 || args[1] != "create" {
 		t.Fatalf("new enrollment=%v,%v", args, err)
+	}
+}
+
+func TestInvalidArgumentsFailBeforeStartingTheStack(t *testing.T) {
+	for _, args := range [][]string{
+		nil, {"install", "trailing"}, {"ca", "unexpected"}, {"deploy", "--suspned"},
+		{"deploy", "--suspend", "extra"}, {"unknown"},
+	} {
+		if err := run(t.Context(), config{}, args); err == nil {
+			t.Fatalf("accepted unsupported arguments: %v", args)
+		}
+	}
+}
+
+func TestDashboardUsesTheGatewayAPIHostname(t *testing.T) {
+	cfg := testConfig(t)
+	cmd := exec.CommandContext(t.Context(), "bash", "-c", `source dev/stack.sh; printf '%s' "$PUBLIC_API_URL"`)
+	cmd.Env = append(os.Environ(), "LOCO_STACK_SLOT=2")
+	output, err := cmd.Output()
+	if err != nil || string(output) != cfg.apiURL() {
+		t.Fatalf("dashboard API URL = %q, %v; want %q", output, err, cfg.apiURL())
 	}
 }

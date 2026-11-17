@@ -125,15 +125,12 @@ func (cfg config) install(ctx context.Context) error {
 		if marshalErr != nil {
 			return marshalErr
 		}
-		if err = cfg.writeState("join-token.yaml", secret); err != nil {
+		if err = cfg.writeState(filepath.Join("flux", "join-token.yaml"), secret); err != nil {
 			return err
 		}
 		if err = cfg.deploy(ctx, false); err != nil {
 			return err
 		}
-	}
-	if err := cfg.deploy(ctx, false); err != nil {
-		return err
 	}
 	return cfg.waitRunning(ctx)
 }
@@ -257,14 +254,10 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 		return err
 	}
 	resources := "resources:\n  - resources.yaml\n"
-	if token, readErr := os.ReadFile(filepath.Join(cfg.State, "join-token.yaml")); readErr == nil {
-		// #nosec G703 -- directory is this stack's private state directory.
-		if err = os.WriteFile(filepath.Join(directory, "join-token.yaml"), token, 0600); err != nil {
-			return err
-		}
+	if _, statErr := os.Stat(filepath.Join(directory, "join-token.yaml")); statErr == nil {
 		resources += "  - join-token.yaml\n"
-	} else if !os.IsNotExist(readErr) {
-		return readErr
+	} else if !os.IsNotExist(statErr) {
+		return statErr
 	}
 	if err = os.WriteFile(
 		filepath.Join(directory, "kustomization.yaml"),
