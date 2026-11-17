@@ -2,13 +2,7 @@ import type { Event } from "@gen/loco/event/v1/event_pb";
 
 export type RuntimeEvent = {
 	id: string;
-	seq: string;
-	actorType: string;
-	actorName: string;
-	actorEmail: string;
-	subjectType: string;
-	requestId: string;
-	data: NonNullable<Event["data"]>;
+	event: Event;
 	type: string;
 	reason: string;
 	message: string;
@@ -46,13 +40,7 @@ export function runtimeEvent(event: Event): RuntimeEvent {
 	};
 	return {
 		id: event.id,
-		seq: event.seq.toString(),
-		actorType: event.actorType,
-		actorName: event.actorName,
-		actorEmail: event.actorEmail,
-		subjectType: event.subjectType,
-		requestId: event.requestId,
-		data: event.data ?? {},
+		event,
 		type: event.type,
 		reason: field("reason"),
 		message: field("message"),

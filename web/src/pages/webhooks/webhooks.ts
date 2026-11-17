@@ -1,7 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 
-import type { Glyph } from "@/components/design/StatusGlyph";
 import { pluralize } from "@/lib/format";
 import { maybeTsMs, shortAgoLabel, shortDurationLabel, tsMs } from "@/lib/time";
 
@@ -13,17 +12,12 @@ export const STATUS_SUCCEEDED = "succeeded";
 export const STATUS_FAILED = "failed";
 export const STATUS_PENDING = "pending";
 
-export type Tick = "ok" | "warn" | "err" | "wait";
+export type Tick = "ok" | "warn" | "err" | "off";
 
 export function deliveryTick(d: WebhookDelivery): Tick {
 	if (d.status === STATUS_SUCCEEDED) return "ok";
 	if (d.status === STATUS_FAILED) return "err";
-	return d.lastError === "" ? "wait" : "warn";
-}
-
-export function deliveryGlyph(d: WebhookDelivery): Glyph {
-	const tick = deliveryTick(d);
-	return tick === "wait" ? "off" : tick;
+	return d.lastError === "" ? "off" : "warn";
 }
 
 export function deliveryLabel(d: WebhookDelivery): string {
