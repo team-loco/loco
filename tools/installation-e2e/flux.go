@@ -249,23 +249,16 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		"us-east-1",
 		"--tier",
 		"staging",
-		"-o",
-		secretOutputFormat,
 		"--secret-name",
 		"loco-worker-enrollment",
 	}
 	if head {
-		args = append(args, "--ttl", "72h")
+		args = append(args, "--ttl", "72h", "-o", secretOutputFormat)
+	} else {
+		args = append(args, "--kube-context", "fixture")
 	}
-	secret, err := locoadm(ctx, args...)
+	_, err := locoadm(ctx, args...)
 	if err != nil {
-		return err
-	}
-	// Issuance after the upgrade leaves the enrolled worker's token and identity intact.
-	if head {
-		return nil
-	}
-	if _, err = command(ctx, "", secret, "kubectl", "apply", "-f", "-"); err != nil {
 		return err
 	}
 	return nil

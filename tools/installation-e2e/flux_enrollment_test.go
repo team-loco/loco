@@ -15,8 +15,7 @@ func TestFluxWorkerUsesTheWorkerContext(t *testing.T) {
 			for name, script := range map[string]string{
 				"locoadm": `echo "$*" > "$CLI_ARGS"
 echo "Applied join-token Secret"`,
-				"flux":            "exit 0",
-				kubectlExecutable: "exit 0",
+				"flux": "exit 0",
 			} {
 				if err := os.WriteFile(
 					filepath.Join(bin, name),

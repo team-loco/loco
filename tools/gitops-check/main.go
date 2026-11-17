@@ -73,6 +73,9 @@ spec:
 	var chartCommands [][]string
 	for _, cluster := range clusters {
 		dir := filepath.Join(example, "clusters", cluster.name)
+		if err = checkCohort(example, dir); err != nil {
+			return err
+		}
 		for _, path := range []string{dir, filepath.Join(dir, "config")} {
 			built, buildErr := command(
 				ctx,
@@ -243,6 +246,9 @@ func checkSingleCluster(ctx context.Context, root, scratch, spec string, resourc
 		return err
 	}
 	cluster := filepath.Join(output, "clusters", "combined")
+	if err := checkCohort(output, cluster); err != nil {
+		return err
+	}
 	for _, path := range []string{cluster, filepath.Join(cluster, "config")} {
 		built, err := command(
 			ctx,
@@ -305,4 +311,28 @@ func chartArgs(root, chart, base, values string) []string {
 		args = append(args, "--set", component+"=validation@sha256:"+strings.Repeat("a", 64))
 	}
 	return args
+}
+
+func checkCohort(repo, cluster string) error {
+	data, err := os.ReadFile(filepath.Join(cluster, "kustomization.yaml"))
+	if err != nil {
+		return err
+	}
+	var root struct {
+		Resources []string `yaml:"resources"`
+	}
+	if err = yaml.Unmarshal(data, &root); err != nil {
+		return err
+	}
+	count := 0
+	for _, resource := range root.Resources {
+		path := filepath.Clean(filepath.Join(cluster, resource))
+		if filepath.Dir(path) == filepath.Join(repo, "releases") && filepath.Ext(path) == ".yaml" {
+			count++
+		}
+	}
+	if count != 1 {
+		return fmt.Errorf("cluster %s selects %d releases files; select exactly one cohort", cluster, count)
+	}
+	return nil
 }
