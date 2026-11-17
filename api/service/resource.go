@@ -579,6 +579,9 @@ func (s *ResourceServer) DeleteResource(
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, res.WorkspaceID); lockErr != nil {
 			return lockErr
 		}
+		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
 		if removeErr := removeResourcePlacements(ctx, qtx, res.ID); removeErr != nil {
 			return removeErr
 		}

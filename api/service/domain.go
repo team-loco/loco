@@ -250,7 +250,7 @@ func (s *DomainServer) UpdateResourceDomain(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if lockErr := lockResourceEnvironments(ctx, qtx, domainRow.ResourceID); lockErr != nil {
+		if lockErr := lockResourceDomains(ctx, qtx, domainRow.ResourceID); lockErr != nil {
 			return lockErr
 		}
 		if changed {
