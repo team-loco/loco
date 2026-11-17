@@ -1,3 +1,4 @@
+import { Scope } from "@gen/loco/token/v1/token_pb";
 import {
 	BellIcon,
 	BoxesIcon,
@@ -9,16 +10,19 @@ import {
 	Settings2Icon,
 	UsersIcon,
 	WaypointsIcon,
+	WebhookIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { parseAsString, useQueryStates } from "nuqs";
 import { useLocation } from "react-router";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
+import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { pageImporters } from "@/lib/lazy-pages";
 import {
 	auditPath,
+	webhooksPath,
 	inResourcesSection,
 	observabilityPath,
 	observabilityViewParser,
@@ -61,6 +65,7 @@ export function useNavSections(): NavSection[] {
 	const wsBase = hasWs ? workspacePath(activeOrgId, activeWorkspaceId) : null;
 	const onObs = wsBase !== null && pathname.startsWith(`${wsBase}/observability`);
 	const audit = useAuditAccess(activeOrgId);
+	const scopes = useMyScopes();
 
 	return [
 		{
@@ -113,6 +118,18 @@ export function useNavSections(): NavSection[] {
 					active: pathname.endsWith("/team"),
 					preload: pageImporters.Team,
 				},
+				...(hasWs && scopes.workspaceLevel(activeOrgId, activeWorkspaceId) >= scopeLevel(Scope.ADMIN)
+					? [
+							{
+								name: "Webhooks",
+								icon: <WebhookIcon />,
+								keywords: "events subscriptions endpoints",
+								to: webhooksPath(activeOrgId, activeWorkspaceId),
+								active: pathname.endsWith("/webhooks"),
+								preload: pageImporters.Webhooks,
+							},
+						]
+					: []),
 				...(audit.visible && activeOrgId !== null
 					? [
 							{

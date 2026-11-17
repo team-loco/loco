@@ -144,12 +144,17 @@ export function agoLabel(ms: number, nowMs: number): string {
 
 /** A relative time short enough for a narrow column: "5m ago", "3h ago", "2d ago". */
 export function shortAgoLabel(ms: number, nowMs: number): string {
-	const mins = Math.max(0, Math.round((nowMs - ms) / 60_000));
-	if (mins < 1) return "now";
-	if (mins < 60) return `${mins.toString()}m ago`;
+	if (Math.round((nowMs - ms) / 60_000) < 1) return "now";
+	return `${shortDurationLabel(nowMs - ms)} ago`;
+}
+
+export function shortDurationLabel(ms: number): string {
+	const mins = Math.max(0, Math.round(ms / 60_000));
+	if (mins < 1) return `${Math.max(1, Math.round(ms / 1000)).toString()}s`;
+	if (mins < 60) return `${mins.toString()}m`;
 	const hrs = Math.round(mins / 60);
-	if (hrs < 24) return `${hrs.toString()}h ago`;
-	return `${Math.round(hrs / 24).toString()}d ago`;
+	if (hrs < 24) return `${hrs.toString()}h`;
+	return `${Math.round(hrs / 24).toString()}d`;
 }
 
 export function parseClockInput(value: string, pref: TimePreferences): string | null {

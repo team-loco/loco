@@ -14,6 +14,7 @@ import {
 	UserIcon,
 	UserPlusIcon,
 	WaypointsIcon,
+	WebhookIcon,
 } from "lucide-react";
 import { createContext, use, useEffect, useState, type ReactNode } from "react";
 import { useQueryState } from "nuqs";
@@ -37,12 +38,13 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ModeIcon } from "@/components/design/ThemePreview";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { useMyScopes } from "@/hooks/useMyScopes";
+import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { scorePaletteItem } from "@/lib/command-palette";
 import { environmentStatus } from "@/lib/resource-status";
 import {
 	accountSettingsPath,
+	webhooksPath,
 	newResourcePath,
 	observabilityPath,
 	orgSettingsPath,
@@ -112,6 +114,15 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			icon: <PlusIcon />,
 			run: go(newResourcePath(orgId, workspaceId, envParams)),
 		});
+		if (scopes.workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.ADMIN))
+			items.push({
+				id: "action-new-webhook",
+				group: "Actions",
+				label: "New webhook",
+				keywords: "create endpoint subscription",
+				icon: <WebhookIcon />,
+				run: go(webhooksPath(orgId, workspaceId, "")),
+			});
 		for (const r of resources.data?.resources ?? []) {
 			items.push({
 				id: `resource-${r.id}`,

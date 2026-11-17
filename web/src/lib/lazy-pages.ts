@@ -3,6 +3,7 @@ export const pageImporters = {
 	Resources: async () => await import("@/pages/Resources"),
 	Resource: async () => await import("@/pages/Resource"),
 	Observability: async () => await import("@/pages/Observability"),
+	Webhooks: async () => await import("@/pages/Webhooks"),
 	Settings: async () => await import("@/pages/Settings"),
 	Team: async () => await import("@/pages/Team"),
 	Audit: async () => await import("@/pages/Audit"),

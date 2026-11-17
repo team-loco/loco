@@ -10,11 +10,13 @@ export function CopyId({
 	children,
 	className,
 	title,
+	toastText,
 }: {
 	value: string;
 	children: ReactNode;
 	className?: string | undefined;
 	title?: string | undefined;
+	toastText?: string | undefined;
 }) {
 	const [copiedKey, copy] = useCopy(1500);
 	const copied = copiedKey === value;
@@ -23,7 +25,7 @@ export function CopyId({
 		<Button
 			variant="ghost"
 			onClick={() => {
-				copy(value, value);
+				copy(value, value, toastText);
 			}}
 			title={copied ? "Copied" : (title ?? `Copy ${value}`)}
 			className={cn("h-auto gap-1.5 px-1.5 py-0.5", className)}

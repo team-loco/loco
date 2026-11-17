@@ -96,7 +96,7 @@ def check_webhooks(page):
     expect(builds).to_have_accessible_name("Builds all")
     expect(builds.get_by_text("all", exact=True)).to_be_visible()
     build_events = page.get_by_role("group", name="Builds events", exact=True)
-    failed = build_events.get_by_role("button", name="build.failed", exact=True)
+    failed = build_events.get_by_role("button", name="failed", exact=True)
     expect(failed).to_have_attribute("aria-pressed", "true")
     failed.click()
     expect(failed).to_have_attribute("aria-pressed", "false")
@@ -135,15 +135,15 @@ def check_webhooks(page):
     page.get_by_role("button", name="Done", exact=True).click()
     expect(new_webhook).to_be_focused()
     page.get_by_role("button", name=f"Deliveries for {endpoint}", exact=True).click()
-    drawer = page.get_by_role("dialog", name=endpoint)
+    drawer = page.get_by_role("dialog", name="hooks.invalid")
     drawer.get_by_text("build.created", exact=True).wait_for()
-    drawer.get_by_role("button", name="Failed", exact=True).wait_for()
+    drawer.get_by_role("button", name=re.compile(r"^Failing")).wait_for()
     page.keyboard.press("Escape")
     drawer.wait_for(state="hidden")
     page.get_by_role("button", name=f"Actions for {endpoint}", exact=True).click()
     page.get_by_role("menuitem", name="Delete", exact=True).click()
     page.get_by_role("alertdialog", name="Delete webhook?").get_by_role("button", name="Delete webhook", exact=True).click()
-    page.get_by_text("No webhooks yet.", exact=True).wait_for()
+    page.get_by_text("No webhooks yet. Create one to get a POST for events in this workspace.", exact=True).wait_for()
 
 
 def check_environments(page):
@@ -253,7 +253,12 @@ with session(out) as browser:
                         # The list fits the smallest page size, so it has no pager.
                         expect(workspaces.get_by_role("button", name="Next page", exact=True)).to_have_count(0)
                     if tab == "ws" and user == "owner":
+                        settings_url = page.url
+                        page.goto(settings_url.split("/settings")[0] + "/webhooks")
+                        expect(page.get_by_role("heading", name="Webhooks", exact=True)).to_be_visible()
                         check_webhooks(page)
+                        page.goto(settings_url)
+                        expect(page.get_by_role("region", name="Environments", exact=True)).to_be_visible()
                         check_environments(page)
                         check_create_dialogs(page)
                     check_table_geometry(page)
