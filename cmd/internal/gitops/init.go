@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	yamlv3 "go.yaml.in/yaml/v3"
@@ -22,9 +23,14 @@ import (
 
 type InitOptions struct {
 	Output, API, Web, Domain, Region, Admin, Bundle, APIEnvFile string
+	SingleCluster                                               bool
+	Name                                                        string
 }
 
 func Init(options InitOptions) error {
+	if options.SingleCluster && !regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`).MatchString(options.Name) {
+		return errors.New("name must be a lowercase cluster name")
+	}
 	endpoints := make([]*url.URL, 0, 2)
 	for _, address := range []string{options.API, options.Web} {
 		endpoint, err := url.Parse(address)
@@ -101,6 +107,9 @@ func Init(options InitOptions) error {
 		); writeErr != nil {
 			return writeErr
 		}
+	}
+	if options.SingleCluster {
+		return singleCluster(options)
 	}
 	return nil
 }
@@ -188,4 +197,63 @@ func copyExample(options InitOptions, repository, pin string, replacements *stri
 		}
 		return os.WriteFile(filepath.Join(options.Output, path), data, 0600)
 	})
+}
+
+func singleCluster(options InitOptions) error {
+	root := options.Output
+	all := filepath.Join(root, "bases", "all")
+	if err := os.Mkdir(all, 0700); err != nil {
+		return err
+	}
+	for _, name := range []string{"kustomization.yaml", "loco.yaml"} {
+		data, err := os.ReadFile(filepath.Join(root, "bases", "control-plane", name))
+		if err != nil {
+			return err
+		}
+		if name == "kustomization.yaml" {
+			data = []byte("apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources: [../../releases/control-plane.yaml, loco.yaml, ../control-plane/values, ../worker/values]\n")
+		} else {
+			data = bytes.ReplaceAll(data, []byte("./control-plane"), []byte("./all"))
+		}
+		if err = os.WriteFile(filepath.Join(all, name), data, 0600); err != nil {
+			return err
+		}
+	}
+	control := filepath.Join(root, "clusters", "control-plane")
+	worker := filepath.Join(root, "clusters", "worker-staging")
+	values, err := os.ReadFile(filepath.Join(worker, "values", "loco-worker.yaml"))
+	if err != nil {
+		return err
+	}
+	if err = os.WriteFile(filepath.Join(control, "values", "loco-worker.yaml"), values, 0600); err != nil {
+		return err
+	}
+	path := filepath.Join(control, "kustomization.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var cluster map[string]any
+	if err = yaml.Unmarshal(data, &cluster); err != nil {
+		return err
+	}
+	cluster["resources"] = []string{"../../bases/all"}
+	cluster["configMapGenerator"] = append(cluster["configMapGenerator"].([]any), map[string]any{
+		"name": "loco-worker-values", "namespace": "flux-system", "files": []string{"values.yaml=values/loco-worker.yaml"},
+	})
+	data, err = yaml.Marshal(cluster)
+	if err != nil {
+		return err
+	}
+	data = bytes.ReplaceAll(data, []byte("./clusters/control-plane/config"), []byte("./clusters/"+options.Name+"/config"))
+	if err = os.WriteFile(path, data, 0600); err != nil {
+		return err
+	}
+	if err = os.RemoveAll(worker); err != nil {
+		return err
+	}
+	if options.Name != "control-plane" {
+		return os.Rename(control, filepath.Join(root, "clusters", options.Name))
+	}
+	return nil
 }
