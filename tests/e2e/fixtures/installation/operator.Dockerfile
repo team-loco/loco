@@ -19,6 +19,8 @@ SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 ARG TARGETARCH
 ARG HELM_VERSION
 ARG KUBECTL_VERSION
+ARG FLUX_VERSION
+ARG SOPS_VERSION
 WORKDIR /tmp
 RUN wget -qO /tmp/helm.tgz "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz" \
  && wget -qO /tmp/helm.sha "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${TARGETARCH}.tar.gz.sha256sum" \
@@ -31,9 +33,22 @@ RUN wget -qO /kubectl "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/$
  && echo "$(cat /tmp/kubectl.sha)  /kubectl" | sha256sum -c - \
  && chmod +x /kubectl
 
+RUN wget -qO flux.tar.gz "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" \
+ && wget -qO flux.checksums "https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}/flux_${FLUX_VERSION}_checksums.txt" \
+ && mv flux.tar.gz "flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" \
+ && awk -v file="flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" '$2 == file {print}' flux.checksums | sha256sum -c - \
+ && tar -xzf "flux_${FLUX_VERSION}_linux_${TARGETARCH}.tar.gz" flux \
+ && mv flux /flux
+RUN wget -qO "sops-v${SOPS_VERSION}.linux.${TARGETARCH}" "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.${TARGETARCH}" \
+ && wget -qO sops.checksums "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.checksums.txt" \
+ && awk -v file="sops-v${SOPS_VERSION}.linux.${TARGETARCH}" '$2 == file {print}' sops.checksums | sha256sum -c - \
+ && mv "sops-v${SOPS_VERSION}.linux.${TARGETARCH}" /sops \
+ && chmod +x /sops
+
 FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
 WORKDIR /tmp
 COPY --from=operator-tools /helm /kubectl /usr/local/libexec/
+COPY --from=operator-tools /flux /sops /usr/local/bin/
 RUN ln -s /usr/local/bin/installation-e2e /usr/local/bin/helm \
  && ln -s /usr/local/bin/installation-e2e /usr/local/bin/kubectl
 COPY --from=builder /loco /installation-e2e /usr/local/bin/

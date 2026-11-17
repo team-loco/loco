@@ -320,7 +320,7 @@ esac
 	}
 	t.Setenv("PATH", bin)
 	t.Setenv("RECOVERY_CLEANUP_MARKER", marker)
-	if err := restoreRecovery(t.Context(), exportedMaterial{}, nil); err == nil {
+	if err := restoreRecovery(t.Context(), exportedMaterial{}, nil, nil); err == nil {
 		t.Fatal("failed source inspection returned success")
 	}
 	if _, err := os.Stat(marker); err != nil {

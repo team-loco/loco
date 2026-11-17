@@ -4,7 +4,7 @@ metadata: {name: installation-fixtures}
 ---
 apiVersion: v1
 kind: Namespace
-metadata: {name: loco-control-plane}
+metadata: {name: loco-system}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -32,7 +32,7 @@ data:
 ---
 apiVersion: v1
 kind: Secret
-metadata: {name: fixture-inputs, namespace: loco-control-plane}
+metadata: {name: fixture-inputs, namespace: loco-system}
 stringData:
   database-url: postgresql://loco:fixture-database-canary@postgres.installation-fixtures.svc.cluster.local:5432/loco?sslmode=disable
   access-key-id: fixture-access

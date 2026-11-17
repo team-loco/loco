@@ -40,6 +40,14 @@ variable "HELM_VERSION" {
   default = ""
 }
 
+variable "FLUX_VERSION" {
+  default = ""
+}
+
+variable "SOPS_VERSION" {
+  default = ""
+}
+
 variable "KUBECTL_VERSION" {
   default = ""
 }
@@ -132,5 +140,7 @@ target "installation-operator" {
   args = {
     HELM_VERSION    = HELM_VERSION
     KUBECTL_VERSION = KUBECTL_VERSION
+    FLUX_VERSION = FLUX_VERSION
+    SOPS_VERSION = SOPS_VERSION
   }
 }

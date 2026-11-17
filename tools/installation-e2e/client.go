@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,15 +27,11 @@ import (
 )
 
 var (
-	errAdminsUnclaimed              = errors.New("status reports configured admins nobody claimed after sign-in")
-	errFixtureCAInvalid             = errors.New("invalid fixture CA certificate")
-	errFixtureCAPEM                 = errors.New("fixture CA certificate is not PEM")
-	errFreshOperatorIdentityChanged = errors.New(
-		"fresh operator apply replaced installation credentials or worker identity",
-	)
+	errAdminsUnclaimed             = errors.New("status reports configured admins nobody claimed after sign-in")
+	errFixtureCAInvalid            = errors.New("invalid fixture CA certificate")
+	errFixtureCAPEM                = errors.New("fixture CA certificate is not PEM")
 	errHTTPSReadiness              = errors.New("application HTTPS readiness did not succeed")
 	errInstallerCredentialsMissing = errors.New("installer created no owned credential Secrets")
-	errMissingIssuerAccepted       = errors.New("initial apply unexpectedly accepted a missing issuer")
 	errNetworkPolicyInputs         = errors.New("network-policy fixture inputs are missing")
 	errNetworkPolicyProbeAllowed   = errors.New(
 		"build namespace NetworkPolicy does not block Kubernetes API access",
@@ -52,11 +49,10 @@ var (
 const (
 	fixtureEmail    = "dev@loco.test"
 	fixturePassword = "loco-dev"
-	// fixtureIssuer and fixtureAPIURL match tests/e2e/fixtures/installation/loco-install.yaml.
+	// Endpoints match the Flux fixture chart values.
 	fixtureIssuer          = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
 	fixtureAPIURL          = "http://api.installation.test"
 	fixtureClient          = "loco"
-	clientFile             = "/installation/loco-install.yaml"
 	clientTimeout          = 45 * time.Minute
 	fixtureWorkloadTimeout = 5 * time.Minute
 	httpsReadyTimeout      = 2 * time.Minute
@@ -90,10 +86,6 @@ func clientAcceptance(ctx context.Context) (result error) {
 	if err := clientFlow(ctx, audit, hostname); err != nil {
 		return err
 	}
-	operatorPhase(phaseRecovery)
-	if err := recoveryDrill(ctx); err != nil {
-		return err
-	}
 	operatorPhase(phaseTLSMinimum)
 	if err := verifyTLSMinimum(ctx, hostname); err != nil {
 		return err
@@ -103,25 +95,15 @@ func clientAcceptance(ctx context.Context) (result error) {
 }
 
 func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
-	for _, operation := range []string{"validate", "plan"} {
-		if _, checkErr := locoadm(ctx, operation, "--file", clientFile); checkErr != nil {
-			return fmt.Errorf("initial %s: %w", operation, checkErr)
-		}
-	}
 	operatorPhase(phaseControlPlane)
-	if _, checkErr := kubectl(ctx, "get", "clusterissuer", "installation-ca"); checkErr != nil {
-		if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr == nil {
-			return errMissingIssuerAccepted
-		}
-		if checkErr := provisionIssuer(ctx); checkErr != nil {
-			return checkErr
-		}
+	if err := reconcilePlatform(ctx, "./control-plane"); err != nil {
+		return err
 	}
-	if _, checkErr := locoadm(ctx, "apply", "--file", clientFile); checkErr != nil {
-		return checkErr
+	if err := provisionIssuer(ctx); err != nil {
+		return err
 	}
-	if dnsErr := configureGatewayDNS(ctx, controlNamespace, false); dnsErr != nil {
-		return dnsErr
+	if err := configureGatewayDNS(ctx, false); err != nil {
+		return err
 	}
 	operatorPhase(phasePreLoginAudit)
 	if checkErr := audit.inspect(ctx, "before login"); checkErr != nil {
@@ -142,25 +124,22 @@ func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 	if _, targetErr := locoadm(ctx, "cluster", "list"); targetErr != nil {
 		return fmt.Errorf("saved login target: %w", targetErr)
 	}
-	if _, checkErr := locoadm(ctx, "cluster", "attach", "--file", clientFile); checkErr != nil {
+	if checkErr := createFluxWorker(ctx, "staging", false); checkErr != nil {
 		return checkErr
 	}
-	if dnsErr := configureGatewayDNS(ctx, workerNamespace, true); dnsErr != nil {
+	if dnsErr := configureGatewayDNS(ctx, true); dnsErr != nil {
 		return dnsErr
 	}
 	if checkErr := audit.inspect(ctx, "workers attached"); checkErr != nil {
 		return checkErr
 	}
-	operatorPhase(phaseRepeatApply)
 	before, err := identitySnapshot(ctx)
 	if err != nil {
 		return err
 	}
-	if checkErr := applyAndAttach(ctx); checkErr != nil {
-		return checkErr
-	}
-	if checkErr := audit.inspect(ctx, "repeat apply complete"); checkErr != nil {
-		return checkErr
+	operatorPhase(phaseUpgrade)
+	if err = recoveryDrill(ctx, upgradePlatform); err != nil {
+		return err
 	}
 	after, err := identitySnapshot(ctx)
 	if err != nil {
@@ -169,8 +148,18 @@ func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 	if before != after {
 		return errReapplyIdentityChanged
 	}
-	if checkErr := freshOperator(ctx, audit, before); checkErr != nil {
-		return checkErr
+	operatorPhase(phaseFreshHome)
+	if err = os.Setenv("HOME", "/tmp/operator-second"); err != nil {
+		return err
+	}
+	if err = signIn(ctx, approveDeviceCode); err != nil {
+		return err
+	}
+	if err = requireAdminsClaimed(ctx); err != nil {
+		return err
+	}
+	if err = createFluxWorker(ctx, "post-upgrade", true); err != nil {
+		return err
 	}
 	operatorPhase(phaseWorkloads)
 	if checkErr := deployFixture(ctx, hostname); checkErr != nil {
@@ -182,46 +171,6 @@ func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 		return checkErr
 	}
 	return nil
-}
-
-// freshOperator checks that a fresh local credential store signs in again and reapplies
-// without replacing installation credentials or the worker identity.
-func freshOperator(ctx context.Context, audit *leakAudit, before string) error {
-	operatorPhase(phaseFreshHome)
-	originalHome := os.Getenv("HOME")
-	if checkErr := os.Setenv("HOME", "/tmp/operator-second"); checkErr != nil {
-		return checkErr
-	}
-	if checkErr := signIn(ctx, approveDeviceCode); checkErr != nil {
-		return fmt.Errorf("sign in from fresh operator state: %w", checkErr)
-	}
-	operatorPhase(phasePostLoginAudit)
-	if checkErr := audit.inspect(ctx, "fresh login complete"); checkErr != nil {
-		return checkErr
-	}
-	operatorPhase(phaseFreshHome)
-	if checkErr := applyAndAttach(ctx); checkErr != nil {
-		return fmt.Errorf("apply from fresh operator state: %w", checkErr)
-	}
-	if checkErr := audit.inspect(ctx, "fresh apply complete"); checkErr != nil {
-		return checkErr
-	}
-	after, err := identitySnapshot(ctx)
-	if err != nil {
-		return err
-	}
-	if before != after {
-		return errFreshOperatorIdentityChanged
-	}
-	return os.Setenv("HOME", originalHome)
-}
-
-func applyAndAttach(ctx context.Context) error {
-	if _, err := locoadm(ctx, "apply", "--file", clientFile); err != nil {
-		return err
-	}
-	_, err := locoadm(ctx, "cluster", "attach", "--file", clientFile)
-	return err
 }
 
 func requireAdminsClaimed(ctx context.Context) error {
@@ -324,8 +273,6 @@ func identitySnapshot(ctx context.Context) (string, error) {
 	data, err := kubectl(ctx, "get",
 		"secrets",
 		"--all-namespaces",
-		"-l",
-		"loco.build/installation=installation-e2e",
 		"-o",
 		"json",
 	)
@@ -350,7 +297,11 @@ func identitySnapshot(ctx context.Context) (string, error) {
 	// Resource versions and deployment rollout metadata may change; credential bytes may not.
 	values := make(map[string]map[string]string)
 	for _, item := range result.Items {
-		values[item.Metadata.Namespace+"/"+item.Metadata.Name] = item.Data
+		if item.Metadata.Namespace == controlNamespace &&
+			(strings.HasPrefix(item.Metadata.Name, "loco-clickhouse-") ||
+				item.Metadata.Name == "loco-control-plane-openbao-init" || item.Metadata.Name == "loco-openbao-seal") {
+			values[item.Metadata.Namespace+"/"+item.Metadata.Name] = item.Data
+		}
 	}
 	agent, err := kubectl(ctx, "-n",
 		workerNamespace,

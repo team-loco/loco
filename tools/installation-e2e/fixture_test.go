@@ -11,41 +11,34 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func TestInstallationFixtureRequiresPinnedInfrastructure(t *testing.T) {
-	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "loco-install.yaml")
-	if _, err := renderFixtureFile(path, map[string]any{"Version": 1}); err == nil {
-		t.Fatal("missing external cluster identity was accepted")
-	}
+func TestWorkerFluxValuesPreserveBuildNetworkInputs(t *testing.T) {
+	path := filepath.Join("..", "..", "tests", "e2e", "fixtures", "installation", "worker-values.yaml")
 	data, err := renderFixtureFile(
 		path,
-		map[string]any{
-			"Version":       json.Number("1"),
-			"ClusterUID":    "external-kind-uid",
-			"Email":         fixtureEmail,
-			"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}},
-		},
+		map[string]any{"PrivateEgress": []map[string]any{{"cidr": "10.2.3.4/32", "port": 5000}}},
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var installation struct {
-		Version int `json:"version"`
-		Workers []struct {
-			MetricsServer struct {
-				Enabled            bool `json:"enabled"`
-				KubeletInsecureTLS bool `json:"kubeletInsecureTLS"`
-			} `json:"metricsServer"`
-		} `json:"workers"`
+	var values struct {
+		MetricsServer struct {
+			Enabled bool     `json:"enabled"`
+			Args    []string `json:"args"`
+		} `json:"metrics-server"`
+		Builds struct {
+			PrivateEgress []struct {
+				CIDR string `json:"cidr"`
+				Port int    `json:"port"`
+			} `json:"privateEgress"`
+		} `json:"builds"`
 	}
-	if err := yaml.Unmarshal(data, &installation); err != nil {
+	if err = yaml.Unmarshal(data, &values); err != nil {
 		t.Fatal(err)
 	}
-	if installation.Version != 1 {
-		t.Fatalf("fixture version = %d, want integer 1", installation.Version)
-	}
-	if len(installation.Workers) != 1 || !installation.Workers[0].MetricsServer.Enabled ||
-		!installation.Workers[0].MetricsServer.KubeletInsecureTLS {
-		t.Fatal("kind worker must opt into unsigned kubelet serving certificates")
+	if !values.MetricsServer.Enabled || !slices.Contains(values.MetricsServer.Args, "--kubelet-insecure-tls") ||
+		len(values.Builds.PrivateEgress) != 1 ||
+		values.Builds.PrivateEgress[0].CIDR != "10.2.3.4/32" {
+		t.Fatalf("fixture values = %+v", values)
 	}
 }
 

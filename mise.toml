@@ -386,7 +386,7 @@ env = { _.source = "dev/stack.sh" }
 run = "./mise-tasks/obs/serve"
 
 [tasks."e2e:installation"]
-description = "Install through locoadm with real OIDC, a configured admin's sign-in under closed signup and an in-cluster staging worker, then build source and verify HTTPS; accepts --no-teardown and --skip-build"
+description = "Install and upgrade through Flux, preserve platform state, then sign in, issue an encrypted join token and verify source deployment; accepts --no-teardown and --skip-build"
 run = "go run ./tools/installation-e2e"
 
 [tasks."stack:install"]

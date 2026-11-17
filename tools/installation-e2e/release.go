@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	registryname "github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/team-loco/loco/tools/internal/imagepull"
 )
 
@@ -18,39 +20,42 @@ const operatorImage = "installation-operator"
 
 var errReleaseVersion = errors.New("fixture release has no version")
 
-func (f *fixture) release(ctx context.Context) (map[string]any, string, error) {
-	if err := f.pullPrebuilt(ctx); err != nil {
-		return nil, "", err
-	}
-	output, err := f.releaseManifest(ctx)
+func (f *fixture) release(ctx context.Context, source string) (string, error) {
+	output, err := f.releaseManifest(ctx, source)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
-	var manifest map[string]any
-	decoder := json.NewDecoder(bytes.NewReader(output))
-	decoder.UseNumber()
-	if decodeErr := decoder.Decode(&manifest); decodeErr != nil {
-		return nil, "", decodeErr
+	var manifest struct {
+		Version string `json:"version"`
 	}
-	version, ok := manifest["version"].(string)
-	if !ok || version == "" {
-		return nil, "", errReleaseVersion
+	if err = json.Unmarshal(output, &manifest); err != nil {
+		return "", err
 	}
-	if buildErr := f.buildLocoadm(ctx, version); buildErr != nil {
-		return nil, "", buildErr
+	if manifest.Version == "" {
+		return "", errReleaseVersion
 	}
-	image, err := f.buildOperator(ctx, version)
-	return manifest, image, err
+	f.version = manifest.Version
+	tag, err := registryname.NewTag(
+		strings.TrimPrefix(f.registryURL, "http://") + "/platform/loco/platform:" + f.version,
+	)
+	if err != nil {
+		return "", err
+	}
+	descriptor, err := remote.Head(tag, remote.WithContext(ctx), remote.WithAuth(fixtureRegistryAuth()))
+	if err != nil {
+		return "", err
+	}
+	return registryHost + "/platform/loco/platform@" + descriptor.Digest.String(), nil
 }
 
-func (f *fixture) releaseManifest(ctx context.Context) ([]byte, error) {
+func (f *fixture) releaseManifest(ctx context.Context, source string) ([]byte, error) {
 	path := filepath.Join(f.dir, "release.json")
 	if f.skip {
 		return os.ReadFile(path)
 	}
-	args := []string{"run", "--quiet", "release:local", "--repository", "platform/loco",
+	args := []string{"run", "--quiet", "release:local", "--source", source, "--repository", "platform/loco",
 		"--push", strings.Replace(strings.TrimPrefix(f.registryURL, "http://"), "127.0.0.1:", "localhost:", 1),
-		"--address", registryHost, "--username", fixtureBuilder, "--password", "loco-dev-builder"}
+		"--address", registryHost, "--username", fixtureBuilder, "--password", fixturePushPassword}
 	if f.images != "" {
 		args = append(args, "--images", f.images)
 	}
@@ -92,10 +97,20 @@ func (f *fixture) buildOperator(ctx context.Context, version string) (string, er
 		if err != nil {
 			return "", err
 		}
+		flux, err := f.pin(ctx, "mise.toml", ".tools.flux2")
+		if err != nil {
+			return "", err
+		}
+		sops, err := f.pin(ctx, "mise.toml", ".tools.sops")
+		if err != nil {
+			return "", err
+		}
 		if checkErr := dockerBuild(ctx, f.root, "--platform", f.platform,
 			"--build-arg", "VERSION="+version,
 			"--build-arg", "HELM_VERSION="+helm,
 			"--build-arg", "KUBECTL_VERSION="+kubectl,
+			"--build-arg", "FLUX_VERSION="+flux,
+			"--build-arg", "SOPS_VERSION="+sops,
 			"-f", "tests/e2e/fixtures/installation/operator.Dockerfile", "-t", tag, "."); checkErr != nil {
 			return "", fmt.Errorf("build operator fixture: %w", checkErr)
 		}

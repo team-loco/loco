@@ -2,28 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
-func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, image string) error {
-	uid, uidErr := command(
-		ctx,
-		f.root,
-		nil,
-		"kubectl",
-		"get",
-		"namespace",
-		"kube-system",
-		"-o",
-		"jsonpath={.metadata.uid}",
-	)
-	if uidErr != nil {
-		return uidErr
-	}
+func (f *fixture) configureClient(ctx context.Context, previous, current, image string) error {
 	allowances := []map[string]any{}
 	for _, service := range []struct {
 		name string
@@ -59,24 +44,7 @@ func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, 
 			)
 		}
 	}
-	configVersion, err := f.pin(ctx, "schemas/installation.v1.json", ".properties.version.const")
-	if err != nil {
-		return err
-	}
-	installation, err := renderFixtureFile(
-		filepath.Join(f.root, "tests", "e2e", "fixtures", "installation", "loco-install.yaml"),
-		map[string]any{
-			"Version":       configVersion,
-			"Email":         fixtureEmail,
-			"PrivateEgress": allowances,
-			"ClusterUID":    strings.TrimSpace(string(uid)),
-		},
-	)
-	if err != nil {
-		return err
-	}
-	release, err := json.Marshal(manifest)
-	if err != nil {
+	if err := f.installFlux(ctx, allowances, previous); err != nil {
 		return err
 	}
 	probe, err := os.ReadFile(filepath.Join(f.root, "tests", "e2e", "fixtures", "public-image", "Dockerfile"))
@@ -104,8 +72,8 @@ func (f *fixture) configureClient(ctx context.Context, manifest map[string]any, 
 		return deleteErr
 	}
 	parameters := map[string]any{
-		"Installation":   string(installation),
-		"Release":        string(release),
+		"Previous":       previous,
+		"Current":        current,
 		"Image":          image,
 		"ProbeImage":     probeImage,
 		"BuildNamespace": buildNamespace,

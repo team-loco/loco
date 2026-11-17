@@ -37,7 +37,7 @@ type exportedMaterial struct {
 	GenerateRootToken string `json:"generateRootToken"`
 }
 
-func recoveryDrill(ctx context.Context) (err error) {
+func recoveryDrill(ctx context.Context, upgrade func(context.Context) error) (err error) {
 	directory, err := os.MkdirTemp("", "loco-recovery-")
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func recoveryDrill(ctx context.Context) (err error) {
 	if err != nil {
 		return err
 	}
-	return restoreRecovery(ctx, material, shares)
+	return restoreRecovery(ctx, material, shares, upgrade)
 }
 
 func decryptRecovery(directory string, identities []*age.X25519Identity) (exportedMaterial, []string, error) {

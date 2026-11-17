@@ -1,29 +1,17 @@
 # Installation acceptance
 
-`mise run e2e:installation` provisions disposable infrastructure, then runs the public `locoadm` and `loco` commands from an operator pod with an explicit kubeconfig. The Go runner lives in `tools/installation-e2e`; these files own its external fixtures.
+`mise run e2e:installation` installs a platform bundle through Flux on a disposable kind cluster, upgrades it, and runs the public operator and application commands. `tools/installation-e2e` owns the runner; this directory owns its external fixtures.
 
-Two schedulable kind nodes provide room for the full platform and build CPU requests on four-CPU CI hosts. Both nodes share the host's physical CPUs.
+The baseline uses the merge base's charts and images, packaged by the head's bundle tooling. The head supplies the upgrade bundle. [2186](https://github.com/team-loco/loco/issues/2186) tracks selecting the newest published v2 bundle as the baseline. Both generations use digest-pinned artifacts. The baseline worktree lives beside the tested checkout.
 
-The suite signs the operator in with `locoadm login --device` and approves the code with an ID token from Dex's password grant; the configured admin claims system admin under closed signup. It also covers chart-managed OpenBao and observability, an in-cluster staging agent, authenticated build push/pull and CA-verified HTTPS. `locoadm verify` then creates its own source service and verifies its secret and log delivery. Fixture DNS points at real cloud-provider-kind LoadBalancers, including wildcard application routing.
+Flux reconciles the bundle's control-plane entry point, then its combined entry point after registration. The operator signs in with the device flow and a verified Dex identity under closed signup. `locoadm cluster create` writes a SOPS-encrypted join-token Secret; Flux decrypts the enrollment artifact with a throwaway age identity.
 
-Recovery acceptance exports encrypted material to distinct throwaway age custodians and decrypts it only in memory. A disposable OpenBao instance restores the raft snapshot using the exported static seal key, restarts to exercise auto-unseal, decrypts a ciphertext created before the snapshot and signs data with the original ingest identity. Recovery export status and restore success are separate checks. Temporary roots are revoked and disposable resources are removed after success or failure.
+Upgrade checks compare agent identity, seal material, initialization material and ClickHouse credentials before and after reconciliation. A transit ciphertext created before the upgrade must decrypt afterwards, and the ingest signing key must retain its public identity. A fresh operator login and a 72-hour token issuance exercise the upgraded API.
 
-Run once with `--no-teardown` for development, then reuse the kept infrastructure with `--skip-build`. The default path removes the fixture on success and failure. No SQL creates users, sessions or cluster registrations, and the harness does not provide generated Loco credentials or key material. External fixture credentials remain development-only inputs. The operator image's Docker context allowlist excludes run directories, kubeconfigs and local credential files.
+The application workflow builds source, checks CA-verified HTTPS and enforces build-network isolation. `locoadm verify` creates its own source service and checks secret and log delivery. Fixture DNS points at cloud-provider-kind LoadBalancers, including wildcard application routing.
 
-`--timeout` bounds host setup and acceptance; its default leaves time for setup and cleanup within the CI job. Cleanup has its own deadline even when acceptance times out.
+Recovery exports ciphertext to separate throwaway age custodians. A disposable OpenBao instance restores the raft snapshot with the exported seal key, restarts to exercise auto-unseal, decrypts an existing ciphertext and signs data with the original ingest identity. Temporary roots are revoked and disposable resources are removed after success or failure.
 
-Source deployment and verification each have a five-minute fixture deadline. Before cleanup, failures report allowlisted build, pod, event and node states plus validated numeric capacity; object names, specs and provider messages stay private.
+`--no-teardown` keeps the fixture for inspection. `--skip-build` reuses built images. The default path removes the fixture and baseline worktree after success or failure. External credentials are public test identities. The operator image's Docker context excludes run directories, kubeconfigs and local credentials.
 
-| Requirement | Evidence in this suite |
-| --- | --- |
-| [719](https://github.com/team-loco/loco/issues/719) | Public installation, real IdP authentication and enrolled in-cluster worker |
-| [968](https://github.com/team-loco/loco/issues/968) | Dedicated installation CI job and installer/chart/harness path filters |
-| [426](https://github.com/team-loco/loco/issues/426) | Cold CRD installation and real certificate-issuer readiness checkpoint |
-| [716](https://github.com/team-loco/loco/issues/716) | Docker builds explicitly target the Docker daemon's platform, including ARM64 |
-| [926](https://github.com/team-loco/loco/issues/926) | Functional build-network allow/deny probe; broader health diagnosis remains outside this suite |
-| [971](https://github.com/team-loco/loco/issues/971) | Fresh installation from the explicit file contract, followed by source deployment |
-| [1026](https://github.com/team-loco/loco/issues/1026) | Product verification sets a fresh secret through the public API and checks its hash through HTTPS after OpenBao/agent delivery |
-| [1195](https://github.com/team-loco/loco/issues/1195) | Runner tests require failed acceptance and cleanup failures to remain failures |
-| [1196](https://github.com/team-loco/loco/issues/1196) | Unknown options and test filters fail before infrastructure creation |
-
-These links trace acceptance requirements; they do not claim each issue is closed by this suite. The legacy component runners retain their own coverage and migration work.
+`--timeout` bounds host setup and acceptance. Cleanup has a separate deadline after cancellation. Failures report allowlisted build, pod, event and node states plus numeric capacity; specs and provider messages stay private.

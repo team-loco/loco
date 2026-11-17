@@ -20,7 +20,7 @@ const (
 	phaseLoginApproved   = "login-approved"
 	phasePostLoginAudit  = "post-login-audit"
 	phaseWorkers         = "workers"
-	phaseRepeatApply     = "repeat-apply"
+	phaseUpgrade         = "upgrade"
 	phaseFreshHome       = "fresh-home"
 	phaseWorkloads       = "workloads"
 	phaseSourceDeploy    = "source-deploy"
@@ -100,7 +100,7 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 			phasePrefix + phasePreLoginAudit, phasePrefix + phaseLogin,
 			phasePrefix + phaseLoginApprove, phasePrefix + phaseLoginApproved,
 			phasePrefix + phasePostLoginAudit,
-			phasePrefix + phaseWorkers, phasePrefix + phaseRepeatApply,
+			phasePrefix + phaseWorkers, phasePrefix + phaseUpgrade,
 			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
 			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,
 			phasePrefix + phaseSourceVerify, phasePrefix + phaseNetworkPolicy,

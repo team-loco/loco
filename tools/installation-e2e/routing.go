@@ -77,12 +77,17 @@ func (f *fixture) startLoadBalancer(ctx context.Context) error {
 	return nil
 }
 
-func configureGatewayDNS(ctx context.Context, namespace string, worker bool) error {
+func configureGatewayDNS(ctx context.Context, worker bool) error {
+	namespace := controlNamespace
 	deadline, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
 	defer cancel()
 	var address string
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+	gateway := "loco-control-plane"
+	if worker {
+		gateway = "eg"
+	}
 	for {
 		output, err := kubectl(
 			deadline,
@@ -91,7 +96,7 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 			"get",
 			"services",
 			"-l",
-			"gateway.envoyproxy.io/owning-gateway-namespace="+namespace,
+			"gateway.envoyproxy.io/owning-gateway-namespace="+namespace+",gateway.envoyproxy.io/owning-gateway-name="+gateway,
 			"-o",
 			"jsonpath={.items[0].status.loadBalancer.ingress[0].ip}",
 		)
@@ -155,7 +160,7 @@ func configureGatewayDNS(ctx context.Context, namespace string, worker bool) err
 			1,
 		)
 	}
-	patch, err := json.Marshal(map[string]any{"data": map[string]string{"Corefile": core}})
+	patch, err := json.Marshal(map[string]any{fluxData: map[string]string{"Corefile": core}})
 	if err != nil {
 		return err
 	}
