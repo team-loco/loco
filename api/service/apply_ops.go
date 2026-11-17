@@ -368,27 +368,23 @@ func (a *applier) currentBuild(
 	if state.Image != "" {
 		return &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: state.Image}, nil
 	}
-	if requested := a.builds[res.Name]; requested != nil {
-		return requested, nil
-	}
-	if deployments := a.live.deployments[res.ID]; len(deployments) > 0 {
-		deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, res.Type)
-		if err != nil {
-			return nil, fmt.Errorf("deployment %s spec: %w", deployments[0].ID, err)
+	source := a.builds[res.Name]
+	if source == nil {
+		if deployments := a.live.deployments[res.ID]; len(deployments) > 0 {
+			deploymentSpec, err := converter.DeserializeDeploymentSpec(deployments[0].Spec, res.Type)
+			if err != nil {
+				return nil, fmt.Errorf("deployment %s spec: %w", deployments[0].ID, err)
+			}
+			source = deploymentSpec.GetService().GetBuild()
+		} else {
+			latest, built := a.live.builds[res.ID]
+			if !built {
+				return nil, fmt.Errorf("%w: %s", errNoBuildToDeploy, res.Name)
+			}
+			source = &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: new(latest.ID.String())}
 		}
-		return deploymentSpec.GetService().GetBuild(), nil
 	}
-	latest, built := a.live.builds[res.ID]
-	if !built {
-		return nil, fmt.Errorf("%w: %s", errNoBuildToDeploy, res.Name)
-	}
-	build, err := qtx.GetBuildByID(ctx, latest.ID)
-	if err != nil {
-		return nil, fmt.Errorf("get build %s: %w", latest.ID, err)
-	}
-	image := build.ImageRepository + "@" + derefString(build.ImageDigest)
-	buildID := build.ID.String()
-	return &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, Image: image, BuildId: &buildID}, nil
+	return pinDockerfileBuild(ctx, qtx, res.ID, source, a.defaults.TargetPlatform)
 }
 
 func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {

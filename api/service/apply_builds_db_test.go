@@ -8,9 +8,13 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/reqctx"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	"github.com/team-loco/loco/internal/workloadplatform"
+	"google.golang.org/protobuf/proto"
 )
 
 const applyBuildDockerfile = "build/Dockerfile"
@@ -360,5 +364,48 @@ func TestApplyDeploysUnfinishedBuildAndReplacesBuildingDeployment(t *testing.T) 
 	}
 	if placements != 0 {
 		t.Fatalf("placements=%d", placements)
+	}
+}
+
+func TestApplyReusedSourceBuildMustMatchTarget(t *testing.T) {
+	t.Parallel()
+	for _, source := range []string{"named build", "running deployment", "latest successful build"} {
+		t.Run(source, func(t *testing.T) {
+			f := newDeployFixture(t)
+			id := f.addSucceededBuild(t, planSvc, testDockerfile, defaultBuildContext)
+			build, err := f.queries.GetBuildByID(t.Context(), id)
+			if err != nil {
+				t.Fatal(err)
+			}
+			res, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			pinned := &deploymentv1.BuildSource{
+				Type: buildSourceTypeDockerfile, BuildId: new(id.String()), Image: buildImage(build),
+			}
+			a := &applier{defaults: testServiceDefaults()}
+			switch source {
+			case "named build":
+				a.builds = map[string]*deploymentv1.BuildSource{res.Name: pinned}
+			case "running deployment":
+				spec, specErr := deploymentSpecJSON(&deploymentv1.ServiceDeploymentSpec{
+					Platform: string(testPlatform), Build: pinned,
+				})
+				if specErr != nil {
+					t.Fatal(specErr)
+				}
+				a.live.deployments = map[uuid.UUID][]genDb.Deployment{res.ID: {{Spec: spec}}}
+			case "latest successful build":
+				a.live.builds = map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{res.ID: {ID: id}}
+			}
+			got, err := a.currentBuild(t.Context(), f.queries, res, configplan.State{})
+			if err != nil || !proto.Equal(got, pinned) {
+				t.Fatalf("matching target build = %v, %v", got, err)
+			}
+			a.defaults.TargetPlatform = workloadplatform.ARM64
+			_, err = a.currentBuild(t.Context(), f.queries, res, configplan.State{})
+			wantCode(t, err, connect.CodeFailedPrecondition)
+		})
 	}
 }

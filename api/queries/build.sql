@@ -191,7 +191,6 @@ WITH ranked AS (
   SELECT b.id,
          b.resource_id,
          b.image_repository,
-       b.platform,
          b.image_digest,
          b.cache_digest,
          b.finished_at,

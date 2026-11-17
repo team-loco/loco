@@ -14,6 +14,7 @@ import (
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 var (
@@ -84,6 +85,12 @@ func (s *ResourceServer) updateRegions(
 				return a.CreatedAt.Compare(b.CreatedAt)
 			})}
 		}
+		template, templateErr := currentServiceSpec(runtime[0], res.Type)
+		if templateErr != nil {
+			return templateErr
+		}
+		defaults := s.defaults
+		defaults.TargetPlatform = workloadplatform.Platform(template.GetPlatform())
 		var envDomains []genDb.ResourceDomain
 		for _, domain := range domains {
 			if domain.EnvironmentID == env.ID {
@@ -121,7 +128,7 @@ func (s *ResourceServer) updateRegions(
 			ctx,
 			qtx,
 			s.clusterSilentAfter,
-			s.defaults.TargetPlatform,
+			defaults.TargetPlatform,
 		)
 		if clusterErr != nil {
 			return clusterErr
@@ -132,17 +139,13 @@ func (s *ResourceServer) updateRegions(
 		}
 		builds := map[string]*deploymentv1.BuildSource{}
 		if len(active) == 0 && desired.Image == "" {
-			template, templateErr := currentServiceSpec(runtime[0], res.Type)
-			if templateErr != nil {
-				return templateErr
-			}
 			builds[res.Name] = template.GetBuild()
 		}
 		var commit *deploymentv1.SourceCommit
 		if sha := runtime[0].CommitSha; sha != nil {
 			commit = &deploymentv1.SourceCommit{Sha: *sha, Dirty: runtime[0].CommitDirty}
 		}
-		a := newApplier(env, organizationID, counts, s.defaults, s.clusterSilentAfter)
+		a := newApplier(env, organizationID, counts, defaults, s.clusterSilentAfter)
 		a.live = liveEnvironment{
 			resources:   map[string]genDb.Resource{res.Name: res},
 			deployments: map[uuid.UUID][]genDb.Deployment{res.ID: active},
