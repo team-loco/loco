@@ -10,6 +10,7 @@ import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import pytest
 from helpers import chart_values
 
 
@@ -19,8 +20,9 @@ def docker(*args):
     ).strip()
 
 
-def test_gateway_route_environment_namespace(
-    worker_relays, tmp_path
+@pytest.mark.parametrize("gateway", [False, True], ids=["dependency", "gateway"])
+def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
+    worker_relays, tmp_path, gateway
 ):
     """Exercise real pod association and namespace lookup, including an unmatched sender."""
     name = f"loco-namespace-tenancy-{uuid.uuid4().hex}"
@@ -59,8 +61,11 @@ def test_gateway_route_environment_namespace(
                     "kind": "Pod",
                     "metadata": {
                         "name": "dependency",
-                        "namespace": "gateway-system",
-                        "labels": {"gateway.envoyproxy.io/owning-gateway-name": "loco"},
+                        "namespace": "gateway-system" if gateway else namespace,
+                        "labels": (
+                            {"gateway.envoyproxy.io/owning-gateway-name": "loco"}
+                            if gateway else {}
+                        ),
                         "uid": "pod-a",
                         "resourceVersion": "1",
                     },
@@ -216,8 +221,17 @@ def test_gateway_route_environment_namespace(
                                 {
                                     "traceId": "0123456789abcdef0123456789abcdef",
                                     "spanId": "0123456789abcdef",
-                                    "name": "gateway-route",
-                                    "attributes": [{"key": "upstream_cluster", "value": {"stringValue": f"httproute/{namespace}/resource-resource-a-route/rule/0"}}],
+                                    "name": "dependency",
+                                    "attributes": (
+                                        [{
+                                            "key": "upstream_cluster",
+                                            "value": {"stringValue": (
+                                                f"httproute/{namespace}/"
+                                                "resource-resource-a-route/rule/0"
+                                            )},
+                                        }]
+                                        if gateway else []
+                                    ),
                                     "startTimeUnixNano": "1700000000000000000",
                                     "endTimeUnixNano": "1700000000000000001",
                                 }
@@ -253,9 +267,16 @@ def test_gateway_route_environment_namespace(
                 break
             assert time.monotonic() < deadline, docker("logs", name)
             time.sleep(0.1)
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/v1/traces",
+            json.dumps(payload).encode(),
+            {"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            assert response.status == 200
         output = tmp_path / "output.json"
         received = []
-        while len(received) < 1:
+        while len(received) < 2:
             if output.exists():
                 received = [
                     r
@@ -271,14 +292,30 @@ def test_gateway_route_environment_namespace(
             }
             for r in received
         ]
-        print("ACTUAL_GATEWAY_ATTRIBUTES=" + json.dumps(attrs[0], sort_keys=True), flush=True)
-        assert attrs[0].items() >= {
-            "loco.organization.id": "organization-a",
-            "loco.workspace.id": "workspace-a",
-            "loco.environment.id": "environment-a",
-            "loco.resource.id": "resource-a",
-            "k8s.namespace.name": namespace,
-        }.items()
+        assert (
+            attrs[0].items()
+            >= {
+                "loco.organization.id": "organization-a",
+                "loco.workspace.id": "workspace-a",
+                "loco.environment.id": "environment-a",
+                "k8s.namespace.name": namespace,
+                "k8s.pod.name": "dependency",
+            }.items()
+        )
+        if gateway:
+            assert attrs[0]["loco.resource.id"] == "resource-a"
+        else:
+            assert "loco.resource.id" not in attrs[0]
+        assert not any(
+            key in attrs[1]
+            for key in (
+                "loco.organization.id",
+                "loco.workspace.id",
+                "loco.environment.id",
+                "loco.resource.id",
+                "k8s.namespace.name",
+            )
+        )
     finally:
         try:
             subprocess.run(

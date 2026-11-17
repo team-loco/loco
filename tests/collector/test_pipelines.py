@@ -402,7 +402,7 @@ def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
             gated[0]["statements"][0]
             == f'set(cache["cluster"], attributes["{attribute}"])'
         ), statements
-        for key in ROUTE_TENANCY:
+        for key in ("loco.resource.id", "k8s.namespace.name"):
             setters = [
                 statement
                 for statement in gated[0]["statements"]
@@ -437,7 +437,7 @@ def test_file_logs_extract_application_severity(worker_relays):
         assert "log_statements" in config["processors"]["transform/log_severity"]
 
 
-def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
+def test_the_collector_parses_routes_in_the_controllers_environment_namespaces():
     prefix = "tenant-"
     documents = render_chart(
         "loco-worker", {"global": {"workspaceNamespacePrefix": prefix}}
@@ -446,7 +446,7 @@ def test_the_collector_parses_routes_in_the_controllers_workspace_namespaces():
         "transform/envoy_tenancy"
     ]["trace_statements"][1]["statements"]
     (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
-    assert f'"^httproute/{prefix}(?P<workspace>' in parse
+    assert f'"^httproute/(?P<namespace>{prefix}' in parse
 
 
 @pytest.mark.parametrize("platform_only", [None, False, True])

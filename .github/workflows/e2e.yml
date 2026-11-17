@@ -13,12 +13,17 @@ jobs:
       - run: mise run helm:deps
       - name: Prove broken workspace attribution
         run: |
+          git show bd1f7b929:charts/loco-worker/values.yaml > charts/loco-worker/values.yaml
           set +e
           mise exec -- uv run --locked --project tests pytest -s tests/collector/test_namespace_tenancy.py
           result=$?
           test "$result" = 1
       - name: Remove namespace suffix as workspace ID
         run: |
-          sed -i '/setWorkspace/d' charts/loco-worker/values.yaml
+          git restore charts/loco-worker/values.yaml
       - name: Prove namespace label enrichment
         run: mise exec -- uv run --locked --project tests pytest -s tests/collector/test_namespace_tenancy.py
+      - name: Check chart and pipeline assertions
+        run: |
+          mise exec -- untt --strict -f 'tests/collectors_test.yaml' charts/loco-worker
+          mise exec -- uv run --locked --project tests pytest tests/collector/test_pipelines.py -k 'not pipelines_batch'
