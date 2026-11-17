@@ -5,8 +5,8 @@
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
-import type { Duration, DurationJson } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_duration } from "@bufbuild/protobuf/wkt";
+import type { Duration, DurationJson, Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_duration, file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { ClusterRole, ClusterRoleJson } from "../../cluster/v1/cluster_pb";
 import { file_loco_cluster_v1_cluster } from "../../cluster/v1/cluster_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/agent/v1/agent.proto.
  */
 export const file_loco_agent_v1_agent: GenFile = /*@__PURE__*/
-  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIpACCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgBIAEoCRIuCghjYXBhY2l0eRgCIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRI2CgRyb2xlGAMgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlQgq6SAeCAQQQASAAEh0KC2NsdXN0ZXJfa2V5GAQgASgJQgi6SAVyA7ABARItCgplbnJvbGxtZW50GAUgASgLMhkubG9jby5hZ2VudC52MS5FbnJvbGxtZW50Eh0KB2RvbWFpbnMYBiADKAlCDLpICZIBBiIEcgJoAUoECAcQCFILZG5zX3JlY29yZHMiRgoKRW5yb2xsbWVudBIbCgpqb2luX3Rva2VuGAEgASgJQge6SARyAhABEhsKCnB1YmxpY19rZXkYAiABKAxCB7pIBHoCaCAiXQoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjUKEmhlYXJ0YmVhdF9pbnRlcnZhbBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKHAgoLU3luY1JlcXVlc3QSLQoJaW52ZW50b3J5GAEgASgLMhgubG9jby5hZ2VudC52MS5JbnZlbnRvcnlIABIpCgdhcHBsaWVkGAIgASgLMhYubG9jby5hZ2VudC52MS5BcHBsaWVkSAASMAoGc3RhdHVzGAMgASgLMh4ubG9jby5hZ2VudC52MS5QbGFjZW1lbnRTdGF0dXNIABIyCgxidWlsZF9zdGF0dXMYBCABKAsyGi5sb2NvLmFnZW50LnYxLkJ1aWxkU3RhdHVzSAASLQoJaGVhcnRiZWF0GAUgASgLMhgubG9jby5hZ2VudC52MS5IZWFydGJlYXRIAEIJCgdtZXNzYWdlIpABCglJbnZlbnRvcnkSLgoHZW50cmllcxgBIAMoCzIdLmxvY28uYWdlbnQudjEuSW52ZW50b3J5RW50cnkSLQoGYnVpbGRzGAIgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlCdWlsZBIkCg13b3Jrc3BhY2VfaWRzGAMgAygJQg26SAqSAQciBXIDsAEBIlQKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIaChJlbnZfc2VjcmV0X3BlbmRpbmcYAyABKAgiYAoOSW52ZW50b3J5QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgi6SAWCAQIQASLoAQoLQnVpbGRTdGF0dXMSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjQKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgq6SAeCAQQQASAAEjUKDGltYWdlX2RpZ2VzdBgDIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBI1CgxjYWNoZV9kaWdlc3QYBCABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSGQoHbWVzc2FnZRgFIAEoCUIIukgFcgMYgCAiUgoHQXBwbGllZBIUCgxwbGFjZW1lbnRfaWQYASABKAkSEAoIcmV2aXNpb24YAiABKAMSDQoFZXJyb3IYAyABKAkSEAoIcmV0cnlpbmcYBCABKAgiugEKD1BsYWNlbWVudFN0YXR1cxIUCgxwbGFjZW1lbnRfaWQYASABKAkSGQoRb2JzZXJ2ZWRfcmV2aXNpb24YAiABKAMSDQoFcmVhZHkYAyABKAgSFgoOcmVhZHlfcmVwbGljYXMYBCABKAUSDQoFcGhhc2UYBSABKAkSDwoHbWVzc2FnZRgGIAEoCRIWCg5ydW50aW1lX3JlYXNvbhgHIAEoCRIXCg9ydW50aW1lX21lc3NhZ2UYCCABKAki9QEKDFN5bmNSZXNwb25zZRIlCgVhcHBseRgBIAEoCzIULmxvY28uYWdlbnQudjEuQXBwbHlIABInCgZkZWxldGUYAiABKAsyFS5sb2NvLmFnZW50LnYxLkRlbGV0ZUgAEjAKC3N0YXJ0X2J1aWxkGAMgASgLMhkubG9jby5hZ2VudC52MS5TdGFydEJ1aWxkSAASMgoMY2FuY2VsX2J1aWxkGAQgASgLMhoubG9jby5hZ2VudC52MS5DYW5jZWxCdWlsZEgAEiQKEGRlbGV0ZV93b3Jrc3BhY2UYBSABKAlCCLpIBXIDsAEBSABCCQoHbWVzc2FnZSKHAQoFQXBwbHkSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJEhMKC2FwcGxpY2F0aW9uGAQgASgMEiwKCmVudl9zZWNyZXQYBSABKAsyGC5sb2NvLmFnZW50LnYxLkVudlNlY3JldCJ8CglFbnZTZWNyZXQSEAoIcmV2aXNpb24YASABKAMSMAoEZGF0YRgCIAMoCzIiLmxvY28uYWdlbnQudjEuRW52U2VjcmV0LkRhdGFFbnRyeRorCglEYXRhRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgMOgI4ASJFCgZEZWxldGUSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEhMKC3Jlc291cmNlX2lkGAMgASgJIroCCgpTdGFydEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABARIeCgx3b3Jrc3BhY2VfaWQYAiABKAlCCLpIBXIDsAEBEh0KC3Jlc291cmNlX2lkGAMgASgJQgi6SAVyA7ABARIcCgpzb3VyY2VfdXJsGAQgASgJQgi6SAVyA4gBARIgCg9kb2NrZXJmaWxlX3BhdGgYBSABKAlCB7pIBHICEAESIQoQaW1hZ2VfcmVwb3NpdG9yeRgGIAEoCUIHukgEcgIQARIRCgljYWNoZV9yZWYYByABKAkSGAoHY29udGV4dBgIIAEoCUIHukgEcgIQARIkCg9vcmdhbml6YXRpb25faWQYCSABKAlCC7pICNgBAXIDsAEBEhsKE3JlZ2lzdHJ5X2NyZWRlbnRpYWwYCiABKAkiKQoLQ2FuY2VsQnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBItEBCglIZWFydGJlYXQSLgoIY2FwYWNpdHkYASABKAsyHC5sb2NvLmFnZW50LnYxLkFnZW50Q2FwYWNpdHkSKgoGaGVhbHRoGAIgASgLMhoubG9jby5hZ2VudC52MS5BZ2VudEhlYWx0aBI2CgRyb2xlGAMgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlQgq6SAeCAQQQASAAEh0KB2RvbWFpbnMYBCADKAlCDLpICZIBBiIEcgJoAUoECAUQBlILZG5zX3JlY29yZHMiqwEKDUFnZW50Q2FwYWNpdHkSHAoUY3B1X21pbGxpY29yZXNfdG90YWwYASABKAMSGwoTY3B1X21pbGxpY29yZXNfdXNlZBgCIAEoAxIaChJtZW1vcnlfYnl0ZXNfdG90YWwYAyABKAMSGQoRbWVtb3J5X2J5dGVzX3VzZWQYBCABKAMSEgoKcG9kc190b3RhbBgFIAEoBRIUCgxwb2RzX3J1bm5pbmcYBiABKAUiVgoLQWdlbnRIZWFsdGgSGgoSa3ViZXJuZXRlc19oZWFsdGh5GAEgASgIEhoKEmNvbnRyb2xsZXJfaGVhbHRoeRgCIAEoCBIPCgdtZXNzYWdlGAMgASgJKqgBCgpCdWlsZFBoYXNlEhsKF0JVSUxEX1BIQVNFX1VOU1BFQ0lGSUVEEAASFwoTQlVJTERfUEhBU0VfUEVORElORxABEhcKE0JVSUxEX1BIQVNFX1JVTk5JTkcQAhIZChVCVUlMRF9QSEFTRV9TVUNDRUVERUQQAxIWChJCVUlMRF9QSEFTRV9GQUlMRUQQBBIYChRCVUlMRF9QSEFTRV9DQU5DRUxFRBAFMqABCgxBZ2VudFNlcnZpY2USSwoIUmVnaXN0ZXISHi5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVxdWVzdBofLmxvY28uYWdlbnQudjEuUmVnaXN0ZXJSZXNwb25zZRJDCgRTeW5jEhoubG9jby5hZ2VudC52MS5TeW5jUmVxdWVzdBobLmxvY28uYWdlbnQudjEuU3luY1Jlc3BvbnNlKAEwAUI4WjZnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2FnZW50L3YxO2FnZW50djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_duration, file_loco_cluster_v1_cluster]);
+  fileDesc("Chlsb2NvL2FnZW50L3YxL2FnZW50LnByb3RvEg1sb2NvLmFnZW50LnYxIpACCg9SZWdpc3RlclJlcXVlc3QSFQoNYWdlbnRfdmVyc2lvbhgBIAEoCRIuCghjYXBhY2l0eRgCIAEoCzIcLmxvY28uYWdlbnQudjEuQWdlbnRDYXBhY2l0eRI2CgRyb2xlGAMgASgOMhwubG9jby5jbHVzdGVyLnYxLkNsdXN0ZXJSb2xlQgq6SAeCAQQQASAAEh0KC2NsdXN0ZXJfa2V5GAQgASgJQgi6SAVyA7ABARItCgplbnJvbGxtZW50GAUgASgLMhkubG9jby5hZ2VudC52MS5FbnJvbGxtZW50Eh0KB2RvbWFpbnMYBiADKAlCDLpICZIBBiIEcgJoAUoECAcQCFILZG5zX3JlY29yZHMiRgoKRW5yb2xsbWVudBIbCgpqb2luX3Rva2VuGAEgASgJQge6SARyAhABEhsKCnB1YmxpY19rZXkYAiABKAxCB7pIBHoCaCAiXQoQUmVnaXN0ZXJSZXNwb25zZRISCgpjbHVzdGVyX2lkGAEgASgJEjUKEmhlYXJ0YmVhdF9pbnRlcnZhbBgCIAEoCzIZLmdvb2dsZS5wcm90b2J1Zi5EdXJhdGlvbiKHAgoLU3luY1JlcXVlc3QSLQoJaW52ZW50b3J5GAEgASgLMhgubG9jby5hZ2VudC52MS5JbnZlbnRvcnlIABIpCgdhcHBsaWVkGAIgASgLMhYubG9jby5hZ2VudC52MS5BcHBsaWVkSAASMAoGc3RhdHVzGAMgASgLMh4ubG9jby5hZ2VudC52MS5QbGFjZW1lbnRTdGF0dXNIABIyCgxidWlsZF9zdGF0dXMYBCABKAsyGi5sb2NvLmFnZW50LnYxLkJ1aWxkU3RhdHVzSAASLQoJaGVhcnRiZWF0GAUgASgLMhgubG9jby5hZ2VudC52MS5IZWFydGJlYXRIAEIJCgdtZXNzYWdlIpABCglJbnZlbnRvcnkSLgoHZW50cmllcxgBIAMoCzIdLmxvY28uYWdlbnQudjEuSW52ZW50b3J5RW50cnkSLQoGYnVpbGRzGAIgAygLMh0ubG9jby5hZ2VudC52MS5JbnZlbnRvcnlCdWlsZBIkCg13b3Jrc3BhY2VfaWRzGAMgAygJQg26SAqSAQciBXIDsAEBIlQKDkludmVudG9yeUVudHJ5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxIaChJlbnZfc2VjcmV0X3BlbmRpbmcYAyABKAgiYAoOSW52ZW50b3J5QnVpbGQSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjIKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgi6SAWCAQIQASKoAgoLQnVpbGRTdGF0dXMSGgoIYnVpbGRfaWQYASABKAlCCLpIBXIDsAEBEjQKBXBoYXNlGAIgASgOMhkubG9jby5hZ2VudC52MS5CdWlsZFBoYXNlQgq6SAeCAQQQASAAEjUKDGltYWdlX2RpZ2VzdBgDIAEoCUIfukgcchoyGF4oc2hhMjU2OlthLWYwLTldezY0fSk/JBI1CgxjYWNoZV9kaWdlc3QYBCABKAlCH7pIHHIaMhheKHNoYTI1NjpbYS1mMC05XXs2NH0pPyQSGQoHbWVzc2FnZRgFIAEoCUIIukgFcgMYgCASDQoFc3RhZ2UYBiABKAkSLwoLc3RhZ2Vfc2luY2UYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlIKB0FwcGxpZWQSFAoMcGxhY2VtZW50X2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgDEg0KBWVycm9yGAMgASgJEhAKCHJldHJ5aW5nGAQgASgIIuoCCg9QbGFjZW1lbnRTdGF0dXMSFAoMcGxhY2VtZW50X2lkGAEgASgJEhkKEW9ic2VydmVkX3JldmlzaW9uGAIgASgDEg0KBXJlYWR5GAMgASgIEhYKDnJlYWR5X3JlcGxpY2FzGAQgASgFEg0KBXBoYXNlGAUgASgJEg8KB21lc3NhZ2UYBiABKAkSFgoOcnVudGltZV9yZWFzb24YByABKAkSFwoPcnVudGltZV9tZXNzYWdlGAggASgJEhgKEGRlc2lyZWRfcmVwbGljYXMYCSABKAUSEQoJYXZhaWxhYmxlGAogASgIEiIKGnByb2dyZXNzX2RlYWRsaW5lX2V4Y2VlZGVkGAsgASgIEi4KCHJlcGxpY2FzGAwgAygLMhwubG9jby5hZ2VudC52MS5SZXBsaWNhUmVwb3J0Ei0KB3Byb2JsZW0YDSABKAsyHC5sb2NvLmFnZW50LnYxLlByb2JsZW1SZXBvcnQimgIKDVJlcGxpY2FSZXBvcnQSCwoDdWlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEbm9kZRgDIAEoCRIaChJwbGFjZW1lbnRfcmV2aXNpb24YBCABKAMSDQoFc3RhdGUYBSABKAkSLwoLc3RhdGVfc2luY2UYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDnN0YXRlX2RlYWRsaW5lGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghyZXN0YXJ0cxgIIAEoBRIWCglleGl0X2NvZGUYCSABKAVIAIgBARIYCgZkZXRhaWwYCiABKAlCCLpIBXIDGIAEQgwKCl9leGl0X2NvZGUiegoNUHJvYmxlbVJlcG9ydBIOCgZyZWFzb24YASABKAkSFAoMcmVwbGljYV9uYW1lGAIgASgJEhgKBmRldGFpbBgDIAEoCUIIukgFcgMYgAgSKQoFc2luY2UYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIvUBCgxTeW5jUmVzcG9uc2USJQoFYXBwbHkYASABKAsyFC5sb2NvLmFnZW50LnYxLkFwcGx5SAASJwoGZGVsZXRlGAIgASgLMhUubG9jby5hZ2VudC52MS5EZWxldGVIABIwCgtzdGFydF9idWlsZBgDIAEoCzIZLmxvY28uYWdlbnQudjEuU3RhcnRCdWlsZEgAEjIKDGNhbmNlbF9idWlsZBgEIAEoCzIaLmxvY28uYWdlbnQudjEuQ2FuY2VsQnVpbGRIABIkChBkZWxldGVfd29ya3NwYWNlGAUgASgJQgi6SAVyA7ABAUgAQgkKB21lc3NhZ2UihwEKBUFwcGx5EhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxITCgtyZXNvdXJjZV9pZBgDIAEoCRITCgthcHBsaWNhdGlvbhgEIAEoDBIsCgplbnZfc2VjcmV0GAUgASgLMhgubG9jby5hZ2VudC52MS5FbnZTZWNyZXQifAoJRW52U2VjcmV0EhAKCHJldmlzaW9uGAEgASgDEjAKBGRhdGEYAiADKAsyIi5sb2NvLmFnZW50LnYxLkVudlNlY3JldC5EYXRhRW50cnkaKwoJRGF0YUVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoDDoCOAEiRQoGRGVsZXRlEhQKDHBsYWNlbWVudF9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoAxITCgtyZXNvdXJjZV9pZBgDIAEoCSK6AgoKU3RhcnRCdWlsZBIaCghidWlsZF9pZBgBIAEoCUIIukgFcgOwAQESHgoMd29ya3NwYWNlX2lkGAIgASgJQgi6SAVyA7ABARIdCgtyZXNvdXJjZV9pZBgDIAEoCUIIukgFcgOwAQESHAoKc291cmNlX3VybBgEIAEoCUIIukgFcgOIAQESIAoPZG9ja2VyZmlsZV9wYXRoGAUgASgJQge6SARyAhABEiEKEGltYWdlX3JlcG9zaXRvcnkYBiABKAlCB7pIBHICEAESEQoJY2FjaGVfcmVmGAcgASgJEhgKB2NvbnRleHQYCCABKAlCB7pIBHICEAESJAoPb3JnYW5pemF0aW9uX2lkGAkgASgJQgu6SAjYAQFyA7ABARIbChNyZWdpc3RyeV9jcmVkZW50aWFsGAogASgJIikKC0NhbmNlbEJ1aWxkEhoKCGJ1aWxkX2lkGAEgASgJQgi6SAVyA7ABASLRAQoJSGVhcnRiZWF0Ei4KCGNhcGFjaXR5GAEgASgLMhwubG9jby5hZ2VudC52MS5BZ2VudENhcGFjaXR5EioKBmhlYWx0aBgCIAEoCzIaLmxvY28uYWdlbnQudjEuQWdlbnRIZWFsdGgSNgoEcm9sZRgDIAEoDjIcLmxvY28uY2x1c3Rlci52MS5DbHVzdGVyUm9sZUIKukgHggEEEAEgABIdCgdkb21haW5zGAQgAygJQgy6SAmSAQYiBHICaAFKBAgFEAZSC2Ruc19yZWNvcmRzIqsBCg1BZ2VudENhcGFjaXR5EhwKFGNwdV9taWxsaWNvcmVzX3RvdGFsGAEgASgDEhsKE2NwdV9taWxsaWNvcmVzX3VzZWQYAiABKAMSGgoSbWVtb3J5X2J5dGVzX3RvdGFsGAMgASgDEhkKEW1lbW9yeV9ieXRlc191c2VkGAQgASgDEhIKCnBvZHNfdG90YWwYBSABKAUSFAoMcG9kc19ydW5uaW5nGAYgASgFIlYKC0FnZW50SGVhbHRoEhoKEmt1YmVybmV0ZXNfaGVhbHRoeRgBIAEoCBIaChJjb250cm9sbGVyX2hlYWx0aHkYAiABKAgSDwoHbWVzc2FnZRgDIAEoCSqoAQoKQnVpbGRQaGFzZRIbChdCVUlMRF9QSEFTRV9VTlNQRUNJRklFRBAAEhcKE0JVSUxEX1BIQVNFX1BFTkRJTkcQARIXChNCVUlMRF9QSEFTRV9SVU5OSU5HEAISGQoVQlVJTERfUEhBU0VfU1VDQ0VFREVEEAMSFgoSQlVJTERfUEhBU0VfRkFJTEVEEAQSGAoUQlVJTERfUEhBU0VfQ0FOQ0VMRUQQBTKgAQoMQWdlbnRTZXJ2aWNlEksKCFJlZ2lzdGVyEh4ubG9jby5hZ2VudC52MS5SZWdpc3RlclJlcXVlc3QaHy5sb2NvLmFnZW50LnYxLlJlZ2lzdGVyUmVzcG9uc2USQwoEU3luYxIaLmxvY28uYWdlbnQudjEuU3luY1JlcXVlc3QaGy5sb2NvLmFnZW50LnYxLlN5bmNSZXNwb25zZSgBMAFCOFo2Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9hZ2VudC92MTthZ2VudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_duration, file_google_protobuf_timestamp, file_loco_cluster_v1_cluster]);
 
 /**
  * RegisterRequest is sent by the agent on startup to announce itself.
@@ -416,6 +416,16 @@ export type BuildStatus = Message<"loco.agent.v1.BuildStatus"> & {
    * @generated from field: string message = 5;
    */
   message: string;
+
+  /**
+   * @generated from field: string stage = 6;
+   */
+  stage: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp stage_since = 7;
+   */
+  stageSince?: Timestamp | undefined;
 };
 
 /**
@@ -446,6 +456,16 @@ export type BuildStatusJson = {
    * @generated from field: string message = 5;
    */
   message?: string;
+
+  /**
+   * @generated from field: string stage = 6;
+   */
+  stage?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp stage_since = 7;
+   */
+  stageSince?: TimestampJson;
 };
 
 /**
@@ -555,6 +575,31 @@ export type PlacementStatus = Message<"loco.agent.v1.PlacementStatus"> & {
    * @generated from field: string runtime_message = 8;
    */
   runtimeMessage: string;
+
+  /**
+   * @generated from field: int32 desired_replicas = 9;
+   */
+  desiredReplicas: number;
+
+  /**
+   * @generated from field: bool available = 10;
+   */
+  available: boolean;
+
+  /**
+   * @generated from field: bool progress_deadline_exceeded = 11;
+   */
+  progressDeadlineExceeded: boolean;
+
+  /**
+   * @generated from field: repeated loco.agent.v1.ReplicaReport replicas = 12;
+   */
+  replicas: ReplicaReport[];
+
+  /**
+   * @generated from field: loco.agent.v1.ProblemReport problem = 13;
+   */
+  problem?: ProblemReport | undefined;
 };
 
 /**
@@ -600,6 +645,31 @@ export type PlacementStatusJson = {
    * @generated from field: string runtime_message = 8;
    */
   runtimeMessage?: string;
+
+  /**
+   * @generated from field: int32 desired_replicas = 9;
+   */
+  desiredReplicas?: number;
+
+  /**
+   * @generated from field: bool available = 10;
+   */
+  available?: boolean;
+
+  /**
+   * @generated from field: bool progress_deadline_exceeded = 11;
+   */
+  progressDeadlineExceeded?: boolean;
+
+  /**
+   * @generated from field: repeated loco.agent.v1.ReplicaReport replicas = 12;
+   */
+  replicas?: ReplicaReportJson[];
+
+  /**
+   * @generated from field: loco.agent.v1.ProblemReport problem = 13;
+   */
+  problem?: ProblemReportJson;
 };
 
 /**
@@ -608,6 +678,180 @@ export type PlacementStatusJson = {
  */
 export const PlacementStatusSchema: GenMessage<PlacementStatus, {jsonType: PlacementStatusJson}> = /*@__PURE__*/
   messageDesc(file_loco_agent_v1_agent, 9);
+
+/**
+ * @generated from message loco.agent.v1.ReplicaReport
+ */
+export type ReplicaReport = Message<"loco.agent.v1.ReplicaReport"> & {
+  /**
+   * @generated from field: string uid = 1;
+   */
+  uid: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string node = 3;
+   */
+  node: string;
+
+  /**
+   * @generated from field: int64 placement_revision = 4;
+   */
+  placementRevision: bigint;
+
+  /**
+   * @generated from field: string state = 5;
+   */
+  state: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp state_since = 6;
+   */
+  stateSince?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp state_deadline = 7;
+   */
+  stateDeadline?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int32 restarts = 8;
+   */
+  restarts: number;
+
+  /**
+   * @generated from field: optional int32 exit_code = 9;
+   */
+  exitCode?: number | undefined;
+
+  /**
+   * @generated from field: string detail = 10;
+   */
+  detail: string;
+};
+
+/**
+ * @generated from message loco.agent.v1.ReplicaReport
+ */
+export type ReplicaReportJson = {
+  /**
+   * @generated from field: string uid = 1;
+   */
+  uid?: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name?: string;
+
+  /**
+   * @generated from field: string node = 3;
+   */
+  node?: string;
+
+  /**
+   * @generated from field: int64 placement_revision = 4;
+   */
+  placementRevision?: string;
+
+  /**
+   * @generated from field: string state = 5;
+   */
+  state?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp state_since = 6;
+   */
+  stateSince?: TimestampJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp state_deadline = 7;
+   */
+  stateDeadline?: TimestampJson;
+
+  /**
+   * @generated from field: int32 restarts = 8;
+   */
+  restarts?: number;
+
+  /**
+   * @generated from field: optional int32 exit_code = 9;
+   */
+  exitCode?: number;
+
+  /**
+   * @generated from field: string detail = 10;
+   */
+  detail?: string;
+};
+
+/**
+ * Describes the message loco.agent.v1.ReplicaReport.
+ * Use `create(ReplicaReportSchema)` to create a new message.
+ */
+export const ReplicaReportSchema: GenMessage<ReplicaReport, {jsonType: ReplicaReportJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 10);
+
+/**
+ * @generated from message loco.agent.v1.ProblemReport
+ */
+export type ProblemReport = Message<"loco.agent.v1.ProblemReport"> & {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: string replica_name = 2;
+   */
+  replicaName: string;
+
+  /**
+   * @generated from field: string detail = 3;
+   */
+  detail: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 4;
+   */
+  since?: Timestamp | undefined;
+};
+
+/**
+ * @generated from message loco.agent.v1.ProblemReport
+ */
+export type ProblemReportJson = {
+  /**
+   * @generated from field: string reason = 1;
+   */
+  reason?: string;
+
+  /**
+   * @generated from field: string replica_name = 2;
+   */
+  replicaName?: string;
+
+  /**
+   * @generated from field: string detail = 3;
+   */
+  detail?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 4;
+   */
+  since?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.agent.v1.ProblemReport.
+ * Use `create(ProblemReportSchema)` to create a new message.
+ */
+export const ProblemReportSchema: GenMessage<ProblemReport, {jsonType: ProblemReportJson}> = /*@__PURE__*/
+  messageDesc(file_loco_agent_v1_agent, 11);
 
 /**
  * @generated from message loco.agent.v1.SyncResponse
@@ -684,7 +928,7 @@ export type SyncResponseJson = {
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse, {jsonType: SyncResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 10);
+  messageDesc(file_loco_agent_v1_agent, 12);
 
 /**
  * @generated from message loco.agent.v1.Apply
@@ -751,7 +995,7 @@ export type ApplyJson = {
  * Use `create(ApplySchema)` to create a new message.
  */
 export const ApplySchema: GenMessage<Apply, {jsonType: ApplyJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 11);
+  messageDesc(file_loco_agent_v1_agent, 13);
 
 /**
  * EnvSecret carries the secret values a placement declares, beside the Application that never holds them.
@@ -792,7 +1036,7 @@ export type EnvSecretJson = {
  * Use `create(EnvSecretSchema)` to create a new message.
  */
 export const EnvSecretSchema: GenMessage<EnvSecret, {jsonType: EnvSecretJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 12);
+  messageDesc(file_loco_agent_v1_agent, 14);
 
 /**
  * @generated from message loco.agent.v1.Delete
@@ -839,7 +1083,7 @@ export type DeleteJson = {
  * Use `create(DeleteSchema)` to create a new message.
  */
 export const DeleteSchema: GenMessage<Delete, {jsonType: DeleteJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 13);
+  messageDesc(file_loco_agent_v1_agent, 15);
 
 /**
  * @generated from message loco.agent.v1.StartBuild
@@ -966,7 +1210,7 @@ export type StartBuildJson = {
  * Use `create(StartBuildSchema)` to create a new message.
  */
 export const StartBuildSchema: GenMessage<StartBuild, {jsonType: StartBuildJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 14);
+  messageDesc(file_loco_agent_v1_agent, 16);
 
 /**
  * @generated from message loco.agent.v1.CancelBuild
@@ -993,7 +1237,7 @@ export type CancelBuildJson = {
  * Use `create(CancelBuildSchema)` to create a new message.
  */
 export const CancelBuildSchema: GenMessage<CancelBuild, {jsonType: CancelBuildJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 15);
+  messageDesc(file_loco_agent_v1_agent, 17);
 
 /**
  * Heartbeat is sent periodically by the agent.
@@ -1054,7 +1298,7 @@ export type HeartbeatJson = {
  * Use `create(HeartbeatSchema)` to create a new message.
  */
 export const HeartbeatSchema: GenMessage<Heartbeat, {jsonType: HeartbeatJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 16);
+  messageDesc(file_loco_agent_v1_agent, 18);
 
 /**
  * AgentCapacity reports cluster resource capacity.
@@ -1135,7 +1379,7 @@ export type AgentCapacityJson = {
  * Use `create(AgentCapacitySchema)` to create a new message.
  */
 export const AgentCapacitySchema: GenMessage<AgentCapacity, {jsonType: AgentCapacityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 17);
+  messageDesc(file_loco_agent_v1_agent, 19);
 
 /**
  * AgentHealth reports agent and cluster health status.
@@ -1186,7 +1430,7 @@ export type AgentHealthJson = {
  * Use `create(AgentHealthSchema)` to create a new message.
  */
 export const AgentHealthSchema: GenMessage<AgentHealth, {jsonType: AgentHealthJson}> = /*@__PURE__*/
-  messageDesc(file_loco_agent_v1_agent, 18);
+  messageDesc(file_loco_agent_v1_agent, 20);
 
 /**
  * @generated from enum loco.agent.v1.BuildPhase

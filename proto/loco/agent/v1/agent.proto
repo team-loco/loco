@@ -4,6 +4,7 @@ package loco.agent.v1;
 
 import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
 import "loco/cluster/v1/cluster.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1";
@@ -88,6 +89,8 @@ message BuildStatus {
   string image_digest = 3 [(buf.validate.field).string.pattern = "^(sha256:[a-f0-9]{64})?$"];
   string cache_digest = 4 [(buf.validate.field).string.pattern = "^(sha256:[a-f0-9]{64})?$"];
   string message = 5 [(buf.validate.field).string.max_len = 4096];
+  string stage = 6;
+  google.protobuf.Timestamp stage_since = 7;
 }
 
 message Applied {
@@ -106,6 +109,31 @@ message PlacementStatus {
   string message = 6;
   string runtime_reason = 7;
   string runtime_message = 8;
+  int32 desired_replicas = 9;
+  bool available = 10;
+  bool progress_deadline_exceeded = 11;
+  repeated ReplicaReport replicas = 12;
+  ProblemReport problem = 13;
+}
+
+message ReplicaReport {
+  string uid = 1;
+  string name = 2;
+  string node = 3;
+  int64 placement_revision = 4;
+  string state = 5;
+  google.protobuf.Timestamp state_since = 6;
+  google.protobuf.Timestamp state_deadline = 7;
+  int32 restarts = 8;
+  optional int32 exit_code = 9;
+  string detail = 10 [(buf.validate.field).string.max_len = 512];
+}
+
+message ProblemReport {
+  string reason = 1;
+  string replica_name = 2;
+  string detail = 3 [(buf.validate.field).string.max_len = 1024];
+  google.protobuf.Timestamp since = 4;
 }
 
 message SyncResponse {

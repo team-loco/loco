@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -346,5 +349,33 @@ func TestTruncateKeepsTheEnd(t *testing.T) {
 	if len([]rune(got)) != maxMessageLength || !strings.HasSuffix(got, "tail") ||
 		!strings.HasPrefix(got, truncatedPrefix) {
 		t.Fatalf("truncate kept %d runes, prefix %q", len([]rune(got)), got[:5])
+	}
+}
+
+func TestBuildStageForwarding(t *testing.T) {
+	w, _ := testWatcher(t)
+	cr := build(buildName(testBuildID), testBuildID, locoControllerV1.BuildPhaseRunning)
+	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 456, time.UTC))
+	cr.Status.Stage = locoControllerV1.BuildStageBuild
+	cr.Status.StageSince = &at
+	var got []*agentv1.BuildStatus
+	w.Attach(func(status *agentv1.BuildStatus) { got = append(got, status) })
+	w.observe(cr)
+	want := &agentv1.BuildStatus{
+		BuildId:    testBuildID,
+		Phase:      agentv1.BuildPhase_BUILD_PHASE_RUNNING,
+		Stage:      "Build",
+		StageSince: timestamppb.New(at.Time),
+	}
+	if len(got) != 1 || !proto.Equal(got[0], want) {
+		t.Fatalf("stage report=%v want %v", got, want)
+	}
+	cr.Status.Stage = ""
+	cr.Status.StageSince = nil
+	w.observe(cr)
+	want.Stage = ""
+	want.StageSince = nil
+	if len(got) != 2 || !proto.Equal(got[1], want) {
+		t.Fatalf("empty stage report=%v", got)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -311,6 +312,10 @@ func statusOf(build *locoControllerV1.Build) (*agentv1.BuildStatus, bool) {
 		BuildId: build.Spec.BuildID,
 		Phase:   phase,
 		Message: message,
+		Stage:   string(build.Status.Stage),
+	}
+	if build.Status.StageSince != nil {
+		status.StageSince = timestamppb.New(build.Status.StageSince.Time)
 	}
 	if phase == agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED {
 		status.ImageDigest = build.Status.ImageDigest

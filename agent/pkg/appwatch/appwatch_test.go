@@ -6,6 +6,11 @@ import (
 	"errors"
 	"strconv"
 	"testing"
+	"time"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -318,5 +323,101 @@ func TestRuntimeConditionReportsAndReplaysRecovery(t *testing.T) {
 	w.Attach(func(status *agentv1.PlacementStatus) { replay = append(replay, status) })
 	if len(replay) != 1 || replay[0].GetRuntimeReason() != "" || replay[0].GetRuntimeMessage() != "" {
 		t.Fatalf("replay = %v", replay)
+	}
+}
+
+func TestRolloutForwarding(t *testing.T) {
+	const currentReplicaName = "new"
+	w := newWatcher(nil, nil, testNamespace)
+	application := app("rollout", testPlacementID, "5", locoControllerV1.ApplicationPhaseDeploying)
+	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 123, time.UTC))
+	application.Status.Rollout = &locoControllerV1.RolloutStatus{
+		DesiredReplicas:          2,
+		Available:                true,
+		ProgressDeadlineExceeded: true,
+		Replicas: []locoControllerV1.ReplicaStatus{
+			{
+				UID:               "current",
+				Name:              currentReplicaName,
+				Node:              "node-a",
+				Version:           locoControllerV1.ReplicaCurrent,
+				PlacementRevision: 5,
+				State:             locoControllerV1.ReplicaServing,
+				StateSince:        &at,
+				Restarts:          2,
+				ExitCode:          new(int32(0)),
+				Detail:            "ready",
+			},
+			{
+				UID:               "previous",
+				Name:              "old",
+				Version:           locoControllerV1.ReplicaPrevious,
+				PlacementRevision: 4,
+				State:             locoControllerV1.ReplicaStopping,
+				StateDeadline:     &at,
+			},
+		},
+		Problem: &locoControllerV1.Problem{
+			Reason:  locoControllerV1.ProblemCrashLoop,
+			Replica: currentReplicaName,
+			Detail:  "exit 1",
+			Since:   &at,
+		},
+	}
+	var got []*agentv1.PlacementStatus
+	w.Attach(func(status *agentv1.PlacementStatus) { got = append(got, status) })
+	w.observe(application)
+	want := &agentv1.PlacementStatus{
+		PlacementId:              testPlacementID,
+		ObservedRevision:         5,
+		Phase:                    locoControllerV1.ApplicationPhaseDeploying,
+		DesiredReplicas:          2,
+		Available:                true,
+		ProgressDeadlineExceeded: true,
+		Replicas: []*agentv1.ReplicaReport{
+			{
+				Uid:               "current",
+				Name:              currentReplicaName,
+				Node:              "node-a",
+				PlacementRevision: 5,
+				State:             "Serving",
+				StateSince:        timestamppb.New(at.Time),
+				Restarts:          2,
+				ExitCode:          new(int32(0)),
+				Detail:            "ready",
+			},
+			{
+				Uid:               "previous",
+				Name:              "old",
+				PlacementRevision: 4,
+				State:             "Stopping",
+				StateDeadline:     timestamppb.New(at.Time),
+			},
+		},
+		Problem: &agentv1.ProblemReport{
+			Reason:      "crash_loop",
+			ReplicaName: currentReplicaName,
+			Detail:      "exit 1",
+			Since:       timestamppb.New(at.Time),
+		},
+	}
+	if len(got) != 1 || !proto.Equal(got[0], want) {
+		t.Fatalf("reports=%v want %v", got, want)
+	}
+	w.observe(application)
+	application.Status.Rollout.Replicas[0].State = locoControllerV1.ReplicaFailing
+	w.observe(application)
+	if len(got) != 2 || got[1].GetReplicas()[0].GetState() != "Failing" {
+		t.Fatalf("replica state update=%v", got)
+	}
+	application.Status.Rollout = nil
+	w.observe(application)
+	want = &agentv1.PlacementStatus{
+		PlacementId:      testPlacementID,
+		ObservedRevision: 5,
+		Phase:            locoControllerV1.ApplicationPhaseDeploying,
+	}
+	if len(got) != 3 || !proto.Equal(got[2], want) {
+		t.Fatalf("nil rollout=%v", got)
 	}
 }

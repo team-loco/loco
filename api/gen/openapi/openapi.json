@@ -7999,6 +7999,14 @@
             "type": "string",
             "title": "message",
             "maxLength": 4096
+          },
+          "stage": {
+            "type": "string",
+            "title": "stage"
+          },
+          "stageSince": {
+            "title": "stage_since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
         "title": "BuildStatus",
@@ -8211,9 +8219,57 @@
           "runtimeMessage": {
             "type": "string",
             "title": "runtime_message"
+          },
+          "desiredReplicas": {
+            "type": "integer",
+            "title": "desired_replicas",
+            "format": "int32"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "available"
+          },
+          "progressDeadlineExceeded": {
+            "type": "boolean",
+            "title": "progress_deadline_exceeded"
+          },
+          "replicas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.agent.v1.ReplicaReport"
+            },
+            "title": "replicas"
+          },
+          "problem": {
+            "title": "problem",
+            "$ref": "#/components/schemas/loco.agent.v1.ProblemReport"
           }
         },
         "title": "PlacementStatus",
+        "additionalProperties": false
+      },
+      "loco.agent.v1.ProblemReport": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "reason"
+          },
+          "replicaName": {
+            "type": "string",
+            "title": "replica_name"
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail",
+            "maxLength": 1024
+          },
+          "since": {
+            "title": "since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "ProblemReport",
         "additionalProperties": false
       },
       "loco.agent.v1.RegisterRequest": {
@@ -8273,6 +8329,60 @@
         "title": "RegisterResponse",
         "additionalProperties": false,
         "description": "RegisterResponse contains the assigned cluster ID."
+      },
+      "loco.agent.v1.ReplicaReport": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "uid"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "node": {
+            "type": "string",
+            "title": "node"
+          },
+          "placementRevision": {
+            "type": "string",
+            "title": "placement_revision",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string",
+            "title": "state"
+          },
+          "stateSince": {
+            "title": "state_since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "stateDeadline": {
+            "title": "state_deadline",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "restarts",
+            "format": "int32"
+          },
+          "exitCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "exit_code",
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail",
+            "maxLength": 512
+          }
+        },
+        "title": "ReplicaReport",
+        "additionalProperties": false
       },
       "loco.agent.v1.StartBuild": {
         "type": "object",
