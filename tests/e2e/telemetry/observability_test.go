@@ -41,7 +41,8 @@ const (
 	proxyLimit       = 50
 	metricInterval   = 60
 	crashRecords     = 50
-	crashFlush       = 30 * time.Second
+	crashFlush       = 2 * routeTimeout
+	collectorRollout = "rollout"
 	// The otel-app fixture's tracerName, span link and forged attributes, in tests/e2e/fixtures/otel-app/main.go.
 	fixtureScope         = "github.com/team-loco/loco/tests/e2e/fixtures/otel-app"
 	fixtureLinkTrace     = "0102030405060708090a0b0c0d0e0f10"
@@ -448,25 +449,47 @@ func collectorCrashReplay(t *testing.T) {
 	if err = p.Replace(t.Context(), string(manifest)); err != nil {
 		t.Fatal(err)
 	}
-	windowStarted := time.Now()
-	p.MustKubectl(t, "-n", namespace, "rollout", "restart", "statefulset/"+collector)
-	p.MustKubectl(t, "-n", namespace, "rollout", "status", "statefulset/"+collector, "--timeout", routeTimeout.String())
-	podName := collector + "-0"
-	var pod corev1.Pod
-	p.MustGet(t, &pod, "-n", namespace, "pod", podName)
-	container := pod.Status.ContainerStatuses[0].ContainerID
-	inspect, err := p.Command(
-		t.Context(),
-		"docker",
-		"exec",
-		pod.Spec.NodeName,
-		"crictl",
-		"inspect",
-		strings.TrimPrefix(container, "containerd://"),
-	)
-	if err != nil {
+	marker := "collector-crash-" + randomHex(6)
+	now := strconv.FormatInt(time.Now().Unix(), 10) + "000000000"
+	records := make([]string, crashRecords)
+	for i := range records {
+		records[i] = fmt.Sprintf(`{"timeUnixNano":%q,"body":{"stringValue":"%s-%d"}}`, now, marker, i+1)
+	}
+	body := `{"resourceLogs":[{"scopeLogs":[{"logRecords":[` + strings.Join(records, ",") + `]}]}]}`
+	if _, err = p.Command(t.Context(), "docker", "stop", p.IngestContainer()); err != nil {
 		t.Fatal(err)
 	}
+	// The restart request precedes collector startup and bounds the earliest possible flush.
+	windowStarted := time.Now()
+	ctx, cancel := context.WithDeadline(t.Context(), windowStarted.Add(routeTimeout))
+	defer cancel()
+	var acknowledged, killed time.Time
+	checkWindow := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatalf("invalid collector crash experiment: elapsed=%s, deadline=%s, flush=%s: %v",
+				time.Since(windowStarted), routeTimeout, crashFlush, err)
+		}
+	}
+	defer func() {
+		if windowErr := collectorCrashWindow(windowStarted, acknowledged, killed, crashFlush); windowErr != nil {
+			t.Errorf("%v (elapsed=%s, deadline=%s)", windowErr, time.Since(windowStarted), routeTimeout)
+		}
+	}()
+	for _, args := range [][]string{
+		{"-n", namespace, collectorRollout, "restart", "statefulset/" + collector},
+		{"-n", namespace, collectorRollout, "status", "statefulset/" + collector, "--timeout", routeTimeout.String()},
+	} {
+		_, err = p.Kubectl(ctx, args...)
+		checkWindow(err)
+	}
+	podName := collector + "-0"
+	var pod corev1.Pod
+	checkWindow(p.Get(ctx, &pod, "-n", namespace, "pod", podName))
+	container := pod.Status.ContainerStatuses[0].ContainerID
+	inspect, err := p.Command(ctx, "docker", "exec", pod.Spec.NodeName, "crictl", "inspect",
+		strings.TrimPrefix(container, "containerd://"))
+	checkWindow(err)
 	var info struct {
 		Info struct {
 			PID int `json:"pid"`
@@ -481,19 +504,10 @@ func collectorCrashReplay(t *testing.T) {
 			otlpPort = int(port.ContainerPort)
 		}
 	}
-	if _, err = p.Command(t.Context(), "docker", "stop", p.IngestContainer()); err != nil {
-		t.Fatal(err)
-	}
 	local := p.PortForward(t, namespace, "pod/"+podName, otlpPort)
-	marker := "collector-crash-" + randomHex(6)
-	now := strconv.FormatInt(time.Now().Unix(), 10) + "000000000"
-	records := make([]string, crashRecords)
-	for i := range records {
-		records[i] = fmt.Sprintf(`{"timeUnixNano":%q,"body":{"stringValue":"%s-%d"}}`, now, marker, i+1)
-	}
-	body := `{"resourceLogs":[{"scopeLogs":[{"logRecords":[` + strings.Join(records, ",") + `]}]}]}`
+	checkWindow(ctx.Err())
 	request, err := http.NewRequestWithContext(
-		t.Context(),
+		ctx,
 		http.MethodPost,
 		fmt.Sprintf("http://127.0.0.1:%d/v1/logs", local),
 		strings.NewReader(body),
@@ -503,17 +517,15 @@ func collectorCrashReplay(t *testing.T) {
 	}
 	request.Header.Set("Content-Type", "application/json")
 	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
+	checkWindow(err)
 	var exported struct {
 		PartialSuccess struct {
 			RejectedLogRecords json.Number `json:"rejectedLogRecords"`
 		} `json:"partialSuccess"`
 	}
 	decodeErr := json.NewDecoder(response.Body).Decode(&exported)
-	if err := response.Body.Close(); err != nil {
-		t.Error(err)
+	if closeErr := response.Body.Close(); closeErr != nil {
+		t.Error(closeErr)
 	}
 	if response.StatusCode != http.StatusOK || decodeErr != nil ||
 		exported.PartialSuccess.RejectedLogRecords.String() != "" &&
@@ -525,20 +537,15 @@ func collectorCrashReplay(t *testing.T) {
 			exported.PartialSuccess.RejectedLogRecords,
 		)
 	}
-	if _, err := p.Command(
-		t.Context(),
-		"docker",
-		"exec",
-		pod.Spec.NodeName,
-		"kill",
-		"-9",
-		strconv.Itoa(info.Info.PID),
-	); err != nil {
-		t.Fatal(err)
+	acknowledged = time.Now()
+	_, err = p.Command(ctx, "docker", "exec", pod.Spec.NodeName, "kill", "-9", strconv.Itoa(info.Info.PID))
+	if err == nil {
+		killed = time.Now()
 	}
-	if elapsed := time.Since(windowStarted); elapsed >= crashFlush {
-		t.Fatalf("the SIGKILL came %s after the restart, past the %s flush", elapsed, crashFlush)
-	}
+	checkWindow(err)
+	checkWindow(collectorCrashWindow(windowStarted, acknowledged, killed, crashFlush))
+	t.Logf("collector crash: acknowledgment=%s, SIGKILL=%s, flush=%s",
+		acknowledged.Sub(windowStarted), killed.Sub(windowStarted), crashFlush)
 	platform.Eventually(t, routeTimeout, "the killed collector to restart", func(ctx context.Context) error {
 		var restarted corev1.Pod
 		if err := p.Get(ctx, &restarted, "-n", namespace, "pod", podName); err != nil {
@@ -553,12 +560,26 @@ func collectorCrashReplay(t *testing.T) {
 		}
 		return nil
 	})
-	if _, err := p.Command(t.Context(), "docker", "start", p.IngestContainer()); err != nil {
-		t.Fatal(err)
-	}
+	restoreCollector(t, original)
 	waitCount(t, fmt.Sprintf("all %d acknowledged logs to replay after SIGKILL", crashRecords),
 		fmt.Sprintf("SELECT count(DISTINCT Body) FROM otel_logs WHERE startsWith(Body, '%s-')", marker),
 		func(count int) bool { return count == crashRecords })
+}
+
+func collectorCrashWindow(started, acknowledged, killed time.Time, flush time.Duration) error {
+	if acknowledged.IsZero() || killed.IsZero() || acknowledged.Before(started) ||
+		killed.Before(acknowledged) || killed.Sub(started) >= flush {
+		return fmt.Errorf("invalid collector crash experiment: acknowledgment=%s, SIGKILL=%s, flush=%s",
+			crashElapsed(started, acknowledged), crashElapsed(started, killed), flush)
+	}
+	return nil
+}
+
+func crashElapsed(started, event time.Time) string {
+	if event.IsZero() {
+		return "not observed"
+	}
+	return event.Sub(started).String()
 }
 
 var errNotYet = errors.New("not yet")
@@ -1171,8 +1192,8 @@ func restoreCollector(t *testing.T, original *corev1.ConfigMap) {
 	namespace, collector := original.Namespace, original.Name
 	for _, args := range [][]string{
 		{"-n", namespace, "patch", "configmap", collector, "--type", "merge", "-p", string(restored)},
-		{"-n", namespace, "rollout", "restart", "statefulset/" + collector},
-		{"-n", namespace, "rollout", "status", "statefulset/" + collector, "--timeout", routeTimeout.String()},
+		{"-n", namespace, collectorRollout, "restart", "statefulset/" + collector},
+		{"-n", namespace, collectorRollout, "status", "statefulset/" + collector, "--timeout", routeTimeout.String()},
 	} {
 		if _, err := p.Kubectl(ctx, args...); err != nil {
 			t.Error(err)
