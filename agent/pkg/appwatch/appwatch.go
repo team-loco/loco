@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -131,7 +132,7 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 	if !ok {
 		return
 	}
-	w.feed.Publish(placementID, &agentv1.PlacementStatus{
+	status := &agentv1.PlacementStatus{
 		PlacementId:      placementID,
 		ObservedRevision: app.Status.ObservedPlacementRevision,
 		Ready:            app.Status.Phase == locoControllerV1.ApplicationPhaseReady,
@@ -140,7 +141,44 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		Message:          app.Status.Message,
 		RuntimeReason:    app.Status.RuntimeReason,
 		RuntimeMessage:   app.Status.RuntimeMessage,
-	})
+	}
+	if rollout := app.Status.Rollout; rollout != nil {
+		status.DesiredReplicas = rollout.DesiredReplicas
+		status.Available = rollout.Available
+		status.ProgressDeadlineExceeded = rollout.ProgressDeadlineExceeded
+		for _, replica := range rollout.Replicas {
+			report := &agentv1.ReplicaReport{
+				Uid:               replica.UID,
+				Name:              replica.Name,
+				Node:              replica.Node,
+				PlacementRevision: replica.PlacementRevision,
+				State:             string(replica.State),
+				Restarts:          replica.Restarts,
+				Detail:            replica.Detail,
+			}
+			if replica.ExitCode != nil {
+				report.ExitCode = new(*replica.ExitCode)
+			}
+			if replica.StateSince != nil {
+				report.StateSince = timestamppb.New(replica.StateSince.Time)
+			}
+			if replica.StateDeadline != nil {
+				report.StateDeadline = timestamppb.New(replica.StateDeadline.Time)
+			}
+			status.Replicas = append(status.Replicas, report)
+		}
+		if problem := rollout.Problem; problem != nil {
+			status.Problem = &agentv1.ProblemReport{
+				Reason:      string(problem.Reason),
+				ReplicaName: problem.Replica,
+				Detail:      problem.Detail,
+			}
+			if problem.Since != nil {
+				status.Problem.Since = timestamppb.New(problem.Since.Time)
+			}
+		}
+	}
+	w.feed.Publish(placementID, status)
 }
 
 func (w *Watcher) forget(app *locoControllerV1.Application) {
