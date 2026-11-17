@@ -9,7 +9,7 @@ func TestValidateCommand(t *testing.T) {
 	command := BuildValidateCmd()
 	var output bytes.Buffer
 	command.SetOut(&output)
-	command.SetArgs([]string{"--file", "../../../examples/installation/loco-install.yaml"})
+	command.SetArgs([]string{"--file", "../../internal/installation/testdata/loco-install.yaml"})
 	if err := command.Execute(); err != nil {
 		t.Fatal(err)
 	}

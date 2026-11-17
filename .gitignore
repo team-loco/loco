@@ -80,9 +80,9 @@ tests/ui/out/
 .agents/troubles/
 
 # temp ignores
-.sops.yaml
+/.sops.yaml
 v1-report.html
-clusters/
+/clusters/
 
 __pycache__/
 .pytest_cache/

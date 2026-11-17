@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=../../schemas/installation.v1.json
+# yaml-language-server: $schema=../../../../schemas/installation.v1.json
 version: 1
 name: example
 release:

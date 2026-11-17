@@ -2,6 +2,8 @@ min_version = "2026.10.19"
 
 [tools]
 flux2 = "2.10.0"
+kubeconform = "0.8.0"
+sops = "3.13.3"
 go = "1.27.4"
 bun = "1.4.4"
 uv = "0.13.7"
@@ -398,3 +400,8 @@ description = "Export the local apps CA as PEM"
 quiet = true
 env = { _.source = "dev/stack.sh" }
 run = "go run ./tools/localstack ca"
+
+[tasks."test:gitops"]
+description = "Build the GitOps example clusters with Flux and validate chart values and resource schemas"
+depends = ["helm:deps"]
+run = "go run ./tools/gitops-check"

@@ -366,6 +366,8 @@ platform-release:
     - "tests/pyproject.toml"
     - "tests/uv.lock"
     - "tools/platform-release/**"
+    - "tools/gitops-check/**"
+    - "examples/gitops/**"
     - "schemas/installation.v1.json"
     - "charts/**"
     - "controller/config/crd/bases/**"
@@ -374,6 +376,8 @@ platform-release:
     - "mise.lock"
   push:
     - "tools/platform-release/**"
+    - "tools/gitops-check/**"
+    - "examples/gitops/**"
     - "charts/**"
     - "controller/config/crd/bases/**"
     - ".github/workflows/platform-release.yml"

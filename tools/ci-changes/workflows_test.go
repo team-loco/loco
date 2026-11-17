@@ -265,3 +265,14 @@ printf '%s\n' "$@"
 	}
 	t.Fatal("chart lint step not found")
 }
+
+func TestGitOpsChangesRunDeliveryValidation(t *testing.T) {
+	t.Parallel()
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for _, event := range []string{"pull_request", "push"} {
+		for _, path := range []string{"examples/gitops/clusters/control-plane/loco.yaml", "tools/gitops-check/main.go"} {
+			assert.True(t, selectOwn(filters, event, []string{path})["platform-release"], "%s %s", event, path)
+		}
+	}
+}
