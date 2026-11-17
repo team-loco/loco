@@ -39,8 +39,12 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if a.builds[res.Name] != nil {
 		affected = regions
 	}
+	var allowed []genDb.DeploymentStatus
+	if a.builds[res.Name] != nil {
+		allowed = []genDb.DeploymentStatus{genDb.DeploymentStatusBuilding}
+	}
 	for _, region := range affected {
-		if rolloutErr := ensureNoRollout(ctx, qtx, res.ID, a.env.ID, region); rolloutErr != nil {
+		if rolloutErr := ensureNoRollout(ctx, qtx, res.ID, a.env.ID, region, allowed...); rolloutErr != nil {
 			return rolloutErr
 		}
 	}

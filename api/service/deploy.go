@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -22,8 +23,7 @@ import (
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-// createDeploymentWithCleanup creates a deployment and places it, then deletes the oldest
-// deployments of the resource in the environment past the organization's deployment history limit.
+// createDeploymentWithCleanup records the deployment, prepares placement and prunes history.
 func createDeploymentWithCleanup(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -72,6 +72,22 @@ func createDeploymentWithCleanup(
 		}
 	}
 
+	var pendingBuild genDb.Build
+	var service deploymentv1.ServiceDeploymentSpec
+	if decodeErr := protojson.Unmarshal(params.Spec, &service); decodeErr != nil {
+		return uuid.Nil, fmt.Errorf("decode deployment spec: %w", decodeErr)
+	}
+	if rawBuildID := service.GetBuild().GetBuildId(); rawBuildID != "" {
+		buildID := uuid.MustParse(rawBuildID)
+		build, getErr := qtx.GetBuildByID(ctx, buildID)
+		if getErr != nil {
+			return uuid.Nil, getErr
+		}
+		pendingBuild = build
+		if !buildStatusFinished(build.Status) {
+			params.Status = genDb.DeploymentStatusBuilding
+		}
+	}
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
 	if isUniqueViolation(err, pgActiveDeploymentUnique) {
 		return uuid.UUID{}, errDeploymentInProgress
@@ -85,23 +101,29 @@ func createDeploymentWithCleanup(
 		return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, err)
 	}
 
-	if hadPreviousDeployment && activeDeployment.ClusterID != params.ClusterID {
-		if removeErr := removePlacement(ctx, qtx, params.ResourceID, activeDeployment.ClusterID); removeErr != nil {
-			return uuid.UUID{}, removeErr
+	if params.Status == genDb.DeploymentStatusBuilding {
+		if activityErr := writeDeploymentActivity(
+			ctx,
+			qtx,
+			deploymentID,
+			0,
+			buildActivity(genDb.Build{}, pendingBuild),
+		); activityErr != nil {
+			return uuid.Nil, activityErr
 		}
-	}
-
-	err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID:    params.ResourceID,
-		ClusterID:     params.ClusterID,
-		Region:        params.Region,
-		DeploymentID:  &deploymentID,
-		DesiredSpec:   spec,
-		EnvironmentID: params.EnvironmentID,
-		SecretNames:   params.SecretNames,
-	})
-	if err != nil {
-		return uuid.UUID{}, err
+	} else {
+		err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+			ResourceID:    params.ResourceID,
+			ClusterID:     params.ClusterID,
+			Region:        params.Region,
+			DeploymentID:  &deploymentID,
+			DesiredSpec:   spec,
+			EnvironmentID: params.EnvironmentID,
+			SecretNames:   params.SecretNames,
+		})
+		if err != nil {
+			return uuid.UUID{}, err
+		}
 	}
 
 	if pruneErr := pruneDeploymentHistory(ctx, qtx, counts, params); pruneErr != nil {

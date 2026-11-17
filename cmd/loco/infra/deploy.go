@@ -57,7 +57,7 @@ The directory that holds loco.yaml is packed once and uploaded for every build; 
 service builds with its own dockerfile and context. The archive honors the .dockerignore in
 that directory, keeps every Dockerfile it builds, and never contains .git, .env or .env.*
 files. A new source service is created first so it can be built; every other change of the
-plan is applied with the builds. Ctrl-C while a build runs detaches without canceling it.
+plan is applied with the builds. With --wait, Ctrl-C detaches without canceling builds or deployments.
 A new service whose only plan errors are the secrets it declares is created without being
 built or deployed; the command prints the loco env set command for its secrets and exits
 with an error, and the next deploy builds and deploys it.
@@ -344,13 +344,12 @@ func buildServices(
 			return nil, lookupErr
 		}
 		fmt.Fprintf(out, "Building %s from %s in %s\n", target.name, target.dockerfile, target.context)
-		build, buildErr := builder.Build(ctx, sourcebuild.Input{
-			ResourceID:  res.GetId(),
-			WorkspaceID: t.WorkspaceID,
-			Archive:     archive,
-			Commit:      commit,
-			Dockerfile:  target.dockerfile,
-			Context:     target.context,
+		build, buildErr := builder.Start(ctx, sourcebuild.Input{
+			ResourceID: res.GetId(),
+			Archive:    archive,
+			Commit:     commit,
+			Dockerfile: target.dockerfile,
+			Context:    target.context,
 		})
 		if buildErr != nil {
 			return nil, buildErr

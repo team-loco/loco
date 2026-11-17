@@ -183,49 +183,16 @@ func ingestRollout(
 		return fmt.Errorf("decode rollout snapshot: %w", err)
 	}
 	entries := diffRollout(previous, report)
-	now := time.Now()
 	next := rolloutSnapshot{
 		Replicas:        report.GetReplicas(),
 		Problem:         report.GetProblem(),
 		DesiredReplicas: report.GetDesiredReplicas(),
 		Count:           previous.Count,
 	}
-	count := int64(len(entries))
-
-	seq := int64(0)
-	if count > 0 {
-		last, err := qtx.AllocateActivitySeq(
-			ctx,
-			genDb.AllocateActivitySeqParams{DeploymentID: deploymentID, Count: count},
-		)
-		if err != nil {
-			return fmt.Errorf("allocate activity sequence: %w", err)
-		}
-		seq = last - count
+	if err := writeDeploymentActivity(ctx, qtx, deploymentID, revision, entries); err != nil {
+		return err
 	}
-	for _, entry := range entries {
-		at := entry.At
-		if at.IsZero() {
-			at = now
-		}
-		seq++
-		next.Count++
-		if err := qtx.InsertDeploymentActivity(
-			ctx,
-			genDb.InsertDeploymentActivityParams{
-				DeploymentID: deploymentID,
-				Seq:          seq,
-				Revision:     revision,
-				At:           at,
-				Severity:     entry.Severity,
-				ReplicaUid:   entry.ReplicaUID,
-				ReplicaName:  entry.ReplicaName,
-				Message:      entry.Message,
-			},
-		); err != nil {
-			return fmt.Errorf("insert activity: %w", err)
-		}
-	}
+	next.Count += int32(len(entries))
 	if len(entries) == 0 && previous.DesiredReplicas == next.DesiredReplicas &&
 		proto.Equal(previous.Problem, next.Problem) &&
 		slices.EqualFunc(
@@ -277,4 +244,47 @@ func validRolloutReport(ctx context.Context, report *agentv1.PlacementStatus) bo
 		}
 	}
 	return true
+}
+
+func writeDeploymentActivity(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	deploymentID uuid.UUID,
+	revision int64,
+	entries []activityEntry,
+) error {
+	if len(entries) == 0 {
+		return nil
+	}
+	now := time.Now()
+	count := int64(len(entries))
+
+	last, err := qtx.AllocateActivitySeq(ctx, genDb.AllocateActivitySeqParams{DeploymentID: deploymentID, Count: count})
+	if err != nil {
+		return fmt.Errorf("allocate activity sequence: %w", err)
+	}
+	seq := last - count
+	for _, entry := range entries {
+		at := entry.At
+		if at.IsZero() {
+			at = now
+		}
+		seq++
+		if err := qtx.InsertDeploymentActivity(
+			ctx,
+			genDb.InsertDeploymentActivityParams{
+				DeploymentID: deploymentID,
+				Seq:          seq,
+				Revision:     revision,
+				At:           at,
+				Severity:     entry.Severity,
+				ReplicaUid:   entry.ReplicaUID,
+				ReplicaName:  entry.ReplicaName,
+				Message:      entry.Message,
+			},
+		); err != nil {
+			return fmt.Errorf("insert activity: %w", err)
+		}
+	}
+	return qtx.NotifyDeploymentActivity(ctx, deploymentID.String())
 }

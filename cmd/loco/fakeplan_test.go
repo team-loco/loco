@@ -130,7 +130,9 @@ func (s *fakePlanService) Apply(
 	builds := req.GetBuilds()
 	for _, service := range slices.Sorted(maps.Keys(builds)) {
 		build := f.findBuild(builds[service])
-		if build == nil || build.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
+		if build == nil ||
+			build.GetStatus() == buildv1.BuildStatus_BUILD_STATUS_FAILED ||
+			build.GetStatus() == buildv1.BuildStatus_BUILD_STATUS_CANCELED {
 			return nil, rpcerr.New(connect.CodeFailedPrecondition, errFakeBuildNotSucceeded)
 		}
 	}

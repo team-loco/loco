@@ -322,9 +322,11 @@ func checkBuilt(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string
 	if !named || build == nil {
 		ts.Fatalf("fakeapi: the last apply named no build for %s: %v", args[1], last.GetBuilds())
 	}
-	if build.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED ||
-		build.GetDockerfilePath() != args[2] || build.GetContext() != args[3] {
-		ts.Fatalf("fakeapi: %s deployed build %s (%s, %s/%s), want a succeeded build of %s/%s",
+	if build.GetStatus() == buildv1.BuildStatus_BUILD_STATUS_FAILED ||
+		build.GetStatus() == buildv1.BuildStatus_BUILD_STATUS_CANCELED ||
+		build.GetDockerfilePath() != args[2] ||
+		build.GetContext() != args[3] {
+		ts.Fatalf("fakeapi: %s deployed build %s (%s, %s/%s), want a deployable build of %s/%s",
 			args[1], buildID, build.GetStatus(), build.GetContext(), build.GetDockerfilePath(), args[3], args[2])
 	}
 }

@@ -66,6 +66,9 @@ func (s *OrgServer) SuspendOrg(
 			return fmt.Errorf("cancel builds: %w", cancelErr)
 		}
 		for _, build := range builds {
+			if observeErr := FinishBuildDeployments(ctx, qtx, build.ID); observeErr != nil {
+				return observeErr
+			}
 			if build.ClusterID != nil {
 				clusters = append(clusters, *build.ClusterID)
 			}

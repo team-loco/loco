@@ -763,6 +763,7 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 	}
 	return service.AgentConfig{
 		JoinTokenMaxTTL:      joinTokenMaxTTL,
+		ServiceDefaults:      defaults,
 		AssertionMaxLifetime: assertionLifetime,
 		JoinTokenTTL:         joinTokenTTL,
 		DeployAttempts:       defaults.DeployAttempts,

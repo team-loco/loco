@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -20,6 +21,7 @@ func ensureNoRollout(
 	qtx *genDb.Queries,
 	resourceID, environmentID uuid.UUID,
 	region string,
+	allowed ...genDb.DeploymentStatus,
 ) error {
 	deployments, err := qtx.ListActiveDeploymentsForResource(ctx, resourceID)
 	if err != nil {
@@ -29,7 +31,8 @@ func ensureNoRollout(
 		if deployment.EnvironmentID != environmentID || (region != "" && deployment.Region != region) {
 			continue
 		}
-		if deployment.Status == genDb.DeploymentStatusBuilding || deployment.Status == genDb.DeploymentStatusDeploying {
+		if !slices.Contains(allowed, deployment.Status) &&
+			(deployment.Status == genDb.DeploymentStatusBuilding || deployment.Status == genDb.DeploymentStatusDeploying) {
 			return errRolloutInProgress
 		}
 	}

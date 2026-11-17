@@ -470,6 +470,8 @@ type Build struct {
 	ClusterID        *uuid.UUID  `json:"clusterId"`
 	Status           BuildStatus `json:"status"`
 	SourceType       string      `json:"sourceType"`
+	Stage            string      `json:"stage"`
+	StageSince       *time.Time  `json:"stageSince"`
 	SourceKey        string      `json:"sourceKey"`
 	SourceSize       int64       `json:"sourceSize"`
 	DockerfilePath   string      `json:"dockerfilePath"`

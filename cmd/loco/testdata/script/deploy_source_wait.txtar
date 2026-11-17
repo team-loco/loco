@@ -1,0 +1,87 @@
+# loco deploy packs the directory that holds loco.yaml, uploads it, builds the source
+# service and applies the file with the build.
+fakeapi resource web
+fakeapi plan plan.json
+cd app
+exec loco deploy --yes --wait
+stdout '^Plan for loco.yaml against environment revision 7\.$'
+stdout '^  ~ web  \(needs deploy\)$'
+stdout '^Packed 5 files from \. \('
+stdout '^Building web from Dockerfile in \.$'
+stdout '^Fetching source$'
+stdout '^Building image$'
+stdout '^Pushing image$'
+stdout '^Build succeeded$'
+stdout '^dep-web · Serving traffic$'
+! stdout 'Build .* running'
+stdout '^Applied\. Environment revision is now 8\.$'
+stdout '^Started deployment dep-web for web in us-east-1\.$'
+stdout '^web: https://web\.onloco\.test$'
+! stdout '\x1b\['
+
+fakeapi uploaded Dockerfile
+fakeapi uploaded main.go
+fakeapi uploaded web/index.js
+fakeapi uploaded .dockerignore
+! fakeapi uploaded .env
+! fakeapi uploaded .env.local
+! fakeapi uploaded web/.env
+! fakeapi uploaded .git/HEAD
+! fakeapi uploaded node_modules/left-pad/index.js
+fakeapi upload-header Content-Length body
+fakeapi upload-header Content-Type application/gzip
+fakeapi called StartBuild 'Bearer test-token'
+! fakeapi called GetBuild
+fakeapi applied 7
+fakeapi built web Dockerfile .
+! fakeapi called CreateResource
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+currentScope: default
+scopes:
+  default:
+    organization:
+      name: acme
+      id: "1"
+    workspace:
+      name: production
+      id: "2"
+-- app/loco.yaml --
+version: 1
+partial: web
+services:
+  web:
+    port: 8080
+    domains: [web.onloco.test]
+    regions:
+      us-east-1: { cpu: 100m, memory: 256Mi, replicas: { min: 1, max: 1 } }
+-- app/Dockerfile --
+FROM scratch
+COPY main.go /
+-- app/main.go --
+package main
+-- app/.dockerignore --
+node_modules
+!.env
+!.git
+-- app/.env --
+SECRET=root
+-- app/.env.local --
+SECRET=local
+-- app/web/.env --
+SECRET=nested
+-- app/web/index.js --
+console.log("app")
+-- app/node_modules/left-pad/index.js --
+module.exports = 1
+-- app/.git/HEAD --
+ref: refs/heads/main
+-- plan.json --
+{
+  "revision": "7",
+  "operations": [
+    {"kind": "PLAN_OPERATION_KIND_UPDATE", "service": "web", "needsDeploy": true}
+  ]
+}

@@ -336,6 +336,9 @@ func queueBuild(
 		}
 		notify := map[uuid.UUID]struct{}{clusterID: {}}
 		for _, row := range superseded {
+			if err := FinishBuildDeployments(ctx, qtx, row.ID); err != nil {
+				return err
+			}
 			supersededSources = append(supersededSources, buildSource{id: row.ID, key: row.SourceKey})
 			if row.ClusterID != nil {
 				notify[*row.ClusterID] = struct{}{}
@@ -502,6 +505,9 @@ func cancelBuild(
 		}
 		if cancelErr != nil {
 			return fmt.Errorf("cancel build: %w", cancelErr)
+		}
+		if err := FinishBuildDeployments(ctx, qtx, row.ID); err != nil {
+			return err
 		}
 		source = buildSource{id: row.ID, key: row.SourceKey}
 		if row.ClusterID != nil {

@@ -33,17 +33,19 @@ var (
 	s3ErrorCode          = regexp.MustCompile(`<Code>([^<]+)</Code>`)
 )
 
-// Builder builds an uploaded source archive on Loco and follows the build to its end.
+// Builder uploads source and starts builds.
 type Builder struct {
-	follower *Follower
-	storage  *http.Client
+	clients *rpc.Clients
+	out     *syncWriter
+	storage *http.Client
 }
 
-// New returns a builder that prints the build's progress and logs to out.
+// New returns a builder that reports source uploads to out.
 func New(clients *rpc.Clients, out io.Writer) *Builder {
 	return &Builder{
-		follower: NewFollower(clients, out),
-		storage:  rpc.NewHTTPClient(),
+		clients: clients,
+		out:     &syncWriter{out: out},
+		storage: rpc.NewHTTPClient(),
 	}
 }
 
@@ -51,12 +53,11 @@ func New(clients *rpc.Clients, out io.Writer) *Builder {
 // to upload, the commit it was packed from, and the Dockerfile relative to the context
 // directory of the archive.
 type Input struct {
-	ResourceID  string
-	WorkspaceID string
-	Archive     *sourcepack.Archive
-	Commit      gitsource.Commit
-	Dockerfile  string
-	Context     string
+	ResourceID string
+	Archive    *sourcepack.Archive
+	Commit     gitsource.Commit
+	Dockerfile string
+	Context    string
 }
 
 // PackedArchive prints what an archive holds, as the deploy reports it before the first build.
@@ -65,10 +66,9 @@ func PackedArchive(out io.Writer, archive *sourcepack.Archive, dir string) {
 	fmt.Fprintf(out, "Packed %d files from %s (%s compressed)\n", archive.Files, dir, packedSize)
 }
 
-// Build creates a build from the input, uploads its archive, starts the build and follows it.
-// It returns the build once it succeeded, and an error naming the build when it did not.
-func (b *Builder) Build(ctx context.Context, in Input) (*buildv1.Build, error) {
-	out := b.follower.out
+// Start uploads the archive and queues its build.
+func (b *Builder) Start(ctx context.Context, in Input) (*buildv1.Build, error) {
+	out := b.out
 	created, err := b.createBuild(ctx, in)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func (b *Builder) Build(ctx context.Context, in Input) (*buildv1.Build, error) {
 	}
 
 	startReq := &buildv1.StartBuildRequest{BuildId: buildID}
-	started, err := b.follower.clients.Build.StartBuild(ctx, startReq)
+	started, err := b.clients.Build.StartBuild(ctx, startReq)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
 	}
@@ -89,16 +89,7 @@ func (b *Builder) Build(ctx context.Context, in Input) (*buildv1.Build, error) {
 		return nil, fmt.Errorf("start build %s: %w", buildID, err)
 	}
 
-	queued := started.GetBuild()
-	build, err := b.follower.Follow(ctx, queued, in.WorkspaceID)
-	if err != nil {
-		return nil, err
-	}
-	if build.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
-		out.printf("See the build's logs with: loco builds logs %s\n", buildID)
-		return nil, &buildFailedError{build: build}
-	}
-	return build, nil
+	return started.GetBuild(), nil
 }
 
 func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBuildResponse, error) {
@@ -118,7 +109,7 @@ func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBui
 		GitBranch:        gitBranch,
 		GitCommitMessage: gitMessage,
 	}
-	resp, err := b.follower.clients.Build.CreateBuild(ctx, req)
+	resp, err := b.clients.Build.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {
 		return nil, unavailable
 	}
@@ -159,9 +150,9 @@ func (b *Builder) sourceRefused(archive *sourcepack.Archive, err error) error {
 	}
 	if len(largest) > 0 {
 		listed := strings.Join(largest, ", ")
-		b.follower.out.printf("Largest packed files: %s\n", listed)
+		b.out.printf("Largest packed files: %s\n", listed)
 	}
-	b.follower.out.printf("Nothing was uploaded. Leave out files the build does not need with .dockerignore.\n")
+	b.out.printf("Nothing was uploaded. Leave out files the build does not need with .dockerignore.\n")
 	archiveSize := FormatBytes(archive.Size)
 	return fmt.Errorf("the API refused the %s source archive: %s", archiveSize, message)
 }
