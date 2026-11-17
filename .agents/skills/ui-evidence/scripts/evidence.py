@@ -798,6 +798,7 @@ def capture(browser, state, shot, theme, narrow, target):
     page = context.new_page()
     page.on("console", lambda m: problems.append(f"console {m.type}: {m.text}") if m.type == "error" else None)
     page.on("requestfailed", lambda r: problems.append(f"request failed: {r.url} {r.failure}"))
+    exclude_animations = shot.get("exclude_animations", [])
     ready_selector = shot.get("ready_selector")
     wait_for_network = ready_selector is None
     steps = shot.get("steps", [])
@@ -805,7 +806,7 @@ def capture(browser, state, shot, theme, narrow, target):
         steps = [*steps, {"wait": ready_selector}]
     try:
         page.goto(state["ui_url"] + shot["path"], wait_until="load" if wait_for_network else "domcontentloaded")
-        settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
+        settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
         for step in steps:
             action, value = next(iter(step.items()))
             selector = value["selector"] if isinstance(value, dict) else value
@@ -830,7 +831,7 @@ def capture(browser, state, shot, theme, narrow, target):
                 page.mouse.down()
                 page.mouse.move(*at(value["to"]), steps=8)
                 page.mouse.up()
-            settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
+            settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
         applied = f"""() => {{
           const root = document.documentElement;
           const scheme = getComputedStyle(root).colorScheme;
@@ -842,13 +843,13 @@ def capture(browser, state, shot, theme, narrow, target):
             page.wait_for_function(applied, timeout=STEP_TIMEOUT_MS)
         except PlaywrightTimeout:
             raise EvidenceError(f"{shot['name']}: the page did not apply the {theme} theme") from None
-        settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
+        settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
         crop = shot.get("crop", "viewport")
         if crop == "full" or isinstance(crop, dict) and "selector" in crop:
             viewport["height"] = max(viewport["height"], page.evaluate("document.documentElement.scrollHeight"))
             page.set_viewport_size(viewport)
             page.evaluate("window.scrollTo(0, 0)")
-            settle(page, wait_for_network=wait_for_network, exclude_animations=shot.get("exclude_animations", []))
+            settle(page, wait_for_network=wait_for_network, exclude_animations=exclude_animations)
         tmp = target.with_suffix(".partial.png")
         if crop in ("full", "viewport"):
             page.screenshot(path=tmp)
