@@ -54,7 +54,6 @@ type fixture struct {
 	root, dir, name, kubeconfig, registryURL string
 	skip                                     bool
 	version                                  string
-	baselineRoot                             string
 	// images names prebuilt images, with * standing for the image name.
 	images       string
 	forward      *exec.Cmd
@@ -232,7 +231,7 @@ func (f *fixture) runOperator(ctx context.Context) error {
 }
 
 func (f *fixture) cleanup(ctx context.Context, keep bool) error {
-	var stopErr, cloudErr, removeErr, baselineErr error
+	var stopErr, cloudErr, removeErr error
 	if f.forward != nil {
 		stopErr = stopProcess(f.forward)
 	}
@@ -258,10 +257,7 @@ func (f *fixture) cleanup(ctx context.Context, keep bool) error {
 	if kindErr == nil {
 		removeErr = os.RemoveAll(f.dir) //nolint:gosec // newFixture derives the directory from the checkout root.
 	}
-	if f.baselineRoot != "" {
-		_, baselineErr = command(ctx, f.root, nil, "git", "worktree", "remove", "--force", f.baselineRoot)
-	}
-	return errors.Join(stopErr, kindErr, cloudErr, removeErr, baselineErr)
+	return errors.Join(stopErr, kindErr, cloudErr, removeErr)
 }
 
 func (f *fixture) apply(ctx context.Context, objects ...map[string]any) error {

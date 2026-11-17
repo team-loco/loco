@@ -201,9 +201,6 @@ func reconcilePlatform(ctx context.Context, path string) error {
 }
 
 func upgradePlatform(ctx context.Context) error {
-	if err := fixtureSchemaQuery(ctx, "ALTER TABLE clusters DROP COLUMN IF EXISTS dns_records"); err != nil {
-		return err
-	}
 	return switchRepository(ctx, "/installation/current")
 }
 

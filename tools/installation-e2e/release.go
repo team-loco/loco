@@ -28,8 +28,8 @@ const operatorImage = "installation-operator"
 
 var errReleaseVersion = errors.New("fixture release has no version")
 
-func (f *fixture) release(ctx context.Context, source string) (string, error) {
-	output, err := f.releaseManifest(ctx, source)
+func (f *fixture) release(ctx context.Context) (string, error) {
+	output, err := f.releaseManifest(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -56,12 +56,12 @@ func (f *fixture) release(ctx context.Context, source string) (string, error) {
 	return registryHost + "/platform/loco/platform@" + descriptor.Digest.String(), nil
 }
 
-func (f *fixture) releaseManifest(ctx context.Context, source string) ([]byte, error) {
+func (f *fixture) releaseManifest(ctx context.Context) ([]byte, error) {
 	path := filepath.Join(f.dir, "release.json")
 	if f.skip {
 		return os.ReadFile(path)
 	}
-	args := []string{"run", "--quiet", "release:local", "--source", source, "--repository", "platform/loco",
+	args := []string{"run", "--quiet", "release:local", "--repository", "platform/loco",
 		"--push", strings.Replace(strings.TrimPrefix(f.registryURL, "http://"), "127.0.0.1:", "localhost:", 1),
 		"--address", registryHost, "--username", fixtureBuilder, "--password", fixturePushPassword}
 	if f.images != "" {
