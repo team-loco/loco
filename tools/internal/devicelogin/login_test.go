@@ -97,6 +97,9 @@ func TestProviderAndApprovalErrorsKeepResponsesPrivate(t *testing.T) {
 	defer server.Close()
 	_, tokenErr := (Identity{Issuer: server.URL}).Token(t.Context())
 	approvalErr := Approve(t.Context(), server.URL, canary, "ABCD-EFGH")
+	if !strings.Contains(approvalErr.Error(), "RPC unavailable") {
+		t.Fatalf("missing approval code: %v", approvalErr)
+	}
 	for _, err := range []error{tokenErr, approvalErr} {
 		if err == nil || strings.Contains(err.Error(), canary) {
 			t.Fatalf("unsafe error = %v", err)

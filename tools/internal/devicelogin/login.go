@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect/v2"
+
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
@@ -127,7 +129,7 @@ func (identity Identity) Token(ctx context.Context) (string, error) {
 func Approve(ctx context.Context, host, idToken, code string) error {
 	_, err := rpc.ForHost(host, idToken).Auth.ApproveDeviceLogin(ctx, &authv1.ApproveDeviceLoginRequest{UserCode: code})
 	if err != nil {
-		return errDeviceApproval
+		return fmt.Errorf("%w (RPC %s)", errDeviceApproval, connect.CodeOf(err))
 	}
 	return nil
 }
