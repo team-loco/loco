@@ -66,12 +66,12 @@ func TestInitWritesFreshSecretsAndBothReconciliationLayers(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), "encrypt them before committing") {
 		t.Fatalf("missing encryption guidance: %v", err)
 	}
-	for _, cluster := range []string{"control-plane", "worker-staging"} {
+	for _, role := range []string{"control-plane", "worker"} {
 		data, readErr := os.ReadFile(
 			filepath.Join(
 				options.Output,
 				"bases",
-				map[string]string{"control-plane": "control-plane", "worker-staging": "worker"}[cluster],
+				role,
 				"loco.yaml",
 			),
 		)
