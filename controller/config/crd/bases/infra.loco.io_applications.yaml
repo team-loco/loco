@@ -395,16 +395,10 @@ spec:
                           type: string
                         uid:
                           type: string
-                        version:
-                          enum:
-                          - Current
-                          - Previous
-                          type: string
                       required:
                       - name
                       - state
                       - uid
-                      - version
                       type: object
                     type: array
                     x-kubernetes-list-map-keys:

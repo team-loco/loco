@@ -22,22 +22,13 @@ var ReplicaStates = []ReplicaState{
 	ReplicaFailing, ReplicaStopping, ReplicaStopped, ReplicaKilled, ReplicaUnknown,
 }
 
-// +kubebuilder:validation:Enum=Current;Previous
-type ReplicaVersion string
-
-const (
-	ReplicaCurrent  ReplicaVersion = "Current"
-	ReplicaPrevious ReplicaVersion = "Previous"
-)
-
 type ReplicaStatus struct {
-	UID               string         `json:"uid"`
-	Name              string         `json:"name"`
-	Node              string         `json:"node,omitempty"`
-	Version           ReplicaVersion `json:"version"`
-	PlacementRevision int64          `json:"placementRevision,omitzero"`
-	State             ReplicaState   `json:"state"`
-	StateSince        *metav1.Time   `json:"stateSince,omitempty"`
+	UID               string       `json:"uid"`
+	Name              string       `json:"name"`
+	Node              string       `json:"node,omitempty"`
+	PlacementRevision int64        `json:"placementRevision,omitzero"`
+	State             ReplicaState `json:"state"`
+	StateSince        *metav1.Time `json:"stateSince,omitempty"`
 	// StateDeadline is set only while Stopping.
 	StateDeadline *metav1.Time `json:"stateDeadline,omitempty"`
 	Restarts      int32        `json:"restarts,omitzero"`
