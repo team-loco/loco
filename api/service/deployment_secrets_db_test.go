@@ -247,6 +247,7 @@ func TestRedeployReadsEnvironmentFromThePreviousCluster(t *testing.T) {
 	if !old.DesiredDeleted {
 		t.Fatal("previous cluster placement was not removed")
 	}
+	f.clusterID = f.otherCluster
 	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, original.GetEnv()) {
 		t.Fatalf("replacement cluster environment = %v, want %v", got, original.GetEnv())
 	}
