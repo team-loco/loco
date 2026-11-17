@@ -3,10 +3,12 @@ package platform
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -15,6 +17,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"golang.org/x/sync/errgroup"
+)
+
+const (
+	publishedImageTimeout    = 5 * time.Minute
+	publishedImageRetryDelay = 10 * time.Second
 )
 
 // images are the Loco images the run loads into kind, tagged e2e-<run>, and the kind references
@@ -131,6 +138,10 @@ func builderCopyTarget(dockerfile string) (string, error) {
 // PullPrebuilt pulls the Docker host platform's manifest of reference by digest and tags it, so a
 // multi-platform index never resolves to another platform's image.
 func (c *Cluster) PullPrebuilt(ctx context.Context, reference, tag string) error {
+	return c.pullPrebuilt(ctx, reference, tag, publishedImageRetryDelay)
+}
+
+func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retryDelay time.Duration) error {
 	arch, err := c.Command(ctx, "docker", "version", "--format", "{{.Server.Arch}}")
 	if err != nil {
 		return err
@@ -157,11 +168,32 @@ func (c *Cluster) PullPrebuilt(ctx context.Context, reference, tag string) error
 			pull = reference[:strings.LastIndex(reference, ":")] + "@" + manifest.Digest
 		}
 	}
-	if _, err = c.Command(ctx, "docker", "pull", "-q", pull); err != nil {
-		return err
+	// A newly published index can be readable before its platform manifest. Only wait
+	// for the immutable child that this index actually names; other failures stay fatal.
+	pullCtx, cancel := context.WithTimeout(ctx, publishedImageTimeout)
+	defer cancel()
+	var firstFailure error
+	for pullCtx.Err() == nil {
+		if _, err = c.Command(pullCtx, "docker", "pull", "-q", pull); err == nil {
+			_, err = c.Command(ctx, "docker", "tag", pull, tag)
+			return err
+		}
+		if firstFailure == nil {
+			firstFailure = err
+		}
+		if pullCtx.Err() != nil {
+			break
+		}
+		if pull == reference || !strings.Contains(err.Error(), `failed to resolve reference "`+pull+`"`) ||
+			!strings.HasSuffix(err.Error(), pull+": not found") {
+			return err
+		}
+		select {
+		case <-time.After(retryDelay):
+		case <-pullCtx.Done():
+		}
 	}
-	_, err = c.Command(ctx, "docker", "tag", pull, tag)
-	return err
+	return fmt.Errorf("wait for published image: %w", errors.Join(pullCtx.Err(), firstFailure))
 }
 
 // load loads the images into the kind node, each under a tag naming its image ID, so a rebuilt
