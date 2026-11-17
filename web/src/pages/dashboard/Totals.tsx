@@ -43,7 +43,7 @@ function SoonCard({ label }: { label: string }) {
 			<CardHead label={label}>
 				<SoonTag />
 			</CardHead>
-			<span className={VALUE} aria-hidden="true">
+			<span data-slot="stat-value" className={VALUE} aria-hidden="true">
 				—
 			</span>
 		</div>
@@ -75,7 +75,9 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 				<CardHead label="Allocated">
 					<span className="font-mono text-[11.5px]">now</span>
 				</CardHead>
-				<span className={VALUE}>{formatCpu(value.cpuMilli)}</span>
+				<span data-slot="stat-value" className={VALUE}>
+					{formatCpu(value.cpuMilli)}
+				</span>
 				<span className="truncate font-mono text-[11.5px] text-fg3" title={`${formatMemory(value.memMi)} memory`}>
 					{formatMemory(value.memMi)} memory
 				</span>
@@ -235,7 +237,9 @@ export function Totals({
 				{cards.map(({ label, value: shown }) => (
 					<div key={label} className={CARD}>
 						<CardHead label={label} />
-						<span className={VALUE}>{traffic.isLoading ? "…" : traffic.error !== null ? "—" : shown}</span>
+						<span data-slot="stat-value" className={VALUE}>
+							{traffic.isLoading ? "…" : traffic.error !== null ? "—" : shown}
+						</span>
 						<span className="truncate text-[12px] text-fg3" title={note}>
 							{note}
 						</span>
