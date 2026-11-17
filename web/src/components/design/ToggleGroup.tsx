@@ -68,7 +68,11 @@ function ToggleGroupItem({
 				<SegmentedThumb value={multiple ? props.value : "selection"} />
 			)}
 			{children}
-			{count !== undefined && <span className="text-[11px] text-fg3">{count}</span>}
+			{count !== undefined && (
+				<span data-slot="segmented-count" className="text-[11px] text-fg3">
+					{count}
+				</span>
+			)}
 		</ToggleGroupItemBase>
 	);
 }

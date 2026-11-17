@@ -361,6 +361,14 @@ def dashboard(page):
         cards = totals.locator(":scope > div")
         heights = cards.evaluate_all("nodes => nodes.map(n => n.getBoundingClientRect().height)")
         assert max(heights) - min(heights) <= 1, heights
+        if color == "neobrutal":
+            value = allocated.get_by_text(re.compile(r"^\d+(?:\.\d+)? vCPU$")).first
+            geometry = value.evaluate("node => ({height: node.getBoundingClientRect().height, line: parseFloat(getComputedStyle(node).lineHeight), width: node.clientWidth, content: node.scrollWidth})")
+            assert geometry["height"] <= geometry["line"] + 1 and geometry["content"] <= geometry["width"], geometry
+            for label in ("Filter resources by status", "Filter deployments by status"):
+                selected = page.get_by_label(label, exact=True).locator('button[aria-pressed="true"]')
+                count = selected.locator(":scope > span").last
+                expect(count).to_have_css("color", selected.evaluate("node => getComputedStyle(node).color"))
         allocated.hover()
         strip = allocated.locator('[data-slot="allocation-strip"]')
         expect(strip.locator(":scope > span")).to_have_count(6)
