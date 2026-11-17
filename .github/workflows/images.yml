@@ -82,7 +82,7 @@ jobs:
             exit 1
           fi
           mkdir -p bin/operator-tools
-          for tool in helm kubectl; do
+          for tool in helm kubectl flux; do
             cp "$(mise which "$tool")" "bin/operator-tools/$tool"
             python3 tools/platform-images/verify.py binary "bin/operator-tools/$tool" "linux/$ARCH"
           done
