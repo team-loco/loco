@@ -574,7 +574,7 @@ with session(out) as browser:
             expect(section.get_by_text(BUILD_LOG[1][1], exact=True)).to_be_visible()
             expect(
                 section.get_by_role("link", name="Open in Logs", exact=True)
-            ).to_have_attribute("href", re.compile(f"q=build:{builds['failed']}"))
+            ).to_have_attribute("href", re.compile(f"q=@build:{builds['failed']}"))
             log_requests = [
                 body
                 for body in log_queries
