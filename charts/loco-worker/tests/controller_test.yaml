@@ -170,3 +170,13 @@ tests:
             resources: [horizontalpodautoscalers]
             verbs: [create, delete, get, list, patch, update, watch]
         template: templates/controller/manager-role.yaml
+
+  - it: grants read access to events.k8s.io events
+    template: templates/controller/manager-role.yaml
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups: [events.k8s.io]
+            resources: [events]
+            verbs: [get, list, watch]

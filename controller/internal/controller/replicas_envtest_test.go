@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -8,8 +9,13 @@ import (
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	eventsv1 "k8s.io/api/events/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/config"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var _ = Describe("Replica rollout reports", func() {
@@ -61,5 +67,82 @@ var _ = Describe("Replica rollout reports", func() {
 		dep.Status.WithReplicas(2)
 		Expect(r.observeReplicas(ctx, app, dep, time.Now())).To(Succeed())
 		Expect(app.Status.Rollout.Available).To(BeTrue())
+	})
+})
+
+var _ = Describe("Pull event watch", func() {
+	It("reports Pulling from regarding and updates to Starting after Pulled", func() {
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+			Scheme: k8sClient.Scheme(), Cache: CacheOptions(testNamespace, "", false),
+			Controller: config.Controller{SkipNameValidation: new(true)},
+			Metrics:    metricsserver.Options{BindAddress: disabledListener}, HealthProbeBindAddress: disabledListener,
+		})
+		Expect(err).NotTo(HaveOccurred())
+		r := &ApplicationReconciler{Client: mgr.GetClient(), APIReader: mgr.GetAPIReader(), Scheme: mgr.GetScheme(),
+			LocoNamespace: testNamespace, Gateway: testGateway, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Telemetry: testTelemetry()}
+		Expect(r.SetupWithManager(mgr)).To(Succeed())
+		app := isolationTestApplication("ws-pull-watch", "pull-watch")
+		app.Annotations = map[string]string{loco.KeyPlacementRevision: "1"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
+		seed := &ApplicationReconciler{
+			Client:                   k8sClient,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Telemetry:                testTelemetry(),
+		}
+		_, err = seed.ensureDeployment(ctx, app, envSecretMount{})
+		Expect(err).NotTo(HaveOccurred())
+		pod := createReplica(app, "pulling-pod", testImage)
+		pod.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodScheduled, Status: corev1.ConditionTrue}}
+		pod.Status.ContainerStatuses = []corev1.ContainerStatus{{Name: pod.Spec.Containers[0].Name,
+			State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: reasonContainerCreating}}}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		managerCtx, stop := context.WithCancel(ctx)
+		done := make(chan error, 1)
+		go func() { done <- mgr.Start(managerCtx) }()
+		DeferCleanup(func() { stop(); Eventually(done, routeManagerWait).Should(Receive(BeNil())) })
+		key := client.ObjectKeyFromObject(app)
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			g.Expect(app.Status.Rollout).NotTo(BeNil())
+			g.Expect(app.Status.Rollout.Replicas).To(HaveLen(1))
+			g.Expect(app.Status.Rollout.Replicas[0].State).To(Equal(loco.ReplicaStarting))
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+		at := time.Now().Truncate(time.Microsecond)
+		pull := &eventsv1.Event{
+			Name:                "pulling",
+			Namespace:           pod.Namespace,
+			Reason:              pullReasonPulling,
+			Action:              pullReasonPulling,
+			Type:                corev1.EventTypeNormal,
+			ReportingController: "kubernetes.io/kubelet",
+			ReportingInstance:   "node",
+			EventTime:           metav1.NewMicroTime(at),
+			Regarding: corev1.ObjectReference{
+				Kind:       "Pod",
+				APIVersion: "v1",
+				Name:       pod.Name,
+				Namespace:  pod.Namespace,
+				UID:        pod.UID,
+			},
+		}
+		Expect(k8sClient.Create(ctx, pull)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			g.Expect(app.Status.Rollout.Replicas[0].State).To(Equal(loco.ReplicaPulling))
+			g.Expect(app.Status.Rollout.Replicas[0].StateSince.Time.Unix()).To(Equal(at.Unix()))
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+		pull.Name, pull.ResourceVersion, pull.UID = "pulled", "", ""
+		pull.Reason, pull.Action = pullReasonPulled, pullReasonPulled
+		pull.EventTime = metav1.NewMicroTime(at.Add(time.Second))
+		pull.Note = "Successfully pulled image in 1s. Image size: 42 bytes."
+		Expect(k8sClient.Create(ctx, pull)).To(Succeed())
+		Eventually(func(g Gomega) {
+			g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			g.Expect(app.Status.Rollout.Replicas[0].State).To(Equal(loco.ReplicaStarting))
+			g.Expect(app.Status.Rollout.Replicas[0].Detail).To(Equal(pull.Note))
+		}, routeManagerWait, routeManagerPoll).Should(Succeed())
+		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 	})
 })
