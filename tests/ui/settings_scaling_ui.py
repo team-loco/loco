@@ -159,7 +159,7 @@ with session(out) as browser:
                 page.keyboard.press("ArrowLeft")
             section.evaluate("node => node.scrollIntoView({block: 'start'})")
             page.wait_for_function(
-                "!document.documentElement.classList.contains('dark')"
+                "() => !document.documentElement.classList.contains('dark')"
             )
 
             def assert_edits(region, target):

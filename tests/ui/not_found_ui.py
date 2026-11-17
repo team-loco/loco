@@ -94,7 +94,11 @@ def fake_idp(context, user):
         route.continue_(headers=headers)
 
     context.route(f"{issuer}/auth*", authorize)
-    context.route(f"{issuer}/token", token)
+    context.route(f"{ui}/api/auth/oidc/token", token)
+    context.route(
+        f"{ui}/api/auth/oidc/discovery",
+        lambda route: route.fulfill(json=evidence.discovery_document(issuer)),
+    )
     context.route(re.compile(r"/loco\.[a-z0-9.]+\.v\d+\.\w+/\w+$"), api)
 
 
@@ -225,7 +229,7 @@ with session(out) as browser:
             dark.click()
             expect(dark).to_have_attribute("aria-checked", "true")
             expect(icon).to_have_attribute("data-mode", "moon")
-            page.wait_for_function("window.modeTransitions.includes('transform')")
+            page.wait_for_function("() => window.modeTransitions.includes('transform')")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
             dark.focus()
             page.keyboard.press("ArrowLeft")

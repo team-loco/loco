@@ -235,13 +235,8 @@ def check_scoped_user(browser):
 
         def route_request(route, *, recorded=recorded, scene=scene):
             url = urllib.parse.urlparse(route.request.url)
-            if url.path == "/runtime-config.js":
-                route.fulfill(
-                    content_type="application/javascript",
-                    body="window.locoConfig=" + json.dumps({"apiURL": origin}) + ";",
-                )
-                return
-            if url.path == "/dex/.well-known/openid-configuration":
+            url = url._replace(path=url.path.removeprefix("/api"))
+            if url.path == "/auth/oidc/discovery":
                 route.fulfill(json=evidence.discovery_document(origin + "/dex"))
                 return
             if not url.path.startswith("/loco."):
@@ -386,13 +381,8 @@ with session(out) as browser:
 
         def route_request(route, *, mode=mode, held=held, recorded=recorded):
             url = urllib.parse.urlparse(route.request.url)
-            if url.path == "/runtime-config.js":
-                route.fulfill(
-                    content_type="application/javascript",
-                    body="window.locoConfig=" + json.dumps({"apiURL": origin}) + ";",
-                )
-                return
-            if url.path == "/dex/.well-known/openid-configuration":
+            url = url._replace(path=url.path.removeprefix("/api"))
+            if url.path == "/auth/oidc/discovery":
                 route.fulfill(json=evidence.discovery_document(origin + "/dex"))
                 return
             if url.path.startswith("/loco."):
