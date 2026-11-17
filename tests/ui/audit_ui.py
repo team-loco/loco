@@ -59,8 +59,17 @@ def list_events(calls):
 with session(out) as browser:
     # Organization admins read the whole organization from the sidebar entry.
     context, page, calls, errors = open_page(browser, "owner", f"/org/{org}/wks/{shared}")
-    page.get_by_role("link", name="Audit log", exact=True).click()
+    # Reproduce a lazy import that exceeds Playwright's default assertion timeout.
+    def delayed_audit(route):
+        response = route.fetch()
+        page.wait_for_timeout(6000)
+        route.fulfill(response=response)
+    audit_module = re.compile(r"/assets/Audit-[^/]+\.js$")
+    page.route(audit_module, delayed_audit, times=1)
+    with page.expect_request(audit_module):
+        page.get_by_role("link", name="Audit log", exact=True).click()
     page.wait_for_url("**" + audit_path)
+    expect(page.get_by_role("list", name="Audit events")).to_be_visible(timeout=evidence.STEP_TIMEOUT_MS)
     rows = page.get_by_role("list", name="Audit events").get_by_role("button")
     expect(rows).to_have_count(50)
     assert all(call["body"]["orgId"] == org and not call["body"].get("workspaceId") for call in list_events(calls)), list_events(calls)

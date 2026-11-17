@@ -104,3 +104,30 @@ def test_capture_scrolls_drag_target_into_view(tmp_path):
         }, "light", False, target)
         assert target.exists()
         browser.close()
+
+
+def test_suite_failure_records_browser_diagnostics(tmp_path):
+    import json
+    from harness import open_page, session
+
+    with pytest.raises(RuntimeError, match="suite failed"):
+        with session(tmp_path) as browser:
+            context, page, errors = open_page(browser, user=None, state={})
+            page.route("http://evidence.test/", lambda route: route.fulfill(
+                body='<script>fetch("/broken").catch(() => {}); fetch("/unavailable"); throw new Error("page broke")</script>',
+                content_type="text/html",
+            ))
+            page.route("http://evidence.test/broken", lambda route: route.abort("failed"))
+            page.route("http://evidence.test/unavailable", lambda route: route.fulfill(status=503, body="unavailable"))
+            page.goto("http://evidence.test/")
+            page.wait_for_function("document.readyState === 'complete'")
+            # Flush pending failed-request events before triggering the suite failure.
+            page.wait_for_load_state("networkidle")
+            raise RuntimeError("suite failed")
+    detail = json.loads((tmp_path / "failure-0-0.json").read_text())
+    assert detail["url"] == "http://evidence.test/"
+    assert detail["page_errors"] == ["page broke"]
+    assert sorted(detail["failed_requests"], key=lambda request: request["url"]) == [
+        {"url": "http://evidence.test/broken", "failure": "net::ERR_FAILED"},
+        {"url": "http://evidence.test/unavailable", "status": 503},
+    ]
