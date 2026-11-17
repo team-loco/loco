@@ -14442,10 +14442,7 @@
             "$ref": "#/components/schemas/loco.deployment.v1.ObservabilityConfig"
           },
           "rollbackOnFailure": {
-            "type": [
-              "boolean",
-              "null"
-            ],
+            "type": "boolean",
             "title": "rollback_on_failure",
             "description": "Restores the previous deployment on failure; off by default."
           }

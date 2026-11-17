@@ -509,7 +509,7 @@ func (s *ResourceServer) UpdateResource(
 				return specErr
 			}
 			service := spec.GetService()
-			service.RollbackOnFailure = req.RollbackOnFailure
+			service.RollbackOnFailure = req.GetRollbackOnFailure()
 			encoded, marshalErr := protojson.Marshal(service)
 			if marshalErr != nil {
 				return fmt.Errorf("marshal service setting: %w", marshalErr)

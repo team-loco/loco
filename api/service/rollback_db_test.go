@@ -69,7 +69,7 @@ func TestUpdateRollbackOnFailureDoesNotDeploy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if spec.GetService().RollbackOnFailure == nil || spec.GetService().GetRollbackOnFailure() != enabled {
+		if spec.GetService().GetRollbackOnFailure() != enabled {
 			t.Fatalf("resource=%v", spec)
 		}
 		if got := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1`); got != count {

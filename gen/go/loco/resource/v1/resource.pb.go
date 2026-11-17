@@ -355,7 +355,7 @@ type ServiceSpec struct {
 	// Application SDK environment injection defaults to true.
 	Observability *v1.ObservabilityConfig `protobuf:"bytes,4,opt,name=observability,proto3" json:"observability,omitempty"`
 	// Restores the previous deployment on failure; off by default.
-	RollbackOnFailure *bool `protobuf:"varint,5,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
+	RollbackOnFailure bool `protobuf:"varint,5,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3" json:"rollback_on_failure,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -419,8 +419,8 @@ func (x *ServiceSpec) GetObservability() *v1.ObservabilityConfig {
 }
 
 func (x *ServiceSpec) GetRollbackOnFailure() bool {
-	if x != nil && x.RollbackOnFailure != nil {
-		return *x.RollbackOnFailure
+	if x != nil {
+		return x.RollbackOnFailure
 	}
 	return false
 }
@@ -2324,19 +2324,18 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x05 \x01(\x05R\vmaxReplicas\x12:\n" +
 	"\ascalers\x18\x06 \x01(\v2\x1b.loco.deployment.v1.ScalersH\x00R\ascalers\x88\x01\x01B\n" +
 	"\n" +
-	"\b_scalers\"\x9a\x05\n" +
+	"\b_scalers\"\xfd\x04\n" +
 	"\vServiceSpec\x129\n" +
 	"\arouting\x18\x01 \x01(\v2\x1f.loco.resource.v1.RoutingConfigR\arouting\x12N\n" +
 	"\aregions\x18\x02 \x03(\v2*.loco.resource.v1.ServiceSpec.RegionsEntryB\b\xbaH\x05\x9a\x01\x02\b\x01R\aregions\x12M\n" +
 	"\fhealth_check\x18\x03 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12M\n" +
-	"\robservability\x18\x04 \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x123\n" +
-	"\x13rollback_on_failure\x18\x05 \x01(\bH\x01R\x11rollbackOnFailure\x88\x01\x01\x1aZ\n" +
+	"\robservability\x18\x04 \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12.\n" +
+	"\x13rollback_on_failure\x18\x05 \x01(\bR\x11rollbackOnFailure\x1aZ\n" +
 	"\fRegionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
 	"\x05value\x18\x02 \x01(\v2\x1e.loco.resource.v1.RegionTargetR\x05value:\x028\x01:\xa7\x01\xbaH\xa3\x01\x1a\xa0\x01\n" +
 	"\"service.health_check_requires_port\x12Ghealth_check needs routing.port: the HTTP check probes the service port\x1a1has(this.routing.port) || !has(this.health_check)B\x0f\n" +
-	"\r_health_checkB\x16\n" +
-	"\x14_rollback_on_failure\"\x0e\n" +
+	"\r_health_check\"\x0e\n" +
 	"\fDatabaseSpec\"\v\n" +
 	"\tCacheSpec\"\v\n" +
 	"\tQueueSpec\"\n" +

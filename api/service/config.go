@@ -79,7 +79,6 @@ func (s *ConfigServer) GetConfig(
 			MaxReplicas:    locoControllerV1.MaxReplicas,
 		},
 		ServiceDefaults: &configv1.DefaultServiceConfig{
-			RollbackOnFailure:       servicedefaults.DefaultRollbackOnFailure,
 			Observability:           observabilityconfig.Defaults().Proto(),
 			HealthCheck:             healthCheckFor(&health),
 			Cpu:                     s.defaults.CPU,

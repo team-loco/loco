@@ -204,6 +204,21 @@ services:
 
 Application code must already include the SDK and instrumentation. Setting `injectOtel` to `false` leaves SDK configuration to the application; it does not disable telemetry collection. Environment overrides replace the resource's injection preference. Saving the setting creates a deployment snapshot and rolls out the resource.
 
+## Rollback on failure
+
+`rollbackOnFailure` sets whether Loco restores the previous deployment when a deployment fails. It defaults to `false` in every environment. Set it for a service or override it for one environment:
+
+```yaml
+services:
+  web:
+    rollbackOnFailure: true
+    environments:
+      preview:
+        rollbackOnFailure: false
+```
+
+Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
+
 ## Variables and secrets
 
 `env` holds plain values, which appear in the plan and in the file. Configure application trace sampling with standard OpenTelemetry variables under `env`; there is no separate tracing block. See [Trace sampling](../operations/applications.md#trace-sampling) for a portable example and SDK defaults.

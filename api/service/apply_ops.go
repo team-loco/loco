@@ -435,7 +435,7 @@ func serviceSpecFor(state configplan.State) *resourcev1.ServiceSpec {
 		}
 	}
 	return &resourcev1.ServiceSpec{
-		RollbackOnFailure: new(state.RollbackOnFailure),
+		RollbackOnFailure: state.RollbackOnFailure,
 		Observability:     state.Observability.Proto(),
 		Routing:           routing,
 		HealthCheck:       healthCheckFor(state.Health),

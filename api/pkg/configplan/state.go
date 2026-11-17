@@ -97,7 +97,7 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		})
 	}
 	state := State{
-		RollbackOnFailure: servicedefaults.RollbackOnFailure(service.RollbackOnFailure, nil),
+		RollbackOnFailure: service.RollbackOnFailure != nil && *service.RollbackOnFailure,
 		Observability:     observability,
 		RunAsUser:         service.RunAsUser,
 		RunAsGroup:        service.RunAsGroup,
