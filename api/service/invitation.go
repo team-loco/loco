@@ -187,7 +187,7 @@ func (s *OrgServer) ListInvitations(
 	for i, row := range rows {
 		inviter, known := inviters[row.InvitedBy]
 		if !known {
-			inviter, err = s.queries.GetUserByID(ctx, row.InvitedBy)
+			inviter, err = invitationInviter(ctx, s.queries, row.InvitedBy)
 			if err != nil {
 				return nil, fmt.Errorf("get inviter: %w", err)
 			}
@@ -287,7 +287,7 @@ func (s *OrgServer) recordInvitationEvent(
 	if err != nil {
 		return nil, fmt.Errorf("get invitation organization: %w", err)
 	}
-	inviter, err := qtx.GetUserByID(ctx, invitation.InvitedBy)
+	inviter, err := invitationInviter(ctx, qtx, invitation.InvitedBy)
 	if err != nil {
 		return nil, fmt.Errorf("get inviter: %w", err)
 	}
@@ -309,6 +309,14 @@ func (s *OrgServer) recordInvitationEvent(
 		return nil, err
 	}
 	return result, nil
+}
+
+func invitationInviter(ctx context.Context, q genDb.Querier, id uuid.UUID) (genDb.User, error) {
+	user, err := q.GetUserByID(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return genDb.User{ID: id, Name: new("Deleted user")}, nil
+	}
+	return user, err
 }
 
 func (s *OrgServer) invitationProto(invitation genDb.Invitation, inviter genDb.User) *orgv1.Invitation {
