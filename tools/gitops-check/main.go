@@ -122,11 +122,7 @@ spec:
 		resources.Write(data)
 		resources.WriteString("\n---\n")
 	}
-	plain, parseErr := plainResources(resources.Bytes())
-	if parseErr != nil {
-		return parseErr
-	}
-	_, validationErr := command(ctx, root, plain, "kubeconform", "-strict", "-summary",
+	_, validationErr := command(ctx, root, resources.Bytes(), "kubeconform", "-strict", "-summary",
 		"-kubernetes-version", strings.TrimPrefix(client.ClientVersion.GitVersion, "v"),
 		"-schema-location", "default", "-schema-location",
 		filepath.Join(scratch, "{{.Group}}", "{{.ResourceKind}}_{{.ResourceAPIVersion}}.json"))
@@ -199,31 +195,6 @@ func writeSchemas(dir string, manifest []byte) error {
 				return err
 			}
 		}
-	}
-}
-
-func plainResources(data []byte) ([]byte, error) {
-	var result bytes.Buffer
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	for {
-		var document map[string]any
-		err := decoder.Decode(&document)
-		if errors.Is(err, io.EOF) {
-			return result.Bytes(), nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		if document == nil {
-			continue
-		}
-		delete(document, "sops")
-		encoded, err := json.Marshal(document)
-		if err != nil {
-			return nil, err
-		}
-		result.Write(encoded)
-		result.WriteString("\n---\n")
 	}
 }
 

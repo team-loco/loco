@@ -28,7 +28,3 @@ spec:
   wait: true
   dependsOn:
     - name: loco-namespaces
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age

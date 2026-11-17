@@ -24,7 +24,6 @@ Each cluster runs four Flux controllers and reads only its own directory. There 
 Self-hosters keep their own repository. Loco Cloud uses its private fleet repository for workers; its control plane stays on its hosted service. Moving that control plane into Kubernetes is a separate decision.
 
 ```text
-.sops.yaml                         one rule per cluster: cluster age key + offline admin key
 releases/
   control-plane.yaml               control-plane bundle source
   workers-staging.yaml             staging cohort bundle source
@@ -36,7 +35,7 @@ clusters/<name>/
   values/loco-control-plane.yaml   per-cluster chart values
   values/loco-worker.yaml
   config/
-    *.sops.yaml                    encrypted standalone Secrets
+    *.yaml                         standalone Secret templates
     issuer.yaml                    optional operator-supplied issuer
 ```
 
@@ -81,21 +80,20 @@ The first administrator is listed in `api.systemAdmins` and claims access by sig
 
 ## Secrets
 
-Operators commit SOPS-encrypted Secrets using age. Each cluster has its own age key, and every file also has an offline administrator recipient. `.sops.yaml` contains public recipients; only `data` and `stringData` are encrypted. Flux holds the cluster decryption key. Its Git deploy key and age key are bootstrap inputs created outside reconciliation.
+Core has no SOPS dependency. `locoadm init` writes plaintext Kubernetes Secret files and `locoadm cluster create -o secret` prints a Secret manifest. Operators encrypt these manifests before committing, or deliver the named Secrets through External Secrets or another tool. The generated README documents this boundary.
 
-Core consumes plain Kubernetes Secrets by name and does not read SOPS. Operators can substitute another secret-delivery mechanism for individual files.
-
+With SOPS, operators install it themselves, select cluster and offline recipients, and configure Flux decryption. The cluster decryption key and Git deploy key are bootstrap inputs outside reconciliation. Core consumes plain Kubernetes Secrets by name.
 | Secret | Created by | Delivery and custody |
 |---|---|---|
-| Database URLs, source bucket keys, control-plane registry credentials | Operator | SOPS file |
-| OpenBao static seal key | `locoadm init` | SOPS file and offline custody with the admin key |
-| OpenBao KMS/transit credentials | Operator | SOPS or workload identity |
+| Database URLs, source bucket keys, control-plane registry credentials | Operator | Operator secret delivery |
+| OpenBao static seal key | `locoadm init` | Operator secret delivery and offline custody |
+| OpenBao KMS/transit credentials | Operator | Operator secret delivery or workload identity |
 | OpenBao recovery shares and root token | Chart setup Job | Cluster custody; `locoadm recovery export` for offline custody |
 | ClickHouse users and passwords | Chart credentials Job | Generated in cluster if missing |
-| DNS-01 token | Operator | Per-cluster SOPS file |
-| Worker join token | `locoadm cluster create` | SOPS file |
+| DNS-01 token | Operator | Operator secret delivery |
+| Worker join token | `locoadm cluster create` | Operator secret delivery |
 | Agent identity key | Agent | Cluster Secret; never Git |
-| Worker registry pull/push credentials | Operator, static mode only | SOPS file; token mode needs none |
+| Worker registry pull/push credentials | Operator, static mode only | Operator secret delivery; token mode needs none |
 | Ingest token | API, fetched by agent | Never Git |
 
 `locoadm` generates the static seal key and join tokens. OpenBao auto-unseals with a static key by default; KMS and transit are supported alternatives. Retain the seal key with recovery material because snapshots require it.
@@ -106,11 +104,10 @@ Join tokens are single-use and stored by the API only as hashes. `CreateCluster`
 
 ```sh
 locoadm cluster create --name worker-staging --ttl 72h \
-  --sops-recipient age1… \
-  --output clusters/worker-staging/config/join-token.sops.yaml
+  -o secret > join-token.yaml
 ```
 
-The command writes an encrypted Secret and prints no secret. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. Operators can delete the spent token ciphertext from Git.
+The command prints a plaintext Secret manifest. Encrypt it with your own tooling before committing it. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. Operators can delete the spent token manifest from Git.
 
 An approval-based join flow is outside this design. Pulling a token from the API would itself require a credential.
 
@@ -118,8 +115,8 @@ An approval-based join flow is outside this design. Pulling a token from the API
 
 | Command | Responsibility |
 |---|---|
-| `init` | Scaffold the repo once from flags, generate a seal key and write encrypted files |
-| `cluster create`, `cluster join-token` | Register workers and issue tokens; accept TTL, SOPS recipient and output flags |
+| `init` | Scaffold the repo once from flags, generate a seal key and write plaintext Secret files with encryption guidance |
+| `cluster create`, `cluster join-token` | Register workers and issue tokens; accept TTL and `-o secret` output |
 | `cluster list/pause/resume/remove/restore` | Manage API cluster records |
 | `login` | Sign in using `--api` and `--web` |
 | `status` | Query the API for clusters, heartbeats, version skew, unclaimed admins and DNS targets |
@@ -154,7 +151,7 @@ mise run dev:deploy
 
 ## Validation
 
-Chart and bundle changes run `flux build` over `examples/gitops/`, render chart values with their schemas, and validate resources with kubeconform, including schemas for the installed CRDs. CI needs neither a kubeconfig nor decryption keys; encrypted inputs use validation fixtures.
+Chart and bundle changes run `flux build` over `examples/gitops/`, render chart values with their schemas, and validate resources with kubeconform, including schemas for the installed CRDs. CI needs neither a kubeconfig nor decryption keys; examples contain plain placeholder Secrets.
 
 The installation e2e test installs bundle N−1 through Flux, upgrades to N, and checks that the agent identity key, OpenBao data and ClickHouse credentials survive. It then exercises login, cluster creation and verification. Local validation checks startup, automatic login and enrollment, changed-image deployment and Flux reconciliation.
 

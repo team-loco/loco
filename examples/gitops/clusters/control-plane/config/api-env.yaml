@@ -1,0 +1,14 @@
+{
+  "apiVersion": "v1",
+  "kind": "Secret",
+  "metadata": {
+    "name": "loco-api-env",
+    "namespace": "loco-system"
+  },
+  "type": "Opaque",
+  "stringData": {
+    "DATABASE_URL": "postgres://loco:example-password@postgres.example.com/loco?sslmode=require",
+    "AUTH_ISSUERS": "[{\"issuer\":\"https://id.example.com\",\"audience\":\"loco\"}]",
+    "LOCO_REGISTRY_URL": "https://registry.example.com"
+  }
+}

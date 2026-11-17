@@ -10,26 +10,6 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestValidationKeepsSecretDataAndRemovesEncryptionMetadata(t *testing.T) {
-	t.Parallel()
-	output, err := plainResources(
-		[]byte("apiVersion: v1\nkind: Secret\nstringData: {token: 'ENC[ciphertext]'}\nsops: {version: test}\n"),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var resource map[string]any
-	if err := yaml.Unmarshal(output, &resource); err != nil {
-		t.Fatal(err)
-	}
-	if _, exists := resource["sops"]; exists {
-		t.Fatal("encryption metadata sent to resource schema validation")
-	}
-	if object(t, resource["stringData"])["token"] != "ENC[ciphertext]" {
-		t.Fatal("validation changed secret data")
-	}
-}
-
 func TestCRDSchemasValidateUnknownFieldsAndPreserveExplicitMaps(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
