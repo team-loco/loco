@@ -10,7 +10,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/clusternotify"
+	"github.com/team-loco/loco/api/pkg/pgnotify"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 )
@@ -265,7 +265,7 @@ func startSyncServerWithConfig(
 	t.Cleanup(cancel)
 
 	poolConfig := f.pool.Config()
-	notifier := clusternotify.New(poolConfig.ConnConfig, 200*time.Millisecond)
+	notifier := pgnotify.New(poolConfig.ConnConfig, "placements", 200*time.Millisecond)
 	if err := notifier.Connect(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
@@ -275,7 +275,7 @@ func startSyncServerWithConfig(
 
 func serveSync(
 	f *deployFixture,
-	notifier *clusternotify.Notifier,
+	notifier *pgnotify.Notifier,
 	sources SourceBucket,
 	cfg AgentConfig,
 ) agentv1connect.AgentServiceClient {
@@ -382,7 +382,7 @@ func TestSyncStreamDeliversChangesFromNotifyAlone(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
-	notifier := clusternotify.New(f.pool.Config().ConnConfig, time.Hour)
+	notifier := pgnotify.New(f.pool.Config().ConnConfig, "placements", time.Hour)
 	if err := notifier.Connect(ctx); err != nil {
 		t.Fatalf("start notifier: %v", err)
 	}
@@ -404,7 +404,7 @@ func TestSyncStreamDeliversChangesFromPollAlone(t *testing.T) {
 	f := newDeployFixture(t)
 	ctx := t.Context()
 	// Never started, so no notification reaches the stream.
-	notifier := clusternotify.New(f.pool.Config().ConnConfig, 200*time.Millisecond)
+	notifier := pgnotify.New(f.pool.Config().ConnConfig, "placements", 200*time.Millisecond)
 	client := serveSync(f, notifier, nil, testAgentConfig())
 
 	stream := openSync(ctx, t, client, f.clusterID)

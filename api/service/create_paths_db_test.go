@@ -39,6 +39,7 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 		testMaxPlacementBytes,
 		limits.Defaults(),
 		8,
+		nil,
 	)
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
 		ActorType: genDb.DeploymentActorTypeUser,

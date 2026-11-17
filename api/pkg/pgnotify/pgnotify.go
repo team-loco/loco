@@ -1,4 +1,4 @@
-package clusternotify
+package pgnotify
 
 import (
 	"context"
@@ -11,13 +11,10 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const (
-	// channel is the one NotifyClusterPlacements in queries/placement.sql signals; update both together.
-	channel        = "placements"
-	reconnectDelay = time.Second
-)
+const reconnectDelay = time.Second
 
 type Notifier struct {
+	channel      string
 	connConfig   *pgx.ConnConfig
 	pollInterval time.Duration
 	conn         *pgx.Conn
@@ -26,9 +23,10 @@ type Notifier struct {
 	subscribers map[uuid.UUID]map[*Listener]struct{}
 }
 
-func New(connConfig *pgx.ConnConfig, pollInterval time.Duration) *Notifier {
+func New(connConfig *pgx.ConnConfig, channel string, pollInterval time.Duration) *Notifier {
 	listenConfig := connConfig.Copy()
 	return &Notifier{
+		channel:      channel,
 		connConfig:   listenConfig,
 		pollInterval: pollInterval,
 		subscribers:  make(map[uuid.UUID]map[*Listener]struct{}),
@@ -36,9 +34,9 @@ func New(connConfig *pgx.ConnConfig, pollInterval time.Duration) *Notifier {
 }
 
 type Listener struct {
-	notifier  *Notifier
-	clusterID uuid.UUID
-	wake      chan struct{}
+	notifier *Notifier
+	key      uuid.UUID
+	wake     chan struct{}
 }
 
 // Connect opens the LISTEN connection that Run dispatches from, failing if it cannot.
@@ -63,7 +61,7 @@ func (n *Notifier) listen(ctx context.Context) (*pgx.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect listen connection: %w", err)
 	}
-	identifier := pgx.Identifier{channel}.Sanitize()
+	identifier := pgx.Identifier{n.channel}.Sanitize()
 	if _, err := conn.Exec(ctx, "LISTEN "+identifier); err != nil {
 		closeConn(ctx, conn)
 		return nil, fmt.Errorf("listen on %s: %w", identifier, err)
@@ -78,7 +76,7 @@ func (n *Notifier) run(ctx context.Context, conn *pgx.Conn) {
 		if ctx.Err() != nil {
 			return
 		}
-		slog.ErrorContext(ctx, "placement listener disconnected", "error", err)
+		slog.ErrorContext(ctx, "notification listener disconnected", "error", err)
 		conn = n.reconnect(ctx)
 		if conn == nil {
 			return
@@ -93,12 +91,12 @@ func (n *Notifier) dispatch(ctx context.Context, conn *pgx.Conn) error {
 		if err != nil {
 			return fmt.Errorf("wait for notification: %w", err)
 		}
-		clusterID, parseErr := uuid.Parse(notification.Payload)
+		key, parseErr := uuid.Parse(notification.Payload)
 		if parseErr != nil {
-			slog.WarnContext(ctx, "ignoring placement notification", "payload", notification.Payload)
+			slog.WarnContext(ctx, "ignoring notification", "payload", notification.Payload)
 			continue
 		}
-		n.wakeCluster(clusterID)
+		n.wakeKey(key)
 	}
 }
 
@@ -115,14 +113,14 @@ func (n *Notifier) reconnect(ctx context.Context) *pgx.Conn {
 		if err == nil {
 			return conn
 		}
-		slog.ErrorContext(ctx, "failed to reconnect placement listener", "error", err)
+		slog.ErrorContext(ctx, "failed to reconnect notification listener", "error", err)
 	}
 }
 
-func (n *Notifier) wakeCluster(clusterID uuid.UUID) {
+func (n *Notifier) wakeKey(key uuid.UUID) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	for l := range n.subscribers[clusterID] {
+	for l := range n.subscribers[key] {
 		l.signal()
 	}
 }
@@ -142,18 +140,18 @@ func (n *Notifier) PollInterval() time.Duration {
 	return n.pollInterval
 }
 
-func (n *Notifier) Listen(clusterID uuid.UUID) *Listener {
+func (n *Notifier) Listen(key uuid.UUID) *Listener {
 	l := &Listener{
-		notifier:  n,
-		clusterID: clusterID,
-		wake:      make(chan struct{}, 1),
+		notifier: n,
+		key:      key,
+		wake:     make(chan struct{}, 1),
 	}
 
 	n.mu.Lock()
-	listeners, ok := n.subscribers[clusterID]
+	listeners, ok := n.subscribers[key]
 	if !ok {
 		listeners = make(map[*Listener]struct{})
-		n.subscribers[clusterID] = listeners
+		n.subscribers[key] = listeners
 	}
 	listeners[l] = struct{}{}
 	n.mu.Unlock()
@@ -168,10 +166,10 @@ func (l *Listener) Wake() <-chan struct{} {
 func (l *Listener) Close() {
 	l.notifier.mu.Lock()
 	defer l.notifier.mu.Unlock()
-	listeners := l.notifier.subscribers[l.clusterID]
+	listeners := l.notifier.subscribers[l.key]
 	delete(listeners, l)
 	if len(listeners) == 0 {
-		delete(l.notifier.subscribers, l.clusterID)
+		delete(l.notifier.subscribers, l.key)
 	}
 }
 

@@ -73,15 +73,15 @@ def fixture():
         if index == 2:
             source = dict(source, type="dockerfile", buildId=builds["deployed"])
         runtime = json.dumps({"observability": {"injectOtel": True}, "build": source, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
-        sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,created_at,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{resource}','{cluster}','{region}',1,'{status}',{str(active).lower()},'Pilot release {index:03}','{production}',{evidence.sql_literal(runtime)},1,NOW()-INTERVAL '{index} minutes',NOW()-INTERVAL '{index} minutes');")
+        sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,created_at,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{resource}','{cluster}','{region}',1,'{status}',{str(active).lower()},'{production}',{evidence.sql_literal(runtime)},1,NOW()-INTERVAL '{index} minutes',NOW()-INTERVAL '{index} minutes');")
     runtime = json.dumps({"observability": {"injectOtel": True}, "build": {"type": "image", "image": "example.invalid/browser-pilot:staging-current"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 2, "maxReplicas": 2, "port": 8080})
-    sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'Staging current','{staging}',{evidence.sql_literal(runtime)},1,NOW());")
+    sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'{staging}',{evidence.sql_literal(runtime)},1,NOW());")
     for deployment, cluster, environment, region, replicas in ((release_ids[0], clusters[0], production, "us-east-1", 1), (release_ids[-1], clusters[1], production, "eu-west-1", 1), (staging_release, clusters[2], staging, "us-east-1", 2)):
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{\"app_spec\":{{}}}}',true,{replicas},'Ready',NOW());")
     for cluster, region in ((clusters[0], "us-east-1"), (clusters[1], "eu-west-1")):
         deployment = str(uuid.uuid4())
         runtime = json.dumps({"observability": {"injectOtel": True}, "build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"}, "cpu": "100m", "memory": "128Mi", "minReplicas": 1, "maxReplicas": 1, "port": 8080})
-        sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{edge}','{cluster}','{region}',1,'running',true,'Edge current','{production}',{evidence.sql_literal(runtime)},1,NOW());")
+        sql.append(f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{edge}','{cluster}','{region}',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());")
         sql.append(f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{\"app_spec\":{{}}}}',true,1,'Ready',NOW());")
     sql.append(f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);")
     sql.append(f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');")
@@ -145,7 +145,7 @@ with session(out) as browser:
             page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
             section = page.get_by_role("tab", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
             expect(section.get_by_text("1–10 of 200+", exact=False)).to_be_visible()
-            expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
+            expect(section.get_by_role("button", name=f"Show details for {data['releases'][0][:8]}", exact=True)).to_be_visible()
             expect(section.get_by_role("columnheader", name="Deployed by", exact=True)).to_be_visible()
             expect(section.get_by_role("tabpanel", name=re.compile(r"^Deployments")).get_by_role("columnheader", name="Time", exact=True)).to_be_visible()
             expect(section.get_by_text("loco deploy · CLI", exact=True).first).to_be_visible()
@@ -166,16 +166,16 @@ with session(out) as browser:
             next_button = section.get_by_role("button", name="Next page", exact=True)
             for _ in range(3):
                 next_button.click()
-            expect(section.get_by_text("Pilot release 151", exact=True)).to_be_visible()
+            expect(section.get_by_role("button", name=f"Show details for {data['releases'][150][:8]}", exact=True)).to_be_visible()
             next_button.click()
             section.get_by_text("Pilot page failure", exact=False).wait_for()
-            expect(section.get_by_text("Pilot release 151", exact=True)).to_be_visible()
+            expect(section.get_by_role("button", name=f"Show details for {data['releases'][150][:8]}", exact=True)).to_be_visible()
             assert len(failed) == 1
             expect(section.get_by_text("151–200 of 200+", exact=False)).to_be_visible()
             next_button.focus()
             page.keyboard.press("Enter")
             expect(section.get_by_text("201–221 of 221", exact=False)).to_be_visible()
-            expect(section.get_by_text("Pilot release 221", exact=True)).to_be_visible()
+            expect(section.get_by_role("button", name=f"Show details for {data['releases'][220][:8]}", exact=True)).to_be_visible()
             older_requests = [request["body"] for request in requests if request["method"] == "ListDeployments" and request["body"].get("pageToken")]
             assert len(older_requests) == 2 and older_requests[0] == older_requests[1] == failed[0]
             stage = "environment-switch"
@@ -183,17 +183,17 @@ with session(out) as browser:
             environment_switcher.click()
             page.get_by_role("menuitem", name="staging staging", exact=True).click()
             expect(page).to_have_url(re.compile(r"[?&]env=staging"))
-            expect(section.get_by_text("Staging current", exact=True)).to_be_visible()
+            expect(section.get_by_role("button", name=f"Show details for {data['staging_release'][:8]}", exact=True)).to_be_visible()
             # One deployment fits the smallest page size, so the pager is gone.
             expect(section.get_by_text("1–1 of 1", exact=False)).to_have_count(0)
-            assert not section.get_by_text("Pilot release 221", exact=True).count()
+            assert not section.get_by_role("button", name=f"Show details for {data['releases'][220][:8]}", exact=True).count()
             assert any(request["method"] == "ListDeployments" and request["body"].get("environmentId") == data["staging"] and not request["body"].get("pageToken") for request in requests)
             expect(next_button).to_have_count(0)
             assert any(request["method"] == "GetDeployment" and request["body"]["deploymentId"] == data["staging_release"] for request in requests)
             environment_switcher.click()
             page.get_by_role("menuitem", name="production production", exact=True).click()
-            expect(section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
-            expect(section.get_by_text("Pilot release 151", exact=True)).to_have_count(0)
+            expect(section.get_by_role("button", name=f"Show details for {data['releases'][0][:8]}", exact=True)).to_be_visible()
+            expect(section.get_by_role("button", name=f"Show details for {data['releases'][150][:8]}", exact=True)).to_have_count(0)
             assert section.evaluate(SEPARATED_ROWS), "deployment rows lost their separators"
             stage = "builds"
             builds = data["builds"]
@@ -301,7 +301,7 @@ with session(out) as browser:
             reader_page.on("response", lambda response: denied.append(response.url) if response.status == 403 else None)
             reader_page.goto(state["ui_url"] + base + "/resource/" + data["resource"] + "?env=production")
             reader_section = reader_page.get_by_role("tab", name=re.compile(r"^Deployments")).locator("xpath=ancestor::section[1]")
-            expect(reader_section.get_by_text("Pilot release 001", exact=True)).to_be_visible()
+            expect(reader_section.get_by_role("button", name=f"Show details for {data['releases'][0][:8]}", exact=True)).to_be_visible()
             expect(reader_page.get_by_text("Not deployed yet", exact=True)).to_have_count(0)
             redeploy = reader_page.get_by_role("button", name="Redeploy", exact=True)
             expect(redeploy).to_be_disabled()

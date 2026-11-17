@@ -1,4 +1,4 @@
-import { DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { type Glyph, StatusGlyph } from "./StatusGlyph";
@@ -27,21 +27,21 @@ export function resourceStatusStyle(status: ResourceStatus | undefined): StatusS
 	}
 }
 
-function deploymentPhaseStyle(phase: DeploymentPhase | undefined): StatusStyle {
+function deploymentPhaseStyle(phase: DeploymentStatus | undefined): StatusStyle {
 	switch (phase) {
-		case DeploymentPhase.PENDING:
-			return { label: "Pending", glyph: "draft" };
-		case DeploymentPhase.DEPLOYING:
+		case DeploymentStatus.BUILDING:
+			return { label: "Building", glyph: "draft" };
+		case DeploymentStatus.DEPLOYING:
 			return { label: "Deploying", glyph: "spin" };
-		case DeploymentPhase.RUNNING:
+		case DeploymentStatus.RUNNING:
 			return { label: "Running", glyph: "ok" };
-		case DeploymentPhase.SUCCEEDED:
-			return { label: "Succeeded", glyph: "off" };
-		case DeploymentPhase.FAILED:
+		case DeploymentStatus.SUPERSEDED:
+			return { label: "Superseded", glyph: "off" };
+		case DeploymentStatus.FAILED:
 			return { label: "Failed", glyph: "err" };
-		case DeploymentPhase.CANCELED:
+		case DeploymentStatus.CANCELED:
 			return { label: "Canceled", glyph: "off" };
-		case DeploymentPhase.UNSPECIFIED:
+		case DeploymentStatus.UNSPECIFIED:
 			return { label: "Pending", glyph: "draft" };
 		case undefined:
 			return { label: "Pending", glyph: "draft" };
@@ -63,11 +63,11 @@ export function ResourceStatusBadge({ status }: { status: ResourceStatus | undef
 
 const SUPERSEDED: StatusStyle = { label: "Superseded", glyph: "off" };
 
-export function DeploymentPhaseBadge({
+export function DeploymentStatusBadge({
 	phase,
 	superseded = false,
 }: {
-	phase: DeploymentPhase | undefined;
+	phase: DeploymentStatus | undefined;
 	superseded?: boolean;
 }) {
 	return <StatusLabel {...(superseded ? SUPERSEDED : deploymentPhaseStyle(phase))} />;

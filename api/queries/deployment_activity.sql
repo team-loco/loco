@@ -18,3 +18,7 @@ UPDATE deployment_rollouts SET snapshot = $3 WHERE deployment_id = $1 AND revisi
 
 -- name: NotifyDeploymentActivity :exec
 SELECT pg_notify('deployment_activity', sqlc.arg(deployment_id)::text);
+
+-- name: ListDeploymentActivity :many
+SELECT * FROM deployment_activity WHERE deployment_id = $1 AND seq > sqlc.arg(after_seq)
+ORDER BY seq LIMIT sqlc.arg(page_size);

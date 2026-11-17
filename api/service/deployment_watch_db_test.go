@@ -7,12 +7,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
+	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
@@ -26,6 +28,7 @@ func TestWatchDeploymentStreamCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	server, ctx := f.deploymentWriter(t)
+	server.notifier = pgnotify.New(f.pool.Config().ConnConfig, "deployment_activity", 30*time.Second)
 	p, _ := reqctx.PrincipalFrom(ctx)
 	p.Scopes = []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},

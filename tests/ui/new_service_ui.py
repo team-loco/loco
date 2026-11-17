@@ -431,13 +431,20 @@ with session(out) as browser:
         context.route("**/loco.deployment.v1.DeploymentService/ResolveImage", lambda route: route.fulfill(json={"image": pinned_image}))
 
         def create_failing_deployment(route):
-            deployments.append(route.request.post_data_json)
-            route.fulfill(json={"deploymentId": str(uuid.uuid4())})
+            body = route.request.post_data_json
+            deployments.append(body)
+            cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
+            evidence.psql(state["container"], f"""
+INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES('{cluster}','failed-{deployment}','{body['region']}','fixture',true,false,'healthy',NOW());
+INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
+VALUES('{deployment}','{body['resourceId']}','{cluster}','{body['region']}',1,'failed',true,'{body['environmentId']}',{evidence.sql_literal(json.dumps(body['spec']['service']))},1,'user','{state['users']['owner']['id']}','web');
+INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
+VALUES('{deployment}',1,'{{"problem":{{"reason":"image_pull_failed","detail":"ImagePullBackOff: manifest unknown"}}}}');
+""")
+            route.fulfill(json={"deploymentId": deployment})
 
         context.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", create_failing_deployment)
-        event = json.dumps({"status": "DEPLOYMENT_PHASE_FAILED", "message": "ImagePullBackOff: manifest unknown"}).encode()
-        stream = b"\x00" + len(event).to_bytes(4, "big") + event + b"\x02" + (2).to_bytes(4, "big") + b"{}"
-        context.route("**/loco.deployment.v1.DeploymentService/WatchDeployment", lambda route: route.fulfill(content_type="application/connect+json", body=stream))
         try:
             page.goto(base + "/resources?env=production")
             stale = seeded_draft(repository, f"registry.example.com/acme/{repository}:0.9")
@@ -486,7 +493,7 @@ with session(out) as browser:
             drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
             expect(drawer.get_by_text(f"Couldn't deploy {name}", exact=True)).to_be_visible()
-            expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=True)).to_be_visible()
+            expect(drawer.get_by_text("ImagePullBackOff: manifest unknown", exact=False)).to_be_visible()
             header = drawer.get_by_role("heading", name=name, exact=True).locator("..")
             expect(header.get_by_text("Failed", exact=True)).to_be_visible()
             spec = deployments[0]["spec"]["service"]

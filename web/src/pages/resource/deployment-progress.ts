@@ -1,6 +1,6 @@
 import type { Build } from "@gen/loco/build/v1/build_pb";
 import { BuildStatus } from "@gen/loco/build/v1/build_pb";
-import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { StepState } from "@/lib/deploy-progress";
 import { isInFlight } from "@/lib/deployment-utils";
@@ -20,8 +20,8 @@ export function progressDeployments(regions: readonly RegionView[]) {
 		if (
 			deployment === undefined ||
 			(!isInFlight(deployment.status) &&
-				deployment.status !== DeploymentPhase.FAILED &&
-				deployment.status !== DeploymentPhase.CANCELED)
+				deployment.status !== DeploymentStatus.FAILED &&
+				deployment.status !== DeploymentStatus.CANCELED)
 		)
 			return [];
 		return [{ region, deployment, previous: lastGoodDeployment({ ...region, current: deployment, history }) }];
@@ -36,9 +36,9 @@ export interface DeploymentStep {
 
 export function deploymentSteps(deployment: Deployment, build: Build | undefined): DeploymentStep[] {
 	const { status } = deployment;
-	const done = status === DeploymentPhase.RUNNING || status === DeploymentPhase.SUCCEEDED;
-	const stopped = status === DeploymentPhase.FAILED || status === DeploymentPhase.CANCELED;
-	const active = status === DeploymentPhase.PENDING ? 0 : 1;
+	const done = status === DeploymentStatus.RUNNING || status === DeploymentStatus.SUPERSEDED;
+	const stopped = status === DeploymentStatus.FAILED || status === DeploymentStatus.CANCELED;
+	const active = status === DeploymentStatus.BUILDING ? 0 : 1;
 	const steps = [
 		{ label: "Queued", detail: "" },
 		{ label: "Deploying", detail: "" },

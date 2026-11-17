@@ -1,42 +1,88 @@
 import { createClient } from "@connectrpc/connect";
-import { useTransport } from "@connectrpc/connect-query";
+import { createConnectQueryKey, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { DeploymentService, type DeploymentPhase } from "@gen/loco/deployment/v1/deployment_pb";
+import { useEffect, useRef, useState } from "react";
+import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
+import { DeploymentService, type Activity, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { isInFlight } from "@/lib/deployment-utils";
-import { maybeTsMs } from "@/lib/time";
+import { getErrorMessage } from "@/lib/error-handler";
+import { deploymentEnded, mergeActivity } from "./deployment-watch";
 
 export interface DeploymentWatch {
-	phase: DeploymentPhase | undefined;
-	message: string;
-	updatedMs: number | undefined;
+	deployment: Deployment | undefined;
+	activity: Activity[];
+	error: string | undefined;
 }
 
-const IDLE: DeploymentWatch = { phase: undefined, message: "", updatedMs: undefined };
+const IDLE: DeploymentWatch = { deployment: undefined, activity: [], error: undefined };
 const ID_SEPARATOR = ",";
 
 export function useDeploymentWatch(deploymentIds: readonly string[]): (id: string | undefined) => DeploymentWatch {
 	const transport = useTransport();
 	const queryClient = useQueryClient();
+	const cursorsRef = useRef(new Map<string, bigint>());
 	const [states, setStates] = useState<Record<string, DeploymentWatch>>({});
 	const key = deploymentIds.join(ID_SEPARATOR);
 	useEffect(() => {
 		if (key === "") return;
 		const controller = new AbortController();
+		const isAborted = () => controller.signal.aborted;
 		const client = createClient(DeploymentService, transport);
 		const watch = async (deploymentId: string) => {
-			try {
-				for await (const ev of client.watchDeployment({ deploymentId }, { signal: controller.signal })) {
+			let backoff = 1000;
+			while (!isAborted()) {
+				try {
+					let terminal = false;
+					for await (const ev of client.watchDeployment(
+						{ deploymentId, afterSeq: cursorsRef.current.get(deploymentId) ?? 0n },
+						{ signal: controller.signal },
+					)) {
+						if (isAborted()) return;
+						const deployment = ev.deployment;
+						if (deployment === undefined) throw new Error("Deployment watch returned no deployment");
+						const last = ev.activity.at(-1)?.seq;
+						if (last !== undefined) cursorsRef.current.set(deploymentId, last);
+						terminal = deploymentEnded(deployment);
+						setStates((prev) => ({
+							...prev,
+							[deploymentId]: {
+								deployment,
+								activity: mergeActivity(prev[deploymentId]?.activity ?? [], ev.activity),
+								error: undefined,
+							},
+						}));
+						void queryClient.invalidateQueries({
+							queryKey: createConnectQueryKey({
+								schema: getDeployment,
+								input: { deploymentId },
+								transport,
+								cardinality: "finite",
+							}),
+						});
+						void queryClient.invalidateQueries({
+							queryKey: createConnectQueryKey({
+								schema: listDeployments,
+								input: { resourceId: deployment.resourceId },
+								transport,
+								cardinality: undefined,
+							}),
+						});
+						backoff = 1000;
+					}
+					if (terminal) return;
+					throw new Error("Deployment stream disconnected");
+				} catch (error) {
+					if (isAborted()) return;
 					setStates((prev) => ({
 						...prev,
-						[deploymentId]: { phase: ev.status, message: ev.message, updatedMs: maybeTsMs(ev.timestamp) },
+						[deploymentId]: {
+							...(prev[deploymentId] ?? IDLE),
+							error: getErrorMessage(error, "Deployment stream disconnected"),
+						},
 					}));
-					void queryClient.invalidateQueries();
-					if (!isInFlight(ev.status)) break;
 				}
-			} catch {
-				return;
+				await reconnectDelay(controller.signal, backoff);
+				backoff = Math.min(backoff * 2, 30000);
 			}
 		};
 		for (const id of key.split(ID_SEPARATOR)) void watch(id);
@@ -45,4 +91,16 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 		};
 	}, [key, transport, queryClient]);
 	return (id) => (id === undefined ? IDLE : (states[id] ?? IDLE));
+}
+
+async function reconnectDelay(signal: AbortSignal, delay: number): Promise<void> {
+	await new Promise<void>((resolve) => {
+		const done = () => {
+			clearTimeout(timer);
+			signal.removeEventListener("abort", done);
+			resolve();
+		};
+		const timer = setTimeout(done, delay);
+		signal.addEventListener("abort", done, { once: true });
+	});
 }

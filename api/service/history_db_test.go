@@ -19,9 +19,9 @@ func (f *deployFixture) seedDeployment(
 	t.Helper()
 	var id uuid.UUID
 	if err := f.pool.QueryRow(t.Context(), `
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, environment_id,
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, environment_id,
                          spec, spec_version, actor_type, actor_id, method, started_at, created_at)
-VALUES ($1, $2, $3, 1, $4, $5, '', $6, '{}', 1, 'user', $1, 'cli', NOW(), NOW() - $7::interval)
+VALUES ($1, $2, $3, 1, $4, $5, $6, '{}', 1, 'user', $1, 'cli', NOW(), NOW() - $7::interval)
 RETURNING id`, f.resourceID, clusterID, region, status, active, f.envID, age).Scan(&id); err != nil {
 		t.Fatalf("seed deployment: %v", err)
 	}

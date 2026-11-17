@@ -33,7 +33,7 @@ function specObject(dep: Deployment): JsonObject {
 	const normalized = normalize({
 		...base,
 		region: dep.region,
-		replicas: dep.replicas,
+		replicas: dep.desiredReplicas,
 	});
 	return isObject(normalized) ? normalized : {};
 }
@@ -169,7 +169,7 @@ export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 			to: shortImageRef(toImage) || null,
 		});
 	}
-	push("replicas", from.replicas.toString(), to.replicas.toString());
+	push("replicas", from.desiredReplicas.toString(), to.desiredReplicas.toString());
 	push("cpu", f?.cpu ?? null, t?.cpu ?? null);
 	push("memory", f?.memory ?? null, t?.memory ?? null);
 	push("port", f?.port?.toString() ?? null, t?.port?.toString() ?? null);

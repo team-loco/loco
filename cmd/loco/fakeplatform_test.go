@@ -100,7 +100,7 @@ type fakePlatform struct {
 	restarts          []*resourcev1.RestartResourceRequest
 	scales            []*resourcev1.ScaleResourceRequest
 	// deploymentOutcomes holds the last status WatchDeployment sends per deployment ID.
-	deploymentOutcomes map[string]deploymentv1.DeploymentPhase
+	deploymentOutcomes map[string]deploymentv1.DeploymentStatus
 }
 
 func newFakePlatform() *fakePlatform {
@@ -117,7 +117,7 @@ func newFakePlatform() *fakePlatform {
 		sourceLimit:        200 << 20,
 		uploads:            map[string]fakeUpload{},
 		secrets:            map[fakeSecretKey]fakeSecret{},
-		deploymentOutcomes: map[string]deploymentv1.DeploymentPhase{},
+		deploymentOutcomes: map[string]deploymentv1.DeploymentStatus{},
 	}
 }
 

@@ -23,71 +23,64 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// DeploymentPhase indicates the current state of a deployment lifecycle.
-type DeploymentPhase int32
+type DeploymentStatus int32
 
 const (
-	DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED DeploymentPhase = 0
-	// Pre-deployment: created in DB, waiting for controller to pick it up
-	DeploymentPhase_DEPLOYMENT_PHASE_PENDING DeploymentPhase = 1
-	// Active: controller is actively deploying (pulling image, creating pods, etc)
-	DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING DeploymentPhase = 2
-	// Running: pods are up, healthy, ready to serve traffic
-	DeploymentPhase_DEPLOYMENT_PHASE_RUNNING DeploymentPhase = 3
-	// Terminal: one-off jobs completed successfully
-	DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED DeploymentPhase = 4
-	// Terminal: error during deployment or runtime
-	DeploymentPhase_DEPLOYMENT_PHASE_FAILED DeploymentPhase = 5
-	// Terminal: user explicitly cancelled
-	DeploymentPhase_DEPLOYMENT_PHASE_CANCELED DeploymentPhase = 6
+	DeploymentStatus_DEPLOYMENT_STATUS_UNSPECIFIED DeploymentStatus = 0
+	DeploymentStatus_DEPLOYMENT_STATUS_BUILDING    DeploymentStatus = 1
+	DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING   DeploymentStatus = 2
+	DeploymentStatus_DEPLOYMENT_STATUS_RUNNING     DeploymentStatus = 3
+	DeploymentStatus_DEPLOYMENT_STATUS_FAILED      DeploymentStatus = 4
+	DeploymentStatus_DEPLOYMENT_STATUS_CANCELED    DeploymentStatus = 5
+	DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED  DeploymentStatus = 6
 )
 
-// Enum value maps for DeploymentPhase.
+// Enum value maps for DeploymentStatus.
 var (
-	DeploymentPhase_name = map[int32]string{
-		0: "DEPLOYMENT_PHASE_UNSPECIFIED",
-		1: "DEPLOYMENT_PHASE_PENDING",
-		2: "DEPLOYMENT_PHASE_DEPLOYING",
-		3: "DEPLOYMENT_PHASE_RUNNING",
-		4: "DEPLOYMENT_PHASE_SUCCEEDED",
-		5: "DEPLOYMENT_PHASE_FAILED",
-		6: "DEPLOYMENT_PHASE_CANCELED",
+	DeploymentStatus_name = map[int32]string{
+		0: "DEPLOYMENT_STATUS_UNSPECIFIED",
+		1: "DEPLOYMENT_STATUS_BUILDING",
+		2: "DEPLOYMENT_STATUS_DEPLOYING",
+		3: "DEPLOYMENT_STATUS_RUNNING",
+		4: "DEPLOYMENT_STATUS_FAILED",
+		5: "DEPLOYMENT_STATUS_CANCELED",
+		6: "DEPLOYMENT_STATUS_SUPERSEDED",
 	}
-	DeploymentPhase_value = map[string]int32{
-		"DEPLOYMENT_PHASE_UNSPECIFIED": 0,
-		"DEPLOYMENT_PHASE_PENDING":     1,
-		"DEPLOYMENT_PHASE_DEPLOYING":   2,
-		"DEPLOYMENT_PHASE_RUNNING":     3,
-		"DEPLOYMENT_PHASE_SUCCEEDED":   4,
-		"DEPLOYMENT_PHASE_FAILED":      5,
-		"DEPLOYMENT_PHASE_CANCELED":    6,
+	DeploymentStatus_value = map[string]int32{
+		"DEPLOYMENT_STATUS_UNSPECIFIED": 0,
+		"DEPLOYMENT_STATUS_BUILDING":    1,
+		"DEPLOYMENT_STATUS_DEPLOYING":   2,
+		"DEPLOYMENT_STATUS_RUNNING":     3,
+		"DEPLOYMENT_STATUS_FAILED":      4,
+		"DEPLOYMENT_STATUS_CANCELED":    5,
+		"DEPLOYMENT_STATUS_SUPERSEDED":  6,
 	}
 )
 
-func (x DeploymentPhase) Enum() *DeploymentPhase {
-	p := new(DeploymentPhase)
+func (x DeploymentStatus) Enum() *DeploymentStatus {
+	p := new(DeploymentStatus)
 	*p = x
 	return p
 }
 
-func (x DeploymentPhase) String() string {
+func (x DeploymentStatus) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (DeploymentPhase) Descriptor() protoreflect.EnumDescriptor {
+func (DeploymentStatus) Descriptor() protoreflect.EnumDescriptor {
 	return file_loco_deployment_v1_deployment_proto_enumTypes[0].Descriptor()
 }
 
-func (DeploymentPhase) Type() protoreflect.EnumType {
+func (DeploymentStatus) Type() protoreflect.EnumType {
 	return &file_loco_deployment_v1_deployment_proto_enumTypes[0]
 }
 
-func (x DeploymentPhase) Number() protoreflect.EnumNumber {
+func (x DeploymentStatus) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use DeploymentPhase.Descriptor instead.
-func (DeploymentPhase) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use DeploymentStatus.Descriptor instead.
+func (DeploymentStatus) EnumDescriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{0}
 }
 
@@ -971,30 +964,32 @@ func (*DeploymentSpec_Queue) isDeploymentSpec_Spec() {}
 
 // Deployment represents a resource deployment (immutable, single-region).
 type Deployment struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ResourceId     string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	ClusterId      string                 `protobuf:"bytes,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	Region         string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
-	Replicas       int32                  `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	Status         DeploymentPhase        `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
-	IsActive       bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
-	Message        string                 `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	StartedAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
-	CompletedAt    *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
-	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	SpecVersion    int32                  `protobuf:"varint,13,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
-	Spec           *DeploymentSpec        `protobuf:"bytes,14,opt,name=spec,proto3" json:"spec,omitempty"`
-	EnvironmentId  string                 `protobuf:"bytes,15,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	ActorType      DeploymentActorType    `protobuf:"varint,16,opt,name=actor_type,json=actorType,proto3,enum=loco.deployment.v1.DeploymentActorType" json:"actor_type,omitempty"`
-	ActorId        string                 `protobuf:"bytes,17,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	ActorName      string                 `protobuf:"bytes,18,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
-	ActorAvatarUrl string                 `protobuf:"bytes,19,opt,name=actor_avatar_url,json=actorAvatarUrl,proto3" json:"actor_avatar_url,omitempty"`
-	Method         DeploymentMethod       `protobuf:"varint,20,opt,name=method,proto3,enum=loco.deployment.v1.DeploymentMethod" json:"method,omitempty"`
-	Commit         *SourceCommit          `protobuf:"bytes,21,opt,name=commit,proto3" json:"commit,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ResourceId      string                 `protobuf:"bytes,2,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ClusterId       string                 `protobuf:"bytes,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	Region          string                 `protobuf:"bytes,4,opt,name=region,proto3" json:"region,omitempty"`
+	DesiredReplicas int32                  `protobuf:"varint,5,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
+	Status          DeploymentStatus       `protobuf:"varint,6,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentStatus" json:"status,omitempty"`
+	IsActive        bool                   `protobuf:"varint,7,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	StartedAt       *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=started_at,json=startedAt,proto3,oneof" json:"started_at,omitempty"`
+	CompletedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=completed_at,json=completedAt,proto3,oneof" json:"completed_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SpecVersion     int32                  `protobuf:"varint,13,opt,name=spec_version,json=specVersion,proto3" json:"spec_version,omitempty"`
+	Spec            *DeploymentSpec        `protobuf:"bytes,14,opt,name=spec,proto3" json:"spec,omitempty"`
+	EnvironmentId   string                 `protobuf:"bytes,15,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
+	ActorType       DeploymentActorType    `protobuf:"varint,16,opt,name=actor_type,json=actorType,proto3,enum=loco.deployment.v1.DeploymentActorType" json:"actor_type,omitempty"`
+	ActorId         string                 `protobuf:"bytes,17,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	ActorName       string                 `protobuf:"bytes,18,opt,name=actor_name,json=actorName,proto3" json:"actor_name,omitempty"`
+	ActorAvatarUrl  string                 `protobuf:"bytes,19,opt,name=actor_avatar_url,json=actorAvatarUrl,proto3" json:"actor_avatar_url,omitempty"`
+	Method          DeploymentMethod       `protobuf:"varint,20,opt,name=method,proto3,enum=loco.deployment.v1.DeploymentMethod" json:"method,omitempty"`
+	Commit          *SourceCommit          `protobuf:"bytes,21,opt,name=commit,proto3" json:"commit,omitempty"`
+	CurrentRevision int64                  `protobuf:"varint,22,opt,name=current_revision,json=currentRevision,proto3" json:"current_revision,omitempty"`
+	Problem         *Problem               `protobuf:"bytes,23,opt,name=problem,proto3" json:"problem,omitempty"`
+	Replicas        []*Replica             `protobuf:"bytes,24,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Deployment) Reset() {
@@ -1055,18 +1050,18 @@ func (x *Deployment) GetRegion() string {
 	return ""
 }
 
-func (x *Deployment) GetReplicas() int32 {
+func (x *Deployment) GetDesiredReplicas() int32 {
 	if x != nil {
-		return x.Replicas
+		return x.DesiredReplicas
 	}
 	return 0
 }
 
-func (x *Deployment) GetStatus() DeploymentPhase {
+func (x *Deployment) GetStatus() DeploymentStatus {
 	if x != nil {
 		return x.Status
 	}
-	return DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+	return DeploymentStatus_DEPLOYMENT_STATUS_UNSPECIFIED
 }
 
 func (x *Deployment) GetIsActive() bool {
@@ -1074,13 +1069,6 @@ func (x *Deployment) GetIsActive() bool {
 		return x.IsActive
 	}
 	return false
-}
-
-func (x *Deployment) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
 }
 
 func (x *Deployment) GetCreatedAt() *timestamppb.Timestamp {
@@ -1170,6 +1158,27 @@ func (x *Deployment) GetMethod() DeploymentMethod {
 func (x *Deployment) GetCommit() *SourceCommit {
 	if x != nil {
 		return x.Commit
+	}
+	return nil
+}
+
+func (x *Deployment) GetCurrentRevision() int64 {
+	if x != nil {
+		return x.CurrentRevision
+	}
+	return 0
+}
+
+func (x *Deployment) GetProblem() *Problem {
+	if x != nil {
+		return x.Problem
+	}
+	return nil
+}
+
+func (x *Deployment) GetReplicas() []*Replica {
+	if x != nil {
+		return x.Replicas
 	}
 	return nil
 }
@@ -1596,17 +1605,293 @@ func (x *ListDeploymentsResponse) GetNextPageToken() string {
 	return ""
 }
 
-// WatchDeploymentRequest is the request to stream deployment events.
+type Replica struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Uid               string                 `protobuf:"bytes,1,opt,name=uid,proto3" json:"uid,omitempty"`
+	Name              string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Node              string                 `protobuf:"bytes,3,opt,name=node,proto3" json:"node,omitempty"`
+	PlacementRevision int64                  `protobuf:"varint,4,opt,name=placement_revision,json=placementRevision,proto3" json:"placement_revision,omitempty"`
+	State             string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`
+	StateSince        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=state_since,json=stateSince,proto3" json:"state_since,omitempty"`
+	StateDeadline     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=state_deadline,json=stateDeadline,proto3" json:"state_deadline,omitempty"`
+	Restarts          int32                  `protobuf:"varint,8,opt,name=restarts,proto3" json:"restarts,omitempty"`
+	ExitCode          *int32                 `protobuf:"varint,9,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
+	Detail            string                 `protobuf:"bytes,10,opt,name=detail,proto3" json:"detail,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *Replica) Reset() {
+	*x = Replica{}
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Replica) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Replica) ProtoMessage() {}
+
+func (x *Replica) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Replica.ProtoReflect.Descriptor instead.
+func (*Replica) Descriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *Replica) GetUid() string {
+	if x != nil {
+		return x.Uid
+	}
+	return ""
+}
+
+func (x *Replica) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Replica) GetNode() string {
+	if x != nil {
+		return x.Node
+	}
+	return ""
+}
+
+func (x *Replica) GetPlacementRevision() int64 {
+	if x != nil {
+		return x.PlacementRevision
+	}
+	return 0
+}
+
+func (x *Replica) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *Replica) GetStateSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StateSince
+	}
+	return nil
+}
+
+func (x *Replica) GetStateDeadline() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StateDeadline
+	}
+	return nil
+}
+
+func (x *Replica) GetRestarts() int32 {
+	if x != nil {
+		return x.Restarts
+	}
+	return 0
+}
+
+func (x *Replica) GetExitCode() int32 {
+	if x != nil && x.ExitCode != nil {
+		return *x.ExitCode
+	}
+	return 0
+}
+
+func (x *Replica) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+type Problem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	ReplicaName   string                 `protobuf:"bytes,4,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
+	Since         *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=since,proto3" json:"since,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Problem) Reset() {
+	*x = Problem{}
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Problem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Problem) ProtoMessage() {}
+
+func (x *Problem) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Problem.ProtoReflect.Descriptor instead.
+func (*Problem) Descriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *Problem) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *Problem) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *Problem) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *Problem) GetReplicaName() string {
+	if x != nil {
+		return x.ReplicaName
+	}
+	return ""
+}
+
+func (x *Problem) GetSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Since
+	}
+	return nil
+}
+
+type Activity struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Seq           int64                  `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
+	Revision      int64                  `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	At            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=at,proto3" json:"at,omitempty"`
+	Severity      string                 `protobuf:"bytes,4,opt,name=severity,proto3" json:"severity,omitempty"`
+	ReplicaName   string                 `protobuf:"bytes,5,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
+	Message       string                 `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Activity) Reset() {
+	*x = Activity{}
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Activity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Activity) ProtoMessage() {}
+
+func (x *Activity) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Activity.ProtoReflect.Descriptor instead.
+func (*Activity) Descriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *Activity) GetSeq() int64 {
+	if x != nil {
+		return x.Seq
+	}
+	return 0
+}
+
+func (x *Activity) GetRevision() int64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *Activity) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+func (x *Activity) GetSeverity() string {
+	if x != nil {
+		return x.Severity
+	}
+	return ""
+}
+
+func (x *Activity) GetReplicaName() string {
+	if x != nil {
+		return x.ReplicaName
+	}
+	return ""
+}
+
+func (x *Activity) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type WatchDeploymentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	AfterSeq      int64                  `protobuf:"varint,2,opt,name=after_seq,json=afterSeq,proto3" json:"after_seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WatchDeploymentRequest) Reset() {
 	*x = WatchDeploymentRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1618,7 +1903,7 @@ func (x *WatchDeploymentRequest) String() string {
 func (*WatchDeploymentRequest) ProtoMessage() {}
 
 func (x *WatchDeploymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1631,7 +1916,7 @@ func (x *WatchDeploymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*WatchDeploymentRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{20}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *WatchDeploymentRequest) GetDeploymentId() string {
@@ -1641,20 +1926,25 @@ func (x *WatchDeploymentRequest) GetDeploymentId() string {
 	return ""
 }
 
-// WatchDeploymentResponse represents a deployment event stream response.
+func (x *WatchDeploymentRequest) GetAfterSeq() int64 {
+	if x != nil {
+		return x.AfterSeq
+	}
+	return 0
+}
+
 type WatchDeploymentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	Status        DeploymentPhase        `protobuf:"varint,2,opt,name=status,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"status,omitempty"`
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Deployment      *Deployment            `protobuf:"bytes,1,opt,name=deployment,proto3" json:"deployment,omitempty"`
+	Activity        []*Activity            `protobuf:"bytes,2,rep,name=activity,proto3" json:"activity,omitempty"`
+	HasMoreActivity bool                   `protobuf:"varint,3,opt,name=has_more_activity,json=hasMoreActivity,proto3" json:"has_more_activity,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *WatchDeploymentResponse) Reset() {
 	*x = WatchDeploymentResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1666,7 +1956,7 @@ func (x *WatchDeploymentResponse) String() string {
 func (*WatchDeploymentResponse) ProtoMessage() {}
 
 func (x *WatchDeploymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1679,35 +1969,140 @@ func (x *WatchDeploymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchDeploymentResponse.ProtoReflect.Descriptor instead.
 func (*WatchDeploymentResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{21}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *WatchDeploymentResponse) GetDeploymentId() string {
+func (x *WatchDeploymentResponse) GetDeployment() *Deployment {
+	if x != nil {
+		return x.Deployment
+	}
+	return nil
+}
+
+func (x *WatchDeploymentResponse) GetActivity() []*Activity {
+	if x != nil {
+		return x.Activity
+	}
+	return nil
+}
+
+func (x *WatchDeploymentResponse) GetHasMoreActivity() bool {
+	if x != nil {
+		return x.HasMoreActivity
+	}
+	return false
+}
+
+type ListDeploymentActivityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeploymentId  string                 `protobuf:"bytes,1,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	AfterSeq      int64                  `protobuf:"varint,2,opt,name=after_seq,json=afterSeq,proto3" json:"after_seq,omitempty"`
+	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDeploymentActivityRequest) Reset() {
+	*x = ListDeploymentActivityRequest{}
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDeploymentActivityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDeploymentActivityRequest) ProtoMessage() {}
+
+func (x *ListDeploymentActivityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDeploymentActivityRequest.ProtoReflect.Descriptor instead.
+func (*ListDeploymentActivityRequest) Descriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListDeploymentActivityRequest) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
 	return ""
 }
 
-func (x *WatchDeploymentResponse) GetStatus() DeploymentPhase {
+func (x *ListDeploymentActivityRequest) GetAfterSeq() int64 {
 	if x != nil {
-		return x.Status
+		return x.AfterSeq
 	}
-	return DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+	return 0
 }
 
-func (x *WatchDeploymentResponse) GetMessage() string {
+func (x *ListDeploymentActivityRequest) GetPageSize() int32 {
 	if x != nil {
-		return x.Message
+		return x.PageSize
 	}
-	return ""
+	return 0
 }
 
-func (x *WatchDeploymentResponse) GetTimestamp() *timestamppb.Timestamp {
+type ListDeploymentActivityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Activity      []*Activity            `protobuf:"bytes,1,rep,name=activity,proto3" json:"activity,omitempty"`
+	NextSeq       int64                  `protobuf:"varint,2,opt,name=next_seq,json=nextSeq,proto3" json:"next_seq,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDeploymentActivityResponse) Reset() {
+	*x = ListDeploymentActivityResponse{}
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDeploymentActivityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDeploymentActivityResponse) ProtoMessage() {}
+
+func (x *ListDeploymentActivityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
 	if x != nil {
-		return x.Timestamp
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDeploymentActivityResponse.ProtoReflect.Descriptor instead.
+func (*ListDeploymentActivityResponse) Descriptor() ([]byte, []int) {
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ListDeploymentActivityResponse) GetActivity() []*Activity {
+	if x != nil {
+		return x.Activity
 	}
 	return nil
+}
+
+func (x *ListDeploymentActivityResponse) GetNextSeq() int64 {
+	if x != nil {
+		return x.NextSeq
+	}
+	return 0
 }
 
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.
@@ -1720,7 +2115,7 @@ type DeleteDeploymentRequest struct {
 
 func (x *DeleteDeploymentRequest) Reset() {
 	*x = DeleteDeploymentRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1732,7 +2127,7 @@ func (x *DeleteDeploymentRequest) String() string {
 func (*DeleteDeploymentRequest) ProtoMessage() {}
 
 func (x *DeleteDeploymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1745,7 +2140,7 @@ func (x *DeleteDeploymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDeploymentRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{22}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *DeleteDeploymentRequest) GetDeploymentId() string {
@@ -1764,7 +2159,7 @@ type DeleteDeploymentResponse struct {
 
 func (x *DeleteDeploymentResponse) Reset() {
 	*x = DeleteDeploymentResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1776,7 +2171,7 @@ func (x *DeleteDeploymentResponse) String() string {
 func (*DeleteDeploymentResponse) ProtoMessage() {}
 
 func (x *DeleteDeploymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1789,7 +2184,7 @@ func (x *DeleteDeploymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDeploymentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDeploymentResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{23}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{28}
 }
 
 type ResolveImageRequest struct {
@@ -1802,7 +2197,7 @@ type ResolveImageRequest struct {
 
 func (x *ResolveImageRequest) Reset() {
 	*x = ResolveImageRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1814,7 +2209,7 @@ func (x *ResolveImageRequest) String() string {
 func (*ResolveImageRequest) ProtoMessage() {}
 
 func (x *ResolveImageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1827,7 +2222,7 @@ func (x *ResolveImageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveImageRequest.ProtoReflect.Descriptor instead.
 func (*ResolveImageRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{24}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ResolveImageRequest) GetWorkspaceId() string {
@@ -1853,7 +2248,7 @@ type ResolveImageResponse struct {
 
 func (x *ResolveImageResponse) Reset() {
 	*x = ResolveImageResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1865,7 +2260,7 @@ func (x *ResolveImageResponse) String() string {
 func (*ResolveImageResponse) ProtoMessage() {}
 
 func (x *ResolveImageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1878,7 +2273,7 @@ func (x *ResolveImageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveImageResponse.ProtoReflect.Descriptor instead.
 func (*ResolveImageResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{25}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ResolveImageResponse) GetImage() string {
@@ -1899,7 +2294,7 @@ type SourceCommit struct {
 
 func (x *SourceCommit) Reset() {
 	*x = SourceCommit{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1911,7 +2306,7 @@ func (x *SourceCommit) String() string {
 func (*SourceCommit) ProtoMessage() {}
 
 func (x *SourceCommit) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1924,7 +2319,7 @@ func (x *SourceCommit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceCommit.ProtoReflect.Descriptor instead.
 func (*SourceCommit) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{26}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *SourceCommit) GetSha() string {
@@ -2024,7 +2419,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\bdatabase\x18\x02 \x01(\v2*.loco.deployment.v1.DatabaseDeploymentSpecH\x00R\bdatabase\x12?\n" +
 	"\x05cache\x18\x03 \x01(\v2'.loco.deployment.v1.CacheDeploymentSpecH\x00R\x05cache\x12?\n" +
 	"\x05queue\x18\x04 \x01(\v2'.loco.deployment.v1.QueueDeploymentSpecH\x00R\x05queueB\x06\n" +
-	"\x04spec\"\xc4\a\n" +
+	"\x04spec\"\xd5\b\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
@@ -2032,11 +2427,10 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"resourceId\x12\x1d\n" +
 	"\n" +
 	"cluster_id\x18\x03 \x01(\tR\tclusterId\x12\x16\n" +
-	"\x06region\x18\x04 \x01(\tR\x06region\x12\x1a\n" +
-	"\breplicas\x18\x05 \x01(\x05R\breplicas\x12;\n" +
-	"\x06status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x1b\n" +
-	"\tis_active\x18\a \x01(\bR\bisActive\x12\x18\n" +
-	"\amessage\x18\b \x01(\tR\amessage\x129\n" +
+	"\x06region\x18\x04 \x01(\tR\x06region\x12)\n" +
+	"\x10desired_replicas\x18\x05 \x01(\x05R\x0fdesiredReplicas\x12<\n" +
+	"\x06status\x18\x06 \x01(\x0e2$.loco.deployment.v1.DeploymentStatusR\x06status\x12\x1b\n" +
+	"\tis_active\x18\a \x01(\bR\bisActive\x129\n" +
 	"\n" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12>\n" +
 	"\n" +
@@ -2055,7 +2449,10 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"actor_name\x18\x12 \x01(\tR\tactorName\x12(\n" +
 	"\x10actor_avatar_url\x18\x13 \x01(\tR\x0eactorAvatarUrl\x12<\n" +
 	"\x06method\x18\x14 \x01(\x0e2$.loco.deployment.v1.DeploymentMethodR\x06method\x128\n" +
-	"\x06commit\x18\x15 \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commitB\r\n" +
+	"\x06commit\x18\x15 \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commit\x12)\n" +
+	"\x10current_revision\x18\x16 \x01(\x03R\x0fcurrentRevision\x125\n" +
+	"\aproblem\x18\x17 \x01(\v2\x1b.loco.deployment.v1.ProblemR\aproblem\x127\n" +
+	"\breplicas\x18\x18 \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicasB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xe7\x02\n" +
 	"\x17CreateDeploymentRequest\x12)\n" +
@@ -2092,14 +2489,52 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"G\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xec\x02\n" +
+	"\aReplica\x12\x10\n" +
+	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
+	"\x04node\x18\x03 \x01(\tR\x04node\x12-\n" +
+	"\x12placement_revision\x18\x04 \x01(\x03R\x11placementRevision\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\x12;\n" +
+	"\vstate_since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"stateSince\x12A\n" +
+	"\x0estate_deadline\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rstateDeadline\x12\x1a\n" +
+	"\brestarts\x18\b \x01(\x05R\brestarts\x12 \n" +
+	"\texit_code\x18\t \x01(\x05H\x00R\bexitCode\x88\x01\x01\x12\x16\n" +
+	"\x06detail\x18\n" +
+	" \x01(\tR\x06detailB\f\n" +
+	"\n" +
+	"_exit_code\"\xa8\x01\n" +
+	"\aProblem\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12\x16\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\x12!\n" +
+	"\freplica_name\x18\x04 \x01(\tR\vreplicaName\x120\n" +
+	"\x05since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\"\xbd\x01\n" +
+	"\bActivity\x12\x10\n" +
+	"\x03seq\x18\x01 \x01(\x03R\x03seq\x12\x1a\n" +
+	"\brevision\x18\x02 \x01(\x03R\brevision\x12*\n" +
+	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x1a\n" +
+	"\bseverity\x18\x04 \x01(\tR\bseverity\x12!\n" +
+	"\freplica_name\x18\x05 \x01(\tR\vreplicaName\x12\x18\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"m\n" +
 	"\x16WatchDeploymentRequest\x12-\n" +
-	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\"\xcf\x01\n" +
-	"\x17WatchDeploymentResponse\x12#\n" +
-	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12;\n" +
-	"\x06status\x18\x02 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x06status\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\x128\n" +
-	"\ttimestamp\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"H\n" +
+	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\x12$\n" +
+	"\tafter_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\bafterSeq\"\xbf\x01\n" +
+	"\x17WatchDeploymentResponse\x12>\n" +
+	"\n" +
+	"deployment\x18\x01 \x01(\v2\x1e.loco.deployment.v1.DeploymentR\n" +
+	"deployment\x128\n" +
+	"\bactivity\x18\x02 \x03(\v2\x1c.loco.deployment.v1.ActivityR\bactivity\x12*\n" +
+	"\x11has_more_activity\x18\x03 \x01(\bR\x0fhasMoreActivity\"\x9d\x01\n" +
+	"\x1dListDeploymentActivityRequest\x12-\n" +
+	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\x12$\n" +
+	"\tafter_seq\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00R\bafterSeq\x12'\n" +
+	"\tpage_size\x18\x03 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\"u\n" +
+	"\x1eListDeploymentActivityResponse\x128\n" +
+	"\bactivity\x18\x01 \x03(\v2\x1c.loco.deployment.v1.ActivityR\bactivity\x12\x19\n" +
+	"\bnext_seq\x18\x02 \x01(\x03R\anextSeq\"H\n" +
 	"\x17DeleteDeploymentRequest\x12-\n" +
 	"\rdeployment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\fdeploymentId\"\x1a\n" +
 	"\x18DeleteDeploymentResponse\"a\n" +
@@ -2110,15 +2545,15 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x05image\x18\x01 \x01(\tR\x05image\"\\\n" +
 	"\fSourceCommit\x126\n" +
 	"\x03sha\x18\x01 \x01(\tB$\xbaH!r\x1f2\x1d^([0-9a-f]{40}|[0-9a-f]{64})$R\x03sha\x12\x14\n" +
-	"\x05dirty\x18\x02 \x01(\bR\x05dirty*\xeb\x01\n" +
-	"\x0fDeploymentPhase\x12 \n" +
-	"\x1cDEPLOYMENT_PHASE_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18DEPLOYMENT_PHASE_PENDING\x10\x01\x12\x1e\n" +
-	"\x1aDEPLOYMENT_PHASE_DEPLOYING\x10\x02\x12\x1c\n" +
-	"\x18DEPLOYMENT_PHASE_RUNNING\x10\x03\x12\x1e\n" +
-	"\x1aDEPLOYMENT_PHASE_SUCCEEDED\x10\x04\x12\x1b\n" +
-	"\x17DEPLOYMENT_PHASE_FAILED\x10\x05\x12\x1d\n" +
-	"\x19DEPLOYMENT_PHASE_CANCELED\x10\x06*\x81\x01\n" +
+	"\x05dirty\x18\x02 \x01(\bR\x05dirty*\xf5\x01\n" +
+	"\x10DeploymentStatus\x12!\n" +
+	"\x1dDEPLOYMENT_STATUS_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aDEPLOYMENT_STATUS_BUILDING\x10\x01\x12\x1f\n" +
+	"\x1bDEPLOYMENT_STATUS_DEPLOYING\x10\x02\x12\x1d\n" +
+	"\x19DEPLOYMENT_STATUS_RUNNING\x10\x03\x12\x1c\n" +
+	"\x18DEPLOYMENT_STATUS_FAILED\x10\x04\x12\x1e\n" +
+	"\x1aDEPLOYMENT_STATUS_CANCELED\x10\x05\x12 \n" +
+	"\x1cDEPLOYMENT_STATUS_SUPERSEDED\x10\x06*\x81\x01\n" +
 	"\x13DeploymentActorType\x12%\n" +
 	"!DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aDEPLOYMENT_ACTOR_TYPE_USER\x10\x01\x12#\n" +
@@ -2127,12 +2562,13 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x1dDEPLOYMENT_METHOD_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bDEPLOYMENT_METHOD_API_TOKEN\x10\x01\x12\x19\n" +
 	"\x15DEPLOYMENT_METHOD_CLI\x10\x02\x12\x19\n" +
-	"\x15DEPLOYMENT_METHOD_WEB\x10\x032\x94\x05\n" +
+	"\x15DEPLOYMENT_METHOD_WEB\x10\x032\x95\x06\n" +
 	"\x11DeploymentService\x12m\n" +
 	"\x10CreateDeployment\x12+.loco.deployment.v1.CreateDeploymentRequest\x1a,.loco.deployment.v1.CreateDeploymentResponse\x12d\n" +
 	"\rGetDeployment\x12(.loco.deployment.v1.GetDeploymentRequest\x1a).loco.deployment.v1.GetDeploymentResponse\x12j\n" +
 	"\x0fListDeployments\x12*.loco.deployment.v1.ListDeploymentsRequest\x1a+.loco.deployment.v1.ListDeploymentsResponse\x12l\n" +
-	"\x0fWatchDeployment\x12*.loco.deployment.v1.WatchDeploymentRequest\x1a+.loco.deployment.v1.WatchDeploymentResponse0\x01\x12m\n" +
+	"\x0fWatchDeployment\x12*.loco.deployment.v1.WatchDeploymentRequest\x1a+.loco.deployment.v1.WatchDeploymentResponse0\x01\x12\x7f\n" +
+	"\x16ListDeploymentActivity\x121.loco.deployment.v1.ListDeploymentActivityRequest\x1a2.loco.deployment.v1.ListDeploymentActivityResponse\x12m\n" +
 	"\x10DeleteDeployment\x12+.loco.deployment.v1.DeleteDeploymentRequest\x1a,.loco.deployment.v1.DeleteDeploymentResponse\x12a\n" +
 	"\fResolveImage\x12'.loco.deployment.v1.ResolveImageRequest\x1a(.loco.deployment.v1.ResolveImageResponseBBZ@github.com/team-loco/loco/gen/go/loco/deployment/v1;deploymentv1b\x06proto3"
 
@@ -2149,88 +2585,102 @@ func file_loco_deployment_v1_deployment_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_deployment_v1_deployment_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_loco_deployment_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_loco_deployment_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_loco_deployment_v1_deployment_proto_goTypes = []any{
-	(DeploymentPhase)(0),             // 0: loco.deployment.v1.DeploymentPhase
-	(DeploymentActorType)(0),         // 1: loco.deployment.v1.DeploymentActorType
-	(DeploymentMethod)(0),            // 2: loco.deployment.v1.DeploymentMethod
-	(*Port)(nil),                     // 3: loco.deployment.v1.Port
-	(*ResourceSpec)(nil),             // 4: loco.deployment.v1.ResourceSpec
-	(*HealthCheckConfig)(nil),        // 5: loco.deployment.v1.HealthCheckConfig
-	(*Scalers)(nil),                  // 6: loco.deployment.v1.Scalers
-	(*BuildSource)(nil),              // 7: loco.deployment.v1.BuildSource
-	(*ObservabilityConfig)(nil),      // 8: loco.deployment.v1.ObservabilityConfig
-	(*ServiceDeploymentSpec)(nil),    // 9: loco.deployment.v1.ServiceDeploymentSpec
-	(*ServiceRouting)(nil),           // 10: loco.deployment.v1.ServiceRouting
-	(*DatabaseDeploymentSpec)(nil),   // 11: loco.deployment.v1.DatabaseDeploymentSpec
-	(*CacheDeploymentSpec)(nil),      // 12: loco.deployment.v1.CacheDeploymentSpec
-	(*QueueDeploymentSpec)(nil),      // 13: loco.deployment.v1.QueueDeploymentSpec
-	(*DeploymentSpec)(nil),           // 14: loco.deployment.v1.DeploymentSpec
-	(*Deployment)(nil),               // 15: loco.deployment.v1.Deployment
-	(*CreateDeploymentRequest)(nil),  // 16: loco.deployment.v1.CreateDeploymentRequest
-	(*DeploymentSecretBindings)(nil), // 17: loco.deployment.v1.DeploymentSecretBindings
-	(*CreateDeploymentResponse)(nil), // 18: loco.deployment.v1.CreateDeploymentResponse
-	(*GetDeploymentRequest)(nil),     // 19: loco.deployment.v1.GetDeploymentRequest
-	(*GetDeploymentResponse)(nil),    // 20: loco.deployment.v1.GetDeploymentResponse
-	(*ListDeploymentsRequest)(nil),   // 21: loco.deployment.v1.ListDeploymentsRequest
-	(*ListDeploymentsResponse)(nil),  // 22: loco.deployment.v1.ListDeploymentsResponse
-	(*WatchDeploymentRequest)(nil),   // 23: loco.deployment.v1.WatchDeploymentRequest
-	(*WatchDeploymentResponse)(nil),  // 24: loco.deployment.v1.WatchDeploymentResponse
-	(*DeleteDeploymentRequest)(nil),  // 25: loco.deployment.v1.DeleteDeploymentRequest
-	(*DeleteDeploymentResponse)(nil), // 26: loco.deployment.v1.DeleteDeploymentResponse
-	(*ResolveImageRequest)(nil),      // 27: loco.deployment.v1.ResolveImageRequest
-	(*ResolveImageResponse)(nil),     // 28: loco.deployment.v1.ResolveImageResponse
-	(*SourceCommit)(nil),             // 29: loco.deployment.v1.SourceCommit
-	nil,                              // 30: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
-	(*timestamppb.Timestamp)(nil),    // 31: google.protobuf.Timestamp
+	(DeploymentStatus)(0),                  // 0: loco.deployment.v1.DeploymentStatus
+	(DeploymentActorType)(0),               // 1: loco.deployment.v1.DeploymentActorType
+	(DeploymentMethod)(0),                  // 2: loco.deployment.v1.DeploymentMethod
+	(*Port)(nil),                           // 3: loco.deployment.v1.Port
+	(*ResourceSpec)(nil),                   // 4: loco.deployment.v1.ResourceSpec
+	(*HealthCheckConfig)(nil),              // 5: loco.deployment.v1.HealthCheckConfig
+	(*Scalers)(nil),                        // 6: loco.deployment.v1.Scalers
+	(*BuildSource)(nil),                    // 7: loco.deployment.v1.BuildSource
+	(*ObservabilityConfig)(nil),            // 8: loco.deployment.v1.ObservabilityConfig
+	(*ServiceDeploymentSpec)(nil),          // 9: loco.deployment.v1.ServiceDeploymentSpec
+	(*ServiceRouting)(nil),                 // 10: loco.deployment.v1.ServiceRouting
+	(*DatabaseDeploymentSpec)(nil),         // 11: loco.deployment.v1.DatabaseDeploymentSpec
+	(*CacheDeploymentSpec)(nil),            // 12: loco.deployment.v1.CacheDeploymentSpec
+	(*QueueDeploymentSpec)(nil),            // 13: loco.deployment.v1.QueueDeploymentSpec
+	(*DeploymentSpec)(nil),                 // 14: loco.deployment.v1.DeploymentSpec
+	(*Deployment)(nil),                     // 15: loco.deployment.v1.Deployment
+	(*CreateDeploymentRequest)(nil),        // 16: loco.deployment.v1.CreateDeploymentRequest
+	(*DeploymentSecretBindings)(nil),       // 17: loco.deployment.v1.DeploymentSecretBindings
+	(*CreateDeploymentResponse)(nil),       // 18: loco.deployment.v1.CreateDeploymentResponse
+	(*GetDeploymentRequest)(nil),           // 19: loco.deployment.v1.GetDeploymentRequest
+	(*GetDeploymentResponse)(nil),          // 20: loco.deployment.v1.GetDeploymentResponse
+	(*ListDeploymentsRequest)(nil),         // 21: loco.deployment.v1.ListDeploymentsRequest
+	(*ListDeploymentsResponse)(nil),        // 22: loco.deployment.v1.ListDeploymentsResponse
+	(*Replica)(nil),                        // 23: loco.deployment.v1.Replica
+	(*Problem)(nil),                        // 24: loco.deployment.v1.Problem
+	(*Activity)(nil),                       // 25: loco.deployment.v1.Activity
+	(*WatchDeploymentRequest)(nil),         // 26: loco.deployment.v1.WatchDeploymentRequest
+	(*WatchDeploymentResponse)(nil),        // 27: loco.deployment.v1.WatchDeploymentResponse
+	(*ListDeploymentActivityRequest)(nil),  // 28: loco.deployment.v1.ListDeploymentActivityRequest
+	(*ListDeploymentActivityResponse)(nil), // 29: loco.deployment.v1.ListDeploymentActivityResponse
+	(*DeleteDeploymentRequest)(nil),        // 30: loco.deployment.v1.DeleteDeploymentRequest
+	(*DeleteDeploymentResponse)(nil),       // 31: loco.deployment.v1.DeleteDeploymentResponse
+	(*ResolveImageRequest)(nil),            // 32: loco.deployment.v1.ResolveImageRequest
+	(*ResolveImageResponse)(nil),           // 33: loco.deployment.v1.ResolveImageResponse
+	(*SourceCommit)(nil),                   // 34: loco.deployment.v1.SourceCommit
+	nil,                                    // 35: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	(*timestamppb.Timestamp)(nil),          // 36: google.protobuf.Timestamp
 }
 var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
 	7,  // 0: loco.deployment.v1.ServiceDeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
 	5,  // 1: loco.deployment.v1.ServiceDeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
 	6,  // 2: loco.deployment.v1.ServiceDeploymentSpec.scalers:type_name -> loco.deployment.v1.Scalers
-	30, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	35, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
 	10, // 4: loco.deployment.v1.ServiceDeploymentSpec.routing:type_name -> loco.deployment.v1.ServiceRouting
 	8,  // 5: loco.deployment.v1.ServiceDeploymentSpec.observability:type_name -> loco.deployment.v1.ObservabilityConfig
 	9,  // 6: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
 	11, // 7: loco.deployment.v1.DeploymentSpec.database:type_name -> loco.deployment.v1.DatabaseDeploymentSpec
 	12, // 8: loco.deployment.v1.DeploymentSpec.cache:type_name -> loco.deployment.v1.CacheDeploymentSpec
 	13, // 9: loco.deployment.v1.DeploymentSpec.queue:type_name -> loco.deployment.v1.QueueDeploymentSpec
-	0,  // 10: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentPhase
-	31, // 11: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
-	31, // 12: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	31, // 13: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
-	31, // 14: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentStatus
+	36, // 11: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
+	36, // 12: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	36, // 13: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
+	36, // 14: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
 	14, // 15: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
 	1,  // 16: loco.deployment.v1.Deployment.actor_type:type_name -> loco.deployment.v1.DeploymentActorType
 	2,  // 17: loco.deployment.v1.Deployment.method:type_name -> loco.deployment.v1.DeploymentMethod
-	29, // 18: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
-	14, // 19: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	17, // 20: loco.deployment.v1.CreateDeploymentRequest.secret_bindings:type_name -> loco.deployment.v1.DeploymentSecretBindings
-	29, // 21: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
-	7,  // 22: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
-	15, // 23: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	31, // 24: loco.deployment.v1.ListDeploymentsRequest.since:type_name -> google.protobuf.Timestamp
-	31, // 25: loco.deployment.v1.ListDeploymentsRequest.until:type_name -> google.protobuf.Timestamp
-	15, // 26: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	0,  // 27: loco.deployment.v1.WatchDeploymentResponse.status:type_name -> loco.deployment.v1.DeploymentPhase
-	31, // 28: loco.deployment.v1.WatchDeploymentResponse.timestamp:type_name -> google.protobuf.Timestamp
-	16, // 29: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	19, // 30: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	21, // 31: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	23, // 32: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
-	25, // 33: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
-	27, // 34: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
-	18, // 35: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	20, // 36: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	22, // 37: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	24, // 38: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
-	26, // 39: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
-	28, // 40: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
-	35, // [35:41] is the sub-list for method output_type
-	29, // [29:35] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	34, // 18: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
+	24, // 19: loco.deployment.v1.Deployment.problem:type_name -> loco.deployment.v1.Problem
+	23, // 20: loco.deployment.v1.Deployment.replicas:type_name -> loco.deployment.v1.Replica
+	14, // 21: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	17, // 22: loco.deployment.v1.CreateDeploymentRequest.secret_bindings:type_name -> loco.deployment.v1.DeploymentSecretBindings
+	34, // 23: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
+	7,  // 24: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
+	15, // 25: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	36, // 26: loco.deployment.v1.ListDeploymentsRequest.since:type_name -> google.protobuf.Timestamp
+	36, // 27: loco.deployment.v1.ListDeploymentsRequest.until:type_name -> google.protobuf.Timestamp
+	15, // 28: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
+	36, // 29: loco.deployment.v1.Replica.state_since:type_name -> google.protobuf.Timestamp
+	36, // 30: loco.deployment.v1.Replica.state_deadline:type_name -> google.protobuf.Timestamp
+	36, // 31: loco.deployment.v1.Problem.since:type_name -> google.protobuf.Timestamp
+	36, // 32: loco.deployment.v1.Activity.at:type_name -> google.protobuf.Timestamp
+	15, // 33: loco.deployment.v1.WatchDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	25, // 34: loco.deployment.v1.WatchDeploymentResponse.activity:type_name -> loco.deployment.v1.Activity
+	25, // 35: loco.deployment.v1.ListDeploymentActivityResponse.activity:type_name -> loco.deployment.v1.Activity
+	16, // 36: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
+	19, // 37: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
+	21, // 38: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
+	26, // 39: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
+	28, // 40: loco.deployment.v1.DeploymentService.ListDeploymentActivity:input_type -> loco.deployment.v1.ListDeploymentActivityRequest
+	30, // 41: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
+	32, // 42: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
+	18, // 43: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
+	20, // 44: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
+	22, // 45: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
+	27, // 46: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
+	29, // 47: loco.deployment.v1.DeploymentService.ListDeploymentActivity:output_type -> loco.deployment.v1.ListDeploymentActivityResponse
+	31, // 48: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
+	33, // 49: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
+	43, // [43:50] is the sub-list for method output_type
+	36, // [36:43] is the sub-list for method input_type
+	36, // [36:36] is the sub-list for extension type_name
+	36, // [36:36] is the sub-list for extension extendee
+	0,  // [0:36] is the sub-list for field type_name
 }
 
 func init() { file_loco_deployment_v1_deployment_proto_init() }
@@ -2250,13 +2700,14 @@ func file_loco_deployment_v1_deployment_proto_init() {
 		(*DeploymentSpec_Queue)(nil),
 	}
 	file_loco_deployment_v1_deployment_proto_msgTypes[12].OneofWrappers = []any{}
+	file_loco_deployment_v1_deployment_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_deployment_v1_deployment_proto_rawDesc), len(file_loco_deployment_v1_deployment_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   28,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

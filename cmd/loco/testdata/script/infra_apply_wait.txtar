@@ -6,7 +6,7 @@ fakeapi deployment dep-web failed
 stdout '^Started deployment dep-api for api in us-east-1\.$'
 stdout '^Deployment dep-api for api in us-east-1 is running\.$'
 ! stdout 'dep-web for web in us-east-1 is running'
-stderr 'deployment dep-web for web in us-east-1 failed: replicas crash on start'
+stderr 'deployment dep-web for web in us-east-1 failed: replicas crash on start · exit 1'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

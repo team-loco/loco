@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
-import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ChevronDownIcon, LogsIcon, Undo2Icon } from "lucide-react";
 import { useId } from "react";
 import { Link } from "react-router";
@@ -9,6 +9,7 @@ import { Button } from "@/components/design/Button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
 import { CopyId } from "@/components/design/CopyId";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { deploymentMessage } from "@/hooks/deployment-watch";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
 import { deploymentActor, deploymentMethod, getServiceSpec, isInFlight, shortSha } from "@/lib/deployment-utils";
@@ -29,6 +30,7 @@ function ProgressPanel({
 	phase,
 	message,
 	updatedMs,
+	connectionError,
 	environmentName,
 	logsHref,
 	canWrite,
@@ -37,9 +39,10 @@ function ProgressPanel({
 	region: RegionView;
 	deployment: Deployment;
 	previous: Deployment | undefined;
-	phase: DeploymentPhase;
+	phase: DeploymentStatus;
 	message: string;
 	updatedMs: number | undefined;
+	connectionError: string | undefined;
 	environmentName: string;
 	logsHref: string | undefined;
 	canWrite: boolean;
@@ -61,8 +64,8 @@ function ProgressPanel({
 	);
 	const build = buildQuery.data?.build;
 	const steps = deploymentSteps({ ...deployment, status: phase }, build);
-	const failed = phase === DeploymentPhase.FAILED;
-	const canceled = phase === DeploymentPhase.CANCELED;
+	const failed = phase === DeploymentStatus.FAILED;
+	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = failed
 		? `Deployment of ${depTag(deployment)} failed`
 		: canceled
@@ -76,7 +79,10 @@ function ProgressPanel({
 	const reported = maybeTsMs(status?.reportedAt);
 	const deploymentUpdated = updatedMs ?? maybeTsMs(deployment.updatedAt);
 	const useRegionalMessage =
-		status?.message && reported !== undefined && (deploymentUpdated === undefined || reported > deploymentUpdated);
+		message === "" &&
+		status?.message &&
+		reported !== undefined &&
+		(deploymentUpdated === undefined || reported > deploymentUpdated);
 	const controllerMessage = useRegionalMessage ? status.message : message !== "" ? message : (status?.message ?? "");
 	const updated = useRegionalMessage ? reported : deploymentUpdated;
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
@@ -146,6 +152,11 @@ function ProgressPanel({
 				)}
 				{build?.gitCommitMessage && <span className="min-w-0 break-words text-fg2">{build.gitCommitMessage}</span>}
 			</div>
+			{connectionError !== undefined && (
+				<p role="status" className="m-0 text-[13px] text-warn-fg">
+					Disconnected. Reconnecting… {connectionError}
+				</p>
+			)}
 			<ol aria-label="Deployment status" className="m-0 flex list-none p-0">
 				{steps.map((step, index) => (
 					<li
@@ -296,23 +307,23 @@ export function DeploymentProgress({
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
 	const progress = progressDeployments(regions);
-	const phaseOf = useDeploymentWatch(
-		progress.filter(({ deployment }) => isInFlight(deployment.status)).map(({ deployment }) => deployment.id),
-	);
+	const watchOf = useDeploymentWatch(progress.map(({ deployment }) => deployment.id));
 	return progress.map(({ region, deployment, previous }) => {
-		const watched = phaseOf(deployment.id);
-		const watchedPhase = watched.phase;
-		const watchIsNewer =
-			watchedPhase !== undefined && watched.updatedMs !== undefined && watched.updatedMs >= tsMs(deployment.updatedAt);
+		const watched = watchOf(deployment.id);
+		const current =
+			watched.deployment !== undefined && tsMs(watched.deployment.updatedAt) >= tsMs(deployment.updatedAt)
+				? watched.deployment
+				: deployment;
 		return (
 			<ProgressPanel
 				key={deployment.id}
 				region={region}
-				deployment={deployment}
+				deployment={current}
 				previous={previous}
-				phase={watchIsNewer ? watchedPhase : deployment.status}
-				message={watchIsNewer ? watched.message : deployment.message}
-				updatedMs={watchIsNewer ? watched.updatedMs : undefined}
+				phase={current.status}
+				message={deploymentMessage(current) || (watched.activity.at(-1)?.message ?? "")}
+				updatedMs={maybeTsMs(current.updatedAt)}
+				connectionError={watched.error}
 				environmentName={environmentName}
 				logsHref={logsHref}
 				canWrite={canWrite}

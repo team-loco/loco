@@ -35,8 +35,8 @@ def resource_fixture():
     for region in regions:
         deployment = str(uuid.uuid4())
         cluster = clusters[region]
-        evidence.psql(state["container"], f"""INSERT INTO deployments(actor_type,actor_id,method,commit_sha,commit_dirty,id,resource_id,cluster_id,region,replicas,status,is_active,message,environment_id,spec,spec_version,started_at)
-VALUES('user','{owner['id']}','web','{source_commit['sha']}',true,'{deployment}','{resource}','{cluster}','{region}',1,'running',true,'','{production}',{evidence.sql_literal(runtime)},1,NOW());
+        evidence.psql(state["container"], f"""INSERT INTO deployments(actor_type,actor_id,method,commit_sha,commit_dirty,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at)
+VALUES('user','{owner['id']}','web','{source_commit['sha']}',true,'{deployment}','{resource}','{cluster}','{region}',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
 INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready,ready_replicas,status_phase,status_updated_at)
 VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app_spec":{{}}}}',true,1,'Ready',NOW());""")
     return resource
@@ -99,7 +99,7 @@ with session(out) as browser:
                 save.click()
                 expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
                 expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
-                # The API leaves new deployments pending without a worker; finish them so the
+                # The API leaves new deployments deploying without a worker; finish them so the
                 # next save is not refused as a rollout in progress.
                 evidence.psql(state["container"], f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;")
 

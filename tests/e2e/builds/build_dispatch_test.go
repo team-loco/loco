@@ -382,7 +382,7 @@ func deployAndWait(t *testing.T, w *platform.Workspace, resourceID, buildID, sec
 			return err
 		}
 		if status := response.GetDeployment().
-			GetStatus(); status != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING {
+			GetStatus(); status != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
 			return fmt.Errorf("deployment %v", status)
 		}
 		return nil

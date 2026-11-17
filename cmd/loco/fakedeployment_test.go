@@ -17,8 +17,6 @@ type fakeDeploymentService struct {
 	api *fakeAPI
 }
 
-// WatchDeployment streams pending, deploying and the outcome set for the deployment, running by
-// default.
 func (s *fakeDeploymentService) WatchDeployment(
 	ctx context.Context,
 	req *deploymentv1.WatchDeploymentRequest,
@@ -36,23 +34,41 @@ func (s *fakeDeploymentService) WatchDeployment(
 	outcome, ok := f.platform.deploymentOutcomes[req.GetDeploymentId()]
 	f.mu.Unlock()
 	if !ok {
-		outcome = deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
+		outcome = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
 	}
-	events := []*deploymentv1.WatchDeploymentResponse{
-		{DeploymentId: req.GetDeploymentId(), Status: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING},
-		{DeploymentId: req.GetDeploymentId(), Status: deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING},
+	deployment := &deploymentv1.Deployment{
+		Id:     req.GetDeploymentId(),
+		Status: outcome,
 	}
-	final := &deploymentv1.WatchDeploymentResponse{DeploymentId: req.GetDeploymentId(), Status: outcome}
-	if outcome == deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
-		final.Message = fakeFailedMessage
-	}
-	if outcome != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING {
-		events = append(events, final)
-	}
-	for _, event := range events {
-		if err := stream.Send(event); err != nil {
+	if req.GetAfterSeq() < 1 {
+		if err := stream.Send(
+			&deploymentv1.WatchDeploymentResponse{
+				Deployment:      deployment,
+				HasMoreActivity: true,
+				Activity: []*deploymentv1.Activity{
+					{Seq: 1, ReplicaName: req.GetDeploymentId(), Message: "Starting"},
+				},
+			},
+		); err != nil {
 			return err
 		}
+		if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING {
+			return connect.NewError(connect.CodeUnavailable, "stream dropped")
+		}
 	}
-	return nil
+	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING {
+		outcome = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
+	}
+	deployment.Status = outcome
+	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
+		deployment.Problem = &deploymentv1.Problem{Message: fakeFailedMessage, Detail: "exit 1"}
+	}
+	var activity []*deploymentv1.Activity
+	if req.GetAfterSeq() < 2 {
+		activity = []*deploymentv1.Activity{{Seq: 2, ReplicaName: req.GetDeploymentId(), Message: "Serving traffic"}}
+	}
+	if req.GetAfterSeq() < 3 {
+		activity = append(activity, &deploymentv1.Activity{Seq: 3, Message: "Scaled to 3 replicas"})
+	}
+	return stream.Send(&deploymentv1.WatchDeploymentResponse{Deployment: deployment, Activity: activity})
 }

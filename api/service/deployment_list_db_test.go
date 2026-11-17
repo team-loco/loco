@@ -49,6 +49,7 @@ func (f *deployFixture) listDeployments(
 		testMaxPlacementBytes,
 		limits.Defaults(),
 		8,
+		nil,
 	)
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},

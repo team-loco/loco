@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { DeploymentPhase, DeploymentSchema, DeploymentSpecSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, DeploymentSchema, DeploymentSpecSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import { skipToken } from "@connectrpc/connect-query";
 import { describe, expect, test } from "bun:test";
 import {
@@ -57,7 +57,7 @@ describe("buildRegions", () => {
 			create(DeploymentSchema, {
 				id: `release-${day.toString()}`,
 				region: "us-east-1",
-				status: DeploymentPhase.SUCCEEDED,
+				status: DeploymentStatus.SUPERSEDED,
 				createdAt: msToTimestamp(day * 86_400_000),
 				spec: create(DeploymentSpecSchema),
 			}),
@@ -115,9 +115,9 @@ describe("activeDeploymentPlaces", () => {
 
 describe("lastGoodDeployment", () => {
 	const spec = create(DeploymentSpecSchema);
-	const failed = create(DeploymentSchema, { id: "failed", status: DeploymentPhase.FAILED, spec });
-	const superseded = create(DeploymentSchema, { id: "superseded", status: DeploymentPhase.SUCCEEDED, spec });
-	const older = create(DeploymentSchema, { id: "older", status: DeploymentPhase.SUCCEEDED, spec });
+	const failed = create(DeploymentSchema, { id: "failed", status: DeploymentStatus.FAILED, spec });
+	const superseded = create(DeploymentSchema, { id: "superseded", status: DeploymentStatus.SUPERSEDED, spec });
+	const older = create(DeploymentSchema, { id: "older", status: DeploymentStatus.SUPERSEDED, spec });
 
 	test("skips the current and failed deployments", () => {
 		const region: RegionView = {
@@ -138,9 +138,9 @@ describe("lastGoodDeployment", () => {
 describe("focusRegion", () => {
 	test("picks the healthy region that has a release to roll back to", () => {
 		const spec = create(DeploymentSpecSchema);
-		const europe = create(DeploymentSchema, { id: "europe", isActive: true, status: DeploymentPhase.RUNNING, spec });
-		const current = create(DeploymentSchema, { id: "current", isActive: true, status: DeploymentPhase.RUNNING, spec });
-		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentPhase.SUCCEEDED, spec });
+		const europe = create(DeploymentSchema, { id: "europe", isActive: true, status: DeploymentStatus.RUNNING, spec });
+		const current = create(DeploymentSchema, { id: "current", isActive: true, status: DeploymentStatus.RUNNING, spec });
+		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentStatus.SUPERSEDED, spec });
 		const regions: RegionView[] = [
 			{ name: "eu-west-1", status: undefined, history: [europe], current: europe },
 			{ name: "us-east-1", status: undefined, history: [current, previous], current },

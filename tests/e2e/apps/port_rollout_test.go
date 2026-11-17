@@ -103,7 +103,7 @@ func TestPortRollout(t *testing.T) {
 	}
 	checkpoint("after failed port change", true)
 	phase := regionStatus(t, w, app).GetDeploymentStatus()
-	if phase != deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED {
+	if phase != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Errorf("deployment phase = %v, want failed", phase)
 	}
 	if !p.Reaches(

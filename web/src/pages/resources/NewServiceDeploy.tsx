@@ -15,6 +15,7 @@ import { Button } from "@/components/design/Button";
 import { SheetBody, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { StepList } from "@/components/design/StepList";
+import { deploymentMessage } from "@/hooks/deployment-watch";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { regionDeploySteps, runOutcome, type RunOutcome } from "@/lib/deploy-progress";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -239,8 +240,13 @@ function useDeployProgress(run: DeployRun) {
 				form: run.form,
 				created: run.resourceId !== undefined,
 				region: r.region,
-				phase: watch.phase,
-				message: watch.message,
+				phase: watch.deployment?.status,
+				message:
+					watch.error !== undefined
+						? `Disconnected. Reconnecting… ${watch.error}`
+						: watch.deployment === undefined
+							? ""
+							: deploymentMessage(watch.deployment) || (watch.activity.at(-1)?.message ?? ""),
 				error: r.error,
 			}),
 		};

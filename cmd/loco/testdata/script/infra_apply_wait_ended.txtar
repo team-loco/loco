@@ -1,8 +1,10 @@
-# --wait fails the command when the watch ends before the deployment runs.
+# --wait resumes a dropped stream without repeating activity.
 fakeapi plan plan.json
 fakeapi deployment dep-web deploying
-! exec loco infra apply --yes --wait
-stderr 'deployment watch ended before the deployment ran: dep-web'
+exec loco infra apply --yes --wait
+stdout -count=1 'dep-web · Starting'
+stdout -count=1 'dep-web · Serving traffic'
+stdout 'Deployment dep-web for web in us-east-1 is running\.'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

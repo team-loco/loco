@@ -932,7 +932,7 @@ type RegionStatus struct {
 	ReadyReplicas    int32                  `protobuf:"varint,3,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
 	DesiredReplicas  int32                  `protobuf:"varint,4,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
 	DeploymentId     string                 `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	DeploymentStatus v1.DeploymentPhase     `protobuf:"varint,6,opt,name=deployment_status,json=deploymentStatus,proto3,enum=loco.deployment.v1.DeploymentPhase" json:"deployment_status,omitempty"`
+	DeploymentStatus v1.DeploymentStatus    `protobuf:"varint,6,opt,name=deployment_status,json=deploymentStatus,proto3,enum=loco.deployment.v1.DeploymentStatus" json:"deployment_status,omitempty"`
 	Message          *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	ReportedAt       *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=reported_at,json=reportedAt,proto3,oneof" json:"reported_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -1004,11 +1004,11 @@ func (x *RegionStatus) GetDeploymentId() string {
 	return ""
 }
 
-func (x *RegionStatus) GetDeploymentStatus() v1.DeploymentPhase {
+func (x *RegionStatus) GetDeploymentStatus() v1.DeploymentStatus {
 	if x != nil {
 		return x.DeploymentStatus
 	}
-	return v1.DeploymentPhase(0)
+	return v1.DeploymentStatus(0)
 }
 
 func (x *RegionStatus) GetMessage() string {
@@ -2357,14 +2357,14 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12)\n" +
 	"\x10environment_name\x18\x02 \x01(\tR\x0fenvironmentName\x128\n" +
 	"\x06status\x18\x03 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x128\n" +
-	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\"\xa6\x03\n" +
+	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\"\xa7\x03\n" +
 	"\fRegionStatus\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x128\n" +
 	"\x06status\x18\x02 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x12%\n" +
 	"\x0eready_replicas\x18\x03 \x01(\x05R\rreadyReplicas\x12)\n" +
 	"\x10desired_replicas\x18\x04 \x01(\x05R\x0fdesiredReplicas\x12#\n" +
-	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x12P\n" +
-	"\x11deployment_status\x18\x06 \x01(\x0e2#.loco.deployment.v1.DeploymentPhaseR\x10deploymentStatus\x12\x1d\n" +
+	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x12Q\n" +
+	"\x11deployment_status\x18\x06 \x01(\x0e2$.loco.deployment.v1.DeploymentStatusR\x10deploymentStatus\x12\x1d\n" +
 	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12@\n" +
 	"\vreported_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampH\x01R\n" +
 	"reportedAt\x88\x01\x01B\n" +
@@ -2565,7 +2565,7 @@ var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(*v1.ObservabilityConfig)(nil),         // 42: loco.deployment.v1.ObservabilityConfig
 	(*v11.ResourceDomain)(nil),             // 43: loco.domain.v1.ResourceDomain
 	(*timestamppb.Timestamp)(nil),          // 44: google.protobuf.Timestamp
-	(v1.DeploymentPhase)(0),                // 45: loco.deployment.v1.DeploymentPhase
+	(v1.DeploymentStatus)(0),               // 45: loco.deployment.v1.DeploymentStatus
 	(*v11.DomainInput)(nil),                // 46: loco.domain.v1.DomainInput
 }
 var file_loco_resource_v1_resource_proto_depIdxs = []int32{
@@ -2588,7 +2588,7 @@ var file_loco_resource_v1_resource_proto_depIdxs = []int32{
 	1,  // 16: loco.resource.v1.EnvironmentStatus.status:type_name -> loco.resource.v1.ResourceStatus
 	13, // 17: loco.resource.v1.EnvironmentStatus.regions:type_name -> loco.resource.v1.RegionStatus
 	1,  // 18: loco.resource.v1.RegionStatus.status:type_name -> loco.resource.v1.ResourceStatus
-	45, // 19: loco.resource.v1.RegionStatus.deployment_status:type_name -> loco.deployment.v1.DeploymentPhase
+	45, // 19: loco.resource.v1.RegionStatus.deployment_status:type_name -> loco.deployment.v1.DeploymentStatus
 	44, // 20: loco.resource.v1.RegionStatus.reported_at:type_name -> google.protobuf.Timestamp
 	0,  // 21: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
 	46, // 22: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput

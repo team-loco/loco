@@ -1,4 +1,4 @@
-import { DeploymentPhase, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { DAY_MS, tsMs } from "@/lib/time";
 
@@ -16,19 +16,19 @@ export const DEPLOYMENT_FILTERS: { value: DeploymentState; label: string }[] = [
 
 export function deploymentState(d: Deployment): DeploymentState {
 	switch (d.status) {
-		case DeploymentPhase.RUNNING:
+		case DeploymentStatus.RUNNING:
 			return "running";
-		case DeploymentPhase.SUCCEEDED:
+		case DeploymentStatus.SUPERSEDED:
 			return "superseded";
-		case DeploymentPhase.PENDING:
+		case DeploymentStatus.BUILDING:
 			return "progress";
-		case DeploymentPhase.DEPLOYING:
+		case DeploymentStatus.DEPLOYING:
 			return "progress";
-		case DeploymentPhase.FAILED:
+		case DeploymentStatus.FAILED:
 			return "failed";
-		case DeploymentPhase.CANCELED:
+		case DeploymentStatus.CANCELED:
 			return "other";
-		case DeploymentPhase.UNSPECIFIED:
+		case DeploymentStatus.UNSPECIFIED:
 			return "other";
 	}
 }

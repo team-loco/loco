@@ -330,7 +330,7 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 }
 
 const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
-SELECT DISTINCT ON (environment_id, region) id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT DISTINCT ON (environment_id, region) id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY environment_id, region, created_at DESC, id DESC
 `
@@ -352,7 +352,6 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,
-			&i.Message,
 			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
@@ -386,7 +385,8 @@ SELECT d.resource_id,
        d.id AS deployment_id,
        d.status AS deployment_status,
        d.replicas AS desired_replicas,
-       d.message AS deployment_message,
+       COALESCE((SELECT ro.snapshot->'problem'->>'detail' FROM deployment_rollouts ro
+                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '')::text AS deployment_problem_detail,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        COALESCE(p.status_message, '')::text AS status_message,
@@ -410,21 +410,21 @@ ORDER BY d.resource_id, e.name, d.region
 `
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID        uuid.UUID        `json:"resourceId"`
-	EnvironmentID     uuid.UUID        `json:"environmentId"`
-	EnvironmentName   string           `json:"environmentName"`
-	Region            string           `json:"region"`
-	DeploymentID      uuid.UUID        `json:"deploymentId"`
-	DeploymentStatus  DeploymentStatus `json:"deploymentStatus"`
-	DesiredReplicas   int32            `json:"desiredReplicas"`
-	DeploymentMessage string           `json:"deploymentMessage"`
-	Placed            bool             `json:"placed"`
-	ReadyReplicas     int32            `json:"readyReplicas"`
-	StatusMessage     string           `json:"statusMessage"`
-	StatusUpdatedAt   *time.Time       `json:"statusUpdatedAt"`
-	LastHeartbeat     *time.Time       `json:"lastHeartbeat"`
-	HealthStatus      *string          `json:"healthStatus"`
-	UnservedDomains   []string         `json:"unservedDomains"`
+	ResourceID              uuid.UUID        `json:"resourceId"`
+	EnvironmentID           uuid.UUID        `json:"environmentId"`
+	EnvironmentName         string           `json:"environmentName"`
+	Region                  string           `json:"region"`
+	DeploymentID            uuid.UUID        `json:"deploymentId"`
+	DeploymentStatus        DeploymentStatus `json:"deploymentStatus"`
+	DesiredReplicas         int32            `json:"desiredReplicas"`
+	DeploymentProblemDetail string           `json:"deploymentProblemDetail"`
+	Placed                  bool             `json:"placed"`
+	ReadyReplicas           int32            `json:"readyReplicas"`
+	StatusMessage           string           `json:"statusMessage"`
+	StatusUpdatedAt         *time.Time       `json:"statusUpdatedAt"`
+	LastHeartbeat           *time.Time       `json:"lastHeartbeat"`
+	HealthStatus            *string          `json:"healthStatus"`
+	UnservedDomains         []string         `json:"unservedDomains"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -444,7 +444,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.DeploymentID,
 			&i.DeploymentStatus,
 			&i.DesiredReplicas,
-			&i.DeploymentMessage,
+			&i.DeploymentProblemDetail,
 			&i.Placed,
 			&i.ReadyReplicas,
 			&i.StatusMessage,

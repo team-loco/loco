@@ -2,7 +2,9 @@
 fakeapi plan plan.json
 cd app
 exec loco deploy --yes --wait
-stdout '^api has no port, so it runs as a worker and takes no traffic\.\nDeployment dep-api for api in us-east-1 is running\.$'
+stdout '^api has no port, so it runs as a worker and takes no traffic\.\ndep-api · Starting\ndep-api · Serving traffic\nScaled to 3 replicas\nDeployment dep-api for api in us-east-1 is running\.$'
+stdout '^Scaled to 3 replicas$'
+! stdout '^ · '
 fakeapi called WatchDeployment
 
 -- home/.loco/credentials.json --

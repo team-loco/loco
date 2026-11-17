@@ -1,3 +1,4 @@
+import { deploymentMessage } from "@/hooks/deployment-watch";
 import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
@@ -74,7 +75,7 @@ function statusNote(item: EnvResource): string {
 	if (item.neverDeployed) return "Not deployed";
 	switch (item.status) {
 		case ResourceStatus.DEPLOYING:
-			return item.last?.message ?? "";
+			return item.last === undefined ? "" : deploymentMessage(item.last);
 		case ResourceStatus.DEGRADED:
 			return regionNote(item);
 		case ResourceStatus.UNAVAILABLE:
@@ -224,7 +225,7 @@ function LastDeployCell({ item }: { item: DashboardItem }) {
 	}
 	const last = item.last;
 	if (last === undefined) return <span className="text-fg4">—</span>;
-	const message = last.message;
+	const message = deploymentMessage(last);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
 			<span className="truncate font-mono text-[12px]">{imageVersion(deploymentImage(last))}</span>

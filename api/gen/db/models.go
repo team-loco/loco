@@ -533,7 +533,6 @@ type Deployment struct {
 	Replicas      int32               `json:"replicas"`
 	Status        DeploymentStatus    `json:"status"`
 	IsActive      bool                `json:"isActive"`
-	Message       string              `json:"message"`
 	EnvironmentID uuid.UUID           `json:"environmentId"`
 	Spec          []byte              `json:"spec"`
 	SpecVersion   int32               `json:"specVersion"`

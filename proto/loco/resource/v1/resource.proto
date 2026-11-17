@@ -160,7 +160,7 @@ message RegionStatus {
   int32 ready_replicas = 3;
   int32 desired_replicas = 4;
   string deployment_id = 5;
-  deployment.v1.DeploymentPhase deployment_status = 6;
+  deployment.v1.DeploymentStatus deployment_status = 6;
   optional string message = 7;
   optional google.protobuf.Timestamp reported_at = 8;
 }

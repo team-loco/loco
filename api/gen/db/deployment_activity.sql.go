@@ -59,6 +59,46 @@ func (q *Queries) InsertDeploymentActivity(ctx context.Context, arg InsertDeploy
 	return err
 }
 
+const listDeploymentActivity = `-- name: ListDeploymentActivity :many
+SELECT deployment_id, seq, revision, at, severity, replica_uid, replica_name, message FROM deployment_activity WHERE deployment_id = $1 AND seq > $2
+ORDER BY seq LIMIT $3
+`
+
+type ListDeploymentActivityParams struct {
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	AfterSeq     int64     `json:"afterSeq"`
+	PageSize     int32     `json:"pageSize"`
+}
+
+func (q *Queries) ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error) {
+	rows, err := q.db.Query(ctx, listDeploymentActivity, arg.DeploymentID, arg.AfterSeq, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeploymentActivity
+	for rows.Next() {
+		var i DeploymentActivity
+		if err := rows.Scan(
+			&i.DeploymentID,
+			&i.Seq,
+			&i.Revision,
+			&i.At,
+			&i.Severity,
+			&i.ReplicaUid,
+			&i.ReplicaName,
+			&i.Message,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockRollout = `-- name: LockRollout :one
 SELECT snapshot FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE
 `

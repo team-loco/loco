@@ -19,31 +19,24 @@ SET status = $1,
         WHEN $1::deployment_status = 'running' THEN COALESCE(started_at, NOW())
         ELSE started_at
     END,
-    message = $2,
     completed_at = CASE
         WHEN $1::deployment_status IN ('superseded', 'failed', 'canceled') THEN NOW()
         ELSE NULL
     END,
     updated_at = NOW()
-WHERE id = $3
+WHERE id = $2
   AND is_active = true
-  AND status::text = ANY($4::text[])
+  AND status::text = ANY($3::text[])
 `
 
 type AdvanceDeploymentStatusParams struct {
 	Status       DeploymentStatus `json:"status"`
-	Message      string           `json:"message"`
 	ID           uuid.UUID        `json:"id"`
 	FromStatuses []string         `json:"fromStatuses"`
 }
 
 func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) (int64, error) {
-	result, err := q.db.Exec(ctx, advanceDeploymentStatus,
-		arg.Status,
-		arg.Message,
-		arg.ID,
-		arg.FromStatuses,
-	)
+	result, err := q.db.Exec(ctx, advanceDeploymentStatus, arg.Status, arg.ID, arg.FromStatuses)
 	if err != nil {
 		return 0, err
 	}
@@ -52,8 +45,8 @@ func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploy
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, message, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 RETURNING id
 `
 
@@ -64,7 +57,6 @@ type CreateDeploymentParams struct {
 	Replicas      int32               `json:"replicas"`
 	Status        DeploymentStatus    `json:"status"`
 	IsActive      bool                `json:"isActive"`
-	Message       string              `json:"message"`
 	Spec          []byte              `json:"spec"`
 	SpecVersion   int32               `json:"specVersion"`
 	EnvironmentID uuid.UUID           `json:"environmentId"`
@@ -85,7 +77,6 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Replicas,
 		arg.Status,
 		arg.IsActive,
-		arg.Message,
 		arg.Spec,
 		arg.SpecVersion,
 		arg.EnvironmentID,
@@ -102,7 +93,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
 ORDER BY created_at DESC
 LIMIT 1
@@ -125,7 +116,6 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
-		&i.Message,
 		&i.EnvironmentID,
 		&i.Spec,
 		&i.SpecVersion,
@@ -144,29 +134,8 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 	return i, err
 }
 
-const getDeploymentActor = `-- name: GetDeploymentActor :one
-SELECT COALESCE(u.name, t.name, '')::text AS name,
-       COALESCE(u.avatar_url, '')::text AS avatar_url
-FROM deployments d
-LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
-LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
-WHERE d.id = $1
-`
-
-type GetDeploymentActorRow struct {
-	Name      string `json:"name"`
-	AvatarUrl string `json:"avatarUrl"`
-}
-
-func (q *Queries) GetDeploymentActor(ctx context.Context, id uuid.UUID) (GetDeploymentActorRow, error) {
-	row := q.db.QueryRow(ctx, getDeploymentActor, id)
-	var i GetDeploymentActorRow
-	err := row.Scan(&i.Name, &i.AvatarUrl)
-	return i, err
-}
-
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -180,7 +149,6 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.Replicas,
 		&i.Status,
 		&i.IsActive,
-		&i.Message,
 		&i.EnvironmentID,
 		&i.Spec,
 		&i.SpecVersion,
@@ -200,7 +168,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 }
 
 const getDeploymentEvent = `-- name: GetDeploymentEvent :one
-SELECT d.resource_id, d.environment_id, d.region, d.spec, d.message, d.actor_type, d.actor_id,
+SELECT d.resource_id, d.environment_id, d.region, d.spec, d.actor_type, d.actor_id,
        r.name AS resource_name, r.type AS resource_type,
        u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
 FROM deployments d
@@ -215,7 +183,6 @@ type GetDeploymentEventRow struct {
 	EnvironmentID uuid.UUID           `json:"environmentId"`
 	Region        string              `json:"region"`
 	Spec          []byte              `json:"spec"`
-	Message       string              `json:"message"`
 	ActorType     DeploymentActorType `json:"actorType"`
 	ActorID       uuid.UUID           `json:"actorId"`
 	ResourceName  string              `json:"resourceName"`
@@ -234,7 +201,6 @@ func (q *Queries) GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDepl
 		&i.EnvironmentID,
 		&i.Region,
 		&i.Spec,
-		&i.Message,
 		&i.ActorType,
 		&i.ActorID,
 		&i.ResourceName,
@@ -257,19 +223,60 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 	return resource_id, err
 }
 
-const getDeploymentStatus = `-- name: GetDeploymentStatus :one
-SELECT status, message FROM deployments WHERE id = $1
+const getDeploymentView = `-- name: GetDeploymentView :one
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
+       COALESCE(u.name, t.name, '')::text AS actor_name,
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+WHERE d.id = $1
 `
 
-type GetDeploymentStatusRow struct {
-	Status  DeploymentStatus `json:"status"`
-	Message string           `json:"message"`
+type GetDeploymentViewRow struct {
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
 }
 
-func (q *Queries) GetDeploymentStatus(ctx context.Context, id uuid.UUID) (GetDeploymentStatusRow, error) {
-	row := q.db.QueryRow(ctx, getDeploymentStatus, id)
-	var i GetDeploymentStatusRow
-	err := row.Scan(&i.Status, &i.Message)
+func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error) {
+	row := q.db.QueryRow(ctx, getDeploymentView, id)
+	var i GetDeploymentViewRow
+	err := row.Scan(
+		&i.Deployment.ID,
+		&i.Deployment.ResourceID,
+		&i.Deployment.ClusterID,
+		&i.Deployment.Region,
+		&i.Deployment.Replicas,
+		&i.Deployment.Status,
+		&i.Deployment.IsActive,
+		&i.Deployment.EnvironmentID,
+		&i.Deployment.Spec,
+		&i.Deployment.SpecVersion,
+		&i.Deployment.ActorType,
+		&i.Deployment.ActorID,
+		&i.Deployment.Method,
+		&i.Deployment.CommitSha,
+		&i.Deployment.CommitDirty,
+		&i.Deployment.SecretNames,
+		&i.Deployment.ActivitySeq,
+		&i.Deployment.CreatedAt,
+		&i.Deployment.StartedAt,
+		&i.Deployment.CompletedAt,
+		&i.Deployment.UpdatedAt,
+		&i.ResourceType,
+		&i.RolloutSnapshot,
+		&i.CurrentRevision,
+		&i.ActorName,
+		&i.ActorAvatarUrl,
+	)
 	return i, err
 }
 
@@ -298,7 +305,7 @@ func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error
 }
 
 const listActiveDeploymentsForEnvironment = `-- name: ListActiveDeploymentsForEnvironment :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE environment_id = $1 AND is_active = true
 ORDER BY resource_id, created_at DESC
 `
@@ -320,7 +327,6 @@ func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, envir
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,
-			&i.Message,
 			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
@@ -347,7 +353,7 @@ func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, envir
 }
 
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, message, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
@@ -369,7 +375,6 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 			&i.Replicas,
 			&i.Status,
 			&i.IsActive,
-			&i.Message,
 			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
@@ -396,7 +401,10 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -436,10 +444,12 @@ type ListEnvironmentDeploymentsParams struct {
 }
 
 type ListEnvironmentDeploymentsRow struct {
-	Deployment     Deployment   `json:"deployment"`
-	ResourceType   ResourceType `json:"resourceType"`
-	ActorName      string       `json:"actorName"`
-	ActorAvatarUrl string       `json:"actorAvatarUrl"`
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
 }
 
 func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error) {
@@ -471,7 +481,6 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.Replicas,
 			&i.Deployment.Status,
 			&i.Deployment.IsActive,
-			&i.Deployment.Message,
 			&i.Deployment.EnvironmentID,
 			&i.Deployment.Spec,
 			&i.Deployment.SpecVersion,
@@ -487,6 +496,8 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
+			&i.RolloutSnapshot,
+			&i.CurrentRevision,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
 		); err != nil {
@@ -501,7 +512,10 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 }
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.message, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+ COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
+ COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
+ (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -541,10 +555,12 @@ type ListResourceDeploymentsParams struct {
 }
 
 type ListResourceDeploymentsRow struct {
-	Deployment     Deployment   `json:"deployment"`
-	ResourceType   ResourceType `json:"resourceType"`
-	ActorName      string       `json:"actorName"`
-	ActorAvatarUrl string       `json:"actorAvatarUrl"`
+	Deployment      Deployment   `json:"deployment"`
+	ResourceType    ResourceType `json:"resourceType"`
+	RolloutSnapshot []byte       `json:"rolloutSnapshot"`
+	CurrentRevision int64        `json:"currentRevision"`
+	ActorName       string       `json:"actorName"`
+	ActorAvatarUrl  string       `json:"actorAvatarUrl"`
 }
 
 func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error) {
@@ -576,7 +592,6 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.Replicas,
 			&i.Deployment.Status,
 			&i.Deployment.IsActive,
-			&i.Deployment.Message,
 			&i.Deployment.EnvironmentID,
 			&i.Deployment.Spec,
 			&i.Deployment.SpecVersion,
@@ -592,6 +607,8 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.CompletedAt,
 			&i.Deployment.UpdatedAt,
 			&i.ResourceType,
+			&i.RolloutSnapshot,
+			&i.CurrentRevision,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
 		); err != nil {
@@ -705,23 +722,6 @@ WHERE current.id = $1 AND old.resource_id = current.resource_id
 
 func (q *Queries) SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, supersedePreviousDeployments, id)
-	return err
-}
-
-const updateActiveDeploymentStatus = `-- name: UpdateActiveDeploymentStatus :exec
-UPDATE deployments
-SET status = $2, message = $3, updated_at = NOW()
-WHERE resource_id = $1 AND is_active = true
-`
-
-type UpdateActiveDeploymentStatusParams struct {
-	ResourceID uuid.UUID        `json:"resourceId"`
-	Status     DeploymentStatus `json:"status"`
-	Message    string           `json:"message"`
-}
-
-func (q *Queries) UpdateActiveDeploymentStatus(ctx context.Context, arg UpdateActiveDeploymentStatusParams) error {
-	_, err := q.db.Exec(ctx, updateActiveDeploymentStatus, arg.ResourceID, arg.Status, arg.Message)
 	return err
 }
 

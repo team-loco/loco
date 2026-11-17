@@ -36,8 +36,8 @@ import (
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/migrations"
 	"github.com/team-loco/loco/api/pkg/cache"
-	"github.com/team-loco/loco/api/pkg/clusternotify"
 	"github.com/team-loco/loco/api/pkg/imageresolver"
+	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/registrytoken"
 	"github.com/team-loco/loco/api/pkg/transit"
 	"github.com/team-loco/loco/api/service"
@@ -248,14 +248,15 @@ func run() error {
 }
 
 type deps struct {
-	eventPool         *pgxpool.Pool
-	machine           *tvm.VendingMachine
-	queries           *genDb.Queries
-	verifier          *auth.Verifier
-	resolver          *auth.Resolver
-	authorizer        *authz.Authorizer
-	webhookDispatcher *webhooks.Dispatcher
-	placementNotifier *clusternotify.Notifier
+	eventPool          *pgxpool.Pool
+	machine            *tvm.VendingMachine
+	queries            *genDb.Queries
+	verifier           *auth.Verifier
+	resolver           *auth.Resolver
+	authorizer         *authz.Authorizer
+	webhookDispatcher  *webhooks.Dispatcher
+	placementNotifier  *pgnotify.Notifier
+	deploymentNotifier *pgnotify.Notifier
 	// The sweepers are nil when the store they sweep is not configured.
 	sourceSweeper   *sweepers.SourceSweeper
 	imageSweeper    *sweepers.ImageSweeper
@@ -307,9 +308,14 @@ func newDeps(
 		return nil, fmt.Errorf("LOCO_SYSTEM_ADMINS: %w", err)
 	}
 
-	placementNotifier := clusternotify.New(ac.DatabaseListenConfig, ac.PlacementPollInterval)
+	placementNotifier := pgnotify.New(ac.DatabaseListenConfig, "placements", ac.PlacementPollInterval)
 	if err := placementNotifier.Connect(ctx); err != nil {
 		return nil, fmt.Errorf("start placement listener: %w", err)
+	}
+
+	deploymentNotifier := pgnotify.New(ac.DatabaseListenConfig, "deployment_activity", ac.ActivityPollInterval)
+	if err := deploymentNotifier.Connect(ctx); err != nil {
+		return nil, fmt.Errorf("start deployment listener: %w", err)
 	}
 
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
@@ -385,17 +391,18 @@ func newDeps(
 		queries, secretKeyProvider, ac.Webhooks, workspaceWebhookClient, installWebhookClient,
 	)
 	return &deps{
-		machine:           machine,
-		queries:           queries,
-		verifier:          verifier,
-		resolver:          resolver,
-		authorizer:        authorizer,
-		webhookDispatcher: webhookDispatcher,
-		eventPool:         pool,
-		placementNotifier: placementNotifier,
-		sourceSweeper:     sourceSweeper,
-		imageSweeper:      imageSweeper,
-		registrySweeper:   registrySweeper,
+		machine:            machine,
+		queries:            queries,
+		verifier:           verifier,
+		resolver:           resolver,
+		authorizer:         authorizer,
+		webhookDispatcher:  webhookDispatcher,
+		eventPool:          pool,
+		placementNotifier:  placementNotifier,
+		deploymentNotifier: deploymentNotifier,
+		sourceSweeper:      sourceSweeper,
+		imageSweeper:       imageSweeper,
+		registrySweeper:    registrySweeper,
 
 		config: service.NewConfigServer(ac.Version,
 			ac.MinCLIVersion,
@@ -434,6 +441,7 @@ func newDeps(
 			ac.SecretLimits.MaxPlacementBytes,
 			ac.CountLimits,
 			service.MaxDeploymentWatchStreams,
+			deploymentNotifier,
 		),
 		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
 			ClusterSilentAfter: clusterSilentAfter,
@@ -541,6 +549,7 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
 	background.Go(func() { events.RunPublisher(ctx, d.eventPool) })
 	background.Go(func() { d.placementNotifier.Run(ctx) })
+	background.Go(func() { d.deploymentNotifier.Run(ctx) })
 	if d.sourceSweeper != nil {
 		background.Go(func() { d.sourceSweeper.Run(ctx) })
 	}

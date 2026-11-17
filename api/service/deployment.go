@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"sync"
 	"time"
 
@@ -21,16 +20,15 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/pgnotify"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
-	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-// MaxDeploymentWatchStreams caps the WatchDeployment streams one principal holds open on an API replica;
-// each stream polls the database every 2 s.
+// MaxDeploymentWatchStreams caps concurrent streams per principal on an API replica.
 const MaxDeploymentWatchStreams = 25
 
 var (
@@ -38,31 +36,28 @@ var (
 	ErrDeploymentNotFound   = rpcerr.NewCoded(connect.CodeNotFound, "deployment not found")
 )
 
-func parseDeploymentPhase(status genDb.DeploymentStatus) deploymentv1.DeploymentPhase {
+func parseDeploymentStatus(status genDb.DeploymentStatus) deploymentv1.DeploymentStatus {
 	switch status {
 	case genDb.DeploymentStatusBuilding:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_PENDING
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING
 	case genDb.DeploymentStatusDeploying:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_DEPLOYING
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING
 	case genDb.DeploymentStatusRunning:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_RUNNING
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
 	case genDb.DeploymentStatusSuperseded:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_SUCCEEDED
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED
 	case genDb.DeploymentStatusFailed:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_FAILED
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED
 	case genDb.DeploymentStatusCanceled:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_CANCELED
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED
 	default:
-		return deploymentv1.DeploymentPhase_DEPLOYMENT_PHASE_UNSPECIFIED
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_UNSPECIFIED
 	}
 }
 
-func deploymentToProto(
-	d genDb.Deployment,
-	resourceType genDb.ResourceType,
-	actorName, actorAvatarURL string,
-) (*deploymentv1.Deployment, error) {
-	spec, err := converter.DeserializeDeploymentSpec(d.Spec, resourceType)
+func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment, error) {
+	d := row.Deployment
+	spec, err := converter.DeserializeDeploymentSpec(d.Spec, row.ResourceType)
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
 	}
@@ -70,33 +65,38 @@ func deploymentToProto(
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
 	}
-	return &deploymentv1.Deployment{
-		Id:             d.ID.String(),
-		ResourceId:     d.ResourceID.String(),
-		EnvironmentId:  d.EnvironmentID.String(),
-		ClusterId:      d.ClusterID.String(),
-		Region:         d.Region,
-		Replicas:       d.Replicas,
-		Status:         parseDeploymentPhase(d.Status),
-		IsActive:       d.IsActive,
-		CreatedAt:      timestamppb.New(d.CreatedAt),
-		UpdatedAt:      timestamppb.New(d.UpdatedAt),
-		StartedAt:      optionalTimestamp(d.StartedAt),
-		CompletedAt:    optionalTimestamp(d.CompletedAt),
-		SpecVersion:    d.SpecVersion,
-		Message:        d.Message,
-		Spec:           spec,
-		ActorType:      parseDeploymentActorType(d.ActorType),
-		ActorId:        d.ActorID.String(),
-		ActorName:      actorName,
-		ActorAvatarUrl: actorAvatarURL,
-		Method:         parseDeploymentMethod(d.Method),
-		Commit:         commit,
-	}, nil
+	deployment := &deploymentv1.Deployment{
+		Id:              d.ID.String(),
+		ResourceId:      d.ResourceID.String(),
+		EnvironmentId:   d.EnvironmentID.String(),
+		ClusterId:       d.ClusterID.String(),
+		Region:          d.Region,
+		DesiredReplicas: d.Replicas,
+		Status:          parseDeploymentStatus(d.Status),
+		IsActive:        d.IsActive,
+		CreatedAt:       timestamppb.New(d.CreatedAt),
+		UpdatedAt:       timestamppb.New(d.UpdatedAt),
+		StartedAt:       optionalTimestamp(d.StartedAt),
+		CompletedAt:     optionalTimestamp(d.CompletedAt),
+		SpecVersion:     d.SpecVersion,
+		Spec:            spec,
+		ActorType:       parseDeploymentActorType(d.ActorType),
+		ActorId:         d.ActorID.String(),
+		ActorName:       row.ActorName,
+		ActorAvatarUrl:  row.ActorAvatarUrl,
+		Method:          parseDeploymentMethod(d.Method),
+		Commit:          commit,
+		CurrentRevision: row.CurrentRevision,
+	}
+	if err := setDeploymentRollout(deployment, row.RolloutSnapshot); err != nil {
+		return nil, err
+	}
+	return deployment, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
 type DeploymentServer struct {
+	notifier       *pgnotify.Notifier
 	db             *pgxpool.Pool
 	queries        genDb.Querier
 	resolver       ImageResolver
@@ -122,8 +122,10 @@ func NewDeploymentServer(
 	maxSecretBytes int32,
 	counts *configv1.CountLimits,
 	watchLimit int32,
+	notifier *pgnotify.Notifier,
 ) *DeploymentServer {
 	return &DeploymentServer{
+		notifier:       notifier,
 		db:             db,
 		queries:        queries,
 		resolver:       resolver,
@@ -310,7 +312,6 @@ func (s *DeploymentServer) CreateDeployment(
 			Replicas:      replicas,
 			Status:        genDb.DeploymentStatusDeploying,
 			IsActive:      true,
-			Message:       "Scheduling deployment",
 			Spec:          specJSON,
 			SpecVersion:   specVersion,
 			EnvironmentID: environmentID,
@@ -357,7 +358,7 @@ func (s *DeploymentServer) GetDeployment(
 ) (*deploymentv1.GetDeploymentResponse, error) {
 	deploymentID := uuid.MustParse(req.GetDeploymentId())
 
-	deploymentData, err := s.queries.GetDeploymentByID(ctx, deploymentID)
+	row, err := s.queries.GetDeploymentView(ctx, deploymentID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrDeploymentNotFound
 	}
@@ -365,27 +366,16 @@ func (s *DeploymentServer) GetDeployment(
 		return nil, fmt.Errorf("get deployment: %w", err)
 	}
 
-	required := actions.New(actions.GetDeployment, deploymentData.ResourceID)
+	required := actions.New(actions.GetDeployment, row.Deployment.ResourceID)
 	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
 		return nil, authErr
 	}
 
-	resource, err := s.queries.GetResourceByID(ctx, deploymentData.ResourceID)
-	if err != nil {
-		return nil, fmt.Errorf("get resource: %w", err)
-	}
-
-	actor, err := s.queries.GetDeploymentActor(ctx, deploymentID)
-	if err != nil {
-		return nil, fmt.Errorf("get deployment actor: %w", err)
-	}
-	deployment, err := deploymentToProto(deploymentData, resource.Type, actor.Name, actor.AvatarUrl)
+	deployment, err := deploymentToProto(row)
 	if err != nil {
 		return nil, err
 	}
-	return &deploymentv1.GetDeploymentResponse{
-		Deployment: deployment,
-	}, nil
+	return &deploymentv1.GetDeploymentResponse{Deployment: deployment}, nil
 }
 
 // ListDeployments lists deployments the caller can read for a resource or workspace environment.
@@ -462,10 +452,11 @@ func (s *DeploymentServer) ListDeployments(
 	}
 	var deployments []*deploymentv1.Deployment
 	for _, row := range rows {
-		deployment, err := deploymentToProto(row.Deployment, row.ResourceType, row.ActorName, row.ActorAvatarUrl)
+		deployment, err := deploymentToProto(genDb.GetDeploymentViewRow(row))
 		if err != nil {
 			return nil, err
 		}
+		deployment.Replicas = nil
 		deployments = append(deployments, deployment)
 	}
 	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
@@ -519,66 +510,6 @@ func (s *DeploymentServer) DeleteDeployment(
 	return &deploymentv1.DeleteDeploymentResponse{}, nil
 }
 
-const (
-	watchDeploymentPollInterval = 2 * time.Second
-	watchDeploymentMaxDuration  = 30 * time.Minute
-)
-
-// WatchDeployment streams deployment status updates
-func (s *DeploymentServer) WatchDeployment(
-	ctx context.Context,
-	req *deploymentv1.WatchDeploymentRequest,
-	stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream,
-) error {
-	p, err := principalFrom(ctx)
-	if err != nil {
-		return err
-	}
-	if !s.acquireWatch(p.Entity) {
-		return errDeploymentWatchLimit
-	}
-	defer s.releaseWatch(p.Entity)
-
-	deploymentID := uuid.MustParse(req.GetDeploymentId())
-
-	resourceID, err := s.queries.GetDeploymentResourceID(ctx, deploymentID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrDeploymentNotFound
-	}
-	if err != nil {
-		return fmt.Errorf("get deployment resource ID: %w", err)
-	}
-
-	required := actions.New(actions.StreamDeployment, resourceID)
-	if authErr := authorizeVisible(ctx, s.authz, required, ErrDeploymentNotFound); authErr != nil {
-		return authErr
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, watchDeploymentMaxDuration)
-	defer cancel()
-
-	var lastStatus genDb.DeploymentStatus
-	ticker := time.NewTicker(watchDeploymentPollInterval)
-	defer ticker.Stop()
-
-	for {
-		status, err := s.sendDeploymentEvent(ctx, stream, deploymentID, lastStatus)
-		if err != nil {
-			return err
-		}
-		lastStatus = status
-		if isTerminalDeploymentStatus(lastStatus) {
-			return nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-		}
-	}
-}
-
 func (s *DeploymentServer) acquireWatch(entity genDb.Entity) bool {
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
@@ -596,52 +527,6 @@ func (s *DeploymentServer) releaseWatch(entity genDb.Entity) {
 	if s.watchStreams[entity] == 0 {
 		delete(s.watchStreams, entity)
 	}
-}
-
-func isTerminalDeploymentStatus(status genDb.DeploymentStatus) bool {
-	switch status {
-	case genDb.DeploymentStatusSuperseded:
-		return true
-	case genDb.DeploymentStatusFailed:
-		return true
-	case genDb.DeploymentStatusCanceled:
-		return true
-	default:
-		return false
-	}
-}
-
-func (s *DeploymentServer) sendDeploymentEvent(
-	ctx context.Context,
-	stream deploymentv1connect.DeploymentServiceWatchDeploymentServerStream,
-	deploymentID uuid.UUID,
-	lastStatus genDb.DeploymentStatus,
-) (genDb.DeploymentStatus, error) {
-	deployment, err := s.queries.GetDeploymentStatus(ctx, deploymentID)
-	if err != nil {
-		return lastStatus, fmt.Errorf("get deployment status: %w", err)
-	}
-
-	if deployment.Status == lastStatus {
-		return lastStatus, nil
-	}
-
-	deploymentIDStr := deploymentID.String()
-	statusPhase := parseDeploymentPhase(deployment.Status)
-	now := time.Now()
-	event := &deploymentv1.WatchDeploymentResponse{
-		DeploymentId: deploymentIDStr,
-		Status:       statusPhase,
-		Message:      deployment.Message,
-		Timestamp:    timestamppb.New(now),
-	}
-
-	if err := stream.Send(event); err != nil {
-		return lastStatus, err
-	}
-
-	slog.InfoContext(ctx, "sent deployment event", "deployment_id", deploymentIDStr, "status", deployment.Status)
-	return deployment.Status, nil
 }
 
 // deploymentRouting is the routing an Application uses: the deployment's own when it carries

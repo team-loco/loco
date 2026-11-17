@@ -36,6 +36,9 @@ const (
 	// DeploymentServiceWatchDeploymentProcedure is the procedure name of the DeploymentService's
 	// WatchDeployment RPC.
 	DeploymentServiceWatchDeploymentProcedure = "/loco.deployment.v1.DeploymentService/WatchDeployment"
+	// DeploymentServiceListDeploymentActivityProcedure is the procedure name of the DeploymentService's
+	// ListDeploymentActivity RPC.
+	DeploymentServiceListDeploymentActivityProcedure = "/loco.deployment.v1.DeploymentService/ListDeploymentActivity"
 	// DeploymentServiceDeleteDeploymentProcedure is the procedure name of the DeploymentService's
 	// DeleteDeployment RPC.
 	DeploymentServiceDeleteDeploymentProcedure = "/loco.deployment.v1.DeploymentService/DeleteDeployment"
@@ -73,6 +76,13 @@ var (
 			Procedure:  DeploymentServiceWatchDeploymentProcedure,
 		}
 	})
+	deploymentServiceListDeploymentActivitySpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods().ByName("ListDeploymentActivity"),
+			Procedure:  DeploymentServiceListDeploymentActivityProcedure,
+		}
+	})
 	deploymentServiceDeleteDeploymentSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -99,6 +109,7 @@ type DeploymentServiceClient interface {
 	ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error)
 	// WatchDeployment streams deployment events in real-time.
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest) (DeploymentServiceWatchDeploymentClientStream, error)
+	ListDeploymentActivity(context.Context, *v1.ListDeploymentActivityRequest) (*v1.ListDeploymentActivityResponse, error)
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
 	// ResolveImage returns the digest-pinned image reference.
@@ -143,6 +154,7 @@ type DeploymentServiceHandler interface {
 	ListDeployments(context.Context, *v1.ListDeploymentsRequest) (*v1.ListDeploymentsResponse, error)
 	// WatchDeployment streams deployment events in real-time.
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error
+	ListDeploymentActivity(context.Context, *v1.ListDeploymentActivityRequest) (*v1.ListDeploymentActivityResponse, error)
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
 	// ResolveImage returns the digest-pinned image reference.
@@ -158,6 +170,7 @@ func RegisterDeploymentServiceHandler(server *connect.Server, svc DeploymentServ
 		connect.Method{Spec: deploymentServiceGetDeploymentSpec(), Handler: adapter.getDeployment},
 		connect.Method{Spec: deploymentServiceListDeploymentsSpec(), Handler: adapter.listDeployments},
 		connect.Method{Spec: deploymentServiceWatchDeploymentSpec(), Handler: adapter.watchDeployment},
+		connect.Method{Spec: deploymentServiceListDeploymentActivitySpec(), Handler: adapter.listDeploymentActivity},
 		connect.Method{Spec: deploymentServiceDeleteDeploymentSpec(), Handler: adapter.deleteDeployment},
 		connect.Method{Spec: deploymentServiceResolveImageSpec(), Handler: adapter.resolveImage},
 	)
@@ -196,6 +209,10 @@ func (UnimplementedDeploymentServiceHandler) ListDeployments(context.Context, *v
 
 func (UnimplementedDeploymentServiceHandler) WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error {
 	return connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.WatchDeployment is not implemented")
+}
+
+func (UnimplementedDeploymentServiceHandler) ListDeploymentActivity(context.Context, *v1.ListDeploymentActivityRequest) (*v1.ListDeploymentActivityResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.ListDeploymentActivity is not implemented")
 }
 
 func (UnimplementedDeploymentServiceHandler) DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error) {
@@ -240,6 +257,14 @@ func (c *deploymentServiceClient) WatchDeployment(ctx context.Context, req *v1.W
 		return DeploymentServiceWatchDeploymentClientStream{}, err
 	}
 	return DeploymentServiceWatchDeploymentClientStream{stream: stream}, nil
+}
+
+func (c *deploymentServiceClient) ListDeploymentActivity(ctx context.Context, req *v1.ListDeploymentActivityRequest) (*v1.ListDeploymentActivityResponse, error) {
+	var res v1.ListDeploymentActivityResponse
+	if err := c.client.CallUnary(ctx, deploymentServiceListDeploymentActivitySpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
 }
 
 func (c *deploymentServiceClient) DeleteDeployment(ctx context.Context, req *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error) {
@@ -302,6 +327,18 @@ func (h deploymentServiceHandler) watchDeployment(ctx context.Context, _ connect
 		return err
 	}
 	return h.svc.WatchDeployment(ctx, &req, DeploymentServiceWatchDeploymentServerStream{stream: stream})
+}
+
+func (h deploymentServiceHandler) listDeploymentActivity(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListDeploymentActivityRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListDeploymentActivity(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }
 
 func (h deploymentServiceHandler) deleteDeployment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {

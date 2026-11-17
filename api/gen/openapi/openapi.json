@@ -1765,6 +1765,67 @@
         }
       }
     },
+    "/loco.deployment.v1.DeploymentService/ListDeploymentActivity": {
+      "post": {
+        "tags": [
+          "loco.deployment.v1.DeploymentService"
+        ],
+        "summary": "ListDeploymentActivity",
+        "operationId": "loco.deployment.v1.DeploymentService.ListDeploymentActivity",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.deployment.v1.ListDeploymentActivityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.deployment.v1.ListDeploymentActivityResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.deployment.v1.DeploymentService/ListDeployments": {
       "post": {
         "tags": [
@@ -9770,6 +9831,39 @@
         "additionalProperties": false,
         "description": "SizeLimits are the inclusive bounds a service's CPU, memory and replica counts must\n fall within; requests outside them are rejected."
       },
+      "loco.deployment.v1.Activity": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "string",
+            "title": "seq",
+            "format": "int64"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64"
+          },
+          "at": {
+            "title": "at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "severity": {
+            "type": "string",
+            "title": "severity"
+          },
+          "replicaName": {
+            "type": "string",
+            "title": "replica_name"
+          },
+          "message": {
+            "type": "string",
+            "title": "message"
+          }
+        },
+        "title": "Activity",
+        "additionalProperties": false
+      },
       "loco.deployment.v1.BuildSource": {
         "type": "object",
         "properties": {
@@ -9903,22 +9997,18 @@
             "type": "string",
             "title": "region"
           },
-          "replicas": {
+          "desiredReplicas": {
             "type": "integer",
-            "title": "replicas",
+            "title": "desired_replicas",
             "format": "int32"
           },
           "status": {
             "title": "status",
-            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
           },
           "isActive": {
             "type": "boolean",
             "title": "is_active"
-          },
-          "message": {
-            "type": "string",
-            "title": "message"
           },
           "createdAt": {
             "title": "created_at",
@@ -9986,6 +10076,22 @@
           "commit": {
             "title": "commit",
             "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
+          },
+          "currentRevision": {
+            "type": "string",
+            "title": "current_revision",
+            "format": "int64"
+          },
+          "problem": {
+            "title": "problem",
+            "$ref": "#/components/schemas/loco.deployment.v1.Problem"
+          },
+          "replicas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.Replica"
+            },
+            "title": "replicas"
           }
         },
         "title": "Deployment",
@@ -10010,20 +10116,6 @@
           "DEPLOYMENT_METHOD_CLI",
           "DEPLOYMENT_METHOD_WEB"
         ]
-      },
-      "loco.deployment.v1.DeploymentPhase": {
-        "type": "string",
-        "title": "DeploymentPhase",
-        "enum": [
-          "DEPLOYMENT_PHASE_UNSPECIFIED",
-          "DEPLOYMENT_PHASE_PENDING",
-          "DEPLOYMENT_PHASE_DEPLOYING",
-          "DEPLOYMENT_PHASE_RUNNING",
-          "DEPLOYMENT_PHASE_SUCCEEDED",
-          "DEPLOYMENT_PHASE_FAILED",
-          "DEPLOYMENT_PHASE_CANCELED"
-        ],
-        "description": "DeploymentPhase indicates the current state of a deployment lifecycle."
       },
       "loco.deployment.v1.DeploymentSecretBindings": {
         "type": "object",
@@ -10107,6 +10199,19 @@
         "additionalProperties": false,
         "description": "DeploymentSpec is the immutable runtime snapshot for a deployment.\n Uses oneof to support different resource types.\n\nAt most one of `service`, `database`, `cache`, `queue` may be set."
       },
+      "loco.deployment.v1.DeploymentStatus": {
+        "type": "string",
+        "title": "DeploymentStatus",
+        "enum": [
+          "DEPLOYMENT_STATUS_UNSPECIFIED",
+          "DEPLOYMENT_STATUS_BUILDING",
+          "DEPLOYMENT_STATUS_DEPLOYING",
+          "DEPLOYMENT_STATUS_RUNNING",
+          "DEPLOYMENT_STATUS_FAILED",
+          "DEPLOYMENT_STATUS_CANCELED",
+          "DEPLOYMENT_STATUS_SUPERSEDED"
+        ]
+      },
       "loco.deployment.v1.GetDeploymentRequest": {
         "type": "object",
         "properties": {
@@ -10170,6 +10275,50 @@
         "title": "HealthCheckConfig",
         "additionalProperties": false,
         "description": "HealthCheckConfig defines health check parameters."
+      },
+      "loco.deployment.v1.ListDeploymentActivityRequest": {
+        "type": "object",
+        "properties": {
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id",
+            "format": "uuid"
+          },
+          "afterSeq": {
+            "type": "string",
+            "title": "after_seq",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
+          },
+          "pageSize": {
+            "type": "integer",
+            "title": "page_size",
+            "maximum": 200,
+            "minimum": 0,
+            "format": "int32"
+          }
+        },
+        "title": "ListDeploymentActivityRequest",
+        "additionalProperties": false
+      },
+      "loco.deployment.v1.ListDeploymentActivityResponse": {
+        "type": "object",
+        "properties": {
+          "activity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.Activity"
+            },
+            "title": "activity"
+          },
+          "nextSeq": {
+            "type": "string",
+            "title": "next_seq",
+            "format": "int64"
+          }
+        },
+        "title": "ListDeploymentActivityResponse",
+        "additionalProperties": false
       },
       "loco.deployment.v1.ListDeploymentsRequest": {
         "type": "object",
@@ -10268,11 +10417,91 @@
         "additionalProperties": false,
         "description": "Port defines a network port configuration."
       },
+      "loco.deployment.v1.Problem": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "reason"
+          },
+          "message": {
+            "type": "string",
+            "title": "message"
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail"
+          },
+          "replicaName": {
+            "type": "string",
+            "title": "replica_name"
+          },
+          "since": {
+            "title": "since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "Problem",
+        "additionalProperties": false
+      },
       "loco.deployment.v1.QueueDeploymentSpec": {
         "type": "object",
         "title": "QueueDeploymentSpec",
         "additionalProperties": false,
         "description": "QueueDeploymentSpec is the spec of the corresponding resource type."
+      },
+      "loco.deployment.v1.Replica": {
+        "type": "object",
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "uid"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "node": {
+            "type": "string",
+            "title": "node"
+          },
+          "placementRevision": {
+            "type": "string",
+            "title": "placement_revision",
+            "format": "int64"
+          },
+          "state": {
+            "type": "string",
+            "title": "state"
+          },
+          "stateSince": {
+            "title": "state_since",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "stateDeadline": {
+            "title": "state_deadline",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "restarts",
+            "format": "int32"
+          },
+          "exitCode": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "exit_code",
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string",
+            "title": "detail"
+          }
+        },
+        "title": "Replica",
+        "additionalProperties": false
       },
       "loco.deployment.v1.ResolveImageRequest": {
         "type": "object",
@@ -10530,35 +10759,38 @@
             "type": "string",
             "title": "deployment_id",
             "format": "uuid"
+          },
+          "afterSeq": {
+            "type": "string",
+            "title": "after_seq",
+            "format": "int64",
+            "description": "int64.gte = 0\n"
           }
         },
         "title": "WatchDeploymentRequest",
-        "additionalProperties": false,
-        "description": "WatchDeploymentRequest is the request to stream deployment events."
+        "additionalProperties": false
       },
       "loco.deployment.v1.WatchDeploymentResponse": {
         "type": "object",
         "properties": {
-          "deploymentId": {
-            "type": "string",
-            "title": "deployment_id"
+          "deployment": {
+            "title": "deployment",
+            "$ref": "#/components/schemas/loco.deployment.v1.Deployment"
           },
-          "status": {
-            "title": "status",
-            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
+          "activity": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.Activity"
+            },
+            "title": "activity"
           },
-          "message": {
-            "type": "string",
-            "title": "message"
-          },
-          "timestamp": {
-            "title": "timestamp",
-            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          "hasMoreActivity": {
+            "type": "boolean",
+            "title": "has_more_activity"
           }
         },
         "title": "WatchDeploymentResponse",
-        "additionalProperties": false,
-        "description": "WatchDeploymentResponse represents a deployment event stream response."
+        "additionalProperties": false
       },
       "loco.domain.v1.CheckDomainAvailabilityRequest": {
         "type": "object",
@@ -13751,7 +13983,7 @@
           },
           "deploymentStatus": {
             "title": "deployment_status",
-            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPhase"
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
           },
           "message": {
             "type": [

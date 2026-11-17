@@ -602,15 +602,14 @@ func (s *AgentServer) recordApplyError(
 			return nil
 		}
 		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
-			Status:  genDb.DeploymentStatusFailed,
-			Message: errMessage,
-			ID:      *row.DeploymentID,
+			Status: genDb.DeploymentStatusFailed,
+			ID:     *row.DeploymentID,
 			FromStatuses: deploymentStatusNames(
 				genDb.DeploymentStatusBuilding,
 				genDb.DeploymentStatusDeploying,
 				genDb.DeploymentStatusRunning,
 			),
-		})
+		}, errMessage)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record apply error", "placement_id", placementID, "error", err)
@@ -722,9 +721,8 @@ func (s *AgentServer) recordStatus(
 				genDb.AdvanceDeploymentStatusParams{
 					ID:           deployment.ID,
 					Status:       next,
-					Message:      status.GetMessage(),
 					FromStatuses: deploymentStatusNames(deployment.Status),
-				},
+				}, status.GetMessage(),
 			); transitionErr != nil {
 				return transitionErr
 			}
@@ -747,6 +745,7 @@ func advanceDeploymentStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	params genDb.AdvanceDeploymentStatusParams,
+	message string,
 ) error {
 	changed, err := qtx.AdvanceDeploymentStatus(ctx, params)
 	if err != nil {
@@ -769,7 +768,7 @@ func advanceDeploymentStatus(
 		events.FieldResourceID:    d.ResourceID.String(),
 		events.FieldEnvironmentID: d.EnvironmentID.String(),
 		events.FieldRegion:        d.Region,
-		events.FieldMessage:       d.Message,
+		events.FieldMessage:       message,
 		events.FieldResourceName:  d.ResourceName,
 	}
 	if buildID := spec.GetService().GetBuild().GetBuildId(); buildID != "" {
