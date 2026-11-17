@@ -171,7 +171,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     page.get_by_role("menuitem", name=re.compile(r"^Member")).click()
     page.get_by_role("button", name="Change role", exact=True).click()
     page.get_by_text(
-        "Organization must keep at least one admin.", exact=True
+        "Organization must keep at least one active admin.", exact=True
     ).wait_for()
     expect(page.get_by_role("alertdialog")).to_be_visible()
     page.get_by_role("button", name="Cancel", exact=True).click()
