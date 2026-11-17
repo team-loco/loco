@@ -49,7 +49,8 @@ const (
 	fixtureEmail    = "dev@loco.test"
 	fixturePassword = "loco-dev"
 	// Endpoints match the Flux fixture chart values.
-	fixtureIssuer          = "http://dex.installation-fixtures.svc.cluster.local:5556/dex"
+	fixtureIssuerHost      = "dex.installation-fixtures.svc.cluster.local"
+	fixtureIssuer          = "http://" + fixtureIssuerHost + ":5556/dex"
 	fixtureAPIURL          = "http://api.installation.test"
 	fixtureClient          = "loco"
 	clientTimeout          = 45 * time.Minute
@@ -207,6 +208,7 @@ func signIn(ctx context.Context, approve func(context.Context, string) error) (r
 	defer func() {
 		if result != nil {
 			fmt.Fprintln(os.Stderr, loginFailurePrefix+classifyLoginFailure(stderr.Bytes()))
+			reportLoginDNSFailure(stderr.Bytes())
 		}
 	}()
 	ctx, cancel := context.WithTimeout(ctx, gatewayReadyTimeout)
