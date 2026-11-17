@@ -126,3 +126,20 @@ def test_suite_failure_records_browser_diagnostics(tmp_path):
         {"url": "http://evidence.test/broken", "failure": "net::ERR_FAILED"},
         {"url": "http://evidence.test/unavailable", "status": 503},
     ]
+
+
+def test_settle_excludes_only_named_targets():
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content('<div id="countdown"></div><div id="transition"></div>')
+        page.evaluate("""() => {
+          window.countdown = document.querySelector('#countdown').animate({opacity: [1, 0]}, 30000);
+          window.transition = document.querySelector('#transition').animate({opacity: [0, 1]}, 300);
+        }""")
+        evidence.settle(page, exclude_animations=["#countdown"])
+        assert page.evaluate("countdown.playState") == "running"
+        assert page.evaluate("transition.playState") == "finished"
+        browser.close()
