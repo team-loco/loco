@@ -77,7 +77,7 @@ func recoveryDrill(ctx context.Context, upgrade func(context.Context) error) (er
 		controlNamespace,
 		"--seal-secret",
 		"openbao-seal",
-		"--output",
+		outputFlag,
 		output,
 	}
 	for i := range identities {

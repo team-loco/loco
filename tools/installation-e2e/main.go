@@ -137,6 +137,7 @@ const (
 	locoadmExecutable    = "locoadm"
 	clusterCreateCommand = "create"
 	secretOutputFormat   = "secret"
+	outputFlag           = "--output"
 )
 
 // Secret manifests are requested payloads, kept separate from diagnostic output.
@@ -146,7 +147,7 @@ func secretManifestOutput(program string, args []string) bool {
 		return false
 	}
 	for i := 2; i+1 < len(args); i++ {
-		if (args[i] == "-o" || args[i] == "--output") && args[i+1] == secretOutputFormat {
+		if (args[i] == "-o" || args[i] == outputFlag) && args[i+1] == secretOutputFormat {
 			return true
 		}
 	}
