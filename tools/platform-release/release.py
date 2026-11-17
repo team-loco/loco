@@ -72,10 +72,14 @@ def archive(files):
     return gzip.compress(output.getvalue(), mtime=0)
 
 
-def content(package):
+def archive_files(package):
     with tarfile.open(fileobj=io.BytesIO(package)) as tar:
-        files = {member.name: tar.extractfile(member).read() for member in tar.getmembers() if member.isfile()}
-    return digest(archive(files))
+        return {member.name: tar.extractfile(member).read() for member in tar.getmembers() if member.isfile()}
+
+
+def content(package):
+    # Hash file names and bytes, independent of tar metadata and gzip implementations.
+    return digest(encoded({name: digest(data) for name, data in archive_files(package).items()}))
 
 
 class Registry:
@@ -153,17 +157,26 @@ class Registry:
             if len(matches) != 1:
                 raise RuntimeError(f'platform image must contain exactly one linux/{architecture} manifest')
 
-    def annotations(self, repository, reference):
-        data, _ = self.request('GET', f'/v2/{repository}/manifests/{reference}', headers={'Accept': MANIFEST_TYPE}, missing=True)
-        return None if data is None else json.loads(data).get('annotations', {})
-
     def ensure(self, repository, version, data, config, layer_type=LAYER_TYPE):
-        existing = self.annotations(repository, version)
-        if existing is None:
+        reference = self.manifest(repository, version, missing=True)
+        if reference is None:
             return self.publish(repository, version, data, config, layer_type)
-        if existing.get(CONTENT_ANNOTATION) != content(data):
-            raise RuntimeError(f'{repository}:{version} is already published with different content; bump its version')
-        return self.manifest(repository, version)
+        manifest_data, _ = self.request('GET', f'/v2/{repository}/manifests/{reference}', headers={'Accept': MANIFEST_TYPE})
+        if digest(manifest_data) != reference:
+            raise RuntimeError('registry manifest digest mismatch')
+        manifest = json.loads(manifest_data)
+        if manifest.get('annotations', {}).get(CONTENT_ANNOTATION) == content(data):
+            return reference
+        # Existing artifacts hash gzip output; compare their files to survive compressor changes.
+        layer = manifest['layers'][0]['digest']
+        published, _ = self.request('GET', f'/v2/{repository}/blobs/{layer}')
+        if digest(published) != layer:
+            raise RuntimeError('registry artifact layer digest mismatch')
+        old, new = archive_files(published), archive_files(data)
+        changed = sorted(name for name in old.keys() | new.keys() if old.get(name) != new.get(name))
+        if changed:
+            raise RuntimeError(f'{repository}:{version} is already published with different content; bump its version; differing files: {", ".join(changed)}')
+        return reference
 
     def assert_absent(self, repository, version):
         if self.manifest(repository, version, missing=True) is not None:

@@ -307,37 +307,78 @@ def test_valid_versions_only(registry):
 
 def test_ensure_publishes_an_absent_version(registry):
     with (
-        patch.object(registry, "annotations", return_value=None),
+        patch.object(registry, "manifest", return_value=None),
         patch.object(registry, "publish", return_value="sha256:" + "a" * 64) as publish,
     ):
         registry.ensure("example/platform/chart", "0.1.0", b"data", {})
     publish.assert_called_once()
 
 
-def test_ensure_skips_a_version_published_with_the_same_content(registry):
-    data = release.archive({"Chart.yaml": b"name: chart"})
-    annotations = {release.CONTENT_ANNOTATION: release.content(data)}
-    with (
-        patch.object(registry, "annotations", return_value=annotations),
-        patch.object(registry, "manifest", return_value="sha256:" + "a" * 64),
-        patch.object(registry, "publish") as publish,
-    ):
-        assert registry.ensure("example/platform/chart", "0.1.0", data, {}) == "sha256:" + "a" * 64
-    publish.assert_not_called()
+@pytest.fixture
+def existing_artifact(registry):
+    def existing(data, annotations):
+        layer = release.digest(data)
+        manifest = release.encoded({"annotations": annotations, "layers": [{"digest": layer}]})
+        reference = release.digest(manifest)
+        def request(method, path, **kwargs):
+            assert method == "GET"
+            if path.endswith("/manifests/" + reference):
+                return manifest, {}
+            assert path.endswith("/blobs/" + layer)
+            return data, {}
+        registry.manifest = Mock(return_value=reference)
+        registry.request = Mock(side_effect=request)
+        registry.publish = Mock()
+        return reference
+    return existing
 
 
-def test_ensure_rejects_a_version_published_with_other_content(registry, subtests):
+@pytest.mark.parametrize("annotations", [{}, {release.CONTENT_ANNOTATION: "legacy-compressed-hash"}])
+def test_ensure_reuses_existing_files_with_legacy_annotations(registry, existing_artifact, annotations):
     data = release.archive({"Chart.yaml": b"name: chart"})
-    other = release.archive({"Chart.yaml": b"name: other"})
-    for annotations in ({release.CONTENT_ANNOTATION: release.content(other)}, {}):
-        with (
-            subtests.test(annotations=annotations),
-            patch.object(registry, "annotations", return_value=annotations),
-            patch.object(registry, "publish") as publish,
-        ):
-            with pytest.raises(RuntimeError, match="different content"):
-                registry.ensure("example/platform/chart", "0.1.0", data, {})
-            publish.assert_not_called()
+    reference = existing_artifact(data, annotations)
+    assert registry.ensure("example/platform/chart", "0.1.0", data, {}) == reference
+    registry.publish.assert_not_called()
+
+
+def test_ensure_skips_a_version_published_with_the_same_content(registry, existing_artifact):
+    data = release.archive({"Chart.yaml": b"name: chart"})
+    reference = existing_artifact(data, {release.CONTENT_ANNOTATION: release.content(data)})
+    assert registry.ensure("example/platform/chart", "0.1.0", data, {}) == reference
+    assert registry.request.call_count == 1
+    registry.publish.assert_not_called()
+
+
+def test_ensure_names_added_removed_and_changed_files(registry, existing_artifact):
+    existing_artifact(release.archive({"Chart.yaml": b"name: old", "removed.yaml": b"old", "same": b"same"}), {})
+    data = release.archive({"Chart.yaml": b"name: new", "added.yaml": b"new", "same": b"same"})
+    with pytest.raises(RuntimeError, match=r"different content; bump its version; differing files: Chart.yaml, added.yaml, removed.yaml$"):
+        registry.ensure("example/platform/chart", "0.1.0", data, {})
+    registry.publish.assert_not_called()
+
+
+@pytest.mark.parametrize("corrupt", ["manifest", "layer"])
+def test_ensure_checks_downloaded_digests(registry, existing_artifact, corrupt):
+    data = release.archive({"Chart.yaml": b"name: chart"})
+    existing_artifact(data, {})
+    request = registry.request.side_effect
+    def corrupted(method, path, **kwargs):
+        body, headers = request(method, path, **kwargs)
+        if ("/manifests/" in path) == (corrupt == "manifest"):
+            body += b"corrupt"
+        return body, headers
+    registry.request.side_effect = corrupted
+    with pytest.raises(RuntimeError, match="digest mismatch"):
+        registry.ensure("example/platform/chart", "0.1.0", data, {})
+    registry.publish.assert_not_called()
+
+
+def test_content_does_not_depend_on_gzip_compression():
+    data = release.archive({"Chart.yaml": b"name: chart" * 100})
+    before = release.content(data)
+    compressor = release.gzip.compress
+    with patch.object(release.gzip, "compress", side_effect=lambda data, **kwargs: compressor(data, compresslevel=1, **kwargs)):
+        assert release.content(data) == before
 
 
 def test_content_ignores_archive_metadata():
