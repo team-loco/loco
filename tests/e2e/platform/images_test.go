@@ -93,6 +93,11 @@ esac
 				if err != nil {
 					t.Fatal(err)
 				}
+				for command := range strings.SplitSeq(strings.TrimSpace(string(calls)), "\n") {
+					if strings.HasPrefix(command, "pull ") && command != "pull -q "+digest {
+						t.Fatalf("pull command = %q, want selected immutable amd64 digest", command)
+					}
+				}
 				tag, tagErr := os.ReadFile(tagPath)
 				if tagErr != nil || strings.TrimSpace(string(tag)) != digest+" local:test" {
 					t.Fatalf("tag = %q, error %v, want selected immutable amd64 digest", tag, tagErr)
