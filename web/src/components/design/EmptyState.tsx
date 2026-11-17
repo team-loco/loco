@@ -14,7 +14,7 @@ export function EmptyState({
 	action?: ReactNode;
 }) {
 	return (
-		<div className="flex flex-col items-center gap-3 px-6 py-7 text-center text-[13px]">
+		<div data-slot="empty-state" className="flex flex-col items-center gap-3 px-6 py-7 text-center text-[13px]">
 			{icon !== undefined && (
 				<span className="mb-1 flex size-12 items-center justify-center rounded-[12px] bg-background text-fg2 ring-1 ring-line [&_svg]:size-5">
 					{icon}

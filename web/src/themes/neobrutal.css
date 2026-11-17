@@ -26,6 +26,10 @@
 	--warn: #a87900;
 	--err: #e5383b;
 	--ink: #000000;
+	--nb-grid: #80808080;
+	--lv-info: #88aaee;
+	--lv-warn: #ffc800;
+	--chart-error: #ff4d50;
 	--nb-hover: rgba(0, 0, 0, 0.05);
 	--row-hover: var(--nb-hover);
 	--list-hover: var(--nb-hover);
@@ -35,10 +39,10 @@
 	--pop-shadow: 4px 4px 0 0 var(--ink);
 	--overlay-shadow: 4px 4px 0 0 var(--ink);
 	--scrim: rgba(0, 0, 0, 0.55);
-	--series-0: #5294ff;
-	--series-1: #7a83ff;
-	--series-2: #05c46b;
-	--series-3: #ff7a05;
+	--series-0: #4d7cff;
+	--series-1: #a46bff;
+	--series-2: #00b884;
+	--series-3: #ff8a1f;
 	--series-4: #ed707b;
 	--series-5: #facc00;
 	--series-6: #00c2c7;
@@ -54,30 +58,37 @@
 .dark[data-theme="neobrutal"] {
 	--nb-hover: rgba(255, 255, 255, 0.06);
 	--row-hover: var(--nb-hover);
-	--shell: #262835;
-	--shell-hover: #30333f;
-	--bg: #2e3040;
-	--panel: #3a3d50;
-	--panel2: #45495e;
-	--raise: #3a3d50;
-	--line: rgba(255, 255, 255, 0.12);
-	--fg: #f4f4f5;
-	--fg2: #d2d3d8;
-	--fg3: #bfc1ca;
-	--fg4: #767883;
+	--shell: #16171d;
+	--shell-hover: #20222b;
+	--bg: #1c1e26;
+	--panel: #272a36;
+	--panel2: #323646;
+	--raise: #272a36;
+	--line: rgba(255, 255, 255, 0.1);
+	--fg: #f4f2ec;
+	--fg2: #d6d4cd;
+	--fg3: #a9a8a2;
+	--fg4: #77777a;
 	--brand: #7aaeff;
 	--ok: #2ee88e;
 	--ok-glyph: #05e17a;
 	--info: #7aaeff;
 	--warn: #facc00;
 	--err: #ff6164;
-	--tint: #4a3440;
+	--tint: #3a2a33;
 	--sh-sign: var(--fg3);
 	--sh-property: #93b4ff;
 	--sh-string: #ffb38a;
 	--sh-keyword: #ed707b;
 	--sh-class: #5ee0a8;
 	--logo: var(--btn);
+	--ink: #ebe8df;
+	--line2: #ebe8df;
+	--series-0: #6d94ff;
+	--series-1: #b98aff;
+	--series-2: #2fd39f;
+	--series-3: #ff9f43;
+	--lv-warn: #ffd23f;
 }
 
 [data-theme="neobrutal"] {
@@ -358,4 +369,90 @@
 [data-theme="neobrutal"] .audit-search:has([aria-invalid="true"]) {
 	border: 2px solid var(--err);
 	box-shadow: 2px 2px 0 var(--err);
+}
+
+[data-theme="neobrutal"] {
+	& :is(.recharts-line-curve, .recharts-area-curve) {
+		stroke-width: 2.75px;
+	}
+	& .recharts-area-area {
+		fill-opacity: 0.22;
+	}
+	& .recharts-cartesian-grid line {
+		stroke: var(--nb-grid);
+		stroke-dasharray: 4 4;
+	}
+	& .recharts-cartesian-axis-line {
+		stroke: var(--fg);
+		stroke-width: 2px;
+	}
+	& .recharts-cartesian-axis-tick text {
+		fill: var(--fg);
+	}
+	& .recharts-active-dot circle {
+		r: 5px;
+		stroke: var(--ink);
+		stroke-width: 2px;
+	}
+	& :is([data-slot="chart-tooltip"], .recharts-tooltip-wrapper > div) {
+		border: 2px solid var(--ink);
+		background: var(--raise);
+		color: var(--fg);
+		box-shadow: 4px 4px 0 var(--ink);
+	}
+	& [data-slot="progress-track"] {
+		height: 12px;
+		border-radius: 0;
+		background: var(--raise);
+		box-shadow: inset 0 0 0 2px var(--ink);
+	}
+	& [data-slot="progress-indicator"] {
+		border-radius: 0;
+		box-shadow: inset 0 0 0 2px var(--ink);
+	}
+}
+
+[data-theme="neobrutal"] [data-slot="trace-overview"] {
+	& polyline {
+		stroke-width: 3px;
+	}
+	& [role="img"] {
+		border-bottom: 2px solid var(--ink);
+	}
+	& [role="img"] > span > i:not(.hidden) {
+		border: 2px solid var(--ink);
+		border-radius: 2px;
+	}
+	& i.bg-err {
+		background: var(--chart-error);
+	}
+	& i.bg-lv-info {
+		background: var(--lv-info);
+	}
+	& [aria-live] {
+		border: 2px solid var(--ink);
+		background: var(--raise);
+		color: var(--fg);
+		box-shadow: 4px 4px 0 var(--ink);
+	}
+}
+
+[data-theme="neobrutal"] {
+	& [data-slot="chart-swatch"].bg-lv-info,
+	& [data-slot="chart-swatch"].bg-err {
+		width: 11px;
+		height: 11px;
+		border: 2px solid var(--ink);
+		border-radius: 2px;
+	}
+	& [data-slot="chart-brush"] {
+		background: color-mix(in oklch, var(--btn) 25%, transparent);
+		border: 2px solid var(--ink);
+	}
+	& [class~="group/code"] {
+		border: 2px solid var(--ink);
+		border-radius: 5px;
+		box-shadow: 3px 3px 0 var(--ink);
+		background: var(--raise);
+	}
 }
