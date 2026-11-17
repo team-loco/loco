@@ -276,3 +276,12 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: api.registry.service is required when api.registry.auth is token
+
+  - it: passes the application platform policy to the API
+    template: templates/api-deployment.yaml
+    set:
+      api.env.LOCO_TARGET_PLATFORM: linux/arm64
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_TARGET_PLATFORM, value: linux/arm64}

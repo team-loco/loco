@@ -8,9 +8,12 @@ import (
 	"syscall"
 	"testing"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 const notRegular = "not a regular file"
@@ -170,5 +173,29 @@ func TestValidateRejectsTampering(t *testing.T) {
 				t.Errorf("error = %v, want it to contain %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestBuiltImagePlatformMustMatchTarget(t *testing.T) {
+	for _, arch := range []string{"amd64", "arm64"} {
+		dir := t.TempDir()
+		output, err := layout.Write(dir, empty.Index)
+		if err != nil {
+			t.Fatal(err)
+		}
+		config := &v1.ConfigFile{OS: "linux", Architecture: arch}
+		image, err := mutate.ConfigFile(empty.Image, config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := output.AppendImage(image); err != nil {
+			t.Fatal(err)
+		}
+		for _, target := range []workloadplatform.Platform{workloadplatform.AMD64, workloadplatform.ARM64} {
+			err := ValidatePlatform(dir, target)
+			if (err == nil) != (arch == target.Architecture()) {
+				t.Fatalf("%s output for %s: %v", arch, target, err)
+			}
+		}
 	}
 }

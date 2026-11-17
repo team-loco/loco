@@ -1,8 +1,8 @@
 -- name: CreateBuild :one
 INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path, context, image_repository, created_by,
-                    api_token_id, git_commit, git_branch, git_commit_message)
+                    api_token_id, git_commit, git_branch, git_commit_message, platform)
 VALUES ($1, $2, 'awaiting_upload', $3, $4, $5, $6, $7, $8, $9,
-        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message))
+        sqlc.narg(api_token_id), sqlc.narg(git_commit), sqlc.narg(git_branch), sqlc.narg(git_commit_message), sqlc.arg(platform))
 RETURNING *;
 
 -- name: GetBuildByID :one
@@ -71,6 +71,7 @@ WHERE b.id = $1;
 SELECT id FROM clusters
 WHERE is_active = true
   AND role IN ('builds', 'all')
+  AND sqlc.arg(platform)::text = ANY(platforms)
   AND health_status = 'healthy'
   AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY created_at, id
@@ -85,6 +86,7 @@ SELECT b.id,
        b.dockerfile_path,
        b.context,
        b.image_repository,
+       b.platform,
        COALESCE((
          SELECT p.image_repository || '@' || p.cache_digest
          FROM builds p
@@ -93,6 +95,7 @@ SELECT b.id,
            AND p.cache_digest IS NOT NULL
            AND p.image_deleted_at IS NULL
            AND p.image_repository = b.image_repository
+           AND p.platform = b.platform
          ORDER BY p.finished_at DESC, p.id DESC
          LIMIT 1
        ), '')::text AS cache_ref
@@ -188,6 +191,7 @@ WITH ranked AS (
   SELECT b.id,
          b.resource_id,
          b.image_repository,
+       b.platform,
          b.image_digest,
          b.cache_digest,
          b.finished_at,

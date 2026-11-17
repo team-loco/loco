@@ -169,7 +169,7 @@ func newBuildFixture(t *testing.T) *buildFixture {
 	}
 
 	bucket := newFakeBucket()
-	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{
+	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{TargetPlatform: testPlatform,
 		ClusterSilentAfter: testClusterSilentAfter,
 		RegistryHost:       testRegistryHost,
 		RegistryPrefix:     "builds",
@@ -543,7 +543,7 @@ func TestPinDockerfileBuildFromDatabase(t *testing.T) {
 	resolver := &fakeResolver{}
 	pin := func(resourceID uuid.UUID, buildID string, image string) (*deploymentv1.BuildSource, error) {
 		src := &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, Image: image, BuildId: &buildID}
-		return pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, resourceID, src)
+		return pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, resourceID, src, testPlatform)
 	}
 
 	pinned, err := pin(f.resourceID, succeeded, "")
@@ -557,7 +557,7 @@ func TestPinDockerfileBuildFromDatabase(t *testing.T) {
 	if pinnedBuildID := pinned.GetBuildId(); pinnedBuildID != succeeded {
 		t.Fatalf("build id = %q, want %q", pinnedBuildID, succeeded)
 	}
-	restored, err := pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, f.resourceID, pinned)
+	restored, err := pinBuildSource(f.ctx, f.queries, resolver, testRegistryHost, f.resourceID, pinned, testPlatform)
 	if err != nil {
 		t.Fatalf("reuse stored build spec: %v", err)
 	}

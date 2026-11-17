@@ -181,6 +181,10 @@ message StartBuild {
   // registry_credential is the password the build presents to the registry token endpoint as user loco-build,
   // set in token mode; it is valid while this build is queued or running on the cluster.
   string registry_credential = 10;
+  string platform = 11 [
+    (buf.validate.field).string.in = "linux/amd64",
+    (buf.validate.field).string.in = "linux/arm64"
+  ];
 }
 
 message CancelBuild {
@@ -208,6 +212,7 @@ message AgentCapacity {
   int64 memory_bytes_used = 4;
   int32 pods_total = 5;
   int32 pods_running = 6;
+  repeated string platforms = 7 [(buf.validate.field).repeated.items.string.pattern = "^linux/(amd64|arm64)$"];
 }
 
 // AgentHealth reports agent and cluster health status.

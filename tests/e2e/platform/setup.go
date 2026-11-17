@@ -16,7 +16,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -147,6 +149,19 @@ func (p *Platform) setupClusterSide(ctx context.Context) error {
 	if err := p.setupKind(ctx); err != nil {
 		return err
 	}
+	var nodes corev1.NodeList
+	if err := p.Get(ctx, &nodes, "nodes"); err != nil {
+		return err
+	}
+	if len(nodes.Items) != 1 {
+		return fmt.Errorf("the e2e worker needs one node, got %d", len(nodes.Items))
+	}
+	info := nodes.Items[0].Status.NodeInfo
+	platform, err := workloadplatform.Parse(info.OperatingSystem + "/" + info.Architecture)
+	if err != nil {
+		return err
+	}
+	p.TargetPlatform = string(platform)
 	if _, err := p.Kubectl(
 		ctx,
 		"apply",

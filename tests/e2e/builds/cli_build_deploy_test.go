@@ -14,19 +14,20 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
+	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 const secretTimeout = 2 * time.Minute
+const cliApp = "e2e-cli-app"
 
 // TestCLIBuildDeploy deploys from source with the loco CLI: the build, its commit, its logs and
 // listing, a deploy without loco.yaml, and secrets set, delivered and rotated through Transit.
 func TestCLIBuildDeploy(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
-	const app = "e2e-cli-app"
 	dir := t.TempDir()
 	p.CopyFixture(t, "build-app", dir)
 	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("SECRET=never-uploaded\n"), 0o600); err != nil {
@@ -36,8 +37,8 @@ func TestCLIBuildDeploy(t *testing.T) {
 		t,
 		dir,
 		locofile.File{
-			Partial:  app,
-			Services: map[string]locofile.Service{app: platform.SourceService(w.Host(app))},
+			Partial:  cliApp,
+			Services: map[string]locofile.Service{cliApp: platform.SourceService(w.Host(cliApp))},
 		},
 	)
 	git := func(args ...string) string {
@@ -58,17 +59,43 @@ func TestCLIBuildDeploy(t *testing.T) {
 		started := time.Now()
 		deployed := w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 		t.Logf("loco deploy took %s", time.Since(started))
-		url := app + ": https://" + w.Host(app)
+		url := cliApp + ": https://" + w.Host(cliApp)
 		for _, want := range []string{"Packed", "Build succeeded", "Started deployment", url} {
 			if !strings.Contains(deployed.Stdout, want) {
 				t.Errorf("loco deploy output lacks %q:\n%s", want, deployed.Stdout)
 			}
 		}
-		w.MustLoco(t, dir, "builds", "logs", listBuilds(t, w, dir, app)[0].ID)
+		w.MustLoco(t, dir, "builds", "logs", listBuilds(t, w, dir)[0].ID)
+	})
+
+	t.Run("build and workload use the worker target", func(t *testing.T) {
+		id := listBuilds(t, w, dir)[0].ID
+		response, err := p.User.Build.GetBuild(t.Context(), &buildv1.GetBuildRequest{BuildId: id})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if response.GetBuild().GetPlatform() != p.TargetPlatform {
+			t.Fatalf("build target %s, worker target %s", response.GetBuild().GetPlatform(), p.TargetPlatform)
+		}
+		application, err := p.Application(t.Context(), w.ResourceID(t, cliApp))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if application.Spec.ServiceSpec.Deployment.Platform != p.TargetPlatform {
+			t.Fatalf("application target %s", application.Spec.ServiceSpec.Deployment.Platform)
+		}
+		var deployment appsv1.Deployment
+		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, cliApp))
+		if deployment.Spec.Template.Spec.NodeSelector["kubernetes.io/arch"] != strings.TrimPrefix(
+			p.TargetPlatform,
+			"linux/",
+		) {
+			t.Fatalf("workload node selector %v", deployment.Spec.Template.Spec.NodeSelector)
+		}
 	})
 
 	t.Run("lists the build with its commit", func(t *testing.T) {
-		if out := w.MustLoco(t, dir, "builds", "list", app).Stdout; !strings.Contains(out, "succeeded") {
+		if out := w.MustLoco(t, dir, "builds", "list", cliApp).Stdout; !strings.Contains(out, "succeeded") {
 			t.Errorf("loco builds list does not show the build succeeded:\n%s", out)
 		}
 		if out := w.MustLoco(
@@ -76,7 +103,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 			dir,
 			"builds",
 			"list",
-			app,
+			cliApp,
 			"--output",
 			"json",
 		).Stdout; !strings.Contains(
@@ -85,7 +112,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		) {
 			t.Errorf("loco builds list --output json reports no digest:\n%s", out)
 		}
-		build := listBuilds(t, w, dir, app)[0]
+		build := listBuilds(t, w, dir)[0]
 		got := build.GitCommit + " " + build.GitBranch + " " + build.GitCommitMessage
 		if want := git("rev-parse", "HEAD") + " e2e-branch e2e source commit"; got != want {
 			t.Errorf("the build records commit %q, want %q", got, want)
@@ -93,13 +120,13 @@ func TestCLIBuildDeploy(t *testing.T) {
 	})
 
 	t.Run("the deployment runs the build", func(t *testing.T) {
-		build := listBuilds(t, w, dir, app)[0]
+		build := listBuilds(t, w, dir)[0]
 		image := build.ImageRepository + "@" + build.ImageDigest
 		if !regexp.MustCompile(`@sha256:[a-f0-9]{64}$`).MatchString(image) {
 			t.Fatalf("loco builds list reported image %q", image)
 		}
 		var deployment appsv1.Deployment
-		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, app))
+		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, cliApp))
 		if got := deployment.Spec.Template.Spec.Containers[0].Image; got != image {
 			t.Errorf("the app runs %s, want the CLI's build %s", got, image)
 		}
@@ -181,19 +208,19 @@ type listedBuild struct {
 	GitCommitMessage string `json:"gitCommitMessage"`
 }
 
-func listBuilds(t *testing.T, w *platform.Workspace, dir, app string) []listedBuild {
+func listBuilds(t *testing.T, w *platform.Workspace, dir string) []listedBuild {
 	t.Helper()
 	var listed struct {
 		Builds []listedBuild `json:"builds"`
 	}
 	if err := json.Unmarshal(
-		[]byte(w.MustLoco(t, dir, "builds", "list", app, "--output", "json").Stdout),
+		[]byte(w.MustLoco(t, dir, "builds", "list", cliApp, "--output", "json").Stdout),
 		&listed,
 	); err != nil {
 		t.Fatal(err)
 	}
 	if len(listed.Builds) == 0 {
-		t.Fatalf("loco builds list shows no build of %s", app)
+		t.Fatalf("loco builds list shows no build of %s", cliApp)
 	}
 	return listed.Builds
 }

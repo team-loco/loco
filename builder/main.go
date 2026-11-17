@@ -13,6 +13,7 @@ import (
 	"github.com/team-loco/loco/builder/internal/ocilayout"
 	"github.com/team-loco/loco/builder/internal/registry"
 	"github.com/team-loco/loco/internal/buildinfo"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 const terminationLogPerm = 0o600
@@ -87,6 +88,9 @@ func push(ctx context.Context, cfg pushConfig) error {
 	imageBytes, err := ocilayout.Validate(cfg.ImageDir, cfg.MaxImageBytes)
 	if err != nil {
 		return fmt.Errorf("validate image: %w", err)
+	}
+	if err = ocilayout.ValidatePlatform(cfg.ImageDir, workloadplatform.Platform(cfg.Platform)); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "image validated", "bytes", imageBytes)
 

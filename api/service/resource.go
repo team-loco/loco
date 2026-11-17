@@ -31,6 +31,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -209,7 +210,14 @@ func (s *ResourceServer) createPlatformDomain(
 		return err
 	}
 	regions := enabledRegions(req.GetSpec().GetService().GetRegions())
-	check, err := resourceDomainCheck(ctx, qtx, regions, nil, s.clusterSilentAfter)
+	check, err := resourceDomainCheck(
+		ctx,
+		qtx,
+		regions,
+		nil,
+		s.clusterSilentAfter,
+		s.defaults.TargetPlatform,
+	)
 	if err != nil {
 		return fmt.Errorf("list domain clusters: %w", err)
 	}
@@ -617,7 +625,10 @@ func (s *ResourceServer) ListRegions(
 	if err != nil {
 		return nil, err
 	}
-	clusters, err := s.queries.ListClusterRegions(ctx, time.Now().Add(-s.clusterSilentAfter))
+	clusters, err := s.queries.ListClusterRegions(ctx, genDb.ListClusterRegionsParams{
+		Platform:   string(s.defaults.TargetPlatform),
+		HeardSince: time.Now().Add(-s.clusterSilentAfter),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list cluster regions: %w", err)
 	}
@@ -872,7 +883,13 @@ func (s *ResourceServer) planRegionRedeploy(
 		return regionRedeploy{}, fmt.Errorf("get deployment environment: %w", err)
 	}
 
-	cluster, err := eligibleCluster(ctx, qtx, current.Region, s.clusterSilentAfter)
+	cluster, err := eligibleCluster(
+		ctx,
+		qtx,
+		current.Region,
+		s.clusterSilentAfter,
+		workloadplatform.Platform(serviceDeploymentSpec.GetPlatform()),
+	)
 	if err != nil {
 		return regionRedeploy{}, err
 	}

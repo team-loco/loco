@@ -11,6 +11,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 const missedHeartbeats = 3
@@ -61,9 +62,13 @@ func eligibleClusters(
 	ctx context.Context,
 	queries genDb.Querier,
 	silentAfter time.Duration,
+	platform workloadplatform.Platform,
 ) ([]genDb.ListEligibleClustersRow, error) {
 	heardSince := time.Now().Add(-silentAfter)
-	clusters, err := queries.ListEligibleClusters(ctx, heardSince)
+	clusters, err := queries.ListEligibleClusters(ctx, genDb.ListEligibleClustersParams{
+		HeardSince: heardSince,
+		Platform:   string(platform),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list eligible clusters: %w", err)
 	}
@@ -89,14 +94,19 @@ func eligibleCluster(
 	queries genDb.Querier,
 	region string,
 	silentAfter time.Duration,
+	platform workloadplatform.Platform,
 ) (genDb.ListEligibleClustersRow, error) {
-	clusters, err := eligibleClusters(ctx, queries, silentAfter)
+	clusters, err := eligibleClusters(ctx, queries, silentAfter, platform)
 	if err != nil {
 		return genDb.ListEligibleClustersRow{}, err
 	}
 	cluster, found := clusterForRegion(clusters, region)
 	if !found {
-		return genDb.ListEligibleClustersRow{}, errNoActiveCluster.Detail("%s", region)
+		return genDb.ListEligibleClustersRow{}, errNoActiveCluster.Detail(
+			"%s, requires %s",
+			region,
+			platform,
+		)
 	}
 	return cluster, nil
 }

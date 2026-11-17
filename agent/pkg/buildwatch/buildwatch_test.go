@@ -25,6 +25,8 @@ import (
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
+const testPlatform = "linux/amd64"
+
 const (
 	testNamespace           = "loco-builds"
 	testBuildID             = "01a11111-1111-7111-8111-111111111111"
@@ -64,6 +66,7 @@ func testWatcher(t *testing.T, objs ...client.Object) (*Watcher, client.Client) 
 
 func startMessage(buildID string) *agentv1.StartBuild {
 	return &agentv1.StartBuild{
+		Platform:        testPlatform,
 		BuildId:         buildID,
 		OrganizationId:  "01a22222-2222-7222-8222-222222222222",
 		WorkspaceId:     "01a33333-3333-7333-8333-333333333333",
@@ -79,7 +82,7 @@ func startMessage(buildID string) *agentv1.StartBuild {
 func build(name, buildID, phase string) *locoControllerV1.Build {
 	return &locoControllerV1.Build{
 		Name: name, Namespace: testNamespace,
-		Spec:   locoControllerV1.BuildSpec{BuildID: buildID},
+		Spec:   locoControllerV1.BuildSpec{Platform: testPlatform, BuildID: buildID},
 		Status: locoControllerV1.BuildStatus{Phase: phase},
 	}
 }
@@ -109,6 +112,7 @@ func TestCreateMakesOneBuildPerID(t *testing.T) {
 		t.Fatalf("get: %v", err)
 	}
 	want := locoControllerV1.BuildSpec{
+		Platform:        testPlatform,
 		BuildID:         testBuildID,
 		OrganizationID:  start.GetOrganizationId(),
 		WorkspaceID:     start.GetWorkspaceId(),

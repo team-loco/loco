@@ -18,6 +18,8 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
+const testPlatform = "linux/amd64"
+
 const (
 	testAppType   = "SERVICE"
 	testCPU       = "100m"
@@ -49,8 +51,9 @@ func testApplication() *locov1alpha1.Application {
 			EnvironmentID: "env-2",
 			ServiceSpec: &locov1alpha1.ServiceSpec{
 				Deployment: &locov1alpha1.ServiceDeploymentSpec{
-					Image: testImage,
-					Port:  new(int32(8080)),
+					Platform: testPlatform,
+					Image:    testImage,
+					Port:     new(int32(8080)),
 					Env: map[string]string{
 						"ZETA":  "1",
 						"ALPHA": "2",
@@ -370,5 +373,20 @@ func TestApplicationForObject(t *testing.T) {
 	unowned := &corev1.Secret{}
 	if got := applicationForObject(testCtx, unowned); len(got) != 0 {
 		t.Errorf("expected no requests for an unannotated object, got %v", got)
+	}
+}
+
+func TestWorkloadSchedulesOnlyOnItsTargetPlatform(t *testing.T) {
+	for _, arch := range []string{"amd64", "arm64"} {
+		app := testApplication()
+		app.Spec.ServiceSpec.Deployment.Platform = "linux/" + arch
+		template, err := podTemplate(app, testWorkspaceNamespace(app), envSecretMount{}, TelemetryConfig{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		selector := template.Spec.NodeSelector
+		if selector[corev1.LabelOSStable] != "linux" || selector[corev1.LabelArchStable] != arch {
+			t.Fatalf("target %s selector %v", arch, selector)
+		}
 	}
 }

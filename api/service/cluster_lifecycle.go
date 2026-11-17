@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -29,7 +30,10 @@ var (
 	ErrClusterHasWorkloads = errors.New(
 		"cluster has workloads; move or stop them before removal, or use --force for a lost cluster",
 	)
-	ErrInvalidClusterOperation       = errors.New("cluster operation must be pause, resume, remove or restore")
+	ErrInvalidClusterOperation    = errors.New("cluster operation must be pause, resume, remove or restore")
+	errClusterPlatformUnavailable = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition, "cluster has no nodes for the required application platform",
+	)
 	ErrClusterNotAssignable          = rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster is paused or removed")
 	errClusterBuildsNotAllowed       = rpcerr.NewCoded(connect.CodeFailedPrecondition, "cluster does not accept builds")
 	errClusterApplicationsNotAllowed = rpcerr.NewCoded(
@@ -105,13 +109,16 @@ func manageCluster(
 	return result, err
 }
 
-func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID, build bool) error {
+func lockAssignableCluster(ctx context.Context, qtx *genDb.Queries, id uuid.UUID, build bool, platform string) error {
 	cluster, err := qtx.LockAssignableCluster(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrClusterNotAssignable
 	}
 	if err != nil {
 		return fmt.Errorf("lock assignable cluster: %w", err)
+	}
+	if !slices.Contains(cluster.Platforms, platform) {
+		return errClusterPlatformUnavailable.Detail("requires %s", platform)
 	}
 	if build && !runsBuilds(cluster.Role) {
 		return errClusterBuildsNotAllowed

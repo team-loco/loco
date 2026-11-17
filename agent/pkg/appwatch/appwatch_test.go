@@ -147,8 +147,9 @@ func envSecretPlacement(t *testing.T, revision int64) applier.Placement {
 		EnvironmentID: "env-test",
 		ServiceSpec: &locoControllerV1.ServiceSpec{
 			Deployment: &locoControllerV1.ServiceDeploymentSpec{
-				Image: "ghcr.io/team-loco/app:v1",
-				Port:  new(int32(testPort)),
+				Platform: "linux/amd64",
+				Image:    "ghcr.io/team-loco/app:v1",
+				Port:     new(int32(testPort)),
 			},
 		},
 	}
@@ -268,7 +269,7 @@ func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *t
 	}
 	referencing := app("resource-a", testPlacementID, "3")
 	ref := &locoControllerV1.EnvSecretRef{Name: locoControllerV1.EnvSecretName(testPlacementID), Revision: 3}
-	deployment := &locoControllerV1.ServiceDeploymentSpec{EnvSecretRef: ref}
+	deployment := &locoControllerV1.ServiceDeploymentSpec{Platform: "linux/amd64", EnvSecretRef: ref}
 	referencing.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{Deployment: deployment}
 	staged := &corev1.Secret{
 		Name:      locoControllerV1.EnvSecretName(testPlacementID),

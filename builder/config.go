@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/builder/internal/extract"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 const (
@@ -36,6 +37,7 @@ type fetchConfig struct {
 }
 
 type pushConfig struct {
+	Platform       string
 	ImageDir       string
 	CacheDir       string
 	ImageRef       string
@@ -108,6 +110,7 @@ func newFetchConfig(args []string, getenv func(string) string) (fetchConfig, err
 func newPushConfig(args []string) (pushConfig, error) {
 	cfg := pushConfig{}
 	flags := flag.NewFlagSet(commandPush, flag.ContinueOnError)
+	flags.StringVar(&cfg.Platform, "platform", "", "application target platform")
 	flags.StringVar(&cfg.ImageDir, "image-dir", "", "OCI layout of the built image")
 	flags.StringVar(&cfg.CacheDir, "cache-dir", "", "OCI layout of the exported build cache")
 	flags.StringVar(&cfg.ImageRef, "image-ref", "", "tag to push the image to")
@@ -119,11 +122,14 @@ func newPushConfig(args []string) (pushConfig, error) {
 	if err := flags.Parse(args); err != nil {
 		return pushConfig{}, fmt.Errorf("parse push flags: %w", err)
 	}
-	required := []string{"image-dir", "image-ref", "termination-log"}
+	required := []string{"image-dir", "image-ref", "termination-log", "platform"}
 	if cfg.CacheRef != "" {
 		required = append(required, "cache-dir")
 	}
 	if err := requireFlags(flags, required...); err != nil {
+		return pushConfig{}, err
+	}
+	if _, err := workloadplatform.Parse(cfg.Platform); err != nil {
 		return pushConfig{}, err
 	}
 	return cfg, nil

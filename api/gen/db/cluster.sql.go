@@ -286,19 +286,20 @@ func (q *Queries) ListClusterWorkloads(ctx context.Context, clusterID uuid.UUID)
 }
 
 const lockAssignableCluster = `-- name: LockAssignableCluster :one
-SELECT id, role FROM clusters
+SELECT id, role, platforms FROM clusters
 WHERE id = $1 AND is_active = true AND removed_at IS NULL FOR SHARE
 `
 
 type LockAssignableClusterRow struct {
-	ID   uuid.UUID   `json:"id"`
-	Role ClusterRole `json:"role"`
+	ID        uuid.UUID   `json:"id"`
+	Role      ClusterRole `json:"role"`
+	Platforms []string    `json:"platforms"`
 }
 
 func (q *Queries) LockAssignableCluster(ctx context.Context, id uuid.UUID) (LockAssignableClusterRow, error) {
 	row := q.db.QueryRow(ctx, lockAssignableCluster, id)
 	var i LockAssignableClusterRow
-	err := row.Scan(&i.ID, &i.Role)
+	err := row.Scan(&i.ID, &i.Role, &i.Platforms)
 	return i, err
 }
 
@@ -397,6 +398,7 @@ SET agent_version = $2,
     capacity_memory_bytes = $4,
     role = $5,
     domains = $6::text[],
+    platforms = $7::text[],
     updated_at = NOW()
 WHERE id = $1
 `
@@ -408,6 +410,7 @@ type UpdateClusterAgentInfoParams struct {
 	CapacityMemoryBytes   *int64      `json:"capacityMemoryBytes"`
 	Role                  ClusterRole `json:"role"`
 	Domains               []string    `json:"domains"`
+	Platforms             []string    `json:"platforms"`
 }
 
 // Cluster queries for agent operations
@@ -419,6 +422,7 @@ func (q *Queries) UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterA
 		arg.CapacityMemoryBytes,
 		arg.Role,
 		arg.Domains,
+		arg.Platforms,
 	)
 	return err
 }
@@ -431,6 +435,7 @@ SET last_heartbeat = $2,
     health_status = $5,
     role = $6,
     domains = $7::text[],
+    platforms = $8::text[],
     updated_at = NOW()
 WHERE id = $1 AND removed_at IS NULL
 `
@@ -443,6 +448,7 @@ type UpdateClusterHeartbeatParams struct {
 	HealthStatus          *string     `json:"healthStatus"`
 	Role                  ClusterRole `json:"role"`
 	Domains               []string    `json:"domains"`
+	Platforms             []string    `json:"platforms"`
 }
 
 func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error {
@@ -454,6 +460,7 @@ func (q *Queries) UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterH
 		arg.HealthStatus,
 		arg.Role,
 		arg.Domains,
+		arg.Platforms,
 	)
 	return err
 }

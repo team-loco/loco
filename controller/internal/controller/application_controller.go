@@ -24,6 +24,7 @@ import (
 	"maps"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -763,6 +764,10 @@ func podTemplate(
 		WithAutomountServiceAccountToken(false).
 		WithSecurityContext(podSecurity).
 		WithRestartPolicy(corev1.RestartPolicyAlways).
+		WithNodeSelector(map[string]string{
+			corev1.LabelOSStable:   "linux",
+			corev1.LabelArchStable: strings.TrimPrefix(spec.Deployment.Platform, "linux/"),
+		}).
 		WithContainers(container)
 	return corev1ac.PodTemplateSpec().
 		WithLabels(podLabels).

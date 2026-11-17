@@ -30,8 +30,8 @@ platform_domain = "apps.e2e.test"
 evidence.psql(
     state["container"],
     f"""UPDATE clusters SET is_active=false WHERE provider='fixture';
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
-VALUES('{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
+INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
+VALUES(ARRAY['linux/amd64'], '{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
 ('{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}'),
 ('{uuid.uuid4()}','offline-{suffix}','eu-north-1','fixture',true,false,'unhealthy',NOW()-INTERVAL '1 day','{{{platform_domain}}}');""",
 )
@@ -100,8 +100,8 @@ def seed_deployment(body, status, replica_state, detail, problem=None):
     evidence.psql(
         state["container"],
         f"""BEGIN;
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES('{cluster}','service-{deployment}','{body["region"]}','fixture',true,false,'healthy',NOW());
+INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES(ARRAY['linux/amd64'], '{cluster}','service-{deployment}','{body["region"]}','fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
 VALUES('{deployment}','{body["resourceId"]}','{cluster}','{body["region"]}',{replicas},'{status}',true,'{body["environmentId"]}',{evidence.sql_literal(json.dumps(spec))},1,'user','{state["users"]["owner"]["id"]}','web');
 INSERT INTO placements(id,resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,status_updated_at)

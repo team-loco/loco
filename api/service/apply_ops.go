@@ -273,7 +273,7 @@ func (a *applier) deploy(
 	resourceSpec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}}
 	secretNames := append([]string{}, state.Secrets...)
 
-	clusters, err := eligibleClusters(ctx, qtx, a.silentAfter)
+	clusters, err := eligibleClusters(ctx, qtx, a.silentAfter, a.defaults.TargetPlatform)
 	if err != nil {
 		return err
 	}
@@ -293,6 +293,7 @@ func (a *applier) deploy(
 			return errNoActiveCluster.Detail("%s", region)
 		}
 		service := deploymentSpecFor(state, region, build)
+		service.Platform = string(a.defaults.TargetPlatform)
 		if quantityErr := validateQuantities(service); quantityErr != nil {
 			return &invalidSpecError{err: quantityErr}
 		}

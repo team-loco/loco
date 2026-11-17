@@ -38,7 +38,17 @@ func createDeploymentWithCleanup(
 	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
-	if assignErr := lockAssignableCluster(ctx, qtx, params.ClusterID, false); assignErr != nil {
+	var platformSpec deploymentv1.ServiceDeploymentSpec
+	if err := protojson.Unmarshal(params.Spec, &platformSpec); err != nil {
+		return uuid.UUID{}, fmt.Errorf("read deployment target: %w", err)
+	}
+	if assignErr := lockAssignableCluster(
+		ctx,
+		qtx,
+		params.ClusterID,
+		false,
+		platformSpec.GetPlatform(),
+	); assignErr != nil {
 		return uuid.UUID{}, assignErr
 	}
 

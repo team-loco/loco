@@ -139,6 +139,10 @@ func validateServiceSpec(spec *ServiceSpec) error {
 
 // validateServiceDeploymentSpec validates the ServiceDeploymentSpec
 func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
+	// Keep the platform enum aligned with internal/workloadplatform.
+	if spec.Platform != "linux/amd64" && spec.Platform != "linux/arm64" {
+		return fmt.Errorf("unsupported workload platform %q", spec.Platform)
+	}
 	// Image validation (required)
 	if spec.Image == "" {
 		return errImageMissing

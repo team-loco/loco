@@ -468,8 +468,9 @@ func (f *secretFixture) declare(t *testing.T, resourceID uuid.UUID, names ...str
 	ctx := t.Context()
 	var clusterID uuid.UUID
 	err := f.pool.QueryRow(ctx, `
-INSERT INTO clusters (name, region, provider, is_active, is_default)
-VALUES ($1, $2, 'kind', true, true) RETURNING id`, "c-"+resourceID.String(), testRegion).Scan(&clusterID)
+INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
+VALUES (ARRAY['linux/amd64'], $1, $2, 'kind', true, true)
+RETURNING id`, "c-"+resourceID.String(), testRegion).Scan(&clusterID)
 	if err != nil {
 		t.Fatalf("cluster: %v", err)
 	}

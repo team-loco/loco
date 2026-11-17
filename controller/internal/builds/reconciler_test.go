@@ -38,6 +38,7 @@ func testBuild(name string) *locov1alpha1.Build {
 	return &locov1alpha1.Build{
 		Name: name, Namespace: testBuildNamespace,
 		Spec: locov1alpha1.BuildSpec{
+			Platform:        "linux/amd64",
 			BuildID:         name,
 			OrganizationID:  testBuildOrg,
 			WorkspaceID:     testBuildWorkspace,

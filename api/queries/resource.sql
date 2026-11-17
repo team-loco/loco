@@ -81,6 +81,7 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE is_active = true
   AND role IN ('apps', 'all')
+  AND sqlc.arg(platform)::text = ANY(platforms)
   AND health_status = 'healthy'
   AND last_heartbeat >= sqlc.arg(heard_since)::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC;
@@ -94,6 +95,7 @@ FROM (
     FROM clusters
     WHERE is_active = true
       AND role IN ('apps', 'all')
+      AND sqlc.arg(platform)::text = ANY(platforms)
       AND (health_status IN ('healthy', 'degraded')
            OR last_heartbeat < sqlc.arg(heard_since)::timestamptz
            OR last_heartbeat IS NULL)

@@ -25,6 +25,7 @@ import (
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/internal/clip"
 	"github.com/team-loco/loco/internal/rpcerr"
+	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
 const (
@@ -57,6 +58,7 @@ type SourceBucket interface {
 }
 
 type BuildConfig struct {
+	TargetPlatform     workloadplatform.Platform
 	ClusterSilentAfter time.Duration
 	RegistryHost       string
 	RegistryPrefix     string
@@ -179,6 +181,7 @@ func (s *BuildServer) CreateBuild(
 			DockerfilePath:   dockerfilePath,
 			Context:          buildContext,
 			ImageRepository:  repository,
+			Platform:         string(s.config.TargetPlatform),
 			CreatedBy:        p.ActorID,
 			ApiTokenID:       apiTokenID,
 			GitCommit:        req.GitCommit,
@@ -260,6 +263,16 @@ func (s *BuildServer) StartBuild(
 		return nil, authErr
 	}
 
+	if build.Platform != string(s.config.TargetPlatform) {
+		return nil, rpcerr.New(
+			connect.CodeFailedPrecondition,
+			fmt.Errorf(
+				"build targets %s; this installation requires %s; create a new build",
+				build.Platform,
+				s.config.TargetPlatform,
+			),
+		)
+	}
 	if build.Status != genDb.BuildStatusAwaitingUpload {
 		notAwaiting := fmt.Errorf("build is %s, not awaiting upload", build.Status)
 		return nil, rpcerr.New(connect.CodeFailedPrecondition, notAwaiting)
@@ -297,9 +310,15 @@ func (s *BuildServer) StartBuild(
 }
 
 func (s *BuildServer) buildCluster(ctx context.Context) (uuid.UUID, error) {
-	clusterID, err := s.queries.GetBuildCluster(ctx, s.now().Add(-s.config.ClusterSilentAfter))
+	clusterID, err := s.queries.GetBuildCluster(
+		ctx,
+		genDb.GetBuildClusterParams{
+			HeardSince: s.now().Add(-s.config.ClusterSilentAfter),
+			Platform:   string(s.config.TargetPlatform),
+		},
+	)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, buildsUnavailable(errNoBuildCluster)
+		return uuid.UUID{}, buildsUnavailable(fmt.Errorf("%w for %s", errNoBuildCluster, s.config.TargetPlatform))
 	}
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("get build cluster: %w", err)
@@ -323,7 +342,11 @@ func queueBuild(
 			return lockErr
 		}
 
-		if assignErr := lockAssignableCluster(ctx, qtx, clusterID, true); assignErr != nil {
+		build, getErr := qtx.GetBuildByID(ctx, buildID)
+		if getErr != nil {
+			return fmt.Errorf("read queued build target: %w", getErr)
+		}
+		if assignErr := lockAssignableCluster(ctx, qtx, clusterID, true, build.Platform); assignErr != nil {
 			return assignErr
 		}
 		superseded, cancelErr := qtx.CancelOtherActiveBuilds(ctx, genDb.CancelOtherActiveBuildsParams{
@@ -576,6 +599,7 @@ func buildToProto(b genDb.Build) *buildv1.Build {
 	imageDeletedAt := optionalTimestamp(b.ImageDeletedAt)
 
 	out := &buildv1.Build{
+		Platform:         b.Platform,
 		Id:               id,
 		ResourceId:       resourceID,
 		Status:           status,

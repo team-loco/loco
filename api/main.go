@@ -340,7 +340,7 @@ func newDeps(
 			service.FinishBuildDeployments,
 		)
 	}
-	imageResolver := imageresolver.New(ac.ImageResolveTimeout, ac.PublicImageMaxBytes)
+	imageResolver := imageresolver.New(ac.ImageResolveTimeout, ac.PublicImageMaxBytes, ac.TargetPlatform)
 
 	var registryKey *transit.PinnedKey
 	if ac.RegistryAuth.TokenMode() {
@@ -450,6 +450,7 @@ func newDeps(
 			deploymentNotifier,
 		),
 		build: service.NewBuildServer(pool, queries, sourceBucket, service.BuildConfig{
+			TargetPlatform:     ac.TargetPlatform,
 			ClusterSilentAfter: clusterSilentAfter,
 			RegistryHost:       ac.RegistryHost,
 			RegistryPrefix:     ac.RegistryPrefix,

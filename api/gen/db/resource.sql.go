@@ -209,6 +209,7 @@ FROM (
     FROM clusters
     WHERE is_active = true
       AND role IN ('apps', 'all')
+      AND $2::text = ANY(platforms)
       AND (health_status IN ('healthy', 'degraded')
            OR last_heartbeat < $1::timestamptz
            OR last_heartbeat IS NULL)
@@ -217,6 +218,11 @@ FROM (
 ORDER BY available DESC, (health_status = 'healthy') DESC, region
 `
 
+type ListClusterRegionsParams struct {
+	HeardSince time.Time `json:"heardSince"`
+	Platform   string    `json:"platform"`
+}
+
 type ListClusterRegionsRow struct {
 	Region       string  `json:"region"`
 	IsDefault    bool    `json:"isDefault"`
@@ -224,8 +230,8 @@ type ListClusterRegionsRow struct {
 	Available    bool    `json:"available"`
 }
 
-func (q *Queries) ListClusterRegions(ctx context.Context, heardSince time.Time) ([]ListClusterRegionsRow, error) {
-	rows, err := q.db.Query(ctx, listClusterRegions, heardSince)
+func (q *Queries) ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterRegions, arg.HeardSince, arg.Platform)
 	if err != nil {
 		return nil, err
 	}
@@ -256,10 +262,16 @@ SELECT id, name, region, provider, is_active, is_default, endpoint, health_statu
 FROM clusters
 WHERE is_active = true
   AND role IN ('apps', 'all')
+  AND $1::text = ANY(platforms)
   AND health_status = 'healthy'
-  AND last_heartbeat >= $1::timestamptz
+  AND last_heartbeat >= $2::timestamptz
 ORDER BY region ASC, is_default DESC, created_at ASC
 `
+
+type ListEligibleClustersParams struct {
+	Platform   string    `json:"platform"`
+	HeardSince time.Time `json:"heardSince"`
+}
 
 type ListEligibleClustersRow struct {
 	ID                    uuid.UUID  `json:"id"`
@@ -280,8 +292,8 @@ type ListEligibleClustersRow struct {
 	Domains               []string   `json:"domains"`
 }
 
-func (q *Queries) ListEligibleClusters(ctx context.Context, heardSince time.Time) ([]ListEligibleClustersRow, error) {
-	rows, err := q.db.Query(ctx, listEligibleClusters, heardSince)
+func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error) {
+	rows, err := q.db.Query(ctx, listEligibleClusters, arg.Platform, arg.HeardSince)
 	if err != nil {
 		return nil, err
 	}

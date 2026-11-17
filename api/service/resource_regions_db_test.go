@@ -192,8 +192,8 @@ func TestUpdateResourceRegionsValidatesEveryEnvironmentAtomically(t *testing.T) 
 	targets, revision := regionTargets(t, f)
 	targets[otherRegion] = proto.CloneOf(targets[testRegion])
 	insert := `
-INSERT INTO clusters(name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES('extra',$1,'kind',true,false,'unhealthy',NOW())`
+INSERT INTO clusters(platforms, name,region,provider,is_active,is_default,health_status,last_heartbeat)
+VALUES(ARRAY['linux/amd64'], 'extra',$1,'kind',true,false,'unhealthy',NOW())`
 	if _, err := f.pool.Exec(t.Context(), insert, otherRegion); err != nil {
 		t.Fatal(err)
 	}

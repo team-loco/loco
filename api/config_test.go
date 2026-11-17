@@ -22,6 +22,7 @@ import (
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/internal/envconfig"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -428,6 +429,7 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "60")
 	ac := newAPIConfig()
 	want := servicedefaults.Defaults{
+		TargetPlatform:           workloadplatform.AMD64,
 		CPU:                      "250m",
 		CPUTarget:                65,
 		Memory:                   "512Mi",
@@ -1118,5 +1120,19 @@ func TestJoinTokenMaximumTTL(t *testing.T) {
 		if err := panicValue(t, func() { newAgentConfig(servicedefaults.Defaults{}) }); err == nil {
 			t.Fatalf("accepted maximum ttl %s", invalid)
 		}
+	}
+}
+
+func TestApplicationTargetPlatformConfiguration(t *testing.T) {
+	clearAPIConfigEnv(t)
+	for _, target := range []string{"linux/amd64", "linux/arm64"} {
+		t.Setenv("LOCO_TARGET_PLATFORM", target)
+		if got := string(newAPIConfig().TargetPlatform); got != target {
+			t.Fatalf("platform %q, want %q", got, target)
+		}
+	}
+	t.Setenv("LOCO_TARGET_PLATFORM", "darwin/arm64")
+	if got := panicValue(t, func() { newAPIConfig() }); got == nil {
+		t.Fatal("unsupported target accepted")
 	}
 }

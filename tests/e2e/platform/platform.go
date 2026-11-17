@@ -55,6 +55,8 @@ type Platform struct {
 	BuildNamespace string
 	// Domain is the platform domain the Gateway serves.
 	Domain string
+	// TargetPlatform is read from the kind worker nodes, independently of the API host.
+	TargetPlatform string
 	// Region is the region of the run's one cluster.
 	Region string
 

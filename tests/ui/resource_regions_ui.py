@@ -75,8 +75,8 @@ with session(out) as browser:
         evidence.psql(
             state["container"],
             f"""
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES
-('{cluster}','east-{resource}','us-east-1','fixture',true,false,'healthy',NOW()),
+INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES
+(ARRAY['linux/amd64'], '{cluster}','east-{resource}','us-east-1','fixture',true,false,'healthy',NOW()),
 ('{uuid.uuid4()}','west-{resource}','eu-west-1','fixture',true,false,'healthy',NOW());
 INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at)
 VALUES('user','{owner["id"]}','web','{deployment}','{resource}','{cluster}','us-east-1',2,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());

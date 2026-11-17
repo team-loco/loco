@@ -212,13 +212,27 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, ErrEnvironmentNotFound
 	}
 
-	cluster, err := eligibleCluster(ctx, s.queries, region, s.silentAfter)
+	cluster, err := eligibleCluster(
+		ctx,
+		s.queries,
+		region,
+		s.silentAfter,
+		s.defaults.TargetPlatform,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("get active cluster: %w", err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
-	pinnedBuild, err := pinBuildSource(ctx, s.queries, s.resolver, s.registryHost, resourceID, requestedBuild)
+	pinnedBuild, err := pinBuildSource(
+		ctx,
+		s.queries,
+		s.resolver,
+		s.registryHost,
+		resourceID,
+		requestedBuild,
+		s.defaults.TargetPlatform,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -263,6 +277,7 @@ func (s *DeploymentServer) CreateDeployment(
 			return fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, deserializeErr)
 		}
 
+		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
 		mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
 		if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
 			return &invalidInputError{public: publicInvalidRequest, err: mergeErr}

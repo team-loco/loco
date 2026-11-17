@@ -137,6 +137,11 @@ spec:
                               for each variable the application does not set itself.
                             type: boolean
                         type: object
+                      platform:
+                        enum:
+                        - linux/amd64
+                        - linux/arm64
+                        type: string
                       port:
                         description: |-
                           Port is the port the service listens on. Without it the service is a worker: it gets no
@@ -157,6 +162,7 @@ spec:
                         type: integer
                     required:
                     - image
+                    - platform
                     type: object
                   resources:
                     description: Resources (CPU, Memory, Replicas, Scalers)

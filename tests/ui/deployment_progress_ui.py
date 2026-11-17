@@ -85,9 +85,9 @@ if "progress" not in state:
         },
     }
     sql(f"""BEGIN;
-    INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES('{cluster}','progress-ui','us-east-1','fixture',true,false,'healthy',NOW());
-    INSERT INTO builds(id,resource_id,status,source_type,source_key,source_size,dockerfile_path,image_repository,image_digest,created_by,started_at,finished_at,git_commit,git_branch,git_commit_message)
-    VALUES('{build}','{resource}','succeeded','upload','progress-{build}',100,'Dockerfile','registry.example.test/progress','sha256:{"2" * 64}','{owner["id"]}',NOW()-INTERVAL '2 minutes',NOW()-INTERVAL '52 seconds','{"a" * 40}','main','Show saved cards');
+    INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','progress-ui','us-east-1','fixture',true,false,'healthy',NOW());
+    INSERT INTO builds(platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,image_repository,image_digest,created_by,started_at,finished_at,git_commit,git_branch,git_commit_message)
+    VALUES('linux/amd64', '{build}','{resource}','succeeded','upload','progress-{build}',100,'Dockerfile','registry.example.test/progress','sha256:{"2" * 64}','{owner["id"]}',NOW()-INTERVAL '2 minutes',NOW()-INTERVAL '52 seconds','{"a" * 40}','main','Show saved cards');
     INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,completed_at)
     VALUES('{previous}','{resource}','{cluster}','us-east-1',2,'running',true,'{production}',{evidence.sql_literal(json.dumps(old_spec))},1,'user','{owner["id"]}','web',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '9 minutes');
     INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,commit_sha)

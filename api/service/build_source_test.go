@@ -134,7 +134,7 @@ func TestPinPublicImage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := context.Background()
-			pinned, err := pinBuildSource(ctx, nil, tt.resolver, testRegistryHost, resourceID, tt.src)
+			pinned, err := pinBuildSource(ctx, nil, tt.resolver, testRegistryHost, resourceID, tt.src, testPlatform)
 			if tt.wantCode != 0 {
 				if code := connectCode(t, err); code != tt.wantCode {
 					t.Fatalf("code = %v, want %v (%v)", code, tt.wantCode, err)
@@ -162,7 +162,7 @@ func TestPinBuildSourceRequiresSource(t *testing.T) {
 	ctx := context.Background()
 	resolver := &fakeResolver{digest: testDigest}
 	resourceID := uuid.New()
-	_, err := pinBuildSource(ctx, nil, resolver, "", resourceID, nil)
+	_, err := pinBuildSource(ctx, nil, resolver, "", resourceID, nil, testPlatform)
 	if code := connectCode(t, err); code != connect.CodeInvalidArgument {
 		t.Fatalf("code = %v, want invalid argument", code)
 	}
@@ -271,6 +271,7 @@ func TestImageErrorsOnWire(t *testing.T) {
 					testRegistryHost,
 					uuid.New(),
 					&deploymentv1.BuildSource{Type: sourceType, Image: image},
+					testPlatform,
 				)
 			}
 			public, ok := errors.AsType[*connect.Error](wireError(err))

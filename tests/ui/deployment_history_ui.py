@@ -139,7 +139,7 @@ def fixture():
     ):
         domains = "{" + PLATFORM_DOMAIN + "}" if cluster == clusters[0] else "{}"
         sql.append(
-            f"INSERT INTO clusters (id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains) VALUES ('{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{domains}');"
+            f"INSERT INTO clusters (platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains) VALUES (ARRAY['linux/amd64'], '{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{domains}');"
         )
     for index, deployment in enumerate(release_ids, 1):
         region = "eu-west-1" if index == len(release_ids) else "us-east-1"
@@ -238,7 +238,7 @@ def fixture():
             else "NULL"
         )
         sql.append(
-            f"INSERT INTO builds (id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
+            f"INSERT INTO builds (platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
         )
     sql.append(
         f"UPDATE deployments SET commit_sha='{'7c41e9a'.ljust(40, '0')}', commit_dirty=true WHERE id='{release_ids[0]}';"

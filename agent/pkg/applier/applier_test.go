@@ -14,6 +14,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+const testPlatform = "linux/amd64"
+
 const (
 	testNamespace     = "loco-system"
 	testResourceID    = "abc"
@@ -54,7 +56,11 @@ func serviceApplication(t *testing.T) []byte {
 		ResourceID:    testResourceID,
 		EnvironmentID: testEnvironmentID,
 		ServiceSpec: &locoControllerV1.ServiceSpec{
-			Deployment: &locoControllerV1.ServiceDeploymentSpec{Image: testImage, Port: new(int32(8080))},
+			Deployment: &locoControllerV1.ServiceDeploymentSpec{
+				Platform: testPlatform,
+				Image:    testImage,
+				Port:     new(int32(8080)),
+			},
 		},
 	})
 }

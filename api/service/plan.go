@@ -134,7 +134,7 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		return nil, fmt.Errorf("list environments: %w", err)
 	}
-	clusters, err := eligibleClusters(ctx, s.queries, s.silentAfter)
+	clusters, err := eligibleClusters(ctx, s.queries, s.silentAfter, s.defaults.TargetPlatform)
 	if err != nil {
 		return nil, fmt.Errorf("list clusters: %w", err)
 	}

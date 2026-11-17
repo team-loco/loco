@@ -111,10 +111,10 @@ func (f *buildFixture) seedBuild(t *testing.T, status string, sourceDeleted, ima
 	t.Helper()
 	id := uuid.Must(uuid.NewV7())
 	if _, err := f.pool.Exec(t.Context(), `
-INSERT INTO builds (id, resource_id, status, source_type, source_key, source_size, dockerfile_path,
+INSERT INTO builds (platform, id, resource_id, status, source_type, source_key, source_size, dockerfile_path,
                     image_repository, image_digest, created_by, created_at, finished_at,
                     source_deleted_at, image_deleted_at)
-VALUES ($1, $2, $3::build_status, 'upload', $7, 1, 'Dockerfile', 'registry.test/app',
+VALUES ('linux/amd64', $1, $2, $3::build_status, 'upload', $7, 1, 'Dockerfile', 'registry.test/app',
         CASE WHEN $3 = 'succeeded' THEN 'sha256:' || md5($7) END, $2,
         NOW() - $6::interval,
         CASE WHEN $3 IN ('succeeded', 'failed', 'canceled') THEN NOW() - $6::interval END,

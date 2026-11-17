@@ -7,6 +7,7 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -20,9 +21,10 @@ var (
 	errInvalidDeploy    = errors.New("the default deploy policy is outside the loco.yaml bounds")
 )
 
-// Defaults is what the API fills into a service when the file or request omits it. There is no
-// default port: a service without one is a worker.
+// Defaults carries installation service policy and the values the API fills when a request omits them.
+// There is no default port: a service without one is a worker.
 type Defaults struct {
+	TargetPlatform           workloadplatform.Platform
 	CPU                      string
 	Memory                   string
 	MinReplicas              int32

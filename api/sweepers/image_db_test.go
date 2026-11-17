@@ -228,10 +228,10 @@ func (f *imageSweepFixture) succeededWith(t *testing.T, image, cache string) swe
 	repository := testRegistryHost + "/" + f.repoPath
 	key := buildsource.Key(id)
 	if _, err := f.pool.Exec(f.ctx, `
-INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+INSERT INTO builds (platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, image_digest, cache_digest, created_by,
                     finished_at)
-VALUES ($1, $2, $3, 'succeeded', 'upload', $4, 10, 'Dockerfile', $5, $6, $7, $8, $9)`,
+VALUES ('linux/amd64', $1, $2, $3, 'succeeded', 'upload', $4, 10, 'Dockerfile', $5, $6, $7, $8, $9)`,
 		id, f.resourceID, f.clusterID, key, repository, image, cache, uuid.New(), finished,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)
@@ -568,9 +568,9 @@ func (f *imageSweepFixture) unfinishedBuild(t *testing.T, status genDb.BuildStat
 	key := buildsource.Key(id)
 	repository := testRegistryHost + "/" + f.repoPath
 	if _, err := f.pool.Exec(f.ctx, `
-INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+INSERT INTO builds (platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, created_by, finished_at)
-VALUES ($1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7, $8)`,
+VALUES ('linux/amd64', $1, $2, $3, $4, 'upload', $5, 10, 'Dockerfile', $6, $7, $8)`,
 		id, f.resourceID, f.clusterID, status, key, repository, uuid.New(), finished,
 	); err != nil {
 		t.Fatalf("insert build: %v", err)
@@ -615,9 +615,9 @@ func TestImageSweepDeletesTagsOfUnfinishedBuilds(t *testing.T) {
 
 	sharedID := uuid.Must(uuid.NewV7())
 	if _, err := f.pool.Exec(f.ctx, `
-INSERT INTO builds (id, resource_id, cluster_id, status, source_type, source_key, source_size,
+INSERT INTO builds (platform, id, resource_id, cluster_id, status, source_type, source_key, source_size,
                     dockerfile_path, image_repository, created_by, finished_at)
-VALUES ($1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfile', $5, $6, $7)`,
+VALUES ('linux/amd64', $1, $2, $3, 'failed', 'upload', $4, 10, 'Dockerfile', $5, $6, $7)`,
 		sharedID, f.resourceID, f.clusterID, buildsource.Key(sharedID), testRegistryHost+"/"+f.repoPath,
 		uuid.New(), old,
 	); err != nil {
