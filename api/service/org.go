@@ -41,7 +41,7 @@ var (
 	errOrgMemberNotFound = rpcerr.NewCoded(connect.CodeNotFound, "organization member not found")
 	errLastOrgAdmin      = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
-		"organization must keep at least one admin",
+		"organization must keep at least one active admin",
 	)
 	errInvalidOrgRole              = rpcerr.NewCoded(connect.CodeInvalidArgument, "role must be Admin or Member")
 	errCreateIfMissingForOtherUser = rpcerr.NewCoded(

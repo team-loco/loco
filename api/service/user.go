@@ -208,11 +208,11 @@ func (s *UserServer) DeleteUser(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := sessionPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if p.Method == genDb.DeploymentMethodApiToken || p.Entity.Type != genDb.EntityTypeUser || p.UserID != userID {
+	if p.UserID != userID {
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
 

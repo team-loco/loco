@@ -63,3 +63,42 @@ FOR EACH ROW EXECUTE FUNCTION pause_admin_removal();`)
 		t.Fatalf("account deletion: %v", err)
 	}
 }
+
+func TestConfigRemovalIncludesAClaimThatCommitsWhileItWaits(t *testing.T) {
+	t.Parallel()
+	pool := dbtest.NewPool(t)
+	r := adminResolver(t, pool, "open", adminEmail)
+	user, _, err := r.Resolve(t.Context(), identity("claiming", "before@example.test", true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		rollbackErr := tx.Rollback(context.Background())
+		if rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("rollback claim: %v", rollbackErr)
+		}
+	})
+	claimed, err := r.claimSystemAdmin(t.Context(), genDb.New(tx), user, identity("claiming", adminEmail, true))
+	if err != nil || !claimed {
+		t.Fatalf("claim = %v: %v", claimed, err)
+	}
+	synced := make(chan error, 1)
+	go func() { synced <- SyncSystemAdmins(t.Context(), pool, nil) }()
+	// The reconciler reads the entry as unclaimed, then waits for the live
+	// claim transaction. It must acquire that newly discovered user's lock
+	// before removing the claim and grant.
+	dbtest.WaitForLockWaiters(t, pool, 1)
+	if err := tx.Commit(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-synced; err != nil {
+		t.Fatalf("remove newly claimed entry: %v", err)
+	}
+	if isSystemAdmin(t, pool, user.ID) {
+		t.Fatal("a claim that committed during configuration removal kept its grant")
+	}
+}

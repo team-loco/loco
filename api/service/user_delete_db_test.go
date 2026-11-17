@@ -44,7 +44,11 @@ func TestDeleteUserRemovesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	}
 	deleteCtx := reqctx.WithPrincipal(
 		ctx,
-		reqctx.Principal{Scopes: scopes, UserID: userID, Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}},
+		reqctx.Principal{
+			Scopes: scopes, UserID: userID, Method: genDb.DeploymentMethodCli,
+			ActorType: genDb.DeploymentActorTypeUser, ActorID: userID,
+			Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+		},
 	)
 	deleted := make(chan error, 1)
 	go func() {
@@ -133,8 +137,11 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 			ctx = reqctx.WithPrincipal(
 				ctx,
 				reqctx.Principal{
-					UserID: userID,
-					Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+					UserID:    userID,
+					Method:    genDb.DeploymentMethodCli,
+					ActorType: genDb.DeploymentActorTypeUser,
+					ActorID:   userID,
+					Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
 					Scopes: []genDb.EntityScope{
 						{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
 					},
@@ -174,8 +181,11 @@ func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
 	ctx = reqctx.WithPrincipal(
 		ctx,
 		reqctx.Principal{
-			UserID: userID,
-			Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
+			UserID:    userID,
+			Method:    genDb.DeploymentMethodCli,
+			ActorType: genDb.DeploymentActorTypeUser,
+			ActorID:   userID,
+			Entity:    genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
 			Scopes: []genDb.EntityScope{
 				{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin},
 			},

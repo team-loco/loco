@@ -148,35 +148,27 @@ func (s *TokenServer) CreateToken(
 	var token string
 	var tokenData genDb.CreateAPITokenRow
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		fresh := p
-		authorizer := authz.New(qtx)
-		if p.UserID != uuid.Nil {
-			live, scopeErr := authorizer.UserScopes(ctx, p.UserID)
-			if scopeErr != nil {
-				return fmt.Errorf("reload issuing user permissions: %w", scopeErr)
-			}
-			if p.Method == genDb.DeploymentMethodApiToken {
-				fresh.Scopes, scopeErr = authorizer.Intersect(ctx, p.Scopes, live)
-				if scopeErr != nil {
-					return fmt.Errorf("bound issuing token permissions: %w", scopeErr)
-				}
-			} else {
-				fresh.Scopes = live
-			}
+		lockedCtx, lockErr := lockUserMutation(ctx, qtx)
+		if lockErr != nil {
+			return lockErr
 		}
-		if accessErr := check(ctx, authorizer, fresh, requiredScopes...); accessErr != nil {
+		fresh, principalErr := principalFrom(lockedCtx)
+		if principalErr != nil {
+			return principalErr
+		}
+		if accessErr := check(lockedCtx, authz.New(qtx), fresh, requiredScopes...); accessErr != nil {
 			return accessErr
 		}
-		if limitErr := s.checkTokenLimit(ctx, qtx, targetEntity); limitErr != nil {
+		if limitErr := s.checkTokenLimit(lockedCtx, qtx, targetEntity); limitErr != nil {
 			return limitErr
 		}
 		var issueErr error
 		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
-			Issue(ctx, req.GetName(), issuer, targetEntity, dbScopes, duration)
+			Issue(lockedCtx, req.GetName(), issuer, targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
-		return events.Record(ctx, qtx, tokenEvent(events.TokenCreated, targetEntity, req.GetName()))
+		return events.Record(lockedCtx, qtx, tokenEvent(events.TokenCreated, targetEntity, req.GetName()))
 	})
 	if err != nil {
 		if accessDenied(err) {
