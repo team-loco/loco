@@ -1,23 +1,16 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import {
-	ActivitySchema,
-	DeploymentSchema,
-	DeploymentStatus,
-	ReplicaSchema,
-} from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentSchema, DeploymentStatus, ReplicaSchema } from "@gen/loco/deployment/v1/deployment_pb";
 import { expect, test } from "bun:test";
 
 import {
-	activityRows,
+	activityTime,
 	deploymentElapsedMs,
-	deploymentStatusLabel,
 	groupReplicas,
 	problemLogsHref,
 	progressDeployments,
 	replicaState,
 	stoppingCountdown,
-	showDeploymentLogs,
 } from "./deployment-progress";
 import type { RegionView } from "./model";
 
@@ -111,45 +104,11 @@ test("stopping countdown uses the reported interval and clamps clock skew and ex
 	expect(stoppingCountdown({ ...replica, state: "Stopped" }, 25000)).toBeUndefined();
 });
 
-test("activity keeps sequence order and formats time from deployment start without mutating input", () => {
-	const first = create(ActivitySchema, {
-		seq: 1n,
-		at: timestampFromMs(43000),
-		severity: "ok",
-		replicaName: "web-1",
-		message: "Serving",
-	});
-	const second = create(ActivitySchema, {
-		seq: 2n,
-		at: timestampFromMs(3662000),
-		severity: "error",
-		message: "Exited",
-	});
-	const input = [second, first];
-	expect(activityRows(input, timestampFromMs(1000))).toEqual([
-		{ key: "1", time: "+0:42", severity: "ok", replicaName: "web-1", message: "Serving" },
-		{ key: "2", time: "+61:01", severity: "error", replicaName: "", message: "Exited" },
-	]);
-	expect(input).toEqual([second, first]);
-	expect(activityRows([create(ActivitySchema)], undefined)[0]?.time).toBe("—");
-});
-
-test("headers name each deployment status, without adding the problem to the status label", () => {
-	expect(
-		[
-			DeploymentStatus.BUILDING,
-			DeploymentStatus.DEPLOYING,
-			DeploymentStatus.RUNNING,
-			DeploymentStatus.FAILED,
-			DeploymentStatus.CANCELED,
-			DeploymentStatus.SUPERSEDED,
-		].map((status) => deploymentStatusLabel({ ...pending, status })),
-	).toEqual(["Building", "Deploying", "Running", "Failed", "Canceled", "Superseded"]);
-	expect(
-		deploymentStatusLabel(
-			create(DeploymentSchema, { status: DeploymentStatus.RUNNING, problem: { message: "Unhealthy" } }),
-		),
-	).toBe("Running");
+test("activity time counts minutes and seconds from deployment start", () => {
+	expect(activityTime(timestampFromMs(43000), timestampFromMs(1000))).toBe("+0:42");
+	expect(activityTime(timestampFromMs(3662000), timestampFromMs(1000))).toBe("+61:01");
+	expect(activityTime(undefined, timestampFromMs(1000))).toBe("—");
+	expect(activityTime(timestampFromMs(1000), undefined)).toBe("—");
 });
 
 test("problem log links preserve scope and target replica or failed build", () => {
@@ -162,6 +121,9 @@ test("problem log links preserve scope and target replica or failed build", () =
 	expect(problemLogsHref("/logs?env=prod", build)).toBe("/logs?env=prod&q=%40build%3Abuild-1");
 	expect(problemLogsHref(undefined, deployment)).toBeUndefined();
 	expect(problemLogsHref("/logs", pending)).toBeUndefined();
+	expect(
+		problemLogsHref("/logs", create(DeploymentSchema, { problem: { message: "No target replica" } })),
+	).toBeUndefined();
 });
 
 test("elapsed rollout time includes the build and stops when ready or finished", () => {
@@ -178,19 +140,4 @@ test("elapsed rollout time includes the build and stops when ready or finished",
 	).toBe(15000);
 	expect(deploymentElapsedMs({ ...pending, createdAt: undefined }, 20000)).toBeUndefined();
 	expect(deploymentElapsedMs(pending, 0)).toBe(0);
-});
-
-test("the panel offers logs only when the problem card has no targeted link", () => {
-	const replicaProblem = create(DeploymentSchema, { problem: { replicaName: "web-1" } });
-	const buildProblem = create(DeploymentSchema, {
-		problem: { reason: "build_failed" },
-		spec: { spec: { case: "service", value: { build: { buildId: "build-1" } } } },
-	});
-	expect(showDeploymentLogs("/logs", replicaProblem)).toBe(false);
-	expect(showDeploymentLogs("/logs", buildProblem)).toBe(false);
-	expect(showDeploymentLogs("/logs", pending)).toBe(true);
-	expect(showDeploymentLogs("/logs", create(DeploymentSchema, { problem: { message: "No target replica" } }))).toBe(
-		true,
-	);
-	expect(showDeploymentLogs(undefined, pending)).toBe(false);
 });

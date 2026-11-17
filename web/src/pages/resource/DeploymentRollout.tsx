@@ -10,7 +10,7 @@ import { Progress } from "@/components/design/Progress";
 import { useNow } from "@/hooks/useNow";
 import { cn } from "@/lib/utils";
 
-import { activityRows, groupReplicas, problemLogsHref, replicaState, stoppingCountdown } from "./deployment-progress";
+import { activityTime, groupReplicas, problemLogsHref, replicaState, stoppingCountdown } from "./deployment-progress";
 
 // Keeps the feed scrolled to the newest entry while the reader is at the bottom.
 function followActivity(node: HTMLDivElement) {
@@ -46,7 +46,6 @@ export function DeploymentRollout({
 	const now = useNow(deployment.replicas.some((r) => r.state === "Stopping") ? 1000 : undefined).getTime();
 	const problem = deployment.problem;
 	const problemHref = problemLogsHref(logsHref, deployment);
-	const rows = activityRows(activity, deployment.createdAt);
 	return (
 		<div className="flex min-w-0 flex-col gap-4">
 			{problem !== undefined && (
@@ -127,27 +126,27 @@ export function DeploymentRollout({
 					aria-label="Activity feed"
 					className="max-h-64 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-3 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-ring"
 				>
-					{rows.length === 0 && <p className="m-0 text-[12px] text-fg3">Waiting for activity…</p>}
+					{activity.length === 0 && <p className="m-0 text-[12px] text-fg3">Waiting for activity…</p>}
 					<ol className="m-0 flex list-none flex-col gap-2 p-0">
-						{rows.map((row) => (
+						{activity.map((entry) => (
 							<li
-								key={row.key}
+								key={String(entry.seq)}
 								className="grid grid-cols-[3.5rem_0.5rem_minmax(0,1fr)] items-baseline gap-2 text-[12px]"
 							>
-								<span className="font-mono text-fg3 tabular-nums">{row.time}</span>
+								<span className="font-mono text-fg3 tabular-nums">{activityTime(entry.at, deployment.createdAt)}</span>
 								<span
 									className={cn(
 										"size-1.5 self-start mt-1.5 rounded-full bg-info",
-										row.severity === "ok" && "bg-ok-glyph",
-										row.severity === "warn" && "bg-warn",
-										row.severity === "error" && "bg-bad-fg",
+										entry.severity === "ok" && "bg-ok-glyph",
+										entry.severity === "warn" && "bg-warn",
+										entry.severity === "error" && "bg-bad-fg",
 									)}
 								>
-									<span className="sr-only">{row.severity}</span>
+									<span className="sr-only">{entry.severity}</span>
 								</span>
 								<span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-									{row.replicaName !== "" && <span className="mr-2 font-mono text-fg3">{row.replicaName}</span>}
-									{row.message}
+									{entry.replicaName !== "" && <span className="mr-2 font-mono text-fg3">{entry.replicaName}</span>}
+									{entry.message}
 								</span>
 							</li>
 						))}

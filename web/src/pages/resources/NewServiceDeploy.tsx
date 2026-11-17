@@ -13,12 +13,13 @@ import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb
 
 import { Button } from "@/components/design/Button";
 import { SheetBody, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
+import { deploymentPhaseStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { Banner } from "@/components/design/Banner";
 import { useNow } from "@/hooks/useNow";
 import { isInFlight, shortSha } from "@/lib/deployment-utils";
 import { formatBuildDuration } from "@/pages/resource/builds";
-import { deploymentElapsedMs, deploymentStatusLabel, showDeploymentLogs } from "@/pages/resource/deployment-progress";
+import { deploymentElapsedMs, problemLogsHref } from "@/pages/resource/deployment-progress";
 import { DeploymentRollout } from "@/pages/resource/DeploymentRollout";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { runOutcome, type RunOutcome } from "@/lib/deploy-progress";
@@ -246,7 +247,7 @@ function DeploymentHeading({ deployment }: { deployment: Deployment }) {
 	return (
 		<div className="flex flex-wrap items-baseline justify-between gap-2 text-[13px]">
 			<span role="status" className="font-medium">
-				{deploymentStatusLabel(deployment)}
+				{deploymentPhaseStyle(deployment.status).label}
 			</span>
 			{elapsed !== undefined && (
 				<span className="font-mono text-[12px] text-fg3">Elapsed {formatBuildDuration(elapsed)}</span>
@@ -314,7 +315,7 @@ export function DeployRunView({
 								<>
 									<DeploymentHeading deployment={r.watch.deployment} />
 									<DeploymentRollout deployment={r.watch.deployment} activity={r.watch.activity} logsHref={logsHref} />
-									{showDeploymentLogs(logsHref, r.watch.deployment) && (
+									{problemLogsHref(logsHref, r.watch.deployment) === undefined && (
 										<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
 											View logs
 										</Button>

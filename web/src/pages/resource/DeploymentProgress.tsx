@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import { Button } from "@/components/design/Button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
 import { CopyId } from "@/components/design/CopyId";
+import { deploymentPhaseStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
@@ -19,12 +20,7 @@ import { tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { formatBuildDuration, isBuildFinished } from "./builds";
-import {
-	deploymentElapsedMs,
-	deploymentStatusLabel,
-	progressDeployments,
-	showDeploymentLogs,
-} from "./deployment-progress";
+import { deploymentElapsedMs, problemLogsHref, progressDeployments } from "./deployment-progress";
 import { DeploymentRollout } from "./DeploymentRollout";
 import { depImage, depTag, type RegionView } from "./model";
 
@@ -67,7 +63,7 @@ function ProgressPanel({
 	const build = buildQuery.data?.build;
 	const failed = phase === DeploymentStatus.FAILED;
 	const canceled = phase === DeploymentStatus.CANCELED;
-	const title = deploymentStatusLabel(deployment);
+	const title = deploymentPhaseStyle(phase).label;
 	const elapsed = deploymentElapsedMs(deployment, nowMs);
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
 	const { path, tag, digest } = parseImage(depImage(deployment));
@@ -133,7 +129,7 @@ function ProgressPanel({
 						{deploymentMethod(deployment) !== "" && ` · ${deploymentMethod(deployment)}`}
 					</span>
 				)}
-				{!commit && <span className="min-w-0 break-all font-mono text-[12px] text-fg2">{depImage(deployment)}</span>}
+				{!commit && <span className="min-w-0 break-all font-mono text-[12px] text-fg2">{image}</span>}
 				{commit && (
 					<span className="font-mono text-[12px] text-fg2" title={commit}>
 						{shortSha(commit)}
@@ -180,7 +176,7 @@ function ProgressPanel({
 			)}
 			{failed && (
 				<div className="flex flex-wrap gap-2">
-					{showDeploymentLogs(logsHref, deployment) && logsHref !== undefined && (
+					{logsHref !== undefined && problemLogsHref(logsHref, deployment) === undefined && (
 						<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
 							<LogsIcon />
 							View logs

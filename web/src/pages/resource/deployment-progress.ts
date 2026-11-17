@@ -1,5 +1,5 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { DeploymentStatus, type Activity, type Deployment, type Replica } from "@gen/loco/deployment/v1/deployment_pb";
+import type { Deployment, Replica } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { BadgeTone } from "@/components/design/Badge";
 import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
@@ -18,19 +18,6 @@ export function progressDeployments(regions: readonly RegionView[]) {
 		if (deployment === undefined) return [];
 		return [{ region, deployment, previous: lastGoodDeployment({ ...region, current: deployment, history }) }];
 	});
-}
-
-export function deploymentStatusLabel(deployment: Deployment): string {
-	const labels: Record<DeploymentStatus, string> = {
-		[DeploymentStatus.UNSPECIFIED]: "Unknown",
-		[DeploymentStatus.BUILDING]: "Building",
-		[DeploymentStatus.DEPLOYING]: "Deploying",
-		[DeploymentStatus.RUNNING]: "Running",
-		[DeploymentStatus.FAILED]: "Failed",
-		[DeploymentStatus.CANCELED]: "Canceled",
-		[DeploymentStatus.SUPERSEDED]: "Superseded",
-	};
-	return labels[deployment.status];
 }
 
 export function deploymentElapsedMs(deployment: Deployment, nowMs: number): number | undefined {
@@ -83,22 +70,12 @@ export function stoppingCountdown(replica: Replica, nowMs: number) {
 	};
 }
 
-export function activityRows(activity: readonly Activity[], startedAt: Timestamp | undefined) {
-	const started = maybeTsMs(startedAt);
-	return activity
-		.toSorted((a, b) => (a.seq < b.seq ? -1 : a.seq > b.seq ? 1 : 0))
-		.map((entry) => {
-			const at = maybeTsMs(entry.at);
-			const seconds =
-				started === undefined || at === undefined ? undefined : Math.max(0, Math.floor((at - started) / 1000));
-			return {
-				key: String(entry.seq),
-				time: seconds === undefined ? "—" : `+${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`,
-				severity: entry.severity,
-				replicaName: entry.replicaName,
-				message: entry.message,
-			};
-		});
+export function activityTime(at: Timestamp | undefined, startedAt: Timestamp | undefined): string {
+	const atMs = maybeTsMs(at);
+	const startedMs = maybeTsMs(startedAt);
+	if (atMs === undefined || startedMs === undefined) return "—";
+	const seconds = Math.max(0, Math.floor((atMs - startedMs) / 1000));
+	return `+${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 export function problemLogsHref(logsHref: string | undefined, deployment: Deployment): string | undefined {
@@ -115,8 +92,4 @@ export function problemLogsHref(logsHref: string | undefined, deployment: Deploy
 	const params = new URLSearchParams(search);
 	params.set("q", query);
 	return `${path}?${params}`;
-}
-
-export function showDeploymentLogs(logsHref: string | undefined, deployment: Deployment): boolean {
-	return logsHref !== undefined && problemLogsHref(logsHref, deployment) === undefined;
 }
