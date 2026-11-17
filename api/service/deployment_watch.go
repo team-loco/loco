@@ -50,7 +50,7 @@ func (s *DeploymentServer) WatchDeployment(
 	cursor := req.GetAfterSeq()
 	var previous *deploymentv1.Deployment
 	for {
-		deployment, activity, readErr := s.readDeployment(ctx, id, cursor)
+		deployment, activity, final, readErr := s.readDeployment(ctx, id, cursor)
 		if readErr != nil {
 			return readErr
 		}
@@ -76,7 +76,7 @@ func (s *DeploymentServer) WatchDeployment(
 		if hasMore {
 			continue
 		}
-		if isTerminalDeploymentStatus(deployment.GetStatus()) {
+		if final {
 			return nil
 		}
 		select {
@@ -130,9 +130,10 @@ func (s *DeploymentServer) readDeployment(
 	ctx context.Context,
 	id uuid.UUID,
 	cursor int64,
-) (*deploymentv1.Deployment, []*deploymentv1.Activity, error) {
+) (*deploymentv1.Deployment, []*deploymentv1.Activity, bool, error) {
 	var deployment *deploymentv1.Deployment
 	var activity []*deploymentv1.Activity
+	var final bool
 	err := pgx.BeginTxFunc(
 		ctx,
 		s.db,
@@ -150,6 +151,8 @@ func (s *DeploymentServer) readDeployment(
 			if err != nil {
 				return err
 			}
+			final = isTerminalDeploymentStatus(deployment.GetStatus()) ||
+				(row.Deployment.Status == genDb.DeploymentStatusFailed && !row.Deployment.IsActive)
 			rows, err := q.ListDeploymentActivity(
 				ctx,
 				genDb.ListDeploymentActivityParams{
@@ -166,9 +169,9 @@ func (s *DeploymentServer) readDeployment(
 		},
 	)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
-	return deployment, activity, nil
+	return deployment, activity, final, nil
 }
 
 func activityToProto(rows []genDb.DeploymentActivity) []*deploymentv1.Activity {

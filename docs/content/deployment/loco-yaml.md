@@ -217,7 +217,11 @@ services:
         rollbackOnFailure: false
 ```
 
-Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
+Changing the setting rolls out nothing. A deployment's explicit value takes precedence over the service's current value; otherwise the service setting applies when the deployment fails.
+
+When the newest deployment in a resource, environment and region reaches its rollout deadline or exhausts apply retries, Loco restores the newest older deployment there that ran. Its cluster must still accept applications, the resource's placement there must not belong to another environment, and a source build's image must still be retained. If the target is unavailable, the failed deployment stays active. The restored deployment runs with its own configuration and the service's current environment variables. The restored deployment is active and shows `deploying` until it is available again, then `running`. The failed deployment stays `failed`, becomes inactive and its watch stream ends. Both deployments record the restoration in their activity.
+
+Only the newest deployment can trigger rollback. A restored deployment is older than the failed one, so it cannot trigger another automatic rollback if it fails. A failed build has placed nothing and never triggers rollback. If there is no eligible previous deployment, or rollback is off, the failed deployment stays active and can recover to `running`.
 
 ## Variables and secrets
 

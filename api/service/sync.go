@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
+	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -609,7 +610,7 @@ func (s *AgentServer) recordApplyError(
 				genDb.DeploymentStatusDeploying,
 				genDb.DeploymentStatusRunning,
 			),
-		}, errMessage)
+		}, errMessage, s.config.ServiceDefaults)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record apply error", "placement_id", placementID, "error", err)
@@ -713,6 +714,9 @@ func (s *AgentServer) recordStatus(
 		if !deployment.IsActive {
 			return nil
 		}
+		if ingestErr := ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status); ingestErr != nil {
+			return ingestErr
+		}
 		next := nextDeploymentStatus(deployment.Status, status)
 		if next != deployment.Status {
 			if transitionErr := advanceDeploymentStatus(
@@ -722,7 +726,7 @@ func (s *AgentServer) recordStatus(
 					ID:           deployment.ID,
 					Status:       next,
 					FromStatuses: deploymentStatusNames(deployment.Status),
-				}, status.GetMessage(),
+				}, status.GetMessage(), s.config.ServiceDefaults,
 			); transitionErr != nil {
 				return transitionErr
 			}
@@ -733,7 +737,7 @@ func (s *AgentServer) recordStatus(
 			}
 		}
 
-		return ingestRollout(ctx, qtx, *row.DeploymentID, row.DesiredRevision, status)
+		return nil
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record placement status", "placement_id", placementID, "error", err)
@@ -746,6 +750,7 @@ func advanceDeploymentStatus(
 	qtx *genDb.Queries,
 	params genDb.AdvanceDeploymentStatusParams,
 	message string,
+	defaults servicedefaults.Defaults,
 ) error {
 	changed, err := qtx.AdvanceDeploymentStatus(ctx, params)
 	if err != nil {
@@ -779,7 +784,7 @@ func advanceDeploymentStatus(
 	if params.Status == genDb.DeploymentStatusRunning {
 		kind = events.DeploymentReady
 	}
-	return events.Record(ctx, qtx, events.Event{
+	if err := events.Record(ctx, qtx, events.Event{
 		Type:          kind,
 		ActorType:     string(d.ActorType),
 		ActorID:       &d.ActorID,
@@ -788,7 +793,13 @@ func advanceDeploymentStatus(
 		SubjectType:   events.SubjectDeployment,
 		SubjectID:     &params.ID,
 		Data:          data,
-	})
+	}); err != nil {
+		return err
+	}
+	if params.Status == genDb.DeploymentStatusFailed {
+		return rollbackDeploymentIfEnabled(ctx, qtx, params.ID, defaults)
+	}
+	return nil
 }
 
 func deploymentStatusNames(statuses ...genDb.DeploymentStatus) []string {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -76,7 +75,7 @@ func updateBuildingDeployments(
 		status := deployment.Status
 		switch build.Status {
 		case genDb.BuildStatusSucceeded:
-			if err := placeBuiltDeployment(ctx, qtx, deployment, build, defaults); err != nil {
+			if err := placeDeployment(ctx, qtx, deployment, buildImage(build), nil, defaults); err != nil {
 				return err
 			}
 			status = genDb.DeploymentStatusDeploying
@@ -91,7 +90,7 @@ func updateBuildingDeployments(
 		if status != deployment.Status {
 			if err := advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
 				ID: deployment.ID, Status: status, FromStatuses: []string{string(genDb.DeploymentStatusBuilding)},
-			}, build.Message); err != nil {
+			}, build.Message, defaults); err != nil {
 				return err
 			}
 		}
@@ -115,64 +114,4 @@ func storeBuildProblem(ctx context.Context, qtx *genDb.Queries, deploymentID uui
 		return fmt.Errorf("open build rollout: %w", err)
 	}
 	return qtx.StoreRollout(ctx, genDb.StoreRolloutParams{DeploymentID: deploymentID, Snapshot: snapshot})
-}
-
-func placeBuiltDeployment(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	deployment genDb.Deployment,
-	build genDb.Build,
-	defaults servicedefaults.Defaults,
-) error {
-	resource, err := qtx.GetResourceByID(ctx, deployment.ResourceID)
-	if err != nil {
-		return fmt.Errorf("read build deployment resource: %w", err)
-	}
-	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-	if err != nil {
-		return err
-	}
-	spec, err := converter.DeserializeDeploymentSpec(deployment.Spec, resource.Type)
-	if err != nil {
-		return err
-	}
-	image := buildImage(build)
-	spec.GetService().GetBuild().Image = image
-	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
-	if err != nil {
-		return err
-	}
-	env, err := qtx.GetEnvironmentByID(ctx, deployment.EnvironmentID)
-	if err != nil {
-		return err
-	}
-	hostname, err := primaryHostname(ctx, qtx, resource.ID, env.ID)
-	if err != nil {
-		return err
-	}
-	desired := desiredApplicationSpec(
-		resource,
-		owner.OrgID,
-		resourceSpec,
-		hostname,
-		spec,
-		deployment.Region,
-		env.ID,
-		env.Name,
-		defaults,
-	)
-	payload, err := desired(deployment.ID)
-	if err != nil {
-		return err
-	}
-	if err := qtx.SetDeploymentBuildImage(
-		ctx,
-		genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image},
-	); err != nil {
-		return err
-	}
-	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID: resource.ID, EnvironmentID: env.ID, Region: deployment.Region, ClusterID: deployment.ClusterID,
-		DeploymentID: &deployment.ID, SecretNames: deployment.SecretNames, DesiredSpec: payload,
-	})
 }
