@@ -3,6 +3,10 @@ name: E2E
 on:
   workflow_call:
     inputs:
+      shards:
+        description: JSON array of test packages.
+        type: string
+        required: true
       images:
         description: Prebuilt images, with * standing for the image name; empty builds them here.
         type: string
@@ -22,7 +26,7 @@ jobs:
   # Each shard is one tests/e2e package: one install that its tests share, each in its own
   # organization and workspace.
   shard:
-    name: ${{ matrix.name }}
+    name: ${{ matrix.shard }} E2E
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -32,13 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Builds E2E
-            shard: builds
-          - name: Apps E2E
-            shard: apps
-          - name: Telemetry E2E
-            shard: telemetry
+        shard: ${{ fromJSON(inputs.shards || '["apps","builds","telemetry"]') }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

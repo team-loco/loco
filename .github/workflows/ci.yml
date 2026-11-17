@@ -60,6 +60,7 @@ jobs:
       workflows: ${{ steps.select.outputs.workflows }}
       markers: ${{ steps.select.outputs.markers }}
       go-modules: ${{ steps.select.outputs.go-modules }}
+      e2e-shards: ${{ steps.select.outputs.e2e-shards }}
     steps:
       # Protection reads only the newest head's CI Gate, so a run for a head the
       # PR has replaced is wasted runner time. Only older runs are cancelled: a
@@ -92,6 +93,22 @@ jobs:
         with:
           go-cache: ci-changes
 
+      - name: Find a successful duplicate of this PR update
+        id: duplicate
+        if: github.event.action == 'synchronize' && github.run_attempt == 1 && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if prior=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" \
+            -f event=pull_request -f head_sha="$HEAD" -F per_page=100 |
+            jq -r --argjson current "$GITHUB_RUN_ID" --argjson pr "$PR" --arg repo "$GITHUB_REPOSITORY" \
+              --arg merge "$GITHUB_SHA" -f .github/ci-duplicate.jq) && [[ -n "$prior" ]]; then
+            echo "Reusing deterministic checks from run $prior"
+            echo 'passed=true' >> "$GITHUB_OUTPUT"
+          fi
+
       # A run restores caches of its own ref, a pull request's base branch and
       # the default branch.
       - name: Select the workflows the changed files need
@@ -101,8 +118,9 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
+          DUPLICATE: ${{ steps.duplicate.outputs.passed || 'false' }}
           MARKER_REFS: refs/heads/${{ github.event.repository.default_branch }}
-        run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD" -marker-refs "$MARKER_REFS"
+        run: go run ./tools/ci-changes -event "$GITHUB_EVENT_NAME" -base "$BASE" -head "$HEAD" -marker-refs "$MARKER_REFS" -duplicate="$DUPLICATE"
 
   auth-conformance:
     name: Auth Conformance
@@ -180,6 +198,7 @@ jobs:
       packages: read
     uses: ./.github/workflows/e2e.yml
     with:
+      shards: ${{ needs.changes.outputs.e2e-shards }}
       images: ${{ needs.images.outputs.images }}
 
   e2e-installation:

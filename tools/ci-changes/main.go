@@ -35,9 +35,12 @@ func main() {
 	head := flag.String("head", "", "pull request head commit, or the pushed commit")
 	markerRefs := flag.String("marker-refs", "",
 		"comma-separated refs whose caches the run can read; empty looks up no pass markers")
+	duplicate := flag.Bool("duplicate", false, "reuse deterministic checks of an identical successful PR run")
 	flag.Parse()
 	var lookup markerLookup
-	if *markerRefs != "" {
+	if *duplicate && *event == "pull_request" {
+		lookup = func(context.Context, string) (bool, error) { return true, nil }
+	} else if *markerRefs != "" {
 		lookup = cacheLookup(strings.Split(*markerRefs, ","))
 	}
 	if err := run(context.Background(), *config, *event, *base, *head, os.Getenv("GITHUB_OUTPUT"), lookup); err != nil {
@@ -76,7 +79,7 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 		return fmt.Errorf("open $GITHUB_OUTPUT: %w", err)
 	}
 	defer output.Close()
-	return writeSelection(io.MultiWriter(output, os.Stdout), withUsers(filters, own), keys, modules.affected(files))
+	return writeSelection(io.MultiWriter(output, os.Stdout), withUsers(filters, own), keys, modules.affected(files), affectedShards(filters["e2e"].events[event], files))
 }
 
 // filter is one event's ordered pattern list; a later pattern overrides an
@@ -213,7 +216,30 @@ func withUsers(all filters, own map[string]bool) map[string]bool {
 	return selected
 }
 
-func writeSelection(w io.Writer, selected map[string]bool, markers map[string]string, goModules []string) error {
+// A test in a shard package is compiled only into that package's test binary.
+// All other E2E inputs, including shared code and fixtures, exercise every shard.
+func affectedShards(inputs filter, files []string) []string {
+	all := []string{"apps", "builds", "telemetry"}
+	if files == nil {
+		return all
+	}
+	var selected []string
+	for _, file := range files {
+		if !inputs.matches(file) {
+			continue
+		}
+		dir, name, ok := strings.Cut(strings.TrimPrefix(file, "tests/e2e/"), "/")
+		if !strings.HasPrefix(file, "tests/e2e/") || !ok || !slices.Contains(all, dir) ||
+			strings.Contains(name, "/") || !strings.HasSuffix(name, "_test.go") {
+			return all
+		}
+		selected = append(selected, dir)
+	}
+	slices.Sort(selected)
+	return slices.Compact(selected)
+}
+
+func writeSelection(w io.Writer, selected map[string]bool, markers map[string]string, goModules, shards []string) error {
 	var b strings.Builder
 	for _, workflow := range slices.Sorted(maps.Keys(selected)) {
 		fmt.Fprintf(&b, "%s=%t\n", workflow, selected[workflow])
@@ -221,7 +247,7 @@ func writeSelection(w io.Writer, selected map[string]bool, markers map[string]st
 	for _, output := range []struct {
 		name  string
 		value any
-	}{{"markers", markers}, {"go-modules", goModules}} {
+	}{{"markers", markers}, {"go-modules", goModules}, {"e2e-shards", shards}} {
 		encoded, err := json.Marshal(output.value)
 		if err != nil {
 			return err
