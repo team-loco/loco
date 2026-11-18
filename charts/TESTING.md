@@ -47,7 +47,7 @@ mise run chart:schema
 mise run test:charts
 ```
 
-`test:charts` builds the chart dependencies and runs `untt`, helm-unittest's standalone binary, on both charts. Each chart keeps its suites in `tests/*_test.yaml`, one per template or feature, and the value files they share in `tests/values/`. Suites read the chart's `ci/default-values.yaml` for its required values. Address a subchart's template through its alias, for example `charts/otel-col-daemon/templates/daemonset.yaml`.
+`test:charts` builds the chart dependencies and runs `untt`, helm-unittest's standalone binary, on both charts. Each chart keeps its suites in `tests/*_test.yaml`, one per template or feature, and the value files they share in `tests/values/`. `loco-worker/tests/kind-values.yaml` holds the values the kind installation tests add. Suites read the chart's `ci/default-values.yaml` for its required values. Address a subchart's template through its alias, for example `charts/otel-col-daemon/templates/daemonset.yaml`.
 
 Run one suite while you work on it:
 
@@ -60,13 +60,13 @@ Each test asserts one property: `equal` on the field another component reads, `c
 
 ## Collector configuration
 
-loco-worker renders each OpenTelemetry Collector's configuration as a YAML string in the `relay` key of a ConfigMap. helm-unittest cannot assert inside a string, so the tests of that configuration are pytest in `tests/collector`, next to the test that runs the chart-pinned collector against it:
+loco-worker renders each OpenTelemetry Collector's configuration as a YAML string in the `relay` key of a ConfigMap. helm-unittest checks that string only with `matchRegex`, so the tests that parse the configuration are pytest in `tests/collector`, next to the test that runs the chart-pinned collector against it:
 
 ```sh
 mise run test:collectors
 ```
 
-The same directory holds the two tests helm-unittest cannot express: one compares the pod checksum annotation across two renders, and one compares resource quantities.
+The same directory holds the tests helm-unittest cannot express: one compares the pod checksum annotation across two renders, one compares resource quantities, and `test_control_plane_values.py` checks which API settings loco-control-plane accepts.
 
 ## Installation tests
 

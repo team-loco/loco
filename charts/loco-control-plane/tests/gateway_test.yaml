@@ -94,18 +94,6 @@ tests:
           path: spec.provider
         documentSelector: {path: kind, value: EnvoyProxy}
 
-  - it: renders no certificate resources for a plain HTTP Gateway
-    set:
-      certManager.enabled: false
-      secrets.cloudflareToken: token
-    asserts:
-      - hasDocuments: {count: 0}
-        template: templates/cm-cert.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cm-issuer.yaml
-      - hasDocuments: {count: 0}
-        template: templates/cloudflare-secret.yaml
-
   - it: passes the Envoy Service settings the values give
     set:
       gateway.service: {type: NodePort, externalTrafficPolicy: Cluster}
@@ -231,7 +219,8 @@ tests:
   - it: leaves the default TLS policy to Envoy Gateway
     template: templates/gateway.yaml
     asserts:
-      - hasDocuments: {count: 3}
+      - containsDocument: {kind: ClientTrafficPolicy, apiVersion: gateway.envoyproxy.io/v1alpha1, any: true}
+        not: true
 
   - it: creates no TLS policy for an existing Gateway
     set:

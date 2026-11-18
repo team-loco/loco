@@ -64,7 +64,7 @@ app.kubernetes.io/name: loco-build-controller
 {{- end }}
 
 {{- define "loco-worker.buildConfig" -}}
-{{- omit .Values.builds "controller" "podSecurity" | toJson }}
+{{- omit .Values.builds "controller" "podSecurity" "createNamespace" | toJson }}
 {{- end }}
 
 {{- define "loco-worker.runsApps" -}}

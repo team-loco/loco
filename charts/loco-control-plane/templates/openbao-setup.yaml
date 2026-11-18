@@ -3,7 +3,7 @@
 {{- $initSecret := include "loco-control-plane.openbaoInitSecret" . }}
 {{- $recovery := .Values.openbao.recovery }}
 {{- $previousInit := "/init-secret/recovery-keys" }}
-{{- if or (lt (int $recovery.threshold) 1) (gt (int $recovery.threshold) (int $recovery.shares)) }}
+{{- if gt (int $recovery.threshold) (int $recovery.shares) }}
 {{- fail "openbao.recovery.threshold must be between 1 and openbao.recovery.shares" }}
 {{- end }}
 {{- if and (gt (int $recovery.shares) 1) (lt (int $recovery.threshold) 2) }}

@@ -8,7 +8,7 @@ The agent reads `agent.joinToken.existingSecret` (key `agent.joinToken.secretKey
 
 `controller.minReadySeconds` requires a new replica to stay ready before it replaces an old one. `controller.drainSeconds` is the positive whole-second delay before Kubernetes signals a retiring service container to stop, defaulting to 5. The chart supplies it as `LOCO_DRAIN_SECONDS`; an Application controller run outside the chart must set that variable too. Kubernetes runs the delay as a native preStop sleep, so application images need no shell or sleep command.
 
-The delay lets routing remove the retiring endpoint while the process still accepts traffic. Increase it when endpoint withdrawal takes longer in the cluster; it does not guarantee convergence while the control plane or routing is stalled. The Pod's total termination grace is the drain delay plus Kubernetes' default 30-second process shutdown budget. Portless workers retain their normal shutdown behavior. Updating the drain setting rolls serving Pod templates; existing Pods acquire the hook only when replaced.
+The delay lets routing remove the retiring endpoint while the process accepts traffic. Increase it when endpoint withdrawal takes longer in the cluster; it does not guarantee convergence while the control plane or routing is stalled. The Pod's total termination grace is the drain delay plus Kubernetes' default 30-second process shutdown budget. Workers without ports stop without the delay. Changing the drain setting rolls serving Pod templates, and each Pod gets the hook when it is replaced.
 
 ## Resource metrics
 
@@ -98,7 +98,7 @@ The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTT
 | Collector | Collects |
 | --- | --- |
 | `otel-col-deploy` (StatefulSet) | OTLP from applications and Envoy |
-| `otel-col-daemon` (DaemonSet) | Container logs, kubelet and host metrics |
+| `otel-col-daemon` (DaemonSet) | Container logs and kubelet metrics |
 | `otel-col-cluster` (StatefulSet) | Kubernetes cluster metrics and events |
 
 ```yaml
@@ -129,7 +129,7 @@ global:
     environment: development
 ```
 
-`platformOnly: true` with `otel-col-deploy.enabled: false` keeps only the platform pipelines. Names, units and availability follow the pinned [kubelet statistics](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.163.0/receiver/kubeletstatsreceiver) and [cluster](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.163.0/receiver/k8sclusterreceiver) receivers.
+`platformOnly: true` with `otel-col-deploy.enabled: false` keeps only the platform pipelines. Names, units and availability follow the pinned [kubelet statistics](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.165.0/receiver/kubeletstatsreceiver) and [cluster](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.165.0/receiver/k8sclusterreceiver) receivers.
 
 ```sh
 mise run test:collectors
