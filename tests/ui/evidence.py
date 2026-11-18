@@ -17,6 +17,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tomllib
 import urllib.error
 import urllib.request
 import uuid
@@ -35,7 +36,9 @@ DB_NAME = "evidence"
 SESSION_PREFIX = "loco_s_"
 MODE_KEY = "loco:mode:v1"
 COLOR_KEY = "loco:color:v1"
-AUTH_KEY = "loco:auth:oidc:v1"
+LEGACY_AUTH_KEY = "loco:auth:oidc:v1"
+SESSION_COOKIE = "__Host-loco_session"
+REFRESH_COOKIE = "__Host-loco_refresh"
 THEMES = ("light", "dark")
 DESKTOP = {"width": 1280, "height": 800}
 NARROW = {"width": 390, "height": 844}
@@ -269,8 +272,8 @@ def read_api_env(text):
     return values
 
 
-def api_env(dev_env, db_port, api_port, ui_port):
-    issuer = f"http://{HOST}:{ui_port}/dex"
+def api_env(dev_env, db_port, api_port, ui_port, issuer=None):
+    issuer = issuer or f"http://{HOST}:{ui_port}/dex"
     unused = free_port({db_port, api_port, ui_port})
     env = dict(dev_env)
     env.update(
@@ -616,13 +619,22 @@ def seed(state, scenario):
             f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {scope_rows};",
         )
         token = session_token()
+        columns, extra = "", ""
+        if state["cookie_session"]:
+            identity = psql(
+                container,
+                "INSERT INTO identities (user_id, issuer, subject, email, email_verified) "
+                f"VALUES ({sql_literal(user_id)}, {sql_literal(state['issuer'])}, "
+                f"{sql_literal('evidence-' + key)}, {sql_literal(user['email'])}, true) RETURNING id;",
+            )
+            columns, extra = ", kind, identity_id", f", 'web', {sql_literal(identity)}"
         psql(
             container,
             "INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, "
-            "access_expires_at, refresh_expires_at) VALUES "
+            f"access_expires_at, refresh_expires_at{columns}) VALUES "
             f"({sql_literal(uuid.uuid4())}, {sql_literal(token_hash(token))}, "
             f"{sql_literal(token_hash('refresh-' + token))}, {sql_literal(user_id)}, "
-            f"NOW() + INTERVAL '{SESSION_TTL}', NOW() + INTERVAL '{SESSION_TTL}');",
+            f"NOW() + INTERVAL '{SESSION_TTL}', NOW() + INTERVAL '{SESSION_TTL}'{extra});",
         )
         users[key] = {"id": user_id, "email": user["email"], "token": token}
 
@@ -847,7 +859,7 @@ def reap():
             subprocess.run(["docker", "rm", "-f", "-v", name], capture_output=True)
 
 
-def start_state(*, ref, name, scenario):
+def start_state(*, ref, name, scenario, issuer=None):
     reap()
     repo = repo_root()
     openbao = os.environ.get(OPENBAO_ENV)
@@ -897,6 +909,9 @@ def start_state(*, ref, name, scenario):
                 "ports": {"db": db_port, "api": api_port, "ui": ui_port},
                 "api_url": f"http://{HOST}:{api_port}",
                 "ui_url": f"http://{HOST}:{ui_port}",
+                "issuer": issuer or f"http://{HOST}:{ui_port}/dex",
+                # A screenshot can compare this checkout with a pre-cookie ref.
+                "cookie_session": not (worktree / "web/src/auth/session.ts").is_file(),
             }
         )
         write_json(state_path, state)
@@ -952,7 +967,9 @@ def start_state(*, ref, name, scenario):
             spawn(
                 api_cmd,
                 worktree,
-                dict(env, **api_env(dev_env, db_port, api_port, ui_port)),
+                dict(
+                    env, **api_env(dev_env, db_port, api_port, ui_port, state["issuer"])
+                ),
                 api_log,
             )
         )
@@ -1020,15 +1037,17 @@ def runtime_config(api_url):
 
 
 class UIHandler(http.server.SimpleHTTPRequestHandler):
-    """Serve web/dist like the UI image: the discovery document and runtime config
-    this run's addresses need, then files, then index.html for app routes."""
+    """Serve the production UI with the chart's same-origin /api forwarding."""
 
-    def __init__(self, *args, api_url, **kwargs):
+    def __init__(self, *args, api_url, csp="", **kwargs):
         self.api_url = api_url
+        self.csp = csp
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path.startswith("/api/"):
+            return self.proxy_api()
         if path == DISCOVERY_PATH:
             host, port = self.server.server_address[:2]
             return self.send_body(
@@ -1036,8 +1055,51 @@ class UIHandler(http.server.SimpleHTTPRequestHandler):
                 json.dumps(discovery_document(f"http://{host}:{port}/dex")),
             )
         if path == RUNTIME_CONFIG_PATH:
-            return self.send_body("text/javascript", runtime_config(self.api_url))
+            return self.send_body("text/javascript", runtime_config("/api"))
         return super().do_GET()
+
+    def do_POST(self):
+        if self.path.startswith("/api/"):
+            return self.proxy_api()
+        self.send_error(501, "Unsupported method")
+
+    def end_headers(self):
+        if self.csp and not self.path.startswith("/api/"):
+            self.send_header("Content-Security-Policy", self.csp)
+        super().end_headers()
+
+    def proxy_api(self):
+        request = urllib.request.Request(
+            self.api_url + self.path.removeprefix("/api"),
+            data=self.rfile.read(int(self.headers.get("Content-Length", "0")))
+            if self.command == "POST"
+            else None,
+            headers={
+                key: value
+                for key, value in self.headers.items()
+                if key.lower() not in ("host", "connection")
+            },
+            method=self.command,
+        )
+        try:
+            response = urllib.request.urlopen(request)
+        except urllib.error.HTTPError as error:
+            response = error
+        except urllib.error.URLError:
+            self.send_error(502, "API unavailable")
+            return
+        with response:
+            self.send_response(response.status)
+            for key, value in response.headers.items():
+                if key.lower() not in ("connection", "transfer-encoding"):
+                    self.send_header(key, value)
+            self.end_headers()
+            try:
+                while chunk := response.read1(64 * 1024):
+                    self.wfile.write(chunk)
+                    self.wfile.flush()
+            except BrokenPipeError, ConnectionResetError:
+                pass  # The page left while a stream was being forwarded.
 
     def send_body(self, content_type, text):
         body = text.encode()
@@ -1063,8 +1125,15 @@ class UIServer(http.server.ThreadingHTTPServer):
 
 
 def cmd_serve_ui(args):
+    config = tomllib.loads((Path(args.root).parent / "sws.toml").read_text())
+    csp = next(
+        header["headers"]["Content-Security-Policy"]
+        for header in config["advanced"]["headers"]
+        if header["source"] == "**"
+    )
+
     def handler(*a, **kw):
-        return UIHandler(*a, directory=args.root, api_url=args.api_url, **kw)
+        return UIHandler(*a, directory=args.root, api_url=args.api_url, csp=csp, **kw)
 
     with UIServer((HOST, args.port), handler) as server:
         server.serve_forever()
@@ -1096,6 +1165,29 @@ def settle(page, *, wait_for_network=True, exclude_animations=()):
         raise EvidenceError("animations did not finish")
 
 
+def session_cookie(name, token, url):
+    return {
+        "name": name,
+        "value": token,
+        "url": url,
+        "httpOnly": True,
+        "secure": True,
+        "sameSite": "Strict" if name == REFRESH_COOKIE else "Lax",
+    }
+
+
+def authenticate(context, state, token):
+    if state["cookie_session"]:
+        context.add_cookies([session_cookie(SESSION_COOKIE, token, state["ui_url"])])
+        return
+    stored = json.dumps(
+        {"idToken": token, "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS}
+    )
+    context.add_init_script(
+        f"localStorage.setItem({json.dumps(LEGACY_AUTH_KEY)}, {json.dumps(stored)});"
+    )
+
+
 def capture(browser, state, shot, theme, narrow, target):
     from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
@@ -1110,14 +1202,7 @@ def capture(browser, state, shot, theme, narrow, target):
         context.grant_permissions(shot["permissions"], origin=state["ui_url"])
     script = f"localStorage.setItem({json.dumps(MODE_KEY)}, {json.dumps(theme)});"
     if user is not None:
-        stored = json.dumps(
-            {
-                "idToken": user["token"],
-                "refreshToken": None,
-                "expiresAt": SESSION_EXPIRY_MS,
-            }
-        )
-        script += f"localStorage.setItem({json.dumps(AUTH_KEY)}, {json.dumps(stored)});"
+        authenticate(context, state, user["token"])
     if "color" in shot:
         script += f"localStorage.setItem({json.dumps(COLOR_KEY)}, {json.dumps(shot['color'])});"
     context.add_init_script(script)

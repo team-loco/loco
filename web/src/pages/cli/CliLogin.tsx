@@ -5,7 +5,6 @@ import { parseAsString, useQueryStates } from "nuqs";
 
 import { approveCLILogin } from "@gen/loco/auth/v1/auth-AuthService_connectquery";
 
-import { forgetNextPath } from "@/auth/next";
 import { Button } from "@/components/design/Button";
 import { getErrorMessage } from "@/lib/error-handler";
 
@@ -49,13 +48,11 @@ export function CliLogin() {
 
 	const authorize = async () => {
 		const { code } = await approve.mutateAsync({ state, codeChallenge: challenge });
-		forgetNextPath();
 		setDone("approved");
 		window.location.assign(loopbackURL(port, { code, state }));
 	};
 
 	const cancel = () => {
-		forgetNextPath();
 		setDone("canceled");
 		window.location.assign(loopbackURL(port, { error: "access_denied", state }));
 	};

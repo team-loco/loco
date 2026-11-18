@@ -283,8 +283,8 @@ export function AppSidebar() {
 								icon={<LogOutIcon />}
 								destructive
 								onClick={() => {
-									void logout().then(async () => {
-										await navigate("/");
+									void logout().then(async (signedOut) => {
+										if (signedOut) await navigate("/");
 									});
 								}}
 							>

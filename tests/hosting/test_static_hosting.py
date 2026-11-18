@@ -161,10 +161,10 @@ def check_unknown_path_opens_ui(address, paths):
         browser.close()
 
 
-def check_dashboard_reaches_http_issuer(address):
-    # Local and lab installs run Dex over plain HTTP on its own origin, and the
-    # dashboard fetches the issuer's discovery document from the browser.
+def check_dashboard_connects_only_to_itself(address):
+    origin = f"http://{UI_HOST}"
     discovery = f"http://{HTTP_ISSUER_HOST}/dex/.well-known/openid-configuration"
+    api = origin + "/api/health"
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             args=[f"--host-resolver-rules=MAP {UI_HOST} {address}"]
@@ -173,16 +173,19 @@ def check_dashboard_reaches_http_issuer(address):
         page.route(
             discovery,
             lambda route: route.fulfill(
-                json={"issuer": f"http://{HTTP_ISSUER_HOST}/dex"},
-                headers={"Access-Control-Allow-Origin": f"http://{UI_HOST}"},
+                json={"issuer": discovery},
+                headers={"Access-Control-Allow-Origin": origin},
             ),
         )
-        navigate(page, f"http://{UI_HOST}/login")
-        issuer = page.evaluate(
-            "url => fetch(url).then(reply => reply.json()).then(body => body.issuer)",
-            discovery,
+        page.route(api, lambda route: route.fulfill(body="api available"))
+        navigate(page, origin)
+        assert (
+            page.evaluate("url => fetch(url).then(reply => reply.text())", api)
+            == "api available"
         )
-        assert issuer == f"http://{HTTP_ISSUER_HOST}/dex"
+        assert page.evaluate(
+            "url => fetch(url).then(() => false, () => true)", discovery
+        )
         browser.close()
 
 
@@ -432,7 +435,7 @@ def test_image_serves_the_ui_and_docs(tmp_path):
             tmp_path,
         )
         check_unknown_path_opens_ui(address, [UNKNOWN_PATH, UNKNOWN_PATH + "/bar"])
-        check_dashboard_reaches_http_issuer(address)
+        check_dashboard_connects_only_to_itself(address)
         check_docs_reading_layout(address, tmp_path)
     finally:
         docker("stop", container)

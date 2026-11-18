@@ -2,16 +2,16 @@ import { useState } from "react";
 
 import { toastConnectError } from "@/lib/error-handler";
 
-import { authClient, signInRedirectURL } from "./client";
-import { forgetNextPath, rememberNextPath } from "./next";
+import { authClient } from "./connect-transport";
 
 const SIGN_IN_FAILED = "Could not start sign-in";
 
 async function startSignIn(next: string | null, loginHint: string | null): Promise<void> {
-	if (next === null) forgetNextPath();
-	else rememberNextPath(next);
-	const client = await authClient();
-	await client.signIn(signInRedirectURL(), loginHint);
+	const { authorizationUrl } = await authClient.startWebLogin({
+		redirectTo: next ?? "",
+		loginHint: loginHint ?? "",
+	});
+	window.location.assign(authorizationUrl);
 }
 
 export function useSignIn() {

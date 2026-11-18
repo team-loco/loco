@@ -11,7 +11,7 @@ import { ResourceTitle } from "@/pages/resource/ResourceTitle";
 import { Splash } from "@/pages/Splash";
 import { TransportProvider } from "@connectrpc/connect-query";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
-import { QueryClient } from "@tanstack/react-query";
+import { defaultShouldDehydrateQuery, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-query-persist-client";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -39,7 +39,7 @@ const Organizations = lazy(async () => ({ default: (await pageImporters.Organiza
 const PersonalSettings = lazy(async () => ({ default: (await pageImporters.Settings()).PersonalSettings }));
 const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.DashboardRedirect()).DashboardRedirect }));
 
-import { createTransport } from "./auth/connect-transport";
+import { transport } from "./auth/connect-transport";
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -72,7 +72,14 @@ const persister = createAsyncStoragePersister({
 	key: "loco:query-cache:v1",
 });
 
-const transport = createTransport();
+const persistOptions = {
+	persister,
+	buster: "dashboard-session",
+	dehydrateOptions: {
+		shouldDehydrateQuery: (query: Parameters<typeof defaultShouldDehydrateQuery>[0]) =>
+			query.meta?.["persist"] !== false && defaultShouldDehydrateQuery(query),
+	},
+};
 
 // Non-shallow updates keep React Router's location in step, and push matches its setSearchParams default.
 const NUQS_DEFAULTS = { shallow: false, history: "push" } as const;
@@ -259,7 +266,7 @@ export default function App() {
 		<BrowserRouter>
 			<NuqsAdapter defaultOptions={NUQS_DEFAULTS}>
 				<TransportProvider transport={transport}>
-					<PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
+					<PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
 						<AppLoaderProvider>
 							<AuthProvider>
 								<ThemeProvider>

@@ -6,7 +6,6 @@ import { SquareTerminalIcon } from "lucide-react";
 
 import { approveDeviceLogin } from "@gen/loco/auth/v1/auth-AuthService_connectquery";
 
-import { forgetNextPath } from "@/auth/next";
 import { Button } from "@/components/design/Button";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
@@ -21,14 +20,7 @@ export function CliDevice() {
 
 	const submit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		approve.mutate(
-			{ userCode },
-			{
-				onSuccess: () => {
-					forgetNextPath();
-				},
-			},
-		);
+		approve.mutate({ userCode });
 	};
 
 	const errorText = approve.error !== null ? getErrorMessage(approve.error, "Could not sign in the device") : undefined;

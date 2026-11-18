@@ -60,8 +60,9 @@ export function DeleteAccount({ user }: { user: User }) {
 				onSuccess: () => {
 					toast.success("Account deleted");
 					setDeleteOpen(false);
-					void logout();
-					void navigate("/login", { replace: true });
+					void logout().then(async () => {
+						await navigate("/login", { replace: true });
+					});
 				},
 				onError: (err) => {
 					setError(getErrorMessage(err, "Failed to delete account"));

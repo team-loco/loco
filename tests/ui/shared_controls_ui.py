@@ -766,7 +766,7 @@ def token_empty(page):
     )
     page.emulate_media(reduced_motion="reduce")
     page.wait_for_function(
-        "document.querySelector('svg.es-tokens').getAnimations({subtree: true}).length === 0"
+        "() => document.querySelector('svg.es-tokens').getAnimations({subtree: true}).length === 0"
     )
     create = page.get_by_role("button", name="New token", exact=True).last
     create.click()
@@ -1056,7 +1056,7 @@ with session(out) as browser:
                 requestAnimationFrame(sample);
             }""")
             expect(personal).to_have_attribute("aria-pressed", "true")
-            page.wait_for_function("window.indicatorSampleDone")
+            page.wait_for_function("() => window.indicatorSampleDone")
             assert (
                 abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
             )
@@ -1104,7 +1104,7 @@ with session(out) as browser:
             workspace_button.click()
             page.get_by_role("textbox", name="Name", exact=True).wait_for()
             page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
-            page.wait_for_function("window.scrollY > 0")
+            page.wait_for_function("() => window.scrollY > 0")
             name = page.get_by_role("textbox", name="Name", exact=True)
             name.focus()
             expect(name).to_be_focused()

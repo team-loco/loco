@@ -1,14 +1,15 @@
 import { createContext, use, useSyncExternalStore, type ReactNode } from "react";
-import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router";
 import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { ClaimedOrg, User } from "@gen/loco/user/v1/user_pb";
 
-import { authClient } from "./client";
+import { toastConnectError } from "@/lib/error-handler";
+import { removeStorage } from "@/lib/storage";
+
+import { signOut, unauthenticated } from "./connect-transport";
 import { getClaimedOrgs, setClaimedOrgs, subscribeClaimedOrgs } from "./claimed";
-import { hasStoredSession, subscribeSession } from "./session";
 
 interface AuthContextType {
 	user: User | null;
@@ -18,48 +19,57 @@ interface AuthContextType {
 	isAuthenticated: boolean;
 	isPending: boolean;
 	error: Error | null;
-	logout: () => Promise<void>;
+	logout: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-authClient().catch((err: unknown) => {
-	console.error("Could not load the sign-in configuration:", err);
-});
-
-const SIGN_IN_PATHS = ["/auth/callback"];
+// Remove provider credentials left by the browser-based sign-in flow.
+removeStorage("loco:auth:oidc:v1");
+removeStorage("loco:auth:oidc:pending:v1", "session");
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-	const hasSession = useSyncExternalStore(subscribeSession, hasStoredSession);
 	const { pathname } = useLocation();
-	const onSignInPage = SIGN_IN_PATHS.some((path) => pathname.startsWith(path));
-	const { data: user, isPending, error } = useQuery(whoAmI, {}, { enabled: hasSession && !onSignInPage });
+	const { data, isPending, error } = useQuery(
+		whoAmI,
+		{},
+		{
+			enabled: pathname !== "/auth/callback",
+			meta: { persist: false },
+			staleTime: 0,
+			refetchOnWindowFocus: true,
+		},
+	);
 	const queryClient = useQueryClient();
 	const claimedOrgs = useSyncExternalStore(subscribeClaimedOrgs, getClaimedOrgs);
-	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
+	const signedOut = unauthenticated(error);
+	const user = signedOut ? null : (data?.user ?? null);
 
 	const logout = async () => {
 		try {
-			await (await authClient()).signOut();
+			await signOut();
 		} catch (err) {
-			console.error("Logout failed:", err);
-		} finally {
-			queryClient.clear();
+			toastConnectError(err, "Could not sign out");
+			return false;
 		}
+		setClaimedOrgs([]);
+		queryClient.removeQueries({ predicate: (query) => query.meta?.["persist"] !== false });
+		await queryClient.resetQueries({ predicate: (query) => query.meta?.["persist"] === false });
+		return true;
 	};
 
 	return (
 		<AuthContext
 			value={{
-				user: hasSession ? (user?.user ?? null) : null,
-				claimedOrgs: hasSession ? claimedOrgs : [],
+				user,
+				claimedOrgs: user === null ? [] : claimedOrgs,
 				dismissClaimedOrgs: () => {
 					setClaimedOrgs([]);
 				},
-				signedOut: !hasSession,
-				isAuthenticated: hasSession && !unauthenticated && !!user?.user,
-				isPending: hasSession && isPending,
-				error: error instanceof Error ? error : null,
+				signedOut,
+				isAuthenticated: user !== null,
+				isPending,
+				error: signedOut ? null : error,
 				logout,
 			}}
 		>

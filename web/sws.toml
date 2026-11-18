@@ -25,8 +25,7 @@ Referrer-Policy = "strict-origin-when-cross-origin"
 X-XSS-Protection = "1; mode=block"
 Vary = "Accept-Encoding"
 Cache-Control = "no-cache"
-# connect-src allows http: for installs whose OIDC issuer is plain HTTP; an HTTPS page still cannot fetch HTTP URLs other than loopback.
-Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' https: http:; manifest-src 'self'"
+Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self'; manifest-src 'self'"
 
 [[advanced.headers]]
 source = "**/*.{js,css,png,jpg,jpeg,gif,ico,svg,woff,woff2,ttf,eot}"

@@ -1,12 +1,8 @@
 import argparse
-import base64
-import json
 import re
-import time
 import uuid
 from functools import partial
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlparse
 
 from harness import evidence, load_state, open_page as new_page, repo, session
 from playwright.sync_api import expect
@@ -50,52 +46,25 @@ def expect_not_found(page, path):
     expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
 
 
-def b64(value):
-    return base64.urlsafe_b64encode(json.dumps(value).encode()).rstrip(b"=").decode()
+def stub_sign_in(context, user):
+    def start(route):
+        redirect_to = route.request.post_data_json["redirectTo"]
+        pending["redirect_to"] = redirect_to
+        route.fulfill(json={"authorizationUrl": f"{issuer}/auth"})
 
+    def complete(route):
+        evidence.authenticate(context, state, state["users"][user]["token"])
+        route.fulfill(json={"redirectTo": pending["redirect_to"]})
 
-def fake_idp(context, user):
-    fake_token = None
-    nonce = {}
-
-    def authorize(route):
-        query = parse_qs(urlparse(route.request.url).query)
-        nonce["value"] = query["nonce"][0]
-        callback = (
-            query["redirect_uri"][0]
-            + "?"
-            + urlencode({"code": "e2e", "state": query["state"][0]})
-        )
-        route.fulfill(status=302, headers={"Location": callback})
-
-    def token(route):
-        nonlocal fake_token
-        now = int(time.time())
-        claims = {
-            "iss": issuer,
-            "aud": "loco",
-            "sub": user,
-            "iat": now,
-            "exp": now + 3600,
-            "nonce": nonce["value"],
-        }
-        fake_token = f"{b64({'alg': 'RS256', 'typ': 'JWT'})}.{b64(claims)}.e2e"
-        route.fulfill(
-            json={"access_token": "e2e", "token_type": "bearer", "id_token": fake_token}
-        )
-
-    def api(route):
-        headers = dict(route.request.headers)
-        if (
-            fake_token is not None
-            and headers.get("authorization") == f"Bearer {fake_token}"
-        ):
-            headers["authorization"] = f"Bearer {state['users'][user]['token']}"
-        route.continue_(headers=headers)
-
-    context.route(f"{issuer}/auth*", authorize)
-    context.route(f"{issuer}/token", token)
-    context.route(re.compile(r"/loco\.[a-z0-9.]+\.v\d+\.\w+/\w+$"), api)
+    pending = {}
+    context.route("**/StartWebLogin", start)
+    context.route(
+        f"{issuer}/auth",
+        lambda route: route.fulfill(
+            status=302, headers={"Location": f"{ui}/auth/callback?code=test&state=test"}
+        ),
+    )
+    context.route("**/CompleteWebLogin", complete)
 
 
 with session(out) as browser:
@@ -506,7 +475,7 @@ with session(out) as browser:
             expect(page.locator("aside canvas")).to_be_visible()
 
             deep = f"/org/{org}/wks/{shared}/no-such-tab?env=production"
-            fake_idp(context, "owner")
+            stub_sign_in(context, "owner")
             page.goto(ui + deep)
             expect(page).to_have_url(ui + deep)
             expect_not_found(page, deep)
