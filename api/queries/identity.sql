@@ -20,11 +20,7 @@ SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_log
 FROM identities
 WHERE issuer = $1 AND subject = $2;
 
--- name: ListIdentitiesForUser :many
+-- name: GetIdentityForUser :one
 SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
 FROM identities
-WHERE user_id = $1
-ORDER BY created_at;
-
--- name: GetIdentityByID :one
-SELECT * FROM identities WHERE id = $1;
+WHERE user_id = $1;

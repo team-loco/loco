@@ -159,7 +159,7 @@ const (
 	FieldFlow          = "flow"
 	FieldIssuer        = "issuer"
 	FieldSubject       = "subject"
-	FieldIdentities    = "identities"
+	FieldIdentity      = "identity"
 	FieldSource        = "source"
 	FieldEntityType    = "entityType"
 	FieldEntityID      = "entityId"

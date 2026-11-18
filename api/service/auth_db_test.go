@@ -92,13 +92,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 func (f *authFixture) issueWebSession(t *testing.T) (access, refresh string) {
 	t.Helper()
 	principal, _ := reqctx.PrincipalFrom(f.webCtx)
-	identities, err := f.queries.ListIdentitiesForUser(t.Context(), principal.UserID)
-	if err != nil || len(identities) != 1 {
-		t.Fatalf("fixture identities = %v, error = %v", identities, err)
-	}
-	access, refresh, err = f.machine.IssueWebSession(
-		t.Context(), principal.UserID, identities[0].ID, netip.Addr{}, "dashboard",
-	)
+	access, refresh, err := f.machine.IssueWebSession(t.Context(), principal.UserID, netip.Addr{}, "dashboard")
 	if err != nil {
 		t.Fatal(err)
 	}

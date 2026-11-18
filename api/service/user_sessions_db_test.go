@@ -21,11 +21,7 @@ func TestAccountSessions(t *testing.T) {
 	other := api.signUp(t, "session-other")
 
 	const agent = "test dashboard browser"
-	identity, err := api.queries.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: testIssuer, Subject: owner.subject})
-	if err != nil {
-		t.Fatal(err)
-	}
-	webAccess, webRefresh, err := api.machine.IssueWebSession(ctx, owner.id, identity.ID, netip.Addr{}, agent)
+	webAccess, webRefresh, err := api.machine.IssueWebSession(ctx, owner.id, netip.Addr{}, agent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +34,7 @@ func TestAccountSessions(t *testing.T) {
 		return principal.SessionID
 	}
 	webID, cliID, foreignID := sessionID(webAccess), sessionID(owner.token), sessionID(other.token)
-	expiredAccess, _, err := api.machine.IssueSession(ctx, owner.id, nil, netip.Addr{}, "expired")
+	expiredAccess, _, err := api.machine.IssueSession(ctx, owner.id, netip.Addr{}, "expired")
 	if err != nil {
 		t.Fatal(err)
 	}

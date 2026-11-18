@@ -186,7 +186,7 @@ var errUnknownUser = errors.New("unknown test user")
 
 func session(t *testing.T, machine *tvm.VendingMachine, userID uuid.UUID) (string, string) {
 	t.Helper()
-	access, refresh, err := machine.IssueSession(t.Context(), userID, nil, netip.Addr{}, "")
+	access, refresh, err := machine.IssueSession(t.Context(), userID, netip.Addr{}, "")
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}

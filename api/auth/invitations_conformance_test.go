@@ -120,7 +120,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 	if err != nil {
 		t.Fatalf("configured admin sign-in: %v", err)
 	}
-	session, _, err := machine.IssueSession(t.Context(), admin.ID, nil, netip.Addr{}, "journey")
+	session, _, err := machine.IssueSession(t.Context(), admin.ID, netip.Addr{}, "journey")
 	if err != nil {
 		t.Fatalf("admin session: %v", err)
 	}

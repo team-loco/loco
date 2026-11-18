@@ -80,16 +80,14 @@ func NewAuthServer(
 }
 
 type cliGrant struct {
-	UserID     uuid.UUID `json:"userId"`
-	IdentityID uuid.UUID `json:"identityId"`
-	Challenge  string    `json:"challenge,omitempty"`
+	UserID    uuid.UUID `json:"userId"`
+	Challenge string    `json:"challenge,omitempty"`
 }
 
 type deviceGrant struct {
-	UserCode   string     `json:"userCode"`
-	UserID     *uuid.UUID `json:"userId,omitempty"`
-	IdentityID *uuid.UUID `json:"identityId,omitempty"`
-	ExpiresAt  time.Time  `json:"expiresAt"`
+	UserCode  string     `json:"userCode"`
+	UserID    *uuid.UUID `json:"userId,omitempty"`
+	ExpiresAt time.Time  `json:"expiresAt"`
 }
 
 func deviceKey(deviceDigest string) string {
@@ -163,8 +161,8 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	if entity.Type != genDb.EntityTypeUser {
 		return cliGrant{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
-	if p.Method == genDb.DeploymentMethodWeb && p.IdentityID != uuid.Nil {
-		return cliGrant{UserID: entity.ID, IdentityID: p.IdentityID}, nil
+	if p.Method == genDb.DeploymentMethodWeb {
+		return cliGrant{UserID: entity.ID}, nil
 	}
 	login, ok := auth.LoginFrom(ctx)
 	identity := login.Identity
@@ -178,7 +176,7 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	if row.UserID != entity.ID {
 		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
-	return cliGrant{UserID: entity.ID, IdentityID: row.ID}, nil
+	return cliGrant{UserID: entity.ID}, nil
 }
 
 func (s *AuthServer) issue(
@@ -188,21 +186,18 @@ func (s *AuthServer) issue(
 ) (*authv1.CLITokens, error) {
 	ip := clientAddress(info)
 	ua := info.RequestHeader().Get("User-Agent")
-	identityID := grant.IdentityID
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if err := lockSessionAccount(ctx, qtx, grant.UserID); err != nil {
 			return err
 		}
-		identity, err := qtx.GetIdentityByID(ctx, identityID)
-		if errors.Is(err, pgx.ErrNoRows) || err == nil && identity.UserID != grant.UserID {
+		if _, err := qtx.GetIdentityForUser(ctx, grant.UserID); errors.Is(err, pgx.ErrNoRows) {
 			return tvm.ErrInvalidExpiredToken
-		}
-		if err != nil {
+		} else if err != nil {
 			return fmt.Errorf("get CLI identity: %w", err)
 		}
 		var issueErr error
-		access, refresh, issueErr = s.machine.WithQueries(qtx).IssueSession(ctx, grant.UserID, &identityID, ip, ua)
+		access, refresh, issueErr = s.machine.WithQueries(qtx).IssueSession(ctx, grant.UserID, ip, ua)
 		if issueErr != nil {
 			return issueErr
 		}
@@ -369,7 +364,6 @@ func (s *AuthServer) ApproveDeviceLogin(
 		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
 	}
 	device.UserID = &grant.UserID
-	device.IdentityID = &grant.IdentityID
 	payload, err := json.Marshal(device)
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
@@ -411,7 +405,7 @@ func (s *AuthServer) PollDeviceLogin(
 	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
 		return nil, fmt.Errorf("decode device grant: %w", decodeErr)
 	}
-	if device.UserID == nil || device.IdentityID == nil {
+	if device.UserID == nil {
 		if throttleErr := s.throttleDevicePoll(ctx, deviceDigest); throttleErr != nil {
 			return nil, throttleErr
 		}
@@ -421,7 +415,7 @@ func (s *AuthServer) PollDeviceLogin(
 	if err != nil || !took {
 		return nil, rpcerr.New(connect.CodeNotFound, ErrDeviceCodeExpired)
 	}
-	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID, IdentityID: *device.IdentityID}, info)
+	tokens, err := s.issue(ctx, cliGrant{UserID: *device.UserID}, info)
 	if err != nil {
 		return nil, err
 	}

@@ -13,27 +13,25 @@ import (
 func (tvm *VendingMachine) IssueSession(
 	ctx context.Context,
 	userID uuid.UUID,
-	identityID *uuid.UUID,
 	ip netip.Addr,
 	userAgent string,
 ) (string, string, error) {
-	return tvm.issueSession(ctx, queries.SessionKindCli, userID, identityID, ip, userAgent)
+	return tvm.issueSession(ctx, queries.SessionKindCli, userID, ip, userAgent)
 }
 
 func (tvm *VendingMachine) IssueWebSession(
 	ctx context.Context,
-	userID, identityID uuid.UUID,
+	userID uuid.UUID,
 	ip netip.Addr,
 	userAgent string,
 ) (string, string, error) {
-	return tvm.issueSession(ctx, queries.SessionKindWeb, userID, &identityID, ip, userAgent)
+	return tvm.issueSession(ctx, queries.SessionKindWeb, userID, ip, userAgent)
 }
 
 func (tvm *VendingMachine) issueSession(
 	ctx context.Context,
 	kind queries.SessionKind,
 	userID uuid.UUID,
-	identityID *uuid.UUID,
 	ip netip.Addr,
 	userAgent string,
 ) (string, string, error) {
@@ -56,7 +54,6 @@ func (tvm *VendingMachine) issueSession(
 		RefreshExpiresAt: now.Add(tvm.Cfg.SessionRefreshTokenDuration),
 		IpAddress:        ipAddr,
 		UserAgent:        &userAgent,
-		IdentityID:       identityID,
 		Kind:             kind,
 	}); err != nil {
 		return "", "", fmt.Errorf("%w: %w", ErrStoreToken, err)

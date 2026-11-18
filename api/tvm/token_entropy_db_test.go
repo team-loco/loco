@@ -65,7 +65,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 		t.Fatalf("grant scope: %v", grantErr)
 	}
 
-	access, refresh, err := machine.IssueSession(ctx, user.ID, nil, netip.Addr{}, "")
+	access, refresh, err := machine.IssueSession(ctx, user.ID, netip.Addr{}, "")
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}

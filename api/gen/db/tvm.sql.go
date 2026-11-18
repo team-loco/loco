@@ -105,8 +105,8 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 
 const createSessionToken = `-- name: CreateSessionToken :exec
 
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id, kind)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, kind)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type CreateSessionTokenParams struct {
@@ -118,7 +118,6 @@ type CreateSessionTokenParams struct {
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
 	IpAddress        *netip.Addr `json:"ipAddress"`
 	UserAgent        *string     `json:"userAgent"`
-	IdentityID       *uuid.UUID  `json:"identityId"`
 	Kind             SessionKind `json:"kind"`
 }
 
@@ -135,7 +134,6 @@ func (q *Queries) CreateSessionToken(ctx context.Context, arg CreateSessionToken
 		arg.RefreshExpiresAt,
 		arg.IpAddress,
 		arg.UserAgent,
-		arg.IdentityID,
 		arg.Kind,
 	)
 	return err
@@ -361,7 +359,6 @@ SELECT
     st.id,
     st.user_id,
     st.kind,
-    st.identity_id,
     st.last_used_at,
     COALESCE(
         (
@@ -386,7 +383,6 @@ type GetSessionWithScopesByAccessTokenRow struct {
 	ID         uuid.UUID   `json:"id"`
 	UserID     uuid.UUID   `json:"userId"`
 	Kind       SessionKind `json:"kind"`
-	IdentityID *uuid.UUID  `json:"identityId"`
 	LastUsedAt time.Time   `json:"lastUsedAt"`
 	Scopes     []byte      `json:"scopes"`
 }
@@ -398,7 +394,6 @@ func (q *Queries) GetSessionWithScopesByAccessToken(ctx context.Context, accessT
 		&i.ID,
 		&i.UserID,
 		&i.Kind,
-		&i.IdentityID,
 		&i.LastUsedAt,
 		&i.Scopes,
 	)

@@ -15,7 +15,7 @@ func TestValidateTokenDoesNotTouchCredentialActivity(t *testing.T) {
 	f := newPrincipalFixture(t)
 	personal, personalRow := f.issue(t, queries.Entity{Type: queries.EntityTypeUser, ID: f.user})
 	owned, ownedRow := f.issue(t, queries.Entity{Type: queries.EntityTypeWorkspace, ID: f.workspace})
-	session, _, err := f.machine.IssueSession(t.Context(), f.user, nil, netip.Addr{}, "stream")
+	session, _, err := f.machine.IssueSession(t.Context(), f.user, netip.Addr{}, "stream")
 	if err != nil {
 		t.Fatal(err)
 	}

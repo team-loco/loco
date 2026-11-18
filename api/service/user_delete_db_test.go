@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -12,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/reqctx"
+	"github.com/team-loco/loco/api/tvm"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 )
 
@@ -175,7 +178,7 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 	}
 }
 
-func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
+func TestDeleteUserEventCarriesRemovedIdentity(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := t.Context()
@@ -212,13 +215,71 @@ func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	const listedQuery = `SELECT data->'identities' = '[{"issuer": "https://idp.example.com", "subject": "sub-1"}]'
+	const recordedQuery = `SELECT COALESCE(
+		data->'identity' = '{"issuer": "https://idp.example.com", "subject": "sub-1"}', false)
 		FROM events WHERE type = 'user.deleted' AND subject_id = $1`
-	var listed bool
-	if err := f.pool.QueryRow(ctx, listedQuery, userID).Scan(&listed); err != nil {
+	var recorded bool
+	if err := f.pool.QueryRow(ctx, recordedQuery, userID).Scan(&recorded); err != nil {
 		t.Fatal(err)
 	}
-	if !listed {
-		t.Fatal("user.deleted does not list the removed https://idp.example.com/sub-1 identity")
+	if !recorded {
+		t.Fatal("user.deleted does not carry the removed https://idp.example.com/sub-1 identity")
+	}
+}
+
+func TestDeleteUserRevokesSessions(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	var userID uuid.UUID
+	if err := f.pool.QueryRow(ctx, `INSERT INTO users (email) VALUES ('signed-in@example.com') RETURNING id`).
+		Scan(&userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(ctx, `INSERT INTO identities (user_id, issuer, subject)
+		VALUES ($1, 'https://idp.example.com', 'sub-2')`, userID); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
+		UserID: userID, EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	machine := tvm.NewVendingMachine(f.queries, tvm.Config{
+		SessionAccessTokenDuration:  time.Hour,
+		SessionRefreshTokenDuration: time.Hour,
+		LastUsedUpdateInterval:      time.Hour,
+	})
+	web, _, err := machine.IssueWebSession(ctx, userID, netip.Addr{}, "dashboard")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cli, _, err := machine.IssueSession(ctx, userID, netip.Addr{}, "cli")
+	if err != nil {
+		t.Fatal(err)
+	}
+	principal, err := machine.GetToken(ctx, cli)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := NewUserServer(f.pool, f.queries, nil)
+
+	deleteCtx := reqctx.WithPrincipal(ctx, principal)
+	if _, err := server.DeleteUser(deleteCtx, &userv1.DeleteUserRequest{UserId: userID.String()}); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, token := range map[string]string{"dashboard": web, "cli": cli} {
+		if _, err := machine.GetToken(ctx, token); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+			t.Errorf("%s session after deletion = %v, want %v", name, err, tvm.ErrInvalidExpiredToken)
+		}
+	}
+	var sessions int
+	if err := f.pool.QueryRow(ctx, "SELECT count(*) FROM session_tokens WHERE user_id = $1", userID).
+		Scan(&sessions); err != nil {
+		t.Fatal(err)
+	}
+	if sessions != 0 {
+		t.Fatalf("%d sessions survived account deletion", sessions)
 	}
 }
