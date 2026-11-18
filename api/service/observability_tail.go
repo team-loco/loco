@@ -14,7 +14,6 @@ import (
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 const (
@@ -88,7 +87,7 @@ func (s *ObservabilityServer) tailLoop(
 			return nil
 		}
 		if err != nil {
-			return rpcerr.DependencyCanceled(ctx, fmt.Errorf("poll tail logs: %w", err))
+			return fmt.Errorf("poll tail logs: %w", err)
 		}
 		if sent == 0 && time.Since(lastHeartbeat) >= tailHeartbeatInterval {
 			if err := send(&observabilityv1.TailLogsResponse{

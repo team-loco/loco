@@ -90,3 +90,18 @@ func TestPublicHandlerErrorsKeepServerCause(t *testing.T) {
 		}
 	}
 }
+
+func TestCanceledHandlerErrorFollowsTheRequest(t *testing.T) {
+	t.Parallel()
+	handler := NewErrorInterceptor()(func(context.Context, connect.Spec, connect.ServerStream) error {
+		return fmt.Errorf("acquire connection: %w", context.Canceled)
+	})
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+	if code := connect.CodeOf(handler(canceled, connect.Spec{}, nil)); code != connect.CodeCanceled {
+		t.Fatalf("client canceled: code = %s, want %s", code, connect.CodeCanceled)
+	}
+	if code := connect.CodeOf(handler(t.Context(), connect.Spec{}, nil)); code != connect.CodeInternal {
+		t.Fatalf("dependency canceled: code = %s, want %s", code, connect.CodeInternal)
+	}
+}

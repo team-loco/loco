@@ -17,7 +17,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
-	"github.com/team-loco/loco/internal/rpcerr"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -68,7 +67,7 @@ func (s *DeploymentServer) WatchDeployment(
 		}
 		deployment, activity, readErr := s.readDeployment(ctx, id, cursor)
 		if readErr != nil {
-			return rpcerr.DependencyCanceled(ctx, readErr)
+			return readErr
 		}
 		hasMore := len(activity) > deploymentActivityBatchSize
 		if hasMore {

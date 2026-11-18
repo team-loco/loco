@@ -35,7 +35,8 @@ func NewErrorInterceptor() connect.ServerInterceptor {
 			if errors.Is(err, io.EOF) {
 				return err
 			}
-			if errors.Is(err, context.Canceled) {
+			// A cancellation under a live request comes from a dependency, such as a closing pool, and is internal.
+			if errors.Is(err, context.Canceled) && ctx.Err() != nil {
 				return connect.NewError(connect.CodeCanceled, publicRequestCanceled).WithCause(err)
 			}
 			if errors.Is(err, context.DeadlineExceeded) {

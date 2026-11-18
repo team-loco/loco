@@ -307,7 +307,7 @@ func (s *EventServer) StreamEvents(
 			if ctx.Err() != nil {
 				return nil
 			}
-			return rpcerr.DependencyCanceled(ctx, fmt.Errorf("read events for stream: %w", err))
+			return fmt.Errorf("read events for stream: %w", err)
 		}
 		if len(rows) > 0 {
 			batch := make([]*eventv1.Event, len(rows))

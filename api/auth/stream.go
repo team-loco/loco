@@ -8,7 +8,6 @@ import (
 	"connectrpc.com/connect/v2"
 
 	"github.com/team-loco/loco/api/reqctx"
-	"github.com/team-loco/loco/internal/rpcerr"
 )
 
 var errStreamValidation = errors.New("stream credential validation is not configured")
@@ -58,7 +57,7 @@ func GuardStream(
 				err = readErr
 			}
 		}
-		return rpcerr.DependencyCanceled(ctx, err)
+		return err
 	}
 	if err := check(ctx); err != nil {
 		return nil, nil, err
