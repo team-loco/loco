@@ -2,17 +2,15 @@ package service
 
 import (
 	"errors"
-	"net/http"
 	"net/netip"
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
-	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
-	"github.com/team-loco/loco/internal/rpc"
 )
 
 func TestAccountSessions(t *testing.T) {
@@ -31,82 +29,55 @@ func TestAccountSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	web, err := api.machine.GetToken(ctx, webAccess)
-	if err != nil {
-		t.Fatal(err)
+	sessionID := func(access string) uuid.UUID {
+		t.Helper()
+		principal, tokenErr := api.machine.GetToken(ctx, access)
+		if tokenErr != nil {
+			t.Fatalf("read issued session: %v", tokenErr)
+		}
+		return principal.SessionID
 	}
-	cli, err := api.machine.GetToken(ctx, owner.token)
-	if err != nil {
-		t.Fatal(err)
-	}
-	foreign, err := api.machine.GetToken(ctx, other.token)
-	if err != nil {
-		t.Fatal(err)
-	}
+	webID, cliID, foreignID := sessionID(webAccess), sessionID(owner.token), sessionID(other.token)
 	expiredAccess, _, err := api.machine.IssueSession(ctx, owner.id, nil, netip.Addr{}, "expired")
-	if err != nil {
-		t.Fatal(err)
-	}
-	expired, err := api.machine.GetToken(ctx, expiredAccess)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, expireErr := api.pool.Exec(ctx, `UPDATE session_tokens SET access_expires_at = now() - interval '1 day',
 		refresh_expires_at = CASE WHEN id = $1 THEN now() - interval '1 day' ELSE refresh_expires_at END
-		WHERE id IN ($1, $2)`, expired.SessionID, web.SessionID); expireErr != nil {
+		WHERE id IN ($1, $2)`, sessionID(expiredAccess), webID); expireErr != nil {
 		t.Fatal(expireErr)
 	}
 
-	list, err := owner.clients.User.ListSessions(ctx, &userv1.ListSessionsRequest{})
+	listRequest := &userv1.ListSessionsRequest{}
+	list, err := owner.clients.User.ListSessions(ctx, listRequest)
 	if err != nil {
 		t.Fatal(err)
 	}
 	sessions := list.GetSessions()
-	if len(sessions) != 2 || sessions[0].GetId() != web.SessionID.String() ||
+	if len(sessions) != 2 || sessions[0].GetId() != webID.String() ||
 		sessions[0].GetKind() != userv1.SessionKind_SESSION_KIND_WEB || sessions[0].GetCurrent() ||
 		sessions[0].GetUserAgent() != agent || sessions[0].GetCreatedAt() == nil || sessions[0].GetLastUsedAt() == nil ||
-		sessions[1].GetId() != cli.SessionID.String() || !sessions[1].GetCurrent() ||
+		sessions[1].GetId() != cliID.String() || !sessions[1].GetCurrent() ||
 		sessions[1].GetKind() != userv1.SessionKind_SESSION_KIND_CLI {
 		t.Fatalf("unexpected sessions: %v", sessions)
 	}
 
-	issued, err := owner.clients.Token.CreateToken(ctx, &tokenv1.CreateTokenRequest{
-		Name: "sessions-test", EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
-		EntityId: owner.id.String(), ExpiresInSec: 3600,
-		Scopes: []*tokenv1.EntityScope{
-			{
-				EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
-				EntityId:   owner.id.String(),
-				Scope:      tokenv1.Scope_SCOPE_READ,
-			},
-		},
+	ownerEntity := genDb.Entity{Type: genDb.EntityTypeUser, ID: owner.id}
+	personal, _ := administrativeToken(t, api, owner, ownerEntity, genDb.EntityScope{
+		EntityType: ownerEntity.Type, EntityID: ownerEntity.ID, Scope: genDb.ScopeRead,
 	})
-	if err != nil {
-		t.Fatal(err)
+	_, listErr := personal.User.ListSessions(ctx, listRequest)
+	if connect.CodeOf(listErr) != connect.CodePermissionDenied {
+		t.Fatalf("list using personal access token: %v", listErr)
 	}
-	personal := rpc.NewHTTPClients(http.DefaultClient, api.url, issued.GetToken())
-	if _, err := personal.User.ListSessions(
-		ctx,
-		&userv1.ListSessionsRequest{},
-	); connect.CodeOf(
-		err,
-	) != connect.CodePermissionDenied {
-		t.Fatalf("list using personal access token: %v", err)
-	}
-	revoke := &userv1.RevokeSessionRequest{SessionId: web.SessionID.String()}
-	if _, revokeErr := personal.User.RevokeSession(
-		ctx,
-		revoke,
-	); connect.CodeOf(
-		revokeErr,
-	) != connect.CodePermissionDenied {
+	revoke := &userv1.RevokeSessionRequest{SessionId: webID.String()}
+	_, revokeErr := personal.User.RevokeSession(ctx, revoke)
+	if connect.CodeOf(revokeErr) != connect.CodePermissionDenied {
 		t.Fatalf("revoke using personal access token: %v", revokeErr)
 	}
-	if _, err := owner.clients.User.RevokeSession(
-		ctx,
-		&userv1.RevokeSessionRequest{SessionId: foreign.SessionID.String()},
-	); err != nil {
-		t.Fatalf("revoke foreign session: %v", err)
+	foreignSession := &userv1.RevokeSessionRequest{SessionId: foreignID.String()}
+	if _, foreignErr := owner.clients.User.RevokeSession(ctx, foreignSession); foreignErr != nil {
+		t.Fatalf("revoke foreign session: %v", foreignErr)
 	}
 	if _, whoErr := other.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{}); whoErr != nil {
 		t.Fatalf("foreign session was revoked: %v", whoErr)
@@ -114,6 +85,9 @@ func TestAccountSessions(t *testing.T) {
 	rotated, newRefresh, err := api.machine.Refresh(ctx, webRefresh, genDb.SessionKindWeb)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got := sessionID(rotated); got != webID {
+		t.Fatalf("rotation changed session ID from %s to %s", webID, got)
 	}
 	for range 2 {
 		if _, err := owner.clients.User.RevokeSession(ctx, revoke); err != nil {
@@ -123,14 +97,8 @@ func TestAccountSessions(t *testing.T) {
 	if _, err := api.machine.GetToken(ctx, rotated); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("revoked access credential: %v", err)
 	}
-	if _, _, err := api.machine.Refresh(
-		ctx,
-		newRefresh,
-		genDb.SessionKindWeb,
-	); !errors.Is(
-		err,
-		tvm.ErrInvalidExpiredToken,
-	) {
-		t.Fatalf("revoked refresh credential: %v", err)
+	_, _, refreshErr := api.machine.Refresh(ctx, newRefresh, genDb.SessionKindWeb)
+	if !errors.Is(refreshErr, tvm.ErrInvalidExpiredToken) {
+		t.Fatalf("revoked refresh credential: %v", refreshErr)
 	}
 }
