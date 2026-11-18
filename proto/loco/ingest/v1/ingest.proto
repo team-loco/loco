@@ -13,6 +13,11 @@ service IngestService {
 
   // ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
   rpc ListPlacementWindows(ListPlacementWindowsRequest) returns (ListPlacementWindowsResponse);
+
+  // GetRetention returns how many days to keep each workspace's records: the workspace's own
+  // value capped by its organization's limit for each signal. It takes an ingest token like
+  // ListPlacementWindows and up to 1000 workspace IDs.
+  rpc GetRetention(GetRetentionRequest) returns (GetRetentionResponse);
 }
 
 message IssueTokenRequest {}
@@ -36,8 +41,6 @@ message PlacementWindow {
   string workspace_id = 1;
   google.protobuf.Timestamp placed_at = 2;
   google.protobuf.Timestamp removed_at = 3;
-  // retention applies to the workspace's records: its organization's retention limits.
-  Retention retention = 4;
 }
 
 // Retention is how many days ClickHouse keeps each signal's rows.
@@ -45,4 +48,13 @@ message Retention {
   int32 log_days = 1;
   int32 trace_days = 2;
   int32 metric_days = 3;
+}
+
+message GetRetentionRequest {
+  repeated string workspace_ids = 1;
+}
+
+message GetRetentionResponse {
+  // retention maps each requested workspace ID to its retention; an ID that names no workspace is left out.
+  map<string, Retention> retention = 1;
 }

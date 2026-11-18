@@ -51,12 +51,6 @@ const (
 	// WorkspaceServiceListWorkspaceMembersProcedure is the procedure name of the WorkspaceService's
 	// ListWorkspaceMembers RPC.
 	WorkspaceServiceListWorkspaceMembersProcedure = "/loco.workspace.v1.WorkspaceService/ListWorkspaceMembers"
-	// WorkspaceServiceGetWorkspaceRetentionProcedure is the procedure name of the WorkspaceService's
-	// GetWorkspaceRetention RPC.
-	WorkspaceServiceGetWorkspaceRetentionProcedure = "/loco.workspace.v1.WorkspaceService/GetWorkspaceRetention"
-	// WorkspaceServiceSetWorkspaceRetentionProcedure is the procedure name of the WorkspaceService's
-	// SetWorkspaceRetention RPC.
-	WorkspaceServiceSetWorkspaceRetentionProcedure = "/loco.workspace.v1.WorkspaceService/SetWorkspaceRetention"
 )
 
 var (
@@ -123,20 +117,6 @@ var (
 			Procedure:  WorkspaceServiceListWorkspaceMembersProcedure,
 		}
 	})
-	workspaceServiceGetWorkspaceRetentionSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_workspace_v1_workspace_proto.Services().ByName("WorkspaceService").Methods().ByName("GetWorkspaceRetention"),
-			Procedure:  WorkspaceServiceGetWorkspaceRetentionProcedure,
-		}
-	})
-	workspaceServiceSetWorkspaceRetentionSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_workspace_v1_workspace_proto.Services().ByName("WorkspaceService").Methods().ByName("SetWorkspaceRetention"),
-			Procedure:  WorkspaceServiceSetWorkspaceRetentionProcedure,
-		}
-	})
 )
 
 // WorkspaceServiceClient is a client for the loco.workspace.v1.WorkspaceService service.
@@ -145,7 +125,7 @@ type WorkspaceServiceClient interface {
 	CreateWorkspace(context.Context, *v1.CreateWorkspaceRequest) (*v1.CreateWorkspaceResponse, error)
 	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *v1.GetWorkspaceRequest) (*v1.GetWorkspaceResponse, error)
-	// UpdateWorkspace updates workspace information.
+	// UpdateWorkspace updates workspace information. It requires workspace:write.
 	UpdateWorkspace(context.Context, *v1.UpdateWorkspaceRequest) (*v1.UpdateWorkspaceResponse, error)
 	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *v1.DeleteWorkspaceRequest) (*v1.DeleteWorkspaceResponse, error)
@@ -160,14 +140,6 @@ type WorkspaceServiceClient interface {
 	DeleteMember(context.Context, *v1.DeleteMemberRequest) (*v1.DeleteMemberResponse, error)
 	// ListWorkspaceMembers lists all members of a workspace with pagination.
 	ListWorkspaceMembers(context.Context, *v1.ListWorkspaceMembersRequest) (*v1.ListWorkspaceMembersResponse, error)
-	// GetWorkspaceRetention returns how many days the workspace keeps its logs, traces and metrics.
-	// It requires workspace:read.
-	GetWorkspaceRetention(context.Context, *v1.GetWorkspaceRetentionRequest) (*v1.GetWorkspaceRetentionResponse, error)
-	// SetWorkspaceRetention sets how many days the workspace keeps each signal, from 1 to the
-	// organization's retention limit. Only the fields in update_mask change; a masked field left
-	// unset clears the workspace's value. It applies to records ingested after it. It requires
-	// workspace:admin.
-	SetWorkspaceRetention(context.Context, *v1.SetWorkspaceRetentionRequest) (*v1.SetWorkspaceRetentionResponse, error)
 }
 
 // NewWorkspaceServiceClient constructs a client for the loco.workspace.v1.WorkspaceService service.
@@ -182,7 +154,7 @@ type WorkspaceServiceHandler interface {
 	CreateWorkspace(context.Context, *v1.CreateWorkspaceRequest) (*v1.CreateWorkspaceResponse, error)
 	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *v1.GetWorkspaceRequest) (*v1.GetWorkspaceResponse, error)
-	// UpdateWorkspace updates workspace information.
+	// UpdateWorkspace updates workspace information. It requires workspace:write.
 	UpdateWorkspace(context.Context, *v1.UpdateWorkspaceRequest) (*v1.UpdateWorkspaceResponse, error)
 	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *v1.DeleteWorkspaceRequest) (*v1.DeleteWorkspaceResponse, error)
@@ -197,14 +169,6 @@ type WorkspaceServiceHandler interface {
 	DeleteMember(context.Context, *v1.DeleteMemberRequest) (*v1.DeleteMemberResponse, error)
 	// ListWorkspaceMembers lists all members of a workspace with pagination.
 	ListWorkspaceMembers(context.Context, *v1.ListWorkspaceMembersRequest) (*v1.ListWorkspaceMembersResponse, error)
-	// GetWorkspaceRetention returns how many days the workspace keeps its logs, traces and metrics.
-	// It requires workspace:read.
-	GetWorkspaceRetention(context.Context, *v1.GetWorkspaceRetentionRequest) (*v1.GetWorkspaceRetentionResponse, error)
-	// SetWorkspaceRetention sets how many days the workspace keeps each signal, from 1 to the
-	// organization's retention limit. Only the fields in update_mask change; a masked field left
-	// unset clears the workspace's value. It applies to records ingested after it. It requires
-	// workspace:admin.
-	SetWorkspaceRetention(context.Context, *v1.SetWorkspaceRetentionRequest) (*v1.SetWorkspaceRetentionResponse, error)
 }
 
 // RegisterWorkspaceServiceHandler registers svc as the loco.workspace.v1.WorkspaceService
@@ -221,8 +185,6 @@ func RegisterWorkspaceServiceHandler(server *connect.Server, svc WorkspaceServic
 		connect.Method{Spec: workspaceServiceCreateMemberSpec(), Handler: adapter.createMember},
 		connect.Method{Spec: workspaceServiceDeleteMemberSpec(), Handler: adapter.deleteMember},
 		connect.Method{Spec: workspaceServiceListWorkspaceMembersSpec(), Handler: adapter.listWorkspaceMembers},
-		connect.Method{Spec: workspaceServiceGetWorkspaceRetentionSpec(), Handler: adapter.getWorkspaceRetention},
-		connect.Method{Spec: workspaceServiceSetWorkspaceRetentionSpec(), Handler: adapter.setWorkspaceRetention},
 	)
 }
 
@@ -263,14 +225,6 @@ func (UnimplementedWorkspaceServiceHandler) DeleteMember(context.Context, *v1.De
 
 func (UnimplementedWorkspaceServiceHandler) ListWorkspaceMembers(context.Context, *v1.ListWorkspaceMembersRequest) (*v1.ListWorkspaceMembersResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.workspace.v1.WorkspaceService.ListWorkspaceMembers is not implemented")
-}
-
-func (UnimplementedWorkspaceServiceHandler) GetWorkspaceRetention(context.Context, *v1.GetWorkspaceRetentionRequest) (*v1.GetWorkspaceRetentionResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.workspace.v1.WorkspaceService.GetWorkspaceRetention is not implemented")
-}
-
-func (UnimplementedWorkspaceServiceHandler) SetWorkspaceRetention(context.Context, *v1.SetWorkspaceRetentionRequest) (*v1.SetWorkspaceRetentionResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.workspace.v1.WorkspaceService.SetWorkspaceRetention is not implemented")
 }
 
 type workspaceServiceClient struct {
@@ -344,22 +298,6 @@ func (c *workspaceServiceClient) DeleteMember(ctx context.Context, req *v1.Delet
 func (c *workspaceServiceClient) ListWorkspaceMembers(ctx context.Context, req *v1.ListWorkspaceMembersRequest) (*v1.ListWorkspaceMembersResponse, error) {
 	var res v1.ListWorkspaceMembersResponse
 	if err := c.client.CallUnary(ctx, workspaceServiceListWorkspaceMembersSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *workspaceServiceClient) GetWorkspaceRetention(ctx context.Context, req *v1.GetWorkspaceRetentionRequest) (*v1.GetWorkspaceRetentionResponse, error) {
-	var res v1.GetWorkspaceRetentionResponse
-	if err := c.client.CallUnary(ctx, workspaceServiceGetWorkspaceRetentionSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *workspaceServiceClient) SetWorkspaceRetention(ctx context.Context, req *v1.SetWorkspaceRetentionRequest) (*v1.SetWorkspaceRetentionResponse, error) {
-	var res v1.SetWorkspaceRetentionResponse
-	if err := c.client.CallUnary(ctx, workspaceServiceSetWorkspaceRetentionSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -469,30 +407,6 @@ func (h workspaceServiceHandler) listWorkspaceMembers(ctx context.Context, _ con
 		return err
 	}
 	res, err := h.svc.ListWorkspaceMembers(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h workspaceServiceHandler) getWorkspaceRetention(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.GetWorkspaceRetentionRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.GetWorkspaceRetention(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h workspaceServiceHandler) setWorkspaceRetention(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.SetWorkspaceRetentionRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.SetWorkspaceRetention(ctx, &req)
 	if err != nil {
 		return err
 	}

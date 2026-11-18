@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
@@ -335,7 +336,7 @@ func TestIngestKeysUnavailableWhileTheSignerIs(t *testing.T) {
 	}
 }
 
-func TestPlacementWindowsCarryTheOrganizationsRetention(t *testing.T) {
+func TestPlacementWindowsCarryTheInstallRetention(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
@@ -344,19 +345,61 @@ func TestPlacementWindowsCarryTheOrganizationsRetention(t *testing.T) {
 	f.setLimit(t, limits.LogRetentionDays, 7)
 	key := newIngestKey(t, testCurrentIngestKey)
 	client := ingestClient(newIngestServer(f, signingWith(key)))
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
 
-	windows, err := placementWindows(t, client, signedIngestToken(t, key, f.clusterID, time.Now()))
+	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defaults := limits.Defaults()
 	want := &ingestv1.Retention{
-		LogDays:    7,
+		LogDays:    limits.LogRetentionDays.Value(defaults),
 		TraceDays:  limits.TraceRetentionDays.Value(defaults),
 		MetricDays: limits.MetricRetentionDays.Value(defaults),
 	}
-	if len(windows) != 1 || !proto.Equal(windows[0].GetRetention(), want) {
-		t.Fatalf("windows = %v, want one keeping %v", windows, want)
+	if len(resp.GetWindows()) != 1 || !proto.Equal(resp.GetRetention(), want) {
+		t.Fatalf("response = %v, want one window and retention %v", resp, want)
+	}
+}
+
+func TestGetRetentionReturnsEachWorkspacesRetention(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.setLimit(t, limits.MetricRetentionDays, 40)
+	first := f.workspaceID(t)
+	second := f.addWorkspace(t)
+	workspaces := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
+	if _, err := workspaces.UpdateWorkspace(f.workspaceWriter(t, first), &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId: first.String(), LogRetentionDays: new(int32(7)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	key := newIngestKey(t, testCurrentIngestKey)
+	client := ingestClient(newIngestServer(f, signingWith(key)))
+	request := &ingestv1.GetRetentionRequest{WorkspaceIds: []string{first.String(), second.String(), uuid.NewString()}}
+
+	_, err := client.GetRetention(t.Context(), request)
+	requireCode(t, err, connect.CodeUnauthenticated, "retention without an ingest token")
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
+	resp, err := client.GetRetention(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := map[string]*ingestv1.Retention{
+		first.String():  {LogDays: 7, TraceDays: installRetentionDays, MetricDays: 40},
+		second.String(): {LogDays: installRetentionDays, TraceDays: installRetentionDays, MetricDays: 40},
+	}
+	got := resp.GetRetention()
+	if len(got) != len(want) {
+		t.Fatalf("retention = %v, want %v", got, want)
+	}
+	for id, days := range want {
+		if !proto.Equal(got[id], days) {
+			t.Errorf("workspace %s keeps %v, want %v", id, got[id], days)
+		}
 	}
 }

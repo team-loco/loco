@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,7 @@ type GateConfig struct {
 	RequestTimeout      time.Duration
 	JWKSRefreshInterval time.Duration
 	PlacementTTL        time.Duration
+	RetentionTTL        time.Duration
 	RefetchInterval     time.Duration
 	ClockSkew           time.Duration
 }
@@ -44,6 +46,7 @@ type Gate struct {
 	cfg        GateConfig
 	http       *http.Client
 	placements ingestv1connect.IngestServiceClient
+	retention  *retentionCache
 
 	keysMu      sync.Mutex
 	keys        jose.JSONWebKeySet
@@ -57,7 +60,6 @@ type window struct {
 	workspaceID string
 	placedAt    time.Time
 	removedAt   time.Time
-	retention   *ingestv1.Retention
 }
 
 // snapshot is one ListPlacementWindows response; retention applies to records that name no workspace.
@@ -77,7 +79,13 @@ func NewGate(cfg GateConfig) *Gate {
 	httpClient := &http.Client{Timeout: cfg.RequestTimeout}
 	transport := connecthttp.NewTransport(httpClient, cfg.ControlPlaneURL)
 	client := ingestv1connect.NewIngestServiceClient(connect.NewClient(transport, rpc.RequestIDInterceptor))
-	return &Gate{cfg: cfg, http: httpClient, placements: client, clusters: map[string]*clusterPlacements{}}
+	return &Gate{
+		cfg:        cfg,
+		http:       httpClient,
+		placements: client,
+		retention:  newRetentionCache(cfg.RetentionTTL),
+		clusters:   map[string]*clusterPlacements{},
+	}
 }
 
 func (g *Gate) Admit(ctx context.Context, authorization string) (*Admission, error) {
@@ -205,13 +213,9 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	}
 	windows := make([]window, 0, len(resp.GetWindows()))
 	for _, w := range resp.GetWindows() {
-		if err = checkRetention(w.GetRetention()); err != nil {
-			return err
-		}
 		entry := window{
 			workspaceID: w.GetWorkspaceId(),
 			placedAt:    w.GetPlacedAt().AsTime(),
-			retention:   w.GetRetention(),
 		}
 		if w.GetRemovedAt() != nil {
 			entry.removedAt = w.GetRemovedAt().AsTime()
@@ -278,18 +282,17 @@ func (a *Admission) match(workspaceID string, at time.Time) verdict {
 	return result
 }
 
-// retention returns how long to keep the records of a workspace, or of the cluster for none. It
-// reports false for a workspace with no window, whose records check rejects.
-func (a *Admission) retention(workspaceID string) (*ingestv1.Retention, bool) {
-	if workspaceID == "" {
-		return a.placements.retention, true
+// placed reports whether the workspace has a window on the cluster.
+func (a *Admission) placed(workspaceID string) bool {
+	return slices.ContainsFunc(a.placements.windows, func(w window) bool { return w.workspaceID == workspaceID })
+}
+
+// workspaceRetention returns how long to keep the records of each workspace in ids.
+func (a *Admission) workspaceRetention(ctx context.Context, ids []string) (map[string]*ingestv1.Retention, error) {
+	if len(ids) == 0 {
+		return nil, nil
 	}
-	for _, w := range a.placements.windows {
-		if w.workspaceID == workspaceID {
-			return w.retention, true
-		}
-	}
-	return nil, false
+	return a.gate.retention.lookup(ctx, ids, a.gate.fetchRetention(a.token))
 }
 
 // checkRetention refuses a retention of 0 days, which ClickHouse would expire at once.

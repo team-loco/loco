@@ -49,21 +49,25 @@ func (q *Queries) GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UU
 }
 
 const getWorkspaceByIDQuery = `-- name: GetWorkspaceByIDQuery :one
-SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+       w.log_retention_days, w.trace_retention_days, w.metric_retention_days
 FROM workspaces w
 JOIN organizations o ON o.id = w.org_id
 WHERE w.id = $1
 `
 
 type GetWorkspaceByIDQueryRow struct {
-	ID          uuid.UUID `json:"id"`
-	OrgID       uuid.UUID `json:"orgId"`
-	OrgName     string    `json:"orgName"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description"`
-	CreatedBy   uuid.UUID `json:"createdBy"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID                  uuid.UUID `json:"id"`
+	OrgID               uuid.UUID `json:"orgId"`
+	OrgName             string    `json:"orgName"`
+	Name                string    `json:"name"`
+	Description         *string   `json:"description"`
+	CreatedBy           uuid.UUID `json:"createdBy"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
 }
 
 func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetWorkspaceByIDQueryRow, error) {
@@ -78,27 +82,6 @@ func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetW
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const getWorkspaceRetention = `-- name: GetWorkspaceRetention :one
-SELECT org_id, log_retention_days, trace_retention_days, metric_retention_days
-FROM workspaces WHERE id = $1
-`
-
-type GetWorkspaceRetentionRow struct {
-	OrgID               uuid.UUID `json:"orgId"`
-	LogRetentionDays    *int32    `json:"logRetentionDays"`
-	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
-	MetricRetentionDays *int32    `json:"metricRetentionDays"`
-}
-
-func (q *Queries) GetWorkspaceRetention(ctx context.Context, id uuid.UUID) (GetWorkspaceRetentionRow, error) {
-	row := q.db.QueryRow(ctx, getWorkspaceRetention, id)
-	var i GetWorkspaceRetentionRow
-	err := row.Scan(
-		&i.OrgID,
 		&i.LogRetentionDays,
 		&i.TraceRetentionDays,
 		&i.MetricRetentionDays,
@@ -209,10 +192,51 @@ func (q *Queries) ListWorkspaceResourcesForDeletion(ctx context.Context, workspa
 	return items, nil
 }
 
+const listWorkspaceRetention = `-- name: ListWorkspaceRetention :many
+SELECT id, org_id, log_retention_days, trace_retention_days, metric_retention_days
+FROM workspaces WHERE id = ANY($1::uuid[])
+`
+
+type ListWorkspaceRetentionRow struct {
+	ID                  uuid.UUID `json:"id"`
+	OrgID               uuid.UUID `json:"orgId"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
+}
+
+func (q *Queries) ListWorkspaceRetention(ctx context.Context, ids []uuid.UUID) ([]ListWorkspaceRetentionRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceRetention, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWorkspaceRetentionRow
+	for rows.Next() {
+		var i ListWorkspaceRetentionRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.LogRetentionDays,
+			&i.TraceRetentionDays,
+			&i.MetricRetentionDays,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkspacesForUser = `-- name: ListWorkspacesForUser :many
-SELECT v.id, v.org_id, o.name AS org_name, v.name, v.description, v.created_by, v.created_at, v.updated_at
+SELECT v.id, v.org_id, o.name AS org_name, v.name, v.description, v.created_by, v.created_at, v.updated_at,
+       v.log_retention_days, v.trace_retention_days, v.metric_retention_days
 FROM (
-    SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+    SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+           w.log_retention_days, w.trace_retention_days, w.metric_retention_days
     FROM user_scopes us
     JOIN workspaces w ON w.id = us.entity_id
     WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'workspace'
@@ -222,10 +246,12 @@ FROM (
              $3::uuid
            ))
     UNION
-    SELECT ow.id, ow.org_id, ow.name, ow.description, ow.created_by, ow.created_at, ow.updated_at
+    SELECT ow.id, ow.org_id, ow.name, ow.description, ow.created_by, ow.created_at, ow.updated_at,
+           ow.log_retention_days, ow.trace_retention_days, ow.metric_retention_days
     FROM user_scopes us
     CROSS JOIN LATERAL (
-        SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+        SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+               w.log_retention_days, w.trace_retention_days, w.metric_retention_days
         FROM workspaces w
         WHERE w.org_id = us.entity_id
           AND ($3::text IS NULL
@@ -251,14 +277,17 @@ type ListWorkspacesForUserParams struct {
 }
 
 type ListWorkspacesForUserRow struct {
-	ID          uuid.UUID `json:"id"`
-	OrgID       uuid.UUID `json:"orgId"`
-	OrgName     string    `json:"orgName"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description"`
-	CreatedBy   uuid.UUID `json:"createdBy"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID                  uuid.UUID `json:"id"`
+	OrgID               uuid.UUID `json:"orgId"`
+	OrgName             string    `json:"orgName"`
+	Name                string    `json:"name"`
+	Description         *string   `json:"description"`
+	CreatedBy           uuid.UUID `json:"createdBy"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
 }
 
 func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]ListWorkspacesForUserRow, error) {
@@ -284,6 +313,9 @@ func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesF
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LogRetentionDays,
+			&i.TraceRetentionDays,
+			&i.MetricRetentionDays,
 		); err != nil {
 			return nil, err
 		}
@@ -296,7 +328,8 @@ func (q *Queries) ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesF
 }
 
 const listWorkspacesInOrg = `-- name: ListWorkspacesInOrg :many
-SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+       w.log_retention_days, w.trace_retention_days, w.metric_retention_days
 FROM workspaces w
 JOIN organizations o ON o.id = w.org_id
 WHERE w.org_id = $1
@@ -323,14 +356,17 @@ type ListWorkspacesInOrgParams struct {
 }
 
 type ListWorkspacesInOrgRow struct {
-	ID          uuid.UUID `json:"id"`
-	OrgID       uuid.UUID `json:"orgId"`
-	OrgName     string    `json:"orgName"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description"`
-	CreatedBy   uuid.UUID `json:"createdBy"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID                  uuid.UUID `json:"id"`
+	OrgID               uuid.UUID `json:"orgId"`
+	OrgName             string    `json:"orgName"`
+	Name                string    `json:"name"`
+	Description         *string   `json:"description"`
+	CreatedBy           uuid.UUID `json:"createdBy"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
 }
 
 func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInOrgParams) ([]ListWorkspacesInOrgRow, error) {
@@ -359,6 +395,9 @@ func (q *Queries) ListWorkspacesInOrg(ctx context.Context, arg ListWorkspacesInO
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LogRetentionDays,
+			&i.TraceRetentionDays,
+			&i.MetricRetentionDays,
 		); err != nil {
 			return nil, err
 		}
@@ -381,6 +420,30 @@ func (q *Queries) LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (u
 	return org_id, err
 }
 
+const lockWorkspaceRetention = `-- name: LockWorkspaceRetention :one
+SELECT org_id, log_retention_days, trace_retention_days, metric_retention_days
+FROM workspaces WHERE id = $1 FOR UPDATE
+`
+
+type LockWorkspaceRetentionRow struct {
+	OrgID               uuid.UUID `json:"orgId"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
+}
+
+func (q *Queries) LockWorkspaceRetention(ctx context.Context, id uuid.UUID) (LockWorkspaceRetentionRow, error) {
+	row := q.db.QueryRow(ctx, lockWorkspaceRetention, id)
+	var i LockWorkspaceRetentionRow
+	err := row.Scan(
+		&i.OrgID,
+		&i.LogRetentionDays,
+		&i.TraceRetentionDays,
+		&i.MetricRetentionDays,
+	)
+	return i, err
+}
+
 const removeWorkspace = `-- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1
 `
@@ -390,50 +453,34 @@ func (q *Queries) RemoveWorkspace(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const setWorkspaceRetention = `-- name: SetWorkspaceRetention :exec
-UPDATE workspaces
-SET log_retention_days = $1,
-    trace_retention_days = $2,
-    metric_retention_days = $3,
-    updated_at = NOW()
-WHERE id = $4
-`
-
-type SetWorkspaceRetentionParams struct {
-	LogRetentionDays    *int32    `json:"logRetentionDays"`
-	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
-	MetricRetentionDays *int32    `json:"metricRetentionDays"`
-	ID                  uuid.UUID `json:"id"`
-}
-
-func (q *Queries) SetWorkspaceRetention(ctx context.Context, arg SetWorkspaceRetentionParams) error {
-	_, err := q.db.Exec(ctx, setWorkspaceRetention,
-		arg.LogRetentionDays,
-		arg.TraceRetentionDays,
-		arg.MetricRetentionDays,
-		arg.ID,
-	)
-	return err
-}
-
-const updateWorkspace = `-- name: UpdateWorkspace :one
+const updateWorkspace = `-- name: UpdateWorkspace :exec
 UPDATE workspaces
 SET name = COALESCE($2, name),
     description = COALESCE($3, description),
+    log_retention_days = $4,
+    trace_retention_days = $5,
+    metric_retention_days = $6,
     updated_at = NOW()
 WHERE id = $1
-RETURNING id
 `
 
 type UpdateWorkspaceParams struct {
-	ID          uuid.UUID `json:"id"`
-	Name        *string   `json:"name"`
-	Description *string   `json:"description"`
+	ID                  uuid.UUID `json:"id"`
+	Name                *string   `json:"name"`
+	Description         *string   `json:"description"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
 }
 
-func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateWorkspace, arg.ID, arg.Name, arg.Description)
-	var id uuid.UUID
-	err := row.Scan(&id)
-	return id, err
+func (q *Queries) UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error {
+	_, err := q.db.Exec(ctx, updateWorkspace,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.LogRetentionDays,
+		arg.TraceRetentionDays,
+		arg.MetricRetentionDays,
+	)
+	return err
 }

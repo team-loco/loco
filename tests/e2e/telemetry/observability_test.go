@@ -17,7 +17,6 @@ import (
 	"github.com/team-loco/loco/internal/logquery"
 
 	"connectrpc.com/connect/v2"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -71,10 +70,9 @@ func TestObservability(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	second := w.NewWorkspace(t, w.Name+"-isolation")
-	if _, err := p.User.Workspace.SetWorkspaceRetention(t.Context(), &workspacev1.SetWorkspaceRetentionRequest{
-		WorkspaceId: w.ID,
-		Settings:    &workspacev1.RetentionDays{LogDays: new(int32(logRetentionDays))},
-		UpdateMask:  &fieldmaskpb.FieldMask{Paths: []string{"log_days"}},
+	if _, err := p.User.Workspace.UpdateWorkspace(t.Context(), &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId:      w.ID,
+		LogRetentionDays: new(int32(logRetentionDays)),
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,8 @@ VALUES ($1, $2, $3, $4)
 RETURNING id;
 
 -- name: GetWorkspaceByIDQuery :one
-SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+       w.log_retention_days, w.trace_retention_days, w.metric_retention_days
 FROM workspaces w
 JOIN organizations o ON o.id = w.org_id
 WHERE w.id = $1;
@@ -13,9 +14,11 @@ WHERE w.id = $1;
 SELECT org_id FROM workspaces WHERE id = $1;
 
 -- name: ListWorkspacesForUser :many
-SELECT v.id, v.org_id, o.name AS org_name, v.name, v.description, v.created_by, v.created_at, v.updated_at
+SELECT v.id, v.org_id, o.name AS org_name, v.name, v.description, v.created_by, v.created_at, v.updated_at,
+       v.log_retention_days, v.trace_retention_days, v.metric_retention_days
 FROM (
-    SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+    SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+           w.log_retention_days, w.trace_retention_days, w.metric_retention_days
     FROM user_scopes us
     JOIN workspaces w ON w.id = us.entity_id
     WHERE us.user_id = $1 AND us.scope = 'read' AND us.entity_type = 'workspace'
@@ -25,10 +28,12 @@ FROM (
              sqlc.narg('page_token')::uuid
            ))
     UNION
-    SELECT ow.id, ow.org_id, ow.name, ow.description, ow.created_by, ow.created_at, ow.updated_at
+    SELECT ow.id, ow.org_id, ow.name, ow.description, ow.created_by, ow.created_at, ow.updated_at,
+           ow.log_retention_days, ow.trace_retention_days, ow.metric_retention_days
     FROM user_scopes us
     CROSS JOIN LATERAL (
-        SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at
+        SELECT w.id, w.org_id, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+               w.log_retention_days, w.trace_retention_days, w.metric_retention_days
         FROM workspaces w
         WHERE w.org_id = us.entity_id
           AND (sqlc.narg('page_token')::text IS NULL
@@ -46,7 +51,8 @@ ORDER BY v.created_at DESC, v.id DESC
 LIMIT $2;
 
 -- name: ListWorkspacesInOrg :many
-SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at
+SELECT w.id, w.org_id, o.name AS org_name, w.name, w.description, w.created_by, w.created_at, w.updated_at,
+       w.log_retention_days, w.trace_retention_days, w.metric_retention_days
 FROM workspaces w
 JOIN organizations o ON o.id = w.org_id
 WHERE w.org_id = $1
@@ -61,13 +67,15 @@ WHERE w.org_id = $1
 ORDER BY w.created_at DESC, w.id DESC
 LIMIT $2;
 
--- name: UpdateWorkspace :one
+-- name: UpdateWorkspace :exec
 UPDATE workspaces
 SET name = COALESCE(sqlc.narg('name'), name),
     description = COALESCE(sqlc.narg('description'), description),
+    log_retention_days = sqlc.narg('log_retention_days'),
+    trace_retention_days = sqlc.narg('trace_retention_days'),
+    metric_retention_days = sqlc.narg('metric_retention_days'),
     updated_at = NOW()
-WHERE id = $1
-RETURNING id;
+WHERE id = $1;
 
 -- name: RemoveWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
@@ -101,14 +109,10 @@ WHERE (sqlc.narg('page_token')::text IS NULL
 ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
 
--- name: GetWorkspaceRetention :one
+-- name: LockWorkspaceRetention :one
 SELECT org_id, log_retention_days, trace_retention_days, metric_retention_days
-FROM workspaces WHERE id = $1;
+FROM workspaces WHERE id = $1 FOR UPDATE;
 
--- name: SetWorkspaceRetention :exec
-UPDATE workspaces
-SET log_retention_days = sqlc.narg('log_retention_days'),
-    trace_retention_days = sqlc.narg('trace_retention_days'),
-    metric_retention_days = sqlc.narg('metric_retention_days'),
-    updated_at = NOW()
-WHERE id = sqlc.arg('id');
+-- name: ListWorkspaceRetention :many
+SELECT id, org_id, log_retention_days, trace_retention_days, metric_retention_days
+FROM workspaces WHERE id = ANY(sqlc.arg('ids')::uuid[]);

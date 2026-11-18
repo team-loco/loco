@@ -127,6 +127,7 @@ func TestLoadPanicsOnInvalidValues(t *testing.T) {
 		"OTLP_MAX_REQUEST_BYTES":            {"0", "-1"},
 		"INGEST_JWKS_REFRESH_INTERVAL":      {"-1s"},
 		"INGEST_PLACEMENT_CACHE_TTL":        {"-30s"},
+		"INGEST_RETENTION_CACHE_TTL":        {"0s"},
 		"INGEST_PLACEMENT_REFETCH_INTERVAL": {"0s"},
 		"INGEST_CLOCK_SKEW":                 {"-5m"},
 		"INGEST_RETRY_AFTER":                {fractionalSeconds, "0s"},
@@ -177,6 +178,7 @@ func TestLoadReadsIngestAuthSettings(t *testing.T) {
 		RequestTimeout:      ingestAuthTimeout,
 		JWKSRefreshInterval: defaultIngestJWKSRefreshInterval,
 		PlacementTTL:        defaultIngestPlacementCacheTTL,
+		RetentionTTL:        defaultIngestRetentionCacheTTL,
 		RefetchInterval:     defaultIngestPlacementRefetch,
 		ClockSkew:           defaultIngestClockSkew,
 	}

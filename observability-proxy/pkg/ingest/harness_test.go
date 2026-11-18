@@ -67,6 +67,7 @@ func (c *controlPlane) gate() *Gate {
 		RequestTimeout:      testAuthTimeout,
 		JWKSRefreshInterval: testJWKSRefresh,
 		PlacementTTL:        testPlacementTTL,
+		RetentionTTL:        testRetentionTTL,
 		RefetchInterval:     testPlacementRefetch,
 		ClockSkew:           testClockSkew,
 	})

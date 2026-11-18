@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/ingest/v1/ingest.proto.
  */
 export const file_loco_ingest_v1_ingest: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QifgocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93EiwKCXJldGVudGlvbhgCIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiK0AQoPUGxhY2VtZW50V2luZG93EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRItCglwbGFjZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJlbW92ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEiwKCXJldGVudGlvbhgEIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiJGCglSZXRlbnRpb24SEAoIbG9nX2RheXMYASABKAUSEgoKdHJhY2VfZGF5cxgCIAEoBRITCgttZXRyaWNfZGF5cxgDIAEoBTLXAQoNSW5nZXN0U2VydmljZRJTCgpJc3N1ZVRva2VuEiEubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlcXVlc3QaIi5sb2NvLmluZ2VzdC52MS5Jc3N1ZVRva2VuUmVzcG9uc2UScQoUTGlzdFBsYWNlbWVudFdpbmRvd3MSKy5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QaLC5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vaW5nZXN0L3YxO2luZ2VzdHYxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QifgocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93EiwKCXJldGVudGlvbhgCIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiKGAQoPUGxhY2VtZW50V2luZG93EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRItCglwbGFjZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJlbW92ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkYKCVJldGVudGlvbhIQCghsb2dfZGF5cxgBIAEoBRISCgp0cmFjZV9kYXlzGAIgASgFEhMKC21ldHJpY19kYXlzGAMgASgFIiwKE0dldFJldGVudGlvblJlcXVlc3QSFQoNd29ya3NwYWNlX2lkcxgBIAMoCSKrAQoUR2V0UmV0ZW50aW9uUmVzcG9uc2USRgoJcmV0ZW50aW9uGAEgAygLMjMubG9jby5pbmdlc3QudjEuR2V0UmV0ZW50aW9uUmVzcG9uc2UuUmV0ZW50aW9uRW50cnkaSwoOUmV0ZW50aW9uRW50cnkSCwoDa2V5GAEgASgJEigKBXZhbHVlGAIgASgLMhkubG9jby5pbmdlc3QudjEuUmV0ZW50aW9uOgI4ATKyAgoNSW5nZXN0U2VydmljZRJTCgpJc3N1ZVRva2VuEiEubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlcXVlc3QaIi5sb2NvLmluZ2VzdC52MS5Jc3N1ZVRva2VuUmVzcG9uc2UScQoUTGlzdFBsYWNlbWVudFdpbmRvd3MSKy5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QaLC5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1Jlc3BvbnNlElkKDEdldFJldGVudGlvbhIjLmxvY28uaW5nZXN0LnYxLkdldFJldGVudGlvblJlcXVlc3QaJC5sb2NvLmluZ2VzdC52MS5HZXRSZXRlbnRpb25SZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.ingest.v1.IssueTokenRequest
@@ -151,13 +151,6 @@ export type PlacementWindow = Message<"loco.ingest.v1.PlacementWindow"> & {
    * @generated from field: google.protobuf.Timestamp removed_at = 3;
    */
   removedAt?: Timestamp | undefined;
-
-  /**
-   * retention applies to the workspace's records: its organization's retention limits.
-   *
-   * @generated from field: loco.ingest.v1.Retention retention = 4;
-   */
-  retention?: Retention | undefined;
 };
 
 /**
@@ -181,13 +174,6 @@ export type PlacementWindowJson = {
    * @generated from field: google.protobuf.Timestamp removed_at = 3;
    */
   removedAt?: TimestampJson;
-
-  /**
-   * retention applies to the workspace's records: its organization's retention limits.
-   *
-   * @generated from field: loco.ingest.v1.Retention retention = 4;
-   */
-  retention?: RetentionJson;
 };
 
 /**
@@ -249,6 +235,64 @@ export const RetentionSchema: GenMessage<Retention, {jsonType: RetentionJson}> =
   messageDesc(file_loco_ingest_v1_ingest, 5);
 
 /**
+ * @generated from message loco.ingest.v1.GetRetentionRequest
+ */
+export type GetRetentionRequest = Message<"loco.ingest.v1.GetRetentionRequest"> & {
+  /**
+   * @generated from field: repeated string workspace_ids = 1;
+   */
+  workspaceIds: string[];
+};
+
+/**
+ * @generated from message loco.ingest.v1.GetRetentionRequest
+ */
+export type GetRetentionRequestJson = {
+  /**
+   * @generated from field: repeated string workspace_ids = 1;
+   */
+  workspaceIds?: string[];
+};
+
+/**
+ * Describes the message loco.ingest.v1.GetRetentionRequest.
+ * Use `create(GetRetentionRequestSchema)` to create a new message.
+ */
+export const GetRetentionRequestSchema: GenMessage<GetRetentionRequest, {jsonType: GetRetentionRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_ingest_v1_ingest, 6);
+
+/**
+ * @generated from message loco.ingest.v1.GetRetentionResponse
+ */
+export type GetRetentionResponse = Message<"loco.ingest.v1.GetRetentionResponse"> & {
+  /**
+   * retention maps each requested workspace ID to its retention; an ID that names no workspace is left out.
+   *
+   * @generated from field: map<string, loco.ingest.v1.Retention> retention = 1;
+   */
+  retention: { [key: string]: Retention };
+};
+
+/**
+ * @generated from message loco.ingest.v1.GetRetentionResponse
+ */
+export type GetRetentionResponseJson = {
+  /**
+   * retention maps each requested workspace ID to its retention; an ID that names no workspace is left out.
+   *
+   * @generated from field: map<string, loco.ingest.v1.Retention> retention = 1;
+   */
+  retention?: { [key: string]: RetentionJson };
+};
+
+/**
+ * Describes the message loco.ingest.v1.GetRetentionResponse.
+ * Use `create(GetRetentionResponseSchema)` to create a new message.
+ */
+export const GetRetentionResponseSchema: GenMessage<GetRetentionResponse, {jsonType: GetRetentionResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_ingest_v1_ingest, 7);
+
+/**
  * IngestService authorizes telemetry that worker clusters send to the observability proxy.
  *
  * @generated from service loco.ingest.v1.IngestService
@@ -273,6 +317,18 @@ export const IngestService: GenService<{
     methodKind: "unary";
     input: typeof ListPlacementWindowsRequestSchema;
     output: typeof ListPlacementWindowsResponseSchema;
+  },
+  /**
+   * GetRetention returns how many days to keep each workspace's records: the workspace's own
+   * value capped by its organization's limit for each signal. It takes an ingest token like
+   * ListPlacementWindows and up to 1000 workspace IDs.
+   *
+   * @generated from rpc loco.ingest.v1.IngestService.GetRetention
+   */
+  getRetention: {
+    methodKind: "unary";
+    input: typeof GetRetentionRequestSchema;
+    output: typeof GetRetentionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_loco_ingest_v1_ingest, 0);

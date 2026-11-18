@@ -5,18 +5,15 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
-	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -38,74 +35,70 @@ func (f *deployFixture) workspaceRole(
 	return f.asCreator(t, granted...)
 }
 
-func (f *deployFixture) workspaceAdmin(t *testing.T, workspaceID uuid.UUID) context.Context {
+func (f *deployFixture) workspaceWriter(t *testing.T, workspaceID uuid.UUID) context.Context {
 	t.Helper()
-	return f.workspaceRole(t, workspaceID, genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin)
-}
-
-func setRetention(
-	ctx context.Context,
-	server *WorkspaceServer,
-	workspaceID uuid.UUID,
-	settings *workspacev1.RetentionDays,
-	paths ...string,
-) (*workspacev1.WorkspaceRetention, error) {
-	resp, err := server.SetWorkspaceRetention(ctx, &workspacev1.SetWorkspaceRetentionRequest{
-		WorkspaceId: workspaceID.String(),
-		Settings:    settings,
-		UpdateMask:  &fieldmaskpb.FieldMask{Paths: paths},
-	})
-	return resp.GetRetention(), err
+	return f.workspaceRole(t, workspaceID, genDb.ScopeRead, genDb.ScopeWrite)
 }
 
 func retentionDays(logs, traces, metrics *int32) *workspacev1.RetentionDays {
 	return &workspacev1.RetentionDays{LogDays: logs, TraceDays: traces, MetricDays: metrics}
 }
 
-func requireRetention(t *testing.T, label string, got, want *workspacev1.WorkspaceRetention) {
+func getWorkspace(t *testing.T, ctx context.Context, server *WorkspaceServer, id uuid.UUID) *workspacev1.Workspace {
 	t.Helper()
-	if !proto.Equal(got, want) {
-		t.Fatalf("%s: retention = %v, want %v", label, got, want)
+	resp, err := server.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: id.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp.GetWorkspace()
+}
+
+func requireRetention(
+	t *testing.T,
+	label string,
+	got *workspacev1.Workspace,
+	own, effective *workspacev1.RetentionDays,
+) {
+	t.Helper()
+	if !proto.Equal(got.GetRetention(), own) || !proto.Equal(got.GetEffectiveRetention(), effective) {
+		t.Fatalf("%s: retention = %v, effective %v; want %v, effective %v",
+			label, got.GetRetention(), got.GetEffectiveRetention(), own, effective)
 	}
 }
 
-func TestWorkspaceAdminSetsAndClearsRetention(t *testing.T) {
+func TestUpdateWorkspaceSetsAndClearsRetention(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	workspaceID := f.workspaceID(t)
-	admin := f.workspaceAdmin(t, workspaceID)
+	writer := f.workspaceWriter(t, workspaceID)
 	install := new(int32(installRetentionDays))
 
-	got, err := setRetention(admin, server, workspaceID,
-		retentionDays(new(int32(30)), new(int32(10)), nil), "log_days", "trace_days")
-	if err != nil {
+	if _, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId:        workspaceID.String(),
+		LogRetentionDays:   new(int32(30)),
+		TraceRetentionDays: new(int32(10)),
+	}); err != nil {
 		t.Fatal(err)
 	}
-	requireRetention(t, "after set", got, &workspacev1.WorkspaceRetention{
-		Settings:  retentionDays(new(int32(30)), new(int32(10)), nil),
-		Limits:    retentionDays(install, install, install),
-		Effective: retentionDays(new(int32(30)), new(int32(10)), install),
-	})
+	requireRetention(t, "after set", getWorkspace(t, writer, server, workspaceID),
+		retentionDays(new(int32(30)), new(int32(10)), nil),
+		retentionDays(new(int32(30)), new(int32(10)), install))
 
-	reader := f.workspaceRole(t, workspaceID, genDb.ScopeRead)
-	read, err := server.GetWorkspaceRetention(reader, &workspacev1.GetWorkspaceRetentionRequest{
-		WorkspaceId: workspaceID.String(),
-	})
-	if err != nil {
+	if _, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId:      workspaceID.String(),
+		Name:             new("renamed"),
+		LogRetentionDays: new(int32(0)),
+	}); err != nil {
 		t.Fatal(err)
 	}
-	requireRetention(t, "member read", read.GetRetention(), got)
-
-	got, err = setRetention(admin, server, workspaceID, &workspacev1.RetentionDays{}, "log_days")
-	if err != nil {
-		t.Fatal(err)
+	got := getWorkspace(t, writer, server, workspaceID)
+	if got.GetName() != "renamed" {
+		t.Fatalf("name = %q, want renamed", got.GetName())
 	}
-	requireRetention(t, "after clearing logs", got, &workspacev1.WorkspaceRetention{
-		Settings:  retentionDays(nil, new(int32(10)), nil),
-		Limits:    retentionDays(install, install, install),
-		Effective: retentionDays(install, new(int32(10)), install),
-	})
+	requireRetention(t, "after clearing logs", got,
+		retentionDays(nil, new(int32(10)), nil),
+		retentionDays(install, new(int32(10)), install))
 
 	changes := f.workspaceUpdates(t, workspaceID)
 	if len(changes) != 2 {
@@ -118,55 +111,58 @@ func TestWorkspaceAdminSetsAndClearsRetention(t *testing.T) {
 	if err := json.Unmarshal(changes[1], &cleared); err != nil {
 		t.Fatal(err)
 	}
-	if cleared.Old["log_days"] == nil || *cleared.Old["log_days"] != 30 || cleared.New["log_days"] != nil ||
-		*cleared.New["trace_days"] != 10 {
+	if cleared.Old["log_retention_days"] == nil || *cleared.Old["log_retention_days"] != 30 ||
+		cleared.New["log_retention_days"] != nil ||
+		cleared.New["trace_retention_days"] == nil ||
+		*cleared.New["trace_retention_days"] != 10 {
 		t.Fatalf("clearing event = %s", changes[1])
 	}
 }
 
-func TestWorkspaceRetentionStaysWithinTheOrganizationsLimit(t *testing.T) {
+func TestUpdateWorkspaceRetentionStaysWithinTheOrganizationsLimit(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.LogRetentionDays, 30)
 	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	workspaceID := f.workspaceID(t)
-	admin := f.workspaceAdmin(t, workspaceID)
+	writer := f.workspaceWriter(t, workspaceID)
 
-	for _, days := range []int32{31, 0, -1} {
-		_, err := setRetention(admin, server, workspaceID, retentionDays(new(days), nil, nil), "log_days")
+	for _, days := range []int32{31, -1} {
+		_, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
+			WorkspaceId: workspaceID.String(), LogRetentionDays: new(days), Name: new("ignored"),
+		})
 		requireCode(t, err, connect.CodeInvalidArgument, "log retention outside the limit")
 		if !strings.Contains(err.Error(), "30") || !strings.Contains(err.Error(), "log_retention_days") {
 			t.Fatalf("error %q does not name the limit", err)
 		}
 	}
-	_, err := setRetention(admin, server, workspaceID, retentionDays(new(int32(5)), nil, nil), "name")
-	requireCode(t, err, connect.CodeInvalidArgument, "mask names a field that is not a retention")
+	if name := getWorkspace(t, writer, server, workspaceID).GetName(); name == "ignored" {
+		t.Fatal("a refused update renamed the workspace")
+	}
 
-	got, err := setRetention(admin, server, workspaceID, retentionDays(new(int32(30)), nil, nil), "log_days")
-	if err != nil {
+	if _, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId: workspaceID.String(), LogRetentionDays: new(int32(30)),
+	}); err != nil {
 		t.Fatalf("retention at the limit: %v", err)
 	}
-	if got.GetEffective().GetLogDays() != 30 {
-		t.Fatalf("effective log retention = %d, want 30", got.GetEffective().GetLogDays())
+	if days := getWorkspace(t, writer, server, workspaceID).GetEffectiveRetention().GetLogDays(); days != 30 {
+		t.Fatalf("effective log retention = %d, want 30", days)
 	}
 }
 
-func TestOnlyWorkspaceAdminsSetRetention(t *testing.T) {
+func TestUpdateWorkspaceRetentionRequiresWorkspaceWrite(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	workspaceID := f.workspaceID(t)
-	member := f.workspaceRole(t, workspaceID, genDb.ScopeRead, genDb.ScopeWrite)
+	request := &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId: workspaceID.String(), MetricRetentionDays: new(int32(5)),
+	}
 
-	_, err := setRetention(member, server, workspaceID, retentionDays(new(int32(5)), nil, nil), "log_days")
-	requireCode(t, err, connect.CodePermissionDenied, "workspace member sets retention")
-	_, err = server.GetWorkspaceRetention(f.asCreator(t), &workspacev1.GetWorkspaceRetentionRequest{
-		WorkspaceId: workspaceID.String(),
-	})
-	requireCode(t, err, connect.CodePermissionDenied, "outsider reads retention")
-	if _, err = setRetention(f.workspaceAdmin(t, workspaceID), server, workspaceID,
-		retentionDays(new(int32(5)), nil, nil), "log_days"); err != nil {
-		t.Fatalf("workspace admin sets retention: %v", err)
+	_, err := server.UpdateWorkspace(f.workspaceRole(t, workspaceID, genDb.ScopeRead), request)
+	requireCode(t, err, connect.CodePermissionDenied, "workspace reader sets retention")
+	if _, err = server.UpdateWorkspace(f.workspaceWriter(t, workspaceID), request); err != nil {
+		t.Fatalf("workspace writer sets retention: %v", err)
 	}
 }
 
@@ -175,94 +171,46 @@ func TestOrganizationLimitCapsWorkspaceRetention(t *testing.T) {
 	f := newDeployFixture(t)
 	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	workspaceID := f.workspaceID(t)
-	admin := f.workspaceAdmin(t, workspaceID)
-	if _, err := setRetention(admin, server, workspaceID,
-		retentionDays(nil, new(int32(60)), nil), "trace_days"); err != nil {
+	writer := f.workspaceWriter(t, workspaceID)
+	if _, err := server.UpdateWorkspace(writer, &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId: workspaceID.String(), TraceRetentionDays: new(int32(60)),
+	}); err != nil {
 		t.Fatal(err)
 	}
 
-	for _, step := range []struct{ limit, settings, effective int32 }{
-		{limit: 20, settings: 60, effective: 20},
-		{limit: 100, settings: 60, effective: 60},
-	} {
+	for _, step := range []struct{ limit, effective int32 }{{limit: 20, effective: 20}, {limit: 100, effective: 60}} {
 		f.setLimit(t, limits.TraceRetentionDays, step.limit)
-		resp, err := server.GetWorkspaceRetention(admin, &workspacev1.GetWorkspaceRetentionRequest{
-			WorkspaceId: workspaceID.String(),
+		got := getWorkspace(t, writer, server, workspaceID)
+		if got.GetRetention().GetTraceDays() != 60 || got.GetEffectiveRetention().GetTraceDays() != step.effective {
+			t.Fatalf("organization limit %d: retention %v, effective %v; want 60 kept and %d applied",
+				step.limit, got.GetRetention(), got.GetEffectiveRetention(), step.effective)
+		}
+		orgReader := f.asCreator(t, genDb.EntityScope{
+			EntityType: genDb.EntityTypeOrganization,
+			EntityID:   uuid.MustParse(f.organizationID(t)),
+			Scope:      genDb.ScopeRead,
+		})
+		listed, err := server.ListOrgWorkspaces(orgReader, &workspacev1.ListOrgWorkspacesRequest{
+			OrgId: f.organizationID(t),
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		got := resp.GetRetention()
-		if got.GetSettings().GetTraceDays() != step.settings || got.GetLimits().GetTraceDays() != step.limit ||
-			got.GetEffective().GetTraceDays() != step.effective {
-			t.Fatalf("organization limit %d: retention = %v, want trace days %d kept and %d applied",
-				step.limit, got, step.settings, step.effective)
+		if len(listed.GetWorkspaces()) != 1 || !proto.Equal(listed.GetWorkspaces()[0], got) {
+			t.Fatalf("listed %v, want %v", listed.GetWorkspaces(), got)
 		}
 	}
 }
 
-func TestPlacementWindowsCarryEachWorkspacesRetention(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
-		t.Fatal(err)
-	}
-	first := f.workspaceID(t)
-	second := f.addPlacedWorkspace(t)
-	server := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
-	if _, err := setRetention(f.workspaceAdmin(t, first), server, first,
-		retentionDays(new(int32(7)), nil, nil), "log_days"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := setRetention(f.workspaceAdmin(t, second), server, second,
-		retentionDays(nil, nil, new(int32(3))), "metric_days"); err != nil {
-		t.Fatal(err)
-	}
-	key := newIngestKey(t, testCurrentIngestKey)
-	client := ingestClient(newIngestServer(f, signingWith(key)))
-	ctx, info := connect.NewClientContext(t.Context())
-	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
-
-	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := map[string]*ingestv1.Retention{
-		first.String():  {LogDays: 7, TraceDays: installRetentionDays, MetricDays: installRetentionDays},
-		second.String(): {LogDays: installRetentionDays, TraceDays: installRetentionDays, MetricDays: 3},
-	}
-	if len(resp.GetWindows()) != len(want) {
-		t.Fatalf("windows = %v, want one per workspace", resp.GetWindows())
-	}
-	for _, window := range resp.GetWindows() {
-		if !proto.Equal(window.GetRetention(), want[window.GetWorkspaceId()]) {
-			t.Errorf("workspace %s keeps %v, want %v",
-				window.GetWorkspaceId(), window.GetRetention(), want[window.GetWorkspaceId()])
-		}
-	}
-	install := &ingestv1.Retention{
-		LogDays: installRetentionDays, TraceDays: installRetentionDays, MetricDays: installRetentionDays,
-	}
-	if !proto.Equal(resp.GetRetention(), install) {
-		t.Fatalf("retention without a workspace = %v, want %v", resp.GetRetention(), install)
-	}
-}
-
-// addPlacedWorkspace adds a workspace to the fixture's organization with a placement window on
-// the fixture's cluster.
-func (f *deployFixture) addPlacedWorkspace(t *testing.T) uuid.UUID {
+// addWorkspace adds a workspace to the fixture's organization.
+func (f *deployFixture) addWorkspace(t *testing.T) uuid.UUID {
 	t.Helper()
 	var workspaceID uuid.UUID
 	err := f.pool.QueryRow(t.Context(), `
-WITH w AS (
-    INSERT INTO workspaces (org_id, name, created_by)
-    SELECT org_id, 'second', created_by FROM workspaces WHERE id = $1 RETURNING id
-)
-INSERT INTO placement_windows (resource_id, cluster_id, workspace_id)
-SELECT uuidv7(), $2, w.id FROM w RETURNING workspace_id`, f.workspaceID(t), f.clusterID).Scan(&workspaceID)
+INSERT INTO workspaces (org_id, name, created_by)
+SELECT org_id, 'second', created_by FROM workspaces WHERE id = $1 RETURNING id`, f.workspaceID(t)).Scan(&workspaceID)
 	if err != nil {
-		t.Fatalf("add placed workspace: %v", err)
+		t.Fatalf("add workspace: %v", err)
 	}
 	return workspaceID
 }

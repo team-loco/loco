@@ -150,7 +150,6 @@ type Querier interface {
 	GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetWorkspaceByIDQueryRow, error)
 	GetWorkspaceDefaultEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
-	GetWorkspaceRetention(ctx context.Context, id uuid.UUID) (GetWorkspaceRetentionRow, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
 	HasInaccessibleAccountDeletionTokens(ctx context.Context, arg HasInaccessibleAccountDeletionTokensParams) (bool, error)
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
@@ -220,6 +219,7 @@ type Querier interface {
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspaceResourceNames(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourceNamesRow, error)
 	ListWorkspaceResourcesForDeletion(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourcesForDeletionRow, error)
+	ListWorkspaceRetention(ctx context.Context, ids []uuid.UUID) ([]ListWorkspaceRetentionRow, error)
 	ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error)
 	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]ListWorkspacesForUserRow, error)
@@ -256,6 +256,7 @@ type Querier interface {
 	LockWorkspaceForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error
+	LockWorkspaceRetention(ctx context.Context, id uuid.UUID) (LockWorkspaceRetentionRow, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
@@ -313,7 +314,6 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
-	SetWorkspaceRetention(ctx context.Context, arg SetWorkspaceRetentionParams) error
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
@@ -338,7 +338,7 @@ type Querier interface {
 	UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error
 	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
-	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
+	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)
