@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/rand/v2"
 	"net/url"
 	"os"
 	"sync"
@@ -24,11 +25,15 @@ const (
 	lockWaitTimeout         = 5 * time.Second
 	unreachableDatabaseURL  = "postgres://loco@127.0.0.1:1/loco"
 	templatePrefix          = "loco_template_"
+	testDatabasePrefix      = "test_"
 	// templateLockKey serializes template builds across test binaries sharing one server.
 	templateLockKey = 7_120_334_901
 )
 
-var template = sync.OnceValues(buildTemplate)
+var (
+	template = sync.OnceValues(buildTemplate)
+	run      = sync.OnceValues(startRun)
+)
 
 // NewPool returns a pool on a freshly migrated database that is dropped when the test ends.
 func NewPool(t *testing.T) *pgxpool.Pool {
@@ -41,7 +46,11 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Fatalf("migrate template database: %v", err)
 	}
-	dbName := "test_" + uuid.NewString()[:8]
+	owner, err := run()
+	if err != nil {
+		t.Fatalf("start test run: %v", err)
+	}
+	dbName := fmt.Sprintf("%s%d_%s", testDatabasePrefix, owner.id, uuid.NewString()[:8])
 	ident := pgx.Identifier{dbName}.Sanitize()
 	adminExec(t, baseURL,
 		"CREATE DATABASE "+ident+" TEMPLATE "+pgx.Identifier{templateName}.Sanitize()+" STRATEGY FILE_COPY")
@@ -58,6 +67,68 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 		adminExec(t, baseURL, "DROP DATABASE "+ident+" WITH (FORCE)")
 	})
 	return pool
+}
+
+// testRun is the test binary's run: its ID names its databases, and conn holds the advisory lock
+// on the ID that marks the run alive. Garbage collection of an unreachable connection would close
+// the session and free the lock, so the run keeps it for the binary's life.
+type testRun struct {
+	id   int64
+	conn *pgx.Conn
+}
+
+// startRun locks a random run ID and drops the databases of earlier runs whose binary died before
+// its cleanup ran.
+func startRun() (*testRun, error) {
+	ctx := context.Background()
+	conn, err := pgx.Connect(ctx, os.Getenv("LOCO_TEST_DATABASE_URL"))
+	if err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+	id := rand.Int64() //nolint:gosec // names test databases; not a secret
+	if _, err = conn.Exec(ctx, "SELECT pg_advisory_lock($1)", id); err != nil {
+		return nil, fmt.Errorf("lock run: %w", err)
+	}
+	if err = reapDeadRuns(ctx, conn); err != nil {
+		return nil, err
+	}
+	return &testRun{id: id, conn: conn}, nil
+}
+
+// reapDeadRuns drops every test database whose run holds no lock: the server releases a session's
+// advisory locks when the session ends, however its process died.
+func reapDeadRuns(ctx context.Context, conn *pgx.Conn) error {
+	rows, err := conn.Query(ctx,
+		"SELECT datname, split_part(datname, '_', 2)::bigint FROM pg_database WHERE datname ~ $1",
+		"^"+testDatabasePrefix+"[0-9]+_")
+	if err != nil {
+		return fmt.Errorf("list test databases: %w", err)
+	}
+	databases, err := pgx.CollectRows(rows, pgx.RowToStructByPos[struct {
+		Name string
+		Run  int64
+	}])
+	if err != nil {
+		return fmt.Errorf("list test databases: %w", err)
+	}
+	for _, database := range databases {
+		var dead bool
+		if err := conn.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", database.Run).Scan(&dead); err != nil {
+			return fmt.Errorf("check run %d: %w", database.Run, err)
+		}
+		if !dead {
+			continue
+		}
+		_, dropErr := conn.Exec(
+			ctx,
+			"DROP DATABASE IF EXISTS "+pgx.Identifier{database.Name}.Sanitize()+" WITH (FORCE)",
+		)
+		_, unlockErr := conn.Exec(ctx, "SELECT pg_advisory_unlock($1)", database.Run)
+		if err := errors.Join(dropErr, unlockErr); err != nil {
+			return fmt.Errorf("drop %s of a dead run: %w", database.Name, err)
+		}
+	}
+	return nil
 }
 
 // ClosedPool returns a pool that fails every query, standing in for a database outage.
