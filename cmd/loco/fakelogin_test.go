@@ -149,8 +149,12 @@ func (s *fakeWorkspaceService) GetWorkspace(
 	); err != nil {
 		return nil, err
 	}
+	s.api.mu.Lock()
+	own, applied := s.api.platform.workspaceRetention()
+	s.api.mu.Unlock()
 	ws := &workspacev1.Workspace{
 		Id: req.GetWorkspaceId(), OrgId: fakeOrgID, OrgName: fakeOrgName, Name: fakeWorkspaceName,
+		Retention: own, EffectiveRetention: applied,
 	}
 	return &workspacev1.GetWorkspaceResponse{Workspace: ws}, nil
 }

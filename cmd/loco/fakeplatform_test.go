@@ -38,6 +38,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
 	"github.com/team-loco/loco/gen/go/loco/secret/v1/secretv1connect"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -101,6 +102,8 @@ type fakePlatform struct {
 	scales            []*resourcev1.ScaleResourceRequest
 	// deploymentOutcomes holds the last status WatchDeployment sends per deployment ID.
 	deploymentOutcomes map[string]deploymentv1.DeploymentStatus
+	// retention holds the workspace's own days; a nil signal uses the limit.
+	retention *workspacev1.RetentionDays
 }
 
 func newFakePlatform() *fakePlatform {
@@ -117,6 +120,7 @@ func newFakePlatform() *fakePlatform {
 		uploads:            map[string]fakeUpload{},
 		secrets:            map[fakeSecretKey]fakeSecret{},
 		deploymentOutcomes: map[string]deploymentv1.DeploymentStatus{},
+		retention:          &workspacev1.RetentionDays{},
 	}
 }
 
