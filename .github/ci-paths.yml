@@ -249,7 +249,9 @@ e2e-installation:
     - "tests/e2e/fixtures/public-image/**"
     - "tools/installation-e2e/**"
     - "tools/internal/devicelogin/**"
-    - "!tools/{installation-e2e,internal/devicelogin}/**/*_test.go"
+    # The runner publishes the platform with release:local.
+    - "tools/platform-release/**"
+    - "!tools/{installation-e2e,internal/devicelogin,platform-release}/**/*_test.go"
     - "charts/cert-manager.yaml"
     - "dev/compose.cloud-provider-kind.yaml"
     - "dev/dex.yaml"

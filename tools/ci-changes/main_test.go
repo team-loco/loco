@@ -196,7 +196,7 @@ func TestAffectedE2EShards(t *testing.T) {
 func TestInstallationRunnerUnitTests(t *testing.T) {
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
-	for _, dir := range []string{"tools/installation-e2e/", "tools/internal/devicelogin/"} {
+	for _, dir := range []string{"tools/installation-e2e/", "tools/internal/devicelogin/", "tools/platform-release/"} {
 		files := []string{dir + "client_test.go", dir + "client.go"}
 		selected := selectOwn(filters, "pull_request", files[:1])
 		assert.False(t, selected["e2e-installation"])
