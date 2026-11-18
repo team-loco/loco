@@ -20,6 +20,7 @@ import (
 )
 
 type deployFixture struct {
+	tenant       tenant
 	pool         *pgxpool.Pool
 	queries      *genDb.Queries
 	clusterID    uuid.UUID
@@ -83,6 +84,7 @@ func newDeployFixture(t *testing.T) *deployFixture {
 
 	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
 	tn := seedTenant(t, pool, f.queries, deployFixtureEmail, "org")
+	f.tenant = tn
 	workspaceID := tn.workspace(t, "ws")
 	f.userID = tn.ownerID
 	f.envID = tn.defaultEnvironment(t, workspaceID)

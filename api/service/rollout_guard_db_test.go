@@ -382,21 +382,7 @@ func TestOtherResourceRolloutDoesNotBlockScale(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.reportRollout(t, false, true)
-	resourceID, err := f.queries.CreateResource(
-		t.Context(),
-		genDb.CreateResourceParams{
-			CreatedBy:   f.userID,
-			WorkspaceID: f.workspaceID(t),
-			Name:        "other-service",
-			Slug:        "other-service",
-			Type:        genDb.ResourceTypeService,
-			Spec:        []byte("{}"),
-			SpecVersion: 1,
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resourceID := f.otherResource(t, "other-service")
 	params := f.paramsFor(f.clusterID)
 	params.ResourceID = resourceID
 	if _, err := f.queries.CreateDeployment(t.Context(), params); err != nil {

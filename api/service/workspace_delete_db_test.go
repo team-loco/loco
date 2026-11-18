@@ -9,6 +9,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -59,34 +60,16 @@ func TestDeleteWorkspaceConfirmationDeletesAllResourcePlacements(t *testing.T) {
 	if _, err := f.deployTo(ctx, f.otherCluster, staticSpec); err != nil {
 		t.Fatalf("deploy to other cluster: %v", err)
 	}
-	var sibling uuid.UUID
-	if err := f.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-SELECT workspace_id, 'sibling', 'sibling', 'service', '', '{}', 1, created_by FROM resources WHERE id = $1
-RETURNING id`, f.resourceID).Scan(&sibling); err != nil {
-		t.Fatalf("create sibling: %v", err)
-	}
+	sibling := f.otherResource(t, "sibling")
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: sibling, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
 		EnvironmentID: f.envID, SecretNames: []string{},
 	}); err != nil {
 		t.Fatalf("place sibling: %v", err)
 	}
-	var unrelated, unrelatedEnvironment uuid.UUID
-	if err := f.pool.QueryRow(ctx, `
-WITH w AS (
-    INSERT INTO workspaces (org_id, name, created_by)
-    SELECT org_id, 'unrelated', created_by FROM workspaces
-    WHERE id = (SELECT workspace_id FROM resources WHERE id = $1) RETURNING id, created_by
-), e AS (
-    INSERT INTO environments (workspace_id, name, created_by)
-    SELECT id, 'prod', created_by FROM w RETURNING id
-)
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-SELECT id, 'unrelated', 'unrelated', 'service', '', '{}', 1, created_by FROM w
-RETURNING id, (SELECT id FROM e)`, f.resourceID).Scan(&unrelated, &unrelatedEnvironment); err != nil {
-		t.Fatalf("create unrelated resource: %v", err)
-	}
+	unrelatedWorkspace := f.tenant.workspace(t, "unrelated")
+	unrelatedEnvironment := f.tenant.defaultEnvironment(t, unrelatedWorkspace)
+	unrelated := f.tenant.resource(t, unrelatedWorkspace, "unrelated", &resourcev1.ServiceSpec{})
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: unrelated, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
 		EnvironmentID: unrelatedEnvironment, SecretNames: []string{},

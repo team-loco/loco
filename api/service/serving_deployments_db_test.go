@@ -335,17 +335,14 @@ func TestObservationDeploymentMustBelongToPlacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := f.placement(t, f.clusterID)
+	foreignResource := f.otherResource(t, "foreign")
 	var foreign uuid.UUID
-	err := f.pool.QueryRow(t.Context(), `WITH r AS (
-INSERT INTO resources(workspace_id,name,slug,type,description,spec,spec_version,created_by)
-SELECT workspace_id,'foreign','foreign',type,description,spec,spec_version,created_by
-FROM resources WHERE id=$1 RETURNING id
-)
+	err := f.pool.QueryRow(t.Context(), `
 INSERT INTO deployments(resource_id,cluster_id,region,replicas,status,is_active,
  environment_id,spec,spec_version,actor_type,actor_id,method)
-SELECT r.id,d.cluster_id,d.region,d.replicas,d.status,true,d.environment_id,d.spec,
+SELECT $2,d.cluster_id,d.region,d.replicas,d.status,true,d.environment_id,d.spec,
  d.spec_version,d.actor_type,d.actor_id,d.method
-FROM deployments d,r WHERE d.resource_id=$1 RETURNING deployments.id`, f.resourceID).Scan(&foreign)
+FROM deployments d WHERE d.resource_id=$1 RETURNING id`, f.resourceID, foreignResource).Scan(&foreign)
 	if err != nil {
 		t.Fatal(err)
 	}

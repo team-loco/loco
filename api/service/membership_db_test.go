@@ -284,14 +284,7 @@ func TestRemoveOrgMemberRevokesTheirGrantsInTheOrg(t *testing.T) {
 	if err != nil {
 		t.Fatalf("granted member read workspace: %v", err)
 	}
-	var resourceID uuid.UUID
-	err = o.api.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-VALUES ($1, 'svc', 'svc', 'service', '', '{}', 1, $2) RETURNING id`, uuid.MustParse(o.shared), o.owner.id).
-		Scan(&resourceID)
-	if err != nil {
-		t.Fatalf("seed resource: %v", err)
-	}
+	resourceID := o.sharedResource(t, "svc")
 	err = o.api.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
 		UserID: member.id, EntityType: genDb.EntityTypeResource, EntityID: resourceID, Scope: genDb.ScopeRead,
 	})
@@ -453,14 +446,7 @@ func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("describe workspace: %v", err)
 	}
-	resourceID, err := o.api.queries.CreateResource(ctx, genDb.CreateResourceParams{
-		CreatedBy:   o.owner.id,
-		WorkspaceID: uuid.MustParse(o.shared), Name: "api", Slug: "api",
-		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
-	})
-	if err != nil {
-		t.Fatalf("create resource: %v", err)
-	}
+	resourceID := o.sharedResource(t, "api")
 	if err := o.api.queries.AddUserScope(ctx, genDb.AddUserScopeParams{
 		UserID: member.id, EntityType: genDb.EntityTypeResource, EntityID: resourceID, Scope: genDb.ScopeRead,
 	}); err != nil {
@@ -496,9 +482,9 @@ func TestResourceReaderListsOnlyTheNameOfTheirResourcesWorkspace(t *testing.T) {
 func TestOrgReaderSeesEveryWorkspaceInTheOrg(t *testing.T) {
 	t.Parallel()
 	o := newMembershipOrg(t)
-	_, err := o.api.pool.Exec(t.Context(), `
-INSERT INTO workspaces (org_id, name, created_by) VALUES ($1, 'ungranted', $2)`,
-		uuid.MustParse(o.orgID), o.owner.id)
+	_, err := o.owner.clients.Workspace.CreateWorkspace(t.Context(), &workspacev1.CreateWorkspaceRequest{
+		OrgId: o.orgID, Name: "ungranted",
+	})
 	if err != nil {
 		t.Fatalf("seed workspace: %v", err)
 	}
@@ -520,4 +506,19 @@ INSERT INTO workspaces (org_id, name, created_by) VALUES ($1, 'ungranted', $2)`,
 	if got := workspaceNames(mine.GetWorkspaces()); !slices.Equal(got, want) {
 		t.Fatalf("owner workspaces = %v", got)
 	}
+}
+
+// sharedResource creates a service in the shared workspace as the owner.
+func (o *membershipOrg) sharedResource(t *testing.T, name string) uuid.UUID {
+	t.Helper()
+	created, err := o.owner.clients.Resource.CreateResource(t.Context(), &resourcev1.CreateResourceRequest{
+		WorkspaceId: o.shared, Name: name, Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
+		Spec: &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{
+			Regions: map[string]*resourcev1.RegionTarget{testRegion: {Enabled: true}},
+		}}},
+	})
+	if err != nil {
+		t.Fatalf("create resource %s: %v", name, err)
+	}
+	return uuid.MustParse(created.GetResourceId())
 }

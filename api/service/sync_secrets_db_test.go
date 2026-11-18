@@ -197,15 +197,8 @@ func TestSyncKeepsAPlacementPendingWhileTheKeyProviderCannotUnwrap(t *testing.T)
 func (f *deployFixture) secondPlacement(t *testing.T, names []string) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	var resourceID uuid.UUID
-	err := f.pool.QueryRow(ctx, `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-SELECT workspace_id, 'worker', 'worker', 'service', '', '{}', 1, created_by FROM environments WHERE id = $1
-RETURNING id`, f.envID).Scan(&resourceID)
-	if err != nil {
-		t.Fatalf("resource: %v", err)
-	}
-	_, err = f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
+	resourceID := f.otherResource(t, "worker")
+	_, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID:    resourceID,
 		ClusterID:     f.clusterID,
 		Region:        testRegion,

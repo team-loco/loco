@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/events"
-	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
@@ -106,20 +105,7 @@ func TestCreateBuildValidatesItsOriginBeforeIssuingAnUpload(t *testing.T) {
 			expectedCode := connect.CodeNotFound
 			switch kind {
 			case "another workspace":
-				var workspace uuid.UUID
-				if err := f.pool.QueryRow(t.Context(),
-					`INSERT INTO workspaces(org_id,name,created_by)
-SELECT org_id,'other-origin',$2 FROM workspaces WHERE id=$1 RETURNING id`,
-					f.workspaceID(t), f.userID).Scan(&workspace); err != nil {
-					t.Fatal(err)
-				}
-				env, err := f.queries.CreateEnvironment(t.Context(), genDb.CreateEnvironmentParams{
-					WorkspaceID: workspace, Name: "origin", CreatedBy: f.userID,
-				})
-				if err != nil {
-					t.Fatal(err)
-				}
-				origin = env.ID.String()
+				origin = f.tenant.defaultEnvironment(t, f.tenant.workspace(t, "other-origin")).String()
 			case "malformed UUID":
 				origin, expectedCode = "not-an-environment-id", connect.CodeInvalidArgument
 			}

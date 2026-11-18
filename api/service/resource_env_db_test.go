@@ -92,17 +92,7 @@ func TestGetResourceEnvReturnsTheSecretNamesTheDeploymentDeclares(t *testing.T) 
 func TestGetResourceEnvOfAnotherWorkspacesEnvironmentIsNotFound(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	var otherEnv uuid.UUID
-	err := f.pool.QueryRow(context.Background(), `
-WITH w AS (
-    INSERT INTO workspaces (org_id, name, created_by)
-    SELECT org_id, 'other', created_by FROM workspaces LIMIT 1 RETURNING id, created_by
-)
-INSERT INTO environments (workspace_id, name, created_by) SELECT id, 'prod', created_by FROM w RETURNING id`,
-	).Scan(&otherEnv)
-	if err != nil {
-		t.Fatalf("other environment: %v", err)
-	}
-	_, err = getResourceEnv(t, f, f.resourceID, otherEnv)
+	otherEnv := f.tenant.defaultEnvironment(t, f.tenant.workspace(t, "other"))
+	_, err := getResourceEnv(t, f, f.resourceID, otherEnv)
 	wantCode(t, err, connect.CodeNotFound)
 }

@@ -129,17 +129,7 @@ func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
 			if _, createErr := f.queries.CreateDeployment(t.Context(), secondRegion); createErr != nil {
 				t.Fatal(createErr)
 			}
-			resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			other, err := f.queries.CreateEnvironment(t.Context(), genDb.CreateEnvironmentParams{
-				WorkspaceID: resource.WorkspaceID, Name: "domain-port-isolation", CreatedBy: f.userID,
-			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			params.EnvironmentID = other.ID
+			params.EnvironmentID = f.addEnvironment(t, "domain-port-isolation")
 			params.Spec = []byte(`{"platform":"linux/amd64","port":8080}`)
 			if tc.runtimePort {
 				params.Spec = []byte(`{"platform":"linux/amd64"}`)
