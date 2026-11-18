@@ -1,4 +1,4 @@
-import { AuthProvider } from "@/auth/AuthProvider";
+import { AuthProvider, QUERY_CACHE_KEY } from "@/auth/AuthProvider";
 import { PageTitle } from "@/components/PageTitle";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/design/Sonner";
@@ -69,7 +69,7 @@ const asyncLocalStorage: AsyncStorage = {
 
 const persister = createAsyncStoragePersister({
 	storage: asyncLocalStorage,
-	key: "loco:query-cache:v1",
+	key: QUERY_CACHE_KEY,
 });
 
 const persistOptions = {

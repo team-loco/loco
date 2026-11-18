@@ -128,6 +128,23 @@ def check_browser(browser, state, issuer_url):
         "owner@acme.test"
     ]
     expect(page.get_by_role("link", name="Dashboard", exact=True)).to_be_visible()
+
+    current = cookies(context, state)[evidence.SESSION_COOKIE]["value"]
+    page.goto(state["ui_url"] + "/profile")
+    page.get_by_role("button", name="Log out", exact=True).click()
+    expect(page).to_have_url(state["ui_url"] + "/")
+    expect(
+        page.get_by_role("button", name="Onboard your agent to Loco")
+    ).to_be_visible()
+    remaining = cookies(context, state)
+    assert evidence.SESSION_COOKIE not in remaining
+    assert evidence.REFRESH_COOKIE not in remaining
+    try:
+        evidence.rpc(state["api_url"], current, "loco.user.v1.UserService/WhoAmI", {})
+    except evidence.RPCError as error:
+        assert error.code == "unauthenticated", error
+    else:
+        raise AssertionError("The signed-out session still authenticates")
     assert not errors, errors
     context.close()
 

@@ -19,10 +19,12 @@ interface AuthContextType {
 	isAuthenticated: boolean;
 	isPending: boolean;
 	error: Error | null;
-	logout: () => Promise<boolean>;
+	logout: (returnTo?: "/login") => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+export const QUERY_CACHE_KEY = "loco:query-cache:v1";
 
 // Remove provider credentials left by the browser-based sign-in flow.
 removeStorage("loco:auth:oidc:v1");
@@ -45,17 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const signedOut = unauthenticated(error);
 	const user = signedOut ? null : (data?.user ?? null);
 
-	const logout = async () => {
+	const logout = async (returnTo: "/" | "/login" = "/") => {
 		try {
 			await signOut();
 		} catch (err) {
 			toastConnectError(err, "Could not sign out");
-			return false;
+			return;
 		}
-		setClaimedOrgs([]);
-		queryClient.removeQueries({ predicate: (query) => query.meta?.["persist"] !== false });
-		await queryClient.resetQueries({ predicate: (query) => query.meta?.["persist"] === false });
-		return true;
+		queryClient.clear();
+		removeStorage(QUERY_CACHE_KEY);
+		window.location.replace(returnTo);
 	};
 
 	return (
