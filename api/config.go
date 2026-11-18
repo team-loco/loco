@@ -301,6 +301,11 @@ func newAPIConfig() *APIConfig {
 	systemAdmins := newSystemAdmins()
 	tracingEnabled := newTracingEnabled()
 	webURL := envconfig.String("WEB_URL", "")
+	if _, configured := auth.WebIssuer(authIssuers); configured {
+		if err := auth.ValidateWebURL(webURL); err != nil {
+			panic(err)
+		}
+	}
 	invitations := newInvitationConfig(webURL)
 	secretLimits := service.SecretConfig{
 		MaxValueBytes:     positiveInt32Env("LOCO_SECRETS_MAX_VALUE_BYTES", defaultSecretMaxValueBytes),

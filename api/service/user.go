@@ -111,16 +111,7 @@ func (s *UserServer) WhoAmI(
 
 	// API tokens carry no provider login and claim no invitations.
 	login, _ := auth.LoginFrom(ctx)
-	claimedOrgs := make([]*userv1.ClaimedOrg, 0, len(login.ClaimedOrgs))
-	for _, org := range login.ClaimedOrgs {
-		claimedOrgs = append(claimedOrgs, &userv1.ClaimedOrg{
-			OrgId:       org.OrgID.String(),
-			OrgName:     org.OrgName,
-			InviterName: org.InviterName,
-		})
-	}
-
-	return &userv1.WhoAmIResponse{User: user, ClaimedOrgs: claimedOrgs}, nil
+	return &userv1.WhoAmIResponse{User: user, ClaimedOrgs: claimedOrgsProto(login.ClaimedOrgs)}, nil
 }
 
 // UpdateUser updates user information

@@ -109,27 +109,32 @@ func randomHex(t *testing.T) string {
 	return hex.EncodeToString(b)
 }
 
-func (z *zitadelClient) createApp(t *testing.T) string {
+func (z *zitadelClient) createApp(t *testing.T, redirect string, confidential bool) (string, string) {
 	t.Helper()
 	var project struct {
 		ID string `json:"id"`
 	}
 	z.json(t, http.MethodPost, "/management/v1/projects", z.admin,
 		map[string]any{"name": "loco-conformance-" + randomHex(t)}, &project)
+	appType, authMethod := "OIDC_APP_TYPE_USER_AGENT", "OIDC_AUTH_METHOD_TYPE_NONE"
+	if confidential {
+		appType, authMethod = "OIDC_APP_TYPE_WEB", "OIDC_AUTH_METHOD_TYPE_BASIC"
+	}
 	var app struct {
-		ClientID string `json:"clientId"`
+		ClientID     string `json:"clientId"`
+		ClientSecret string `json:"clientSecret"`
 	}
 	z.json(t, http.MethodPost, "/management/v1/projects/"+project.ID+"/apps/oidc", z.admin, map[string]any{
 		"name":                     "loco",
-		"redirectUris":             []string{zitadelRedirect},
+		"redirectUris":             []string{redirect},
 		"responseTypes":            []string{"OIDC_RESPONSE_TYPE_CODE"},
 		"grantTypes":               []string{"OIDC_GRANT_TYPE_AUTHORIZATION_CODE"},
-		"appType":                  "OIDC_APP_TYPE_USER_AGENT",
-		"authMethodType":           "OIDC_AUTH_METHOD_TYPE_NONE",
+		"appType":                  appType,
+		"authMethodType":           authMethod,
 		"devMode":                  true,
 		"idTokenUserinfoAssertion": true,
 	}, &app)
-	return app.ClientID
+	return app.ClientID, app.ClientSecret
 }
 
 func (z *zitadelClient) createUser(t *testing.T, name string, verified bool) (string, string) {
@@ -151,13 +156,6 @@ func (z *zitadelClient) createUser(t *testing.T, name string, verified bool) (st
 func (z *zitadelClient) signIn(clientID, username string) tokenFunc {
 	return func(t *testing.T) string {
 		t.Helper()
-		var me struct {
-			User struct {
-				ID string `json:"id"`
-			} `json:"user"`
-		}
-		z.json(t, http.MethodGet, "/auth/v1/users/me", z.loginClient, nil, &me)
-
 		verifierBytes := make([]byte, verifierLen)
 		if _, err := rand.Read(verifierBytes); err != nil {
 			t.Fatalf("random: %v", err)
@@ -173,33 +171,10 @@ func (z *zitadelClient) signIn(clientID, username string) tokenFunc {
 			"code_challenge_method": {"S256"},
 			"state":                 {"conformance"},
 		}
-		status, header, body := z.do(t, http.MethodGet, "/oauth/v2/authorize?"+query.Encode(), "", http.NoBody,
-			http.Header{"X-Zitadel-Login-Client": {me.User.ID}})
-		location, err := url.Parse(header.Get("Location"))
-		if err != nil || location.Query().Get("authRequest") == "" {
-			t.Fatalf("authorize: status %d, location %q: %s", status, header.Get("Location"), body)
-		}
-
-		var session struct {
-			SessionID    string `json:"sessionId"`
-			SessionToken string `json:"sessionToken"`
-		}
-		z.json(t, http.MethodPost, "/v2/sessions", z.loginClient, map[string]any{
-			"checks": map[string]any{
-				"user":        map[string]any{"loginName": username},
-				fieldPassword: map[string]any{fieldPassword: zitadelPassword},
-			},
-		}, &session)
-		var finalized struct {
-			CallbackURL string `json:"callbackUrl"`
-		}
-		z.json(t, http.MethodPost, "/v2/oidc/auth_requests/"+location.Query().Get("authRequest"), z.loginClient,
-			map[string]any{"session": map[string]any{
-				"sessionId": session.SessionID, "sessionToken": session.SessionToken,
-			}}, &finalized)
-		callback, err := url.Parse(finalized.CallbackURL)
+		callbackURL := z.authorize(t, zitadelURL+"/oauth/v2/authorize?"+query.Encode(), username)
+		callback, err := url.Parse(callbackURL)
 		if err != nil || callback.Query().Get(paramCode) == "" {
-			t.Fatalf("callback %q: %v", finalized.CallbackURL, err)
+			t.Fatalf("callback %q: %v", callbackURL, err)
 		}
 
 		form := url.Values{
@@ -214,10 +189,50 @@ func (z *zitadelClient) signIn(clientID, username string) tokenFunc {
 	}
 }
 
+func (z *zitadelClient) authorize(t *testing.T, authorizeURL, username string) string {
+	t.Helper()
+	authorize, err := url.Parse(authorizeURL)
+	if err != nil {
+		t.Fatalf("authorization URL: %v", err)
+	}
+	var me struct {
+		User struct {
+			ID string `json:"id"`
+		} `json:"user"`
+	}
+	z.json(t, http.MethodGet, "/auth/v1/users/me", z.loginClient, nil, &me)
+
+	status, header, body := z.do(t, http.MethodGet, authorize.RequestURI(), "", http.NoBody,
+		http.Header{"X-Zitadel-Login-Client": {me.User.ID}})
+	location, err := url.Parse(header.Get("Location"))
+	if err != nil || location.Query().Get("authRequest") == "" {
+		t.Fatalf("authorize: status %d, location %q: %s", status, header.Get("Location"), body)
+	}
+
+	var session struct {
+		SessionID    string `json:"sessionId"`
+		SessionToken string `json:"sessionToken"`
+	}
+	z.json(t, http.MethodPost, "/v2/sessions", z.loginClient, map[string]any{
+		"checks": map[string]any{
+			"user":        map[string]any{"loginName": username},
+			fieldPassword: map[string]any{fieldPassword: zitadelPassword},
+		},
+	}, &session)
+	var finalized struct {
+		CallbackURL string `json:"callbackUrl"`
+	}
+	z.json(t, http.MethodPost, "/v2/oidc/auth_requests/"+location.Query().Get("authRequest"), z.loginClient,
+		map[string]any{"session": map[string]any{
+			"sessionId": session.SessionID, "sessionToken": session.SessionToken,
+		}}, &finalized)
+	return finalized.CallbackURL
+}
+
 func zitadelProvider(t *testing.T) (string, []account) {
 	t.Helper()
 	z := newZitadelClient(t)
-	clientID := z.createApp(t)
+	clientID, _ := z.createApp(t, zitadelRedirect, false)
 	verifiedUser, verifiedEmail := z.createUser(t, "gina", true)
 	unverifiedUser, unverifiedEmail := z.createUser(t, "hal", false)
 	issuers, err := json.Marshal([]map[string]any{{"issuer": zitadelURL, "audience": clientID}})
@@ -228,4 +243,25 @@ func zitadelProvider(t *testing.T) (string, []account) {
 		{accountVerified, verifiedEmail, true, z.signIn(clientID, verifiedUser)},
 		{accountUnverified, unverifiedEmail, false, z.signIn(clientID, unverifiedUser)},
 	}
+}
+
+func TestProviderConformanceWebZitadel(t *testing.T) {
+	t.Parallel()
+	z := newZitadelClient(t)
+	user, email := z.createUser(t, "web", true)
+	t.Run("public", func(t *testing.T) {
+		clientID, secret := z.createApp(t, conformanceCallback, false)
+		checkWebProvider(t, zitadelURL, clientID, secret, email, func(authorizeURL string) string {
+			return z.authorize(t, authorizeURL, user)
+		})
+	})
+	t.Run("confidential", func(t *testing.T) {
+		clientID, secret := z.createApp(t, conformanceCallback, true)
+		if secret == "" {
+			t.Fatal("Zitadel returned no client secret")
+		}
+		checkWebProvider(t, zitadelURL, clientID, secret, email, func(authorizeURL string) string {
+			return z.authorize(t, authorizeURL, user)
+		})
+	})
 }

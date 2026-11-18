@@ -42,6 +42,16 @@ const (
 	// AuthServiceRefreshCLITokenProcedure is the procedure name of the AuthService's RefreshCLIToken
 	// RPC.
 	AuthServiceRefreshCLITokenProcedure = "/loco.auth.v1.AuthService/RefreshCLIToken"
+	// AuthServiceStartWebLoginProcedure is the procedure name of the AuthService's StartWebLogin RPC.
+	AuthServiceStartWebLoginProcedure = "/loco.auth.v1.AuthService/StartWebLogin"
+	// AuthServiceCompleteWebLoginProcedure is the procedure name of the AuthService's CompleteWebLogin
+	// RPC.
+	AuthServiceCompleteWebLoginProcedure = "/loco.auth.v1.AuthService/CompleteWebLogin"
+	// AuthServiceRefreshWebSessionProcedure is the procedure name of the AuthService's
+	// RefreshWebSession RPC.
+	AuthServiceRefreshWebSessionProcedure = "/loco.auth.v1.AuthService/RefreshWebSession"
+	// AuthServiceSignOutProcedure is the procedure name of the AuthService's SignOut RPC.
+	AuthServiceSignOutProcedure = "/loco.auth.v1.AuthService/SignOut"
 )
 
 var (
@@ -87,6 +97,34 @@ var (
 			Procedure:  AuthServiceRefreshCLITokenProcedure,
 		}
 	})
+	authServiceStartWebLoginSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_auth_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("StartWebLogin"),
+			Procedure:  AuthServiceStartWebLoginProcedure,
+		}
+	})
+	authServiceCompleteWebLoginSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_auth_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("CompleteWebLogin"),
+			Procedure:  AuthServiceCompleteWebLoginProcedure,
+		}
+	})
+	authServiceRefreshWebSessionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_auth_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("RefreshWebSession"),
+			Procedure:  AuthServiceRefreshWebSessionProcedure,
+		}
+	})
+	authServiceSignOutSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_auth_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("SignOut"),
+			Procedure:  AuthServiceSignOutProcedure,
+		}
+	})
 )
 
 // AuthServiceClient is a client for the loco.auth.v1.AuthService service.
@@ -97,6 +135,10 @@ type AuthServiceClient interface {
 	ApproveDeviceLogin(context.Context, *v1.ApproveDeviceLoginRequest) (*v1.ApproveDeviceLoginResponse, error)
 	PollDeviceLogin(context.Context, *v1.PollDeviceLoginRequest) (*v1.PollDeviceLoginResponse, error)
 	RefreshCLIToken(context.Context, *v1.RefreshCLITokenRequest) (*v1.RefreshCLITokenResponse, error)
+	StartWebLogin(context.Context, *v1.StartWebLoginRequest) (*v1.StartWebLoginResponse, error)
+	CompleteWebLogin(context.Context, *v1.CompleteWebLoginRequest) (*v1.CompleteWebLoginResponse, error)
+	RefreshWebSession(context.Context, *v1.RefreshWebSessionRequest) (*v1.RefreshWebSessionResponse, error)
+	SignOut(context.Context, *v1.SignOutRequest) (*v1.SignOutResponse, error)
 }
 
 // NewAuthServiceClient constructs a client for the loco.auth.v1.AuthService service. Multiple
@@ -113,6 +155,10 @@ type AuthServiceHandler interface {
 	ApproveDeviceLogin(context.Context, *v1.ApproveDeviceLoginRequest) (*v1.ApproveDeviceLoginResponse, error)
 	PollDeviceLogin(context.Context, *v1.PollDeviceLoginRequest) (*v1.PollDeviceLoginResponse, error)
 	RefreshCLIToken(context.Context, *v1.RefreshCLITokenRequest) (*v1.RefreshCLITokenResponse, error)
+	StartWebLogin(context.Context, *v1.StartWebLoginRequest) (*v1.StartWebLoginResponse, error)
+	CompleteWebLogin(context.Context, *v1.CompleteWebLoginRequest) (*v1.CompleteWebLoginResponse, error)
+	RefreshWebSession(context.Context, *v1.RefreshWebSessionRequest) (*v1.RefreshWebSessionResponse, error)
+	SignOut(context.Context, *v1.SignOutRequest) (*v1.SignOutResponse, error)
 }
 
 // RegisterAuthServiceHandler registers svc as the loco.auth.v1.AuthService implementation on
@@ -126,6 +172,10 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceApproveDeviceLoginSpec(), Handler: adapter.approveDeviceLogin},
 		connect.Method{Spec: authServicePollDeviceLoginSpec(), Handler: adapter.pollDeviceLogin},
 		connect.Method{Spec: authServiceRefreshCLITokenSpec(), Handler: adapter.refreshCLIToken},
+		connect.Method{Spec: authServiceStartWebLoginSpec(), Handler: adapter.startWebLogin},
+		connect.Method{Spec: authServiceCompleteWebLoginSpec(), Handler: adapter.completeWebLogin},
+		connect.Method{Spec: authServiceRefreshWebSessionSpec(), Handler: adapter.refreshWebSession},
+		connect.Method{Spec: authServiceSignOutSpec(), Handler: adapter.signOut},
 	)
 }
 
@@ -154,6 +204,22 @@ func (UnimplementedAuthServiceHandler) PollDeviceLogin(context.Context, *v1.Poll
 
 func (UnimplementedAuthServiceHandler) RefreshCLIToken(context.Context, *v1.RefreshCLITokenRequest) (*v1.RefreshCLITokenResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.RefreshCLIToken is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) StartWebLogin(context.Context, *v1.StartWebLoginRequest) (*v1.StartWebLoginResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.StartWebLogin is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) CompleteWebLogin(context.Context, *v1.CompleteWebLoginRequest) (*v1.CompleteWebLoginResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.CompleteWebLogin is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) RefreshWebSession(context.Context, *v1.RefreshWebSessionRequest) (*v1.RefreshWebSessionResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.RefreshWebSession is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) SignOut(context.Context, *v1.SignOutRequest) (*v1.SignOutResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.SignOut is not implemented")
 }
 
 type authServiceClient struct {
@@ -203,6 +269,38 @@ func (c *authServiceClient) PollDeviceLogin(ctx context.Context, req *v1.PollDev
 func (c *authServiceClient) RefreshCLIToken(ctx context.Context, req *v1.RefreshCLITokenRequest) (*v1.RefreshCLITokenResponse, error) {
 	var res v1.RefreshCLITokenResponse
 	if err := c.client.CallUnary(ctx, authServiceRefreshCLITokenSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) StartWebLogin(ctx context.Context, req *v1.StartWebLoginRequest) (*v1.StartWebLoginResponse, error) {
+	var res v1.StartWebLoginResponse
+	if err := c.client.CallUnary(ctx, authServiceStartWebLoginSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) CompleteWebLogin(ctx context.Context, req *v1.CompleteWebLoginRequest) (*v1.CompleteWebLoginResponse, error) {
+	var res v1.CompleteWebLoginResponse
+	if err := c.client.CallUnary(ctx, authServiceCompleteWebLoginSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) RefreshWebSession(ctx context.Context, req *v1.RefreshWebSessionRequest) (*v1.RefreshWebSessionResponse, error) {
+	var res v1.RefreshWebSessionResponse
+	if err := c.client.CallUnary(ctx, authServiceRefreshWebSessionSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) SignOut(ctx context.Context, req *v1.SignOutRequest) (*v1.SignOutResponse, error) {
+	var res v1.SignOutResponse
+	if err := c.client.CallUnary(ctx, authServiceSignOutSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -276,6 +374,54 @@ func (h authServiceHandler) refreshCLIToken(ctx context.Context, _ connect.Spec,
 		return err
 	}
 	res, err := h.svc.RefreshCLIToken(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) startWebLogin(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.StartWebLoginRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.StartWebLogin(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) completeWebLogin(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CompleteWebLoginRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CompleteWebLogin(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) refreshWebSession(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RefreshWebSessionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RefreshWebSession(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) signOut(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.SignOutRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.SignOut(ctx, &req)
 	if err != nil {
 		return err
 	}

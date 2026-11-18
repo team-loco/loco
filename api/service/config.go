@@ -38,7 +38,7 @@ func NewConfigServer(
 	historyRetention *configv1.HistoryRetention,
 ) *ConfigServer {
 	var authConfig *configv1.AuthConfig
-	if ic, ok := auth.WebIssuer(issuers); ok {
+	if ic, enabled := auth.WebIssuer(issuers); enabled {
 		authConfig = &configv1.AuthConfig{Issuer: ic.Issuer, ClientId: ic.Web.ClientID, Scopes: ic.Web.Scopes}
 	}
 	return &ConfigServer{
@@ -66,6 +66,7 @@ func (s *ConfigServer) GetConfig(
 		ApiTokenMaxLifetimeSeconds: int64(s.apiTokenMaxLifetime / time.Second),
 		SchemaUrl:                  s.schemaURL,
 		Auth:                       s.auth,
+		WebAuthEnabled:             s.auth != nil,
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.counts,
 		HistoryRetention:           s.historyRetention,

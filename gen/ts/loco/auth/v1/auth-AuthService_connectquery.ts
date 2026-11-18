@@ -33,3 +33,23 @@ export const pollDeviceLogin = AuthService.method.pollDeviceLogin;
  * @generated from rpc loco.auth.v1.AuthService.RefreshCLIToken
  */
 export const refreshCLIToken = AuthService.method.refreshCLIToken;
+
+/**
+ * @generated from rpc loco.auth.v1.AuthService.StartWebLogin
+ */
+export const startWebLogin = AuthService.method.startWebLogin;
+
+/**
+ * @generated from rpc loco.auth.v1.AuthService.CompleteWebLogin
+ */
+export const completeWebLogin = AuthService.method.completeWebLogin;
+
+/**
+ * @generated from rpc loco.auth.v1.AuthService.RefreshWebSession
+ */
+export const refreshWebSession = AuthService.method.refreshWebSession;
+
+/**
+ * @generated from rpc loco.auth.v1.AuthService.SignOut
+ */
+export const signOut = AuthService.method.signOut;

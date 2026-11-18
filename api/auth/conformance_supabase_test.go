@@ -106,17 +106,24 @@ func stringField(t *testing.T, fields map[string]any, key string) string {
 	return value
 }
 
-// createClient registers a public OAuth client, the way an installation registers Loco's web app.
-func (s *supabaseClient) createClient(t *testing.T) string {
+func (s *supabaseClient) createClient(t *testing.T, redirect string, confidential bool) (string, string) {
 	t.Helper()
+	clientType, authMethod := "public", "none"
+	if confidential {
+		clientType, authMethod = "confidential", "client_secret_basic"
+	}
 	created := s.json(t, http.MethodPost, "/admin/oauth/clients", s.serviceKey, map[string]any{
 		"client_name":                "Loco conformance",
-		"client_type":                "public",
-		"redirect_uris":              []string{supabaseRedirect},
-		"token_endpoint_auth_method": "none",
+		"client_type":                clientType,
+		"redirect_uris":              []string{redirect},
+		"token_endpoint_auth_method": authMethod,
 		"grant_types":                []string{grantAuthorizationCode},
 	})
-	return stringField(t, created, fieldClientID)
+	var secret string
+	if confidential {
+		secret = stringField(t, created, "client_secret")
+	}
+	return stringField(t, created, fieldClientID), secret
 }
 
 // signIn creates a user with a confirmed email and returns its ID and a password sign-in's access token.
@@ -145,7 +152,22 @@ func (s *supabaseClient) idToken(t *testing.T, clientID, access string) string {
 		"code_challenge":        {base64.RawURLEncoding.EncodeToString(challenge[:])},
 		"code_challenge_method": {"S256"},
 	}
-	_, location := s.send(t, http.MethodGet, supabaseURL+"/oauth/authorize?"+query.Encode(), "", "", nil)
+	callback, err := url.Parse(s.authorize(t, supabaseURL+"/oauth/authorize?"+query.Encode(), access))
+	if err != nil {
+		t.Fatalf("consent redirect: %v", err)
+	}
+	return postForm(t, supabaseURL+"/oauth/token", url.Values{
+		paramGrantType:   {grantAuthorizationCode},
+		paramCode:        {callback.Query().Get(paramCode)},
+		paramRedirectURI: {supabaseRedirect},
+		fieldClientID:    {clientID},
+		"code_verifier":  {verifier},
+	}, "id_token")
+}
+
+func (s *supabaseClient) authorize(t *testing.T, authorizeURL, access string) string {
+	t.Helper()
+	_, location := s.send(t, http.MethodGet, authorizeURL, "", "", nil)
 	login, err := url.Parse(location)
 	if err != nil {
 		t.Fatalf("authorize redirect %q: %v", location, err)
@@ -157,17 +179,7 @@ func (s *supabaseClient) idToken(t *testing.T, clientID, access string) string {
 	path := "/oauth/authorizations/" + url.PathEscape(authorizationID)
 	s.json(t, http.MethodGet, path, access, nil)
 	consent := s.json(t, http.MethodPost, path+"/consent", access, map[string]any{"action": "approve"})
-	callback, err := url.Parse(stringField(t, consent, "redirect_url"))
-	if err != nil {
-		t.Fatalf("consent redirect: %v", err)
-	}
-	return postForm(t, supabaseURL+"/oauth/token", url.Values{
-		paramGrantType:   {grantAuthorizationCode},
-		paramCode:        {callback.Query().Get(paramCode)},
-		paramRedirectURI: {supabaseRedirect},
-		fieldClientID:    {clientID},
-		"code_verifier":  {verifier},
-	}, "id_token")
+	return stringField(t, consent, "redirect_url")
 }
 
 func (s *supabaseClient) confirmed(clientID, email string) tokenFunc {
@@ -218,7 +230,7 @@ func authDatabaseURL(t *testing.T) string {
 func supabaseProvider(t *testing.T) (string, []account) {
 	t.Helper()
 	s := newSupabaseClient(t)
-	clientID := s.createClient(t)
+	clientID, _ := s.createClient(t, supabaseRedirect, false)
 	suffix := time.Now().UnixNano()
 	confirmedEmail := fmt.Sprintf("dana-%d@supabase.test", suffix)
 	selfAssertedEmail := fmt.Sprintf("erin-%d@supabase.test", suffix)
@@ -230,4 +242,23 @@ func supabaseProvider(t *testing.T) (string, []account) {
 		{"confirmed", confirmedEmail, true, s.confirmed(clientID, confirmedEmail)},
 		{"self-asserted email_verified", selfAssertedEmail, false, s.selfAsserted(clientID, selfAssertedEmail)},
 	}
+}
+
+func TestProviderConformanceWebSupabase(t *testing.T) {
+	t.Parallel()
+	s := newSupabaseClient(t)
+	email := fmt.Sprintf("web-%d@supabase.test", time.Now().UnixNano())
+	_, access := s.signIn(t, email)
+	t.Run("public", func(t *testing.T) {
+		clientID, secret := s.createClient(t, conformanceCallback, false)
+		checkWebProvider(t, supabaseURL, clientID, secret, email, func(authorizeURL string) string {
+			return s.authorize(t, authorizeURL, access)
+		})
+	})
+	t.Run("confidential", func(t *testing.T) {
+		clientID, secret := s.createClient(t, conformanceCallback, true)
+		checkWebProvider(t, supabaseURL, clientID, secret, email, func(authorizeURL string) string {
+			return s.authorize(t, authorizeURL, access)
+		})
+	})
 }

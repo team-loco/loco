@@ -74,6 +74,7 @@ type GetConfigResponse struct {
 	HistoryRetention          *HistoryRetention    `protobuf:"bytes,9,opt,name=history_retention,json=historyRetention,proto3" json:"history_retention,omitempty"`
 	ObservabilityMaxTimeRange *durationpb.Duration `protobuf:"bytes,10,opt,name=observability_max_time_range,json=observabilityMaxTimeRange,proto3" json:"observability_max_time_range,omitempty"`
 	ApiVersion                string               `protobuf:"bytes,11,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
+	WebAuthEnabled            bool                 `protobuf:"varint,12,opt,name=web_auth_enabled,json=webAuthEnabled,proto3" json:"web_auth_enabled,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache
 }
@@ -183,6 +184,13 @@ func (x *GetConfigResponse) GetApiVersion() string {
 		return x.ApiVersion
 	}
 	return ""
+}
+
+func (x *GetConfigResponse) GetWebAuthEnabled() bool {
+	if x != nil {
+		return x.WebAuthEnabled
+	}
+	return false
 }
 
 type HistoryRetention struct {
@@ -732,7 +740,7 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a\x1egoogle/protobuf/duration.proto\x1a#loco/deployment/v1/deployment.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\x9e\x05\n" +
+	"\x10GetConfigRequest\"\xc8\x05\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
 	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
@@ -748,7 +756,8 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\x1cobservability_max_time_range\x18\n" +
 	" \x01(\v2\x19.google.protobuf.DurationR\x19observabilityMaxTimeRange\x12\x1f\n" +
 	"\vapi_version\x18\v \x01(\tR\n" +
-	"apiVersion\"\x80\x01\n" +
+	"apiVersion\x12(\n" +
+	"\x10web_auth_enabled\x18\f \x01(\bR\x0ewebAuthEnabled\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
 	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xdb\x05\n" +
