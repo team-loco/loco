@@ -363,7 +363,7 @@ func TestRegistryEnsureComparesPublishedFiles(t *testing.T) {
 	layer := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: chart"), "chart/removed": []byte("old")})
 	fixture.blobs[digest(layer)] = layer
 	manifest := encoded(object{
-		"layers":      []any{object{fieldDigest: digest(layer)}},
+		"layers":      []any{object{fieldDigest: digest(layer), "size": len(layer)}},
 		"annotations": object{"io.loco.platform.content": digest(layer)},
 	})
 	fixture.manifests["example/chart@"+fixtureVersion] = manifest

@@ -244,29 +244,25 @@ func (r *registry) ensure(
 	config any,
 	mediaType string,
 ) (string, error) {
-	target, err := name.NewRepository(r.host + "/" + repository)
-	if err != nil {
-		return "", err
-	}
-	descriptor, err := remote.Get(target.Tag(version), r.options(ctx)...)
+	descriptor, err := r.get(ctx, repository, version)
 	if err != nil {
 		if absent(err) {
 			return r.publish(ctx, repository, version, data, config, mediaType, false)
 		}
 		return "", err
 	}
-	manifest, err := v1.ParseManifest(bytes.NewReader(descriptor.Manifest))
+	image, err := descriptor.Image()
 	if err != nil {
 		return "", err
 	}
-	if len(manifest.Layers) != 1 {
+	layers, err := image.Layers()
+	if err != nil {
+		return "", err
+	}
+	if len(layers) != 1 {
 		return "", fmt.Errorf("%s:%s must have exactly one layer", repository, version)
 	}
-	layer, err := remote.Layer(target.Digest(manifest.Layers[0].Digest.String()), r.options(ctx)...)
-	if err != nil {
-		return "", err
-	}
-	reader, err := layer.Compressed()
+	reader, err := layers[0].Compressed()
 	if err != nil {
 		return "", err
 	}
