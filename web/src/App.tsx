@@ -44,10 +44,8 @@ import { transport } from "./auth/connect-transport";
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
-			refetchOnWindowFocus: false,
 			retry: false,
-			staleTime: 1000 * 60 * 60, // 1 hour - data is fresh for 1 hour
-			gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep cached data for 24 hours
+			gcTime: 1000 * 60 * 60 * 24,
 		},
 		mutations: {
 			retry: false,

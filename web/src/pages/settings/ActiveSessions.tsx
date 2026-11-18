@@ -60,8 +60,6 @@ export function ActiveSessions() {
 	const sessions = useQuery({
 		...options,
 		meta: { persist: false },
-		staleTime: 0,
-		refetchOnWindowFocus: true,
 	});
 	const [selected, setSelected] = useState<Session | null>(null);
 	const revoke = useMutation(revokeSession, {

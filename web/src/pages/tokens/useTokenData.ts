@@ -115,7 +115,7 @@ export function useTokenData(): TokenData {
 		),
 	});
 	const resources = resourceQueries.flatMap((q) => q.data?.resources ?? []);
-	const resourcesLoading = resourceQueries.some((q) => q.isPending || q.isFetching);
+	const resourcesLoading = resourceQueries.some((q) => (q.isPending || q.isFetching) && q.data === undefined);
 	const resourcesError = resourceQueries.find((q) => q.error !== null)?.error ?? null;
 
 	const tree = buildTree(orgs, activeOrgId, orgWorkspaces, resources, userId);
