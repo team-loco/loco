@@ -339,7 +339,9 @@ func TestRefreshRotatesTokens(t *testing.T) {
 		t.Fatalf("refresh did not issue a new token pair")
 	}
 
-	if _, _, err := machine.Refresh(t.Context(), refreshToken, queries.SessionKindCli); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+	if _, _, err := machine.Refresh(
+		t.Context(), refreshToken, queries.SessionKindCli,
+	); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("reusing a rotated refresh token: got %v, want ErrInvalidExpiredToken", err)
 	}
 }
@@ -350,7 +352,9 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 	machine := tvm.NewVendingMachine(racingRefreshQueries{tq}, testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
 
-	if _, _, err := machine.Refresh(t.Context(), refreshToken, queries.SessionKindCli); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+	if _, _, err := machine.Refresh(
+		t.Context(), refreshToken, queries.SessionKindCli,
+	); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("losing refresh: got %v, want ErrInvalidExpiredToken", err)
 	}
 	if len(tq.sessions) != 0 {
