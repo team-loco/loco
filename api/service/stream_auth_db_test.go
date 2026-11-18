@@ -81,6 +81,8 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f, userID, workspaceID := newStreamCredentialFixture(t)
+			// Streams poll for events more often than they recheck access.
+			f.events.poll = time.Millisecond
 			var scopes []genDb.EntityScope
 			if tc.system {
 				scopes = []genDb.EntityScope{
