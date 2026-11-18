@@ -30,6 +30,7 @@ func testTool(t *testing.T) *tool {
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("LOCO_RELEASE_TEST_ROOT", root)
+	t.Setenv("LOCO_RELEASE_TEST_HEAD", strings.Repeat("b", 40))
 	t.Setenv("GORACE", "atexit_sleep_ms=0")
 	write := func(name string, data []byte) {
 		path := filepath.Join(root, name)
@@ -153,7 +154,7 @@ func (fixture commandFixture) argument(flag string) string {
 func (fixture commandFixture) git() error {
 	switch fixture.args[1] {
 	case "rev-parse":
-		fmt.Print(strings.Repeat("b", 40))
+		fmt.Print(os.Getenv("LOCO_RELEASE_TEST_HEAD"))
 	case "ls-tree":
 		fmt.Print(fixture.args[len(fixture.args)-1])
 	case "show":

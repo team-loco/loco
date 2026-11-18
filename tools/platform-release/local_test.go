@@ -70,6 +70,26 @@ func TestLocalReleaseOverlapsBuildsAndPushes(t *testing.T) {
 	}
 }
 
+func TestLocalReleaseKeepsUnchangedChartDigestsAcrossCommits(t *testing.T) {
+	tool, fixture := localFixture(t)
+	options := localOptions{address: fixtureAddress, prebuilt: "prebuilt-*:test"}
+	first, err := tool.localRelease(fixture.registry, options)
+	require.NoError(t, err)
+
+	t.Setenv("LOCO_RELEASE_TEST_HEAD", strings.Repeat("c", 40))
+	for _, name := range images {
+		repository := fixture.registry.repository + "-" + name
+		fixture.manifests[repository+"@0.0.0-local.g"+strings.Repeat("c", 12)] =
+			fixture.manifests[repository+"@0.0.0-local.g"+strings.Repeat("b", 12)]
+	}
+	second, err := tool.localRelease(fixture.registry, options)
+	require.NoError(t, err)
+	require.NotEqual(t, first.Bundle, second.Bundle)
+	for _, chart := range append([]string{"cert-manager-chart", "gateway-chart"}, charts...) {
+		require.Equal(t, first.Artifacts[chart], second.Artifacts[chart], chart)
+	}
+}
+
 func TestLocalReleaseUsesPrebuiltImages(t *testing.T) {
 	tool, fixture := localFixture(t)
 	_, err := tool.localRelease(

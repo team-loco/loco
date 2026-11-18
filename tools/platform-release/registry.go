@@ -177,14 +177,12 @@ func (rawManifest) MediaType() (types.MediaType, error) { return manifestType, n
 
 func (r *registry) publish(
 	ctx context.Context,
-	repository, version string,
-	data []byte,
-	config any,
-	mediaType string,
+	repository, tag string,
+	item artifact,
 	replace bool,
 ) (string, error) {
 	if !replace {
-		if checkErr := r.assertAbsent(ctx, repository, version); checkErr != nil {
+		if checkErr := r.assertAbsent(ctx, repository, tag); checkErr != nil {
 			return "", checkErr
 		}
 	}
@@ -193,13 +191,13 @@ func (r *registry) publish(
 		return "", err
 	}
 	configType := "application/vnd.oci.image.config.v1+json"
-	if mediaType == helmLayerType {
+	if item.mediaType == helmLayerType {
 		configType = "application/vnd.cncf.helm.config.v1+json"
 	}
-	configData := encoded(config)
+	configData := encoded(item.config)
 	for _, blob := range []v1.Layer{
 		static.NewLayer(configData, types.MediaType(configType)),
-		static.NewLayer(data, types.MediaType(mediaType)),
+		static.NewLayer(item.data, types.MediaType(item.mediaType)),
 	} {
 		if err = remote.WriteLayer(target, blob, r.options(ctx)...); err != nil {
 			return "", err
@@ -213,21 +211,23 @@ func (r *registry) publish(
 			fieldDigest:    digest(configData),
 			"size":         len(configData),
 		},
-		"layers": []any{map[string]any{fieldMediaType: mediaType, fieldDigest: digest(data), "size": len(data)}},
+		"layers": []any{
+			map[string]any{fieldMediaType: item.mediaType, fieldDigest: digest(item.data), "size": len(item.data)},
+		},
 		"annotations": map[string]string{
 			"org.opencontainers.image.source":  "https://github.com/" + r.repository,
-			"org.opencontainers.image.version": version,
+			"org.opencontainers.image.version": item.version,
 		},
 	})
 	if !replace {
-		if checkErr := r.assertAbsent(ctx, repository, version); checkErr != nil {
+		if checkErr := r.assertAbsent(ctx, repository, tag); checkErr != nil {
 			return "", checkErr
 		}
 	}
-	if err = remote.Put(target.Tag(version), rawManifest{body}, r.options(ctx)...); err != nil {
+	if err = remote.Put(target.Tag(tag), rawManifest{body}, r.options(ctx)...); err != nil {
 		return "", err
 	}
-	result, err := r.manifest(ctx, repository, version, false)
+	result, err := r.manifest(ctx, repository, tag, false)
 	if err != nil {
 		return "", err
 	}
@@ -247,7 +247,13 @@ func (r *registry) ensure(
 	descriptor, err := r.get(ctx, repository, version)
 	if err != nil {
 		if absent(err) {
-			return r.publish(ctx, repository, version, data, config, mediaType, false)
+			return r.publish(
+				ctx,
+				repository,
+				version,
+				artifact{version: version, data: data, config: config, mediaType: mediaType},
+				false,
+			)
 		}
 		return "", err
 	}
