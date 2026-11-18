@@ -100,12 +100,13 @@ export function trafficSeries(points: TrafficPoint[], field: TrafficField, resou
 	return [...buckets.entries()].toSorted((a, b) => a[0] - b[0]).map(([, value]) => value);
 }
 
-/** The change from `prior` to `current` as "↑ 6.2%", or undefined when there is nothing to compare. */
+/** The change from `prior` to `current` as "↑ 6.2%", "0%" when it rounds to zero, or undefined when there is nothing to compare. */
 export function changeLabel(current: number | undefined, prior: number | undefined): string | undefined {
 	if (current === undefined || prior === undefined || prior === 0) return undefined;
 	const pct = ((current - prior) / prior) * 100;
-	const digits = Math.abs(pct) < 10 ? 1 : 0;
-	return `${pct < 0 ? "↓" : "↑"} ${Math.abs(pct).toFixed(digits)}%`;
+	const shown = Math.abs(pct).toFixed(Math.abs(pct) < 10 ? 1 : 0);
+	if (Number(shown) === 0) return "0%";
+	return `${pct < 0 ? "↓" : "↑"} ${shown}%`;
 }
 
 const compact = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, notation: "compact" });
