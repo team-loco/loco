@@ -12,10 +12,11 @@ import (
 
 func TestGetConfigReportsDashboardSignInAvailability(t *testing.T) {
 	t.Parallel()
+	const clientID = "dashboard-client"
 	for _, configured := range []bool{false, true} {
-		issuers := []auth.IssuerConfig{{Issuer: "https://idp.example.test", Audience: "loco"}}
+		issuers := []auth.IssuerConfig{{Issuer: "https://idp.example.test", Audience: clientID}}
 		if configured {
-			issuers[0].Web = &auth.WebConfig{ClientID: "loco", ClientSecret: "test secret", Scopes: "openid"}
+			issuers[0].Web = &auth.WebConfig{ClientID: clientID, ClientSecret: "test secret", Scopes: "openid"}
 		}
 		server := NewConfigServer("", "", "", servicedefaults.Defaults{}, issuers, nil, 0, 0, nil, nil)
 		config, err := server.GetConfig(t.Context(), &configv1.GetConfigRequest{})
