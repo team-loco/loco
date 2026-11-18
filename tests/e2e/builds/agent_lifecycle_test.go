@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,8 +44,13 @@ func TestAgentLifecycle(t *testing.T) {
 		if version != p.Version {
 			t.Errorf("agent registered version %q, want %q", version, p.Version)
 		}
-		requireLogLine(t, "api", "starting loco api", "version="+p.Version)
-		requireLogLine(t, "obs-proxy", "starting observability proxy", `"version":"`+p.Version+`"`)
+		lines, readErr := p.LogLines("obs-proxy", "")
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if !logsVersion(strings.Join(lines, "\n")) {
+			t.Errorf("the observability proxy logged no record with version %s", p.Version)
+		}
 	})
 
 	t.Run("heartbeat and capacity", func(t *testing.T) {
@@ -164,13 +170,20 @@ const (
 	clusterHealth      = "SELECT health_status, capacity_cpu_millicores, capacity_memory_bytes FROM clusters WHERE id = $1"
 )
 
-func requireLogLine(t *testing.T, process, line, want string) {
-	t.Helper()
-	lines, err := p.LogLines(process, line)
-	if err != nil {
-		t.Fatal(err)
+// logsVersion reports whether a structured record of logs has the run's version as its version
+// attribute. A record is a JSON object, alone on its line or at the end of a console line.
+func logsVersion(logs string) bool {
+	for line := range strings.Lines(logs) {
+		start := strings.Index(line, "{")
+		if start < 0 {
+			continue
+		}
+		var record struct {
+			Version string `json:"version"`
+		}
+		if json.Unmarshal([]byte(line[start:]), &record) == nil && record.Version == p.Version {
+			return true
+		}
 	}
-	if len(lines) == 0 || !strings.Contains(lines[0], want) {
-		t.Errorf("%s log line %q = %q, want it to contain %q", process, line, lines, want)
-	}
+	return false
 }

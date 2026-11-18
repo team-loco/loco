@@ -62,8 +62,8 @@ func TestBuilds(t *testing.T) {
 			t.Errorf("builder fetch log lacks version=%s:\n%s", p.Version, logs)
 		}
 		logs := p.MustKubectl(t, "-n", p.Namespace, "logs", "deployment/loco-build-controller")
-		if !strings.Contains(logs, `"version": "`+p.Version+`"`) {
-			t.Errorf("build controller log lacks its version %s", p.Version)
+		if !logsVersion(logs) {
+			t.Errorf("the build controller logged no record with version %s", p.Version)
 		}
 	})
 

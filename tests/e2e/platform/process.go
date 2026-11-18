@@ -164,21 +164,3 @@ func (l *agentLog) check() error {
 	}
 	return nil
 }
-
-// LogLineNumber returns the number of the first line of a host process's log that contains
-// substring, or 0 without one.
-func (p *Platform) LogLineNumber(name, substring string) (int, error) {
-	file, err := os.Open(p.logPath(name))
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for number := 1; scanner.Scan(); number++ {
-		if strings.Contains(scanner.Text(), substring) {
-			return number, nil
-		}
-	}
-	return 0, scanner.Err()
-}
