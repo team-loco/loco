@@ -13,7 +13,7 @@ func TestCancelledNetworkProbeCleansBothOwnedPodsAndReportsCleanupFailure(t *tes
 	for _, exit := range []string{"0", "1"} {
 		t.Run(exit, func(t *testing.T) {
 			marker := filepath.Join(t.TempDir(), "cleanup")
-			fakeOperatorCommand(t, `#!/bin/sh
+			fakeCommand(t, kubectlExecutable, `#!/bin/sh
 case "$*" in
  *"delete pod installation-network-probe"*)
   printf '%s\n' "$*" >> "$PROBE_CLEANUP_MARKER"

@@ -20,15 +20,9 @@ const testCanary = "installation-canary-8f48cbb251b7450e"
 func TestAuditCommandOutput(t *testing.T) {
 	for _, status := range []string{"0", "9"} {
 		t.Run(status, func(t *testing.T) {
-			dir := t.TempDir()
 			// Fixed fixture command exercises the real command helper on both exit paths.
-			executable := filepath.Join(dir, "locoadm")
-			script := "#!/bin/sh\nprintf '%s' 'stdout-" + testCanary + "'\n" +
-				"printf '%s' 'stderr-" + testCanary + "' >&2\nexit " + status + "\n"
-			if err := os.WriteFile(executable, []byte(script), 0700); err != nil {
-				t.Fatal(err)
-			}
-			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			fakeCommand(t, locoadmExecutable, "#!/bin/sh\nprintf '%s' 'stdout-"+testCanary+"'\n"+
+				"printf '%s' 'stderr-"+testCanary+"' >&2\nexit "+status+"\n")
 			audit := newLeakAudit()
 			ctx := context.WithValue(context.Background(), auditKey{}, audit)
 			_, commandErr := command(ctx, "", nil, "locoadm")
@@ -212,7 +206,7 @@ func TestAuditLoginOutput(t *testing.T) {
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
 			var err error
-			captureStderr(t, func() {
+			captureOutput(t, func() {
 				err = signIn(ctx, func(context.Context, string) error { return nil })
 			})
 			if (err == nil) != (status == "0") {

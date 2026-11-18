@@ -15,7 +15,7 @@ import (
 func TestWorkerDNSRejectsMissingOrInvalidLoadBalancerAddress(t *testing.T) {
 	for _, address := range []string{"", "not-an-address"} {
 		t.Run(address, func(t *testing.T) {
-			fakeOperatorCommand(t, "#!/bin/sh\nprintf '%s' \"$FIXTURE_LB_ADDRESS\"\n")
+			fakeCommand(t, kubectlExecutable, "#!/bin/sh\nprintf '%s' \"$FIXTURE_LB_ADDRESS\"\n")
 			t.Setenv("FIXTURE_LB_ADDRESS", address)
 			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
 			defer cancel()
@@ -55,7 +55,7 @@ func TestGatewayDNSPersistentMismatchIsBounded(t *testing.T) {
 
 func fakeGatewayDNSCommands(t *testing.T) {
 	t.Helper()
-	fakeOperatorCommand(t, `#!/bin/sh
+	fakeCommand(t, kubectlExecutable, `#!/bin/sh
 if [ "$3" = get ] && [ "$4" = services ]; then
   printf '192.0.2.10'
 elif [ "$3" = get ] && [ "$4" = configmap ]; then

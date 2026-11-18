@@ -11,6 +11,45 @@ import (
 	"time"
 )
 
+// fakeBins holds each test's fake command directory; t.Setenv keeps these tests serial.
+var fakeBins = map[*testing.T]string{}
+
+// fakeCommand writes script as the executable name in the test's fake command directory,
+// which is the whole PATH, and returns that directory.
+func fakeCommand(t *testing.T, name, script string) string {
+	t.Helper()
+	bin, ok := fakeBins[t]
+	if !ok {
+		bin = t.TempDir()
+		t.Setenv("PATH", bin)
+		fakeBins[t] = bin
+		t.Cleanup(func() { delete(fakeBins, t) })
+	}
+	if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	return bin
+}
+
+// captureOutput runs fn and returns what it wrote to os.Stdout and os.Stderr, in order.
+func captureOutput(t *testing.T, fn func()) string {
+	t.Helper()
+	capture, err := os.CreateTemp(t.TempDir(), "output")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer capture.Close()
+	stdout, stderr := os.Stdout, os.Stderr
+	os.Stdout, os.Stderr = capture, capture
+	defer func() { os.Stdout, os.Stderr = stdout, stderr }()
+	fn()
+	output, err := os.ReadFile(capture.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(output)
+}
+
 func TestFailureRunsCleanupAndRemainsFailure(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "cleaned")
 	err := execute(
@@ -59,7 +98,6 @@ func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	if err := os.WriteFile("mise.toml", nil, 0600); err != nil {
 		t.Fatal(err)
 	}
-	bin := t.TempDir()
 	for _, program := range []string{"docker", "kind", "kubectl", "helm", "mise", "yq"} {
 		script := "#!/bin/sh\nexit 0\n"
 		if program == "docker" {
@@ -68,17 +106,9 @@ func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 		if program == "kind" {
 			script = "#!/bin/sh\nprintf cleaned >\"$INSTALLATION_CLEANUP_MARKER\"\n"
 		}
-		path := filepath.Join(bin, program)
-		if err := os.WriteFile(path, []byte(script), 0600); err != nil {
-			t.Fatal(err)
-		}
-		//nolint:gosec // Only the owner can execute this disposable fake command.
-		if err := os.Chmod(path, 0700); err != nil {
-			t.Fatal(err)
-		}
+		fakeCommand(t, program, script)
 	}
 	marker := filepath.Join(root, "cleaned")
-	t.Setenv("PATH", bin)
 	t.Setenv("INSTALLATION_CLEANUP_MARKER", marker)
 	original := os.Args
 	os.Args = []string{suiteName, "--timeout=20ms"}
@@ -128,11 +158,7 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 }
 
 func TestFailedFluxCommandNamesWhatItReconciled(t *testing.T) {
-	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "flux"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin)
+	fakeCommand(t, "flux", "#!/bin/sh\nexit 1\n")
 	_, err := command(t.Context(), "", nil, "flux", fluxReconcile, fluxKustomization, "loco-infra", "--timeout=10m")
 	if err == nil || !strings.Contains(err.Error(), "flux reconcile kustomization loco-infra --timeout=10m failed") {
 		t.Fatalf("flux failure = %v, want the reconciled object named", err)

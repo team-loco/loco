@@ -3,8 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -24,7 +22,7 @@ func TestOperatorFailureReportsOnlyKnownPhase(t *testing.T) {
 		{"incomplete", "installation-e2e phase: pre-login-audit", unknownPhase},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			fakeOperatorCommand(t, `#!/bin/sh
+			fakeCommand(t, kubectlExecutable, `#!/bin/sh
 printf '%s' "$OPERATOR_TEST_OUTPUT"
 printf 'operator request failed' >&2
 exit 1
@@ -42,8 +40,9 @@ exit 1
 }
 
 func TestOperatorFailureIncludesStderr(t *testing.T) {
-	fakeOperatorCommand(
+	fakeCommand(
 		t,
+		kubectlExecutable,
 		"#!/bin/sh\nprintf 'private-stdout'\nprintf 'device approval rejected: unavailable' >&2\nexit 1\n",
 	)
 	out, err := operatorWorkflow(t.Context(), t.TempDir())
@@ -55,7 +54,7 @@ func TestOperatorFailureIncludesStderr(t *testing.T) {
 }
 
 func TestOperatorOutputLimitFailsClosed(t *testing.T) {
-	fakeOperatorCommand(t, fmt.Sprintf("#!/bin/sh\n/usr/bin/head -c %d /dev/zero\n", auditLimit+1))
+	fakeCommand(t, kubectlExecutable, fmt.Sprintf("#!/bin/sh\n/usr/bin/head -c %d /dev/zero\n", auditLimit+1))
 	out, err := operatorWorkflow(t.Context(), t.TempDir())
 	if !errors.Is(err, errOperatorOutputLimit) || len(out) != 0 {
 		t.Fatalf("unbounded output: %v", err)
@@ -63,25 +62,11 @@ func TestOperatorOutputLimitFailsClosed(t *testing.T) {
 }
 
 func TestOperatorSuccessPreservesOutput(t *testing.T) {
-	fakeOperatorCommand(t, "#!/bin/sh\nprintf 'passed'\n")
+	fakeCommand(t, kubectlExecutable, "#!/bin/sh\nprintf 'passed'\n")
 	out, err := operatorWorkflow(t.Context(), t.TempDir())
 	if err != nil || string(out) != "passed" {
 		t.Fatalf("successful operator output: %v", err)
 	}
-}
-
-func fakeOperatorCommand(t *testing.T, script string) {
-	t.Helper()
-	bin := t.TempDir()
-	path := filepath.Join(bin, "kubectl")
-	if err := os.WriteFile(path, []byte(script), 0600); err != nil {
-		t.Fatal(err)
-	}
-	//nolint:gosec // Owner-only executable in a disposable test directory.
-	if err := os.Chmod(path, 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin)
 }
 
 func TestHostAcceptsOnlyKnownLoginFailureCategories(t *testing.T) {
@@ -90,7 +75,7 @@ func TestHostAcceptsOnlyKnownLoginFailureCategories(t *testing.T) {
 		{"unknown", "unknown"}, {"unrecognized-category", ""}, {"api-unavailable credential-canary", ""},
 	} {
 		t.Run(tc.marker, func(t *testing.T) {
-			fakeOperatorCommand(t, `#!/bin/sh
+			fakeCommand(t, kubectlExecutable, `#!/bin/sh
 printf 'installation-e2e phase: login-approved\n'
 printf 'installation-e2e login failure: %s\n' "$LOGIN_FAILURE_TEST_MARKER"
 printf 'operator request failed' >&2

@@ -61,33 +61,23 @@ func TestDeployFixtureCreatesAndSelectsFreshScope(t *testing.T) {
 		{"creation failure", "org", "org create installation-e2e\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			bin := t.TempDir()
-			calls := filepath.Join(bin, "calls")
-			script := `#!/bin/sh
+			bin := fakeCommand(t, "loco", `#!/bin/sh
 printf '%s\n' "$*" >> "$SCOPE_CALLS"
 case "$1" in
  org)
   [ "$SCOPE_FAIL" = org ] && exit 42
-  printf 'Organization created (ID: ` + orgID + `)\n'
+  printf 'Organization created (ID: `+orgID+`)\n'
   ;;
- workspace) printf 'Workspace created (ID: ` + workspaceID + `)\n' ;;
+ workspace) printf 'Workspace created (ID: `+workspaceID+`)\n' ;;
  use)
   # Existing scopes have these display names; name selection is ambiguous.
-  [ "$2" = '` + orgID + `/` + workspaceID + `' ] && exit 42
+  [ "$2" = '`+orgID+`/`+workspaceID+`' ] && exit 42
   exit 17
   ;;
  *) exit 18 ;;
 esac
-`
-			path := filepath.Join(bin, "loco")
-			if err := os.WriteFile(path, []byte(script), 0600); err != nil {
-				t.Fatal(err)
-			}
-			//nolint:gosec // Disposable test executable, readable only by its owner.
-			if err := os.Chmod(path, 0700); err != nil {
-				t.Fatal(err)
-			}
-			t.Setenv("PATH", bin)
+`)
+			calls := filepath.Join(bin, "calls")
 			t.Setenv("SCOPE_CALLS", calls)
 			t.Setenv("SCOPE_FAIL", tc.fail)
 			err := deployFixture(t.Context(), "build-test."+fixtureAppsDomain)

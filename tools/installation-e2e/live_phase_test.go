@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"context"
-	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +11,7 @@ import (
 )
 
 func TestOperatorForwardsOnlyCompleteKnownPhasesBeforeExit(t *testing.T) {
-	fakeOperatorCommand(t, `#!/bin/sh
+	fakeCommand(t, kubectlExecutable, `#!/bin/sh
 printf '%s' "$OPERATOR_TEST_OUTPUT"
 while [ ! -f "$OPERATOR_TEST_ACK" ]; do /bin/sleep 0.01; done
 printf 'installation-e2e login failure: api-unavailable\n'
@@ -29,39 +27,33 @@ exit 1
 		phasePrefix+"unknown-stage\n"+
 		phasePrefix+strings.Repeat("x", 8192)+"\n"+
 		want)
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reader.Close()
-	previous := os.Stderr
-	os.Stderr = writer
-	defer func() { os.Stderr = previous }()
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
-	output := make(chan string, 1)
-	dir := t.TempDir()
-	go func() {
-		buffer := bufio.NewReader(reader)
-		line, readErr := buffer.ReadString('\n')
-		if readErr != nil && !errors.Is(readErr, io.EOF) {
-			t.Error(readErr)
-		}
-		if writeErr := os.WriteFile(ack, nil, 0600); writeErr != nil {
-			t.Error(writeErr)
-			cancel()
-		}
-		rest, readErr := io.ReadAll(buffer)
-		if readErr != nil {
-			t.Error(readErr)
-		}
-		output <- line + string(rest)
-	}()
-	_, runErr := operatorWorkflow(ctx, dir)
-	if closeErr := writer.Close(); closeErr != nil {
-		t.Error(closeErr)
-	}
-	forwarded := <-output
+	var runErr error
+	forwarded := captureOutput(t, func() {
+		acked := make(chan struct{})
+		go func(capture string) {
+			defer close(acked)
+			// Acknowledges the first forwarded line, which the fake waits for before it exits.
+			for ctx.Err() == nil {
+				data, readErr := os.ReadFile(capture)
+				if readErr != nil {
+					t.Error(readErr)
+					return
+				}
+				if bytes.ContainsRune(data, '\n') {
+					if writeErr := os.WriteFile(ack, nil, 0600); writeErr != nil {
+						t.Error(writeErr)
+						cancel()
+					}
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}(os.Stderr.Name())
+		_, runErr = operatorWorkflow(ctx, t.TempDir())
+		<-acked
+	})
 	phases, _, _ := strings.Cut(forwarded, dnsDiagnosticPrefix)
 	if phases != want || strings.Contains(forwarded, "credential-canary") {
 		t.Errorf("forwarded output = %q, want phases %q followed by safe DNS evidence", forwarded, want)

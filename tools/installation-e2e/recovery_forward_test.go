@@ -43,7 +43,7 @@ func TestRecoveryForwardPreservesTLSIdentityAndAuthentication(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			fakeOperatorCommand(t, `#!/bin/sh
+			fakeCommand(t, kubectlExecutable, `#!/bin/sh
 exec "$BAO_FORWARD_TEST_BINARY" -test.run=TestBaoForwardSubprocess -- "$@"
 `)
 			t.Setenv("BAO_FORWARD_TEST_BINARY", executable)

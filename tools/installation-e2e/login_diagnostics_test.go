@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,39 +12,13 @@ import (
 
 const deviceCodeOutput = "Open http://console.installation.test/device and enter the code ABCD-EFGH\\n"
 
-// fakeLocoadm puts a locoadm on PATH that prints stdout and stderr, then runs tail.
+// fakeLocoadm fakes a locoadm that prints stdout and stderr, then runs tail.
 func fakeLocoadm(t *testing.T, stdout, stderr, tail string) {
 	t.Helper()
-	bin := t.TempDir()
 	script := "#!/bin/sh\nprintf '%b' \"$LOGIN_TEST_STDOUT\"\nprintf '%s' \"$LOGIN_TEST_STDERR\" >&2\n" + tail + "\n"
-	if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	fakeCommand(t, locoadmExecutable, script)
 	t.Setenv("LOGIN_TEST_STDOUT", stdout)
 	t.Setenv("LOGIN_TEST_STDERR", stderr)
-}
-
-// captureStderr runs fn and returns what it wrote to os.Stderr.
-func captureStderr(t *testing.T, fn func()) string {
-	t.Helper()
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reader.Close()
-	original := os.Stderr
-	os.Stderr = writer
-	defer func() { os.Stderr = original }()
-	fn()
-	if closeErr := writer.Close(); closeErr != nil {
-		t.Fatal(closeErr)
-	}
-	output, err := io.ReadAll(reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(output)
 }
 
 func TestLoginFailureReportsObservedBoundary(t *testing.T) {
@@ -79,7 +52,7 @@ func TestLoginFailureReportsObservedBoundary(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			fakeLocoadm(t, tc.stdout, tc.stderr, "exit 1")
 			var loginErr error
-			output := captureStderr(t, func() {
+			output := captureOutput(t, func() {
 				loginErr = signIn(t.Context(), func(context.Context, string) error { return nil })
 			})
 			if loginErr == nil || tc.phase != "" && !strings.Contains(output, phasePrefix+tc.phase+"\n") {
@@ -100,7 +73,7 @@ func TestLoginFailureReportsObservedBoundary(t *testing.T) {
 func TestSignInApprovesThePrintedCode(t *testing.T) {
 	fakeLocoadm(t, deviceCodeOutput, "", "exit 0")
 	var approved string
-	captureStderr(t, func() {
+	captureOutput(t, func() {
 		if err := signIn(t.Context(), func(_ context.Context, code string) error {
 			approved = code
 			return nil
@@ -115,10 +88,10 @@ func TestSignInApprovesThePrintedCode(t *testing.T) {
 
 func TestSignInStopsLoginWhenApprovalFails(t *testing.T) {
 	errApproval := errors.New("approval failed")
-	fakeLocoadm(t, deviceCodeOutput, "", "exec sleep 30")
+	fakeLocoadm(t, deviceCodeOutput, "", "exec /bin/sleep 30")
 	started := time.Now()
 	var err error
-	captureStderr(t, func() {
+	captureOutput(t, func() {
 		err = signIn(t.Context(), func(context.Context, string) error { return errApproval })
 	})
 	if !errors.Is(err, errApproval) || time.Since(started) > 20*time.Second {
@@ -130,7 +103,7 @@ func TestSignInUsesExplicitFixtureEndpoints(t *testing.T) {
 	fakeLocoadm(t, deviceCodeOutput, "", `
 [ "$*" = "login --api http://api.installation.test --web http://console.installation.test --device" ] || exit 42
 `)
-	captureStderr(t, func() {
+	captureOutput(t, func() {
 		if err := signIn(t.Context(), func(context.Context, string) error { return nil }); err != nil {
 			t.Fatal(err)
 		}
@@ -156,23 +129,18 @@ func TestAdminClaimCheckUsesAPIStatus(t *testing.T) {
 }
 
 func TestSignInRetriesDNSBeforeDeviceApproval(t *testing.T) {
-	bin := t.TempDir()
-	script := `#!/bin/sh
+	bin := fakeCommand(t, locoadmExecutable, `#!/bin/sh
 if [ ! -f "$LOGIN_ATTEMPT" ]; then
-  touch "$LOGIN_ATTEMPT"
+  : >"$LOGIN_ATTEMPT"
   echo 'Login to http://api failed: could not reach the Loco API: dial tcp: lookup api: no such host' >&2
   exit 1
 fi
 printf '%b' "$LOGIN_TEST_STDOUT"
-`
-	if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+`)
 	t.Setenv("LOGIN_ATTEMPT", filepath.Join(bin, "attempt"))
 	t.Setenv("LOGIN_TEST_STDOUT", deviceCodeOutput)
 	approved := 0
-	output := captureStderr(t, func() {
+	output := captureOutput(t, func() {
 		if err := signIn(t.Context(), func(context.Context, string) error { approved++; return nil }); err != nil {
 			t.Error(err)
 		}
@@ -203,7 +171,7 @@ func TestSignInDNSRetryHonorsContext(t *testing.T) {
 		}
 	}()
 	var loginErr error
-	output := captureStderr(t, func() {
+	output := captureOutput(t, func() {
 		loginErr = signIn(ctx, func(context.Context, string) error { t.Fatal("unexpected approval"); return nil })
 	})
 	if !errors.Is(loginErr, context.Canceled) || !strings.Contains(output, loginFailurePrefix+loginFailureDNS) {
@@ -212,11 +180,11 @@ func TestSignInDNSRetryHonorsContext(t *testing.T) {
 }
 
 func TestSignInCancelsBlockedDeviceCodeRequest(t *testing.T) {
-	fakeLocoadm(t, "", "", "exec sleep 30")
+	fakeLocoadm(t, "", "", "exec /bin/sleep 30")
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
 	var loginErr error
-	captureStderr(t, func() {
+	captureOutput(t, func() {
 		loginErr = signIn(ctx, func(context.Context, string) error { t.Fatal("unexpected approval"); return nil })
 	})
 	if !errors.Is(loginErr, context.DeadlineExceeded) {

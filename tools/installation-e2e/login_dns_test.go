@@ -25,7 +25,7 @@ func TestDNSQueryResult(t *testing.T) {
 }
 
 func TestLoginDNSFailureProjectsFixtureNames(t *testing.T) {
-	output := captureStderr(t, func() {
+	output := captureOutput(t, func() {
 		reportLoginDNSFailure(
 			[]byte("credential-canary lookup api.installation.test on 10.96.0.10:53: no such host password-canary"),
 		)
@@ -40,7 +40,7 @@ func TestLoginDNSFailureProjectsFixtureNames(t *testing.T) {
 }
 
 func TestFailedLoginCollectsDNSFromOperatorNamespace(t *testing.T) {
-	fakeOperatorCommand(t, `#!/bin/sh
+	fakeCommand(t, kubectlExecutable, `#!/bin/sh
 case "$*" in
  *'installation-e2e --client'*) printf 'installation-e2e login failure: api-dns\n'; exit 1;;
  '-n kube-system get deployment coredns -o json')
@@ -56,7 +56,7 @@ case "$*" in
  *) exit 42;;
 esac
 `)
-	output := captureStderr(t, func() {
+	output := captureOutput(t, func() {
 		if _, err := operatorWorkflow(t.Context(), t.TempDir()); err == nil {
 			t.Fatal("expected login failure")
 		}
@@ -78,7 +78,7 @@ esac
 }
 
 func TestDNSDiagnosticsSurviveCancellationAndRejectOversizedOutput(t *testing.T) {
-	fakeOperatorCommand(t, fmt.Sprintf(`#!/bin/sh
+	fakeCommand(t, kubectlExecutable, fmt.Sprintf(`#!/bin/sh
 case "$*" in
  *'get deployment'*) echo 'credential-canary'; exit 1;;
  *) /usr/bin/head -c %d /dev/zero;;
@@ -86,7 +86,7 @@ esac
 `, auditLimit+1))
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	output := captureStderr(t, func() { loginDNSDiagnostics(ctx, t.TempDir()) })
+	output := captureOutput(t, func() { loginDNSDiagnostics(ctx, t.TempDir()) })
 	if !strings.Contains(output, "CoreDNS readiness unavailable") ||
 		strings.Count(output, "result=query-unavailable") != 4 ||
 		len(output) > 1500 {
