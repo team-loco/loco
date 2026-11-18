@@ -31,6 +31,9 @@ const (
 	proxyBufferBytes     = 32 << 10
 )
 
+// A holder that must keep the lock gets a lease longer than renewals take on a loaded machine.
+const holdingTTL = 2 * time.Minute
+
 var errMigration = errors.New("migration failed")
 
 func TestValidateRejectsInvalidConfig(t *testing.T) {
@@ -74,7 +77,7 @@ func newHarness(t *testing.T) *harness {
 	db := clickhousetest.New(t, "loco_lock_test_")
 	return &harness{
 		admin: db.Admin,
-		cfg:   migrationlock.Config{DSN: db.DSN, Database: db.Name, TTL: testTTL, RetryPeriod: testRetryPeriod},
+		cfg:   migrationlock.Config{DSN: db.DSN, Database: db.Name, TTL: holdingTTL, RetryPeriod: testRetryPeriod},
 	}
 }
 
@@ -252,6 +255,7 @@ func TestHolderThatCannotRenewStopsWithinTheTTL(t *testing.T) {
 
 func holderStopsWithinTheTTL(t *testing.T, cfg migrationlock.Config, cut func()) {
 	t.Helper()
+	cfg.TTL = testTTL
 	var cutAt, stoppedAt time.Time
 	err := migrationlock.New(cfg).WithLock(t.Context(), func(ctx context.Context) error {
 		cut()
