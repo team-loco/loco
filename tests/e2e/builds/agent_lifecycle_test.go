@@ -14,22 +14,6 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-// waitHeartbeat waits until the run's cluster records a heartbeat.
-func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
-	t.Helper()
-	platform.Eventually(t, timeout, what, func(ctx context.Context) error {
-		var heartbeat bool
-		if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
-			Scan(&heartbeat); err != nil {
-			return err
-		}
-		if !heartbeat {
-			return errors.New("no heartbeat")
-		}
-		return nil
-	})
-}
-
 // TestAgentLifecycle checks the enrolled agent's registration, heartbeat and capacity, then deploys
 // an image and follows the placement from the API through the agent to a Ready Application, whose
 // workspace network policy admits only the workspace's own pods.
@@ -156,6 +140,22 @@ func TestAgentLifecycle(t *testing.T) {
 		if p.Reaches(t, platform.ProbePod{Namespace: outsider, Name: "e2e-probe-outside"}, target) {
 			t.Error("a pod in another namespace reaches the app")
 		}
+	})
+}
+
+// waitHeartbeat waits until the run's cluster records a heartbeat.
+func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
+	t.Helper()
+	platform.Eventually(t, timeout, what, func(ctx context.Context) error {
+		var heartbeat bool
+		if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
+			Scan(&heartbeat); err != nil {
+			return err
+		}
+		if !heartbeat {
+			return errors.New("no heartbeat")
+		}
+		return nil
 	})
 }
 

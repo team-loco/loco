@@ -60,7 +60,7 @@ func (p *Platform) signIn(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	p.adminSession, p.userSession = admin, user
+	p.userSession = user
 	p.UserToken = user.Token
 	p.Admin = rpc.ForHost(p.APIURL, admin.Token)
 	p.User = rpc.ForHost(p.APIURL, user.Token)

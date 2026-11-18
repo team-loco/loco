@@ -110,20 +110,20 @@ func (w *Workspace) writeCLIConfig(tb testing.TB) {
 		w.Name,
 		w.ID,
 	)
-	if err := os.WriteFile(w.ConfigPath(), []byte(config), 0o600); err != nil {
+	if err := os.WriteFile(w.configPath(), []byte(config), 0o600); err != nil {
 		tb.Fatal(err)
 	}
 }
 
-// ConfigPath is the CLI's scope file in Home.
-func (w *Workspace) ConfigPath() string {
+// configPath is the CLI's scope file in Home.
+func (w *Workspace) configPath() string {
 	return filepath.Join(w.Home, ".loco", "config.yaml")
 }
 
 // WithoutScope runs check while the CLI has no cached organization or workspace.
 func (w *Workspace) WithoutScope(tb testing.TB, check func()) {
 	tb.Helper()
-	config := w.ConfigPath()
+	config := w.configPath()
 	if err := os.Rename(config, config+".saved"); err != nil {
 		tb.Fatal(err)
 	}

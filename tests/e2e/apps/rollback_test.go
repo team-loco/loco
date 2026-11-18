@@ -110,7 +110,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	}
 }
 
-// shortenFailureDeadline sets the workload's progress deadline to 90s.
+// 90s leaves the failing revision time to restart and take traffic before the rollout stalls.
 func shortenFailureDeadline(t *testing.T, w *platform.Workspace, resourceID string) {
 	t.Helper()
 	p.MustKubectl(t, "-n", w.Namespace, "patch", "deployment", locov1alpha1.WorkloadName(resourceID),
