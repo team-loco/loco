@@ -163,7 +163,7 @@ export function ResourceTable({
 			<ResourceCellContext value={{ orgId, workspaceId, environments, active, nowMs }}>
 				<DataTable
 					table={table}
-					className="table-fixed"
+					className="table-fixed [--row-h:62px]"
 					style={{ minWidth: table.getTotalSize() }}
 					empty={
 						<EmptyState

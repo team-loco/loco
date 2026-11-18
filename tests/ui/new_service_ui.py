@@ -364,7 +364,7 @@ with session(out) as browser:
             page.keyboard.press("Home")
             for _ in range(3):
                 page.keyboard.press("ArrowRight")
-            expect(memory).to_have_attribute("aria-valuetext", "1 GiB")
+            expect(memory).to_have_attribute("aria-valuetext", "1 Gi")
 
             drawer.get_by_role("button", name="Paste .env", exact=True).click()
             paste = drawer.get_by_role("textbox", name="Paste .env")
@@ -495,7 +495,7 @@ with session(out) as browser:
             expect(
                 drawer.get_by_text("Runs exactly 2 per region.", exact=True)
             ).to_be_visible()
-            expect(memory).to_have_attribute("aria-valuetext", "1 GiB")
+            expect(memory).to_have_attribute("aria-valuetext", "1 Gi")
             expect(names.nth(0)).to_have_value("STRIPE_API_KEY")
             expect(
                 variables.get_by_role("textbox", name="Value of LOG_LEVEL")

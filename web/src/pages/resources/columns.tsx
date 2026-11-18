@@ -1,7 +1,8 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
+import { Subscribe } from "@tanstack/react-table";
 import { CopyIcon, RocketIcon, ScrollTextIcon, Settings2Icon } from "lucide-react";
 import { createContext, use } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 
@@ -9,8 +10,9 @@ import { ResourceRowMenu } from "@/components/ResourceRowMenu";
 import { Checkbox } from "@/components/design/Checkbox";
 import { DataTableColumnsMenu, type DataColumn } from "@/components/design/DataTable";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
+import { RowLink } from "@/components/design/RowLink";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { type Glyph, StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
@@ -51,6 +53,8 @@ function useCells(): ResourceCellValues {
 
 const DRAFT_NAME = "underline decoration-fg4 decoration-dashed hover:decoration-foreground";
 
+const SUMMARY_TONE: Partial<Record<Glyph, string>> = { spin: "text-info", warn: "text-warn", err: "text-err" };
+
 function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 	const { nowMs } = useCells();
 	if (cell === undefined) return <span className="text-fg4">—</span>;
@@ -68,7 +72,9 @@ function EnvCellView({ cell }: { cell: EnvCell | undefined }) {
 					<StatusGlyph glyph={style.glyph} />
 					<span className="truncate font-mono text-[12.5px] text-foreground">{cell.tag === "" ? "—" : cell.tag}</span>
 				</span>
-				<span className="truncate font-mono text-[11.5px] text-fg3">{cellSummary(cell)}</span>
+				<span className={cn("truncate font-mono text-[11.5px]", SUMMARY_TONE[style.glyph] ?? "text-fg3")}>
+					{cellSummary(cell)}
+				</span>
 			</TooltipTrigger>
 			<TooltipContent>{tip}</TooltipContent>
 		</Tooltip>
@@ -93,12 +99,12 @@ function NameCell({ row }: { row: ListRow }) {
 	const draft = isDraftRow(row);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
-			<Link
+			<RowLink
 				to={draft ? draftSearch(search, row.draft.id) : resourcePath(orgId, workspaceId, row.resource.id)}
 				className={cn("truncate text-[14.5px] font-medium text-foreground", draft && DRAFT_NAME)}
 			>
 				{rowName(row)}
-			</Link>
+			</RowLink>
 			<span className="truncate text-[12.5px] text-fg3">{draft ? DRAFT_NOTE : (row.resource.description ?? "")}</span>
 		</div>
 	);
@@ -161,7 +167,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 function envColumn(environment: Environment): DataColumn<ListRow> {
 	return {
 		id: `${ENV_PREFIX}${environment.name}`,
-		header: environment.name,
+		header: environment.name.charAt(0).toUpperCase() + environment.name.slice(1),
 		size: 172,
 		accessorFn: (row) => envRank(row, environment.id),
 		sortFn: "basic",
@@ -178,20 +184,24 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 	return [
 		{
 			id: "select",
-			header: ({ table }) => {
-				const all = table.getIsAllPageRowsSelected();
-				return (
-					<Checkbox
-						aria-label={all ? "Deselect this page" : "Select this page"}
-						disabled={!table.getRowModel().rows.some((row) => row.getCanSelect())}
-						checked={all}
-						indeterminate={table.getIsSomePageRowsSelected() && !all}
-						onCheckedChange={() => {
-							table.toggleAllPageRowsSelected();
-						}}
-					/>
-				);
-			},
+			header: ({ table }) => (
+				<Subscribe source={table.atoms.rowSelection}>
+					{() => {
+						const all = table.getIsAllPageRowsSelected();
+						return (
+							<Checkbox
+								aria-label={all ? "Deselect this page" : "Select this page"}
+								disabled={!table.getRowModel().rows.some((row) => row.getCanSelect())}
+								checked={all}
+								indeterminate={table.getIsSomePageRowsSelected() && !all}
+								onCheckedChange={() => {
+									table.toggleAllPageRowsSelected();
+								}}
+							/>
+						);
+					}}
+				</Subscribe>
+			),
 			cell: ({ row }) =>
 				row.getCanSelect() && (
 					<Checkbox

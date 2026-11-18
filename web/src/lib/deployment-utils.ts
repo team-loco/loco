@@ -42,7 +42,7 @@ export function isInFlight(phase: DeploymentStatus): boolean {
 }
 
 export function deploymentActor(d: Deployment): string {
-	return d.actorType === DeploymentActorType.USER ? `@${d.actorName || d.actorId}` : d.actorName || "Deleted token";
+	return d.actorType === DeploymentActorType.USER ? d.actorName || d.actorId : d.actorName || "Deleted token";
 }
 
 const METHOD_LABEL: Record<DeploymentMethod, string> = {

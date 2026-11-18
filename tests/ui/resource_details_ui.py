@@ -208,7 +208,7 @@ with session(out) as browser:
             expect(image_label).to_be_visible()
             assert len(image_label.inner_text()) < len(image)
             expect(
-                page.get_by_text(re.compile(r"^deployed .+ by @Olivia Owner$"))
+                page.get_by_text(re.compile(r"^deployed .+ by Olivia Owner$"))
             ).to_be_visible()
             page.get_by_role("button", name="Switch resource", exact=True).click()
             expect(

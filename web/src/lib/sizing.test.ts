@@ -19,7 +19,7 @@ test("sizeOptions offers only the presets inside the API's limits", () => {
 	);
 	expect(options.cpu.map((o) => o.value)).toEqual(["250m", "500m", "1"]);
 	expect(options.memory.map((o) => o.value)).toEqual(["256Mi", "512Mi", "1Gi"]);
-	expect(options.memory.map((o) => o.label)).toEqual(["256 MiB", "512 MiB", "1 GiB"]);
+	expect(options.memory.map((o) => o.label)).toEqual(["256 Mi", "512 Mi", "1 Gi"]);
 	expect(options.replicas).toEqual({ min: 1, max: 10 });
 });
 

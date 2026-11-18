@@ -33,7 +33,8 @@ function TableRow({
 		<TableRowBase
 			data-interactive={clickable || undefined}
 			className={cn(
-				"border-line2 hover:bg-transparent data-[state=selected]:bg-panel2 [&:has(+_[data-subheader])]:border-b-0",
+				"group/row border-line2 hover:bg-transparent data-[state=selected]:bg-panel2 [&:has(+_[data-subheader])]:border-b-0",
+				"has-data-row-link:relative has-data-row-link:hover:bg-(--row-hover) has-data-row-link:[&_:is(button,[tabindex])]:relative has-data-row-link:[&_:is(button,[tabindex])]:z-1",
 				clickable && "hover:bg-(--row-hover)",
 				className,
 			)}
@@ -52,7 +53,7 @@ function TableHead({ className, ...props }: React.ComponentProps<typeof TableHea
 }
 
 function TableCell({ className, ...props }: React.ComponentProps<typeof TableCellBase>) {
-	return <TableCellBase className={cn("h-[52px] px-2.5 py-2.5 first:pl-0 last:pr-0", className)} {...props} />;
+	return <TableCellBase className={cn("h-(--row-h,52px) px-2.5 py-2.5 first:pl-0 last:pr-0", className)} {...props} />;
 }
 
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow };
