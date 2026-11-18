@@ -58,7 +58,7 @@ Use space to distinguish levels, not to make every element a card. Section gaps 
 
 On narrow screens, let the document scroll and allow toolbars/actions to wrap. Choose a deliberate treatment for each data surface: deployment-history rows reflow into labeled groups, Traces reduces visible columns and uses a bottom Sheet for span details, and the dashboard resource table retains horizontal scrolling. Do not shrink text until every desktop column fits. Keep identity, state and the main action available; full technical values belong in copy/detail controls.
 
-Resizable columns use [ColumnResizeHandle](web/src/components/design/ColumnResizeHandle.tsx) with [useColumnWidths](web/src/hooks/useColumnWidths.ts). Headers and rows share geometry. Preserve minimum bounds, keyboard controls, cancellation and distinct desktop/narrow preferences. Reuse the [Sheet](web/src/components/design/Sheet.tsx) and [Dialog](web/src/components/design/Dialog.tsx) wrappers for overlays rather than building a page-specific modal.
+Resizable columns use [ColumnResizeHandle](web/src/components/design/ColumnResizeHandle.tsx) with [DataTable](web/src/components/design/DataTable.tsx). Headers and rows share geometry. Preserve minimum bounds, keyboard controls, cancellation and distinct desktop/narrow preferences. Reuse the [Sheet](web/src/components/design/Sheet.tsx) and [Dialog](web/src/components/design/Dialog.tsx) wrappers for overlays rather than building a page-specific modal.
 
 ## Elevation & Depth
 
@@ -84,7 +84,7 @@ Application pages import from [`components/design`](web/src/components/design), 
 | Actions and fields | [Button](web/src/components/design/Button.tsx), [Input](web/src/components/design/Input.tsx), [Textarea](web/src/components/design/Textarea.tsx) | Primary/secondary/destructive emphasis; inherited field focus, disabled and invalid treatments |
 | Tables and paging | [Table](web/src/components/design/Table.tsx), [Pager](web/src/components/design/Pager.tsx) | Aligned comparable rows and consistent page-size/navigation controls |
 | Loading and empty content | [Skeleton](web/src/components/design/Skeleton.tsx), [EmptyState](web/src/components/design/EmptyState.tsx) | Keep loading geometry stable; explain an empty result and its next action |
-| Overlays and feedback | [Dialog](web/src/components/design/Dialog.tsx), [Sheet](web/src/components/design/Sheet.tsx), [DropdownMenu](web/src/components/design/DropdownMenu.tsx), [error-handler](web/src/lib/error-handler.ts) | Focus/dismissal behavior, local recovery and safe user-facing error text |
+| Overlays and feedback | [Dialog](web/src/components/design/Dialog.tsx), [Sheet](web/src/components/design/Sheet.tsx), [DropdownMenu](web/src/components/design/DropdownMenu.tsx), [error-handler](web/src/lib/error-handler.tsx) | Focus/dismissal behavior, local recovery and safe user-facing error text |
 
 ### State and interaction review
 
@@ -113,12 +113,12 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
 
-- Column resizing: `ColumnResizeHandle` and `useColumnWidths`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. Versioned browser-local preferences keep desktop and narrow layouts separate.
-- Scoped audit history: [ActivityPanel](web/src/pages/settings/ActivityPanel.tsx) reuses audit actors, categories and rows across organization, workspace and resource history. [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
+- Column resizing: `ColumnResizeHandle` and `DataTable`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. Versioned browser-local preferences keep desktop and narrow layouts separate.
+- Scoped audit history: [ActivityPanel](web/src/pages/resource/ActivityPanel.tsx) reuses audit actors, categories and rows across organization, workspace and resource history. [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
 - Deployment-history pagination: [deployment.proto](proto/loco/deployment/v1/deployment.proto) and [DeploymentsSection](web/src/pages/resource/DeploymentsSection.tsx).
-- Trace layout, selection and span paging: [TracesView](web/src/pages/observability/TracesView.tsx), [TraceWaterfall](web/src/pages/observability/TraceWaterfall.tsx), [observability.proto](proto/loco/observability/v1/observability.proto).
+- Trace layout, selection and span paging: [TracesView](web/src/pages/observability/TracesView.tsx), [Waterfall](web/src/pages/observability/trace-viewer/Waterfall.tsx), [observability.proto](proto/loco/observability/v1/observability.proto).
 - Metric and log navigation, formatting and scope: [MetricsView](web/src/pages/observability/MetricsView.tsx), [LogsView](web/src/pages/observability/LogsView.tsx) and [observability hooks](web/src/hooks).
 
 The deployment-history cursor contract lives in `proto/loco/deployment/v1/deployment.proto`. Use Next and Previous consistently with the other tables. Until the final cursor is exhausted, describe the count as loaded records; fetch older pages on request. Keep typography, colors and control placement consistent with the resource page and the audit log.
