@@ -67,6 +67,17 @@ func TestOpenAPIDocs(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDocsServeOnlyTheRoot(t *testing.T) {
+	mux := http.NewServeMux()
+	mountOpenAPI(mux, openAPITestVersion)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/missing", nil)
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", response.Code)
+	}
+}
+
 func TestOpenAPI(t *testing.T) {
 	mux := http.NewServeMux()
 	mountOpenAPI(mux, openAPITestVersion)

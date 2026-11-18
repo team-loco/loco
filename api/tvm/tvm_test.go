@@ -18,18 +18,16 @@ import (
 
 // sessionEntry is the in-memory representation of a session_token row.
 type sessionEntry struct {
-	id               uuid.UUID
-	userID           uuid.UUID
-	accessHash       string
-	refreshHash      string
-	accessExpiresAt  time.Time
-	refreshExpiresAt time.Time
-	lastUsedAt       time.Time
-	kind             queries.SessionKind
+	id          uuid.UUID
+	userID      uuid.UUID
+	accessHash  string
+	refreshHash string
+	lastUsedAt  time.Time
+	kind        queries.SessionKind
 }
 
 // TestingQueries is an in-memory implementation of queries.Querier for unit tests.
-// It supports the session and user-scope operations exercised by the TVM permission tests.
+// It supports the session and user-scope operations these tests exercise.
 type TestingQueries struct {
 	queries.Querier
 	sessions  map[uuid.UUID]*sessionEntry
@@ -49,13 +47,8 @@ func newTestingQueries() *TestingQueries {
 
 var (
 	user1UUID = uuid.MustParse("01890000-0000-0000-0000-000000000001")
-	user2UUID = uuid.MustParse("01890000-0000-0000-0000-000000000002")
 	user3UUID = uuid.MustParse("01890000-0000-0000-0000-000000000003")
-	user4UUID = uuid.MustParse("01890000-0000-0000-0000-000000000004")
-	user5UUID = uuid.MustParse("01890000-0000-0000-0000-000000000005")
 	org1UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000011")
-	ws1UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000021")
-	ws3UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000023")
 )
 
 func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.GetUserScopesRow, error) {
@@ -66,15 +59,6 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
 		}, nil
-	case user2UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-		}, nil
 	case user3UUID:
 		return []queries.GetUserScopesRow{
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
@@ -82,22 +66,6 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
 			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
 			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-		}, nil
-	case user4UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID},
-		}, nil
-	case user5UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
 		}, nil
 	default:
 		return nil, errUnknownUser
@@ -108,14 +76,12 @@ func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]que
 
 func (tq *TestingQueries) CreateSessionToken(_ context.Context, params queries.CreateSessionTokenParams) error {
 	entry := &sessionEntry{
-		id:               params.ID,
-		userID:           params.UserID,
-		accessHash:       params.AccessTokenHash,
-		refreshHash:      params.RefreshTokenHash,
-		accessExpiresAt:  params.AccessExpiresAt,
-		refreshExpiresAt: params.RefreshExpiresAt,
-		lastUsedAt:       time.Now(),
-		kind:             params.Kind,
+		id:          params.ID,
+		userID:      params.UserID,
+		accessHash:  params.AccessTokenHash,
+		refreshHash: params.RefreshTokenHash,
+		lastUsedAt:  time.Now(),
+		kind:        params.Kind,
 	}
 	tq.sessions[params.ID] = entry
 	tq.byAccess[params.AccessTokenHash] = params.ID
@@ -182,8 +148,6 @@ func (tq *TestingQueries) RotateSessionToken(
 	tq.used[e.refreshHash] = e.id
 	e.accessHash = params.AccessTokenHash
 	e.refreshHash = params.RefreshTokenHash
-	e.accessExpiresAt = params.AccessExpiresAt
-	e.refreshExpiresAt = params.RefreshExpiresAt
 	tq.byAccess[e.accessHash] = e.id
 	tq.byRefresh[e.refreshHash] = e.id
 	return 1, nil
