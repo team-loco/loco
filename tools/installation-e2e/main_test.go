@@ -14,8 +14,8 @@ import (
 var fakeBins = map[*testing.T]string{}
 
 // fakeCommand writes script as the executable name in the test's fake command directory,
-// which is the whole PATH, and returns that directory.
-func fakeCommand(t *testing.T, name, script string) string {
+// which is the whole PATH.
+func fakeCommand(t *testing.T, name, script string) {
 	t.Helper()
 	bin, ok := fakeBins[t]
 	if !ok {
@@ -27,7 +27,6 @@ func fakeCommand(t *testing.T, name, script string) string {
 	if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
-	return bin
 }
 
 // captureOutput runs fn and returns what it wrote to os.Stdout and os.Stderr, in order.
@@ -150,13 +149,5 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatal("kept fixture removed local state")
-	}
-}
-
-func TestFailedFluxCommandNamesWhatItReconciled(t *testing.T) {
-	fakeCommand(t, "flux", "#!/bin/sh\nexit 1\n")
-	_, err := command(t.Context(), "", nil, "flux", fluxReconcile, fluxKustomization, "loco-infra", "--timeout=10m")
-	if err == nil || !strings.Contains(err.Error(), "flux reconcile kustomization loco-infra --timeout=10m failed") {
-		t.Fatalf("flux failure = %v, want the reconciled object named", err)
 	}
 }

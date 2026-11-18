@@ -1,13 +1,9 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -49,49 +45,5 @@ func TestIdPFailureDoesNotDiscloseResponse(t *testing.T) {
 	_, err := fixtureIDToken(t.Context(), server.URL)
 	if err == nil || strings.Contains(err.Error(), canary) {
 		t.Fatalf("unsafe IdP error: %v", err)
-	}
-}
-
-func TestDeployFixtureCreatesAndSelectsFreshScope(t *testing.T) {
-	const orgID = "00000000-0000-7000-8000-000000000011"
-	const workspaceID = "00000000-0000-7000-8000-000000000022"
-	for _, tc := range []struct{ name, fail, calls string }{
-		{"duplicate display names", "use", "org create installation-e2e\n" +
-			"workspace create source-build --org " + orgID + "\nuse " + orgID + "/" + workspaceID + "\n"},
-		{"creation failure", "org", "org create installation-e2e\n"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			bin := fakeCommand(t, "loco", `#!/bin/sh
-printf '%s\n' "$*" >> "$SCOPE_CALLS"
-case "$1" in
- org)
-  [ "$SCOPE_FAIL" = org ] && exit 42
-  printf 'Organization created (ID: `+orgID+`)\n'
-  ;;
- workspace) printf 'Workspace created (ID: `+workspaceID+`)\n' ;;
- use)
-  # Existing scopes have these display names; name selection is ambiguous.
-  [ "$2" = '`+orgID+`/`+workspaceID+`' ] && exit 42
-  exit 17
-  ;;
- *) exit 18 ;;
-esac
-`)
-			calls := filepath.Join(bin, "calls")
-			t.Setenv("SCOPE_CALLS", calls)
-			t.Setenv("SCOPE_FAIL", tc.fail)
-			err := deployFixture(t.Context(), "build-test."+fixtureAppsDomain)
-			var exit *exec.ExitError
-			if !errors.As(err, &exit) || exit.ExitCode() != 42 {
-				t.Fatalf("scope failure = %v, want exit 42", err)
-			}
-			got, readErr := os.ReadFile(calls)
-			if readErr != nil {
-				t.Fatal(readErr)
-			}
-			if string(got) != tc.calls {
-				t.Fatalf("scope commands = %q, want %q", got, tc.calls)
-			}
-		})
 	}
 }

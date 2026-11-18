@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"os"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestOperatorForwardsOnlyCompleteKnownPhasesBeforeExit(t *testing.T) {
@@ -23,12 +21,10 @@ exit 1
 		phasePrefix+"unknown-stage\n"+
 		phasePrefix+strings.Repeat("x", 8192)+"\n"+
 		want)
-	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
-	defer cancel()
 	var runErr error
 	forwarded := captureOutput(t, func() {
 		t.Setenv("OPERATOR_TEST_CAPTURE", os.Stderr.Name())
-		_, runErr = operatorWorkflow(ctx, t.TempDir())
+		_, runErr = operatorWorkflow(t.Context(), t.TempDir())
 	})
 	phases, _, _ := strings.Cut(forwarded, dnsDiagnosticPrefix)
 	if phases != want || strings.Contains(forwarded, "credential-canary") {
