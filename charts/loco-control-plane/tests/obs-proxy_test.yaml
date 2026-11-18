@@ -34,6 +34,24 @@ tests:
           content: {name: CLICKHOUSE_URL}
           any: true
 
+  - it: passes obsProxy.ingest.env to the proxy and keeps the chart's own settings
+    set:
+      obsProxy.ingest.env: {INGEST_CLOCK_SKEW: 2m, PORT: "9999", CLICKHOUSE_INGEST_URL: wrong}
+    template: templates/obs-proxy-ingest-deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: INGEST_CLOCK_SKEW, value: 2m}
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: PORT, value: "8080"}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: PORT, value: "9999"}
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content: {name: CLICKHOUSE_INGEST_URL, value: wrong}
+
   - it: requires ingest's ClickHouse Secret
     set:
       obsProxy.ingest.clickhouse.existingSecret.name: ""

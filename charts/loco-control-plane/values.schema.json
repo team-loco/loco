@@ -551,6 +551,12 @@
               },
               "additionalProperties": false
             },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
             "grpcPort": {
               "type": "integer"
             },
