@@ -246,6 +246,7 @@ with session(out) as browser:
             json={"code": "internal", "message": "internal error"},
         ),
     )
+    page.clock.install()
     more.click()
     page.get_by_role("menuitem", name="Restart all replicas", exact=True).click()
     expect(page.get_by_text(f"Couldn’t restart {name}", exact=True)).to_be_visible()
@@ -253,7 +254,9 @@ with session(out) as browser:
     expect(copy_receipt).to_contain_text(receipt)
     copy_receipt.click()
     assert page.evaluate("navigator.clipboard.readText()") == receipt
-    page.wait_for_timeout(8000)
+    # Toasts pause their timers while hovered.
+    page.mouse.move(0, 0)
+    page.clock.run_for(8000)
     expect(copy_receipt).to_be_visible()
     context.unroute(failed_restart)
     sql(state, f"UPDATE deployments SET status='running' WHERE id='{deployment}';")
@@ -293,7 +296,6 @@ with session(out) as browser:
         page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)
     ).to_be_disabled()
     expect(page.locator("#set-env").get_by_text("soon", exact=True)).to_be_visible()
-    page.clock.install()
     page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
     expect(mode).to_have_attribute("type", "text")
     expect(mode).to_have_value("production")
