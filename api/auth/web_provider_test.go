@@ -44,7 +44,8 @@ func TestWebProviderAuthenticatesConfidentialClients(t *testing.T) {
 						t.Error("expected the OAuth credentials in the token request form")
 					}
 					w.WriteHeader(http.StatusBadRequest)
-					if err := json.NewEncoder(w).Encode(map[string]string{"error": "invalid_grant", "error_description": code}); err != nil {
+					if err := json.NewEncoder(w).
+						Encode(map[string]string{"error": "invalid_grant", "error_description": code}); err != nil {
 						t.Errorf("encode token error: %v", err)
 					}
 				default:
@@ -69,7 +70,10 @@ func TestWebProviderAuthenticatesConfidentialClients(t *testing.T) {
 func TestWebProviderChecksCallbackOrigin(t *testing.T) {
 	t.Parallel()
 	provider := NewWebProvider(nil, nil, IssuerConfig{}, "https://APP.example.test:443/")
-	if values, err := provider.CallbackValues("https://app.example.test/auth/callback?state=value"); err != nil || values.Get("state") != "value" {
+	if values, err := provider.CallbackValues(
+		"https://app.example.test/auth/callback?state=value",
+	); err != nil ||
+		values.Get("state") != "value" {
 		t.Fatalf("callback with equivalent origin = %v, %v", values, err)
 	}
 	for _, callback := range []string{

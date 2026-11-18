@@ -48,7 +48,7 @@ func (s *AuthServer) StartWebLogin(
 	ctx context.Context,
 	req *authv1.StartWebLoginRequest,
 ) (*authv1.StartWebLoginResponse, error) {
-	info, err := s.webCallInfo(ctx)
+	info, err := s.webLoginCallInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,13 @@ func (s *AuthServer) StartWebLogin(
 	if err := s.cache.Set(ctx, webLoginKey(state), data, webLoginTTL); err != nil {
 		return nil, authStoreUnavailable(err)
 	}
-	s.web.Cookies.Set(info.ResponseHeader(), auth.WebLoginCookie, login.Binding, s.now().Add(webLoginTTL), http.SameSiteLaxMode)
+	s.web.Cookies.Set(
+		info.ResponseHeader(),
+		auth.WebLoginCookie,
+		login.Binding,
+		s.now().Add(webLoginTTL),
+		http.SameSiteLaxMode,
+	)
 	return &authv1.StartWebLoginResponse{AuthorizationUrl: destination}, nil
 }
 
@@ -81,7 +87,7 @@ func (s *AuthServer) CompleteWebLogin(
 	ctx context.Context,
 	req *authv1.CompleteWebLoginRequest,
 ) (*authv1.CompleteWebLoginResponse, error) {
-	info, err := s.webCallInfo(ctx)
+	info, err := s.webLoginCallInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -134,11 +140,17 @@ func (s *AuthServer) RefreshWebSession(
 	ctx context.Context,
 	_ *authv1.RefreshWebSessionRequest,
 ) (*authv1.RefreshWebSessionResponse, error) {
+	if s.web.Cookies.Origin() == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+	}
 	info, err := s.webCallInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
 	token := s.web.Cookies.Read(info.RequestHeader(), auth.WebRefreshCookie)
+	if token == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
+	}
 	access, refresh, err := s.refreshSession(ctx, token, genDb.SessionKindWeb)
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
@@ -172,10 +184,14 @@ func (s *AuthServer) SignOut(
 	return &authv1.SignOutResponse{}, nil
 }
 
-func (s *AuthServer) webCallInfo(ctx context.Context) (*connect.CallInfo, error) {
+func (s *AuthServer) webLoginCallInfo(ctx context.Context) (*connect.CallInfo, error) {
 	if s.web.Provider == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, "dashboard sign-in is not configured")
 	}
+	return s.webCallInfo(ctx)
+}
+
+func (s *AuthServer) webCallInfo(ctx context.Context) (*connect.CallInfo, error) {
 	info, ok := connect.CallInfoForServerContext(ctx)
 	if !ok || !s.web.Cookies.AllowsRequest(ctx, info.RequestHeader()) {
 		return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)

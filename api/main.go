@@ -324,8 +324,17 @@ func newDeps(
 	if issuer, configured := auth.WebIssuer(ac.AuthIssuers); configured {
 		provider = auth.NewWebProvider(authClient, verifier, issuer, ac.WebURL)
 	}
-	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, ac.WebURL,
-		service.WebAuth{Provider: provider, Resolver: resolver, Cookies: auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins)},
+	authServiceHandler := service.NewAuthServer(
+		pool,
+		queries,
+		machine,
+		appCache,
+		ac.WebURL,
+		service.WebAuth{
+			Provider: provider,
+			Resolver: resolver,
+			Cookies:  auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins),
+		},
 	)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 

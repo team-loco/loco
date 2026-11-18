@@ -46,7 +46,7 @@ func newWebAuthFixture(t *testing.T) *webAuthFixture {
 
 	signing := authtest.NewIssuer(t)
 	var issuerURL string
-	issuer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	issuer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var response map[string]string
 		switch r.URL.Path {
@@ -86,14 +86,17 @@ func newWebAuthFixture(t *testing.T) *webAuthFixture {
 			t.Errorf("encode provider response: %v", err)
 		}
 	}))
+	issuerURL = "http://" + issuer.Listener.Addr().String()
+	issuer.Start()
 	t.Cleanup(issuer.Close)
-	issuerURL = issuer.URL
 
 	policy, err := auth.ParseSignupPolicy("open")
 	if err != nil {
 		t.Fatal(err)
 	}
-	issuers, err := auth.ParseIssuers(`[{"issuer":"` + issuerURL + `","audience":"authenticated","web":{"clientId":"dashboard","scopes":"openid email offline_access"}}]`)
+	issuers, err := auth.ParseIssuers(
+		`[{"issuer":"` + issuerURL + `","audience":"authenticated","web":{"clientId":"dashboard","scopes":"openid email offline_access"}}]`,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +113,9 @@ func newWebAuthFixture(t *testing.T) *webAuthFixture {
 	connecthttp.Mount(mux, rpcServer)
 	server := httptest.NewTLSServer(mux)
 	t.Cleanup(server.Close)
-	out.client = authv1connect.NewAuthServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)))
+	out.client = authv1connect.NewAuthServiceClient(
+		connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)),
+	)
 	return out
 }
 
@@ -145,7 +150,10 @@ func responseCookie(t *testing.T, info *connect.CallInfo, suffix string) *http.C
 func (f *webAuthFixture) start(t *testing.T, code string) (*authv1.CompleteWebLoginRequest, *http.Cookie) {
 	t.Helper()
 	ctx, info := webCall(t)
-	started, err := f.client.StartWebLogin(ctx, &authv1.StartWebLoginRequest{RedirectTo: "/workspaces?tab=all", LoginHint: dashboardEmail})
+	started, err := f.client.StartWebLogin(
+		ctx,
+		&authv1.StartWebLoginRequest{RedirectTo: "/workspaces?tab=all", LoginHint: dashboardEmail},
+	)
 	if err != nil {
 		t.Fatalf("start web login: %v", err)
 	}
@@ -237,7 +245,12 @@ func TestDashboardSessionRefreshReplayAndSignOut(t *testing.T) {
 			}
 		} else {
 			ctx, _ = webCall(t, refresh)
-			if _, err := f.client.RefreshWebSession(ctx, &authv1.RefreshWebSessionRequest{}); connect.CodeOf(err) != connect.CodeUnauthenticated {
+			if _, err := f.client.RefreshWebSession(
+				ctx,
+				&authv1.RefreshWebSessionRequest{},
+			); connect.CodeOf(
+				err,
+			) != connect.CodeUnauthenticated {
 				t.Fatalf("refresh credential replay: %v", err)
 			}
 		}
