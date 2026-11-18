@@ -62,18 +62,18 @@
 .dark[data-theme="neobrutal"] {
 	--nb-hover: rgba(255, 255, 255, 0.06);
 	--row-hover: var(--nb-hover);
-	--shell: #16171d;
-	--shell-hover: #20222b;
-	--bg: #1c1e26;
-	--panel: #272a36;
-	--panel2: #323646;
-	--raise: #272a36;
+	--shell: #1d1e26;
+	--shell-hover: #262833;
+	--bg: #464a5f;
+	--panel: #282a36;
+	--panel2: #323544;
+	--raise: #282a36;
 	--line: rgba(255, 255, 255, 0.1);
 	--fg: #f4f2ec;
 	--fg2: #d6d4cd;
-	--fg3: #a9a8a2;
-	--fg4: #77777a;
-	--brand: #7aaeff;
+	--fg3: #c0bfb9;
+	--fg4: #8a8b98;
+	--brand: #9dc1ff;
 	--ok: #2ee88e;
 	--ok-glyph: #05e17a;
 	--info: #7aaeff;
@@ -86,8 +86,8 @@
 	--sh-keyword: #ed707b;
 	--sh-class: #5ee0a8;
 	--logo: var(--btn);
-	--ink: #ebe8df;
-	--line2: #ebe8df;
+	--ink: #000000;
+	--line2: #000000;
 	--series-0: #6d94ff;
 	--series-1: #b98aff;
 	--series-2: #2fd39f;
