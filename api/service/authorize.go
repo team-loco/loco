@@ -32,6 +32,19 @@ func authorizeSystem(ctx context.Context, authorizer *authz.Authorizer, action a
 	return check(ctx, authorizer, p, actions.NewSystem(action))
 }
 
+// requireSession returns the caller when it signed in with a session, and PermissionDenied for
+// an API token.
+func requireSession(ctx context.Context) (reqctx.Principal, error) {
+	p, err := principalFrom(ctx)
+	if err != nil {
+		return reqctx.Principal{}, err
+	}
+	if p.SessionID == uuid.Nil {
+		return reqctx.Principal{}, connect.NewError(connect.CodePermissionDenied, publicSessionRequired)
+	}
+	return p, nil
+}
+
 // grantedResourceIDs returns the resources the scopes name directly, with any scope.
 func grantedResourceIDs(scopes []genDb.EntityScope) []uuid.UUID {
 	var ids []uuid.UUID

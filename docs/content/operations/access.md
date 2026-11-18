@@ -55,7 +55,7 @@ loco deploy --yes
 
 Use `--org` and `--workspace` to override the corresponding environment variables, and `--env` to choose an environment by name or ID. A `--host` flag must match `LOCO_HOST` so a token cannot follow a host override. A set `LOCO_TOKEN` takes precedence over saved credentials. An empty value fails. Unset the variable to use the local session. If the API rejects an expired or revoked token, replace the CI secret with a valid token and rerun the command.
 
-`TokenService.CreateToken` accepts sessions and API tokens with the required permissions. Personal tokens belong to the caller's real user account and require `user:write` on that account. Organization, workspace and resource tokens require `admin` on their owner. Every requested scope must fit both the caller's current permissions and the owner's hierarchy. API tokens can issue other tokens within those limits; delegation does not expand their capabilities.
+`TokenService.CreateToken` requires a signed-in session. A request made with a personal or owned API token gets `PermissionDenied`, and `loco token create` asks you to unset `LOCO_TOKEN` and run `loco login`. Personal tokens belong to the caller's user account and require `user:write` on that account. Organization, workspace and resource tokens require `admin` on their owner. Every requested scope must fit both the caller's current permissions and the owner's hierarchy.
 
 An entity scope combines the entity type, entity ID and permission. Token creation accepts one or more unique entity scopes per request. Revoking an owned token requires admin access on its owner; a signed-in user can revoke their own personal tokens.
 
