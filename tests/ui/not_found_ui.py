@@ -194,7 +194,7 @@ with session(out) as browser:
             dark.click()
             expect(dark).to_have_attribute("aria-checked", "true")
             expect(icon).to_have_attribute("data-mode", "moon")
-            page.wait_for_function("window.modeTransitions.includes('transform')")
+            page.wait_for_function("() => window.modeTransitions.includes('transform')")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
             dark.focus()
             page.keyboard.press("ArrowLeft")
