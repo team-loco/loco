@@ -51,10 +51,10 @@ func TestAccountSessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := api.pool.Exec(ctx, `UPDATE session_tokens SET access_expires_at = now() - interval '1 day',
+	if _, expireErr := api.pool.Exec(ctx, `UPDATE session_tokens SET access_expires_at = now() - interval '1 day',
 		refresh_expires_at = CASE WHEN id = $1 THEN now() - interval '1 day' ELSE refresh_expires_at END
-		WHERE id IN ($1, $2)`, expired.SessionID, web.SessionID); err != nil {
-		t.Fatal(err)
+		WHERE id IN ($1, $2)`, expired.SessionID, web.SessionID); expireErr != nil {
+		t.Fatal(expireErr)
 	}
 
 	list, err := owner.clients.User.ListSessions(ctx, &userv1.ListSessionsRequest{})
@@ -73,26 +73,43 @@ func TestAccountSessions(t *testing.T) {
 	issued, err := owner.clients.Token.CreateToken(ctx, &tokenv1.CreateTokenRequest{
 		Name: "sessions-test", EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
 		EntityId: owner.id.String(), ExpiresInSec: 3600,
-		Scopes: []*tokenv1.EntityScope{{
-			EntityType: tokenv1.EntityType_ENTITY_TYPE_USER, EntityId: owner.id.String(), Scope: tokenv1.Scope_SCOPE_READ,
-		}},
+		Scopes: []*tokenv1.EntityScope{
+			{
+				EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
+				EntityId:   owner.id.String(),
+				Scope:      tokenv1.Scope_SCOPE_READ,
+			},
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	personal := rpc.NewHTTPClients(http.DefaultClient, api.url, issued.GetToken())
-	if _, err := personal.User.ListSessions(ctx, &userv1.ListSessionsRequest{}); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := personal.User.ListSessions(
+		ctx,
+		&userv1.ListSessionsRequest{},
+	); connect.CodeOf(
+		err,
+	) != connect.CodePermissionDenied {
 		t.Fatalf("list using personal access token: %v", err)
 	}
 	revoke := &userv1.RevokeSessionRequest{SessionId: web.SessionID.String()}
-	if _, err := personal.User.RevokeSession(ctx, revoke); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("revoke using personal access token: %v", err)
+	if _, revokeErr := personal.User.RevokeSession(
+		ctx,
+		revoke,
+	); connect.CodeOf(
+		revokeErr,
+	) != connect.CodePermissionDenied {
+		t.Fatalf("revoke using personal access token: %v", revokeErr)
 	}
-	if _, err := owner.clients.User.RevokeSession(ctx, &userv1.RevokeSessionRequest{SessionId: foreign.SessionID.String()}); err != nil {
+	if _, err := owner.clients.User.RevokeSession(
+		ctx,
+		&userv1.RevokeSessionRequest{SessionId: foreign.SessionID.String()},
+	); err != nil {
 		t.Fatalf("revoke foreign session: %v", err)
 	}
-	if _, err := other.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{}); err != nil {
-		t.Fatalf("foreign session was revoked: %v", err)
+	if _, whoErr := other.clients.User.WhoAmI(ctx, &userv1.WhoAmIRequest{}); whoErr != nil {
+		t.Fatalf("foreign session was revoked: %v", whoErr)
 	}
 	rotated, newRefresh, err := api.machine.Refresh(ctx, webRefresh, genDb.SessionKindWeb)
 	if err != nil {
@@ -106,7 +123,14 @@ func TestAccountSessions(t *testing.T) {
 	if _, err := api.machine.GetToken(ctx, rotated); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("revoked access credential: %v", err)
 	}
-	if _, _, err := api.machine.Refresh(ctx, newRefresh, genDb.SessionKindWeb); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+	if _, _, err := api.machine.Refresh(
+		ctx,
+		newRefresh,
+		genDb.SessionKindWeb,
+	); !errors.Is(
+		err,
+		tvm.ErrInvalidExpiredToken,
+	) {
 		t.Fatalf("revoked refresh credential: %v", err)
 	}
 }
