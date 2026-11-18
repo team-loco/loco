@@ -83,7 +83,7 @@ Shared resources and organization-owned tokens stay with their owning entities. 
 
 Log tails, deployment watches and event streams recheck their original credential and the requested permissions while open, including while idle. Deleting or suspending a user, revoking or expiring a credential, or removing the required permission ends the affected stream. Organization, workspace and resource token streams do not depend on the issuer's account after issuance.
 
-The API reads `LOCO_STREAM_AUTH_INTERVAL` (default `5s`) and `LOCO_STREAM_AUTH_TIMEOUT` (default `2s`) at startup. Both must be positive durations. Access changes stop new delivery within one recheck interval plus the validation timeout, normally at most seven seconds with the defaults. A blocked HTTP write gets one additional validation timeout to finish before the transport aborts it. A failed database check also ends the stream. Responses already in flight or buffered by the client may still arrive. Already accepted deployments and builds continue under their normal lifecycle.
+The API reads `LOCO_STREAM_AUTH_INTERVAL` (default `5s`) and `LOCO_STREAM_AUTH_TIMEOUT` (default `2s`) at startup. Both must be positive durations, and the timeout must not exceed the interval; the API refuses to start otherwise. Access changes stop new delivery within one recheck interval plus the validation timeout, normally at most seven seconds with the defaults. A blocked HTTP write gets one additional validation timeout to finish before the transport aborts it. A failed database check also ends the stream. Responses already in flight or buffered by the client may still arrive. Already accepted deployments and builds continue under their normal lifecycle.
 
 ## API token lifetime
 

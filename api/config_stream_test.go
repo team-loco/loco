@@ -40,3 +40,16 @@ func TestNewAPIConfigRejectsInvalidStreamAuthentication(t *testing.T) {
 		}
 	}
 }
+
+func TestNewAPIConfigRejectsStreamTimeoutAboveInterval(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv("LOCO_STREAM_AUTH_INTERVAL", "1s")
+	t.Setenv("LOCO_STREAM_AUTH_TIMEOUT", "2s")
+	if err := panicValue(t, func() { newAPIConfig() }); !errors.Is(err, errStreamAuthTimeout) {
+		t.Fatalf("stream timeout above interval panic = %v, want %v", err, errStreamAuthTimeout)
+	}
+	t.Setenv("LOCO_STREAM_AUTH_TIMEOUT", "1s")
+	if config := newAPIConfig(); config.StreamAuth != (auth.StreamConfig{Interval: time.Second, Timeout: time.Second}) {
+		t.Fatalf("stream timeout equal to interval = %+v", config.StreamAuth)
+	}
+}
