@@ -126,3 +126,15 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 		t.Fatal("kept fixture removed local state")
 	}
 }
+
+func TestFailedFluxCommandNamesWhatItReconciled(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "flux"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	_, err := command(t.Context(), "", nil, "flux", fluxReconcile, fluxKustomization, "loco-infra", "--timeout=10m")
+	if err == nil || !strings.Contains(err.Error(), "flux reconcile kustomization loco-infra --timeout=10m failed") {
+		t.Fatalf("flux failure = %v, want the reconciled object named", err)
+	}
+}

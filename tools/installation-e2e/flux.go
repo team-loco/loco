@@ -28,6 +28,12 @@ const fluxReconcile = "reconcile"
 const fluxSource = "source"
 
 const fixtureRepoSource = "loco-fixture-config"
+const platformKustomization = "loco"
+
+// platformLayers are the bundle's Kustomizations in dependency order.
+var platformLayers = []string{
+	"loco-namespaces", "loco-crds", "loco-infra", "loco-cluster-config", controlPlaneRelease,
+}
 
 func (f *fixture) installFlux(
 	ctx context.Context,
@@ -184,14 +190,12 @@ func (f *fixture) publishRepo(
 func reconcilePlatform(ctx context.Context, path string) error {
 	var err error
 	for _, args := range [][]string{{fluxReconcile, fluxSource, fluxOCI, platformSource},
-		{fluxReconcile, fluxKustomization, "loco"}} {
+		{fluxReconcile, fluxKustomization, platformKustomization}} {
 		if _, err = command(ctx, "", nil, "flux", args...); err != nil {
 			return err
 		}
 	}
-	for _, layer := range []string{
-		"loco-namespaces", "loco-crds", "loco-infra", "loco-cluster-config", controlPlaneRelease,
-	} {
+	for _, layer := range platformLayers {
 		if _, err = command(
 			ctx,
 			"",

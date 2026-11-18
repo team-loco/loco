@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -126,6 +127,10 @@ func command(ctx context.Context, dir string, input []byte, program string, args
 		out, err = cmd.Output()
 	} else {
 		out, err = cmd.CombinedOutput()
+	}
+	if err != nil && program == "flux" {
+		// Flux arguments name objects and artifact references, never credentials.
+		return nil, fmt.Errorf("flux %s failed: %w", strings.Join(args, " "), err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s failed: %w", program, err)
