@@ -64,7 +64,7 @@ func mountTelemetryDeployment(
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		mount,
@@ -72,9 +72,6 @@ func mountTelemetryDeployment(
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	encoded, err := json.Marshal(dep)
 	if err != nil {
 		t.Fatal(err)

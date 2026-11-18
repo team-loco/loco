@@ -88,7 +88,7 @@ func envValue(t *testing.T, dep *appsv1ac.DeploymentApplyConfiguration, name str
 
 func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{Mounted: true, Revision: 7},
@@ -96,9 +96,6 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
 
 	for name, want := range app.Spec.ServiceSpec.Deployment.Env {
 		if got, ok := envValue(t, dep, name); !ok || got != want {
@@ -131,7 +128,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		t.Errorf("replicas = %d, want 2", got)
 	}
 
-	dep, err = desiredDeployment(
+	dep = desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{},
@@ -139,9 +136,6 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatalf("desiredDeployment without a secret: %v", err)
-	}
 	container = dep.Spec.Template.Spec.Containers[0]
 	if len(container.EnvFrom) != 0 {
 		t.Errorf("envFrom without an env secret = %+v, want none", container.EnvFrom)
@@ -154,7 +148,7 @@ func TestDesiredDeploymentInlinesPlainEnvAndMountsTheEnvSecret(t *testing.T) {
 func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Routing = nil
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{},
@@ -162,9 +156,6 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
 	value, ok := envValue(t, dep, "LOCO_PUBLIC_DOMAIN")
 	if !ok {
 		t.Fatal("LOCO_PUBLIC_DOMAIN missing")
@@ -176,7 +167,7 @@ func TestDesiredDeploymentWithoutRouting(t *testing.T) {
 
 func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	app := testApplication()
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{},
@@ -184,9 +175,6 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
 	container := dep.Spec.Template.Spec.Containers[0]
 	requests := *container.Resources.Requests
 	limits := *container.Resources.Limits
@@ -199,21 +187,6 @@ func TestDesiredDeploymentUsesSpecResources(t *testing.T) {
 	}
 	if got := ptr.Deref(container.Ports[0].ContainerPort, 0); got != 8080 {
 		t.Errorf("container port = %d, want 8080", got)
-	}
-}
-
-func TestDesiredDeploymentRejectsInvalidQuantity(t *testing.T) {
-	app := testApplication()
-	app.Spec.ServiceSpec.Resources.CPU = "lots"
-	if _, err := desiredDeployment(
-		app,
-		testEnvironmentNamespace(app),
-		envSecretMount{},
-		testTelemetry(),
-		testMinReadySeconds,
-		testDrainSeconds,
-	); err == nil {
-		t.Fatal("expected an error for an unparsable cpu quantity")
 	}
 }
 
@@ -380,10 +353,7 @@ func TestWorkloadSchedulesOnlyOnItsTargetPlatform(t *testing.T) {
 	for _, arch := range []string{"amd64", "arm64"} {
 		app := testApplication()
 		app.Spec.ServiceSpec.Deployment.Platform = "linux/" + arch
-		template, err := podTemplate(app, testEnvironmentNamespace(app), envSecretMount{}, TelemetryConfig{})
-		if err != nil {
-			t.Fatal(err)
-		}
+		template := podTemplate(app, testEnvironmentNamespace(app), envSecretMount{}, TelemetryConfig{})
 		selector := template.Spec.NodeSelector
 		if selector[corev1.LabelOSStable] != "linux" || selector[corev1.LabelArchStable] != arch {
 			t.Fatalf("target %s selector %v", arch, selector)

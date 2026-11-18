@@ -44,7 +44,7 @@ func telemetryTestApplication() *locov1alpha1.Application {
 
 func buildDeployment(t *testing.T, app *locov1alpha1.Application) *appsv1ac.DeploymentApplyConfiguration {
 	t.Helper()
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{},
@@ -52,9 +52,6 @@ func buildDeployment(t *testing.T, app *locov1alpha1.Application) *appsv1ac.Depl
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
 	return dep
 }
 
@@ -118,7 +115,7 @@ func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
 	telemetry.Namespace = "elsewhere"
 	telemetry.HTTPPort = 9999
 	app := telemetryTestApplication()
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{},
@@ -126,9 +123,6 @@ func TestOTLPEndpointIsBuiltFromTheCollectorAddress(t *testing.T) {
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatalf("desiredDeployment: %v", err)
-	}
 
 	requireEnv(t, dep, envOTLPEndpoint, "http://other.elsewhere.svc.cluster.local:9999")
 }

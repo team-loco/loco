@@ -11,13 +11,10 @@ func TestGatewayIngressFollowsEachPodPort(t *testing.T) {
 	for _, port := range []int32{8080, 9090} {
 		app := testApplication()
 		app.Spec.ServiceSpec.Deployment.Port = new(port)
-		deployment, err := desiredDeployment(
+		deployment := desiredDeployment(
 			app, testEnvironmentNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds,
 			testDrainSeconds,
 		)
-		if err != nil {
-			t.Fatal(err)
-		}
 		containerPort := deployment.Spec.Template.Spec.Containers[0].Ports[0]
 		policyPort := r.gatewayIngressPolicy(app).Spec.Ingress[0].Ports[0].Port
 		if want := intstr.FromString(*containerPort.Name); *policyPort != want {

@@ -100,7 +100,7 @@ func TestReplicaProblemReason(t *testing.T) {
 
 func TestRuntimePodRoutesToApplication(t *testing.T) {
 	application := testApplication()
-	deployment, err := desiredDeployment(
+	deployment := desiredDeployment(
 		application,
 		testEnvironmentNamespace(application),
 		envSecretMount{},
@@ -108,9 +108,6 @@ func TestRuntimePodRoutesToApplication(t *testing.T) {
 		testMinReadySeconds,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	pod := &corev1.Pod{Annotations: deployment.Spec.Template.Annotations}
 	requests := applicationForObject(t.Context(), pod)
 	if len(requests) != 1 || requests[0].Name != application.Name || requests[0].Namespace != application.Namespace {

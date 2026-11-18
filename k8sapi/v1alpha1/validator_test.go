@@ -55,6 +55,8 @@ func TestResourcesSpecValidate(t *testing.T) {
 	for name, change := range map[string]func(*ResourcesSpec){
 		"zero min replicas": func(r *ResourcesSpec) { r.Replicas.Min = 0 },
 		"max below min":     func(r *ResourcesSpec) { r.Replicas = ReplicasSpec{Min: 3, Max: 2} },
+		"unparsable cpu":    func(r *ResourcesSpec) { r.CPU = "lots" },
+		"unparsable memory": func(r *ResourcesSpec) { r.Memory = "lots" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			resources := valid

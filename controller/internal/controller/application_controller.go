@@ -535,29 +535,13 @@ func (r *ApplicationReconciler) ensureService(ctx context.Context, app *locov1al
 	return nil
 }
 
-func containerResources(
-	resources *locov1alpha1.ResourcesSpec,
-) (*corev1ac.ResourceRequirementsApplyConfiguration, error) {
-	quantities, err := parseResourceList(resources.CPU, resources.Memory)
-	if err != nil {
-		return nil, err
+// containerResources takes a spec Validate accepted, so both quantities parse.
+func containerResources(resources *locov1alpha1.ResourcesSpec) *corev1ac.ResourceRequirementsApplyConfiguration {
+	quantities := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse(resources.CPU),
+		corev1.ResourceMemory: resource.MustParse(resources.Memory),
 	}
-	return corev1ac.ResourceRequirements().WithRequests(quantities).WithLimits(quantities), nil
-}
-
-func parseResourceList(cpu, memory string) (corev1.ResourceList, error) {
-	cpuQuantity, err := resource.ParseQuantity(cpu)
-	if err != nil {
-		return nil, fmt.Errorf("parse cpu %q: %w", cpu, err)
-	}
-	memoryQuantity, err := resource.ParseQuantity(memory)
-	if err != nil {
-		return nil, fmt.Errorf("parse memory %q: %w", memory, err)
-	}
-	return corev1.ResourceList{
-		corev1.ResourceCPU:    cpuQuantity,
-		corev1.ResourceMemory: memoryQuantity,
-	}, nil
+	return corev1ac.ResourceRequirements().WithRequests(quantities).WithLimits(quantities)
 }
 
 func systemEnvVars(
@@ -636,12 +620,9 @@ func desiredDeployment(
 	telemetry TelemetryConfig,
 	minReadySeconds int32,
 	drainSeconds int32,
-) (*appsv1ac.DeploymentApplyConfiguration, error) {
+) *appsv1ac.DeploymentApplyConfiguration {
 	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
-	template, err := podTemplate(app, namespace, envSecret, telemetry)
-	if err != nil {
-		return nil, err
-	}
+	template := podTemplate(app, namespace, envSecret, telemetry)
 	if app.Spec.ServiceSpec.Deployment.Port != nil {
 		drain := int64(drainSeconds)
 		hook := corev1ac.LifecycleHandler().WithSleep(corev1ac.SleepAction().WithSeconds(drain))
@@ -674,7 +655,7 @@ func desiredDeployment(
 	return appsv1ac.Deployment(name, namespace).
 		WithLabels(labels).
 		WithAnnotations(annotations).
-		WithSpec(deploymentSpec), nil
+		WithSpec(deploymentSpec)
 }
 
 func podTemplate(
@@ -682,13 +663,10 @@ func podTemplate(
 	namespace string,
 	envSecret envSecretMount,
 	telemetry TelemetryConfig,
-) (*corev1ac.PodTemplateSpecApplyConfiguration, error) {
+) *corev1ac.PodTemplateSpecApplyConfiguration {
 	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	spec := app.Spec.ServiceSpec
-	resources, err := containerResources(spec.Resources)
-	if err != nil {
-		return nil, fmt.Errorf("resources: %w", err)
-	}
+	resources := containerResources(spec.Resources)
 
 	systemVars := systemEnvVars(app, namespace, telemetry, envSecret.Names)
 	plainVars := plainEnvVars(spec.Deployment.Env, systemVars)
@@ -755,7 +733,7 @@ func podTemplate(
 	return corev1ac.PodTemplateSpec().
 		WithLabels(podLabels).
 		WithAnnotations(podAnnotations).
-		WithSpec(podSpec), nil
+		WithSpec(podSpec)
 }
 
 // ensureDeployment ensures the Kubernetes deployment exists and is configured with the spec
@@ -765,7 +743,7 @@ func (r *ApplicationReconciler) ensureDeployment(
 	app *locov1alpha1.Application,
 	envSecret envSecretMount,
 ) (*appsv1ac.DeploymentApplyConfiguration, error) {
-	dep, err := desiredDeployment(
+	dep := desiredDeployment(
 		app,
 		r.environmentNamespace(app),
 		envSecret,
@@ -773,9 +751,6 @@ func (r *ApplicationReconciler) ensureDeployment(
 		r.MinReadySeconds,
 		r.DrainSeconds,
 	)
-	if err != nil {
-		return nil, err
-	}
 
 	name := locov1alpha1.WorkloadName(app.Spec.ResourceID)
 	namespace := r.environmentNamespace(app)

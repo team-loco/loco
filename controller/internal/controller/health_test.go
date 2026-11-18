@@ -33,7 +33,7 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			app := testApplication()
 			app.Spec.ServiceSpec.Deployment.HealthCheck = tc.health
-			deployment, err := desiredDeployment(
+			deployment := desiredDeployment(
 				app,
 				testEnvironmentNamespace(app),
 				envSecretMount{},
@@ -41,9 +41,6 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 				testMinReadySeconds,
 				testDrainSeconds,
 			)
-			if err != nil {
-				t.Fatal(err)
-			}
 			pod := deployment.Spec.Template.Spec
 			if pod.RestartPolicy == nil || *pod.RestartPolicy != corev1.RestartPolicyAlways {
 				t.Fatal("pod must restart exited processes")
@@ -77,7 +74,7 @@ func TestDesiredDeploymentProbesReadiness(t *testing.T) {
 
 func TestDesiredDeploymentKeepsOldReplicasUntilNewOnesStayReady(t *testing.T) {
 	app := testApplication()
-	deployment, err := desiredDeployment(
+	deployment := desiredDeployment(
 		app,
 		testEnvironmentNamespace(app),
 		envSecretMount{},
@@ -85,9 +82,6 @@ func TestDesiredDeploymentKeepsOldReplicasUntilNewOnesStayReady(t *testing.T) {
 		17,
 		testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	spec := deployment.Spec
 	if spec.MinReadySeconds == nil || *spec.MinReadySeconds != 17 {
 		t.Errorf("minReadySeconds = %v, want 17", spec.MinReadySeconds)
@@ -105,12 +99,9 @@ func TestDesiredDeploymentKeepsOldReplicasUntilNewOnesStayReady(t *testing.T) {
 func TestDesiredDeploymentReservesDrainTimeBeforeProcessShutdown(t *testing.T) {
 	for _, drain := range []int32{testDrainSeconds, 1<<31 - 1} {
 		app := testApplication()
-		deployment, err := desiredDeployment(
+		deployment := desiredDeployment(
 			app, testEnvironmentNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, drain,
 		)
-		if err != nil {
-			t.Fatal(err)
-		}
 		pod := deployment.Spec.Template.Spec
 		lifecycle := pod.Containers[0].Lifecycle
 		if lifecycle == nil || lifecycle.PreStop == nil || lifecycle.PreStop.Sleep == nil ||
@@ -127,12 +118,9 @@ func TestDesiredDeploymentReservesDrainTimeBeforeProcessShutdown(t *testing.T) {
 func TestDesiredDeploymentDoesNotDelayPortlessWorkerShutdown(t *testing.T) {
 	app := testApplication()
 	app.Spec.ServiceSpec.Deployment.Port = nil
-	deployment, err := desiredDeployment(
+	deployment := desiredDeployment(
 		app, testEnvironmentNamespace(app), envSecretMount{}, testTelemetry(), testMinReadySeconds, testDrainSeconds,
 	)
-	if err != nil {
-		t.Fatal(err)
-	}
 	pod := deployment.Spec.Template.Spec
 	if pod.Containers[0].Lifecycle != nil || pod.TerminationGracePeriodSeconds != nil {
 		t.Errorf("worker shutdown overrides Kubernetes defaults: lifecycle=%+v grace=%v",
