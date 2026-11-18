@@ -121,6 +121,7 @@ func (s *OrgServer) CreateOrg(
 
 	return &orgv1.CreateOrgResponse{
 		OrgId: org.ID.String(),
+		Name:  org.Name,
 	}, nil
 }
 

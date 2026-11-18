@@ -75,9 +75,10 @@ message CreateOrgRequest {
   }];
 }
 
-// CreateOrgResponse is the response containing the created organization ID.
+// CreateOrgResponse names the created organization, including a name the API generated.
 message CreateOrgResponse {
   string org_id = 1;
+  string name = 2;
 }
 
 // GetOrgRequest is the request to retrieve an organization.

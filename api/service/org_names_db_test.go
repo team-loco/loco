@@ -51,3 +51,16 @@ func TestOrgsAndWorkspacesCanShareNames(t *testing.T) {
 		t.Fatalf("rename org to %s: %v", membershipOrgName, err)
 	}
 }
+
+func TestCreateOrgReturnsTheGeneratedName(t *testing.T) {
+	t.Parallel()
+	api := newMembershipAPI(t)
+	user := api.signUp(t, "alice")
+	org, err := user.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{})
+	if err != nil {
+		t.Fatalf("create org: %v", err)
+	}
+	if want := membershipEmail("alice") + "'s Org"; org.GetName() != want {
+		t.Fatalf("name = %q, want %q", org.GetName(), want)
+	}
+}
