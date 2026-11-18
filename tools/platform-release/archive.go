@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"unicode/utf16"
@@ -115,15 +116,13 @@ func changedFiles(published, data []byte) ([]string, error) {
 	}
 	changed := []string{}
 	for name, body := range current {
-		if previous, found := old[name]; !found || !bytes.Equal(previous, body) {
+		previous, found := old[name]
+		delete(old, name)
+		if !found || !bytes.Equal(previous, body) {
 			changed = append(changed, name)
 		}
 	}
-	for name := range old {
-		if _, found := current[name]; !found {
-			changed = append(changed, name)
-		}
-	}
+	changed = slices.AppendSeq(changed, maps.Keys(old))
 	slices.Sort(changed)
 	return changed, nil
 }

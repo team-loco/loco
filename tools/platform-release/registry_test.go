@@ -85,7 +85,7 @@ func testRegistry(t *testing.T) *registryFixture {
 		repository: "example/platform",
 		host:       strings.TrimPrefix(server.URL, "http://"),
 		base:       server.URL,
-		client:     server.Client(),
+		client:     &http.Client{CheckRedirect: blobRedirect},
 		tokens:     map[string]string{},
 	}
 	return fixture
@@ -313,6 +313,7 @@ func writeResponse(t *testing.T, w http.ResponseWriter, data []byte) {
 func TestRegistryEnsureComparesPublishedFiles(t *testing.T) {
 	t.Parallel()
 	fixture := testRegistry(t)
+	fixture.registry.tokens["repository:example/chart:pull"] = "Bearer token"
 	layer := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: chart"), "chart/removed": []byte("old")})
 	fixture.blobs[digest(layer)] = layer
 	manifest := encoded(object{

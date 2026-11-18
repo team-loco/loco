@@ -42,11 +42,16 @@ func newRegistry(repository, username, password, host string) (*registry, error)
 		scheme = "http://"
 	}
 	return &registry{repository: repository, username: username, password: password, host: host, base: scheme + host,
-		client: &http.Client{
-			Timeout: registryTimeout,
-			// Registry upload Locations are validated explicitly; redirects must not forward credentials.
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-		}, tokens: map[string]string{}}, nil
+		client: &http.Client{Timeout: registryTimeout, CheckRedirect: blobRedirect}, tokens: map[string]string{}}, nil
+}
+
+// blobRedirect follows only a blob download's redirect to storage, without registry credentials.
+func blobRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) != 1 || via[0].Method != http.MethodGet || !strings.Contains(via[0].URL.Path, "/blobs/") {
+		return http.ErrUseLastResponse
+	}
+	req.Header.Del("Authorization")
+	return nil
 }
 
 func (r *registry) public() *registry {
@@ -67,7 +72,7 @@ func (r *registry) request(
 	missing bool,
 ) ([]byte, http.Header, error) {
 	parts := strings.SplitN(strings.TrimPrefix(path, "/v2/"), "/manifests/", 2)
-	repository, _, blob := strings.Cut(parts[0], "/blobs/")
+	repository, _, _ := strings.Cut(parts[0], "/blobs/")
 	actions := "pull,push"
 	if method == http.MethodGet || method == http.MethodHead {
 		actions = "pull"
@@ -110,10 +115,6 @@ func (r *registry) request(
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
 			return body, response.Header, nil
 		}
-		if location := response.Header.Get("Location"); method == http.MethodGet && blob && location != "" &&
-			response.StatusCode >= 300 && response.StatusCode < 400 {
-			return r.redirected(ctx, endpoint, location)
-		}
 		if response.StatusCode == http.StatusNotFound && missing {
 			var payload struct {
 				Errors []struct {
@@ -147,36 +148,6 @@ func (r *registry) request(
 		requestHeaders.Set("Authorization", auth)
 	}
 	return nil, nil, errors.New("registry authentication failed")
-}
-
-// redirected fetches blob storage the registry points to, without registry credentials.
-func (r *registry) redirected(ctx context.Context, endpoint *url.URL, location string) ([]byte, http.Header, error) {
-	target, err := endpoint.Parse(location)
-	if err != nil {
-		return nil, nil, err
-	}
-	// #nosec G704 -- The registry names its blob storage; the request carries no credentials.
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	// #nosec G704 -- req carries no credentials.
-	response, err := r.client.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	body, readErr := io.ReadAll(response.Body)
-	closeErr := response.Body.Close()
-	if readErr != nil {
-		return nil, nil, readErr
-	}
-	if closeErr != nil {
-		return nil, nil, closeErr
-	}
-	if response.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("registry blob storage GET failed with HTTP %d", response.StatusCode)
-	}
-	return body, response.Header, nil
 }
 
 func registryEndpoint(base, path string) (*url.URL, error) {
