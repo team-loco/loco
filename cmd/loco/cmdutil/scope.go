@@ -50,10 +50,9 @@ func ResolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 		return "", fmt.Errorf("load config: %w", err)
 	}
 
-	scope, err := cfg.GetScope()
-	if err == nil {
+	if cfg.Organization.ID != "" {
 		slog.Debug("using org from default config")
-		return scope.Organization.ID, nil
+		return cfg.Organization.ID, nil
 	}
 
 	return "", errOrgNotSpecified
@@ -82,10 +81,9 @@ func ResolveWorkspace(cmd *cobra.Command, loadConfig func() (*session.SessionCon
 		return "", fmt.Errorf("load config: %w", err)
 	}
 
-	scope, err := cfg.GetScope()
-	if err == nil {
+	if cfg.Workspace.ID != "" {
 		slog.Debug("using workspace from default config")
-		return scope.Workspace.ID, nil
+		return cfg.Workspace.ID, nil
 	}
 
 	return "", errWorkspaceNotSpecified
@@ -113,9 +111,8 @@ func ResolveWorkspaceID(
 		return "", err
 	}
 
-	scope, err := cfg.GetScope()
-	if err == nil && org == scope.Organization.ID && workspace == scope.Workspace.ID {
-		return scope.Workspace.ID, nil
+	if org == cfg.Organization.ID && workspace == cfg.Workspace.ID {
+		return cfg.Workspace.ID, nil
 	}
 
 	workspaces, err := ListUserWorkspaces(ctx, workspaceClient)
@@ -137,7 +134,7 @@ func resolveTokenWorkspaceID(
 ) (string, error) {
 	// Resolve an explicit workspace with workspace permissions. Scoped tokens
 	// cannot use the user workspace list or rely on a saved login's selection.
-	load := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
+	load := func() (*session.SessionConfig, error) { return &session.SessionConfig{}, nil }
 	ref, err := ResolveWorkspace(cmd, load)
 	if err != nil {
 		if errors.Is(err, errWorkspaceNotSpecified) {

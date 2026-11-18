@@ -29,8 +29,7 @@ const (
 
 func TestResolveWorkspaceIDIgnoresCachedWorkspaceOfAnotherOrg(t *testing.T) {
 	loadConfig := func() (*session.SessionConfig, error) {
-		cfg := session.NewSessionConfig()
-		cfg.Scopes[session.DefaultScope] = &session.Scope{
+		cfg := &session.SessionConfig{
 			Organization: session.SimpleOrg{ID: "org-a-id", Name: "org-a"},
 			Workspace:    session.SimpleWorkspace{ID: "org-a-default-id", Name: testWorkspaceName},
 		}
@@ -109,7 +108,7 @@ func TestResolveWorkspaceIDFindsWorkspaceOnLaterPage(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	workspaceClient := rpc.NewHTTPClients(srv.Client(), srv.URL, "").Workspace
-	loadConfig := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
+	loadConfig := func() (*session.SessionConfig, error) { return &session.SessionConfig{}, nil }
 	cmd := &cobra.Command{}
 	cmd.Flags().String("org", testOrgName, "")
 	cmd.Flags().String("workspace", "second", "")
@@ -193,8 +192,7 @@ func TestResolveWorkspaceIDUsesTheSavedOrgID(t *testing.T) {
 
 	workspaceClient := rpc.NewHTTPClients(srv.Client(), srv.URL, "").Workspace
 	loadConfig := func() (*session.SessionConfig, error) {
-		cfg := session.NewSessionConfig()
-		cfg.Scopes[session.DefaultScope] = &session.Scope{
+		cfg := &session.SessionConfig{
 			Organization: session.SimpleOrg{ID: testFirstOrgID, Name: testOrgName},
 			Workspace:    session.SimpleWorkspace{ID: "ws-0", Name: testWorkspaceName},
 		}
@@ -216,8 +214,7 @@ func TestResolveWorkspaceIDUsesTheSavedOrgID(t *testing.T) {
 func TestResolveWorkspaceIDUsesCachedSelection(t *testing.T) {
 	t.Setenv("LOCO_ORG", "")
 	t.Setenv("LOCO_WORKSPACE", "")
-	cfg := session.NewSessionConfig()
-	cfg.Scopes[session.DefaultScope] = &session.Scope{
+	cfg := &session.SessionConfig{
 		Organization: session.SimpleOrg{ID: testFirstOrgID, Name: testOrgName},
 		Workspace:    session.SimpleWorkspace{ID: testFirstWorkspaceID, Name: testWorkspaceName},
 	}

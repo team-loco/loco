@@ -144,7 +144,7 @@ func resolveListedWorkspace(t *testing.T) (string, error) {
 	}
 	cmd.Flags().String("org", testOrgID, "")
 	cmd.Flags().String("workspace", "Two", "")
-	load := func() (*session.SessionConfig, error) { return session.NewSessionConfig(), nil }
+	load := func() (*session.SessionConfig, error) { return &session.SessionConfig{}, nil }
 	return cmdutil.ResolveWorkspaceID(t.Context(), cmd, load, target.Clients.Workspace)
 }
 

@@ -26,7 +26,7 @@ func newUseCmd() *cobra.Command {
 		Short: "Switch to a different organization and workspace",
 		Long: `Switch your current context to a different organization and workspace.
 
-Run without arguments to interactively select from your available scopes.
+Run without arguments to pick from the workspaces you belong to.
 The organization and the workspace are each a name or an ID; pass the ID when
 a name is shared.
 
@@ -87,7 +87,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 			return errNoWorkspaces
 		}
 
-		selected, selErr := ui.SelectFromList("Select a scope", options)
+		selected, selErr := ui.SelectFromList("Select a workspace", options)
 		if selErr != nil {
 			return fmt.Errorf("selection canceled: %w", selErr)
 		}
@@ -97,7 +97,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 			return errUnexpectedSelection
 		}
 
-		if err = cfg.SetDefaultScope(
+		if err = cfg.SetScope(
 			session.SimpleOrg{ID: scope.orgID, Name: scope.orgName},
 			session.SimpleWorkspace{ID: scope.workspaceID, Name: scope.workspaceName},
 		); err != nil {
@@ -117,7 +117,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err = cfg.SetDefaultScope(
+	if err = cfg.SetScope(
 		session.SimpleOrg{ID: ws.GetOrgId(), Name: ws.GetOrgName()},
 		session.SimpleWorkspace{ID: ws.GetId(), Name: ws.GetName()},
 	); err != nil {

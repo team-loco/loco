@@ -10,15 +10,12 @@ fakeapi applied 7
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
 -- home/.loco/config.yaml --
-currentScope: default
-scopes:
-  default:
-    organization:
-      name: acme
-      id: "1"
-    workspace:
-      name: production
-      id: "2"
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"
 -- app/README --
 application
 -- plan.json --

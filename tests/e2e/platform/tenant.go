@@ -103,8 +103,7 @@ func (w *Workspace) writeCLIConfig(tb testing.TB) {
 		tb.Fatal(err)
 	}
 	config := fmt.Sprintf(
-		"currentScope: default\nscopes:\n  default:\n"+
-			"    organization:\n      name: %s\n      id: %q\n    workspace:\n      name: %s\n      id: %q\n",
+		"organization:\n  name: %s\n  id: %q\nworkspace:\n  name: %s\n  id: %q\n",
 		w.OrgName,
 		w.OrgID,
 		w.Name,
