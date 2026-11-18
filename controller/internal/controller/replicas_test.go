@@ -91,7 +91,7 @@ func TestReplicaState(t *testing.T) {
 				},
 			}
 			got := replicaState(p, nil, now)
-			if got.State != tt.want || got.ExitCode == nil || *got.ExitCode != 137 || got.StateDeadline != nil {
+			if got.State != tt.want || got.LastExit == nil || got.LastExit.ExitCode != 137 || got.StateDeadline != nil {
 				t.Fatalf("shutdown=%+v", got)
 			}
 		})

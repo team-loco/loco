@@ -128,9 +128,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	// must not displace any old replica in that time.
 	service := platform.ImageService(p.PublicImage, host)
 	service.Health = nil
-	service.Regions = map[string]locofile.Region{
-		p.Region: {CPU: "100m", Memory: "128Mi", Replicas: &locofile.Replicas{Min: new(int32(2)), Max: new(int32(2))}},
-	}
+	service.Regions = map[string]locofile.Region{p.Region: twoReplicas()}
 	file := locofile.File{Partial: app, Services: map[string]locofile.Service{app: service}}
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--yes")

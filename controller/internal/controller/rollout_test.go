@@ -113,8 +113,8 @@ func TestObserveDeletedReplica(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := app.Status.Rollout.Replicas
-	if len(got) != 1 || got[0].State != locov1alpha1.ReplicaStopped || got[0].ExitCode == nil ||
-		*got[0].ExitCode != 143 {
+	if len(got) != 1 || got[0].State != locov1alpha1.ReplicaStopped || got[0].LastExit == nil ||
+		got[0].LastExit.ExitCode != 143 {
 		t.Fatalf("deleted replicas=%+v", got)
 	}
 	pod.Status.ContainerStatuses[0].State.Terminated.ExitCode = 137

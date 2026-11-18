@@ -190,3 +190,59 @@ var _ = Describe("Pull event watch", func() {
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 	})
 })
+
+var _ = Describe("Replica exits", func() {
+	It("reports the restart count, start time and last exit after a container restarts", func() {
+		r := &ApplicationReconciler{
+			Gateway: testGateway, WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix, Client: k8sClient,
+			APIReader: k8sClient, Scheme: k8sClient.Scheme(), LocoNamespace: testNamespace, Telemetry: testTelemetry(),
+		}
+		app := isolationTestApplication(stuckWorkspace, "exits")
+		app.Spec.ServiceSpec.Routing = nil
+		app.Annotations = map[string]string{loco.KeyPlacementRevision: "1"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+
+		pod := createReplica(app, "exits-replica", testImage)
+		started := metav1.NewTime(time.Now().Add(-time.Hour).Truncate(time.Second))
+		exited := metav1.NewTime(time.Now().Add(-time.Minute).Truncate(time.Second))
+		pod.Status.StartTime = &started
+		pod.Status.ContainerStatuses = []corev1.ContainerStatus{{
+			Name:         pod.Spec.Containers[0].Name,
+			Image:        pod.Spec.Containers[0].Image,
+			RestartCount: 1,
+			State:        corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: exited}},
+			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				Reason: exitReasonError, ExitCode: 1, StartedAt: started, FinishedAt: exited,
+			}},
+		}}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+
+		Expect(app.Status.Rollout.Replicas).To(HaveLen(1))
+		replica := app.Status.Rollout.Replicas[0]
+		Expect(replica.Restarts).To(Equal(int32(1)))
+		Expect(replica.StartedAt).NotTo(BeNil())
+		Expect(replica.StartedAt.Time).To(BeTemporally("==", started.Time))
+		Expect(replica.LastExit).NotTo(BeNil())
+		Expect(replica.LastExit.Reason).To(Equal(exitReasonError))
+		Expect(replica.LastExit.ExitCode).To(Equal(int32(1)))
+		Expect(replica.LastExit.FinishedAt.Time).To(BeTemporally("==", exited.Time))
+
+		killed := metav1.NewTime(exited.Add(30 * time.Second))
+		Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+		pod.Status.ContainerStatuses[0].RestartCount = 2
+		pod.Status.ContainerStatuses[0].LastTerminationState.Terminated = &corev1.ContainerStateTerminated{
+			Reason: reasonOOMKilled, ExitCode: 137, StartedAt: exited, FinishedAt: killed,
+		}
+		Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+		reconcileStuckApp(r, app)
+
+		replica = app.Status.Rollout.Replicas[0]
+		Expect(replica.Restarts).To(Equal(int32(2)))
+		Expect(replica.LastExit).NotTo(BeNil())
+		Expect(replica.LastExit.Reason).To(Equal(reasonOOMKilled))
+		Expect(replica.LastExit.ExitCode).To(Equal(int32(137)))
+		Expect(replica.LastExit.FinishedAt.Time).To(BeTemporally("==", killed.Time))
+	})
+})

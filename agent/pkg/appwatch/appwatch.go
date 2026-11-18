@@ -11,7 +11,6 @@ import (
 
 	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
-	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -154,9 +153,6 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 				State:             string(replica.State),
 				Restarts:          replica.Restarts,
 				Detail:            replica.Detail,
-			}
-			if replica.ExitCode != nil {
-				report.LastExit = &deploymentv1.ReplicaExit{ExitCode: *replica.ExitCode}
 			}
 			if replica.StateSince != nil {
 				report.StateSince = timestamppb.New(replica.StateSince.Time)

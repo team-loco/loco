@@ -302,7 +302,8 @@ func TestRolloutForwarding(t *testing.T) {
 				State:             locoControllerV1.ReplicaServing,
 				StateSince:        &at,
 				Restarts:          2,
-				ExitCode:          new(int32(0)),
+				StartedAt:         &at,
+				LastExit:          &locoControllerV1.ReplicaExit{Reason: "OOMKilled", ExitCode: 137, FinishedAt: at},
 				Detail:            "ready",
 			},
 			{
@@ -342,8 +343,11 @@ func TestRolloutForwarding(t *testing.T) {
 				State:             "Serving",
 				StateSince:        timestamppb.New(at.Time),
 				Restarts:          2,
-				LastExit:          &deploymentv1.ReplicaExit{},
-				Detail:            "ready",
+				StartedAt:         timestamppb.New(at.Time),
+				LastExit: &deploymentv1.ReplicaExit{
+					Reason: "OOMKilled", ExitCode: 137, FinishedAt: timestamppb.New(at.Time),
+				},
+				Detail: "ready",
 			},
 			{
 				Uid:               "previous",

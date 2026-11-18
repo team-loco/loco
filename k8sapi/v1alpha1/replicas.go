@@ -34,9 +34,18 @@ type ReplicaStatus struct {
 	// StateDeadline is set only while Stopping.
 	StateDeadline *metav1.Time `json:"stateDeadline,omitempty"`
 	Restarts      int32        `json:"restarts,omitzero"`
-	ExitCode      *int32       `json:"exitCode,omitempty"`
+	// StartedAt is when the kubelet started the pod, or its creation time before that.
+	StartedAt *metav1.Time `json:"startedAt,omitempty"`
+	// LastExit is the most recent container exit the kubelet recorded.
+	LastExit *ReplicaExit `json:"lastExit,omitempty"`
 	// +kubebuilder:validation:MaxLength=512
 	Detail string `json:"detail,omitempty"`
+}
+
+type ReplicaExit struct {
+	Reason     string      `json:"reason,omitempty"`
+	ExitCode   int32       `json:"exitCode"`
+	FinishedAt metav1.Time `json:"finishedAt"`
 }
 
 type RolloutStatus struct {

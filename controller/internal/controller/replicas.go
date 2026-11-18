@@ -43,12 +43,6 @@ func classifyReplica(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.Repli
 	result := loco.ReplicaStatus{State: loco.ReplicaUnknown, StateSince: pod.CreationTimestamp.DeepCopy()}
 	for _, status := range pod.Status.ContainerStatuses {
 		result.Restarts += status.RestartCount
-		if exit := status.LastTerminationState.Terminated; exit != nil {
-			result.ExitCode = new(exit.ExitCode)
-		}
-		if exit := status.State.Terminated; exit != nil {
-			result.ExitCode = new(exit.ExitCode)
-		}
 	}
 	if pod.DeletionTimestamp != nil {
 		return shutdownOutcome(pod, now, result)
