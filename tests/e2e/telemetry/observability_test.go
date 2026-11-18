@@ -33,6 +33,7 @@ import (
 
 const (
 	otelApp          = "e2e-otel-app"
+	unreadyApp       = "e2e-unready-app"
 	requestCount     = 5
 	routeTimeout     = 3 * time.Minute
 	telemetryTimeout = 4 * time.Minute
@@ -143,6 +144,8 @@ func TestObservability(t *testing.T) {
 	t.Run("QueryLogs is scoped to the workspace and its regions", o.scopedLogs)
 
 	t.Run("QueryLogs filters access logs by attribute with OR and exclusion", o.attributeLogs)
+
+	t.Run("QueryMetrics reports gateway requests, errors, bytes and latency", o.gatewayMetrics)
 
 	t.Run("QueryMetrics returns the fixture's counters to its workspace only", o.counterMetrics)
 
@@ -1001,6 +1004,141 @@ func (o *observed) attributeLogs(t *testing.T) {
 			return nil
 		},
 	)
+}
+
+// gatewayMetrics sends the fixture successful and 5xx requests, and the gateway requests for an app
+// with no ready replica, until QueryMetrics reports both resources' traffic.
+func (o *observed) gatewayMetrics(t *testing.T) {
+	dir := t.TempDir()
+	unreadyHost := o.w.Host(unreadyApp)
+	unready := platform.Service(8080, unreadyHost)
+	unready.Image = p.AlternatePortImage
+	platform.WriteLocoFile(t, dir, locofile.File{
+		Partial:  unreadyApp,
+		Services: map[string]locofile.Service{unreadyApp: unready},
+	})
+	o.w.MustLoco(t, dir, "deploy", "--yes")
+	unreadyID := o.w.ResourceID(t, unreadyApp)
+	platform.Eventually(t, routeTimeout, "the gateway to answer 503 for "+unreadyHost, func(ctx context.Context) error {
+		status, err := gatewayStatus(ctx, unreadyHost, "/", "")
+		if err != nil || status != http.StatusServiceUnavailable {
+			return fmt.Errorf("HTTP %d (%w)", status, err)
+		}
+		return nil
+	})
+
+	var app, gateway gatewayTraffic
+	platform.Eventually(
+		t,
+		telemetryTimeout,
+		"QueryMetrics to report the gateway traffic of both apps",
+		func(ctx context.Context) error {
+			for _, request := range []struct {
+				host, path string
+				status     int
+			}{
+				{o.host, "/status/200", http.StatusOK},
+				{o.host, "/status/200", http.StatusOK},
+				{o.host, "/status/503", http.StatusServiceUnavailable},
+				{unreadyHost, "/", http.StatusServiceUnavailable},
+			} {
+				if status, err := gatewayStatus(ctx, request.host, request.path, ""); err != nil ||
+					status != request.status {
+					return fmt.Errorf(
+						"%s%s: HTTP %d, want %d (%w)",
+						request.host,
+						request.path,
+						status,
+						request.status,
+						err,
+					)
+				}
+			}
+			var err error
+			if app, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, o.resourceID); err != nil {
+				return err
+			}
+			if gateway, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, unreadyID); err != nil {
+				return err
+			}
+			if app.requests == 0 || app.errors == 0 || app.bytes == 0 || app.latency == 0 ||
+				gateway.requests == 0 || gateway.errors == 0 {
+				return fmt.Errorf("fixture %+v, app with no ready replica %+v", app, gateway)
+			}
+			return nil
+		},
+	)
+	for what, traffic := range map[string]gatewayTraffic{"the fixture": app, "the app with no ready replica": gateway} {
+		if traffic.errors > traffic.requests*(1+1e-9) {
+			t.Errorf("%s: %.2f errors exceed %.2f requests", what, traffic.errors, traffic.requests)
+		}
+	}
+
+	scoped := o.metricsRequest(gatewayRequestsMetric)
+	scoped.WorkspaceId, scoped.ResourceIds, scoped.Aggregation = o.second.ID, nil, rateAggregation
+	response, err := o.other.Observability.QueryMetrics(t.Context(), scoped)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, series := range response.GetSeries() {
+		if series.GetResourceId() == o.resourceID || series.GetResourceId() == unreadyID {
+			t.Errorf("the second workspace's own query returns the first's resource %s", series.GetResourceId())
+		}
+	}
+	if _, err := o.queryGatewayTraffic(t.Context(), o.other, o.w.ID, o.resourceID); connect.CodeOf(err) !=
+		connect.CodePermissionDenied {
+		t.Errorf("the second workspace reading the fixture's gateway traffic: %v, want permission_denied", err)
+	}
+}
+
+const (
+	gatewayRequestsMetric = "cluster.upstream_rq_completed"
+	rateAggregation       = "rate"
+)
+
+// gatewayTraffic is one resource's traffic over the metrics window: request, 5xx and byte totals
+// and the highest p95 latency in milliseconds.
+type gatewayTraffic struct{ requests, errors, bytes, latency float64 }
+
+// queryGatewayTraffic queries the dashboard's gateway metrics of resourceID in workspace.
+func (o *observed) queryGatewayTraffic(
+	ctx context.Context,
+	client *rpc.Clients,
+	workspace, resourceID string,
+) (gatewayTraffic, error) {
+	var traffic gatewayTraffic
+	for _, metric := range []struct {
+		total             *float64
+		name, aggregation string
+		attributes        map[string]string
+	}{
+		{&traffic.requests, gatewayRequestsMetric, rateAggregation, nil},
+		{&traffic.errors, "cluster.upstream_rq_xx", rateAggregation, map[string]string{"envoy.response_code_class": "5"}},
+		{&traffic.bytes, "cluster.upstream_cx_rx_bytes_total", rateAggregation, nil},
+		{&traffic.latency, "cluster.upstream_rq_time", "p95", nil},
+	} {
+		request := o.metricsRequest(metric.name)
+		request.WorkspaceId, request.ResourceIds = workspace, []string{resourceID}
+		request.EnvironmentId, request.Aggregation, request.Attributes =
+			o.tenant.EnvironmentID, metric.aggregation, metric.attributes
+		response, err := client.Observability.QueryMetrics(ctx, request)
+		if err != nil {
+			return gatewayTraffic{}, fmt.Errorf("%s: %w", metric.name, err)
+		}
+		for _, series := range response.GetSeries() {
+			if series.GetResourceId() != resourceID {
+				return gatewayTraffic{}, fmt.Errorf("%s: series of resource %s", metric.name, series.GetResourceId())
+			}
+			for _, point := range series.GetPoints() {
+				if metric.aggregation == rateAggregation {
+					*metric.total += point.GetValue() * metricInterval
+				} else {
+					*metric.total = max(*metric.total, point.GetValue())
+				}
+			}
+		}
+	}
+	return traffic, nil
 }
 
 func (o *observed) counterMetrics(t *testing.T) {
