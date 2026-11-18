@@ -39,7 +39,7 @@ const (
 	testClickHouseEnv    = "LOCO_TEST_CLICKHOUSE_URL"
 	databaseNameBytes    = 4
 	testTTL              = 24 * time.Hour
-	testIngestTimeout    = 5 * time.Second
+	testIngestTimeout    = time.Minute // a first insert into new tables under load outlasts the production default
 	testDialTimeout      = 10 * time.Second
 	testQueryTimeout     = 10 * time.Second
 	testQueryLimit       = int32(10)
