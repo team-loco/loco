@@ -412,6 +412,8 @@ openbao:
   setup:
     # @schema minimum: 1
     timeoutSeconds: 1800
+    # @schema minimum: 1
+    ttlSecondsAfterFinished: 3600
   # @schema additionalProperties: false
   transit:
     mount: transit
@@ -454,8 +456,3 @@ openbao:
     tokenSecret:
       name: ""
       key: token
-
-# @schema additionalProperties: false
-setup:
-  # @schema minimum: 1
-  ttlSecondsAfterFinished: 3600

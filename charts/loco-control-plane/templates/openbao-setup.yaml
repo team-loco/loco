@@ -60,7 +60,7 @@ metadata:
   annotations:
     helm.toolkit.fluxcd.io/driftDetection: disabled
 spec:
-  ttlSecondsAfterFinished: {{ .Values.setup.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ .Values.openbao.setup.ttlSecondsAfterFinished }}
   backoffLimit: 3
   activeDeadlineSeconds: {{ .Values.openbao.setup.timeoutSeconds }}
   template:

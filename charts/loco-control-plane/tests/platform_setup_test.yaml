@@ -8,13 +8,15 @@ templates:
   - templates/openbao-setup.yaml
   - templates/api-deployment.yaml
 tests:
-  - it: cleans up the OpenBao setup Job
+  - it: cleans up the OpenBao setup Job after openbao.setup.ttlSecondsAfterFinished
     template: templates/openbao-setup.yaml
     documentSelector: {path: kind, value: Job}
+    set:
+      openbao.setup.ttlSecondsAfterFinished: 600
     asserts:
       - equal:
           path: spec.ttlSecondsAfterFinished
-          value: 3600
+          value: 600
   - it: maps typed API settings to their environment variables
     template: templates/api-deployment.yaml
     set:
