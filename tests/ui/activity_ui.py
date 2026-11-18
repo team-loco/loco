@@ -2,7 +2,6 @@ import argparse
 import datetime
 import json
 import re
-import sys
 import urllib.parse
 from pathlib import Path
 
@@ -10,7 +9,6 @@ from activity_fixture import prepare_activity, verify_activity_access
 from harness import evidence, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
-sys.dont_write_bytecode = True
 parser = argparse.ArgumentParser(
     description="Exercise scoped audit Activity with a throwaway API and database"
 )
@@ -26,7 +24,6 @@ access = verify_activity_access(evidence, state, activity)
 origin = state["ui_url"]
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-(out / "full").mkdir(exist_ok=True)
 base = f"/org/{activity['orgId']}/wks/{activity['workspaceId']}"
 results = []
 VIEWPORT = {"width": 1440, "height": 1000}

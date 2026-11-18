@@ -111,6 +111,7 @@ def verify(state):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="List and revoke active sessions")
     parser.add_argument("--state")
+    parser.add_argument("--keep", action="store_true")
     args = parser.parse_args()
     state = load_state(args, "active-sessions", SCENARIO)
     verify(state)

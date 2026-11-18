@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser(
     description="Check editing regions in resource settings"
 )
 parser.add_argument("--state")
+parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/resource-regions"))
 args = parser.parse_args()
 out = Path(args.out)

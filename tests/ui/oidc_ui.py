@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(
     description="Sign in through an issuer without CORS and refresh the dashboard session"
 )
 parser.add_argument("--screenshots", type=Path)
+parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
 args.state = None
 

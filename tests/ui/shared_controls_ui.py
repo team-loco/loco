@@ -314,7 +314,7 @@ def live_focus(page):
     page.evaluate("() => new Promise(requestAnimationFrame)")
     expect(live).to_be_focused()
     assert len(held) == 1, len(held)
-    # fallback() to the context mock fails with "Route is already handled", so answer here.
+    # A held route cannot fall back to the context mock; answer it here.
     held[0].fulfill(json={"entries": [], "totalMatched": "0"})
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
     expect(live).to_have_attribute("aria-pressed", "true")

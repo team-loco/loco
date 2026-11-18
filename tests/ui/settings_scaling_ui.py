@@ -10,6 +10,7 @@ parser = argparse.ArgumentParser(
     description="Exercise resource autoscaling, observability settings and failed-save recovery"
 )
 parser.add_argument("--state")
+parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/settings-scaling"))
 args = parser.parse_args()
 state = load_state(

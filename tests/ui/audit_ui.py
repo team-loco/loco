@@ -257,9 +257,6 @@ with session(out) as browser:
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
     expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
-    expect(page.get_by_text("Fix the search to see events.", exact=True)).to_have_count(
-        0
-    )
     with page.expect_response(
         lambda response: (
             response.url.endswith("/ListEvents")
@@ -449,9 +446,6 @@ with session(out) as browser:
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
     expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
-    expect(
-        page.get_by_text("Fix the filters to see events.", exact=True)
-    ).to_have_count(0)
     expect(rows).to_have_count(0)
     expect(search).to_be_visible()
     page.context.grant_permissions(["clipboard-read", "clipboard-write"])

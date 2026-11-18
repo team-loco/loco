@@ -53,8 +53,7 @@ LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
 USER_SCOPES = ("read", "write", "admin")
 RUNTIME_CONFIG_PATH = "/runtime-config.js"
-# Set by `mise run test:ui` to the OpenBao every suite shares, after it built
-# api/bin/loco-api and web/dist in this checkout.
+# The OpenBao every suite shares; `mise run test:ui` and the ui-evidence skill set it.
 OPENBAO_ENV = "UI_EVIDENCE_OPENBAO"
 
 RPC_CREATE_ORG = "loco.org.v1.OrgService/CreateOrg"
@@ -825,7 +824,7 @@ def reap():
             state = load_state(path)
         except OSError, ValueError:
             continue
-        if state.get("expires_at", path.stat().st_mtime + LEASE_S) < now:
+        if state["expires_at"] < now:
             log(
                 f"reaping {state.get('id', path.parent.name)}: unused for {LEASE_S // 3600}h"
             )
