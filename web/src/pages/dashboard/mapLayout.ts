@@ -133,6 +133,7 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 	const internalRows = ranked.filter((r) => !itemIsPublic(r));
 	const shownPublic = publicRows.slice(0, MAP_PUBLIC_LIMIT);
 	const shownInternal = internalRows.slice(0, MAP_INTERNAL_LIMIT);
+	if (shownPublic.length === 0) return internalGrid(shownInternal, internalRows.length, availableWidth);
 
 	const regionNames = new Set(regionOrder);
 	for (const row of shownPublic) for (const g of row.regions) regionNames.add(g.region);
@@ -140,16 +141,11 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 		.map((region) => ({ region, rows: shownPublic.filter((r) => r.regions.some((g) => g.region === region)) }))
 		.filter((g) => g.rows.length > 0);
 
-	if (shownPublic.length === 0) return internalGrid(shownInternal, internalRows.length, availableWidth);
-
-	const columns: Column[] = [];
-	if (shownPublic.length > 0) {
-		columns.push(
-			{ key: "internet", count: 1, label: false, more: false },
-			{ key: "gateways", count: served.length, label: false, more: false },
-			{ key: "public", count: shownPublic.length, label: false, more: publicRows.length > shownPublic.length },
-		);
-	}
+	const columns: Column[] = [
+		{ key: "internet", count: 1, label: false, more: false },
+		{ key: "gateways", count: served.length, label: false, more: false },
+		{ key: "public", count: shownPublic.length, label: false, more: publicRows.length > shownPublic.length },
+	];
 	if (shownInternal.length > 0) {
 		columns.push({
 			key: "internal",

@@ -261,14 +261,13 @@ interface TrafficCardSpec {
 	label: string;
 	field: TrafficField;
 	format: (n: number) => string;
-	tone: string;
 	warnOnRise: boolean;
 }
 
 const TRAFFIC_CARDS: TrafficCardSpec[] = [
-	{ label: "Requests", field: "requests", format: formatCompact, tone: "text-foreground", warnOnRise: false },
-	{ label: "Errors", field: "errors", format: formatCompact, tone: "text-warn", warnOnRise: true },
-	{ label: "Bandwidth out", field: "bytes", format: formatBytes, tone: "text-foreground", warnOnRise: false },
+	{ label: "Requests", field: "requests", format: formatCompact, warnOnRise: false },
+	{ label: "Errors", field: "errors", format: formatCompact, warnOnRise: true },
+	{ label: "Bandwidth out", field: "bytes", format: formatBytes, warnOnRise: false },
 ];
 
 function TrafficCard({
@@ -324,7 +323,7 @@ function TrafficCard({
 			<Sparkline
 				values={state === "ready" ? trafficSeries(current, spec.field) : []}
 				fill={spec.warnOnRise ? 0.12 : 0.08}
-				className={cn("mt-2 h-[38px]", spec.tone)}
+				className={cn("mt-2 h-[38px]", spec.warnOnRise ? "text-warn" : "text-foreground")}
 			/>
 		</StatCard>
 	);

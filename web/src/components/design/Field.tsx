@@ -26,17 +26,18 @@ export function Field({
 	const messageId = useId();
 	const failed = error !== undefined && error !== null && error !== false;
 	const message = failed ? error : hint;
+	const heading = (
+		<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
+			{label}
+		</FieldLabel>
+	);
 	return (
 		<FieldBase className={cn("min-w-0 gap-1.5", className)}>
 			{aside === undefined ? (
-				<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
-					{label}
-				</FieldLabel>
+				heading
 			) : (
 				<span className="flex items-baseline justify-between gap-2.5">
-					<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
-						{label}
-					</FieldLabel>
+					{heading}
 					{aside}
 				</span>
 			)}
