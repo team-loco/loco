@@ -21,24 +21,10 @@ func listen(t *testing.T) net.Listener {
 
 func TestWaitFailsWhileTheAddressAccepts(t *testing.T) {
 	listener := listen(t)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		for {
-			conn, acceptErr := listener.Accept()
-			if acceptErr != nil {
-				return
-			}
-			if closeErr := conn.Close(); closeErr != nil {
-				t.Error(closeErr)
-			}
-		}
-	}()
 	t.Cleanup(func() {
 		if closeErr := listener.Close(); closeErr != nil {
 			t.Error(closeErr)
 		}
-		<-done
 	})
 	err := Wait(t.Context(), listener.Addr().String(), testTimeout)
 	if !errors.Is(err, errNotIsolated) {

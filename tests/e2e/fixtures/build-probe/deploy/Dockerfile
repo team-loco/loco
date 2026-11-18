@@ -11,9 +11,7 @@ RUN api=$(wget -q -T 5 -O - http://kubernetes.default.svc:443/ 2>&1 || true); \
         if [ -e "$p" ]; then echo "PROBE-LEAK path $p"; fi; \
     done; \
     for p in /proc/[0-9]*; do \
-        if environ=$(tr '\0' '\n' < "$p/environ" 2>/dev/null) && echo "$environ" | grep -q -E '^DOCKER_CONFIG=|^SOURCE_URL='; then \
-            echo "PROBE-LEAK environment of $p"; \
-        fi; \
+        if tr '\0' '\n' < "$p/environ" 2>/dev/null | grep -E '^DOCKER_CONFIG=|^SOURCE_URL=' > /dev/null; then echo "PROBE-LEAK environment of $p"; fi; \
     done; \
     files=$(find / \( -path /proc -o -path /sys -o -path /dev \) -prune -o -type f -print) || echo "PROBE-ERROR file list"; \
     echo "docker config probe: $(echo "$files" | wc -l) files"; \

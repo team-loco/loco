@@ -281,9 +281,8 @@ func testBuildkitStartup(t *testing.T, jobName string) {
 const isolationProbe = `api="http://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
 out=$(wget -q -T 3 -O /dev/null "$api" 2>&1)
 case "$out" in
-    *400*|*"Bad Request"*) echo "probe: reachable" ;;
-    *"timed out"*) echo "probe: filtered" ;;
-    *) echo "probe: unexpected result: $out"; exit 1 ;;
+    *"timed out"*) ;;
+    *) echo "probe: $out"; exit 1 ;;
 esac
 `
 
@@ -324,11 +323,11 @@ func testBuildStepIsolation(t *testing.T, jobName string) {
 			}
 			return nil
 		})
-		logs := p.MustKubectl(t, "-n", p.BuildNamespace, "logs", name, "-c", probe.Name)
-		if observed.Status.Phase != corev1.PodSucceeded || !strings.Contains(logs, "probe: filtered") {
+		if observed.Status.Phase != corev1.PodSucceeded {
 			namespace := "-n " + p.BuildNamespace + " "
-			p.LogKubectl(t, namespace+"describe pod "+name, namespace+"logs "+name+" -c fetch")
-			t.Errorf("%s phase %s, build step output:\n%s", name, observed.Status.Phase, logs)
+			p.LogKubectl(t, namespace+"describe pod "+name, namespace+"logs "+name+" -c fetch",
+				namespace+"logs "+name+" -c "+probe.Name)
+			t.Errorf("%s phase %s, want the build step's probe filtered", name, observed.Status.Phase)
 		}
 	}
 }
