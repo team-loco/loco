@@ -63,9 +63,9 @@ Pages state released behaviour and label unreleased workflows with a release not
   `test:collectors`), `.ct.yaml`, the helm-unittest suite layout and the TDD order.
 - `docs/content/contributing/documentation.md`: docs tasks, build rules, theme files, hosting,
   `web/sws.toml`, `docs/build.ts`.
-- `README.md`: the quick start (the installer, `loco login`, `loco deploy` and `--image`), the
-  feature list with the commands it names (`loco infra plan`, `loco env`, `loco resource scale`),
-  and the contributing section (`mise run setup`, `mise tasks`).
+- `README.md`: the quick start (the installer, `loco login`, `loco deploy`), the feature list
+  with the commands it names (`loco deploy --image`, `loco infra plan`, `loco env`, `loco
+  resource scale`), and the contributing section (`mise run setup`, `mise tasks`).
 - `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
@@ -98,8 +98,8 @@ is a candidate; judge what a reader can see, not the directory.
 - `cmd/internal/sourcepack/**`: what `loco deploy` packs and excludes.
 - `agent/config.go`, `builder/config.go`, `observability-proxy/**`: environment the charts
   must pass; a new required variable changes the chart contract.
-- `charts/*/values.yaml` and `charts/*/templates/**`: install-time knobs (`builds.enabled`,
-  image tags, `env.LOG_LEVEL`), namespaces and resource names an operator sees.
+- `charts/*/values.yaml` and `charts/*/templates/**`: install-time knobs (image tags,
+  `env.LOG_LEVEL`), namespaces and resource names an operator sees.
 - `k8sapi/v1alpha1/*_types.go` and `k8sapi/v1alpha1/validator.go`: the Application and Build
   CRD schema and its validation.
 - `controller/internal/**`: what the controller creates per Application (Service, HTTPRoute,
@@ -153,8 +153,7 @@ When one page links to another for the detail, update the page that owns the det
 - API and agent environment variables: `charts/loco-control-plane/README.md`; `operations/self-hosting.md` only when
   its prose names the variable or the category changes (database, cache, auth, registry,
   endpoints).
-- Chart values, image tags, namespaces, `builds.enabled`: `operations/self-hosting.md`, the
-  README contributing section when it states the value.
+- Chart values, image tags, namespaces: `operations/self-hosting.md`.
 - Components and modules: the table in `operations/self-hosting.md`, `reference/
   architecture.md`, the Architecture section of `AGENTS.md`.
 - Chart tests and their tasks: `charts/TESTING.md`, and `contributing/development.md` when it
