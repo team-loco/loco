@@ -363,6 +363,8 @@ SELECT d.resource_id,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
+       COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
+                '[]'::jsonb)::jsonb AS replicas,
        c.last_heartbeat,
        c.health_status,
        ARRAY(
@@ -393,6 +395,7 @@ type ListRegionStatusesForResourcesRow struct {
 	Placed           bool             `json:"placed"`
 	ReadyReplicas    int32            `json:"readyReplicas"`
 	StatusUpdatedAt  *time.Time       `json:"statusUpdatedAt"`
+	Replicas         []byte           `json:"replicas"`
 	LastHeartbeat    *time.Time       `json:"lastHeartbeat"`
 	HealthStatus     *string          `json:"healthStatus"`
 	UnservedDomains  []string         `json:"unservedDomains"`
@@ -419,6 +422,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.Placed,
 			&i.ReadyReplicas,
 			&i.StatusUpdatedAt,
+			&i.Replicas,
 			&i.LastHeartbeat,
 			&i.HealthStatus,
 			&i.UnservedDomains,
