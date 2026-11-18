@@ -42,7 +42,7 @@ api:
     maxTtl: 168h
 ```
 
-Set other nonsecret API options through `api.env`. The chart supplies `APP_PORT` and, while `obsProxy.enabled` is true, `CLICKHOUSE_URL` and `CLICKHOUSE_DB`; `api.env` cannot override them.
+Set other nonsecret API options through `api.env`; [API environment](../../docs/content/reference/api-environment.md) lists every variable the API reads. The chart supplies `APP_PORT` and, while `obsProxy.enabled` is true, `CLICKHOUSE_URL` and `CLICKHOUSE_DB`; `api.env` cannot override them.
 
 Open log tails, deployment watches and event streams periodically recheck access. Set these optional API settings through `api.env` or the API environment Secret:
 

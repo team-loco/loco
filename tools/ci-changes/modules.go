@@ -33,6 +33,7 @@ var (
 		),
 		"api": mustFilter(
 			"mise-tasks/test/api", "mise-tasks/test/lib/clickhouse.sh", "charts/loco-control-plane/values.yaml",
+			"docs/content/reference/api-environment.md",
 		),
 	}
 )

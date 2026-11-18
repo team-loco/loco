@@ -6,6 +6,7 @@
     "log-queries",
     "audit-queries",
     "installation",
+    "api-environment",
     "ai"
   ],
   "defaultOpen": true
