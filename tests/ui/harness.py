@@ -1,32 +1,22 @@
-import argparse
 import atexit
 import contextlib
-import importlib.util
-import io
 import json
 import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import evidence
 from playwright.sync_api import sync_playwright
 
 repo = Path(__file__).resolve().parents[2]
-spec = importlib.util.spec_from_file_location(
-    "evidence", repo / ".agents/skills/ui-evidence/scripts/evidence.py"
-)
-evidence = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(evidence)
 
 
 def load_state(args, name, scenario):
     os.chdir(repo)
     if args.state is None:
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            evidence.cmd_up(
-                argparse.Namespace(ref="HEAD", name=name, scenario=str(repo / scenario))
-            )
-        args.state = output.getvalue().strip().splitlines()[-1]
+        args.state = evidence.start_state(
+            ref="HEAD", name=name, scenario=repo / scenario
+        )
         print("Preview state:", args.state, flush=True)
         if not getattr(args, "keep", False):
             atexit.register(

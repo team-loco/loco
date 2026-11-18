@@ -57,8 +57,9 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 			if err != nil {
 				t.Fatalf("list tokens: %v", err)
 			}
-			if tokens := listed.GetTokens(); len(tokens) != 1 || tokens[0].GetCreatedBy() != creator {
-				t.Fatalf("list tokens = %v, want one token created by %q", tokens, creator)
+			tokens := listed.GetTokens()
+			if len(tokens) != 1 || tokens[0].GetName() != name || tokens[0].GetCreatedBy() != creator {
+				t.Fatalf("list tokens = %v, want token %q created by %q", tokens, name, creator)
 			}
 			for _, metadata := range append(listed.GetTokens(), created.GetTokenMetadata(), token.GetToken()) {
 				secret := created.GetToken()

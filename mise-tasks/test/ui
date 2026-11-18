@@ -50,7 +50,7 @@ done
 
 uv run --frozen --project tests pytest tests/ui/test_evidence.py
 
-evidence=(uv run --frozen --project tests python .agents/skills/ui-evidence/scripts/evidence.py)
+evidence=(uv run --frozen --project tests python tests/ui/evidence.py)
 start=$SECONDS
 # The suites share one OpenBao. It holds only the seeded transit keys; each API
 # keeps what it encrypts or signs with them in its own database.
@@ -61,7 +61,7 @@ cleanup() {
     exit "$status"
 }
 trap cleanup EXIT
-UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao --project "$openbao" | tail -n 1)
+UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao --project "$openbao")
 export UI_EVIDENCE_OPENBAO
 "${evidence[@]}" build
 echo "Built the API and UI and started OpenBao in $((SECONDS - start))s"

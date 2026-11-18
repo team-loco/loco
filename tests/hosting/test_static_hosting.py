@@ -265,11 +265,6 @@ def check_docs_reading_layout(address, out_dir):
         browser.close()
 
 
-def ui_routes():
-    route_source = (ROOT / "web/src/App.tsx").read_text()
-    return re.findall('<Route\\s+path="(/[^\\"]*)"', route_source)
-
-
 def test_image_serves_the_ui_and_docs(tmp_path):
     docker(
         "buildx",
@@ -350,8 +345,24 @@ def test_image_serves_the_ui_and_docs(tmp_path):
         assert schema_headers["Content-Type"].startswith("application/json"), (
             schema_headers["Content-Type"]
         )
-        for route in ui_routes():
-            path = re.sub(":[^/]+", "test", route)
+        for path in (
+            "/",
+            "/login",
+            "/auth/callback",
+            "/cli/login",
+            "/cli/device",
+            "/onboarding",
+            "/dashboard",
+            "/organizations",
+            "/profile",
+            "/tokens",
+            "/team",
+            "/org/test/team",
+            "/org/test/audit",
+            "/org/test/settings",
+            "/org/test/wks/test",
+            "/org/test/wks/test/resource/example",
+        ):
             status, body, _ = response(url + path, UI_HOST)
             assert status == 200, path
             page = ui if path == "/" else spa

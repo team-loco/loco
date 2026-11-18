@@ -18,7 +18,7 @@ parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/trace-ui"))
 args = parser.parse_args()
-state = load_state(args, "trace_ui", ".agents/skills/ui-evidence/scenario.example.json")
+state = load_state(args, "trace_ui", "tests/ui/fixtures/trace.json")
 orgs = evidence.rpc(
     state["api_url"],
     state["users"]["owner"]["token"],

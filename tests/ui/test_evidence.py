@@ -1,9 +1,8 @@
-import argparse
 import subprocess
 from pathlib import Path
 
+import evidence
 import pytest
-from harness import evidence
 
 
 def test_reap_removed_checkout(tmp_path, monkeypatch):
@@ -80,7 +79,7 @@ def test_postgres_pulled_before_start(tmp_path, monkeypatch):
         lambda container: (_ for _ in ()).throw(RuntimeError("started")),
     )
     with pytest.raises(RuntimeError, match="started"):
-        evidence.cmd_up(argparse.Namespace(name="test", ref="HEAD", scenario=scenario))
+        evidence.start_state(name="test", ref="HEAD", scenario=scenario)
     pull = next(cmd for cmd in commands if "./tools/pullimage" in cmd)
     start = next(cmd for cmd in commands if cmd[:2] == ["docker", "run"])
     assert commands.index(pull) < commands.index(start)
