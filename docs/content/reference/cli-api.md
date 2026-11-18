@@ -64,7 +64,7 @@ Settings update requests use optional fields. Omitted fields and JSON `null` pre
 
 `ClusterAdminService.CreateCluster` and `IssueJoinToken` accept an optional positive `ttl` duration, bounded by `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` (default `168h`). Omission uses `LOCO_CLUSTER_JOIN_TOKEN_TTL` (default `1h`).
 
-`DeploymentService.WatchDeployment` returns the current deployment and activity entries after `after_seq`, in batches of at most 200. `has_more_activity` indicates another batch is ready. Resume with the last entry's `seq` after a disconnect. The stream ends on canceled or superseded deployments; a failed deployment can still recover to running. `GetDeployment` includes the current replicas, `ListDeployments` omits replicas, and `ListDeploymentActivity` pages through the same activity with `after_seq` and `page_size`.
+`DeploymentService.WatchDeployment` returns the current deployment and activity entries after `after_seq`, in batches of at most 200. `has_more_activity` indicates another batch is ready. Resume with the last entry's `seq` after a disconnect. The stream ends on canceled or superseded deployments; a failed deployment can still recover to running. `GetDeployment` includes the current replicas, and `ListDeployments` omits replicas.
 
 ## Operator repository
 

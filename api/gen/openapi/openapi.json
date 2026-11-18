@@ -2009,67 +2009,6 @@
         }
       }
     },
-    "/loco.deployment.v1.DeploymentService/ListDeploymentActivity": {
-      "post": {
-        "tags": [
-          "loco.deployment.v1.DeploymentService"
-        ],
-        "summary": "ListDeploymentActivity",
-        "operationId": "loco.deployment.v1.DeploymentService.ListDeploymentActivity",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.deployment.v1.ListDeploymentActivityRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.deployment.v1.ListDeploymentActivityResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/loco.deployment.v1.DeploymentService/ListDeployments": {
       "post": {
         "tags": [
@@ -2367,7 +2306,7 @@
           "loco.domain.v1.DomainService"
         ],
         "summary": "CheckDomainAvailability",
-        "description": "CheckDomainAvailability checks if a domain is available.",
+        "description": "Queries\n CheckDomainAvailability checks if a domain is available.",
         "operationId": "loco.domain.v1.DomainService.CheckDomainAvailability",
         "parameters": [
           {
@@ -2540,68 +2479,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.domain.v1.DeleteResourceDomainResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/loco.domain.v1.DomainService/ListLocoOwnedDomains": {
-      "post": {
-        "tags": [
-          "loco.domain.v1.DomainService"
-        ],
-        "summary": "ListLocoOwnedDomains",
-        "description": "Queries\n ListLocoOwnedDomains lists all domains owned by Loco with resources.",
-        "operationId": "loco.domain.v1.DomainService.ListLocoOwnedDomains",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.domain.v1.ListLocoOwnedDomainsRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.domain.v1.ListLocoOwnedDomainsResponse"
                 }
               }
             }
@@ -10737,50 +10614,6 @@
         "additionalProperties": false,
         "description": "HealthCheckConfig defines health check parameters."
       },
-      "loco.deployment.v1.ListDeploymentActivityRequest": {
-        "type": "object",
-        "properties": {
-          "deploymentId": {
-            "type": "string",
-            "title": "deployment_id",
-            "format": "uuid"
-          },
-          "afterSeq": {
-            "type": "string",
-            "title": "after_seq",
-            "format": "int64",
-            "description": "int64.gte = 0\n"
-          },
-          "pageSize": {
-            "type": "integer",
-            "title": "page_size",
-            "maximum": 200,
-            "minimum": 0,
-            "format": "int32"
-          }
-        },
-        "title": "ListDeploymentActivityRequest",
-        "additionalProperties": false
-      },
-      "loco.deployment.v1.ListDeploymentActivityResponse": {
-        "type": "object",
-        "properties": {
-          "activity": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.deployment.v1.Activity"
-            },
-            "title": "activity"
-          },
-          "nextSeq": {
-            "type": "string",
-            "title": "next_seq",
-            "format": "int64"
-          }
-        },
-        "title": "ListDeploymentActivityResponse",
-        "additionalProperties": false
-      },
       "loco.deployment.v1.ListDeploymentsRequest": {
         "type": "object",
         "properties": {
@@ -11350,27 +11183,6 @@
         ],
         "description": "DomainType indicates the source of a domain."
       },
-      "loco.domain.v1.ListLocoOwnedDomainsRequest": {
-        "type": "object",
-        "title": "ListLocoOwnedDomainsRequest",
-        "additionalProperties": false,
-        "description": "ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains."
-      },
-      "loco.domain.v1.ListLocoOwnedDomainsResponse": {
-        "type": "object",
-        "properties": {
-          "domains": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/loco.domain.v1.LocoOwnedDomain"
-            },
-            "title": "domains"
-          }
-        },
-        "title": "ListLocoOwnedDomainsResponse",
-        "additionalProperties": false,
-        "description": "ListLocoOwnedDomainsResponse contains the list of Loco-owned domains."
-      },
       "loco.domain.v1.ListPlatformDomainsRequest": {
         "type": "object",
         "properties": {
@@ -11398,34 +11210,6 @@
         "title": "ListPlatformDomainsResponse",
         "additionalProperties": false,
         "description": "ListPlatformDomainsResponse contains the domains the environment's clusters serve."
-      },
-      "loco.domain.v1.LocoOwnedDomain": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "id"
-          },
-          "domain": {
-            "type": "string",
-            "title": "domain"
-          },
-          "resourceName": {
-            "type": "string",
-            "title": "resource_name"
-          },
-          "resourceId": {
-            "type": "string",
-            "title": "resource_id"
-          },
-          "platformDomain": {
-            "type": "string",
-            "title": "platform_domain"
-          }
-        },
-        "title": "LocoOwnedDomain",
-        "additionalProperties": false,
-        "description": "LocoOwnedDomain represents a platform-managed domain paired with a resource deployment."
       },
       "loco.domain.v1.PlatformDomain": {
         "type": "object",

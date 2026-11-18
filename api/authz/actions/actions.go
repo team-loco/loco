@@ -287,11 +287,6 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
-	// ListLocoOwnedDomains requires system:admin.
-	ListLocoOwnedDomains = Action{
-		entityType: db.EntityTypeSystem,
-		scope:      db.ScopeAdmin,
-	}
 
 	// environments
 

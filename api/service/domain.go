@@ -99,36 +99,6 @@ func (s *DomainServer) ListPlatformDomains(
 	return &domainv1.ListPlatformDomainsResponse{PlatformDomains: domains}, nil
 }
 
-// ListLocoOwnedDomains lists all loco-owned (subdomain) domains (admin only)
-func (s *DomainServer) ListLocoOwnedDomains(
-	ctx context.Context,
-	_ *domainv1.ListLocoOwnedDomainsRequest,
-) (*domainv1.ListLocoOwnedDomainsResponse, error) {
-	if err := authorizeSystem(ctx, s.authz, actions.ListLocoOwnedDomains); err != nil {
-		return nil, err
-	}
-
-	results, err := s.queries.ListAllLocoOwnedDomains(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("list loco owned domains: %w", err)
-	}
-
-	domains := make([]*domainv1.LocoOwnedDomain, len(results))
-	for i, result := range results {
-		domains[i] = &domainv1.LocoOwnedDomain{
-			Id:             result.ID.String(),
-			Domain:         result.Domain,
-			ResourceName:   result.ResourceName,
-			ResourceId:     result.ResourceID.String(),
-			PlatformDomain: result.PlatformDomain,
-		}
-	}
-
-	return &domainv1.ListLocoOwnedDomainsResponse{
-		Domains: domains,
-	}, nil
-}
-
 // CreateResourceDomain adds a new domain to a resource
 func (s *DomainServer) CreateResourceDomain(
 	ctx context.Context,

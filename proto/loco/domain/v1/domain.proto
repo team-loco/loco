@@ -74,8 +74,6 @@ service DomainService {
   rpc DeleteResourceDomain(DeleteResourceDomainRequest) returns (DeleteResourceDomainResponse);
 
   // Queries
-  // ListLocoOwnedDomains lists all domains owned by Loco with resources.
-  rpc ListLocoOwnedDomains(ListLocoOwnedDomainsRequest) returns (ListLocoOwnedDomainsResponse);
   // CheckDomainAvailability checks if a domain is available.
   rpc CheckDomainAvailability(CheckDomainAvailabilityRequest) returns (CheckDomainAvailabilityResponse);
 }
@@ -90,25 +88,6 @@ message ListPlatformDomainsRequest {
 // ListPlatformDomainsResponse contains the domains the environment's clusters serve.
 message ListPlatformDomainsResponse {
   repeated PlatformDomain platform_domains = 1;
-}
-
-// --- List Loco Owned Domains ---
-
-// LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
-message LocoOwnedDomain {
-  string id = 1;
-  string domain = 2;
-  string resource_name = 3;
-  string resource_id = 4;
-  string platform_domain = 5;
-}
-
-// ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
-message ListLocoOwnedDomainsRequest {}
-
-// ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
-message ListLocoOwnedDomainsResponse {
-  repeated LocoOwnedDomain domains = 1;
 }
 
 // --- Resource Domain Management ---

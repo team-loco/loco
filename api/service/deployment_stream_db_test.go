@@ -148,30 +148,6 @@ func TestDeploymentStreamHistoryResumeAndNotifications(t *testing.T) {
 	if err != nil || len(event.GetActivity()) != 0 {
 		t.Fatalf("replay duplicates: %v %v", event, err)
 	}
-	page, err := client.ListDeploymentActivity(
-		ctx,
-		&deploymentv1.ListDeploymentActivityRequest{DeploymentId: id.String(), AfterSeq: 400, PageSize: 3},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(page.GetActivity()) != 3 || page.GetNextSeq() != 403 {
-		t.Fatalf("page=%v", page)
-	}
-	page, err = client.ListDeploymentActivity(
-		ctx,
-		&deploymentv1.ListDeploymentActivityRequest{
-			DeploymentId: id.String(),
-			AfterSeq:     page.GetNextSeq(),
-			PageSize:     3,
-		},
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(page.GetActivity()) != 2 || page.GetActivity()[0].GetSeq() != 404 {
-		t.Fatalf("second page=%v", page)
-	}
 }
 
 func TestDeploymentStreamTerminalStatuses(t *testing.T) {

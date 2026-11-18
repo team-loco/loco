@@ -165,7 +165,6 @@ type Querier interface {
 	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
-	ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
 	ListBuildingDeployments(ctx context.Context, buildID string) ([]Deployment, error)

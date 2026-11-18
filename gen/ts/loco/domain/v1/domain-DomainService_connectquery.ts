@@ -42,13 +42,6 @@ export const deleteResourceDomain = DomainService.method.deleteResourceDomain;
 
 /**
  * Queries
- * ListLocoOwnedDomains lists all domains owned by Loco with resources.
- *
- * @generated from rpc loco.domain.v1.DomainService.ListLocoOwnedDomains
- */
-export const listLocoOwnedDomains = DomainService.method.listLocoOwnedDomains;
-
-/**
  * CheckDomainAvailability checks if a domain is available.
  *
  * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability
