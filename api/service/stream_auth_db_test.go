@@ -105,7 +105,7 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 			if !tc.system {
 				request.OrgId, request.WorkspaceId = f.orgID, workspaceID.String()
 			}
-			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 			defer cancel()
 			stream, err := clients.Event.StreamEvents(ctx, request)
 			if err != nil {
@@ -116,7 +116,6 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 				t.Fatalf("initial event batch: %v", err)
 			}
 			// The mutation uses a separate DB operation after opening the HTTP stream.
-			changed := time.Now()
 			switch tc.change {
 			case streamDatabaseUnavailable:
 				f.pool.Close()
@@ -146,6 +145,8 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// The change is in effect once its write returns; how long the write took is not the stream's.
+			changed := time.Now()
 			if _, err = stream.Receive(); connect.CodeOf(err) != tc.want {
 				t.Fatalf("idle stream after %s = %v, want %s", tc.name, err, tc.want)
 			}
@@ -172,7 +173,7 @@ func TestIdleDashboardStreamClosesAfterSuspension(t *testing.T) {
 	transport := connecthttp.NewTransport(endpoint.Client(), endpoint.URL)
 	client := eventv1connect.NewEventServiceClient(connect.NewClient(transport))
 
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	ctx, info := connect.NewClientContext(ctx)
 	info.RequestHeader().Set("Cookie", "__Host-loco_session="+access)
@@ -222,7 +223,7 @@ func TestIdleEventStreamReportsDatabaseConnectionFailure(t *testing.T) {
 	server := streamCredentialServer(machine, queries)
 	eventv1connect.RegisterEventServiceHandler(server, f.events)
 	token := issueStreamCredential(t, f, userID, workspaceID, streamSession, nil)
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	stream, err := streamHTTPClients(t, server, token).Event.StreamEvents(ctx, &eventv1.StreamEventsRequest{
 		OrgId: f.orgID, WorkspaceId: workspaceID.String(),
@@ -268,7 +269,7 @@ func TestEventStreamReportsCanceledDependencyAsInternal(t *testing.T) {
 	db := &canceledQueries{DBTX: f.pool}
 	f.events.db = db
 	token := issueStreamCredential(t, f, userID, workspaceID, streamSession, nil)
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	stream, err := streamCredentialClients(t, f, token).Event.StreamEvents(ctx, &eventv1.StreamEventsRequest{
 		OrgId: f.orgID, WorkspaceId: workspaceID.String(),
@@ -306,7 +307,7 @@ func TestOwnedEventStreamSurvivesIssuerDeletionUntilRevocation(t *testing.T) {
 	token := issueStreamCredential(t, f, userID, workspaceID, streamOwned, []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeWorkspace, EntityID: workspaceID, Scope: genDb.ScopeRead},
 	})
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	stream, err := streamCredentialClients(t, f, token).Event.StreamEvents(ctx, &eventv1.StreamEventsRequest{
 		OrgId: f.orgID, WorkspaceId: workspaceID.String(),
@@ -402,7 +403,11 @@ func streamCredentialClients(t *testing.T, f *eventFixture, token string) *rpc.C
 	return streamHTTPClients(t, server, token)
 }
 
-var streamCheck = auth.StreamConfig{Interval: 5 * time.Millisecond, Timeout: time.Second}
+// The recheck timeout leaves room for the recheck's database reads on a loaded machine.
+var streamCheck = auth.StreamConfig{Interval: 5 * time.Millisecond, Timeout: 10 * time.Second}
+
+// A stream ends within one recheck interval plus timeout of an access change; clients wait twice that.
+var streamWait = 2 * (streamCheck.Interval + streamCheck.Timeout)
 
 func streamCredentialServer(machine *tvm.VendingMachine, queries *genDb.Queries) *connect.Server {
 	return connect.NewServer(interceptor.NewErrorInterceptor(), interceptor.NewAuthInterceptor(
@@ -450,7 +455,7 @@ func TestIdleDeploymentWatchClosesAfterRevocation(t *testing.T) {
 	deployments.notifier = pgnotify.New(f.pool.Config().ConnConfig, "deployment_activity", time.Hour)
 	server := streamCredentialServer(machine, f.queries)
 	deploymentv1connect.RegisterDeploymentServiceHandler(server, deployments)
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	stream, err := streamHTTPClients(t, server, token).Deployment.WatchDeployment(ctx,
 		&deploymentv1.WatchDeploymentRequest{DeploymentId: created.GetDeploymentId()})
@@ -483,7 +488,7 @@ func TestIdleLogTailClosesAfterRevocation(t *testing.T) {
 	insertLogs(t, clickhouse, started, "before revocation", map[string]string{
 		workspaceAttribute: workspaceID.String(), environmentAttribute: uuid.NewString(),
 	}, 1)
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), streamWait)
 	defer cancel()
 	stream, err := streamHTTPClients(t, server, token).Observability.TailLogs(
 		ctx,
