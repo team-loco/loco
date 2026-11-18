@@ -579,6 +579,10 @@ with session(out) as browser:
         plot.bounding_box()["x"] + 140, plot.bounding_box()["y"] + 50, steps=2
     )
     plot.dispatch_event("pointercancel", {"pointerId": 1})
+    # Drag zoom applies on the next frame; read the window once the last move has landed.
+    page.evaluate(
+        "() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+    )
     canceled_window = overview.get_attribute("aria-valuetext")
     page.mouse.move(
         plot.bounding_box()["x"] + 100, plot.bounding_box()["y"] + 50, steps=2
