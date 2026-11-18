@@ -35,7 +35,7 @@ func TestRolloutProblemPriority(t *testing.T) {
 	oom.Status.ContainerStatuses[0].LastTerminationState.Terminated = &corev1.ContainerStateTerminated{
 		Reason: reasonOOMKilled,
 	}
-	got := replicaProblem([]corev1.Pod{crash, *oom}, time.Minute, now)
+	got := replicaProblem([]corev1.Pod{crash, *oom}, now)
 	if got == nil || got.Reason != locov1alpha1.ProblemOutOfMemory {
 		t.Fatalf("problem = %+v", got)
 	}
@@ -204,7 +204,7 @@ func TestReplicaProblemDetail(t *testing.T) {
 		}}}}, "CrashLoopBackOff: back-off retry · 4 restarts"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := replicaProblem([]corev1.Pod{tt.pod}, time.Minute, now)
+			got := replicaProblem([]corev1.Pod{tt.pod}, now)
 			if got == nil || got.Detail != tt.want {
 				t.Fatalf("detail = %+v", got)
 			}

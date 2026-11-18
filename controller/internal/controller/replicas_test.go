@@ -42,25 +42,25 @@ func TestReplicaState(t *testing.T) {
 					{State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: tt.reason}}},
 				}
 			}
-			if got := replicaState(p, nil, time.Minute, now); got.State != tt.want {
+			if got := replicaState(p, nil, now); got.State != tt.want {
 				t.Fatalf("state=%s want %s", got.State, tt.want)
 			}
 		})
 	}
 	p := base.DeepCopy()
 	p.Status.Conditions = p.Status.Conditions[1:]
-	if replicaState(p, nil, time.Minute, now).State != loco.ReplicaScheduling {
+	if replicaState(p, nil, now).State != loco.ReplicaScheduling {
 		t.Fatal("scheduling must precede serving")
 	}
 	p.Status.ContainerStatuses = []corev1.ContainerStatus{
 		{State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff}}},
 	}
-	if replicaState(p, nil, time.Minute, now).State != loco.ReplicaFailing {
+	if replicaState(p, nil, now).State != loco.ReplicaFailing {
 		t.Fatal("failure must precede scheduling")
 	}
 	p = base.DeepCopy()
 	p.Status.Conditions[1].Status = corev1.ConditionUnknown
-	if replicaState(p, nil, time.Minute, now).State != loco.ReplicaUnknown {
+	if replicaState(p, nil, now).State != loco.ReplicaUnknown {
 		t.Fatal("unknown readiness")
 	}
 	for _, tt := range []struct {
@@ -90,7 +90,7 @@ func TestReplicaState(t *testing.T) {
 					},
 				},
 			}
-			got := replicaState(p, nil, time.Minute, now)
+			got := replicaState(p, nil, now)
 			if got.State != tt.want || got.ExitCode == nil || *got.ExitCode != 137 || got.StateDeadline != nil {
 				t.Fatalf("shutdown=%+v", got)
 			}
@@ -118,7 +118,7 @@ func TestReplicaState(t *testing.T) {
 		if drain > 0 {
 			want = now.Add(3 * time.Second)
 		}
-		got := replicaState(p, nil, time.Minute, now)
+		got := replicaState(p, nil, now)
 		if got.State != loco.ReplicaStopping || got.StateDeadline == nil || !got.StateDeadline.Time.Equal(want) {
 			t.Fatalf("stopping=%+v want deadline %s", got, want)
 		}
@@ -165,7 +165,7 @@ func TestReplicaDetailClipping(t *testing.T) {
 			},
 		},
 	}
-	got := replicaState(pod, nil, time.Minute, time.Now())
+	got := replicaState(pod, nil, time.Now())
 	if len(got.Detail) > 512 || !utf8.ValidString(got.Detail) {
 		t.Fatalf("detail has %d bytes or invalid UTF-8", len(got.Detail))
 	}
@@ -204,39 +204,10 @@ func TestReplicaRecoveryStates(t *testing.T) {
 					ContainerStatuses: []corev1.ContainerStatus{tt.status},
 				},
 			}
-			if got := replicaState(pod, nil, time.Minute, now); got.State != tt.want {
+			if got := replicaState(pod, nil, now); got.State != tt.want {
 				t.Fatalf("state=%s want %s", got.State, tt.want)
 			}
 		})
-	}
-}
-
-func TestReplicaConfiguredRecovery(t *testing.T) {
-	now := time.Now()
-	pod := &corev1.Pod{
-		Status: corev1.PodStatus{
-			Conditions: []corev1.PodCondition{
-				{Type: corev1.PodScheduled, Status: corev1.ConditionTrue},
-				{Type: corev1.PodReady, Status: corev1.ConditionTrue},
-			},
-			ContainerStatuses: []corev1.ContainerStatus{
-				{
-					Ready: true,
-					State: corev1.ContainerState{
-						Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(now.Add(-90 * time.Second))},
-					},
-					LastTerminationState: corev1.ContainerState{
-						Terminated: &corev1.ContainerStateTerminated{ExitCode: 1},
-					},
-				},
-			},
-		},
-	}
-	if got := replicaState(pod, nil, 2*time.Minute, now); got.State != loco.ReplicaFailing {
-		t.Fatalf("configured recovery = %+v", got)
-	}
-	if got := replicaState(pod, nil, time.Minute, now); got.State != loco.ReplicaServing {
-		t.Fatalf("recovered = %+v", got)
 	}
 }
 
@@ -261,8 +232,8 @@ func TestShutdownDetailStable(t *testing.T) {
 		},
 	}
 	for _, offset := range []time.Duration{0, 10 * time.Second} {
-		a := replicaState(pod, nil, time.Minute, now.Add(offset))
-		b := replicaState(pod, nil, time.Minute, now.Add(offset+time.Second))
+		a := replicaState(pod, nil, now.Add(offset))
+		b := replicaState(pod, nil, now.Add(offset+time.Second))
 		if a.Detail != b.Detail || !a.StateDeadline.Equal(b.StateDeadline) {
 			t.Fatalf("unstable shutdown: %+v -> %+v", a, b)
 		}
@@ -298,14 +269,14 @@ func TestReplicaPullState(t *testing.T) {
 					{State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: tt.waiting}}},
 				},
 			}}
-			got := replicaState(pod, tt.event, time.Minute, now)
+			got := replicaState(pod, tt.event, now)
 			if got.State != tt.want || got.Detail != tt.detail {
 				t.Fatalf("replica = %+v", got)
 			}
 			if got.State == loco.ReplicaPulling && !got.StateSince.Equal(&at) {
 				t.Fatalf("state since = %v, want %v", got.StateSince, at)
 			}
-			later := replicaState(pod, tt.event, time.Minute, now.Add(time.Second))
+			later := replicaState(pod, tt.event, now.Add(time.Second))
 			if got.Detail != later.Detail {
 				t.Fatalf("detail changed: %q -> %q", got.Detail, later.Detail)
 			}
@@ -327,17 +298,17 @@ func TestReplicaDeploymentIdentityAndReadiness(t *testing.T) {
 		},
 	}
 	now := time.Now()
-	got := replicaState(&pod, nil, time.Minute, now)
+	got := replicaState(&pod, nil, now)
 	if got.DeploymentID != deploymentID || !got.Ready || got.State != loco.ReplicaFailing {
 		t.Fatalf("ready recovering replica = %+v", got)
 	}
 	pod.DeletionTimestamp = new(metav1.NewTime(now))
-	if got := replicaState(&pod, nil, time.Minute, now); got.Ready {
+	if got := replicaState(&pod, nil, now); got.Ready {
 		t.Fatalf("terminating Pod reported ready: %+v", got)
 	}
 	pod.DeletionTimestamp = nil
 	pod.Status.Conditions[0].Status = corev1.ConditionFalse
-	if got := replicaState(&pod, nil, time.Minute, now); got.Ready {
+	if got := replicaState(&pod, nil, now); got.Ready {
 		t.Fatalf("unready Pod reported ready: %+v", got)
 	}
 }

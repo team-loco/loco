@@ -24,7 +24,7 @@ const (
 	kubeletNonNumericUser            = "non-numeric user"
 )
 
-func replicaProblemReason(pod corev1.Pod, recoveryWindow time.Duration, now time.Time) locov1alpha1.ProblemReason {
+func replicaProblemReason(pod corev1.Pod, now time.Time) locov1alpha1.ProblemReason {
 	var best locov1alpha1.ProblemReason
 	found := func(reason locov1alpha1.ProblemReason) {
 		if best == "" || locov1alpha1.ProblemHigherPriority(reason, best) {
@@ -39,7 +39,7 @@ func replicaProblemReason(pod corev1.Pod, recoveryWindow time.Duration, now time
 	}
 	for _, status := range pod.Status.ContainerStatuses {
 		running := status.State.Running
-		recovering := replicaRecoveringAt(pod, status, recoveryWindow, now)
+		recovering := replicaRecoveringAt(pod, status, now)
 		waiting := status.State.Waiting
 		if waiting != nil {
 			if reason := waitingProblemReason(waiting.Reason, waiting.Message); reason != "" {
@@ -86,18 +86,16 @@ func replicaProblemReason(pod corev1.Pod, recoveryWindow time.Duration, now time
 	return best
 }
 
+// A restarted replica counts as recovered once it has stayed ready this long.
+const runtimeRecoveryWindow = time.Minute
+
 // A retry stays unhealthy until it sustains readiness.
-func replicaRecoveringAt(
-	pod corev1.Pod,
-	status corev1.ContainerStatus,
-	recoveryWindow time.Duration,
-	now time.Time,
-) bool {
+func replicaRecoveringAt(pod corev1.Pod, status corev1.ContainerStatus, now time.Time) bool {
 	running := status.State.Running
 	if running == nil {
 		return false
 	}
-	if running.StartedAt.IsZero() || now.Sub(running.StartedAt.Time) < recoveryWindow {
+	if running.StartedAt.IsZero() || now.Sub(running.StartedAt.Time) < runtimeRecoveryWindow {
 		return true
 	}
 	if status.Ready {
