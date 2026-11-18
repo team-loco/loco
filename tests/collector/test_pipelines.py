@@ -320,7 +320,7 @@ def _tenancy_extracts(worker_relays):
 def test_tenancy_comes_from_pod_resource_labels(worker_relays):
     for label, extract in _tenancy_extracts(worker_relays):
         labels = {
-            rule["key"]: rule["tag_name"]
+            rule.get("key"): rule.get("tag_name")
             for rule in extract["labels"]
             if rule["from"] == "pod"
         }
