@@ -30,6 +30,9 @@ const fluxSource = "source"
 const fixtureRepoSource = "loco-fixture-config"
 const platformKustomization = "loco"
 
+// platformWait matches the timeout of the operator repository's loco Kustomization, which waits for every layer.
+const platformWait = "--timeout=30m"
+
 // platformLayers are the bundle's Kustomizations in dependency order.
 var platformLayers = []string{
 	"loco-namespaces", "loco-crds", "loco-infra", "loco-cluster-config", controlPlaneRelease,
@@ -190,7 +193,7 @@ func (f *fixture) publishRepo(
 func reconcilePlatform(ctx context.Context, path string) error {
 	var err error
 	for _, args := range [][]string{{fluxReconcile, fluxSource, fluxOCI, platformSource},
-		{fluxReconcile, fluxKustomization, platformKustomization}} {
+		{fluxReconcile, fluxKustomization, platformKustomization, platformWait}} {
 		if _, err = command(ctx, "", nil, "flux", args...); err != nil {
 			return err
 		}
