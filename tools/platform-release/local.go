@@ -13,6 +13,12 @@ import (
 	"github.com/team-loco/loco/tools/internal/imageinputs"
 )
 
+const (
+	buildOperation = "build"
+	pushOperation  = "push"
+	tagOperation   = "tag"
+)
+
 type imageCacheEntry struct {
 	Fingerprint string `json:"fingerprint"`
 	Repository  string `json:"repository"`
@@ -71,7 +77,7 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 		manifest.Artifacts[artifact.name] = options.address + "/" + names[artifact.name] + "@" + digest
 	}
 	auth := base64.StdEncoding.EncodeToString([]byte(r.username + ":" + r.password))
-	config := encoded(object{"auths": object{r.host: object{fieldAuth: auth}}})
+	config := encoded(object{"auths": object{r.host: object{"auth": auth}}})
 	if checkErr := os.WriteFile(filepath.Join(directory, "config.json"), config, 0o600); checkErr != nil {
 		return manifest, checkErr
 	}
@@ -115,7 +121,7 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 	}
 	digest, err := r.publish(
 		t.ctx,
-		names[fieldPlatform],
+		names[platformName],
 		version,
 		data,
 		object{fieldVersion: version, fieldCoreCommit: commit},
@@ -133,8 +139,8 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 			return manifest, checkErr
 		}
 	}
-	manifest.Bundle = options.address + "/" + names[fieldPlatform] + "@" + digest
-	fmt.Fprintf(os.Stderr, "published %s:%s@%s\n", options.address+"/"+names[fieldPlatform], version, digest)
+	manifest.Bundle = options.address + "/" + names[platformName] + "@" + digest
+	fmt.Fprintf(os.Stderr, "published %s:%s@%s\n", options.address+"/"+names[platformName], version, digest)
 	return manifest, nil
 }
 

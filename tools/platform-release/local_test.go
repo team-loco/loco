@@ -15,14 +15,14 @@ func localFixture(t *testing.T) (*tool, *registryFixture) {
 	t.Helper()
 	tool := testTool(t)
 	fixture := testRegistry(t)
-	fixture.registry.username = pushOperation
+	fixture.registry.username = "publisher"
 	fixture.registry.password = "credential"
 	data := encoded(
 		object{
 			"schemaVersion": 2,
 			"manifests": []object{
-				{fieldPlatform: object{"os": linuxOS, fieldArchitecture: archAMD64}},
-				{fieldPlatform: object{"os": linuxOS, fieldArchitecture: archARM64}},
+				{indexPlatform: object{"os": linuxOS, indexArchitecture: archAMD64}},
+				{indexPlatform: object{"os": linuxOS, indexArchitecture: archARM64}},
 			},
 		},
 	)

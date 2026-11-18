@@ -171,7 +171,7 @@ func TestRegistryAuthentication(t *testing.T) {
 	for _, scheme := range []string{"Basic", fixtureBearer} {
 		t.Run(scheme, func(t *testing.T) {
 			var server *httptest.Server
-			basic := "Basic " + base64.StdEncoding.EncodeToString([]byte("push:credential"))
+			basic := "Basic " + base64.StdEncoding.EncodeToString([]byte("publisher:credential"))
 			server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/token" {
 					assert.Equal(t, basic, r.Header.Get("Authorization"))
@@ -202,7 +202,7 @@ func TestRegistryAuthentication(t *testing.T) {
 			r := &registry{
 				base:     server.URL,
 				host:     strings.TrimPrefix(server.URL, "http://"),
-				username: pushOperation,
+				username: "publisher",
 				password: "credential",
 				client:   server.Client(),
 				tokens:   map[string]string{},
@@ -216,10 +216,11 @@ func TestRegistryAuthentication(t *testing.T) {
 
 func TestRegistryRejectsUnexpectedAuthenticationAndUploadLocations(t *testing.T) {
 	t.Parallel()
-	for _, operation := range []string{fieldAuth, "upload"} {
+	const authentication = "authentication"
+	for _, operation := range []string{authentication, "upload"} {
 		t.Run(operation, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				if operation == fieldAuth {
+				if operation == authentication {
 					w.Header().
 						Set("WWW-Authenticate", `Bearer realm="https://unexpected.invalid/token",service="wrong"`)
 					w.WriteHeader(http.StatusUnauthorized)
@@ -231,7 +232,7 @@ func TestRegistryRejectsUnexpectedAuthenticationAndUploadLocations(t *testing.T)
 			defer server.Close()
 			r := &registry{base: server.URL, host: "registry", client: server.Client(), tokens: map[string]string{}}
 			var err error
-			if operation == fieldAuth {
+			if operation == authentication {
 				_, err = r.manifest(context.Background(), "example/chart", fixtureVersion, false)
 			} else {
 				_, err = r.blob(context.Background(), "example/chart", []byte("layer"))
@@ -240,6 +241,11 @@ func TestRegistryRejectsUnexpectedAuthenticationAndUploadLocations(t *testing.T)
 		})
 	}
 }
+
+const (
+	indexPlatform     = "platform"
+	indexArchitecture = "architecture"
+)
 
 func TestRegistryImagePlatforms(t *testing.T) {
 	t.Parallel()
@@ -250,7 +256,7 @@ func TestRegistryImagePlatforms(t *testing.T) {
 			for _, architecture := range architectures {
 				manifests = append(
 					manifests,
-					object{fieldPlatform: object{"os": linuxOS, fieldArchitecture: architecture}},
+					object{indexPlatform: object{"os": linuxOS, indexArchitecture: architecture}},
 				)
 			}
 			data := encoded(object{"manifests": manifests})
@@ -274,7 +280,7 @@ func TestRegistryRejectsIncorrectManifestDigest(t *testing.T) {
 	}))
 	defer server.Close()
 	r := &registry{base: server.URL, client: server.Client(), tokens: map[string]string{}}
-	_, err := r.manifest(context.Background(), "example/chart", fieldVersion, false)
+	_, err := r.manifest(context.Background(), "example/chart", fixtureVersion, false)
 	require.ErrorContains(t, err, "digest mismatch")
 }
 

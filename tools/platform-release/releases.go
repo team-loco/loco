@@ -117,7 +117,7 @@ func (t *tool) publishBundle(version, commit string, r *registry) (releaseManife
 	if checkErr := t.validateCommit(commit); checkErr != nil {
 		return releaseManifest{}, checkErr
 	}
-	repository := repositories(r.repository)[fieldPlatform]
+	repository := repositories(r.repository)[platformName]
 	if checkErr := r.assertAbsent(t.ctx, repository, version); checkErr != nil {
 		return releaseManifest{}, checkErr
 	}
