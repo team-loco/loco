@@ -56,7 +56,27 @@ if "replicas" not in state:
             }
         ],
     )["acme/shared/replicas-ui"]
+    rollout = str(uuid.uuid4())
+    sql(
+        state,
+        f"UPDATE deployments SET rollout_id='{rollout}' WHERE resource_id='{resource}';",
+    )
+    state["replicas"] = {
+        "org": state["orgs"]["acme"]["id"],
+        "resource": resource,
+        "clusters": clusters,
+        "deployments": deployments,
+    }
+    evidence.write_json(Path(args.state), state)
+
+r = state["replicas"]
+path = f"/org/{r['org']}/wks/{workspace}/resource/{r['resource']}?env=production"
+
+
+def report_replicas():
+    """Writes each region's rollout report with times relative to now."""
     now = int(time.time())
+    deployments = r["deployments"]
 
     def replica(name, deployment, *, ready=True, **fields):
         return {
@@ -92,10 +112,7 @@ if "replicas" not in state:
             replica("replicas-ui-west-d4", deployments[WEST]),
         ],
     }
-    rollout = str(uuid.uuid4())
-    statements = [
-        f"UPDATE deployments SET rollout_id='{rollout}' WHERE resource_id='{resource}';"
-    ]
+    statements = []
     for region in (EAST, WEST):
         placement = sql(
             state,
@@ -104,18 +121,12 @@ if "replicas" not in state:
         snapshot = {"placementId": placement, "replicas": snapshots[region]}
         statements.append(
             "INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) "
-            f"VALUES('{deployments[region]}',1,{evidence.sql_literal(json.dumps(snapshot))});"
+            f"VALUES('{deployments[region]}',1,{evidence.sql_literal(json.dumps(snapshot))}) "
+            "ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;"
         )
     sql(state, "BEGIN;\n" + "\n".join(statements) + "\nCOMMIT;")
-    state["replicas"] = {
-        "org": state["orgs"]["acme"]["id"],
-        "resource": resource,
-        "clusters": clusters,
-    }
-    evidence.write_json(Path(args.state), state)
 
-r = state["replicas"]
-path = f"/org/{r['org']}/wks/{workspace}/resource/{r['resource']}?env=production"
+
 usage = {
     "k8s.pod.cpu_limit_utilization": {
         "replicas-ui-east-a1": 0.45,
@@ -160,12 +171,13 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
                     }
                     for pod, value in usage[body["metricName"]].items()
                     if pod.split("-")[2]
-                    == ("east" if body["region"] == EAST else "west")
+                    == ("east" if body.get("region") == EAST else "west")
                 ]
             }
         )
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+    report_replicas()
     page.goto(state["ui_url"] + path)
 
     panel = page.get_by_role("region", name="Replicas", exact=True)
@@ -192,9 +204,10 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     unmeasured = west.get_by_role("listitem").filter(has_text="replicas-ui-west-d4")
     expect(unmeasured).to_contain_text("CPU —")
     expect(unmeasured).to_contain_text("Memory —")
-    assert {(q["region"], q["resourceIds"][0]) for q in pod_requests} >= {
-        (EAST, r["resource"]),
-        (WEST, r["resource"]),
+    assert {
+        (q.get("region"), q["resourceIds"][0], q["metricName"]) for q in pod_requests
+    } >= {
+        (region, r["resource"], metric) for region in (EAST, WEST) for metric in usage
     }, pod_requests
     expect(west).not_to_contain_text("Last reported")
 
@@ -222,6 +235,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     page.keyboard.press("Escape")
 
     heartbeat(WEST, "10 minutes")
+    report_replicas()
     page.reload()
     west = page.get_by_role("region", name=f"Replicas in {WEST}", exact=True)
     expect(west.get_by_role("listitem")).to_have_count(2)
@@ -229,6 +243,7 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     narrow, narrow_page, narrow_errors = open_page(browser, state=state, narrow=True)
     narrow.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+    report_replicas()
     narrow_page.goto(state["ui_url"] + path)
     narrow_east = narrow_page.get_by_role(
         "region", name=f"Replicas in {EAST}", exact=True

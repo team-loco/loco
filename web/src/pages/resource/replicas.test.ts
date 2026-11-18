@@ -103,8 +103,8 @@ describe("podUsage", () => {
 		const usage = podUsage(
 			[
 				series("web-a", [
-					[5 * MINUTE_MS, 0.9],
 					[30_000, 0.4],
+					[5 * MINUTE_MS, 0.9],
 				]),
 				series("web-b", [[3 * MINUTE_MS, 0.7]]),
 				series(undefined, [[10_000, 0.5]]),

@@ -1171,7 +1171,7 @@ with session(out) as browser:
                     for pod, scale in (
                         ("other-pod-999", 0.1),
                         ("checkout-abc-123", 1),
-                        ("catalog-def-456", 1),
+                        ("catalog-def-456", 0.5),
                     )
                 ]
             }
@@ -1369,6 +1369,11 @@ with session(out) as browser:
     ).to_be_visible()
     assert len(metric_requests) == 12, metric_requests
     assert all(request["byPod"] for request in metric_requests[8:])
+    catalog_cpu = infrastructure.get_by_role(
+        "region", name="CPU for catalog-def-456", exact=True
+    )
+    expect(catalog_cpu.get_by_label("CPU at trace start")).to_have_text("15%")
+    expect(catalog_cpu.get_by_text("Peak 46%", exact=True)).to_be_visible()
     page.set_viewport_size({"width": 390, "height": 844})
     infrastructure.get_by_role(
         "region", name="Network for catalog-def-456", exact=True

@@ -155,6 +155,12 @@ describe("rolloutGroups", () => {
 		const second = deployment("second", DeploymentStatus.DEPLOYING, 1, { resourceId: "r", rolloutId: "b" });
 		expect(rolloutGroups([second, first]).map((group) => group.map((d) => d.id))).toEqual([["second"], ["first"]]);
 	});
+
+	test("keeps resources apart even when their rollout IDs match", () => {
+		const web = deployment("web", DeploymentStatus.DEPLOYING, 1, { resourceId: "web", rolloutId: "a" });
+		const api = deployment("api", DeploymentStatus.DEPLOYING, 1, { resourceId: "api", rolloutId: "a" });
+		expect(rolloutGroups([web, api]).map((group) => group.map((d) => d.id))).toEqual([["web"], ["api"]]);
+	});
 });
 
 describe("rolloutReadyLabel", () => {
