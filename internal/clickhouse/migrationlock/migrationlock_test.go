@@ -113,8 +113,7 @@ func (h *harness) table() string {
 
 func (h *harness) exec(t *testing.T, query string, args ...any) {
 	t.Helper()
-	ctx := clickhouse.Context(t.Context(), clickhouse.WithSettings(clickhouse.Settings{"keeper_map_strict_mode": 1}))
-	if err := h.admin.Exec(ctx, query, args...); err != nil {
+	if err := h.admin.Exec(t.Context(), query, args...); err != nil {
 		t.Fatalf("%s: %v", query, err)
 	}
 }
