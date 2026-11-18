@@ -115,14 +115,6 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		void navigate(to);
 	};
 	const items: PaletteItem[] = [];
-	const newToken: PaletteItem = {
-		id: "action-new-token",
-		group: "Actions",
-		label: "New token",
-		keywords: "create api ci key",
-		icon: <KeyRoundIcon />,
-		run: go("/tokens?new=1"),
-	};
 
 	if (activeOrgId !== null && activeWorkspaceId !== null) {
 		const orgId = activeOrgId;
@@ -151,26 +143,14 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				},
 			);
 		}
-		items.push(
-			{
-				id: "action-new-resource",
-				group: "Actions",
-				label: "New resource",
-				keywords: "create deploy service",
-				icon: <PlusIcon />,
-				run: go(newResourcePath(orgId, workspaceId, envParams)),
-			},
-			newToken,
-		);
-		if (scopes.workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.ADMIN))
-			items.push({
-				id: "action-new-webhook",
-				group: "Actions",
-				label: "New webhook",
-				keywords: "create endpoint subscription",
-				icon: <WebhookIcon />,
-				run: go(webhooksPath(orgId, workspaceId, "")),
-			});
+		items.push({
+			id: "action-new-resource",
+			group: "Actions",
+			label: "New resource",
+			keywords: "create deploy service",
+			icon: <PlusIcon />,
+			run: go(newResourcePath(orgId, workspaceId, envParams)),
+		});
 		for (const r of resources.data?.resources ?? []) {
 			items.push({
 				id: `resource-${r.id}`,
@@ -193,9 +173,28 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				});
 			}
 		}
-	} else {
-		items.push(newToken);
 	}
+	items.push({
+		id: "action-new-token",
+		group: "Actions",
+		label: "New token",
+		keywords: "create api ci key",
+		icon: <KeyRoundIcon />,
+		run: go("/tokens?new=1"),
+	});
+	if (
+		activeOrgId !== null &&
+		activeWorkspaceId !== null &&
+		scopes.workspaceLevel(activeOrgId, activeWorkspaceId) >= scopeLevel(Scope.ADMIN)
+	)
+		items.push({
+			id: "action-new-webhook",
+			group: "Actions",
+			label: "New webhook",
+			keywords: "create endpoint subscription",
+			icon: <WebhookIcon />,
+			run: go(webhooksPath(activeOrgId, activeWorkspaceId, "")),
+		});
 	if (activeOrgId !== null && scopes.holds(activeOrgId, "", Scope.ADMIN)) {
 		items.push({
 			id: "action-invite",
