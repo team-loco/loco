@@ -101,7 +101,7 @@
 	.act-btn[aria-expanded="true"] .act-ico::after {
 		animation: none;
 	}
-	.act-btn .act-base {
+	.act-btn:is(:hover, [aria-expanded="true"]) .act-base {
 		opacity: 1;
 	}
 }
