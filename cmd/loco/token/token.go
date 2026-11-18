@@ -45,7 +45,6 @@ Tokens can be scoped to different entity types:
 
 	cmd.AddCommand(
 		buildShowCmd(),
-		buildRevokeCmd(),
 		buildCreateCmd(),
 		buildListCmd(),
 		buildDeleteCmd(),
