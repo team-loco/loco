@@ -247,6 +247,8 @@ export function DataTablePager<T extends RowData>({
 	return (
 		<Pager
 			label={total > 0 ? pageRangeLabel(pageIndex, pageSize, total) : empty}
+			page={pageIndex}
+			pages={Math.max(1, table.getPageCount())}
 			total={total}
 			pageSizes={pageSizes}
 			pageSize={pageSize}

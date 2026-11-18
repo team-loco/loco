@@ -69,7 +69,7 @@ function ToggleGroupItem({
 			)}
 			{children}
 			{count !== undefined && (
-				<span data-slot="segmented-count" className="text-[11px] text-fg3">
+				<span data-slot="segmented-count" className="font-mono text-[11px] text-fg3">
 					{count}
 				</span>
 			)}

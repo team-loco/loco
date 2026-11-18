@@ -5,7 +5,7 @@ import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { HOUR_MS } from "@/lib/obs-time";
 import { TRAFFIC_METRICS, latestTraffic, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
 import { functionalUpdate, useTable } from "@tanstack/react-table";
-import { ArrowRightIcon, SearchXIcon, XIcon } from "lucide-react";
+import { ArrowRightIcon, GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { createContext, use } from "react";
 import { parseAsString, useQueryState, useQueryStates } from "nuqs";
 import { Link, useLocation } from "react-router";
@@ -406,11 +406,11 @@ export function ResourcesTable({
 		}
 	}
 	const typeOptions = [
-		{ value: ALL, label: "All", count: items.length },
+		{ value: ALL, label: "All types", count: items.length },
 		...TYPE_FILTERS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
 	];
 	const regionOptions = [
-		{ value: ALL, label: "All", count: items.length },
+		{ value: ALL, label: "All regions", count: items.length },
 		...[...regionNames].map((name) => ({ value: name, label: name, count: regionCounts.get(name) ?? 0 })),
 	];
 
@@ -479,6 +479,8 @@ export function ResourcesTable({
 			/>
 			<FilterMenu
 				label="Region"
+				icon={<GlobeIcon />}
+				mono
 				value={filter.region}
 				options={regionOptions}
 				onChange={(region) => {

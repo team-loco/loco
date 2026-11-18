@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { nextPage, pagedRows, pagerVisible, type Paging } from "./paging";
+import { nextPage, pagedRows, type Paging } from "./paging";
 
 const ROWS = Array.from({ length: 7 }, (_, i) => i);
 const SIZES = [3, 6];
@@ -24,6 +24,7 @@ describe("pagedRows", () => {
 		const { result } = paged({ page: 1, size: 3 });
 		expect(result.rows).toEqual([3, 4, 5]);
 		expect(result.pager.label).toBe("4–6 of 7");
+		expect([result.pager.page, result.pager.pages]).toEqual([1, 3]);
 	});
 
 	test("clamps a page past the end to the last page", () => {
@@ -45,20 +46,6 @@ describe("pagedRows", () => {
 		const middle = paged({ page: 1, size: 3 });
 		middle.result.pager.onPageSize(6);
 		expect(middle.moves).toEqual([{ page: 0, size: 6 }]);
-	});
-});
-
-describe("pagerVisible", () => {
-	const sizes = [25, 50, 100];
-
-	test.each([
-		["one row", 1, false, false],
-		["exactly the smallest page size", 25, false, false],
-		["one row over the smallest page size", 26, false, true],
-		["rows within a larger chosen size", 30, false, true],
-		["more server pages", 1, true, true],
-	])("%s", (_, total, hasMore, visible) => {
-		expect(pagerVisible({ total, pageSizes: sizes, hasMore })).toBe(visible);
 	});
 });
 

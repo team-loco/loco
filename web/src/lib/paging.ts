@@ -26,20 +26,6 @@ export function pageRangeLabel(page: number, size: number, total: number): strin
 	return `${first.toString()}–${last.toString()} of ${total.toString()}`;
 }
 
-// Compares against the smallest size, not the chosen one, so a short list shown at a larger
-// size keeps the control to switch back.
-export function pagerVisible({
-	total,
-	pageSizes,
-	hasMore,
-}: {
-	total: number;
-	pageSizes: readonly number[];
-	hasMore: boolean;
-}): boolean {
-	return hasMore || total > Math.min(...pageSizes);
-}
-
 export interface Paging {
 	page: number;
 	size: number;
@@ -49,6 +35,8 @@ export interface PagedRows<T> {
 	rows: T[];
 	pager: {
 		label: string;
+		page: number;
+		pages: number;
 		total: number;
 		pageSizes: readonly number[];
 		pageSize: number;
@@ -75,6 +63,8 @@ export function pagedRows<T>(
 		rows,
 		pager: {
 			label: all.length > 0 ? pageRangeLabel(page, size, all.length) : empty,
+			page,
+			pages,
 			total: all.length,
 			pageSizes: sizes,
 			pageSize: size,

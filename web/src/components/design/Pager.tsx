@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 
 import { Button } from "@/components/design/Button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { pagerVisible } from "@/lib/paging";
 import { cn } from "@/lib/utils";
 
 function PagerButton({
@@ -31,6 +30,9 @@ function PagerButton({
 
 function Pager({
 	label,
+	page,
+	pages,
+	more = false,
 	total,
 	pageSizes,
 	pageSize,
@@ -46,6 +48,9 @@ function Pager({
 	className,
 }: {
 	label: ReactNode;
+	page?: number | undefined;
+	pages?: number | undefined;
+	more?: boolean | undefined;
 	total: number;
 	pageSizes: readonly number[];
 	pageSize?: number | undefined;
@@ -60,8 +65,7 @@ function Pager({
 	onLast?: (() => void) | null | undefined;
 	className?: string | undefined;
 }) {
-	// A server list can have newer pages to go back to even when the loaded rows fit one page.
-	if (!pagerVisible({ total, pageSizes, hasMore: onPrev !== null || onNext !== null })) return null;
+	if (total === 0 && onPrev === null && onNext === null) return null;
 	const sizes = pageSizes.length > 1 && pageSize !== undefined && onPageSize !== undefined;
 	return (
 		<div
@@ -90,6 +94,12 @@ function Pager({
 							</ToggleGroupItem>
 						))}
 					</ToggleGroup>
+				</span>
+			)}
+			{page !== undefined && pages !== undefined && (
+				<span className="ml-2 text-fg3">
+					Page {page + 1} of {pages}
+					{more && "+"}
 				</span>
 			)}
 			<span className="flex gap-1">
