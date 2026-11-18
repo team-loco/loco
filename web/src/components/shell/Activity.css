@@ -106,17 +106,16 @@
 	}
 }
 
-.act-card {
-	animation: act-rise 360ms cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--i) * 60ms) both;
+.dwa-active {
+	animation: dwa-blink 1.6s ease-in-out infinite;
 }
-@keyframes act-rise {
-	from {
-		opacity: 0;
-		transform: translateY(8px);
+@keyframes dwa-blink {
+	50% {
+		opacity: 0.45;
 	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.act-card {
+	.dwa-active {
 		animation: none;
 	}
 }

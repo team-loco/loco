@@ -499,14 +499,20 @@
 		color: var(--btn-fg);
 	}
 }
-[data-theme="neobrutal"] .act-card {
-	& [data-slot="button"] {
-		--press: 0px;
-		border-width: 1px;
-		font-weight: 500;
+[data-theme="neobrutal"] .dwa {
+	border: 2px solid var(--ink);
+	border-radius: 6px;
+	background: var(--raise);
+	box-shadow: 3px 3px 0 0 var(--ink);
+	& .dwa-chip {
+		border: 1.5px solid var(--ink);
+		border-radius: 3px;
+		box-shadow: none;
 	}
-	& [data-slot="button"][data-variant="default"] {
-		border: 0;
+	& .dwa-step {
+		height: 6px;
+		border-radius: 0;
+		box-shadow: 0 0 0 1.5px var(--ink);
 	}
 }
 
