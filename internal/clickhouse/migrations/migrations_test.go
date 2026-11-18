@@ -3,15 +3,12 @@ package migrations
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io/fs"
-	"net/http"
-	"net/http/httptest"
-	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 )
 
 const (
@@ -127,21 +124,8 @@ func TestUpWithRetryRejectsInvalidConfigWithoutRetrying(t *testing.T) {
 	}
 }
 
-func rejectingClickHouse(t *testing.T, code int, name string) (string, *atomic.Int32) {
-	t.Helper()
-	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		requests.Add(1)
-		w.Header().Set("X-Clickhouse-Exception-Code", strconv.Itoa(code))
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Code: %d. DB::Exception: rejected. (%s)\n", code, name)
-	}))
-	t.Cleanup(server.Close)
-	return "http://" + strings.TrimPrefix(server.URL, "http://"), &requests
-}
-
 func TestUpWithRetryFailsImmediatelyOnRejectedCredentials(t *testing.T) {
-	dsn, requests := rejectingClickHouse(t, authenticationFailed, "AUTHENTICATION_FAILED")
+	dsn, requests := clickhousetest.Rejecting(t, authenticationFailed, "AUTHENTICATION_FAILED")
 	cfg := validConfig()
 	cfg.DSN = dsn
 	ctx, cancel := context.WithTimeout(t.Context(), rejectedBudget)
@@ -160,7 +144,7 @@ func TestUpWithRetryFailsImmediatelyOnRejectedCredentials(t *testing.T) {
 }
 
 func TestUpWithRetryKeepsRetryingOtherServerErrors(t *testing.T) {
-	dsn, requests := rejectingClickHouse(t, tableAlreadyExists, "TABLE_ALREADY_EXISTS")
+	dsn, requests := clickhousetest.Rejecting(t, tableAlreadyExists, "TABLE_ALREADY_EXISTS")
 	cfg := validConfig()
 	cfg.DSN = dsn
 	ctx, cancel := context.WithTimeout(t.Context(), testRetryBudget)

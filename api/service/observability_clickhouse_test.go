@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -17,6 +16,7 @@ import (
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 )
 
@@ -38,29 +38,18 @@ const (
 
 var errTailTestSend = errors.New("tail receiver disconnected")
 
-// newTestClickHouse migrates a fresh database on LOCO_TEST_CLICKHOUSE_URL and drops it when the
-// test ends.
+// newTestClickHouse migrates a fresh database on the test ClickHouse and drops it when the test ends.
 func newTestClickHouse(t *testing.T) *chClient.Client {
 	t.Helper()
-	dsn := os.Getenv("LOCO_TEST_CLICKHOUSE_URL")
-	if dsn == "" {
-		t.Skip("LOCO_TEST_CLICKHOUSE_URL not set")
-	}
-	database := "service_" + fmt.Sprintf("%x", uuid.New())
-	cfg := migrations.Config{DSN: dsn, Database: database}
-	if err := migrations.Up(t.Context(), cfg); err != nil {
+	db := clickhousetest.New(t, "service_")
+	if err := migrations.Up(t.Context(), migrations.Config{DSN: db.DSN, Database: db.Name}); err != nil {
 		t.Fatal(err)
 	}
-	client, err := chClient.NewClient(dsn, database, observabilityTestConns, observabilityTestTimeout)
+	client, err := chClient.NewClient(db.DSN, db.Name, observabilityTestConns, observabilityTestTimeout)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		if err := client.Conn().Exec(context.Background(), "DROP DATABASE "+database+" SYNC"); err != nil {
-			t.Error(err)
-		}
-		client.Close()
-	})
+	t.Cleanup(client.Close)
 	return client
 }
 

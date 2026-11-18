@@ -2,28 +2,19 @@ package migrationlock_test
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
 )
 
 const (
-	testClickHouseEnv    = "LOCO_TEST_CLICKHOUSE_URL"
-	databaseNameBytes    = 4
 	contenders           = 4
 	holdTime             = 100 * time.Millisecond
 	testTTL              = 2 * time.Second
@@ -76,34 +67,10 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
-	dsn := os.Getenv(testClickHouseEnv)
-	if dsn == "" {
-		t.Skip(testClickHouseEnv + " not set")
-	}
-	opts, err := clickhouse.ParseDSN(dsn)
-	if err != nil {
-		t.Fatalf("parse %s: %v", testClickHouseEnv, err)
-	}
-	admin, err := clickhouse.Open(opts)
-	if err != nil {
-		t.Fatalf("open clickhouse: %v", err)
-	}
-	suffix := make([]byte, databaseNameBytes)
-	if _, err := rand.Read(suffix); err != nil {
-		t.Fatalf("random database name: %v", err)
-	}
-	database := "loco_lock_test_" + hex.EncodeToString(suffix)
-	t.Cleanup(func() {
-		if err := admin.Exec(context.Background(), "DROP DATABASE IF EXISTS "+database+" SYNC"); err != nil {
-			t.Errorf("drop %s: %v", database, err)
-		}
-		if err := admin.Close(); err != nil {
-			t.Errorf("close clickhouse: %v", err)
-		}
-	})
+	db := clickhousetest.New(t, "loco_lock_test_")
 	return &harness{
-		admin: admin,
-		cfg:   migrationlock.Config{DSN: dsn, Database: database, TTL: testTTL, RetryPeriod: testRetryPeriod},
+		admin: db.Admin,
+		cfg:   migrationlock.Config{DSN: db.DSN, Database: db.Name, TTL: testTTL, RetryPeriod: testRetryPeriod},
 	}
 }
 
@@ -290,16 +257,9 @@ func TestHolderThatCannotRenewStopsWithinTheTTL(t *testing.T) {
 }
 
 func TestWithLockFailsImmediatelyOnRejectedCredentials(t *testing.T) {
-	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		requests.Add(1)
-		w.Header().Set("X-Clickhouse-Exception-Code", strconv.Itoa(authenticationFailed))
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Code: %d. DB::Exception: rejected. (AUTHENTICATION_FAILED)\n", authenticationFailed)
-	}))
-	t.Cleanup(server.Close)
+	dsn, requests := clickhousetest.Rejecting(t, authenticationFailed, "AUTHENTICATION_FAILED")
 	lock := migrationlock.New(migrationlock.Config{
-		DSN:         server.URL,
+		DSN:         dsn,
 		Database:    "loco_obs",
 		TTL:         testTTL,
 		RetryPeriod: testRetryPeriod,

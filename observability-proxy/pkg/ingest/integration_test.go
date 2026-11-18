@@ -3,19 +3,15 @@ package ingest
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/plog"
@@ -32,12 +28,11 @@ import (
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 )
 
 const (
-	testClickHouseEnv    = "LOCO_TEST_CLICKHOUSE_URL"
-	databaseNameBytes    = 4
 	testTTL              = 24 * time.Hour
 	testIngestTimeout    = time.Minute // a first insert into new tables under load outlasts the production default
 	testDialTimeout      = 10 * time.Second
@@ -96,52 +91,8 @@ type ingestFixture struct {
 
 func newIngestFixture(t *testing.T) *ingestFixture {
 	t.Helper()
-	dsn := os.Getenv(testClickHouseEnv)
-	if dsn == "" {
-		t.Skip(testClickHouseEnv + " not set")
-	}
-	opts, err := clickhouse.ParseDSN(dsn)
-	if err != nil {
-		t.Fatalf("parse %s: %v", testClickHouseEnv, err)
-	}
-	admin, err := clickhouse.Open(opts)
-	if err != nil {
-		t.Fatalf("open clickhouse: %v", err)
-	}
-	suffix := make([]byte, databaseNameBytes)
-	if _, err = rand.Read(suffix); err != nil {
-		t.Fatalf("random database name: %v", err)
-	}
-	database := "loco_obs_ingest_test_" + hex.EncodeToString(suffix)
-	user := database + "_writer"
-	password := hex.EncodeToString(suffix)
-	statements := []string{
-		"CREATE USER " + user + " IDENTIFIED WITH plaintext_password BY '" + password + "'",
-		"GRANT " + ingestGrants + " ON " + database + ".* TO " + user,
-	}
-	for _, statement := range statements {
-		if execErr := admin.Exec(t.Context(), statement); execErr != nil {
-			t.Fatalf("%s: %v", statement, execErr)
-		}
-	}
-	t.Cleanup(func() {
-		ctx := context.Background()
-		if dropErr := admin.Exec(ctx, "DROP DATABASE IF EXISTS "+database+" SYNC"); dropErr != nil {
-			t.Errorf("drop %s: %v", database, dropErr)
-		}
-		if dropErr := admin.Exec(ctx, "DROP USER IF EXISTS "+user); dropErr != nil {
-			t.Errorf("drop %s: %v", user, dropErr)
-		}
-		if closeErr := admin.Close(); closeErr != nil {
-			t.Errorf("close clickhouse: %v", closeErr)
-		}
-	})
-	ingestURL, err := url.Parse(dsn)
-	if err != nil {
-		t.Fatalf("parse dsn: %v", err)
-	}
-	ingestURL.User = url.UserPassword(user, password)
-	return &ingestFixture{admin: admin, adminDSN: dsn, ingestDSN: ingestURL.String(), database: database}
+	db := clickhousetest.New(t, "loco_obs_ingest_test_")
+	return &ingestFixture{admin: db.Admin, adminDSN: db.DSN, ingestDSN: db.User(t, ingestGrants), database: db.Name}
 }
 
 func (f *ingestFixture) migrate(t *testing.T) {
@@ -572,7 +523,11 @@ func TestCheckSchemaNeedsTheMigratedTables(t *testing.T) {
 
 func TestIngestWorksWhenTheServerLocksLogQueries(t *testing.T) {
 	f := newIngestFixture(t)
-	lock := "ALTER USER " + f.database + "_writer SETTINGS log_queries = 1 READONLY"
+	writerURL, err := url.Parse(f.ingestDSN)
+	if err != nil {
+		t.Fatalf("parse ingest DSN: %v", err)
+	}
+	lock := "ALTER USER " + writerURL.User.Username() + " SETTINGS log_queries = 1 READONLY"
 	if err := f.admin.Exec(t.Context(), lock); err != nil {
 		t.Fatalf("%s: %v", lock, err)
 	}
