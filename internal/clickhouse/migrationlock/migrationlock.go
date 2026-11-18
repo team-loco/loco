@@ -67,6 +67,10 @@ func (l *Lock) WithLock(ctx context.Context, fn func(context.Context) error) err
 		return fmt.Errorf("parse migration lock DSN: %w", err)
 	}
 	opts.Auth.Database = ""
+	// The driver bounds a new connection's dial and handshake by DialTimeout alone, not by the context.
+	if opts.DialTimeout == 0 || opts.DialTimeout > l.cfg.RetryPeriod {
+		opts.DialTimeout = l.cfg.RetryPeriod
+	}
 	conn, err := clickhouse.Open(opts)
 	if err != nil {
 		return fmt.Errorf("open migration lock connection: %w", err)

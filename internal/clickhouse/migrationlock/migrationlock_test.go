@@ -252,30 +252,35 @@ func TestHolderThatCannotRenewStopsWithinTheTTL(t *testing.T) {
 
 func holderStopsWithinTheTTL(t *testing.T, cfg migrationlock.Config, cut func()) {
 	t.Helper()
-	var stoppedAfter time.Duration
+	var cutAt, stoppedAt time.Time
 	err := migrationlock.New(cfg).WithLock(t.Context(), func(ctx context.Context) error {
 		cut()
-		cutAt := time.Now()
+		cutAt = time.Now()
 		select {
 		case <-ctx.Done():
-			stoppedAfter = time.Since(cutAt)
+			stoppedAt = time.Now()
 			return ctx.Err()
 		case <-time.After(settleDeadline):
 			return nil
 		}
 	})
+	returnedAfter := time.Since(stoppedAt)
 	if !errors.Is(err, migrationlock.ErrLockLost) {
 		t.Fatalf("WithLock() without renewals = %v, want %v", err, migrationlock.ErrLockLost)
 	}
-	t.Logf("holder stopped %s after renewals started failing (ttl %s)", stoppedAfter, testTTL)
+	stoppedAfter := stoppedAt.Sub(cutAt)
+	t.Logf("holder stopped %s after renewals started failing and WithLock returned %s later (ttl %s)",
+		stoppedAfter, returnedAfter, testTTL)
 	if stoppedAfter > testTTL+testRetryPeriod {
 		t.Fatalf("holder kept migrating %s after renewals failed, past the %s ttl", stoppedAfter, testTTL)
+	}
+	if returnedAfter > testTTL {
+		t.Fatalf("WithLock returned %s after the holder stopped, past the %s ttl", returnedAfter, testTTL)
 	}
 }
 
 // stallingProxy forwards connections to the server dsn names and returns a dsn that reaches it
 // through the proxy, plus a stall func after which the proxy reads requests and never answers.
-// The dsn bounds each connection attempt by the lock ttl.
 func stallingProxy(t *testing.T, dsn string) (string, func()) {
 	t.Helper()
 	target, err := url.Parse(dsn)
@@ -345,9 +350,6 @@ func stallingProxy(t *testing.T, dsn string) (string, func()) {
 	})
 	proxied := *target
 	proxied.Host = listener.Addr().String()
-	query := proxied.Query()
-	query.Set("dial_timeout", testTTL.String())
-	proxied.RawQuery = query.Encode()
 	return proxied.String(), func() { close(stalled) }
 }
 
