@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -149,25 +148,17 @@ func fromImage(root, dockerfile string) string {
 	return fromImages(filepath.Join(root, dockerfile))[0]
 }
 
-// fromImages reads the images of a Dockerfile's FROM lines, without earlier stages.
+// fromImages reads the images of a Dockerfile's FROM lines.
 func fromImages(dockerfile string) []string {
 	data, err := os.ReadFile(dockerfile)
 	if err != nil {
 		panic(err)
 	}
 	var images []string
-	stages := map[string]bool{}
 	for line := range strings.Lines(string(data)) {
 		fields := strings.Fields(line)
-		if len(fields) < 2 || fields[0] != "FROM" {
-			continue
-		}
-		fields = slices.DeleteFunc(fields[1:], func(field string) bool { return strings.HasPrefix(field, "--") })
-		if !stages[strings.ToLower(fields[0])] {
-			images = append(images, fields[0])
-		}
-		if len(fields) == 3 && strings.EqualFold(fields[1], "AS") {
-			stages[strings.ToLower(fields[2])] = true
+		if len(fields) >= 2 && fields[0] == "FROM" {
+			images = append(images, fields[1])
 		}
 	}
 	if len(images) == 0 {

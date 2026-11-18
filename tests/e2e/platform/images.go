@@ -283,13 +283,6 @@ func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.P
 	if err != nil {
 		return "", fmt.Errorf("mirror %s: %w", source, err)
 	}
-	if !descriptor.MediaType.IsIndex() {
-		image, imageErr := descriptor.Image()
-		if imageErr != nil {
-			return "", imageErr
-		}
-		return dst.Name(), remote.Write(dst, image, remote.WithContext(ctx))
-	}
 	index, err := descriptor.ImageIndex()
 	if err != nil {
 		return "", err
