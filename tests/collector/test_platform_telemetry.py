@@ -2,7 +2,13 @@ import json
 import re
 
 import pytest
-from helpers import chart_values, collector_relays, render_chart
+from helpers import (
+    RELEASE_NAMESPACE,
+    TEST_REGION,
+    chart_values,
+    collector_relays,
+    render_chart,
+)
 
 IDENTITY = {
     "enabled": True,
@@ -74,7 +80,7 @@ def test_platform_identity_is_exported(configured_relays):
                 "loco.installation.id": "test-installation",
                 "k8s.cluster.name": "test-cluster",
                 "deployment.environment.name": "test",
-                "loco.region": "test-region-1",
+                "loco.region": TEST_REGION,
                 "loco.telemetry.scope": "platform",
             }.items()
         )
@@ -134,7 +140,7 @@ def test_platform_allowlist_covers_the_release_and_collector_namespaces(
     for namespace in (
         "kube-system",
         "cert-manager",
-        "platform-test",
+        RELEASE_NAMESPACE,
         "loco-obs",
         "loco-obs-node",
     ):

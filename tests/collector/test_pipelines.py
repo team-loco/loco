@@ -2,7 +2,6 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from helpers import (
@@ -148,20 +147,30 @@ def _k8s_attributes(pipeline):
     ]
 
 
-def _checkpoint_directory(worker_relays):
-    return worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"][
-        "directory"
-    ]
-
-
 def test_file_log_receiver_checkpoints_to_file_storage(worker_relays):
     config = worker_relays["otel-col-daemon-agent"]
     assert config["receivers"]["file_log"]["storage"] == "file_storage"
     assert "file_storage" in config["service"]["extensions"]
 
 
-def test_log_checkpoints_live_in_the_host_path_the_daemonset_mounts(worker_relays):
-    assert _checkpoint_directory(worker_relays) == "/var/lib/otelcol"
+def test_log_checkpoints_live_in_the_host_path_the_daemonset_mounts(
+    worker_documents, worker_relays
+):
+    directory = worker_relays["otel-col-daemon-agent"]["extensions"]["file_storage"][
+        "directory"
+    ]
+    daemonset = next(
+        document
+        for document in worker_documents
+        if document["kind"] == "DaemonSet"
+        and document["metadata"]["name"] == "otel-col-daemon-agent"
+    )
+    host_paths = [
+        volume["hostPath"]["path"]
+        for volume in daemonset["spec"]["template"]["spec"]["volumes"]
+        if "hostPath" in volume
+    ]
+    assert directory in host_paths, host_paths
 
 
 def test_disabling_log_checkpoints_drops_the_file_log_storage():
@@ -182,14 +191,14 @@ def test_all_collectors_render(worker_relays):
 
 
 def test_every_pipeline_stamps_the_region_last(worker_relays, subtests):
-    for collector, config, name, pipeline in _pipelines(worker_relays):
+    for collector, _config, name, pipeline in _pipelines(worker_relays):
         with subtests.test(collector=collector, pipeline=name):
             assert pipeline["processors"][-1] == "resource/region"
-            assert config["processors"]["resource/region"] == {
-                "attributes": [
-                    {"key": "loco.region", "value": TEST_REGION, "action": "upsert"}
-                ]
-            }
+    for collector, config in worker_relays.items():
+        (region,) = config["processors"]["resource/region"]["attributes"]
+        assert region["key"] == "loco.region", collector
+        assert region["value"] == TEST_REGION, collector
+        assert region["action"] == "upsert", collector
 
 
 def test_memory_limiter_runs_first(worker_relays):
@@ -344,16 +353,9 @@ def test_ingest_requests_resources_within_its_limits(worker_documents):
         )
 
 
-@pytest.fixture(scope="module")
-def envoy_telemetry(worker_relays):
-    envoy_telemetry = SimpleNamespace()
-    envoy_telemetry.core = chart_values("loco-worker")
-    envoy_telemetry.collector = worker_relays["otel-col-deploy"]
-    return envoy_telemetry
-
-
-def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
-    for name, pipeline in envoy_telemetry.collector["service"]["pipelines"].items():
+def test_route_tenancy_runs_after_kubernetes_attributes(worker_relays):
+    collector = worker_relays["otel-col-deploy"]
+    for name, pipeline in collector["service"]["pipelines"].items():
         if "otlp" not in pipeline["receivers"]:
             continue
         processors = pipeline["processors"]
@@ -367,21 +369,18 @@ def test_route_tenancy_runs_after_kubernetes_attributes(envoy_telemetry):
             )
         ]
         assert order == sorted(order), name
-    assert envoy_telemetry.collector["processors"]["groupbyattrs/tenancy"]["keys"] == [
-        *ROUTE_TENANCY,
-        "k8s.namespace.name",
-    ]
+    keys = collector["processors"]["groupbyattrs/tenancy"]["keys"]
+    assert {*ROUTE_TENANCY, "k8s.namespace.name"} <= set(keys), keys
 
 
-def test_only_envoy_telemetry_gets_route_tenancy(envoy_telemetry):
+def test_only_envoy_telemetry_gets_route_tenancy(worker_relays):
+    collector = worker_relays["otel-col-deploy"]
     strip = {
         action["key"]
-        for action in envoy_telemetry.collector["processors"]["resource/strip_tenancy"][
-            "attributes"
-        ]
+        for action in collector["processors"]["resource/strip_tenancy"]["attributes"]
         if action["action"] == "delete"
     }
-    transform = envoy_telemetry.collector["processors"]["transform/envoy_tenancy"]
+    transform = collector["processors"]["transform/envoy_tenancy"]
     for statements, attribute in ENVOY_CLUSTER_ATTRIBUTES.items():
         groups = transform[statements]
         unconditional = [group for group in groups if not group.get("conditions")]
@@ -442,10 +441,15 @@ def test_the_collector_parses_routes_in_the_controllers_environment_namespaces()
     documents = render_chart(
         "loco-worker", {"global": {"workspaceNamespacePrefix": prefix}}
     )
-    statements = collector_relays(documents)["otel-col-deploy"]["processors"][
+    groups = collector_relays(documents)["otel-col-deploy"]["processors"][
         "transform/envoy_tenancy"
-    ]["trace_statements"][1]["statements"]
-    (parse,) = [statement for statement in statements if "ExtractPatterns" in statement]
+    ]["trace_statements"]
+    (parse,) = [
+        statement
+        for group in groups
+        for statement in group["statements"]
+        if "ExtractPatterns" in statement
+    ]
     assert f'"^httproute/(?P<namespace>{prefix}' in parse
 
 

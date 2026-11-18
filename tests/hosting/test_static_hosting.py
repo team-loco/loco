@@ -4,6 +4,7 @@ import subprocess
 import time
 from html import unescape
 from pathlib import Path
+from unittest.mock import Mock
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -154,7 +155,7 @@ def check_path_opens_ui(page, path):
 
 def check_unknown_path_opens_ui(address, paths):
     # Without a session the UI sends every protected path, including an unknown
-    # one, to sign-in. Its NotFound page needs a session, so tests/ui covers it.
+    # one, to sign-in.
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             args=[f"--host-resolver-rules=MAP {UI_HOST} {address}"]
@@ -448,7 +449,6 @@ def test_image_serves_the_ui_and_docs(tmp_path):
 
 @pytest.mark.parametrize("failures", [1, NAVIGATION_ATTEMPTS])
 def test_navigation_retries_network_changes(failures, monkeypatch):
-    from unittest.mock import Mock
 
     failure = Error("Page.goto: net::ERR_NETWORK_CHANGED")
     page = Mock()
@@ -464,7 +464,6 @@ def test_navigation_retries_network_changes(failures, monkeypatch):
 
 
 def test_navigation_preserves_other_errors():
-    from unittest.mock import Mock
 
     failure = Error("Page.goto: net::ERR_CONNECTION_REFUSED")
     page = Mock()
