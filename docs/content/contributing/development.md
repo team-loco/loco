@@ -54,10 +54,10 @@ Use the repository's tasks for builds, tests, code generation, and linting so lo
 
 ## Tests under load
 
-Some races only show when the machine is busy. `test:stress` runs Go test packages with the race detector, one test process per CPU beside two CPU burners per CPU, each process running every test `--count` times on one CPU. Without packages it runs the ones whose Go files differ from `--base` (default `origin/main`). It prints the output of every failing process and how often each test failed.
+Some races only show when the machine is busy. `test:stress` runs Go test packages with the race detector, one test process per CPU beside two CPU burners per CPU, each process running every test `--count` times on one CPU. Without packages it runs the ones whose Go files differ from `--base` (default `origin/main`). It prints the output of every failing process and how often each test failed. ClickHouse-backed packages and tests are not stress-tested: it skips the packages under `internal/clickhouse` and starts no ClickHouse, so tests that need one skip.
 
 ```sh
-LOCO_TEST_DATABASE_URL=postgres://... mise run test:stress api/service internal/clickhouse/migrationlock
+LOCO_TEST_DATABASE_URL=postgres://... mise run test:stress api/service cmd/loco
 mise run test:stress --count 20 internal/...
 ```
 
