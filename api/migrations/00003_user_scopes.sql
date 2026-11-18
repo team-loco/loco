@@ -67,7 +67,7 @@ CREATE UNLOGGED TABLE session_tokens (
 CREATE INDEX session_tokens_user_idx ON session_tokens (user_id);
 CREATE INDEX session_tokens_identity_idx ON session_tokens (identity_id);
 CREATE INDEX session_tokens_access_expires_idx ON session_tokens (access_expires_at);
--- cleanup cron uses refresh expiry to determine if a session is fully dead
+-- VendingMachine.RunCleanup uses refresh expiry to determine if a session is fully dead
 CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expires_at);
 
 -- Retain consumed refresh hashes until their original expiry to detect reuse.
@@ -80,7 +80,8 @@ CREATE UNLOGGED TABLE used_session_refresh_tokens (
 CREATE INDEX used_session_refresh_tokens_session_idx ON used_session_refresh_tokens (session_id);
 CREATE INDEX used_session_refresh_tokens_expiry_idx ON used_session_refresh_tokens (expires_at);
 
--- api tokens: logged, durable, scopes baked in at creation and never change
+-- api tokens: logged, durable, scopes stored at creation
+-- personal tokens are bounded by the user's live user_scopes; owned tokens keep their stored scopes
 -- token format: loco_k_<base64url(32 random bytes)>
 -- stored as sha256(full_token_string), never the raw token
 CREATE TABLE api_tokens (
