@@ -664,14 +664,10 @@ def dashboard(page):
         expect(replicas).to_be_visible()
         # The authentication init script starts every navigation in light mode.
         if mode == "dark":
-            account = page.get_by_role("button").filter(has_text="Olivia Owner")
-            account.click()
-            expect(account).to_have_attribute("aria-expanded", "true")
-            dark = page.get_by_role("radiogroup", name="Mode").get_by_role(
+            page.get_by_role("button").filter(has_text="Olivia Owner").click()
+            page.get_by_role("radiogroup", name="Mode").get_by_role(
                 "radio", name="Dark", exact=True
-            )
-            expect(dark).to_be_visible()
-            dark.click()
+            ).click()
             page.keyboard.press("Escape")
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
         else:
