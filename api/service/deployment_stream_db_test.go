@@ -258,7 +258,7 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 				State:             "Stopping",
 				StateSince:        since,
 				StateDeadline:     deadline,
-				LastExit:          &deploymentv1.ReplicaExit{Reason: "Completed", At: deadline},
+				LastExit:          &deploymentv1.ReplicaExit{Reason: "Completed", FinishedAt: deadline},
 				Detail:            "draining",
 			},
 		},

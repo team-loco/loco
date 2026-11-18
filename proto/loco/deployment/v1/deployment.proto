@@ -267,7 +267,6 @@ message Replica {
   google.protobuf.Timestamp state_since = 6;
   google.protobuf.Timestamp state_deadline = 7;
   int32 restarts = 8;
-  reserved 9;
   string detail = 10;
   // The deployment that created this Pod.
   string deployment_id = 11;
@@ -284,7 +283,7 @@ message ReplicaExit {
   // The kubelet's termination reason, such as OOMKilled, Error or Completed.
   string reason = 1;
   int32 exit_code = 2;
-  google.protobuf.Timestamp at = 3;
+  google.protobuf.Timestamp finished_at = 3;
 }
 
 message Problem {

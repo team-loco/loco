@@ -1510,7 +1510,7 @@ type ReplicaExit struct {
 	// The kubelet's termination reason, such as OOMKilled, Error or Completed.
 	Reason        string                 `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
 	ExitCode      int32                  `protobuf:"varint,2,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	At            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=at,proto3" json:"at,omitempty"`
+	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1559,9 +1559,9 @@ func (x *ReplicaExit) GetExitCode() int32 {
 	return 0
 }
 
-func (x *ReplicaExit) GetAt() *timestamppb.Timestamp {
+func (x *ReplicaExit) GetFinishedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.At
+		return x.FinishedAt
 	}
 	return nil
 }
@@ -2213,7 +2213,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xf6\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xf0\x03\n" +
 	"\aReplica\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2230,12 +2230,12 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x05ready\x18\f \x01(\bR\x05ready\x129\n" +
 	"\n" +
 	"started_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12<\n" +
-	"\tlast_exit\x18\x0e \x01(\v2\x1f.loco.deployment.v1.ReplicaExitR\blastExitJ\x04\b\t\x10\n" +
-	"\"n\n" +
+	"\tlast_exit\x18\x0e \x01(\v2\x1f.loco.deployment.v1.ReplicaExitR\blastExit\"\x7f\n" +
 	"\vReplicaExit\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x1b\n" +
-	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12*\n" +
-	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\xa8\x01\n" +
+	"\texit_code\x18\x02 \x01(\x05R\bexitCode\x12;\n" +
+	"\vfinished_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"finishedAt\"\xa8\x01\n" +
 	"\aProblem\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x16\n" +
@@ -2372,7 +2372,7 @@ var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
 	30, // 27: loco.deployment.v1.Replica.state_deadline:type_name -> google.protobuf.Timestamp
 	30, // 28: loco.deployment.v1.Replica.started_at:type_name -> google.protobuf.Timestamp
 	19, // 29: loco.deployment.v1.Replica.last_exit:type_name -> loco.deployment.v1.ReplicaExit
-	30, // 30: loco.deployment.v1.ReplicaExit.at:type_name -> google.protobuf.Timestamp
+	30, // 30: loco.deployment.v1.ReplicaExit.finished_at:type_name -> google.protobuf.Timestamp
 	30, // 31: loco.deployment.v1.Problem.since:type_name -> google.protobuf.Timestamp
 	30, // 32: loco.deployment.v1.Activity.at:type_name -> google.protobuf.Timestamp
 	10, // 33: loco.deployment.v1.WatchDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment

@@ -202,22 +202,21 @@ func TestPodGroupingNeedsExactlyOneResource(t *testing.T) {
 	other := "01a11886-e710-7fc9-a6e9-5e0c367f2cd2"
 	for name, tc := range map[string]struct {
 		resources []string
-		valid     bool
+		want      error
 	}{
-		"one resource":  {[]string{resource}, true},
-		"no resource":   {nil, false},
-		"two resources": {[]string{resource, other}, false},
+		"one resource":  {resources: []string{resource}},
+		"no resource":   {want: errProtoRule},
+		"two resources": {resources: []string{resource, other}, want: errProtoRule},
 	} {
 		t.Run(name, func(t *testing.T) {
 			req := &observabilityv1.QueryMetricsRequest{
 				WorkspaceId: testWorkspaceID, ResourceIds: tc.resources,
 				StartTime: timestamppb.New(now.Add(-time.Minute)), EndTime: timestamppb.New(now),
-				MetricName: "k8s.pod.cpu_limit_utilization", IntervalSeconds: 60, Aggregation: "avg",
-				GroupBy: observabilityv1.MetricGroup_METRIC_GROUP_POD,
+				MetricName: "k8s.pod.cpu_limit_utilization", IntervalSeconds: 60, Aggregation: "avg", ByPod: true,
 			}
 			err := validated(req, func() error { return ValidateMetricsRequest(req, Limits{MaxTimeRange: time.Hour}) })
-			if (err == nil) != tc.valid {
-				t.Fatalf("validation = %v, valid = %v", err, tc.valid)
+			if !errors.Is(err, tc.want) || (tc.want == nil) != (err == nil) {
+				t.Fatalf("validation = %v, want %v", err, tc.want)
 			}
 		})
 	}

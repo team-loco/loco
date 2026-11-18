@@ -10799,8 +10799,8 @@
             "title": "exit_code",
             "format": "int32"
           },
-          "at": {
-            "title": "at",
+          "finishedAt": {
+            "title": "finished_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           }
         },
@@ -12125,14 +12125,6 @@
         ],
         "description": "LogOrder defines the sort order for historical log queries."
       },
-      "loco.observability.v1.MetricGroup": {
-        "type": "string",
-        "title": "MetricGroup",
-        "enum": [
-          "METRIC_GROUP_UNSPECIFIED",
-          "METRIC_GROUP_POD"
-        ]
-      },
       "loco.observability.v1.MetricPoint": {
         "type": "object",
         "properties": {
@@ -12424,10 +12416,10 @@
               "title": "value"
             }
           },
-          "groupBy": {
-            "title": "group_by",
-            "description": "Pod grouping returns one series per pod of a single resource.",
-            "$ref": "#/components/schemas/loco.observability.v1.MetricGroup"
+          "byPod": {
+            "type": "boolean",
+            "title": "by_pod",
+            "description": "Returns one series per pod of a single resource, labelled with k8s.pod.name."
           }
         },
         "title": "QueryMetricsRequest",
@@ -12436,7 +12428,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\ngroup_by.pod_needs_one_resource // pod grouping needs exactly one resource_id\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\nby_pod.needs_one_resource // by_pod needs exactly one resource_id\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryMetricsResponse": {
         "type": "object",

@@ -1836,7 +1836,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x1aprogress_deadline_exceeded\x18\v \x01(\bR\x18progressDeadlineExceeded\x128\n" +
 	"\breplicas\x18\f \x03(\v2\x1c.loco.agent.v1.ReplicaReportR\breplicas\x126\n" +
 	"\aproblem\x18\r \x01(\v2\x1c.loco.agent.v1.ProblemReportR\aproblem\x12#\n" +
-	"\rdeployment_id\x18\x0e \x01(\tR\fdeploymentId\"\x86\x04\n" +
+	"\rdeployment_id\x18\x0e \x01(\tR\fdeploymentId\"\x80\x04\n" +
 	"\rReplicaReport\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1853,8 +1853,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x05ready\x18\f \x01(\bR\x05ready\x129\n" +
 	"\n" +
 	"started_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12<\n" +
-	"\tlast_exit\x18\x0e \x01(\v2\x1f.loco.deployment.v1.ReplicaExitR\blastExitJ\x04\b\t\x10\n" +
-	"\"\x9e\x01\n" +
+	"\tlast_exit\x18\x0e \x01(\v2\x1f.loco.deployment.v1.ReplicaExitR\blastExit\"\x9e\x01\n" +
 	"\rProblemReport\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12 \n" +

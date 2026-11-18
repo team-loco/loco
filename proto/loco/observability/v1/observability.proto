@@ -186,13 +186,6 @@ message Heartbeat {
 
 // ---------- Metrics Query ----------
 
-enum MetricGroup {
-  // Unspecified groups series by resource.
-  METRIC_GROUP_UNSPECIFIED = 0;
-  // Pod series carry the pod name in the k8s.pod.name label.
-  METRIC_GROUP_POD = 1;
-}
-
 // QueryMetricsRequest specifies a metrics query with aggregation parameters.
 message QueryMetricsRequest {
   // Workspace ID to query metrics from (required).
@@ -230,8 +223,8 @@ message QueryMetricsRequest {
 
   map<string, string> attributes = 10;
 
-  // Pod grouping returns one series per pod of a single resource.
-  MetricGroup group_by = 11 [(buf.validate.field).enum.defined_only = true];
+  // Returns one series per pod of a single resource, labelled with k8s.pod.name.
+  bool by_pod = 11;
 
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
@@ -239,9 +232,9 @@ message QueryMetricsRequest {
     expression: "this.start_time <= this.end_time"
   };
   option (buf.validate.message).cel = {
-    id: "group_by.pod_needs_one_resource"
-    message: "pod grouping needs exactly one resource_id"
-    expression: "this.group_by != 1 || size(this.resource_ids) == 1"
+    id: "by_pod.needs_one_resource"
+    message: "by_pod needs exactly one resource_id"
+    expression: "!this.by_pod || size(this.resource_ids) == 1"
   };
 }
 

@@ -1,26 +1,40 @@
 package clickhouse
 
 import (
-	"maps"
+	"math"
 	"testing"
 	"time"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
-func (f *queryFixture) insertPodSample(t *testing.T, table, metric, pod string, at time.Time, value float64) {
+const (
+	podA = "web-a"
+	podB = "web-b"
+)
+
+type podSample struct {
+	workspaceID, resourceID, pod string
+	at                           time.Time
+	value                        float64
+}
+
+// insertPodSamples writes gauge samples, or delta sums covering the minute before each sample.
+func (f *queryFixture) insertPodSamples(t *testing.T, metric string, sum bool, samples ...podSample) {
 	t.Helper()
-	attrs := tenantAttributes(testWorkspaceID, testEnvironmentID, testResourceID)
-	attrs[regionAttribute], attrs[podAttribute] = testRegion, pod
-	query := "INSERT INTO otel_metrics_gauge (ResourceAttributes, MetricName, TimeUnix, Value) VALUES (?, ?, ?, ?)"
-	args := []any{attrs, metric, at, value}
-	if table == "otel_metrics_sum" {
-		query = "INSERT INTO otel_metrics_sum (ResourceAttributes, MetricName, StartTimeUnix, TimeUnix, Value, " +
-			"AggregationTemporality, IsMonotonic) VALUES (?, ?, ?, ?, ?, 1, true)"
-		args = []any{attrs, metric, at.Add(-time.Minute), at, value}
-	}
-	if err := f.conn.Exec(t.Context(), query, args...); err != nil {
-		t.Fatal(err)
+	for _, sample := range samples {
+		attrs := tenantAttributes(sample.workspaceID, testEnvironmentID, sample.resourceID)
+		attrs[regionAttribute], attrs[podAttribute] = testRegion, sample.pod
+		query := "INSERT INTO otel_metrics_gauge (ResourceAttributes, MetricName, TimeUnix, Value) VALUES (?, ?, ?, ?)"
+		args := []any{attrs, metric, sample.at, sample.value}
+		if sum {
+			query = "INSERT INTO otel_metrics_sum (ResourceAttributes, MetricName, StartTimeUnix, TimeUnix, Value, " +
+				"AggregationTemporality, IsMonotonic) VALUES (?, ?, ?, ?, ?, 1, true)"
+			args = []any{attrs, metric, sample.at.Add(-time.Minute), sample.at, sample.value}
+		}
+		if err := f.conn.Exec(t.Context(), query, args...); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -45,34 +59,54 @@ func (f *queryFixture) podValues(t *testing.T, req *observabilityv1.QueryMetrics
 	return values
 }
 
+func assertPodValues(t *testing.T, got, want map[string]float64) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("pod values = %v, want %v", got, want)
+	}
+	for pod, value := range want {
+		if math.Abs(got[pod]-value) > 1e-9 {
+			t.Fatalf("pod values = %v, want %v", got, want)
+		}
+	}
+}
+
+// otherScopes are samples for the same pod names under another resource and another workspace.
+func otherScopes(at time.Time) []podSample {
+	return []podSample{
+		{testWorkspaceID, testWorkerResourceID, podA, at, 100},
+		{testWorkspaceID, testWorkerResourceID, "worker-a", at, 100},
+		{testOtherWorkspaceID, testResourceID, podA, at, 1000},
+		{testOtherWorkspaceID, testResourceID, "web-other", at, 1000},
+	}
+}
+
 func TestQueryMetricsGroupsGaugesByPod(t *testing.T) {
 	f := newQueryFixture(t)
 	const metric = "k8s.pod.cpu_limit_utilization"
-	f.insertPodSample(t, "otel_metrics_gauge", metric, "web-a", f.start, 0.2)
-	f.insertPodSample(t, "otel_metrics_gauge", metric, "web-a", f.start.Add(testSecondGaugeOffset), 0.4)
-	f.insertPodSample(t, "otel_metrics_gauge", metric, "web-b", f.start, 0.9)
+	f.insertPodSamples(t, metric, false,
+		podSample{testWorkspaceID, testResourceID, podA, f.start, 0.2},
+		podSample{testWorkspaceID, testResourceID, podA, f.start.Add(testSecondGaugeOffset), 0.4},
+		podSample{testWorkspaceID, testResourceID, podB, f.start, 0.9},
+	)
+	f.insertPodSamples(t, metric, false, otherScopes(f.start)...)
 
 	req := metricsRequest(f.start, f.end)
-	req.MetricName, req.GroupBy = metric, observabilityv1.MetricGroup_METRIC_GROUP_POD
-	got := f.podValues(t, req)
-	want := map[string]float64{"web-a": 0.3, "web-b": 0.9}
-	if !maps.EqualFunc(got, want, func(a, b float64) bool { return a-b < 1e-9 && b-a < 1e-9 }) {
-		t.Fatalf("pod values = %v, want %v", got, want)
-	}
+	req.MetricName, req.ByPod = metric, true
+	assertPodValues(t, f.podValues(t, req), map[string]float64{podA: 0.3, podB: 0.9})
 }
 
 func TestQueryMetricsGroupsRatesByPod(t *testing.T) {
 	f := newQueryFixture(t)
 	const metric = "k8s.pod.network.io"
-	f.insertPodSample(t, "otel_metrics_sum", metric, "web-a", f.start.Add(time.Minute), 60)
-	f.insertPodSample(t, "otel_metrics_sum", metric, "web-b", f.start.Add(time.Minute), 120)
+	at := f.start.Add(time.Minute)
+	f.insertPodSamples(t, metric, true,
+		podSample{testWorkspaceID, testResourceID, podA, at, 60},
+		podSample{testWorkspaceID, testResourceID, podB, at, 120},
+	)
+	f.insertPodSamples(t, metric, true, otherScopes(at)...)
 
-	req := metricsRequest(f.start, f.start.Add(time.Minute))
-	req.MetricName, req.Aggregation = metric, rateAggregation
-	req.GroupBy = observabilityv1.MetricGroup_METRIC_GROUP_POD
-	got := f.podValues(t, req)
-	want := map[string]float64{"web-a": 1, "web-b": 2}
-	if !maps.Equal(got, want) {
-		t.Fatalf("pod rates = %v, want %v", got, want)
-	}
+	req := metricsRequest(f.start, at)
+	req.MetricName, req.Aggregation, req.ByPod = metric, rateAggregation, true
+	assertPodValues(t, f.podValues(t, req), map[string]float64{podA: 1, podB: 2})
 }

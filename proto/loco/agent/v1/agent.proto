@@ -122,7 +122,6 @@ message ReplicaReport {
   google.protobuf.Timestamp state_since = 6;
   google.protobuf.Timestamp state_deadline = 7;
   int32 restarts = 8;
-  reserved 9;
   string detail = 10 [(buf.validate.field).string.max_len = 512];
   string deployment_id = 11;
   bool ready = 12;
