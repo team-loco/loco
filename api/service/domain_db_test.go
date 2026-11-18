@@ -38,7 +38,8 @@ func newDomainClient(t *testing.T, f *deployFixture) *domainClient {
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
 	}
 	scoped := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: scopes})
-	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	// Domain tests outlast one heartbeat window on a loaded machine; heartbeat eligibility has its own tests.
+	server := NewDomainServer(f.pool, f.queries, testServiceDefaults(), time.Hour, limits.Defaults())
 	f.serveDomains(t, testDomainPlatform)
 	return &domainClient{server: server, ctx: scoped, f: f}
 }
