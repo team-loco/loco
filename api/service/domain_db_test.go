@@ -476,3 +476,28 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 		t.Fatalf("revision = %d, want 1", got)
 	}
 }
+
+func TestCheckDomainAvailabilityRequiresWorkspaceRead(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	client := newDomainClient(t, f)
+	if err := client.add(testPrimaryDomain); err != nil {
+		t.Fatalf("add %s: %v", testPrimaryDomain, err)
+	}
+	workspaceID := f.workspaceID(t).String()
+	request := &domainv1.CheckDomainAvailabilityRequest{Domain: testPrimaryDomain, WorkspaceId: workspaceID}
+	_, err := client.server.CheckDomainAvailability(client.ctx, request)
+	wantCode(t, err, connect.CodePermissionDenied)
+
+	reader := reqctx.WithPrincipal(context.Background(), reqctx.Principal{Scopes: f.workspaceReadScopes(t)})
+	for domain, want := range map[string]bool{testPrimaryDomain: false, testSecondDomain: true} {
+		request = &domainv1.CheckDomainAvailabilityRequest{Domain: domain, WorkspaceId: workspaceID}
+		resp, checkErr := client.server.CheckDomainAvailability(reader, request)
+		if checkErr != nil {
+			t.Fatalf("check %s: %v", domain, checkErr)
+		}
+		if resp.GetIsAvailable() != want {
+			t.Fatalf("%s available = %v, want %v", domain, resp.GetIsAvailable(), want)
+		}
+	}
+}

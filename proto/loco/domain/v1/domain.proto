@@ -158,9 +158,10 @@ message DeleteResourceDomainResponse {}
 
 // --- Domain Availability ---
 
-// CheckDomainAvailabilityRequest is the request to check if a domain is available.
+// CheckDomainAvailabilityRequest names the domain to check and the workspace the caller checks it for.
 message CheckDomainAvailabilityRequest {
   string domain = 1 [(buf.validate.field).string.min_len = 1];
+  string workspace_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
 // CheckDomainAvailabilityResponse contains the availability check result.

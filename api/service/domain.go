@@ -436,11 +436,15 @@ func (s *DomainServer) DeleteResourceDomain(
 	return &domainv1.DeleteResourceDomainResponse{}, nil
 }
 
-// CheckDomainAvailability checks if a domain is available
+// CheckDomainAvailability reports whether no resource holds the domain, to a caller who can read the workspace.
 func (s *DomainServer) CheckDomainAvailability(
 	ctx context.Context,
 	req *domainv1.CheckDomainAvailabilityRequest,
 ) (*domainv1.CheckDomainAvailabilityResponse, error) {
+	workspaceID := uuid.MustParse(req.GetWorkspaceId())
+	if err := authorize(ctx, s.authz, actions.CheckDomainAvailability, workspaceID); err != nil {
+		return nil, err
+	}
 	result, err := s.queries.CheckDomainAvailability(ctx, req.GetDomain())
 	if err != nil {
 		return nil, fmt.Errorf("check domain availability: %w", err)

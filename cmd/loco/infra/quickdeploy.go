@@ -220,7 +220,7 @@ func generatedDomain(ctx context.Context, t cmdutil.Target, name, platformDomain
 	}
 	client := t.Clients.Domain
 	candidate := base + domainSuffix(t.WorkspaceID, name) + "." + platformDomain
-	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate}
+	request := &domainv1.CheckDomainAvailabilityRequest{Domain: candidate, WorkspaceId: t.WorkspaceID}
 	response, checkErr := client.CheckDomainAvailability(ctx, request)
 	if checkErr != nil {
 		return "", fmt.Errorf("check public hostname %s: %w", candidate, checkErr)

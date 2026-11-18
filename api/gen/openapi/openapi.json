@@ -11308,11 +11308,16 @@
             "type": "string",
             "title": "domain",
             "minLength": 1
+          },
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
           }
         },
         "title": "CheckDomainAvailabilityRequest",
         "additionalProperties": false,
-        "description": "CheckDomainAvailabilityRequest is the request to check if a domain is available."
+        "description": "CheckDomainAvailabilityRequest names the domain to check and the workspace the caller checks it for."
       },
       "loco.domain.v1.CheckDomainAvailabilityResponse": {
         "type": "object",

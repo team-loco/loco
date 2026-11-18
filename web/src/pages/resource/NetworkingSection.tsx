@@ -54,6 +54,7 @@ function DomainRow({
 	onChanged: () => void;
 }) {
 	const [editing, setEditing] = useState<string | null>(null);
+	const { activeWorkspaceId } = useOrgWorkspace();
 	const setPrimary = useMutation(setPrimaryResourceDomain);
 	const remove = useMutation(deleteResourceDomain);
 	const check = useMutation(checkDomainAvailability);
@@ -73,7 +74,7 @@ function DomainRow({
 			return;
 		}
 		try {
-			const res = await check.mutateAsync({ domain: host });
+			const res = await check.mutateAsync({ domain: host, workspaceId: activeWorkspaceId ?? "" });
 			if (!res.isAvailable) {
 				toast.error(`${host} is already in use.`);
 				return;

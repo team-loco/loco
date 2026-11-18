@@ -935,10 +935,11 @@ func (*DeleteResourceDomainResponse) Descriptor() ([]byte, []int) {
 	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{15}
 }
 
-// CheckDomainAvailabilityRequest is the request to check if a domain is available.
+// CheckDomainAvailabilityRequest names the domain to check and the workspace the caller checks it for.
 type CheckDomainAvailabilityRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Domain        string                 `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -976,6 +977,13 @@ func (*CheckDomainAvailabilityRequest) Descriptor() ([]byte, []int) {
 func (x *CheckDomainAvailabilityRequest) GetDomain() string {
 	if x != nil {
 		return x.Domain
+	}
+	return ""
+}
+
+func (x *CheckDomainAvailabilityRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
 	}
 	return ""
 }
@@ -1097,9 +1105,10 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\tdomain_id\x18\x02 \x01(\tR\bdomainId\"D\n" +
 	"\x1bDeleteResourceDomainRequest\x12%\n" +
 	"\tdomain_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bdomainId\"\x1e\n" +
-	"\x1cDeleteResourceDomainResponse\"A\n" +
+	"\x1cDeleteResourceDomainResponse\"n\n" +
 	"\x1eCheckDomainAvailabilityRequest\x12\x1f\n" +
-	"\x06domain\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06domain\"D\n" +
+	"\x06domain\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06domain\x12+\n" +
+	"\fworkspace_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"D\n" +
 	"\x1fCheckDomainAvailabilityResponse\x12!\n" +
 	"\fis_available\x18\x01 \x01(\bR\visAvailable*L\n" +
 	"\n" +
