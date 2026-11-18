@@ -28,8 +28,7 @@ type Login struct {
 	APIToken bool
 }
 
-// ResolveLogin resolves the host and the current OS user's stored token, refreshing it when it
-// is near expiry.
+// ResolveLogin resolves the host and the stored login, refreshing a token near expiry.
 func ResolveLogin(cmd *cobra.Command) (Login, error) {
 	apiHost, err := host.GetHost(cmd)
 	if err != nil {

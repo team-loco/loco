@@ -15,8 +15,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/keychain"
 )
 
-// Session serves the handlers register adds, points LOCO_HOST at the server and stores a
-// file-backed login for it in a fresh HOME. It returns the bearer credential the server receives.
+// Session serves register's handlers at LOCO_HOST, stores a login in a fresh HOME and returns its token.
 func Session(t *testing.T, register func(*connect.Server)) string {
 	t.Helper()
 	server := connect.NewServer()
