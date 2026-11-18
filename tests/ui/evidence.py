@@ -782,9 +782,8 @@ def cmd_openbao(args):
         "id": run_id,
         "root": str(BASE_DIR / run_id),
         "compose": f"{LABEL}-{run_id}",
-        "expires_at": time.time() + LEASE_S,
     }
-    write_json(BASE_DIR / run_id / "state.json", state)
+    renew(state)
     try:
         state["address"] = start_openbao(
             repo_root(), state["compose"], dict(os.environ)
@@ -792,7 +791,7 @@ def cmd_openbao(args):
     except BaseException:
         stop_state(state)
         raise
-    write_json(BASE_DIR / run_id / "state.json", state)
+    renew(state)
     print(state["address"])
 
 
