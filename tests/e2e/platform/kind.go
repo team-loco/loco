@@ -12,6 +12,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 )
 
+// kindnetImage replaces kind's kindnetd, which drops queued packets on each policy sync (kube-network-policies#403).
+const kindnetImage = "gcr.io/k8s-staging-kind/kindnetd:v20261113-1a24c920@sha256:" +
+	"4ff5847915aec9d4cecdd62bde435e2f214a31ea3f1b1050cbaf4622b0e0d770"
+
 // setupKind reuses the run's kind cluster when it is reachable and runs the same node image, and
 // creates it otherwise.
 func (c *Cluster) setupKind(ctx context.Context) error {
@@ -40,7 +44,7 @@ func (c *Cluster) setupKind(ctx context.Context) error {
 		if _, err := c.Kubectl(ctx, "cluster-info"); err == nil {
 			c.clusterReused = true
 			logf("Reusing kind cluster %s", c.cluster)
-			return nil
+			return c.replaceKindnet(ctx)
 		}
 		logf("Kind cluster %s is unreachable, recreating it", c.cluster)
 		if _, err := c.Command(
@@ -78,7 +82,26 @@ func (c *Cluster) setupKind(ctx context.Context) error {
 	); err != nil {
 		return err
 	}
-	return c.writeKubeconfig(ctx)
+	if err := c.writeKubeconfig(ctx); err != nil {
+		return err
+	}
+	return c.replaceKindnet(ctx)
+}
+
+func (c *Cluster) replaceKindnet(ctx context.Context) error {
+	if _, err := c.Kubectl(
+		ctx, "-n", "kube-system", "set", "image", "daemonset/kindnet", "kindnet-cni="+kindnetImage,
+	); err != nil {
+		return err
+	}
+	if _, err := c.Kubectl(
+		ctx, "-n", "kube-system", "rollout", "status", "daemonset/kindnet", "--timeout=3m",
+	); err != nil {
+		return fmt.Errorf(
+			"kindnet did not start with %s, check that the image can still be pulled: %w", kindnetImage, err,
+		)
+	}
+	return nil
 }
 
 func (c *Cluster) writeKubeconfig(ctx context.Context) error {
