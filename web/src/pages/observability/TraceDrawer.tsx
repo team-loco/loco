@@ -45,10 +45,9 @@ export function TraceDrawer({
 	onClose: () => void;
 }) {
 	const { workspaceId, scopedResourceIds, resourceById } = useObs();
-	// Only workspace readers may read its retention, and only an expired trace needs it.
-	const expired = open && !loading && error === null && trace === undefined;
-	const traceDays = useQuery(getWorkspace, { workspaceId }, { enabled: expired && scopedResourceIds === null }).data
-		?.workspace?.effectiveRetention?.traceDays;
+	// Only workspace readers may read its retention.
+	const traceDays = useQuery(getWorkspace, { workspaceId }, { enabled: scopedResourceIds === null }).data?.workspace
+		?.effectiveRetention?.traceDays;
 	const { zoom, change: setZoom, drawerRef } = useTraceZoom();
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
