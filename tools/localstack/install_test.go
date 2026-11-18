@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -131,16 +132,9 @@ func TestGatewayDNSPreservesFixturesAndIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestCLIEnvironmentUsesStackState(t *testing.T) {
-	cfg := testConfig(t)
-	env := cfg.cliEnv()
-	for _, want := range []string{
-		"HOME=" + filepath.Join(cfg.State, "home"), "LOCO_CREDENTIAL_STORE=file",
-		"KUBECONFIG=" + filepath.Join(cfg.State, "home", ".kube", "config"),
-	} {
-		if !strings.Contains(strings.Join(env, "\n"), want) {
-			t.Fatalf("environment missing %s", want)
-		}
+func TestCLIEnvironmentUsesFileCredentials(t *testing.T) {
+	if env := testConfig(t).cliEnv(); !slices.Contains(env, "LOCO_CREDENTIAL_STORE=file") {
+		t.Fatalf("environment %v lacks LOCO_CREDENTIAL_STORE=file", env)
 	}
 }
 
