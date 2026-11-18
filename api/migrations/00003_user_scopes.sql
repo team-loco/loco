@@ -81,7 +81,7 @@ CREATE INDEX used_session_refresh_tokens_session_idx ON used_session_refresh_tok
 CREATE INDEX used_session_refresh_tokens_expiry_idx ON used_session_refresh_tokens (expires_at);
 
 -- api tokens: logged, durable, scopes stored at creation
--- personal tokens are bounded by the user's live user_scopes; owned tokens keep their stored scopes
+-- personal tokens are bounded by the user's live user_scopes; organization, workspace and resource tokens keep their stored scopes
 -- token format: loco_k_<base64url(32 random bytes)>
 -- stored as sha256(full_token_string), never the raw token
 CREATE TABLE api_tokens (
