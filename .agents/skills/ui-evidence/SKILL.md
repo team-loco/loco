@@ -107,10 +107,11 @@ mise exec -- uv run --script "$E" <command>
    ```
 
    Reserve `down --all` for manual machine-wide cleanup; it stops other callers' runs.
-   Every `up`, `shoot` and `down`
-   also stops runs nobody has used for two hours and containers whose run's state file is gone.
-   Each container names its run's state file, so this works across temporary directories. A failed `up` stops itself after printing its API and UI logs, so an
-   interrupted capture does not leave containers behind.
+   Each run holds a two-hour lease in `tools/testres`, the registry every local test harness
+   shares; its containers, processes, worktree and ports are recorded under that lease, outside
+   any temporary directory. Every `up`, `shoot` and `down` also stops runs nobody has used for
+   two hours and other harnesses' leftovers whose owner is gone. A failed `up` stops itself after
+   printing its API and UI logs, so an interrupted capture does not leave containers behind.
 
 Return the PNG paths, one line per file saying what it shows, every `scenario note:` line and every
 failure.
