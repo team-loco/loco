@@ -74,6 +74,7 @@ func (tvm *VendingMachine) getToken(ctx context.Context, token string, touchLast
 			ActorType:  queries.DeploymentActorTypeUser,
 			ActorID:    session.UserID,
 			UserID:     session.UserID,
+			SessionID:  session.ID,
 			Method:     method,
 			IdentityID: identityID,
 		}, nil

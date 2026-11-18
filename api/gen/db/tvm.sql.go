@@ -216,6 +216,21 @@ func (q *Queries) DeleteExpiredUsedRefreshTokens(ctx context.Context) error {
 	return err
 }
 
+const deleteSessionForUser = `-- name: DeleteSessionForUser :exec
+DELETE FROM session_tokens
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteSessionForUserParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"userId"`
+}
+
+func (q *Queries) DeleteSessionForUser(ctx context.Context, arg DeleteSessionForUserParams) error {
+	_, err := q.db.Exec(ctx, deleteSessionForUser, arg.ID, arg.UserID)
+	return err
+}
+
 const deleteSessionToken = `-- name: DeleteSessionToken :exec
 DELETE FROM session_tokens WHERE id = $1
 `
@@ -688,20 +703,18 @@ func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensF
 }
 
 const listSessionsForUser = `-- name: ListSessionsForUser :many
-SELECT id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+SELECT id, kind, last_used_at, user_agent, created_at
 FROM session_tokens
-WHERE user_id = $1
-ORDER BY last_used_at DESC
+WHERE user_id = $1 AND refresh_expires_at > NOW()
+ORDER BY last_used_at DESC, id DESC
 `
 
 type ListSessionsForUserRow struct {
-	ID               uuid.UUID   `json:"id"`
-	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
-	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
-	LastUsedAt       time.Time   `json:"lastUsedAt"`
-	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        *string     `json:"userAgent"`
-	CreatedAt        time.Time   `json:"createdAt"`
+	ID         uuid.UUID   `json:"id"`
+	Kind       SessionKind `json:"kind"`
+	LastUsedAt time.Time   `json:"lastUsedAt"`
+	UserAgent  *string     `json:"userAgent"`
+	CreatedAt  time.Time   `json:"createdAt"`
 }
 
 func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]ListSessionsForUserRow, error) {
@@ -715,10 +728,8 @@ func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]
 		var i ListSessionsForUserRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.AccessExpiresAt,
-			&i.RefreshExpiresAt,
+			&i.Kind,
 			&i.LastUsedAt,
-			&i.IpAddress,
 			&i.UserAgent,
 			&i.CreatedAt,
 		); err != nil {

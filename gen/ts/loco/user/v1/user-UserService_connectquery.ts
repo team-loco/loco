@@ -54,6 +54,20 @@ export const deleteUser = UserService.method.deleteUser;
 export const logout = UserService.method.logout;
 
 /**
+ * ListSessions lists active sessions owned by the signed-in account.
+ *
+ * @generated from rpc loco.user.v1.UserService.ListSessions
+ */
+export const listSessions = UserService.method.listSessions;
+
+/**
+ * RevokeSession ends a session owned by the signed-in account.
+ *
+ * @generated from rpc loco.user.v1.UserService.RevokeSession
+ */
+export const revokeSession = UserService.method.revokeSession;
+
+/**
  * SetUserStatus suspends or reinstates a user. Requires system admin.
  *
  * @generated from rpc loco.user.v1.UserService.SetUserStatus

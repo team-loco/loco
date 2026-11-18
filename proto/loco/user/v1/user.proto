@@ -24,6 +24,10 @@ service UserService {
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
   // Logout logs out the current user.
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  // ListSessions lists active sessions owned by the signed-in account.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  // RevokeSession ends a session owned by the signed-in account.
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
   // SetUserStatus suspends or reinstates a user. Requires system admin.
   rpc SetUserStatus(SetUserStatusRequest) returns (SetUserStatusResponse);
 }
@@ -174,3 +178,32 @@ message GetAccountDeletionImpactResponse {
   // Resolve the listed blockers and refresh to review remaining organizations.
   bool has_more_blocking_organizations = 5;
 }
+
+// SessionKind identifies the client that signed in.
+enum SessionKind {
+  SESSION_KIND_UNSPECIFIED = 0;
+  SESSION_KIND_WEB = 1;
+  SESSION_KIND_CLI = 2;
+}
+
+// Session is a sign-in that can still be refreshed.
+message Session {
+  string id = 1;
+  SessionKind kind = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp last_used_at = 4;
+  string user_agent = 5;
+  bool current = 6;
+}
+
+message ListSessionsRequest {}
+
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+}
+
+message RevokeSessionRequest {
+  string session_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message RevokeSessionResponse {}
