@@ -113,7 +113,7 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
 
-- Column resizing: `ColumnResizeHandle` and `DataTable`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. DataTable and the audit table keep widths in component state; Logs and Traces keep them in the `widths` URL parameter.
+- Column resizing: `ColumnResizeHandle` and `DataTable`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation.
 - Scoped audit history: [Audit](web/src/pages/Audit.tsx) shows organization and workspace history; [ActivityPanel](web/src/pages/resource/ActivityPanel.tsx) shows resource history. Both take event labels and actors from [auditEvents](web/src/pages/settings/auditEvents.ts). [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
