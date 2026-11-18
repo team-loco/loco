@@ -4,13 +4,11 @@ title: "Dashboard browser tests"
 
 The dashboard uses Python Playwright with headless Chromium to check interactions that cross React state, navigation, permissions and API requests. Bun tests cover pure models and helpers; API database tests cover authorization and persistence. Browser tests run the production bundle against an isolated fixture.
 
-## Decision and scope
+## Scope
 
-Use the existing Playwright dependency and [UI evidence fixture](https://github.com/team-loco/loco/blob/main/tests/ui/evidence.py). It builds a git ref, starts its API and PostgreSQL, seeds test identities, and serves the production dashboard on free loopback ports. No Kubernetes cluster, shared development database, identity provider or personal browser session is required.
+Browser tests use the [UI evidence fixture](https://github.com/team-loco/loco/blob/main/tests/ui/evidence.py). It builds a git ref, starts its API and PostgreSQL, seeds test identities, and serves the production dashboard on free loopback ports. No Kubernetes cluster, shared development database, identity provider or personal browser session is required.
 
-[Meticulous records user interactions and network responses, selects sessions and replays them against base/head builds](https://app.meticulous.ai/docs/concepts/architecture-overview). That offers broad visual coverage, with a recorder, service integration, recording/data review and visual-diff triage to maintain. It replays recorded responses; backend authorization still needs separate tests. Playwright keeps fixtures and explicit assertions in this repository and already runs in Web CI. Its costs are test maintenance, isolated API/PG startup, browser installation and CI compute. The pilot adds no hosted testing subscription.
-
-Start with deployment history, environment switching and permission-dependent controls. Add a browser regression when unit tests cannot show the interaction failing: cursor recovery, keyboard behavior, scoped navigation or responsive controls. Keep calculations in Bun tests and backend policy in real database tests. Controlled response fixtures, such as the trace viewer's telemetry fixture, must be identified as fixtures rather than evidence that the backend works.
+Add a browser regression when unit tests cannot show the interaction failing: cursor recovery, keyboard behavior, scoped navigation or responsive controls. Keep calculations in Bun tests and backend policy in real database tests. Controlled response fixtures, such as the trace viewer's telemetry fixture, must be identified as fixtures rather than evidence that the backend works.
 
 ## Run locally
 
@@ -26,7 +24,7 @@ mise run test:ui deployment_history_ui
 
 To inspect a failed fixture locally, run the driver with `--keep`; it prints its state path. Reuse that owned fixture with `--state PATH`. This runs against the production build recorded in the state, not newly edited source. Remove it afterward with `uv run --script tests/ui/evidence.py down --state PATH`. Do not reuse a person's development stack or publish its authentication state.
 
-## Deployment-history pilot
+## Deployment history
 
 `tests/ui/deployment_history_ui.py` checks these cases once in light mode:
 
@@ -48,4 +46,4 @@ The author changing a flow owns its assertions and fixture updates. Reviewers ch
 
 ## PR evidence
 
-Browser assertions check behavior continuously. The [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its pilot states without claiming a product redesign.
+Browser assertions check behavior continuously. The [UI evidence skill](https://github.com/team-loco/loco/blob/main/.agents/skills/ui-evidence/SKILL.md) supplies reviewed before/after screenshots attached directly to UI PR descriptions. Cover light/dark and narrow layouts, state the build refs and whether API data is real or replayed, and inspect every image before upload. CI screenshots diagnose that run; they are not automatically a meaningful before/after comparison. A test-only change can attach its test states without claiming a product redesign.

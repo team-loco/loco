@@ -4,7 +4,7 @@ title: "Deployment modes"
 
 A deployment mode determines who operates Loco and whether the platform serves one customer or multiple customers. Application environments such as staging and production exist within that platform.
 
-Loco's product direction includes three modes. Dedicated provisioning and a packaged self-hosting release are not documented as generally available in this repository. Confirm availability with the project maintainers before selecting a managed installation.
+Loco runs in three modes, which differ in who operates the platform and who shares it.
 
 | Mode | Platform operator | Platform tenancy | Application operator |
 | --- | --- | --- | --- |
@@ -31,7 +31,7 @@ A dedicated installation gives one customer a Loco-operated platform. Use the in
 
 Your team operates the control plane, Kubernetes clusters, networking, certificates, registry, database, and observability. Your team also owns upgrades, backups, capacity, and incident response.
 
-Start with the [self-hosting guide](../operations/self-hosting.md). The repository contains Helm charts, environment configuration, and a local development setup; it does not provide a complete production installation command.
+Start with the [self-hosting guide](../operations/self-hosting.md). [Installation](../reference/installation.md) scaffolds the platform repository with `locoadm init` and installs it through Flux.
 
 ## Environments within a mode
 
