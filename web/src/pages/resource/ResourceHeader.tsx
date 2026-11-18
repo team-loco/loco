@@ -6,6 +6,8 @@ import {
 	CopyIcon,
 	EllipsisIcon,
 	FileCodeIcon,
+	GlobeIcon,
+	GlobeLockIcon,
 	RotateCwIcon,
 	Settings2Icon,
 	Trash2Icon,
@@ -28,6 +30,7 @@ import {
 import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { deploymentActor } from "@/lib/deployment-utils";
 import { agoLabel } from "@/lib/time";
 
@@ -154,11 +157,6 @@ export function ResourceHeader({
 					{resource.partial !== undefined && <PartialBadge />}
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
-					{image !== "" && (
-						<span className="max-w-full truncate font-mono text-[12px] text-foreground" title={image}>
-							{image}
-						</span>
-					)}
 					{since !== undefined && primary !== undefined && (
 						<span>
 							deployed {agoLabel(since, nowMs)} by {deploymentActor(primary)}
@@ -169,13 +167,25 @@ export function ResourceHeader({
 							href={`https://${domain.domain}`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="flex items-center gap-1 font-mono text-[12px] text-fg2 hover:text-foreground"
+							aria-label={`Public at ${domain.domain}`}
+							className="flex items-center gap-1.5 font-mono text-[12px] text-fg2 hover:text-foreground"
 						>
+							<GlobeIcon aria-hidden className="size-[13px]" />
 							{domain.domain}
 							<ArrowUpRightIcon aria-hidden className="size-3" />
 						</a>
 					) : (
-						<span>internal only</span>
+						<Tooltip>
+							<TooltipTrigger
+								render={<span aria-label="Not reachable from the internet" />}
+								tabIndex={0}
+								className="flex items-center gap-1.5 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							>
+								<GlobeLockIcon aria-hidden className="size-[13px]" />
+								internal only
+							</TooltipTrigger>
+							<TooltipContent>Not reachable from the internet</TooltipContent>
+						</Tooltip>
 					)}
 					{deployed.length > 0 && (
 						<span className="font-mono text-[12px]">{deployed.map((r) => r.name).join(", ")}</span>

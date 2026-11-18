@@ -199,9 +199,9 @@ with session(out) as browser:
                 )
             ).to_be_visible()
             page.keyboard.press("Escape")
-            image_label = page.get_by_title(image, exact=True)
-            expect(image_label).to_be_visible()
-            assert image_label.inner_text() == image
+            expect(
+                page.get_by_label("Not reachable from the internet", exact=True)
+            ).to_be_visible()
             expect(
                 page.get_by_text(re.compile(r"^deployed .+ by Olivia Owner$"))
             ).to_be_visible()
