@@ -841,10 +841,11 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 
 func TestSecretWritesWaitOutLocksOutsideTheSecretLocks(t *testing.T) {
 	f := newSecretFixture(t)
-	server := f.serverWith(t, newTestKeyProvider(t, "k1"), SecretConfig{
+	config := SecretConfig{
 		MaxValueBytes: testMaxValue, MaxPlacementBytes: testMaxPlacementBytes,
 		LockTimeout: 100 * time.Millisecond,
-	})
+	}
+	server := f.serverWith(t, newTestKeyProvider(t, "k1"), config)
 	tx, err := f.pool.Begin(t.Context())
 	if err != nil {
 		t.Fatalf("begin: %v", err)
@@ -853,14 +854,22 @@ func TestSecretWritesWaitOutLocksOutsideTheSecretLocks(t *testing.T) {
 	if _, err = tx.Exec(t.Context(), "LOCK TABLE events IN SHARE MODE"); err != nil {
 		t.Fatalf("lock events: %v", err)
 	}
-	released := make(chan error, 1)
+	set := make(chan error, 1)
 	go func() {
-		time.Sleep(time.Second)
-		released <- tx.Rollback(context.Background())
+		_, setErr := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
+			ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
+			Values: map[string]string{alphaKey: "1"},
+		})
+		set <- setErr
 	}()
-	f.set(t, server, map[string]string{alphaKey: "1"})
-	if err := <-released; err != nil {
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	// The write waits on the events lock for longer than the secret lock timeout.
+	time.Sleep(2 * config.LockTimeout)
+	if err = tx.Rollback(t.Context()); err != nil {
 		t.Fatalf("release events: %v", err)
+	}
+	if err = <-set; err != nil {
+		t.Fatalf("set secrets: %v", err)
 	}
 }
 

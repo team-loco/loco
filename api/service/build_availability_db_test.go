@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -195,15 +196,20 @@ func TestRegisterAndHeartbeatRecordTheClusterRole(t *testing.T) {
 			t.Fatalf("send heartbeat: %v", err)
 		}
 	}
-	deadline := time.Now().Add(5 * time.Second)
-	for role() != genDb.ClusterRoleAll {
-		if time.Now().After(deadline) {
-			t.Fatalf("role = %s after a heartbeat reporting all", role())
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
 	if err := stream.CloseSend(); err != nil {
 		t.Fatalf("close sync stream: %v", err)
+	}
+	// The server ends the stream after it has handled every message the agent sent.
+	for {
+		if _, err := stream.Receive(); err != nil {
+			if !errors.Is(err, io.EOF) {
+				t.Fatalf("sync stream: %v", err)
+			}
+			break
+		}
+	}
+	if got := role(); got != genDb.ClusterRoleAll {
+		t.Fatalf("role = %s after a heartbeat reporting all", got)
 	}
 }
 
