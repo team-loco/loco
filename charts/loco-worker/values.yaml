@@ -363,22 +363,6 @@ builds:
     # @schema type: [string, integer]
     buildkit: 10Gi
 
-# @schema additionalProperties: false
-rbacHelpers:
-  enable: false
-
-# @schema additionalProperties: false
-metrics:
-  enable: true
-  port: 8443
-  # @schema additionalProperties: false
-  certManager:
-    enable: false
-
-# @schema additionalProperties: false
-prometheus:
-  enable: false
-
 # @schema skipProperties
 otel-col-daemon:
   enabled: true

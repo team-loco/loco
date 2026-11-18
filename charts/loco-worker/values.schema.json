@@ -761,27 +761,6 @@
         }
       }
     },
-    "metrics": {
-      "type": "object",
-      "properties": {
-        "certManager": {
-          "type": "object",
-          "properties": {
-            "enable": {
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false
-        },
-        "enable": {
-          "type": "boolean"
-        },
-        "port": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false
-    },
     "metrics-server": {
       "type": "object"
     },
@@ -793,24 +772,6 @@
     },
     "otel-col-deploy": {
       "type": "object"
-    },
-    "prometheus": {
-      "type": "object",
-      "properties": {
-        "enable": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
-    },
-    "rbacHelpers": {
-      "type": "object",
-      "properties": {
-        "enable": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false
     },
     "registry": {
       "type": "object",

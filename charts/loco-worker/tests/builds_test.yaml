@@ -52,9 +52,6 @@ tests:
         template: templates/builds/manager-rolebinding.yaml
       - hasDocuments:
           count: 0
-        template: templates/builds/metrics.yaml
-      - hasDocuments:
-          count: 0
         template: templates/builds/namespace.yaml
       - hasDocuments:
           count: 0
