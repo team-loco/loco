@@ -16,6 +16,7 @@ import {
 import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
+import { markerGroups } from "./metric-markers";
 
 export interface ChartSeries {
 	key: string;
@@ -44,8 +45,28 @@ const DASH = "4 3";
 const MARGIN = 24;
 const WIDE_MARGIN = 44;
 const Y_TICKS = 4;
+// Labels of deploys past this share of the range sit left of their line.
+const FLIP_SHARE = 0.8;
+const LABEL_CHAR_PX = 6;
+const LABEL_PAD_PX = 4;
+const LABEL_HEIGHT_PX = 14;
 
 type Datum = { t: number; [series: string]: number };
+
+function MarkerLabel({ viewBox, value, flip }: { viewBox?: { x?: number; y?: number }; value: string; flip: boolean }) {
+	const x0 = viewBox?.x ?? 0;
+	const y = viewBox?.y ?? 0;
+	const width = value.length * LABEL_CHAR_PX + LABEL_PAD_PX * 2;
+	const x = flip ? x0 - width - 2 : x0 + 2;
+	return (
+		<g>
+			<rect x={x} y={y} width={width} height={LABEL_HEIGHT_PX} rx={3} fill="var(--panel)" />
+			<text x={x + LABEL_PAD_PX} y={y + 10} fontSize={10} fill="var(--fg3)" fontFamily="var(--font-mono)">
+				{value}
+			</text>
+		</g>
+	);
+}
 
 function MetricEvents({
 	title,
@@ -202,7 +223,8 @@ export function MetricChart({
 	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
 	const ticks = timeAxis(from, to, timePref);
 	const tickLabel = (value: number) => formatAxisTime(value, from, to, timePref);
-	const yTicks = Array.from({ length: Y_TICKS + 1 }, (_, i) => (max * i) / Y_TICKS);
+	const yTicks = Array.from({ length: Y_TICKS - 1 }, (_, i) => (max * (i + 1)) / Y_TICKS);
+	const groups = markerGroups(markers, from, to);
 
 	return (
 		<>
@@ -236,17 +258,18 @@ export function MetricChart({
 								tickFormatter={tickLabel}
 								interval="preserveStartEnd"
 								tickLine={false}
+								height={20}
 								axisLine={{ stroke: "var(--line)" }}
 								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}
 							/>
 							<YAxis
 								domain={[0, max]}
 								ticks={yTicks}
-								tickFormatter={fmt}
+								tickFormatter={(v: number) => String(Math.round(v))}
 								tickLine={false}
 								axisLine={false}
-								width={44}
-								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}
+								mirror
+								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)", dy: -6 }}
 							/>
 							{pin === null && (
 								<ChartTooltip
@@ -262,20 +285,13 @@ export function MetricChart({
 									label={{ value: limit.label, position: "insideTopLeft", fill: "var(--color-bad-fg)", fontSize: 10 }}
 								/>
 							)}
-							{markers.map((m, i) => (
+							{groups.map((g) => (
 								<ReferenceLine
-									key={`${String(m.t)}-${m.label}`}
-									x={m.t}
-									stroke={m.color}
+									key={g.t}
+									x={g.t}
+									stroke="var(--fg4)"
 									strokeDasharray="3 3"
-									strokeOpacity={0.8}
-									// Alternate rows so labels of nearby deploys don't overlap.
-									label={{
-										value: m.label,
-										position: i % 2 === 0 ? "insideTopLeft" : "insideBottomLeft",
-										fill: m.color,
-										fontSize: 10,
-									}}
+									label={<MarkerLabel value={g.label} flip={(g.t - from) / Math.max(1, to - from) > FLIP_SHARE} />}
 								/>
 							))}
 							{pin !== null && <ReferenceLine x={pin.t} stroke="var(--fg3)" />}

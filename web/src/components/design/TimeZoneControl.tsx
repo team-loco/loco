@@ -1,9 +1,18 @@
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { timeZoneLabel } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
 const localZone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+const localZoneShort = timeZoneLabel(Date.now(), { zone: "local", clock: "24" });
 
-export function TimeZoneControl({ onChange }: { onChange?: (zone: "local" | "utc") => void }) {
+/** `short` names the local zone by its abbreviation, like PST, in place of its IANA name. */
+export function TimeZoneControl({
+	onChange,
+	short = false,
+}: {
+	onChange?: (zone: "local" | "utc") => void;
+	short?: boolean;
+}) {
 	const { zone, setZone } = useTimePreferences();
 	return (
 		<ToggleGroup
@@ -19,7 +28,7 @@ export function TimeZoneControl({ onChange }: { onChange?: (zone: "local" | "utc
 			className="max-w-full flex-wrap self-start"
 		>
 			<ToggleGroupItem value="local" className="h-auto min-h-[26px] whitespace-normal">
-				Local · {localZone}
+				Local · {short ? localZoneShort : localZone}
 			</ToggleGroupItem>
 			<ToggleGroupItem value="utc">UTC</ToggleGroupItem>
 		</ToggleGroup>
