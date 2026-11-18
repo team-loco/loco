@@ -94,6 +94,7 @@ func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	if err := os.WriteFile("mise.toml", nil, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -155,6 +156,7 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 
 func TestNextRunRemovesClusterOfDeletedRun(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	calls := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("KIND_CALLS", calls)
 	fakeCommand(t, "kind", "#!/bin/sh\necho \"$@\" >>\"$KIND_CALLS\"\n")
