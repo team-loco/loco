@@ -53,7 +53,6 @@ const (
 	labelApp                = "app"
 	envRegion               = "LOCO_REGION"
 	envDeploymentID         = "LOCO_DEPLOYMENT_ID"
-	componentApplication    = "application"
 	servicePort             = int32(80)
 	applicationPortName     = "http"
 	deployingRequeue        = 15 * time.Second
@@ -712,7 +711,7 @@ func podTemplate(
 
 	podLabels := workloadLabels(app)
 	podLabels[labelAppKubernetesName] = name
-	podLabels[managed.LabelComponent] = componentApplication
+	podLabels[locolabels.LabelComponent] = locolabels.ComponentApplication
 	podSecurity := podSecurityContext()
 	if spec.Deployment.RunAsUser != nil {
 		podSecurity = podSecurity.WithRunAsUser(*spec.Deployment.RunAsUser)

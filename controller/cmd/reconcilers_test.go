@@ -13,7 +13,6 @@ import (
 	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 	"github.com/team-loco/loco/controller/internal/controller"
-	"github.com/team-loco/loco/controller/internal/managed"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
@@ -70,7 +69,7 @@ func TestApplicationReconcilerCachesNoBuildObjects(t *testing.T) {
 	}
 	buildPod := labels.Set{
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		managed.LabelComponent:    "build",
+		locolabels.LabelComponent: "build",
 	}
 	for obj, byObject := range setup.cache.ByObject {
 		if _, ok := obj.(*corev1.Pod); !ok {

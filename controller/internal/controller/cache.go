@@ -54,7 +54,7 @@ func CacheOptions(locoNamespace, pullSecretName string, registryTokenMode bool) 
 	}
 	podSet := labels.Set{
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		managed.LabelComponent:    componentApplication,
+		locolabels.LabelComponent: locolabels.ComponentApplication,
 	}
 	podSelector := labels.SelectorFromSet(podSet)
 	applicationPods := cache.ByObject{Label: podSelector}

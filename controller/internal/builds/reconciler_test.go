@@ -20,7 +20,6 @@ import (
 
 	"github.com/team-loco/loco/controller/internal/builds/buildstest"
 	"github.com/team-loco/loco/controller/internal/isolation"
-	"github.com/team-loco/loco/controller/internal/managed"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -144,7 +143,7 @@ func createBuildPod(job *batchv1.Job, status corev1.PodStatus) *corev1.Pod {
 		labelJobControllerUID:     string(job.UID),
 		labelJobName:              job.Name,
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		managed.LabelComponent:    componentBuild,
+		locolabels.LabelComponent: componentBuild,
 	}
 	pod := &corev1.Pod{
 		GenerateName: job.Name + "-",

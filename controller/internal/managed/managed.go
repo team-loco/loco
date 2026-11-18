@@ -12,10 +12,7 @@ import (
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
-const (
-	LabelComponent = "app.kubernetes.io/component"
-	FieldOwner     = "loco-controller"
-)
+const FieldOwner = "loco-controller"
 
 var (
 	errDockerConfigType    = errors.New("registry secret is not of type " + string(corev1.SecretTypeDockerConfigJson))

@@ -10,7 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/team-loco/loco/controller/internal/managed"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
 
@@ -33,7 +32,7 @@ func TestPrivateServiceLifecycleReadsBypassTheCache(t *testing.T) {
 	labels := map[string]string{
 		locolabels.LabelPrivateServiceOwner: string(app.UID),
 		locolabels.LabelManagedBy:           locolabels.ControllerManagedBy,
-		managed.LabelComponent:              componentPrivateService,
+		locolabels.LabelComponent:           componentPrivateService,
 	}
 	old := &corev1.Service{
 		Name:        "old-cart",

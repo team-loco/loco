@@ -11,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/team-loco/loco/controller/internal/managed"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -33,7 +32,7 @@ func ownsPrivateService(app *locov1alpha1.Application, svc *corev1.Service) bool
 	return app.UID != "" &&
 		svc.Labels[locolabels.LabelPrivateServiceOwner] == string(app.UID) &&
 		svc.Labels[locolabels.LabelManagedBy] == locolabels.ControllerManagedBy &&
-		svc.Labels[managed.LabelComponent] == componentPrivateService &&
+		svc.Labels[locolabels.LabelComponent] == componentPrivateService &&
 		svc.Annotations[locolabels.AnnotationApplicationNamespace] == app.Namespace &&
 		svc.Annotations[locolabels.AnnotationApplicationName] == app.Name
 }
@@ -69,7 +68,7 @@ func (r *ApplicationReconciler) ensurePrivateService(ctx context.Context, app *l
 	desired := &corev1.Service{Name: name, Namespace: namespace,
 		Labels: map[string]string{
 			locolabels.LabelManagedBy:           locolabels.ControllerManagedBy,
-			managed.LabelComponent:              componentPrivateService,
+			locolabels.LabelComponent:           componentPrivateService,
 			locolabels.LabelPrivateServiceOwner: string(app.UID),
 		}, Annotations: ownerAnnotations(app),
 		Spec: corev1.ServiceSpec{
@@ -119,7 +118,7 @@ func (r *ApplicationReconciler) prunePrivateServices(
 	list := &corev1.ServiceList{}
 	selector := client.MatchingLabels{
 		locolabels.LabelPrivateServiceOwner: string(app.UID),
-		managed.LabelComponent:              componentPrivateService,
+		locolabels.LabelComponent:           componentPrivateService,
 	}
 	reader := r.APIReader
 	if err := reader.List(ctx, list, client.InNamespace(r.environmentNamespace(app)), selector); err != nil {
