@@ -1,9 +1,12 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { formatStarted, type TimePreferences } from "@/lib/time";
+import type { CSSProperties } from "react";
 import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, DownloadIcon } from "lucide-react";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
+import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { Code } from "@/components/design/CodeBlock";
 import { DialogContent, DialogTitle } from "@/components/design/Dialog";
 import {
 	DropdownMenu,
@@ -19,7 +22,7 @@ import { depTag, startedMs } from "./model";
 import { diffLines, sideBySide, specText } from "./spec";
 
 const COPIED_MS = 1500;
-const JSON_TYPE = "application/json";
+const YAML_TYPE = "application/yaml";
 
 function optionLabel(dep: Deployment, pref: TimePreferences): string {
 	return [formatShortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep), pref)].join(" · ");
@@ -56,7 +59,8 @@ function Picker({
 				<DropdownMenuRadioGroup value={value.id} onValueChange={onChange}>
 					{deployments.map((d) => (
 						<DropdownMenuRadioItem key={d.id} value={d.id} className="font-mono text-[12px]">
-							{optionLabel(d, timePref)}
+							<span className="flex-1">{optionLabel(d, timePref)}</span>
+							{d.status === DeploymentStatus.RUNNING && <Badge tone="pill">running</Badge>}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>
@@ -66,24 +70,20 @@ function Picker({
 }
 
 function download(dep: Deployment, text: string) {
-	const url = URL.createObjectURL(new Blob([text], { type: JSON_TYPE }));
+	const url = URL.createObjectURL(new Blob([text], { type: YAML_TYPE }));
 	const a = document.createElement("a");
 	a.href = url;
-	a.download = `deployment-${formatShortId(dep.id)}.json`;
+	a.download = `deployment-${formatShortId(dep.id)}.yaml`;
 	a.click();
 	URL.revokeObjectURL(url);
 }
 
 function Single({ text }: { text: string }) {
+	const digits = text.split("\n").length.toString().length;
 	return (
-		<>
-			{text.split("\n").map((line, i) => (
-				<div key={i} className="grid grid-cols-[44px_minmax(0,1fr)]">
-					<span className="pr-3 text-right text-fg4 select-none">{i + 1}</span>
-					<span className="pr-3 whitespace-pre">{line}</span>
-				</div>
-			))}
-		</>
+		<pre className="m-0 text-(--sh-identifier)" style={{ "--code-digits": digits } as CSSProperties}>
+			<Code code={text} language="yaml" className="code-lines" />
+		</pre>
 	);
 }
 
@@ -121,11 +121,13 @@ function Compare({ from, to }: { from: string; to: string }) {
 }
 
 export function SpecDialogContent({
+	resourceName,
 	deployments,
 	deploymentId,
 	compareId,
 	onChange,
 }: {
+	resourceName: string;
 	deployments: Deployment[];
 	deploymentId: string;
 	compareId: string | null;
@@ -141,9 +143,12 @@ export function SpecDialogContent({
 	const firstOther = others[0];
 
 	return (
-		<DialogContent className={cn("max-h-[calc(100dvh-64px)]", b === undefined ? "w-[720px]" : "w-[1180px]")}>
+		<DialogContent top className={cn(b === undefined ? "w-[720px]" : "w-[1180px]")}>
 			<div className="flex flex-wrap items-center gap-2.5 border-b border-line py-2.5 pr-12 pl-4">
-				<DialogTitle className="text-[14px]">Deployment spec</DialogTitle>
+				<DialogTitle className="font-mono text-[15px]">
+					{resourceName}
+					<span className="sr-only"> deployment spec</span>
+				</DialogTitle>
 				<Picker
 					label="Deployment"
 					deployments={deployments}

@@ -7,7 +7,7 @@ import {
 	type Deployment,
 } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { diffLines, sideBySide, specChanges } from "./spec";
+import { diffLines, sideBySide, specChanges, toYaml } from "./spec";
 
 function deployment(image: string, replicas: number, env: Record<string, string>): Deployment {
 	return create(DeploymentSchema, {
@@ -54,5 +54,39 @@ describe("specChanges", () => {
 	test("is empty for the same spec", () => {
 		const dep = deployment("ghcr.io/acme/shop:1.4.0", 2, {});
 		expect(specChanges(dep, dep)).toEqual([]);
+	});
+});
+
+describe("toYaml", () => {
+	test("writes nested maps and lists in block style and quotes ambiguous strings", () => {
+		const yaml = toYaml({
+			build: { image: "ghcr.io/acme/shop:1.5.0" },
+			cpu: "250m",
+			port: 8080,
+			regions: ["us-east-1", "eu-west-1"],
+			env: { DEBUG: "true", GREETING: "hello world", EMPTY: "", RETRIES: "3" },
+			routes: [{ path: "/", port: 80 }],
+			labels: {},
+		});
+		expect(yaml).toBe(
+			[
+				"build:",
+				"  image: ghcr.io/acme/shop:1.5.0",
+				"cpu: 250m",
+				"port: 8080",
+				"regions:",
+				"  - us-east-1",
+				"  - eu-west-1",
+				"env:",
+				'  DEBUG: "true"',
+				'  GREETING: "hello world"',
+				'  EMPTY: ""',
+				'  RETRIES: "3"',
+				"routes:",
+				"  - path: /",
+				"    port: 80",
+				"labels: {}",
+			].join("\n"),
+		);
 	});
 });

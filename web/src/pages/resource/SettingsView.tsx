@@ -138,7 +138,7 @@ export function SettingsView({
 
 	return (
 		<div className="flex flex-col gap-5">
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-3 border-b border-line pb-3.5">
 				<Button variant="outline" size="sm" onClick={onBack}>
 					<ArrowLeftIcon />
 					Overview

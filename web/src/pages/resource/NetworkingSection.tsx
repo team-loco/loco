@@ -362,7 +362,7 @@ export function NetworkingSection({
 			</div>
 			<Field label="Port" error={errors.port} hint="The port the container listens on.">
 				<Input
-					className="w-40 font-mono"
+					className="max-w-[200px] font-mono"
 					inputMode="numeric"
 					value={draft.port ?? base.port}
 					disabled={locked}
