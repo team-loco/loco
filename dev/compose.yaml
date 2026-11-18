@@ -1,15 +1,13 @@
 name: loco-dev
 
-x-postgres-env: &postgres-env
-  POSTGRES_USER: ${POSTGRES_USER:-loco_user}
-  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loco_password}
-  POSTGRES_DB: ${POSTGRES_DB:-loco}
-
 services:
   postgres:
     restart: unless-stopped
     image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
-    environment: *postgres-env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-loco_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loco_password}
+      POSTGRES_DB: ${POSTGRES_DB:-loco}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -21,17 +19,6 @@ services:
       retries: 30
       start_period: 120s
       start_interval: 1s
-
-  valkey:
-    restart: unless-stopped
-    image: valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
-    ports:
-      - "${VALKEY_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 1s
-      timeout: 3s
-      retries: 30
 
   registry:
     restart: unless-stopped
@@ -118,26 +105,6 @@ services:
     entrypoint: ["timeout", "120", "sh", "/openbao/setup.sh"]
     command: !override [init, configure]
     healthcheck: !reset {}
-
-  seed:
-    image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
-    profiles: [tools]
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      <<: *postgres-env
-      PGHOST: postgres
-      SEED_FILE: ${SEED_FILE:-}
-    volumes:
-      - ..:/repo:ro
-    working_dir: /repo
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        export PGUSER="$$POSTGRES_USER" PGPASSWORD="$$POSTGRES_PASSWORD" PGDATABASE="$$POSTGRES_DB"
-        echo "seeding $$SEED_FILE"
-        psql -q -v ON_ERROR_STOP=1 -f "$$SEED_FILE"
 
 volumes:
   openbao-data:
