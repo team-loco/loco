@@ -275,6 +275,16 @@ var (
 		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
+	// GetWorkspaceRetention requires workspace:read.
+	GetWorkspaceRetention = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeRead,
+	}
+	// SetWorkspaceRetention requires workspace:admin.
+	SetWorkspaceRetention = Action{
+		entityType: db.EntityTypeWorkspace,
+		scope:      db.ScopeAdmin,
+	}
 
 	ManageClusters = Action{entityType: db.EntityTypeSystem, scope: db.ScopeAdmin}
 

@@ -67,3 +67,21 @@ export const deleteMember = WorkspaceService.method.deleteMember;
  * @generated from rpc loco.workspace.v1.WorkspaceService.ListWorkspaceMembers
  */
 export const listWorkspaceMembers = WorkspaceService.method.listWorkspaceMembers;
+
+/**
+ * GetWorkspaceRetention returns how many days the workspace keeps its logs, traces and metrics.
+ * It requires workspace:read.
+ *
+ * @generated from rpc loco.workspace.v1.WorkspaceService.GetWorkspaceRetention
+ */
+export const getWorkspaceRetention = WorkspaceService.method.getWorkspaceRetention;
+
+/**
+ * SetWorkspaceRetention sets how many days the workspace keeps each signal, from 1 to the
+ * organization's retention limit. Only the fields in update_mask change; a masked field left
+ * unset clears the workspace's value. It applies to records ingested after it. It requires
+ * workspace:admin.
+ *
+ * @generated from rpc loco.workspace.v1.WorkspaceService.SetWorkspaceRetention
+ */
+export const setWorkspaceRetention = WorkspaceService.method.setWorkspaceRetention;

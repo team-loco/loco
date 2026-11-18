@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.workspace.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/workspace/v1;workspacev1";
@@ -30,6 +31,15 @@ service WorkspaceService {
   rpc DeleteMember(DeleteMemberRequest) returns (DeleteMemberResponse);
   // ListWorkspaceMembers lists all members of a workspace with pagination.
   rpc ListWorkspaceMembers(ListWorkspaceMembersRequest) returns (ListWorkspaceMembersResponse);
+
+  // GetWorkspaceRetention returns how many days the workspace keeps its logs, traces and metrics.
+  // It requires workspace:read.
+  rpc GetWorkspaceRetention(GetWorkspaceRetentionRequest) returns (GetWorkspaceRetentionResponse);
+  // SetWorkspaceRetention sets how many days the workspace keeps each signal, from 1 to the
+  // organization's retention limit. Only the fields in update_mask change; a masked field left
+  // unset clears the workspace's value. It applies to records ingested after it. It requires
+  // workspace:admin.
+  rpc SetWorkspaceRetention(SetWorkspaceRetentionRequest) returns (SetWorkspaceRetentionResponse);
 }
 
 // Workspace represents a project container within an organization where resources are deployed and managed.
@@ -184,4 +194,44 @@ message ListWorkspaceMembersRequest {
 message ListWorkspaceMembersResponse {
   repeated WorkspaceMemberWithUser members = 1;
   string next_page_token = 2; // empty if no more pages
+}
+
+// RetentionDays is how many days to keep each signal's rows.
+message RetentionDays {
+  optional int32 log_days = 1;
+  optional int32 trace_days = 2;
+  optional int32 metric_days = 3;
+}
+
+// WorkspaceRetention is how long a workspace keeps its telemetry.
+message WorkspaceRetention {
+  // settings are the workspace's own values; an unset field leaves the signal to the limit.
+  RetentionDays settings = 1;
+  // limits are the organization's retention limits, with every field set.
+  RetentionDays limits = 2;
+  // effective is what ingest applies, with every field set: the smaller of each setting and its limit.
+  RetentionDays effective = 3;
+}
+
+// GetWorkspaceRetentionRequest is the request for a workspace's retention.
+message GetWorkspaceRetentionRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// GetWorkspaceRetentionResponse holds the workspace's retention.
+message GetWorkspaceRetentionResponse {
+  WorkspaceRetention retention = 1;
+}
+
+// SetWorkspaceRetentionRequest is the request to change a workspace's retention.
+message SetWorkspaceRetentionRequest {
+  string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  RetentionDays settings = 2 [(buf.validate.field).required = true];
+  // update_mask names the RetentionDays fields to change: log_days, trace_days or metric_days.
+  google.protobuf.FieldMask update_mask = 3 [(buf.validate.field).required = true];
+}
+
+// SetWorkspaceRetentionResponse holds the workspace's retention after the request.
+message SetWorkspaceRetentionResponse {
+  WorkspaceRetention retention = 1;
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/ingesttoken"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -111,26 +112,32 @@ func (s *IngestServer) ListPlacementWindows(
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 	}
-	install, err := retention(limits.Install(s.counts))
+	install, err := ingestRetention(limits.Install(s.counts), &workspacev1.RetentionDays{})
 	if err != nil {
 		return nil, err
 	}
-	orgs := map[uuid.UUID]*ingestv1.Retention{}
+	orgs := map[uuid.UUID]limits.Effective{}
 	windows := make([]*ingestv1.PlacementWindow, 0, len(rows))
 	for _, row := range rows {
-		if _, loaded := orgs[row.OrgID]; !loaded {
-			counts, limitsErr := limits.ForOrg(ctx, s.queries, s.counts, row.OrgID)
-			if limitsErr != nil {
-				return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(limitsErr)
+		counts, loaded := orgs[row.OrgID]
+		if !loaded {
+			counts, err = limits.ForOrg(ctx, s.queries, s.counts, row.OrgID)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 			}
-			if orgs[row.OrgID], err = retention(counts); err != nil {
-				return nil, err
-			}
+			orgs[row.OrgID] = counts
 		}
 		window := &ingestv1.PlacementWindow{
 			WorkspaceId: row.WorkspaceID.String(),
 			PlacedAt:    timestamppb.New(row.PlacedAt),
-			Retention:   orgs[row.OrgID],
+		}
+		window.Retention, err = ingestRetention(counts, &workspacev1.RetentionDays{
+			LogDays:    row.LogRetentionDays,
+			TraceDays:  row.TraceRetentionDays,
+			MetricDays: row.MetricRetentionDays,
+		})
+		if err != nil {
+			return nil, err
 		}
 		if row.RemovedAt != nil {
 			window.RemovedAt = timestamppb.New(*row.RemovedAt)
@@ -140,21 +147,19 @@ func (s *IngestServer) ListPlacementWindows(
 	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, Retention: install}, nil
 }
 
-// retention returns how many days to keep each signal under counts.
-func retention(counts limits.Effective) (*ingestv1.Retention, error) {
-	logs, err := limits.LogRetentionDays.Get(counts)
+// ingestRetention returns how many days to keep each signal of a workspace with settings under
+// its organization's limits in counts.
+func ingestRetention(counts limits.Effective, settings *workspacev1.RetentionDays) (*ingestv1.Retention, error) {
+	retention, err := workspaceRetention(counts, settings)
 	if err != nil {
 		return nil, err
 	}
-	traces, err := limits.TraceRetentionDays.Get(counts)
-	if err != nil {
-		return nil, err
-	}
-	metrics, err := limits.MetricRetentionDays.Get(counts)
-	if err != nil {
-		return nil, err
-	}
-	return &ingestv1.Retention{LogDays: logs, TraceDays: traces, MetricDays: metrics}, nil
+	effective := retention.GetEffective()
+	return &ingestv1.Retention{
+		LogDays:    effective.GetLogDays(),
+		TraceDays:  effective.GetTraceDays(),
+		MetricDays: effective.GetMetricDays(),
+	}, nil
 }
 
 func (s *IngestServer) JWKS(w http.ResponseWriter, r *http.Request) {

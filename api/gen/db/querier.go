@@ -150,6 +150,7 @@ type Querier interface {
 	GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetWorkspaceByIDQueryRow, error)
 	GetWorkspaceDefaultEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error)
 	GetWorkspaceOrganizationIDByResourceID(ctx context.Context, id uuid.UUID) (GetWorkspaceOrganizationIDByResourceIDRow, error)
+	GetWorkspaceRetention(ctx context.Context, id uuid.UUID) (GetWorkspaceRetentionRow, error)
 	GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebhookParams) (Webhook, error)
 	HasInaccessibleAccountDeletionTokens(ctx context.Context, arg HasInaccessibleAccountDeletionTokensParams) (bool, error)
 	InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error
@@ -312,6 +313,7 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
+	SetWorkspaceRetention(ctx context.Context, arg SetWorkspaceRetentionParams) error
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)

@@ -100,3 +100,15 @@ WHERE (sqlc.narg('page_token')::text IS NULL
        ))
 ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
+
+-- name: GetWorkspaceRetention :one
+SELECT org_id, log_retention_days, trace_retention_days, metric_retention_days
+FROM workspaces WHERE id = $1;
+
+-- name: SetWorkspaceRetention :exec
+UPDATE workspaces
+SET log_retention_days = sqlc.narg('log_retention_days'),
+    trace_retention_days = sqlc.narg('trace_retention_days'),
+    metric_retention_days = sqlc.narg('metric_retention_days'),
+    updated_at = NOW()
+WHERE id = sqlc.arg('id');

@@ -82,6 +82,30 @@ func (q *Queries) GetWorkspaceByIDQuery(ctx context.Context, id uuid.UUID) (GetW
 	return i, err
 }
 
+const getWorkspaceRetention = `-- name: GetWorkspaceRetention :one
+SELECT org_id, log_retention_days, trace_retention_days, metric_retention_days
+FROM workspaces WHERE id = $1
+`
+
+type GetWorkspaceRetentionRow struct {
+	OrgID               uuid.UUID `json:"orgId"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
+}
+
+func (q *Queries) GetWorkspaceRetention(ctx context.Context, id uuid.UUID) (GetWorkspaceRetentionRow, error) {
+	row := q.db.QueryRow(ctx, getWorkspaceRetention, id)
+	var i GetWorkspaceRetentionRow
+	err := row.Scan(
+		&i.OrgID,
+		&i.LogRetentionDays,
+		&i.TraceRetentionDays,
+		&i.MetricRetentionDays,
+	)
+	return i, err
+}
+
 const listWorkspaceMembersWithUserDetails = `-- name: ListWorkspaceMembersWithUserDetails :many
 WITH member_scopes AS (
   SELECT
@@ -363,6 +387,32 @@ DELETE FROM workspaces WHERE id = $1
 
 func (q *Queries) RemoveWorkspace(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, removeWorkspace, id)
+	return err
+}
+
+const setWorkspaceRetention = `-- name: SetWorkspaceRetention :exec
+UPDATE workspaces
+SET log_retention_days = $1,
+    trace_retention_days = $2,
+    metric_retention_days = $3,
+    updated_at = NOW()
+WHERE id = $4
+`
+
+type SetWorkspaceRetentionParams struct {
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
+	ID                  uuid.UUID `json:"id"`
+}
+
+func (q *Queries) SetWorkspaceRetention(ctx context.Context, arg SetWorkspaceRetentionParams) error {
+	_, err := q.db.Exec(ctx, setWorkspaceRetention,
+		arg.LogRetentionDays,
+		arg.TraceRetentionDays,
+		arg.MetricRetentionDays,
+		arg.ID,
+	)
 	return err
 }
 

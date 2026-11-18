@@ -203,7 +203,8 @@ WHERE pw.resource_id = $1 AND pw.cluster_id = $2 AND pw.removed_at IS NULL
   );
 
 -- name: ListClusterPlacementWindows :many
-SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at
+SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at,
+       w.log_retention_days, w.trace_retention_days, w.metric_retention_days
 FROM placement_windows pw
 JOIN workspaces w ON w.id = pw.workspace_id
 WHERE pw.cluster_id = $1

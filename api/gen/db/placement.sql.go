@@ -213,7 +213,8 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
-SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at
+SELECT pw.workspace_id, w.org_id, pw.placed_at, pw.removed_at,
+       w.log_retention_days, w.trace_retention_days, w.metric_retention_days
 FROM placement_windows pw
 JOIN workspaces w ON w.id = pw.workspace_id
 WHERE pw.cluster_id = $1
@@ -221,10 +222,13 @@ ORDER BY pw.placed_at, pw.id
 `
 
 type ListClusterPlacementWindowsRow struct {
-	WorkspaceID uuid.UUID  `json:"workspaceId"`
-	OrgID       uuid.UUID  `json:"orgId"`
-	PlacedAt    time.Time  `json:"placedAt"`
-	RemovedAt   *time.Time `json:"removedAt"`
+	WorkspaceID         uuid.UUID  `json:"workspaceId"`
+	OrgID               uuid.UUID  `json:"orgId"`
+	PlacedAt            time.Time  `json:"placedAt"`
+	RemovedAt           *time.Time `json:"removedAt"`
+	LogRetentionDays    *int32     `json:"logRetentionDays"`
+	TraceRetentionDays  *int32     `json:"traceRetentionDays"`
+	MetricRetentionDays *int32     `json:"metricRetentionDays"`
 }
 
 func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementWindowsRow, error) {
@@ -241,6 +245,9 @@ func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uui
 			&i.OrgID,
 			&i.PlacedAt,
 			&i.RemovedAt,
+			&i.LogRetentionDays,
+			&i.TraceRetentionDays,
+			&i.MetricRetentionDays,
 		); err != nil {
 			return nil, err
 		}

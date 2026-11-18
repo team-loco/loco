@@ -910,11 +910,14 @@ type WebhookDeliveryResult struct {
 }
 
 type Workspace struct {
-	ID          uuid.UUID `json:"id"`
-	OrgID       uuid.UUID `json:"orgId"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description"`
-	CreatedBy   uuid.UUID `json:"createdBy"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID                  uuid.UUID `json:"id"`
+	OrgID               uuid.UUID `json:"orgId"`
+	Name                string    `json:"name"`
+	Description         *string   `json:"description"`
+	LogRetentionDays    *int32    `json:"logRetentionDays"`
+	TraceRetentionDays  *int32    `json:"traceRetentionDays"`
+	MetricRetentionDays *int32    `json:"metricRetentionDays"`
+	CreatedBy           uuid.UUID `json:"createdBy"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
 }
