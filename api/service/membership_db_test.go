@@ -78,10 +78,6 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 		SessionRefreshTokenDuration: membershipSessionDuration,
 		LastUsedUpdateInterval:      membershipSessionDuration,
 	})
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatalf("policy: %v", err)
-	}
 	authorizer := authz.New(queries)
 	server := connect.NewServer(
 		interceptor.NewErrorInterceptor(),
@@ -106,7 +102,7 @@ func newMembershipAPIWith(t *testing.T, invitations InvitationConfig) *membershi
 		pool:     pool,
 		queries:  queries,
 		machine:  machine,
-		resolver: auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
+		resolver: openResolver(t, pool),
 		url:      srv.URL,
 	}
 }

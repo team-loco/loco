@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	chClient "github.com/team-loco/loco/internal/clickhouse"
 )
 
@@ -42,26 +43,12 @@ func newObservabilityFixture(t *testing.T) *observabilityFixture {
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
 	f := &observabilityFixture{authorizer: authz.New(queries), queries: queries}
-	row := pool.QueryRow(context.Background(), `
-WITH u AS (
-    INSERT INTO users (email) VALUES ('observability@example.com') RETURNING id
-), o AS (
-    INSERT INTO organizations (name, created_by) SELECT 'org', id FROM u RETURNING id
-), w AS (
-    INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ws', u.id FROM o, u RETURNING id
-), w2 AS (
-    INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'other', u.id FROM o, u RETURNING id
-), r AS (
-    INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-    SELECT w.id, 'web', 'web', 'service', '', '{}', 1, u.id FROM w, u RETURNING id
-), r2 AS (
-    INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-    SELECT w.id, 'worker', 'worker', 'service', '', '{}', 1, u.id FROM w, u RETURNING id
-)
-SELECT o.id, w.id, w2.id, r.id, r2.id FROM o, w, w2, r, r2`)
-	if err := row.Scan(&f.org, &f.workspace, &f.otherWorkspace, &f.resource, &f.otherResource); err != nil {
-		t.Fatalf("seed: %v", err)
-	}
+	tn := seedTenant(t, pool, queries, "observability@example.com", "org")
+	f.org = tn.orgID
+	f.workspace = tn.workspace(t, "ws")
+	f.otherWorkspace = tn.workspace(t, "other")
+	f.resource = tn.resource(t, f.workspace, "web", &resourcev1.ServiceSpec{})
+	f.otherResource = tn.resource(t, f.workspace, "worker", &resourcev1.ServiceSpec{})
 	f.callers = map[string][]genDb.EntityScope{
 		workspaceReader: {{EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspace, Scope: genDb.ScopeRead}},
 		orgReader:       {{EntityType: genDb.EntityTypeOrganization, EntityID: f.org, Scope: genDb.ScopeRead}},

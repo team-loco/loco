@@ -41,6 +41,7 @@ const (
 )
 
 type applyOptions struct {
+	// revision defaults to the environment's current revision.
 	revision           int64
 	confirmDestructive bool
 	confirmImport      bool
@@ -66,6 +67,10 @@ func applyFile(
 			images = planned.GetImages()
 		}
 	}
+	revision := opts.revision
+	if revision == 0 {
+		revision = f.revision(t, environmentID)
+	}
 	server := newPlanServer(f)
 	ctx := reqctx.WithPrincipal(
 		context.Background(),
@@ -77,7 +82,7 @@ func applyFile(
 	req := &planv1.ApplyRequest{
 		File:               []byte(file),
 		EnvironmentId:      environmentID.String(),
-		Revision:           opts.revision,
+		Revision:           revision,
 		ConfirmDestructive: opts.confirmDestructive,
 		ConfirmImport:      opts.confirmImport,
 		Images:             images,
@@ -331,6 +336,7 @@ func TestApplyImportsAnUnownedServiceOnConfirmation(t *testing.T) {
 func TestApplyDeletesAnOwnedServiceOnConfirmation(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	start := f.revision(t, f.envID)
 	file := seedOwnedAsLive(t, f)
 	f.addResource(t, planOld, planPartial)
 
@@ -345,8 +351,8 @@ func TestApplyDeletesAnOwnedServiceOnConfirmation(t *testing.T) {
 	if !f.hasResource(t, planOld) {
 		t.Fatal("old was deleted without resource admin")
 	}
-	if rev := f.revision(t, f.envID); rev != 0 {
-		t.Fatalf("revision = %d after refused applies, want 0", rev)
+	if rev := f.revision(t, f.envID); rev != start {
+		t.Fatalf("revision = %d after refused applies, want %d", rev, start)
 	}
 
 	resp, err := applyFile(t, f, file, applyOptions{confirmDestructive: true}, f.adminScopes(t))
@@ -379,10 +385,11 @@ func TestApplyRefusesAStaleRevision(t *testing.T) {
 	file := seedOwnedAsLive(t, f)
 	f.addResource(t, planOld, planPartial)
 
-	_, err := applyFile(t, f, file, applyOptions{revision: 1, confirmDestructive: true}, f.adminScopes(t))
+	current := f.revision(t, f.envID)
+	_, err := applyFile(t, f, file, applyOptions{revision: current + 1, confirmDestructive: true}, f.adminScopes(t))
 	refusal := wantRefusal(t, err)
-	if refusal.GetRevision() != 0 || len(refusal.GetUnconfirmed()) != 0 || len(refusal.GetErrors()) != 0 {
-		t.Fatalf("refusal = %v, want the current revision 0", refusal)
+	if refusal.GetRevision() != current || len(refusal.GetUnconfirmed()) != 0 || len(refusal.GetErrors()) != 0 {
+		t.Fatalf("refusal = %v, want the current revision %d", refusal, current)
 	}
 	if !f.hasResource(t, planOld) {
 		t.Fatal("old was deleted by a refused apply")

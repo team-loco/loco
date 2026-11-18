@@ -98,16 +98,6 @@ func (f *imageSweepFixture) sweepWith(registry sweepers.ImageRegistry, repositor
 	f.sweeper = sweepers.NewImageSweeper(f.pool, f.queries, registry, config)
 }
 
-func (f *buildFixture) workspaceID(t *testing.T) uuid.UUID {
-	t.Helper()
-	var id uuid.UUID
-	row := f.pool.QueryRow(f.ctx, `SELECT workspace_id FROM resources WHERE id = $1`, f.resourceID)
-	if err := row.Scan(&id); err != nil {
-		t.Fatalf("read workspace: %v", err)
-	}
-	return id
-}
-
 func (f *imageSweepFixture) succeeded(t *testing.T) sweptBuild {
 	t.Helper()
 	f.built++

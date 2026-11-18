@@ -56,40 +56,15 @@ func newEventFixture(t *testing.T) *eventFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(queries, tvm.Config{
-		SessionAccessTokenDuration:  time.Hour,
-		SessionRefreshTokenDuration: time.Hour,
-		LastUsedUpdateInterval:      time.Minute,
-	})
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatalf("policy: %v", err)
-	}
-	owner, _, err := auth.NewResolver(pool, policy, limits.Defaults(), time.Hour).Resolve(t.Context(), auth.Identity{
-		Issuer: testIssuer, Subject: "owner", Email: auditOwnerEmail, EmailVerified: true,
-	})
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
-	}
-	ownerCtx := scoped(t, queries, owner.ID)
-	created, err := NewOrgServer(
-		pool,
-		queries,
-		InvitationConfig{},
-		limits.Defaults(),
-	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
-		Name: new("acme"),
-	})
-	if err != nil {
-		t.Fatalf("create org: %v", err)
-	}
+	machine := testMachine(queries)
+	tn := seedTenant(t, pool, queries, auditOwnerEmail, "acme")
 	return &eventFixture{
 		pool:    pool,
 		queries: queries,
 		machine: machine,
 		events:  NewEventServer(pool, queries),
-		owner:   scoped(t, queries, owner.ID),
-		orgID:   created.GetOrgId(),
+		owner:   tn.owner(t),
+		orgID:   tn.orgID.String(),
 	}
 }
 

@@ -40,41 +40,40 @@ func getEnvironment(t *testing.T, f *deployFixture) *environmentv1.Environment {
 func TestEnvironmentRevisionFollowsWrites(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if rev := getEnvironment(t, f).GetRevision(); rev != 0 {
-		t.Fatalf("revision = %d on a new environment, want 0", rev)
-	}
+	start := getEnvironment(t, f).GetRevision()
 
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
-	if rev := getEnvironment(t, f).GetRevision(); rev != 1 {
-		t.Fatalf("revision = %d after a deployment, want 1", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start+1 {
+		t.Fatalf("revision = %d after a deployment, want %d", rev, start+1)
 	}
 
 	f.finishRollouts(t)
 	if err := scaleResource(t, f, 2); err != nil {
 		t.Fatalf("scale: %v", err)
 	}
-	if rev := getEnvironment(t, f).GetRevision(); rev != 2 {
-		t.Fatalf("revision = %d after a scale, want 2", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start+2 {
+		t.Fatalf("revision = %d after a scale, want %d", rev, start+2)
 	}
 
 	client := newDomainClient(t, f)
 	if err := client.add(testPrimaryDomain); err != nil {
 		t.Fatalf("add domain: %v", err)
 	}
-	if rev := getEnvironment(t, f).GetRevision(); rev != 3 {
-		t.Fatalf("revision = %d after a domain change, want 3", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start+3 {
+		t.Fatalf("revision = %d after a domain change, want %d", rev, start+3)
 	}
 
-	if rev := getEnvironment(t, f).GetRevision(); rev != 3 {
-		t.Fatalf("revision = %d after reads only, want 3", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start+3 {
+		t.Fatalf("revision = %d after reads only, want %d", rev, start+3)
 	}
 }
 
 func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	start := getEnvironment(t, f).GetRevision()
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
@@ -82,8 +81,8 @@ func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
 	f.finishRollouts(t)
 	err := scaleResource(t, f, 15)
 	wantCode(t, err, connect.CodeInvalidArgument)
-	if rev := getEnvironment(t, f).GetRevision(); rev != 1 {
-		t.Fatalf("revision = %d after a rejected scale, want 1", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start+1 {
+		t.Fatalf("revision = %d after a rejected scale, want %d", rev, start+1)
 	}
 }
 
@@ -103,16 +102,17 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 func TestEnvironmentRenameBumpsTheRevision(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	start := getEnvironment(t, f).GetRevision()
 
 	description := "only the description"
 	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Description: &description})
-	if rev := getEnvironment(t, f).GetRevision(); rev != 0 {
-		t.Fatalf("revision = %d after a description change, want 0", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start {
+		t.Fatalf("revision = %d after a description change, want %d", rev, start)
 	}
 
-	name := "production"
+	name := "live"
 	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Name: &name})
-	if rev := getEnvironment(t, f).GetRevision(); rev != 1 {
-		t.Fatalf("revision = %d after a rename, want 1", rev)
+	if rev := getEnvironment(t, f).GetRevision(); rev != start+1 {
+		t.Fatalf("revision = %d after a rename, want %d", rev, start+1)
 	}
 }

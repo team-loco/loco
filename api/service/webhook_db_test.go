@@ -18,7 +18,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	webhookv1 "github.com/team-loco/loco/gen/go/loco/webhook/v1"
 )
 
@@ -42,55 +41,23 @@ func newWebhookFixture(t *testing.T) *webhookFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatalf("policy: %v", err)
-	}
 	f := &webhookFixture{
 		pool:     pool,
 		queries:  queries,
 		provider: newTestKeyProvider(t, "k1"),
-		resolver: auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
+		resolver: openResolver(t, pool),
 	}
-	owner := f.signUp(t, "owner", "owner@corp.test")
-	ownerCtx := scoped(t, queries, owner)
-	orgs := NewOrgServer(pool, queries, InvitationConfig{}, limits.Defaults())
-	created, err := orgs.CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{Name: new("corp")})
-	if err != nil {
-		t.Fatalf("org: %v", err)
-	}
-	f.orgID = uuid.MustParse(created.GetOrgId())
-	f.workspaceID = f.workspace(t, owner, "storefront")
-	f.otherID = f.workspace(t, owner, "billing")
-	f.owner = scoped(t, queries, owner)
+	tn := seedTenant(t, pool, queries, "owner@corp.test", "corp")
+	f.orgID = tn.orgID
+	f.workspaceID = tn.workspace(t, "storefront").String()
+	f.otherID = tn.workspace(t, "billing").String()
+	f.owner = tn.owner(t)
 	return f
-}
-
-func (f *webhookFixture) workspace(t *testing.T, owner uuid.UUID, name string) string {
-	t.Helper()
-	id, err := f.queries.CreateWorkspace(t.Context(), genDb.CreateWorkspaceParams{
-		OrgID: f.orgID, Name: name, CreatedBy: owner,
-	})
-	if err != nil {
-		t.Fatalf("workspace %s: %v", name, err)
-	}
-	return id.String()
-}
-
-func (f *webhookFixture) signUp(t *testing.T, sub, email string) uuid.UUID {
-	t.Helper()
-	user, _, err := f.resolver.Resolve(t.Context(), auth.Identity{
-		Issuer: testIssuer, Subject: sub, Email: email, EmailVerified: true,
-	})
-	if err != nil {
-		t.Fatalf("sign up %s: %v", email, err)
-	}
-	return user.ID
 }
 
 func (f *webhookFixture) member(t *testing.T, sub string, scope genDb.Scope) context.Context {
 	t.Helper()
-	user := f.signUp(t, sub, sub+"@corp.test")
+	user := signUp(t, f.resolver, sub, sub+"@corp.test")
 	if err := f.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
 		UserID:     user,
 		EntityType: genDb.EntityTypeWorkspace,

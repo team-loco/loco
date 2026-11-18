@@ -44,16 +44,13 @@ RETURNING id`
 
 func (f *deployFixture) revision(t *testing.T, environmentID uuid.UUID) int64 {
 	t.Helper()
-	env, err := f.queries.GetEnvironmentByID(context.Background(), environmentID)
-	if err != nil {
-		t.Fatalf("get environment: %v", err)
-	}
-	return env.Revision
+	return environmentRevision(t, f.queries, environmentID)
 }
 
 func TestTransferPartialSetsThePartialAndBumpsEveryEnvironment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	start := f.revision(t, f.envID)
 	devID := f.addEnvironment(t, "dev")
 	workspaceID := f.workspaceID(t)
 	reader := []genDb.EntityScope{
@@ -79,8 +76,8 @@ func TestTransferPartialSetsThePartialAndBumpsEveryEnvironment(t *testing.T) {
 	if after.GetPartial() != testPartial {
 		t.Fatalf("partial = %q, want %q", after.GetPartial(), testPartial)
 	}
-	if rev := f.revision(t, f.envID); rev != 1 {
-		t.Fatalf("prod revision = %d, want 1", rev)
+	if rev := f.revision(t, f.envID); rev != start+1 {
+		t.Fatalf("prod revision = %d, want %d", rev, start+1)
 	}
 	if rev := f.revision(t, devID); rev != 1 {
 		t.Fatalf("dev revision = %d, want 1", rev)
@@ -90,20 +87,21 @@ func TestTransferPartialSetsThePartialAndBumpsEveryEnvironment(t *testing.T) {
 func TestTransferPartialRejectsTheCurrentPartial(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	start := f.revision(t, f.envID)
 	if err := transferPartial(t, f, testPartial); err != nil {
 		t.Fatalf("transfer: %v", err)
 	}
 
 	err := transferPartial(t, f, testPartial)
 	wantCode(t, err, connect.CodeFailedPrecondition)
-	if rev := f.revision(t, f.envID); rev != 1 {
-		t.Fatalf("revision = %d after a rejected transfer, want 1", rev)
+	if rev := f.revision(t, f.envID); rev != start+1 {
+		t.Fatalf("revision = %d after a rejected transfer, want %d", rev, start+1)
 	}
 
 	if err := transferPartial(t, f, "worker"); err != nil {
 		t.Fatalf("transfer to another partial: %v", err)
 	}
-	if rev := f.revision(t, f.envID); rev != 2 {
-		t.Fatalf("revision = %d after a second transfer, want 2", rev)
+	if rev := f.revision(t, f.envID); rev != start+2 {
+		t.Fatalf("revision = %d after a second transfer, want %d", rev, start+2)
 	}
 }

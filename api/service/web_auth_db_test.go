@@ -9,14 +9,12 @@ import (
 	"net/url"
 	"sync"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/auth/authtest"
-	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
@@ -90,10 +88,6 @@ func newWebAuthFixture(t *testing.T) *webAuthFixture {
 	issuer.Start()
 	t.Cleanup(issuer.Close)
 
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatal(err)
-	}
 	issuers, err := auth.ParseIssuers(
 		`[{"issuer":"` + issuerURL + `","audience":"authenticated",` +
 			`"web":{"clientId":"dashboard","scopes":"openid email offline_access"}}]`,
@@ -104,7 +98,7 @@ func newWebAuthFixture(t *testing.T) *webAuthFixture {
 	verifier := auth.NewVerifier(issuer.Client(), issuers)
 	fixture.server.web = WebAuth{
 		Provider: auth.NewWebProvider(issuer.Client(), verifier, issuers[0], dashboardOrigin),
-		Resolver: auth.NewResolver(fixture.server.db, policy, limits.Defaults(), time.Hour),
+		Resolver: openResolver(t, fixture.server.db),
 		Cookies:  auth.NewWebCookies(dashboardOrigin, nil),
 	}
 

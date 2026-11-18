@@ -23,6 +23,7 @@ import (
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 )
@@ -139,13 +140,14 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 
+	before := environmentRevision(t, f.queries, f.environmentID)
 	first := f.set(t, server, map[string]string{stripeKey: stripeValue, databaseURL: "postgres://x"})
-	if first.GetRevision() != 1 || len(first.GetVersions()) != 2 || first.GetVersions()[1].GetVersion() != 1 {
-		t.Fatalf("first set = %+v, want revision 1 and two names at version 1", first)
+	if first.GetRevision() != before+1 || len(first.GetVersions()) != 2 || first.GetVersions()[1].GetVersion() != 1 {
+		t.Fatalf("first set = %+v, want revision %d and two names at version 1", first, before+1)
 	}
 	second := f.set(t, server, map[string]string{stripeKey: "rotated-value"})
-	if second.GetRevision() != 2 || second.GetVersions()[0].GetVersion() != 2 {
-		t.Fatalf("second set = %+v, want revision 2 and version 2", second)
+	if second.GetRevision() != before+2 || second.GetVersions()[0].GetVersion() != 2 {
+		t.Fatalf("second set = %+v, want revision %d and version 2", second, before+2)
 	}
 
 	rows, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
@@ -188,8 +190,9 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 		t.Fatalf("listed = %+v, want STRIPE_KEY at version 2 by the owner", secrets)
 	}
 	data, raw := f.eventData(t, "secret.set")
-	if strings.Contains(raw, "value") || data["revision"] != float64(2) || !strings.Contains(raw, stripeKey) {
-		t.Fatalf("secret.set data = %s, want names and revision 2 without values", raw)
+	if strings.Contains(raw, "value") || data["revision"] != float64(second.GetRevision()) ||
+		!strings.Contains(raw, stripeKey) {
+		t.Fatalf("secret.set data = %s, want names and revision %d without values", raw, second.GetRevision())
 	}
 }
 
@@ -292,7 +295,7 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
-	f.set(t, server, map[string]string{"A": "1", "B": "2"})
+	set := f.set(t, server, map[string]string{"A": "1", "B": "2"})
 
 	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
 		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{"A", missingName},
@@ -310,15 +313,15 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("delete: %v", err)
 	}
-	if res.GetRevision() != 2 {
-		t.Fatalf("revision = %d, want 2", res.GetRevision())
+	if res.GetRevision() != set.GetRevision()+1 {
+		t.Fatalf("revision = %d, want %d", res.GetRevision(), set.GetRevision()+1)
 	}
 	if names := f.names(t); len(names) != 1 || names[0] != "B" {
 		t.Fatalf("names = %v, want B", names)
 	}
-	if data, raw := f.eventData(t, "secret.deleted"); data["revision"] != float64(2) || !strings.Contains(raw, `"A"`) ||
-		data["environmentId"] != f.environmentID.String() {
-		t.Fatalf("secret.deleted data = %s, want name A in the environment at revision 2", raw)
+	if data, raw := f.eventData(t, "secret.deleted"); data["revision"] != float64(res.GetRevision()) ||
+		!strings.Contains(raw, `"A"`) || data["environmentId"] != f.environmentID.String() {
+		t.Fatalf("secret.deleted data = %s, want name A in the environment at revision %d", raw, res.GetRevision())
 	}
 	var subjectType string
 	var subjectID uuid.UUID
@@ -428,7 +431,7 @@ func TestTwoServicesHoldTheSameNameApart(t *testing.T) {
 	f := newSecretFixture(t)
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
-	worker := f.resource(t, f.workspaceID, workerService)
+	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
 	f.set(t, server, map[string]string{stripeKey: stripeValue})
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
 		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
@@ -683,7 +686,7 @@ func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
-	worker := f.resource(t, f.workspaceID, workerService)
+	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
 	f.declare(t, worker, alphaKey)
 	f.set(t, server, map[string]string{alphaKey: "1"})
 
@@ -747,7 +750,7 @@ func TestResourceTokenManagesOnlyItsOwnServicesSecrets(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
-	worker := f.resource(t, f.workspaceID, workerService)
+	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
 	ctx := f.resourceTokenContext(t)
 
 	if _, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{

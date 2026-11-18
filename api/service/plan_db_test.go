@@ -157,8 +157,8 @@ func TestPlanReportsCreateUpdateImportAndDelete(t *testing.T) {
 	if len(resp.GetErrors()) != 0 {
 		t.Fatalf("errors = %v, want none", resp.GetErrors())
 	}
-	if resp.GetRevision() != 0 {
-		t.Fatalf("revision = %d, want 0", resp.GetRevision())
+	if want := f.revision(t, f.envID); resp.GetRevision() != want {
+		t.Fatalf("revision = %d, want %d", resp.GetRevision(), want)
 	}
 
 	kinds := map[string]planv1.PlanOperationKind{}
