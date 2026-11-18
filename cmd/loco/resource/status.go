@@ -145,7 +145,7 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 			statusLabel(region.GetStatus()),
 			ready,
 			deploymentLabel(region.GetDeploymentStatus()),
-			simplifyMessage(region.GetMessage()),
+			region.GetMessage(),
 		})
 	}
 	cellStyle := lipgloss.NewStyle().Padding(0, 1)
@@ -224,14 +224,4 @@ func publicURL(resource *resourcev1.Resource) string {
 		}
 	}
 	return ""
-}
-
-func simplifyMessage(message string) string {
-	if strings.Contains(message, "ImagePullBackOff") {
-		return "Error: ImagePullBackOff"
-	}
-	if strings.Contains(message, "Failed to pull image") {
-		return "Failed to pull image. Please check registry credentials and image path."
-	}
-	return message
 }
