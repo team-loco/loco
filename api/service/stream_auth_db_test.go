@@ -115,6 +115,7 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 				t.Fatalf("initial event batch: %v", err)
 			}
 			// The mutation uses a separate DB operation after opening the HTTP stream.
+			changed := time.Now()
 			switch tc.change {
 			case streamDatabaseUnavailable:
 				f.pool.Close()
@@ -146,6 +147,9 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 			}
 			if _, err = stream.Receive(); connect.CodeOf(err) != tc.want {
 				t.Fatalf("idle stream after %s = %v, want %s", tc.name, err, tc.want)
+			}
+			if elapsed, bound := time.Since(changed), streamCheck.Interval+streamCheck.Timeout; elapsed > bound {
+				t.Fatalf("idle stream after %s ended after %s, want within %s", tc.name, elapsed, bound)
 			}
 		})
 	}
@@ -368,10 +372,12 @@ func streamCredentialClients(t *testing.T, f *eventFixture, token string) *rpc.C
 	return streamHTTPClients(t, server, token)
 }
 
+var streamCheck = auth.StreamConfig{Interval: 5 * time.Millisecond, Timeout: time.Second}
+
 func streamCredentialServer(machine *tvm.VendingMachine, queries *genDb.Queries) *connect.Server {
 	return connect.NewServer(interceptor.NewErrorInterceptor(), interceptor.NewAuthInterceptor(
 		machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(queries),
-		auth.StreamConfig{Interval: 5 * time.Millisecond, Timeout: time.Second},
+		streamCheck,
 	).WebCookies(auth.NewWebCookies("https://app.loco.test", nil)).Interceptor())
 }
 
