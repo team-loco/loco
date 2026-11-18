@@ -80,7 +80,6 @@ api:
   env:
     APP_ENV: PRODUCTION
     WEB_URL: https://app.region.example.com
-    CORS_ALLOWED_ORIGINS: https://app.region.example.com
 obsProxy:
   image:
     tag: sha-COMMIT@sha256:DIGEST
@@ -126,7 +125,7 @@ The Gateway has one listener per hostname: `ui.hostname`, `controlPlaneHostname`
 
 The API runs database migrations during normal startup while holding the existing PostgreSQL migration lock. There is no migration Job or separate migration command. Its startup probe allows five minutes before liveness checks begin; adjust `api.startupProbe` for larger databases. Existing Secrets remain owned by the operator. After rotating their values, restart the corresponding Deployment so it reads the new environment.
 
-The dashboard serves its API at `/api` on the dashboard's own origin. Its HTTPRoute removes that prefix before forwarding to the API, including observability RPCs. A mounted public runtime configuration overrides the released UI image's compiled API address, so the same published image works at arbitrary installation hostnames. The separate `controlPlaneHostname` continues to serve CLI and agent traffic at its root. When both hostnames are equal, use `https://HOST/api` as the CLI/agent API base address; the chart suppresses the competing root API route. Set `ui.enabled=false` for a headless installation. Set `WEB_URL` to the dashboard URL in the API configuration, and register that URL's `/auth/callback` with the identity provider.
+The dashboard serves its API at `/api` on the dashboard's own origin. Its HTTPRoute removes that prefix before forwarding to the API, including observability RPCs. A mounted public runtime configuration overrides the released UI image's compiled API address, so the same published image works at arbitrary installation hostnames. The separate `controlPlaneHostname` continues to serve CLI and agent traffic at its root. When both hostnames are equal, use `https://HOST/api` as the CLI/agent API base address; the chart suppresses the competing root API route. Set `ui.enabled=false` for a headless installation. When `AUTH_ISSUERS` configures a dashboard client, set `api.env.WEB_URL` to the dashboard origin and register that origin's `/auth/callback` with the identity provider. Set `web.clientId` and, for a confidential client, `web.clientSecret` in the API environment Secret. When running multiple API replicas, set `CACHE_TYPE=valkey` and point `CACHE_ADDR` at the same Valkey instance for every replica. A sign-in can start and finish on different replicas.
 
 API routes retry once when a connection fails before the upstream handles the request (`connect-failure`, `reset-before-request`, or `refused-stream`). This allows an available alternate API replica to handle the request during endpoint withdrawal. Handled HTTP errors are not retried. The policy targets only named API rules, including the dashboard’s `/api` rule; dashboard routes and streaming timeouts remain unchanged. The retry is bounded and can still fail, including when a healthy alternate replica exists.
 
