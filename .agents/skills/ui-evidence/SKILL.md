@@ -41,7 +41,7 @@ mise exec -- uv run --script "$E" <command>
    stay live for six hours after seeding, covering long light/dark and narrow capture batches.
    The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths, and
    `orgs` maps each organization name to its `id` and `owner`.
-2. Write a shot spec JSON. Each shot names a path, an optional user, optional steps
+2. Write a shot spec JSON. Each shot names a path, a `ready_selector`, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
    `{"type": {"selector": selector, "text": "value"}}`, `{"press": {"selector": selector, "key": "ArrowLeft"}}`,
    `{"drag": {"selector": selector, "from": [x, y], "to": [x, y]}}`), a crop (`"viewport"`, `"full"`,
@@ -63,9 +63,9 @@ mise exec -- uv run --script "$E" <command>
    add `"respond": [{"url": "**/Service/Method", "json": {...}, "status": 400, "headers": {...}}]`.
    Matching requests get that response; `status` defaults to 200 and `headers` is optional.
    A Connect error is a status with `{"code": "invalid_argument", "message": "...", "details": [...]}`.
-   For pages with an open stream, set `ready_selector` to a Playwright selector that becomes
-   visible when the shot is ready. The shot skips network-idle waits and waits for the selector
-   after its steps. Shots without `ready_selector` wait for network idle.
+   `ready_selector` is a Playwright selector for an element that shows only once the page
+   holds what the shot captures, such as a loaded row rather than the page heading. The shot
+   waits for it after its steps, then for animations to finish.
    To capture a loader or another pending state, add `"hold_requests": ["**/Service/Method"]`
    with Playwright URL glob patterns and a `ready_selector` for that state. Matching requests
    stay pending from navigation through capture; closing the shot's browser context cancels them.

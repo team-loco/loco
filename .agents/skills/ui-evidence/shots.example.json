@@ -4,9 +4,17 @@
       "name": "workspace-switcher",
       "user": "member",
       "path": "/dashboard",
-      "steps": [{"click": "[title=\"Switch workspace\"]"}, {"wait": "[role=\"menu\"]"}],
+      "steps": [{"click": "[title=\"Switch workspace\"]"}],
+      "ready_selector": "[role=\"menu\"]",
       "crop": {"clip": [0, 0, 640, 300]}
     },
-    {"name": "dashboard", "user": "member", "path": "/dashboard", "crop": "full", "narrow": true}
+    {
+      "name": "dashboard",
+      "user": "member",
+      "path": "/dashboard",
+      "ready_selector": "text=No resources yet",
+      "crop": "full",
+      "narrow": true
+    }
   ]
 }

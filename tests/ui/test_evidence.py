@@ -228,7 +228,7 @@ def test_suite_failure_records_browser_diagnostics(tmp_path):
             page.route(
                 "http://evidence.test/",
                 lambda route: route.fulfill(
-                    body='<script>fetch("/broken").catch(() => {}); fetch("/unavailable"); throw new Error("page broke")</script>',
+                    body='<script>Promise.allSettled([fetch("/broken"), fetch("/unavailable")]).then(() => { document.title = "fetched"; }); throw new Error("page broke")</script>',
                     content_type="text/html",
                 ),
             )
@@ -240,9 +240,7 @@ def test_suite_failure_records_browser_diagnostics(tmp_path):
                 lambda route: route.fulfill(status=503, body="unavailable"),
             )
             page.goto("http://evidence.test/")
-            page.wait_for_function("document.readyState === 'complete'")
-            # Flush pending failed-request events before triggering the suite failure.
-            page.wait_for_load_state("networkidle")
+            page.wait_for_function("document.title === 'fetched'")
             raise RuntimeError("suite failed")
     detail = json.loads((tmp_path / "failure-0-0.json").read_text())
     assert detail["url"] == "http://evidence.test/"

@@ -6,7 +6,7 @@ import pytest
 SUITES = sorted(
     path
     for path in Path(__file__).parent.glob("*.py")
-    if not path.name.startswith("test_") and path.name != "evidence.py"
+    if not path.name.startswith("test_")
 )
 RESPONSE_WAITS = {"expect_response", "wait_for_response"}
 MATCH = "wait with harness.expect_rpc on the request body, or for the outcome on screen"
