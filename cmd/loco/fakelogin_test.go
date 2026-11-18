@@ -23,6 +23,7 @@ const (
 	fakeOrgID           = "1"
 	fakeOrgName         = "acme"
 	fakeWorkspaceName   = "production"
+	fakeEnvironmentName = "production"
 
 	deviceLoginApproved = "approved"
 	deviceLoginExpired  = "expired"

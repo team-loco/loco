@@ -115,7 +115,7 @@ func newFakePlatform() *fakePlatform {
 		environments: []*environmentv1.Environment{{
 			Id:          fakeEnvironmentID,
 			WorkspaceId: fakeWorkspaceID,
-			Name:        "production",
+			Name:        fakeEnvironmentName,
 		}},
 		polls:              map[string]int{},
 		outcome:            outcomeSucceeded,

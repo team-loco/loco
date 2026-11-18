@@ -122,13 +122,21 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 		for _, res := range api.platform.resources {
 			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
 				{
-					EnvironmentName: "production",
+					EnvironmentName: fakeEnvironmentName,
 					Regions: []*resourcev1.RegionStatus{
 						{Region: fakeDefaultRegion, Message: &api.platform.message},
 					},
 				},
 			}
 		}
+		api.mu.Unlock()
+	case "replicas":
+		if neg || len(args) < 2 || len(args) > 3 {
+			ts.Fatalf("usage: fakeapi replicas <service> [silent]")
+		}
+		api.mu.Lock()
+		api.platform.addResource(args[1])
+		setFakeReplicas(api.platform, args[1], len(args) == 3 && args[2] == "silent")
 		api.mu.Unlock()
 	case "called":
 		if len(args) < 2 || len(args) > 3 {
