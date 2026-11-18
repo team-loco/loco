@@ -43,6 +43,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: release-gate
+
       - name: Resolve the commit and version and check that they can be released
         id: source
         env:
@@ -71,7 +75,7 @@ jobs:
             fail "tag v$version already exists"
           fi
 
-          python3 tools/platform-release/gate.py "$latest" "$commit"
+          go run ./tools/platform-release gate --latest "$latest" --commit "$commit"
 
           echo "Releasing $version from $commit"
           echo "commit=$commit" >> "$GITHUB_OUTPUT"
