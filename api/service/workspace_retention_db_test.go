@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
@@ -114,12 +115,12 @@ func TestWorkspaceAdminSetsAndClearsRetention(t *testing.T) {
 		Old map[string]*int32 `json:"old"`
 		New map[string]*int32 `json:"new"`
 	}
-	if err := json.Unmarshal(changes[1].Data, &cleared); err != nil {
+	if err := json.Unmarshal(changes[1], &cleared); err != nil {
 		t.Fatal(err)
 	}
 	if cleared.Old["log_days"] == nil || *cleared.Old["log_days"] != 30 || cleared.New["log_days"] != nil ||
 		*cleared.New["trace_days"] != 10 {
-		t.Fatalf("clearing event = %s", changes[1].Data)
+		t.Fatalf("clearing event = %s", changes[1])
 	}
 }
 
@@ -266,7 +267,7 @@ SELECT uuidv7(), $2, w.id FROM w RETURNING workspace_id`, f.workspaceID(t), f.cl
 	return workspaceID
 }
 
-func (f *deployFixture) workspaceUpdates(t *testing.T, workspaceID uuid.UUID) []genDb.Event {
+func (f *deployFixture) workspaceUpdates(t *testing.T, workspaceID uuid.UUID) [][]byte {
 	t.Helper()
 	rows, err := f.pool.Query(t.Context(),
 		`SELECT data FROM events WHERE type = $1 AND subject_type = $2 AND subject_id = $3 ORDER BY seq`,
@@ -274,17 +275,9 @@ func (f *deployFixture) workspaceUpdates(t *testing.T, workspaceID uuid.UUID) []
 	if err != nil {
 		t.Fatalf("list events: %v", err)
 	}
-	defer rows.Close()
-	var found []genDb.Event
-	for rows.Next() {
-		var event genDb.Event
-		if scanErr := rows.Scan(&event.Data); scanErr != nil {
-			t.Fatalf("scan event: %v", scanErr)
-		}
-		found = append(found, event)
+	data, err := pgx.CollectRows(rows, pgx.RowTo[[]byte])
+	if err != nil {
+		t.Fatalf("list events: %v", err)
 	}
-	if rows.Err() != nil {
-		t.Fatalf("list events: %v", rows.Err())
-	}
-	return found
+	return data
 }
