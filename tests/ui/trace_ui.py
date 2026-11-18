@@ -776,8 +776,8 @@ with session(out) as browser:
     ).to_be_visible()
     call(
         state,
-        "loco.workspace.v1.WorkspaceService/SetWorkspaceRetention",
-        {"workspaceId": workspace_id, "settings": {"traceDays": 9}, "updateMask": "traceDays"},
+        "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
+        {"workspaceId": workspace_id, "traceRetentionDays": 9},
     )
     page.reload()
     expect(

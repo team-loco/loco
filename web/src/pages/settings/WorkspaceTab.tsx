@@ -216,7 +216,7 @@ export function WorkspaceTab({
 				canAdmin={canAdmin}
 			/>
 
-			<RetentionSection workspaceId={ws.id} workspaceName={ws.name} canAdmin={canAdmin} />
+			<RetentionSection workspace={ws} canWrite={canWrite} />
 
 			<SettingsSection title="Danger zone">
 				<DangerZone

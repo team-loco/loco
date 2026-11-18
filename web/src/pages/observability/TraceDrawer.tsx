@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
-import { getWorkspaceRetention } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Spinner } from "@/components/design/Spinner";
@@ -47,8 +47,8 @@ export function TraceDrawer({
 	const { workspaceId, scopedResourceIds, resourceById } = useObs();
 	// Only workspace readers may read its retention, and only an expired trace needs it.
 	const expired = open && !loading && error === null && trace === undefined;
-	const traceDays = useQuery(getWorkspaceRetention, { workspaceId }, { enabled: expired && scopedResourceIds === null })
-		.data?.retention?.effective?.traceDays;
+	const traceDays = useQuery(getWorkspace, { workspaceId }, { enabled: expired && scopedResourceIds === null }).data
+		?.workspace?.effectiveRetention?.traceDays;
 	const { zoom, change: setZoom, drawerRef } = useTraceZoom();
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);

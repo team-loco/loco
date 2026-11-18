@@ -29,9 +29,9 @@ install = "365 days"
 def stored():
     return call(
         state,
-        "loco.workspace.v1.WorkspaceService/GetWorkspaceRetention",
+        "loco.workspace.v1.WorkspaceService/GetWorkspace",
         {"workspaceId": workspace_id},
-    )["retention"]
+    )["workspace"].get("retention", {})
 
 
 def row(section, signal):
@@ -48,11 +48,12 @@ def expect_row(section, signal, workspace, applied):
 
 call(
     state,
-    "loco.workspace.v1.WorkspaceService/SetWorkspaceRetention",
+    "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
     {
         "workspaceId": workspace_id,
-        "settings": {},
-        "updateMask": "logDays,traceDays,metricDays",
+        "logRetentionDays": 0,
+        "traceRetentionDays": 0,
+        "metricRetentionDays": 0,
     },
 )
 
@@ -76,14 +77,14 @@ with session(out) as browser:
     expect(dialog).to_be_hidden()
     expect_row(section, "Logs", "7 days", "7 days")
     expect_row(section, "Traces", "Not set", install)
-    assert stored()["settings"] == {"logDays": 7}, stored()
+    assert stored() == {"logDays": 7}, stored()
 
     section.get_by_role("button", name="Edit retention").click()
     dialog.get_by_role("textbox", name="Logs (days)").fill("")
     dialog.get_by_role("button", name="Save", exact=True).click()
     expect(dialog).to_be_hidden()
     expect_row(section, "Logs", "Not set", install)
-    assert stored()["settings"] == {}, stored()
+    assert stored() == {}, stored()
     assert not errors, errors
     context.close()
 
