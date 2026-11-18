@@ -3,10 +3,9 @@ import json
 import re
 import time
 import uuid
-from functools import partial
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -31,12 +30,7 @@ state = load_state(
     args, "deployment-history", "tests/ui/fixtures/deployment-history/scenario.json"
 )
 boot_seconds = time.monotonic() - started
-owner = state["users"]["owner"]["token"]
 workspace_id = state["workspaces"]["acme/shared"]
-
-
-rpc = partial(api_rpc, state)
-
 
 BUILD_DIGEST = "sha256:" + "7c41e9b2" * 8
 PLATFORM_DOMAIN = "apps.e2e.test"
@@ -50,67 +44,29 @@ def fixture():
     existing = state.get("deployment_history")
     if existing is not None:
         return existing
-    environments = rpc(
-        "environment", "ListEnvironments", {"workspaceId": workspace_id}
+    environments = call(
+        state,
+        "loco.environment.v1.EnvironmentService/ListEnvironments",
+        {"workspaceId": workspace_id},
     )["environments"]
     production = next(env["id"] for env in environments if env["name"] == "production")
-    staging = rpc(
-        "environment",
-        "CreateEnvironment",
+    staging = call(
+        state,
+        "loco.environment.v1.EnvironmentService/CreateEnvironment",
         {
             "workspaceId": workspace_id,
             "name": "staging",
         },
     )["environmentId"]
-    resource = rpc(
-        "resource",
-        "CreateResource",
-        {
-            "workspaceId": workspace_id,
-            "name": "history-pilot",
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {
-                        region: {
-                            "enabled": True,
-                            "cpu": "100m",
-                            "memory": "128Mi",
-                            "minReplicas": 1,
-                            "maxReplicas": 1,
-                        }
-                        for region in ("us-east-1", "eu-west-1")
-                    },
-                }
-            },
-        },
-    )["resourceId"]
-    edge = rpc(
-        "resource",
-        "CreateResource",
-        {
-            "workspaceId": workspace_id,
-            "name": "edge-pilot",
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {
-                        region: {
-                            "enabled": True,
-                            "cpu": "100m",
-                            "memory": "128Mi",
-                            "minReplicas": 1,
-                            "maxReplicas": 1,
-                        }
-                        for region in ("us-east-1", "eu-west-1")
-                    },
-                }
-            },
-        },
-    )["resourceId"]
-    clusters = [str(uuid.uuid4()) for _ in range(3)]
+    clusters = [
+        evidence.seed_cluster(
+            state,
+            region,
+            name="browser-pilot",
+            domains=[PLATFORM_DOMAIN] if index == 0 else [],
+        )
+        for index, region in enumerate(("us-east-1", "eu-west-1", "us-east-1"))
+    ]
     release_ids = [str(uuid.uuid7()) for _ in range(221)]
     release_ids[:2] = [
         "019ab668-1111-7000-8000-000011112222",
@@ -121,94 +77,102 @@ def fixture():
         name: str(uuid.uuid4())
         for name in ("awaiting", "running", "deployed", "failed", "canceled", "older")
     }
-    sql = []
-    for cluster, region in zip(
-        clusters,
-        ("us-east-1", "eu-west-1", "us-east-1"),
-        strict=True,
-    ):
-        domains = "{" + PLATFORM_DOMAIN + "}" if cluster == clusters[0] else "{}"
-        sql.append(
-            f"INSERT INTO clusters (platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains) VALUES (ARRAY['linux/amd64'], '{cluster}','browser-pilot','{region}','fixture',true,false,'healthy',NOW(),'{domains}');"
-        )
-    for index, deployment in enumerate(release_ids, 1):
-        region = "eu-west-1" if index == len(release_ids) else "us-east-1"
-        cluster = clusters[1] if region == "eu-west-1" else clusters[0]
-        active = index in (1, len(release_ids))
-        status = "running" if active else "superseded"
-        source = {
-            "type": "image",
-            "image": f"example.invalid/browser-pilot:release-{index:03}",
-        }
-        if index == 2:
-            source = dict(source, type="dockerfile", buildId=builds["deployed"])
-        runtime = json.dumps(
-            {
-                "platform": "linux/amd64",
-                "observability": {"injectOtel": True},
-                "build": source,
-                "cpu": "100m",
-                "memory": "128Mi",
-                "minReplicas": 1,
-                "maxReplicas": 1,
-                "port": 8080,
-            }
-        )
-        sql.append(
-            f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,created_at,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{resource}','{cluster}','{region}',1,'{status}',{str(active).lower()},'{production}',{evidence.sql_literal(runtime)},1,NOW()-INTERVAL '{index} minutes',NOW()-INTERVAL '{index} minutes');"
-        )
-    runtime = json.dumps(
-        {
+
+    def runtime(image, replicas=1, build=None):
+        return {
             "platform": "linux/amd64",
             "observability": {"injectOtel": True},
-            "build": {
-                "type": "image",
-                "image": "example.invalid/browser-pilot:staging-current",
-            },
+            "build": build or {"type": "image", "image": image},
             "cpu": "100m",
             "memory": "128Mi",
-            "minReplicas": 2,
-            "maxReplicas": 2,
+            "minReplicas": replicas,
+            "maxReplicas": replicas,
             "port": 8080,
         }
-    )
-    sql.append(
-        f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{staging_release}','{resource}','{clusters[2]}','us-east-1',2,'running',true,'{staging}',{evidence.sql_literal(runtime)},1,NOW());"
-    )
-    for deployment, cluster, environment, region, replicas in (
-        (release_ids[0], clusters[0], production, "us-east-1", 1),
-        (release_ids[-1], clusters[1], production, "eu-west-1", 1),
-        (staging_release, clusters[2], staging, "us-east-1", 2),
-    ):
-        sql.append(
-            f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES ('{resource}','{cluster}','{region}','{deployment}','{environment}','{{\"app_spec\":{{}}}}',{replicas},NOW());"
-        )
-    for cluster, region in ((clusters[0], "us-east-1"), (clusters[1], "eu-west-1")):
-        deployment = str(uuid.uuid4())
-        runtime = json.dumps(
+
+    releases = []
+    for index, deployment in enumerate(release_ids, 1):
+        region = "eu-west-1" if index == len(release_ids) else "us-east-1"
+        active = index in (1, len(release_ids))
+        image = f"example.invalid/browser-pilot:release-{index:03}"
+        build = None
+        if index == 2:
+            build = {
+                "type": "dockerfile",
+                "image": image,
+                "buildId": builds["deployed"],
+            }
+        releases.append(
             {
-                "platform": "linux/amd64",
-                "observability": {"injectOtel": True},
-                "build": {"type": "image", "image": "example.invalid/edge-pilot:1.0.0"},
+                "id": deployment,
+                "cluster": clusters[1] if region == "eu-west-1" else clusters[0],
+                "environment": "production",
+                "region": region,
+                "status": "running" if active else "superseded",
+                "active": active,
+                "method": "cli",
+                "age": f"{index} minutes",
+                "spec": runtime(image, build=build),
+            }
+        )
+    releases.append(
+        {
+            "id": staging_release,
+            "cluster": clusters[2],
+            "environment": "staging",
+            "region": "us-east-1",
+            "method": "cli",
+            "spec": runtime("example.invalid/browser-pilot:staging-current", 2),
+        }
+    )
+    service = {
+        "routing": {"port": 8080},
+        "regions": {
+            region: {
+                "enabled": True,
                 "cpu": "100m",
                 "memory": "128Mi",
                 "minReplicas": 1,
                 "maxReplicas": 1,
-                "port": 8080,
             }
-        )
-        sql.append(
-            f"INSERT INTO deployments (actor_type, actor_id, method, id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES ('user', '{state['users']['owner']['id']}', 'cli', '{deployment}','{edge}','{cluster}','{region}',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());"
-        )
-        sql.append(
-            f"INSERT INTO placements (resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES ('{edge}','{cluster}','{region}','{deployment}','{production}','{{\"app_spec\":{{}}}}',1,NOW());"
-        )
-    sql.append(
-        f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);"
+            for region in ("us-east-1", "eu-west-1")
+        },
+    }
+    seeded = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": "history-pilot",
+                "service": service,
+                "deployments": releases,
+            },
+            {
+                "workspace": "acme/shared",
+                "name": "edge-pilot",
+                "service": service,
+                "deployments": [
+                    {
+                        "cluster": cluster,
+                        "environment": "production",
+                        "region": region,
+                        "method": "cli",
+                        "spec": runtime("example.invalid/edge-pilot:1.0.0"),
+                    }
+                    for cluster, region in (
+                        (clusters[0], "us-east-1"),
+                        (clusters[1], "eu-west-1"),
+                    )
+                ],
+            },
+        ],
     )
-    sql.append(
-        f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');"
-    )
+    resource = seeded["acme/shared/history-pilot"]
+    edge = seeded["acme/shared/edge-pilot"]
+    rows = [
+        f"INSERT INTO resource_domains (resource_id,environment_id,domain,domain_source,subdomain_label,platform_domain,is_primary) VALUES ('{edge}','{production}','edge.{PLATFORM_DOMAIN}','platform_provided','edge','{PLATFORM_DOMAIN}',true);",
+        f"INSERT INTO user_scopes (user_id,scope,entity_type,entity_id) VALUES ('{state['users']['resource_reader']['id']}','read','resource','{resource}');",
+    ]
     owner_id = state["users"]["owner"]["id"]
     build_rows = (
         ("awaiting", "awaiting_upload", ""),
@@ -230,13 +194,13 @@ def fixture():
             if status in ("succeeded", "failed", "canceled")
             else "NULL"
         )
-        sql.append(
+        rows.append(
             f"INSERT INTO builds (origin_environment_id, platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{production}', 'linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
         )
-    sql.append(
+    rows.append(
         f"UPDATE deployments SET commit_sha='{'7c41e9a'.ljust(40, '0')}', commit_dirty=true WHERE id='{release_ids[0]}';"
     )
-    evidence.psql(state["container"], "BEGIN;" + "\n".join(sql) + "COMMIT;")
+    sql(state, "BEGIN;" + "\n".join(rows) + "COMMIT;")
     data = {
         "resource": resource,
         "edge": edge,
@@ -258,16 +222,16 @@ for resource, environment in (
     (data["edge"], data["production"]),
 ):
     assert (
-        rpc(
-            "resource",
-            "GetResourceEnv",
+        call(
+            state,
+            "loco.resource.v1.ResourceService/GetResourceEnv",
             {"resourceId": resource, "environmentId": environment},
         )
         == {}
     )
-first_page = rpc(
-    "deployment",
-    "ListDeployments",
+first_page = call(
+    state,
+    "loco.deployment.v1.DeploymentService/ListDeployments",
     {
         "resourceId": data["resource"],
         "environmentId": data["production"],
@@ -276,9 +240,9 @@ first_page = rpc(
 )
 assert len(first_page["deployments"]) == 200 and first_page["nextPageToken"]
 assert data["releases"][-1] not in [row["id"] for row in first_page["deployments"]]
-older = rpc(
-    "deployment",
-    "ListDeployments",
+older = call(
+    state,
+    "loco.deployment.v1.DeploymentService/ListDeployments",
     {
         "resourceId": data["resource"],
         "environmentId": data["production"],
@@ -287,28 +251,21 @@ older = rpc(
     },
 )
 assert len(older["deployments"]) == 21 and not older.get("nextPageToken")
-assert rpc("deployment", "GetDeployment", {"deploymentId": data["releases"][-1]})[
-    "deployment"
-]["spec"]["service"]["build"]["image"].endswith("release-221")
-org_id = next(
-    org["id"]
-    for org in evidence.rpc(
-        state["api_url"],
-        owner,
-        "loco.org.v1.OrgService/ListUserOrgs",
-        {"userId": state["users"]["owner"]["id"]},
-    )["orgs"]
-    if org["name"] == "acme"
-)
+assert call(
+    state,
+    "loco.deployment.v1.DeploymentService/GetDeployment",
+    {"deploymentId": data["releases"][-1]},
+)["deployment"]["spec"]["service"]["build"]["image"].endswith("release-221")
+org_id = state["orgs"]["acme"]["id"]
 base = f"/org/{org_id}/wks/{workspace_id}"
 results = []
 with session(out) as browser:
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"UPDATE clusters SET last_heartbeat=NOW() WHERE id IN (SELECT cluster_id FROM deployments WHERE resource_id='{data['resource']}');",
     )
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"UPDATE builds SET status='awaiting_upload', message='', finished_at=NULL WHERE id='{data['builds']['awaiting']}';",
     )
     context, page, errors = open_page(browser, state=state)
@@ -593,8 +550,8 @@ with session(out) as browser:
     ).to_have_count(0)
     expect(section.get_by_text("canceled", exact=True).first).to_be_visible()
     # Reuse the existing deployment's build from a different initiating environment.
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"UPDATE builds SET origin_environment_id='{data['staging']}' WHERE id='{builds['deployed']}';"
         f"UPDATE builds SET origin_environment_id=NULL WHERE id='{builds['older']}';",
     )

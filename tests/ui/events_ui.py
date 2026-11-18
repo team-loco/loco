@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import evidence, load_state, open_page, repo, session, wait_for_query
+from harness import load_state, open_page, repo, session, sql, wait_for_query
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -17,16 +17,14 @@ state = load_state(args, "events-ui", "tests/ui/fixtures/events/scenario.json")
 workspace = state["workspaces"]["acme/shared"]
 resource = state["resources"]["acme/shared/web"]
 owner = state["users"]["owner"]["id"]
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}'"
-)
-environment = evidence.psql(
-    state["container"],
+org = state["orgs"]["acme"]["id"]
+environment = sql(
+    state,
     f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production'",
 )
 base = f"/org/{org}/wks/{workspace}"
-evidence.psql(
-    state["container"],
+sql(
+    state,
     f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' THEN '{environment}'::uuid ELSE NULL END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
 jsonb_build_object('region','us-east-1','environmentId','{environment}') || CASE

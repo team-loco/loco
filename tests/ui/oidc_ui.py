@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import urlopen
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -61,8 +61,8 @@ def check_browser(browser, state, issuer_url):
     )["user"]
     assert user["id"] == state["users"]["owner"]["id"], user
     access_hash = evidence.token_hash(access)
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"""UPDATE session_tokens SET access_expires_at = now() - interval '1 second'
         WHERE access_token_hash = {evidence.sql_literal(access_hash)};""",
     )
@@ -176,8 +176,8 @@ with tempfile.TemporaryDirectory(prefix="loco-oidc-issuer-") as directory:
             issuer=issuer_url,
         )
         owner = state["users"]["owner"]
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             "UPDATE identities SET subject = 'browser-owner' "
             f"WHERE user_id = {evidence.sql_literal(owner['id'])};",
         )

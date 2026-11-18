@@ -87,19 +87,12 @@ def open_page(
     return context, page, errors
 
 
-def rpc(state, service, method, body):
-    return evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        f"loco.{service}.v1.{service.title()}Service/{method}",
-        body,
-    )
+def call(state, method, body, user="owner"):
+    return evidence.rpc(state["api_url"], state["users"][user]["token"], method, body)
 
 
-def call(state, method, body):
-    return evidence.rpc(
-        state["api_url"], state["users"]["owner"]["token"], method, body
-    )
+def sql(state, query):
+    return evidence.psql(state["container"], query)
 
 
 def wait_for_query(page, check):

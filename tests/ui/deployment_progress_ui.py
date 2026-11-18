@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -22,47 +22,18 @@ owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
 
 
-def call(method, body):
-    return evidence.rpc(state["api_url"], owner["token"], method, body)
-
-
-def sql(statement):
-    return evidence.psql(state["container"], statement)
-
-
 if "progress" not in state:
-    org = sql(f"SELECT org_id FROM workspaces WHERE id='{workspace}';")
+    org = state["orgs"]["acme"]["id"]
     production = next(
         env["id"]
         for env in call(
+            state,
             "loco.environment.v1.EnvironmentService/ListEnvironments",
             {"workspaceId": workspace},
         )["environments"]
         if env["name"] == "production"
     )
-    resource = call(
-        "loco.resource.v1.ResourceService/CreateResource",
-        {
-            "workspaceId": workspace,
-            "name": "progress-ui",
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {
-                        "us-east-1": {
-                            "enabled": True,
-                            "cpu": "100m",
-                            "memory": "128Mi",
-                            "minReplicas": 2,
-                            "maxReplicas": 2,
-                        }
-                    },
-                }
-            },
-        },
-    )["resourceId"]
-    cluster, previous, current, build = (str(uuid.uuid4()) for _ in range(4))
+    previous, current, build = (str(uuid.uuid4()) for _ in range(3))
     old_image = "registry.example.test/progress:v1@sha256:" + "1" * 64
     image = "registry.example.test/progress:v2@sha256:" + "2" * 64
     old_spec = {
@@ -85,17 +56,37 @@ if "progress" not in state:
             "failureThreshold": 3,
         },
     }
-    sql(f"""BEGIN;
-    INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','progress-ui','us-east-1','fixture',true,false,'healthy',NOW());
+    cluster = evidence.seed_cluster(state, "us-east-1", name="progress-ui")
+    target = {"cluster": cluster, "environment": "production", "region": "us-east-1"}
+    resource = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": "progress-ui",
+                "deployments": [
+                    {**target, "id": previous, "spec": old_spec, "age": "10 minutes"},
+                    {
+                        **target,
+                        "id": current,
+                        "spec": spec,
+                        "status": "building",
+                        "active": False,
+                        "age": "45 seconds",
+                    },
+                ],
+            }
+        ],
+    )["acme/shared/progress-ui"]
+    sql(
+        state,
+        f"""BEGIN;
     INSERT INTO builds(origin_environment_id,platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,image_repository,image_digest,created_by,started_at,finished_at,git_commit,git_branch,git_commit_message)
     VALUES('{production}','linux/amd64', '{build}','{resource}','succeeded','upload','progress-{build}',100,'Dockerfile','registry.example.test/progress','sha256:{"2" * 64}','{owner["id"]}',NOW()-INTERVAL '2 minutes',NOW()-INTERVAL '52 seconds','{"a" * 40}','main','Show saved cards');
-    INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,completed_at)
-    VALUES('{previous}','{resource}','{cluster}','us-east-1',2,'running',true,'{production}',{evidence.sql_literal(json.dumps(old_spec))},1,'user','{owner["id"]}','web',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '10 minutes',NOW()-INTERVAL '9 minutes');
-    INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,created_at,started_at,commit_sha)
-    VALUES('{current}','{resource}','{cluster}','us-east-1',2,'building',false,'{production}',{evidence.sql_literal(json.dumps(spec))},2,'user','{owner["id"]}','web',NOW()-INTERVAL '45 seconds',NOW()-INTERVAL '45 seconds','{"a" * 40}');
-    INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at)
-    VALUES('{resource}','{cluster}','us-east-1','{previous}','{production}','{{}}',2,NOW());
-    COMMIT;""")
+    UPDATE deployments SET completed_at=NOW()-INTERVAL '9 minutes' WHERE id='{previous}';
+    UPDATE deployments SET spec_version=2, commit_sha='{"a" * 40}' WHERE id='{current}';
+    COMMIT;""",
+    )
     state["progress"] = {
         "org": org,
         "environment": production,
@@ -175,7 +166,7 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
     ready_count = 2 if building else sum(row["ready"] for row in replicas)
     snapshot = {
         "placementId": sql(
-            f"SELECT id FROM placements WHERE resource_id='{p['resource']}';"
+            state, f"SELECT id FROM placements WHERE resource_id='{p['resource']}';"
         ),
         "replicas": replicas,
     }
@@ -191,7 +182,8 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         }
     last_seq = int(
         sql(
-            f"SELECT COALESCE(MAX(seq),0) FROM deployment_activity WHERE deployment_id='{p['current']}';"
+            state,
+            f"SELECT COALESCE(MAX(seq),0) FROM deployment_activity WHERE deployment_id='{p['current']}';",
         )
     )
     entries = [
@@ -209,7 +201,9 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         f"('{p['current']}',{last_seq + index},2,NOW()-INTERVAL '{len(entries) - index} seconds',{evidence.sql_literal(severity)},{evidence.sql_literal(name)},{evidence.sql_literal(message)})"
         for index, (severity, name, message) in enumerate(entries, 1)
     )
-    sql(f"""BEGIN;
+    sql(
+        state,
+        f"""BEGIN;
     UPDATE clusters SET last_heartbeat=NOW() WHERE id='{p["cluster"]}';
     UPDATE deployments SET is_active=false WHERE resource_id='{p["resource"]}';
     UPDATE deployments SET is_active=true WHERE id='{p["previous"] if status == "canceled" else p["current"]}';
@@ -222,11 +216,12 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
     VALUES('{p["current"]}',2,{evidence.sql_literal(json.dumps(snapshot))})
     ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;
     INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message) VALUES {activity};
-    COMMIT;""")
+    COMMIT;""",
+    )
 
 
 with session(repo / "tests/ui/out/deployment-progress") as browser:
-    sql(f"DELETE FROM deployment_activity WHERE deployment_id='{p['current']}';")
+    sql(state, f"DELETE FROM deployment_activity WHERE deployment_id='{p['current']}';")
     phase("building")
     context, page, errors = open_page(
         browser, state=state, permissions=["clipboard-read", "clipboard-write"]

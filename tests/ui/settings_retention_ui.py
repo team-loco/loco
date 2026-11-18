@@ -22,13 +22,7 @@ config = evidence.rpc(
 # The evidence platform disables image cleanup and uses the default event retention.
 assert config["historyRetention"].get("buildImagesPerResource", 0) == 0
 assert config["historyRetention"]["events"] == "7776000s"
-orgs = evidence.rpc(
-    state["api_url"],
-    state["users"]["owner"]["token"],
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": state["users"]["owner"]["id"]},
-)
-org_id = next(org["id"] for org in orgs["orgs"] if org["name"] == "acme")
+org_id = state["orgs"]["acme"]["id"]
 workspace_id = state["workspaces"]["acme/shared"]
 path = f"{state['ui_url']}/org/{org_id}/wks/{workspace_id}/settings?scope=org"
 

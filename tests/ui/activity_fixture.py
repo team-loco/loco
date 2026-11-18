@@ -1,53 +1,43 @@
-def prepare_activity(evidence, state):
+from harness import call, evidence, sql
+
+ACTIVITY_SERVICE = {
+    "routing": {"port": 8080},
+    "regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}},
+}
+
+
+def prepare_activity(state):
     assert state["container"].startswith(evidence.LABEL + "-")
     if "activity" in state:
         return state["activity"]
-    api = state["api_url"]
-    owner = state["users"]["owner"]["token"]
-
-    def call(method, body):
-        return evidence.rpc(api, owner, method, body)
-
-    org = call(
-        "loco.org.v1.OrgService/ListUserOrgs", {"userId": state["users"]["owner"]["id"]}
-    )["orgs"][0]["id"]
+    org = state["orgs"]["acme"]["id"]
     workspace = state["workspaces"]["acme/shared"]
     sibling = state["workspaces"]["acme/sibling"]
     call(
+        state,
         "loco.environment.v1.EnvironmentService/CreateEnvironment",
-        {
-            "workspaceId": workspace,
-            "name": "staging",
-        },
+        {"workspaceId": workspace, "name": "staging"},
     )
-    spec = {
-        "service": {
-            "routing": {"port": 8080},
-            "regions": {
-                "us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}
+    resources = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": "checkout",
+                "service": ACTIVITY_SERVICE,
             },
-        }
-    }
-    resource = call(
-        "loco.resource.v1.ResourceService/CreateResource",
-        {
-            "workspaceId": workspace,
-            "name": "checkout",
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": spec,
-        },
-    )["resourceId"]
-    sibling_resource = call(
-        "loco.resource.v1.ResourceService/CreateResource",
-        {
-            "workspaceId": sibling,
-            "name": "inventory",
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": spec,
-        },
-    )["resourceId"]
-    other = call("loco.org.v1.OrgService/CreateOrg", {"name": "other-company"})["orgId"]
+            {
+                "workspace": "acme/sibling",
+                "name": "inventory",
+                "service": ACTIVITY_SERVICE,
+            },
+        ],
+    )
+    resource = resources["acme/shared/checkout"]
+    sibling_resource = resources["acme/sibling/inventory"]
+    other = call(state, evidence.RPC_CREATE_ORG, {"name": "other-company"})["orgId"]
     other_workspace = call(
+        state,
         "loco.workspace.v1.WorkspaceService/CreateWorkspace",
         {"orgId": other, "name": "internal"},
     )["workspaceId"]
@@ -67,14 +57,15 @@ def prepare_activity(evidence, state):
         "(" + ",".join(evidence.sql_literal(value) for value in row) + ")"
         for row in scopes
     )
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         "INSERT INTO user_scopes(user_id,scope,entity_type,entity_id) VALUES "
         + values
         + ";",
     )
     for index in range(53):
         call(
+            state,
             "loco.resource.v1.ResourceService/UpdateResource",
             {
                 "resourceId": resource,
@@ -82,26 +73,27 @@ def prepare_activity(evidence, state):
             },
         )
     environments = call(
+        state,
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]
     production = next(e["id"] for e in environments if e["name"] == "production")
     staging = next(e["id"] for e in environments if e["name"] == "staging")
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id)
         SELECT 'resource.restarted','{org}','{workspace}','{resource}','{production}','user','{state["users"]["owner"]["id"]}' FROM generate_series(1,23);
         INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,data)
         VALUES('secret.set','{org}','{workspace}','{resource}','{staging}','user','{state["users"]["owner"]["id"]}','{{"names":["STAGING_ONLY"]}}');""",
     )
-    evidence.rpc(
-        api,
-        state["users"]["workspace_admin"]["token"],
+    call(
+        state,
         "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
         {
             "workspaceId": workspace,
             "description": "Commerce services managed by the checkout team",
         },
+        user="workspace_admin",
     )
     return {
         "orgId": org,
@@ -114,8 +106,7 @@ def prepare_activity(evidence, state):
     }
 
 
-def verify_activity_access(evidence, state, activity):
-    api = state["api_url"]
+def verify_activity_access(state, activity):
     method = "loco.event.v1.EventService/ListEvents"
     workspace_scope = {
         "orgId": activity["orgId"],
@@ -126,8 +117,7 @@ def verify_activity_access(evidence, state, activity):
         ("workspace_admin", workspace_scope),
         ("resource_reader", resource_scope),
     ]:
-        token = state["users"][user]["token"]
-        granted = evidence.rpc(api, token, "loco.token.v1.TokenService/GetScopes", {})[
+        granted = call(state, "loco.token.v1.TokenService/GetScopes", {}, user=user)[
             "scopes"
         ]
         assert not any(
@@ -135,7 +125,7 @@ def verify_activity_access(evidence, state, activity):
             and item.get("entityId") == activity["orgId"]
             for item in granted
         )
-        first = evidence.rpc(api, token, method, {**scope, "pageSize": 50})
+        first = call(state, method, {**scope, "pageSize": 50}, user=user)
         assert len(first["events"]) == 50 and first.get("nextBeforeSeq")
         assert all(
             event["orgId"] == activity["orgId"]
@@ -147,18 +137,18 @@ def verify_activity_access(evidence, state, activity):
                 event["resourceId"] == activity["resourceId"]
                 for event in first["events"]
             )
-        second = evidence.rpc(
-            api,
-            token,
+        second = call(
+            state,
             method,
             {**scope, "pageSize": 50, "beforeSeq": first["nextBeforeSeq"]},
+            user=user,
         )
         assert second["events"]
         assert not {event["id"] for event in first["events"]} & {
             event["id"] for event in second["events"]
         }
-        filtered = evidence.rpc(
-            api, token, method, {**scope, "query": "@type:resource.created"}
+        filtered = call(
+            state, method, {**scope, "query": "@type:resource.created"}, user=user
         )
         assert (
             len(filtered["events"]) == 1
@@ -181,13 +171,13 @@ def verify_activity_access(evidence, state, activity):
             )
         for body in denied:
             try:
-                evidence.rpc(api, token, method, body)
+                call(state, method, body, user=user)
             except evidence.RPCError as error:
                 assert error.code == "permission_denied", (user, body, error.code)
             else:
                 raise AssertionError((user, body, "unexpected access"))
         try:
-            evidence.rpc(api, token, method, {**scope, "orgId": activity["otherOrgId"]})
+            call(state, method, {**scope, "orgId": activity["otherOrgId"]}, user=user)
         except evidence.RPCError as error:
             assert error.code == "not_found", (user, error.code)
         else:

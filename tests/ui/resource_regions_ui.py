@@ -1,10 +1,9 @@
 import argparse
 import json
 import uuid
-from functools import partial
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from harness import evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -19,75 +18,44 @@ out.mkdir(parents=True, exist_ok=True)
 state = load_state(
     args, "resource-regions", "tests/ui/fixtures/deployment-history/scenario.json"
 )
-owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
-
-
-rpc = partial(api_rpc, state)
-
-
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
-production = next(
-    env["id"]
-    for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})[
-        "environments"
-    ]
-    if env["name"] == "production"
-)
-runtime = json.dumps(
-    {
-        "platform": "linux/amd64",
-        "observability": {"injectOtel": True},
-        "build": {"type": "image", "image": "registry.example.com/shop:latest"},
-        "cpu": "500m",
-        "memory": "512Mi",
-        "minReplicas": 2,
-        "maxReplicas": 2,
-        "port": 8080,
-    }
-)
+org = state["orgs"]["acme"]["id"]
+name = "regions-" + uuid.uuid4().hex[:8]
 with session(out) as browser:
-    resource = rpc(
-        "resource",
-        "CreateResource",
-        {
-            "workspaceId": workspace,
-            "name": "regions-" + uuid.uuid4().hex[:8],
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {
-                        "us-east-1": {
-                            "enabled": True,
+    east_cluster = evidence.seed_cluster(state, "us-east-1")
+    west_cluster = evidence.seed_cluster(state, "eu-west-1")
+    resource = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": name,
+                "deployments": [
+                    {
+                        "cluster": east_cluster,
+                        "environment": "production",
+                        "region": "us-east-1",
+                        "spec": {
+                            "platform": "linux/amd64",
+                            "observability": {"injectOtel": True},
+                            "build": {
+                                "type": "image",
+                                "image": "registry.example.com/shop:latest",
+                            },
                             "cpu": "500m",
                             "memory": "512Mi",
                             "minReplicas": 2,
                             "maxReplicas": 2,
-                        }
-                    },
-                }
-            },
-        },
-    )["resourceId"]
-    cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
-    evidence.psql(
-        state["container"],
-        f"""
-INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES
-(ARRAY['linux/amd64'], '{cluster}','east-{resource}','us-east-1','fixture',true,false,'healthy',NOW()),
-(ARRAY['linux/amd64'], '{uuid.uuid4()}','west-{resource}','eu-west-1','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at)
-VALUES('user','{owner["id"]}','web','{deployment}','{resource}','{cluster}','us-east-1',2,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at)
-VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"app_spec":{{}}}}',2,NOW());
-""",
-    )
-    evidence.psql(
-        state["container"],
-        f"UPDATE clusters SET last_heartbeat=NOW() - INTERVAL '5 minutes' WHERE name IN ('east-{resource}', 'west-{resource}');",
+                            "port": 8080,
+                        },
+                    }
+                ],
+            }
+        ],
+    )[f"acme/shared/{name}"]
+    sql(
+        state,
+        f"UPDATE clusters SET last_heartbeat=NOW() - INTERVAL '5 minutes' WHERE id IN ('{east_cluster}', '{west_cluster}');",
     )
     context, page, errors = open_page(browser, state=state)
     calls = []
@@ -101,13 +69,10 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
     page.route("**/loco.resource.v1.ResourceService/UpdateResource", record)
     page.route("**/loco.deployment.v1.DeploymentService/CreateDeployment", record)
 
-    def sql(query):
-        return evidence.psql(state["container"], query)
-
     def stored():
-        return json.loads(sql(f"SELECT spec FROM resources WHERE id='{resource}';"))[
-            "regions"
-        ]
+        return json.loads(
+            sql(state, f"SELECT spec FROM resources WHERE id='{resource}';")
+        )["regions"]
 
     def save():
         calls.clear()
@@ -138,7 +103,7 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
     expect(west).to_have_attribute("aria-pressed", "true")
     expect(page.locator("#set-regions")).to_contain_text("Will be added")
     expect(east).to_be_enabled()
-    revision = sql(f"SELECT revision FROM resources WHERE id='{resource}';")
+    revision = sql(state, f"SELECT revision FROM resources WHERE id='{resource}';")
     save()
     expect(page.get_by_text("Rolling out in eu-west-1.", exact=False)).to_be_visible()
     assert [call[0] for call in calls] == ["UpdateResource"], calls
@@ -151,19 +116,22 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
     assert stored()["eu-west-1"]["enabled"], stored()
     assert (
         sql(
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;"
+            state,
+            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;",
         )
         == "1"
     )
     # The API leaves new deployments deploying without a worker; finish them so later
     # saves are not refused as a rollout in progress.
     sql(
-        f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;"
+        state,
+        f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
     )
     expect(west).to_have_attribute("aria-pressed", "true")
 
     sql(
-        "UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-east-1';"
+        state,
+        "UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE region='us-east-1';",
     )
     page.reload()
     expect(east).to_be_enabled()
@@ -175,21 +143,23 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
     assert not stored()["us-east-1"].get("enabled", False), stored()
     assert (
         sql(
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='us-east-1' AND is_active;"
+            state,
+            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='us-east-1' AND is_active;",
         )
         == "0"
     )
     expect(east).to_be_disabled()
-    sql("UPDATE clusters SET last_heartbeat=NOW() WHERE region='us-east-1';")
+    sql(state, "UPDATE clusters SET last_heartbeat=NOW() WHERE region='us-east-1';")
     page.reload()
     east.click()
     save()
     expect(page.get_by_text("Rolling out in us-east-1.", exact=False)).to_be_visible()
     sql(
-        f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;"
+        state,
+        f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
     )
 
-    sql(f"UPDATE resources SET revision=revision+1 WHERE id='{resource}';")
+    sql(state, f"UPDATE resources SET revision=revision+1 WHERE id='{resource}';")
     west.click()
     expect(west).to_have_attribute("aria-pressed", "false")
     save()
@@ -203,7 +173,8 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
     assert not stored()["eu-west-1"].get("enabled", False), stored()
     assert (
         sql(
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;"
+            state,
+            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;",
         )
         == "0"
     )
@@ -219,17 +190,18 @@ VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{"ap
     assert calls == [], calls
     page.get_by_role("button", name="Discard", exact=True).click()
 
-    sql("UPDATE clusters SET is_active=false WHERE region='us-east-1';")
+    sql(state, "UPDATE clusters SET is_active=false WHERE region='us-east-1';")
     page.reload()
     expect(east).to_contain_text("No cluster in this region")
-    sql("UPDATE clusters SET is_active=true WHERE region='us-east-1';")
+    sql(state, "UPDATE clusters SET is_active=true WHERE region='us-east-1';")
 
-    sql(f"UPDATE resources SET partial='app' WHERE id='{resource}';")
+    sql(state, f"UPDATE resources SET partial='app' WHERE id='{resource}';")
     page.reload()
     expect(page.get_by_text("Managed by loco.yaml", exact=True).first).to_be_visible()
     expect(west).to_be_disabled()
     sql(
-        f"UPDATE resources SET partial=NULL WHERE id='{resource}'; UPDATE deployments SET is_active=false WHERE resource_id='{resource}';"
+        state,
+        f"UPDATE resources SET partial=NULL WHERE id='{resource}'; UPDATE deployments SET is_active=false WHERE resource_id='{resource}';",
     )
     page.reload()
     expect(

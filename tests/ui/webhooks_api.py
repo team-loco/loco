@@ -7,9 +7,8 @@ import json
 import queue
 import threading
 import time
-from functools import partial
 
-from harness import call as api_call, evidence, load_state
+from harness import call, evidence, load_state
 
 parser = argparse.ArgumentParser(
     description="Send real webhook deliveries from a throwaway API to a local receiver"
@@ -21,9 +20,6 @@ state = load_state(args, "webhooks", "tests/ui/fixtures/webhooks/scenario.json")
 workspace = state["workspaces"]["acme/shared"]
 DELIVERY_TIMEOUT_S = 30
 FAILING_PATH = "/failing"
-
-
-call = partial(api_call, state)
 
 
 class Receiver(http.server.BaseHTTPRequestHandler):
@@ -79,12 +75,14 @@ def assert_signed(secret, request):
 
 def touch_workspace(description):
     call(
+        state,
         "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
         {"workspaceId": workspace, "description": description},
     )
 
 
 created = call(
+    state,
     "loco.webhook.v1.WebhookService/CreateWebhook",
     {
         "workspaceId": workspace,
@@ -100,6 +98,7 @@ assert json.loads(first["body"])["type"] == "workspace.updated"
 assert_signed(secret, first)
 
 updated = call(
+    state,
     "loco.webhook.v1.WebhookService/UpdateWebhook",
     {
         "workspaceId": workspace,
@@ -115,6 +114,7 @@ assert_signed(secret, receive("/second"))
 
 def deliveries(**filters):
     return call(
+        state,
         "loco.webhook.v1.WebhookService/ListWebhookDeliveries",
         {"workspaceId": workspace, "webhookId": hook, **filters},
     )
@@ -131,6 +131,7 @@ def wait_for_delivery(match):
 
 
 call(
+    state,
     "loco.webhook.v1.WebhookService/UpdateWebhook",
     {
         "workspaceId": workspace,
@@ -158,6 +159,7 @@ assert (
 )
 
 call(
+    state,
     "loco.webhook.v1.WebhookService/UpdateWebhook",
     {
         "workspaceId": workspace,
@@ -168,6 +170,7 @@ call(
 )
 try:
     call(
+        state,
         "loco.webhook.v1.WebhookService/RedeliverWebhookDelivery",
         {"workspaceId": workspace, "webhookId": hook, "deliveryId": failing["id"]},
     )
@@ -177,6 +180,7 @@ else:
     raise AssertionError("a pending delivery was redelivered")
 succeeded = deliveries(status="succeeded")["deliveries"][-1]
 call(
+    state,
     "loco.webhook.v1.WebhookService/RedeliverWebhookDelivery",
     {"workspaceId": workspace, "webhookId": hook, "deliveryId": succeeded["id"]},
 )
@@ -187,6 +191,7 @@ assert_signed(secret, redelivered)
 assert json.loads(first["body"]) == json.loads(redelivered["body"])
 
 call(
+    state,
     "loco.webhook.v1.WebhookService/SendTestEvent",
     {"workspaceId": workspace, "webhookId": hook},
 )
@@ -202,6 +207,7 @@ def workspace_update(request):
 
 
 rotated = call(
+    state,
     "loco.webhook.v1.WebhookService/RotateWebhookSecret",
     {"workspaceId": workspace, "webhookId": hook, "gracePeriodSeconds": 3600},
 )
@@ -213,6 +219,7 @@ during = receive("/second", workspace_update)
 assert_signed(secret, during)
 assert_signed(rotated["secret"], during)
 final = call(
+    state,
     "loco.webhook.v1.WebhookService/RotateWebhookSecret",
     {"workspaceId": workspace, "webhookId": hook},
 )

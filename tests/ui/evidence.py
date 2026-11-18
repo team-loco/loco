@@ -649,12 +649,12 @@ def seed(state, scenario):
         users[key] = {"id": user_id, "email": user["email"], "token": token}
 
     workspaces = {}
-    owners = {}
+    orgs = {}
     for org in scenario.get("orgs", []):
         owner = users[org["owner"]]["token"]
-        owners[org["name"]] = owner
         created = rpc(api_url, owner, RPC_CREATE_ORG, {"name": org["name"]})
         org_id = created["orgId"]
+        orgs[org["name"]] = {"id": org_id, "owner": org["owner"]}
         for workspace in org.get("workspaces", []):
             ws = rpc(
                 api_url,
@@ -677,6 +677,7 @@ def seed(state, scenario):
         "users, sessions and org memberships are inserted with SQL: no API creates a user without an identity "
         "provider, and org membership comes only from an accepted invitation"
     )
+    state.update({"users": users, "workspaces": workspaces, "orgs": orgs})
 
     for grant in scenario.get("grants", []):
         org_name = grant["workspace"].split("/", 1)[0]
@@ -685,98 +686,134 @@ def seed(state, scenario):
             "userId": users[grant["user"]]["id"],
             "scopes": grant["scopes"],
         }
-        rpc(api_url, owners[org_name], RPC_CREATE_MEMBER, body)
-    resources = seed_resources(state, scenario, users, workspaces)
-    if resources:
+        rpc(api_url, users[orgs[org_name]["owner"]]["token"], RPC_CREATE_MEMBER, body)
+    state["resources"] = seed_resources(state, scenario.get("resources", []))
+    if state["resources"]:
         notes.append(
             "synthetic clusters, deployments and placements are inserted with SQL; no worker runs these resources"
         )
-    return users, workspaces, resources, notes
+    state["notes"] = notes
 
 
-def seed_resources(state, scenario, users, workspaces):
-    resources = {}
-    owners = {org["name"]: users[org["owner"]] for org in scenario.get("orgs", [])}
-    for resource in scenario.get("resources", []):
-        workspace = workspaces[resource["workspace"]]
-        owner = owners[resource["workspace"].split("/", 1)[0]]
-        regions = {
-            deployment["region"]: {
-                "enabled": True,
-                **{
-                    key: deployment["spec"][key]
-                    for key in ("cpu", "memory", "minReplicas", "maxReplicas")
-                },
+def seed_cluster(
+    state, region, *, name=None, domains=(), health="healthy", default=False
+):
+    cluster_id = str(uuid.uuid4())
+    q = sql_literal
+    domain_array = "ARRAY[" + ",".join(q(domain) for domain in domains) + "]::text[]"
+    psql(
+        state["container"],
+        "INSERT INTO clusters(id,name,region,provider,platforms,domains,is_active,is_default,health_status,last_heartbeat) "
+        f"VALUES({q(cluster_id)},{q(name or 'evidence-' + cluster_id)},{q(region)},'fixture',ARRAY['linux/amd64'],"
+        f"{domain_array},true,{str(default).lower()},{q(health)},NOW());",
+    )
+    return cluster_id
+
+
+def seed_resources(state, resources):
+    seeded = {}
+    for resource in resources:
+        org = resource["workspace"].split("/", 1)[0]
+        user = state["orgs"][org]["owner"]
+        service = resource.get("service")
+        if service is None:
+            first = resource["deployments"][0]["spec"]
+            service = {
+                "regions": {
+                    deployment["region"]: {
+                        "enabled": True,
+                        **{
+                            key: deployment["spec"][key]
+                            for key in ("cpu", "memory", "minReplicas", "maxReplicas")
+                        },
+                    }
+                    for deployment in resource["deployments"]
+                }
             }
-            for deployment in resource["deployments"]
-        }
-        service = {"regions": regions}
-        port = resource["deployments"][0]["spec"].get("port")
-        if port is not None:
-            service["routing"] = {"port": port}
-        created = rpc(
+            if "port" in first:
+                service["routing"] = {"port": first["port"]}
+        resource_id = rpc(
             state["api_url"],
-            owner["token"],
+            state["users"][user]["token"],
             "loco.resource.v1.ResourceService/CreateResource",
             {
-                "workspaceId": workspace,
+                "workspaceId": state["workspaces"][resource["workspace"]],
                 "name": resource["name"],
                 "type": "RESOURCE_TYPE_SERVICE",
                 "spec": {"service": service},
             },
+        )["resourceId"]
+        seeded[f"{resource['workspace']}/{resource['name']}"] = resource_id
+        seed_deployments(state, resource_id, resource.get("deployments", []), user)
+    return seeded
+
+
+def seed_deployments(state, resource_id, deployments, user="owner"):
+    q = sql_literal
+    target = json.loads(
+        psql(
+            state["container"],
+            "SELECT json_build_object('org', w.org_id, 'workspace', w.id, 'slug', r.slug, 'environments', "
+            "(SELECT json_object_agg(e.name, e.id) FROM environments e WHERE e.workspace_id=w.id)) "
+            f"FROM resources r JOIN workspaces w ON w.id=r.workspace_id WHERE r.id={q(resource_id)};",
         )
-        resource_id = created["resourceId"]
-        resources[f"{resource['workspace']}/{resource['name']}"] = resource_id
-        for deployment in resource["deployments"]:
-            env = json.loads(
-                psql(
-                    state["container"],
-                    "SELECT json_build_object('id', e.id, 'org', w.org_id, 'slug', r.slug) "
-                    "FROM environments e JOIN workspaces w ON w.id=e.workspace_id JOIN resources r ON r.workspace_id=w.id "
-                    f"WHERE r.id={sql_literal(resource_id)} AND e.name={sql_literal(deployment['environment'])};",
-                )
-            )
-            cluster_id, deployment_id = str(uuid.uuid4()), str(uuid.uuid4())
-            runtime = deployment["spec"]
-            app = {
-                "type": "SERVICE",
-                "resourceId": resource_id,
-                "slug": env["slug"],
-                "workspaceId": workspace,
-                "organizationId": env["org"],
-                "environmentId": env["id"],
-                "environmentName": deployment["environment"],
-                "deploymentId": deployment_id,
-                "region": deployment["region"],
-                "serviceSpec": {
-                    "deployment": {
-                        "image": runtime["build"]["image"],
-                        "observability": runtime["observability"],
-                        **({"port": runtime["port"]} if "port" in runtime else {}),
-                    },
-                    "resources": {
-                        "cpu": runtime["cpu"],
-                        "memory": runtime["memory"],
-                        "replicas": {
-                            "min": runtime["minReplicas"],
-                            "max": runtime["maxReplicas"],
-                        },
+    )
+    actor = state["users"][user]["id"]
+    ids, rows = [], []
+    for deployment in deployments:
+        deployment_id = deployment.get("id") or str(uuid.uuid4())
+        ids.append(deployment_id)
+        region = deployment["region"]
+        cluster = deployment.get("cluster") or seed_cluster(state, region)
+        environment = target["environments"][deployment["environment"]]
+        runtime = deployment["spec"]
+        replicas = runtime["minReplicas"]
+        active = deployment.get("active", True)
+        created = f"NOW()-{q(deployment.get('age', '0 seconds'))}::interval"
+        rows.append(
+            "INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,"
+            "spec_version,actor_type,actor_id,method,created_at,started_at) "
+            f"VALUES({q(deployment_id)},{q(resource_id)},{q(cluster)},{q(region)},{replicas},"
+            f"{q(deployment.get('status', 'running'))},{str(active).lower()},{q(environment)},{q(json.dumps(runtime))},"
+            f"1,'user',{q(actor)},{q(deployment.get('method', 'web'))},{created},{created});"
+        )
+        if not active:
+            continue
+        app = {
+            "type": "SERVICE",
+            "resourceId": resource_id,
+            "slug": target["slug"],
+            "workspaceId": target["workspace"],
+            "organizationId": target["org"],
+            "environmentId": environment,
+            "environmentName": deployment["environment"],
+            "deploymentId": deployment_id,
+            "region": region,
+            "serviceSpec": {
+                "deployment": {
+                    "image": runtime["build"]["image"],
+                    "observability": runtime.get("observability", {}),
+                    **({"port": runtime["port"]} if "port" in runtime else {}),
+                },
+                "resources": {
+                    "cpu": runtime["cpu"],
+                    "memory": runtime["memory"],
+                    "replicas": {
+                        "min": runtime["minReplicas"],
+                        "max": runtime["maxReplicas"],
                     },
                 },
-            }
-            q = sql_literal
-            psql(
-                state["container"],
-                f"""BEGIN;
-INSERT INTO clusters(id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES({q(cluster_id)},{q("evidence-" + cluster_id)},{q(deployment["region"])},'fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method,started_at)
-VALUES({q(deployment_id)},{q(resource_id)},{q(cluster_id)},{q(deployment["region"])},{runtime["minReplicas"]},{q(deployment["status"])},true,{q(env["id"])},{q(json.dumps(runtime))},1,'user',{q(owner["id"])},'web',NOW());
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,ready_replicas,status_updated_at)
-VALUES({q(resource_id)},{q(cluster_id)},{q(deployment["region"])},{q(deployment_id)},{q(env["id"])},{q(json.dumps({"app_spec": app}))},1,1,{deployment["ready_replicas"]},NOW());
-COMMIT;""",
-            )
-    return resources
+            },
+        }
+        rows.append(
+            "INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,"
+            "applied_revision,observed_revision,ready_replicas,status_updated_at) "
+            f"VALUES({q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
+            f"{q(json.dumps({'app_spec': app}))},1,1,{deployment.get('ready_replicas', replicas)},NOW());"
+        )
+    if rows:
+        psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
+    return ids
 
 
 def repo_root():
@@ -1022,15 +1059,7 @@ def start_state(*, ref, name, scenario, issuer=None):
         wait_http(f"{state['api_url']}/health", api_log)
         wait_http(state["ui_url"] + "/", ui_log)
 
-        users, workspaces, resources, notes = seed(state, scenario)
-        state.update(
-            {
-                "users": users,
-                "workspaces": workspaces,
-                "resources": resources,
-                "notes": notes,
-            }
-        )
+        seed(state, scenario)
         write_json(state_path, state)
     except BaseException:
         for name in ("api.log", "ui.log"):
@@ -1038,7 +1067,7 @@ def start_state(*, ref, name, scenario, issuer=None):
                 log(f"{name}:\n{log_tail(root / name)}")
         stop_state(state)
         raise
-    for note in notes:
+    for note in state["notes"]:
         log(f"scenario note: {note}")
     return state_path
 

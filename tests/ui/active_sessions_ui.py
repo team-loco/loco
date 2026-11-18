@@ -1,6 +1,6 @@
 import argparse
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 SCENARIO = "tests/ui/fixtures/deployment-history/scenario.json"
@@ -13,8 +13,8 @@ def seed_sessions(state):
     owner = state["users"]["owner"]
     cli = evidence.session_token()
     psql = evidence.sql_literal
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"""UPDATE session_tokens
             SET user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/135.0.0.0'
             WHERE access_token_hash = {psql(evidence.token_hash(owner["token"]))};
@@ -33,9 +33,7 @@ def seed_sessions(state):
 def verify(state):
     cli = seed_sessions(state)
     owner = state["users"]["owner"]
-    list_result = evidence.rpc(
-        state["api_url"], owner["token"], USER_SERVICE + "ListSessions", {}
-    )
+    list_result = call(state, USER_SERVICE + "ListSessions", {})
     cli_id = next(
         row["id"]
         for row in list_result["sessions"]

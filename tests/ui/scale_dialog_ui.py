@@ -1,10 +1,8 @@
 import argparse
 import json
-import uuid
-from functools import partial
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from harness import call, evidence, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -19,81 +17,60 @@ out.mkdir(parents=True, exist_ok=True)
 state = load_state(
     args, "scale-dialog", "tests/ui/fixtures/deployment-history/scenario.json"
 )
-owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
 
-
-rpc = partial(api_rpc, state)
-
-
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
+org = state["orgs"]["acme"]["id"]
 production = next(
     env["id"]
-    for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})[
-        "environments"
-    ]
+    for env in call(
+        state,
+        "loco.environment.v1.EnvironmentService/ListEnvironments",
+        {"workspaceId": workspace},
+    )["environments"]
     if env["name"] == "production"
 )
-cluster = str(uuid.uuid4())
-sql = [
-    f"INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','scale-dialog','us-east-1','fixture',true,false,'healthy',NOW());"
-]
-resources = []
-for name, cpu, memory, replicas in (
-    ("scale-small", "500m", "512Mi", 1),
-    ("scale-large", "250m", "2Gi", 3),
-):
-    size = {
-        "cpu": cpu,
-        "memory": memory,
-        "minReplicas": replicas,
-        "maxReplicas": replicas,
-    }
-    resource = rpc(
-        "resource",
-        "CreateResource",
+cluster = evidence.seed_cluster(state, "us-east-1", name="scale-dialog")
+resources = evidence.seed_resources(
+    state,
+    [
         {
-            "workspaceId": workspace,
+            "workspace": "acme/shared",
             "name": name,
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {"us-east-1": {"enabled": True, **size}},
+            "deployments": [
+                {
+                    "cluster": cluster,
+                    "environment": "production",
+                    "region": "us-east-1",
+                    "spec": {
+                        "build": {
+                            "type": "image",
+                            "image": f"registry.example.com/{name}:1",
+                        },
+                        "port": 8080,
+                        "cpu": cpu,
+                        "memory": memory,
+                        "minReplicas": replicas,
+                        "maxReplicas": replicas,
+                    },
                 }
-            },
-        },
-    )["resourceId"]
-    resources.append(resource)
-    deployment = str(uuid.uuid4())
-    runtime = json.dumps(
-        {
-            "build": {"type": "image", "image": f"registry.example.com/{name}:1"},
-            "port": 8080,
-            **size,
+            ],
         }
-    )
-    sql.append(
-        f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES('user','{owner['id']}','web','{deployment}','{resource}','{cluster}','us-east-1',{replicas},'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());"
-    )
-    sql.append(
-        f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',{replicas},NOW());"
-    )
-evidence.psql(state["container"], "BEGIN;\n" + "\n".join(sql) + "\nCOMMIT;")
+        for name, cpu, memory, replicas in (
+            ("scale-small", "500m", "512Mi", 1),
+            ("scale-large", "250m", "2Gi", 3),
+        )
+    ],
+).values()
 for resource in resources:
     assert (
-        rpc(
-            "resource",
-            "GetResourceEnv",
+        call(
+            state,
+            "loco.resource.v1.ResourceService/GetResourceEnv",
             {"resourceId": resource, "environmentId": production},
         )
         == {}
     )
-limits = evidence.rpc(
-    state["api_url"], owner["token"], "loco.config.v1.ConfigService/GetConfig", {}
-)["sizeLimits"]
+limits = call(state, "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]
 low, high = limits["minReplicas"], limits["maxReplicas"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"
 results = []

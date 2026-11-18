@@ -3,7 +3,7 @@ import re
 import uuid
 from datetime import datetime
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -13,13 +13,8 @@ parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
 state = load_state(args, "org-roles", "tests/ui/fixtures/org-roles/scenario.json")
-org = evidence.rpc(
-    state["api_url"],
-    state["users"]["owner"]["token"],
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": state["users"]["owner"]["id"]},
-)["orgs"][0]
-path = state["ui_url"] + f"/org/{org['id']}/team"
+org = state["orgs"]["acme"]["id"]
+path = state["ui_url"] + f"/org/{org}/team"
 
 with session(repo / "tests/ui/out/org_roles") as browser:
     context, page, errors = open_page(browser, state=state)
@@ -73,9 +68,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     assert creation.value.request.post_data_json == {"name": "Acme & Partners 🚀"}
     expect(dialog).to_be_hidden()
     created_org = creation.value.json()["orgId"]
-    workspaces = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
+    workspaces = call(
+        state,
         "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces",
         {"orgId": created_org},
     ).get("workspaces", [])
@@ -83,14 +77,9 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(page).to_have_url(
         re.compile(rf"/org/{created_org}/wks/{workspaces[0]['id']}(\?env=[\w-]+)?$")
     )
-    evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        "loco.org.v1.OrgService/DeleteOrg",
-        {"orgId": created_org},
-    )
+    call(state, "loco.org.v1.OrgService/DeleteOrg", {"orgId": created_org})
     shared = state["workspaces"]["acme/shared"]
-    page.goto(state["ui_url"] + f"/org/{org['id']}/wks/{shared}/resources")
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/resources")
     page.get_by_title("Switch workspace", exact=True).click()
     page.get_by_role("menuitem", name="New organization", exact=True).click()
     name.fill("sidebar-" + uuid.uuid4().hex[:8])
@@ -125,27 +114,18 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         re.compile(rf"/org/{sidebar_org}/wks/{workspace_id}(\?env=[\w-]+)?$")
     )
     assert sum(url.endswith("/CreateOrg") for url in requests) == before_orgs + 1
-    workspaces = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
+    workspaces = call(
+        state,
         "loco.workspace.v1.WorkspaceService/ListOrgWorkspaces",
         {"orgId": sidebar_org},
     ).get("workspaces", [])
     assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
-    evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        "loco.org.v1.OrgService/DeleteOrg",
-        {"orgId": sidebar_org},
-    )
+    call(state, "loco.org.v1.OrgService/DeleteOrg", {"orgId": sidebar_org})
     page.goto(path)
     page.wait_for_load_state("networkidle")
-    members = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        "loco.org.v1.OrgService/ListOrgMembers",
-        {"orgId": org["id"]},
-    )["members"]
+    members = call(state, "loco.org.v1.OrgService/ListOrgMembers", {"orgId": org})[
+        "members"
+    ]
     expect(
         page.get_by_role("columnheader", name="Joined / expires", exact=True)
     ).to_be_visible()
@@ -225,31 +205,30 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     assert (
         sum(url.endswith("/ListInvitations") for url in requests) == invitations_before
     )
-    member_token = state["users"]["member"]["token"]
-    evidence.rpc(
-        state["api_url"],
-        member_token,
+    call(
+        state,
         "loco.org.v1.OrgService/SetOrgMemberRole",
         {
-            "orgId": org["id"],
+            "orgId": org,
             "userId": state["users"]["owner"]["id"],
             "role": "ORG_ROLE_MEMBER",
         },
+        user="member",
     )
     page.reload()
     expect(owner_role).to_have_text("Member")
     expect(owner_role).to_be_disabled()
     expect(member_role).to_be_disabled()
     for user, role in (("owner", "ORG_ROLE_ADMIN"), ("member", "ORG_ROLE_MEMBER")):
-        evidence.rpc(
-            state["api_url"],
-            member_token,
+        call(
+            state,
             "loco.org.v1.OrgService/SetOrgMemberRole",
             {
-                "orgId": org["id"],
+                "orgId": org,
                 "userId": state["users"][user]["id"],
                 "role": role,
             },
+            user="member",
         )
     assert not errors, errors
     context.close()
