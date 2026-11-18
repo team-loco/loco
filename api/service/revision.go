@@ -86,10 +86,11 @@ func bumpResourceEnvironmentRevisions(ctx context.Context, qtx *genDb.Queries, r
 	return nil
 }
 
+// withTx runs fn in a read committed transaction, whatever the server's default isolation, so a
+// count taken after a row lock sees what a concurrent writer committed while the lock was held.
 func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
-	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		qtx := genDb.New(tx)
-		return fn(qtx)
+	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+		return fn(genDb.New(tx))
 	})
 }
 
