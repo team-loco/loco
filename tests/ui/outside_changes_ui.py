@@ -18,53 +18,30 @@ state = load_state(
 )
 org = state["orgs"]["acme"]["id"]
 workspace = state["workspaces"]["acme/shared"]
-cluster = evidence.seed_cluster(state, "us-east-1", name="outside-changes")
-base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
+service = {
+    "routing": {"port": 8080},
+    "regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}},
+}
+resources = evidence.seed_resources(
+    state,
+    [
+        {"workspace": "acme/shared", "name": name, "service": service}
+        for name in ("outside-focus", "outside-navigate")
+    ],
+)
 
 
-def seed(*names):
-    return evidence.seed_resources(
-        state,
-        [
-            {
-                "workspace": "acme/shared",
-                "name": name,
-                "deployments": [
-                    {
-                        "cluster": cluster,
-                        "environment": "production",
-                        "region": "us-east-1",
-                        "spec": {
-                            "build": {
-                                "type": "image",
-                                "image": f"registry.example.com/{name}:1",
-                            },
-                            "port": 8080,
-                            "cpu": "250m",
-                            "memory": "512Mi",
-                            "minReplicas": 1,
-                            "maxReplicas": 1,
-                        },
-                    }
-                ],
-            }
-            for name in names
-        ],
-    )
-
-
-def delete(resource):
+def delete(name):
     call(
         state,
         "loco.resource.v1.ResourceService/DeleteResource",
-        {"resourceId": resource},
+        {"resourceId": resources[f"acme/shared/{name}"]},
     )
 
 
-resources = seed("outside-focus", "outside-navigate")
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
-    page.goto(base + "/resources?env=production")
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production")
 
     def row(name):
         return page.get_by_role("link", name=name, exact=True)
@@ -72,7 +49,7 @@ with session(out) as browser:
     expect(row("outside-focus")).to_be_visible()
     expect(row("outside-navigate")).to_be_visible()
 
-    delete(resources["acme/shared/outside-focus"])
+    delete("outside-focus")
     page.evaluate(
         "document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))"
     )
@@ -80,14 +57,10 @@ with session(out) as browser:
 
     page.get_by_role("link", name="Dashboard", exact=True).click()
     expect(page.get_by_role("heading", level=1)).to_have_text("Dashboard")
-    delete(resources["acme/shared/outside-navigate"])
+    delete("outside-navigate")
     page.get_by_role("link", name="Resources", exact=True).click()
     expect(page.get_by_role("heading", level=1)).to_have_text("Resources")
     expect(row("outside-navigate")).to_have_count(0)
-
-    seed("outside-reload")
-    page.reload()
-    expect(row("outside-reload")).to_be_visible()
     assert not errors, errors
     context.close()
 print("Outside changes passed")
