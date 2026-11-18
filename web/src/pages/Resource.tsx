@@ -384,7 +384,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					)}
 					<DeploymentProgress
 						regions={regions}
-						environmentName={environment?.environmentName ?? ""}
 						logsHref={obsLink("logs")}
 						canWrite={canWrite}
 						onRollback={openRollback}

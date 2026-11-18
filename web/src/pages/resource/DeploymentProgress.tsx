@@ -1,15 +1,16 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { DeploymentStatus, type Activity, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
-import { ChevronDownIcon, LogsIcon, Undo2Icon } from "lucide-react";
-import { useId } from "react";
+import { ChevronDownIcon, LogsIcon, ScrollTextIcon, Undo2Icon, XIcon } from "lucide-react";
+import { useId, useState } from "react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/design/Button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
 import { CopyId } from "@/components/design/CopyId";
 import { deploymentPhaseStyle } from "@/components/design/StatusBadge";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { SoonTag } from "@/components/design/SoonTag";
+import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
 import { deploymentActor, deploymentMethod, getServiceSpec, isInFlight, shortSha } from "@/lib/deployment-utils";
@@ -19,9 +20,23 @@ import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quanti
 import { tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
-import { formatBuildDuration, isBuildFinished } from "./builds";
-import { deploymentElapsedMs, problemLogsHref, progressDeployments, servingDeployments } from "./deployment-progress";
-import { DeploymentRollout } from "./DeploymentRollout";
+import { isBuildFinished } from "./builds";
+import {
+	clockLabel,
+	deploymentElapsedMs,
+	groupReplicas,
+	problemLogsHref,
+	progressDeployments,
+	readyLabel,
+	rolloutSteps,
+	servingDeployments,
+	showsCard,
+	type RolloutStep,
+	type StepState,
+} from "./deployment-progress";
+import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
+
+const CARD_TICK_MS = 15_000;
 import { depImage, depTag, type RegionView } from "./model";
 
 function ProgressPanel({
@@ -30,20 +45,20 @@ function ProgressPanel({
 	previous,
 	activity,
 	connectionError,
-	environmentName,
 	logsHref,
 	canWrite,
 	onRollback,
+	onDismiss,
 }: {
 	region: RegionView;
 	deployment: Deployment;
 	previous: Deployment | undefined;
 	activity: readonly Activity[];
 	connectionError: string | undefined;
-	environmentName: string;
 	logsHref: string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
+	onDismiss: () => void;
 }) {
 	const titleId = useId();
 	const phase = deployment.status;
@@ -66,6 +81,17 @@ function ProgressPanel({
 	const failed = phase === DeploymentStatus.FAILED;
 	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = deploymentPhaseStyle(phase).label;
+	const message = build?.gitCommitMessage ?? "";
+	const headline = message === "" ? depTag(deployment) : message;
+	const glyph: Glyph = failed
+		? "err"
+		: canceled || phase === DeploymentStatus.SUPERSEDED
+			? "off"
+			: live
+				? "spin"
+				: deployment.problem !== undefined
+					? "warn"
+					: "ok";
 	const elapsed = deploymentElapsedMs(deployment, nowMs);
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
 	const { path, tag, digest } = parseImage(depImage(deployment));
@@ -89,55 +115,130 @@ function ProgressPanel({
 	if (spec?.port !== undefined) fields.push(["Port", String(spec.port)]);
 	if (spec?.healthCheck !== undefined)
 		fields.push(["Health check", `${spec.healthCheck.path} every ${spec.healthCheck.intervalSeconds}s`]);
+	const steps = rolloutSteps(deployment, buildId !== "");
+	const replicaGroups = groupReplicas(deployment.replicas, deployment.currentRevision, deployment.id);
+	const stepNote = (step: RolloutStep): string => {
+		if (step.key === "build") {
+			if (step.state === "done") return build?.imageDigest ? build.imageDigest.slice(0, 15) : "Image ready";
+			if (step.state === "active") return "Building the image";
+			return step.state === "failed" ? (deployment.problem?.message ?? "Build failed") : "";
+		}
+		if (step.state === "pending") return "";
+		if (step.state === "failed") return deployment.problem?.message ?? "Rollout failed";
+		if (step.state === "stopped") return "Canceled";
+		return readyLabel(replicaGroups[0]?.replicas ?? [], deployment.desiredReplicas);
+	};
 	return (
-		<section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-3.5 rounded-card bg-panel px-5 py-[18px]">
-			<div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:grid-cols-[auto_1fr_auto_auto]">
-				<StatusGlyph
-					glyph={
-						failed
-							? "err"
-							: canceled || phase === DeploymentStatus.SUPERSEDED
-								? "off"
-								: live
-									? "spin"
-									: deployment.problem !== undefined
-										? "warn"
-										: "ok"
-					}
-					className="size-4 shrink-0"
-				/>
-				<div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2.5 gap-y-1">
-					<h2 id={titleId} className={cn("m-0 break-words font-mono text-[15px] font-medium", failed && "text-err")}>
-						{title}
-					</h2>
-					<span className="text-[13px] text-fg3">
-						to {environmentName === "" ? region.name : `${environmentName} · ${region.name}`}
-					</span>
+		<section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-4 rounded-card bg-panel px-5 py-[18px]">
+			<div className="flex flex-wrap items-start gap-3">
+				<div className="flex min-w-0 flex-1 flex-col gap-1">
+					<div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+						<span className="m-0 min-w-0 text-[15.5px] font-medium break-words">{headline}</span>
+						<h2
+							id={titleId}
+							className={cn("m-0 inline-flex items-center gap-1.5 text-[12.5px] font-medium", failed && "text-err")}
+						>
+							<StatusGlyph glyph={glyph} />
+							{title}
+						</h2>
+						{elapsed !== undefined && (
+							<span
+								title="Time since the deployment was created"
+								className="font-mono text-[12px] text-fg3 tabular-nums"
+							>
+								{clockLabel(elapsed)}
+							</span>
+						)}
+					</div>
+					<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-fg3">
+						<span className="font-mono text-[12px] text-fg2" title={commit ?? deployment.id}>
+							{commit ? shortSha(commit) : formatShortId(deployment.id)}
+						</span>
+						<CopyId
+							value={deployment.id}
+							title="Copy deployment ID"
+							className="-ml-1 size-5 justify-center rounded-[4px] p-0 text-fg3 hover:bg-panel2 [&_svg]:size-3"
+						>
+							<span className="sr-only">Copy deployment ID</span>
+						</CopyId>
+						{(deployment.actorName !== "" || deployment.actorId !== "") && (
+							<span>
+								· {deploymentActor(deployment)}
+								{deploymentMethod(deployment) !== "" && ` via ${deploymentMethod(deployment)}`}
+							</span>
+						)}
+						<span>
+							· <span className="font-mono text-[12px]">{region.name}</span>
+						</span>
+						{!commit && image !== "" && (
+							<span className="min-w-0 break-all font-mono text-[12px] text-fg2">· {image}</span>
+						)}
+					</div>
 				</div>
-				{elapsed !== undefined && (
-					<span className="col-start-2 row-start-2 flex flex-col text-[11.5px] text-fg3 sm:col-start-3 sm:row-start-1 sm:items-end">
-						<span>Elapsed</span>
-						<span className="font-mono text-[14px] text-foreground">{formatBuildDuration(elapsed)}</span>
-					</span>
-				)}
-				<CopyId value={deployment.id} title="Copy deployment ID" className="col-start-3 row-start-1 sm:col-start-4">
-					<span className="sr-only">Copy deployment ID</span>
-				</CopyId>
+				<div className="flex shrink-0 flex-wrap items-center gap-1.5">
+					{failed ? (
+						<>
+							{logsHref !== undefined && problemLogsHref(logsHref, deployment) === undefined && (
+								<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+									<LogsIcon />
+									View logs
+								</Button>
+							)}
+							{previous !== undefined && (
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={!canWrite}
+									onClick={() => {
+										onRollback(previous, deployment);
+									}}
+								>
+									<Undo2Icon />
+									Roll back to {depTag(previous)}
+								</Button>
+							)}
+						</>
+					) : (
+						logsHref !== undefined && (
+							<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+								<ScrollTextIcon />
+								Logs
+							</Button>
+						)
+					)}
+					{live ? (
+						<Button variant="outline" size="sm" disabled title="Canceling a deployment is not available yet">
+							Cancel
+							<SoonTag />
+						</Button>
+					) : (
+						<Button variant="ghost" size="icon-sm" aria-label="Dismiss" onClick={onDismiss}>
+							<XIcon />
+						</Button>
+					)}
+				</div>
 			</div>
-			<div className="-mt-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 pl-7 text-[12.5px] text-fg3">
-				{(deployment.actorName !== "" || deployment.actorId !== "") && (
-					<span>
-						by {deploymentActor(deployment)}
-						{deploymentMethod(deployment) !== "" && ` · ${deploymentMethod(deployment)}`}
-					</span>
-				)}
-				{!commit && <span className="min-w-0 break-all font-mono text-[12px] text-fg2">{image}</span>}
-				{commit && (
-					<span className="font-mono text-[12px] text-fg2" title={commit}>
-						{shortSha(commit)}
-					</span>
-				)}
-				{build?.gitCommitMessage && <span className="min-w-0 break-words text-fg2">{build.gitCommitMessage}</span>}
+			{connectionError !== undefined && (
+				<p role="status" className="m-0 text-[13px] text-warn-fg">
+					Disconnected. Reconnecting… {connectionError}
+				</p>
+			)}
+			<ProblemBanner deployment={deployment} logsHref={logsHref} />
+			<div className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+				<div className="flex min-w-0 flex-col gap-4">
+					<StepRail steps={steps} note={stepNote} />
+					<ReplicaGroups deployment={deployment} />
+				</div>
+				<ActivityFeed
+					deployment={deployment}
+					activity={activity}
+					aside={
+						<span className="flex items-center gap-1.5 text-[12px] text-fg3">
+							Replica logs
+							<SoonTag />
+						</span>
+					}
+				/>
 			</div>
 			{desired?.isActive && (
 				<dl aria-label="Deployment versions" className="m-0 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
@@ -165,12 +266,6 @@ function ProgressPanel({
 					</div>
 				</dl>
 			)}
-			{connectionError !== undefined && (
-				<p role="status" className="m-0 text-[13px] text-warn-fg">
-					Disconnected. Reconnecting… {connectionError}
-				</p>
-			)}
-			<DeploymentRollout deployment={deployment} activity={activity} logsHref={logsHref} />
 			{fields.length > 0 && (
 				<Collapsible>
 					<CollapsibleTrigger className="group flex items-center gap-1 text-[12.5px] text-fg3 hover:text-foreground">
@@ -202,53 +297,62 @@ function ProgressPanel({
 					</Button>
 				</div>
 			)}
-			{failed && (
-				<div className="flex flex-wrap gap-2">
-					{logsHref !== undefined && problemLogsHref(logsHref, deployment) === undefined && (
-						<Button variant="outline" nativeButton={false} render={<Link to={logsHref} />}>
-							<LogsIcon />
-							View logs
-						</Button>
-					)}
-					{previous !== undefined && (
-						<Button
-							variant="outline"
-							disabled={!canWrite}
-							onClick={() => {
-								onRollback(previous, deployment);
-							}}
-						>
-							<Undo2Icon />
-							Roll back to {depTag(previous)}
-						</Button>
-					)}
-				</div>
-			)}
 		</section>
+	);
+}
+
+const STEP_GLYPH: Record<StepState, Glyph> = {
+	pending: "draft",
+	active: "spin",
+	done: "ok",
+	failed: "err",
+	stopped: "off",
+};
+
+function StepRail({ steps, note }: { steps: RolloutStep[]; note: (step: RolloutStep) => string }) {
+	return (
+		<ol aria-label="Rollout steps" className="m-0 flex list-none flex-col p-0">
+			{steps.map((step, i) => (
+				<li key={step.key} className="flex gap-2.5">
+					<span className="flex flex-col items-center pt-0.5">
+						<StatusGlyph glyph={STEP_GLYPH[step.state]} />
+						{i < steps.length - 1 && <span aria-hidden className="mt-1 w-px flex-1 bg-line2" />}
+					</span>
+					<span className={cn("flex min-w-0 flex-col gap-0.5", i < steps.length - 1 && "pb-3.5")}>
+						<span className={cn("text-[13px] font-medium", step.state === "pending" && "text-fg3")}>
+							{step.label}
+							<span className="sr-only">, {step.state}</span>
+						</span>
+						{note(step) !== "" && <span className="font-mono text-[11.5px] break-words text-fg3">{note(step)}</span>}
+					</span>
+				</li>
+			))}
+		</ol>
 	);
 }
 
 export function DeploymentProgress({
 	regions,
-	environmentName,
 	logsHref,
 	canWrite,
 	onRollback,
 }: {
 	regions: RegionView[];
-	environmentName: string;
 	logsHref: string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
 	const progress = progressDeployments(regions);
 	const watchOf = useDeploymentWatch(progress.map(({ deployment }) => deployment.id));
+	const nowMs = useNow(CARD_TICK_MS).getTime();
+	const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
 	return progress.map(({ region, deployment, previous }) => {
 		const watched = watchOf(deployment.id);
 		const current =
 			watched.deployment !== undefined && tsMs(watched.deployment.updatedAt) >= tsMs(deployment.updatedAt)
 				? watched.deployment
 				: deployment;
+		if (dismissed.has(current.id) || !showsCard(current, nowMs)) return null;
 		return (
 			<ProgressPanel
 				key={deployment.id}
@@ -257,10 +361,12 @@ export function DeploymentProgress({
 				previous={previous}
 				activity={watched.activity}
 				connectionError={watched.error}
-				environmentName={environmentName}
 				logsHref={logsHref}
 				canWrite={canWrite}
 				onRollback={onRollback}
+				onDismiss={() => {
+					setDismissed((prev) => new Set([...prev, current.id]));
+				}}
 			/>
 		);
 	});

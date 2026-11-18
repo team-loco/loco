@@ -5,11 +5,16 @@ import { expect, test } from "bun:test";
 
 import {
 	activityTime,
+	CARD_LINGER_MS,
+	clockLabel,
 	deploymentElapsedMs,
 	groupReplicas,
 	problemLogsHref,
 	progressDeployments,
+	readyLabel,
 	replicaState,
+	rolloutSteps,
+	showsCard,
 	stoppingCountdown,
 	servingDeployments,
 } from "./deployment-progress";
@@ -166,4 +171,35 @@ test("serving deployments use reported readiness and Pod identity across mixed r
 		{ id: "next", readyReplicas: 1 },
 	]);
 	expect(servingDeployments([])).toEqual([]);
+});
+
+test("the card shows while a deployment runs and for a few minutes after it finishes", () => {
+	const done = create(DeploymentSchema, { status: DeploymentStatus.RUNNING, completedAt: timestampFromMs(10_000) });
+	expect(showsCard(pending, 10_000_000)).toBe(true);
+	expect(showsCard(done, 10_000 + CARD_LINGER_MS)).toBe(true);
+	expect(showsCard(done, 10_001 + CARD_LINGER_MS)).toBe(false);
+});
+
+test("elapsed time reads like a clock", () => {
+	expect([clockLabel(49_000), clockLabel(725_000), clockLabel(3_729_000)]).toEqual(["0:49", "12:05", "1:02:09"]);
+});
+
+test("rollout steps follow the deployment phase", () => {
+	const at = (status: DeploymentStatus, reason = "") =>
+		rolloutSteps(create(DeploymentSchema, { status, ...(reason === "" ? {} : { problem: { reason } }) }), true).map(
+			(s) => s.state,
+		);
+	expect(at(DeploymentStatus.BUILDING)).toEqual(["active", "pending"]);
+	expect(at(DeploymentStatus.DEPLOYING)).toEqual(["done", "active"]);
+	expect(at(DeploymentStatus.RUNNING)).toEqual(["done", "done"]);
+	expect(at(DeploymentStatus.FAILED, "build_failed")).toEqual(["failed", "pending"]);
+	expect(at(DeploymentStatus.FAILED, "crash_loop")).toEqual(["done", "failed"]);
+	expect(
+		rolloutSteps(create(DeploymentSchema, { status: DeploymentStatus.DEPLOYING }), false).map((s) => s.key),
+	).toEqual(["deploy"]);
+});
+
+test("the ready line counts ready replicas against the desired count", () => {
+	const r = (ready: boolean) => create(ReplicaSchema, { ready });
+	expect(readyLabel([r(true), r(false)], 2)).toBe("1 of 2 ready");
 });
