@@ -302,7 +302,7 @@ export function DeploymentsSection({
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
 					<div aria-busy={isLoadingMore}>
-						<Table inset className="min-w-[960px] table-fixed [--row-h:58px]">
+						<Table inset className="min-w-[900px] table-fixed [--row-h:58px]">
 							<TableHeader>
 								<TableRow>
 									<TableHead className="w-6" />
