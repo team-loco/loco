@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/internal/clitest"
+	"github.com/team-loco/loco/cmd/internal/paginate"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -181,12 +182,12 @@ func TestListWorkspacesRejectsRepeatedPages(t *testing.T) {
 					return nil, "repeated", nil
 				},
 			)
-			if !errors.Is(err, cmdutil.ErrRepeatedPageToken) || output != "" || len(fake.listCursors) != 2 {
+			if !errors.Is(err, paginate.ErrRepeatedPageToken) || output != "" || len(fake.listCursors) != 2 {
 				t.Fatalf("repeated page: output=%q error=%v calls=%d", output, err, len(fake.listCursors))
 			}
 			if orgID == "" {
 				_, resolveErr := resolveListedWorkspace(t)
-				if !errors.Is(resolveErr, cmdutil.ErrRepeatedPageToken) || len(fake.listCursors) != 4 {
+				if !errors.Is(resolveErr, paginate.ErrRepeatedPageToken) || len(fake.listCursors) != 4 {
 					t.Fatalf("resolve repeated page: error=%v calls=%d", resolveErr, len(fake.listCursors))
 				}
 			}

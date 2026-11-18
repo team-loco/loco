@@ -5,6 +5,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/paginate"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
@@ -30,7 +31,7 @@ func buildInvitationsCmd() *cobra.Command {
 				return err
 			}
 
-			invitations, err := cmdutil.Paginate(func(token string) ([]*orgv1.Invitation, string, error) {
+			invitations, err := paginate.All(func(token string) ([]*orgv1.Invitation, string, error) {
 				resp, listErr := client.ListInvitations(
 					cmd.Context(),
 					&orgv1.ListInvitationsRequest{OrgId: orgID, PageToken: token},

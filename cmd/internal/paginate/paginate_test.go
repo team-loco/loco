@@ -1,4 +1,4 @@
-package cmdutil
+package paginate
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestPaginateCollectsEveryPage(t *testing.T) {
+func TestAllCollectsEveryPage(t *testing.T) {
 	pages := map[string]struct {
 		items []string
 		next  string
@@ -14,20 +14,20 @@ func TestPaginateCollectsEveryPage(t *testing.T) {
 		"":   {[]string{"a", "b"}, "p2"},
 		"p2": {[]string{"c"}, ""},
 	}
-	got, err := Paginate(func(token string) ([]string, string, error) {
+	got, err := All(func(token string) ([]string, string, error) {
 		page := pages[token]
 		return page.items, page.next, nil
 	})
 	if err != nil {
-		t.Fatalf("Paginate: %v", err)
+		t.Fatalf("All: %v", err)
 	}
 	if want := []string{"a", "b", "c"}; !slices.Equal(got, want) {
 		t.Fatalf("items = %v, want %v", got, want)
 	}
 }
 
-func TestPaginateRejectsRepeatedToken(t *testing.T) {
-	_, err := Paginate(func(string) ([]string, string, error) {
+func TestAllRejectsRepeatedToken(t *testing.T) {
+	_, err := All(func(string) ([]string, string, error) {
 		return []string{"a"}, "same", nil
 	})
 	if !errors.Is(err, ErrRepeatedPageToken) {
@@ -35,9 +35,9 @@ func TestPaginateRejectsRepeatedToken(t *testing.T) {
 	}
 }
 
-func TestPaginateReturnsFetchError(t *testing.T) {
+func TestAllReturnsFetchError(t *testing.T) {
 	fetchErr := errors.New("boom")
-	_, err := Paginate(func(string) ([]string, string, error) {
+	_, err := All(func(string) ([]string, string, error) {
 		return nil, "", fetchErr
 	})
 	if !errors.Is(err, fetchErr) {
