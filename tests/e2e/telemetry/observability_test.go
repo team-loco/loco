@@ -422,7 +422,12 @@ func collectorCrashReplay(t *testing.T) {
 	var config corev1.ConfigMap
 	p.MustGet(t, &config, "-n", namespace, "configmap", collector)
 	original := config.DeepCopy()
-	t.Cleanup(func() { restoreCollector(t, original) })
+	restored := false
+	t.Cleanup(func() {
+		if !restored {
+			restoreCollector(t, original)
+		}
+	})
 	var relay map[string]any
 	if err := yaml.Unmarshal([]byte(config.Data["relay"]), &relay); err != nil {
 		t.Fatal(err)
@@ -559,6 +564,7 @@ func collectorCrashReplay(t *testing.T) {
 		return nil
 	})
 	restoreCollector(t, original)
+	restored = true
 	waitCount(t, fmt.Sprintf("all %d acknowledged logs to replay after SIGKILL", crashRecords),
 		fmt.Sprintf("SELECT count(DISTINCT Body) FROM otel_logs WHERE startsWith(Body, '%s-')", marker),
 		func(count int) bool { return count == crashRecords })

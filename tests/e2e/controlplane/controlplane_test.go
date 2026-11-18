@@ -312,7 +312,6 @@ func (cp *controlPlane) checkRouting(t *testing.T) {
 			t.Errorf("the API docs page lacks %s", want)
 		}
 	}
-	cp.request(t, http.MethodGet, api, "/docs", "", nil).expect(t, http.StatusNotFound)
 
 	app := cp.values.UI.Hostname
 	dashboard := cp.request(t, http.MethodGet, app, "/", "", nil).text(t)

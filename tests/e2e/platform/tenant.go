@@ -92,12 +92,12 @@ func (p *Platform) newWorkspace(t *testing.T, orgID, orgName, name string) *Work
 		t.Fatalf("workspace %s has no production environment", name)
 	}
 	w.Namespace = p.EnvironmentNamespace(w.EnvironmentID)
-	w.WriteCLIConfig(t)
+	w.writeCLIConfig(t)
 	return w
 }
 
-// WriteCLIConfig writes the CLI's credentials and its scope of the workspace into Home.
-func (w *Workspace) WriteCLIConfig(tb testing.TB) {
+// writeCLIConfig writes the CLI's credentials and its scope of the workspace into Home.
+func (w *Workspace) writeCLIConfig(tb testing.TB) {
 	tb.Helper()
 	if err := writeCredentials(w.Home, w.p.userSession); err != nil {
 		tb.Fatal(err)
@@ -118,6 +118,21 @@ func (w *Workspace) WriteCLIConfig(tb testing.TB) {
 // ConfigPath is the CLI's scope file in Home.
 func (w *Workspace) ConfigPath() string {
 	return filepath.Join(w.Home, ".loco", "config.yaml")
+}
+
+// WithoutScope runs check while the CLI has no cached organization or workspace.
+func (w *Workspace) WithoutScope(tb testing.TB, check func()) {
+	tb.Helper()
+	config := w.ConfigPath()
+	if err := os.Rename(config, config+".saved"); err != nil {
+		tb.Fatal(err)
+	}
+	defer func() {
+		if err := os.Rename(config+".saved", config); err != nil {
+			tb.Error(err)
+		}
+	}()
+	check()
 }
 
 // CLIResult is the output of one CLI run.

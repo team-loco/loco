@@ -32,8 +32,6 @@ const (
 	buildStep = "build"
 )
 
-var digestPattern = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
-
 // TestBuilds runs Build objects through the build controller alone: a first build, a rebuild from
 // its cache, an untrusted build looking for credentials, and the build namespace's egress policy.
 func TestBuilds(t *testing.T) {
@@ -48,7 +46,7 @@ func TestBuilds(t *testing.T) {
 			t.Fatalf("first build phase %q (%s)", first.Status.Phase, first.Status.Message)
 		}
 		for name, digest := range map[string]string{"image": first.Status.ImageDigest, "cache": first.Status.CacheDigest} {
-			if !digestPattern.MatchString(digest) {
+			if !platform.IsDigest(digest) {
 				t.Errorf("first build %s digest %q is not a sha256 digest", name, digest)
 			}
 		}
@@ -123,7 +121,7 @@ func TestBuilds(t *testing.T) {
 		if logs := buildLogs(t, "e2e-app-2", buildStep); !strings.Contains(logs, "CACHED") {
 			t.Errorf("the build step reused no cached layer:\n%s", logs)
 		}
-		if !digestPattern.MatchString(second.Status.ImageDigest) {
+		if !platform.IsDigest(second.Status.ImageDigest) {
 			t.Errorf("cached build image digest %q", second.Status.ImageDigest)
 		}
 		t.Logf("cached build took %s (first build: %s)", buildDuration(second), buildDuration(first))

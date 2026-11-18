@@ -90,7 +90,7 @@ func Upload(tb testing.TB, url, path string) {
 	if err != nil {
 		tb.Fatal(err)
 	}
-	response, err := HTTPClient.Do(request)
+	response, err := httpClient.Do(request)
 	if err != nil {
 		tb.Fatal(err)
 	}
@@ -101,8 +101,8 @@ func Upload(tb testing.TB, url, path string) {
 	}
 }
 
-// HTTPClient resolves every *.localhost name, such as the source bucket's, to the loopback address.
-var HTTPClient = &http.Client{Transport: &http.Transport{
+// httpClient resolves every *.localhost name, such as the source bucket's, to the loopback address.
+var httpClient = &http.Client{Transport: &http.Transport{
 	DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(address)
 		if err != nil {

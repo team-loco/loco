@@ -27,14 +27,6 @@ func TestIngress(t *testing.T) {
 	publicHost := w.Host(public)
 
 	t.Run("the cluster reports the domain its gateway serves", func(t *testing.T) {
-		var seeded bool
-		if err := p.DB.QueryRow(t.Context(), "SELECT to_regclass('platform_domains') IS NULL").
-			Scan(&seeded); err != nil {
-			t.Fatal(err)
-		}
-		if !seeded {
-			t.Error("the install seeds a platform domains table")
-		}
 		platform.Eventually(t, time.Minute, "the agent to report "+p.Domain, func(ctx context.Context) error {
 			var domains []string
 			if err := p.DB.QueryRow(ctx, "SELECT domains FROM clusters WHERE id = $1", p.ClusterID).

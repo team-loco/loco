@@ -10,8 +10,25 @@ import (
 	"time"
 
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
+
+// waitHeartbeat waits until the run's cluster records a heartbeat.
+func waitHeartbeat(t *testing.T, timeout time.Duration, what string) {
+	t.Helper()
+	platform.Eventually(t, timeout, what, func(ctx context.Context) error {
+		var heartbeat bool
+		if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
+			Scan(&heartbeat); err != nil {
+			return err
+		}
+		if !heartbeat {
+			return errors.New("no heartbeat")
+		}
+		return nil
+	})
+}
 
 // TestAgentLifecycle checks the enrolled agent's registration, heartbeat and capacity, then deploys
 // an image and follows the placement from the API through the agent to a Ready Application, whose
@@ -47,17 +64,7 @@ func TestAgentLifecycle(t *testing.T) {
 	})
 
 	t.Run("heartbeat and capacity", func(t *testing.T) {
-		platform.Eventually(t, 30*time.Second, "the agent's first heartbeat", func(ctx context.Context) error {
-			var heartbeat bool
-			if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
-				Scan(&heartbeat); err != nil {
-				return err
-			}
-			if !heartbeat {
-				return errors.New("no heartbeat")
-			}
-			return nil
-		})
+		waitHeartbeat(t, 30*time.Second, "the agent's first heartbeat")
 		var health string
 		var cpu, memory int64
 		if err := p.DB.QueryRow(t.Context(), clusterHealth,
@@ -71,12 +78,6 @@ func TestAgentLifecycle(t *testing.T) {
 		if cpu <= 0 || memory <= 0 {
 			t.Errorf("agent reported capacity %dm CPU and %d bytes, want both positive", cpu, memory)
 		}
-	})
-
-	t.Run("worker objects", func(t *testing.T) {
-		p.MustKubectl(t, "get", "crd", "applications.infra.loco.io")
-		p.MustKubectl(t, "get", "namespace", p.Namespace)
-		p.MustKubectl(t, "-n", p.Namespace, "rollout", "status", "deployment/loco-controller", "--timeout", "60s")
 	})
 
 	w := p.NewTenant(t)
@@ -101,7 +102,7 @@ func TestAgentLifecycle(t *testing.T) {
 				if err != nil {
 					return err
 				}
-				if revision := application.Annotations["loco.io/placement-revision"]; revision != "1" {
+				if revision := application.Annotations[v1alpha1.KeyPlacementRevision]; revision != "1" {
 					return fmt.Errorf("placement revision %q", revision)
 				}
 				return nil

@@ -110,8 +110,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	}
 }
 
-// The next revision intentionally cannot serve. Give Kubernetes enough time to
-// observe restarts and collect traffic samples before it reports the stalled rollout.
+// shortenFailureDeadline sets the workload's progress deadline to 90s.
 func shortenFailureDeadline(t *testing.T, w *platform.Workspace, resourceID string) {
 	t.Helper()
 	p.MustKubectl(t, "-n", w.Namespace, "patch", "deployment", locov1alpha1.WorkloadName(resourceID),

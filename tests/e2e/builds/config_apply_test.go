@@ -111,17 +111,10 @@ func TestConfigApply(t *testing.T) {
 	})
 
 	t.Run("a second plan by name is clean", func(t *testing.T) {
-		config := w.ConfigPath()
-		if err := os.Rename(config, config+".saved"); err != nil {
-			t.Fatal(err)
-		}
-		defer func() {
-			if err := os.Rename(config+".saved", config); err != nil {
-				t.Error(err)
-			}
-		}()
-		out := loco(t, "infra", "plan", "--env", platform.Production, "--org", w.OrgName, "--workspace", w.Name)
-		requireContains(t, out, "No changes")
+		w.WithoutScope(t, func() {
+			out := loco(t, "infra", "plan", "--env", platform.Production, "--org", w.OrgName, "--workspace", w.Name)
+			requireContains(t, out, "No changes")
+		})
 	})
 
 	t.Run("health checks are optional", func(t *testing.T) {
@@ -219,7 +212,7 @@ func TestConfigApply(t *testing.T) {
 		if resourceCount(t, w, configWeb) != 1 {
 			t.Error("disabling the environment deleted the resource")
 		}
-		if placements(t, id, "AND NOT desired_deleted") != 0 {
+		if livePlacements(t, id) != 0 {
 			t.Error("apply did not mark the placement deleted")
 		}
 		platform.Eventually(t, time.Minute, "the agent to delete the placement", func(ctx context.Context) error {
@@ -258,10 +251,11 @@ func resourceCount(t *testing.T, w *platform.Workspace, name string) int {
 	return count
 }
 
-func placements(t *testing.T, resourceID, condition string) int {
+func livePlacements(t *testing.T, resourceID string) int {
 	t.Helper()
 	var count int
-	if err := p.DB.QueryRow(t.Context(), "SELECT count(*) FROM placements WHERE resource_id = $1 "+condition, resourceID).
+	if err := p.DB.QueryRow(t.Context(),
+		"SELECT count(*) FROM placements WHERE resource_id = $1 AND NOT desired_deleted", resourceID).
 		Scan(&count); err != nil {
 		t.Fatal(err)
 	}

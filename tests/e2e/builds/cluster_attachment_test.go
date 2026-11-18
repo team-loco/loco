@@ -289,17 +289,7 @@ func pauseRemoveRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 	locoadm(t, "cluster", "resume", p.ClusterID)
-	platform.Eventually(t, 2*time.Minute, "the restored cluster's heartbeat", func(ctx context.Context) error {
-		var heartbeat bool
-		if err := p.DB.QueryRow(ctx, "SELECT last_heartbeat IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
-			Scan(&heartbeat); err != nil {
-			return err
-		}
-		if !heartbeat {
-			return errors.New("no heartbeat")
-		}
-		return nil
-	})
+	waitHeartbeat(t, 2*time.Minute, "the restored cluster's heartbeat")
 	requireOneCluster(t)
 }
 

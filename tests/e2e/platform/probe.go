@@ -22,7 +22,7 @@ type ProbePod struct {
 	Image string
 }
 
-// Manifest renders the pod.
+// probeManifest renders the pod.
 func (p *Platform) probeManifest(pod ProbePod) string {
 	image := pod.Image
 	if image == "" {

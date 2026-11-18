@@ -8,9 +8,17 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 )
+
+// IsDigest reports whether s is a sha256 image digest.
+func IsDigest(s string) bool {
+	return digestPattern.MatchString(s)
+}
+
+var digestPattern = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
 
 // Account is a registry account of dev/registry/htpasswd.
 type Account struct {

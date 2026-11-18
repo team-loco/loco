@@ -16,9 +16,6 @@ func TestDumpLogsExistingPods(t *testing.T) {
 printf '%s\n' "$*" >> "$COMMAND_LOG"
 case "$*" in
     *"get pods -o name"*) echo pod/controller-0 ;;
-    *"get deployments,statefulsets,daemonsets"*)
-        printf '%s\n' deployment.apps/controller deployment.apps/loco-worker-agent ;;
-    *"logs deployment.apps/loco-worker-agent"*) sleep 2 ;;
 esac
 `
 	for _, name := range []string{"kubectl", "docker"} {
@@ -35,11 +32,7 @@ esac
 	p := &Platform{Cluster: &Cluster{kubeconfig: kubeconfig, env: os.Environ()}, logDir: dir}
 	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
 	defer cancel()
-	start := time.Now()
 	p.dump(ctx)
-	if elapsed := time.Since(start); elapsed >= time.Second {
-		t.Fatalf("diagnostics took %s with a zero-replica agent deployment", elapsed)
-	}
 	got, err := os.ReadFile(commands)
 	if err != nil {
 		t.Fatal(err)

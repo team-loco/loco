@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -21,15 +20,15 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 const (
-	statusTimeout     = 3 * time.Minute
-	revisionTimeout   = time.Minute
-	suspensionReason  = "e2e suspension"
-	rolloutRejection  = "a deployment is rolling out; wait for it to finish before changing this service"
-	placementRevision = "loco.io/placement-revision"
+	statusTimeout    = 3 * time.Minute
+	revisionTimeout  = time.Minute
+	suspensionReason = "e2e suspension"
+	rolloutRejection = "a deployment is rolling out; wait for it to finish before changing this service"
 )
 
 // TestResourceStatus follows what the API reports about a resource: healthy after a deploy and a
@@ -220,9 +219,7 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 		t.Errorf("loco deploy --wait of the crashing version: %v, want an error naming %q:\n%s",
 			crashing.Err, failure, crashing.Output())
 	}
-	// Multiple completed crashes prove that another incarnation could not replace an old
-	// replica. They may already have happened while deploy --wait was observing the failure;
-	// waiting for a further restart can exceed this deadline because of kubelet backoff.
+	// Several completed crashes prove that no incarnation could replace an old replica.
 	platform.Eventually(
 		t,
 		2*time.Minute,
@@ -495,7 +492,7 @@ func templateRevision(t *testing.T, w *platform.Workspace, selector string) stri
 	if len(deployments.Items) == 0 {
 		t.Fatalf("no Deployment matches %s", selector)
 	}
-	return deployments.Items[0].Spec.Template.Annotations[placementRevision]
+	return deployments.Items[0].Spec.Template.Annotations[v1alpha1.KeyPlacementRevision]
 }
 
 func deploymentCount(t *testing.T, resourceID string) int {
@@ -517,21 +514,6 @@ func requireRolloutRejection(t *testing.T, result platform.CLIResult, what strin
 	if !strings.Contains(strings.Join(strings.Fields(result.Output()), " "), rolloutRejection) {
 		t.Errorf("%s during a rollout was refused without %q:\n%s", what, rolloutRejection, result.Output())
 	}
-}
-
-// withoutScope runs check while the CLI has no cached organization or workspace.
-func withoutScope(t *testing.T, w *platform.Workspace, check func()) {
-	t.Helper()
-	config := w.ConfigPath()
-	if err := os.Rename(config, config+".saved"); err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := os.Rename(config+".saved", config); err != nil {
-			t.Error(err)
-		}
-	}()
-	check()
 }
 
 func crashEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resourceID string) []*eventv1.Event {
@@ -652,7 +634,7 @@ func (s *status) deployReportsHealthy(t *testing.T) {
 			)
 		}
 	}
-	withoutScope(t, w, func() {
+	w.WithoutScope(t, func() {
 		out := w.MustLoco(t, dir, "resource", "status", app, "--org", w.OrgName, "--workspace", w.Name).Stdout
 		if !strings.Contains(out, "Healthy") {
 			t.Errorf("a workspace member resolving the workspace by name sees no Healthy status:\n%s", out)

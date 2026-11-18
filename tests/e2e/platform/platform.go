@@ -21,7 +21,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/team-loco/loco/internal/envconfig"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
@@ -82,9 +81,7 @@ type Platform struct {
 	User      *rpc.Clients
 	Admin     *rpc.Clients
 	UserToken string
-	// AdminToken is the system admin's session token.
-	AdminToken string
-	UserID     string
+	UserID    string
 	// ClusterID and ClusterKey identify the run's enrolled cluster; JoinToken enrolled it.
 	ClusterID  string
 	ClusterKey string
@@ -124,7 +121,7 @@ func New(features Features) *Platform {
 		binDir:         filepath.Join(c.dir, "bin"),
 		logDir:         filepath.Join(c.dir, "logs"),
 		composeProject: "loco-e2e-" + c.run,
-		subnet:         envconfig.String("LOCO_TEST_SUBNET", ""),
+		subnet:         envOr("LOCO_TEST_SUBNET", ""),
 		adminHome:      filepath.Join(c.dir, "admin-home"),
 		ports: ports{
 			api: base, obsProxy: base + 1, s3: base + 2, clickhouse: base + 3, gateway: base + 4,
