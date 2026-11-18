@@ -34,6 +34,7 @@ import (
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/gen/go/loco/observability/v1/observabilityv1connect"
+	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
@@ -104,6 +105,9 @@ type fakePlatform struct {
 	deploymentOutcomes map[string]deploymentv1.DeploymentStatus
 	// retention holds the workspace's own days; a nil signal uses the limit.
 	retention *workspacev1.RetentionDays
+	// orgs are the organizations ListUserOrgs returns outside login.
+	orgs       []*orgv1.Organization
+	workspaces []*workspacev1.Workspace
 }
 
 func newFakePlatform() *fakePlatform {
@@ -121,6 +125,9 @@ func newFakePlatform() *fakePlatform {
 		secrets:            map[fakeSecretKey]fakeSecret{},
 		deploymentOutcomes: map[string]deploymentv1.DeploymentStatus{},
 		retention:          &workspacev1.RetentionDays{},
+		workspaces: []*workspacev1.Workspace{
+			{Id: fakeWorkspaceID, OrgId: fakeOrgID, OrgName: fakeOrgName, Name: fakeWorkspaceName},
+		},
 	}
 }
 

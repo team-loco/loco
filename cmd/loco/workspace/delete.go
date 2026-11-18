@@ -10,37 +10,29 @@ import (
 
 func buildDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete <workspace-id>",
+		Use:   "delete <name-or-id>",
 		Short: "Delete a workspace",
-		Long:  "Delete a workspace by ID. This action cannot be undone.",
+		Long:  "Delete a workspace by name or ID. This action cannot be undone.",
 		Args:  cobra.ExactArgs(1),
 		Example: `  # Delete a workspace (with confirmation prompt)
-  loco workspace delete <workspace-id>
+  loco workspace delete my-workspace
 
   # Delete a workspace without confirmation
-  loco workspace delete <workspace-id> --yes
+  loco workspace delete my-workspace --yes
 
   # Delete a workspace and all its apps
-  loco workspace delete <workspace-id> --yes --confirm-delete-apps`,
+  loco workspace delete my-workspace --yes --confirm-delete-apps`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			id := args[0]
 
 			target, err := cmdutil.ResolveLogin(cmd)
 			if err != nil {
 				return err
 			}
 
-			wsClient := target.Clients.Workspace
-
-			getReq := &workspacev1.GetWorkspaceRequest{
-				WorkspaceId: id,
-			}
-
-			getResp, err := wsClient.GetWorkspace(ctx, getReq)
+			workspace, err := findWorkspace(cmd, target.Clients, args[0])
 			if err != nil {
-				return fmt.Errorf("failed to find workspace: %w", err)
+				return err
 			}
 
 			confirmDeleteApps, err := cmd.Flags().GetBool("confirm-delete-apps")
@@ -50,29 +42,29 @@ func buildDeleteCmd() *cobra.Command {
 
 			confirmed, err := cmdutil.Confirm(cmd, fmt.Sprintf(
 				"Are you sure you want to delete workspace %q (ID: %s)? This cannot be undone.",
-				getResp.GetWorkspace().GetName(),
-				id,
+				workspace.GetName(),
+				workspace.GetId(),
 			))
 			if err != nil || !confirmed {
 				return err
 			}
 
 			delReq := &workspacev1.DeleteWorkspaceRequest{
-				WorkspaceId:       id,
+				WorkspaceId:       workspace.GetId(),
 				ConfirmDeleteApps: confirmDeleteApps,
 			}
 
-			_, err = wsClient.DeleteWorkspace(ctx, delReq)
+			_, err = target.Clients.Workspace.DeleteWorkspace(ctx, delReq)
 			if err != nil {
 				return fmt.Errorf("failed to delete workspace: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Workspace %q deleted successfully.\n", getResp.GetWorkspace().GetName())
+			fmt.Fprintf(cmd.OutOrStdout(), "Workspace %q deleted successfully.\n", workspace.GetName())
 			return nil
 		},
 	}
 
-	cmd.Flags().String("host", "", "API host URL")
+	cmdutil.AddOrgFlags(cmd)
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().Bool("confirm-delete-apps", false, "Confirm deletion of all apps in the workspace")
 

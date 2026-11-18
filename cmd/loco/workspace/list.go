@@ -21,7 +21,7 @@ func buildListCmd() *cobra.Command {
   loco workspace list
 
   # List workspaces in a specific organization
-  loco workspace list --org-id <organization-id>`,
+  loco workspace list --org my-org`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
@@ -30,9 +30,17 @@ func buildListCmd() *cobra.Command {
 				return err
 			}
 
-			orgID, err := cmd.Flags().GetString("org-id")
+			org, err := cmd.Flags().GetString("org")
 			if err != nil {
-				return fmt.Errorf("failed to get org-id flag: %w", err)
+				return fmt.Errorf("failed to get org flag: %w", err)
+			}
+			orgID := ""
+			if org != "" {
+				found, findErr := cmdutil.FindUserOrg(ctx, target.Clients, org)
+				if findErr != nil {
+					return findErr
+				}
+				orgID = found.GetId()
 			}
 
 			workspaces, err := listWorkspaces(ctx, target.Clients, orgID)
@@ -66,7 +74,7 @@ func buildListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().String("org-id", "", "Filter by organization ID")
+	cmd.Flags().String("org", "", "Filter by organization name or ID")
 
 	return cmd
 }
@@ -90,4 +98,18 @@ func listWorkspaces(ctx context.Context, clients *rpc.Clients, orgID string) ([]
 		return nil, fmt.Errorf("failed to list workspaces: %w", err)
 	}
 	return workspaces, nil
+}
+
+// findWorkspace returns the workspace whose name or ID is ref, in the organization
+// ResolveOrgID names.
+func findWorkspace(cmd *cobra.Command, clients *rpc.Clients, ref string) (*workspacev1.Workspace, error) {
+	orgID, err := cmdutil.ResolveOrgID(cmd, clients)
+	if err != nil {
+		return nil, err
+	}
+	workspaces, err := listWorkspaces(cmd.Context(), clients, orgID)
+	if err != nil {
+		return nil, err
+	}
+	return cmdutil.FindWorkspace(workspaces, orgID, ref)
 }

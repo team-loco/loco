@@ -57,7 +57,7 @@ func TestDeployFixtureCreatesAndSelectsFreshScope(t *testing.T) {
 	const workspaceID = "00000000-0000-7000-8000-000000000022"
 	for _, tc := range []struct{ name, fail, calls string }{
 		{"duplicate display names", "use", "org create installation-e2e\n" +
-			"workspace create source-build --org-id " + orgID + "\nuse " + orgID + "/" + workspaceID + "\n"},
+			"workspace create source-build --org " + orgID + "\nuse " + orgID + "/" + workspaceID + "\n"},
 		{"creation failure", "org", "org create installation-e2e\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

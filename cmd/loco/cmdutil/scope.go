@@ -13,6 +13,7 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
+	"github.com/team-loco/loco/internal/rpc"
 )
 
 var (
@@ -56,6 +57,34 @@ func ResolveOrg(cmd *cobra.Command, loadConfig func() (*session.SessionConfig, e
 	}
 
 	return "", errOrgNotSpecified
+}
+
+// AddOrgFlags adds the --org and --host flags ResolveOrgID reads.
+func AddOrgFlags(cmd *cobra.Command) {
+	cmd.Flags().String("host", "", "API host URL")
+	cmd.Flags().String("org", "", "Organization name or ID (defaults to LOCO_ORG or the current scope)")
+}
+
+// ResolveOrgID returns the ID of the organization ResolveOrg names.
+func ResolveOrgID(cmd *cobra.Command, clients *rpc.Clients) (string, error) {
+	ref, err := ResolveOrg(cmd, session.Load)
+	if err != nil {
+		return "", err
+	}
+	org, err := FindUserOrg(cmd.Context(), clients, ref)
+	if err != nil {
+		return "", err
+	}
+	return org.GetId(), nil
+}
+
+// FindUserOrg returns the caller's organization whose ID or name is ref.
+func FindUserOrg(ctx context.Context, clients *rpc.Clients, ref string) (*orgv1.Organization, error) {
+	orgs, err := ListUserOrgs(ctx, clients.User, clients.Org)
+	if err != nil {
+		return nil, fmt.Errorf("unable to list organizations: %w", err)
+	}
+	return FindOrg(orgs, ref)
 }
 
 // ResolveWorkspace resolves a workspace ID or name from flag > env > config.

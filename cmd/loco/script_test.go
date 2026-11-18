@@ -154,6 +154,8 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 			ts.Fatalf("fakeapi: %v", err)
 		}
 		api.fail(args[1], code)
+	case "org", "workspace":
+		addFakeScope(ts, api, neg, args)
 	default:
 		if !cmdFakeLogin(ts, api, neg, args) {
 			cmdFakePlatform(ts, api, neg, args)

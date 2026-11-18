@@ -10,7 +10,10 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 )
 
-const invitationTablePadding = 2
+const (
+	invitationTablePadding = 2
+	invitationTimeLayout   = "2006-01-02 15:04"
+)
 
 func buildInvitationsCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -26,7 +29,7 @@ func buildInvitationsCmd() *cobra.Command {
 				return err
 			}
 			client := target.Clients.Org
-			orgID, err := resolveOrgID(cmd, target.Clients)
+			orgID, err := cmdutil.ResolveOrgID(cmd, target.Clients)
 			if err != nil {
 				return err
 			}
@@ -63,6 +66,6 @@ func buildInvitationsCmd() *cobra.Command {
 			return table.Flush()
 		},
 	}
-	addOrgFlags(cmd)
+	cmdutil.AddOrgFlags(cmd)
 	return cmd
 }

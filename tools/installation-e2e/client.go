@@ -365,7 +365,7 @@ func deployFixture(ctx context.Context, hostname string) error {
 		"workspace",
 		"create",
 		"source-build",
-		"--org-id",
+		"--org",
 		organizationID,
 	)
 	if err != nil {
