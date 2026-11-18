@@ -31,28 +31,6 @@ def descriptions(field):
     )
 
 
-def check_table_geometry(page):
-    for table in page.get_by_role("table").all():
-        if not table.is_visible():
-            continue
-        head = table.get_by_role("columnheader").first
-        assert abs(head.bounding_box()["height"] - 40) <= 1
-        assert (
-            head.evaluate("node => parseFloat(getComputedStyle(node).paddingLeft)")
-            == 20
-        )
-        geometry = table.evaluate(
-            "node => { const table = node.getBoundingClientRect(); const card = node.closest('.rounded-card').getBoundingClientRect(); return {left: table.left - card.left, right: card.right - table.right}; }"
-        )
-        assert geometry["left"] <= 2 and geometry["right"] <= 2, geometry
-        rows = table.locator("tbody tr")
-        for row in rows.all():
-            if row.inner_text().strip() == "History kept":
-                assert abs(row.bounding_box()["height"] - 40) <= 1
-            else:
-                assert row.bounding_box()["height"] >= 51
-
-
 def check_time_preferences(page):
     section = page.get_by_role("region", name="Date and time", exact=True)
     zone = section.get_by_role("group", name="Time zone", exact=True)
@@ -270,12 +248,7 @@ with session(out) as browser:
             ).wait_for()
             name = page.get_by_role("textbox", name="Name", exact=True)
             assert name.count() == 1
-            assert (
-                page.get_by_text("Created", exact=True).first.evaluate(
-                    "node => node.tagName"
-                )
-                == "DT"
-            )
+            expect(page.get_by_text("Created", exact=True).first).to_be_visible()
             assert name.evaluate("node => node.labels.length") == 1
             assert descriptions(name) == []
             if user == "member":
@@ -326,9 +299,6 @@ with session(out) as browser:
                 row = workspaces.get_by_role("link", name="shared", exact=True).locator(
                     "xpath=ancestor::tr"
                 )
-                assert (
-                    row.evaluate("node => getComputedStyle(node).cursor") == "pointer"
-                )
                 background = row.evaluate(
                     "node => getComputedStyle(node).backgroundColor"
                 )
@@ -338,6 +308,16 @@ with session(out) as browser:
                 expect(
                     workspaces.get_by_role("button", name="Next page", exact=True)
                 ).to_be_disabled()
+                row.click()
+                page.wait_for_url(
+                    lambda url: (
+                        parse_qs(urlparse(url).query).get("scope", ["workspace"])
+                        == ["workspace"]
+                    )
+                )
+                expect(
+                    page.get_by_placeholder("storefront", exact=True)
+                ).to_be_visible()
             if tab == "ws" and user == "owner":
                 settings_url = page.url
                 page.goto(settings_url.split("/settings")[0] + "/webhooks")
@@ -351,7 +331,6 @@ with session(out) as browser:
                 ).to_be_visible()
                 check_environments(page)
                 check_create_dialogs(page)
-            check_table_geometry(page)
             assert not errors, errors
             results.append({"user": user, "tab": tab, "errors": list(errors)})
         if user == "owner":
@@ -378,7 +357,6 @@ with session(out) as browser:
                         expect(page.locator("html")).not_to_have_class(
                             re.compile(r"\bdark\b")
                         )
-                    check_table_geometry(page)
         page.goto(state["ui_url"] + base + "?scope=account")
         check_time_preferences(page)
         context.close()

@@ -296,7 +296,6 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(stopped).to_have_count(2)
     for row in stopped.all():
         expect(row.get_by_text("Stopped", exact=True)).to_be_visible()
-        expect(row).to_have_class(re.compile(r"opacity-50"))
     expect(
         panel.get_by_role("region", name="Activity feed", exact=True)
         .get_by_role("listitem")

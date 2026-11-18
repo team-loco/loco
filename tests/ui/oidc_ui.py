@@ -13,7 +13,6 @@ from playwright.sync_api import expect
 parser = argparse.ArgumentParser(
     description="Sign in through an issuer without CORS and refresh the dashboard session"
 )
-parser.add_argument("--screenshots", type=Path)
 parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
 args.state = None
@@ -97,23 +96,6 @@ def check_browser(browser, state, issuer_url):
     assert all(url.startswith(state["ui_url"] + "/api/") for url in browser_fetches)
     response = page.request.get(state["ui_url"])
     assert "connect-src 'self';" in response.headers["content-security-policy"]
-
-    if args.screenshots is not None:
-        args.screenshots.mkdir(parents=True, exist_ok=True)
-        for theme in evidence.THEMES:
-            page.get_by_role("button").filter(has_text="Olivia Owner").click()
-            mode = page.get_by_role("radiogroup", name="Mode", exact=True)
-            mode.get_by_role("radio", name=theme.capitalize(), exact=True).click()
-            page.keyboard.press("Escape")
-            page.wait_for_function(
-                "dark => document.documentElement.classList.contains('dark') === dark",
-                arg=theme == "dark",
-            )
-            evidence.settle(page, wait_for_network=False)
-            page.screenshot(
-                path=args.screenshots / f"sign-in-after-{theme}.png",
-                animations="disabled",
-            )
 
     # An invitation can require a fresh provider login even with an active session.
     page.goto(state["ui_url"] + "/login?login_hint=owner%40acme.test")

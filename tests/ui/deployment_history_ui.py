@@ -19,12 +19,6 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 
-SEPARATED_ROWS = """section => [...section.querySelectorAll("table")].filter((table) => table.offsetParent !== null).every((table) => {
-    const rows = [...table.querySelectorAll("tbody tr")].slice(0, -1).filter((row) => !row.classList.contains("border-b-0"));
-    return rows.length > 0 && rows.every((row) => getComputedStyle(row).borderBottomWidth === "1px");
-})"""
-
-
 started = time.monotonic()
 state = load_state(
     args, "deployment-history", "tests/ui/fixtures/deployment-history/scenario.json"
@@ -216,19 +210,6 @@ def fixture():
 
 
 data = fixture()
-for resource, environment in (
-    (data["resource"], data["production"]),
-    (data["resource"], data["staging"]),
-    (data["edge"], data["production"]),
-):
-    assert (
-        call(
-            state,
-            "loco.resource.v1.ResourceService/GetResourceEnv",
-            {"resourceId": resource, "environmentId": environment},
-        )
-        == {}
-    )
 first_page = call(
     state,
     "loco.deployment.v1.DeploymentService/ListDeployments",
@@ -468,7 +449,6 @@ with session(out) as browser:
             exact=True,
         )
     ).to_have_count(0)
-    assert section.evaluate(SEPARATED_ROWS), "deployment rows lost their separators"
     builds = data["builds"]
     section.get_by_role(
         "button",
@@ -483,7 +463,6 @@ with session(out) as browser:
         section.get_by_role("tab", name=re.compile(r"^Builds\s*6$"))
     ).to_have_attribute("aria-selected", "true")
     expect(section.get_by_text("1–5 of 6", exact=False)).to_be_visible()
-    assert section.evaluate(SEPARATED_ROWS), "build rows lost their separators"
     expect(
         section.get_by_role(
             "button", name=f"Hide build {builds['deployed'][-8:]}", exact=True

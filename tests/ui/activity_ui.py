@@ -20,7 +20,7 @@ state = load_state(args, "activity_ui", "tests/ui/fixtures/activity/scenario.jso
 activity = prepare_activity(state)
 state["activity"] = activity
 evidence.write_json(Path(args.state), state)
-access = verify_activity_access(state, activity)
+verify_activity_access(state, activity)
 origin = state["ui_url"]
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
@@ -606,7 +606,7 @@ with session(out) as browser:
     scoped = check_scoped_user(browser)
     browser.close()
 (out / "results.json").write_text(
-    json.dumps({"access": access, "browser": results, "scoped": scoped}, indent=2)
+    json.dumps({"browser": results, "scoped": scoped}, indent=2)
 )
 print(
     f"scoped Activity API access and {len(results)} production-browser cases passed",

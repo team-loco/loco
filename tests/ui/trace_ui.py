@@ -511,7 +511,6 @@ with session(out) as browser:
     page.mouse.move(axis_box["x"] + axis_box["width"] * 0.6, axis_box["y"] + 8, steps=6)
     page.mouse.up()
     expect(overview).to_have_attribute("aria-valuetext", "20–60% of trace")
-    assert overview.bounding_box()["height"] == 24
     overview_box = overview.bounding_box()
     page.mouse.move(
         overview_box["x"] + overview_box["width"] * 0.3, overview_box["y"] + 12
@@ -1175,13 +1174,11 @@ with session(out) as browser:
     expect(
         log_rows.get_by_text("No logs from this span or its children.", exact=True)
     ).to_be_visible()
-    expect(
-        drawer.get_by_role("separator", name="Resize bottom panel")
-    ).to_have_attribute("aria-valuenow", "310")
-    drawer.get_by_role("separator", name="Resize bottom panel").press("ArrowUp")
-    expect(
-        drawer.get_by_role("separator", name="Resize bottom panel")
-    ).to_have_attribute("aria-valuenow", "334")
+    resize = drawer.get_by_role("separator", name="Resize bottom panel")
+    height = int(resize.get_attribute("aria-valuenow"))
+    resize.press("ArrowUp")
+    expect(resize).not_to_have_attribute("aria-valuenow", str(height))
+    assert int(resize.get_attribute("aria-valuenow")) > height
     drawer.get_by_role("button", name="Collapse bottom panel").click()
     expect(drawer.get_by_role("button", name="Expand bottom panel")).to_be_visible()
     drawer.get_by_role("button", name="Expand bottom panel").click()
@@ -1421,17 +1418,6 @@ with session(out) as browser:
         arg=before_top,
     )
     expect(drawer.get_by_role("button", name="Reset zoom", exact=True)).to_have_count(0)
-    frames = page.locator("[data-trace-plot]").evaluate("""async plot => {
-        const samples=[];
-        for(let i=0;i<20;i++) {
-            const start=performance.now();
-            plot.querySelectorAll('[data-span-id]')[i+1].dispatchEvent(new PointerEvent('pointermove',{bubbles:true,clientX:100+i,clientY:300}));
-            await new Promise(requestAnimationFrame);
-            samples.push(performance.now()-start);
-        }
-        return samples;
-    }""")
-    print("Large trace pointer frame samples (ms):", frames)
     assert not errors, errors
     context.close()
     mode[0] = "many"

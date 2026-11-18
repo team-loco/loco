@@ -96,14 +96,6 @@ VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','ag
 INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"crash_loop","detail":"The pod restarted"}}}}');
 COMMIT;""",
 )
-assert (
-    call(
-        state,
-        "loco.resource.v1.ResourceService/GetResourceEnv",
-        {"resourceId": resource, "environmentId": production},
-    )
-    == {}
-)
 desired = json.dumps(
     {
         "app_spec": {

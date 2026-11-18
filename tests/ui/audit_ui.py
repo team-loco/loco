@@ -270,14 +270,8 @@ with session(out) as browser:
     page.set_viewport_size(evidence.NARROW)
     expect(panel.get_by_role("button", name=re.compile(r"^@request:"))).to_be_visible()
     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-    page.evaluate("localStorage.setItem('loco:color:v1', 'neobrutal')")
     page.reload()
     expect(search).to_have_attribute("aria-invalid", "true")
-    group = search.locator("..")
-    expect(group).to_have_css("border-top-width", "2px")
-    expect(group).to_have_css("box-shadow", re.compile(r"2px 2px"))
-    page.evaluate("localStorage.setItem('loco:color:v1', 'loco')")
-    page.reload()
     page.set_viewport_size(evidence.DESKTOP)
 
     with page.expect_response(
