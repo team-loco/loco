@@ -40,18 +40,7 @@ func (f *deployFixture) listDeployments(
 	grants ...genDb.EntityScope,
 ) *deploymentv1.ListDeploymentsResponse {
 	t.Helper()
-	server := NewDeploymentServer(
-		f.pool,
-		f.queries,
-		nil,
-		"",
-		testServiceDefaults(),
-		testClusterSilentAfter,
-		testMaxPlacementBytes,
-		limits.Defaults(),
-		8,
-		nil,
-	)
+	server := f.deploymentServer()
 	scopes := []genDb.EntityScope{
 		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeRead},
 	}
@@ -64,6 +53,21 @@ func (f *deployFixture) listDeployments(
 		t.Fatalf("list deployments: %v", err)
 	}
 	return resp
+}
+
+func (f *deployFixture) deploymentServer() *DeploymentServer {
+	return NewDeploymentServer(
+		f.pool,
+		f.queries,
+		nil,
+		"",
+		testServiceDefaults(),
+		testClusterSilentAfter,
+		testMaxPlacementBytes,
+		limits.Defaults(),
+		8,
+		nil,
+	)
 }
 
 func deploymentIDs(deployments []*deploymentv1.Deployment) []string {

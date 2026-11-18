@@ -742,7 +742,9 @@ type Deployment struct {
 	Problem         *Problem               `protobuf:"bytes,23,opt,name=problem,proto3" json:"problem,omitempty"`
 	// Active deployments expose the live placement's latest reported replicas,
 	// including previous deployment IDs. Inactive deployments retain historical replicas.
-	Replicas      []*Replica `protobuf:"bytes,24,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	Replicas []*Replica `protobuf:"bytes,24,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	// Shared by the deployments one apply, deploy or scale created across regions.
+	RolloutId     string `protobuf:"bytes,25,opt,name=rollout_id,json=rolloutId,proto3" json:"rollout_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -936,6 +938,13 @@ func (x *Deployment) GetReplicas() []*Replica {
 		return x.Replicas
 	}
 	return nil
+}
+
+func (x *Deployment) GetRolloutId() string {
+	if x != nil {
+		return x.RolloutId
+	}
+	return ""
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
@@ -2143,7 +2152,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fidle_timeout\x18\x02 \x01(\x05R\vidleTimeout\"_\n" +
 	"\x0eDeploymentSpec\x12E\n" +
 	"\aservice\x18\x01 \x01(\v2).loco.deployment.v1.ServiceDeploymentSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xd5\b\n" +
+	"\x04spec\"\xf4\b\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
@@ -2176,7 +2185,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x06commit\x18\x15 \x01(\v2 .loco.deployment.v1.SourceCommitR\x06commit\x12)\n" +
 	"\x10current_revision\x18\x16 \x01(\x03R\x0fcurrentRevision\x125\n" +
 	"\aproblem\x18\x17 \x01(\v2\x1b.loco.deployment.v1.ProblemR\aproblem\x127\n" +
-	"\breplicas\x18\x18 \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicasB\r\n" +
+	"\breplicas\x18\x18 \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicas\x12\x1d\n" +
+	"\n" +
+	"rollout_id\x18\x19 \x01(\tR\trolloutIdB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xe7\x02\n" +
 	"\x17CreateDeploymentRequest\x12)\n" +
