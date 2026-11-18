@@ -155,9 +155,7 @@ func clusterActive(t *testing.T) bool {
 func enroll(t *testing.T, joinToken string) connect.Code {
 	t.Helper()
 	key := make([]byte, 32)
-	if _, err := rand.Read(key); err != nil {
-		t.Fatal(err)
-	}
+	_, _ = rand.Read(key)
 	_, err := p.Clients("").Agent.Register(t.Context(), &agentv1.RegisterRequest{
 		ClusterKey:   p.ClusterKey,
 		AgentVersion: p.Version,

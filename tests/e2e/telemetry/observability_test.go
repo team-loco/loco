@@ -2,8 +2,6 @@ package telemetry
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -92,8 +90,20 @@ func TestObservability(t *testing.T) {
 	t.Logf("fixture %s in workspace %s, environment %s, organization %s; second workspace %s",
 		resourceID, w.ID, tenant.EnvironmentID, w.OrgID, second.ID)
 
-	o := &observed{w: w, second: second, dir: dir, file: file, host: host, resourceID: resourceID, tenant: tenant,
-		own: own, other: other, traceID: randomHex(16), clientSpan: randomHex(8), marker: "obs-" + randomHex(6)}
+	o := &observed{
+		w:          w,
+		second:     second,
+		dir:        dir,
+		file:       file,
+		host:       host,
+		resourceID: resourceID,
+		tenant:     tenant,
+		own:        own,
+		other:      other,
+		traceID:    platform.RandomHex(16),
+		clientSpan: platform.RandomHex(8),
+		marker:     "obs-" + platform.RandomHex(6),
+	}
 	t.Run("application telemetry is configured by default", o.defaultTelemetry)
 
 	t.Run("cluster events are collected once", clusterEventsOnce)
@@ -137,14 +147,6 @@ func TestObservability(t *testing.T) {
 	t.Run("dependency spans keep namespace ownership", o.dependencySpans)
 
 	t.Run("acknowledged logs replay after a collector SIGKILL", collectorCrashReplay)
-}
-
-func randomHex(bytes int) string {
-	buffer := make([]byte, bytes)
-	if _, err := rand.Read(buffer); err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(buffer)
 }
 
 // gatewayStatus sends a GET for host's path through the gateway and returns its HTTP status.
@@ -316,7 +318,7 @@ func fixtureLinkReturned(spans []*observabilityv1.TraceSpan) error {
 // resource attributes, and checks its spans keep the namespace's tenancy without a resource.
 func (o *observed) dependencySpans(t *testing.T) {
 	w, second, resourceID, environmentID, own, other := o.w, o.second, o.resourceID, o.tenant.EnvironmentID, o.own, o.other
-	dependency := "obs-dependency-" + randomHex(6)
+	dependency := "obs-dependency-" + platform.RandomHex(6)
 	var deployment appsv1.Deployment
 	p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+resourceID)
 	// Reuse the built fixture and its pull credentials, without resource ownership labels.
@@ -350,7 +352,7 @@ func (o *observed) dependencySpans(t *testing.T) {
 		routeTimeout.String(),
 	)
 	port := p.PortForward(t, w.Namespace, "pod/"+dependency, 8080)
-	traceID := randomHex(16)
+	traceID := platform.RandomHex(16)
 	request, err := http.NewRequestWithContext(
 		t.Context(),
 		http.MethodGet,
@@ -360,7 +362,7 @@ func (o *observed) dependencySpans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request.Header.Set("Traceparent", "00-"+traceID+"-"+randomHex(8)+"-"+sampledTraceFlags)
+	request.Header.Set("Traceparent", "00-"+traceID+"-"+platform.RandomHex(8)+"-"+sampledTraceFlags)
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		t.Fatal(err)
@@ -452,7 +454,7 @@ func collectorCrashReplay(t *testing.T) {
 	if err = p.Replace(t.Context(), string(manifest)); err != nil {
 		t.Fatal(err)
 	}
-	marker := "collector-crash-" + randomHex(6)
+	marker := "collector-crash-" + platform.RandomHex(6)
 	now := strconv.FormatInt(time.Now().Unix(), 10) + "000000000"
 	records := make([]string, crashRecords)
 	for i := range records {
@@ -651,7 +653,7 @@ func clusterEventsOnce(t *testing.T) {
 	if gateway.Status.ReadyReplicas != ingestReplicas {
 		t.Fatalf("OTLP ingestion has %d ready replicas, want %d", gateway.Status.ReadyReplicas, ingestReplicas)
 	}
-	marker := "obs-event-" + randomHex(6)
+	marker := "obs-event-" + platform.RandomHex(6)
 	p.MustApply(t, fmt.Sprintf(
 		`{"apiVersion": "events.k8s.io/v1", "kind": "Event",
   "metadata": {"name": %q, "namespace": %q}, "eventTime": %q,
@@ -1113,7 +1115,7 @@ func (o *observed) userSDKConfiguration(t *testing.T) {
 	if !strings.Contains(attributes, "loco.deployment.id=") {
 		t.Errorf("a user service name drops the injected resource attributes: %q", attributes)
 	}
-	path := "/telemetry-custom-" + randomHex(6)
+	path := "/telemetry-custom-" + platform.RandomHex(6)
 	if status, err := gatewayStatus(t.Context(), host, path, ""); err != nil || status != http.StatusOK {
 		t.Fatalf("the custom-configured app: HTTP %d (%v)", status, err)
 	}
@@ -1143,7 +1145,7 @@ func (o *observed) injectionDisabled(t *testing.T) {
 			t.Errorf("injectOtel false injects %s", name)
 		}
 	}
-	path := "/injection-disabled-" + randomHex(6)
+	path := "/injection-disabled-" + platform.RandomHex(6)
 	if status, err := gatewayStatus(t.Context(), host, path, ""); err != nil || status != http.StatusOK {
 		t.Fatalf("the app without SDK configuration: HTTP %d (%v)", status, err)
 	}

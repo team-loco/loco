@@ -10,6 +10,7 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 func TestAccountDeletionInvalidatesPersonalCredentials(t *testing.T) {
@@ -17,8 +18,15 @@ func TestAccountDeletionInvalidatesPersonalCredentials(t *testing.T) {
 	w := p.NewTenant(t)
 	u := inviteLifecycleUser(t, p.User, w.OrgID, "deleted-member@test.local")
 	grantLifecycleWorkspace(t, w.ID, u.id, "read", "write", "admin")
-	personal := lifecycleToken(t, u.session, "personal", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, lifecycleRead(w.ID))
-	owned := lifecycleToken(
+	personal := platform.CreateToken(
+		t,
+		u.session,
+		"personal",
+		tokenv1.EntityType_ENTITY_TYPE_USER,
+		u.id,
+		lifecycleRead(w.ID),
+	)
+	owned := platform.CreateToken(
 		t,
 		u.session,
 		"surviving",
@@ -26,7 +34,10 @@ func TestAccountDeletionInvalidatesPersonalCredentials(t *testing.T) {
 		w.ID,
 		lifecycleRead(w.ID),
 	)
-	code := approveLifecycleCode(t, u.web)
+	code, err := platform.ApproveCLILogin(t.Context(), u.web)
+	if err != nil {
+		t.Fatal(err)
+	}
 	device, err := p.Clients("").Auth.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatal(err)
@@ -100,9 +111,9 @@ func TestAccountDeletionRequiresAnotherActiveAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	owned := lifecycleToken(t, u.session, "surviving", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+	owned := platform.CreateToken(t, u.session, "surviving", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		workspace.GetWorkspaceId(), lifecycleRead(workspace.GetWorkspaceId()))
-	personal := lifecycleToken(t, u.session, "personal", tokenv1.EntityType_ENTITY_TYPE_USER,
+	personal := platform.CreateToken(t, u.session, "personal", tokenv1.EntityType_ENTITY_TYPE_USER,
 		u.id, lifecycleRead(workspace.GetWorkspaceId()))
 	wantBlocked := func() {
 		t.Helper()

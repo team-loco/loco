@@ -38,7 +38,7 @@ var errNoLeader = errors.New("OpenBao elected no leader")
 //
 //nolint:thelper // a step of TestControlPlane
 func (cp *controlPlane) checkUpgrade(t *testing.T) {
-	token := persisted(t, "user-token", func() string { return "loco_s_" + randomHex(t, 24) })
+	token := persisted(t, "user-token", func() string { return "loco_s_" + platform.RandomHex(24) })
 	seed, err := os.ReadFile(c.Path("api", "seed", "e2e.sql"))
 	if err != nil {
 		t.Fatal(err)

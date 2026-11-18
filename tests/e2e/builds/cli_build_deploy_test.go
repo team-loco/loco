@@ -121,10 +121,10 @@ func TestCLIBuildDeploy(t *testing.T) {
 
 	t.Run("the deployment runs the build", func(t *testing.T) {
 		build := listBuilds(t, w, dir)[0]
-		image := build.ImageRepository + "@" + build.ImageDigest
-		if !regexp.MustCompile(`@sha256:[a-f0-9]{64}$`).MatchString(image) {
-			t.Fatalf("loco builds list reported image %q", image)
+		if !platform.IsDigest(build.ImageDigest) {
+			t.Fatalf("loco builds list reported image digest %q", build.ImageDigest)
 		}
+		image := build.ImageRepository + "@" + build.ImageDigest
 		var deployment appsv1.Deployment
 		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, cliApp))
 		if got := deployment.Spec.Template.Spec.Containers[0].Image; got != image {
@@ -137,7 +137,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		minimalDir := t.TempDir()
 		p.CopyFixture(t, "build-app", minimalDir)
 		out := w.MustLoco(t, minimalDir, "deploy", "--name", minimal, "--port", "8080", "--region", p.Region,
-			"--dockerfile", "deploy/Dockerfile", "--yes", "--wait").Stdout
+			"--dockerfile", platform.BuildAppDockerfile, "--yes", "--wait").Stdout
 		if _, err := os.Stat(filepath.Join(minimalDir, locofile.FileName)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("a deploy without loco.yaml wrote one (%v)", err)
 		}

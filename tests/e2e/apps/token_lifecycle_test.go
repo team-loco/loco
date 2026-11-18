@@ -8,6 +8,7 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 func TestPersonalAndOwnedTokenLifecycle(t *testing.T) {
@@ -21,8 +22,15 @@ func TestPersonalAndOwnedTokenLifecycle(t *testing.T) {
 		EntityId:   w.OrgID,
 		Scope:      tokenv1.Scope_SCOPE_READ,
 	}
-	broad := lifecycleToken(t, u.session, "organization-ceiling", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, orgScope)
-	narrow := lifecycleToken(
+	broad := platform.CreateToken(
+		t,
+		u.session,
+		"organization-ceiling",
+		tokenv1.EntityType_ENTITY_TYPE_USER,
+		u.id,
+		orgScope,
+	)
+	narrow := platform.CreateToken(
 		t,
 		u.session,
 		"workspace-ceiling",
@@ -30,7 +38,7 @@ func TestPersonalAndOwnedTokenLifecycle(t *testing.T) {
 		u.id,
 		lifecycleRead(w.ID),
 	)
-	owned := lifecycleToken(
+	owned := platform.CreateToken(
 		t,
 		u.session,
 		"automation",

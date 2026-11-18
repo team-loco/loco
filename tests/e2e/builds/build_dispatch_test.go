@@ -3,8 +3,6 @@ package builds
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -62,37 +60,37 @@ func TestBuildDispatch(t *testing.T) {
 
 	t.Run("paths outside the source are rejected", d.rejectsPathsOutsideSource)
 
-	first := startBuild(t, resourceID, "first")
+	first := p.StartBuild(t, resourceID, "first")
 	t.Run("the first build runs on the cluster", func(t *testing.T) {
-		if !strings.HasPrefix(first.uploadURL, p.SourceBucketURL()+first.id+".tar.gz") {
+		if !strings.HasPrefix(first.UploadURL, p.SourceBucketURL()+first.ID+".tar.gz") {
 			t.Errorf(
 				"upload URL %s is not the path-style object %s%s.tar.gz",
-				first.uploadURL,
+				first.UploadURL,
 				p.SourceBucketURL(),
-				first.id,
+				first.ID,
 			)
 		}
-		if first.startStatus != buildv1.BuildStatus_BUILD_STATUS_QUEUED {
-			t.Errorf("StartBuild status %v, want queued", first.startStatus)
+		if first.Status != buildv1.BuildStatus_BUILD_STATUS_QUEUED {
+			t.Errorf("StartBuild status %v, want queued", first.Status)
 		}
-		build := waitAgentBuild(t, first.id)
+		build := waitAgentBuild(t, first.ID)
 		if !strings.Contains(build.Spec.SourceURL, "X-Amz-Signature") {
 			t.Errorf("the Build's source URL %s is not presigned", build.Spec.SourceURL)
 		}
-		finished := waitBuildFinished(t, first.id)
+		finished := waitBuildFinished(t, first.ID)
 		if finished.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
 			t.Fatalf("first build ended %v: %s", finished.GetStatus(), finished.GetMessage())
 		}
 		if !platform.IsDigest(finished.GetImageDigest()) {
 			t.Errorf("image digest %q", finished.GetImageDigest())
 		}
-		if cache := cacheDigest(t, first.id); !platform.IsDigest(cache) {
+		if cache := cacheDigest(t, first.ID); !platform.IsDigest(cache) {
 			t.Errorf("cache digest %q", cache)
 		}
 		if finished.GetStartedAt() == nil || finished.GetFinishedAt() == nil {
 			t.Error("the API recorded no start or finish time")
 		}
-		if p.SourceExists(t, first.id) {
+		if p.SourceExists(t, first.ID) {
 			t.Error("the API kept the source after the build finished")
 		}
 		t.Logf("first build took %s", finished.GetFinishedAt().AsTime().Sub(finished.GetStartedAt().AsTime()))
@@ -105,7 +103,7 @@ func TestBuildDispatch(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		deployAndWait(t, w, resourceID, first.id, secret)
+		deployAndWait(t, w, resourceID, first.ID, secret)
 		var deployment appsv1.Deployment
 		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+resourceID)
 		var mounted corev1.Secret
@@ -120,40 +118,40 @@ func TestBuildDispatch(t *testing.T) {
 		if got := string(mounted.Data[secret]); got != value {
 			t.Errorf("the deployment's secret holds %q, want %q", got, value)
 		}
-		build := getBuild(t, first.id)
+		build := getBuild(t, first.ID)
 		want := build.GetImageRepository() + "@" + build.GetImageDigest()
 		if image := deployment.Spec.Template.Spec.Containers[0].Image; image != want {
 			t.Errorf("the app runs %s, want the build's image by digest", image)
 		}
 	})
 
-	var second builtSource
+	var second platform.StartedBuild
 	t.Run("a rebuild reuses the cache", func(t *testing.T) {
-		second = startBuild(t, resourceID, "second")
-		build := waitAgentBuild(t, second.id)
-		want := getBuild(t, second.id).GetImageRepository() + "@" + cacheDigest(t, first.id)
+		second = p.StartBuild(t, resourceID, "second")
+		build := waitAgentBuild(t, second.ID)
+		want := getBuild(t, second.ID).GetImageRepository() + "@" + cacheDigest(t, first.ID)
 		if build.Spec.CacheRef != want {
 			t.Errorf("the second Build's cache ref %q, want the first build's cache %q", build.Spec.CacheRef, want)
 		}
-		finished := waitBuildFinished(t, second.id)
+		finished := waitBuildFinished(t, second.ID)
 		if finished.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
 			t.Fatalf("second build ended %v: %s", finished.GetStatus(), finished.GetMessage())
 		}
-		if logs := buildLogs(t, "build-"+second.id, "fetch"); !strings.Contains(logs, "cache restored") {
+		if logs := buildLogs(t, "build-"+second.ID, "fetch"); !strings.Contains(logs, "cache restored") {
 			t.Errorf("the fetch step did not restore the cache:\n%s", logs)
 		}
-		if logs := buildLogs(t, "build-"+second.id, buildStep); !strings.Contains(logs, "CACHED") {
+		if logs := buildLogs(t, "build-"+second.ID, buildStep); !strings.Contains(logs, "CACHED") {
 			t.Errorf("the build step reused no cached layer:\n%s", logs)
 		}
 	})
 
 	t.Run("a cancel reaches the cluster", func(t *testing.T) {
-		third := startBuild(t, resourceID, "third")
-		waitAgentBuild(t, third.id)
-		if _, err := p.User.Build.CancelBuild(t.Context(), &buildv1.CancelBuildRequest{BuildId: third.id}); err != nil {
+		third := p.StartBuild(t, resourceID, "third")
+		waitAgentBuild(t, third.ID)
+		if _, err := p.User.Build.CancelBuild(t.Context(), &buildv1.CancelBuildRequest{BuildId: third.ID}); err != nil {
 			t.Fatal(err)
 		}
-		if status := getBuild(t, third.id).GetStatus(); status != buildv1.BuildStatus_BUILD_STATUS_CANCELED {
+		if status := getBuild(t, third.ID).GetStatus(); status != buildv1.BuildStatus_BUILD_STATUS_CANCELED {
 			t.Errorf("canceled build status %v", status)
 		}
 		platform.Eventually(
@@ -166,21 +164,21 @@ func TestBuildDispatch(t *testing.T) {
 					"-n",
 					p.BuildNamespace,
 					"build",
-					"build-"+third.id,
+					"build-"+third.ID,
 				); err != nil ||
 					found {
-					return fmt.Errorf("build-%s exists (%w)", third.id, err)
+					return fmt.Errorf("build-%s exists (%w)", third.ID, err)
 				}
 				return nil
 			},
 		)
-		if p.SourceExists(t, third.id) {
+		if p.SourceExists(t, third.ID) {
 			t.Error("the API kept the canceled build's source")
 		}
 	})
 
 	t.Run("retention deletes replaced images", func(t *testing.T) {
-		firstBuild, secondBuild := getBuild(t, first.id), getBuild(t, second.id)
+		firstBuild, secondBuild := getBuild(t, first.ID), getBuild(t, second.ID)
 		path := strings.TrimPrefix(firstBuild.GetImageRepository(), p.RegistryHost+"/")
 		if firstBuild.GetImageDigest() == secondBuild.GetImageDigest() {
 			t.Fatal("the second build's source change produced the same image digest")
@@ -195,7 +193,7 @@ func TestBuildDispatch(t *testing.T) {
 		if firstBuild.GetImageDeletedAt() != nil {
 			t.Error("the first build is reported deleted while deployed")
 		}
-		deployAndWait(t, w, resourceID, second.id, "")
+		deployAndWait(t, w, resourceID, second.ID, "")
 		platform.Eventually(
 			t,
 			retentionTimeout,
@@ -204,19 +202,19 @@ func TestBuildDispatch(t *testing.T) {
 				return manifestGone(ctx, path, firstBuild.GetImageDigest())
 			},
 		)
-		requireManifest(t, path, cacheDigest(t, first.id), 404, "the replaced build's cache")
+		requireManifest(t, path, cacheDigest(t, first.ID), 404, "the replaced build's cache")
 		requireManifest(t, path, secondBuild.GetImageDigest(), 200, "the deployed build's image")
-		if getBuild(t, first.id).GetImageDeletedAt() == nil {
+		if getBuild(t, first.ID).GetImageDeletedAt() == nil {
 			t.Error("GetBuild does not report when the replaced build's image was deleted")
 		}
-		_, err := createDeployment(t, w, resourceID, first.id, "")
+		_, err := createDeployment(t, w, resourceID, first.ID, "")
 		if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
 			t.Errorf("deploying the replaced build: code %v (%v), want failed_precondition", code, err)
 		}
 	})
 
 	t.Run("a deleted resource's images are purged", func(t *testing.T) {
-		build := getBuild(t, second.id)
+		build := getBuild(t, second.ID)
 		path := strings.TrimPrefix(build.GetImageRepository(), p.RegistryHost+"/")
 		if _, err := p.User.Resource.DeleteResource(
 			t.Context(),
@@ -235,61 +233,9 @@ func TestBuildDispatch(t *testing.T) {
 	})
 }
 
-// buildAppDockerfile is the build-app fixture's Dockerfile.
-const buildAppDockerfile = "deploy/Dockerfile"
-
 // dispatch is the resource TestBuildDispatch builds.
 type dispatch struct {
 	resourceID string
-}
-
-type builtSource struct {
-	id          string
-	uploadURL   string
-	startStatus buildv1.BuildStatus
-}
-
-// startBuild uploads the build-app fixture, changed so each label builds a new image, and starts
-// a build of it.
-func startBuild(t *testing.T, resourceID, label string) builtSource {
-	t.Helper()
-	source := t.TempDir()
-	p.CopyFixture(t, "build-app", source)
-	appendLogPrefix(t, source, label)
-	archive := p.PackSource(t, source)
-	info, err := os.Stat(archive)
-	if err != nil {
-		t.Fatal(err)
-	}
-	created, err := p.User.Build.CreateBuild(t.Context(), &buildv1.CreateBuildRequest{
-		ResourceId: resourceID, DockerfilePath: buildAppDockerfile, SourceSize: info.Size(),
-	})
-	if err != nil {
-		t.Fatalf("create build %s: %v", label, err)
-	}
-	platform.Upload(t, created.GetUploadUrl(), archive)
-	started, err := p.User.Build.StartBuild(t.Context(), &buildv1.StartBuildRequest{BuildId: created.GetBuildId()})
-	if err != nil {
-		t.Fatalf("start build %s: %v", label, err)
-	}
-	return builtSource{
-		id:          created.GetBuildId(),
-		uploadURL:   created.GetUploadUrl(),
-		startStatus: started.GetBuild().GetStatus(),
-	}
-}
-
-// appendLogPrefix changes the build-app fixture's source, so its image differs per label.
-func appendLogPrefix(t *testing.T, dir, label string) {
-	t.Helper()
-	file, err := os.OpenFile(filepath.Join(dir, "main.go"), os.O_APPEND|os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	if _, err := fmt.Fprintf(file, "\nfunc init() { log.SetPrefix(%q) }\n", label+" "); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func getBuild(t *testing.T, id string) *buildv1.Build {

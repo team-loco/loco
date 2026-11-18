@@ -36,7 +36,7 @@ func (p *Platform) UploadSource(tb testing.TB, name, dir string) string {
 	); err != nil {
 		tb.Fatal(err)
 	}
-	archive := p.PackSource(tb, dir)
+	archive := p.packSource(tb, dir)
 	if err := os.Rename(archive, filepath.Join(work, name+".tar.gz")); err != nil {
 		tb.Fatal(err)
 	}
@@ -59,8 +59,8 @@ func (p *Platform) UploadSource(tb testing.TB, name, dir string) string {
 	return strings.TrimSpace(url)
 }
 
-// PackSource packs dir into a gzipped tarball and returns its path.
-func (p *Platform) PackSource(tb testing.TB, dir string) string {
+// packSource packs dir into a gzipped tarball and returns its path.
+func (p *Platform) packSource(tb testing.TB, dir string) string {
 	tb.Helper()
 	archive := filepath.Join(tb.TempDir(), "source.tar.gz")
 	if _, err := p.Command(
@@ -79,8 +79,8 @@ func (p *Platform) PackSource(tb testing.TB, dir string) string {
 	return archive
 }
 
-// Upload PUTs a file to a presigned URL of the source bucket.
-func Upload(tb testing.TB, url, path string) {
+// upload PUTs a file to a presigned URL of the source bucket.
+func upload(tb testing.TB, url, path string) {
 	tb.Helper()
 	data, err := os.ReadFile(path)
 	if err != nil {

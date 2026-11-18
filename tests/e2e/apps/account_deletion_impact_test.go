@@ -11,6 +11,7 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
+	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 func TestAccountDeletionImpactRespectsCurrentOwnerAccess(t *testing.T) {
@@ -19,9 +20,23 @@ func TestAccountDeletionImpactRespectsCurrentOwnerAccess(t *testing.T) {
 	other := w.NewWorkspace(t, "private")
 	u := inviteLifecycleUser(t, p.User, w.OrgID, "deletion-impact@test.local")
 	setLifecycleRole(t, p.User, w.OrgID, u.id, orgv1.OrgRole_ORG_ROLE_ADMIN)
-	lifecycleToken(t, u.session, "visible", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, w.ID, lifecycleRead(w.ID))
-	lifecycleToken(t, u.session, "hidden", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, other.ID, lifecycleRead(other.ID))
-	personal := lifecycleToken(t, u.session, "personal", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, lifecycleRead(w.ID))
+	platform.CreateToken(t, u.session, "visible", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, w.ID, lifecycleRead(w.ID))
+	platform.CreateToken(
+		t,
+		u.session,
+		"hidden",
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		other.ID,
+		lifecycleRead(other.ID),
+	)
+	personal := platform.CreateToken(
+		t,
+		u.session,
+		"personal",
+		tokenv1.EntityType_ENTITY_TYPE_USER,
+		u.id,
+		lifecycleRead(w.ID),
+	)
 	if _, err := p.Clients(
 		personal,
 	).User.GetAccountDeletionImpact(

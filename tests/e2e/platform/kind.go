@@ -191,28 +191,7 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 	if err := p.readAgentEnv(ctx); err != nil {
 		return err
 	}
-	if err := waitFor(ctx, rolloutTimeout, "the Envoy proxy Deployment", func(ctx context.Context) error {
-		found, err := p.Exists(ctx, "-n", locoNamespace, "deployments", "-l", gatewaySelector)
-		if err == nil && !found {
-			return errNotYet
-		}
-		return err
-	}); err != nil {
-		return err
-	}
-	_, err := p.Kubectl(
-		ctx,
-		"-n",
-		locoNamespace,
-		"rollout",
-		"status",
-		"deployment",
-		"-l",
-		gatewaySelector,
-		"--timeout",
-		rolloutTimeout.String(),
-	)
-	return err
+	return p.WaitDeployments(ctx, locoNamespace, gatewaySelector, rolloutTimeout)
 }
 
 // readAgentEnv reads the agent's environment from the chart's agent Deployment, which the chart

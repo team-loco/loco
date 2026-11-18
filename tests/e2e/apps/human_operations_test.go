@@ -27,25 +27,15 @@ func TestOrganizationAdministrationUsesTokenPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	issuerID := me.GetUser().GetId()
-	adminScopes := make([]*tokenv1.EntityScope, 0, 3)
-	for _, scope := range []tokenv1.Scope{tokenv1.Scope_SCOPE_READ, tokenv1.Scope_SCOPE_WRITE, tokenv1.Scope_SCOPE_ADMIN} {
-		adminScopes = append(
-			adminScopes,
-			&tokenv1.EntityScope{
-				EntityType: tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION,
-				EntityId:   w.OrgID,
-				Scope:      scope,
-			},
-		)
-	}
-	personal := lifecycleToken(
+	adminScopes := platform.Scopes(tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, w.OrgID, everyScope...)
+	personal := platform.CreateToken(
 		t,
 		p.User,
 		"organization-admin",
 		tokenv1.EntityType_ENTITY_TYPE_USER,
 		issuerID,
 		adminScopes...)
-	owned := lifecycleToken(
+	owned := platform.CreateToken(
 		t,
 		p.User,
 		"organization-admin",
@@ -61,22 +51,18 @@ func TestOrganizationAdministrationUsesTokenPermissions(t *testing.T) {
 		{"organization", owned, tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, w.OrgID},
 	} {
 		if !t.Run(actor.name, func(t *testing.T) {
-			narrowed := lifecycleToken(
+			narrowed := platform.CreateToken(
 				t,
 				p.User,
 				actor.name+"-organization-writer",
 				actor.owner,
 				actor.ownerID,
-				&tokenv1.EntityScope{
-					EntityType: tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION,
-					EntityId:   w.OrgID,
-					Scope:      tokenv1.Scope_SCOPE_READ,
-				},
-				&tokenv1.EntityScope{
-					EntityType: tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION,
-					EntityId:   w.OrgID,
-					Scope:      tokenv1.Scope_SCOPE_WRITE,
-				},
+				platform.Scopes(
+					tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION,
+					w.OrgID,
+					tokenv1.Scope_SCOPE_READ,
+					tokenv1.Scope_SCOPE_WRITE,
+				)...,
 			)
 			tokenMemberAdministration(t, w, u, p.Clients(actor.credential), p.Clients(narrowed))
 		}) {
@@ -160,7 +146,9 @@ func tokenOrganizationProvisioning(t *testing.T, u lifecycleUser) {
 		EntityId:   u.id,
 		Scope:      tokenv1.Scope_SCOPE_WRITE,
 	}
-	readOnly := p.Clients(lifecycleToken(t, u.session, "self-reader", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, read))
+	readOnly := p.Clients(
+		platform.CreateToken(t, u.session, "self-reader", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, read),
+	)
 	if _, err := readOnly.Org.ListUserOrgs(
 		t.Context(),
 		&orgv1.ListUserOrgsRequest{UserId: u.id, CreateIfMissing: true},
@@ -170,7 +158,7 @@ func tokenOrganizationProvisioning(t *testing.T, u lifecycleUser) {
 		t.Fatalf("read-only personal token provisioning an organization = %v, want PermissionDenied", err)
 	}
 	client := p.Clients(
-		lifecycleToken(t, u.session, "self-writer", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, read, writer),
+		platform.CreateToken(t, u.session, "self-writer", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, read, writer),
 	)
 	request := &orgv1.ListUserOrgsRequest{UserId: u.id, CreateIfMissing: true}
 	first, err := client.Org.ListUserOrgs(t.Context(), request)

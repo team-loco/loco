@@ -6,7 +6,35 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"testing"
+	"time"
+
+	"go.opentelemetry.io/collector/pdata/pcommon"
+	"go.opentelemetry.io/collector/pdata/plog"
+	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 )
+
+// workspaceAttribute matches the one observability-proxy/pkg/ingest/tenancy.go filters on.
+const workspaceAttribute = "loco.workspace.id"
+
+// OTLPLogs is an OTLP/HTTP protobuf export of one INFO log record of workspaceID.
+func OTLPLogs(tb testing.TB, workspaceID, body string) []byte {
+	tb.Helper()
+	logs := plog.NewLogs()
+	resource := logs.ResourceLogs().AppendEmpty()
+	resource.Resource().Attributes().PutStr("service.name", "e2e-ingest")
+	resource.Resource().Attributes().PutStr(workspaceAttribute, workspaceID)
+	record := resource.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
+	// Whole seconds keep the record inside a query window that ends at the current second.
+	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now().Truncate(time.Second)))
+	record.SetSeverityText("INFO")
+	record.Body().SetStr(body)
+	payload, err := plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return payload
+}
 
 // CollectorNamespace is the namespace of the OTLP gateway and cluster collectors.
 func (p *Platform) CollectorNamespace() string { return p.values.collectorNS }
