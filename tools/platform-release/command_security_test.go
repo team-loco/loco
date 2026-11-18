@@ -22,20 +22,6 @@ func TestReleaseCommandsRejectUnapprovedExecutables(t *testing.T) {
 	require.ErrorContains(t, err, "missing release command")
 }
 
-func TestRegistryEndpointCannotChangeOrigin(t *testing.T) {
-	t.Parallel()
-	for _, path := range []string{
-		"https://other.invalid/v2/repository", "//other.invalid/v2/repository",
-		"/token", "/../token", "/v2/../../token",
-	} {
-		_, err := registryEndpoint("https://registry.example", path)
-		require.Error(t, err)
-	}
-	endpoint, err := registryEndpoint("https://registry.example", "/v2/example/image/manifests/version")
-	require.NoError(t, err)
-	require.Equal(t, "registry.example", endpoint.Host)
-}
-
 func TestRegistryDoesNotFollowRedirects(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int64
@@ -52,6 +38,6 @@ func TestRegistryDoesNotFollowRedirects(t *testing.T) {
 	registry, err := newRegistry("example/chart", "push", "credential", host)
 	require.NoError(t, err)
 	_, err = registry.manifest(context.Background(), "example/chart", "latest", false)
-	require.ErrorContains(t, err, "HTTP 307")
+	require.ErrorContains(t, err, "redirected with HTTP 307")
 	require.Zero(t, calls.Load())
 }

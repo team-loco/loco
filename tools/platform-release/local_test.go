@@ -15,8 +15,8 @@ func localFixture(t *testing.T) (*tool, *registryFixture) {
 	t.Helper()
 	tool := testTool(t)
 	fixture := testRegistry(t)
-	fixture.registry.username = "publisher"
-	fixture.registry.password = "credential"
+	fixture.registry.username = testUsername
+	fixture.registry.password = testPassword
 	data := encoded(
 		object{
 			"schemaVersion": 2,
