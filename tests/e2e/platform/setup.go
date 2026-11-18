@@ -16,6 +16,7 @@ import (
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/internal/testres"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
@@ -33,6 +34,14 @@ const (
 
 // up reserves the Compose network, then builds and starts the platform.
 func (p *Platform) up(ctx context.Context) error {
+	if err := p.lease.Add(ctx, testres.Compose, p.composeProject); err != nil {
+		return err
+	}
+	for _, container := range []string{p.clickhouseName(), p.ingestContainer(), p.realmContainer()} {
+		if err := p.lease.Add(ctx, testres.Container, container); err != nil {
+			return err
+		}
+	}
 	for _, dir := range []string{p.binDir, p.logDir, p.adminHome} {
 		if err := mkdirReadable(dir); err != nil {
 			return err

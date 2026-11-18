@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/team-loco/loco/internal/testres"
 )
 
 func fakeCluster(t *testing.T, failCreate bool) (*Cluster, string) {
@@ -14,6 +16,13 @@ func fakeCluster(t *testing.T, failCreate bool) (*Cluster, string) {
 	c := NewCluster("diagnostic-test")
 	c.dir = t.TempDir()
 	c.kubeconfig = filepath.Join(c.dir, "kubeconfig")
+	registry, err := testres.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.lease, err = registry.Claim(c.run, testres.Owner{Path: c.dir}); err != nil {
+		t.Fatal(err)
+	}
 	bin := t.TempDir()
 	calls := filepath.Join(bin, "calls")
 	script := `#!/bin/sh

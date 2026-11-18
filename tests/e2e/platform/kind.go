@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
+
+	"github.com/team-loco/loco/internal/testres"
 )
 
 // kindnetImage replaces kind's kindnetd, which drops queued packets on each policy sync (kube-network-policies#403).
@@ -19,6 +21,9 @@ const kindnetImage = "gcr.io/k8s-staging-kind/kindnetd:v20261113-1a24c920@sha256
 // setupKind reuses the run's kind cluster when it is reachable and runs the same node image, and
 // creates it otherwise.
 func (c *Cluster) setupKind(ctx context.Context) error {
+	if err := c.lease.Add(ctx, testres.KindCluster, c.cluster); err != nil {
+		return err
+	}
 	node := kindNodeImage(c.root)
 	clusters, err := c.Command(ctx, "kind", "get", "clusters")
 	if err != nil {

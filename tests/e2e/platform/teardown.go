@@ -8,24 +8,9 @@ import (
 
 const logTailLines = 200
 
-// teardown removes the run: its kind cluster, containers, compose project, images and directory.
+// teardown removes the run: everything its lease records, its images and its directory.
 func (p *Platform) teardown(ctx context.Context) error {
-	if err := p.deleteCluster(ctx); err != nil {
-		return err
-	}
-	if _, err := p.Command(
-		ctx,
-		"docker",
-		"rm",
-		"-fv",
-		p.ingestContainer(),
-		p.clickhouseName(),
-		p.realmContainer(),
-	); err != nil &&
-		!strings.Contains(err.Error(), "No such container") {
-		return err
-	}
-	if _, err := p.compose(ctx, "--profile", "tools", "down", "-v", "--remove-orphans"); err != nil {
+	if err := p.release(ctx); err != nil {
 		return err
 	}
 	for _, spec := range []imageSpec{controllerImage, builderImage, obsProxyImage} {
@@ -34,7 +19,7 @@ func (p *Platform) teardown(ctx context.Context) error {
 			return err
 		}
 	}
-	return os.RemoveAll(p.dir)
+	return nil
 }
 
 // dump prints the logs of the host processes, the compose services and the worker's pods, for a
