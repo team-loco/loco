@@ -4,6 +4,7 @@ import subprocess
 import time
 from html import unescape
 from pathlib import Path
+from typing import NamedTuple
 from unittest.mock import Mock
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -53,15 +54,6 @@ APP_PATHS = [
 ]
 DOCS_BASES = pytest.mark.parametrize(
     "host,prefix", [(DOCS_HOST, ""), (UI_HOST, "/docs")], ids=["docs-host", "ui-docs"]
-)
-NOT_FOUND_PAGES = pytest.mark.parametrize(
-    "host,path,viewport,scheme",
-    [
-        (host, path, viewport, scheme)
-        for host, path in [(UI_HOST, MISSING_ASSET), (DOCS_HOST, UNKNOWN_PATH)]
-        for viewport in NOT_FOUND_VIEWPORTS
-        for scheme in NOT_FOUND_SCHEMES
-    ],
 )
 DOCS_PAGE = f"http://{DOCS_HOST}/getting-started/install/"
 
@@ -237,20 +229,15 @@ def test_runtime_config_is_the_mounted_file(url):
     assert response(url + "/runtime-config.js", UI_HOST)[:2] == (200, RUNTIME_CONFIG)
 
 
-def test_runtime_config_is_revalidated(url):
-    assert (
-        response(url + "/runtime-config.js", UI_HOST)[2]["Cache-Control"] == "no-cache"
-    )
-
-
 def test_version_json_reports_the_build_version(url):
     status, body, _ = response(url + "/version.json", UI_HOST)
     assert status == 200
     assert json.loads(body) == {"version": VERSION}
 
 
-def test_version_json_is_revalidated(url):
-    assert response(url + "/version.json", UI_HOST)[2]["Cache-Control"] == "no-cache"
+@pytest.mark.parametrize("path", ["/runtime-config.js", "/version.json"])
+def test_runtime_files_are_revalidated(url, path):
+    assert response(url + path, UI_HOST)[2]["Cache-Control"] == "no-cache"
 
 
 def test_schema_is_the_repository_schema(url):
@@ -361,12 +348,29 @@ def test_missing_files_are_static_not_found_pages(url, host, path):
     assert NOT_FOUND_HEADING in body
 
 
-def open_not_found(browser, host, path, viewport, scheme, problems):
-    size = NOT_FOUND_VIEWPORTS[viewport]
+class NotFound(NamedTuple):
+    page: object
+    width: int
+    problems: list
+
+
+@pytest.fixture(
+    params=[
+        (host, path, viewport, scheme)
+        for host, path in [(UI_HOST, MISSING_ASSET), (DOCS_HOST, UNKNOWN_PATH)]
+        for viewport in NOT_FOUND_VIEWPORTS
+        for scheme in NOT_FOUND_SCHEMES
+    ],
+    ids="-".join,
+)
+def not_found(browser, request):
+    host, path, viewport, scheme = request.param
+    width, height = NOT_FOUND_VIEWPORTS[viewport]
     page = browser.new_page(
-        viewport={"width": size[0], "height": size[1]}, color_scheme=scheme
+        viewport={"width": width, "height": height}, color_scheme=scheme
     )
     url = f"http://{host}{path}"
+    problems = []
     page.on(
         "console",
         lambda message: (
@@ -394,37 +398,27 @@ def open_not_found(browser, host, path, viewport, scheme, problems):
         ),
     )
     navigate(page, url)
-    return page
+    yield NotFound(page, width, problems)
+    page.close()
 
 
-@NOT_FOUND_PAGES
-def test_not_found_page_loads_without_errors(browser, host, path, viewport, scheme):
+def test_not_found_page_loads_without_errors(not_found):
     # The 404 file is served for every host, so it must load no subresource (the
     # docs host has no /assets) and break no CSP rule.
-    problems = []
-    page = open_not_found(browser, host, path, viewport, scheme, problems)
-    page.close()
-    assert problems == []
+    assert not_found.problems == []
 
 
-@NOT_FOUND_PAGES
-def test_not_found_page_shows_the_way_back(
-    browser, tmp_path, host, path, viewport, scheme
-):
-    page = open_not_found(browser, host, path, viewport, scheme, [])
+def test_not_found_page_shows_the_way_back(not_found, tmp_path):
+    page = not_found.page
     assert page.title() == NOT_FOUND_TITLE
     assert page.get_by_text(NOT_FOUND_HEADING).is_visible()
     assert page.get_by_role("link", name="Go to dashboard").is_visible()
     page.screenshot(path=tmp_path / "not-found.png")
-    page.close()
 
 
-@NOT_FOUND_PAGES
-def test_not_found_page_fits_the_viewport(browser, host, path, viewport, scheme):
-    page = open_not_found(browser, host, path, viewport, scheme, [])
-    width = page.evaluate("document.documentElement.scrollWidth")
-    page.close()
-    assert width <= NOT_FOUND_VIEWPORTS[viewport][0]
+def test_not_found_page_fits_the_viewport(not_found):
+    scroll_width = not_found.page.evaluate("document.documentElement.scrollWidth")
+    assert scroll_width <= not_found.width
 
 
 @pytest.mark.parametrize("path", [UNKNOWN_PATH, UNKNOWN_PATH + "/bar"])
@@ -583,7 +577,10 @@ def test_narrow_docs_do_not_scroll_sideways(narrow_docs_page):
 
 
 def test_narrow_docs_article_uses_the_width(narrow_docs_page):
-    assert narrow_docs_page.locator("#nd-page").bounding_box()["width"] >= 350
+    # The article widens as the layout reflows to the new viewport.
+    narrow_docs_page.wait_for_function(
+        "() => document.querySelector('#nd-page').getBoundingClientRect().width >= 350"
+    )
 
 
 def test_narrow_docs_keep_the_heading_and_page_actions(narrow_docs_page):
