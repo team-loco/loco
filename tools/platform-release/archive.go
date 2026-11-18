@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"unicode/utf16"
@@ -103,14 +104,25 @@ func archiveFiles(data []byte) (map[string][]byte, error) {
 	}
 }
 
-func content(data []byte) (string, error) {
-	files, err := archiveFiles(data)
+// changedFiles names the files whose bytes differ, ignoring tar metadata and compression.
+func changedFiles(published, data []byte) ([]string, error) {
+	old, err := archiveFiles(published)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	hashes := map[string]string{}
-	for name, body := range files {
-		hashes[name] = digest(body)
+	current, err := archiveFiles(data)
+	if err != nil {
+		return nil, err
 	}
-	return digest(encoded(hashes)), nil
+	changed := []string{}
+	for name, body := range current {
+		previous, found := old[name]
+		delete(old, name)
+		if !found || !bytes.Equal(previous, body) {
+			changed = append(changed, name)
+		}
+	}
+	changed = slices.AppendSeq(changed, maps.Keys(old))
+	slices.Sort(changed)
+	return changed, nil
 }

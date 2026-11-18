@@ -17,11 +17,10 @@ import (
 )
 
 const (
-	manifestType      = "application/vnd.oci.image.manifest.v1+json"
-	layerType         = "application/vnd.oci.image.layer.v1.tar+gzip"
-	helmLayerType     = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
-	contentAnnotation = "io.loco.platform.content"
-	registryTimeout   = 120 * time.Second
+	manifestType    = "application/vnd.oci.image.manifest.v1+json"
+	layerType       = "application/vnd.oci.image.layer.v1.tar+gzip"
+	helmLayerType   = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	registryTimeout = 120 * time.Second
 )
 
 var repositoryPattern = regexp.MustCompile(`^[a-z0-9-]+/[a-z0-9_.-]+$`)
@@ -43,11 +42,16 @@ func newRegistry(repository, username, password, host string) (*registry, error)
 		scheme = "http://"
 	}
 	return &registry{repository: repository, username: username, password: password, host: host, base: scheme + host,
-		client: &http.Client{
-			Timeout: registryTimeout,
-			// Registry upload Locations are validated explicitly; redirects must not forward credentials.
-			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-		}, tokens: map[string]string{}}, nil
+		client: &http.Client{Timeout: registryTimeout, CheckRedirect: blobRedirect}, tokens: map[string]string{}}, nil
+}
+
+// blobRedirect follows only a blob download's redirect to storage, without registry credentials.
+func blobRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) != 1 || via[0].Method != http.MethodGet || !strings.Contains(via[0].URL.Path, "/blobs/") {
+		return http.ErrUseLastResponse
+	}
+	req.Header.Del("Authorization")
+	return nil
 }
 
 func (r *registry) public() *registry {
@@ -298,10 +302,6 @@ func (r *registry) publish(
 	if err != nil {
 		return "", err
 	}
-	annotation, err := content(data)
-	if err != nil {
-		return "", err
-	}
 	configType := "application/vnd.oci.image.config.v1+json"
 	if mediaType == helmLayerType {
 		configType = "application/vnd.cncf.helm.config.v1+json"
@@ -314,7 +314,6 @@ func (r *registry) publish(
 		"annotations": map[string]string{
 			"org.opencontainers.image.source":  "https://github.com/" + r.repository,
 			"org.opencontainers.image.version": version,
-			contentAnnotation:                  annotation,
 		},
 	})
 	if !replace {
@@ -371,19 +370,37 @@ func (r *registry) ensure(
 		return "", errors.New("registry manifest digest mismatch")
 	}
 	var manifest struct {
-		Annotations map[string]string `json:"annotations"`
+		Layers []struct {
+			Digest string `json:"digest"`
+		} `json:"layers"`
 	}
 	if checkErr := json.Unmarshal(body, &manifest); checkErr != nil {
 		return "", checkErr
 	}
-	annotation, err := content(data)
+	if len(manifest.Layers) != 1 {
+		return "", fmt.Errorf("%s:%s must have exactly one layer", repository, version)
+	}
+	layer := manifest.Layers[0].Digest
+	published, _, err := r.request(ctx, http.MethodGet, "/v2/"+repository+"/blobs/"+layer, nil, nil, false)
 	if err != nil {
 		return "", err
 	}
-	if manifest.Annotations[contentAnnotation] == annotation {
-		return reference, nil
+	if digest(published) != layer {
+		return "", errors.New("registry layer digest mismatch")
 	}
-	return "", fmt.Errorf("%s:%s is already published with different content; bump its version", repository, version)
+	changed, err := changedFiles(published, data)
+	if err != nil {
+		return "", err
+	}
+	if len(changed) != 0 {
+		return "", fmt.Errorf(
+			"%s:%s is already published with different content; bump its version; differing files: %s",
+			repository,
+			version,
+			strings.Join(changed, ", "),
+		)
+	}
+	return reference, nil
 }
 
 func (r *registry) authenticate(ctx context.Context, challenge, scope string) (string, error) {

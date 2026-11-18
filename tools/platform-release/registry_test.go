@@ -45,10 +45,15 @@ func testRegistry(t *testing.T) *registryFixture {
 			w.WriteHeader(http.StatusCreated)
 			return
 		}
+		if ref, ok := strings.CutPrefix(request.URL.Path, "/storage/"); ok {
+			assert.Empty(t, request.Header.Get("Authorization"))
+			writeResponse(t, w, fixture.blobs[ref])
+			return
+		}
 		if _, ref, ok := strings.Cut(path, "/blobs/"); ok {
-			data, found := fixture.blobs[ref]
-			if found {
-				writeResponse(t, w, data)
+			if data, found := fixture.blobs[ref]; found {
+				w.Header().Set("Location", "/storage/"+digest(data))
+				w.WriteHeader(http.StatusTemporaryRedirect)
 				return
 			}
 		}
@@ -80,7 +85,7 @@ func testRegistry(t *testing.T) *registryFixture {
 		repository: "example/platform",
 		host:       strings.TrimPrefix(server.URL, "http://"),
 		base:       server.URL,
-		client:     server.Client(),
+		client:     &http.Client{CheckRedirect: blobRedirect},
 		tokens:     map[string]string{},
 	}
 	return fixture
@@ -303,4 +308,28 @@ func writeResponse(t *testing.T, w http.ResponseWriter, data []byte) {
 	if _, err := w.Write(data); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestRegistryEnsureComparesPublishedFiles(t *testing.T) {
+	t.Parallel()
+	fixture := testRegistry(t)
+	fixture.registry.tokens["repository:example/chart:pull"] = "Bearer token"
+	layer := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: chart"), "chart/removed": []byte("old")})
+	fixture.blobs[digest(layer)] = layer
+	manifest := encoded(object{
+		"layers":      []any{object{fieldDigest: digest(layer)}},
+		"annotations": object{"io.loco.platform.content": digest(layer)},
+	})
+	fixture.manifests["example/chart@"+fixtureVersion] = manifest
+	fixture.manifests["example/chart@"+digest(manifest)] = manifest
+	ctx := context.Background()
+
+	ref, err := fixture.registry.ensure(ctx, "example/chart", fixtureVersion, layer, object{}, helmLayerType)
+	require.NoError(t, err)
+	require.Equal(t, digest(manifest), ref)
+
+	changed := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: other"), "chart/added": []byte("new")})
+	_, err = fixture.registry.ensure(ctx, "example/chart", fixtureVersion, changed, object{}, helmLayerType)
+	require.ErrorContains(t, err, "bump its version; differing files: chart/Chart.yaml, chart/added, chart/removed")
+	require.Zero(t, fixture.writes)
 }
