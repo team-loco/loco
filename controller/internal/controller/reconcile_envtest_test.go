@@ -441,7 +441,7 @@ var _ = Describe("Application reconcile", func() {
 		Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		Expect(ensureTestNamespace(ctx, k8sClient, app)).To(Succeed())
 
-		previous, err := desiredDeployment(
+		previous := desiredDeployment(
 			app,
 			testEnvironmentNamespace(app),
 			envSecretMount{},
@@ -449,7 +449,6 @@ var _ = Describe("Application reconcile", func() {
 			testMinReadySeconds,
 			testDrainSeconds,
 		)
-		Expect(err).NotTo(HaveOccurred())
 		delete(previous.Spec.Template.Labels, labelAppKubernetesName)
 		Expect(k8sClient.Apply(ctx, previous, managed.ApplyOptions()...)).To(Succeed())
 
@@ -465,7 +464,7 @@ var _ = Describe("Application reconcile", func() {
 		}
 		appKey := client.ObjectKeyFromObject(app)
 		req := reconcile.Request{NamespacedName: appKey}
-		_, err = r.Reconcile(ctx, req)
+		_, err := r.Reconcile(ctx, req)
 		Expect(err).NotTo(HaveOccurred())
 
 		dep := &appsv1.Deployment{}
