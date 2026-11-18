@@ -111,6 +111,7 @@ function Button({ className, variant = "default", size = "default", ...props }: 
 			data-variant={variant}
 			className={cn(buttonVariants({ variant, size }), className)}
 			{...props}
+			data-slot="button"
 		/>
 	);
 }

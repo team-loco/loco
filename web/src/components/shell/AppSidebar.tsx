@@ -133,7 +133,7 @@ export function AppSidebar() {
 				<SidebarMenuButton
 					aria-label="Search and run commands"
 					aria-keyshortcuts="Meta+K Control+K"
-					className="h-[34px] border border-line bg-raise text-fg3 shadow-xs hover:bg-shell-hover"
+					className="sb-search h-[34px] gap-[9px] rounded-[7px] border border-line bg-raise pr-1.5 pl-2.5 text-fg3 hover:border-line2 hover:bg-raise hover:text-fg2"
 					onClick={() => {
 						if (isMobile) setOpenMobile(false);
 						openPalette();
@@ -141,7 +141,7 @@ export function AppSidebar() {
 				>
 					<SearchIcon aria-hidden />
 					<span className="flex-1">Search</span>
-					<Kbd>{SHORTCUT_LABEL}</Kbd>
+					<Kbd className="text-fg3 inset-ring-0">{SHORTCUT_LABEL}</Kbd>
 				</SidebarMenuButton>
 			</div>
 			<SidebarContent className="gap-0 px-3 pt-3 pb-3">

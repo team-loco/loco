@@ -69,7 +69,7 @@ function AlertDialogAction({
 	variant = "destructive",
 	...props
 }: Omit<React.ComponentProps<typeof Button>, "variant"> & { variant?: ButtonVariant | undefined }) {
-	return <Button data-slot="alert-dialog-action" variant={variant} {...props} />;
+	return <Button variant={variant} {...props} />;
 }
 
 export {

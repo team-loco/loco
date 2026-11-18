@@ -77,7 +77,7 @@
 
 @keyframes row-flash {
 	from {
-		background-color: color-mix(in oklch, var(--ok) 16%, transparent);
+		background-color: var(--flash-ok);
 	}
 }
 
@@ -100,7 +100,7 @@
 
 @keyframes audit-event-in {
 	from {
-		background-color: var(--info-bg);
+		background-color: var(--flash-info);
 	}
 }
 
