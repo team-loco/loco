@@ -469,9 +469,14 @@ func (s *AuthServer) RefreshCLIToken(
 	}}, nil
 }
 
-func (s *AuthServer) refreshSession(ctx context.Context, token string, kind genDb.SessionKind) (access, refresh string, err error) {
+func (s *AuthServer) refreshSession(
+	ctx context.Context,
+	token string,
+	kind genDb.SessionKind,
+) (string, string, error) {
+	var access, refresh string
 	var rejected bool
-	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		// Find the owner and lock the account before Refresh reads or mutates the session.
 		session, err := qtx.GetSessionByRefreshToken(ctx, bearer.Hash(token))
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -483,8 +488,8 @@ func (s *AuthServer) refreshSession(ctx context.Context, token string, kind genD
 		if session.Kind != kind {
 			return tvm.ErrInvalidExpiredToken
 		}
-		if err := lockSessionAccount(ctx, qtx, session.UserID); err != nil {
-			return err
+		if lockErr := lockSessionAccount(ctx, qtx, session.UserID); lockErr != nil {
+			return lockErr
 		}
 		access, refresh, err = s.machine.WithQueries(qtx).Refresh(ctx, token, kind)
 		if errors.Is(err, tvm.ErrInvalidExpiredToken) {
@@ -494,8 +499,8 @@ func (s *AuthServer) refreshSession(ctx context.Context, token string, kind genD
 		}
 		return err
 	})
-	if err != nil {
-		return "", "", err
+	if txErr != nil {
+		return "", "", txErr
 	}
 	if rejected {
 		return "", "", tvm.ErrInvalidExpiredToken

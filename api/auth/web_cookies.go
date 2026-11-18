@@ -17,6 +17,8 @@ const (
 	WebSessionCookie = "loco_session"
 	WebRefreshCookie = "loco_refresh"
 	WebLoginCookie   = "loco_login"
+	httpsScheme      = "https"
+	httpScheme       = "http"
 )
 
 // WebCookies describes the dashboard cookies and the origins permitted to use them.
@@ -28,22 +30,32 @@ type WebCookies struct {
 
 func NewWebCookies(webURL string, allowedOrigins []string) WebCookies {
 	u, err := url.Parse(webURL)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "https" && u.Scheme != "http") {
+	if err != nil {
+		return WebCookies{}
+	}
+	origin := webOrigin(u)
+	if origin == "" {
 		return WebCookies{}
 	}
 
-	host := strings.ToLower(u.Host)
 	hostname := strings.ToLower(u.Hostname())
-	if u.Scheme == "https" && u.Port() == "443" || u.Scheme == "http" && u.Port() == "80" {
+	ip, ipErr := netip.ParseAddr(hostname)
+	return WebCookies{
+		origin:         origin,
+		allowedOrigins: allowedOrigins,
+		secure:         u.Scheme == httpsScheme || hostname == "localhost" || (ipErr == nil && ip.IsLoopback()),
+	}
+}
+
+func webOrigin(u *url.URL) string {
+	if u.Hostname() == "" || (u.Scheme != httpsScheme && u.Scheme != httpScheme) {
+		return ""
+	}
+	host := strings.ToLower(u.Host)
+	if u.Scheme == httpsScheme && u.Port() == "443" || u.Scheme == httpScheme && u.Port() == "80" {
 		host = strings.TrimSuffix(host, ":"+u.Port())
 	}
-
-	ip, _ := netip.ParseAddr(hostname)
-	return WebCookies{
-		origin:         u.Scheme + "://" + host,
-		allowedOrigins: allowedOrigins,
-		secure:         u.Scheme == "https" || hostname == "localhost" || ip.IsLoopback(),
-	}
+	return u.Scheme + "://" + host
 }
 
 func (c WebCookies) Origin() string { return c.origin }
@@ -59,7 +71,7 @@ func (c WebCookies) Read(headers interface{ Values(string) []string }, name stri
 
 // Set writes a session cookie. A zero expiry clears the cookie.
 func (c WebCookies) Set(headers *connect.Header, name, value string, expires time.Time, sameSite http.SameSite) {
-	cookie := &http.Cookie{
+	cookie := &http.Cookie{ //nolint:gosec // A non-loopback HTTP dashboard cannot use Secure cookies.
 		Name:     c.name(name),
 		Value:    value,
 		Path:     "/",
@@ -93,7 +105,7 @@ func (c WebCookies) AllowsRequest(ctx context.Context, headers interface{ Values
 		return server.HTTPMethod() == http.MethodPost
 	case 1:
 		origin := origins[0]
-		if !strings.HasPrefix(origin, "https://") && !strings.HasPrefix(origin, "http://") {
+		if !strings.HasPrefix(origin, httpsScheme+"://") && !strings.HasPrefix(origin, httpScheme+"://") {
 			return false
 		}
 		return origin == c.origin || slices.Contains(c.allowedOrigins, origin)
