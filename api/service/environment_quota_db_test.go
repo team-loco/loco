@@ -34,14 +34,8 @@ func testEnvironmentQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	queries := genDb.New(pool)
-	server := NewEnvironmentServer(pool, queries, limits.Defaults())
-	workspaceID := uuid.MustParse(f.workspaceID)
-	existing, err := f.queries.CountWorkspaceEnvironments(t.Context(), workspaceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for i := existing; i < defaultEnvironmentLimit-1; i++ {
+	server := NewEnvironmentServer(pool, genDb.New(pool), limits.Defaults())
+	for range defaultEnvironmentLimit - 1 {
 		if _, createErr := server.CreateEnvironment(f.owner, newEnvironmentRequest(f.workspaceID)); createErr != nil {
 			t.Fatal(createErr)
 		}
@@ -52,7 +46,7 @@ func testEnvironmentQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 	}
 	rollbackOnCleanup(t, holder)
 	var locked uuid.UUID
-	if lockErr := holder.QueryRow(t.Context(), "SELECT id FROM workspaces WHERE id=$1 FOR UPDATE", workspaceID).
+	if lockErr := holder.QueryRow(t.Context(), "SELECT id FROM workspaces WHERE id=$1 FOR UPDATE", f.workspaceID).
 		Scan(&locked); lockErr != nil {
 		t.Fatal(lockErr)
 	}
@@ -94,7 +88,7 @@ func testEnvironmentQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 	if succeeded != 1 || limited != 1 {
 		t.Fatalf("created=%d limited=%d, want 1 each", succeeded, limited)
 	}
-	count, err := f.queries.CountWorkspaceEnvironments(t.Context(), workspaceID)
+	count, err := f.queries.CountWorkspaceEnvironments(t.Context(), uuid.MustParse(f.workspaceID))
 	if err != nil || count != defaultEnvironmentLimit {
 		t.Fatalf("environment count=%d error=%v", count, err)
 	}
