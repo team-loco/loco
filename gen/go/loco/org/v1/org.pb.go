@@ -230,10 +230,11 @@ func (x *CreateOrgRequest) GetName() string {
 	return ""
 }
 
-// CreateOrgResponse is the response containing the created organization ID.
+// CreateOrgResponse names the created organization, including a name the API generated.
 type CreateOrgResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -271,6 +272,13 @@ func (*CreateOrgResponse) Descriptor() ([]byte, []int) {
 func (x *CreateOrgResponse) GetOrgId() string {
 	if x != nil {
 		return x.OrgId
+	}
+	return ""
+}
+
+func (x *CreateOrgResponse) GetName() string {
+	if x != nil {
+		return x.Name
 	}
 	return ""
 }
@@ -2080,9 +2088,10 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\r_member_count\"?\n" +
 	"\x10CreateOrgRequest\x12\"\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18dH\x00R\x04name\x88\x01\x01B\a\n" +
-	"\x05_name\"*\n" +
+	"\x05_name\">\n" +
 	"\x11CreateOrgResponse\x12\x15\n" +
-	"\x06org_id\x18\x01 \x01(\tR\x05orgId\"0\n" +
+	"\x06org_id\x18\x01 \x01(\tR\x05orgId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"0\n" +
 	"\rGetOrgRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\"O\n" +
 	"\x0eGetOrgResponse\x12=\n" +

@@ -13082,11 +13082,15 @@
           "orgId": {
             "type": "string",
             "title": "org_id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
           }
         },
         "title": "CreateOrgResponse",
         "additionalProperties": false,
-        "description": "CreateOrgResponse is the response containing the created organization ID."
+        "description": "CreateOrgResponse names the created organization, including a name the API generated."
       },
       "loco.org.v1.DeleteOrgRequest": {
         "type": "object",
