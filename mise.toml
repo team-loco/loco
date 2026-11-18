@@ -244,9 +244,6 @@ env = { _.source = "dev/stack.sh" }
 raw = true
 run = "docker compose exec postgres sh -c 'exec psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
 
-[tasks."cluster:up"]
-env = { _.source = "dev/stack.sh" }
-
 [tasks."cluster:down"]
 description = "Delete this checkout's kind cluster"
 env = { _.source = "dev/stack.sh" }
@@ -284,22 +281,6 @@ kube context     kind-$KIND_CLUSTER
 compose project  $COMPOSE_PROJECT_NAME
 EOF
 """
-
-[tasks."helm:sync:release"]
-env = { _.source = "dev/stack.sh" }
-
-[tasks."helm:destroy"]
-env = { _.source = "dev/stack.sh" }
-
-[tasks."helm:sync:namespaces"]
-description = "Sync the loco-system namespace, which the loco-worker release installs into, and its Pod Security labels to the local cluster"
-env = { _.source = "dev/stack.sh" }
-run = "kubectl apply --server-side --force-conflicts --context kind-$KIND_CLUSTER -f manifests/namespaces"
-
-[tasks."helm:sync:cert-manager"]
-description = "Sync cert-manager to the local cluster"
-env = { _.source = "dev/stack.sh" }
-run = "mise run helm:sync:release cert-manager"
 
 [tasks.e2e]
 description = "Run an end-to-end shard of tests/e2e (builds, apps, telemetry or controlplane) in this worktree's own kind cluster and compose project, or only its tests matching [test], a go test -run pattern. --keep leaves the platform running, and a later run reuses its cluster and resets its state; --skip-build reuses its images and binaries. E2E_RUN_ID overrides the run, E2E_IMAGES names prebuilt images to pull, `*` standing for the image name, and E2E_VERSION the version they report"

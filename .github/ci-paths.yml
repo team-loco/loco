@@ -17,7 +17,6 @@
 auth-conformance:
   pull_request: &auth-conformance
     - "api/auth/**"
-    - "api/mail/**"
     - "api/service/**"
     - "api/migrations/**"
     - "api/queries/**"
@@ -254,7 +253,6 @@ e2e-installation:
     - "charts/cert-manager.yaml"
     - "dev/compose.cloud-provider-kind.yaml"
     - "dev/dex.yaml"
-    - "examples/installation/**"
     # The UI image's own definition. Documentation Container Tests cover what it
     # serves, under the pod settings the chart runs it with.
     - "web/Dockerfile"

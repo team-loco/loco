@@ -63,10 +63,9 @@ Pages state released behaviour and label unreleased workflows with a release not
   `test:collectors`), `.ct.yaml`, the helm-unittest suite layout and the TDD order.
 - `docs/content/contributing/documentation.md`: docs tasks, build rules, theme files, hosting,
   `web/sws.toml`, `docs/build.ts`.
-- `README.md`: quick start (installer flags, `loco login`, `loco init`, `loco validate`, `loco
-  deploy` and `--image`, source packing rules, `loco resource` and `loco builds` subcommands),
-  the examples list, the contributing section (mise, Flux, Dex on `localhost:5556`, the local
-  registry and bucket, build flow, `charts/loco-worker` controller deployments and `builds.enabled`).
+- `README.md`: the quick start (the installer, `loco login`, `loco deploy` and `--image`), the
+  feature list with the commands it names (`loco infra plan`, `loco env`, `loco resource scale`),
+  and the contributing section (`mise run setup`, `mise tasks`).
 - `AGENTS.md`, the "loco.yaml" section and the
   behaviour statements in "Dependencies and Configuration" (version reporting, `/version.json`,
   chart tags). The rest of `AGENTS.md` is process guidance, not product documentation.
@@ -146,7 +145,7 @@ When one page links to another for the detail, update the page that owns the det
 - CLI commands and flags: `reference/cli-api.md` for the command table, `operations/
   applications.md` for `loco resource`, `getting-started/connect.md` for `loco login` and
   `loco config`, `getting-started/install.md` for the installer, `loco update` and
-  `loco completion`, `README.md` quick start for `loco deploy`, `loco builds` and packing rules.
+  `loco completion`, `README.md` quick start for `loco deploy`.
 - Domain and routing behaviour: `operations/applications.md` and the loco.yaml
   section of `AGENTS.md`.
 - loco.yaml fields: `deployment/loco-yaml.md`, and the loco.yaml section of `AGENTS.md` when it
