@@ -3,23 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrationlock"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/config"
@@ -210,8 +205,7 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 }
 
 const (
-	testClickHouseEnv   = "LOCO_TEST_CLICKHOUSE_URL"
-	databaseNameBytes   = 4
+	databasePrefix      = "loco_obs_proxy_test_"
 	testLockTTL         = 2 * time.Second
 	testLockRetry       = 200 * time.Millisecond
 	sharedRetryBudget   = time.Minute
@@ -219,36 +213,6 @@ const (
 	readinessPollPeriod = 50 * time.Millisecond
 	replicas            = 2
 )
-
-func testClickHouse(t *testing.T) (driver.Conn, string, string) {
-	t.Helper()
-	dsn := os.Getenv(testClickHouseEnv)
-	if dsn == "" {
-		t.Skip(testClickHouseEnv + " not set")
-	}
-	opts, err := clickhouse.ParseDSN(dsn)
-	if err != nil {
-		t.Fatalf("parse %s: %v", testClickHouseEnv, err)
-	}
-	admin, err := clickhouse.Open(opts)
-	if err != nil {
-		t.Fatalf("open clickhouse: %v", err)
-	}
-	suffix := make([]byte, databaseNameBytes)
-	if _, err := rand.Read(suffix); err != nil {
-		t.Fatalf("random database name: %v", err)
-	}
-	database := "loco_obs_proxy_test_" + hex.EncodeToString(suffix)
-	t.Cleanup(func() {
-		if err := admin.Exec(context.Background(), "DROP DATABASE IF EXISTS "+database+" SYNC"); err != nil {
-			t.Errorf("drop %s: %v", database, err)
-		}
-		if err := admin.Close(); err != nil {
-			t.Errorf("close clickhouse: %v", err)
-		}
-	})
-	return admin, dsn, database
-}
 
 func waitReady(t *testing.T, base string) {
 	t.Helper()
@@ -263,7 +227,8 @@ func waitReady(t *testing.T, base string) {
 }
 
 func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
-	_, dsn, database := testClickHouse(t)
+	db := clickhousetest.New(t, databasePrefix)
+	dsn, database := db.DSN, db.Name
 	cfg := testConfig(dsn, dsn, database, testRetryBudget)
 	holder := lockFor(cfg)
 	held := make(chan struct{})
@@ -310,7 +275,8 @@ func TestRetryBudgetCoversWaitingForTheMigrationLock(t *testing.T) {
 }
 
 func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
-	admin, dsn, database := testClickHouse(t)
+	db := clickhousetest.New(t, databasePrefix)
+	admin, dsn, database := db.Admin, db.DSN, db.Name
 	previous := slog.Default()
 	slog.SetDefault(slog.New(slog.NewTextHandler(t.Output(), nil)))
 	t.Cleanup(func() { slog.SetDefault(previous) })

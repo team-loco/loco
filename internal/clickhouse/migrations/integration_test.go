@@ -1,12 +1,8 @@
 package migrations
 
 import (
-	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"io/fs"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -16,11 +12,11 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/pressly/goose/v3"
+
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 )
 
 const (
-	testClickHouseEnv  = "LOCO_TEST_CLICKHOUSE_URL"
-	databaseNameBytes  = 4
 	concurrentRunners  = 2
 	testOrganizationID = "99999999-8888-7777-6666-555555555555"
 	testWorkspaceID    = "11111111-2222-3333-4444-555555555555"
@@ -78,41 +74,15 @@ var expectedTables = []string{
 }
 
 type testDatabase struct {
+	db    *clickhousetest.Database
 	admin driver.Conn
 	cfg   Config
 }
 
 func newTestDatabase(t *testing.T) *testDatabase {
 	t.Helper()
-	dsn := os.Getenv(testClickHouseEnv)
-	if dsn == "" {
-		t.Skip(testClickHouseEnv + " not set")
-	}
-	opts, err := clickhouse.ParseDSN(dsn)
-	if err != nil {
-		t.Fatalf("parse %s: %v", testClickHouseEnv, err)
-	}
-	admin, err := clickhouse.Open(opts)
-	if err != nil {
-		t.Fatalf("open clickhouse: %v", err)
-	}
-	suffix := make([]byte, databaseNameBytes)
-	if _, err := rand.Read(suffix); err != nil {
-		t.Fatalf("random database name: %v", err)
-	}
-	database := "loco_obs_test_" + hex.EncodeToString(suffix)
-	t.Cleanup(func() {
-		if err := admin.Exec(context.Background(), "DROP DATABASE IF EXISTS "+database+" SYNC"); err != nil {
-			t.Errorf("drop %s: %v", database, err)
-		}
-		if err := admin.Close(); err != nil {
-			t.Errorf("close clickhouse: %v", err)
-		}
-	})
-	return &testDatabase{
-		admin: admin,
-		cfg:   Config{DSN: dsn, Database: database},
-	}
+	db := clickhousetest.New(t, "loco_obs_test_")
+	return &testDatabase{db: db, admin: db.Admin, cfg: Config{DSN: db.DSN, Database: db.Name}}
 }
 
 func (d *testDatabase) tables(t *testing.T) []string {
@@ -664,28 +634,11 @@ func TestInsertOnlyUserPopulatesTraceLookup(t *testing.T) {
 	if err := Up(t.Context(), db.cfg); err != nil {
 		t.Fatalf("Up: %v", err)
 	}
-	user := db.cfg.Database + "_ingest"
-	password := hex.EncodeToString([]byte(user))
-	statements := []string{
-		"CREATE USER " + user + " IDENTIFIED WITH plaintext_password BY '" + password + "'",
-		"GRANT INSERT ON " + db.cfg.Database + ".* TO " + user,
-	}
-	for _, statement := range statements {
-		if err := db.admin.Exec(t.Context(), statement); err != nil {
-			t.Fatalf("%s: %v", statement, err)
-		}
-	}
-	t.Cleanup(func() {
-		if err := db.admin.Exec(context.Background(), "DROP USER IF EXISTS "+user); err != nil {
-			t.Errorf("drop %s: %v", user, err)
-		}
-	})
-	opts, err := clickhouse.ParseDSN(db.cfg.DSN)
+	opts, err := clickhouse.ParseDSN(db.db.User(t, "INSERT"))
 	if err != nil {
 		t.Fatalf("parse DSN: %v", err)
 	}
-	opts.Auth.Username = user
-	opts.Auth.Password = password
+	user := opts.Auth.Username
 	opts.Auth.Database = db.cfg.Database
 	ingest, err := clickhouse.Open(opts)
 	if err != nil {

@@ -2,10 +2,6 @@ package clickhouse
 
 import (
 	"cmp"
-	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"os"
 	"slices"
 	"strconv"
 	"testing"
@@ -15,13 +11,12 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
-	testClickHouseEnv      = "LOCO_TEST_CLICKHOUSE_URL"
-	databaseNameBytes      = 4
 	testMaxConns           = 2
 	testQueryTimeout       = 10 * time.Second
 	testRetentionDays      = 1
@@ -137,29 +132,15 @@ type queryFixture struct {
 
 func newQueryFixture(t *testing.T) *queryFixture {
 	t.Helper()
-	dsn := os.Getenv(testClickHouseEnv)
-	if dsn == "" {
-		t.Skip(testClickHouseEnv + " not set")
-	}
-	suffix := make([]byte, databaseNameBytes)
-	if _, err := rand.Read(suffix); err != nil {
-		t.Fatalf("random database name: %v", err)
-	}
-	database := "loco_obs_query_test_" + hex.EncodeToString(suffix)
-	cfg := migrations.Config{DSN: dsn, Database: database}
-	if err := migrations.Up(t.Context(), cfg); err != nil {
+	db := clickhousetest.New(t, "loco_obs_query_test_")
+	if err := migrations.Up(t.Context(), migrations.Config{DSN: db.DSN, Database: db.Name}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	client, err := NewClient(dsn, database, testMaxConns, testQueryTimeout)
+	client, err := NewClient(db.DSN, db.Name, testMaxConns, testQueryTimeout)
 	if err != nil {
 		t.Fatalf("open client: %v", err)
 	}
-	t.Cleanup(func() {
-		if err := client.Conn().Exec(context.Background(), "DROP DATABASE IF EXISTS "+database+" SYNC"); err != nil {
-			t.Errorf("drop %s: %v", database, err)
-		}
-		client.Close()
-	})
+	t.Cleanup(client.Close)
 	start := time.Now().UTC().Truncate(time.Minute).Add(-testDataAge)
 	fixture := &queryFixture{client: client, conn: client.Conn(), start: start, end: start.Add(testDataAge)}
 	fixture.insertLogs(t)

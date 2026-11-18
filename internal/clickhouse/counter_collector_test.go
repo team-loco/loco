@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/ingesttoken/ingesttest"
 )
 
@@ -58,7 +59,7 @@ func TestCounterMetricsFromTheCollectorAreQueryable(t *testing.T) {
 	if endpoint == "" {
 		t.Skip("LOCO_TEST_COUNTER_OTLP_URL not set")
 	}
-	dsn := os.Getenv(testClickHouseEnv)
+	dsn := os.Getenv(clickhousetest.URLEnv)
 	database := os.Getenv("LOCO_TEST_COUNTER_DATABASE")
 	ingestKey := os.Getenv("LOCO_TEST_COUNTER_INGEST_KEY")
 	controlPlaneAddr := os.Getenv("LOCO_TEST_COUNTER_CONTROL_PLANE_ADDR")

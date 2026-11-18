@@ -3,10 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"net"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
@@ -14,6 +12,7 @@ import (
 	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 
+	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 	"github.com/team-loco/loco/internal/clickhouse/migrations"
 	"github.com/team-loco/loco/observability-proxy/pkg/ingest"
 )
@@ -33,32 +32,6 @@ func localListener(t *testing.T) net.Listener {
 		t.Fatalf("listen: %v", err)
 	}
 	return ln
-}
-
-func ingestUserDSN(t *testing.T, dsn, database string, exec func(string) error) string {
-	t.Helper()
-	user := database + "_ingest"
-	password := hex.EncodeToString([]byte(user))
-	statements := []string{
-		"CREATE USER " + user + " IDENTIFIED WITH plaintext_password BY '" + password + "'",
-		"GRANT INSERT, SHOW COLUMNS ON " + database + ".* TO " + user,
-	}
-	for _, statement := range statements {
-		if err := exec(statement); err != nil {
-			t.Fatalf("%s: %v", statement, err)
-		}
-	}
-	t.Cleanup(func() {
-		if err := exec("DROP USER IF EXISTS " + user); err != nil {
-			t.Errorf("drop %s: %v", user, err)
-		}
-	})
-	parsed, err := url.Parse(dsn)
-	if err != nil {
-		t.Fatalf("parse dsn: %v", err)
-	}
-	parsed.User = url.UserPassword(user, password)
-	return parsed.String()
 }
 
 func postLog(t *testing.T, endpoint string) int {
@@ -89,9 +62,8 @@ func postLog(t *testing.T, endpoint string) int {
 }
 
 func TestIngestMigratesWithItsMigratorAndRefusesUnauthenticatedTelemetry(t *testing.T) {
-	admin, dsn, database := testClickHouse(t)
-	exec := func(statement string) error { return admin.Exec(context.Background(), statement) }
-	cfg := testConfig(ingestUserDSN(t, dsn, database, exec), dsn, database, sharedRetryBudget)
+	db := clickhousetest.New(t, databasePrefix)
+	cfg := testConfig(db.User(t, "INSERT, SHOW COLUMNS"), db.DSN, db.Name, sharedRetryBudget)
 	p, err := newProxy(cfg, lockFor(cfg), testVersion)
 	if err != nil {
 		t.Fatalf("newProxy: %v", err)
@@ -105,8 +77,8 @@ func TestIngestMigratesWithItsMigratorAndRefusesUnauthenticatedTelemetry(t *test
 
 	waitReady(t, base)
 	var versions uint64
-	query := "SELECT uniqExact(version_id) FROM " + database + "." + migrations.VersionTable
-	if err := admin.QueryRow(t.Context(), query).Scan(&versions); err != nil || versions == 0 {
+	query := "SELECT uniqExact(version_id) FROM " + db.Name + "." + migrations.VersionTable
+	if err := db.Admin.QueryRow(t.Context(), query).Scan(&versions); err != nil || versions == 0 {
 		t.Fatalf("applied migrations = %d, %v; want the schema migrated", versions, err)
 	}
 	endpoint := "http://" + ln.otlpHTTP.Addr().String() + ingest.LogsPath
@@ -114,8 +86,8 @@ func TestIngestMigratesWithItsMigratorAndRefusesUnauthenticatedTelemetry(t *test
 		t.Fatalf("POST %s without an ingest token = %d, want %d", endpoint, status, http.StatusUnauthorized)
 	}
 	var rows uint64
-	if err := admin.QueryRow(t.Context(), "SELECT count() FROM "+database+".otel_logs WHERE Body = ?", ingestOnlyLogBody).
-		Scan(&rows); err != nil {
+	query = "SELECT count() FROM " + db.Name + ".otel_logs WHERE Body = ?"
+	if err := db.Admin.QueryRow(t.Context(), query, ingestOnlyLogBody).Scan(&rows); err != nil {
 		t.Fatalf("count rows: %v", err)
 	}
 	if rows != 0 {
