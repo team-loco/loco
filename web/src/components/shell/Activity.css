@@ -91,6 +91,14 @@
 		transform: scale(1);
 	}
 }
+.dwa-active {
+	animation: dwa-blink 1.6s ease-in-out infinite;
+}
+@keyframes dwa-blink {
+	50% {
+		opacity: 0.45;
+	}
+}
 @media (prefers-reduced-motion: reduce) {
 	.act-btn {
 		transition: none;
@@ -104,17 +112,6 @@
 	.act-btn:is(:hover, [aria-expanded="true"]) .act-base {
 		opacity: 1;
 	}
-}
-
-.dwa-active {
-	animation: dwa-blink 1.6s ease-in-out infinite;
-}
-@keyframes dwa-blink {
-	50% {
-		opacity: 0.45;
-	}
-}
-@media (prefers-reduced-motion: reduce) {
 	.dwa-active {
 		animation: none;
 	}

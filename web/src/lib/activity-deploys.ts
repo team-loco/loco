@@ -9,35 +9,24 @@ import { maybeTsMs } from "@/lib/time";
 export const RECENT_MS = 30 * 60_000;
 const MAX_CARDS = 6;
 
-export type DeployState = "run" | "failed" | "live" | "canceled";
 export type StepState = "pending" | "active" | "retry" | "done" | "skipped";
 
-const STATE_ORDER: Record<DeployState, number> = { run: 0, failed: 1, live: 2, canceled: 3 };
-
-export function deployState(status: DeploymentStatus): DeployState {
-	switch (status) {
-		case DeploymentStatus.BUILDING:
-		case DeploymentStatus.DEPLOYING:
-			return "run";
-		case DeploymentStatus.FAILED:
-			return "failed";
-		case DeploymentStatus.CANCELED:
-			return "canceled";
-		case DeploymentStatus.RUNNING:
-		case DeploymentStatus.SUPERSEDED:
-		case DeploymentStatus.UNSPECIFIED:
-			return "live";
-	}
-}
+const ORDER: Record<DeploymentStatus, number> = {
+	[DeploymentStatus.BUILDING]: 0,
+	[DeploymentStatus.DEPLOYING]: 0,
+	[DeploymentStatus.FAILED]: 1,
+	[DeploymentStatus.RUNNING]: 2,
+	[DeploymentStatus.SUPERSEDED]: 2,
+	[DeploymentStatus.UNSPECIFIED]: 2,
+	[DeploymentStatus.CANCELED]: 3,
+};
 
 /** The deployments the Activity drawer shows: every one in flight and the rest from the last 30 minutes. */
 export function activityDeployments(deployments: readonly Deployment[], nowMs: number): Deployment[] {
 	const created = (d: Deployment) => maybeTsMs(d.createdAt) ?? 0;
 	return deployments
 		.filter((d) => isInFlight(d.status) || nowMs - created(d) < RECENT_MS)
-		.toSorted(
-			(a, b) => STATE_ORDER[deployState(a.status)] - STATE_ORDER[deployState(b.status)] || created(b) - created(a),
-		)
+		.toSorted((a, b) => ORDER[a.status] - ORDER[b.status] || created(b) - created(a))
 		.slice(0, MAX_CARDS);
 }
 

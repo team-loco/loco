@@ -22,7 +22,6 @@ import {
 	activityDeployments,
 	clockLabel,
 	deployPhase,
-	deployState,
 	deploySteps,
 	finishedLabel,
 	readyLabel,
@@ -50,14 +49,9 @@ const STEP_CLASS: Record<StepState, string> = {
 };
 const PULSE = "M2 12h4l3-8 6 16 3-8h4";
 
-function ActivityCard({ className, children }: { className?: string; children: ReactNode }) {
+function ActivityCard({ children }: { children: ReactNode }) {
 	return (
-		<li
-			className={cn(
-				"dwa flex flex-col gap-2 rounded-[10px] bg-panel px-4 py-3.5 shadow-[inset_0_0_0_1px_var(--line)]",
-				className,
-			)}
-		>
+		<li className="dwa flex flex-col gap-2 rounded-[10px] bg-panel px-4 py-3.5 shadow-[inset_0_0_0_1px_var(--line)]">
 			{children}
 		</li>
 	);
@@ -188,7 +182,7 @@ function DeployCard({
 		buildLogsHref !== undefined &&
 		(deployment.status === DeploymentStatus.BUILDING || problem?.reason === "build_failed");
 	return (
-		<ActivityCard className={cn(running && "run")}>
+		<ActivityCard>
 			<div className="flex items-center justify-between gap-2.5">
 				<span className="inline-flex items-center gap-2 text-[12.5px] font-medium whitespace-nowrap">
 					<StatusGlyph glyph={phase.glyph} />
@@ -225,7 +219,8 @@ function DeployCard({
 					{problem.message !== "" && <span className="text-fg2">{problem.message}</span>}
 				</div>
 			) : (
-				deployState(deployment.status) === "live" && (
+				deployment.status !== DeploymentStatus.FAILED &&
+				deployment.status !== DeploymentStatus.CANCELED && (
 					<span className="text-[12.5px] text-fg2">{readyLabel(deployment)}</span>
 				)
 			)}
