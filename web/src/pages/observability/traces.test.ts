@@ -1,15 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { TraceSpanEventSchema, TraceSpanSchema } from "@gen/loco/observability/v1/observability_pb";
-import {
-	axisLabel,
-	durationLabel,
-	eventOffsetLabel,
-	spanLinkSearch,
-	spanTree,
-	summarizeTraces,
-	uniqueSpans,
-} from "./traces";
+import { durationLabel, eventOffsetLabel, spanLinkSearch, spanTree, summarizeTraces, uniqueSpans } from "./traces";
 
 const span = (id: string, parent = "", nanos = 0) =>
 	create(TraceSpanSchema, {
@@ -21,13 +13,16 @@ const span = (id: string, parent = "", nanos = 0) =>
 	});
 
 describe("trace timing and hierarchy", () => {
-	test("axis uses one unit including zero and short ticks", () => {
-		expect(axisLabel(0n, 2_000_000n)).toBe("0 ms");
-		expect(axisLabel(500_000n, 2_000_000n)).toBe("0.50 ms");
+	test("labels durations like 621ms, 5.01s and 8.1ms", () => {
+		expect(durationLabel(0n)).toBe("0");
+		expect(durationLabel(621_400_000n)).toBe("621ms");
+		expect(durationLabel(5_012_000_000n)).toBe("5.01s");
+		expect(durationLabel(8_140_000n)).toBe("8.1ms");
+		expect(durationLabel(450_000n)).toBe("450µs");
 	});
 	test("labels a span event by its offset from the span start", () => {
 		const event = create(TraceSpanEventSchema, { timestamp: { seconds: 1_800_000_000n, nanos: 12_400_000 } });
-		expect(eventOffsetLabel(span("root"), event)).toBe("+12.40 ms");
+		expect(eventOffsetLabel(span("root"), event)).toBe("+12ms");
 		expect(eventOffsetLabel(span("root"), create(TraceSpanEventSchema))).toBeNull();
 	});
 	test("opens a linked span with its trace and keeps other query parameters", () => {
@@ -47,8 +42,8 @@ describe("trace timing and hierarchy", () => {
 		const child = span("child", "root", 25);
 		const trace = summarizeTraces([child, root])[0];
 		expect(trace?.duration).toBe(125n);
-		expect(durationLabel(25n)).toBe("25 ns");
-		expect(durationLabel(1_500_000n)).toBe("1.50 ms");
+		expect(durationLabel(25n)).toBe("25ns");
+		expect(durationLabel(1_500_000n)).toBe("1.5ms");
 	});
 	test("builds a stable parent-first tree even when child arrives first and parent starts later", () => {
 		const rows = spanTree([span("child", "root"), span("root", "", 20), span("missing", "unavailable", 30)]);

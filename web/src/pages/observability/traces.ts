@@ -35,22 +35,13 @@ export function spanLinkSearch(search: string, traceId: string, spanId: string):
 }
 
 export function durationLabel(nanos: bigint): string {
-	if (nanos >= NANOS_PER_SECOND) return `${(Number(nanos) / Number(NANOS_PER_SECOND)).toFixed(2)} s`;
-	if (nanos >= NANOS_PER_MS) return `${(Number(nanos) / Number(NANOS_PER_MS)).toFixed(2)} ms`;
-	if (nanos >= NANOS_PER_MICROSECOND) return `${(Number(nanos) / Number(NANOS_PER_MICROSECOND)).toFixed(1)} µs`;
-	return `${String(nanos)} ns`;
-}
-
-export function axisLabel(nanos: bigint, total: bigint): string {
-	const unit =
-		total >= NANOS_PER_SECOND
-			? { divisor: NANOS_PER_SECOND, name: "s" }
-			: total >= NANOS_PER_MS
-				? { divisor: NANOS_PER_MS, name: "ms" }
-				: total >= NANOS_PER_MICROSECOND
-					? { divisor: NANOS_PER_MICROSECOND, name: "µs" }
-					: { divisor: 1n, name: "ns" };
-	return `${(Number(nanos) / Number(unit.divisor)).toFixed(nanos === 0n ? 0 : 2)} ${unit.name}`;
+	if (nanos === 0n) return "0";
+	const ms = Number(nanos) / Number(NANOS_PER_MS);
+	if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+	if (ms >= 10) return `${String(Math.round(ms))}ms`;
+	if (ms >= 1) return `${ms.toFixed(1)}ms`;
+	if (nanos >= NANOS_PER_MICROSECOND) return `${String(Math.round(Number(nanos) / Number(NANOS_PER_MICROSECOND)))}µs`;
+	return `${String(nanos)}ns`;
 }
 
 export function spanError(span: TraceSpan): boolean {

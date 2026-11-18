@@ -43,7 +43,7 @@ export function FlameGraph({
 	const related = useMemo(() => lineage(trace, selected.spanId), [trace, selected.spanId]);
 	const ticks = offsetTicks(trace.duration, zoom);
 	return (
-		<section aria-label="Flame graph" className="flex flex-col gap-1.5 rounded-card bg-panel px-3.5 pt-3 pb-3.5">
+		<section aria-label="Flame graph" className="flex flex-col gap-1.5">
 			<TimeAxis duration={trace.duration} zoom={zoom} onZoom={setZoom} highlight={highlight} />
 			{markers}
 			<div className="relative overflow-hidden" style={{ height: depth * ROW_PX }}>

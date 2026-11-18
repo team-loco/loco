@@ -22,13 +22,12 @@ import {
 } from "@/components/design/DropdownMenu";
 import { SheetTitle, SheetDescription } from "@/components/design/Sheet";
 import { useCopy } from "@/hooks/useCopy";
-import { agoLabel } from "@/lib/time";
+import { agoLabel, formatClock, formatFullTime, formatMonthDay, timeZoneLabel } from "@/lib/time";
 import { aroundWindow } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
 import { useTraceResources } from "./TraceColors";
-import { fmtTs } from "../format";
 import { replicaOf } from "../rows";
 import { durationLabel, spanError, type TraceSummary } from "../traces";
 import { traceResourceKey, traceServiceLabel } from "../trace-service";
@@ -111,7 +110,10 @@ export function TraceHeader({
 		}, 1000);
 	};
 	return (
-		<header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-7 gap-y-3 border-b border-line py-3.5 pr-4 pl-6 min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,520px)_auto]">
+		<header
+			data-slot="trace-header"
+			className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-7 gap-y-3 border-b border-line py-3.5 pr-4 pl-6 min-[1180px]:grid-cols-[minmax(0,1fr)_minmax(0,520px)_auto]"
+		>
 			<div className="col-start-1 row-start-1 flex min-w-0 flex-col gap-2">
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					{trace !== undefined && (
@@ -148,7 +150,9 @@ export function TraceHeader({
 				</div>
 				<SheetDescription
 					className={
-						trace === undefined ? "sr-only" : "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"
+						trace === undefined
+							? "sr-only"
+							: "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-fg3 [&>*+*]:before:mr-2 [&>*+*]:before:content-['·'_/_'']"
 					}
 				>
 					{trace === undefined ? (
@@ -175,7 +179,9 @@ export function TraceHeader({
 								))}
 							{rootPod !== "" && <span className="font-mono">{replicaOf(rootPod)}</span>}
 							{rootRegion !== "" && <span>{rootRegion}</span>}
-							<span title={fmtTs(start, true, timePref)}>{fmtTs(start, true, timePref)}</span>
+							<span className="font-mono" title={formatFullTime(start, true, timePref)}>
+								{`${formatMonthDay(start, timePref)}, ${formatClock(start, true, timePref)} ${timeZoneLabel(start, timePref)}`}
+							</span>
 							<span>{agoLabel(start, now)}</span>
 							<span>
 								{trace.spans.length} {trace.spans.length === 1 ? "span" : "spans"}
