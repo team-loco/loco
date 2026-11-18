@@ -86,10 +86,10 @@ func bumpResourceEnvironmentRevisions(ctx context.Context, qtx *genDb.Queries, r
 	return nil
 }
 
+// withTx runs fn at read committed so a count after a row lock sees rows committed while it waited.
 func withTx(ctx context.Context, pool *pgxpool.Pool, fn func(qtx *genDb.Queries) error) error {
-	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
-		qtx := genDb.New(tx)
-		return fn(qtx)
+	return pgx.BeginTxFunc(ctx, pool, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
+		return fn(genDb.New(tx))
 	})
 }
 

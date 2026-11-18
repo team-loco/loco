@@ -129,9 +129,7 @@ func (s *WebhookServer) CreateWebhook(
 		types = []string{}
 	}
 	var row genDb.Webhook
-	// Read committed, so the count after the workspace lock sees webhooks a concurrent create committed.
-	err = pgx.BeginTxFunc(ctx, s.db, pgx.TxOptions{IsoLevel: pgx.ReadCommitted}, func(tx pgx.Tx) error {
-		qtx := genDb.New(tx)
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if limitErr := checkWorkspaceLimit(
 			ctx, qtx, s.counts, limits.WebhooksPerWorkspace, workspaceID, qtx.CountWorkspaceWebhooks,
 		); limitErr != nil {
