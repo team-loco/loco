@@ -41,6 +41,9 @@ const STATUS_LABEL: Record<SecretStatus, string> = {
 	new: "new",
 };
 
+const COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]";
+const ROW = cn("grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0", COLUMNS);
+
 function withoutKey(values: Record<string, string>, key: string): Record<string, string> {
 	return Object.fromEntries(Object.entries(values).filter(([k]) => k !== key));
 }
@@ -173,7 +176,7 @@ function RevealButton({
 function PlainVariable({ name, value }: { name: string; value: string }) {
 	const reveal = useTimedReveal();
 	return (
-		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]">
+		<div className={ROW}>
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
 				<span className="text-[11.5px] text-fg3">
@@ -221,7 +224,7 @@ function SecretLine({
 			? "No value stored"
 			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt), timePref)}`;
 	return (
-		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]">
+		<div className={ROW}>
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="flex items-center gap-2">
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
@@ -402,7 +405,7 @@ export function VariablesSection({
 				{canWrite && adding && (
 					<form
 						noValidate
-						className="grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]"
+						className={cn("grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5", COLUMNS)}
 						onSubmit={(e) => {
 							e.preventDefault();
 							if (secretNameProblem(newName) !== undefined || newValue === "") return;

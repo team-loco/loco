@@ -27,7 +27,6 @@ export function StepSlider({
 	describedBy?: string | undefined;
 }) {
 	const index = options.findIndex((o) => o.value === value);
-	const current = options[index];
 	return (
 		<div className="flex flex-col gap-2">
 			<SliderPrimitive.Root
@@ -59,7 +58,7 @@ export function StepSlider({
 					<SliderPrimitive.Thumb
 						aria-label={label}
 						aria-describedby={describedBy}
-						getAriaValueText={() => current?.label ?? value}
+						getAriaValueText={() => stepLabel(options, value)}
 						className="dsl-thumb"
 					/>
 				</SliderPrimitive.Control>
