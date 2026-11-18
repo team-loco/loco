@@ -70,10 +70,8 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWorkspace(ctx context.Context, arg CreateWorkspaceParams) (uuid.UUID, error)
 	CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspaceWebhookParams) (Webhook, error)
-	DeleteAPIToken(ctx context.Context, id uuid.UUID) error
 	DeleteAPITokenByHash(ctx context.Context, tokenHash string) error
 	DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error
-	DeleteAPITokensForEntity(ctx context.Context, arg DeleteAPITokensForEntityParams) error
 	DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedPlacementParams) (int64, error)
 	DeleteClusterRegistryCredentials(ctx context.Context, clusterID uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
@@ -85,7 +83,6 @@ type Querier interface {
 	DeleteExpiredUsedRefreshTokens(ctx context.Context) error
 	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
-	DeleteOrganization(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
 	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
@@ -111,7 +108,6 @@ type Querier interface {
 	// creator_* is NULL when the creating user no longer exists.
 	GetBuildCreator(ctx context.Context, id uuid.UUID) (GetBuildCreatorRow, error)
 	GetClusterByID(ctx context.Context, id uuid.UUID) (GetClusterByIDRow, error)
-	GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error)
 	GetClusterRole(ctx context.Context, id uuid.UUID) (ClusterRole, error)
 	GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (int64, error)
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
@@ -148,7 +144,6 @@ type Querier interface {
 	// what scopes does user x have on entity y?
 	GetUserScopesOnEntity(ctx context.Context, arg GetUserScopesOnEntityParams) ([]GetUserScopesOnEntityRow, error)
 	GetUserScopesOnOrganization(ctx context.Context, arg GetUserScopesOnOrganizationParams) ([]GetUserScopesOnOrganizationRow, error)
-	GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]GetUserScopesOnWorkspaceRow, error)
 	// what users have scope z on entity y?
 	GetUsersWithScopeOnEntity(ctx context.Context, arg GetUsersWithScopeOnEntityParams) ([]uuid.UUID, error)
 	GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (GetWebhookDeliveryPayloadRow, error)
@@ -162,13 +157,11 @@ type Querier interface {
 	InsertEvent(ctx context.Context, arg InsertEventParams) (int64, error)
 	IsOrgMember(ctx context.Context, arg IsOrgMemberParams) (bool, error)
 	IsOrgMemberEmail(ctx context.Context, arg IsOrgMemberEmailParams) (bool, error)
-	IsOrganizationNameUnique(ctx context.Context, name string) (bool, error)
 	ListAPITokensForEntity(ctx context.Context, arg ListAPITokensForEntityParams) ([]ListAPITokensForEntityRow, error)
 	// Keep the active-successor predicate aligned with OrgAdminHasNoActiveSuccessor.
 	ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error)
 	ListAccountDeletionTokens(ctx context.Context, arg ListAccountDeletionTokensParams) ([]ListAccountDeletionTokensRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
-	ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error)
 	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)
 	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
@@ -269,7 +262,6 @@ type Querier interface {
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
 	MarkPlacementApplied(ctx context.Context, arg MarkPlacementAppliedParams) error
 	MarkPlacementDeleted(ctx context.Context, arg MarkPlacementDeletedParams) ([]MarkPlacementDeletedRow, error)
-	MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error
 	MarkResourcePlacementsDeleted(ctx context.Context, resourceID uuid.UUID) ([]MarkResourcePlacementsDeletedRow, error)
 	MoveAccountEmail(ctx context.Context, arg MoveAccountEmailParams) (User, error)
 	NextPlacementRetry(ctx context.Context, clusterID uuid.UUID) (int64, error)
@@ -293,8 +285,6 @@ type Querier interface {
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
-	RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error
-	RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
 	RemoveOrgMember(ctx context.Context, arg RemoveOrgMemberParams) error
 	RemoveResourceScopesForUserInWorkspace(ctx context.Context, arg RemoveResourceScopesForUserInWorkspaceParams) error
@@ -337,7 +327,6 @@ type Querier interface {
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
 	UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error
-	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)

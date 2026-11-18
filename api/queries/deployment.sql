@@ -70,11 +70,6 @@ WHERE r.workspace_id = sqlc.arg('workspace_id')
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('page_size');
 
--- name: MarkPreviousDeploymentsNotActive :exec
-UPDATE deployments
-SET is_active = false, updated_at = NOW()
-WHERE resource_id = $1 AND is_active = true;
-
 -- name: GetActiveDeploymentForResourceAndRegion :one
 SELECT * FROM deployments
 WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
@@ -90,14 +85,6 @@ WHERE id = $1;
 
 -- name: GetDeploymentResourceID :one
 SELECT resource_id FROM deployments WHERE id = $1;
-
--- name: UpdateDeploymentStatus :exec
-UPDATE deployments
-SET status = $2, updated_at = NOW()
-WHERE id = $1;
-
--- name: ListActiveDeployments :many
-SELECT resource_id FROM deployments WHERE is_active = true;
 
 -- name: ListActiveDeploymentsForResource :many
 SELECT * FROM deployments

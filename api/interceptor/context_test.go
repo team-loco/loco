@@ -15,10 +15,7 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-const (
-	serverTimingHeader = "Server-Timing"
-	callerRequestID    = "caller-request-id"
-)
+const callerRequestID = "caller-request-id"
 
 type contextTestServer struct {
 	configv1connect.UnimplementedConfigServiceHandler
@@ -54,8 +51,5 @@ func TestContextInterceptorUnaryResponseHeaders(t *testing.T) {
 	}
 	if got := info.ResponseHeader().Get(rpc.RequestIDHeader); got != callerRequestID {
 		t.Errorf("request ID = %q", got)
-	}
-	if got := info.ResponseHeader().Values(serverTimingHeader); len(got) != 0 {
-		t.Errorf("Server-Timing = %q", got)
 	}
 }

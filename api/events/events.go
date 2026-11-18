@@ -122,7 +122,6 @@ const (
 
 const (
 	FieldName          = "name"
-	FieldAction        = "action"
 	FieldDomain        = "domain"
 	FieldResourceID    = "resourceId"
 	FieldDeploymentID  = "deploymentId"

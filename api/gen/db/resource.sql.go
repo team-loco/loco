@@ -65,33 +65,6 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-const getClusterDetails = `-- name: GetClusterDetails :one
-SELECT id, is_active, health_status, agent_version, last_heartbeat
-FROM clusters
-WHERE id = $1
-`
-
-type GetClusterDetailsRow struct {
-	ID            uuid.UUID  `json:"id"`
-	IsActive      bool       `json:"isActive"`
-	HealthStatus  *string    `json:"healthStatus"`
-	AgentVersion  *string    `json:"agentVersion"`
-	LastHeartbeat *time.Time `json:"lastHeartbeat"`
-}
-
-func (q *Queries) GetClusterDetails(ctx context.Context, id uuid.UUID) (GetClusterDetailsRow, error) {
-	row := q.db.QueryRow(ctx, getClusterDetails, id)
-	var i GetClusterDetailsRow
-	err := row.Scan(
-		&i.ID,
-		&i.IsActive,
-		&i.HealthStatus,
-		&i.AgentVersion,
-		&i.LastHeartbeat,
-	)
-	return i, err
-}
-
 const getResourceByID = `-- name: GetResourceByID :one
 SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r

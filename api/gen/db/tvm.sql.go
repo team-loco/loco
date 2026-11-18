@@ -141,15 +141,6 @@ func (q *Queries) CreateSessionToken(ctx context.Context, arg CreateSessionToken
 	return err
 }
 
-const deleteAPIToken = `-- name: DeleteAPIToken :exec
-DELETE FROM api_tokens WHERE id = $1
-`
-
-func (q *Queries) DeleteAPIToken(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteAPIToken, id)
-	return err
-}
-
 const deleteAPITokenByHash = `-- name: DeleteAPITokenByHash :exec
 DELETE FROM api_tokens WHERE token_hash = $1
 `
@@ -171,20 +162,6 @@ type DeleteAPITokenByNameAndEntityParams struct {
 
 func (q *Queries) DeleteAPITokenByNameAndEntity(ctx context.Context, arg DeleteAPITokenByNameAndEntityParams) error {
 	_, err := q.db.Exec(ctx, deleteAPITokenByNameAndEntity, arg.Name, arg.EntityType, arg.EntityID)
-	return err
-}
-
-const deleteAPITokensForEntity = `-- name: DeleteAPITokensForEntity :exec
-DELETE FROM api_tokens WHERE entity_type = $1 AND entity_id = $2
-`
-
-type DeleteAPITokensForEntityParams struct {
-	EntityType EntityType `json:"entityType"`
-	EntityID   uuid.UUID  `json:"entityId"`
-}
-
-func (q *Queries) DeleteAPITokensForEntity(ctx context.Context, arg DeleteAPITokensForEntityParams) error {
-	_, err := q.db.Exec(ctx, deleteAPITokensForEntity, arg.EntityType, arg.EntityID)
 	return err
 }
 
@@ -556,65 +533,6 @@ func (q *Queries) GetUserScopesOnOrganization(ctx context.Context, arg GetUserSc
 	return items, nil
 }
 
-const getUserScopesOnWorkspace = `-- name: GetUserScopesOnWorkspace :many
-WITH RECURSIVE entity_hierarchy AS (
-     -- Base case: the workspace itself
-     SELECT
-         'workspace'::entity_type as entity_type,
-         w.id as entity_id,
-         w.name as entity_name
-     FROM workspaces w
-     WHERE w.id = $1
-
-     UNION ALL
-
-     -- Resources in the workspace
-     SELECT
-         'resource'::entity_type,
-         r.id,
-         r.name
-     FROM resources r
-     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
- )
- SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     us.entity_type, us.entity_id, us.scope
- FROM user_scopes us
- INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
- WHERE us.user_id = $2
- ORDER BY us.entity_type, us.entity_id, us.scope
-`
-
-type GetUserScopesOnWorkspaceParams struct {
-	ID     uuid.UUID `json:"id"`
-	UserID uuid.UUID `json:"userId"`
-}
-
-type GetUserScopesOnWorkspaceRow struct {
-	EntityType EntityType `json:"entityType"`
-	EntityID   uuid.UUID  `json:"entityId"`
-	Scope      Scope      `json:"scope"`
-}
-
-func (q *Queries) GetUserScopesOnWorkspace(ctx context.Context, arg GetUserScopesOnWorkspaceParams) ([]GetUserScopesOnWorkspaceRow, error) {
-	rows, err := q.db.Query(ctx, getUserScopesOnWorkspace, arg.ID, arg.UserID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetUserScopesOnWorkspaceRow
-	for rows.Next() {
-		var i GetUserScopesOnWorkspaceRow
-		if err := rows.Scan(&i.EntityType, &i.EntityID, &i.Scope); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const getUsersWithScopeOnEntity = `-- name: GetUsersWithScopeOnEntity :many
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3
 `
@@ -741,29 +659,6 @@ func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]
 		return nil, err
 	}
 	return items, nil
-}
-
-const removeAllScopesForEntity = `-- name: RemoveAllScopesForEntity :exec
-DELETE FROM user_scopes WHERE entity_type = $1 AND entity_id = $2
-`
-
-type RemoveAllScopesForEntityParams struct {
-	EntityType EntityType `json:"entityType"`
-	EntityID   uuid.UUID  `json:"entityId"`
-}
-
-func (q *Queries) RemoveAllScopesForEntity(ctx context.Context, arg RemoveAllScopesForEntityParams) error {
-	_, err := q.db.Exec(ctx, removeAllScopesForEntity, arg.EntityType, arg.EntityID)
-	return err
-}
-
-const removeAllScopesForUser = `-- name: RemoveAllScopesForUser :exec
-DELETE FROM user_scopes WHERE user_id = $1
-`
-
-func (q *Queries) RemoveAllScopesForUser(ctx context.Context, userID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, removeAllScopesForUser, userID)
-	return err
 }
 
 const removeAllScopesForUserOnEntity = `-- name: RemoveAllScopesForUserOnEntity :exec
