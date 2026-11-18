@@ -1,0 +1,17 @@
+# The bundle pins its API image in the HelmRelease's inline values.
+patches:
+  - target: {group: kustomize.toolkit.fluxcd.io, kind: Kustomization, name: loco}
+    patch: |
+      - op: add
+        path: /spec/patches
+        value:
+          - target: {kind: Kustomization, name: loco-control-plane}
+            patch: |
+              - op: add
+                path: /spec/patches
+                value:
+                  - target: {kind: HelmRelease, name: loco-control-plane}
+                    patch: |
+                      - op: replace
+                        path: /spec/values/api/image
+                        value: {repository: "{{ .Repository }}", tag: "ci@{{ .Digest }}"}

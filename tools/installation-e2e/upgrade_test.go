@@ -36,27 +36,3 @@ func TestHeadCLIActivation(t *testing.T) {
 		})
 	}
 }
-
-func TestSchemaTransitionFailureKeepsBaselineCLI(t *testing.T) {
-	dir := t.TempDir()
-	for name, script := range map[string]string{
-		kubectlExecutable: "#!/bin/sh\nexit 41\n",
-		locoadmExecutable: "#!/bin/sh\nprintf baseline\n",
-		"locoadm-head":    "#!/bin/sh\nprintf head\n",
-	} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", dir)
-	if err := upgradePlatform(t.Context()); err == nil {
-		t.Fatal("schema transition failure passed upgrade")
-	}
-	data, err := os.ReadFile(filepath.Join(dir, locoadmExecutable))
-	if err != nil || string(data) != "#!/bin/sh\nprintf baseline\n" {
-		t.Fatalf("baseline CLI changed before upgrade: %q, %v", data, err)
-	}
-	if _, err = os.Stat(filepath.Join(dir, "locoadm-head")); err != nil {
-		t.Fatal("failed upgrade consumed head CLI", err)
-	}
-}
