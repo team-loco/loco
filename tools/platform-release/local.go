@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	fieldAuth      = "auth"
 	buildOperation = "build"
 	pushOperation  = "push"
 	tagOperation   = "tag"
@@ -78,7 +77,7 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 		manifest.Artifacts[artifact.name] = options.address + "/" + names[artifact.name] + "@" + digest
 	}
 	auth := base64.StdEncoding.EncodeToString([]byte(r.username + ":" + r.password))
-	config := encoded(object{"auths": object{r.host: object{fieldAuth: auth}}})
+	config := encoded(object{"auths": object{r.host: object{"auth": auth}}})
 	if checkErr := os.WriteFile(filepath.Join(directory, "config.json"), config, 0o600); checkErr != nil {
 		return manifest, checkErr
 	}

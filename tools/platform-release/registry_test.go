@@ -280,7 +280,7 @@ func TestRegistryRejectsIncorrectManifestDigest(t *testing.T) {
 	}))
 	defer server.Close()
 	r := &registry{base: server.URL, client: server.Client(), tokens: map[string]string{}}
-	_, err := r.manifest(context.Background(), "example/chart", fieldVersion, false)
+	_, err := r.manifest(context.Background(), "example/chart", fixtureVersion, false)
 	require.ErrorContains(t, err, "digest mismatch")
 }
 
