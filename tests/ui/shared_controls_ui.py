@@ -525,8 +525,34 @@ def volume(page):
             )
         expect(info).to_contain_text("10,005")
 
-    open_hour()
     slider = page.get_by_role("slider", name=re.compile(r"^Log volume"))
+    lines = page.get_by_role("region", name="Log lines")
+    held = []
+    for viewport in (evidence.DESKTOP, evidence.NARROW):
+        page.set_viewport_size(viewport)
+        held.clear()
+        page.route(
+            "**/loco.observability.v1.ObservabilityService/QueryLogBuckets",
+            lambda route: held.append(route),
+        )
+        page.goto(
+            state["ui_url"]
+            + base
+            + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
+        )
+        expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
+        expect(info).to_contain_text("—")
+        assert held
+        loading = lines.bounding_box()["y"]
+        # A held route cannot fall back to the context mock; answer it here.
+        for route in held:
+            route.fulfill(json={"buckets": []})
+        page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogBuckets")
+        expect(slider).to_be_visible()
+        assert lines.bounding_box()["y"] == loading, viewport
+    page.set_viewport_size(evidence.DESKTOP)
+
+    open_hour()
     expect(slider).to_be_visible()
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
     area = (

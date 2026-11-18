@@ -48,7 +48,7 @@ import {
 import { QueryBar, QueryErrorLine } from "./QueryBar";
 import { logVolume } from "./log-volume";
 import { toRows, visibleLogRows, type LogRow } from "./rows";
-import { PAGE_SIZES, VolumeBars, type VolumeBucket } from "./shared";
+import { PAGE_SIZES, VOLUME_BARS_HEIGHT, VolumeBars, type VolumeBucket } from "./shared";
 import { LiveButton } from "./Toolbar";
 import { ViewHeader } from "./ViewHeader";
 
@@ -467,17 +467,19 @@ export function LogsView() {
 						</ToggleGroup>
 						{volume.error !== null ? (
 							<ErrorState error={volume.error} what="log volume" rpc={queryLogBuckets} onRetry={volume.refetch} />
-						) : volume.isLoading || environmentLoading ? (
-							<Skeleton className="h-14 w-full" />
 						) : (
 							<>
-								<VolumeBars
-									buckets={buckets}
-									label="Log volume over the selected range. Arrow keys move between bars, Enter zooms in."
-									onPick={(i) => {
-										setRange({ kind: "absolute", from: chartStart + i * bw, to: chartStart + (i + 1) * bw });
-									}}
-								/>
+								{volume.isLoading || environmentLoading ? (
+									<Skeleton className={cn("w-full", VOLUME_BARS_HEIGHT)} />
+								) : (
+									<VolumeBars
+										buckets={buckets}
+										label="Log volume over the selected range. Arrow keys move between bars, Enter zooms in."
+										onPick={(i) => {
+											setRange({ kind: "absolute", from: chartStart + i * bw, to: chartStart + (i + 1) * bw });
+										}}
+									/>
+								)}
 								<TimeAxis from={chartStart} to={chartEnd} />
 							</>
 						)}
