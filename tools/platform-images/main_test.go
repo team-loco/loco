@@ -21,13 +21,13 @@ func TestResolve(t *testing.T) {
 	)
 	index := fmt.Sprintf(`{"manifests":[%s,%s,%s]}`, amd64, arm64, other)
 	for _, arch := range []string{archAMD64, archARM64} {
-		got, err := resolve(image+"@sha256:index", "linux", arch, []byte(index))
+		got, err := resolve(image+"@sha256:index", arch, []byte(index))
 		require.NoError(t, err)
 		require.Equal(t, image+"@sha256:"+arch, got)
 	}
 	for _, manifests := range []string{amd64 + "," + other, arm64 + "," + arm64} {
 		index := fmt.Sprintf(`{"manifests":[%s]}`, manifests)
-		_, err := resolve(image, "linux", archARM64, []byte(index))
+		_, err := resolve(image, archARM64, []byte(index))
 		require.ErrorContains(t, err, "exactly one linux/arm64")
 	}
 }
@@ -61,8 +61,7 @@ func TestVerifyBinary(t *testing.T) {
 }
 
 func TestVerifyImage(t *testing.T) {
-	machines := map[string]elf.Machine{archAMD64: elf.EM_X86_64, archARM64: elf.EM_AARCH64}
-	machine, ok := machines[runtime.GOARCH]
+	machine, ok := machineByArch[runtime.GOARCH]
 	if !ok || runtime.GOOS == "windows" {
 		t.Skip("requires a Unix shell on amd64 or arm64")
 	}
@@ -86,12 +85,12 @@ esac
 
 	entrypoint := filepath.Join(dir, "entrypoint")
 	require.NoError(t, os.WriteFile(entrypoint, elfBinary(machine, elf.PT_LOAD), 0o600))
-	require.NoError(t, verifyImage(t.Context(), "test-image", "linux", runtime.GOARCH))
+	require.NoError(t, verifyImage(t.Context(), "test-image", runtime.GOARCH))
 	require.FileExists(t, filepath.Join(dir, "removed"))
 
 	require.NoError(t, os.Remove(filepath.Join(dir, "removed")))
 	require.NoError(t, os.WriteFile(entrypoint, elfBinary(machine, elf.PT_INTERP), 0o600))
-	require.ErrorContains(t, verifyImage(t.Context(), "test-image", "linux", runtime.GOARCH), "statically linked")
+	require.ErrorContains(t, verifyImage(t.Context(), "test-image", runtime.GOARCH), "statically linked")
 	require.FileExists(t, filepath.Join(dir, "removed"))
 }
 

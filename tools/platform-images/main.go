@@ -14,9 +14,12 @@ import (
 )
 
 const (
-	archAMD64 = "amd64"
-	archARM64 = "arm64"
+	platformOS = "linux"
+	archAMD64  = "amd64"
+	archARM64  = "arm64"
 )
+
+var machineByArch = map[string]elf.Machine{archAMD64: elf.EM_X86_64, archARM64: elf.EM_AARCH64}
 
 func main() {
 	if err := run(context.Background(), os.Args[1:]); err != nil {
@@ -31,8 +34,8 @@ func run(ctx context.Context, args []string) error {
 		return errors.New(usage)
 	}
 	operation, target, platform := args[0], args[1], args[2]
-	system, arch, _ := strings.Cut(platform, "/")
-	if system != "linux" || (arch != archAMD64 && arch != archARM64) {
+	arch, linux := strings.CutPrefix(platform, platformOS+"/")
+	if !linux || machineByArch[arch] == elf.EM_NONE {
 		return fmt.Errorf("unsupported platform %q", platform)
 	}
 
@@ -42,13 +45,13 @@ func run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		image, err := resolve(target, system, arch, data)
+		image, err := resolve(target, arch, data)
 		if err != nil {
 			return err
 		}
 		fmt.Println(image)
 	case operation == "image" && len(args) == 3:
-		if err := verifyImage(ctx, target, system, arch); err != nil {
+		if err := verifyImage(ctx, target, arch); err != nil {
 			return err
 		}
 		fmt.Printf("%s image and static ELF entrypoint verified\n", platform)
@@ -63,7 +66,7 @@ func run(ctx context.Context, args []string) error {
 	return nil
 }
 
-func resolve(image, system, arch string, data []byte) (string, error) {
+func resolve(image, arch string, data []byte) (string, error) {
 	var index struct {
 		Manifests []struct {
 			Digest   string `json:"digest"`
@@ -79,19 +82,19 @@ func resolve(image, system, arch string, data []byte) (string, error) {
 	var count int
 	var digest string
 	for _, manifest := range index.Manifests {
-		if manifest.Platform.OS == system && manifest.Platform.Architecture == arch {
+		if manifest.Platform.OS == platformOS && manifest.Platform.Architecture == arch {
 			count++
 			digest = manifest.Digest
 		}
 	}
 	if count != 1 || digest == "" {
-		return "", fmt.Errorf("image index must contain exactly one %s/%s image with a digest", system, arch)
+		return "", fmt.Errorf("image index must contain exactly one %s/%s image with a digest", platformOS, arch)
 	}
 	repository, _, _ := strings.Cut(image, "@")
 	return repository + "@" + digest, nil
 }
 
-func verifyImage(ctx context.Context, image, system, arch string) (err error) {
+func verifyImage(ctx context.Context, image, arch string) (err error) {
 	if arch != runtime.GOARCH {
 		return errors.New("image verification requires a native architecture runner")
 	}
@@ -109,7 +112,7 @@ func verifyImage(ctx context.Context, image, system, arch string) (err error) {
 	if err = json.Unmarshal(output, &info); err != nil {
 		return fmt.Errorf("decode image configuration: %w", err)
 	}
-	if len(info) != 1 || info[0].OS != system || info[0].Architecture != arch {
+	if len(info) != 1 || info[0].OS != platformOS || info[0].Architecture != arch {
 		return errors.New("image configuration does not match requested platform")
 	}
 	if len(info[0].Config.Entrypoint) == 0 || info[0].Config.Entrypoint[0] == "" {
@@ -145,8 +148,7 @@ func verifyBinary(path, arch string) error {
 	if file.Class != elf.ELFCLASS64 || file.Data != elf.ELFDATA2LSB {
 		return errors.New("entrypoint must be a little-endian ELF64 binary")
 	}
-	machines := map[string]elf.Machine{archAMD64: elf.EM_X86_64, archARM64: elf.EM_AARCH64}
-	if file.Machine != machines[arch] {
+	if file.Machine != machineByArch[arch] {
 		return fmt.Errorf("entrypoint machine %s does not match %s", file.Machine, arch)
 	}
 	if len(file.Progs) == 0 {
