@@ -103,9 +103,13 @@ func (i image) String() string {
 
 func readValues(root string) values {
 	var worker workerValues
-	readYAML(filepath.Join(root, "charts", "loco-worker", "values.yaml"), &worker)
+	if err := ReadYAML(filepath.Join(root, "charts", "loco-worker", "values.yaml"), &worker); err != nil {
+		panic(err)
+	}
 	var controlPlane controlPlaneValues
-	readYAML(filepath.Join(root, "charts", "loco-control-plane", "values.yaml"), &controlPlane)
+	if err := ReadYAML(filepath.Join(root, "charts", "loco-control-plane", "values.yaml"), &controlPlane); err != nil {
+		panic(err)
+	}
 	return values{
 		workspacePrefix:   worker.Global.WorkspaceNamespacePrefix,
 		buildNamespace:    worker.Builds.Namespace,
@@ -127,14 +131,16 @@ func readValues(root string) values {
 	}
 }
 
-func readYAML(path string, into any) {
+// ReadYAML decodes the YAML or JSON file at path into into.
+func ReadYAML(path string, into any) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if err := yaml.Unmarshal(data, into); err != nil {
-		panic(fmt.Sprintf("parse %s: %v", path, err))
+		return fmt.Errorf("parse %s: %w", path, err)
 	}
+	return nil
 }
 
 // fromImage reads the image of a fixture Dockerfile's FROM line.
@@ -155,7 +161,9 @@ func fromImage(root, dockerfile string) string {
 // kindNodeImage is the node image of E2E_KUBERNETES_VERSION, oldest or newest.
 func kindNodeImage(root string) string {
 	var versions map[string]string
-	readYAML(filepath.Join(root, "agent", "pkg", "cluster", "kubernetes.json"), &versions)
+	if err := ReadYAML(filepath.Join(root, "agent", "pkg", "cluster", "kubernetes.json"), &versions); err != nil {
+		panic(err)
+	}
 	version := envOr("E2E_KUBERNETES_VERSION", "newest")
 	node, ok := versions[version]
 	if !ok {

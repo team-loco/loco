@@ -78,7 +78,7 @@ type failover struct {
 //
 //nolint:thelper // a step of TestControlPlane
 func (cp *controlPlane) checkFailover(t *testing.T) {
-	f := &failover{cp: cp, name: "api-failover-" + randomHex(t, 4)}
+	f := &failover{cp: cp, name: "api-failover-" + platform.RandomHex(4)}
 	t.Cleanup(f.cleanup(t))
 	f.startFixture(t)
 	var worker struct {

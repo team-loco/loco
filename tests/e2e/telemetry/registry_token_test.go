@@ -8,8 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -19,7 +17,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 
-	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/tests/e2e/platform"
@@ -111,52 +108,13 @@ type registryRun struct {
 func deploySource(t *testing.T, w *platform.Workspace, app, label string) {
 	t.Helper()
 	dir := t.TempDir()
-	writeSource(t, dir, label)
+	p.CopyBuildApp(t, dir, label)
 	platform.WriteLocoFile(
 		t,
 		dir,
 		locofile.File{Partial: app, Services: map[string]locofile.Service{app: platform.SourceService()}},
 	)
 	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
-}
-
-func writeSource(t *testing.T, dir, label string) {
-	t.Helper()
-	p.CopyFixture(t, "build-app", dir)
-	file, err := os.OpenFile(filepath.Join(dir, "main.go"), os.O_APPEND|os.O_WRONLY, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	if _, err := fmt.Fprintf(file, "\nfunc init() { log.SetPrefix(%q) }\n", label+" "); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// startBuild creates, uploads and starts a build of the app through the API.
-func startBuild(t *testing.T, w *platform.Workspace, app, label string) string {
-	t.Helper()
-	source := t.TempDir()
-	writeSource(t, source, label)
-	archive := p.PackSource(t, source)
-	info, err := os.Stat(archive)
-	if err != nil {
-		t.Fatal(err)
-	}
-	created, err := p.User.Build.CreateBuild(t.Context(), &buildv1.CreateBuildRequest{
-		ResourceId: w.ResourceID(t, app), DockerfilePath: "deploy/Dockerfile", SourceSize: info.Size(),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	platform.Upload(t, created.GetUploadUrl(), archive)
-	if _, err := p.User.Build.StartBuild(
-		t.Context(),
-		&buildv1.StartBuildRequest{BuildId: created.GetBuildId()},
-	); err != nil {
-		t.Fatal(err)
-	}
-	return created.GetBuildId()
 }
 
 func latestBuild(t *testing.T, w *platform.Workspace, app string) string {
@@ -603,7 +561,7 @@ func (r *registryRun) resentBuild(t *testing.T) {
 		}
 		return nil
 	})
-	r.resent = startBuild(t, a, appA, appA+"-resend")
+	r.resent = p.StartBuild(t, a.ResourceID(t, appA), appA+"-resend").ID
 	platform.Eventually(
 		t,
 		secretTimeout,

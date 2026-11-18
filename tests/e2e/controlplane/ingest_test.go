@@ -12,8 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 
 	"github.com/team-loco/loco/internal/clusterassertion"
@@ -24,8 +22,6 @@ const (
 	assertionLifetime = time.Minute
 	ingestTimeout     = 30 * time.Second
 	protobufContent   = "application/x-protobuf"
-	// workspaceAttribute matches the one observability-proxy/pkg/ingest/tenancy.go filters on.
-	workspaceAttribute = "loco.workspace.id"
 )
 
 var selectGrant = regexp.MustCompile(`^GRANT SELECT `)
@@ -40,7 +36,7 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name := "ingest-e2e-" + randomHex(t, 4)
+	name := "ingest-e2e-" + platform.RandomHex(4)
 	ids := strings.Fields(cp.psql(t, fmt.Sprintf(`
 		WITH u AS (INSERT INTO users (email) VALUES ('%[1]s@test.local') RETURNING id),
 		o AS (INSERT INTO organizations (name, created_by) SELECT '%[1]s', id FROM u RETURNING id),
@@ -79,8 +75,8 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 		t.Fatalf("got the ingest token %q and the JWKS %+v, want a token and the v1 EdDSA key", issued.Token, jwks)
 	}
 
-	marker := "control-plane-ingest-" + randomHex(t, 4)
-	export := exportRequest(t, workspace, marker)
+	marker := "control-plane-ingest-" + platform.RandomHex(4)
+	export := string(platform.OTLPLogs(t, workspace, marker))
 	ingest := cp.values.ObsProxy.Ingest.Hostname
 	protobuf := http.Header{contentTypeHeader: {protobufContent}}
 	cp.request(t, http.MethodPost, ingest, "/v1/logs", export, protobuf).expect(t, http.StatusUnauthorized)
@@ -121,22 +117,4 @@ func (cp *controlPlane) checkIngest(t *testing.T) {
 		}
 		return err
 	})
-}
-
-// exportRequest is an OTLP/HTTP protobuf export of one log record of workspace.
-func exportRequest(t *testing.T, workspace, body string) string {
-	t.Helper()
-	logs := plog.NewLogs()
-	resource := logs.ResourceLogs().AppendEmpty()
-	resource.Resource().Attributes().PutStr("service.name", "e2e-ingest")
-	resource.Resource().Attributes().PutStr(workspaceAttribute, workspace)
-	record := resource.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
-	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now().Truncate(time.Second)))
-	record.SetSeverityText("INFO")
-	record.Body().SetStr(body)
-	payload, err := plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(payload)
 }

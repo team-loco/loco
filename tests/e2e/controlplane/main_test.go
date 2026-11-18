@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -39,7 +38,7 @@ func setup(ctx context.Context) error {
 		Chart      string `json:"chart"`
 		Version    string `json:"version"`
 	}
-	if err := readYAML(c.Path("charts", "cert-manager.yaml"), &certManager); err != nil {
+	if err := platform.ReadYAML(c.Path("charts", "cert-manager.yaml"), &certManager); err != nil {
 		return err
 	}
 	_, err := c.Helm(ctx, "upgrade", "--install", "cert-manager", certManager.Chart,
@@ -49,17 +48,9 @@ func setup(ctx context.Context) error {
 	return err
 }
 
-func readYAML(path string, into any) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	return yaml.Unmarshal(data, into)
-}
-
 func mustReadYAML(tb testing.TB, path string, into any) {
 	tb.Helper()
-	if err := readYAML(path, into); err != nil {
+	if err := platform.ReadYAML(path, into); err != nil {
 		tb.Fatal(err)
 	}
 }
@@ -140,20 +131,8 @@ func writeFile(tb testing.TB, name, content string) string {
 	return path
 }
 
-func randomBase64(tb testing.TB, size int) string {
-	tb.Helper()
+func randomBase64(size int) string {
 	data := make([]byte, size)
-	if _, err := rand.Read(data); err != nil {
-		tb.Fatal(err)
-	}
+	_, _ = rand.Read(data)
 	return base64.StdEncoding.EncodeToString(data)
-}
-
-func randomHex(tb testing.TB, size int) string {
-	tb.Helper()
-	data := make([]byte, size)
-	if _, err := rand.Read(data); err != nil {
-		tb.Fatal(err)
-	}
-	return hex.EncodeToString(data)
 }

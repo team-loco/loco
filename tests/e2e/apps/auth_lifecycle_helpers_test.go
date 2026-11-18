@@ -1,8 +1,6 @@
 package apps
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -12,9 +10,12 @@ import (
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
-	"github.com/team-loco/loco/internal/bearer"
 	"github.com/team-loco/loco/internal/rpc"
+	"github.com/team-loco/loco/tests/e2e/platform"
 )
+
+// everyScope is the read, write and admin scope.
+var everyScope = []tokenv1.Scope{tokenv1.Scope_SCOPE_READ, tokenv1.Scope_SCOPE_WRITE, tokenv1.Scope_SCOPE_ADMIN}
 
 type lifecycleUser struct {
 	id      string
@@ -26,7 +27,10 @@ type lifecycleUser struct {
 func signInLifecycleUser(t *testing.T, email string) lifecycleUser {
 	t.Helper()
 	web := p.Clients(p.ProviderToken(t, email))
-	code := approveLifecycleCode(t, web)
+	code, err := platform.ApproveCLILogin(t.Context(), web)
+	if err != nil {
+		t.Fatal(err)
+	}
 	exchanged, err := p.Clients("").Auth.ExchangeCLICode(t.Context(), code)
 	if err != nil {
 		t.Fatal(err)
@@ -47,32 +51,6 @@ func inviteLifecycleUser(t *testing.T, admin *rpc.Clients, orgID, email string) 
 		t.Fatal(err)
 	}
 	return signInLifecycleUser(t, email)
-}
-
-func approveLifecycleCode(t *testing.T, web *rpc.Clients) *authv1.ExchangeCLICodeRequest {
-	t.Helper()
-	verifier := bearer.New("")
-	sum := sha256.Sum256([]byte(verifier))
-	response, err := web.Auth.ApproveCLILogin(t.Context(), &authv1.ApproveCLILoginRequest{
-		State: bearer.New(""), CodeChallenge: base64.RawURLEncoding.EncodeToString(sum[:]),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return &authv1.ExchangeCLICodeRequest{Code: response.GetCode(), CodeVerifier: verifier}
-}
-
-func lifecycleToken(t *testing.T, clients *rpc.Clients, name string, owner tokenv1.EntityType,
-	ownerID string, scopes ...*tokenv1.EntityScope,
-) string {
-	t.Helper()
-	response, err := clients.Token.CreateToken(t.Context(), &tokenv1.CreateTokenRequest{
-		Name: name, EntityType: owner, EntityId: ownerID, Scopes: scopes, ExpiresInSec: 3600,
-	})
-	if err != nil {
-		t.Fatalf("create %s token: %v", name, err)
-	}
-	return response.GetToken()
 }
 
 func lifecycleRead(workspaceID string) *tokenv1.EntityScope {

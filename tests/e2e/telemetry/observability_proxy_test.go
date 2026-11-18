@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
-	"go.opentelemetry.io/collector/pdata/pcommon"
-	"go.opentelemetry.io/collector/pdata/plog"
 	"go.opentelemetry.io/collector/pdata/plog/plogotlp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -31,8 +29,6 @@ const (
 	otherWorkspace     = "00000000-0000-7000-8000-999999999999"
 	queryWindow        = time.Hour
 	ingestTokenTimeout = time.Minute
-	// workspaceAttribute matches the one observability-proxy/pkg/ingest/tenancy.go filters on.
-	workspaceAttribute = "loco.workspace.id"
 )
 
 // TestObservabilityProxy checks the observability reads and the OTLP ingest proxy: health, token
@@ -233,9 +229,7 @@ func queryLogsCode(t *testing.T, token, workspaceID string) connect.Code {
 // forged keeps a token's header and claims and replaces its signature.
 func forged(token string) string {
 	signature := make([]byte, 64)
-	if _, err := rand.Read(signature); err != nil {
-		panic(err)
-	}
+	_, _ = rand.Read(signature)
 	return token[:strings.LastIndex(token, ".")+1] + base64.RawURLEncoding.EncodeToString(signature)
 }
 
@@ -243,19 +237,7 @@ func forged(token string) string {
 // the HTTP status and the records the proxy reports rejected.
 func postLogs(t *testing.T, workspaceID, body, authorization string) (int, int64) {
 	t.Helper()
-	logs := plog.NewLogs()
-	resourceLogs := logs.ResourceLogs().AppendEmpty()
-	resourceLogs.Resource().Attributes().PutStr("service.name", "e2e-ingest")
-	resourceLogs.Resource().Attributes().PutStr(workspaceAttribute, workspaceID)
-	record := resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty()
-	// Whole seconds keep the record inside a query window that ends at the current second.
-	record.SetTimestamp(pcommon.NewTimestampFromTime(time.Now().Truncate(time.Second)))
-	record.SetSeverityText("INFO")
-	record.Body().SetStr(body)
-	payload, err := plogotlp.NewExportRequestFromLogs(logs).MarshalProto()
-	if err != nil {
-		t.Fatal(err)
-	}
+	payload := platform.OTLPLogs(t, workspaceID, body)
 	headers := map[string]string{contentType: "application/x-protobuf"}
 	if authorization != "" {
 		headers["Authorization"] = authorization

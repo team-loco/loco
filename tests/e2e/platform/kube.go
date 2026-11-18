@@ -18,6 +18,22 @@ func (c *Cluster) Kubectl(ctx context.Context, args ...string) (string, error) {
 	return c.Command(ctx, "kubectl", append([]string{"--context", c.kubeContext}, args...)...)
 }
 
+// WaitDeployments waits for the Deployments selector matches in namespace to exist and roll out.
+func (c *Cluster) WaitDeployments(ctx context.Context, namespace, selector string, timeout time.Duration) error {
+	if err := waitFor(ctx, timeout, "Deployments "+selector, func(ctx context.Context) error {
+		found, err := c.Exists(ctx, "-n", namespace, "deployments", "-l", selector)
+		if err == nil && !found {
+			return errNotYet
+		}
+		return err
+	}); err != nil {
+		return err
+	}
+	_, err := c.Kubectl(ctx, "-n", namespace, "rollout", "status", "deployment", "-l", selector,
+		"--timeout", timeout.String())
+	return err
+}
+
 // KubectlInput runs kubectl with input on its standard input.
 func (c *Cluster) KubectlInput(ctx context.Context, input string, args ...string) (string, error) {
 	return c.commandStdin(ctx, []byte(input), "kubectl", append([]string{"--context", c.kubeContext}, args...)...)

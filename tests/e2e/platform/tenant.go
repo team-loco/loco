@@ -289,7 +289,7 @@ func ImageService(image string, domains ...string) locofile.Service {
 // SourceService builds deploy/Dockerfile and serves port 8080 with a health check on /healthz.
 func SourceService(domains ...string) locofile.Service {
 	service := Service(8080, domains...)
-	service.Dockerfile = "deploy/Dockerfile"
+	service.Dockerfile = BuildAppDockerfile
 	service.Health = Health("/healthz")
 	return service
 }

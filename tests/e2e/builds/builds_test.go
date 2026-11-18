@@ -39,7 +39,14 @@ func TestBuilds(t *testing.T) {
 	appRepository := p.RegistryHost + "/e2e/build-app"
 	fixture := t.TempDir()
 	p.CopyFixture(t, "build-app", fixture)
-	first := applyBuild(t, "e2e-app-1", p.UploadSource(t, "e2e-app-1", fixture), buildAppDockerfile, appRepository, "")
+	first := applyBuild(
+		t,
+		"e2e-app-1",
+		p.UploadSource(t, "e2e-app-1", fixture),
+		platform.BuildAppDockerfile,
+		appRepository,
+		"",
+	)
 
 	t.Run("the first build pushes an image and its cache", func(t *testing.T) {
 		if first.Status.Phase != succeeded {
@@ -108,7 +115,7 @@ func TestBuilds(t *testing.T) {
 			t,
 			"e2e-app-2",
 			p.UploadSource(t, "e2e-app-2", fixture),
-			buildAppDockerfile,
+			platform.BuildAppDockerfile,
 			appRepository,
 			appRepository+"@"+first.Status.CacheDigest,
 		)

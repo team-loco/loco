@@ -41,7 +41,7 @@ var errNoMetrics = errors.New("not in the sink yet")
 // pods were replaced.
 func TestClusterMetrics(t *testing.T) {
 	t.Parallel()
-	marker := randomHex(t, 4)
+	marker := platform.RandomHex(4)
 	var chart struct {
 		Global struct {
 			Exporter struct {

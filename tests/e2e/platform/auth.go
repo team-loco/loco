@@ -78,19 +78,11 @@ func (p *Platform) cliSession(ctx context.Context, email string) (session, error
 		return session{}, err
 	}
 	clients := rpc.ForHost(p.APIURL, proof)
-	verifier := bearer.New("")
-	sum := sha256.Sum256([]byte(verifier))
-	approved, err := clients.Auth.ApproveCLILogin(ctx, &authv1.ApproveCLILoginRequest{
-		State:         bearer.New(""),
-		CodeChallenge: base64.RawURLEncoding.EncodeToString(sum[:]),
-	})
+	code, err := ApproveCLILogin(ctx, clients)
 	if err != nil {
 		return session{}, err
 	}
-	exchanged, err := clients.Auth.ExchangeCLICode(
-		ctx,
-		&authv1.ExchangeCLICodeRequest{Code: approved.GetCode(), CodeVerifier: verifier},
-	)
+	exchanged, err := clients.Auth.ExchangeCLICode(ctx, code)
 	if err != nil {
 		return session{}, err
 	}
@@ -101,6 +93,21 @@ func (p *Platform) cliSession(ctx context.Context, email string) (session, error
 		Token:        tokens.GetAccessToken(),
 		RefreshToken: tokens.GetRefreshToken(),
 	}, nil
+}
+
+// ApproveCLILogin approves a PKCE CLI login as the signed-in human of clients and returns the
+// exchange request for its code.
+func ApproveCLILogin(ctx context.Context, clients *rpc.Clients) (*authv1.ExchangeCLICodeRequest, error) {
+	verifier := bearer.New("")
+	sum := sha256.Sum256([]byte(verifier))
+	approved, err := clients.Auth.ApproveCLILogin(ctx, &authv1.ApproveCLILoginRequest{
+		State:         bearer.New(""),
+		CodeChallenge: base64.RawURLEncoding.EncodeToString(sum[:]),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &authv1.ExchangeCLICodeRequest{Code: approved.GetCode(), CodeVerifier: verifier}, nil
 }
 
 func (p *Platform) providerLogin(ctx context.Context, email string) (string, error) {

@@ -7,6 +7,7 @@ import (
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	"github.com/team-loco/loco/internal/rpc"
+	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
 func TestTokenIssuanceRequiresSessionOwnerPermissionAndBoundedScopes(t *testing.T) {
@@ -15,22 +16,22 @@ func TestTokenIssuanceRequiresSessionOwnerPermissionAndBoundedScopes(t *testing.
 	other := w.NewWorkspace(t, "other")
 	u := inviteLifecycleUser(t, p.User, w.OrgID, "token-issuance@test.local")
 	setLifecycleRole(t, p.User, w.OrgID, u.id, orgv1.OrgRole_ORG_ROLE_ADMIN)
-	adminScopes := make([]*tokenv1.EntityScope, 0, 3)
-	for _, scope := range []tokenv1.Scope{tokenv1.Scope_SCOPE_READ, tokenv1.Scope_SCOPE_WRITE, tokenv1.Scope_SCOPE_ADMIN} {
-		adminScopes = append(
-			adminScopes,
-			&tokenv1.EntityScope{EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, EntityId: w.ID, Scope: scope},
-		)
-	}
-	personal := lifecycleToken(
+	adminScopes := platform.Scopes(tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, w.ID, everyScope...)
+	personal := platform.CreateToken(
 		t,
 		u.session,
 		"personal-admin",
 		tokenv1.EntityType_ENTITY_TYPE_USER,
 		u.id,
 		adminScopes...)
-	owned := lifecycleToken(t, u.session, "owned-admin", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, w.ID, adminScopes...)
-	lifecycleToken(
+	owned := platform.CreateToken(
+		t,
+		u.session,
+		"owned-admin",
+		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
+		w.ID,
+		adminScopes...)
+	platform.CreateToken(
 		t,
 		u.session,
 		"org-reader",
@@ -83,9 +84,7 @@ func denyLifecycleToken(t *testing.T, clients *rpc.Clients, name string, owner t
 	ownerID string, scopes ...*tokenv1.EntityScope,
 ) {
 	t.Helper()
-	_, err := clients.Token.CreateToken(t.Context(), &tokenv1.CreateTokenRequest{
-		Name: name, EntityType: owner, EntityId: ownerID, Scopes: scopes, ExpiresInSec: 3600,
-	})
+	_, err := clients.Token.CreateToken(t.Context(), platform.TokenRequest(name, owner, ownerID, scopes...))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("create %s token = %v, want PermissionDenied", name, err)
 	}

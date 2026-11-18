@@ -3,7 +3,6 @@ package controlplane
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"maps"
 	"net/http"
@@ -161,19 +160,19 @@ func install(t *testing.T) *controlPlane {
 		"--values", writeJSON(t, "gateway-helm-values.json", workerValues["gateway-helm"]),
 		"--wait", "--timeout", installTimeout.String())
 
-	cp.password = persisted(t, "password", func() string { return randomHex(t, 24) })
+	cp.password = persisted(t, "password", func() string { return platform.RandomHex(24) })
 	applySecret(t, cp.namespace, "fixture-password", map[string]string{passwordKey: cp.password})
 	snapshots := cp.values.OpenBao.Snapshots
 	applySecret(t, cp.namespace, snapshots.S3.ExistingSecret.Name, map[string]string{
 		snapshots.S3.ExistingSecret.AccessKeyIDKey: persisted(
 			t,
 			"snapshot-key-id",
-			func() string { return randomHex(t, 8) },
+			func() string { return platform.RandomHex(8) },
 		),
 		snapshots.S3.ExistingSecret.SecretAccessKeyKey: persisted(
 			t,
 			"snapshot-key",
-			func() string { return randomHex(t, 24) },
+			func() string { return platform.RandomHex(24) },
 		),
 	})
 	var compose struct {
@@ -196,7 +195,7 @@ func install(t *testing.T) *controlPlane {
 
 	seal := cp.values.OpenBao.Seal.Static.ExistingSecret
 	applySecret(t, cp.namespace, seal.Name, map[string]string{
-		seal.Key: persisted(t, "seal-key", func() string { return randomBase64(t, 32) }),
+		seal.Key: persisted(t, "seal-key", func() string { return randomBase64(32) }),
 	})
 	applySecret(t, cp.namespace, "api-env", map[string]string{
 		"DATABASE_URL":                   "postgresql://loco:" + cp.password + "@postgres:5432/loco?sslmode=disable",
@@ -217,15 +216,9 @@ func install(t *testing.T) *controlPlane {
 	}
 
 	selector := "gateway.envoyproxy.io/owning-gateway-name=" + cp.values.Gateway.Name
-	platform.Eventually(t, time.Minute, "the Envoy proxy Deployment", func(ctx context.Context) error {
-		found, err := c.Exists(ctx, "-n", cp.namespace, "deployments", "-l", selector)
-		if err == nil && !found {
-			return errors.New("not created yet")
-		}
-		return err
-	})
-	c.MustKubectl(t, "-n", cp.namespace, "rollout", "status", "deployment", "-l", selector,
-		"--timeout", installTimeout.String())
+	if err := c.WaitDeployments(t.Context(), cp.namespace, selector, installTimeout); err != nil {
+		t.Fatal(err)
+	}
 	cp.service = strings.TrimSpace(c.MustKubectl(t, "-n", cp.namespace, "get", "services", "-l", selector,
 		"-o", "jsonpath={.items[0].metadata.name}"))
 	cp.gateway = "http://127.0.0.1:" + strconv.Itoa(c.PortForward(t, cp.namespace, "service/"+cp.service, 80))
