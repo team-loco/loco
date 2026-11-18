@@ -497,21 +497,22 @@ func (r *registryRun) sweeper(t *testing.T) {
 		t,
 		sweepTimeout,
 		"the image sweeper to delete the replaced image",
-		func(context.Context) error {
+		func(ctx context.Context) error {
 			if status := pulledManifest(t, a, firstBuild[a]); status != http.StatusNotFound {
 				return fmt.Errorf("manifest status %d", status)
+			}
+			// The sweeper deletes the manifest before its transaction records the deletion.
+			var deleted bool
+			if err := p.DB.QueryRow(ctx, "SELECT image_deleted_at IS NOT NULL FROM builds WHERE id = $1", firstBuild[a]).
+				Scan(&deleted); err != nil {
+				return err
+			}
+			if !deleted {
+				return errors.New("the API has not recorded the image deletion")
 			}
 			return nil
 		},
 	)
-	var deleted bool
-	if err := p.DB.QueryRow(t.Context(), "SELECT image_deleted_at IS NOT NULL FROM builds WHERE id = $1", firstBuild[a]).
-		Scan(&deleted); err != nil {
-		t.Fatal(err)
-	}
-	if !deleted {
-		t.Error("the API did not record the image deletion")
-	}
 	if status := pulledManifest(t, a, secondA); status != http.StatusOK {
 		t.Errorf("the deployed build's image: HTTP %d", status)
 	}
