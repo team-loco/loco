@@ -3,18 +3,13 @@ package workspace
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
@@ -76,25 +71,10 @@ func runWorkspaceList(
 	page workspacePage,
 ) (string, *workspaceListServer, error) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	credential := rand.Text()
 	fake := &workspaceListServer{t: t, orgID: orgID, page: page}
-	server := connect.NewServer()
-	workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = store.Set(keychain.UserToken{Host: endpoint.URL, Token: credential, ExpiresAt: time.Now().Add(time.Hour)})
-	if err != nil {
-		t.Fatal(err)
-	}
+	clitest.Session(t, func(server *connect.Server) {
+		workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
+	})
 	var output bytes.Buffer
 	cmd := buildListCmd()
 	cmd.SetOut(&output)
@@ -105,7 +85,7 @@ func runWorkspaceList(
 		args = append(args, "--org-id", orgID)
 	}
 	cmd.SetArgs(args)
-	err = cmd.ExecuteContext(ctx)
+	err := cmd.ExecuteContext(ctx)
 	return output.String(), fake, err
 }
 

@@ -69,10 +69,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
+	cmdutil.AddWorkspaceFlags(cmd)
 	cmd.Flags().StringP("output", "o", "table", "Output format: table | json")
-	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }

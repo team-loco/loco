@@ -32,12 +32,10 @@ func buildCreateCmd() *cobra.Command {
 				name = args[0]
 			}
 
-			createReq := &orgv1.CreateOrgRequest{}
+			req := &orgv1.CreateOrgRequest{}
 			if name != "" {
-				createReq.Name = &name
+				req.Name = &name
 			}
-
-			req := createReq
 
 			resp, err := target.Clients.Org.CreateOrg(ctx, req)
 			if err != nil {

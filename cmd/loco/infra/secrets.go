@@ -21,11 +21,10 @@ var (
 )
 
 // provisionForSecrets creates the services whose only plan errors are their missing secrets,
-// without deploying them, and prints the command that sets each one's secrets. It reports false
-// errSecretsNotHandled when the plan has any other error or the user declines, so the caller
+// without deploying them, and prints the command that sets each one's secrets. It returns
+// errSecretsNotHandled when the plan has any other error or the user declines, and the caller
 // reports the plan errors instead. Every other result, including errSecretsNotSet on success, is
-// final. The API
-// decides which services it may create: it refuses a service the plan does not create.
+// final. The API refuses a service the plan does not create.
 func provisionForSecrets(
 	ctx context.Context,
 	cmd *cobra.Command,

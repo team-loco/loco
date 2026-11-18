@@ -3,18 +3,14 @@ package org
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -132,35 +128,19 @@ func runInvitationCmd(
 	args ...string,
 ) (string, error) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
 	t.Setenv("LOCO_ORG", testInvitationOrgName)
 	fake.t = t
-	fake.credential = rand.Text()
-	server := connect.NewServer()
-	orgv1connect.RegisterOrgServiceHandler(server, fake)
-	userv1connect.RegisterUserServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	token := keychain.UserToken{Host: endpoint.URL, Token: fake.credential, ExpiresAt: time.Now().Add(time.Hour)}
-	err = store.Set(token)
-	if err != nil {
-		t.Fatal(err)
-	}
+	fake.credential = clitest.Session(t, func(server *connect.Server) {
+		orgv1connect.RegisterOrgServiceHandler(server, fake)
+		userv1connect.RegisterUserServiceHandler(server, fake)
+	})
 	var output bytes.Buffer
 	cmd := build()
 	cmd.SetOut(&output)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.SetArgs(args)
-	err = cmd.Execute()
+	err := cmd.Execute()
 	return output.String(), err
 }
 

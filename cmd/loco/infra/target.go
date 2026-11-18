@@ -12,15 +12,9 @@ import (
 	"github.com/team-loco/loco/internal/locofile"
 )
 
-func addWorkspaceFlags(cmd *cobra.Command) {
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().String("host", "", "API host URL")
-}
-
 func addTargetFlags(cmd *cobra.Command) {
-	addWorkspaceFlags(cmd)
-	cmd.Flags().String("env", "", "Environment (defaults to the workspace's only environment)")
+	cmdutil.AddWorkspaceFlags(cmd)
+	cmdutil.AddEnvironmentFlag(cmd)
 }
 
 func resolveTarget(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, error) {
@@ -30,11 +24,6 @@ func resolveTarget(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, err
 	}
 	interactive := ui.StdoutIsTerminal()
 	return t.WithEnvironment(ctx, cmd, interactive)
-}
-
-func readLocoFile(path string) ([]byte, error) {
-	_, data, err := loadLocoFile(path)
-	return data, err
 }
 
 func loadLocoFile(path string) (*locofile.File, []byte, error) {

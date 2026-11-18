@@ -64,7 +64,7 @@ func runPlan(cmd *cobra.Command, path string) error {
 		return fmt.Errorf("error reading detailed-exit-code flag: %w", err)
 	}
 
-	file, err := readLocoFile(path)
+	_, file, err := loadLocoFile(path)
 	if err != nil {
 		return err
 	}

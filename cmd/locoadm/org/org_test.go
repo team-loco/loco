@@ -3,22 +3,17 @@ package org
 import (
 	"bytes"
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
-	"github.com/team-loco/loco/internal/bearer"
 )
 
 const (
@@ -53,31 +48,15 @@ func (f *fakeOrgs) SetOrgLimits(
 
 func runOrgCmd(t *testing.T, fake *fakeOrgs, args ...string) (string, error) {
 	t.Helper()
-	session := bearer.New("")
-	server := connect.NewServer()
-	orgv1connect.RegisterOrgServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = store.Set(keychain.UserToken{
-		Host: endpoint.URL, Token: session, ExpiresAt: time.Now().Add(time.Hour),
-	}); err != nil {
-		t.Fatal(err)
-	}
+	clitest.Session(t, func(server *connect.Server) {
+		orgv1connect.RegisterOrgServiceHandler(server, fake)
+	})
 	cmd := BuildOrgCmd()
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)
 	cmd.SetErr(output)
 	cmd.SetArgs(args)
-	err = cmd.Execute()
+	err := cmd.Execute()
 	return output.String(), err
 }
 

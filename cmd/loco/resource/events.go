@@ -106,12 +106,10 @@ Examples:
 		},
 	}
 
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
+	cmdutil.AddWorkspaceFlags(cmd)
 	cmd.Flags().String("output", "table", "Output format (table, json)")
 	cmd.Flags().Int32("limit", 0, "Maximum number of events to display (0 = all)")
 	cmd.Flags().StringP("query", "q", "", "Only events matching this audit query, such as '@type:deployment.*'")
-	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }

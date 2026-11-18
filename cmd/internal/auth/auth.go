@@ -22,35 +22,24 @@ var (
 
 const refreshWindow = 5 * time.Minute
 
-// GetCurrentLocoToken retrieves the token for the current OS user.
-// If the access token is near expiry and a refresh token is stored, it
-// attempts a silent refresh before returning.
-func GetCurrentLocoToken(cmd *cobra.Command) (*keychain.UserToken, error) {
-	apiHost, err := host.GetHost(cmd)
-	if err != nil {
-		return nil, err
-	}
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		return nil, err
-	}
-	ctx := cmd.Context()
-	return FreshToken(ctx, apiHost, store)
-}
-
 // Login holds the clients for an authenticated command.
 type Login struct {
 	Clients  *rpc.Clients
 	APIToken bool
 }
 
-// ResolveLogin resolves the host and the logged-in token.
+// ResolveLogin resolves the host and the current OS user's stored token, refreshing it when it
+// is near expiry.
 func ResolveLogin(cmd *cobra.Command) (Login, error) {
 	apiHost, err := host.GetHost(cmd)
 	if err != nil {
 		return Login{}, err
 	}
-	locoToken, err := GetCurrentLocoToken(cmd)
+	store, err := keychain.ForCurrentUser()
+	if err != nil {
+		return Login{}, err
+	}
+	locoToken, err := FreshToken(cmd.Context(), apiHost, store)
 	if err != nil {
 		return Login{}, err
 	}

@@ -2,17 +2,12 @@ package workspace
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -135,27 +130,10 @@ func TestWorkspaceCommandsUseUUIDs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
-			t.Setenv(keychain.StoreEnvVar, "file")
-			credential := rand.Text()
-			fake := &workspaceIDsServer{t: t, credential: credential}
-			server := connect.NewServer()
-			workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
-			mux := http.NewServeMux()
-			connecthttp.Mount(mux, server)
-			endpoint := httptest.NewServer(mux)
-			t.Cleanup(endpoint.Close)
-			t.Setenv("LOCO_HOST", endpoint.URL)
-			store, err := keychain.ForCurrentUser()
-			if err != nil {
-				t.Fatal(err)
-			}
-			err = store.Set(
-				keychain.UserToken{Host: endpoint.URL, Token: credential, ExpiresAt: time.Now().Add(time.Hour)},
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
+			fake := &workspaceIDsServer{t: t}
+			fake.credential = clitest.Session(t, func(server *connect.Server) {
+				workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
+			})
 			cmd := BuildWorkspaceCmd()
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
@@ -180,12 +158,8 @@ func TestWorkspaceUpdatePreservesExplicitEmptyFlags(t *testing.T) {
 		{"explicit empty name", []string{"--name", ""}, "name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
-			t.Setenv(keychain.StoreEnvVar, "file")
-			credential := rand.Text()
 			fake := &workspaceIDsServer{
-				t:          t,
-				credential: credential,
+				t: t,
 				updateRequest: func(req *workspacev1.UpdateWorkspaceRequest) {
 					message := req.ProtoReflect()
 					fields := message.Descriptor().Fields()
@@ -200,22 +174,9 @@ func TestWorkspaceUpdatePreservesExplicitEmptyFlags(t *testing.T) {
 					}
 				},
 			}
-			server := connect.NewServer()
-			workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
-			mux := http.NewServeMux()
-			connecthttp.Mount(mux, server)
-			endpoint := httptest.NewServer(mux)
-			t.Cleanup(endpoint.Close)
-			t.Setenv("LOCO_HOST", endpoint.URL)
-			store, err := keychain.ForCurrentUser()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := store.Set(
-				keychain.UserToken{Host: endpoint.URL, Token: credential, ExpiresAt: time.Now().Add(time.Hour)},
-			); err != nil {
-				t.Fatal(err)
-			}
+			fake.credential = clitest.Session(t, func(server *connect.Server) {
+				workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
+			})
 			cmd := BuildWorkspaceCmd()
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true

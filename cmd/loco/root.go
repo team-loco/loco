@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log/slog"
-	"os/user"
 	"path/filepath"
 	"time"
 
@@ -21,22 +20,13 @@ import (
 )
 
 type Env struct {
-	CurrentUser func() (*user.User, error)
-	Tokens      func() (keychain.TokenStore, error)
+	Tokens func() (keychain.TokenStore, error)
 
 	versionCheck *versionCheck
 }
 
 func NewEnv() Env {
-	env := Env{CurrentUser: user.Current, versionCheck: &versionCheck{}}
-	env.Tokens = func() (keychain.TokenStore, error) {
-		currentUser, err := env.CurrentUser()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get current user: %w", err)
-		}
-		return keychain.NewStore(currentUser)
-	}
-	return env
+	return Env{Tokens: keychain.ForCurrentUser, versionCheck: &versionCheck{}}
 }
 
 func NewRootCmd(env Env) *cobra.Command {

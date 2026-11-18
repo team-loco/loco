@@ -2,19 +2,14 @@ package token
 
 import (
 	"context"
-	"crypto/rand"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	"github.com/team-loco/loco/gen/go/loco/config/v1/configv1connect"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
@@ -105,28 +100,12 @@ func (s *tokenIDsServer) WhoAmI(_ context.Context, _ *userv1.WhoAmIRequest) (*us
 
 func tokenIDCommand(t *testing.T, fake *tokenIDsServer, action string) *cobra.Command {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	fake.credential = rand.Text()
 	fake.maximum = testTokenLifetime
-	server := connect.NewServer()
-	configv1connect.RegisterConfigServiceHandler(server, fake)
-	tokenv1connect.RegisterTokenServiceHandler(server, fake)
-	userv1connect.RegisterUserServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Set(
-		keychain.UserToken{Host: endpoint.URL, Token: fake.credential, ExpiresAt: time.Now().Add(time.Hour)},
-	); err != nil {
-		t.Fatal(err)
-	}
+	fake.credential = clitest.Session(t, func(server *connect.Server) {
+		configv1connect.RegisterConfigServiceHandler(server, fake)
+		tokenv1connect.RegisterTokenServiceHandler(server, fake)
+		userv1connect.RegisterUserServiceHandler(server, fake)
+	})
 	var cmd *cobra.Command
 	switch action {
 	case testCreateAction:
