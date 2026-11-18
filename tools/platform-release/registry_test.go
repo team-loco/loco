@@ -159,21 +159,10 @@ func TestRegistryPublishAndEnsureContent(t *testing.T) {
 		layerType,
 	)
 	require.ErrorContains(t, err, "bump its version")
-	_, err = r.publish(
-		ctx,
-		"example/chart",
-		fixtureVersion,
-		artifact{version: fixtureVersion, data: data, config: object{}, mediaType: layerType},
-		false,
-	)
+	item := artifact{version: fixtureVersion, data: data, config: object{}, mediaType: layerType}
+	_, err = r.publish(ctx, "example/chart", fixtureVersion, item, false)
 	require.ErrorContains(t, err, "immutable release already exists")
-	_, err = r.publish(
-		ctx,
-		"example/chart",
-		fixtureVersion,
-		artifact{version: fixtureVersion, data: data, config: object{}, mediaType: layerType},
-		true,
-	)
+	_, err = r.publish(ctx, "example/chart", fixtureVersion, item, true)
 	require.NoError(t, err)
 	require.Equal(t, 2, fixture.writes)
 }
