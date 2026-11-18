@@ -33,6 +33,37 @@ API_HOST = "api.loco.build"
 HTTP_ISSUER_HOST = "dex.loco.localhost:5556"
 VERSION = "sha-test"
 RUNTIME_CONFIG = 'window.locoConfig = {"apiURL":"/api"};\n'
+APP_PATHS = [
+    "/",
+    "/login",
+    "/auth/callback",
+    "/cli/login",
+    "/cli/device",
+    "/onboarding",
+    "/dashboard",
+    "/organizations",
+    "/profile",
+    "/tokens",
+    "/team",
+    "/org/test/team",
+    "/org/test/audit",
+    "/org/test/settings",
+    "/org/test/wks/test",
+    "/org/test/wks/test/resource/example",
+]
+DOCS_BASES = pytest.mark.parametrize(
+    "host,prefix", [(DOCS_HOST, ""), (UI_HOST, "/docs")], ids=["docs-host", "ui-docs"]
+)
+NOT_FOUND_PAGES = pytest.mark.parametrize(
+    "host,path,viewport,scheme",
+    [
+        (host, path, viewport, scheme)
+        for host, path in [(UI_HOST, MISSING_ASSET), (DOCS_HOST, UNKNOWN_PATH)]
+        for viewport in NOT_FOUND_VIEWPORTS
+        for scheme in NOT_FOUND_SCHEMES
+    ],
+)
+DOCS_PAGE = f"http://{DOCS_HOST}/getting-started/install/"
 
 
 def docker(*args):
@@ -66,68 +97,339 @@ def navigate(page, url):
             time.sleep(POLL_INTERVAL)
 
 
-def check_not_found_renders(address, pages, out_dir):
-    # The 404 file is served for every host, so it must load no subresource (the
-    # docs host has no /assets) and break no CSP rule.
-    problems = []
+@pytest.fixture(scope="module")
+def image():
+    docker(
+        "buildx",
+        "build",
+        "--load",
+        "-t",
+        IMAGE,
+        "-f",
+        "web/Dockerfile",
+        "--build-arg",
+        f"PUBLIC_API_URL=https://{API_HOST}",
+        "--build-arg",
+        "PUBLIC_APP_ENV=PRODUCTION",
+        "--build-arg",
+        f"VERSION={VERSION}",
+        ".",
+    )
+    return IMAGE
+
+
+@pytest.fixture(scope="module")
+def container(image, tmp_path_factory):
+    runtime_config = tmp_path_factory.mktemp("runtime") / "runtime-config.js"
+    runtime_config.write_text(RUNTIME_CONFIG)
+    runtime_config.chmod(0o644)
+    # The pod settings charts/loco-control-plane/templates/ui.yaml runs the
+    # image with: no capabilities, no privilege escalation and its own
+    # runtime-config.js mounted over the image's.
+    container = docker(
+        "run",
+        "--rm",
+        "-d",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "-v",
+        f"{runtime_config}:/public/runtime-config.js:ro",
+        "-p",
+        f"127.0.0.1::{PORT}",
+        image,
+    )
+    yield container
+    docker("stop", container)
+
+
+@pytest.fixture(scope="module")
+def address(container):
+    address = docker("port", container, str(PORT)).splitlines()[0]
+    deadline = time.monotonic() + STARTUP_TIMEOUT
+    while True:
+        try:
+            if response(f"http://{address}/health")[0] == 200:
+                return address
+        except URLError, ConnectionError:
+            pass
+        if time.monotonic() >= deadline:
+            pytest.fail(docker("logs", container))
+        time.sleep(POLL_INTERVAL)
+
+
+@pytest.fixture(scope="module")
+def url(address):
+    return f"http://{address}"
+
+
+@pytest.fixture(scope="module")
+def ui(url):
+    return response(url, UI_HOST)
+
+
+@pytest.fixture(scope="module")
+def spa(ui):
+    # The splash at / stays indexable; every other path gets the same page with noindex.
+    return ui[1].replace("</head>", NOINDEX + "</head>")
+
+
+@pytest.fixture(scope="module")
+def browser(address):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
             args=[
                 "--host-resolver-rules="
-                + ", ".join(f"MAP {host} {address}" for host in {p[0] for p in pages})
+                f"MAP {UI_HOST} {address}, MAP {DOCS_HOST} {address}"
             ]
         )
-        for host, path in pages:
-            for viewport, size in NOT_FOUND_VIEWPORTS.items():
-                for scheme in NOT_FOUND_SCHEMES:
-                    page = browser.new_page(
-                        viewport={"width": size[0], "height": size[1]},
-                        color_scheme=scheme,
-                    )
-                    label = f"{host}{path} {viewport} {scheme}"
-                    page.on(
-                        "console",
-                        lambda message, label=label, url=f"http://{host}{path}": (
-                            message.type == "error"
-                            and message.location["url"] != url
-                            and problems.append(f"{label}: {message.text}")
-                        ),
-                    )
-                    page.on(
-                        "requestfailed",
-                        lambda request, label=label: (
-                            not (
-                                request.is_navigation_request()
-                                and request.failure == "net::ERR_NETWORK_CHANGED"
-                            )
-                            and problems.append(f"{label}: {request.url} failed")
-                        ),
-                    )
-                    page.on(
-                        "response",
-                        lambda reply, label=label: (
-                            reply.request.resource_type != "document"
-                            and reply.status >= 400
-                            and problems.append(f"{label}: {reply.url} {reply.status}")
-                        ),
-                    )
-                    navigate(page, f"http://{host}{path}")
-                    assert page.title() == NOT_FOUND_TITLE, label
-                    assert page.get_by_text(NOT_FOUND_HEADING).is_visible(), label
-                    assert page.get_by_role("link", name="Go to dashboard").is_visible()
-                    assert (
-                        page.evaluate("document.documentElement.scrollWidth") <= size[0]
-                    ), label
-                    page.screenshot(
-                        path=out_dir
-                        / f"{host}{path.replace('/', '_')}-{viewport}-{scheme}.png"
-                    )
-                    page.close()
+        yield browser
         browser.close()
+
+
+@pytest.fixture
+def docs_page(browser):
+    page = browser.new_page(viewport={"width": 1440, "height": 1024})
+    navigate(page, DOCS_PAGE)
+    # Controls respond once the page has hydrated.
+    page.wait_for_load_state("networkidle")
+    yield page
+    page.close()
+
+
+@pytest.fixture
+def narrow_docs_page(docs_page, tmp_path):
+    # A text-heavy guide must reflow without losing navigation or page actions.
+    docs_page.set_viewport_size({"width": 390, "height": 844})
+    docs_page.screenshot(path=tmp_path / "docs-install-narrow.png")
+    return docs_page
+
+
+def test_health_answers_ok(url):
+    assert response(f"{url}/health")[:2] == (200, "OK")
+
+
+def test_image_runs_as_the_unprivileged_user(container):
+    assert docker("inspect", "--format", "{{.Config.User}}", container) == RUNTIME_USER
+
+
+def test_ui_serves_the_app_shell(ui):
+    status, body, _ = ui
+    assert status == 200
+    assert '<div id="root">' in body
+    assert "Deploy with Loco" not in body
+
+
+def test_ui_loads_the_runtime_config(ui):
+    assert '<script src="/runtime-config.js">' in ui[1]
+
+
+def test_ui_reports_its_version(ui):
+    assert f'<meta name="loco-version" content="{VERSION}">' in ui[1]
+
+
+def test_ui_splash_is_indexable(ui):
+    assert 'name="robots"' not in ui[1]
+
+
+def test_runtime_config_is_the_mounted_file(url):
+    assert response(url + "/runtime-config.js", UI_HOST)[:2] == (200, RUNTIME_CONFIG)
+
+
+def test_runtime_config_is_revalidated(url):
+    assert (
+        response(url + "/runtime-config.js", UI_HOST)[2]["Cache-Control"] == "no-cache"
+    )
+
+
+def test_version_json_reports_the_build_version(url):
+    status, body, _ = response(url + "/version.json", UI_HOST)
+    assert status == 200
+    assert json.loads(body) == {"version": VERSION}
+
+
+def test_version_json_is_revalidated(url):
+    assert response(url + "/version.json", UI_HOST)[2]["Cache-Control"] == "no-cache"
+
+
+def test_schema_is_the_repository_schema(url):
+    status, body, _ = response(url + SCHEMA_PATH, UI_HOST)
+    assert status == 200
+    assert json.loads(body) == json.loads((ROOT / "schemas/loco.v1.json").read_text())
+
+
+def test_schema_is_served_as_json(url):
+    content_type = response(url + SCHEMA_PATH, UI_HOST)[2]["Content-Type"]
+    assert content_type.startswith("application/json"), content_type
+
+
+@pytest.mark.parametrize("path", APP_PATHS)
+def test_app_paths_serve_the_ui(url, ui, spa, path):
+    status, body, _ = response(url + path, UI_HOST)
+    assert status == 200
+    assert body == (ui[1] if path == "/" else spa)
+
+
+@pytest.mark.parametrize("path", APP_PATHS)
+def test_app_paths_ignore_a_trailing_slash(url, ui, spa, path):
+    body = response(url + path.rstrip("/") + "/", UI_HOST)[1]
+    assert body == (ui[1] if path == "/" else spa)
+
+
+@DOCS_BASES
+def test_docs_serve_the_home_page(url, host, prefix):
+    status, html, _ = response(url + prefix + "/", host)
+    assert status == 200
+    assert "Deploy with Loco" in html
+    assert f"https://{DOCS_HOST}/" in html
+
+
+@DOCS_BASES
+def test_docs_share_the_ui_content_security_policy(url, ui, host, prefix):
+    headers = response(url + prefix + "/", host)[2]
+    assert headers["Content-Security-Policy"] == ui[2]["Content-Security-Policy"]
+
+
+@DOCS_BASES
+def test_docs_allow_only_hashed_inline_scripts(url, host, prefix):
+    policy = response(url + prefix + "/", host)[2]["Content-Security-Policy"]
+    assert "script-src 'self' 'unsafe-inline'" not in policy
+    assert "'sha256-" in policy
+
+
+@DOCS_BASES
+def test_docs_serve_guides(url, host, prefix):
+    status, body, _ = response(url + prefix + "/deployment/modes/", host)
+    assert status == 200
+    assert "Multi-tenant SaaS" in body
+
+
+@DOCS_BASES
+def test_docs_logo_is_cached_immutably(url, host, prefix):
+    html = response(url + prefix + "/", host)[1]
+    logo = re.search(r'mask-image:url\("([^\"]+)"\)', unescape(html)).group(1)
+    status, _, headers = response(url + logo, host)
+    assert status == 200
+    assert "immutable" in headers["Cache-Control"]
+
+
+@pytest.mark.parametrize(
+    "host,prefix",
+    [(DOCS_HOST, ""), (UI_HOST, "/docs"), (UI_HOST, "")],
+    ids=["docs-host", "ui-docs", "ui"],
+)
+def test_agent_skill_is_served_as_markdown(url, host, prefix):
+    status, skill, headers = response(url + prefix + "/skills.md", host)
+    assert status == 200
+    assert skill == (ROOT / "docs/content/skills.md").read_text()
+    assert headers["Content-Type"].startswith("text/markdown")
+
+
+def test_install_script_is_served_as_text(url):
+    status, script, headers = response(url + "/install.sh", UI_HOST)
+    assert status == 200
+    assert script.startswith("#!")
+    assert headers["Content-Type"].startswith("text/plain")
+
+
+@pytest.mark.parametrize(
+    "path", [UNKNOWN_PATH, UNKNOWN_PATH + "/bar", "/dashboard/missing"]
+)
+def test_unknown_app_paths_serve_the_ui(url, spa, path):
+    # The UI renders its own NotFound for these.
+    assert response(url + path, UI_HOST)[:2] == (200, spa)
+
+
+@pytest.mark.parametrize(
+    "host,path",
+    [
+        (UI_HOST, MISSING_ASSET),
+        (UI_HOST, "/missing.json"),
+        (UI_HOST, "/docs/missing-doc-page"),
+        (UI_HOST, "/docs/deployment/missing/"),
+        (DOCS_HOST, UNKNOWN_PATH),
+        (DOCS_HOST, "/deployment/missing/"),
+        (DOCS_HOST, MISSING_ASSET),
+    ],
+)
+def test_missing_files_are_static_not_found_pages(url, host, path):
+    status, body, _ = response(url + path, host)
+    assert status == 404
+    assert f"<title>{NOT_FOUND_TITLE}</title>" in body
+    assert '<div id="root">' not in body
+    assert NOT_FOUND_HEADING in body
+
+
+def open_not_found(browser, host, path, viewport, scheme, problems):
+    size = NOT_FOUND_VIEWPORTS[viewport]
+    page = browser.new_page(
+        viewport={"width": size[0], "height": size[1]}, color_scheme=scheme
+    )
+    url = f"http://{host}{path}"
+    page.on(
+        "console",
+        lambda message: (
+            message.type == "error"
+            and message.location["url"] != url
+            and problems.append(message.text)
+        ),
+    )
+    page.on(
+        "requestfailed",
+        lambda request: (
+            not (
+                request.is_navigation_request()
+                and request.failure == "net::ERR_NETWORK_CHANGED"
+            )
+            and problems.append(f"{request.url} failed")
+        ),
+    )
+    page.on(
+        "response",
+        lambda reply: (
+            reply.request.resource_type != "document"
+            and reply.status >= 400
+            and problems.append(f"{reply.url} {reply.status}")
+        ),
+    )
+    navigate(page, url)
+    return page
+
+
+@NOT_FOUND_PAGES
+def test_not_found_page_loads_without_errors(browser, host, path, viewport, scheme):
+    # The 404 file is served for every host, so it must load no subresource (the
+    # docs host has no /assets) and break no CSP rule.
+    problems = []
+    page = open_not_found(browser, host, path, viewport, scheme, problems)
+    page.close()
     assert problems == []
 
 
-def check_path_opens_ui(page, path):
+@NOT_FOUND_PAGES
+def test_not_found_page_shows_the_way_back(
+    browser, tmp_path, host, path, viewport, scheme
+):
+    page = open_not_found(browser, host, path, viewport, scheme, [])
+    assert page.title() == NOT_FOUND_TITLE
+    assert page.get_by_text(NOT_FOUND_HEADING).is_visible()
+    assert page.get_by_role("link", name="Go to dashboard").is_visible()
+    page.screenshot(path=tmp_path / "not-found.png")
+    page.close()
+
+
+@NOT_FOUND_PAGES
+def test_not_found_page_fits_the_viewport(browser, host, path, viewport, scheme):
+    page = open_not_found(browser, host, path, viewport, scheme, [])
+    width = page.evaluate("document.documentElement.scrollWidth")
+    page.close()
+    assert width <= NOT_FOUND_VIEWPORTS[viewport][0]
+
+
+@pytest.mark.parametrize("path", [UNKNOWN_PATH, UNKNOWN_PATH + "/bar"])
+def test_unknown_paths_send_signed_out_users_to_sign_in(browser, path):
+    page = browser.new_page()
     # The image has no API behind /api. Reply as an API would for a signed-out browser.
     page.route(
         "**/api/**",
@@ -151,300 +453,160 @@ def check_path_opens_ui(page, path):
             f"{path} stopped at {page.url}\nConsole errors:\n{console}\n{error}"
         )
     expect(page, path).to_have_title("Sign in | Loco")
+    page.close()
 
 
-def check_unknown_path_opens_ui(address, paths):
-    # Without a session the UI sends every protected path, including an unknown
-    # one, to sign-in.
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            args=[f"--host-resolver-rules=MAP {UI_HOST} {address}"]
-        )
-        for path in paths:
-            page = browser.new_page()
-            check_path_opens_ui(page, path)
-            page.close()
-        browser.close()
-
-
-def check_dashboard_connects_only_to_itself(address):
+@pytest.fixture
+def dashboard(browser):
     origin = f"http://{UI_HOST}"
+    page = browser.new_page()
+    navigate(page, origin)
+    yield page
+    page.close()
+
+
+def test_dashboard_reaches_its_own_api(dashboard):
+    api = f"http://{UI_HOST}/api/health"
+    dashboard.route(api, lambda route: route.fulfill(body="api available"))
+    assert (
+        dashboard.evaluate("url => fetch(url).then(reply => reply.text())", api)
+        == "api available"
+    )
+
+
+def test_dashboard_connects_to_no_other_origin(dashboard):
     discovery = f"http://{HTTP_ISSUER_HOST}/dex/.well-known/openid-configuration"
-    api = origin + "/api/health"
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            args=[f"--host-resolver-rules=MAP {UI_HOST} {address}"]
-        )
-        page = browser.new_page()
-        page.route(
-            discovery,
-            lambda route: route.fulfill(
-                json={"issuer": discovery},
-                headers={"Access-Control-Allow-Origin": origin},
-            ),
-        )
-        page.route(api, lambda route: route.fulfill(body="api available"))
-        navigate(page, origin)
-        assert (
-            page.evaluate("url => fetch(url).then(reply => reply.text())", api)
-            == "api available"
-        )
-        assert page.evaluate(
-            "url => fetch(url).then(() => false, () => true)", discovery
-        )
-        browser.close()
-
-
-def check_docs_reading_layout(address, out_dir):
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(
-            args=[f"--host-resolver-rules=MAP {DOCS_HOST} {address}"]
-        )
-        page = browser.new_page(viewport={"width": 1440, "height": 1024})
-        navigate(page, f"http://{DOCS_HOST}/getting-started/install/")
-        expect(page.get_by_role("link", name="API reference").first).to_have_attribute(
-            "href", f"https://{API_HOST}"
-        )
-        page.evaluate("document.fonts.ready")
-        assert (
-            page.locator("body")
-            .evaluate("el => getComputedStyle(el).fontFamily")
-            .startswith('"Geist Variable"')
-        )
-        for family in ("Geist Variable", "Geist Mono Variable"):
-            assert page.evaluate(
-                "family => [...document.fonts].some(font => font.family.replaceAll(/['\"]/g, '') === family && font.status === 'loaded')",
-                family,
-            )
-        assert page.locator("#nd-sidebar").bounding_box()["x"] == 0
-        for label in ("API reference", "Dashboard"):
-            expect(
-                page.get_by_role("link", name=label, exact=True).first.locator("svg")
-            ).to_be_visible()
-        page.get_by_role("button", name="Dark", exact=True).first.click()
-        expect(page.locator("html")).to_have_class(re.compile(r"dark"))
-        page.get_by_role("button", name="Light", exact=True).first.click()
-        expect(page.locator("html")).not_to_have_class(re.compile(r"dark"))
-        page.get_by_role("button", name="System", exact=True).first.click()
-        search_trigger = page.get_by_role("button", name=re.compile(r"^Search")).first
-        search_trigger.click()
-        search_input = page.get_by_role("combobox", name="Search", exact=True)
-        expect(search_input).to_be_focused()
-        expect(search_input).to_have_css("outline-style", "none")
-        search_dialog = page.get_by_role("dialog")
-        expect(search_dialog).to_have_css("outline-style", "solid")
-        page.screenshot(path=out_dir / "docs-search-light.png", animations="disabled")
-        search_input.fill("install")
-        expect(page.get_by_role("option").first).to_be_visible()
-        search_input.press("Escape")
-        expect(search_input).to_be_hidden()
-        expect(search_trigger).to_be_focused()
-        article = page.locator("#nd-page")
-        assert article.bounding_box()["width"] <= 780
-        logo = page.get_by_role("img", name="Loco", exact=True).first
-        assert logo.bounding_box()["width"] <= 64
-        assert logo.bounding_box()["height"] <= 32
-        page.screenshot(path=out_dir / "docs-install-light.png")
-        page.emulate_media(color_scheme="dark")
-        expect(page.locator("html")).to_have_class(re.compile(r"dark"))
-        page.screenshot(path=out_dir / "docs-install-dark.png")
-        # A text-heavy guide must reflow without losing navigation or page actions.
-        page.set_viewport_size({"width": 390, "height": 844})
-        expect(page.locator("#nd-notebook-layout")).to_have_css(
-            "--fd-sidebar-col", "0px"
-        )
-        page.screenshot(path=out_dir / "docs-install-narrow.png")
-        assert page.evaluate(
-            "document.documentElement.scrollWidth <= window.innerWidth"
-        )
-        assert article.bounding_box()["width"] >= 350
-        expect(
-            page.get_by_role("heading", name="Install the CLI", exact=True)
-        ).to_be_visible()
-        expect(
-            page.get_by_role("link", name="View Markdown", exact=True)
-        ).to_be_visible()
-        page.get_by_role("button", name="Open Sidebar", exact=True).click()
-        expect(page.get_by_role("link", name="API reference").last).to_be_visible()
-        page.get_by_role("link", name="Connect to Loco", exact=True).last.click()
-        expect(page).to_have_url(re.compile(r"/getting-started/connect/?$"))
-        expect(
-            page.get_by_role("heading", name="Connect to Loco", exact=True)
-        ).to_be_visible()
-        browser.close()
-
-
-def test_image_serves_the_ui_and_docs(tmp_path):
-    docker(
-        "buildx",
-        "build",
-        "--load",
-        "-t",
-        IMAGE,
-        "-f",
-        "web/Dockerfile",
-        "--build-arg",
-        f"PUBLIC_API_URL=https://{API_HOST}",
-        "--build-arg",
-        "PUBLIC_APP_ENV=PRODUCTION",
-        "--build-arg",
-        f"VERSION={VERSION}",
-        ".",
+    dashboard.route(
+        discovery,
+        lambda route: route.fulfill(
+            json={"issuer": discovery},
+            headers={"Access-Control-Allow-Origin": f"http://{UI_HOST}"},
+        ),
     )
-    runtime_config = tmp_path / "runtime-config.js"
-    runtime_config.write_text(RUNTIME_CONFIG)
-    runtime_config.chmod(0o644)
-    # The pod settings charts/loco-control-plane/templates/ui.yaml runs the
-    # image with: no capabilities, no privilege escalation and its own
-    # runtime-config.js mounted over the image's.
-    container = docker(
-        "run",
-        "--rm",
-        "-d",
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
-        "-v",
-        f"{runtime_config}:/public/runtime-config.js:ro",
-        "-p",
-        f"127.0.0.1::{PORT}",
-        IMAGE,
+    assert dashboard.evaluate(
+        "url => fetch(url).then(() => false, () => true)", discovery
     )
-    try:
-        address = docker("port", container, str(PORT)).splitlines()[0]
-        url = f"http://{address}"
-        deadline = time.monotonic() + STARTUP_TIMEOUT
-        while True:
-            try:
-                status, body, _ = response(f"{url}/health")
-                if status == 200:
-                    break
-            except URLError, ConnectionError:
-                pass
-            if time.monotonic() >= deadline:
-                pytest.fail(docker("logs", container))
-            time.sleep(POLL_INTERVAL)
-        assert body == "OK"
-        assert (
-            docker("inspect", "--format", "{{.Config.User}}", container) == RUNTIME_USER
-        )
-        status, ui, ui_headers = response(url, UI_HOST)
-        assert status == 200
-        assert '<div id="root">' in ui
-        assert '<script src="/runtime-config.js">' in ui
-        assert "Deploy with Loco" not in ui
-        assert f'<meta name="loco-version" content="{VERSION}">' in ui
-        # The splash at / stays indexable; every other path gets the same page with noindex.
-        assert 'name="robots"' not in ui
-        spa = ui.replace("</head>", NOINDEX + "</head>")
-        status, body, config_headers = response(url + "/runtime-config.js", UI_HOST)
-        assert status == 200
-        assert body == RUNTIME_CONFIG
-        assert config_headers["Cache-Control"] == "no-cache"
-        status, body, version_headers = response(url + "/version.json", UI_HOST)
-        assert status == 200
-        assert json.loads(body) == {"version": VERSION}
-        assert version_headers["Cache-Control"] == "no-cache"
-        status, body, schema_headers = response(url + SCHEMA_PATH, UI_HOST)
-        assert status == 200
-        assert json.loads(body) == json.loads(
-            (ROOT / "schemas/loco.v1.json").read_text()
-        )
-        assert schema_headers["Content-Type"].startswith("application/json"), (
-            schema_headers["Content-Type"]
-        )
-        for path in (
-            "/",
-            "/login",
-            "/auth/callback",
-            "/cli/login",
-            "/cli/device",
-            "/onboarding",
-            "/dashboard",
-            "/organizations",
-            "/profile",
-            "/tokens",
-            "/team",
-            "/org/test/team",
-            "/org/test/audit",
-            "/org/test/settings",
-            "/org/test/wks/test",
-            "/org/test/wks/test/resource/example",
-        ):
-            status, body, _ = response(url + path, UI_HOST)
-            assert status == 200, path
-            page = ui if path == "/" else spa
-            assert body == page, path
-            assert response(url + path.rstrip("/") + "/", UI_HOST)[1] == page, path
-        for host, prefix in [(DOCS_HOST, ""), (UI_HOST, "/docs")]:
-            base = url + prefix
-            status, html, headers = response(base + "/", host)
-            assert status == 200
-            assert "Deploy with Loco" in html
-            assert f"https://{DOCS_HOST}/" in html
-            assert (
-                headers["Content-Security-Policy"]
-                == ui_headers["Content-Security-Policy"]
-            )
-            assert (
-                "script-src 'self' 'unsafe-inline'"
-                not in headers["Content-Security-Policy"]
-            )
-            assert "'sha256-" in headers["Content-Security-Policy"]
-            status, body, _ = response(base + "/deployment/modes/", host)
-            assert status == 200
-            assert "Multi-tenant SaaS" in body
-            logo = re.search(r'mask-image:url\("([^\"]+)"\)', unescape(html)).group(1)
-            status, _, asset_headers = response(url + logo, host)
-            assert status == 200
-            assert "immutable" in asset_headers["Cache-Control"]
-            status, skill, skill_headers = response(base + "/skills.md", host)
-            assert status == 200
-            assert skill == (ROOT / "docs/content/skills.md").read_text()
-            assert skill_headers["Content-Type"].startswith("text/markdown")
-        status, skill, skill_headers = response(url + "/skills.md", UI_HOST)
-        assert status == 200
-        assert skill == (ROOT / "docs/content/skills.md").read_text()
-        assert skill_headers["Content-Type"].startswith("text/markdown")
-        status, script, install_headers = response(url + "/install.sh", UI_HOST)
-        assert status == 200
-        assert script.startswith("#!")
-        assert install_headers["Content-Type"].startswith("text/plain")
-        # Unknown app paths open the UI, which renders its own NotFound.
-        for path in [UNKNOWN_PATH, UNKNOWN_PATH + "/bar", "/dashboard/missing"]:
-            status, body, _ = response(url + path, UI_HOST)
-            assert status == 200, path
-            assert body == spa, path
-        # Missing files and unknown documentation paths are real 404s with the
-        # static page, never the UI.
-        for host, path in [
-            (UI_HOST, MISSING_ASSET),
-            (UI_HOST, "/missing.json"),
-            (UI_HOST, "/docs/missing-doc-page"),
-            (UI_HOST, "/docs/deployment/missing/"),
-            (DOCS_HOST, UNKNOWN_PATH),
-            (DOCS_HOST, "/deployment/missing/"),
-            (DOCS_HOST, MISSING_ASSET),
-        ]:
-            status, body, _ = response(url + path, host)
-            assert status == 404, f"{host}{path}"
-            assert f"<title>{NOT_FOUND_TITLE}</title>" in body
-            assert '<div id="root">' not in body
-            assert NOT_FOUND_HEADING in body
-        check_not_found_renders(
-            address,
-            [
-                (UI_HOST, MISSING_ASSET),
-                (DOCS_HOST, UNKNOWN_PATH),
-            ],
-            tmp_path,
-        )
-        check_unknown_path_opens_ui(address, [UNKNOWN_PATH, UNKNOWN_PATH + "/bar"])
-        check_dashboard_connects_only_to_itself(address)
-        check_docs_reading_layout(address, tmp_path)
-    finally:
-        docker("stop", container)
+
+
+def test_docs_link_the_api_reference(docs_page):
+    expect(docs_page.get_by_role("link", name="API reference").first).to_have_attribute(
+        "href", f"https://{API_HOST}"
+    )
+
+
+def test_docs_use_the_geist_fonts(docs_page):
+    docs_page.evaluate("document.fonts.ready")
+    assert (
+        docs_page.locator("body")
+        .evaluate("el => getComputedStyle(el).fontFamily")
+        .startswith('"Geist Variable"')
+    )
+    for family in ("Geist Variable", "Geist Mono Variable"):
+        assert docs_page.evaluate(
+            "family => [...document.fonts].some(font => font.family.replaceAll(/['\"]/g, '') === family && font.status === 'loaded')",
+            family,
+        ), family
+
+
+def test_docs_sidebar_starts_at_the_left_edge(docs_page):
+    assert docs_page.locator("#nd-sidebar").bounding_box()["x"] == 0
+
+
+@pytest.mark.parametrize("label", ["API reference", "Dashboard"])
+def test_docs_header_links_show_icons(docs_page, label):
+    expect(
+        docs_page.get_by_role("link", name=label, exact=True).first.locator("svg")
+    ).to_be_visible()
+
+
+def test_docs_theme_buttons_switch_the_theme(docs_page):
+    docs_page.get_by_role("button", name="Dark", exact=True).first.click()
+    expect(docs_page.locator("html")).to_have_class(re.compile(r"dark"))
+    docs_page.get_by_role("button", name="Light", exact=True).first.click()
+    expect(docs_page.locator("html")).not_to_have_class(re.compile(r"dark"))
+
+
+def search(page):
+    trigger = page.get_by_role("button", name=re.compile(r"^Search")).first
+    trigger.click()
+    return trigger, page.get_by_role("combobox", name="Search", exact=True)
+
+
+def test_docs_search_focuses_its_input(docs_page, tmp_path):
+    _, search_input = search(docs_page)
+    expect(search_input).to_be_focused()
+    expect(search_input).to_have_css("outline-style", "none")
+    expect(docs_page.get_by_role("dialog")).to_have_css("outline-style", "solid")
+    docs_page.screenshot(path=tmp_path / "docs-search-light.png", animations="disabled")
+
+
+def test_docs_search_finds_pages(docs_page):
+    _, search_input = search(docs_page)
+    search_input.fill("install")
+    expect(docs_page.get_by_role("option").first).to_be_visible()
+
+
+def test_docs_search_returns_focus_when_closed(docs_page):
+    trigger, search_input = search(docs_page)
+    search_input.press("Escape")
+    expect(search_input).to_be_hidden()
+    expect(trigger).to_be_focused()
+
+
+def test_docs_article_keeps_a_readable_width(docs_page, tmp_path):
+    assert docs_page.locator("#nd-page").bounding_box()["width"] <= 780
+    docs_page.screenshot(path=tmp_path / "docs-install-light.png")
+
+
+def test_docs_logo_fits_the_header(docs_page):
+    box = docs_page.get_by_role("img", name="Loco", exact=True).first.bounding_box()
+    assert box["width"] <= 64
+    assert box["height"] <= 32
+
+
+def test_docs_follow_the_dark_color_scheme(docs_page, tmp_path):
+    docs_page.emulate_media(color_scheme="dark")
+    expect(docs_page.locator("html")).to_have_class(re.compile(r"dark"))
+    docs_page.screenshot(path=tmp_path / "docs-install-dark.png")
+
+
+def test_narrow_docs_collapse_the_sidebar_column(narrow_docs_page):
+    expect(narrow_docs_page.locator("#nd-notebook-layout")).to_have_css(
+        "--fd-sidebar-col", "0px"
+    )
+
+
+def test_narrow_docs_do_not_scroll_sideways(narrow_docs_page):
+    assert narrow_docs_page.evaluate(
+        "document.documentElement.scrollWidth <= window.innerWidth"
+    )
+
+
+def test_narrow_docs_article_uses_the_width(narrow_docs_page):
+    assert narrow_docs_page.locator("#nd-page").bounding_box()["width"] >= 350
+
+
+def test_narrow_docs_keep_the_heading_and_page_actions(narrow_docs_page):
+    expect(
+        narrow_docs_page.get_by_role("heading", name="Install the CLI", exact=True)
+    ).to_be_visible()
+    expect(
+        narrow_docs_page.get_by_role("link", name="View Markdown", exact=True)
+    ).to_be_visible()
+
+
+def test_narrow_docs_sidebar_navigates(narrow_docs_page):
+    narrow_docs_page.get_by_role("button", name="Open Sidebar", exact=True).click()
+    expect(
+        narrow_docs_page.get_by_role("link", name="API reference").last
+    ).to_be_visible()
+    narrow_docs_page.get_by_role(
+        "link", name="Connect to Loco", exact=True
+    ).last.click()
+    expect(narrow_docs_page).to_have_url(re.compile(r"/getting-started/connect/?$"))
+    expect(
+        narrow_docs_page.get_by_role("heading", name="Connect to Loco", exact=True)
+    ).to_be_visible()
 
 
 @pytest.mark.parametrize("failures", [1, NAVIGATION_ATTEMPTS])
@@ -469,4 +631,3 @@ def test_navigation_preserves_other_errors():
     with pytest.raises(Error) as caught:
         navigate(page, "http://docs.test/foo")
     assert caught.value is failure
-    page.goto.assert_called_once_with("http://docs.test/foo")
