@@ -37,6 +37,15 @@ func TestFailedOperatorSnapshotsOnlySafeStateAndKeepsExitError(t *testing.T) {
  {"type":"Ready credential-canary","status":"True"},{"type":"PIDPressure","status":"True credential-canary"}]}},
 {"kind":"Node","status":{"allocatable":{"cpu":"credential-canary","memory":"8Gi credential-canary"}}}
 ]}`
+	flux := `{"items":[
+{"kind":"Kustomization","metadata":{"name":"loco-infra"},"status":{"conditions":[
+ {"type":"Ready","status":"False","reason":"HealthCheckFailed","message":"credential-canary"}]}},
+{"kind":"HelmRelease","metadata":{"name":"credential-canary"},"status":{"conditions":[
+ {"type":"Ready","status":"Unknown","reason":"Progressing credential-canary"}]}},
+{"kind":"OCIRepository","metadata":{"name":"platform-bundle"},"status":{"conditions":[
+ {"type":"Ready","status":"True","reason":"Succeeded"}]}}
+]}`
+	t.Setenv("SNAPSHOT_TEST_FLUX", flux)
 	t.Setenv("SNAPSHOT_TEST_JSON", state)
 	t.Setenv("SNAPSHOT_TEST_NODES", nodes)
 	calls := filepath.Join(t.TempDir(), "calls")
@@ -49,6 +58,7 @@ esac
 if [ "$SNAPSHOT_TEST_FAIL" = 1 ]; then printf 'credential-canary' >&2; exit 42; fi
 case "$*" in
 *'get nodes'*) printf '%s' "$SNAPSHOT_TEST_NODES" ;;
+*kustomizations*) printf '%s' "$SNAPSHOT_TEST_FLUX" ;;
 *) printf '%s' "$SNAPSHOT_TEST_JSON" ;;
 esac
 `
@@ -73,6 +83,8 @@ esac
 installation-e2e snapshot: ContainerTerminated=OOMKilled count=1
 installation-e2e snapshot: ContainerWaiting=ImagePullBackOff count=1
 installation-e2e snapshot: EventReason=FailedScheduling count=1
+installation-e2e snapshot: Flux HelmRelease/other Ready=Unknown reason=unknown count=1
+installation-e2e snapshot: Flux Kustomization/loco-infra Ready=False reason=HealthCheckFailed count=1
 installation-e2e snapshot: InsufficientCPU count=2
 installation-e2e snapshot: InsufficientMemory count=1
 installation-e2e snapshot: JobFailedDeadlineExceeded count=1
@@ -85,7 +97,7 @@ installation-e2e snapshot: NodeCondition=Ready status=False count=1
 installation-e2e snapshot: PodPhase=Pending count=1
 installation-e2e snapshot: PodScheduledUnschedulable count=1
 `},
-		{"1", "installation-e2e snapshot: QueryUnavailable count=2\n"},
+		{"1", "installation-e2e snapshot: QueryUnavailable count=3\n"},
 	} {
 		t.Setenv("SNAPSHOT_TEST_FAIL", tc.fail)
 		err = f.runOperator(t.Context())
@@ -109,6 +121,7 @@ installation-e2e snapshot: PodScheduledUnschedulable count=1
 	for _, want := range []string{
 		"--kubeconfig /owned/kubeconfig -n loco-builds get pods,jobs,builds,events -o json",
 		"--kubeconfig /owned/kubeconfig get nodes -o json",
+		"--kubeconfig /owned/kubeconfig get kustomizations,helmreleases,ocirepositories --all-namespaces -o json",
 	} {
 		if !strings.Contains(string(invocations), want) {
 			t.Errorf("snapshot did not query only its cluster: %q", invocations)
