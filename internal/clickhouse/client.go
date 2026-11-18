@@ -1,7 +1,6 @@
 package clickhouse
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -34,10 +33,6 @@ func NewClient(url string, database string, maxConns int, queryTimeout time.Dura
 
 func (c *Client) Conn() driver.Conn {
 	return c.conn
-}
-
-func (c *Client) Ping(ctx context.Context) error {
-	return c.conn.Ping(ctx)
 }
 
 func (c *Client) Close() {

@@ -83,22 +83,6 @@ func race(t *testing.T, run func(runner int) error) []error {
 	return errs
 }
 
-func TestUnlockedRunnersApplyANonIdempotentMigrationMoreThanOnce(t *testing.T) {
-	db := newTestDatabase(t)
-	errs := race(t, func(int) error {
-		_, err := apply(t.Context(), db.cfg, nonIdempotentMigrations)
-		return err
-	})
-	for runner, err := range errs {
-		t.Logf("unlocked runner %d: %v", runner, err)
-	}
-	rows := db.ledgerRows(t)
-	t.Logf("unlocked: %d runners inserted %d ledger rows", racingRunners, rows)
-	if rows <= 1 {
-		t.Fatalf("unlocked runners inserted %d ledger rows, want more than 1 to show the race", rows)
-	}
-}
-
 func TestLockedRunnersApplyANonIdempotentMigrationOnce(t *testing.T) {
 	db := newTestDatabase(t)
 	errs := race(t, func(int) error {

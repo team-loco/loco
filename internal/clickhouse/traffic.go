@@ -30,9 +30,10 @@ func (c *Client) queryTrafficMetrics(
 	req *observabilityv1.QueryMetricsRequest,
 	histogram bool,
 ) ([]*observabilityv1.MetricSeries, error) {
-	filters, args := metricsFilters(req)
-	filters = append(filters, "MetricName = ?", fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
-	args = append(args, req.GetMetricName())
+	b := &positionalBinder{}
+	filters := metricsFilters(req, b)
+	filters = append(filters, "MetricName = "+b.str(req.GetMetricName()),
+		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
 	table, values, bounds := "otel_metrics_sum", "[Value]", "CAST([], 'Array(Float64)')"
 	if histogram {
 		table, values, bounds = "otel_metrics_histogram", "arrayMap(x -> toFloat64(x), BucketCounts)", "ExplicitBounds"
@@ -56,11 +57,11 @@ func (c *Client) queryTrafficMetrics(
  ) ORDER BY stream, TimeUnix SETTINGS max_execution_time = %d`,
 		columns, table, where, columns, table, where, int(c.queryTimeout.Seconds()))
 	queryArgs := append(
-		slices.Clone(args),
+		slices.Clone(b.args),
 		req.GetStartTime().AsTime().UnixNano(),
 		req.GetEndTime().AsTime().UnixNano(),
 	)
-	queryArgs = append(queryArgs, args...)
+	queryArgs = append(queryArgs, b.args...)
 	queryArgs = append(queryArgs, req.GetStartTime().AsTime().UnixNano())
 	rows, err := c.conn.Query(ctx, query, queryArgs...)
 	if err != nil {
