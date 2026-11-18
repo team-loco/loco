@@ -139,7 +139,7 @@ func (f *fixture) pullPrebuilt(ctx context.Context) error {
 	if f.images == "" {
 		return nil
 	}
-	// Platform names follow tools/platform-release/release.py's IMAGES.
+	// Platform names follow images in tools/platform-release/bundle.go.
 	names := []string{operatorImage, "api", "ui", "obs-proxy", "agent", "controller", fixtureBuilder}
 	for _, name := range names {
 		if checkErr := f.pullPlatformImage(ctx, f.prebuilt(name)); checkErr != nil {

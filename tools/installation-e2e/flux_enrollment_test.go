@@ -10,21 +10,16 @@ import (
 
 func TestFluxWorkerUsesTheWorkerContext(t *testing.T) {
 	for _, tc := range []struct {
-		name       string
-		head, tier bool
+		name string
+		head bool
 	}{
-		{name: "published API with tiers", tier: true},
-		{name: "published API without tiers"},
+		{name: "baseline issuance"},
 		{name: "post-upgrade issuance", head: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			bin := t.TempDir()
 			script := `#!/bin/sh
 set -eu
-if [ "$*" = 'cluster create --help' ]; then
-    printf '%s' "$BASELINE_HELP"
-    exit 0
-fi
 echo "$*" > "$CLI_ARGS"
 echo "Applied join-token Secret"
 `
@@ -34,11 +29,6 @@ echo "Applied join-token Secret"
 			argsPath := filepath.Join(bin, "args")
 			t.Setenv("PATH", bin)
 			t.Setenv("CLI_ARGS", argsPath)
-			help := "cluster create --name --region"
-			if tc.tier {
-				help += " --tier"
-			}
-			t.Setenv("BASELINE_HELP", help)
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
 			if err := createFluxWorker(ctx, "fixture-worker", tc.head); err != nil {
@@ -53,8 +43,7 @@ echo "Applied join-token Secret"
 				t.Fatal(err)
 			}
 			if strings.Contains(string(args), "--kube-context fixture") == tc.head ||
-				strings.Contains(string(args), "--ttl 72h") != tc.head ||
-				strings.Contains(string(args), "--tier production") != tc.tier {
+				strings.Contains(string(args), "--ttl 72h") != tc.head {
 				t.Fatalf("issuance arguments: %s", args)
 			}
 		})

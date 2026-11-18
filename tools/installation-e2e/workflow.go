@@ -34,6 +34,14 @@ const (
 	phaseCompletionAudit = "completion-audit"
 )
 
+// knownPhases are the phases operatorOutput reports from the operator's stderr.
+var knownPhases = []string{
+	phasePreflight, phaseControlPlane, phaseAdminStatus, phasePreLoginAudit, phaseLogin,
+	phaseLoginApprove, phaseLoginApproved, phasePostLoginAudit, phaseWorkers, phaseUpgrade,
+	phaseFreshHome, phaseWorkloads, phaseSourceDeploy, phaseSourceHTTPS, phaseSourceVerify,
+	phaseNetworkPolicy, phaseRecovery, phaseTLSMinimum, phaseCompletionAudit,
+}
+
 var errOperatorOutputLimit = errors.New("operator output exceeded capture limit")
 
 func operatorWorkflow(ctx context.Context, dir string) ([]byte, error) {
@@ -116,18 +124,8 @@ func (o *operatorOutput) Write(p []byte) (int, error) {
 				return n, writeErr
 			}
 		}
-		if slices.Contains([]string{
-			phasePrefix + phasePreflight, phasePrefix + phaseControlPlane,
-			phasePrefix + phasePreLoginAudit, phasePrefix + phaseLogin,
-			phasePrefix + phaseLoginApprove, phasePrefix + phaseLoginApproved,
-			phasePrefix + phasePostLoginAudit, phasePrefix + phaseAdminStatus,
-			phasePrefix + phaseWorkers, phasePrefix + phaseUpgrade,
-			phasePrefix + phaseFreshHome, phasePrefix + phaseWorkloads,
-			phasePrefix + phaseSourceDeploy, phasePrefix + phaseSourceHTTPS,
-			phasePrefix + phaseSourceVerify, phasePrefix + phaseNetworkPolicy,
-			phasePrefix + phaseRecovery, phasePrefix + phaseTLSMinimum, phasePrefix + phaseCompletionAudit,
-		}, candidate) {
-			o.phase = candidate[len(phasePrefix):]
+		if phase, ok := strings.CutPrefix(candidate, phasePrefix); ok && slices.Contains(knownPhases, phase) {
+			o.phase = phase
 			if _, writeErr := fmt.Fprintln(os.Stderr, candidate); writeErr != nil {
 				return n, writeErr
 			}

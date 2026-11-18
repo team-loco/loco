@@ -22,7 +22,7 @@ func testTool(t *testing.T) *tool {
 	executable, err := os.Executable()
 	require.NoError(t, err)
 	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
-	for _, name := range []string{"git", "helm", "mise", dockerCommand, "go", "gh"} {
+	for _, name := range []string{"git", "helm", "mise", dockerCommand, "gh"} {
 		script := "#!/bin/sh\nexec " + quote(
 			executable,
 		) + " -test.run=TestReleaseCommandHelper -- " + name + " \"$@\"\n"
@@ -79,11 +79,6 @@ func testTool(t *testing.T) *tool {
 		mustArchive(t, releaseFiles{"gateway/crds/crds/gateway.yaml": []byte("kind: CustomResourceDefinition")}),
 	)
 	write("chart.tgz", mustArchive(t, releaseFiles{"Chart.yaml": []byte("name: fixture\nversion: 0.1.0")}))
-	fingerprints := map[string]string{}
-	for _, name := range images {
-		fingerprints[name] = name
-	}
-	write("fingerprints.json", encoded(fingerprints))
 	return &tool{root: root, ctx: context.Background()}
 }
 
@@ -124,13 +119,6 @@ func releaseCommandHelper(root string, args []string) error {
 	switch args[0] {
 	case "git":
 		return fixture.git()
-	case "go":
-		data, err := fixture.read("fingerprints.json")
-		if err != nil {
-			return err
-		}
-		fmt.Print(string(data))
-		return nil
 	case "helm":
 		return fixture.helm()
 	case dockerCommand:

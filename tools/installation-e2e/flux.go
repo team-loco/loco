@@ -211,10 +211,6 @@ func reconcilePlatform(ctx context.Context, path string) error {
 	return err
 }
 
-func upgradePlatform(ctx context.Context) error {
-	return switchRepository(ctx, "/installation/current")
-}
-
 func switchRepository(ctx context.Context, path string) error {
 	reference, err := os.ReadFile(path)
 	if err != nil {
@@ -264,13 +260,6 @@ func createFluxWorker(ctx context.Context, name string, head bool) error {
 		args = append(args, "--ttl", "72h", "-o", secretOutputFormat)
 	} else {
 		args = append(args, "--kube-context", "fixture")
-		help, err := locoadm(ctx, "cluster", clusterCreateCommand, "--help")
-		if err != nil {
-			return err
-		}
-		if strings.Contains(string(help), "--tier") {
-			args = append(args, "--tier", "production")
-		}
 	}
 	_, err := locoadm(ctx, args...)
 	if err != nil {
