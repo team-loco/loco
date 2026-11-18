@@ -4,12 +4,18 @@ import subprocess
 import sys
 import threading
 import urllib.parse
-import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
-from helpers import chart_values, docker, read_output, run_collector, wait_for
+from helpers import (
+    chart_values,
+    docker,
+    post_otlp,
+    read_output,
+    run_collector,
+    wait_for,
+)
 
 
 @pytest.mark.parametrize("gateway", [False, True], ids=["dependency", "gateway"])
@@ -249,13 +255,7 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
                     == 0
                 ),
             )
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{collector.port}/v1/traces",
-                json.dumps(payload).encode(),
-                {"Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(request, timeout=5) as response:
-                assert response.status == 200
+            post_otlp(collector, "traces", payload)
             received = read_output(
                 collector, lambda document: document["resourceSpans"], 2
             )

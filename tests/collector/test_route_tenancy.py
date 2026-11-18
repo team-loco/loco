@@ -1,9 +1,5 @@
-import json
-import urllib.error
-import urllib.request
-
 import pytest
-from helpers import chart_values, read_output, run_collector, wait_for
+from helpers import chart_values, post_otlp, read_output, run_collector
 
 GATEWAY_LABEL = "gateway.envoyproxy.io/owning-gateway-name"
 FORGED = {
@@ -152,22 +148,9 @@ def route_records(request, worker_relays, tmp_path_factory):
     directory = tmp_path_factory.mktemp(signal)
     with run_collector(directory, config, "otel-col-deploy") as collector:
         for resource in ({GATEWAY_LABEL: "loco"}, {"service.name": "dependency"}):
-            request = urllib.request.Request(
-                f"http://127.0.0.1:{collector.port}/v1/{signal}",
-                json.dumps(
-                    payload({"attributes": attributes(resource)}, record)
-                ).encode(),
-                {"Content-Type": "application/json"},
+            post_otlp(
+                collector, signal, payload({"attributes": attributes(resource)}, record)
             )
-
-            def send(request=request):
-                try:
-                    with urllib.request.urlopen(request, timeout=1) as response:
-                        return response.status == 200
-                except urllib.error.URLError, ConnectionError:
-                    return False
-
-            wait_for(collector, send)
         received = read_output(collector, records, 2)
     return {
         "gateway" if GATEWAY_LABEL in flatten(resource["attributes"]) else "other": (

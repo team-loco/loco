@@ -3,6 +3,8 @@ import os
 import subprocess
 import tempfile
 import time
+import urllib.error
+import urllib.request
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -151,3 +153,21 @@ def read_output(collector, items, count):
         return found if len(found) >= count else None
 
     return wait_for(collector, received)
+
+
+def post_otlp(collector, signal, payload):
+    """POST an OTLP/JSON export of signal to the collector until it accepts it."""
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{collector.port}/v1/{signal}",
+        json.dumps(payload).encode(),
+        {"Content-Type": "application/json"},
+    )
+
+    def accepted():
+        try:
+            with urllib.request.urlopen(request, timeout=1) as response:
+                return response.status == 200
+        except urllib.error.URLError, ConnectionError:
+            return False
+
+    wait_for(collector, accepted)

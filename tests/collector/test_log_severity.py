@@ -1,9 +1,5 @@
-import json
-import urllib.error
-import urllib.request
-
 import pytest
-from helpers import chart_values, read_output, run_collector, wait_for
+from helpers import chart_values, post_otlp, read_output, run_collector
 
 
 @pytest.mark.parametrize("source", ["otlp", "file_log"])
@@ -87,21 +83,8 @@ def test_collected_log_severity(tmp_path, source):
             for i, (body, _, _, initial) in enumerate(cases)
         ]
         payload = {"resourceLogs": [{"scopeLogs": [{"logRecords": records}]}]}
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{collector.port}/v1/logs",
-            json.dumps(payload).encode(),
-            {"Content-Type": "application/json"},
-        )
-
-        def send():
-            try:
-                with urllib.request.urlopen(request, timeout=1) as response:
-                    return response.status == 200
-            except urllib.error.URLError, ConnectionError:
-                return False
-
         if source == "otlp":
-            wait_for(collector, send)
+            post_otlp(collector, "logs", payload)
         received = read_output(
             collector,
             lambda document: [
