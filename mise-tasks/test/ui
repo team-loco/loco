@@ -54,14 +54,13 @@ evidence=(uv run --frozen --project tests python tests/ui/evidence.py)
 start=$SECONDS
 # The suites share one OpenBao. It holds only the seeded transit keys; each API
 # keeps what it encrypts or signs with them in its own database.
-openbao=loco-ui-evidence-openbao-$$
 cleanup() {
     status=$?
-    "${evidence[@]}" stop-openbao --project "$openbao" || status=1
+    "${evidence[@]}" stop-openbao --address "${UI_EVIDENCE_OPENBAO:-}" || status=1
     exit "$status"
 }
 trap cleanup EXIT
-UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao --project "$openbao")
+UI_EVIDENCE_OPENBAO=$("${evidence[@]}" openbao)
 export UI_EVIDENCE_OPENBAO
 "${evidence[@]}" build
 echo "Built the API and UI and started OpenBao in $((SECONDS - start))s"
