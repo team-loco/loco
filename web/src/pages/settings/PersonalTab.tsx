@@ -20,6 +20,7 @@ import { MemberAvatar } from "@/pages/team/MemberAvatar";
 import { DeleteAccount } from "./DeleteAccount";
 import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
+import { ActiveSessions } from "./ActiveSessions";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
 const TOKENS_PATH = "/tokens?owner=personal";
@@ -132,6 +133,7 @@ export function PersonalTab({
 						</Button>
 					</div>
 				</SettingsCard>
+				<ActiveSessions />
 			</SettingsSection>
 
 			<SettingsSection title="Danger zone">
