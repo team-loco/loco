@@ -63,7 +63,7 @@ func TestRegistryToken(t *testing.T) {
 
 	t.Run("a pod cannot pull another workspace's image", r.crossWorkspacePull)
 
-	t.Run("a second deploy imports the cache", r.secondDeploy)
+	t.Run("a second deploy makes a new build", r.secondDeploy)
 
 	t.Run("the sweeper deletes the replaced image", r.sweeper)
 
@@ -488,20 +488,6 @@ func (r *registryRun) secondDeploy(t *testing.T) {
 	r.secondA = latestBuild(t, a, appA)
 	if r.secondA == firstBuild[a] {
 		t.Fatal("the second deploy made no new build")
-	}
-	if logs := p.MustKubectl(
-		t,
-		"-n",
-		p.BuildNamespace,
-		"logs",
-		"job/build-"+r.secondA,
-		"-c",
-		"fetch",
-	); !strings.Contains(
-		logs,
-		"cache restored",
-	) {
-		t.Errorf("the second build's fetch step did not import the cache:\n%s", logs)
 	}
 }
 

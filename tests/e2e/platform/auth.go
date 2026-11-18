@@ -219,6 +219,12 @@ func (p *Platform) DeleteAgentKey(ctx context.Context) error {
 	return err
 }
 
+// AgentKeyStored returns an error until the agent's key Secret exists.
+func (p *Platform) AgentKeyStored(ctx context.Context) error {
+	_, err := p.Kubectl(ctx, "-n", locoNamespace, "get", "secret", p.agentVariable("LOCO_AGENT_KEY_SECRET"))
+	return err
+}
+
 // Locoadm runs locoadm as the system admin.
 func (p *Platform) Locoadm(ctx context.Context, args ...string) (string, error) {
 	cmd := append(

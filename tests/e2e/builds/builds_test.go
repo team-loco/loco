@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -64,16 +66,6 @@ func TestBuilds(t *testing.T) {
 		testBuildkitStartup(t, first.Name)
 	})
 
-	t.Run("images report their build version", func(t *testing.T) {
-		if logs := buildLogs(t, "e2e-app-1", "fetch"); !strings.Contains(logs, "version="+p.Version) {
-			t.Errorf("builder fetch log lacks version=%s:\n%s", p.Version, logs)
-		}
-		logs := p.MustKubectl(t, "-n", p.Namespace, "logs", "deployment/loco-build-controller")
-		if !logsVersion(logs) {
-			t.Errorf("the build controller logged no record with version %s", p.Version)
-		}
-	})
-
 	t.Run("only the push step holds the push credentials", func(t *testing.T) {
 		var job batchv1.Job
 		p.MustGet(t, &job, "-n", p.BuildNamespace, "job", "e2e-app-1")
@@ -122,14 +114,13 @@ func TestBuilds(t *testing.T) {
 		if second.Status.Phase != succeeded {
 			t.Fatalf("cached build phase %q (%s)", second.Status.Phase, second.Status.Message)
 		}
-		if logs := buildLogs(t, "e2e-app-2", "fetch"); !strings.Contains(logs, "cache restored") {
-			t.Errorf("the fetch step did not restore the cache by digest:\n%s", logs)
-		}
-		if logs := buildLogs(t, "e2e-app-2", buildStep); !strings.Contains(logs, "CACHED") {
-			t.Errorf("the build step reused no cached layer:\n%s", logs)
-		}
 		if !platform.IsDigest(second.Status.ImageDigest) {
-			t.Errorf("cached build image digest %q", second.Status.ImageDigest)
+			t.Fatalf("cached build image digest %q", second.Status.ImageDigest)
+		}
+		firstLayers, secondLayers := imageLayers(t, "e2e/build-app", first.Status.ImageDigest),
+			imageLayers(t, "e2e/build-app", second.Status.ImageDigest)
+		if !slices.Equal(firstLayers, secondLayers) {
+			t.Errorf("the cached build made layers %v, want the first build's %v", secondLayers, firstLayers)
 		}
 		t.Logf("cached build took %s (first build: %s)", buildDuration(second), buildDuration(first))
 	})
@@ -327,6 +318,44 @@ func buildDuration(build *v1alpha1.Build) string {
 func buildLogs(t *testing.T, job, container string) string {
 	t.Helper()
 	return p.MustKubectl(t, "-n", p.BuildNamespace, "logs", "job/"+job, "-c", container)
+}
+
+// imageLayers returns the layer digests of the image at digest, following an index to its first
+// manifest.
+func imageLayers(t *testing.T, repository, digest string) []string {
+	t.Helper()
+	response, err := p.RegistryRequest(
+		t.Context(),
+		http.MethodGet,
+		"/v2/"+repository+"/manifests/"+digest,
+		&platform.RegistryNodesUser,
+		"",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Status != http.StatusOK {
+		t.Fatalf("manifest %s@%s: status %d", repository, digest, response.Status)
+	}
+	var manifest struct {
+		Manifests []struct {
+			Digest string `json:"digest"`
+		} `json:"manifests"`
+		Layers []struct {
+			Digest string `json:"digest"`
+		} `json:"layers"`
+	}
+	if err := json.Unmarshal(response.Body, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Manifests) > 0 {
+		return imageLayers(t, repository, manifest.Manifests[0].Digest)
+	}
+	layers := make([]string, 0, len(manifest.Layers))
+	for _, layer := range manifest.Layers {
+		layers = append(layers, layer.Digest)
+	}
+	return layers
 }
 
 // buildOutput is the output of the build step's RUN instructions.

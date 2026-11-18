@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -59,11 +58,6 @@ func (p *Platform) up(ctx context.Context) error {
 	); err != nil {
 		return err
 	}
-	p.agentLog = &agentLog{path: p.logPath("agent"), expected: map[string]bool{}}
-	if err := os.Remove(p.agentLog.path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return err
-	}
-
 	logf(
 		"Run %s: building images and binaries, starting kind cluster %s and compose project %s",
 		p.run,

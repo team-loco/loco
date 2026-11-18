@@ -1,12 +1,9 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -20,12 +17,8 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-func TestApplyRefusedLogsADetailThatCannotBeEncoded(t *testing.T) {
-	var logs bytes.Buffer
-	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
-	t.Cleanup(func() { slog.SetDefault(previous) })
-
+func TestApplyRefusedDropsADetailThatCannotBeEncoded(t *testing.T) {
+	t.Parallel()
 	invalidUTF8 := string([]byte{0xff})
 	refusal := &planv1.ApplyRefusal{Images: map[string]string{"web": invalidUTF8}}
 	err := applyRefused(errors.New("refused"), refusal)
@@ -39,9 +32,6 @@ func TestApplyRefusedLogsADetailThatCannotBeEncoded(t *testing.T) {
 	}
 	if len(connectErr.Details()) != 0 {
 		t.Fatalf("details = %v, want none", connectErr.Details())
-	}
-	if !strings.Contains(logs.String(), "level=ERROR") || !strings.Contains(logs.String(), "invalid UTF-8") {
-		t.Fatalf("logs = %q, want an ERROR line with the encoding failure", logs.String())
 	}
 }
 

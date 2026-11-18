@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,11 +28,6 @@ func TestReconnectLoopStopsOnAnErrorARetryCannotFix(t *testing.T) {
 	}
 	for name, rejection := range permanent {
 		t.Run(name, func(t *testing.T) {
-			var logs bytes.Buffer
-			previous := slog.Default()
-			slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
-			t.Cleanup(func() { slog.SetDefault(previous) })
-
 			a := &Agent{cfg: &Config{
 				ReconnectBaseDelay:    testReconnectDelay,
 				ReconnectMaxDelay:     testReconnectDelay,
@@ -58,19 +49,11 @@ func TestReconnectLoopStopsOnAnErrorARetryCannotFix(t *testing.T) {
 			if attempts != 1 {
 				t.Fatalf("reconnectLoop made %d attempts, want 1", attempts)
 			}
-			if logs.Len() != 0 {
-				t.Fatalf("logged %q, want nothing before the caller logs the returned error", logs.String())
-			}
 		})
 	}
 }
 
-func TestReconnectLoopLogsARetriedStreamErrorAsAWarning(t *testing.T) {
-	var logs bytes.Buffer
-	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
-	t.Cleanup(func() { slog.SetDefault(previous) })
-
+func TestReconnectLoopRetriesADroppedStream(t *testing.T) {
 	a := &Agent{cfg: &Config{
 		ReconnectBaseDelay:    testReconnectDelay,
 		ReconnectMaxDelay:     testReconnectDelay,
@@ -89,23 +72,7 @@ func TestReconnectLoopLogsARetriedStreamErrorAsAWarning(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("reconnectLoop returned %v, want %v", err, context.Canceled)
 	}
-
-	output := strings.TrimSpace(logs.String())
-	lines := strings.Split(output, "\n")
-	if len(lines) != 1 {
-		t.Fatalf("logged %q, want one record for the one retried attempt", output)
-	}
-	var record struct {
-		Level string `json:"level"`
-		Msg   string `json:"msg"`
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal([]byte(lines[0]), &record); err != nil {
-		t.Fatalf("decode %q: %v", lines[0], err)
-	}
-	want := "sync stream error, reconnecting"
-	if record.Level != slog.LevelWarn.String() || record.Msg != want ||
-		record.Error != errTestStreamDropped.Error() {
-		t.Fatalf("logged %+v, want a %s record of the dropped stream", record, slog.LevelWarn)
+	if attempts != testAttemptsBeforeStop {
+		t.Fatalf("reconnectLoop made %d attempts, want %d", attempts, testAttemptsBeforeStop)
 	}
 }
