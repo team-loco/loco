@@ -516,11 +516,11 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 	if err != nil {
 		return nil, nil, err
 	}
-	base = connect.NewServer(tracingInterceptor, errorInterceptor, deadlineInterceptor.Interceptor())
+	base = connect.NewServer(tracingInterceptor, deadlineInterceptor.Interceptor(), errorInterceptor)
 	authenticated = connect.NewServer(
 		tracingInterceptor,
-		errorInterceptor,
 		deadlineInterceptor.Interceptor(),
+		errorInterceptor,
 		interceptor.NewContextInterceptor().Interceptor(),
 		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer, ac.StreamAuth).
 			WebCookies(auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins)).Interceptor(),

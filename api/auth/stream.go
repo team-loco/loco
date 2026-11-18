@@ -57,10 +57,6 @@ func GuardStream(
 				err = readErr
 			}
 		}
-		// A dependency can cancel its own work while this request remains live.
-		if errors.Is(err, context.Canceled) && ctx.Err() == nil {
-			return connect.NewError(connect.CodeInternal, "stream validation failed").WithCause(err)
-		}
 		return err
 	}
 	if err := check(ctx); err != nil {

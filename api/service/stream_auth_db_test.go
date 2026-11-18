@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -244,6 +245,44 @@ func TestIdleEventStreamReportsDatabaseConnectionFailure(t *testing.T) {
 	validationPool.Close()
 	if _, err = stream.Receive(); connect.CodeOf(err) != connect.CodeInternal {
 		t.Fatalf("database connection failure = %v, want Internal", err)
+	}
+}
+
+// canceledQueries fails every query with a context.Canceled of its own once failing is set.
+type canceledQueries struct {
+	genDb.DBTX
+	failing atomic.Bool
+}
+
+func (q *canceledQueries) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
+	if q.failing.Load() {
+		return nil, fmt.Errorf("acquire connection: %w", context.Canceled)
+	}
+	return q.DBTX.Query(ctx, sql, args...)
+}
+
+func TestEventStreamReportsCanceledDependencyAsInternal(t *testing.T) {
+	t.Parallel()
+	f, userID, workspaceID := newStreamCredentialFixture(t)
+	f.events.poll = time.Millisecond
+	db := &canceledQueries{DBTX: f.pool}
+	f.events.db = db
+	token := issueStreamCredential(t, f, userID, workspaceID, streamSession, nil)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	stream, err := streamCredentialClients(t, f, token).Event.StreamEvents(ctx, &eventv1.StreamEventsRequest{
+		OrgId: f.orgID, WorkspaceId: workspaceID.String(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err = stream.Receive(); err != nil {
+		t.Fatalf("initial event batch: %v", err)
+	}
+	db.failing.Store(true)
+	if _, err = stream.Receive(); connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("event poll canceled by its dependency = %v, want Internal", err)
 	}
 }
 
