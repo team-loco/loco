@@ -12,18 +12,19 @@ import (
 )
 
 const (
-	testClusterID        = "0199e0a4-0000-7000-8000-0000000000c1"
-	testOtherWorkspaceID = "22222222-3333-4444-5555-666666666666"
-	testTokenLifetime    = time.Hour
-	testPlacedFor        = time.Hour
-	testClockSkew        = time.Minute
-	testAuthTimeout      = 5 * time.Second
-	testJWKSRefresh      = time.Hour
-	testPlacementTTL     = time.Hour
-	testPlacementRefetch = time.Nanosecond
-	testRetryAfter       = 30 * time.Second
-	testCurrentKeyID     = "current"
-	testRotatedKeyID     = "rotated"
+	testClusterID         = "0199e0a4-0000-7000-8000-0000000000c1"
+	testOtherWorkspaceID  = "22222222-3333-4444-5555-666666666666"
+	testTokenLifetime     = time.Hour
+	testPlacedFor         = time.Hour
+	testClockSkew         = time.Minute
+	testMaxRecordLateness = 2 * time.Hour
+	testAuthTimeout       = 5 * time.Second
+	testJWKSRefresh       = time.Hour
+	testPlacementTTL      = time.Hour
+	testPlacementRefetch  = time.Nanosecond
+	testRetryAfter        = 30 * time.Second
+	testCurrentKeyID      = "current"
+	testRotatedKeyID      = "rotated"
 )
 
 type controlPlane struct {
@@ -44,6 +45,10 @@ func newControlPlane(t *testing.T) *controlPlane {
 	t.Helper()
 	fake := ingesttest.Start([]ingesttest.Signer{newSigningKey(t, testCurrentKeyID)})
 	t.Cleanup(fake.Close)
+	fake.Update(func(s *ingesttest.State) {
+		s.ClockSkew = testClockSkew
+		s.MaxRecordLateness = testMaxRecordLateness
+	})
 	return &controlPlane{ControlPlane: fake, t: t}
 }
 
@@ -69,7 +74,6 @@ func (c *controlPlane) gate() *Gate {
 		PlacementTTL:        testPlacementTTL,
 		RetentionTTL:        testRetentionTTL,
 		RefetchInterval:     testPlacementRefetch,
-		ClockSkew:           testClockSkew,
 	})
 }
 

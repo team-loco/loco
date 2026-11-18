@@ -158,6 +158,9 @@ const (
 	systemAdminsEnv            = "LOCO_SYSTEM_ADMINS"
 	defaultIngestTokenLifetime = time.Hour
 
+	defaultIngestMaxRecordLateness = time.Hour
+	defaultIngestClockSkew         = 5 * time.Minute
+
 	defaultRegistryAccessTokenLifetime    = 5 * time.Minute
 	defaultRegistryPullCredentialLifetime = 24 * time.Hour
 	defaultRegistryCredentialSweep        = 10 * time.Minute
@@ -182,8 +185,8 @@ type ClickHouseConfig struct {
 }
 
 type IngestConfig struct {
-	TransitKey    string
-	TokenLifetime time.Duration
+	service.IngestConfig
+	TransitKey string
 }
 
 type RegistryAuthConfig struct {
@@ -772,7 +775,15 @@ func newIngestConfig() IngestConfig {
 	if err := transit.ValidateKeyName(key); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidIngestKey, err))
 	}
-	return IngestConfig{TransitKey: key, TokenLifetime: lifetime}
+	return IngestConfig{
+		TransitKey:    key,
+		TokenLifetime: lifetime,
+		MaxRecordLateness: envconfig.PositiveDuration(
+			"LOCO_INGEST_MAX_RECORD_LATENESS",
+			defaultIngestMaxRecordLateness,
+		),
+		ClockSkew: envconfig.PositiveDuration("LOCO_INGEST_CLOCK_SKEW", defaultIngestClockSkew),
+	}
 }
 
 func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {

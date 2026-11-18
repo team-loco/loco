@@ -9,6 +9,7 @@ package ingestv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -150,7 +151,11 @@ type ListPlacementWindowsResponse struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Windows []*PlacementWindow     `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
 	// retention applies to records that name no workspace: the installation's defaults.
-	Retention     *Retention `protobuf:"bytes,2,opt,name=retention,proto3" json:"retention,omitempty"`
+	Retention *Retention `protobuf:"bytes,2,opt,name=retention,proto3" json:"retention,omitempty"`
+	// max_record_lateness is how far in the past a workspace's record may be; older records are rejected.
+	MaxRecordLateness *durationpb.Duration `protobuf:"bytes,3,opt,name=max_record_lateness,json=maxRecordLateness,proto3" json:"max_record_lateness,omitempty"`
+	// clock_skew widens each window at both ends.
+	ClockSkew     *durationpb.Duration `protobuf:"bytes,4,opt,name=clock_skew,json=clockSkew,proto3" json:"clock_skew,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -195,6 +200,20 @@ func (x *ListPlacementWindowsResponse) GetWindows() []*PlacementWindow {
 func (x *ListPlacementWindowsResponse) GetRetention() *Retention {
 	if x != nil {
 		return x.Retention
+	}
+	return nil
+}
+
+func (x *ListPlacementWindowsResponse) GetMaxRecordLateness() *durationpb.Duration {
+	if x != nil {
+		return x.MaxRecordLateness
+	}
+	return nil
+}
+
+func (x *ListPlacementWindowsResponse) GetClockSkew() *durationpb.Duration {
+	if x != nil {
+		return x.ClockSkew
 	}
 	return nil
 }
@@ -415,16 +434,19 @@ var File_loco_ingest_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_loco_ingest_v1_ingest_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/ingest/v1/ingest.proto\x12\x0eloco.ingest.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
+	"\x1bloco/ingest/v1/ingest.proto\x12\x0eloco.ingest.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x13\n" +
 	"\x11IssueTokenRequest\"e\n" +
 	"\x12IssueTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x129\n" +
 	"\n" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x1d\n" +
-	"\x1bListPlacementWindowsRequest\"\x92\x01\n" +
+	"\x1bListPlacementWindowsRequest\"\x97\x02\n" +
 	"\x1cListPlacementWindowsResponse\x129\n" +
 	"\awindows\x18\x01 \x03(\v2\x1f.loco.ingest.v1.PlacementWindowR\awindows\x127\n" +
-	"\tretention\x18\x02 \x01(\v2\x19.loco.ingest.v1.RetentionR\tretention\"\xa8\x01\n" +
+	"\tretention\x18\x02 \x01(\v2\x19.loco.ingest.v1.RetentionR\tretention\x12I\n" +
+	"\x13max_record_lateness\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x11maxRecordLateness\x128\n" +
+	"\n" +
+	"clock_skew\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\tclockSkew\"\xa8\x01\n" +
 	"\x0fPlacementWindow\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x127\n" +
 	"\tplaced_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bplacedAt\x129\n" +
@@ -473,26 +495,29 @@ var file_loco_ingest_v1_ingest_proto_goTypes = []any{
 	(*GetRetentionResponse)(nil),         // 7: loco.ingest.v1.GetRetentionResponse
 	nil,                                  // 8: loco.ingest.v1.GetRetentionResponse.RetentionEntry
 	(*timestamppb.Timestamp)(nil),        // 9: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),          // 10: google.protobuf.Duration
 }
 var file_loco_ingest_v1_ingest_proto_depIdxs = []int32{
 	9,  // 0: loco.ingest.v1.IssueTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
 	4,  // 1: loco.ingest.v1.ListPlacementWindowsResponse.windows:type_name -> loco.ingest.v1.PlacementWindow
 	5,  // 2: loco.ingest.v1.ListPlacementWindowsResponse.retention:type_name -> loco.ingest.v1.Retention
-	9,  // 3: loco.ingest.v1.PlacementWindow.placed_at:type_name -> google.protobuf.Timestamp
-	9,  // 4: loco.ingest.v1.PlacementWindow.removed_at:type_name -> google.protobuf.Timestamp
-	8,  // 5: loco.ingest.v1.GetRetentionResponse.retention:type_name -> loco.ingest.v1.GetRetentionResponse.RetentionEntry
-	5,  // 6: loco.ingest.v1.GetRetentionResponse.RetentionEntry.value:type_name -> loco.ingest.v1.Retention
-	0,  // 7: loco.ingest.v1.IngestService.IssueToken:input_type -> loco.ingest.v1.IssueTokenRequest
-	2,  // 8: loco.ingest.v1.IngestService.ListPlacementWindows:input_type -> loco.ingest.v1.ListPlacementWindowsRequest
-	6,  // 9: loco.ingest.v1.IngestService.GetRetention:input_type -> loco.ingest.v1.GetRetentionRequest
-	1,  // 10: loco.ingest.v1.IngestService.IssueToken:output_type -> loco.ingest.v1.IssueTokenResponse
-	3,  // 11: loco.ingest.v1.IngestService.ListPlacementWindows:output_type -> loco.ingest.v1.ListPlacementWindowsResponse
-	7,  // 12: loco.ingest.v1.IngestService.GetRetention:output_type -> loco.ingest.v1.GetRetentionResponse
-	10, // [10:13] is the sub-list for method output_type
-	7,  // [7:10] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	10, // 3: loco.ingest.v1.ListPlacementWindowsResponse.max_record_lateness:type_name -> google.protobuf.Duration
+	10, // 4: loco.ingest.v1.ListPlacementWindowsResponse.clock_skew:type_name -> google.protobuf.Duration
+	9,  // 5: loco.ingest.v1.PlacementWindow.placed_at:type_name -> google.protobuf.Timestamp
+	9,  // 6: loco.ingest.v1.PlacementWindow.removed_at:type_name -> google.protobuf.Timestamp
+	8,  // 7: loco.ingest.v1.GetRetentionResponse.retention:type_name -> loco.ingest.v1.GetRetentionResponse.RetentionEntry
+	5,  // 8: loco.ingest.v1.GetRetentionResponse.RetentionEntry.value:type_name -> loco.ingest.v1.Retention
+	0,  // 9: loco.ingest.v1.IngestService.IssueToken:input_type -> loco.ingest.v1.IssueTokenRequest
+	2,  // 10: loco.ingest.v1.IngestService.ListPlacementWindows:input_type -> loco.ingest.v1.ListPlacementWindowsRequest
+	6,  // 11: loco.ingest.v1.IngestService.GetRetention:input_type -> loco.ingest.v1.GetRetentionRequest
+	1,  // 12: loco.ingest.v1.IngestService.IssueToken:output_type -> loco.ingest.v1.IssueTokenResponse
+	3,  // 13: loco.ingest.v1.IngestService.ListPlacementWindows:output_type -> loco.ingest.v1.ListPlacementWindowsResponse
+	7,  // 14: loco.ingest.v1.IngestService.GetRetention:output_type -> loco.ingest.v1.GetRetentionResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_loco_ingest_v1_ingest_proto_init() }

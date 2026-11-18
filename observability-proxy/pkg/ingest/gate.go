@@ -39,7 +39,6 @@ type GateConfig struct {
 	PlacementTTL        time.Duration
 	RetentionTTL        time.Duration
 	RefetchInterval     time.Duration
-	ClockSkew           time.Duration
 }
 
 type Gate struct {
@@ -64,8 +63,10 @@ type window struct {
 
 // snapshot is one ListPlacementWindows response; retention applies to records that name no workspace.
 type snapshot struct {
-	windows   []window
-	retention *ingestv1.Retention
+	windows           []window
+	retention         *ingestv1.Retention
+	maxRecordLateness time.Duration
+	clockSkew         time.Duration
 }
 
 type clusterPlacements struct {
@@ -211,6 +212,15 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	if err = checkRetention(resp.GetRetention()); err != nil {
 		return err
 	}
+	lateness, skew := resp.GetMaxRecordLateness().AsDuration(), resp.GetClockSkew().AsDuration()
+	if lateness <= 0 || skew < 0 {
+		return fmt.Errorf(
+			"%w: control plane sent a lateness of %s and a clock skew of %s",
+			ErrAuthUnavailable,
+			lateness,
+			skew,
+		)
+	}
 	windows := make([]window, 0, len(resp.GetWindows()))
 	for _, w := range resp.GetWindows() {
 		entry := window{
@@ -222,7 +232,12 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 		}
 		windows = append(windows, entry)
 	}
-	c.snapshot = snapshot{windows: windows, retention: resp.GetRetention()}
+	c.snapshot = snapshot{
+		windows:           windows,
+		retention:         resp.GetRetention(),
+		maxRecordLateness: lateness,
+		clockSkew:         skew,
+	}
 	c.revoked = false
 	c.fetchedAt = time.Now()
 	return nil
@@ -244,11 +259,15 @@ const (
 	accepted              verdict = ""
 	rejectNotPlaced       verdict = "workspace_not_placed"
 	rejectOutsideOfWindow verdict = "outside_placement_window"
+	rejectTooLate         verdict = "older_than_max_lateness"
 )
 
 func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time) (verdict, error) {
 	if workspaceID == "" {
 		return accepted, nil
+	}
+	if at.Before(time.Now().Add(-a.placements.maxRecordLateness)) {
+		return rejectTooLate, nil
 	}
 	result := a.match(workspaceID, at)
 	if result == accepted || a.refetched {
@@ -264,7 +283,7 @@ func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time)
 }
 
 func (a *Admission) match(workspaceID string, at time.Time) verdict {
-	skew := a.gate.cfg.ClockSkew
+	skew := a.placements.clockSkew
 	result := rejectNotPlaced
 	for _, w := range a.placements.windows {
 		if w.workspaceID != workspaceID {

@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
@@ -24,6 +25,9 @@ const (
 	revoked      = "cluster is removed"
 	outage       = "database unavailable"
 	unauthorized = "unauthorized"
+
+	defaultMaxRecordLateness = time.Hour
+	defaultClockSkew         = 5 * time.Minute
 )
 
 type State struct {
@@ -33,6 +37,8 @@ type State struct {
 	Retention *ingestv1.Retention
 	// WorkspaceRetention is each workspace's effective retention.
 	WorkspaceRetention map[string]*ingestv1.Retention
+	MaxRecordLateness  time.Duration
+	ClockSkew          time.Duration
 	Revoked            bool
 	Outage             bool
 }
@@ -62,6 +68,8 @@ func Serve(listener net.Listener, keys []Signer) *ControlPlane {
 		Keys:               keys,
 		Retention:          retention(),
 		WorkspaceRetention: map[string]*ingestv1.Retention{},
+		MaxRecordLateness:  defaultMaxRecordLateness,
+		ClockSkew:          defaultClockSkew,
 	}}
 	rpcServer := connect.NewServer()
 	ingestv1connect.RegisterIngestServiceHandler(rpcServer, cp)
@@ -157,7 +165,12 @@ func (c *ControlPlane) ListPlacementWindows(
 	if c.state.Revoked {
 		return nil, connect.NewError(connect.CodePermissionDenied, revoked)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows, Retention: c.state.Retention}, nil
+	return &ingestv1.ListPlacementWindowsResponse{
+		Windows:           c.state.Windows,
+		Retention:         c.state.Retention,
+		MaxRecordLateness: durationpb.New(c.state.MaxRecordLateness),
+		ClockSkew:         durationpb.New(c.state.ClockSkew),
+	}, nil
 }
 
 func (c *ControlPlane) GetRetention(

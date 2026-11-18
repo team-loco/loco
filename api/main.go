@@ -73,6 +73,7 @@ import (
 const (
 	envProduction           = "PRODUCTION"
 	eventsRetentionInterval = time.Hour
+	placementWindowSweep    = 10 * time.Minute
 )
 
 var version string
@@ -262,6 +263,8 @@ type deps struct {
 	imageSweeper    *sweepers.ImageSweeper
 	registrySweeper *sweepers.RegistrySweeper
 
+	placementWindowSweeper *sweepers.PlacementWindowSweeper
+
 	config        *service.ConfigServer
 	clusterAdmin  *service.ClusterAdminServer
 	systemAdmin   *service.SystemAdminServer
@@ -425,6 +428,8 @@ func newDeps(
 		imageSweeper:       imageSweeper,
 		registrySweeper:    registrySweeper,
 
+		placementWindowSweeper: sweepers.NewPlacementWindowSweeper(pool, placementWindowSweep, ac.Ingest.WindowKeep()),
+
 		config: service.NewConfigServer(ac.Version,
 			ac.MinCLIVersion,
 			ac.SchemaURL,
@@ -486,7 +491,7 @@ func newDeps(
 			queries,
 			clusterAuthenticator,
 			transitKeys.Ingest,
-			ac.Ingest.TokenLifetime,
+			ac.Ingest.IngestConfig,
 			ac.CountLimits,
 		),
 		registry: registryServiceHandler,
@@ -569,6 +574,7 @@ func registerHandlers(mux *http.ServeMux, baseServer, authenticatedServer *conne
 func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APIConfig, d *deps) {
 	background.Go(func() { d.machine.RunCleanup(ctx, ac.TokenCleanupInterval) })
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
+	background.Go(func() { d.placementWindowSweeper.Run(ctx) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
 	background.Go(func() { events.RunPublisher(ctx, d.eventPool) })
 	background.Go(func() { d.placementNotifier.Run(ctx) })

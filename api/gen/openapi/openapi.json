@@ -3339,7 +3339,7 @@
           "loco.ingest.v1.IngestService"
         ],
         "summary": "ListPlacementWindows",
-        "description": "ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.",
+        "description": "ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:\n the windows still open and those closed within clock_skew plus max_record_lateness, with the overlapping\n windows of each workspace merged.",
         "operationId": "loco.ingest.v1.IngestService.ListPlacementWindows",
         "parameters": [
           {
@@ -11825,6 +11825,16 @@
             "title": "retention",
             "description": "retention applies to records that name no workspace: the installation's defaults.",
             "$ref": "#/components/schemas/loco.ingest.v1.Retention"
+          },
+          "maxRecordLateness": {
+            "title": "max_record_lateness",
+            "description": "max_record_lateness is how far in the past a workspace's record may be; older records are rejected.",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
+          },
+          "clockSkew": {
+            "title": "clock_skew",
+            "description": "clock_skew widens each window at both ends.",
+            "$ref": "#/components/schemas/google.protobuf.Duration"
           }
         },
         "title": "ListPlacementWindowsResponse",

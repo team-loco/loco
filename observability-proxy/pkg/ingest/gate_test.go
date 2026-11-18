@@ -594,3 +594,42 @@ func TestRevocationSeenOnRefetchFailsTheRequest(t *testing.T) {
 		t.Fatalf("consumer received %d requests, want 1", len(recorder.received))
 	}
 }
+
+func TestRecordsOlderThanTheMaxLatenessAreRejected(t *testing.T) {
+	now := time.Now()
+	cp := newControlPlane(t)
+	cp.Place(testWorkspaceID, now.Add(-10*testMaxRecordLateness), time.Time{})
+	captured := &capturingConsumers{}
+	service := newGatedService(captured.consumers(t), cp)
+	admission, err := service.gate.Admit(t.Context(), cp.bearer())
+	if err != nil {
+		t.Fatal(err)
+	}
+	logs := plog.NewLogs()
+	tooLate, inTime := now.Add(-testMaxRecordLateness-time.Minute), now.Add(-testMaxRecordLateness+time.Minute)
+	for _, at := range []time.Time{tooLate, inTime} {
+		resourceLogs := logs.ResourceLogs().AppendEmpty()
+		tagWorkspace(resourceLogs.Resource(), testWorkspaceID)
+		resourceLogs.ScopeLogs().AppendEmpty().LogRecords().AppendEmpty().SetTimestamp(pcommon.NewTimestampFromTime(at))
+	}
+
+	response, err := export(
+		t.Context(),
+		service,
+		service.logsSignal(),
+		admission,
+		plogotlp.NewExportRequestFromLogs(logs),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.PartialSuccess().RejectedLogRecords(); got != 1 {
+		t.Fatalf("rejected log records = %d, want 1", got)
+	}
+	if message := response.PartialSuccess().ErrorMessage(); !strings.Contains(message, string(rejectTooLate)+"=1") {
+		t.Fatalf("partial success message %q lacks %s", message, rejectTooLate)
+	}
+	if len(captured.logs) != 1 || captured.logs[0].LogRecordCount() != 1 {
+		t.Fatalf("stored %v, want the record within the lateness", captured.logs)
+	}
+}

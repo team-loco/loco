@@ -61,7 +61,9 @@ var (
 type IngestServiceClient interface {
 	// IssueToken exchanges a cluster assertion for a short-lived ingest token.
 	IssueToken(context.Context, *v1.IssueTokenRequest) (*v1.IssueTokenResponse, error)
-	// ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
+	// ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:
+	// the windows still open and those closed within clock_skew plus max_record_lateness, with the overlapping
+	// windows of each workspace merged.
 	ListPlacementWindows(context.Context, *v1.ListPlacementWindowsRequest) (*v1.ListPlacementWindowsResponse, error)
 	// GetRetention returns how many days to keep each workspace's records: the workspace's own
 	// value capped by its organization's limit for each signal. It takes an ingest token like
@@ -79,7 +81,9 @@ func NewIngestServiceClient(client *connect.Client) IngestServiceClient {
 type IngestServiceHandler interface {
 	// IssueToken exchanges a cluster assertion for a short-lived ingest token.
 	IssueToken(context.Context, *v1.IssueTokenRequest) (*v1.IssueTokenResponse, error)
-	// ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
+	// ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:
+	// the windows still open and those closed within clock_skew plus max_record_lateness, with the overlapping
+	// windows of each workspace merged.
 	ListPlacementWindows(context.Context, *v1.ListPlacementWindowsRequest) (*v1.ListPlacementWindowsResponse, error)
 	// GetRetention returns how many days to keep each workspace's records: the workspace's own
 	// value capped by its organization's limit for each signal. It takes an ingest token like

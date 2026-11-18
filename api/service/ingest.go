@@ -14,6 +14,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -34,11 +35,25 @@ type IngestSigner interface {
 	PublicKeys(ctx context.Context) (map[string]ed25519.PublicKey, error)
 }
 
+// IngestConfig sets how long ingest tokens live and which records the observability proxy accepts.
+type IngestConfig struct {
+	TokenLifetime time.Duration
+	// MaxRecordLateness is how far in the past a workspace's record may be.
+	MaxRecordLateness time.Duration
+	// ClockSkew widens each placement window at both ends.
+	ClockSkew time.Duration
+}
+
+// WindowKeep is how long a closed placement window can still match a record.
+func (c IngestConfig) WindowKeep() time.Duration {
+	return c.MaxRecordLateness + c.ClockSkew
+}
+
 type IngestServer struct {
 	queries  genDb.Querier
 	clusters *ClusterAuthenticator
 	signer   IngestSigner
-	lifetime time.Duration
+	cfg      IngestConfig
 	counts   *configv1.CountLimits
 }
 
@@ -46,10 +61,10 @@ func NewIngestServer(
 	queries genDb.Querier,
 	clusters *ClusterAuthenticator,
 	signer IngestSigner,
-	lifetime time.Duration,
+	cfg IngestConfig,
 	counts *configv1.CountLimits,
 ) *IngestServer {
-	return &IngestServer{queries: queries, clusters: clusters, signer: signer, lifetime: lifetime, counts: counts}
+	return &IngestServer{queries: queries, clusters: clusters, signer: signer, cfg: cfg, counts: counts}
 }
 
 func (s *IngestServer) keySet(ctx context.Context) (jose.JSONWebKeySet, error) {
@@ -74,7 +89,7 @@ func (s *IngestServer) IssueToken(
 		return nil, agentAuthError(err)
 	}
 	clusterID := cluster.ID.String()
-	token, expiry, err := ingesttoken.Sign(ctx, s.signer, clusterID, time.Now(), s.lifetime)
+	token, expiry, err := ingesttoken.Sign(ctx, s.signer, clusterID, time.Now(), s.cfg.TokenLifetime)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 	}
@@ -90,7 +105,10 @@ func (s *IngestServer) ListPlacementWindows(
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.queries.ListClusterPlacementWindows(ctx, clusterID)
+	rows, err := s.queries.ListClusterPlacementWindows(ctx, genDb.ListClusterPlacementWindowsParams{
+		ClusterID: clusterID,
+		Cutoff:    time.Now().Add(-s.cfg.WindowKeep()),
+	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 	}
@@ -109,7 +127,12 @@ func (s *IngestServer) ListPlacementWindows(
 		}
 		windows = append(windows, window)
 	}
-	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, Retention: install}, nil
+	return &ingestv1.ListPlacementWindowsResponse{
+		Windows:           windows,
+		Retention:         install,
+		MaxRecordLateness: durationpb.New(s.cfg.MaxRecordLateness),
+		ClockSkew:         durationpb.New(s.cfg.ClockSkew),
+	}, nil
 }
 
 func (s *IngestServer) GetRetention(
