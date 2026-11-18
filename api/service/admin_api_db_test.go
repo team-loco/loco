@@ -14,7 +14,6 @@ import (
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
-	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
@@ -182,33 +181,6 @@ func TestPersonalAPITokenCreatesHumanOwnedOrganizations(t *testing.T) {
 	}
 }
 
-func TestPersonalAPITokenManagesAccountStatus(t *testing.T) {
-	t.Parallel()
-	api, admin := newSystemAdminAPI(t)
-	member := api.signUp(t, "member")
-	client, _ := administrativeToken(t, api, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id},
-		genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin},
-	)
-	for _, status := range []userv1.UserStatus{
-		userv1.UserStatus_USER_STATUS_SUSPENDED,
-		userv1.UserStatus_USER_STATUS_ACTIVE,
-	} {
-		if _, err := client.User.SetUserStatus(
-			t.Context(),
-			&userv1.SetUserStatusRequest{
-				Key:    &userv1.SetUserStatusRequest_UserId{UserId: member.id.String()},
-				Status: status,
-			},
-		); err != nil {
-			t.Fatal(err)
-		}
-		row, err := api.queries.GetUserByID(t.Context(), member.id)
-		if err != nil || (row.Status == genDb.UserStatusActive) != (status == userv1.UserStatus_USER_STATUS_ACTIVE) {
-			t.Fatalf("user status = %v, %v", row, err)
-		}
-	}
-}
-
 func TestCreateTokenRejectsSystemOwner(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
@@ -229,22 +201,6 @@ func TestCreateTokenRejectsSystemOwner(t *testing.T) {
 		limits.Defaults(),
 	).CreateToken(reqctx.WithPrincipal(t.Context(), p), request)
 	wantCode(t, err, connect.CodeInvalidArgument)
-}
-
-func TestAdministrativeAPITokensRequireActionPermissions(t *testing.T) {
-	t.Parallel()
-	api, admin := newSystemAdminAPI(t)
-	member := api.signUp(t, "member")
-	client, _ := administrativeToken(t, api, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id},
-		genDb.EntityScope{EntityType: genDb.EntityTypeUser, EntityID: admin.id, Scope: genDb.ScopeRead},
-	)
-	_, err := client.User.SetUserStatus(t.Context(), &userv1.SetUserStatusRequest{
-		Key:    &userv1.SetUserStatusRequest_UserId{UserId: member.id.String()},
-		Status: userv1.UserStatus_USER_STATUS_SUSPENDED,
-	})
-	if connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("error = %v, want PermissionDenied", err)
-	}
 }
 
 func TestPersonalAPITokenAdministrationUsesLiveUserAccess(t *testing.T) {

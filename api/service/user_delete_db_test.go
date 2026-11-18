@@ -50,7 +50,7 @@ func TestDeleteUserRemovesAWorkspaceGrantThatCommitsWhileItWaits(t *testing.T) {
 	deleteCtx := reqctx.WithPrincipal(
 		ctx,
 		reqctx.Principal{
-			Scopes: scopes, UserID: userID, Method: genDb.DeploymentMethodCli,
+			Scopes: scopes, UserID: userID, SessionID: uuid.New(), Method: genDb.DeploymentMethodCli,
 			ActorType: genDb.DeploymentActorTypeUser, ActorID: userID,
 			Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: userID},
 		},
@@ -148,6 +148,7 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 				ctx,
 				reqctx.Principal{
 					UserID:    userID,
+					SessionID: uuid.New(),
 					Method:    genDb.DeploymentMethodCli,
 					ActorType: genDb.DeploymentActorTypeUser,
 					ActorID:   userID,
@@ -197,6 +198,7 @@ func TestDeleteUserEventListsRemovedIdentities(t *testing.T) {
 		ctx,
 		reqctx.Principal{
 			UserID:    userID,
+			SessionID: uuid.New(),
 			Method:    genDb.DeploymentMethodCli,
 			ActorType: genDb.DeploymentActorTypeUser,
 			ActorID:   userID,

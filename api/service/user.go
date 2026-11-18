@@ -199,6 +199,9 @@ func (s *UserServer) DeleteUser(
 	if err != nil {
 		return nil, err
 	}
+	if _, err = requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if err = authorize(ctx, s.authz, actions.DeleteUser, userID); err != nil {
 		return nil, err
 	}
@@ -260,6 +263,9 @@ func (s *UserServer) SetUserStatus(
 	ctx context.Context,
 	req *userv1.SetUserStatusRequest,
 ) (*userv1.SetUserStatusResponse, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if err := authorizeSystem(ctx, s.authz, actions.SetUserStatus); err != nil {
 		return nil, err
 	}

@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"net/http"
 	"sync"
 	"testing"
 
@@ -12,87 +11,68 @@ import (
 
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
-	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-func TestDeleteUserUsesActionPermissions(t *testing.T) {
+func TestAccountChangesRequireSession(t *testing.T) {
 	t.Parallel()
-	for _, tc := range []struct {
-		name       string
-		otherUser  bool
-		system     bool
-		owned      bool
-		scope      tokenv1.Scope
-		wantDenied bool
-	}{
-		{name: "personal admin", scope: tokenv1.Scope_SCOPE_ADMIN},
-		{name: "personal read", scope: tokenv1.Scope_SCOPE_READ, wantDenied: true},
-		{name: "another account", otherUser: true, scope: tokenv1.Scope_SCOPE_ADMIN, wantDenied: true},
-		{name: "system admin", otherUser: true, system: true, scope: tokenv1.Scope_SCOPE_ADMIN},
-		{
-			name: "organization-owned credential", otherUser: true, owned: true,
-			scope: tokenv1.Scope_SCOPE_ADMIN, wantDenied: true,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			a := newMembershipAPI(t)
-			actor := a.signUp(t, "actor")
-			target := actor
-			if tc.otherUser {
-				target = a.signUp(t, "target")
-			}
-			owner := &tokenv1.CreateTokenRequest{
-				Name: "account administration", EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
-				EntityId: actor.id.String(), ExpiresInSec: 3600,
-				Scopes: []*tokenv1.EntityScope{{
-					EntityType: tokenv1.EntityType_ENTITY_TYPE_USER, EntityId: actor.id.String(), Scope: tc.scope,
-				}},
-			}
-			if tc.system {
-				if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
-					UserID: actor.id, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
-				}); err != nil {
-					t.Fatal(err)
-				}
-				owner.Scopes[0].EntityType = tokenv1.EntityType_ENTITY_TYPE_SYSTEM
-				owner.Scopes[0].EntityId = uuid.Nil.String()
-			}
-			if tc.owned {
-				org, err := actor.clients.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{})
-				if err != nil {
-					t.Fatal(err)
-				}
-				owner.EntityType = tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION
-				owner.EntityId = org.GetOrgId()
-				owner.Scopes[0].EntityType = owner.GetEntityType()
-				owner.Scopes[0].EntityId = owner.GetEntityId()
-			}
-			issued, err := actor.clients.Token.CreateToken(t.Context(), owner)
-			if err != nil {
-				t.Fatal(err)
-			}
-			clients := rpc.NewHTTPClients(http.DefaultClient, a.url, issued.GetToken())
-			_, err = clients.User.DeleteUser(t.Context(), &userv1.DeleteUserRequest{UserId: target.id.String()})
-			if tc.wantDenied {
-				if codeOf(err) != connect.CodePermissionDenied {
-					t.Fatalf("delete user = %v, want permission denied", err)
-				}
-				if _, lookupErr := a.queries.GetUserByID(t.Context(), target.id); lookupErr != nil {
-					t.Fatalf("refused deletion changed the account: %v", lookupErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("authorized deletion = %v", err)
-			}
-			if _, err := a.queries.GetUserByID(t.Context(), target.id); !errors.Is(err, pgx.ErrNoRows) {
-				t.Fatalf("deleted account lookup = %v", err)
-			}
+	a := newMembershipAPI(t)
+	admin := a.signUp(t, "admin")
+	system := genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}
+	if err := a.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: admin.id, EntityType: system.EntityType, EntityID: system.EntityID, Scope: system.Scope,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	user := a.signUp(t, "user")
+	other := a.signUp(t, "other")
+	userToken, _ := administrativeToken(t, a, user, genDb.Entity{Type: genDb.EntityTypeUser, ID: user.id},
+		genDb.EntityScope{EntityType: genDb.EntityTypeUser, EntityID: user.id, Scope: genDb.ScopeAdmin})
+	adminToken, _ := administrativeToken(t, a, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id}, system)
+	deleteUser := func(caller *rpc.Clients, target membershipUser) error {
+		_, err := caller.User.DeleteUser(t.Context(), &userv1.DeleteUserRequest{UserId: target.id.String()})
+		return err
+	}
+	setStatus := func(caller *rpc.Clients, target membershipUser, status userv1.UserStatus) error {
+		_, err := caller.User.SetUserStatus(t.Context(), &userv1.SetUserStatusRequest{
+			Key: &userv1.SetUserStatusRequest_UserId{UserId: target.id.String()}, Status: status,
 		})
+		return err
+	}
+	suspended, active := userv1.UserStatus_USER_STATUS_SUSPENDED, userv1.UserStatus_USER_STATUS_ACTIVE
+
+	wantSessionRequired(t, deleteUser(userToken, user))
+	wantSessionRequired(t, deleteUser(adminToken, other))
+	wantSessionRequired(t, setStatus(adminToken, other, suspended))
+	wantSessionRequired(t, setStatus(adminToken, other, active))
+	for _, target := range []membershipUser{user, other} {
+		if _, err := a.queries.GetUserByID(t.Context(), target.id); err != nil {
+			t.Fatalf("refused token request changed the account: %v", err)
+		}
+	}
+
+	if err := deleteUser(user.clients, other); codeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("session deletes another account = %v, want permission denied", err)
+	}
+	if err := setStatus(user.clients, other, suspended); codeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("session suspends without system admin = %v, want permission denied", err)
+	}
+	for _, status := range []userv1.UserStatus{suspended, active} {
+		if err := setStatus(admin.clients, other, status); err != nil {
+			t.Fatalf("system admin session sets status %s: %v", status, err)
+		}
+	}
+	if err := deleteUser(admin.clients, other); err != nil {
+		t.Fatalf("system admin session deletes another account: %v", err)
+	}
+	if err := deleteUser(user.clients, user); err != nil {
+		t.Fatalf("session deletes its own account: %v", err)
+	}
+	for _, target := range []membershipUser{user, other} {
+		if _, err := a.queries.GetUserByID(t.Context(), target.id); !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatalf("deleted account lookup = %v", err)
+		}
 	}
 }
 

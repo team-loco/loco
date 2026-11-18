@@ -61,7 +61,10 @@ func TestSetUserStatusByEmailReportsDatabaseFailure(t *testing.T) {
 	pool := dbtest.ClosedPool(t)
 	server := NewUserServer(pool, genDb.New(pool), nil)
 	scopes := []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}}
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes, Method: genDb.DeploymentMethodCli})
+	ctx := reqctx.WithPrincipal(
+		t.Context(),
+		reqctx.Principal{Scopes: scopes, SessionID: uuid.New(), Method: genDb.DeploymentMethodCli},
+	)
 	_, err := server.SetUserStatus(ctx, &userv1.SetUserStatusRequest{
 		Key:    &userv1.SetUserStatusRequest_Email{Email: "a@example.com"},
 		Status: userv1.UserStatus_USER_STATUS_SUSPENDED,
