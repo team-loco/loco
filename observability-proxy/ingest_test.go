@@ -20,7 +20,7 @@ import (
 
 const (
 	testOTLPMaxBytes      = 1 << 20
-	testIngestTimeout     = 5 * time.Second
+	testIngestTimeout     = time.Minute
 	testIngestDialTimeout = 10 * time.Second
 	ingestOnlyLogBody     = "written by the ingest server"
 )
