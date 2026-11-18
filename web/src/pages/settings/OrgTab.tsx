@@ -30,7 +30,7 @@ import type { AccessLevel } from "@/hooks/useMyScopes";
 import { useOrgLimitDetails } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
 import { formatCount, pluralize } from "@/lib/format";
-import { limitReason, limitUsage } from "@/lib/limits";
+import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
 import { usePagedRows } from "@/lib/paging";
 import { settingsPath } from "@/lib/routes";
 import { userLabel } from "@/lib/user";
@@ -180,7 +180,7 @@ export function OrgTab({
 							placeholder="team-loco"
 							disabled={!canWrite}
 							aria-invalid={shownErr !== null}
-							className="h-9 max-w-[420px] font-mono text-[13.5px]"
+							className="h-9 font-mono text-[13.5px]"
 							onChange={(e) => {
 								onDraft(e.target.value);
 							}}
@@ -204,12 +204,8 @@ export function OrgTab({
 								memberCount === undefined ? (
 									"—"
 								) : (
-									<Link
-										key="members"
-										to={`/org/${org.id}/team`}
-										className="text-foreground underline underline-offset-3"
-									>
-										{memberCount === 1 ? "1 person" : `${formatCount(memberCount)} people`}
+									<Link key="members" to={`/org/${org.id}/team`} className="text-foreground hover:text-fg2">
+										{memberCount === 1 ? "1 person" : `${formatCount(memberCount)} people`} →
 									</Link>
 								),
 							],
@@ -220,7 +216,7 @@ export function OrgTab({
 
 			<Section
 				title="Workspaces"
-				count={workspaces.length}
+				count={workspaceUsage === null ? workspaces.length : usageLabel(workspaceUsage)}
 				className="max-w-[960px]"
 				actions={<LimitedAction reason={newBlocked}>{newButton}</LimitedAction>}
 				search={

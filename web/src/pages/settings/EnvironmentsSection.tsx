@@ -26,7 +26,7 @@ import { pluralize } from "@/lib/format";
 import { slug } from "@/lib/slug";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
-import { limitReason, limitUsage } from "@/lib/limits";
+import { limitReason, limitUsage, usageLabel } from "@/lib/limits";
 
 import { resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
@@ -95,6 +95,7 @@ export function EnvironmentsSection({
 	return (
 		<SettingsSection
 			title="Environments"
+			count={usage === null ? undefined : usageLabel(usage)}
 			actions={
 				<LimitedAction reason={createBlocked}>
 					<Button

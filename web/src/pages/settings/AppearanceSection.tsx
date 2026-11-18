@@ -7,7 +7,9 @@ import { useTheme } from "@/lib/use-theme";
 
 import { SettingsCard, SettingsSection } from "./parts";
 
-const cardGrid = "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]";
+const modeGrid = "grid-cols-[repeat(auto-fill,200px)]";
+const colorGrid = "grid-cols-[repeat(auto-fill,minmax(140px,1fr))]";
+const label = "text-[13px] font-medium";
 
 export function AppearanceSection() {
 	const { mode, setMode, color, setColor } = useTheme();
@@ -18,7 +20,7 @@ export function AppearanceSection() {
 		<SettingsSection title="Appearance" meta="saved in this browser">
 			<SettingsCard className="flex flex-col gap-5 px-5 py-[18px]">
 				<div className="flex flex-col gap-2.5">
-					<span id={modeLabelId} className="text-[12.5px] text-fg3">
+					<span id={modeLabelId} className={label}>
 						Mode
 					</span>
 					<RadioGroup
@@ -28,7 +30,7 @@ export function AppearanceSection() {
 							const next = modes.find((item) => item.id === value);
 							if (next !== undefined) setMode(next.id);
 						}}
-						className={cardGrid}
+						className={modeGrid}
 					>
 						{modes.map((item) => (
 							<RadioCard key={item.id} value={item.id} aria-label={item.name}>
@@ -42,7 +44,7 @@ export function AppearanceSection() {
 					</RadioGroup>
 				</div>
 				<div className="flex flex-col gap-2.5">
-					<span id={colorLabelId} className="text-[12.5px] text-fg3">
+					<span id={colorLabelId} className={label}>
 						Color theme
 					</span>
 					<RadioGroup
@@ -52,7 +54,7 @@ export function AppearanceSection() {
 							const theme = colorThemes.find((item) => item.id === value);
 							if (theme !== undefined) setColor(theme.id);
 						}}
-						className={cardGrid}
+						className={colorGrid}
 					>
 						{colorThemes.map((theme) => (
 							<RadioCard key={theme.id} value={theme.id} aria-label={theme.name}>

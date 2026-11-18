@@ -51,7 +51,7 @@ export function Section({
 }: {
 	id?: string;
 	title?: ReactNode;
-	count?: number | undefined;
+	count?: number | string | undefined;
 	meta?: ReactNode;
 	actions?: ReactNode;
 	filters?: ReactNode;

@@ -17,7 +17,7 @@ export function SettingsCard({ className, children }: { className?: string; chil
 export function SettingsSection(props: {
 	id?: string;
 	title: string;
-	count?: number | undefined;
+	count?: number | string | undefined;
 	meta?: ReactNode;
 	actions?: ReactNode;
 	children: ReactNode;

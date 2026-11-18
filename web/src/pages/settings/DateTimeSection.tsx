@@ -13,7 +13,7 @@ export function DateTimeSection() {
 		<SettingsSection title="Date and time" meta="saved in this browser">
 			<SettingsCard className="flex flex-col gap-4 px-5 py-[18px]">
 				<div className="flex flex-col gap-2">
-					<span className="text-[12.5px] text-fg3">Time zone</span>
+					<span className="text-[13px] font-medium">Time zone</span>
 					<TimeZoneControl
 						onChange={() => {
 							setNow(Date.now());
@@ -21,7 +21,7 @@ export function DateTimeSection() {
 					/>
 				</div>
 				<div className="flex flex-col gap-2">
-					<span className="text-[12.5px] text-fg3">Clock</span>
+					<span className="text-[13px] font-medium">Clock</span>
 					<ToggleGroup
 						variant="segmented"
 						aria-label="Clock"
@@ -39,7 +39,7 @@ export function DateTimeSection() {
 					</ToggleGroup>
 				</div>
 				<div className="flex flex-col gap-2">
-					<span className="text-[12.5px] text-fg3">Shown as</span>
+					<span className="text-[13px] font-medium">Shown as</span>
 					<time className="font-mono text-[13px]" dateTime={new Date(now).toISOString()}>
 						{formatFullTime(now, true, pref)}
 					</time>
