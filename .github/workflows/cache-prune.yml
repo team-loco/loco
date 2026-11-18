@@ -1,0 +1,33 @@
+name: Prune Caches
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  prune:
+    name: Keep the newest build caches on main
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Each input change on main saves a new keyed copy, and restores only use the newest one.
+      - name: Delete older copies
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?ref=refs/heads/main&per_page=100" \
+            --jq '.actions_caches[]' |
+            jq -rs '
+              [.[] | select(.key | test("^(go-build|go-mod|mise|playwright)-"))
+                   | .family = (.key | sub("-[0-9a-f]{20,}$"; "") | sub("^(playwright-[^-]+)-.*$"; "\\1"))]
+              | group_by(.family)
+              | map(sort_by(.last_accessed_at) | reverse | .[1:][])
+              | .[] | "\(.id) \(.size_in_bytes) \(.key)"' |
+            while read -r id size key; do
+              echo "Deleting $key ($((size / 1000000)) MB)"
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/caches/$id"
+            done
