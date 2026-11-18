@@ -1165,20 +1165,22 @@ def settle(page, *, wait_for_network=True, exclude_animations=()):
         raise EvidenceError("animations did not finish")
 
 
-def session_cookie(name, token, url):
-    return {
-        "name": name,
-        "value": token,
-        "url": url,
-        "httpOnly": True,
-        "secure": True,
-        "sameSite": "Strict" if name == REFRESH_COOKIE else "Lax",
-    }
-
-
 def authenticate(context, state, token):
     if state["cookie_session"]:
-        context.add_cookies([session_cookie(SESSION_COOKIE, token, state["ui_url"])])
+        # Chromium's cookie injection requires a secure scheme for __Host-
+        # cookies. The browser still sends them to the loopback HTTP fixture.
+        context.add_cookies(
+            [
+                {
+                    "name": SESSION_COOKIE,
+                    "value": token,
+                    "url": state["ui_url"].replace("http://", "https://", 1),
+                    "httpOnly": True,
+                    "secure": True,
+                    "sameSite": "Lax",
+                }
+            ]
+        )
         return
     stored = json.dumps(
         {"idToken": token, "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS}
