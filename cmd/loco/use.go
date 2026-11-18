@@ -87,7 +87,7 @@ func useCmdFunc(cmd *cobra.Command, args []string) error {
 			return errNoWorkspaces
 		}
 
-		selected, selErr := ui.SelectFromList("Select a scope", options)
+		selected, selErr := ui.SelectFromList("Select a workspace", options)
 		if selErr != nil {
 			return fmt.Errorf("selection canceled: %w", selErr)
 		}

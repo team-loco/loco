@@ -120,13 +120,11 @@ func setupLoginScope(
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.LocoHost == apiHost {
-		if cfg.Workspace.ID != "" {
-			if storeErr := store.Set(newToken); storeErr != nil {
-				return fmt.Errorf("failed to store token: %w", storeErr)
-			}
-			return printLoginSuccess("Logged in!", cfg.Organization.Name, cfg.Workspace.Name)
+	if cfg.LocoHost == apiHost && cfg.Workspace.ID != "" {
+		if storeErr := store.Set(newToken); storeErr != nil {
+			return fmt.Errorf("failed to store token: %w", storeErr)
 		}
+		return printLoginSuccess("Logged in!", cfg.Organization.Name, cfg.Workspace.Name)
 	}
 
 	org, workspace, err := resolveLoginScope(ctx, httpClient, apiHost, newToken.Token)
