@@ -28,8 +28,6 @@ const (
 	TokenServiceCreateTokenProcedure = "/loco.token.v1.TokenService/CreateToken"
 	// TokenServiceListTokensProcedure is the procedure name of the TokenService's ListTokens RPC.
 	TokenServiceListTokensProcedure = "/loco.token.v1.TokenService/ListTokens"
-	// TokenServiceGetTokenProcedure is the procedure name of the TokenService's GetToken RPC.
-	TokenServiceGetTokenProcedure = "/loco.token.v1.TokenService/GetToken"
 	// TokenServiceRevokeTokenProcedure is the procedure name of the TokenService's RevokeToken RPC.
 	TokenServiceRevokeTokenProcedure = "/loco.token.v1.TokenService/RevokeToken"
 	// TokenServiceGetScopesProcedure is the procedure name of the TokenService's GetScopes RPC.
@@ -52,13 +50,6 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_token_v1_token_proto.Services().ByName("TokenService").Methods().ByName("ListTokens"),
 			Procedure:  TokenServiceListTokensProcedure,
-		}
-	})
-	tokenServiceGetTokenSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_token_v1_token_proto.Services().ByName("TokenService").Methods().ByName("GetToken"),
-			Procedure:  TokenServiceGetTokenProcedure,
 		}
 	})
 	tokenServiceRevokeTokenSpec = sync.OnceValue(func() connect.Spec {
@@ -90,8 +81,6 @@ type TokenServiceClient interface {
 	CreateToken(context.Context, *v1.CreateTokenRequest) (*v1.CreateTokenResponse, error)
 	// ListTokens lists all tokens associated with an entity.
 	ListTokens(context.Context, *v1.ListTokensRequest) (*v1.ListTokensResponse, error)
-	// GetToken retrieves metadata for a specific token (does not return the token string).
-	GetToken(context.Context, *v1.GetTokenRequest) (*v1.GetTokenResponse, error)
 	// RevokeToken revokes/deletes a token.
 	RevokeToken(context.Context, *v1.RevokeTokenRequest) (*v1.RevokeTokenResponse, error)
 	// GetScopes returns the entity and all scopes the current token has access to.
@@ -112,8 +101,6 @@ type TokenServiceHandler interface {
 	CreateToken(context.Context, *v1.CreateTokenRequest) (*v1.CreateTokenResponse, error)
 	// ListTokens lists all tokens associated with an entity.
 	ListTokens(context.Context, *v1.ListTokensRequest) (*v1.ListTokensResponse, error)
-	// GetToken retrieves metadata for a specific token (does not return the token string).
-	GetToken(context.Context, *v1.GetTokenRequest) (*v1.GetTokenResponse, error)
 	// RevokeToken revokes/deletes a token.
 	RevokeToken(context.Context, *v1.RevokeTokenRequest) (*v1.RevokeTokenResponse, error)
 	// GetScopes returns the entity and all scopes the current token has access to.
@@ -129,7 +116,6 @@ func RegisterTokenServiceHandler(server *connect.Server, svc TokenServiceHandler
 	server.Register(
 		connect.Method{Spec: tokenServiceCreateTokenSpec(), Handler: adapter.createToken},
 		connect.Method{Spec: tokenServiceListTokensSpec(), Handler: adapter.listTokens},
-		connect.Method{Spec: tokenServiceGetTokenSpec(), Handler: adapter.getToken},
 		connect.Method{Spec: tokenServiceRevokeTokenSpec(), Handler: adapter.revokeToken},
 		connect.Method{Spec: tokenServiceGetScopesSpec(), Handler: adapter.getScopes},
 		connect.Method{Spec: tokenServiceCheckPermissionSpec(), Handler: adapter.checkPermission},
@@ -145,10 +131,6 @@ func (UnimplementedTokenServiceHandler) CreateToken(context.Context, *v1.CreateT
 
 func (UnimplementedTokenServiceHandler) ListTokens(context.Context, *v1.ListTokensRequest) (*v1.ListTokensResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.token.v1.TokenService.ListTokens is not implemented")
-}
-
-func (UnimplementedTokenServiceHandler) GetToken(context.Context, *v1.GetTokenRequest) (*v1.GetTokenResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.token.v1.TokenService.GetToken is not implemented")
 }
 
 func (UnimplementedTokenServiceHandler) RevokeToken(context.Context, *v1.RevokeTokenRequest) (*v1.RevokeTokenResponse, error) {
@@ -178,14 +160,6 @@ func (c *tokenServiceClient) CreateToken(ctx context.Context, req *v1.CreateToke
 func (c *tokenServiceClient) ListTokens(ctx context.Context, req *v1.ListTokensRequest) (*v1.ListTokensResponse, error) {
 	var res v1.ListTokensResponse
 	if err := c.client.CallUnary(ctx, tokenServiceListTokensSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *tokenServiceClient) GetToken(ctx context.Context, req *v1.GetTokenRequest) (*v1.GetTokenResponse, error) {
-	var res v1.GetTokenResponse
-	if err := c.client.CallUnary(ctx, tokenServiceGetTokenSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -235,18 +209,6 @@ func (h tokenServiceHandler) listTokens(ctx context.Context, _ connect.Spec, str
 		return err
 	}
 	res, err := h.svc.ListTokens(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h tokenServiceHandler) getToken(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.GetTokenRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.GetToken(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -13,8 +13,6 @@ service TokenService {
   rpc CreateToken(CreateTokenRequest) returns (CreateTokenResponse);
   // ListTokens lists all tokens associated with an entity.
   rpc ListTokens(ListTokensRequest) returns (ListTokensResponse);
-  // GetToken retrieves metadata for a specific token (does not return the token string).
-  rpc GetToken(GetTokenRequest) returns (GetTokenResponse);
   // RevokeToken revokes/deletes a token.
   rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
   // GetScopes returns the entity and all scopes the current token has access to.
@@ -108,21 +106,6 @@ message ListTokensRequest {
 // ListTokensResponse contains a list of token metadata.
 message ListTokensResponse {
   repeated Token tokens = 1;
-}
-
-// GetTokenRequest is the request to get a specific token's metadata.
-message GetTokenRequest {
-  string name = 1 [(buf.validate.field).string.min_len = 1];
-  EntityType entity_type = 2 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-  string entity_id = 3 [(buf.validate.field).string.uuid = true];
-}
-
-// GetTokenResponse contains the token metadata.
-message GetTokenResponse {
-  Token token = 1;
 }
 
 // RevokeTokenRequest is the request to revoke a token.

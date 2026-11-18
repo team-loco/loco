@@ -19,13 +19,6 @@ export const createToken = TokenService.method.createToken;
 export const listTokens = TokenService.method.listTokens;
 
 /**
- * GetToken retrieves metadata for a specific token (does not return the token string).
- *
- * @generated from rpc loco.token.v1.TokenService.GetToken
- */
-export const getToken = TokenService.method.getToken;
-
-/**
  * RevokeToken revokes/deletes a token.
  *
  * @generated from rpc loco.token.v1.TokenService.RevokeToken

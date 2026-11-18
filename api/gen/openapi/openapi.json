@@ -6163,68 +6163,6 @@
         }
       }
     },
-    "/loco.token.v1.TokenService/GetToken": {
-      "post": {
-        "tags": [
-          "loco.token.v1.TokenService"
-        ],
-        "summary": "GetToken",
-        "description": "GetToken retrieves metadata for a specific token (does not return the token string).",
-        "operationId": "loco.token.v1.TokenService.GetToken",
-        "parameters": [
-          {
-            "name": "Connect-Protocol-Version",
-            "in": "header",
-            "description": "Define the version of the Connect protocol",
-            "schema": {
-              "$ref": "#/components/schemas/connect-protocol-version"
-            },
-            "example": 1
-          },
-          {
-            "name": "Connect-Timeout-Ms",
-            "in": "header",
-            "description": "Define the timeout, in ms",
-            "schema": {
-              "$ref": "#/components/schemas/connect-timeout-header"
-            },
-            "example": 1000
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/loco.token.v1.GetTokenRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "default": {
-            "description": "Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/connect.error"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/loco.token.v1.GetTokenResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/loco.token.v1.TokenService/ListTokens": {
       "post": {
         "tags": [
@@ -15121,45 +15059,6 @@
         "title": "GetScopesResponse",
         "additionalProperties": false,
         "description": "GetScopesResponse returns the entity the token is bound to and all its scopes."
-      },
-      "loco.token.v1.GetTokenRequest": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "name",
-            "minLength": 1
-          },
-          "entityType": {
-            "not": {
-              "enum": [
-                "ENTITY_TYPE_UNSPECIFIED"
-              ]
-            },
-            "title": "entity_type",
-            "$ref": "#/components/schemas/loco.token.v1.EntityType"
-          },
-          "entityId": {
-            "type": "string",
-            "title": "entity_id",
-            "format": "uuid"
-          }
-        },
-        "title": "GetTokenRequest",
-        "additionalProperties": false,
-        "description": "GetTokenRequest is the request to get a specific token's metadata."
-      },
-      "loco.token.v1.GetTokenResponse": {
-        "type": "object",
-        "properties": {
-          "token": {
-            "title": "token",
-            "$ref": "#/components/schemas/loco.token.v1.Token"
-          }
-        },
-        "title": "GetTokenResponse",
-        "additionalProperties": false,
-        "description": "GetTokenResponse contains the token metadata."
       },
       "loco.token.v1.ListTokensRequest": {
         "type": "object",

@@ -101,7 +101,6 @@ type Querier interface {
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
 	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error)
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
-	GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error)
 	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context, arg GetBuildClusterParams) (uuid.UUID, error)

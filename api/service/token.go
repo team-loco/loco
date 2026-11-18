@@ -24,7 +24,6 @@ import (
 )
 
 var (
-	ErrTokenNotFound        = errors.New("token not found")
 	ErrTokenAlreadyExists   = errors.New("token with this name already exists for the entity")
 	ErrInvalidTokenDuration = errors.New("invalid token duration")
 	ErrInvalidScopes        = errors.New("invalid scopes")
@@ -268,56 +267,6 @@ func (s *TokenServer) ListTokens(
 
 	return &tokenv1.ListTokensResponse{
 		Tokens: protoTokens,
-	}, nil
-}
-
-// GetToken retrieves metadata for a specific token by name and entity
-func (s *TokenServer) GetToken(
-	ctx context.Context,
-	req *tokenv1.GetTokenRequest,
-) (*tokenv1.GetTokenResponse, error) {
-	if req.GetName() == "" {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errNameRequired)
-	}
-
-	if req.GetEntityType() == tokenv1.EntityType_ENTITY_TYPE_UNSPECIFIED {
-		return nil, rpcerr.New(connect.CodeInvalidArgument, errEntityTypeRequired)
-	}
-
-	p, err := principalFrom(ctx)
-	if err != nil {
-		return nil, err
-	}
-	entityID, err := parseID("entity_id", req.GetEntityId())
-	if err != nil {
-		return nil, err
-	}
-	targetEntity := genDb.Entity{
-		Type: protoEntityTypeToDb(req.GetEntityType()),
-		ID:   entityID,
-	}
-	if err = check(ctx, s.authz, p, genDb.EntityScope{
-		EntityType: targetEntity.Type,
-		EntityID:   targetEntity.ID,
-		Scope:      genDb.ScopeRead,
-	}); err != nil {
-		return nil, err
-	}
-
-	token, err := s.queries.GetAPITokenByNameAndEntity(ctx, genDb.GetAPITokenByNameAndEntityParams{
-		Name:       req.GetName(),
-		EntityType: targetEntity.Type,
-		EntityID:   targetEntity.ID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodeNotFound, ErrTokenNotFound)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get API token: %w", err)
-	}
-
-	return &tokenv1.GetTokenResponse{
-		Token: apiTokenRowToProto(genDb.CreateAPITokenRow(token)),
 	}, nil
 }
 
