@@ -24,7 +24,10 @@ func BuildWorkspaceCmd() *cobra.Command {
   loco workspace update <workspace-id> --name new-name
 
   # Delete a workspace
-  loco workspace delete <workspace-id>`,
+  loco workspace delete <workspace-id>
+
+  # Keep a workspace's logs for 7 days
+  loco workspace retention set <workspace-id> --logs 7`,
 	}
 
 	cmd.AddCommand(
@@ -32,6 +35,7 @@ func BuildWorkspaceCmd() *cobra.Command {
 		buildCreateCmd(),
 		buildDeleteCmd(),
 		buildUpdateCmd(),
+		buildRetentionCmd(),
 	)
 
 	return cmd
