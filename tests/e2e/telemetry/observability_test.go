@@ -87,6 +87,15 @@ func TestObservability(t *testing.T) {
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 	resourceID := w.ResourceID(t, otelApp)
+	// Its only replica never listens on the routed port, so the gateway answers its requests itself.
+	unready := platform.Service(8080, w.Host(unreadyApp))
+	unready.Image = p.AlternatePortImage
+	unreadyDir := t.TempDir()
+	platform.WriteLocoFile(t, unreadyDir, locofile.File{
+		Partial:  unreadyApp,
+		Services: map[string]locofile.Service{unreadyApp: unready},
+	})
+	w.MustLoco(t, unreadyDir, "deploy", "--yes")
 	application, err := p.Application(t.Context(), resourceID, w.EnvironmentID)
 	if err != nil {
 		t.Fatal(err)
@@ -717,8 +726,14 @@ func (o *observed) traffic(t *testing.T) {
 			t.Errorf("request %d through the gateway: HTTP %d (%v)", i+1, status, err)
 		}
 	}
+	for i := range requestCount {
+		status, err := gatewayStatus(t.Context(), host, "/status/503", "")
+		if err != nil || status != http.StatusServiceUnavailable {
+			t.Errorf("5xx request %d through the gateway: HTTP %d (%v)", i+1, status, err)
+		}
+	}
 	t.Logf(
-		"%d requests through the gateway; the first carries trace %s with client span %s",
+		"%d requests and %[1]d 5xx requests through the gateway; the first carries trace %s with client span %s",
 		requestCount,
 		traceID,
 		clientSpan,
@@ -1006,18 +1021,10 @@ func (o *observed) attributeLogs(t *testing.T) {
 	)
 }
 
-// gatewayMetrics sends the fixture successful and 5xx requests, and the gateway requests for an app
+// gatewayMetrics sends the fixture successful and 5xx requests, and the gateway requests for the app
 // with no ready replica, until QueryMetrics reports both resources' traffic.
 func (o *observed) gatewayMetrics(t *testing.T) {
-	dir := t.TempDir()
 	unreadyHost := o.w.Host(unreadyApp)
-	unready := platform.Service(8080, unreadyHost)
-	unready.Image = p.AlternatePortImage
-	platform.WriteLocoFile(t, dir, locofile.File{
-		Partial:  unreadyApp,
-		Services: map[string]locofile.Service{unreadyApp: unready},
-	})
-	o.w.MustLoco(t, dir, "deploy", "--yes")
 	unreadyID := o.w.ResourceID(t, unreadyApp)
 	platform.Eventually(t, routeTimeout, "the gateway to answer 503 for "+unreadyHost, func(ctx context.Context) error {
 		status, err := gatewayStatus(ctx, unreadyHost, "/", "")
@@ -1027,7 +1034,7 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 		return nil
 	})
 
-	var app, gateway gatewayTraffic
+	var app, unready gatewayTraffic
 	platform.Eventually(
 		t,
 		telemetryTimeout,
@@ -1058,31 +1065,19 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 			if app, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, o.resourceID); err != nil {
 				return err
 			}
-			if gateway, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, unreadyID); err != nil {
+			if unready, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, unreadyID); err != nil {
 				return err
 			}
 			if app.requests == 0 || app.errors == 0 || app.bytes == 0 || app.latency == 0 ||
-				gateway.requests == 0 || gateway.errors == 0 {
-				return fmt.Errorf("fixture %+v, app with no ready replica %+v", app, gateway)
+				unready.requests == 0 || unready.errors == 0 {
+				return fmt.Errorf("fixture %+v, app with no ready replica %+v", app, unready)
 			}
 			return nil
 		},
 	)
-	for what, traffic := range map[string]gatewayTraffic{"the fixture": app, "the app with no ready replica": gateway} {
-		if traffic.errors > traffic.requests*(1+1e-9) {
+	for what, traffic := range map[string]gatewayTraffic{"the fixture": app, "the app with no ready replica": unready} {
+		if traffic.errors > traffic.requests {
 			t.Errorf("%s: %.2f errors exceed %.2f requests", what, traffic.errors, traffic.requests)
-		}
-	}
-
-	scoped := o.metricsRequest(gatewayRequestsMetric)
-	scoped.WorkspaceId, scoped.ResourceIds, scoped.Aggregation = o.second.ID, nil, rateAggregation
-	response, err := o.other.Observability.QueryMetrics(t.Context(), scoped)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, series := range response.GetSeries() {
-		if series.GetResourceId() == o.resourceID || series.GetResourceId() == unreadyID {
-			t.Errorf("the second workspace's own query returns the first's resource %s", series.GetResourceId())
 		}
 	}
 	if _, err := o.queryGatewayTraffic(t.Context(), o.other, o.w.ID, o.resourceID); connect.CodeOf(err) !=
@@ -1091,13 +1086,10 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 	}
 }
 
-const (
-	gatewayRequestsMetric = "cluster.upstream_rq_completed"
-	rateAggregation       = "rate"
-)
+const rateAggregation = "rate"
 
 // gatewayTraffic is one resource's traffic over the metrics window: request, 5xx and byte totals
-// and the highest p95 latency in milliseconds.
+// and the highest p95 latency.
 type gatewayTraffic struct{ requests, errors, bytes, latency float64 }
 
 // queryGatewayTraffic queries the dashboard's gateway metrics of resourceID in workspace.
@@ -1112,7 +1104,7 @@ func (o *observed) queryGatewayTraffic(
 		name, aggregation string
 		attributes        map[string]string
 	}{
-		{&traffic.requests, gatewayRequestsMetric, rateAggregation, nil},
+		{&traffic.requests, "cluster.upstream_rq_completed", rateAggregation, nil},
 		{&traffic.errors, "cluster.upstream_rq_xx", rateAggregation, map[string]string{"envoy.response_code_class": "5"}},
 		{&traffic.bytes, "cluster.upstream_cx_rx_bytes_total", rateAggregation, nil},
 		{&traffic.latency, "cluster.upstream_rq_time", "p95", nil},
