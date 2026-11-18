@@ -21,7 +21,7 @@ export function FilterPopover({
 	icon: ReactNode;
 	label: string;
 	value: string;
-	width?: string;
+	width?: string | undefined;
 	mono?: boolean;
 	onClear?: (() => void) | undefined;
 	placeholder?: string | undefined;
@@ -102,6 +102,7 @@ export function PickFilter({
 	counts,
 	placeholder,
 	clearable = true,
+	width,
 	onChange,
 }: {
 	icon: ReactNode;
@@ -111,6 +112,7 @@ export function PickFilter({
 	counts?: ReadonlyMap<string, number>;
 	placeholder?: string;
 	clearable?: boolean;
+	width?: string;
 	onChange: (id: string) => void;
 }) {
 	return (
@@ -119,6 +121,7 @@ export function PickFilter({
 			label={label}
 			value={items.find((i) => i.id === value)?.name ?? ""}
 			mono
+			width={width}
 			onClear={
 				clearable
 					? () => {

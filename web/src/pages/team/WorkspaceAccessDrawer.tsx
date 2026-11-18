@@ -54,10 +54,10 @@ export function WorkspaceAccessDrawer({
 						name={user?.name ?? ""}
 						email={user?.email ?? ""}
 						avatarUrl={user?.avatarUrl ?? ""}
-						className="size-[34px] shrink-0"
+						className="size-[26px] shrink-0"
 					/>
-					<span className="flex min-w-0 flex-col gap-0.5">
-						<SheetTitle className="truncate">{user === undefined ? "" : userLabel(user)}</SheetTitle>
+					<span className="flex min-w-0 items-baseline gap-2">
+						<SheetTitle className="shrink-0">{user === undefined ? "" : userLabel(user)}</SheetTitle>
 						<SheetDescription className="truncate font-mono text-[12px]">{user?.email}</SheetDescription>
 					</span>
 				</SheetHeader>
@@ -149,8 +149,8 @@ function AccessRows({
 						setQ("");
 						resetPage();
 					}}
-					placeholder="Find a workspace"
-					aria-label="Find a workspace"
+					placeholder="Search workspaces"
+					aria-label="Search workspaces"
 					className="ml-auto min-w-0 flex-[1_1_120px]"
 				/>
 			</div>

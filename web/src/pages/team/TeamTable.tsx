@@ -19,6 +19,7 @@ import {
 	DropdownMenuTrigger,
 	DropdownMenuGroup,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuSub,
 	DropdownMenuSubContent,
@@ -29,9 +30,8 @@ import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { agoLabel, formatMonthDayYear, tsMs } from "@/lib/time";
+import { formatMonthYear, shortAgoLabel, tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
-import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "./MemberAvatar";
 import { levelOf, roleOf, untilLabel, type Member, type Role, type TeamRow } from "./model";
@@ -57,9 +57,10 @@ const ROLE_HINT: Record<Role, string> = {
 	Member: "Only sees the workspaces you give them.",
 };
 
-function RoleItems({ role, onPick }: { role: Role; onPick: (role: Role) => void }) {
+function RoleItems({ role, heading = false, onPick }: { role: Role; heading?: boolean; onPick: (role: Role) => void }) {
 	return (
 		<DropdownMenuGroup>
+			{heading && <DropdownMenuLabel>Role</DropdownMenuLabel>}
 			{(["Admin", "Member"] as const).map((next) => (
 				<DropdownMenuItem
 					key={next}
@@ -148,7 +149,7 @@ function MemberRow({
 								disabled={roleLocked}
 								aria-label={`Change role for ${name}`}
 								title={roleTitle(isMe, actions.canChangeRoles)}
-								className="-ml-2 gap-1 text-[13px] text-foreground disabled:opacity-100"
+								className="-ml-2 h-7 gap-1.5 border-transparent px-2 text-[13px] text-foreground hover:border-line2 hover:bg-background aria-expanded:border-line2 aria-expanded:bg-background disabled:opacity-100 disabled:hover:border-transparent disabled:hover:bg-transparent dark:hover:bg-background"
 							/>
 						}
 					>
@@ -158,6 +159,7 @@ function MemberRow({
 					<DropdownMenuContent align="start" className="w-[260px]">
 						<RoleItems
 							role={role}
+							heading
 							onPick={(next) => {
 								actions.onRole(member, next);
 							}}
@@ -195,11 +197,11 @@ function MemberRow({
 					</span>
 				)}
 			</TableCell>
-			<TableCell className="text-fg3" title="Last recorded sign-in">
-				{member.member.lastLoginAt ? agoLabel(tsMs(member.member.lastLoginAt), now) : <Dash />}
+			<TableCell className="font-mono text-[12px] text-fg2" title="Last recorded sign-in">
+				{member.member.lastLoginAt ? shortAgoLabel(tsMs(member.member.lastLoginAt), now) : <Dash />}
 			</TableCell>
-			<TableCell className="text-fg3">
-				{member.member.joinedAt ? formatMonthDayYear(tsMs(member.member.joinedAt), pref) : <Dash />}
+			<TableCell className="font-mono text-[12px] text-fg3">
+				{member.member.joinedAt ? formatMonthYear(tsMs(member.member.joinedAt), pref) : <Dash />}
 			</TableCell>
 			<TableCell className="text-right">
 				{!isMe && (
@@ -247,7 +249,7 @@ function MemberRow({
 
 function InvitationRow({ invitation, now, actions }: { invitation: Invitation; now: number; actions: RowActions }) {
 	const inviter = invitation.invitedBy;
-	const sent = agoLabel(tsMs(invitation.createdAt), now);
+	const sent = shortAgoLabel(tsMs(invitation.createdAt), now);
 	const expired = tsMs(invitation.expiresAt) <= now;
 	const expires = tsMs(invitation.expiresAt);
 	const manageTitle = actions.canManageInvitations ? undefined : "Only organization admins can change invitations";
@@ -258,8 +260,10 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 					<MemberAvatar name="" email={invitation.email} avatarUrl="" className="size-[30px] shrink-0" />
 					<span className="flex min-w-0 flex-col gap-px">
 						<span className="truncate text-[13.5px] font-medium">{invitation.email}</span>
-						<span className="truncate text-[11.5px] text-fg3">
-							{inviter === undefined ? `Invited ${sent}` : `Invited by ${userLabel(inviter)} · ${sent}`}
+						<span className="truncate font-mono text-[11.5px] text-fg3">
+							{inviter === undefined
+								? `invited ${sent}`
+								: `invited by ${inviter.email || userLabel(inviter)} · ${sent}`}
 						</span>
 					</span>
 				</span>
@@ -271,15 +275,15 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 					</Badge>
 				</span>
 			</TableCell>
-			<TableCell className="text-fg3">Member</TableCell>
 			<TableCell>
 				<Dash />
 			</TableCell>
-			<TableCell>
+			<TableCell />
+			<TableCell className="font-mono text-[12px]">
 				<Dash />
 			</TableCell>
-			<TableCell className={cn("font-mono text-[11.5px]", expired ? "text-fg3" : "text-fg2")}>
-				{expired ? `expired ${agoLabel(expires, now)}` : `expires ${untilLabel(expires, now)}`}
+			<TableCell className="font-mono text-[12px] text-fg3">
+				{expired ? `expired ${shortAgoLabel(expires, now)}` : `expires ${untilLabel(expires, now)}`}
 			</TableCell>
 			<TableCell className="text-right">
 				<RowMenu label={`Actions for the invitation to ${invitation.email}`} title={invitation.email}>
@@ -340,12 +344,12 @@ export function TeamTable({
 		<Table className="min-w-[880px] table-fixed">
 			<TableHeader>
 				<TableRow>
-					<TableHead className="w-[23%]">Person</TableHead>
-					<TableHead className="w-[124px]">Status</TableHead>
-					<TableHead className="w-[116px]">Role</TableHead>
+					<TableHead className="w-[22%]">Person</TableHead>
+					<TableHead className="w-[130px]">Status</TableHead>
+					<TableHead className="w-[140px]">Role</TableHead>
 					<TableHead>Workspaces</TableHead>
-					<TableHead className="w-[104px]">Last active</TableHead>
-					<TableHead className="w-[140px]">Joined</TableHead>
+					<TableHead className="w-[120px]">Last active</TableHead>
+					<TableHead className="w-[120px]">Joined / expires</TableHead>
 					<TableHead className="w-10" />
 				</TableRow>
 			</TableHeader>

@@ -38,6 +38,7 @@ import { DOCS_URL } from "./splash/links";
 import { InviteDrawer } from "./team/InviteDrawer";
 import { buildRows, inWorkspace, VIEWS, type Member, type Role, type ScopeName, type View } from "./team/model";
 import { RevokeInvitationDialog } from "./team/RevokeInvitationDialog";
+import { TeamArt } from "./team/TeamArt";
 import { TeamTable } from "./team/TeamTable";
 import { useTeamData } from "./team/useTeamData";
 import { WorkspaceAccessDrawer } from "./team/WorkspaceAccessDrawer";
@@ -229,12 +230,20 @@ export function Team() {
 				{justYou && q.trim() === "" ? (
 					<section
 						aria-labelledby="team-invite-prompt"
-						className="flex flex-col items-center gap-2 border-t border-line2 px-6 py-8 text-center"
+						className="flex flex-col items-center gap-3.5 border-t border-line2 px-6 pt-11 pb-13 text-center"
 					>
-						<h2 id="team-invite-prompt" className="m-0 text-xl font-normal tracking-[-0.02em]">
+						<TeamArt
+							name={user?.name ?? ""}
+							email={user?.email ?? ""}
+							disabled={inviteBlocked !== null}
+							onInvite={() => {
+								setInviteOpen(true);
+							}}
+						/>
+						<h2 id="team-invite-prompt" className="m-0 mt-2.5 text-2xl font-normal tracking-[-0.03em]">
 							It's just you so far
 						</h2>
-						<p className="m-0 max-w-[34em] leading-[1.55] text-fg3">
+						<p className="m-0 max-w-[34em] text-[14px] leading-[1.55] text-fg3">
 							Invite teammates by email. They join {orgName} as members the first time they sign in.
 						</p>
 						<span className="mt-1 flex flex-wrap justify-center gap-2">
@@ -288,6 +297,7 @@ export function Team() {
 								label="Workspace"
 								items={data.workspaces}
 								placeholder="Find a workspace"
+								width="w-[280px]"
 								counts={workspaceCounts}
 								value={wsFilter}
 								onChange={(ws) => {
