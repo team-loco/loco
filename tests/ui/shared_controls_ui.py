@@ -556,6 +556,7 @@ def volume(page):
     area.click(position=point)
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
     clicked = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0]
+    page.mouse.move(0, 0)
     page.goto(
         state["ui_url"]
         + base
