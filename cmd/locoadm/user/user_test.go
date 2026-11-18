@@ -3,17 +3,12 @@ package user
 import (
 	"bytes"
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	"github.com/team-loco/loco/gen/go/loco/user/v1/userv1connect"
-	"github.com/team-loco/loco/internal/bearer"
 )
 
 const targetEmail = "dev@acme.test"
@@ -40,25 +35,9 @@ func (f *fakeUsers) SetUserStatus(
 func runUserCmd(t *testing.T, fake *fakeUsers, args ...string) string {
 	t.Helper()
 	fake.t = t
-	fake.session = bearer.New("")
-	server := connect.NewServer()
-	userv1connect.RegisterUserServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Set(keychain.UserToken{
-		Host: endpoint.URL, Token: fake.session, ExpiresAt: time.Now().Add(time.Hour),
-	}); err != nil {
-		t.Fatal(err)
-	}
+	fake.session = clitest.Session(t, func(server *connect.Server) {
+		userv1connect.RegisterUserServiceHandler(server, fake)
+	})
 	cmd := BuildUserCmd()
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)

@@ -3,22 +3,17 @@ package admin
 import (
 	"bytes"
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	adminv1 "github.com/team-loco/loco/gen/go/loco/admin/v1"
 	"github.com/team-loco/loco/gen/go/loco/admin/v1/adminv1connect"
-	"github.com/team-loco/loco/internal/bearer"
 )
 
 type fakeAdmins struct {
@@ -71,31 +66,15 @@ func (f *fakeAdmins) RevokeSystemAdmin(
 func runAdminCmd(t *testing.T, fake *fakeAdmins, args ...string) (string, error) {
 	t.Helper()
 	fake.t = t
-	fake.session = bearer.New("")
-	server := connect.NewServer()
-	adminv1connect.RegisterSystemAdminServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = store.Set(keychain.UserToken{
-		Host: endpoint.URL, Token: fake.session, ExpiresAt: time.Now().Add(time.Hour),
-	}); err != nil {
-		t.Fatal(err)
-	}
+	fake.session = clitest.Session(t, func(server *connect.Server) {
+		adminv1connect.RegisterSystemAdminServiceHandler(server, fake)
+	})
 	cmd := BuildAdminCmd()
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)
 	cmd.SetErr(output)
 	cmd.SetArgs(args)
-	err = cmd.Execute()
+	err := cmd.Execute()
 	return output.String(), err
 }
 

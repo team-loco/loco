@@ -41,10 +41,8 @@ func addTargetFlags(cmd *cobra.Command) {
 	if err := cmd.MarkFlagRequired(serviceFlag); err != nil {
 		panic(err)
 	}
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().String("env", "", "Environment name (defaults to the workspace's only environment)")
-	cmd.Flags().String("host", "", "API host URL")
+	cmdutil.AddWorkspaceFlags(cmd)
+	cmdutil.AddEnvironmentFlag(cmd)
 }
 
 func resolveService(ctx context.Context, cmd *cobra.Command) (cmdutil.Target, *resourcev1.Resource, error) {

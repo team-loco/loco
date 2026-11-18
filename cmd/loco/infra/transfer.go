@@ -32,7 +32,7 @@ Examples:
 			return runTransfer(cmd, args[0], partial)
 		},
 	}
-	addWorkspaceFlags(cmd)
+	cmdutil.AddWorkspaceFlags(cmd)
 	cmd.Flags().String("to", "", "Partial that owns the service after the transfer")
 	if err := cmd.MarkFlagRequired("to"); err != nil {
 		panic(err)

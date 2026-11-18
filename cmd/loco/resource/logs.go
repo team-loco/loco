@@ -17,6 +17,7 @@ import (
 
 const (
 	outputText       = "text"
+	outputJSON       = "json"
 	defaultLogLines  = 100
 	defaultLogWindow = time.Hour
 )
@@ -38,14 +39,12 @@ Examples:
 		},
 	}
 
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
+	cmdutil.AddWorkspaceFlags(cmd)
 	cmd.Flags().BoolP("follow", "f", false, "Keep printing new log lines")
 	cmd.Flags().Int32P("lines", "n", defaultLogLines, "Number of recent lines to show (0 = every line in --since)")
 	cmd.Flags().Duration("since", defaultLogWindow, "How far back to look, up to 24h")
 	cmd.Flags().StringP("output", "o", outputText, "Output format (text, json)")
 	cmd.Flags().StringP("query", "q", "", "Only lines matching this log query, such as '@level:error timeout'")
-	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }

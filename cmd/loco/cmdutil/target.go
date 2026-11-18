@@ -18,6 +18,18 @@ type Target struct {
 	Environment *environmentv1.Environment
 }
 
+// AddWorkspaceFlags adds the --org, --workspace and --host flags ResolveTarget reads.
+func AddWorkspaceFlags(cmd *cobra.Command) {
+	cmd.Flags().String("org", "", "Organization name")
+	cmd.Flags().String("workspace", "", "Workspace name")
+	cmd.Flags().String("host", "", "API host URL")
+}
+
+// AddEnvironmentFlag adds the --env flag WithEnvironment reads.
+func AddEnvironmentFlag(cmd *cobra.Command) {
+	cmd.Flags().String("env", "", "Environment name (defaults to the workspace's only environment)")
+}
+
 // ResolveLogin resolves the host and credentials, without a workspace.
 func ResolveLogin(cmd *cobra.Command) (Target, error) {
 	login, err := auth.ResolveLocoLogin(cmd)

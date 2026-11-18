@@ -64,10 +64,8 @@ Examples:
 		},
 	}
 
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
+	cmdutil.AddWorkspaceFlags(cmd)
 	cmd.Flags().BoolP("yes", "y", false, "Skip confirmation prompt")
-	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }

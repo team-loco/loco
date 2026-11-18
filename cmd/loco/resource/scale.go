@@ -120,13 +120,11 @@ Examples:
 		},
 	}
 
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().String("env", "", "Environment name (defaults to the workspace's only environment)")
+	cmdutil.AddWorkspaceFlags(cmd)
+	cmdutil.AddEnvironmentFlag(cmd)
 	cmd.Flags().Int32P("replicas", "r", -1, "Number of replicas to scale to")
 	cmd.Flags().String("cpu", "", "CPU to scale to (e.g. 100m, 0.5)")
 	cmd.Flags().String("memory", "", "Memory to scale to (e.g. 128Mi, 1Gi)")
-	cmd.Flags().String("host", "", "API host URL")
 
 	return cmd
 }

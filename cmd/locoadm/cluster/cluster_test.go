@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -15,10 +13,9 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"connectrpc.com/connect/v2/connectproto"
 	"github.com/spf13/cobra"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	clusterv1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
 	"github.com/team-loco/loco/gen/go/loco/cluster/v1/clusterv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -42,18 +39,19 @@ var errTestDenied = errors.New("permission denied")
 
 type fakeClusterAdmin struct {
 	clusterv1connect.UnimplementedClusterAdminServiceHandler
-	t         *testing.T
-	calls     []string
-	force     bool
-	created   *clusterv1.CreateClusterRequest
-	expiresAt *timestamppb.Timestamp
-	err       error
+	t          *testing.T
+	calls      []string
+	force      bool
+	created    *clusterv1.CreateClusterRequest
+	expiresAt  *timestamppb.Timestamp
+	err        error
+	credential string
 }
 
 func (f *fakeClusterAdmin) record(ctx context.Context, method, id string) error {
 	f.t.Helper()
 	info, ok := connect.CallInfoForServerContext(ctx)
-	if !ok || info.RequestHeader().Get("Authorization") != "Bearer ordinary-credential" {
+	if !ok || info.RequestHeader().Get("Authorization") != "Bearer "+f.credential {
 		f.t.Error("CLI did not authenticate the request")
 	}
 	if id != "" && id != testClusterID {
@@ -143,24 +141,9 @@ func (f *fakeClusterAdmin) RestoreCluster(
 
 func clusterTestCommand(t *testing.T, fake *fakeClusterAdmin) (*cobra.Command, *bytes.Buffer) {
 	t.Helper()
-	server := connect.NewServer()
-	clusterv1connect.RegisterClusterAdminServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Set(keychain.UserToken{
-		Host: endpoint.URL, Token: "ordinary-credential", ExpiresAt: time.Now().Add(time.Hour),
-	}); err != nil {
-		t.Fatal(err)
-	}
+	fake.credential = clitest.Session(t, func(server *connect.Server) {
+		clusterv1connect.RegisterClusterAdminServiceHandler(server, fake)
+	})
 	cmd := BuildClusterCmd()
 	output := new(bytes.Buffer)
 	cmd.SetOut(output)

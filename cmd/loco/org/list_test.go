@@ -3,18 +3,13 @@ package org
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/gen/go/loco/org/v1/orgv1connect"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -130,35 +125,18 @@ func TestOrganizationListPagination(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
-			t.Setenv(keychain.StoreEnvVar, "file")
-			credential := rand.Text()
-			fake := &organizationPagesServer{t: t, credential: credential, pages: tc.pages}
-			server := connect.NewServer()
-			orgv1connect.RegisterOrgServiceHandler(server, fake)
-			userv1connect.RegisterUserServiceHandler(server, fake)
-			mux := http.NewServeMux()
-			connecthttp.Mount(mux, server)
-			endpoint := httptest.NewServer(mux)
-			t.Cleanup(endpoint.Close)
-			t.Setenv("LOCO_HOST", endpoint.URL)
-			store, err := keychain.ForCurrentUser()
-			if err != nil {
-				t.Fatal(err)
-			}
-			err = store.Set(
-				keychain.UserToken{Host: endpoint.URL, Token: credential, ExpiresAt: time.Now().Add(time.Hour)},
-			)
-			if err != nil {
-				t.Fatal(err)
-			}
+			fake := &organizationPagesServer{t: t, pages: tc.pages}
+			fake.credential = clitest.Session(t, func(server *connect.Server) {
+				orgv1connect.RegisterOrgServiceHandler(server, fake)
+				userv1connect.RegisterUserServiceHandler(server, fake)
+			})
 			var output bytes.Buffer
 			cmd := buildListCmd()
 			cmd.SetOut(&output)
 			cmd.SilenceErrors = true
 			cmd.SilenceUsage = true
 			cmd.SetArgs([]string{})
-			err = cmd.Execute()
+			err := cmd.Execute()
 			if tc.failure != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.failure) {
 					t.Fatalf("error = %v, want %q", err, tc.failure)

@@ -50,10 +50,8 @@ Examples:
 			return nil
 		},
 	}
-	cmd.Flags().String("org", "", "Organization name")
-	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().String("env", "", "Environment name (defaults to the workspace's only environment)")
+	cmdutil.AddWorkspaceFlags(cmd)
+	cmdutil.AddEnvironmentFlag(cmd)
 	cmd.Flags().StringVar(&region, "region", "", "Region to restart (defaults to all regions)")
-	cmd.Flags().String("host", "", "API host URL")
 	return cmd
 }
