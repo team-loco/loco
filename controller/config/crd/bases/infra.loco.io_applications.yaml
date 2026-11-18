@@ -294,7 +294,6 @@ spec:
                               type: string
                           required:
                           - exitCode
-                          - finishedAt
                           type: object
                         name:
                           type: string

@@ -45,7 +45,7 @@ type ReplicaStatus struct {
 type ReplicaExit struct {
 	Reason     string      `json:"reason,omitempty"`
 	ExitCode   int32       `json:"exitCode"`
-	FinishedAt metav1.Time `json:"finishedAt"`
+	FinishedAt metav1.Time `json:"finishedAt,omitzero"`
 }
 
 type RolloutStatus struct {

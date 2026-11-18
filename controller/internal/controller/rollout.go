@@ -121,6 +121,7 @@ func (r *ApplicationReconciler) observeReplicas(
 			replica.State != locov1alpha1.ReplicaStopped {
 			replica.State = locov1alpha1.ReplicaStopped
 			replica.StateDeadline = nil
+			replica.LastExit = nil
 			replica.Detail = "no exit code seen"
 		}
 		if raw := pod.Annotations[locov1alpha1.KeyPlacementRevision]; raw != "" {

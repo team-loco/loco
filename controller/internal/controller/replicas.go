@@ -35,8 +35,29 @@ func replicaState(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaS
 			}
 		}
 	}
+	result.StartedAt = pod.CreationTimestamp.DeepCopy()
+	if pod.Status.StartTime != nil {
+		result.StartedAt = pod.Status.StartTime.DeepCopy()
+	}
+	result.LastExit = lastExit(pod)
 	result.Detail = clip.Bytes(result.Detail, replicaDetailBytes)
 	return result
+}
+
+// lastExit is the newest container termination the kubelet recorded for the pod.
+func lastExit(pod *corev1.Pod) *loco.ReplicaExit {
+	var newest *loco.ReplicaExit
+	for _, status := range pod.Status.ContainerStatuses {
+		for _, exit := range []*corev1.ContainerStateTerminated{
+			status.LastTerminationState.Terminated,
+			status.State.Terminated,
+		} {
+			if exit != nil && (newest == nil || exit.FinishedAt.After(newest.FinishedAt.Time)) {
+				newest = &loco.ReplicaExit{Reason: exit.Reason, ExitCode: exit.ExitCode, FinishedAt: exit.FinishedAt}
+			}
+		}
+	}
+	return newest
 }
 
 func classifyReplica(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaStatus {
