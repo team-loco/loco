@@ -27,7 +27,7 @@ func BuildWorkspaceCmd() *cobra.Command {
   loco workspace delete <workspace-id>
 
   # Keep a workspace's logs for 7 days
-  loco workspace retention set <workspace-id> --logs 7`,
+  loco workspace update <workspace-id> --log-retention-days 7`,
 	}
 
 	cmd.AddCommand(
@@ -35,7 +35,6 @@ func BuildWorkspaceCmd() *cobra.Command {
 		buildCreateCmd(),
 		buildDeleteCmd(),
 		buildUpdateCmd(),
-		buildRetentionCmd(),
 	)
 
 	return cmd

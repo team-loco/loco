@@ -101,6 +101,8 @@ type fakePlatform struct {
 	scales            []*resourcev1.ScaleResourceRequest
 	// deploymentOutcomes holds the last status WatchDeployment sends per deployment ID.
 	deploymentOutcomes map[string]deploymentv1.DeploymentStatus
+	// retention holds the workspace's own log, trace and metric days; nil leaves a signal to the limit.
+	retention [3]*int32
 }
 
 func newFakePlatform() *fakePlatform {
