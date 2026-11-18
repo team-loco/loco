@@ -37,6 +37,10 @@ spec:
               drop:
                 - ALL
           env:
+            {{- range $name, $value := omit .Values.obsProxy.ingest.env "PORT" "CONTROL_PLANE_URL" "OTLP_GRPC_PORT" "OTLP_HTTP_PORT" "CLICKHOUSE_DB" "CLICKHOUSE_INGEST_URL" "CLICKHOUSE_MIGRATOR_URL" }}
+            - name: {{ $name }}
+              value: {{ $value | quote }}
+            {{- end }}
             - name: PORT
               value: {{ .Values.obsProxy.ingest.port | quote }}
             - name: CONTROL_PLANE_URL

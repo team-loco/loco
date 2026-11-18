@@ -12,7 +12,6 @@ const (
 	testMigratorURL = "clickhouse://loco_migrator@clickhouse:9000"
 	testDatabase    = "loco_obs_override"
 	testBudget      = 2 * time.Minute
-	testInterval    = 5 * time.Second
 	testLockTTL     = 15 * time.Second
 	testLockRetry   = 2 * time.Second
 	testIngestURL   = "clickhouse://loco_ingest@clickhouse:9000"
@@ -42,7 +41,6 @@ func setRequiredEnv(t *testing.T) {
 func setOverrides(t *testing.T) {
 	t.Helper()
 	t.Setenv("MIGRATION_RETRY_BUDGET", testBudget.String())
-	t.Setenv("MIGRATION_RETRY_INTERVAL", testInterval.String())
 	t.Setenv("MIGRATION_LOCK_TTL", testLockTTL.String())
 	t.Setenv("MIGRATION_LOCK_RETRY_PERIOD", testLockRetry.String())
 }
@@ -63,10 +61,9 @@ func TestLoadDefaultsOptionalSettings(t *testing.T) {
 	cfg := Load()
 
 	durations := map[string][2]time.Duration{
-		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, defaultMigrationRetryBudget},
-		"MigrationRetryInterval": {cfg.MigrationRetryInterval, defaultMigrationRetryInterval},
-		"MigrationLockTTL":       {cfg.MigrationLockTTL, defaultMigrationLockTTL},
-		"MigrationLockRetry":     {cfg.MigrationLockRetry, defaultMigrationLockRetry},
+		"MigrationRetryBudget": {cfg.MigrationRetryBudget, defaultMigrationRetryBudget},
+		"MigrationLockTTL":     {cfg.MigrationLockTTL, defaultMigrationLockTTL},
+		"MigrationLockRetry":   {cfg.MigrationLockRetry, defaultMigrationLockRetry},
 	}
 	for name, pair := range durations {
 		if pair[0] != pair[1] {
@@ -88,10 +85,9 @@ func TestLoadReadsSchemaOverrides(t *testing.T) {
 		t.Errorf("ClickHouseDB = %q, want %q", cfg.ClickHouseDB, testDatabase)
 	}
 	durations := map[string][2]time.Duration{
-		"MigrationRetryBudget":   {cfg.MigrationRetryBudget, testBudget},
-		"MigrationRetryInterval": {cfg.MigrationRetryInterval, testInterval},
-		"MigrationLockTTL":       {cfg.MigrationLockTTL, testLockTTL},
-		"MigrationLockRetry":     {cfg.MigrationLockRetry, testLockRetry},
+		"MigrationRetryBudget": {cfg.MigrationRetryBudget, testBudget},
+		"MigrationLockTTL":     {cfg.MigrationLockTTL, testLockTTL},
+		"MigrationLockRetry":   {cfg.MigrationLockRetry, testLockRetry},
 	}
 	for name, pair := range durations {
 		if pair[0] != pair[1] {
@@ -123,16 +119,12 @@ func TestLoadPanicsOnInvalidValues(t *testing.T) {
 	invalid := map[string][]string{
 		databaseVar:                         {"loco-obs", "loco_obs; DROP", "1loco"},
 		"MIGRATION_RETRY_BUDGET":            {"0s", "soon"},
-		"MIGRATION_RETRY_INTERVAL":          {"-5s"},
 		portVar:                             {"eighty"},
 		"OTLP_HTTP_PORT":                    {"http"},
 		"MIGRATION_LOCK_TTL":                {"0s", "3s", "soon"},
 		"MIGRATION_LOCK_RETRY_PERIOD":       {"-1s", "8s"},
 		"OTLP_GRPC_PORT":                    {"grpc"},
 		"OTLP_MAX_REQUEST_BYTES":            {"0", "-1"},
-		"CLICKHOUSE_INGEST_TIMEOUT":         {"0s"},
-		"CLICKHOUSE_INGEST_DIAL_TIMEOUT":    {"later"},
-		"INGEST_AUTH_TIMEOUT":               {"0s"},
 		"INGEST_JWKS_REFRESH_INTERVAL":      {"-1s"},
 		"INGEST_PLACEMENT_CACHE_TTL":        {"-30s"},
 		"INGEST_PLACEMENT_REFETCH_INTERVAL": {"0s"},
@@ -182,7 +174,7 @@ func TestLoadReadsIngestAuthSettings(t *testing.T) {
 	gate := cfg.IngestGate()
 	wantGate := ingest.GateConfig{
 		ControlPlaneURL:     testControlPlaneURL,
-		RequestTimeout:      defaultIngestAuthTimeout,
+		RequestTimeout:      ingestAuthTimeout,
 		JWKSRefreshInterval: defaultIngestJWKSRefreshInterval,
 		PlacementTTL:        defaultIngestPlacementCacheTTL,
 		RefetchInterval:     defaultIngestPlacementRefetch,

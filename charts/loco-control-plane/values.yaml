@@ -199,6 +199,8 @@ obsProxy:
     grpcPort: 4317
     httpPort: 4318
     hostname: ""
+    # @schema additionalProperties: {type: string}
+    env: {}
     # @schema additionalProperties: false
     clickhouse:
       # @schema additionalProperties: false

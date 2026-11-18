@@ -10,16 +10,19 @@ import (
 )
 
 const (
-	defaultMigrationRetryBudget   = 2 * time.Minute
-	defaultMigrationRetryInterval = 5 * time.Second
-	defaultMigrationLockTTL       = 15 * time.Second
-	defaultMigrationLockRetry     = 2 * time.Second
+	migrationRetryInterval = 5 * time.Second
+	ingestTimeout          = 5 * time.Second
+	ingestDialTimeout      = 10 * time.Second
+	ingestAuthTimeout      = 5 * time.Second
+)
+
+const (
+	defaultMigrationRetryBudget = 2 * time.Minute
+	defaultMigrationLockTTL     = 15 * time.Second
+	defaultMigrationLockRetry   = 2 * time.Second
 
 	defaultOTLPMaxRequestBytes = 4 << 20
-	defaultIngestTimeout       = 5 * time.Second
-	defaultIngestDialTimeout   = 10 * time.Second
 
-	defaultIngestAuthTimeout         = 5 * time.Second
 	defaultIngestJWKSRefreshInterval = 30 * time.Second
 	defaultIngestPlacementCacheTTL   = 30 * time.Second
 	defaultIngestPlacementRefetch    = 5 * time.Second
@@ -45,7 +48,6 @@ type Config struct {
 	IngestTimeout       time.Duration
 	IngestDialTimeout   time.Duration
 
-	IngestAuthTimeout         time.Duration
 	IngestJWKSRefreshInterval time.Duration
 	IngestPlacementCacheTTL   time.Duration
 	IngestPlacementRefetch    time.Duration
@@ -61,7 +63,7 @@ func Load() *Config {
 
 		ClickHouseMigratorURL:  requiredStringEnv("CLICKHOUSE_MIGRATOR_URL"),
 		MigrationRetryBudget:   envconfig.PositiveDuration("MIGRATION_RETRY_BUDGET", defaultMigrationRetryBudget),
-		MigrationRetryInterval: envconfig.PositiveDuration("MIGRATION_RETRY_INTERVAL", defaultMigrationRetryInterval),
+		MigrationRetryInterval: migrationRetryInterval,
 		MigrationLockTTL:       envconfig.PositiveDuration("MIGRATION_LOCK_TTL", defaultMigrationLockTTL),
 		MigrationLockRetry:     envconfig.PositiveDuration("MIGRATION_LOCK_RETRY_PERIOD", defaultMigrationLockRetry),
 
@@ -69,10 +71,9 @@ func Load() *Config {
 		OTLPGRPCPort:        requiredIntEnv("OTLP_GRPC_PORT"),
 		OTLPHTTPPort:        requiredIntEnv("OTLP_HTTP_PORT"),
 		OTLPMaxRequestBytes: positiveIntEnv("OTLP_MAX_REQUEST_BYTES", defaultOTLPMaxRequestBytes),
-		IngestTimeout:       envconfig.PositiveDuration("CLICKHOUSE_INGEST_TIMEOUT", defaultIngestTimeout),
-		IngestDialTimeout:   envconfig.PositiveDuration("CLICKHOUSE_INGEST_DIAL_TIMEOUT", defaultIngestDialTimeout),
+		IngestTimeout:       ingestTimeout,
+		IngestDialTimeout:   ingestDialTimeout,
 
-		IngestAuthTimeout: envconfig.PositiveDuration("INGEST_AUTH_TIMEOUT", defaultIngestAuthTimeout),
 		IngestJWKSRefreshInterval: envconfig.PositiveDuration(
 			"INGEST_JWKS_REFRESH_INTERVAL",
 			defaultIngestJWKSRefreshInterval,
@@ -105,7 +106,7 @@ func (c *Config) MigrationLock() migrationlock.Config {
 func (c *Config) IngestGate() ingest.GateConfig {
 	return ingest.GateConfig{
 		ControlPlaneURL:     c.ControlPlaneURL,
-		RequestTimeout:      c.IngestAuthTimeout,
+		RequestTimeout:      ingestAuthTimeout,
 		JWKSRefreshInterval: c.IngestJWKSRefreshInterval,
 		PlacementTTL:        c.IngestPlacementCacheTTL,
 		RefetchInterval:     c.IngestPlacementRefetch,
