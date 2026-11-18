@@ -128,8 +128,7 @@ finishes: each UI serves its checkout's `web/dist`. From the checkout with this 
 E="$PWD/.agents/skills/ui-evidence/scripts/evidence.py"
 git worktree add --detach "$capture/before-src" origin/main
 git worktree add --detach "$capture/after-src" HEAD
-project=loco-ui-evidence-openbao-$$
-UI_EVIDENCE_OPENBAO=$(mise exec -- uv run --script "$E" openbao --project "$project")
+UI_EVIDENCE_OPENBAO=$(mise exec -- uv run --script "$E" openbao)
 export UI_EVIDENCE_OPENBAO
 for side in before after; do
   (
@@ -143,13 +142,15 @@ after=$(cat "$capture/after.state-path")
 ```
 
 Shoot with those state paths and the spec above. `UI_EVIDENCE_OPENBAO` makes `up` use the
-current checkout's built API and UI; it does not build or check out `--ref`. The caller
-owns these checkouts and the shared OpenBao. After capture:
+current checkout's built API and UI; it does not build or check out `--ref`. The shared
+OpenBao has a two-hour lease like a run's. Every `up` and `shoot` that uses it renews that
+lease, so it stays up while its captures run, whichever shell started it. The caller owns these
+checkouts and the shared OpenBao. After capture:
 
 ```sh
 mise exec -- uv run --script "$E" down --state "$before"
 mise exec -- uv run --script "$E" down --state "$after"
-mise exec -- uv run --script "$E" stop-openbao --project "$project"
+mise exec -- uv run --script "$E" stop-openbao --address "$UI_EVIDENCE_OPENBAO"
 unset UI_EVIDENCE_OPENBAO
 git worktree remove --force "$capture/before-src"
 git worktree remove --force "$capture/after-src"

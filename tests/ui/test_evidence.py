@@ -1,8 +1,21 @@
+import argparse
 import subprocess
 from pathlib import Path
 
 import evidence
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def no_docker(monkeypatch):
+    class Popen(subprocess.Popen):
+        def __init__(self, args, *rest, **kwargs):
+            program = args.split()[0] if isinstance(args, str) else args[0]
+            if Path(program).name == "docker":
+                pytest.fail(f"test ran real docker: {args}")
+            super().__init__(args, *rest, **kwargs)
+
+    monkeypatch.setattr(subprocess, "Popen", Popen)
 
 
 def test_reap_removed_checkout(tmp_path, monkeypatch):
@@ -15,6 +28,7 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
             "root": str(root),
             "worktree": str(root / "src"),
             "compose": "loco-ui-evidence-expired",
+            "container": "loco-ui-evidence-expired",
             "expires_at": 0,
         },
     )
@@ -24,6 +38,8 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
         {
             "id": "live",
             "root": str(live),
+            "compose": "loco-ui-evidence-live",
+            "container": "loco-ui-evidence-live",
             "expires_at": evidence.time.time() + evidence.LEASE_S,
         },
     )
@@ -40,21 +56,75 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
         return ""
 
     monkeypatch.setattr(evidence, "run", run)
-    monkeypatch.setattr(
-        evidence.subprocess,
-        "run",
-        lambda *a, **kw: subprocess.CompletedProcess(
-            a,
+    removed = []
+
+    def docker(cmd, **kwargs):
+        if cmd[:2] == ["docker", "rm"]:
+            removed.append(cmd[-1])
+        return subprocess.CompletedProcess(
+            cmd,
             0,
-            stdout="live-openbao\tloco-ui-evidence-live\nforeign-openbao\tforeign-project\n",
-        ),
-    )
+            stdout="live-openbao\tloco-ui-evidence-live\nloco-ui-evidence-live\t\n"
+            "loco-ui-evidence-expired\t\nforeign-openbao\tforeign-project\n",
+        )
+
+    monkeypatch.setattr(evidence.subprocess, "run", docker)
     evidence.reap()
+    assert set(removed) == {"loco-ui-evidence-expired"}
     assert not root.exists()
     assert (live / "state.json").exists()
     down = next(cmd for cmd in commands if "down" in cmd)
     assert down[down.index("-p") + 1] == "loco-ui-evidence-expired"
     assert [cmd for cmd in commands if "down" in cmd] == [down]
+
+
+def test_shared_openbao_outlives_its_starting_shell(tmp_path, monkeypatch, capsys):
+    repo = Path(__file__).resolve().parents[2]
+    clock = [1000.0]
+    monkeypatch.setattr(evidence.time, "time", lambda: clock[0])
+    monkeypatch.setattr(evidence, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(evidence, "repo_root", lambda: repo)
+    projects = []
+
+    def start_openbao(worktree, project, env):
+        projects.append(project)
+        return "http://127.0.0.1:8200"
+
+    monkeypatch.setattr(evidence, "start_openbao", start_openbao)
+    commands = []
+
+    def run(cmd, **kwargs):
+        commands.append(cmd)
+        return "openbao:test" if "yq" in cmd else ""
+
+    monkeypatch.setattr(evidence, "run", run)
+    monkeypatch.setattr(
+        evidence.subprocess,
+        "run",
+        lambda *a, **kw: subprocess.CompletedProcess(
+            a, 0, stdout="".join(f"openbao-1\t{p}\n" for p in projects)
+        ),
+    )
+    evidence.cmd_openbao(argparse.Namespace())
+    address = capsys.readouterr().out.strip()
+
+    def stopped():
+        return [cmd[cmd.index("-p") + 1] for cmd in commands if "down" in cmd]
+
+    capture = tmp_path / "capture"
+    evidence.write_json(
+        capture / "state.json",
+        {"id": "capture", "root": str(capture), "openbao": address},
+    )
+    clock[0] += evidence.LEASE_S - 1
+    evidence.renew(evidence.load_state(capture / "state.json"))
+    clock[0] += 2
+    evidence.reap()
+    assert stopped() == []
+    clock[0] += evidence.LEASE_S
+    evidence.reap()
+    assert not capture.exists()
+    assert projects[0] in stopped()
 
 
 def test_postgres_pulled_before_start(tmp_path, monkeypatch):

@@ -29,7 +29,6 @@ UI_BACKLOG = 128
 BASE_DIR = Path(tempfile.gettempdir()) / LABEL
 # A run nobody has used for this long is a leak: its agent died or never ran `down`.
 LEASE_S = 2 * 60 * 60
-OPENBAO_PROJECT = LABEL + "-openbao-"
 DB_USER = "evidence"
 DB_PASSWORD = "evidence"
 DB_NAME = "evidence"
@@ -777,11 +776,30 @@ def cmd_build(args):
 
 
 def cmd_openbao(args):
-    print(start_openbao(repo_root(), args.project, dict(os.environ)))
+    reap()
+    run_id = f"shared-openbao-{secrets.token_hex(4)}"
+    state = {
+        "id": run_id,
+        "root": str(BASE_DIR / run_id),
+        "compose": f"{LABEL}-{run_id}",
+        "expires_at": time.time() + LEASE_S,
+    }
+    write_json(BASE_DIR / run_id / "state.json", state)
+    try:
+        state["address"] = start_openbao(
+            repo_root(), state["compose"], dict(os.environ)
+        )
+    except BaseException:
+        stop_state(state)
+        raise
+    write_json(BASE_DIR / run_id / "state.json", state)
+    print(state["address"])
 
 
 def cmd_stop_openbao(args):
-    stop_compose(args.project)
+    for state in states():
+        if state.get("address") == args.address:
+            stop_state(state)
 
 
 def check_ref_worktree(repo, ref):
@@ -801,29 +819,27 @@ def check_ref_worktree(repo, ref):
             )
 
 
+def states():
+    for path in BASE_DIR.glob("*/state.json"):
+        try:
+            yield load_state(path)
+        except OSError, ValueError:
+            continue
+
+
 def renew(state):
-    state["expires_at"] = time.time() + LEASE_S
-    write_json(Path(state["root"]) / "state.json", state)
-
-
-def pid_alive(pid):
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+    """Extends the lease of a run and of the shared OpenBao it uses."""
+    address = state.get("openbao")
+    shared = [s for s in states() if address and s.get("address") == address]
+    for current in (state, *shared):
+        current["expires_at"] = time.time() + LEASE_S
+        write_json(Path(current["root"]) / "state.json", current)
 
 
 def reap():
-    """Stops runs whose lease expired and Docker leftovers no live run or test run owns."""
+    """Stops runs whose lease expired and Docker leftovers no live run owns."""
     now = time.time()
-    for path in BASE_DIR.glob("*/state.json"):
-        try:
-            state = load_state(path)
-        except OSError, ValueError:
-            continue
+    for state in states():
         if state["expires_at"] < now:
             log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
             stop_state(state)
@@ -843,11 +859,7 @@ def reap():
         owner = project or name
         if not owner.startswith(LABEL + "-"):
             continue
-        if owner.startswith(OPENBAO_PROJECT):
-            pid = owner.removeprefix(OPENBAO_PROJECT)
-            if pid.isdigit() and pid_alive(int(pid)):
-                continue
-        elif (BASE_DIR / owner.removeprefix(LABEL + "-") / "state.json").exists():
+        if (BASE_DIR / owner.removeprefix(LABEL + "-") / "state.json").exists():
             continue
         log(f"reaping {owner}: no run owns it")
         if project:
@@ -873,14 +885,14 @@ def start_state(*, ref, name, scenario, issuer=None):
         "ref": ref,
         "root": str(root),
         "pids": [],
-        "expires_at": time.time() + LEASE_S,
     }
     if openbao:
         worktree = repo
+        state["openbao"] = openbao
     else:
         worktree = root / "src"
         state["worktree"] = str(worktree)
-    write_json(state_path, state)
+    renew(state)
     try:
         if not openbao:
             run(
@@ -1364,6 +1376,7 @@ def cmd_shoot(args):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
         for shot in shots:
+            renew(state)
             for theme in THEMES:
                 for narrow in (False, True) if shot.get("narrow") else (False,):
                     target = out / shot_filename(
@@ -1493,13 +1506,12 @@ def main():
         "openbao",
         help=f"start one seeded OpenBao for ${OPENBAO_ENV} and print its address",
     )
-    bao.add_argument("--project", required=True)
     bao.set_defaults(func=cmd_openbao)
     stop_bao = sub.add_parser(
         "stop-openbao",
-        help="remove a seeded OpenBao project and its volumes and network",
+        help="remove the seeded OpenBao at an address and its volumes and network",
     )
-    stop_bao.add_argument("--project", required=True)
+    stop_bao.add_argument("--address", required=True)
     stop_bao.set_defaults(func=cmd_stop_openbao)
     args = parser.parse_args()
     try:
