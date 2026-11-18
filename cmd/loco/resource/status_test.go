@@ -13,6 +13,7 @@ const statusTestRegion = "us-east-1"
 
 func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 	crash := "container app is crash looping"
+	pull := `Back-off pulling image "registry.test/web:v2": ImagePullBackOff`
 	resource := &resourcev1.Resource{
 		Name: "web",
 		EnvironmentStatuses: []*resourcev1.EnvironmentStatus{
@@ -47,6 +48,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 						ReadyReplicas:    1,
 						DesiredReplicas:  1,
 						DeploymentStatus: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+						Message:          &pull,
 					},
 				},
 			},
@@ -61,7 +63,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 	for _, want := range []string{
 		"production", "Degraded", "eu-west-1", "Unavailable", "0/2", "failed", crash,
 		statusTestRegion, "Healthy", "2/2", "running",
-		"staging", "Unknown", "1/1",
+		"staging", "Unknown", "1/1", pull,
 	} {
 		if !strings.Contains(view, want) {
 			t.Errorf("view is missing %q:\n%s", want, view)
