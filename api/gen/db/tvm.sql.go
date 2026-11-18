@@ -281,49 +281,6 @@ func (q *Queries) GetAPIToken(ctx context.Context, tokenHash string) (GetAPIToke
 	return i, err
 }
 
-const getAPITokenByNameAndEntity = `-- name: GetAPITokenByNameAndEntity :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
-FROM api_tokens
-WHERE name = $1 AND entity_type = $2 AND entity_id = $3
-`
-
-type GetAPITokenByNameAndEntityParams struct {
-	Name       string     `json:"name"`
-	EntityType EntityType `json:"entityType"`
-	EntityID   uuid.UUID  `json:"entityId"`
-}
-
-type GetAPITokenByNameAndEntityRow struct {
-	ID            uuid.UUID     `json:"id"`
-	Name          string        `json:"name"`
-	EntityType    EntityType    `json:"entityType"`
-	EntityID      uuid.UUID     `json:"entityId"`
-	Scopes        []EntityScope `json:"scopes"`
-	CreatedBy     uuid.UUID     `json:"createdBy"`
-	CreatedAt     time.Time     `json:"createdAt"`
-	ExpiresAt     time.Time     `json:"expiresAt"`
-	LastUsedAt    *time.Time    `json:"lastUsedAt"`
-	DisplaySuffix string        `json:"displaySuffix"`
-}
-
-func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPITokenByNameAndEntityParams) (GetAPITokenByNameAndEntityRow, error) {
-	row := q.db.QueryRow(ctx, getAPITokenByNameAndEntity, arg.Name, arg.EntityType, arg.EntityID)
-	var i GetAPITokenByNameAndEntityRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.EntityType,
-		&i.EntityID,
-		&i.Scopes,
-		&i.CreatedBy,
-		&i.CreatedAt,
-		&i.ExpiresAt,
-		&i.LastUsedAt,
-		&i.DisplaySuffix,
-	)
-	return i, err
-}
-
 const getSessionByRefreshToken = `-- name: GetSessionByRefreshToken :one
 SELECT st.id, st.user_id, st.kind, false AS used
 FROM session_tokens st

@@ -24,7 +24,6 @@ import (
 )
 
 var (
-	ErrTokenNotFound        = errors.New("token not found")
 	ErrTokenAlreadyExists   = errors.New("token with this name already exists for the entity")
 	ErrInvalidTokenDuration = errors.New("invalid token duration")
 	ErrInvalidScopes        = errors.New("invalid scopes")

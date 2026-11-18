@@ -90,18 +90,16 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	if meta.DisplaySuffix != apiToken[len(apiToken)-4:] {
 		t.Fatalf("display suffix = %q", meta.DisplaySuffix)
 	}
-	stored, err := q.GetAPITokenByNameAndEntity(ctx, queries.GetAPITokenByNameAndEntityParams{
-		Name: meta.Name, EntityType: entity.Type, EntityID: entity.ID,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if stored.DisplaySuffix != meta.DisplaySuffix {
-		t.Fatalf("stored suffix = %q", stored.DisplaySuffix)
+	var storedSuffix string
+	row := pool.QueryRow(ctx,
+		"SELECT display_suffix FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3",
+		meta.Name, entity.Type, entity.ID)
+	if scanErr := row.Scan(&storedSuffix); scanErr != nil || storedSuffix != meta.DisplaySuffix {
+		t.Fatalf("stored suffix = %q, err %v", storedSuffix, scanErr)
 	}
 
 	var sessionRows int
-	row := pool.QueryRow(ctx,
+	row = pool.QueryRow(ctx,
 		"SELECT count(*) FROM session_tokens WHERE access_token_hash = $1 AND refresh_token_hash = $2",
 		digestOf(access), digestOf(refresh))
 	if scanErr := row.Scan(&sessionRows); scanErr != nil || sessionRows != 1 {

@@ -183,11 +183,6 @@ FROM api_tokens
 WHERE entity_type = $1 AND entity_id = $2
 ORDER BY created_at DESC;
 
--- name: GetAPITokenByNameAndEntity :one
-SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix
-FROM api_tokens
-WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
-
 -- name: DeleteAPITokenByNameAndEntity :exec
 DELETE FROM api_tokens WHERE name = $1 AND entity_type = $2 AND entity_id = $3;
 
