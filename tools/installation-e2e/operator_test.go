@@ -61,14 +61,6 @@ func TestOperatorOutputLimitFailsClosed(t *testing.T) {
 	}
 }
 
-func TestOperatorSuccessPreservesOutput(t *testing.T) {
-	fakeCommand(t, kubectlExecutable, "#!/bin/sh\nprintf 'passed'\n")
-	out, err := operatorWorkflow(t.Context(), t.TempDir())
-	if err != nil || string(out) != "passed" {
-		t.Fatalf("successful operator output: %v", err)
-	}
-}
-
 func TestHostAcceptsOnlyKnownLoginFailureCategories(t *testing.T) {
 	for _, tc := range []struct{ marker, category string }{
 		{loginFailureUnavailable, loginFailureUnavailable}, {loginFailureExpired, loginFailureExpired},

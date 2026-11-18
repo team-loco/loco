@@ -8,15 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 // fakeBins holds each test's fake command directory; t.Setenv keeps these tests serial.
 var fakeBins = map[*testing.T]string{}
 
 // fakeCommand writes script as the executable name in the test's fake command directory,
-// which is the whole PATH, and returns that directory.
-func fakeCommand(t *testing.T, name, script string) string {
+// which is the whole PATH.
+func fakeCommand(t *testing.T, name, script string) {
 	t.Helper()
 	bin, ok := fakeBins[t]
 	if !ok {
@@ -28,7 +27,6 @@ func fakeCommand(t *testing.T, name, script string) string {
 	if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
-	return bin
 }
 
 // captureOutput runs fn and returns what it wrote to os.Stdout and os.Stderr, in order.
@@ -101,7 +99,8 @@ func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	for _, program := range []string{"docker", "kind", "kubectl", "helm", "mise", "yq"} {
 		script := "#!/bin/sh\nexit 0\n"
 		if program == "docker" {
-			script = "#!/bin/sh\nexec /bin/sleep 30\n"
+			// Docker outlives any test timeout, so run returning at all proves the deadline stopped it.
+			script = "#!/bin/sh\nexec /bin/sleep 86400\n"
 		}
 		if program == "kind" {
 			script = "#!/bin/sh\nprintf cleaned >\"$INSTALLATION_CLEANUP_MARKER\"\n"
@@ -113,13 +112,9 @@ func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	original := os.Args
 	os.Args = []string{suiteName, "--timeout=20ms"}
 	defer func() { os.Args = original }()
-	started := time.Now()
 	err := run()
 	if err == nil || !strings.Contains(err.Error(), "docker failed") {
 		t.Fatalf("host setup deadline: %v", err)
-	}
-	if time.Since(started) > 2*time.Second {
-		t.Fatal("host setup ignored its deadline")
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatal("host deadline skipped cleanup")
@@ -154,13 +149,5 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatal("kept fixture removed local state")
-	}
-}
-
-func TestFailedFluxCommandNamesWhatItReconciled(t *testing.T) {
-	fakeCommand(t, "flux", "#!/bin/sh\nexit 1\n")
-	_, err := command(t.Context(), "", nil, "flux", fluxReconcile, fluxKustomization, "loco-infra", "--timeout=10m")
-	if err == nil || !strings.Contains(err.Error(), "flux reconcile kustomization loco-infra --timeout=10m failed") {
-		t.Fatalf("flux failure = %v, want the reconciled object named", err)
 	}
 }

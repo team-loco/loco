@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 const testCanary = "installation-canary-8f48cbb251b7450e"
@@ -114,14 +113,11 @@ func TestAuditArgumentSocket(t *testing.T) {
 			t.Error(closeErr)
 		}
 	}()
-	connection, err := (&net.Dialer{Timeout: time.Second}).DialContext(t.Context(), "unix", socket)
+	connection, err := (&net.Dialer{}).DialContext(t.Context(), "unix", socket)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer connection.Close()
-	if err = connection.SetDeadline(time.Now().Add(time.Second)); err != nil {
-		t.Fatal(err)
-	}
 	if err = json.NewEncoder(connection).Encode([]string{"helm", "--set", "password=" + testCanary}); err != nil {
 		t.Fatal(err)
 	}

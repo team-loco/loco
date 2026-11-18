@@ -20,7 +20,8 @@ import (
 )
 
 func TestRecoveryForwardPreservesTLSIdentityAndAuthentication(t *testing.T) {
-	for _, name := range []string{"example.com", "wrong.invalid"} {
+	const trusted = "example.com"
+	for _, name := range []string{trusted, "wrong.invalid"} {
 		t.Run(name, func(t *testing.T) {
 			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/v1/sys/seal-status" && r.Header.Get("X-Vault-Token") != "forward-token-canary" {
@@ -32,7 +33,13 @@ func TestRecoveryForwardPreservesTLSIdentityAndAuthentication(t *testing.T) {
 					t.Error(err)
 				}
 			}))
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
 			server.Config.ErrorLog = log.New(io.Discard, "", 0)
+			if name != trusted {
+				// The server logs the handshake the client refuses, which ends the forward's readiness wait.
+				server.Config.ErrorLog = log.New(cancelWriter(cancel), "", 0)
+			}
 			server.StartTLS()
 			defer server.Close()
 			remote, err := url.Parse(server.URL)
@@ -57,8 +64,6 @@ exec "$BAO_FORWARD_TEST_BINARY" -test.run=TestBaoForwardSubprocess -- "$@"
 				}}},
 				endpoint: "https://example.com:" + remote.Port(), token: "forward-token-canary",
 			}
-			ctx, cancel := context.WithTimeout(t.Context(), 1500*time.Millisecond)
-			defer cancel()
 			process, endpoint, err := forwardBao(ctx, client, controlNamespace, "service/"+sourceBao)
 			if process != nil {
 				defer func() {
@@ -71,7 +76,7 @@ exec "$BAO_FORWARD_TEST_BINARY" -test.run=TestBaoForwardSubprocess -- "$@"
 					}
 				}()
 			}
-			if name != "example.com" {
+			if name != trusted {
 				if !errors.Is(err, errRecoveryDrill) {
 					t.Fatalf("wrong TLS server identity accepted: %v", err)
 				}
@@ -86,6 +91,13 @@ exec "$BAO_FORWARD_TEST_BINARY" -test.run=TestBaoForwardSubprocess -- "$@"
 			}
 		})
 	}
+}
+
+type cancelWriter context.CancelFunc
+
+func (c cancelWriter) Write(p []byte) (int, error) {
+	c()
+	return len(p), nil
 }
 
 func TestBaoForwardSubprocess(t *testing.T) {
