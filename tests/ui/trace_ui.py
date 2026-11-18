@@ -6,7 +6,15 @@ import time
 import urllib.parse
 from pathlib import Path
 
-from harness import call, load_state, open_page, repo, session, wait_for_query
+from harness import (
+    call,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    wait_for_query,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -710,12 +718,10 @@ with session(out) as browser:
         next(row for row in reversed(recorded) if "startTime" in row)["startTime"]
         != previous_request["startTime"]
     )
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListTraces")
-            and response.request.post_data_json.get("query") == "@trace:invalid"
-            and response.request.post_data_json.get("limit") == 25
-        )
+    with expect_rpc(
+        page,
+        "ListTraces",
+        lambda body: body.get("query") == "@trace:invalid" and body.get("limit") == 25,
     ) as filtered:
         page.goto(state["ui_url"] + base + "&q=" + urllib.parse.quote("@trace:invalid"))
     assert filtered.value.request.post_data_json["query"] == "@trace:invalid"
@@ -729,12 +735,10 @@ with session(out) as browser:
         + "&span="
         + spans[10]["spanId"]
     )
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListTraces")
-            and response.request.post_data_json.get("query")
-            == "-@http.response.status_code:504 checkout"
-        )
+    with expect_rpc(
+        page,
+        "ListTraces",
+        lambda body: body.get("query") == "-@http.response.status_code:504 checkout",
     ):
         drawer.get_by_role("region", name="Span attributes").get_by_role(
             "button",
@@ -815,12 +819,10 @@ with session(out) as browser:
     mode[0] = "normal"
     page.get_by_role("button", name="Retry", exact=True).click()
     open_trace.wait_for()
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListTraces")
-            and response.request.post_data_json.get("query")
-            == "@resource:not-a-resource"
-        )
+    with expect_rpc(
+        page,
+        "ListTraces",
+        lambda body: body.get("query") == "@resource:not-a-resource",
     ) as filtered:
         page.goto(state["ui_url"] + base + "&r=not-a-resource")
     assert filtered.value.request.post_data_json["query"] == "@resource:not-a-resource"
@@ -884,12 +886,10 @@ with session(out) as browser:
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
     assert last_page_request()["query"] == "@status:error"
     wait_for_query(page, lambda query: query.get("q") == ["@status:error"])
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListTraces")
-            and response.request.post_data_json.get("query") == "@duration:>100"
-            and response.request.post_data_json.get("limit") == 25
-        )
+    with expect_rpc(
+        page,
+        "ListTraces",
+        lambda body: body.get("query") == "@duration:>100" and body.get("limit") == 25,
     ):
         page.goto(state["ui_url"] + base + "&q=" + urllib.parse.quote("@duration:>100"))
     wait_for_query(page, lambda query: query.get("q") == ["@duration:>100"])
@@ -934,11 +934,10 @@ with session(out) as browser:
     assert "@duration" not in urllib.parse.unquote(page.url)
     assert "from=" not in page.url
     expect(page.get_by_role("button", name="Reset zoom", exact=True)).to_have_count(0)
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListTraces")
-            and response.request.post_data_json.get("query") == "products"
-        )
+    with expect_rpc(
+        page,
+        "ListTraces",
+        lambda body: body.get("query") == "products",
     ) as filtered:
         page.goto(state["ui_url"] + base + "&q=products")
     assert filtered.value.request.post_data_json["query"] == "products"
@@ -973,12 +972,10 @@ with session(out) as browser:
         browser, state=state, storage={"loco:env:v1:" + workspace_id: "staging"}
     )
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/GetTrace")
-            and response.request.post_data_json.get("scope", {}).get("environmentId")
-            == staging
-        )
+    with expect_rpc(
+        page,
+        "GetTrace",
+        lambda body: body.get("scope", {}).get("environmentId") == staging,
     ):
         page.goto(state["ui_url"] + base + "&trace=" + trace)
     wait_for_query(
