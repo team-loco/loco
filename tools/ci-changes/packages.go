@@ -1,83 +1,125 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"go/build"
-	"log/slog"
+	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
-
-	"golang.org/x/mod/modfile"
+	"sync"
 )
 
-// goRepo holds the Go modules and packages of a repository.
+// goRepo holds what `go list -deps -test` reports in each Go module of a
+// repository.
 type goRepo struct {
-	// modules maps each module directory to its module.
-	modules map[string]goModule
-	// packages maps each directory holding Go files to its package.
-	packages map[string]*build.Package
+	dir string
+	// packages maps each module directory to the packages listed in it by
+	// import path, test variants included.
+	packages map[string]map[string]goPackage
 }
 
-type goModule struct {
-	path string
-	// replaces lists the directories of the repository modules its go.mod
-	// replaces a dependency with.
-	replaces []string
+type goPackage struct {
+	ImportPath    string   `json:"ImportPath"`
+	Dir           string   `json:"Dir"`
+	ForTest       string   `json:"ForTest"`
+	Match         []string `json:"Match"`
+	Deps          []string `json:"Deps"`
+	EmbedPatterns []string `json:"EmbedPatterns"`
+	Module        *struct {
+		GoMod string `json:"GoMod"`
+	} `json:"Module"`
 }
 
-func loadGoRepo(ctx context.Context, dir string) (*goRepo, error) {
+// loadGoRepo lists, in each module of the repository in dir, every package of
+// the module and the packages roots name in it, with what they and their tests
+// import. Modules are not downloaded: an import from outside the repository
+// does not resolve, and imports inside it resolve through the replacements.
+func loadGoRepo(ctx context.Context, dir string, roots []string) (*goRepo, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, err
+	}
 	modFiles, err := lsFiles(ctx, dir, "*go.mod")
 	if err != nil {
 		return nil, err
 	}
-	repo := &goRepo{modules: map[string]goModule{}, packages: map[string]*build.Package{}}
-	parsed := map[string]*modfile.File{}
+	repo := &goRepo{dir: abs, packages: map[string]map[string]goPackage{}}
+	patterns := map[string][]string{}
 	for _, file := range modFiles {
-		data, readErr := os.ReadFile(filepath.Join(dir, file))
-		if readErr != nil {
-			return nil, readErr
-		}
-		if parsed[path.Dir(file)], err = modfile.Parse(file, data, nil); err != nil {
-			return nil, err
-		}
+		repo.packages[path.Dir(file)] = nil
+		patterns[path.Dir(file)] = []string{"./..."}
 	}
-	for module, f := range parsed {
-		m := goModule{path: f.Module.Mod.Path}
-		for _, replace := range f.Replace {
-			target := path.Join(module, replace.New.Path)
-			if _, ok := parsed[target]; ok && modfile.IsDirectoryPath(replace.New.Path) {
-				m.replaces = append(m.replaces, target)
+	for _, root := range roots {
+		module := repo.owner(root + "/")
+		patterns[module] = append(patterns[module], listPattern(module, root))
+	}
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
+	for module, args := range patterns {
+		wg.Go(func() {
+			listed, err := goList(ctx, filepath.Join(abs, module), args)
+			mu.Lock()
+			defer mu.Unlock()
+			repo.packages[module] = listed
+			if err != nil {
+				errs = append(errs, fmt.Errorf("module %s: %w", module, err))
 			}
-		}
-		repo.modules[module] = m
+		})
 	}
-	goFiles, err := lsFiles(ctx, dir, "*.go")
-	if err != nil {
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
 		return nil, err
 	}
-	// Every file counts, whatever its build constraints, so a suite's inputs
-	// cover each platform and build tag it runs with.
-	buildContext := build.Default
-	buildContext.UseAllFiles = true
-	for _, file := range goFiles {
-		pkgDir := path.Dir(file)
-		if repo.packages[pkgDir] != nil {
-			continue
+	for _, root := range roots {
+		if len(repo.matching(root)) == 0 {
+			return nil, fmt.Errorf("%s is not a Go package", root)
 		}
-		// A package that does not parse keeps the imports read before the
-		// error; its module's lint reports the error.
-		pkg, err := buildContext.ImportDir(filepath.Join(dir, pkgDir), 0)
-		if err != nil && !errors.As(err, new(*build.NoGoError)) {
-			slog.Warn("read Go package", "dir", pkgDir, "error", err)
-		}
-		repo.packages[pkgDir] = pkg
 	}
 	return repo, nil
+}
+
+func goList(ctx context.Context, dir string, patterns []string) (map[string]goPackage, error) {
+	args := append([]string{"list", "-e", "-deps", "-test", "-tags=conformance",
+		"-json=ImportPath,Dir,ForTest,Match,Deps,EmbedPatterns,Module"}, patterns...)
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Dir = dir
+	// go list reports directories under PWD.
+	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOWORK=off", "PWD="+dir)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("go list: %w: %s", err, stderr.String())
+	}
+	packages := map[string]goPackage{}
+	for decoder := json.NewDecoder(bytes.NewReader(out)); ; {
+		var pkg goPackage
+		if err := decoder.Decode(&pkg); errors.Is(err, io.EOF) {
+			return packages, nil
+		} else if err != nil {
+			return nil, err
+		}
+		packages[pkg.ImportPath] = pkg
+	}
+}
+
+// listPattern returns the go list pattern, relative to module, of a package
+// directory or of a directory pattern ending in /....
+func listPattern(module, root string) string {
+	if root == module {
+		return "."
+	}
+	return "./" + strings.TrimPrefix(root, module+"/")
 }
 
 func lsFiles(ctx context.Context, dir, pattern string) ([]string, error) {
@@ -92,43 +134,24 @@ func lsFiles(ctx context.Context, dir, pattern string) ([]string, error) {
 func (r *goRepo) owner(file string) string {
 	dir := path.Dir(file)
 	for ; dir != rootModule; dir = path.Dir(dir) {
-		if _, ok := r.modules[dir]; ok {
+		if _, ok := r.packages[dir]; ok {
 			return dir
 		}
 	}
 	return dir
 }
 
-// modulePackages returns the package directories `go list ./...` lists in a module.
-func (r *goRepo) modulePackages(module string) []string {
-	var dirs []string
-	for dir := range r.packages {
-		if r.owner(dir+"/") == module && !slices.ContainsFunc(strings.Split(dir, "/"), func(e string) bool {
-			return e == "testdata" || strings.HasPrefix(e, "_") || strings.HasPrefix(e, ".") && e != "."
-		}) {
-			dirs = append(dirs, dir)
+// matching returns the packages, without test variants, that a root names.
+func (r *goRepo) matching(root string) []goPackage {
+	module := r.owner(root + "/")
+	pattern := listPattern(module, root)
+	var matched []goPackage
+	for _, pkg := range r.packages[module] {
+		if pkg.Dir != "" && pkg.ForTest == "" && slices.Contains(pkg.Match, pattern) {
+			matched = append(matched, pkg)
 		}
 	}
-	slices.Sort(dirs)
-	return dirs
-}
-
-// resolve returns the directory of the repository package an import of the
-// build of main names. The main module's replacements decide which repository
-// modules the build reads.
-func (r *goRepo) resolve(main, importPath string) (string, bool) {
-	module, best := "", -1
-	for dir, m := range r.modules {
-		if (importPath == m.path || strings.HasPrefix(importPath, m.path+"/")) && len(m.path) > best {
-			module, best = dir, len(m.path)
-		}
-	}
-	if best < 0 || module != main && !slices.Contains(r.modules[main].replaces, module) {
-		return "", false
-	}
-	dir := path.Join(module, strings.TrimPrefix(importPath[best:], "/"))
-	_, ok := r.packages[dir]
-	return dir, ok
+	return matched
 }
 
 // goInputs are the repository files a set of Go builds and tests reads.
@@ -142,80 +165,57 @@ type goInputs struct {
 	embeds []string
 }
 
-// inputs returns what building the packages in build and testing the packages
-// in test reads: their files, the packages they import transitively, and the
-// go.mod files of the modules those come from. A pattern ending in /... names
-// every package of its module at or under its directory.
-func (r *goRepo) inputs(builds, tests []string) (goInputs, error) {
+// inputs returns what building the packages in builds and testing the packages
+// in tests reads: their files, the repository packages they import
+// transitively, and the go.mod files of the modules those come from. A root
+// ending in /... names every package of its module at or under its directory.
+// Every root must be one loadGoRepo was given.
+func (r *goRepo) inputs(builds, tests []string) goInputs {
 	in := goInputs{sources: map[string]bool{}, trees: map[string]bool{}, files: map[string]bool{}}
-	type node struct{ dir, main string }
-	var pending []node
 	for _, entry := range []struct {
-		patterns []string
-		test     bool
+		roots []string
+		test  bool
 	}{{builds, false}, {tests, true}} {
-		for _, pattern := range entry.patterns {
-			dirs, err := r.expand(pattern)
-			if err != nil {
-				return goInputs{}, err
-			}
-			for _, dir := range dirs {
-				main := r.owner(dir + "/")
-				in.files[path.Join(main, "go.sum")] = true
-				pending = append(pending, node{dir, main})
-				if !entry.test {
-					continue
+		for _, root := range entry.roots {
+			module := r.owner(root + "/")
+			listed := r.packages[module]
+			in.files[path.Join(module, "go.sum")] = true
+			for _, pkg := range r.matching(root) {
+				deps := pkg.Deps
+				if entry.test {
+					in.trees[r.rel(pkg.Dir)] = true
+					if binary, ok := listed[pkg.ImportPath+".test"]; ok {
+						deps = binary.Deps
+					}
 				}
-				in.trees[dir] = true
-				pkg := r.packages[dir]
-				for _, imp := range slices.Concat(pkg.TestImports, pkg.XTestImports) {
-					if dep, ok := r.resolve(main, imp); ok {
-						pending = append(pending, node{dep, main})
+				for _, dep := range slices.Concat(deps, []string{pkg.ImportPath}) {
+					dep := listed[dep]
+					dir := r.rel(dep.Dir)
+					if dir == "" {
+						continue
+					}
+					in.sources[dir] = true
+					if dep.Module != nil {
+						in.files[r.rel(dep.Module.GoMod)] = true
+					}
+					for _, pattern := range dep.EmbedPatterns {
+						in.embeds = append(in.embeds, path.Join(dir, strings.TrimPrefix(pattern, "all:")))
 					}
 				}
 			}
 		}
 	}
-	seen := map[node]bool{}
-	for len(pending) > 0 {
-		n := pending[len(pending)-1]
-		pending = pending[:len(pending)-1]
-		if seen[n] {
-			continue
-		}
-		seen[n] = true
-		in.sources[n.dir] = true
-		in.files[path.Join(r.owner(n.dir+"/"), "go.mod")] = true
-		pkg := r.packages[n.dir]
-		for _, pattern := range pkg.EmbedPatterns {
-			in.embeds = append(in.embeds, path.Join(n.dir, strings.TrimPrefix(pattern, "all:")))
-		}
-		for _, imp := range pkg.Imports {
-			if dep, ok := r.resolve(n.main, imp); ok {
-				pending = append(pending, node{dep, n.main})
-			}
-		}
-	}
-	return in, nil
+	return in
 }
 
-func (r *goRepo) expand(pattern string) ([]string, error) {
-	if base, ok := strings.CutSuffix(pattern, "/..."); ok {
-		var dirs []string
-		for _, dir := range r.modulePackages(r.owner(base + "/")) {
-			if dir == base || strings.HasPrefix(dir, base+"/") {
-				dirs = append(dirs, dir)
-			}
-		}
-		if len(dirs) == 0 {
-			return nil, fmt.Errorf("%s matches no Go package", pattern)
-		}
-		return dirs, nil
+// rel returns the repository path of an absolute path inside the repository,
+// or "" for one outside it.
+func (r *goRepo) rel(name string) string {
+	rel, err := filepath.Rel(r.dir, name)
+	if err != nil || name == "" || rel == ".." || strings.HasPrefix(rel, "../") {
+		return ""
 	}
-	if _, ok := r.packages[pattern]; !ok {
-		return nil, fmt.Errorf("%s is not a Go package", pattern)
-	}
-	return []string{pattern}, nil
+	return filepath.ToSlash(rel)
 }
 
 func (in goInputs) matches(file string) bool {

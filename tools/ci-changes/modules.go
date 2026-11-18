@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"maps"
+	"path"
 	"slices"
 )
 
@@ -39,19 +40,16 @@ var (
 // for a module below the root every file in its directory.
 type moduleInputs map[string]func(file string) bool
 
-func loadModuleInputs(repo *goRepo) (moduleInputs, error) {
+func moduleInputsOf(repo *goRepo) moduleInputs {
 	modules := moduleInputs{}
-	for module := range repo.modules {
-		in, err := repo.inputs(nil, repo.modulePackages(module))
-		if err != nil {
-			return nil, fmt.Errorf("module %s: %w", module, err)
-		}
+	for module := range repo.packages {
+		in := repo.inputs(nil, []string{path.Join(module, "...")})
 		modules[module] = func(file string) bool {
 			return in.matches(file) || module != rootModule && repo.owner(file) == module ||
 				testInputs[module] != nil && testInputs[module].matches(file)
 		}
 	}
-	return modules, nil
+	return modules
 }
 
 // affected returns the sorted directories of the modules whose lint and tests

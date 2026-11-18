@@ -128,15 +128,15 @@ func TestGoInputsFollowTheMainModulesReplacements(t *testing.T) {
 	r.write("shared/shared_test.go", "package shared\n\nimport _ \"example.test/root/testonly\"\n")
 	r.write("testonly/testonly.go", "package testonly\n")
 	r.write("unused/unused.go", "package unused\n")
-	r.write("app/go.mod", "module example.test/app\n\nreplace example.test/root => ../\n")
+	r.write("app/go.mod",
+		"module example.test/app\n\nrequire example.test/root v0.0.0\n\nreplace example.test/root => ../\n")
 	r.write("app/main.go", "package main\n\nimport _ \"example.test/root/shared\"\n")
 	r.write("pinned/go.mod", "module example.test/pinned\n")
 	r.write("pinned/main.go", "package main\n\nimport _ \"example.test/root/shared\"\n")
-	repo, err := loadGoRepo(t.Context(), r.dir)
+	repo, err := loadGoRepo(t.Context(), r.dir, []string{"app", "pinned", "shared"})
 	require.NoError(t, err)
 
-	app, err := repo.inputs([]string{"app"}, nil)
-	require.NoError(t, err)
+	app := repo.inputs([]string{"app"}, nil)
 	for _, file := range []string{
 		"app/main.go", "app/go.mod", "app/go.sum", goModFile, "shared/new.go", "shared/assets/logo.svg",
 	} {
@@ -146,16 +146,14 @@ func TestGoInputsFollowTheMainModulesReplacements(t *testing.T) {
 		assert.False(t, app.matches(file), file)
 	}
 
-	pinned, err := repo.inputs([]string{"pinned"}, nil)
-	require.NoError(t, err)
+	pinned := repo.inputs([]string{"pinned"}, nil)
 	assert.False(t, pinned.matches("shared/shared.go"), "without a replacement the build reads a published version")
 
-	tested, err := repo.inputs(nil, []string{"shared"})
-	require.NoError(t, err)
+	tested := repo.inputs(nil, []string{"shared"})
 	for _, file := range []string{"shared/shared_test.go", "shared/testdata/case.json", "testonly/testonly.go"} {
 		assert.True(t, tested.matches(file), file)
 	}
 
-	_, err = repo.inputs([]string{"missing"}, nil)
+	_, err = loadGoRepo(t.Context(), r.dir, []string{"missing"})
 	assert.ErrorContains(t, err, "missing is not a Go package")
 }

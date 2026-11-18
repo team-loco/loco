@@ -1,11 +1,10 @@
 # Changed paths that run each workflow .github/workflows/ci.yml calls, keyed by
 # the workflow's file name. tools/ci-changes evaluates them with the semantics of
 # a workflow's `paths` filter: `*` stays within a directory, `**` crosses
-# directories, `?` makes the preceding character optional, `{a,b}` matches
-# either word, and a later `!pattern` excludes what earlier patterns matched. A
-# workflow without a list for an event never runs on that event. A workflow's
-# `for` list names the workflows that use its output; it runs whenever one of
-# them runs.
+# directories, `?` makes the preceding character optional, and `{a,b}` matches
+# either word. A workflow without a list for an event never runs on that event.
+# A workflow's `for` list names the workflows that use its output; it runs
+# whenever one of them runs.
 #
 # Go code is not listed by path. `go.build` names the Go packages a workflow
 # builds and runs, and `go.test` the packages whose tests it runs; a pattern

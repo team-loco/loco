@@ -40,23 +40,8 @@ func TestFilterMatches(t *testing.T) {
 	}
 }
 
-func TestNegationAppliesInOrder(t *testing.T) {
-	f, err := compileFilter([]string{"observability-proxy/**", "!**/*_test.go", "observability-proxy/keep_test.go"})
-	require.NoError(t, err)
-
-	assert.True(t, f.matches("observability-proxy/main.go"))
-	assert.False(t, f.matches("observability-proxy/main_test.go"), "a later negation excludes an earlier match")
-	assert.True(t, f.matches("observability-proxy/keep_test.go"), "a later pattern re-includes a negated path")
-	assert.False(t, f.matches("api/main.go"))
-
-	negatedFirst, err := compileFilter([]string{"!**/*_test.go", "observability-proxy/**"})
-	require.NoError(t, err)
-	assert.True(t, negatedFirst.matches("observability-proxy/main_test.go"),
-		"a negation before the match excludes nothing")
-}
-
 func TestCompileRejectsUnsupportedPatterns(t *testing.T) {
-	for _, pattern := range []string{"api/[ab].go", "a+", "?.go", "api/{a,b", "a}"} {
+	for _, pattern := range []string{"api/[ab].go", "a+", "?.go", "api/{a,b", "a}", "!**/*_test.go"} {
 		_, err := compileFilter([]string{pattern})
 		require.Error(t, err, pattern)
 	}

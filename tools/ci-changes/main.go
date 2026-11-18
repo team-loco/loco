@@ -91,14 +91,8 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 	)
 }
 
-// filter is one event's ordered pattern list; a later pattern overrides an
-// earlier one for the paths both match.
-type filter []pattern
-
-type pattern struct {
-	negated bool
-	re      *regexp.Regexp
-}
+// filter is one event's pattern list; a path matches when any pattern does.
+type filter []*regexp.Regexp
 
 // filters maps each workflow to its paths.
 type filters map[string]workflowFilter
@@ -185,24 +179,22 @@ func loadFilters(path string) (filters, error) {
 // repository in dir, and returns the inputs of each module's lint and tests,
 // which are the Go inputs of moduleWorkflow.
 func resolveGo(ctx context.Context, dir string, all filters) (moduleInputs, error) {
-	repo, err := loadGoRepo(ctx, dir)
+	var roots []string
+	for _, w := range all {
+		roots = append(roots, w.builds...)
+		roots = append(roots, w.tests...)
+	}
+	repo, err := loadGoRepo(ctx, dir, roots)
 	if err != nil {
 		return nil, err
 	}
-	modules, err := loadModuleInputs(repo)
-	if err != nil {
-		return nil, err
-	}
+	modules := moduleInputsOf(repo)
 	for workflow, w := range all {
 		switch {
 		case workflow == moduleWorkflow:
 			w.goInputs = modules.matches
 		case w.builds != nil || w.tests != nil:
-			in, err := repo.inputs(w.builds, w.tests)
-			if err != nil {
-				return nil, fmt.Errorf("%s: go: %w", workflow, err)
-			}
-			w.goInputs = in.matches
+			w.goInputs = repo.inputs(w.builds, w.tests).matches
 		}
 		all[workflow] = w
 	}
@@ -320,13 +312,7 @@ func writeSelection(
 }
 
 func (f filter) matches(path string) bool {
-	included := false
-	for _, p := range f {
-		if p.re.MatchString(path) {
-			included = !p.negated
-		}
-	}
-	return included
+	return slices.ContainsFunc(f, func(re *regexp.Regexp) bool { return re.MatchString(path) })
 }
 
 func compileFilter(patterns []string) (filter, error) {
@@ -335,8 +321,7 @@ func compileFilter(patterns []string) (filter, error) {
 	}
 	f := make(filter, 0, len(patterns))
 	for _, raw := range patterns {
-		body, negated := strings.CutPrefix(raw, "!")
-		expr, err := translate(body)
+		expr, err := translate(raw)
 		if err != nil {
 			return nil, fmt.Errorf("pattern %q: %w", raw, err)
 		}
@@ -344,13 +329,13 @@ func compileFilter(patterns []string) (filter, error) {
 		if err != nil {
 			return nil, fmt.Errorf("pattern %q: %w", raw, err)
 		}
-		f = append(f, pattern{negated: negated, re: re})
+		f = append(f, re)
 	}
 	return f, nil
 }
 
 // translate turns a workflow paths pattern into a regular expression. The
-// characters GitHub documents but no filter here uses ([], +) are rejected
+// characters GitHub documents but no filter here uses ([], +, !) are rejected
 // rather than guessed at.
 func translate(glob string) (string, error) {
 	var b strings.Builder
@@ -391,7 +376,7 @@ func translate(glob string) (string, error) {
 			b.WriteString("(?:" + strings.Join(alternatives, "|") + ")")
 			i += end
 			literal = false
-		case strings.ContainsRune("[]+}", rune(rest[0])):
+		case strings.ContainsRune("[]+}!", rune(rest[0])):
 			return "", fmt.Errorf("unsupported character %q", rest[0])
 		default:
 			b.WriteString(regexp.QuoteMeta(rest[:1]))
