@@ -7,11 +7,11 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -22,11 +22,8 @@ const (
 )
 
 func TestSweepEnvSecretsDeletesOrphanedSecretsWithoutASyncStream(t *testing.T) {
-	scheme := runtime.NewScheme()
-	if err := locov1alpha1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
+	scheme, err := kube.NewScheme()
+	if err != nil {
 		t.Fatal(err)
 	}
 	orphan := &corev1.Secret{
@@ -34,10 +31,10 @@ func TestSweepEnvSecretsDeletesOrphanedSecretsWithoutASyncStream(t *testing.T) {
 		Namespace: testAgentNamespace,
 		Labels:    map[string]string{locov1alpha1.KeyPlacementID: testOrphanSecret},
 	}
-	kube := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(orphan).Build()
+	cluster := fakeclient.NewClientBuilder().WithScheme(scheme).WithObjects(orphan).Build()
 	a := &Agent{
 		cfg:     &Config{InventoryInterval: time.Hour},
-		applier: applier.NewWithClient(kube, testAgentNamespace, nil),
+		applier: applier.NewWithClient(cluster, testAgentNamespace, nil),
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	stopped := make(chan struct{})
@@ -53,7 +50,7 @@ func TestSweepEnvSecretsDeletesOrphanedSecretsWithoutASyncStream(t *testing.T) {
 	key := client.ObjectKeyFromObject(orphan)
 	deadline := time.After(testHeartbeatWait)
 	for {
-		err := kube.Get(ctx, key, &corev1.Secret{})
+		err := cluster.Get(ctx, key, &corev1.Secret{})
 		if apierrors.IsNotFound(err) {
 			return
 		}

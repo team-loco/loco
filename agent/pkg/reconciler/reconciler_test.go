@@ -9,7 +9,6 @@ import (
 	"testing/synctest"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -18,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -36,11 +36,8 @@ type kubeApplier struct {
 
 func newKubeApplier(t *testing.T) *kubeApplier {
 	t.Helper()
-	scheme := runtime.NewScheme()
-	if err := locov1alpha1.AddToScheme(scheme); err != nil {
-		t.Fatal(err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
+	scheme, err := kube.NewScheme()
+	if err != nil {
 		t.Fatal(err)
 	}
 	k := &kubeApplier{}

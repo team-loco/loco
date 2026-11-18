@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/team-loco/loco/agent/pkg/kube"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,12 +62,9 @@ func (w *writeLog) funcs() interceptor.Funcs {
 
 func newRecordingApplier(t *testing.T, existing ...client.Object) (*Applier, *writeLog) {
 	t.Helper()
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add scheme: %v", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add core scheme: %v", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		t.Fatal(err)
 	}
 	log := &writeLog{}
 	c := fake.NewClientBuilder().

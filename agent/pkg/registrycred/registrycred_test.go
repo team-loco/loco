@@ -15,12 +15,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
+	"github.com/team-loco/loco/agent/pkg/kube"
 	registryv1 "github.com/team-loco/loco/gen/go/loco/registry/v1"
 	"github.com/team-loco/loco/gen/go/loco/registry/v1/registryv1connect"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -127,12 +127,9 @@ func newInterceptedFixture(
 	existing ...client.Object,
 ) *fixture {
 	t.Helper()
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add scheme: %v", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add core scheme: %v", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		t.Fatal(err)
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing...).WithInterceptorFuncs(funcs).Build()
 	clk := &clock{now: time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)}

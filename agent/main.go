@@ -50,7 +50,6 @@ func main() {
 		"control_plane", cfg.ControlPlaneURL,
 		"version", cfg.AgentVersion,
 		"namespace", cfg.Namespace,
-		"controller_namespace", cfg.ControllerNamespace,
 		"controller_deployment", cfg.ControllerDeployment,
 		"build_namespace", cfg.BuildNamespace,
 		"registry_auth", cfg.RegistryAuth,
@@ -110,7 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	inspector := cluster.NewInspector(clientset, cfg.ControllerNamespace, cfg.ControllerDeployment)
+	inspector := cluster.NewInspector(clientset, cfg.Namespace, cfg.ControllerDeployment)
 	if err = inspector.CheckKubernetesVersion(); err != nil {
 		slog.Error("Kubernetes compatibility check failed", "error", err)
 		os.Exit(1)
