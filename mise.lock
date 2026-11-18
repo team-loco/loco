@@ -514,6 +514,81 @@ checksum_source = "mise-versions"
 url = "https://github.com/pressly/goose/releases/download/v3.29.0/goose_darwin_x86_64"
 url_api = "https://api.github.com/repos/pressly/goose/releases/assets/631395874"
 
+[[tools."github:project-zot/zot"]]
+version = "2.1.23"
+backend = "github:project-zot/zot"
+specifiers = ["2.1.23"]
+
+[tools."github:project-zot/zot"."platforms.macos-arm64"]
+checksum = "sha256:4558fd88300b45a694b1d096c9b3f9d1160607f064354cfb3c643bce1922bfd0"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-darwin-arm64"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700185208"
+
+[tools."github:project-zot/zot"."platforms.macos-x64"]
+checksum = "sha256:9100c9240efe737bd8fed3c5d86e784863f0b2df424a4a59f930302afa863cce"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-darwin-amd64"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700156365"
+
+[tools."github:project-zot/zot"."platforms.macos-x64-baseline"]
+checksum = "sha256:9100c9240efe737bd8fed3c5d86e784863f0b2df424a4a59f930302afa863cce"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-darwin-amd64"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700156365"
+
+[[tools."github:project-zot/zot"]]
+version = "2.1.23"
+backend = "github:project-zot/zot"
+specifiers = ["2.1.23"]
+
+[tools."github:project-zot/zot".options]
+asset_pattern = "zot-linux-arm64-minimal"
+
+[tools."github:project-zot/zot"."platforms.linux-arm64"]
+checksum = "sha256:931d687899cc4b1fcad4c026d2792df6132e6de1b2f329aa730dccee14ec0395"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-linux-arm64-minimal"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700184475"
+
+[tools."github:project-zot/zot"."platforms.linux-arm64-musl"]
+checksum = "sha256:931d687899cc4b1fcad4c026d2792df6132e6de1b2f329aa730dccee14ec0395"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-linux-arm64-minimal"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700184475"
+
+[[tools."github:project-zot/zot"]]
+version = "2.1.23"
+backend = "github:project-zot/zot"
+specifiers = ["2.1.23"]
+
+[tools."github:project-zot/zot".options]
+asset_pattern = "zot-linux-amd64-minimal"
+
+[tools."github:project-zot/zot"."platforms.linux-x64"]
+checksum = "sha256:8a6e77686bc0e7751766c49828cff6c66b115c854d350c9d936b855463f6c973"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-linux-amd64-minimal"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700157222"
+
+[tools."github:project-zot/zot"."platforms.linux-x64-baseline"]
+checksum = "sha256:8a6e77686bc0e7751766c49828cff6c66b115c854d350c9d936b855463f6c973"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-linux-amd64-minimal"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700157222"
+
+[tools."github:project-zot/zot"."platforms.linux-x64-musl"]
+checksum = "sha256:8a6e77686bc0e7751766c49828cff6c66b115c854d350c9d936b855463f6c973"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-linux-amd64-minimal"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700157222"
+
+[tools."github:project-zot/zot"."platforms.linux-x64-musl-baseline"]
+checksum = "sha256:8a6e77686bc0e7751766c49828cff6c66b115c854d350c9d936b855463f6c973"
+checksum_source = "mise-versions"
+url = "https://github.com/project-zot/zot/releases/download/v2.1.23/zot-linux-amd64-minimal"
+url_api = "https://api.github.com/repos/project-zot/zot/releases/assets/700157222"
+
 [[tools."github:sqlc-dev/sqlc"]]
 version = "1.31.1"
 backend = "github:sqlc-dev/sqlc"

@@ -57,13 +57,15 @@ type fixture struct {
 	skip                                     bool
 	version                                  string
 	// images names prebuilt images, with * standing for the image name.
-	images       string
-	forward      *exec.Cmd
-	cloudManaged bool
-	platform     string
+	images string
+	// dockerHubMirror is the address of a registry mirroring Docker Hub, which CI serves from its cache.
+	dockerHubMirror string
+	forward         *exec.Cmd
+	cloudManaged    bool
+	platform        string
 }
 
-func newFixture(root string, skip bool, images string) (*fixture, error) {
+func newFixture(root string, skip bool, images, dockerHubMirror string) (*fixture, error) {
 	digest := sha256.Sum256([]byte(root))
 	name := "loco-installation-" + hex.EncodeToString(digest[:4])
 	directory := filepath.Join(root, "tests", "e2e", "runs", name)
@@ -71,13 +73,14 @@ func newFixture(root string, skip bool, images string) (*fixture, error) {
 		return nil, checkErr
 	}
 	return &fixture{
-		root:       root,
-		dir:        directory,
-		name:       name,
-		kubeconfig: filepath.Join(directory, "kubeconfig"),
-		skip:       skip,
-		version:    "0.0.0-e2e.head",
-		images:     images,
+		root:            root,
+		dir:             directory,
+		name:            name,
+		kubeconfig:      filepath.Join(directory, "kubeconfig"),
+		skip:            skip,
+		version:         "0.0.0-e2e.head",
+		images:          images,
+		dockerHubMirror: dockerHubMirror,
 	}, nil
 }
 
@@ -174,6 +177,9 @@ func (f *fixture) acceptance(ctx context.Context) error {
 		"node-role.kubernetes.io/control-plane",
 		"node.kubernetes.io/exclude-from-external-load-balancers-",
 	); checkErr != nil {
+		return checkErr
+	}
+	if checkErr := f.mirrorDockerHub(ctx); checkErr != nil {
 		return checkErr
 	}
 	if cloudErr := f.startLoadBalancer(ctx); cloudErr != nil {
@@ -511,31 +517,35 @@ func (f *fixture) registryRouting(ctx context.Context) error {
 	if checkErr := waitRegistryDNS(ctx, address); checkErr != nil {
 		return checkErr
 	}
+	return f.registryHosts(ctx, registryHost, fmt.Sprintf(
+		"server = \"http://%s\"\n[host.\"http://%s:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n",
+		registryHost,
+		address,
+	))
+}
+
+// mirrorDockerHub has every node pull Docker Hub images from the Docker Hub mirror, when one is
+// set, and from Docker Hub when the mirror lacks them.
+func (f *fixture) mirrorDockerHub(ctx context.Context) error {
+	if f.dockerHubMirror == "" {
+		return nil
+	}
+	return f.registryHosts(ctx, "docker.io", fmt.Sprintf(
+		"[host.\"http://%s\"]\n  capabilities = [\"pull\", \"resolve\"]\n", f.dockerHubMirror,
+	))
+}
+
+// registryHosts writes the containerd hosts.toml of host on every node.
+func (f *fixture) registryHosts(ctx context.Context, host, config string) error {
 	nodes, err := command(ctx, f.root, nil, "kind", "get", "nodes", "--name", f.name)
 	if err != nil {
 		return err
 	}
+	directory := "/etc/containerd/certs.d/" + host
+	script := fmt.Sprintf("mkdir -p %[1]s && cat > %[1]s/hosts.toml", directory)
 	for node := range strings.FieldsSeq(string(nodes)) {
-		config := fmt.Sprintf(
-			"server = \"http://%s\"\n[host.\"http://%s:5000\"]\n  capabilities = [\"pull\", \"resolve\"]\n",
-			registryHost,
-			address,
-		)
-		directory := "/etc/containerd/certs.d/" + registryHost
-		script := fmt.Sprintf("mkdir -p %[1]s && cat > %[1]s/hosts.toml", directory)
-		if _, checkErr := command(
-			ctx,
-			f.root,
-			[]byte(config),
-			"docker",
-			"exec",
-			"-i",
-			node,
-			"sh",
-			"-c",
-			script,
-		); checkErr != nil {
-			return checkErr
+		if _, err = command(ctx, f.root, []byte(config), "docker", "exec", "-i", node, "sh", "-c", script); err != nil {
+			return err
 		}
 	}
 	return nil

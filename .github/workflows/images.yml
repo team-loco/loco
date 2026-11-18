@@ -43,13 +43,19 @@ jobs:
         with:
           persist-credentials: false
 
+      # The image cache holds amd64 images.
       - uses: ./.github/actions/setup-tools
+        id: tools
         if: env.PUSH == 'true'
         with:
           go-cache: images-${{ matrix.arch }}
+          image-cache: ${{ matrix.arch == 'amd64' }}
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         if: env.PUSH == 'true'
+        with:
+          driver-opts: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
+          buildkitd-config-inline: ${{ steps.tools.outputs.buildkitd-config }}
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         if: env.PUSH == 'true'
@@ -152,8 +158,17 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: ./.github/actions/setup-tools
+        id: tools
+        if: env.PUSH == 'true'
+        with:
+          image-cache: true
+
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         if: env.PUSH == 'true'
+        with:
+          driver-opts: image=moby/buildkit:v0.34.2@sha256:c5f8862f52499773af85bc07695b2379ef08e8002352b0df2c4864c91d78dabe
+          buildkitd-config-inline: ${{ steps.tools.outputs.buildkitd-config }}
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         if: env.PUSH == 'true'

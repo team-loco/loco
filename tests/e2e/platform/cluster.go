@@ -31,6 +31,8 @@ type Cluster struct {
 	keep          bool
 	skipBuild     bool
 	clusterReused bool
+	// dockerHubMirror is the address of a registry mirroring Docker Hub, which CI serves from its cache.
+	dockerHubMirror string
 }
 
 // NewCluster reads the run's configuration for a shard. It starts nothing.
@@ -47,15 +49,16 @@ func NewCluster(shard string) *Cluster {
 	run := runID + "-" + shard
 	dir := filepath.Join(root, "tests", "e2e", "runs", run)
 	c := &Cluster{
-		Version:    envOr("E2E_VERSION", defaultVersion),
-		shard:      shard,
-		root:       root,
-		run:        run,
-		dir:        dir,
-		kubeconfig: filepath.Join(dir, "kubeconfig"),
-		cluster:    "loco-e2e-" + run,
-		keep:       envBool("E2E_KEEP"),
-		skipBuild:  envBool("E2E_SKIP_BUILD"),
+		Version:         envOr("E2E_VERSION", defaultVersion),
+		shard:           shard,
+		root:            root,
+		run:             run,
+		dir:             dir,
+		kubeconfig:      filepath.Join(dir, "kubeconfig"),
+		cluster:         "loco-e2e-" + run,
+		keep:            envBool("E2E_KEEP"),
+		skipBuild:       envBool("E2E_SKIP_BUILD"),
+		dockerHubMirror: os.Getenv("DOCKER_HUB_MIRROR"),
 	}
 	c.kubeContext = "kind-" + c.cluster
 	c.env = append(os.Environ(), "KUBECONFIG="+c.kubeconfig)
@@ -87,6 +90,11 @@ func (c *Cluster) runTests(ctx context.Context, m *testing.M, setup func(ctx con
 		return 1
 	}
 	if err := c.setupKind(setupCtx); err != nil {
+		logf("setup of run %s failed: %v", c.run, err)
+		c.dumpCluster(ctx)
+		return 1
+	}
+	if err := c.mirrorDockerHub(setupCtx); err != nil {
 		logf("setup of run %s failed: %v", c.run, err)
 		c.dumpCluster(ctx)
 		return 1

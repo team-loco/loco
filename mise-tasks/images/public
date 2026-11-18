@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#MISE description="Print the images CI pulls from the public image registry, which the CI image cache holds"
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+{
+	yq -N '.services[].image' dev/compose.yaml .github/compose.api-tests.yaml tests/conformance/*/compose.yaml
+	yq -N '.. | select(tag == "!!map" and has("repository") and has("tag")) | .repository + ":" + .tag' charts/*/values.yaml
+	yq -N '.. | select(tag == "!!str" and test("^[a-z0-9][a-z0-9._/-]*:[A-Za-z0-9._-]+@sha256:[0-9a-f]{64}$"))' charts/*/values.yaml
+	grep -ho 'image=[^ ]*' .github/workflows/*.yml | cut -d= -f2
+	git ls-files -- '*Dockerfile' ':!examples' ':!experiments' |
+		xargs awk '$1 == "FROM" { for (i = 2; i <= NF; i++) if ($i !~ /^--/) { print $i; break } }'
+} |
+	grep ':' | grep -v '\$' |
+	awk -F/ 'NF == 1 || $1 !~ /[.:]/' |
+	grep -v '^kindest/node:' |
+	sort -u

@@ -470,7 +470,7 @@ func (p *Platform) setupPublicImages(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	source, err := mirrorUpstream(ctx, fromImage(p.root, "tests/e2e/fixtures/public-image/Dockerfile"), host, target)
+	source, err := p.mirrorUpstream(ctx, fromImage(p.root, "tests/e2e/fixtures/public-image/Dockerfile"), host, target)
 	if err != nil {
 		return err
 	}

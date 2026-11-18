@@ -297,6 +297,7 @@ go-lint-and-test:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/compose.api-tests.yaml"
     - ".golangci.yml"
     - "mise-tasks/lint/go"
     - ".github/workflows/go-lint-and-test.yml"

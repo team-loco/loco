@@ -44,6 +44,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: e2e
+          image-cache: true
 
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         if: inputs.images != ''

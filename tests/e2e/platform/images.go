@@ -71,11 +71,7 @@ func (i *images) build(ctx context.Context) error {
 	group, ctx := errgroup.WithContext(ctx)
 	if i.p.Builds {
 		group.Go(func() error {
-			return i.p.pullImages(
-				ctx,
-				i.p.values.buildkitImage,
-				fromImage(i.p.root, "tests/e2e/fixtures/aws-cli/Dockerfile"),
-			)
+			return i.p.pullImages(ctx, fromImage(i.p.root, "tests/e2e/fixtures/aws-cli/Dockerfile"))
 		})
 	}
 	if i.p.skipBuild {
@@ -198,7 +194,7 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 }
 
 // load loads the images into the kind node, each under a tag naming its image ID, so a rebuilt
-// image rolls the workloads that run it.
+// image rolls the workloads that run it, and has the node pull BuildKit.
 func (i *images) load(ctx context.Context) error {
 	var err error
 	if i.controller, err = i.loadImage(ctx, controllerImage); err != nil {
@@ -213,33 +209,11 @@ func (i *images) load(ctx context.Context) error {
 	if i.builder, err = i.loadImage(ctx, builderImage); err != nil {
 		return err
 	}
-	platform, err := i.p.Kubectl(
-		ctx,
-		"get",
-		"nodes",
-		"-o",
-		"jsonpath={.items[0].status.nodeInfo.operatingSystem}/{.items[0].status.nodeInfo.architecture}",
-	)
-	if err != nil {
+	// The node pulls BuildKit itself, so the image keeps the digest the chart pins.
+	return waitFor(ctx, readyTimeout, "the node to pull "+i.p.values.buildkitImage, func(ctx context.Context) error {
+		_, err := i.p.Command(ctx, "docker", "exec", i.p.Node(), "crictl", "pull", i.p.values.buildkitImage)
 		return err
-	}
-	archive := filepath.Join(i.p.dir, "buildkit.tar")
-	defer os.Remove(archive)
-	if _, err = i.p.Command(
-		ctx,
-		"docker",
-		"image",
-		"save",
-		"--platform",
-		platform,
-		"--output",
-		archive,
-		i.p.values.buildkitImage,
-	); err != nil {
-		return err
-	}
-	_, err = i.p.Command(ctx, "kind", "load", "image-archive", archive, "--name", i.p.cluster)
-	return err
+	})
 }
 
 func (i *images) loadImage(ctx context.Context, spec imageSpec) (string, error) {
@@ -267,7 +241,7 @@ func (i *images) loadImage(ctx context.Context, spec imageSpec) (string, error) 
 // mirrorUpstream copies platform's image of the digest-pinned source, and the index naming it, to
 // registry under the source registry's name and repository, keeping their digests, and returns the
 // copy's reference.
-func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.Platform) (string, error) {
+func (c *Cluster) mirrorUpstream(ctx context.Context, source, registry string, platform *v1.Platform) (string, error) {
 	src, err := name.NewDigest(source)
 	if err != nil {
 		return "", err
@@ -279,7 +253,7 @@ func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.P
 	if err != nil {
 		return "", err
 	}
-	descriptor, err := remote.Get(src, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	descriptor, err := c.getUpstream(ctx, src)
 	if err != nil {
 		return "", fmt.Errorf("mirror %s: %w", source, err)
 	}
@@ -302,6 +276,23 @@ func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.P
 		return "", fmt.Errorf("mirror the index of %s: %w", source, err)
 	}
 	return dst.Name(), nil
+}
+
+// getUpstream reads src from the Docker Hub mirror when one is set and holds it, and from its
+// registry otherwise.
+func (c *Cluster) getUpstream(ctx context.Context, src name.Digest) (*remote.Descriptor, error) {
+	if c.dockerHubMirror != "" && src.Context().RegistryStr() == name.DefaultRegistry {
+		mirrored, err := name.NewDigest(
+			c.dockerHubMirror+"/"+src.Context().RepositoryStr()+"@"+src.DigestStr(), name.Insecure,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if descriptor, err := remote.Get(mirrored, remote.WithContext(ctx)); err == nil {
+			return descriptor, nil
+		}
+	}
+	return remote.Get(src, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
 
 // upstreamRegistry is the registry of ref as BuildKit names it in its registry configuration.
@@ -378,7 +369,7 @@ func (p *Platform) mirrorBaseImages(ctx context.Context, host, mirror string, ta
 			if err != nil {
 				return err
 			}
-			if _, err = mirrorUpstream(ctx, image, host, target); err != nil {
+			if _, err = p.mirrorUpstream(ctx, image, host, target); err != nil {
 				return err
 			}
 			mirrored[image], registries[upstreamRegistry(ref)] = true, true

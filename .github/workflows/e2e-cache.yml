@@ -1,4 +1,4 @@
-name: E2E Cache
+name: Warm Caches
 
 on:
   push:
@@ -10,6 +10,14 @@ on:
       - "mise-tasks/e2e/**"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/e2e-cache.yml"
+      - "mise-tasks/images/public"
+      - "dev/compose.yaml"
+      - ".github/compose.api-tests.yaml"
+      - "tests/conformance/*/compose.yaml"
+      - "charts/*/values.yaml"
+      - "**/Dockerfile"
+      - "**/*.Dockerfile"
+      - ".github/workflows/*.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,3 +45,15 @@ jobs:
           mise run e2e:build "$RUNNER_TEMP/e2e-bin" e2e
           go build -o "$RUNNER_TEMP/e2e-bin/pullimage" ./tools/pullimage
           go -C tests/e2e test -c -o "$RUNNER_TEMP/e2e-tests/" ./...
+
+  images:
+    name: Save the Public Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          save-image-cache: true

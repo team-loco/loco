@@ -19,6 +19,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: auth-conformance
+          image-cache: true
 
       - name: Run the auth contract against Supabase Auth, Keycloak, Zitadel and Dex
         run: mise run test:auth-conformance

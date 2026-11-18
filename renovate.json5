@@ -269,6 +269,13 @@
     },
     {
       customType: "regex",
+      description: "The BuildKit image docker/setup-buildx-action starts each builder from",
+      managerFilePatterns: ["/^\\.github/workflows/[^/]+\\.yml$/"],
+      matchStrings: ["image=(?<depName>moby/buildkit):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
       description: "cert-manager, the one chart installed straight from its repository rather than as a chart dependency",
       managerFilePatterns: ["/^charts/cert-manager\\.yaml$/"],
       matchStrings: ["repository: (?<registryUrl>\\S+)\\nchart: (?<depName>\\S+)\\nversion: (?<currentValue>\\S+)"],

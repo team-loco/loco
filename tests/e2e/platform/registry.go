@@ -232,14 +232,23 @@ func registryDockerConfig(account Account, hosts []string) (string, error) {
 	return string(data), err
 }
 
-func (p *Platform) registryHosts(ctx context.Context, host, endpoint string) error {
+// mirrorDockerHub has the node pull Docker Hub images from the Docker Hub mirror, when one is set,
+// and from Docker Hub when the mirror lacks them.
+func (c *Cluster) mirrorDockerHub(ctx context.Context) error {
+	if c.dockerHubMirror == "" {
+		return nil
+	}
+	return c.registryHosts(ctx, "docker.io", c.dockerHubMirror)
+}
+
+func (c *Cluster) registryHosts(ctx context.Context, host, endpoint string) error {
 	directory := "/etc/containerd/certs.d/" + host
-	if _, err := p.Command(ctx, "docker", "exec", p.Node(), "mkdir", "-p", directory); err != nil {
+	if _, err := c.Command(ctx, "docker", "exec", c.Node(), "mkdir", "-p", directory); err != nil {
 		return err
 	}
 	config := fmt.Sprintf("[host.\"http://%s\"]\n  capabilities = [\"pull\", \"resolve\"]\n", endpoint)
-	_, err := p.commandStdin(
-		ctx, []byte(config), "docker", "exec", "-i", p.Node(), "tee", directory+"/hosts.toml",
+	_, err := c.commandStdin(
+		ctx, []byte(config), "docker", "exec", "-i", c.Node(), "tee", directory+"/hosts.toml",
 	)
 	return err
 }
