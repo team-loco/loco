@@ -112,38 +112,26 @@ function Pager({
 					{text.first}
 				</PagerButton>
 			)}
-			{text !== undefined && (
-				<span className="flex gap-1">
-					<PagerButton label={prevLabel} text onClick={onPrev}>
-						<ChevronLeftIcon />
-						{text.prev}
+			<span className="flex gap-1">
+				{text === undefined && onFirst !== undefined && (
+					<PagerButton label={firstLabel} onClick={onFirst}>
+						<ChevronsLeftIcon />
 					</PagerButton>
-					<PagerButton label={nextLabel} text onClick={onNext}>
-						{text.next}
-						<ChevronRightIcon />
+				)}
+				<PagerButton label={prevLabel} text={text !== undefined} onClick={onPrev}>
+					<ChevronLeftIcon />
+					{text?.prev}
+				</PagerButton>
+				<PagerButton label={nextLabel} text={text !== undefined} onClick={onNext}>
+					{text?.next}
+					<ChevronRightIcon />
+				</PagerButton>
+				{text === undefined && onLast !== undefined && (
+					<PagerButton label={lastLabel} onClick={onLast}>
+						<ChevronsRightIcon />
 					</PagerButton>
-				</span>
-			)}
-			{text === undefined && (
-				<span className="flex gap-1">
-					{onFirst !== undefined && (
-						<PagerButton label={firstLabel} onClick={onFirst}>
-							<ChevronsLeftIcon />
-						</PagerButton>
-					)}
-					<PagerButton label={prevLabel} onClick={onPrev}>
-						<ChevronLeftIcon />
-					</PagerButton>
-					<PagerButton label={nextLabel} onClick={onNext}>
-						<ChevronRightIcon />
-					</PagerButton>
-					{onLast !== undefined && (
-						<PagerButton label={lastLabel} onClick={onLast}>
-							<ChevronsRightIcon />
-						</PagerButton>
-					)}
-				</span>
-			)}
+				)}
+			</span>
 		</div>
 	);
 }
