@@ -379,19 +379,29 @@ func openSecret(dek []byte, target secretTarget, row genDb.ListSecretCiphertexts
 	return plaintext, nil
 }
 
-func (s *SecretServer) lockEnvironmentKey(
+// withLockTimeout bounds the lock waits inside lock, and none after it, by the configured timeout.
+func (s *SecretServer) withLockTimeout(ctx context.Context, qtx *genDb.Queries, lock func() error) error {
+	timeoutMillis := strconv.FormatInt(s.config.LockTimeout.Milliseconds(), 10)
+	if err := qtx.SetLockTimeout(ctx, timeoutMillis); err != nil {
+		return fmt.Errorf("set lock timeout: %w", err)
+	}
+	if err := lock(); isPgLockNotAvailable(err) {
+		return ErrSecretLockTimeout
+	} else if err != nil {
+		return err
+	}
+	if err := qtx.ResetLockTimeout(ctx); err != nil {
+		return fmt.Errorf("reset lock timeout: %w", err)
+	}
+	return nil
+}
+
+func lockEnvironmentKey(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	env genDb.Environment,
 ) (genDb.EnvironmentKey, int64, error) {
-	timeoutMillis := strconv.FormatInt(s.config.LockTimeout.Milliseconds(), 10)
-	if err := qtx.SetLockTimeout(ctx, timeoutMillis); err != nil {
-		return genDb.EnvironmentKey{}, 0, fmt.Errorf("set lock timeout: %w", err)
-	}
 	revisions, err := lockWorkspaceEnvironments(ctx, qtx, env.WorkspaceID)
-	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
-	}
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
 	}
@@ -400,9 +410,6 @@ func (s *SecretServer) lockEnvironmentKey(
 		return genDb.EnvironmentKey{}, 0, ErrEnvironmentNotFound
 	}
 	key, err := qtx.LockEnvironmentKey(ctx, env.ID)
-	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
-	}
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, fmt.Errorf("lock environment key: %w", err)
 	}
@@ -414,14 +421,16 @@ func (s *SecretServer) lockTarget(
 	qtx *genDb.Queries,
 	target secretTarget,
 ) (genDb.EnvironmentKey, int64, error) {
-	key, revision, err := s.lockEnvironmentKey(ctx, qtx, target.env)
-	if err != nil {
-		return genDb.EnvironmentKey{}, 0, err
-	}
-	err = lockResource(ctx, qtx, target.resourceID)
-	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
-	}
+	var key genDb.EnvironmentKey
+	var revision int64
+	err := s.withLockTimeout(ctx, qtx, func() error {
+		var lockErr error
+		key, revision, lockErr = lockEnvironmentKey(ctx, qtx, target.env)
+		if lockErr != nil {
+			return lockErr
+		}
+		return lockResource(ctx, qtx, target.resourceID)
+	})
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
 	}
@@ -645,7 +654,12 @@ func (s *SecretServer) rewrapEnvironmentKey(
 		return rewrapSkipped, fmt.Errorf("get environment %s: %w", key.EnvironmentID, err)
 	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		locked, _, lockErr := s.lockEnvironmentKey(ctx, qtx, env)
+		var locked genDb.EnvironmentKey
+		lockErr := s.withLockTimeout(ctx, qtx, func() error {
+			var keyErr error
+			locked, _, keyErr = lockEnvironmentKey(ctx, qtx, env)
+			return keyErr
+		})
 		if lockErr != nil {
 			return lockErr
 		}
