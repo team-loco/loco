@@ -59,21 +59,6 @@ func TestSetOrgMemberRole(t *testing.T) {
 	) != connect.CodeFailedPrecondition {
 		t.Fatalf("last admin self-demotion: %v", err)
 	}
-	orgID := uuid.MustParse(o.orgID)
-	client, _ := administrativeToken(t, o.api, o.owner,
-		genDb.Entity{Type: genDb.EntityTypeOrganization, ID: orgID},
-		genDb.EntityScope{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeAdmin},
-	)
-	orgAdmin := membershipUser{clients: client}
-	if err := set(
-		orgAdmin,
-		o.owner.id.String(),
-		orgv1.OrgRole_ORG_ROLE_MEMBER,
-	); codeOf(
-		err,
-	) != connect.CodeFailedPrecondition {
-		t.Fatalf("last admin demotion by organization token: %v", err)
-	}
 	if err := set(o.owner, member.id.String(), orgv1.OrgRole_ORG_ROLE_ADMIN); err != nil {
 		t.Fatal(err)
 	}

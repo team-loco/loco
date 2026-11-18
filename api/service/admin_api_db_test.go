@@ -236,7 +236,7 @@ func TestAdministrativeAPITokensRequireActionPermissions(t *testing.T) {
 	api, admin := newSystemAdminAPI(t)
 	member := api.signUp(t, "member")
 	client, _ := administrativeToken(t, api, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id},
-		genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead},
+		genDb.EntityScope{EntityType: genDb.EntityTypeUser, EntityID: admin.id, Scope: genDb.ScopeRead},
 	)
 	_, err := client.User.SetUserStatus(t.Context(), &userv1.SetUserStatusRequest{
 		Key:    &userv1.SetUserStatusRequest_UserId{UserId: member.id.String()},
