@@ -193,3 +193,15 @@ def test_settle_excludes_only_named_targets():
         assert page.evaluate("countdown.playState") == "running"
         assert page.evaluate("transition.playState") == "finished"
         browser.close()
+
+
+def test_down_all_stops_every_evidence_lease(leases, monkeypatch):
+    monkeypatch.setattr(
+        evidence, "run", lambda cmd, **kwargs: leases.append(tuple(cmd))
+    )
+    early = evidence.testres("lease", "-name", f"{evidence.LABEL}-before")
+    other = evidence.testres("lease", "-name", "loco-clickhouse-test")
+    evidence.cmd_down(argparse.Namespace(all=True, state=None))
+    assert ("release", early) in leases
+    assert ("release", other) not in leases
+    assert ("git", "worktree", "prune") in leases

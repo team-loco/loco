@@ -1346,8 +1346,11 @@ def stop_state(state):
 def cmd_down(args):
     reap()
     if args.all:
-        for state in states():
-            stop_state(state)
+        for lease in testres("list").splitlines():
+            if Path(lease).name.startswith(LABEL + "-"):
+                testres("release", lease)
+                log(f"stopped {Path(lease).name}")
+        run(["git", "worktree", "prune"])
     elif Path(args.state).exists():
         stop_state(load_state(args.state))
 
