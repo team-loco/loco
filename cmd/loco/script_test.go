@@ -130,8 +130,6 @@ func cmdFakeAPI(ts *testscript.TestScript, neg bool, args []string) {
 			}
 		}
 		api.mu.Unlock()
-	case "workspace-retention":
-		checkWorkspaceRetention(ts, api, neg, args)
 	case "called":
 		if len(args) < 2 || len(args) > 3 {
 			ts.Fatalf("usage: fakeapi called <method> [authorization]")

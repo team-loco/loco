@@ -15,35 +15,6 @@ var errNoUpdateFlags = errors.New(
 	"at least one update flag is required (--name, --description or a --*-retention-days flag)",
 )
 
-// retentionFlag is one signal's retention flag and where its days go in a request and a response.
-type retentionFlag struct {
-	signal  string
-	flag    string
-	request func(*workspacev1.UpdateWorkspaceRequest) **int32
-	days    func(*workspacev1.RetentionDays) *int32
-}
-
-var retentionFlags = []retentionFlag{
-	{
-		signal:  "logs",
-		flag:    "log-retention-days",
-		request: func(r *workspacev1.UpdateWorkspaceRequest) **int32 { return &r.LogRetentionDays },
-		days:    func(d *workspacev1.RetentionDays) *int32 { return d.LogDays },
-	},
-	{
-		signal:  "traces",
-		flag:    "trace-retention-days",
-		request: func(r *workspacev1.UpdateWorkspaceRequest) **int32 { return &r.TraceRetentionDays },
-		days:    func(d *workspacev1.RetentionDays) *int32 { return d.TraceDays },
-	},
-	{
-		signal:  "metrics",
-		flag:    "metric-retention-days",
-		request: func(r *workspacev1.UpdateWorkspaceRequest) **int32 { return &r.MetricRetentionDays },
-		days:    func(d *workspacev1.RetentionDays) *int32 { return d.MetricDays },
-	},
-}
-
 func buildUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <workspace-id>",
@@ -86,15 +57,19 @@ after it.`,
 				WorkspaceId: id,
 			}
 			retention := false
-			for _, f := range retentionFlags {
-				if !cmd.Flags().Changed(f.flag) {
+			for flag, field := range map[string]**int32{
+				"log-retention-days":    &updateReq.LogRetentionDays,
+				"trace-retention-days":  &updateReq.TraceRetentionDays,
+				"metric-retention-days": &updateReq.MetricRetentionDays,
+			} {
+				if !cmd.Flags().Changed(flag) {
 					continue
 				}
-				days, flagErr := cmd.Flags().GetInt32(f.flag)
+				days, flagErr := cmd.Flags().GetInt32(flag)
 				if flagErr != nil {
-					return fmt.Errorf("failed to get %s flag: %w", f.flag, flagErr)
+					return fmt.Errorf("failed to get %s flag: %w", flag, flagErr)
 				}
-				*f.request(updateReq) = &days
+				*field = &days
 				retention = true
 			}
 
@@ -134,8 +109,10 @@ after it.`,
 	cmd.Flags().String("host", "", "API host URL")
 	cmd.Flags().String("name", "", "New name for the workspace")
 	cmd.Flags().String("description", "", "New description for the workspace")
-	for _, f := range retentionFlags {
-		cmd.Flags().Int32(f.flag, 0, "Days to keep the workspace's "+f.signal+"; 0 uses the organization's limit")
+	for _, signal := range []string{"log", "trace", "metric"} {
+		cmd.Flags().Int32(
+			signal+"-retention-days", 0, "Days to keep the workspace's "+signal+"s; 0 uses the organization's limit",
+		)
 	}
 
 	return cmd
@@ -147,9 +124,9 @@ func printRetention(cmd *cobra.Command, workspace *workspacev1.Workspace) error 
 	applied := cmp.Or(workspace.GetEffectiveRetention(), &workspacev1.RetentionDays{})
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "SIGNAL\tWORKSPACE\tAPPLIED")
-	for _, f := range retentionFlags {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", f.signal, formatDays(f.days(own)), formatDays(f.days(applied)))
-	}
+	fmt.Fprintf(w, "logs\t%s\t%s\n", formatDays(own.LogDays), formatDays(applied.LogDays))
+	fmt.Fprintf(w, "traces\t%s\t%s\n", formatDays(own.TraceDays), formatDays(applied.TraceDays))
+	fmt.Fprintf(w, "metrics\t%s\t%s\n", formatDays(own.MetricDays), formatDays(applied.MetricDays))
 	return w.Flush()
 }
 

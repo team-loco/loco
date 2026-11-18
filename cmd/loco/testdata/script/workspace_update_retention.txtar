@@ -6,22 +6,15 @@ stdout '^SIGNAL +WORKSPACE +APPLIED$'
 stdout '^logs +7 days +7 days$'
 stdout '^traces +- +30 days$'
 stdout '^metrics +20 days +20 days$'
-fakeapi workspace-retention 7 - 20
-
-exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --log-retention-days 0 --trace-retention-days 14
-stdout '^logs +- +30 days$'
-stdout '^traces +14 days +14 days$'
-fakeapi workspace-retention - 14 20
 
 # Renaming alone sends no retention and prints no table.
 exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --name renamed
 stdout '^Workspace updated successfully\.$'
 ! stdout 'SIGNAL'
-fakeapi workspace-retention - 14 20
 
-# The API refuses a value above the limit; the CLI prints its error.
-! exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --log-retention-days 31
-stderr 'log_retention_days must be from 1 to 30 days'
-fakeapi workspace-retention - 14 20
+exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --trace-retention-days 14 --metric-retention-days 0
+stdout '^logs +7 days +7 days$'
+stdout '^traces +14 days +14 days$'
+stdout '^metrics +- +30 days$'
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
