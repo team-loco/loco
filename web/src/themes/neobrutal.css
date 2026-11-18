@@ -40,6 +40,7 @@
 	--tint: #fde4e6;
 	--pop-shadow: 4px 4px 0 0 var(--ink);
 	--overlay-shadow: 4px 4px 0 0 var(--ink);
+	--toast-shadow: 4px 4px 0 0 var(--ink);
 	--scrim: rgba(0, 0, 0, 0.55);
 	--series-0: #4d7cff;
 	--series-1: #a46bff;
@@ -101,7 +102,7 @@
 		font-weight: 700;
 		letter-spacing: -0.025em;
 	}
-	& :is(.rounded-card, .rounded-overlay, [data-slot="sidebar-inset"]) {
+	& :is(.rounded-card, .rounded-overlay, [data-slot="sidebar-inset"], [data-slot="sheet-content"]) {
 		border: 2px solid var(--ink);
 	}
 	& :is(.rounded-card:not([role="menu"], [role="listbox"], [role="radio"]), [data-slot="sidebar-inset"]) {
@@ -256,6 +257,20 @@
 		background: var(--raise);
 		padding: 2px;
 		box-shadow: 3px 3px 0 var(--ink);
+	}
+	& [data-sonner-toast][data-styled="true"] {
+		border: 2px solid var(--ink);
+		border-radius: 5px;
+	}
+	& .sb-search {
+		border: 2px solid var(--ink);
+		border-radius: 5px;
+		color: var(--fg);
+		box-shadow: 3px 3px 0 0 var(--ink);
+		&:hover {
+			transform: translate(3px, 3px);
+			box-shadow: none;
+		}
 	}
 	& [data-sonner-toast] [data-button][data-action] {
 		background: var(--btn);
