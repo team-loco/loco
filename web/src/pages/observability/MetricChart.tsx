@@ -81,7 +81,7 @@ function MetricEvents({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={<Button variant="ghost" size="sm" className="self-start" />}
+				render={<Button variant="ghost" size="sm" className="-mt-2 self-start" />}
 				aria-label={`${title} timeline events`}
 			>
 				<ListIcon className="text-fg3" />

@@ -102,6 +102,12 @@
 		background: color-mix(in oklch, var(--brand) 7%, var(--bg));
 		box-shadow: inset 2px 0 var(--brand);
 	}
+	& [data-slot="log-scroll"] {
+		padding: 0 0 4px;
+	}
+	& [data-slot="log-scroll"] :is(.list-head, .list-row) {
+		padding-inline: 12px;
+	}
 	& .rounded-card {
 		border: 1px solid var(--line2);
 		border-radius: 6px;

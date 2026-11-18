@@ -497,7 +497,7 @@ export function LogsView() {
 								{held} {held === 1 ? "new line" : "new lines"}
 							</button>
 						)}
-						<div className="overflow-x-auto px-5 pt-1 pb-3 [scrollbar-width:thin]">
+						<div data-slot="log-scroll" className="overflow-x-auto px-5 pt-1 pb-3 [scrollbar-width:thin]">
 							<LogTable
 								rows={pageRows}
 								columns={columns}
