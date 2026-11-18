@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -62,5 +63,34 @@ func TestReapDropsOnlyTheDatabasesOfDeadRuns(t *testing.T) {
 		if exists != want {
 			t.Errorf("database of run %d exists = %v, want %v", run, exists, want)
 		}
+	}
+}
+
+func TestRunStaysLockedAfterGarbageCollection(t *testing.T) {
+	baseURL := os.Getenv("LOCO_TEST_DATABASE_URL")
+	if baseURL == "" {
+		t.Skip("LOCO_TEST_DATABASE_URL not set")
+	}
+	owner, err := run()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.GC()
+	runtime.GC()
+	other, err := pgx.Connect(t.Context(), baseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := other.Close(context.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+	var free bool
+	if err := other.QueryRow(t.Context(), "SELECT pg_try_advisory_lock($1)", owner.id).Scan(&free); err != nil {
+		t.Fatal(err)
+	}
+	if free {
+		t.Fatal("another session took the lock of a live run")
 	}
 }

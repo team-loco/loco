@@ -46,11 +46,11 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 	if err != nil {
 		t.Fatalf("migrate template database: %v", err)
 	}
-	runID, err := run()
+	owner, err := run()
 	if err != nil {
 		t.Fatalf("start test run: %v", err)
 	}
-	dbName := fmt.Sprintf("%s%d_%s", testDatabasePrefix, runID, uuid.NewString()[:8])
+	dbName := fmt.Sprintf("%s%d_%s", testDatabasePrefix, owner.id, uuid.NewString()[:8])
 	ident := pgx.Identifier{dbName}.Sanitize()
 	adminExec(t, baseURL,
 		"CREATE DATABASE "+ident+" TEMPLATE "+pgx.Identifier{templateName}.Sanitize()+" STRATEGY FILE_COPY")
@@ -69,22 +69,30 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
-// startRun holds an advisory lock on a random run ID for the life of the test binary, which names
-// its databases, and drops the databases of earlier runs whose binary died before its cleanup ran.
-func startRun() (int64, error) {
+// testRun is the test binary's run: its ID names its databases, and conn holds the advisory lock
+// on the ID that marks the run alive. Garbage collection of an unreachable connection would close
+// the session and free the lock, so the run keeps it for the binary's life.
+type testRun struct {
+	id   int64
+	conn *pgx.Conn
+}
+
+// startRun locks a random run ID and drops the databases of earlier runs whose binary died before
+// its cleanup ran.
+func startRun() (*testRun, error) {
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, os.Getenv("LOCO_TEST_DATABASE_URL"))
 	if err != nil {
-		return 0, fmt.Errorf("connect: %w", err)
+		return nil, fmt.Errorf("connect: %w", err)
 	}
 	id := rand.Int64() //nolint:gosec // names test databases; not a secret
 	if _, err = conn.Exec(ctx, "SELECT pg_advisory_lock($1)", id); err != nil {
-		return 0, fmt.Errorf("lock run: %w", err)
+		return nil, fmt.Errorf("lock run: %w", err)
 	}
 	if err = reapDeadRuns(ctx, conn); err != nil {
-		return 0, err
+		return nil, err
 	}
-	return id, nil
+	return &testRun{id: id, conn: conn}, nil
 }
 
 // reapDeadRuns drops every test database whose run holds no lock: the server releases a session's
