@@ -160,6 +160,9 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	if entity.Type != genDb.EntityTypeUser {
 		return cliGrant{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
+	if p.Method == genDb.DeploymentMethodWeb && p.IdentityID != uuid.Nil {
+		return cliGrant{UserID: entity.ID, IdentityID: p.IdentityID}, nil
+	}
 	login, ok := auth.LoginFrom(ctx)
 	identity := login.Identity
 	if !ok {
@@ -185,7 +188,7 @@ func (s *AuthServer) issue(
 	identityID := grant.IdentityID
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if err := lockCLIAccount(ctx, qtx, grant.UserID); err != nil {
+		if err := lockSessionAccount(ctx, qtx, grant.UserID); err != nil {
 			return err
 		}
 		identity, err := qtx.GetIdentityByID(ctx, identityID)
@@ -452,23 +455,7 @@ func (s *AuthServer) RefreshCLIToken(
 	ctx context.Context,
 	req *authv1.RefreshCLITokenRequest,
 ) (*authv1.RefreshCLITokenResponse, error) {
-	var access, newRefresh string
-	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		// Resolve the owner without locking the session, then take the account
-		// lock before Refresh reads and rotates the session in this transaction.
-		session, err := qtx.GetSessionByRefreshToken(ctx, bearer.Hash(req.GetRefreshToken()))
-		if errors.Is(err, pgx.ErrNoRows) {
-			return tvm.ErrInvalidExpiredToken
-		}
-		if err != nil {
-			return fmt.Errorf("get refresh owner: %w", err)
-		}
-		if lockErr := lockCLIAccount(ctx, qtx, session.UserID); lockErr != nil {
-			return lockErr
-		}
-		access, newRefresh, err = s.machine.WithQueries(qtx).Refresh(ctx, req.GetRefreshToken())
-		return err
-	})
+	access, newRefresh, err := s.refreshSession(ctx, req.GetRefreshToken(), genDb.SessionKindCli)
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -482,17 +469,51 @@ func (s *AuthServer) RefreshCLIToken(
 	}}, nil
 }
 
-// lockCLIAccount fences cached approvals and refresh tokens against deletion and
+func (s *AuthServer) refreshSession(ctx context.Context, token string, kind genDb.SessionKind) (access, refresh string, err error) {
+	var rejected bool
+	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		// Find the owner and lock the account before Refresh reads or mutates the session.
+		session, err := qtx.GetSessionByRefreshToken(ctx, bearer.Hash(token))
+		if errors.Is(err, pgx.ErrNoRows) {
+			return tvm.ErrInvalidExpiredToken
+		}
+		if err != nil {
+			return fmt.Errorf("get refresh owner: %w", err)
+		}
+		if session.Kind != kind {
+			return tvm.ErrInvalidExpiredToken
+		}
+		if err := lockSessionAccount(ctx, qtx, session.UserID); err != nil {
+			return err
+		}
+		access, refresh, err = s.machine.WithQueries(qtx).Refresh(ctx, token, kind)
+		if errors.Is(err, tvm.ErrInvalidExpiredToken) {
+			// A replay rejects the request and commits session revocation.
+			rejected = true
+			return nil
+		}
+		return err
+	})
+	if err != nil {
+		return "", "", err
+	}
+	if rejected {
+		return "", "", tvm.ErrInvalidExpiredToken
+	}
+	return access, refresh, nil
+}
+
+// lockSessionAccount fences cached approvals and refresh tokens against deletion and
 // suspension without resolving an identity or provisioning a replacement user.
-func lockCLIAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID) error {
+func lockSessionAccount(ctx context.Context, qtx *genDb.Queries, userID uuid.UUID) error {
 	if err := authz.LockUsers(ctx, qtx, userID); errors.Is(err, pgx.ErrNoRows) {
 		return tvm.ErrInvalidExpiredToken
 	} else if err != nil {
-		return fmt.Errorf("lock CLI account: %w", err)
+		return fmt.Errorf("lock session account: %w", err)
 	}
 	user, err := qtx.GetUserByID(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("read CLI account: %w", err)
+		return fmt.Errorf("read session account: %w", err)
 	}
 	if user.Status != genDb.UserStatusActive {
 		return tvm.ErrInvalidExpiredToken

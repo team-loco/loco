@@ -33,7 +33,9 @@ type Principal struct {
 	ActorID   uuid.UUID
 	// UserID is the human principal for a session or personal token, and Nil for an owned token.
 	UserID uuid.UUID
-	// Method distinguishes provider sign-in (web), a Loco session (cli), and an API token.
+	// IdentityID identifies the provider login that created a web session.
+	IdentityID uuid.UUID
+	// Method identifies dashboard, CLI, and API token callers.
 	Method genDb.DeploymentMethod
 	Token  string
 }

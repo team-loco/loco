@@ -97,13 +97,15 @@ DELETE FROM user_scopes WHERE user_id = $1;
 -- -----------------------------------------------------------------------------
 
 -- name: CreateSessionToken :exec
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id, kind)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
 
 -- name: GetSessionWithScopesByAccessToken :one
 SELECT
     st.id,
     st.user_id,
+    st.kind,
+    st.identity_id,
     st.last_used_at,
     COALESCE(
         (
@@ -124,18 +126,31 @@ JOIN users u ON u.id = st.user_id
 WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW() AND u.status = 'active';
 
 -- name: GetSessionByRefreshToken :one
-SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
-FROM session_tokens
-WHERE refresh_token_hash = $1 AND refresh_expires_at > NOW();
+SELECT st.id, st.user_id, st.kind, false AS used
+FROM session_tokens st
+WHERE st.refresh_token_hash = $1 AND st.refresh_expires_at > NOW()
+UNION ALL
+SELECT st.id, st.user_id, st.kind, true AS used
+FROM used_session_refresh_tokens r
+JOIN session_tokens st ON st.id = r.session_id
+WHERE r.token_hash = $1 AND r.expires_at > NOW();
 
 -- name: RotateSessionToken :execrows
-UPDATE session_tokens
-SET access_token_hash = sqlc.arg('access_token_hash'),
-    refresh_token_hash = sqlc.arg('refresh_token_hash'),
-    access_expires_at = sqlc.arg('access_expires_at'),
-    refresh_expires_at = sqlc.arg('refresh_expires_at'),
-    last_used_at = NOW()
-WHERE id = sqlc.arg('id') AND refresh_token_hash = sqlc.arg('old_refresh_token_hash');
+WITH rotated AS (
+    UPDATE session_tokens AS st
+    SET access_token_hash = sqlc.arg('access_token_hash'),
+        refresh_token_hash = sqlc.arg('refresh_token_hash'),
+        access_expires_at = sqlc.arg('access_expires_at'),
+        refresh_expires_at = sqlc.arg('refresh_expires_at'),
+        last_used_at = NOW()
+    FROM session_tokens AS previous
+    WHERE st.id = sqlc.arg('id') AND st.id = previous.id
+      AND st.refresh_token_hash = sqlc.arg('old_refresh_token_hash')
+      AND st.refresh_expires_at > NOW()
+    RETURNING st.id, previous.refresh_expires_at
+)
+INSERT INTO used_session_refresh_tokens (token_hash, session_id, expires_at)
+SELECT sqlc.arg('old_refresh_token_hash'), id, refresh_expires_at FROM rotated;
 
 -- name: TouchSessionLastUsed :exec
 UPDATE session_tokens SET last_used_at = NOW() WHERE id = $1;
@@ -145,6 +160,14 @@ DELETE FROM session_tokens WHERE id = $1;
 
 -- name: DeleteSessionTokenByAccessHash :exec
 DELETE FROM session_tokens WHERE access_token_hash = $1;
+
+-- name: DeleteWebSessionByAccessHash :exec
+DELETE FROM session_tokens
+WHERE kind = 'web'
+  AND id = (SELECT st.id FROM session_tokens st WHERE st.access_token_hash = $1);
+
+-- name: DeleteExpiredUsedRefreshTokens :exec
+DELETE FROM used_session_refresh_tokens WHERE expires_at <= NOW();
 
 -- session is fully dead once the refresh token expires (access expiry alone is not enough)
 -- name: DeleteExpiredSessionTokens :exec

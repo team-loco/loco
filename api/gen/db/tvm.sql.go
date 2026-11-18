@@ -105,8 +105,8 @@ func (q *Queries) CreateAPIToken(ctx context.Context, arg CreateAPITokenParams) 
 
 const createSessionToken = `-- name: CreateSessionToken :exec
 
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id, kind)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type CreateSessionTokenParams struct {
@@ -119,6 +119,7 @@ type CreateSessionTokenParams struct {
 	IpAddress        *netip.Addr `json:"ipAddress"`
 	UserAgent        *string     `json:"userAgent"`
 	IdentityID       *uuid.UUID  `json:"identityId"`
+	Kind             SessionKind `json:"kind"`
 }
 
 // -----------------------------------------------------------------------------
@@ -135,6 +136,7 @@ func (q *Queries) CreateSessionToken(ctx context.Context, arg CreateSessionToken
 		arg.IpAddress,
 		arg.UserAgent,
 		arg.IdentityID,
+		arg.Kind,
 	)
 	return err
 }
@@ -205,6 +207,15 @@ func (q *Queries) DeleteExpiredSessionTokens(ctx context.Context) error {
 	return err
 }
 
+const deleteExpiredUsedRefreshTokens = `-- name: DeleteExpiredUsedRefreshTokens :exec
+DELETE FROM used_session_refresh_tokens WHERE expires_at <= NOW()
+`
+
+func (q *Queries) DeleteExpiredUsedRefreshTokens(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteExpiredUsedRefreshTokens)
+	return err
+}
+
 const deleteSessionToken = `-- name: DeleteSessionToken :exec
 DELETE FROM session_tokens WHERE id = $1
 `
@@ -220,6 +231,17 @@ DELETE FROM session_tokens WHERE access_token_hash = $1
 
 func (q *Queries) DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error {
 	_, err := q.db.Exec(ctx, deleteSessionTokenByAccessHash, accessTokenHash)
+	return err
+}
+
+const deleteWebSessionByAccessHash = `-- name: DeleteWebSessionByAccessHash :exec
+DELETE FROM session_tokens
+WHERE kind = 'web'
+  AND id = (SELECT st.id FROM session_tokens st WHERE st.access_token_hash = $1)
+`
+
+func (q *Queries) DeleteWebSessionByAccessHash(ctx context.Context, accessTokenHash string) error {
+	_, err := q.db.Exec(ctx, deleteWebSessionByAccessHash, accessTokenHash)
 	return err
 }
 
@@ -313,21 +335,21 @@ func (q *Queries) GetAPITokenByNameAndEntity(ctx context.Context, arg GetAPIToke
 }
 
 const getSessionByRefreshToken = `-- name: GetSessionByRefreshToken :one
-SELECT id, user_id, refresh_token_hash, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
-FROM session_tokens
-WHERE refresh_token_hash = $1 AND refresh_expires_at > NOW()
+SELECT st.id, st.user_id, st.kind, false AS used
+FROM session_tokens st
+WHERE st.refresh_token_hash = $1 AND st.refresh_expires_at > NOW()
+UNION ALL
+SELECT st.id, st.user_id, st.kind, true AS used
+FROM used_session_refresh_tokens r
+JOIN session_tokens st ON st.id = r.session_id
+WHERE r.token_hash = $1 AND r.expires_at > NOW()
 `
 
 type GetSessionByRefreshTokenRow struct {
-	ID               uuid.UUID   `json:"id"`
-	UserID           uuid.UUID   `json:"userId"`
-	RefreshTokenHash string      `json:"refreshTokenHash"`
-	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
-	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`
-	LastUsedAt       time.Time   `json:"lastUsedAt"`
-	IpAddress        *netip.Addr `json:"ipAddress"`
-	UserAgent        *string     `json:"userAgent"`
-	CreatedAt        time.Time   `json:"createdAt"`
+	ID     uuid.UUID   `json:"id"`
+	UserID uuid.UUID   `json:"userId"`
+	Kind   SessionKind `json:"kind"`
+	Used   bool        `json:"used"`
 }
 
 func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash string) (GetSessionByRefreshTokenRow, error) {
@@ -336,13 +358,8 @@ func (q *Queries) GetSessionByRefreshToken(ctx context.Context, refreshTokenHash
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.RefreshTokenHash,
-		&i.AccessExpiresAt,
-		&i.RefreshExpiresAt,
-		&i.LastUsedAt,
-		&i.IpAddress,
-		&i.UserAgent,
-		&i.CreatedAt,
+		&i.Kind,
+		&i.Used,
 	)
 	return i, err
 }
@@ -351,6 +368,8 @@ const getSessionWithScopesByAccessToken = `-- name: GetSessionWithScopesByAccess
 SELECT
     st.id,
     st.user_id,
+    st.kind,
+    st.identity_id,
     st.last_used_at,
     COALESCE(
         (
@@ -372,10 +391,12 @@ WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW() AND u.status = 
 `
 
 type GetSessionWithScopesByAccessTokenRow struct {
-	ID         uuid.UUID `json:"id"`
-	UserID     uuid.UUID `json:"userId"`
-	LastUsedAt time.Time `json:"lastUsedAt"`
-	Scopes     []byte    `json:"scopes"`
+	ID         uuid.UUID   `json:"id"`
+	UserID     uuid.UUID   `json:"userId"`
+	Kind       SessionKind `json:"kind"`
+	IdentityID *uuid.UUID  `json:"identityId"`
+	LastUsedAt time.Time   `json:"lastUsedAt"`
+	Scopes     []byte      `json:"scopes"`
 }
 
 func (q *Queries) GetSessionWithScopesByAccessToken(ctx context.Context, accessTokenHash string) (GetSessionWithScopesByAccessTokenRow, error) {
@@ -384,6 +405,8 @@ func (q *Queries) GetSessionWithScopesByAccessToken(ctx context.Context, accessT
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
+		&i.Kind,
+		&i.IdentityID,
 		&i.LastUsedAt,
 		&i.Scopes,
 	)
@@ -786,32 +809,40 @@ func (q *Queries) RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams
 }
 
 const rotateSessionToken = `-- name: RotateSessionToken :execrows
-UPDATE session_tokens
-SET access_token_hash = $1,
-    refresh_token_hash = $2,
-    access_expires_at = $3,
-    refresh_expires_at = $4,
-    last_used_at = NOW()
-WHERE id = $5 AND refresh_token_hash = $6
+WITH rotated AS (
+    UPDATE session_tokens AS st
+    SET access_token_hash = $2,
+        refresh_token_hash = $3,
+        access_expires_at = $4,
+        refresh_expires_at = $5,
+        last_used_at = NOW()
+    FROM session_tokens AS previous
+    WHERE st.id = $6 AND st.id = previous.id
+      AND st.refresh_token_hash = $1
+      AND st.refresh_expires_at > NOW()
+    RETURNING st.id, previous.refresh_expires_at
+)
+INSERT INTO used_session_refresh_tokens (token_hash, session_id, expires_at)
+SELECT $1, id, refresh_expires_at FROM rotated
 `
 
 type RotateSessionTokenParams struct {
+	OldRefreshTokenHash string    `json:"oldRefreshTokenHash"`
 	AccessTokenHash     string    `json:"accessTokenHash"`
 	RefreshTokenHash    string    `json:"refreshTokenHash"`
 	AccessExpiresAt     time.Time `json:"accessExpiresAt"`
 	RefreshExpiresAt    time.Time `json:"refreshExpiresAt"`
 	ID                  uuid.UUID `json:"id"`
-	OldRefreshTokenHash string    `json:"oldRefreshTokenHash"`
 }
 
 func (q *Queries) RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error) {
 	result, err := q.db.Exec(ctx, rotateSessionToken,
+		arg.OldRefreshTokenHash,
 		arg.AccessTokenHash,
 		arg.RefreshTokenHash,
 		arg.AccessExpiresAt,
 		arg.RefreshExpiresAt,
 		arg.ID,
-		arg.OldRefreshTokenHash,
 	)
 	if err != nil {
 		return 0, err

@@ -61,14 +61,21 @@ func (tvm *VendingMachine) getToken(ctx context.Context, token string, touchLast
 			tvm.touchSessionLastUsed(ctx, session.ID, session.LastUsedAt)
 		}
 
+		method := queries.DeploymentMethodCli
+		identityID := uuid.Nil
+		if session.Kind == queries.SessionKindWeb {
+			method = queries.DeploymentMethodWeb
+			identityID = *session.IdentityID
+		}
 		return reqctx.Principal{
-			Entity:    entity,
-			Scopes:    liveScopes,
-			Token:     token,
-			ActorType: queries.DeploymentActorTypeUser,
-			ActorID:   session.UserID,
-			UserID:    session.UserID,
-			Method:    queries.DeploymentMethodCli,
+			Entity:     entity,
+			Scopes:     liveScopes,
+			Token:      token,
+			ActorType:  queries.DeploymentActorTypeUser,
+			ActorID:    session.UserID,
+			UserID:     session.UserID,
+			Method:     method,
+			IdentityID: identityID,
 		}, nil
 
 	case prefixAPIKey:
@@ -134,12 +141,34 @@ func (tvm *VendingMachine) Revoke(ctx context.Context, token string) error {
 	}
 }
 
+// RevokeWebSession ends a web session identified by either browser cookie.
+func (tvm *VendingMachine) RevokeWebSession(ctx context.Context, token string) error {
+	hash := bearer.Hash(token)
+	switch tokenPrefix(token) {
+	case prefixSession:
+		return tvm.queries.DeleteWebSessionByAccessHash(ctx, hash)
+	case prefixRefresh:
+		session, err := tvm.queries.GetSessionByRefreshToken(ctx, hash)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("get web session to revoke: %w", err)
+		}
+		if session.Kind == queries.SessionKindWeb {
+			return tvm.queries.DeleteSessionToken(ctx, session.ID)
+		}
+	}
+	return nil
+}
+
 // Refresh validates a refresh token and issues a new access + refresh token pair,
-// rotating the old refresh token. If the presented refresh token does not match
-// the stored one (replay attack), the entire session is deleted.
+// rotating the old refresh token. Reuse of a consumed token revokes the session.
+// Callers running in a transaction must commit that revocation even on rejection.
 func (tvm *VendingMachine) Refresh(
 	ctx context.Context,
 	refreshToken string,
+	kind queries.SessionKind,
 ) (accessToken string, newRefreshToken string, err error) {
 	if tokenPrefix(refreshToken) != prefixRefresh {
 		return "", "", ErrInvalidExpiredToken
@@ -152,6 +181,13 @@ func (tvm *VendingMachine) Refresh(
 	}
 	if err != nil {
 		return "", "", fmt.Errorf("get session by refresh token: %w", err)
+	}
+
+	if session.Kind != kind {
+		return "", "", ErrInvalidExpiredToken
+	}
+	if session.Used {
+		return "", "", tvm.revokeReusedSession(ctx, session.ID)
 	}
 
 	// rotate: generate new access + refresh pair
@@ -171,14 +207,18 @@ func (tvm *VendingMachine) Refresh(
 		return "", "", fmt.Errorf("%w: %w", ErrStoreToken, err)
 	}
 	if rotated == 0 {
-		slog.WarnContext(ctx, "refresh token reused, revoking session", "sessionId", session.ID)
-		if deleteErr := tvm.queries.DeleteSessionToken(ctx, session.ID); deleteErr != nil {
-			slog.ErrorContext(ctx, "failed to revoke session after refresh token reuse", "err", deleteErr)
-		}
-		return "", "", ErrInvalidExpiredToken
+		return "", "", tvm.revokeReusedSession(ctx, session.ID)
 	}
 
 	return newAccess, newRefresh, nil
+}
+
+func (tvm *VendingMachine) revokeReusedSession(ctx context.Context, sessionID uuid.UUID) error {
+	if err := tvm.queries.DeleteSessionToken(ctx, sessionID); err != nil {
+		return fmt.Errorf("revoke session after refresh token reuse: %w", err)
+	}
+	slog.WarnContext(ctx, "refresh token reused, revoking session", "sessionId", sessionID)
+	return ErrInvalidExpiredToken
 }
 
 // ListAPITokensForEntity lists all API tokens associated with the given entity.

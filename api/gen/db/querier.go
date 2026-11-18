@@ -82,6 +82,7 @@ type Querier interface {
 	DeleteExpiredPullRegistryCredentials(ctx context.Context) (int64, error)
 	// session is fully dead once the refresh token expires (access expiry alone is not enough)
 	DeleteExpiredSessionTokens(ctx context.Context) error
+	DeleteExpiredUsedRefreshTokens(ctx context.Context) error
 	DeleteInstallWebhooksExcept(ctx context.Context, urls []string) (int64, error)
 	DeleteOrg(ctx context.Context, id uuid.UUID) error
 	DeleteOrganization(ctx context.Context, id uuid.UUID) error
@@ -92,6 +93,7 @@ type Querier interface {
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteStoppedBuildRegistryCredentials(ctx context.Context) (int64, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	DeleteWebSessionByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
 	EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error)
