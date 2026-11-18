@@ -29,8 +29,4 @@ subjects:
     - kind: ServiceAccount
       name: loco-build-controller
       namespace: {{ .Release.Namespace }}
-{{- if .Values.prometheus.enable }}
----
-{{ include "loco-worker.serviceMonitor" (dict "root" . "name" "loco-build-controller") }}
-{{- end }}
 {{- end }}
