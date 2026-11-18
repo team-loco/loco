@@ -161,7 +161,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Event", exact=True).click()
     expect(page.get_by_text(re.compile(r"^0 of \d+$"))).to_be_visible()
     expect(
-        page.get_by_role("option", name=re.compile(r"^Invited a member"))
+        page.get_by_role("option", name=re.compile(r"^Invited someone"))
     ).to_be_visible()
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
     page.keyboard.press("Escape")

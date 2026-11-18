@@ -245,18 +245,8 @@ export function Audit() {
 				title="Audit log"
 				actions={
 					<>
-						<Button
-							variant="outline"
-							aria-pressed={live}
-							onClick={() => {
-								void setParams({ live: live ? null : 1, before: null });
-							}}
-						>
-							{live ? <PauseIcon /> : <PlayIcon />}
-							{live ? "Pause" : "Live"}
-						</Button>
 						<DropdownMenu>
-							<DropdownMenuTrigger render={<Button variant="outline" className="px-2.5" />}>
+							<DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
 								<ClockIcon className="text-fg3" />
 								{range.label}
 								<ChevronDownIcon className="size-3 text-fg3" />
@@ -278,6 +268,17 @@ export function Audit() {
 								</DropdownMenuRadioGroup>
 							</DropdownMenuContent>
 						</DropdownMenu>
+						<Button
+							variant="outline"
+							size="sm"
+							aria-pressed={live}
+							onClick={() => {
+								void setParams({ live: live ? null : 1, before: null });
+							}}
+						>
+							{live ? <PauseIcon /> : <PlayIcon />}
+							{live ? "Pause" : "Live"}
+						</Button>
 					</>
 				}
 			/>
@@ -447,6 +448,7 @@ export function Audit() {
 							firstLabel="Newest events"
 							prevLabel="Newer events"
 							nextLabel="Older events"
+							text={{ first: "Newest", prev: "Newer", next: "Older" }}
 							onFirst={
 								stack.length > 0
 									? () => {

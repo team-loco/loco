@@ -101,13 +101,13 @@ export function AuditTable({
 											}}
 											className={cn(
 												GRID,
-												"min-h-[52px] w-full border-b border-line2 px-5 py-2.5 text-left text-[13px] hover:bg-(--row-hover) focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+												"min-h-12 w-full border-b border-line2 px-5 py-1.5 text-left text-[13px] hover:bg-(--row-hover) focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
 												(i === rows.length - 1 || dayLabel(rows[i + 1]?.ms ?? 0, nowMs, timePref) !== day) &&
 													"border-b-0",
 												highlightAfter !== undefined &&
 													row.event.seq > highlightAfter &&
 													"motion-safe:animate-[audit-event-in_2s_ease-out]",
-												selected && "bg-background shadow-[inset_0_0_0_1px_var(--line2)]",
+												selected && "bg-background",
 											)}
 										>
 											<span className="font-mono text-[12px] text-fg2" title={agoLabel(row.ms, nowMs)}>

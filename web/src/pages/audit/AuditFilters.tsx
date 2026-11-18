@@ -40,7 +40,7 @@ export function EventFilter({ types, onChange }: { types: string[]; onChange: (t
 					<CommandGroup key={c.value}>
 						<CommandItem
 							value={`${c.label} category`}
-							className="h-7 text-[11.5px] text-fg3"
+							className="h-auto pt-2 pb-1 text-[11.5px] text-fg3 data-selected:bg-transparent data-selected:text-foreground dark:data-selected:bg-transparent"
 							onSelect={() => {
 								onChange(toggleCategory(types, c.types));
 							}}

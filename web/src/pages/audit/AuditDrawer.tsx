@@ -59,8 +59,8 @@ export function AuditDrawer({
 							</div>
 							<div className="absolute top-[17px] right-12 flex gap-1">
 								<Button
-									variant="ghost"
-									size="icon-sm"
+									variant="outline"
+									size="icon"
 									aria-label="Newer event"
 									disabled={onNewer === null}
 									onClick={onNewer ?? undefined}
@@ -68,8 +68,8 @@ export function AuditDrawer({
 									<ChevronUpIcon />
 								</Button>
 								<Button
-									variant="ghost"
-									size="icon-sm"
+									variant="outline"
+									size="icon"
 									aria-label="Older event"
 									disabled={onOlder === null}
 									onClick={onOlder ?? undefined}
@@ -131,7 +131,11 @@ export function AuditDrawer({
 							)}
 							<div className="flex flex-col gap-1.5">
 								<span className="text-[12.5px] text-fg3">Raw event</span>
-								<CodeBlock language="json" className="max-h-[320px]">
+								<CodeBlock
+									language="json"
+									lineNumbers={false}
+									className="max-h-[min(72vh,760px)] [&_pre]:text-[12px] [&_pre]:leading-[1.55]"
+								>
 									{toJsonString(EventSchema, row.event, { prettySpaces: 2 })}
 								</CodeBlock>
 							</div>
