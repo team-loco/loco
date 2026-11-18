@@ -9,7 +9,7 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-func TestTokenIssuanceRequiresOwnerPermissionAndBoundedScopes(t *testing.T) {
+func TestTokenIssuanceRequiresSessionOwnerPermissionAndBoundedScopes(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	other := w.NewWorkspace(t, "other")
@@ -30,79 +30,33 @@ func TestTokenIssuanceRequiresOwnerPermissionAndBoundedScopes(t *testing.T) {
 		u.id,
 		adminScopes...)
 	owned := lifecycleToken(t, u.session, "owned-admin", tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, w.ID, adminScopes...)
-	adminOnly := lifecycleToken(
+	lifecycleToken(
 		t,
 		u.session,
-		"admin-only",
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		w.ID,
-		&tokenv1.EntityScope{
-			EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-			EntityId:   w.ID,
-			Scope:      tokenv1.Scope_SCOPE_ADMIN,
-		},
+		"org-reader",
+		tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION,
+		w.OrgID,
+		lifecycleRead(w.ID),
 	)
+	for _, owner := range []struct {
+		kind tokenv1.EntityType
+		id   string
+	}{
+		{tokenv1.EntityType_ENTITY_TYPE_USER, u.id},
+		{tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, w.ID},
+		{tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION, w.OrgID},
+	} {
+		denyLifecycleToken(t, p.Clients(personal), "personal-delegated-"+owner.kind.String(), owner.kind, owner.id,
+			lifecycleRead(w.ID))
+	}
 	denyLifecycleToken(
 		t,
-		p.Clients(adminOnly),
-		"admin-is-not-read",
+		p.Clients(owned),
+		"owned-delegated-reader",
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		w.ID,
 		lifecycleRead(w.ID),
 	)
-	for name, credential := range map[string]string{"personal": personal, "workspace": owned} {
-		if !t.Run(name, func(t *testing.T) {
-			client := p.Clients(credential)
-			child := lifecycleToken(
-				t,
-				client,
-				name+"-delegated-reader",
-				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				w.ID,
-				lifecycleRead(w.ID),
-			)
-			readLifecycleWorkspace(t, p.Clients(child), w.ID, nil)
-			readLifecycleWorkspace(t, p.Clients(child), other.ID, new(connect.CodePermissionDenied))
-			denyLifecycleToken(
-				t,
-				p.Clients(child),
-				"reader-cannot-escalate",
-				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				w.ID,
-				&tokenv1.EntityScope{
-					EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-					EntityId:   w.ID,
-					Scope:      tokenv1.Scope_SCOPE_WRITE,
-				},
-			)
-			denyLifecycleToken(
-				t,
-				client,
-				name+"-sibling-owner",
-				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				other.ID,
-				lifecycleRead(other.ID),
-			)
-			denyLifecycleToken(
-				t,
-				client,
-				name+"-sibling-scope",
-				tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				w.ID,
-				lifecycleRead(other.ID),
-			)
-			denyLifecycleToken(
-				t,
-				client,
-				name+"-ancestor-owner",
-				tokenv1.EntityType_ENTITY_TYPE_ORGANIZATION,
-				w.OrgID,
-				lifecycleRead(w.ID),
-			)
-		}) {
-			return
-		}
-	}
 	// Organization admin is sufficient for the sibling scope, but its requested workspace
 	// owner must still contain every delegated scope.
 	denyLifecycleToken(
@@ -113,14 +67,6 @@ func TestTokenIssuanceRequiresOwnerPermissionAndBoundedScopes(t *testing.T) {
 		w.ID,
 		lifecycleRead(other.ID),
 	)
-	denyLifecycleToken(
-		t,
-		p.Clients(owned),
-		"issuer-is-not-a-personal-owner",
-		tokenv1.EntityType_ENTITY_TYPE_USER,
-		u.id,
-		lifecycleRead(w.ID),
-	)
 	setLifecycleRole(t, p.User, w.OrgID, u.id, orgv1.OrgRole_ORG_ROLE_MEMBER)
 	grantLifecycleWorkspace(t, w.ID, u.id, "read", "write")
 	denyLifecycleToken(
@@ -130,45 +76,6 @@ func TestTokenIssuanceRequiresOwnerPermissionAndBoundedScopes(t *testing.T) {
 		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
 		w.ID,
 		lifecycleRead(w.ID),
-	)
-	denyLifecycleToken(
-		t,
-		p.Clients(personal),
-		"personal-lost-admin",
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		w.ID,
-		lifecycleRead(w.ID),
-	)
-	if _, err := p.User.Org.RemoveOrgMember(
-		t.Context(),
-		&orgv1.RemoveOrgMemberRequest{OrgId: w.OrgID, UserId: u.id},
-	); err != nil {
-		t.Fatal(err)
-	}
-	survivingChild := lifecycleToken(
-		t,
-		p.Clients(owned),
-		"delegated-after-issuer-departure",
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		w.ID,
-		lifecycleRead(w.ID),
-	)
-	readLifecycleWorkspace(t, p.Clients(survivingChild), w.ID, nil)
-	denyLifecycleToken(
-		t,
-		p.Clients(owned),
-		"departed-issuer-is-not-a-personal-owner",
-		tokenv1.EntityType_ENTITY_TYPE_USER,
-		u.id,
-		lifecycleRead(w.ID),
-	)
-	denyLifecycleToken(
-		t,
-		p.Clients(owned),
-		"departed-issuer-has-no-sibling-authority",
-		tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-		other.ID,
-		lifecycleRead(other.ID),
 	)
 }
 

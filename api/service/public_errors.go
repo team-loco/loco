@@ -11,5 +11,6 @@ const (
 	publicInvalidWorkspaceID   = "invalid workspace_id"
 	publicPermissionDenied     = "permission denied"
 	publicRequestFailed        = "request failed"
+	publicSessionRequired      = "this action requires a signed-in session"
 	publicUnauthorized         = "unauthorized"
 )

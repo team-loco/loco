@@ -81,7 +81,7 @@ func (s *TokenServer) CreateToken(
 		return nil, rpcerr.New(connect.CodeInvalidArgument, ErrInvalidScopes)
 	}
 
-	p, err := principalFrom(ctx)
+	p, err := requireSession(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (s *TokenServer) CreateToken(
 	}
 	required := genDb.ScopeAdmin
 	if targetEntity.Type == genDb.EntityTypeUser {
-		if p.UserID == uuid.Nil || targetEntity.ID != p.UserID {
+		if targetEntity.ID != p.UserID {
 			return nil, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 		}
 		required = genDb.ScopeWrite
@@ -141,10 +141,6 @@ func (s *TokenServer) CreateToken(
 	requiredScopes := append([]genDb.EntityScope{{
 		EntityType: targetEntity.Type, EntityID: targetEntity.ID, Scope: required,
 	}}, dbScopes...)
-	issuer := p.UserID
-	if issuer == uuid.Nil {
-		issuer = p.ActorID
-	}
 	var token string
 	var tokenData genDb.CreateAPITokenRow
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -164,7 +160,7 @@ func (s *TokenServer) CreateToken(
 		}
 		var issueErr error
 		token, tokenData, issueErr = s.tvm.WithQueries(qtx).
-			Issue(lockedCtx, req.GetName(), issuer, targetEntity, dbScopes, duration)
+			Issue(lockedCtx, req.GetName(), p.UserID, targetEntity, dbScopes, duration)
 		if issueErr != nil {
 			return issueErr
 		}
