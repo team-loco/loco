@@ -1,4 +1,14 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon, PlusIcon, WebhookIcon } from "lucide-react";
+import {
+	ArrowDownIcon,
+	ArrowUpIcon,
+	HammerIcon,
+	MinusIcon,
+	PlusIcon,
+	RocketIcon,
+	RotateCwIcon,
+	ScalingIcon,
+	WebhookIcon,
+} from "lucide-react";
 import type { KeyboardEventHandler } from "react";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { Link } from "react-router";
@@ -16,6 +26,7 @@ import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { aroundWindow } from "@/lib/obs-time";
+import { cn } from "@/lib/utils";
 import { auditPath, resourcePath, webhooksPath } from "@/lib/routes";
 import { agoLabel, formatFullTime } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
@@ -23,6 +34,20 @@ import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useObs } from "./context";
 import { eventDataLabel, eventReasonLabel, eventJson, eventValue, severityStyle, type EventItem } from "./events";
 import { quoteValue, withToken } from "./query";
+
+export function EventIcon({ item }: { item: EventItem }) {
+	const icon = "size-3.5 text-fg3";
+	if (item.type === "deployment.created") return <RocketIcon aria-hidden className={icon} />;
+	if (item.type === "resource.scaled") return <ScalingIcon aria-hidden className={icon} />;
+	if (item.type === "resource.restarted") return <RotateCwIcon aria-hidden className={icon} />;
+	if (item.type.startsWith("build.") && item.severity === "normal") return <HammerIcon aria-hidden className={icon} />;
+	return (
+		<StatusGlyph
+			glyph={item.type === "resource.recovered" ? "ok" : severityStyle(item.severity).glyph}
+			className={cn(item.severity === "normal" && "opacity-60")}
+		/>
+	);
+}
 
 type Props = {
 	onKeyDown: KeyboardEventHandler<HTMLDivElement>;
@@ -56,7 +81,6 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 	const now = useNow();
 	const [, copy] = useCopy();
 	const raw = eventJson(item);
-	const style = severityStyle(item.severity);
 	const environment = environments.find((e) => e.id === item.environmentId)?.name ?? item.environmentId;
 	const fields = [
 		{ key: "type", value: item.type, filter: true },
@@ -94,12 +118,12 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 	return (
 		<>
 			<SheetHeader>
-				<StatusGlyph glyph={style.glyph} className={style.fg} />
+				<EventIcon item={item} />
 				<SheetTitle className="min-w-0 flex-1 truncate font-medium">{item.title}</SheetTitle>
 				<div className="flex shrink-0 items-center gap-1">
 					<Button
-						variant="ghost"
-						size="icon-sm"
+						variant="outline"
+						size="icon"
 						aria-label="Newer event"
 						disabled={onPrev === null}
 						onClick={() => {
@@ -109,8 +133,8 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 						<ArrowUpIcon />
 					</Button>
 					<Button
-						variant="ghost"
-						size="icon-sm"
+						variant="outline"
+						size="icon"
 						aria-label="Older event"
 						disabled={onNext === null}
 						onClick={() => {
@@ -171,7 +195,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 					{admin && (
 						<Button
 							className="ml-auto"
-							variant="ghost"
+							variant="outline"
 							nativeButton={false}
 							render={<Link to={webhooksPath(orgId, workspaceId, item.type)} />}
 							title={`Get a webhook for every ${item.type}`}
@@ -248,7 +272,12 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 				</section>
 				<section aria-label="Raw event" className="flex min-w-0 flex-col gap-1">
 					<h3 className="m-0 text-[12.5px] font-normal text-fg3">Raw event</h3>
-					<CodeBlock language="json" className="max-h-[min(60vh,640px)] shrink-0" copyLabel="Copy raw event">
+					<CodeBlock
+						language="json"
+						lineNumbers={false}
+						className="max-h-[min(60vh,640px)] shrink-0"
+						copyLabel="Copy raw event"
+					>
 						{raw}
 					</CodeBlock>
 				</section>

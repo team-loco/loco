@@ -59,11 +59,7 @@ function CodeBlock({
 				<Code
 					code={children}
 					language={language}
-					className={
-						lineNumbers
-							? "code-lines"
-							: "block w-max min-w-full px-4 whitespace-normal [&_.sh__line]:block [&_.sh__line]:whitespace-pre"
-					}
+					className={lineNumbers ? "code-lines" : "code-plain block w-max min-w-full px-4 whitespace-normal"}
 				/>
 			</pre>
 			<Button

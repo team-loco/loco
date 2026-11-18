@@ -3,13 +3,12 @@ import { useState } from "react";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Link } from "react-router";
-import { HammerIcon, PlusIcon, RocketIcon, RotateCwIcon, ScalingIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Skeleton } from "@/components/design/Skeleton";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -17,12 +16,12 @@ import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { formatCount } from "@/lib/format";
 import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
 import { newResourcePath } from "@/lib/routes";
-import { agoLabel, tsMs } from "@/lib/time";
+import { shortAgoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
-import { EventDetail } from "./EventDetail";
-import { eventValue, eventItem, eventWindow, severityStyle, type EventItem, type Severity } from "./events";
+import { EventDetail, EventIcon } from "./EventDetail";
+import { eventValue, eventItem, eventWindow, type Severity } from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
@@ -39,20 +38,6 @@ const EVENTS_PARAMS = {
 const NOW_TICK_MS = 30_000;
 
 type Show = "all" | "warning" | "error";
-
-function EventIcon({ item }: { item: EventItem }) {
-	const icon = "size-3.5 text-fg3";
-	if (item.type === "deployment.created") return <RocketIcon aria-hidden className={icon} />;
-	if (item.type === "resource.scaled") return <ScalingIcon aria-hidden className={icon} />;
-	if (item.type === "resource.restarted") return <RotateCwIcon aria-hidden className={icon} />;
-	if (item.type.startsWith("build.") && item.severity === "normal") return <HammerIcon aria-hidden className={icon} />;
-	return (
-		<StatusGlyph
-			glyph={item.type === "resource.recovered" ? "ok" : severityStyle(item.severity).glyph}
-			className={cn(item.severity === "normal" && "opacity-60")}
-		/>
-	);
-}
 
 const SHOW_TOKENS: Record<Exclude<Show, "all">, Token> = {
 	warning: { neg: false, key: "severity", value: "warning" },
@@ -203,23 +188,23 @@ export function EventsView() {
 							</ToggleGroupItem>
 						</ToggleGroup>
 					</div>
-					<div className="overflow-x-auto px-5 [scrollbar-width:thin]">
+					<div className="overflow-x-auto [scrollbar-width:thin]">
 						<table className="w-full min-w-[640px] border-collapse text-[13px]">
 							<thead>
-								<tr className="h-[38px] border-b border-line2 text-left text-[12.5px] text-fg3">
-									<th className="w-[18px] font-normal">
+								<tr className="h-10 border-b border-line2 text-left text-[12.5px] text-fg3">
+									<th className="w-[38px] pl-5 font-normal">
 										<span className="sr-only">Severity</span>
 									</th>
 									<th className="px-3 font-normal">Event</th>
 									<th className="w-[160px] px-3 font-normal">Resource</th>
-									<th className="w-[110px] pl-3 text-right font-normal">Time</th>
+									<th className="w-[110px] pr-5 pl-3 text-right font-normal">Time</th>
 								</tr>
 							</thead>
 							<tbody>
 								{loading &&
 									Array.from({ length: 8 }, (_, i) => (
-										<tr key={String(i)} className="h-[58px] border-b border-line2">
-											<td colSpan={4}>
+										<tr key={String(i)} className="h-[52px] border-b border-line2">
+											<td colSpan={4} className="px-5">
 												<Skeleton className="h-3 w-full" />
 											</td>
 										</tr>
@@ -244,28 +229,28 @@ export function EventsView() {
 													}
 												}}
 												className={cn(
-													"h-[58px] border-b border-line2 last:border-b-0 hover:bg-panel2",
+													"h-[52px] border-b border-line2 last:border-b-0 hover:bg-panel2",
 													on && "bg-background",
 													e.ts > openedAt && "animate-row-flash motion-reduce:animate-none",
 												)}
 											>
-												<td>
+												<td className="pl-5">
 													<EventIcon item={e} />
 													<span className="sr-only">{e.severity}</span>
 												</td>
 												<td className="max-w-0 px-3">
-													<div className="flex min-w-0 flex-col gap-1">
-														<span className={cn("font-medium", e.severity === "error" && "text-bad-fg")}>
+													<div className="flex min-w-0 flex-col gap-0.5 py-2">
+														<span className={cn("text-[13.5px]", e.severity === "error" && "text-bad-fg")}>
 															{e.title}
 														</span>
-														<span className="w-full truncate font-mono text-[12px] text-fg3" title={e.detail}>
+														<span className="w-full truncate font-mono text-[11.5px] text-fg3" title={e.detail}>
 															{e.detail}
 														</span>
 													</div>
 												</td>
 												<td className="px-3 text-fg2">{e.resourceName}</td>
-												<td className="pl-3 text-right font-mono text-[12px] whitespace-nowrap text-fg3">
-													{agoLabel(e.ts, nowMs)}
+												<td className="pr-5 pl-3 text-right font-mono text-[12px] whitespace-nowrap text-fg3">
+													{shortAgoLabel(e.ts, nowMs)}
 												</td>
 											</tr>
 										);
