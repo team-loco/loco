@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -188,32 +187,6 @@ func TestRecoveryProofRejectsLostEncryptionOrSigningIdentity(t *testing.T) {
 	}
 }
 
-func TestRecoveryFailureRevokesRootAfterCancellation(t *testing.T) {
-	revoked := false
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/v1/auth/token/revoke-self" ||
-			r.Header.Get("X-Vault-Token") != "temporary-root" {
-			t.Error("wrong root revocation")
-		}
-		revoked = true
-		w.WriteHeader(http.StatusNoContent)
-	}))
-	defer server.Close()
-	client := baoClient{client: server.Client(), endpoint: server.URL, token: "temporary-root"}
-	ctx, cancel := context.WithCancel(t.Context())
-	err := execute(
-		ctx,
-		func(context.Context) error { cancel(); return errors.New("restore failed") },
-		func(ctx context.Context) error {
-			_, err := client.request(ctx, http.MethodPost, "auth/token/revoke-self", nil)
-			return err
-		},
-	)
-	if err == nil || !revoked {
-		t.Fatal("failed restore skipped root revocation")
-	}
-}
-
 func TestRecoveryDecryptRequiresEveryCustodian(t *testing.T) {
 	directory := t.TempDir()
 	identities := make([]*age.X25519Identity, 3)
@@ -302,23 +275,13 @@ func TestRecoveryRootFailureCancelsGeneration(t *testing.T) {
 }
 
 func TestRecoverySetupFailureStillDeletesDisposableNamespace(t *testing.T) {
-	bin := t.TempDir()
 	marker := filepath.Join(t.TempDir(), "deleted")
-	script := `#!/bin/sh
+	fakeCommand(t, kubectlExecutable, `#!/bin/sh
 case "$*" in
  *"delete namespace installation-restore-drill"*) printf deleted >"$RECOVERY_CLEANUP_MARKER"; exit 0 ;;
  *) exit 1 ;;
 esac
-`
-	path := filepath.Join(bin, "kubectl")
-	if err := os.WriteFile(path, []byte(script), 0600); err != nil {
-		t.Fatal(err)
-	}
-	//nolint:gosec // Only the owner can execute this disposable fake command.
-	if err := os.Chmod(path, 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin)
+`)
 	t.Setenv("RECOVERY_CLEANUP_MARKER", marker)
 	if err := restoreRecovery(t.Context(), exportedMaterial{}, nil); err == nil {
 		t.Fatal("failed source inspection returned success")

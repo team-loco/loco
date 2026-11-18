@@ -29,16 +29,12 @@ func TestPublishRepositorySeparatesProgressFromArtifactJSON(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	bin := filepath.Join(root, "bin")
-	if err := os.Mkdir(bin, 0700); err != nil {
-		t.Fatal(err)
-	}
 	digest := "sha256:" + strings.Repeat("b", 64)
-	script := "#!/bin/sh\nprintf 'publishing progress\\n' >&2\nprintf '%s\\n' '{\"digest\":\"" + digest + "\"}'\n"
-	if err := os.WriteFile(filepath.Join(bin, "flux"), []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin)
+	fakeCommand(
+		t,
+		"flux",
+		"#!/bin/sh\nprintf 'publishing progress\\n' >&2\nprintf '%s\\n' '{\"digest\":\""+digest+"\"}'\n",
+	)
 	f := fixture{root: root, registryURL: "http://localhost:5000", version: "fixture"}
 	actual, err := f.publishRepo(t.Context(), repo, "registry.test/platform@sha256:"+strings.Repeat("a", 64), "./all")
 	if err != nil {

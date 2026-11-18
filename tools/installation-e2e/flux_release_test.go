@@ -41,7 +41,6 @@ func TestPublishedBaseline(t *testing.T) {
 		}
 		refs[version] = tag.Context().Digest(digest.String()).Name()
 	}
-	bin := t.TempDir()
 	gh := `#!/bin/sh
 [ "$*" = 'api repos/team-loco/loco/releases/latest --jq .tag_name' ] || exit 41
 printf '%s\n' "$PUBLISHED_VERSION"
@@ -56,12 +55,8 @@ for entry in control-plane worker all; do
  printf 'resources: []\n' > "$5/$entry/kustomization.yaml"
 done
 `
-	for program, script := range map[string]string{"gh": gh, "flux": flux} {
-		if err := os.WriteFile(filepath.Join(bin, program), []byte(script), 0700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin)
+	fakeCommand(t, "gh", gh)
+	bin := fakeCommand(t, "flux", flux)
 	t.Setenv("V1_REF", "oci://"+refs["0.2.0"])
 	t.Setenv("PULL_LOG", filepath.Join(bin, "pulls"))
 	for _, tc := range []struct {

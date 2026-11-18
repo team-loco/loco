@@ -9,9 +9,7 @@ import (
 )
 
 func TestFixtureReadinessFailureDiagnostics(t *testing.T) {
-	bin := t.TempDir()
-	calls := filepath.Join(bin, "calls")
-	script := `#!/bin/sh
+	bin := fakeCommand(t, kubectlExecutable, `#!/bin/sh
 printf '%s\n' "$*" >> "$FIXTURE_CALLS"
 case "$*" in
  *'rollout status'*) echo credential-canary >&2; exit 1;;
@@ -19,14 +17,11 @@ case "$*" in
  *'get events'*'custom-columns='*) echo 'postgres-123 Warning Failed 1';;
  *) echo credential-canary; exit 2;;
 esac
-`
-	if err := os.WriteFile(filepath.Join(bin, "kubectl"), []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+`)
+	calls := filepath.Join(bin, "calls")
 	t.Setenv("FIXTURE_CALLS", calls)
 	f := fixture{root: bin}
-	output := captureStderr(t, func() {
+	output := captureOutput(t, func() {
 		err := f.waitFixture(t.Context(), "postgres")
 		if err == nil || !strings.Contains(err.Error(), "installation-fixtures/postgres readiness") ||
 			strings.Contains(err.Error(), "credential-canary") {

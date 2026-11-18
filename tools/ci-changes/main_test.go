@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -127,47 +126,33 @@ func TestLoadRejectsUnknownEvents(t *testing.T) {
 }
 
 func TestChangedFiles(t *testing.T) {
-	dir := t.TempDir()
-	run := func(args ...string) string {
-		out, err := git(t.Context(), dir, args...)
-		require.NoError(t, err)
-		return strings.TrimSpace(string(out))
-	}
-	commit := func(path string) string {
-		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(dir, path)), 0o700))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, path), []byte(path), 0o600))
-		run("add", path)
-		run("-c", "user.name=ci", "-c", "user.email=ci@loco.test", "commit", "-q", "-m", path)
-		return run("rev-parse", "HEAD")
-	}
-	run("init", "-q", "-b", "main")
-	root := commit("README.md")
-	run("checkout", "-q", "-b", "feature")
-	commit("api/a.go")
-	head := commit("docs/b.md")
-	run("checkout", "-q", "main")
-	base := commit("charts/c.yaml")
-
-	files, err := changedFiles(t.Context(), dir, "pull_request", base, head)
+	r := newRepo(t)
+	root := r.write("README.md", "README.md")
+	r.git("checkout", "-q", "-b", "feature")
+	r.write("api/a.go", "api/a.go")
+	head := r.write("docs/b.md", "docs/b.md")
+	r.git("checkout", "-q", "main")
+	base := r.write("charts/c.yaml", "charts/c.yaml")
+	files, err := changedFiles(t.Context(), r.dir, "pull_request", base, head)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"api/a.go", "docs/b.md"}, files,
 		"a pull request diffs from the merge base, leaving out commits only the base has")
 
-	files, err = changedFiles(t.Context(), dir, "push", root, base)
+	files, err = changedFiles(t.Context(), r.dir, "push", root, base)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"charts/c.yaml"}, files)
 
 	for _, before := range []string{"", zeroSHA} {
-		files, err = changedFiles(t.Context(), dir, "push", before, base)
+		files, err = changedFiles(t.Context(), r.dir, "push", before, base)
 		require.NoError(t, err)
 		assert.Nil(t, files, "a push without a previous commit changes everything")
 	}
 
-	files, err = changedFiles(t.Context(), dir, "pull_request", base, base)
+	files, err = changedFiles(t.Context(), r.dir, "pull_request", base, base)
 	require.NoError(t, err)
 	assert.Equal(t, []string{}, files, "an empty diff changes nothing")
 
-	_, err = changedFiles(t.Context(), dir, "workflow_dispatch", base, head)
+	_, err = changedFiles(t.Context(), r.dir, "workflow_dispatch", base, head)
 	assert.Error(t, err)
 }
 

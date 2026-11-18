@@ -1,8 +1,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -10,26 +8,19 @@ import (
 func TestFixtureSchemaUsesHeadMigrationsBeforeBaseline(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(map[bool]string{false: "initialized", true: "migration failure"}[fail], func(t *testing.T) {
-			bin := t.TempDir()
-			commands := map[string]string{
-				kubectlExecutable: `[ "$3" = port-forward ] || exit 45
+			fakeCommand(t, kubectlExecutable, `#!/bin/sh
+set -eu
+[ "$3" = port-forward ] || exit 45
 printf 'Forwarding from 127.0.0.1:15432 -> 5432\n'
-exec /bin/sleep 30`,
-				"goose": `[ "$*" = "-dir $SCHEMA_ROOT/api/migrations up" ] || exit 41
+exec /bin/sleep 30
+`)
+			bin := fakeCommand(t, "goose", `#!/bin/sh
+set -eu
+[ "$*" = "-dir $SCHEMA_ROOT/api/migrations up" ] || exit 41
 [ "$GOOSE_DRIVER" = postgres ] || exit 42
 [ "$GOOSE_DBSTRING" = 'postgresql://fixture@127.0.0.1:15432/loco?sslmode=disable' ] || exit 43
-if [ "$SCHEMA_FAIL" = yes ]; then echo 'migration rejected' >&2; exit 44; fi`,
-			}
-			for name, script := range commands {
-				if err := os.WriteFile(
-					filepath.Join(bin, name),
-					[]byte("#!/bin/sh\nset -eu\n"+script+"\n"),
-					0700,
-				); err != nil {
-					t.Fatal(err)
-				}
-			}
-			t.Setenv("PATH", bin)
+if [ "$SCHEMA_FAIL" = yes ]; then echo 'migration rejected' >&2; exit 44; fi
+`)
 			t.Setenv("SCHEMA_ROOT", bin)
 			value := "no"
 			if fail {

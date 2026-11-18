@@ -17,17 +17,12 @@ func TestFluxWorkerUsesTheWorkerContext(t *testing.T) {
 		{name: "post-upgrade issuance", head: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			bin := t.TempDir()
-			script := `#!/bin/sh
+			bin := fakeCommand(t, locoadmExecutable, `#!/bin/sh
 set -eu
 echo "$*" > "$CLI_ARGS"
 echo "Applied join-token Secret"
-`
-			if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
-				t.Fatal(err)
-			}
+`)
 			argsPath := filepath.Join(bin, "args")
-			t.Setenv("PATH", bin)
 			t.Setenv("CLI_ARGS", argsPath)
 			audit := newLeakAudit()
 			ctx := context.WithValue(t.Context(), auditKey{}, audit)
@@ -51,12 +46,7 @@ echo "Applied join-token Secret"
 }
 
 func TestSecretOutputKeepsDiagnosticsAudited(t *testing.T) {
-	bin := t.TempDir()
-	script := "#!/bin/sh\nprintf 'manifest'\nprintf 'diagnostic-canary' >&2\n"
-	if err := os.WriteFile(filepath.Join(bin, "locoadm"), []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", bin)
+	fakeCommand(t, locoadmExecutable, "#!/bin/sh\nprintf 'manifest'\nprintf 'diagnostic-canary' >&2\n")
 	audit := newLeakAudit()
 	ctx := context.WithValue(t.Context(), auditKey{}, audit)
 	output, err := locoadm(ctx, "cluster", "join-token", "fixture-id", "--output", "secret")

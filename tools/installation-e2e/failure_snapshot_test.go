@@ -10,7 +10,6 @@ import (
 )
 
 func TestFailedOperatorSnapshotsOnlySafeStateAndKeepsExitError(t *testing.T) {
-	bin := t.TempDir()
 	state := `{"items":[
 {"kind":"Build","metadata":{"name":"credential-canary"},
  "spec":{"token":"credential-canary"},"status":{"phase":"Running"}},
@@ -62,22 +61,9 @@ case "$*" in
 *) printf '%s' "$SNAPSHOT_TEST_JSON" ;;
 esac
 `
-	for name, source := range map[string]string{"kubectl": script, "yq": "#!/bin/sh\nprintf 'loco-builds\\n'\n"} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte(source), 0700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("PATH", bin)
-	output, err := os.CreateTemp(t.TempDir(), "snapshot-output")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer output.Close()
-	previousOut, previousErr := os.Stdout, os.Stderr
-	os.Stdout, os.Stderr = output, output
-	defer func() { os.Stdout, os.Stderr = previousOut, previousErr }()
+	fakeCommand(t, kubectlExecutable, script)
+	fakeCommand(t, "yq", "#!/bin/sh\nprintf 'loco-builds\\n'\n")
 	f := fixture{root: t.TempDir(), kubeconfig: "/owned/kubeconfig"}
-	var wantOutput string
 	for _, tc := range []struct{ fail, snapshot string }{
 		{"", `installation-e2e snapshot: BuildPhase=Running count=1
 installation-e2e snapshot: ContainerTerminated=OOMKilled count=1
@@ -100,17 +86,13 @@ installation-e2e snapshot: PodScheduledUnschedulable count=1
 		{"1", "installation-e2e snapshot: QueryUnavailable count=3\n"},
 	} {
 		t.Setenv("SNAPSHOT_TEST_FAIL", tc.fail)
-		err = f.runOperator(t.Context())
+		var err error
+		output := captureOutput(t, func() { err = f.runOperator(t.Context()) })
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) || exit.ExitCode() != 17 || strings.Contains(err.Error(), "credential-canary") {
 			t.Fatalf("case %q lost the original exit status or exposed private output", tc.fail)
 		}
-		data, readErr := os.ReadFile(output.Name())
-		if readErr != nil {
-			t.Fatal(readErr)
-		}
-		wantOutput += "installation-e2e phase: source-deploy\n" + tc.snapshot
-		if string(data) != wantOutput {
+		if output != "installation-e2e phase: source-deploy\n"+tc.snapshot {
 			t.Fatalf("case %q did not emit only the safe snapshot", tc.fail)
 		}
 	}
