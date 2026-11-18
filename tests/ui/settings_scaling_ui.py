@@ -93,232 +93,213 @@ VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app
 
 
 with session(out) as browser:
-    try:
-        resource = resource_fixture()
-        context, page, errors = open_page(browser, state=state)
-        calls = []
-        failing = [True]
+    resource = resource_fixture()
+    context, page, errors = open_page(browser, state=state)
+    calls = []
+    failing = [True]
 
-        def update(route):
-            calls.append(route.request.post_data_json)
-            if failing[0]:
-                route.fulfill(
-                    status=503,
-                    json={"code": "unavailable", "message": "fixture rejected scaling"},
-                )
-                return
-            route.continue_()
-
-        context.route("**/loco.resource.v1.ResourceService/UpdateResource", update)
-        deploy_mode = ["unexpected"]
-        deployments = []
-
-        def create_deployment(route):
-            deployments.append(route.request.post_data_json)
-            if deploy_mode[0] == "unexpected":
-                route.abort()
-            elif deploy_mode[0] == "fail":
-                route.fulfill(
-                    status=503,
-                    json={
-                        "code": "unavailable",
-                        "message": "fixture rejected observability",
-                    },
-                )
-            else:
-                body = route.request.post_data_json
-                # The fixture image has no registry. Store the requested snapshot so the
-                # normal read path exercises the saved state without resolving that image.
-                runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
-                deployment = evidence.psql(
-                    state["container"],
-                    f"UPDATE deployments SET spec={runtime} WHERE resource_id='{resource}' AND region='{body['region']}' AND is_active RETURNING id;",
-                )
-                route.fulfill(json={"deploymentId": deployment})
-
-        context.route(
-            "**/loco.deployment.v1.DeploymentService/CreateDeployment",
-            create_deployment,
-        )
-        try:
-            page.goto(
-                state["ui_url"]
-                + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings"
+    def update(route):
+        calls.append(route.request.post_data_json)
+        if failing[0]:
+            route.fulfill(
+                status=503,
+                json={"code": "unavailable", "message": "fixture rejected scaling"},
             )
-            section = page.locator("#set-scaling")
-            expect(section).to_be_visible()
-            for region in regions:
-                section.get_by_role(
-                    "switch", name=f"Autoscaling in {region}", exact=True
-                ).click()
-                section.get_by_role(
-                    "button",
-                    name=f"Increase maximum replicas in {region}",
-                    exact=True,
-                ).click()
-                section.get_by_role(
-                    "slider", name=f"CPU target (%) in {region}", exact=True
-                ).focus()
-                page.keyboard.press("ArrowLeft")
-            section.evaluate("node => node.scrollIntoView({block: 'start'})")
-            page.wait_for_function(
-                "() => !document.documentElement.classList.contains('dark')"
+            return
+        route.continue_()
+
+    context.route("**/loco.resource.v1.ResourceService/UpdateResource", update)
+    deploy_mode = ["unexpected"]
+    deployments = []
+
+    def create_deployment(route):
+        deployments.append(route.request.post_data_json)
+        if deploy_mode[0] == "unexpected":
+            route.abort()
+        elif deploy_mode[0] == "fail":
+            route.fulfill(
+                status=503,
+                json={
+                    "code": "unavailable",
+                    "message": "fixture rejected observability",
+                },
             )
-
-            def assert_edits(region, target):
-                expect(
-                    section.get_by_role(
-                        "group", name=f"Maximum replicas in {region}", exact=True
-                    )
-                ).to_contain_text("3")
-                expect(
-                    section.get_by_role(
-                        "slider", name=f"CPU target (%) in {region}", exact=True
-                    )
-                ).to_have_value(str(target))
-
-            def stored_regions():
-                return json.loads(
-                    evidence.psql(
-                        state["container"],
-                        f"SELECT spec FROM resources WHERE id='{resource}';",
-                    )
-                )["regions"]
-
-            def save_and_settle():
-                calls.clear()
-                expected_deployments = len(deployments) + len(regions)
-                with page.expect_response(
-                    lambda response: (
-                        response.url.endswith("/UpdateResource")
-                        or (
-                            response.url.endswith("/CreateDeployment")
-                            and len(deployments) == expected_deployments
-                            and response.request.post_data_json == deployments[-1]
-                        )
-                    )
-                ) as completed:
-                    save.click()
-                assert completed.value.ok, completed.value.text()
-                completed.value.finished()
-                expect(
-                    page.get_by_role("button", name="Discard", exact=True)
-                ).to_have_count(0)
-                expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
-                # The API leaves new deployments deploying without a worker; finish them so the
-                # next save is not refused as a rollout in progress.
-                evidence.psql(
-                    state["container"],
-                    f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
-                )
-
-            target = defaults["cpuTarget"] - 1
-            save = page.get_by_role("button", name="Save & redeploy", exact=True)
-            save.click()
-            expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
-            expect(
-                page.get_by_text("fixture rejected scaling", exact=False)
-            ).to_be_visible()
-            for region in regions:
-                assert_edits(region, target)
-            assert len(calls) == 1, calls
-            for region in regions:
-                sent = calls[0]["regions"]["targets"][region]
-                assert (sent["minReplicas"], sent["maxReplicas"]) == (1, 3), sent
-                assert sent["scalers"] == {"enabled": True, "cpuTarget": target}, sent
-
-            failing[0] = False
-            save_and_settle()
-            assert len(calls) == 1, calls
-            for region in regions:
-                assert stored_regions()[region]["scalers"] == {
-                    "enabled": True,
-                    "cpuTarget": target,
-                }
-                assert_edits(region, target)
-            commits = evidence.psql(
+        else:
+            body = route.request.post_data_json
+            # The fixture image has no registry. Store the requested snapshot so the
+            # normal read path exercises the saved state without resolving that image.
+            runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
+            deployment = evidence.psql(
                 state["container"],
-                f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;",
+                f"UPDATE deployments SET spec={runtime} WHERE resource_id='{resource}' AND region='{body['region']}' AND is_active RETURNING id;",
             )
-            assert commits == f"{source_commit['sha']}:true", commits
+            route.fulfill(json={"deploymentId": deployment})
 
-            section.get_by_role(
-                "slider", name=f"CPU target (%) in {regions[0]}", exact=True
-            ).focus()
-            page.keyboard.press("ArrowLeft")
-            save_and_settle()
-            assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
+    context.route(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+        create_deployment,
+    )
+    page.goto(
+        state["ui_url"]
+        + f"/org/{org}/wks/{workspace}/resource/{resource}?env=production&tab=settings"
+    )
+    section = page.locator("#set-scaling")
+    expect(section).to_be_visible()
+    for region in regions:
+        section.get_by_role(
+            "switch", name=f"Autoscaling in {region}", exact=True
+        ).click()
+        section.get_by_role(
+            "button",
+            name=f"Increase maximum replicas in {region}",
+            exact=True,
+        ).click()
+        section.get_by_role(
+            "slider", name=f"CPU target (%) in {region}", exact=True
+        ).focus()
+        page.keyboard.press("ArrowLeft")
+    section.evaluate("node => node.scrollIntoView({block: 'start'})")
+    page.wait_for_function("() => !document.documentElement.classList.contains('dark')")
 
+    def assert_edits(region, target):
+        expect(
             section.get_by_role(
-                "button",
-                name=f"Decrease maximum replicas in {regions[0]}",
-                exact=True,
-            ).click()
-            section.get_by_role(
-                "switch", name=f"Autoscaling in {regions[0]}", exact=True
-            ).click()
-            save_and_settle()
-            fixed = stored_regions()[regions[0]]
-            assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
-            assert not fixed.get("scalers", {}).get("enabled", False), fixed
-            autoscaling = section.get_by_role(
-                "switch", name=f"Autoscaling in {regions[0]}", exact=True
+                "group", name=f"Maximum replicas in {region}", exact=True
             )
-            autoscaling.click()
+        ).to_contain_text("3")
+        expect(
             section.get_by_role(
-                "slider", name=f"CPU target (%) in {regions[0]}", exact=True
-            ).focus()
-            page.keyboard.press("ArrowLeft")
-            autoscaling.click()
-            expect(
-                page.get_by_role("button", name="Discard", exact=True)
-            ).to_have_count(0)
-            sdk = page.get_by_role(
-                "switch", name="Configure SDK environment", exact=True
+                "slider", name=f"CPU target (%) in {region}", exact=True
             )
-            expect(sdk).to_be_checked()
-            sdk.focus()
-            page.keyboard.press("Space")
-            expect(sdk).not_to_be_checked()
-            expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
-            deploy_mode[0] = "fail"
-            save.click()
-            expect(
-                page.get_by_text("fixture rejected observability", exact=False)
-            ).to_be_visible()
-            expect(sdk).not_to_be_checked()
-            expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
-            assert len(deployments) == len(regions), deployments
-            expected = {"injectOtel": False}
-            assert all(
-                call["spec"]["service"]["observability"] == expected
-                for call in deployments
-            ), deployments
-            deployments.clear()
-            deploy_mode[0] = "pass"
-            save_and_settle()
-            assert len(deployments) == len(regions), deployments
-            expect(sdk).not_to_be_checked()
-            sdk.click()
-            save_and_settle()
-            expect(sdk).to_be_checked()
-            runtime = json.loads(
-                evidence.psql(
-                    state["container"],
-                    f"SELECT json_agg(spec) FROM deployments WHERE resource_id='{resource}' AND is_active;",
+        ).to_have_value(str(target))
+
+    def stored_regions():
+        return json.loads(
+            evidence.psql(
+                state["container"],
+                f"SELECT spec FROM resources WHERE id='{resource}';",
+            )
+        )["regions"]
+
+    def save_and_settle():
+        calls.clear()
+        expected_deployments = len(deployments) + len(regions)
+        with page.expect_response(
+            lambda response: (
+                response.url.endswith("/UpdateResource")
+                or (
+                    response.url.endswith("/CreateDeployment")
+                    and len(deployments) == expected_deployments
+                    and response.request.post_data_json == deployments[-1]
                 )
             )
-            assert all(
-                spec["observability"] == {"injectOtel": True} for spec in runtime
-            ), runtime
-            assert not errors, errors
-        except BaseException:
-            page.screenshot(path=out / "failure.png", animations="disabled")
-            raise
-        finally:
-            context.close()
-    finally:
-        browser.close()
+        ) as completed:
+            save.click()
+        assert completed.value.ok, completed.value.text()
+        completed.value.finished()
+        expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+        expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
+        # The API leaves new deployments deploying without a worker; finish them so the
+        # next save is not refused as a rollout in progress.
+        evidence.psql(
+            state["container"],
+            f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
+        )
+
+    target = defaults["cpuTarget"] - 1
+    save = page.get_by_role("button", name="Save & redeploy", exact=True)
+    save.click()
+    expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
+    expect(page.get_by_text("fixture rejected scaling", exact=False)).to_be_visible()
+    for region in regions:
+        assert_edits(region, target)
+    assert len(calls) == 1, calls
+    for region in regions:
+        sent = calls[0]["regions"]["targets"][region]
+        assert (sent["minReplicas"], sent["maxReplicas"]) == (1, 3), sent
+        assert sent["scalers"] == {"enabled": True, "cpuTarget": target}, sent
+
+    failing[0] = False
+    save_and_settle()
+    assert len(calls) == 1, calls
+    for region in regions:
+        assert stored_regions()[region]["scalers"] == {
+            "enabled": True,
+            "cpuTarget": target,
+        }
+        assert_edits(region, target)
+    commits = evidence.psql(
+        state["container"],
+        f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;",
+    )
+    assert commits == f"{source_commit['sha']}:true", commits
+
+    section.get_by_role(
+        "slider", name=f"CPU target (%) in {regions[0]}", exact=True
+    ).focus()
+    page.keyboard.press("ArrowLeft")
+    save_and_settle()
+    assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
+
+    section.get_by_role(
+        "button",
+        name=f"Decrease maximum replicas in {regions[0]}",
+        exact=True,
+    ).click()
+    section.get_by_role(
+        "switch", name=f"Autoscaling in {regions[0]}", exact=True
+    ).click()
+    save_and_settle()
+    fixed = stored_regions()[regions[0]]
+    assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
+    assert not fixed.get("scalers", {}).get("enabled", False), fixed
+    autoscaling = section.get_by_role(
+        "switch", name=f"Autoscaling in {regions[0]}", exact=True
+    )
+    autoscaling.click()
+    section.get_by_role(
+        "slider", name=f"CPU target (%) in {regions[0]}", exact=True
+    ).focus()
+    page.keyboard.press("ArrowLeft")
+    autoscaling.click()
+    expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+    sdk = page.get_by_role("switch", name="Configure SDK environment", exact=True)
+    expect(sdk).to_be_checked()
+    sdk.focus()
+    page.keyboard.press("Space")
+    expect(sdk).not_to_be_checked()
+    expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+    deploy_mode[0] = "fail"
+    save.click()
+    expect(
+        page.get_by_text("fixture rejected observability", exact=False)
+    ).to_be_visible()
+    expect(sdk).not_to_be_checked()
+    expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+    assert len(deployments) == len(regions), deployments
+    expected = {"injectOtel": False}
+    assert all(
+        call["spec"]["service"]["observability"] == expected for call in deployments
+    ), deployments
+    deployments.clear()
+    deploy_mode[0] = "pass"
+    save_and_settle()
+    assert len(deployments) == len(regions), deployments
+    expect(sdk).not_to_be_checked()
+    sdk.click()
+    save_and_settle()
+    expect(sdk).to_be_checked()
+    runtime = json.loads(
+        evidence.psql(
+            state["container"],
+            f"SELECT json_agg(spec) FROM deployments WHERE resource_id='{resource}' AND is_active;",
+        )
+    )
+    assert all(spec["observability"] == {"injectOtel": True} for spec in runtime), (
+        runtime
+    )
+    assert not errors, errors
+    context.close()
 print(
     "PASS: Settings scaling and observability settings saves, with failed-save recovery"
 )

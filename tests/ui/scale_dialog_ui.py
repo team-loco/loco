@@ -98,79 +98,67 @@ low, high = limits["minReplicas"], limits["maxReplicas"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"
 results = []
 with session(out) as browser:
-    try:
-        context, page, errors = open_page(browser, state=state)
-        sent = []
+    context, page, errors = open_page(browser, state=state)
+    sent = []
 
-        def scale(route):
-            sent.append(json.loads(route.request.post_data))
-            route.fulfill(content_type="application/json", body="{}")
+    def scale(route):
+        sent.append(json.loads(route.request.post_data))
+        route.fulfill(content_type="application/json", body="{}")
 
-        context.route("**/loco.resource.v1.ResourceService/ScaleResource", scale)
-        try:
-            page.goto(base)
-            page.get_by_role("checkbox", name="Select scale-small").check()
-            page.get_by_role("checkbox", name="Select scale-large").check()
-            page.get_by_role("button", name="Scale", exact=True).click()
-            dialog = page.get_by_role("dialog", name="Scale 2 resources in production")
-            expect(dialog.locator("dd")).to_have_text(
-                ["1–3", "0.25–0.5 vCPU", "512 Mi–2 Gi"]
-            )
-            replicas = dialog.get_by_role("textbox", name="Replicas per region")
-            cpu = dialog.get_by_role("group", name="CPU per replica", exact=True)
-            memory = dialog.get_by_role("group", name="Memory per replica", exact=True)
-            submit = dialog.get_by_role("button", name="Scale 2", exact=True)
-            expect(replicas).to_have_value("")
-            expect(replicas).to_have_attribute("inputmode", "numeric")
-            expect(dialog.locator('[aria-pressed="true"]')).to_have_count(0)
-            expect(dialog.get_by_text(f"{low} to {high}", exact=True)).to_be_visible()
-            expect(submit).to_be_disabled()
-            dialog.evaluate(
-                "node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))"
-            )
-            box = dialog.bounding_box()
-            assert box["width"] <= page.viewport_size["width"], box
+    context.route("**/loco.resource.v1.ResourceService/ScaleResource", scale)
+    page.goto(base)
+    page.get_by_role("checkbox", name="Select scale-small").check()
+    page.get_by_role("checkbox", name="Select scale-large").check()
+    page.get_by_role("button", name="Scale", exact=True).click()
+    dialog = page.get_by_role("dialog", name="Scale 2 resources in production")
+    expect(dialog.locator("dd")).to_have_text(["1–3", "0.25–0.5 vCPU", "512 Mi–2 Gi"])
+    replicas = dialog.get_by_role("textbox", name="Replicas per region")
+    cpu = dialog.get_by_role("group", name="CPU per replica", exact=True)
+    memory = dialog.get_by_role("group", name="Memory per replica", exact=True)
+    submit = dialog.get_by_role("button", name="Scale 2", exact=True)
+    expect(replicas).to_have_value("")
+    expect(replicas).to_have_attribute("inputmode", "numeric")
+    expect(dialog.locator('[aria-pressed="true"]')).to_have_count(0)
+    expect(dialog.get_by_text(f"{low} to {high}", exact=True)).to_be_visible()
+    expect(submit).to_be_disabled()
+    dialog.evaluate(
+        "node => Promise.all(node.getAnimations({subtree: true}).map(animation => animation.finished))"
+    )
+    box = dialog.bounding_box()
+    assert box["width"] <= page.viewport_size["width"], box
 
-            for bad in (str(high + 1), "1.5", "two"):
-                replicas.fill(bad)
-                expect(
-                    dialog.get_by_text(f"Enter {low} to {high}", exact=True)
-                ).to_be_visible()
-                expect(replicas).to_have_attribute("aria-invalid", "true")
-                expect(submit).to_be_disabled()
-            assert dialog.bounding_box() == box, (box, dialog.bounding_box())
-            replicas.fill("")
-            cpu.get_by_role("button", name="2 vCPU", exact=True).click()
-            expect(submit).to_be_enabled()
-            cpu.get_by_role("button", name="2 vCPU", exact=True).click()
-            expect(
-                cpu.get_by_role("button", name="2 vCPU", exact=True)
-            ).to_have_attribute("aria-pressed", "false")
-            expect(submit).to_be_disabled()
-            replicas.fill(str(high))
-            memory.get_by_role("button", name="4 Gi", exact=True).click()
-            expect(submit).to_be_enabled()
-            assert dialog.bounding_box() == box, (box, dialog.bounding_box())
-            submit.click()
-            expect(dialog).to_be_hidden()
-            assert (
-                len(sent) == 2 and len({request["resourceId"] for request in sent}) == 2
-            ), sent
-            for request in sent:
-                assert request["environmentId"] == production, request
-                assert (
-                    request["replicas"] == high
-                    and request["memory"] == "4Gi"
-                    and "cpu" not in request
-                ), request
-            assert not errors, errors
-            results.append({"dialog": box})
-        except BaseException:
-            page.screenshot(path=out / "failure.png", animations="disabled")
-            raise
-        finally:
-            context.close()
-    finally:
-        browser.close()
+    for bad in (str(high + 1), "1.5", "two"):
+        replicas.fill(bad)
+        expect(dialog.get_by_text(f"Enter {low} to {high}", exact=True)).to_be_visible()
+        expect(replicas).to_have_attribute("aria-invalid", "true")
+        expect(submit).to_be_disabled()
+    assert dialog.bounding_box() == box, (box, dialog.bounding_box())
+    replicas.fill("")
+    cpu.get_by_role("button", name="2 vCPU", exact=True).click()
+    expect(submit).to_be_enabled()
+    cpu.get_by_role("button", name="2 vCPU", exact=True).click()
+    expect(cpu.get_by_role("button", name="2 vCPU", exact=True)).to_have_attribute(
+        "aria-pressed", "false"
+    )
+    expect(submit).to_be_disabled()
+    replicas.fill(str(high))
+    memory.get_by_role("button", name="4 Gi", exact=True).click()
+    expect(submit).to_be_enabled()
+    assert dialog.bounding_box() == box, (box, dialog.bounding_box())
+    submit.click()
+    expect(dialog).to_be_hidden()
+    assert len(sent) == 2 and len({request["resourceId"] for request in sent}) == 2, (
+        sent
+    )
+    for request in sent:
+        assert request["environmentId"] == production, request
+        assert (
+            request["replicas"] == high
+            and request["memory"] == "4Gi"
+            and "cpu" not in request
+        ), request
+    assert not errors, errors
+    results.append({"dialog": box})
+    context.close()
 (out / "results.json").write_text(json.dumps(results, indent=2))
 print(f"PASS: {len(results)} scale dialog cases")

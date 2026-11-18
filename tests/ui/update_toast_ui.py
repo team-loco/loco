@@ -42,53 +42,43 @@ def check(page):
 
 
 with session(out) as browser:
-    try:
-        context, page, errors = open_page(
-            browser, "owner", storage={"loco:color:v1": "neobrutal"}
-        )
-        try:
-            page.goto(ui + "/dashboard")
-            expect(
-                page.get_by_role("button", name="Search and run commands")
-            ).to_be_visible()
-            running = page.locator('meta[name="loco-version"]').get_attribute("content")
-            toast = page.locator("[data-sonner-toast]").filter(has_text=TITLE)
-            serve(page, running)
-            check(page)
-            expect(toast).to_have_count(0)
-            serve(page, "sha-newer")
-            check(page)
-            expect(toast).to_be_visible()
-            reload = toast.get_by_role("button", name="Reload")
-            expect(reload).to_be_visible()
-            expect(reload).to_have_css("border-top-width", "2px")
-            assert reload.evaluate("node => getComputedStyle(node).boxShadow") != "none"
-            check(page)
-            expect(toast).to_have_count(1)
-            # Dismissed, it stays away until a different build is served.
-            toast.get_by_role("button", name="Close toast").click()
-            expect(toast).to_have_count(0)
-            check(page)
-            expect(toast).to_have_count(0)
-            serve(page, "sha-newest")
-            check(page)
-            expect(toast).to_be_visible()
-            # A rollback to the build this tab runs takes the toast away.
-            serve(page, running)
-            check(page)
-            expect(toast).to_have_count(0)
-            serve(page, "sha-newer")
-            check(page)
-            page.evaluate("window.beforeReload = true")
-            with page.expect_navigation():
-                reload.click()
-            assert page.evaluate("window.beforeReload") is None
-            assert not errors, errors
-        except BaseException:
-            page.screenshot(path=out / "failure.png", animations="disabled")
-            raise
-        finally:
-            context.close()
-    finally:
-        browser.close()
+    context, page, errors = open_page(
+        browser, "owner", storage={"loco:color:v1": "neobrutal"}
+    )
+    page.goto(ui + "/dashboard")
+    expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
+    running = page.locator('meta[name="loco-version"]').get_attribute("content")
+    toast = page.locator("[data-sonner-toast]").filter(has_text=TITLE)
+    serve(page, running)
+    check(page)
+    expect(toast).to_have_count(0)
+    serve(page, "sha-newer")
+    check(page)
+    expect(toast).to_be_visible()
+    reload = toast.get_by_role("button", name="Reload")
+    expect(reload).to_be_visible()
+    expect(reload).to_have_css("border-top-width", "2px")
+    assert reload.evaluate("node => getComputedStyle(node).boxShadow") != "none"
+    check(page)
+    expect(toast).to_have_count(1)
+    # Dismissed, it stays away until a different build is served.
+    toast.get_by_role("button", name="Close toast").click()
+    expect(toast).to_have_count(0)
+    check(page)
+    expect(toast).to_have_count(0)
+    serve(page, "sha-newest")
+    check(page)
+    expect(toast).to_be_visible()
+    # A rollback to the build this tab runs takes the toast away.
+    serve(page, running)
+    check(page)
+    expect(toast).to_have_count(0)
+    serve(page, "sha-newer")
+    check(page)
+    page.evaluate("window.beforeReload = true")
+    with page.expect_navigation():
+        reload.click()
+    assert page.evaluate("window.beforeReload") is None
+    assert not errors, errors
+    context.close()
 print("PASS: update toast")
