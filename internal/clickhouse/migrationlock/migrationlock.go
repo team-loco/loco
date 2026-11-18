@@ -94,10 +94,11 @@ func (l *Lock) WithLock(ctx context.Context, fn func(context.Context) error) err
 	result := fn(runCtx)
 	cancel(nil)
 	<-renewed
-	l.release(ctx, conn)
+	// A lost lease has expired or belongs to another holder, so there is no row of ours to delete.
 	if errors.Is(context.Cause(runCtx), ErrLockLost) {
 		return errors.Join(ErrLockLost, result)
 	}
+	l.release(ctx, conn)
 	return result
 }
 
