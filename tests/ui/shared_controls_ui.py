@@ -523,7 +523,6 @@ def volume(page):
                 + base
                 + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
             )
-        # The chart remounts once the volume query starts; its counts show it has settled.
         expect(info).to_contain_text("10,005")
 
     open_hour()
