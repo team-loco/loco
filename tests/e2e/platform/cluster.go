@@ -77,18 +77,7 @@ func (c *Cluster) claim() error {
 	if err != nil {
 		return err
 	}
-	if reapErr := reap(registry); reapErr != nil {
-		logf("reap leftovers of earlier test runs: %v", reapErr)
-	}
-	c.lease, err = registry.Claim(c.run, testres.Owner{Path: c.dir})
-	return err
-}
-
-func reap(registry *testres.Registry) error {
-	released, err := registry.Reap(context.Background())
-	for _, id := range released {
-		logf("Released the leftovers of test run %s, whose owner is gone", id)
-	}
+	c.lease, err = registry.Claim(context.Background(), c.run, testres.Owner{Path: c.dir})
 	return err
 }
 
@@ -97,9 +86,11 @@ func reap(registry *testres.Registry) error {
 func (c *Cluster) Run(m *testing.M, setup func(ctx context.Context) error) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := c.claim(); err != nil {
-		logf("claim the lease of run %s: %v", c.run, err)
-		return 1
+	if c.lease == nil {
+		if err := c.claim(); err != nil {
+			logf("claim the lease of run %s: %v", c.run, err)
+			return 1
+		}
 	}
 	if envBool("E2E_TEARDOWN_ONLY") {
 		return c.teardown(ctx, 0)

@@ -20,7 +20,7 @@ func fakeCluster(t *testing.T, failCreate bool) (*Cluster, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.lease, err = registry.Claim(c.run, testres.Owner{Path: c.dir}); err != nil {
+	if c.lease, err = registry.Claim(t.Context(), c.run, testres.Owner{Path: c.dir}); err != nil {
 		t.Fatal(err)
 	}
 	bin := t.TempDir()

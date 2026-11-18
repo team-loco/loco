@@ -137,10 +137,12 @@ func (p *Platform) checkPorts(ctx context.Context) error {
 		conn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(port))
 		if err == nil {
 			return errors.Join(conn.Close(), fmt.Errorf(
-				"port %d (%s) is in use; set E2E_RUN_ID to move run %s to another port block",
+				"port %d (%s) of run %s is in use; stop what listens on it, or remove the run with "+
+					"mise run e2e:teardown %s to reserve other ports",
 				port,
 				purpose,
 				p.run,
+				p.Name,
 			))
 		}
 	}
