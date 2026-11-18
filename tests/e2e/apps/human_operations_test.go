@@ -84,6 +84,37 @@ func TestOrganizationAdministrationRequiresSession(t *testing.T) {
 		t.Fatalf("organization token provisioning for its historical issuer = %v, want PermissionDenied", err)
 	}
 	sessionMemberAdministration(t, w, u, invitation.GetInvitation().GetId(), p.User)
+	u = inviteLifecycleUser(t, p.User, w.OrgID, operationsEmail)
+	setLifecycleRole(t, p.User, w.OrgID, u.id, orgv1.OrgRole_ORG_ROLE_ADMIN)
+	setLifecycleStatus(t, u.id, userv1.UserStatus_USER_STATUS_SUSPENDED)
+	for _, call := range []func() error{
+		func() error {
+			_, callErr := p.Admin.Org.SetOrgMemberRole(
+				t.Context(),
+				&orgv1.SetOrgMemberRoleRequest{OrgId: w.OrgID, UserId: issuerID, Role: orgv1.OrgRole_ORG_ROLE_MEMBER},
+			)
+			return callErr
+		},
+		func() error {
+			_, callErr := p.Admin.Org.RemoveOrgMember(
+				t.Context(),
+				&orgv1.RemoveOrgMemberRequest{OrgId: w.OrgID, UserId: issuerID},
+			)
+			return callErr
+		},
+	} {
+		if err = call(); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+			t.Fatalf("handover to suspended admin = %v, want FailedPrecondition", err)
+		}
+	}
+	setLifecycleStatus(t, u.id, userv1.UserStatus_USER_STATUS_ACTIVE)
+	if _, err = p.Admin.Org.RemoveOrgMember(
+		t.Context(),
+		&orgv1.RemoveOrgMemberRequest{OrgId: w.OrgID, UserId: issuerID},
+	); err != nil {
+		t.Fatalf("handover to an active admin: %v", err)
+	}
+	readLifecycleWorkspace(t, u.session, w.ID, nil)
 }
 
 func tokenOrganizationProvisioning(t *testing.T, u lifecycleUser) {
