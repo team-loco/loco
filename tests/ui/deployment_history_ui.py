@@ -524,7 +524,7 @@ with session(out) as browser:
                 and not request["body"].get("pageToken")
                 for request in requests
             )
-            expect(next_button).to_have_count(0)
+            expect(next_button).to_be_disabled()
             assert any(
                 request["method"] == "GetDeployment"
                 and request["body"]["deploymentId"] == data["staging_release"]
