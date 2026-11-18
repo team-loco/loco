@@ -194,8 +194,7 @@ def last_page_request():
 
 def page_request(**fields):
     return lambda body: (
-        "startTime" in body
-        and body.get("limit") in (25, 50, 100)
+        body.get("limit") in (25, 50, 100)
         and all(body.get(key) == value for key, value in fields.items())
     )
 
