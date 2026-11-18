@@ -17,7 +17,7 @@ var errNoUpdateFlags = errors.New(
 
 func buildUpdateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update <workspace-id>",
+		Use:   "update <name-or-id>",
 		Short: "Update a workspace",
 		Long: `Update a workspace's name, description or telemetry retention.
 
@@ -26,23 +26,21 @@ organization's limit; 0 returns the signal to the limit. A change applies to tel
 after it.`,
 		Args: cobra.ExactArgs(1),
 		Example: `  # Rename a workspace
-  loco workspace update <workspace-id> --name new-name
+  loco workspace update my-workspace --name new-name
 
   # Update workspace description
-  loco workspace update <workspace-id> --description "Updated description"
+  loco workspace update my-workspace --description "Updated description"
 
   # Update both name and description
-  loco workspace update <workspace-id> --name new-name --description "New description"
+  loco workspace update my-workspace --name new-name --description "New description"
 
   # Keep logs for 7 days and traces for 14
-  loco workspace update <workspace-id> --log-retention-days 7 --trace-retention-days 14
+  loco workspace update my-workspace --log-retention-days 7 --trace-retention-days 14
 
   # Return metrics to the organization's limit
-  loco workspace update <workspace-id> --metric-retention-days 0`,
+  loco workspace update my-workspace --metric-retention-days 0`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			id := args[0]
 
 			name, err := cmd.Flags().GetString("name")
 			if err != nil {
@@ -53,9 +51,7 @@ after it.`,
 				return fmt.Errorf("failed to get description flag: %w", err)
 			}
 
-			updateReq := &workspacev1.UpdateWorkspaceRequest{
-				WorkspaceId: id,
-			}
+			updateReq := &workspacev1.UpdateWorkspaceRequest{}
 			retention := false
 			for flag, field := range map[string]**int32{
 				"log-retention-days":    &updateReq.LogRetentionDays,
@@ -81,6 +77,11 @@ after it.`,
 			if err != nil {
 				return err
 			}
+			workspace, err := findWorkspace(cmd, target.Clients, args[0])
+			if err != nil {
+				return err
+			}
+			updateReq.WorkspaceId = workspace.GetId()
 
 			if cmd.Flags().Changed("name") {
 				updateReq.Name = &name
@@ -98,7 +99,8 @@ after it.`,
 			if err != nil || !retention {
 				return err
 			}
-			resp, err := target.Clients.Workspace.GetWorkspace(ctx, &workspacev1.GetWorkspaceRequest{WorkspaceId: id})
+			getReq := &workspacev1.GetWorkspaceRequest{WorkspaceId: workspace.GetId()}
+			resp, err := target.Clients.Workspace.GetWorkspace(ctx, getReq)
 			if err != nil {
 				return fmt.Errorf("failed to get workspace: %w", err)
 			}
@@ -106,7 +108,7 @@ after it.`,
 		},
 	}
 
-	cmd.Flags().String("host", "", "API host URL")
+	cmdutil.AddOrgFlags(cmd)
 	cmd.Flags().String("name", "", "New name for the workspace")
 	cmd.Flags().String("description", "", "New description for the workspace")
 	for _, signal := range []string{"log", "trace", "metric"} {

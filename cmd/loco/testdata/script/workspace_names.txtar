@@ -1,0 +1,49 @@
+# loco workspace commands take the organization and the workspace by name or ID.
+fakeapi org 1 acme
+
+exec loco workspace create staging --org acme
+stdout '^Workspace "staging" created successfully \(ID: new-staging\)$'
+
+exec loco workspace list --org 1
+stdout '^  - production \(ID: 2\)$'
+stdout '^  - staging \(ID: new-staging\)$'
+
+# update and delete take the organization from --org, LOCO_ORG or the saved scope.
+exec loco workspace update staging --org acme --name preview
+exec loco workspace list --org acme
+stdout '^  - preview \(ID: new-staging\)$'
+
+env LOCO_ORG=1
+exec loco workspace delete new-staging --yes
+stdout '^Workspace "preview" deleted successfully\.$'
+
+env LOCO_ORG=
+! exec loco workspace delete production --yes
+stderr '(?i)org not specified'
+cp scope.yaml $HOME/.loco/config.yaml
+exec loco workspace delete production --yes
+stdout '^Workspace "production" deleted successfully\.$'
+exec loco workspace list --org acme
+stdout '^No workspaces found in this organization\.$'
+
+# A name several organizations or workspaces share needs the ID.
+fakeapi workspace 3 api
+fakeapi workspace 4 api
+! exec loco workspace update api --org acme --name web
+stderr 'workspace name "api" matches 2 workspaces, pass the ID'
+exec loco workspace update 4 --org acme --name web
+
+fakeapi org 5 acme
+! exec loco workspace list --org acme
+stderr '(?i)organization name "acme" matches 2 organizations, pass the ID'
+! exec loco workspace create staging --org acme
+stderr '(?i)organization name "acme" matches 2 organizations, pass the ID'
+exec loco workspace list --org 1
+stdout '^  - api \(ID: 3\)$'
+stdout '^  - web \(ID: 4\)$'
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- scope.yaml --
+organization:
+  name: acme
+  id: "1"

@@ -14,11 +14,11 @@ func buildCreateCmd() *cobra.Command {
 		Short: "Create a workspace",
 		Long:  "Create a new workspace within an organization.",
 		Args:  cobra.ExactArgs(1),
-		Example: `  # Create a workspace in an organization
-  loco workspace create my-workspace --org-id <organization-id>
+		Example: `  # Create a workspace in the current organization
+  loco workspace create my-workspace
 
-  # Create a workspace with a description
-  loco workspace create my-workspace --org-id <organization-id> --description "Production environment"`,
+  # Create a workspace in a specific organization, with a description
+  loco workspace create my-workspace --org my-org --description "Production environment"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -28,9 +28,9 @@ func buildCreateCmd() *cobra.Command {
 			}
 
 			name := args[0]
-			orgID, err := cmd.Flags().GetString("org-id")
+			orgID, err := cmdutil.ResolveOrgID(cmd, target.Clients)
 			if err != nil {
-				return fmt.Errorf("failed to get org-id flag: %w", err)
+				return err
 			}
 			description, err := cmd.Flags().GetString("description")
 			if err != nil {
@@ -55,12 +55,8 @@ func buildCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("host", "", "API host URL")
-	cmd.Flags().String("org-id", "", "Organization ID (required)")
+	cmdutil.AddOrgFlags(cmd)
 	cmd.Flags().String("description", "", "Workspace description")
-	if err := cmd.MarkFlagRequired("org-id"); err != nil {
-		panic(fmt.Sprintf("failed to mark org-id as required: %v", err))
-	}
 
 	return cmd
 }

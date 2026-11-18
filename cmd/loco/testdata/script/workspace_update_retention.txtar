@@ -1,6 +1,8 @@
 # loco workspace update sets only the retention flags given, 0 clears one, and prints each
 # signal's own and applied days. The fake organization limit is 30 days.
-exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --log-retention-days 7 --metric-retention-days 20
+fakeapi org 1 acme
+env LOCO_ORG=acme
+exec loco workspace update production --log-retention-days 7 --metric-retention-days 20
 stdout '^Workspace updated successfully\.$'
 stdout '^SIGNAL +WORKSPACE +APPLIED$'
 stdout '^logs +7 days +7 days$'
@@ -8,11 +10,11 @@ stdout '^traces +- +30 days$'
 stdout '^metrics +20 days +20 days$'
 
 # Renaming alone sends no retention and prints no table.
-exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --name renamed
+exec loco workspace update production --name renamed
 stdout '^Workspace updated successfully\.$'
 ! stdout 'SIGNAL'
 
-exec loco workspace update 0199e0a4-0000-7000-8000-0000000000b1 --trace-retention-days 14 --metric-retention-days 0
+exec loco workspace update 2 --trace-retention-days 14 --metric-retention-days 0
 stdout '^logs +7 days +7 days$'
 stdout '^traces +14 days +14 days$'
 stdout '^metrics +- +30 days$'

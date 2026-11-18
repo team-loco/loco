@@ -35,7 +35,7 @@ func buildUpdateCmd() *cobra.Command {
 				return err
 			}
 
-			org, err := findOrg(ctx, target.Clients, args[0])
+			org, err := cmdutil.FindUserOrg(ctx, target.Clients, args[0])
 			if err != nil {
 				return err
 			}

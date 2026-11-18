@@ -34,10 +34,12 @@ loco config --help
 | `loco update` | Update the installed CLI |
 | `loco completion` | Generate shell completions |
 
+`loco workspace` commands take organizations and workspaces by name or ID. `create`, `update` and `delete` use the organization from `--org`, `LOCO_ORG` or the current scope; `list --org` lists one organization's workspaces. A name that several organizations or workspaces share fails with an error; pass the ID instead.
+
 Workspace updates change only supplied flags. To clear a description, pass an empty value:
 
 ```sh
-loco workspace update <workspace-id> --description ""
+loco workspace update my-workspace --description ""
 ```
 
 ## API schema

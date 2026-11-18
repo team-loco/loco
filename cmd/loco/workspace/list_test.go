@@ -74,6 +74,7 @@ func runWorkspaceList(
 	t.Helper()
 	fake := &workspaceListServer{t: t, orgID: orgID, page: page}
 	clitest.Session(t, func(server *connect.Server) {
+		testOrgs{}.register(server)
 		workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
 	})
 	var output bytes.Buffer
@@ -83,7 +84,7 @@ func runWorkspaceList(
 	cmd.SilenceUsage = true
 	args := []string{}
 	if orgID != "" {
-		args = append(args, "--org-id", orgID)
+		args = append(args, "--org", orgID)
 	}
 	cmd.SetArgs(args)
 	err := cmd.ExecuteContext(ctx)
@@ -142,7 +143,9 @@ func resolveListedWorkspace(t *testing.T) (string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd.Flags().String("org", testOrgID, "")
+	if err := cmd.Flags().Set("org", testOrgID); err != nil {
+		t.Fatal(err)
+	}
 	cmd.Flags().String("workspace", "Two", "")
 	load := func() (*session.SessionConfig, error) { return &session.SessionConfig{}, nil }
 	return cmdutil.ResolveWorkspaceID(t.Context(), cmd, load, target.Clients.Workspace)

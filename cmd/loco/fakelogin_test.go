@@ -126,7 +126,9 @@ func (s *fakeOrgService) ListUserOrgs(
 		return &orgv1.ListUserOrgsResponse{NextPageToken: "org-next"}, nil
 	}
 	if !req.GetCreateIfMissing() {
-		return &orgv1.ListUserOrgsResponse{}, nil
+		s.api.mu.Lock()
+		defer s.api.mu.Unlock()
+		return &orgv1.ListUserOrgsResponse{Orgs: s.api.platform.orgs}, nil
 	}
 	org := &orgv1.Organization{Id: fakeOrgID, Name: fakeOrgName}
 	return &orgv1.ListUserOrgsResponse{Orgs: []*orgv1.Organization{org}}, nil
@@ -176,7 +178,13 @@ func (s *fakeWorkspaceService) ListOrgWorkspaces(
 	if req.GetPageToken() == "" {
 		return &workspacev1.ListOrgWorkspacesResponse{NextPageToken: "workspace-next"}, nil
 	}
-	ws := &workspacev1.Workspace{Id: fakeWorkspaceID, OrgId: fakeOrgID, Name: fakeWorkspaceName}
-	resp := &workspacev1.ListOrgWorkspacesResponse{Workspaces: []*workspacev1.Workspace{ws}}
-	return resp, nil
+	s.api.mu.Lock()
+	defer s.api.mu.Unlock()
+	var workspaces []*workspacev1.Workspace
+	for _, ws := range s.api.platform.workspaces {
+		if ws.GetOrgId() == req.GetOrgId() {
+			workspaces = append(workspaces, ws)
+		}
+	}
+	return &workspacev1.ListOrgWorkspacesResponse{Workspaces: workspaces}, nil
 }

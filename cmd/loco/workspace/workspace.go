@@ -15,19 +15,19 @@ func BuildWorkspaceCmd() *cobra.Command {
   loco workspace list
 
   # List workspaces in a specific organization
-  loco workspace list --org-id <organization-id>
+  loco workspace list --org my-org
 
   # Create a new workspace
-  loco workspace create my-workspace --org-id <organization-id>
+  loco workspace create my-workspace --org my-org
 
   # Update a workspace
-  loco workspace update <workspace-id> --name new-name
+  loco workspace update my-workspace --name new-name
 
   # Delete a workspace
-  loco workspace delete <workspace-id>
+  loco workspace delete my-workspace
 
   # Keep a workspace's logs for 7 days
-  loco workspace update <workspace-id> --log-retention-days 7`,
+  loco workspace update my-workspace --log-retention-days 7`,
 	}
 
 	cmd.AddCommand(
