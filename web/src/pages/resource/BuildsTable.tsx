@@ -268,7 +268,7 @@ export function BuildsTable({
 			<TableBody>
 				{builds.length === 0 && (
 					<TableRow>
-						<TableCell colSpan={COLUMNS} className="text-fg3">
+						<TableCell colSpan={COLUMNS} className="h-24 text-center text-fg3">
 							No builds yet.
 						</TableCell>
 					</TableRow>

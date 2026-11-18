@@ -108,9 +108,9 @@ export function EventsDrawer({
 		<Sheet open={open} onOpenChange={onOpenChange}>
 			<SheetContent size="wide">
 				<SheetHeader className="flex-wrap">
-					<div className="flex min-w-0 flex-1 flex-col">
+					<div className="flex min-w-0 flex-1 items-baseline gap-2.5">
 						<SheetTitle>Events</SheetTitle>
-						<span className="truncate font-mono text-[12px] text-fg3">{resourceName}</span>
+						<span className="truncate font-mono text-[12.5px] text-fg3">{resourceName}</span>
 					</div>
 					<ToggleGroup
 						variant="segmented"

@@ -52,7 +52,6 @@ export function MetricChart({
 	markers,
 	limit,
 	format,
-	replicas,
 }: {
 	title: string;
 	points: BandPoint[];
@@ -63,7 +62,6 @@ export function MetricChart({
 	markers: number[];
 	limit: number | undefined;
 	format: (value: number) => string;
-	replicas: number;
 }) {
 	const timePref = useTimePreferences();
 	// Without a known limit the chart falls back to percent of request.
@@ -81,12 +79,7 @@ export function MetricChart({
 		Array.isArray(value) ? value.map((v) => show(Number(v))).join(" – ") : show(Number(value));
 	return (
 		<div className="flex min-w-0 flex-col gap-3.5">
-			<div className="flex items-baseline gap-2">
-				<span className="text-[13.5px] font-medium">{title}</span>
-				<span className="text-[12px] text-fg3">
-					band shows lowest to highest of {replicas.toString()} {replicas === 1 ? "replica" : "replicas"}
-				</span>
-			</div>
+			<span className="text-[13.5px] font-medium">{title}</span>
 			<div className="flex gap-6">
 				<Stat label="Average" value={usage.average === undefined ? "—" : show(usage.average)} />
 				<Stat label="Highest" value={usage.highest === undefined ? "—" : show(usage.highest)} warn={warn} />

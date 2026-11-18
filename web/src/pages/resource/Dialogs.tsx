@@ -48,7 +48,7 @@ export function RedeployDialogContent({
 }) {
 	const tags = [...new Set(running.map((d) => depTag(d)))].join(", ");
 	return (
-		<DialogContent title={`Redeploy ${resourceName}?`}>
+		<DialogContent title={`Redeploy ${resourceName}?`} showCloseButton={false}>
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
 				<RunningSwap from={tags} to={tags} />
 				<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>
@@ -83,7 +83,7 @@ export function RollbackDialogContent({
 }) {
 	const changes = current === undefined ? [] : specChanges(current, target);
 	return (
-		<DialogContent size="wide" title={`Roll back ${resourceName} in ${target.region}`}>
+		<DialogContent size="wide" title={`Roll back ${resourceName} in ${target.region}`} showCloseButton={false}>
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
 				{changes.length === 0 && (
 					<RunningSwap
@@ -179,10 +179,10 @@ export function DeleteResourceDialog({
 		<ConfirmDeleteDialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title="Delete resource?"
+			title={`Delete ${resource.name}?`}
 			text={`Removes the resource, ${deployCount}${placeList}, and ${domainText}. Running replicas stop immediately.`}
 			target={resource.name}
-			confirmLabel="Delete resource"
+			confirmLabel={`Delete ${resource.name}`}
 			pending={pending}
 			onConfirm={onConfirm}
 		>

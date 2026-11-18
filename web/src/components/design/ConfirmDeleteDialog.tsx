@@ -1,4 +1,3 @@
-import { XIcon } from "lucide-react";
 import { useRef, useState, type ReactNode, type RefObject } from "react";
 
 import {
@@ -9,6 +8,7 @@ import {
 	AlertDialogTitle,
 } from "./AlertDialog";
 import { Button } from "./Button";
+import { modalTitle } from "./Dialog";
 import { Input } from "./Input";
 
 export function ConfirmDeleteDialog({
@@ -50,9 +50,6 @@ export function ConfirmDeleteDialog({
 						confirmLabel={confirmLabel}
 						pending={pending}
 						onConfirm={onConfirm}
-						onClose={() => {
-							onOpenChange(false);
-						}}
 					>
 						{children}
 					</ConfirmBody>
@@ -70,7 +67,6 @@ function ConfirmBody({
 	confirmLabel,
 	pending,
 	onConfirm,
-	onClose,
 	children,
 }: {
 	inputRef: RefObject<HTMLInputElement | null>;
@@ -80,7 +76,6 @@ function ConfirmBody({
 	confirmLabel: string;
 	pending: boolean;
 	onConfirm: () => void;
-	onClose: () => void;
 	children: ReactNode;
 }) {
 	const [typed, setTyped] = useState("");
@@ -94,21 +89,8 @@ function ConfirmBody({
 				if (typedOk && !pending) onConfirm();
 			}}
 		>
-			<div className="flex items-center gap-2 border-b border-line px-4 py-3.5">
-				<AlertDialogTitle className="flex-1 text-lg font-semibold">{title}</AlertDialogTitle>
-				<Button
-					type="button"
-					variant="ghost"
-					size="icon-sm"
-					aria-label="Close"
-					className="text-fg3 hover:text-foreground"
-					disabled={pending}
-					onClick={onClose}
-				>
-					<XIcon className="size-4" />
-				</Button>
-			</div>
-			<div className="flex flex-col gap-3.5 p-4">
+			<div className="flex flex-col gap-3.5 px-5 pt-[18px] pb-4">
+				<AlertDialogTitle className={modalTitle}>{title}</AlertDialogTitle>
 				<AlertDialogDescription className="text-base leading-normal text-foreground">{text}</AlertDialogDescription>
 				{children}
 				<label className="flex flex-col gap-1.5">
@@ -128,7 +110,7 @@ function ConfirmBody({
 					/>
 				</label>
 			</div>
-			<div className="flex justify-end gap-2 border-t border-line px-4 py-3">
+			<div className="flex justify-end gap-2 border-t border-line px-5 py-3.5">
 				<AlertDialogCancel className="px-3" disabled={pending}>
 					Cancel
 				</AlertDialogCancel>

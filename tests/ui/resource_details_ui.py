@@ -177,11 +177,6 @@ with session(out) as browser:
             expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
             expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
             expect(page.get_by_label("Above 85% of the limit")).to_have_count(1)
-            expect(
-                page.get_by_text(
-                    "band shows lowest to highest of 1 replica", exact=True
-                ).first
-            ).to_be_visible()
             page.get_by_role("button", name=re.compile(r"^us-east-1")).click()
             metrics_href = page.get_by_role(
                 "link", name="All metrics", exact=True
@@ -206,7 +201,7 @@ with session(out) as browser:
             page.keyboard.press("Escape")
             image_label = page.get_by_title(image, exact=True)
             expect(image_label).to_be_visible()
-            assert len(image_label.inner_text()) < len(image)
+            assert image_label.inner_text() == image
             expect(
                 page.get_by_text(re.compile(r"^deployed .+ by Olivia Owner$"))
             ).to_be_visible()
@@ -352,9 +347,7 @@ with session(out) as browser:
             delete = page.get_by_role("button", name="Delete resource", exact=True)
             expect(delete).to_be_enabled()
             delete.click()
-            dialog = page.get_by_role(
-                "alertdialog", name="Delete resource?", exact=True
-            )
+            dialog = page.get_by_role("alertdialog", name=f"Delete {name}?", exact=True)
             expect(
                 dialog.get_by_text("Deleting here causes drift", exact=False)
             ).to_be_visible()
@@ -365,15 +358,15 @@ with session(out) as browser:
             ).to_be_visible()
             expect(dialog.get_by_role("textbox")).to_be_focused()
             expect(
-                dialog.get_by_role("button", name="Delete resource", exact=True)
+                dialog.get_by_role("button", name=f"Delete {name}", exact=True)
             ).to_be_disabled()
             dialog.get_by_role("textbox").fill(name.upper())
             expect(
-                dialog.get_by_role("button", name="Delete resource", exact=True)
+                dialog.get_by_role("button", name=f"Delete {name}", exact=True)
             ).to_be_disabled()
             dialog.get_by_role("textbox").fill(f" {name} ")
             expect(
-                dialog.get_by_role("button", name="Delete resource", exact=True)
+                dialog.get_by_role("button", name=f"Delete {name}", exact=True)
             ).to_be_enabled()
             page.keyboard.press("Escape")
             expect(delete).to_be_focused()
@@ -382,7 +375,7 @@ with session(out) as browser:
             held_delete = []
             delete_rpc = "**/loco.resource.v1.ResourceService/DeleteResource"
             context.route(delete_rpc, lambda route: held_delete.append(route))
-            confirm = dialog.get_by_role("button", name="Delete resource", exact=True)
+            confirm = dialog.get_by_role("button", name=f"Delete {name}", exact=True)
             with page.expect_request(delete_rpc):
                 confirm.click()
             expect(dialog.get_by_role("textbox")).to_be_disabled()

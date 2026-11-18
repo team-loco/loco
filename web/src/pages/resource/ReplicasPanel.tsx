@@ -26,13 +26,17 @@ const MEMORY_METRIC = "k8s.pod.memory_request_utilization";
 function scaleText(regions: RegionView[]): string {
 	const pairs = regions.flatMap((r) => {
 		const svc = r.current === undefined ? undefined : getServiceSpec(r.current);
-		return svc === undefined ? [] : [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0 }];
+		return svc === undefined
+			? []
+			: [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0, cpu: svc.scalers?.cpuTarget }];
 	});
 	const first = pairs[0];
 	if (first === undefined) return "not deployed";
-	if (pairs.some((p) => p.min !== first.min || p.max !== first.max)) return "replicas differ by region";
-	const { min, max } = first;
-	return min === max ? `fixed at ${min.toString()} per region` : `${min.toString()} to ${max.toString()} per region`;
+	if (pairs.some((p) => p.min !== first.min || p.max !== first.max || p.cpu !== first.cpu))
+		return "scaling differs by region";
+	const { min, max, cpu } = first;
+	if (min === max) return `fixed at ${min.toString()} per region`;
+	return `autoscaling ${min.toString()}–${max.toString()}${cpu === undefined ? "" : `, CPU ${cpu.toString()}%`}`;
 }
 
 function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: boolean; onPick: () => void }) {
@@ -102,7 +106,6 @@ export function ReplicasPanel({
 	const specs = charted.map((r) => (r.current === undefined ? undefined : getServiceSpec(r.current)));
 	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
 	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
-	const replicas = charted.reduce((n, r) => n + (r.status?.desiredReplicas ?? 0), 0);
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
 
 	return (
@@ -176,7 +179,6 @@ export function ReplicasPanel({
 					markers={markers}
 					limit={cpuLimit}
 					format={formatCpu}
-					replicas={replicas}
 				/>
 				<MetricChart
 					title={selected === null ? "Memory" : `Memory · ${selected}`}
@@ -188,7 +190,6 @@ export function ReplicasPanel({
 					markers={markers}
 					limit={memoryLimit}
 					format={formatMemory}
-					replicas={replicas}
 				/>
 			</div>
 		</Section>

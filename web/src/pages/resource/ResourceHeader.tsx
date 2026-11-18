@@ -8,10 +8,10 @@ import {
 	FileCodeIcon,
 	RotateCwIcon,
 	Settings2Icon,
-	SlidersHorizontalIcon,
 	Trash2Icon,
 	Undo2Icon,
 } from "lucide-react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -29,7 +29,6 @@ import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { deploymentActor } from "@/lib/deployment-utils";
-import { shortImageParts } from "@/lib/image";
 import { agoLabel } from "@/lib/time";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
@@ -44,7 +43,7 @@ interface SwitcherItem {
 	href: string;
 }
 
-function Switcher({ items, currentId }: { items: SwitcherItem[]; currentId: string }) {
+function Switcher({ items, currentId, offset }: { items: SwitcherItem[]; currentId: string; offset: number }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
@@ -52,7 +51,7 @@ function Switcher({ items, currentId }: { items: SwitcherItem[]; currentId: stri
 			>
 				<ChevronsUpDownIcon />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" className="max-h-80 w-[280px]">
+			<DropdownMenuContent align="start" alignOffset={-offset} className="max-h-80 w-[280px]">
 				{items.map((it) => (
 					<DropdownMenuItem key={it.id} render={<Link to={it.href} />} className="gap-2">
 						<StatusGlyph glyph={resourceStatusStyle(it.status).glyph} />
@@ -66,6 +65,21 @@ function Switcher({ items, currentId }: { items: SwitcherItem[]; currentId: stri
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
+}
+
+function useWidth(): [number, (el: HTMLElement | null) => (() => void) | undefined] {
+	const [width, setWidth] = useState(0);
+	const measure = useCallback((el: HTMLElement | null) => {
+		if (el === null) return undefined;
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry !== undefined) setWidth(entry.borderBoxSize[0]?.inlineSize ?? entry.contentRect.width);
+		});
+		observer.observe(el);
+		return () => {
+			observer.disconnect();
+		};
+	}, []);
+	return [width, measure];
 }
 
 function MenuIcon({ children }: { children: React.ReactNode }) {
@@ -117,31 +131,32 @@ export function ResourceHeader({
 	onDelete: () => void;
 	nowMs: number;
 }) {
+	const [titleWidth, measureTitle] = useWidth();
 	const deployed = regions.filter(isDeployed);
 	const primary = deployed[0]?.current;
 	const image = depImage(primary);
-	const imageRef = shortImageParts(image);
 	const since = primary === undefined ? undefined : startedMs(primary);
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
 	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
 
 	return (
-		<div className="flex flex-wrap items-end justify-between gap-4">
-			<div className="flex min-w-0 flex-col gap-2">
+		<div className="flex flex-wrap items-start justify-between gap-4 md:flex-nowrap">
+			<div className="flex min-w-0 flex-1 flex-col gap-2">
 				<div className="flex flex-wrap items-center gap-3">
 					<div className="flex items-center gap-1">
-						<h1 className="m-0 text-[28px] leading-[1.15] font-normal tracking-[-0.03em] break-all">{resource.name}</h1>
-						<Switcher items={switcher} currentId={resource.id} />
+						<h1 ref={measureTitle} className="m-0 text-[28px] leading-[1.15] font-normal tracking-[-0.03em] break-all">
+							{resource.name}
+						</h1>
+						<Switcher items={switcher} currentId={resource.id} offset={titleWidth + 4} />
 					</div>
 					<ResourceStatusBadge status={environment?.status} />
 					{resource.partial !== undefined && <PartialBadge />}
 				</div>
-				<div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
+				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
 					{image !== "" && (
-						<span className="font-mono text-[12px]" title={image}>
-							<span className="text-fg3">{imageRef.repository}</span>
-							<span className="text-foreground">{imageRef.version}</span>
+						<span className="max-w-full truncate font-mono text-[12px] text-foreground" title={image}>
+							{image}
 						</span>
 					)}
 					{since !== undefined && primary !== undefined && (
@@ -167,8 +182,8 @@ export function ResourceHeader({
 					)}
 				</div>
 			</div>
-			<div className="flex flex-wrap items-center gap-2">
-				<Button variant="outline" aria-haspopup="dialog" onClick={onEvents}>
+			<div className="flex shrink-0 flex-wrap items-center gap-2">
+				<Button variant="outline" size="sm" aria-haspopup="dialog" onClick={onEvents}>
 					<BellIcon />
 					Events
 					{warnings > 0 && (
@@ -180,11 +195,16 @@ export function ResourceHeader({
 						</span>
 					)}
 				</Button>
-				<ToggleChip variant="button" pressed={isSettings} onPressedChange={onSettings}>
+				<ToggleChip
+					variant="button"
+					className="h-[30px] px-2.5 text-[12.5px]"
+					pressed={isSettings}
+					onPressedChange={onSettings}
+				>
 					<Settings2Icon />
 					Settings
 				</ToggleChip>
-				<Button variant="outline" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
+				<Button variant="outline" size="sm" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
 					<RotateCwIcon />
 					{redeploying ? "Redeploying…" : "Redeploy"}
 				</Button>
@@ -211,7 +231,7 @@ export function ResourceHeader({
 						</DropdownMenuItem>
 						<DropdownMenuItem onClick={onScale}>
 							<MenuIcon>
-								<SlidersHorizontalIcon />
+								<ChevronsUpDownIcon />
 							</MenuIcon>
 							Scale
 						</DropdownMenuItem>

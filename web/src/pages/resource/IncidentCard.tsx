@@ -122,10 +122,10 @@ export function IncidentCard({
 	return (
 		<section
 			aria-labelledby="incident-title"
-			className="flex flex-col gap-4 rounded-card bg-warn-bg px-5 pt-[18px] pb-5 ring-1 ring-warn/30 ring-inset"
+			className="flex flex-col gap-4 rounded-card bg-[color-mix(in_oklch,var(--warn)_6%,transparent)] px-5 pt-[18px] pb-5 ring-1 ring-warn/30 ring-inset"
 		>
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="flex flex-col gap-0.5">
+				<div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
 					<h2 id="incident-title" className="m-0 text-[16px] font-medium tracking-[-0.01em]">
 						{problem.title}
 					</h2>
