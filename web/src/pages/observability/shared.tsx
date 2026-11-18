@@ -25,6 +25,8 @@ export interface VolumeBucket {
 	segments: VolumeSegment[];
 }
 
+export const VOLUME_BARS_HEIGHT = "h-[72px]";
+
 export function VolumeBars({
 	buckets,
 	label,
@@ -51,7 +53,7 @@ export function VolumeBars({
 		<div
 			data-slot="volume-bars"
 			title={current === null ? undefined : buckets[current]?.label}
-			className="relative h-[72px] cursor-pointer rounded-sm"
+			className={cn("relative cursor-pointer rounded-sm", VOLUME_BARS_HEIGHT)}
 		>
 			<div className="pointer-events-none absolute inset-0 flex items-end gap-0.5">
 				{buckets.map((b, i) => (
