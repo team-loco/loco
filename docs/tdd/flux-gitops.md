@@ -108,8 +108,6 @@ locoadm cluster create --name worker-staging --region example-east --tier stagin
 
 The command prints a plaintext Secret manifest for direct application to the worker. Direct application keeps tokens outside Git by default. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. The default one-hour token TTL covers immediate application.
 
-There is no approval-based join flow: pulling a token from the API would itself require a credential.
-
 ## Operator commands
 
 | Command | Responsibility |
