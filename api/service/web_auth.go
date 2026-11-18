@@ -130,6 +130,7 @@ func (s *AuthServer) CompleteWebLogin(
 	if err != nil {
 		return nil, err
 	}
+	s.web.Cookies.Set(info.ResponseHeader(), auth.WebLoginCookie, "", time.Time{}, http.SameSiteLaxMode)
 	s.setWebSession(info.ResponseHeader(), access, refresh)
 	return &authv1.CompleteWebLoginResponse{
 		User: dbUserToProto(user), ClaimedOrgs: claimedOrgsProto(claimed), RedirectTo: login.RedirectTo,

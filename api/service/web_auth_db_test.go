@@ -193,6 +193,9 @@ func TestWebLoginRequiresBoundSingleUseStateAndNonce(t *testing.T) {
 	if signedIn.GetUser().GetEmail() != dashboardEmail || signedIn.GetRedirectTo() != "/workspaces?tab=all" {
 		t.Fatalf("unexpected login result: %v", signedIn)
 	}
+	if cleared := responseCookie(t, info, auth.WebLoginCookie); cleared.MaxAge >= 0 {
+		t.Fatal("expected completed login to clear its binding cookie")
+	}
 	access, refresh := responseCookie(t, info, auth.WebSessionCookie), responseCookie(t, info, auth.WebRefreshCookie)
 	if access.SameSite != http.SameSiteLaxMode || refresh.SameSite != http.SameSiteStrictMode {
 		t.Fatal("incorrect SameSite attributes")
