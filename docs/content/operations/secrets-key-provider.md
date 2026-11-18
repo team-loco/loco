@@ -156,4 +156,4 @@ The registry trusts one public key, which it loads from `/.well-known/loco-regis
 
 ### Supported versions
 
-CI runs the provider against the OpenBao and Vault dev server images pinned in `tests/conformance/transit/compose.yaml`: OpenBao 2.7 and Vault 2.1. Run the same suite locally with `mise run test:transit-conformance`. Other versions are untested.
+CI runs the provider against the OpenBao image the control-plane chart pins in `openbao.image` and the Vault dev server image pinned in `tests/conformance/transit/compose.yaml`. Run the same suite locally with `mise run test:transit-conformance`. Other versions are untested.
