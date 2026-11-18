@@ -19,7 +19,8 @@ import (
 )
 
 var (
-	errNoToken       = errors.New("no bearer token provided")
+	errNoToken       = errors.New("no authentication token provided")
+	errWebCookie     = errors.New("web session cookie rejected for this request")
 	errUserSuspended = errors.New("user is suspended")
 )
 
@@ -29,6 +30,7 @@ type authInterceptor struct {
 	resolver *auth.Resolver
 	authz    *authz.Authorizer
 	streams  auth.StreamConfig
+	cookies  auth.WebCookies
 }
 
 func NewAuthInterceptor(
@@ -47,6 +49,12 @@ func NewAuthInterceptor(
 	}
 }
 
+// WebCookies enables dashboard cookie authentication on this interceptor.
+func (i *authInterceptor) WebCookies(cookies auth.WebCookies) *authInterceptor {
+	i.cookies = cookies
+	return i
+}
+
 var publicProcedures = map[string]struct{}{
 	authv1connect.AuthServiceExchangeCLICodeProcedure:  {},
 	authv1connect.AuthServiceStartDeviceLoginProcedure: {},
@@ -62,18 +70,30 @@ func isPublicProcedure(procedure string) bool {
 func (i *authInterceptor) authenticate(
 	ctx context.Context,
 	procedure string,
-	header bearer.HeaderGetter,
+	header interface {
+		Get(string) string
+		Values(string) []string
+	},
 ) (context.Context, error) {
 	if isPublicProcedure(procedure) {
 		return ctx, nil
 	}
 
-	token, ok := bearer.FromHeader(header)
-	if !ok {
+	var token string
+	fromCookie := len(header.Values("Authorization")) == 0
+	if fromCookie {
+		token = i.cookies.Read(header, auth.WebSessionCookie)
+		if token != "" && !i.cookies.AllowsRequest(ctx, header) {
+			return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(errWebCookie)
+		}
+	} else {
+		token, _ = bearer.FromHeader(header)
+	}
+	if token == "" {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(errNoToken)
 	}
 
-	if auth.LooksLikeJWT(token) && i.verifier.Enabled() {
+	if !fromCookie && auth.LooksLikeJWT(token) && i.verifier.Enabled() {
 		return i.authenticateProviderToken(ctx, procedure, token)
 	}
 
@@ -83,6 +103,10 @@ func (i *authInterceptor) authenticate(
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get token: %w", err)
+	}
+
+	if fromCookie && principal.Method != genDb.DeploymentMethodWeb {
+		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(errWebCookie)
 	}
 
 	c := reqctx.WithPrincipal(ctx, principal)
@@ -197,7 +221,8 @@ func (i *authInterceptor) revalidate(ctx context.Context, original reqctx.Princi
 		return reqctx.Principal{}, fmt.Errorf("validate stream credential: %w", err)
 	}
 	if current.ActorType != original.ActorType || current.ActorID != original.ActorID ||
-		current.UserID != original.UserID || current.Entity != original.Entity {
+		current.UserID != original.UserID || current.Entity != original.Entity ||
+		current.Method != original.Method || current.IdentityID != original.IdentityID {
 		return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
 	return current, nil

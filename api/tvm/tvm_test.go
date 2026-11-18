@@ -25,6 +25,7 @@ type sessionEntry struct {
 	accessExpiresAt  time.Time
 	refreshExpiresAt time.Time
 	lastUsedAt       time.Time
+	kind             queries.SessionKind
 }
 
 // TestingQueries is an in-memory implementation of queries.Querier for unit tests.
@@ -34,6 +35,7 @@ type TestingQueries struct {
 	sessions  map[uuid.UUID]*sessionEntry
 	byAccess  map[string]uuid.UUID
 	byRefresh map[string]uuid.UUID
+	used      map[string]uuid.UUID
 }
 
 func newTestingQueries() *TestingQueries {
@@ -41,6 +43,7 @@ func newTestingQueries() *TestingQueries {
 		sessions:  make(map[uuid.UUID]*sessionEntry),
 		byAccess:  make(map[string]uuid.UUID),
 		byRefresh: make(map[string]uuid.UUID),
+		used:      make(map[string]uuid.UUID),
 	}
 }
 
@@ -112,6 +115,7 @@ func (tq *TestingQueries) CreateSessionToken(_ context.Context, params queries.C
 		accessExpiresAt:  params.AccessExpiresAt,
 		refreshExpiresAt: params.RefreshExpiresAt,
 		lastUsedAt:       time.Now(),
+		kind:             params.Kind,
 	}
 	tq.sessions[params.ID] = entry
 	tq.byAccess[params.AccessTokenHash] = params.ID
@@ -152,18 +156,16 @@ func (tq *TestingQueries) GetSessionByRefreshToken(
 	_ context.Context,
 	refreshTokenHash string,
 ) (queries.GetSessionByRefreshTokenRow, error) {
-	id, ok := tq.byRefresh[refreshTokenHash]
+	id, current := tq.byRefresh[refreshTokenHash]
+	if !current {
+		id = tq.used[refreshTokenHash]
+	}
+	e, ok := tq.sessions[id]
 	if !ok {
 		return queries.GetSessionByRefreshTokenRow{}, pgx.ErrNoRows
 	}
-	e := tq.sessions[id]
 	return queries.GetSessionByRefreshTokenRow{
-		ID:               e.id,
-		UserID:           e.userID,
-		RefreshTokenHash: e.refreshHash,
-		AccessExpiresAt:  e.accessExpiresAt,
-		RefreshExpiresAt: e.refreshExpiresAt,
-		LastUsedAt:       e.lastUsedAt,
+		ID: e.id, UserID: e.userID, Kind: e.kind, Used: !current,
 	}, nil
 }
 
@@ -177,6 +179,7 @@ func (tq *TestingQueries) RotateSessionToken(
 	}
 	delete(tq.byAccess, e.accessHash)
 	delete(tq.byRefresh, e.refreshHash)
+	tq.used[e.refreshHash] = e.id
 	e.accessHash = params.AccessTokenHash
 	e.refreshHash = params.RefreshTokenHash
 	e.accessExpiresAt = params.AccessExpiresAt
@@ -208,6 +211,8 @@ func (tq *TestingQueries) DeleteSessionTokenByAccessHash(ctx context.Context, ac
 }
 
 func (*TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { return nil }
+
+func (*TestingQueries) DeleteExpiredUsedRefreshTokens(_ context.Context) error { return nil }
 
 // --- API token mock implementations (no-op; not exercised by permission tests) ---
 
@@ -326,7 +331,7 @@ func TestRefreshRotatesTokens(t *testing.T) {
 	machine := tvm.NewVendingMachine(newTestingQueries(), testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
 
-	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken)
+	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken, queries.SessionKindCli)
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
@@ -334,7 +339,9 @@ func TestRefreshRotatesTokens(t *testing.T) {
 		t.Fatalf("refresh did not issue a new token pair")
 	}
 
-	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+	if _, _, err := machine.Refresh(
+		t.Context(), refreshToken, queries.SessionKindCli,
+	); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("reusing a rotated refresh token: got %v, want ErrInvalidExpiredToken", err)
 	}
 }
@@ -345,7 +352,9 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 	machine := tvm.NewVendingMachine(racingRefreshQueries{tq}, testConfig())
 	_, refreshToken := session(t, machine, user1UUID)
 
-	if _, _, err := machine.Refresh(t.Context(), refreshToken); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+	if _, _, err := machine.Refresh(
+		t.Context(), refreshToken, queries.SessionKindCli,
+	); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("losing refresh: got %v, want ErrInvalidExpiredToken", err)
 	}
 	if len(tq.sessions) != 0 {
@@ -362,7 +371,7 @@ func TestDatabaseFailureIsNotAnInvalidToken(t *testing.T) {
 			t.Errorf("GetToken(%s) on a closed pool: got %v, want the database error", token, err)
 		}
 	}
-	_, _, err := machine.Refresh(t.Context(), "loco_r_unknown")
+	_, _, err := machine.Refresh(t.Context(), "loco_r_unknown", queries.SessionKindCli)
 	if err == nil || errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Errorf("Refresh on a closed pool: got %v, want the database error", err)
 	}

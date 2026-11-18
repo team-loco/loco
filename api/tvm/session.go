@@ -2,7 +2,7 @@ package tvm
 
 import (
 	"context"
-	"log/slog"
+	"fmt"
 	"net/netip"
 	"time"
 
@@ -12,6 +12,26 @@ import (
 
 func (tvm *VendingMachine) IssueSession(
 	ctx context.Context,
+	userID uuid.UUID,
+	identityID *uuid.UUID,
+	ip netip.Addr,
+	userAgent string,
+) (string, string, error) {
+	return tvm.issueSession(ctx, queries.SessionKindCli, userID, identityID, ip, userAgent)
+}
+
+func (tvm *VendingMachine) IssueWebSession(
+	ctx context.Context,
+	userID, identityID uuid.UUID,
+	ip netip.Addr,
+	userAgent string,
+) (string, string, error) {
+	return tvm.issueSession(ctx, queries.SessionKindWeb, userID, &identityID, ip, userAgent)
+}
+
+func (tvm *VendingMachine) issueSession(
+	ctx context.Context,
+	kind queries.SessionKind,
 	userID uuid.UUID,
 	identityID *uuid.UUID,
 	ip netip.Addr,
@@ -37,9 +57,9 @@ func (tvm *VendingMachine) IssueSession(
 		IpAddress:        ipAddr,
 		UserAgent:        &userAgent,
 		IdentityID:       identityID,
+		Kind:             kind,
 	}); err != nil {
-		slog.ErrorContext(ctx, "failed to create session token", "error", err)
-		return "", "", ErrStoreToken
+		return "", "", fmt.Errorf("%w: %w", ErrStoreToken, err)
 	}
 	return accessToken, refreshToken, nil
 }

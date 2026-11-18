@@ -128,7 +128,7 @@ func TestIssuedTokensCarryGeneratedBytesAndStoreOnlyHashes(t *testing.T) {
 	if err != nil || apiPrincipal.Entity.ID != user.ID {
 		t.Fatalf("api token lookup = %v, %v", apiPrincipal.Entity, err)
 	}
-	newAccess, newRefresh, err := machine.Refresh(ctx, refresh)
+	newAccess, newRefresh, err := machine.Refresh(ctx, refresh, queries.SessionKindCli)
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}

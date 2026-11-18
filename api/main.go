@@ -507,7 +507,8 @@ func newRPCServers(ctx context.Context, ac *APIConfig, d *deps) (base, authentic
 		errorInterceptor,
 		deadlineInterceptor.Interceptor(),
 		interceptor.NewContextInterceptor().Interceptor(),
-		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer, ac.StreamAuth).Interceptor(),
+		interceptor.NewAuthInterceptor(d.machine, d.verifier, d.resolver, d.authorizer, ac.StreamAuth).
+			WebCookies(auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins)).Interceptor(),
 		validate.NewServerInterceptor(),
 	)
 	return base, authenticated, nil
@@ -570,7 +571,12 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 
 func newServer(ac *APIConfig, mux *http.ServeMux) *http.Server {
 	allowLoopback := ac.Env != envProduction
-	corsMiddleware := withCORS(ac.CORSAllowedOrigins, allowLoopback)
+	corsOrigins := ac.CORSAllowedOrigins
+	webOrigin := auth.NewWebCookies(ac.WebURL, nil).Origin()
+	if webOrigin != "" && !slices.Contains(corsOrigins, webOrigin) {
+		corsOrigins = append(slices.Clone(corsOrigins), webOrigin)
+	}
+	corsMiddleware := withCORS(corsOrigins, allowLoopback)
 	tracedMux := withServerTracing(mux)
 	muxWCors := corsMiddleware(tracedMux)
 

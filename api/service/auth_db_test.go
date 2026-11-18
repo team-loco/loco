@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -88,6 +89,22 @@ func newAuthFixture(t *testing.T) *authFixture {
 	return f
 }
 
+func (f *authFixture) issueWebSession(t *testing.T) (access, refresh string) {
+	t.Helper()
+	principal, _ := reqctx.PrincipalFrom(f.webCtx)
+	identities, err := f.queries.ListIdentitiesForUser(t.Context(), principal.UserID)
+	if err != nil || len(identities) != 1 {
+		t.Fatalf("fixture identities = %v, error = %v", identities, err)
+	}
+	access, refresh, err = f.machine.IssueWebSession(
+		t.Context(), principal.UserID, identities[0].ID, netip.Addr{}, "dashboard",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return access, refresh
+}
+
 func challengeFor(verifier string) string {
 	sum := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
@@ -163,26 +180,41 @@ func TestCLILoopbackLogin(t *testing.T) {
 func TestCLIApprovalNeedsWebSession(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	principal, ok := reqctx.PrincipalFrom(f.webCtx)
-	if !ok {
-		t.Fatal("no principal")
+	web, _ := f.issueWebSession(t)
+	cli := f.login(t).GetAccessToken()
+	for _, tc := range []struct {
+		name  string
+		token string
+		want  connect.Code
+	}{
+		{"dashboard session", web, 0},
+		{"CLI session", cli, connect.CodePermissionDenied},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			principal, err := f.machine.GetToken(t.Context(), tc.token)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx := reqctx.WithPrincipal(t.Context(), principal)
+			_, err = f.server.ApproveCLILogin(ctx, &authv1.ApproveCLILoginRequest{
+				State: testState, CodeChallenge: challengeFor("v"),
+			})
+			if got := codeOf(err); (tc.want == 0 && err != nil) || (tc.want != 0 && got != tc.want) {
+				t.Fatalf("approve loopback = %v, want %v", err, tc.want)
+			}
+			device, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = f.server.ApproveDeviceLogin(ctx, &authv1.ApproveDeviceLoginRequest{
+				UserCode: device.GetUserCode(),
+			})
+			if got := codeOf(err); (tc.want == 0 && err != nil) || (tc.want != 0 && got != tc.want) {
+				t.Fatalf("approve device = %v, want %v", err, tc.want)
+			}
+		})
 	}
-	cliCtx := reqctx.WithPrincipal(t.Context(), principal)
-
-	_, err := f.server.ApproveCLILogin(cliCtx, &authv1.ApproveCLILoginRequest{
-		State: testState, CodeChallenge: challengeFor("v"),
-	})
-	if codeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("approve from a cli token: %v", err)
-	}
-	_, err = f.server.ApproveDeviceLogin(
-		cliCtx,
-		&authv1.ApproveDeviceLoginRequest{UserCode: "BCDF-GHJK"},
-	)
-	if codeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("device approve from a cli token: %v", err)
-	}
-	_, err = f.server.ApproveCLILogin(t.Context(), &authv1.ApproveCLILoginRequest{})
+	_, err := f.server.ApproveCLILogin(t.Context(), &authv1.ApproveCLILoginRequest{})
 	if codeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("anonymous approve: %v", err)
 	}

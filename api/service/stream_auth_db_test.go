@@ -149,6 +149,50 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 	}
 }
 
+func TestIdleDashboardStreamClosesAfterSuspension(t *testing.T) {
+	t.Parallel()
+	f, userID, workspaceID := newStreamCredentialFixture(t)
+	identities, err := f.queries.ListIdentitiesForUser(t.Context(), userID)
+	if err != nil || len(identities) != 1 {
+		t.Fatalf("fixture identity = %v, error = %v", identities, err)
+	}
+	access, _, err := f.machine.IssueWebSession(t.Context(), userID, identities[0].ID, netip.Addr{}, "stream")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := streamCredentialServer(f.machine, f.queries)
+	eventv1connect.RegisterEventServiceHandler(server, f.events)
+	mux := http.NewServeMux()
+	connecthttp.Mount(mux, server)
+	endpoint := httptest.NewServer(auth.StreamTransport(mux))
+	t.Cleanup(endpoint.Close)
+	transport := connecthttp.NewTransport(endpoint.Client(), endpoint.URL)
+	client := eventv1connect.NewEventServiceClient(connect.NewClient(transport))
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	ctx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Cookie", "__Host-loco_session="+access)
+	info.RequestHeader().Set("Connect-Protocol-Version", "1")
+	request := &eventv1.StreamEventsRequest{OrgId: f.orgID, WorkspaceId: workspaceID.String()}
+	stream, err := client.StreamEvents(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if _, err := stream.Receive(); err != nil {
+		t.Fatalf("initial event batch: %v", err)
+	}
+	if _, err := f.queries.SetUserStatus(t.Context(), genDb.SetUserStatusParams{
+		ID: userID, Status: genDb.UserStatusSuspended,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stream.Receive(); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("dashboard stream after suspension = %v, want Unauthenticated", err)
+	}
+}
+
 func TestIdleEventStreamReportsDatabaseConnectionFailure(t *testing.T) {
 	t.Parallel()
 	f, userID, workspaceID := newStreamCredentialFixture(t)
@@ -326,7 +370,7 @@ func streamCredentialServer(machine *tvm.VendingMachine, queries *genDb.Queries)
 	return connect.NewServer(interceptor.NewErrorInterceptor(), interceptor.NewAuthInterceptor(
 		machine, auth.NewVerifier(http.DefaultClient, nil), nil, authz.New(queries),
 		auth.StreamConfig{Interval: 5 * time.Millisecond, Timeout: time.Second},
-	).Interceptor())
+	).WebCookies(auth.NewWebCookies("https://app.loco.test", nil)).Interceptor())
 }
 
 func streamHTTPClients(t *testing.T, server *connect.Server, token string) *rpc.Clients {

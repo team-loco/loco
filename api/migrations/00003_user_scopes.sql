@@ -47,12 +47,15 @@ CREATE TABLE system_admin_grants (
 -- token format: loco_s_<base64url(32 random bytes)>  access token
 --               loco_r_<base64url(32 random bytes)>  refresh token
 -- stored as sha256(full_token_string), never the raw token
+CREATE TYPE session_kind AS ENUM ('cli', 'web');
+
 CREATE UNLOGGED TABLE session_tokens (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     access_token_hash TEXT NOT NULL UNIQUE,
     refresh_token_hash TEXT NOT NULL UNIQUE,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     identity_id UUID REFERENCES identities(id) ON DELETE CASCADE,
+    kind session_kind NOT NULL DEFAULT 'cli' CHECK (kind != 'web' OR identity_id IS NOT NULL),
     access_expires_at TIMESTAMPTZ NOT NULL,
     refresh_expires_at TIMESTAMPTZ NOT NULL,
     last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -66,6 +69,16 @@ CREATE INDEX session_tokens_identity_idx ON session_tokens (identity_id);
 CREATE INDEX session_tokens_access_expires_idx ON session_tokens (access_expires_at);
 -- cleanup cron uses refresh expiry to determine if a session is fully dead
 CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expires_at);
+
+-- Retain consumed refresh hashes until their original expiry to detect reuse.
+CREATE UNLOGGED TABLE used_session_refresh_tokens (
+    token_hash TEXT PRIMARY KEY,
+    session_id UUID NOT NULL REFERENCES session_tokens(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX used_session_refresh_tokens_session_idx ON used_session_refresh_tokens (session_id);
+CREATE INDEX used_session_refresh_tokens_expiry_idx ON used_session_refresh_tokens (expires_at);
 
 -- api tokens: logged, durable, scopes baked in at creation and never change
 -- token format: loco_k_<base64url(32 random bytes)>
@@ -127,7 +140,9 @@ CREATE INDEX invitations_claimed_by_idx ON invitations (claimed_by);
 -- +goose Down
 DROP TABLE IF EXISTS invitations;
 DROP TABLE IF EXISTS api_tokens;
+DROP TABLE IF EXISTS used_session_refresh_tokens;
 DROP TABLE IF EXISTS session_tokens;
+DROP TYPE IF EXISTS session_kind;
 DROP TABLE IF EXISTS system_admin_grants;
 DROP TABLE IF EXISTS system_admin_claims;
 DROP TABLE IF EXISTS user_scopes;

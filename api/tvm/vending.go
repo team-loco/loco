@@ -56,6 +56,9 @@ func (tvm *VendingMachine) RunCleanup(ctx context.Context, every time.Duration) 
 			if err := tvm.queries.DeleteExpiredSessionTokens(ctx); err != nil {
 				slog.ErrorContext(ctx, "failed to delete expired session tokens", "err", err)
 			}
+			if err := tvm.queries.DeleteExpiredUsedRefreshTokens(ctx); err != nil {
+				slog.ErrorContext(ctx, "failed to delete expired used refresh tokens", "err", err)
+			}
 			if err := tvm.queries.DeleteExpiredAPITokens(ctx); err != nil {
 				slog.ErrorContext(ctx, "failed to delete expired api tokens", "err", err)
 			}

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/reqctx"
+	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 )
@@ -104,6 +106,38 @@ func TestCLIRefreshRefusesSuspendedAccount(t *testing.T) {
 		RefreshToken: tokens.GetRefreshToken(),
 	}); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("refresh suspended account = %v, want Unauthenticated", err)
+	}
+}
+
+func TestCLIRefreshRejectsWebSession(t *testing.T) {
+	t.Parallel()
+	f := newAuthHTTPFixture(t)
+	webAccess, webRefresh := f.issueWebSession(t)
+	_, err := f.client.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{RefreshToken: webRefresh})
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("CLI refresh of web session = %v, want Unauthenticated", err)
+	}
+	if _, err = f.machine.GetToken(t.Context(), webAccess); err != nil {
+		t.Fatalf("CLI refresh mutated the web session: %v", err)
+	}
+}
+
+func TestRefreshCommitsRevocationOnReuse(t *testing.T) {
+	t.Parallel()
+	f := newAuthHTTPFixture(t)
+	token := f.login(t).GetRefreshToken()
+	request := &authv1.RefreshCLITokenRequest{RefreshToken: token}
+	rotated, err := f.client.RefreshCLIToken(t.Context(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, replayErr := f.client.RefreshCLIToken(t.Context(), request)
+	if connect.CodeOf(replayErr) != connect.CodeUnauthenticated {
+		t.Fatalf("reuse = %v, want Unauthenticated", replayErr)
+	}
+	_, err = f.machine.GetToken(t.Context(), rotated.GetTokens().GetAccessToken())
+	if !errors.Is(err, tvm.ErrInvalidExpiredToken) {
+		t.Fatalf("rotated access token = %v, want revoked", err)
 	}
 }
 
