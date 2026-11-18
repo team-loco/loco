@@ -2,7 +2,7 @@ import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { maybeTsMs } from "@/lib/time";
 
 export const TRAFFIC_METRICS = [
-	{ metricName: "cluster.upstream_rq_total", aggregation: "rate" },
+	{ metricName: "cluster.upstream_rq_completed", aggregation: "rate" },
 	{
 		metricName: "cluster.upstream_rq_xx",
 		aggregation: "rate",
