@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from harness import (
     call,
     evidence,
+    expect_rpc,
     load_state,
     open_page as new_page,
     repo,
@@ -527,10 +528,8 @@ with session(out) as browser:
     interval.fill("15")
     expect(drawer.get_by_role("alert")).to_have_count(0)
     creations_before = len(creations)
-    with page.expect_response(
-        lambda response: response.url.endswith(
-            "/loco.deployment.v1.DeploymentService/ResolveImage"
-        )
+    with expect_rpc(
+        page, "ResolveImage", lambda body: body.get("workspaceId") == workspace
     ) as resolution:
         drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
     details = resolution.value.json()["details"]

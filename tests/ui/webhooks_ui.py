@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import call, load_state, open_page, repo, session, sql
+from harness import call, expect_rpc, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -169,7 +169,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     expect(deliveries.locator("li")).to_have_count(25)
     retry = drawer.get_by_role("button", name="Retry deliveries", exact=True)
     retry.focus()
-    with page.expect_response("**/" + service + "ListWebhookDeliveries"):
+    with expect_rpc(
+        page, "ListWebhookDeliveries", lambda body: body.get("webhookId") == hook_id
+    ):
         page.keyboard.press("Enter")
     expect(retry).to_be_focused()
     page.unroute("**/" + service + "ListWebhookDeliveries")

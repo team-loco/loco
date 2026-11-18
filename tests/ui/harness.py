@@ -99,6 +99,15 @@ def expect_rpc(page, method, match):
         yield info
 
 
+@contextlib.contextmanager
+def expect_json(page, path, match):
+    """Waits for the response from `path` whose JSON body satisfies `match`."""
+    with page.expect_response(
+        lambda response: response.url.endswith(path) and match(response.json())
+    ) as info:
+        yield info
+
+
 def call(state, method, body, user="owner"):
     return evidence.rpc(state["api_url"], state["users"][user]["token"], method, body)
 

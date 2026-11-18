@@ -9,6 +9,7 @@ from pathlib import Path
 from harness import (
     call,
     evidence,
+    expect_rpc,
     load_state,
     open_page,
     repo,
@@ -282,7 +283,7 @@ def log_levels(page):
 
 def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
-    page.wait_for_load_state("networkidle")
+    expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
     live = page.get_by_role("button", name=re.compile(r"^(Live|Starting…)"))
     expect(live).to_have_attribute("aria-pressed", "false")
     # Hold the latest-logs request so the button stays in its pending state.
@@ -512,11 +513,16 @@ def volume(page):
     )
 
     def open_hour():
-        page.goto(
-            state["ui_url"]
-            + base
-            + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
-        )
+        with expect_rpc(
+            page,
+            "QueryLogBuckets",
+            lambda body: body.get("groupBy") == "LOG_BUCKET_GROUP_SEVERITY",
+        ):
+            page.goto(
+                state["ui_url"]
+                + base
+                + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
+            )
         # The chart remounts once the volume query starts; its counts show it has settled.
         expect(info).to_contain_text("10,005")
 
