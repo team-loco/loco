@@ -23,10 +23,7 @@ case "${0##*/} $*" in
  'kind create cluster'*)
   if [ "$FAIL_CREATE" = true ]; then echo 'deliberate kind failure' >&2; exit 7; fi;;
  *'crictl ps'*) echo container-id;;
- *'crictl logs'*)
-  if [ -n "$FAIL_LOGS" ] && [ -f "$FAIL_LOGS" ]; then echo 'unable to retrieve container logs' >&2; exit 1; fi
-  if [ -n "$LOG_FILE" ]; then cat "$LOG_FILE"; else echo 'control-plane failure evidence'; fi;;
- 'kubectl '*'-o json') if [ -n "$PODS_FILE" ]; then cat "$PODS_FILE"; else echo '{"items":[]}'; fi;;
+ *'crictl logs'*) echo 'control-plane failure evidence';;
  *) echo 'diagnostic evidence';;
 esac
 `

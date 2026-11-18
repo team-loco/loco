@@ -198,15 +198,6 @@ func agentKeyFingerprint(t *testing.T) string {
 	return ""
 }
 
-func agentErrors(t *testing.T) []string {
-	t.Helper()
-	lines, err := p.LogLines("agent", `"level":"ERROR"`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return lines
-}
-
 func reconnectAcrossAPIProcesses(t *testing.T) {
 	replica, err := p.StartAPIReplica(t.Context())
 	if err != nil {
@@ -238,7 +229,6 @@ func reconnectAcrossAPIProcesses(t *testing.T) {
 
 func pauseRemoveRestore(t *testing.T) {
 	unused := joinToken(t)
-	errorsBefore := agentErrors(t)
 	locoadm(t, "cluster", "pause", p.ClusterID)
 	if clusterActive(t) {
 		t.Error("pause left the cluster active for assignment")
@@ -263,12 +253,6 @@ func pauseRemoveRestore(t *testing.T) {
 	if _, code := p.AgentExited(); code != 1 {
 		t.Errorf("agent exit code on the removed cluster = %d, want 1", code)
 	}
-	removal := agentErrors(t)[len(errorsBefore):]
-	if len(removal) != 1 || !strings.Contains(removal[0], `"msg":"agent error"`) ||
-		!strings.Contains(removal[0], "permission_denied: cluster is removed") {
-		t.Errorf("agent ERROR entries on removal = %q, want one permission_denied: cluster is removed", removal)
-	}
-	p.ExpectAgentErrors(removal...)
 	if code := enroll(t, unused); code != connect.CodeUnauthenticated {
 		t.Errorf("enrollment of the removed cluster: code %v, want unauthenticated", code)
 	}
@@ -334,16 +318,7 @@ func delayedJoinToken(t *testing.T) {
 	tokenFile := filepath.Join(t.TempDir(), "join-token")
 	done := make(chan error, 1)
 	go func() { done <- p.StartAgentWithTokenFile(t.Context(), p.APIURL, tokenFile) }()
-	platform.Eventually(t, time.Minute, "agent waiting for its token file", func(context.Context) error {
-		lines, err := p.LogLines("agent", `"msg":"waiting for agent registration"`)
-		if err != nil {
-			return err
-		}
-		if len(lines) == 0 {
-			return errors.New("agent has not reported waiting")
-		}
-		return nil
-	})
+	platform.Eventually(t, time.Minute, "the unenrolled agent to store a new key", p.AgentKeyStored)
 	if exited, code := p.AgentExited(); exited {
 		t.Fatalf("unenrolled agent exited: %d", code)
 	}

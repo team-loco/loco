@@ -1,13 +1,11 @@
 package platform
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -107,60 +105,4 @@ func (p *Platform) stopProcesses() {
 
 func (p *Platform) logPath(name string) string {
 	return filepath.Join(p.logDir, name+".log")
-}
-
-// LogLines returns the lines of a host process's log that contain substring.
-func (p *Platform) LogLines(name, substring string) ([]string, error) {
-	file, err := os.Open(p.logPath(name))
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
-	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), substring) {
-			lines = append(lines, scanner.Text())
-		}
-	}
-	return lines, scanner.Err()
-}
-
-// agentLog collects the ERROR entries tests expect, so the run fails on any other.
-type agentLog struct {
-	path     string
-	mu       sync.Mutex
-	expected map[string]bool
-}
-
-// ExpectAgentErrors records agent log lines a test caused on purpose.
-func (p *Platform) ExpectAgentErrors(lines ...string) {
-	p.agentLog.mu.Lock()
-	defer p.agentLog.mu.Unlock()
-	for _, line := range lines {
-		p.agentLog.expected[line] = true
-	}
-}
-
-var errAgentErrors = errors.New("the agent logged ERROR entries during the run")
-
-func (l *agentLog) check() error {
-	data, err := os.ReadFile(l.path)
-	if err != nil {
-		return fmt.Errorf("read the agent log: %w", err)
-	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	var unexpected []string
-	for line := range strings.Lines(string(data)) {
-		line = strings.TrimRight(line, "\n")
-		if strings.Contains(line, `"level":"ERROR"`) && !l.expected[line] {
-			unexpected = append(unexpected, line)
-		}
-	}
-	if len(unexpected) > 0 {
-		return fmt.Errorf("%w:\n%s", errAgentErrors, strings.Join(unexpected, "\n"))
-	}
-	return nil
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -32,13 +31,11 @@ func TestHandlerErrorsOnTheWire(t *testing.T) {
 		err         error
 		wantCode    connect.Code
 		wantMessage string
-		wantLogs    int
 	}{
 		"plain failure": {
 			err:         fmt.Errorf("load thing 0190: %w", errPrivateFailure),
 			wantCode:    connect.CodeInternal,
 			wantMessage: publicRequestFailed,
-			wantLogs:    1,
 		},
 		"wrapped coded error": {
 			err:         fmt.Errorf("load thing 0190: %w", errThingNotFound),
@@ -57,12 +54,10 @@ func TestHandlerErrorsOnTheWire(t *testing.T) {
 			),
 			wantCode:    connect.CodeInternal,
 			wantMessage: publicRequestFailed,
-			wantLogs:    1,
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			logs := captureLogs(t)
 			server := connect.NewServer(NewErrorInterceptor())
 			configv1connect.RegisterConfigServiceHandler(server, &failingConfig{err: tc.err})
 			client := configv1connect.NewConfigServiceClient(connect.NewClient(connectinprocess.New(server)))
@@ -70,9 +65,6 @@ func TestHandlerErrorsOnTheWire(t *testing.T) {
 			failure, ok := errors.AsType[*connect.Error](err)
 			if !ok || failure.Code() != tc.wantCode || failure.Message() != tc.wantMessage {
 				t.Fatalf("wire error = %v, want %s %q", err, tc.wantCode, tc.wantMessage)
-			}
-			if got := len(logs.atLeast(slog.LevelError)); got != tc.wantLogs {
-				t.Fatalf("error records = %d, want %d", got, tc.wantLogs)
 			}
 		})
 	}

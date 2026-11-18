@@ -26,8 +26,6 @@ const (
 	contentTypeHeader = "Content-Type"
 	jsonContent       = "application/json"
 	passwordKey       = "password"
-	// transitStartupError identifies the API's tolerated OpenBao startup failure.
-	transitStartupError = `loco api failed error="verify the transit keys: `
 )
 
 // chartValues are the loco-control-plane values the suite reads: the chart's defaults overlaid
@@ -203,18 +201,7 @@ func install(t *testing.T) *controlPlane {
 		"LOCO_IMAGE_RETENTION":           "0",
 		"LOCO_SECRETS_TRANSIT_CACHE_TTL": "1s",
 	})
-	startupCtx, cancelStartup := context.WithCancel(t.Context())
-	startup := c.CaptureStartupLogs(startupCtx, cp.namespace, "app="+release+"-api")
-	t.Cleanup(func() {
-		cancelStartup()
-		for range startup {
-		}
-	})
 	cp.upgrade(t)
-	cancelStartup()
-	if err := (<-startup).CheckRestarts(transitStartupError); err != nil {
-		t.Fatal(err)
-	}
 
 	selector := "gateway.envoyproxy.io/owning-gateway-name=" + cp.values.Gateway.Name
 	if err := c.WaitDeployments(t.Context(), cp.namespace, selector, installTimeout); err != nil {

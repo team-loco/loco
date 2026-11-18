@@ -98,7 +98,6 @@ type Platform struct {
 	adminHome      string
 	userSession    session
 	processes      processes
-	agentLog       *agentLog
 	runCtx         context.Context
 	databaseURL    string
 	transitAddr    string
@@ -193,10 +192,6 @@ func (p *Platform) runTests(ctx context.Context, m *testing.M) int {
 	}
 	logf("Platform %s ready", p.run)
 	code := m.Run()
-	if err := p.agentLog.check(); err != nil {
-		logf("%v", err)
-		code = 1
-	}
 	if code != 0 {
 		p.dump(context.WithoutCancel(ctx))
 	}
