@@ -131,8 +131,9 @@ func TestRefreshCommitsRevocationOnReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.client.RefreshCLIToken(t.Context(), request); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("reuse = %v, want Unauthenticated", err)
+	_, replayErr := f.client.RefreshCLIToken(t.Context(), request)
+	if connect.CodeOf(replayErr) != connect.CodeUnauthenticated {
+		t.Fatalf("reuse = %v, want Unauthenticated", replayErr)
 	}
 	_, err = f.machine.GetToken(t.Context(), rotated.GetTokens().GetAccessToken())
 	if !errors.Is(err, tvm.ErrInvalidExpiredToken) {
