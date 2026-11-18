@@ -38,3 +38,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           E2E_IMAGES: ${{ inputs.images }}
         run: mise run e2e:installation
+      - name: Show the image cache's requests for the source build's base image
+        if: always() && env.DOCKER_HUB_MIRROR != ''
+        run: |
+          requests=$(jq -cR 'fromjson? | select((.path // "") | contains("/library/golang/")) | {clientIP, method, path, statusCode}' "$RUNNER_TEMP/zot.log")
+          echo "${requests:-The image cache served no request for library/golang.}"
