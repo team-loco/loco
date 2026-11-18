@@ -9,6 +9,13 @@ export function fmtTs(ms: number, withMs: boolean, pref: TimePreferences): strin
 	return `${formatSlashDate(ms, pref)} ${formatClock(ms, withMs, pref)}`;
 }
 
+export const LEVEL_LABEL: Record<Level, string> = {
+	error: "Error",
+	warn: "Warning",
+	info: "Info",
+	debug: "Debug",
+};
+
 export interface LevelStyle {
 	badge: string;
 	body: string;

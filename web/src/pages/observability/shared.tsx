@@ -191,7 +191,7 @@ export function PanelNav({
 		<>
 			<Button
 				variant="ghost"
-				size="icon-sm"
+				size="icon"
 				title="Newer"
 				aria-label="Newer"
 				disabled={onPrev === null}
@@ -202,7 +202,7 @@ export function PanelNav({
 			</Button>
 			<Button
 				variant="ghost"
-				size="icon-sm"
+				size="icon"
 				title="Older"
 				aria-label="Older"
 				disabled={onNext === null}
@@ -213,7 +213,7 @@ export function PanelNav({
 			</Button>
 			<Button
 				variant="ghost"
-				size="icon-sm"
+				size="icon"
 				title="Close"
 				aria-label="Close"
 				onClick={onClose}
@@ -226,15 +226,3 @@ export function PanelNav({
 }
 
 export const PAGE_SIZES = [25, 50, 100];
-
-export function DetailPanel({ label, header, children }: { label: string; header: ReactNode; children: ReactNode }) {
-	return (
-		<aside
-			aria-label={label}
-			className="sticky top-4 flex max-h-[calc(100dvh-32px)] min-w-0 flex-col overflow-hidden rounded-overlay border border-line bg-background"
-		>
-			<div className="flex items-start gap-1 border-b border-line py-3 pr-2.5 pl-4">{header}</div>
-			{children}
-		</aside>
-	);
-}

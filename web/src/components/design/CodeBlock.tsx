@@ -43,6 +43,7 @@ function CodeBlock({
 
 	return (
 		<div
+			data-slot="code-block"
 			className={cn(
 				"group/code relative flex min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-code-bg",
 				className,

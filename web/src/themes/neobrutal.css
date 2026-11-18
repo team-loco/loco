@@ -476,7 +476,7 @@
 		background: color-mix(in oklch, var(--btn) 25%, transparent);
 		border: 2px solid var(--ink);
 	}
-	& [class~="group/code"] {
+	& [data-slot="code-block"] {
 		border: 2px solid var(--ink);
 		border-radius: 5px;
 		box-shadow: 3px 3px 0 var(--ink);

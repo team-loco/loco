@@ -50,9 +50,9 @@ describe("regional telemetry filters", () => {
 });
 
 describe("log severity filters", () => {
-	test("labels records without a severity INFO", () => {
+	test("reads records without a severity as info", () => {
 		const row = toRows([create(LogEntrySchema, { body: "unstructured stdout", severity: "" })], new Map())[0];
-		expect(row?.label).toBe("INFO");
+		expect(row?.level).toBe("info");
 	});
 });
 

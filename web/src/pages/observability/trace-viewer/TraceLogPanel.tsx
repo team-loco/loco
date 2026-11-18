@@ -13,7 +13,7 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { useObs } from "../context";
-import { levelStyle } from "../format";
+import { LEVEL_LABEL, levelStyle } from "../format";
 import { LogDetail } from "../LogDetail";
 import type { LogRow } from "../rows";
 import { durationLabel, type TraceSummary } from "../traces";
@@ -169,30 +169,34 @@ export function TraceLogPanel({
 					<>
 						<TabsContent data-trace-log-scroll value="logs" className="min-h-0 flex-1 overflow-auto">
 							{opened !== null ? (
-								<LogDetail
-									row={opened}
-									onFilterToken={(token) => {
-										goTo("logs", {
-											range: { kind: "absolute", from: logs.from, to: logs.to },
-											tokens: token.key === "trace" ? [token] : [{ key: "trace", value: trace.id, neg: false }, token],
-											focusTs: opened.ts,
-										});
-									}}
-									words={[]}
-									columns={[]}
-									onAround={() => {
-										goTo("logs", {
-											range: aroundWindow(opened.ts, Date.now()),
-											tokens: [{ key: "trace", value: trace.id, neg: false }],
-											focusTs: opened.ts,
-										});
-									}}
-									onPrev={null}
-									onNext={null}
-									onClose={() => {
-										onOpen(null);
-									}}
-								/>
+								<aside aria-label="Log line" className="flex min-w-0 flex-col">
+									<LogDetail
+										row={opened}
+										title="h3"
+										onFilterToken={(token) => {
+											goTo("logs", {
+												range: { kind: "absolute", from: logs.from, to: logs.to },
+												tokens:
+													token.key === "trace" ? [token] : [{ key: "trace", value: trace.id, neg: false }, token],
+												focusTs: opened.ts,
+											});
+										}}
+										words={[]}
+										columns={[]}
+										onAround={() => {
+											goTo("logs", {
+												range: aroundWindow(opened.ts, Date.now()),
+												tokens: [{ key: "trace", value: trace.id, neg: false }],
+												focusTs: opened.ts,
+											});
+										}}
+										onPrev={null}
+										onNext={null}
+										onClose={() => {
+											onOpen(null);
+										}}
+									/>
+								</aside>
 							) : (
 								<section aria-label="Logs in this trace" className="min-w-0">
 									{logs.isLoading && (
@@ -247,7 +251,7 @@ export function TraceLogPanel({
 												>
 													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
 													<span className="text-fg3">+{durationLabel(logOffset(trace, row.entry.timestamp))}</span>
-													<span className={levelStyle(row.level).body}>{row.label}</span>
+													<span className={levelStyle(row.level).body}>{LEVEL_LABEL[row.level]}</span>
 													<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
 														<span className="mr-2 inline-flex items-center gap-1 text-fg3">
 															<i className="size-1.5 rounded-full" style={{ background: row.color }} />

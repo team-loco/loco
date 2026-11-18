@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useState } from "react";
+import { useState, type ElementType, type ReactNode } from "react";
 import { Link } from "react-router";
 import {
 	BoxIcon,
@@ -29,14 +29,15 @@ import { SearchInput } from "@/components/design/SearchInput";
 import { useCopy } from "@/hooks/useCopy";
 import { AROUND_MS, aroundWindow, MINUTE_MS } from "@/lib/obs-time";
 import { resourcePath } from "@/lib/routes";
+import { formatFullTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
-import { bodyParts, fmtTs, levelStyle } from "./format";
+import { bodyParts, LEVEL_LABEL, levelStyle } from "./format";
 import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
 import type { LogRow } from "./rows";
-import { CopyButton, DetailPanel, Dot, PanelNav } from "./shared";
+import { CopyButton, PanelNav } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
 const AROUND_LABEL = `±${String(AROUND_MS / MINUTE_MS)} minutes`;
@@ -53,24 +54,23 @@ function attributes(row: LogRow): Attribute[] {
 	const e = row.entry;
 	const field = (key: string, value: string) => ({ key, value: quoteValue(value) });
 	const list: Attribute[] = [
-		{ key: "timestamp", value: new Date(row.ts).toISOString(), filter: "Use the time range to pick a time" },
-		{ key: "level", value: row.level, filter: field("level", row.level), column: "level" },
 		{ key: "resource", value: row.resourceName, filter: field("resource", row.resourceName), column: "resource" },
-		{ key: "replica", value: row.pod, filter: field("replica", row.pod), column: "replica" },
+		{ key: "replica", value: row.replica, filter: field("replica", row.pod), column: "replica" },
 		{ key: "region", value: row.region, filter: field("region", row.region), column: "region" },
-		{ key: "trace_id", value: e.traceId, filter: field("trace", e.traceId), column: "trace" },
-		{ key: "span_id", value: e.spanId, filter: "Filter by trace_id to see the request" },
+		{ key: "level", value: row.level, filter: field("level", row.level), column: "level" },
 	];
 	const extra = new Map<string, Attribute>();
 	for (const [key, value] of Object.entries({ ...e.resourceAttributes, ...e.logAttributes })) {
 		if (key === "k8s.pod.name" || key === "loco.region") continue;
 		extra.set(key, { key, value, filter: queryKeyReason(key, "logs") ?? field(key, value), column: key });
 	}
-	return [...list, ...extra.values()].filter((a) => a.value !== "");
+	const trace: Attribute = { key: "trace", value: e.traceId, filter: field("trace", e.traceId), column: "trace" };
+	return [...list, ...extra.values(), trace].filter((a) => a.value !== "");
 }
 
 export function LogDetail({
 	row,
+	title: Title,
 	words,
 	columns,
 	onColumns,
@@ -81,6 +81,7 @@ export function LogDetail({
 	onAround,
 }: {
 	row: LogRow;
+	title: ElementType<{ className?: string; children: ReactNode }>;
 	words: string[];
 	columns: ColumnKey[];
 	onColumns?: (next: ColumnKey[]) => void;
@@ -112,7 +113,7 @@ export function LogDetail({
 	const json = JSON.stringify(
 		{
 			timestamp: new Date(row.ts).toISOString(),
-			level: row.label,
+			level: row.level,
 			message: row.json ?? e.body,
 			resource: row.resourceName,
 			replica: row.pod,
@@ -128,27 +129,28 @@ export function LogDetail({
 	const msgText = row.json !== null ? JSON.stringify(row.json, null, 2) : e.body;
 
 	return (
-		<DetailPanel
-			label="Log line"
-			header={
-				<>
-					<div className="flex min-w-0 flex-1 flex-col gap-1">
-						<span className="flex min-w-0 items-center gap-2">
-							<Dot size={8} color={row.color} />
-							<span className="truncate text-[16px] tracking-[-0.01em]">{row.resourceName}</span>
-							<span className={cn("inline-flex h-5 items-center rounded-[5px] px-[7px] text-[12px]", style.badge)}>
-								{row.label}
-							</span>
-						</span>
-						<span className="truncate font-mono text-[11.5px] text-fg3">
-							{fmtTs(row.ts, true, timePref)}
-							{row.replica !== "" && ` · ${row.replica}`}
-							{row.region !== "" && ` · ${row.region}`}
+		<>
+			<div className="flex shrink-0 items-start gap-3 border-b border-line pt-[18px] pr-4 pb-4 pl-6">
+				<div className="flex min-w-0 flex-1 flex-col gap-1.5">
+					<div className="flex min-w-0 items-baseline gap-2.5">
+						<Title className="m-0 truncate text-[20px] font-normal tracking-[-0.02em]">{row.resourceName}</Title>
+						<span className="truncate font-mono text-[12px] text-fg3">
+							{[row.replica, row.region].filter((part) => part !== "").join(" · ")}
 						</span>
 					</div>
+					<div className="flex min-w-0 items-center gap-2">
+						<span
+							className={cn("inline-flex h-5 shrink-0 items-center rounded-[5px] px-[7px] text-[12px]", style.badge)}
+						>
+							{LEVEL_LABEL[row.level]}
+						</span>
+						<span className="truncate font-mono text-[12px] text-fg3">{formatFullTime(row.ts, true, timePref)}</span>
+					</div>
+				</div>
+				<div className="flex shrink-0 items-center gap-0.5">
 					<DropdownMenu>
 						<DropdownMenuTrigger
-							render={<Button variant="ghost" size="icon-sm" aria-label="More for this line" title="More" />}
+							render={<Button variant="ghost" size="icon" aria-label="More for this line" title="More" />}
 						>
 							<EllipsisIcon className="size-4" />
 						</DropdownMenuTrigger>
@@ -247,11 +249,10 @@ export function LogDetail({
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<PanelNav onPrev={onPrev} onNext={onNext} onClose={onClose} />
-				</>
-			}
-		>
-			<div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 pt-4 pb-5">
-				<div className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
+				</div>
+			</div>
+			<div className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-6 pt-5 pb-6">
+				<div data-slot="code-block" className="relative rounded-lg bg-panel shadow-[inset_0_0_0_1px_var(--line)]">
 					<Button
 						variant="ghost"
 						size="icon-xs"
@@ -314,10 +315,12 @@ export function LogDetail({
 				</div>
 				<div className="flex flex-col gap-2">
 					<span className="text-[12.5px] text-fg3">JSON</span>
-					<CodeBlock language="json">{json}</CodeBlock>
+					<CodeBlock language="json" copyLabel="Copy JSON">
+						{json}
+					</CodeBlock>
 				</div>
 			</div>
-		</DetailPanel>
+		</>
 	);
 }
 
@@ -348,9 +351,9 @@ function AttributeRow({
 	const { key, value, filter } = attribute;
 	const reason = typeof filter === "string" ? filter : null;
 	return (
-		<div className="group/attr grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-1.5 last:border-b-0">
-			<span className="truncate font-mono text-[12px] text-fg3" title={key}>
-				{key}
+		<div className="group/attr grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line py-1.5 last:border-b-0">
+			<span className="truncate font-mono text-[12.5px] text-fg3" title={key}>
+				{reason === null ? `@${key}` : key}
 			</span>
 			<span
 				className={cn(

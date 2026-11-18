@@ -2,7 +2,7 @@ import { useListNavigation } from "@/hooks/useListNavigation";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { queryLogBuckets, queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon } from "lucide-react";
@@ -11,9 +11,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
+import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEnvironments } from "@/hooks/useEnvironment";
+import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
 import { useLogBuckets } from "@/hooks/useLogBuckets";
 import { useQueryLogs } from "@/hooks/useQueryLogs";
@@ -28,7 +30,7 @@ import { cn } from "@/lib/utils";
 
 import { columnsParser, widthsParser, type ColumnKey } from "./columns";
 import { useObs } from "./context";
-import { fmtTs } from "./format";
+import { fmtTs, LEVEL_LABEL } from "./format";
 import { LogDetail } from "./LogDetail";
 import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
@@ -73,11 +75,11 @@ const IDLE_TICK_MS = 15_000;
 const RATE_WINDOW_MS = 10_000;
 const FRESH_MS = 1800;
 
-const LEVEL_SERIES: Record<Level, { label: string; color: string }> = {
-	error: { label: "Error", color: "var(--err)" },
-	warn: { label: "Warning", color: "var(--lv-warn)" },
-	info: { label: "Info", color: "var(--lv-info)" },
-	debug: { label: "Debug", color: "var(--line2)" },
+const LEVEL_COLOR: Record<Level, string> = {
+	error: "var(--err)",
+	warn: "var(--lv-warn)",
+	info: "var(--lv-info)",
+	debug: "var(--line2)",
 };
 
 function levelToken(level: Level): Token {
@@ -253,7 +255,7 @@ export function LogsView() {
 		const total = [...point.counts.values()].reduce((a, n) => a + n, 0);
 		return {
 			label: `${fmtTs(point.start, false, timePref)}, ${formatCount(total)} ${total === 1 ? "line" : "lines"}`,
-			segments: LEVELS.map((level) => ({ value: point.counts.get(level) ?? 0, color: LEVEL_SERIES[level].color })),
+			segments: LEVELS.map((level) => ({ value: point.counts.get(level) ?? 0, color: LEVEL_COLOR[level] })),
 		};
 	});
 
@@ -283,11 +285,14 @@ export function LogsView() {
 		setView(idx >= 0 ? Math.floor(idx / size) : curPage, key);
 		if (freezeTs === null || selectedKey === null) setFreezeTs(rows[0]?.ts ?? nowMs);
 	};
-	useListNavigation(
+	const onListKeyDown = useListNavigation(
 		pageRows.map((row) => row.key),
 		selRow?.key ?? null,
 		select,
 	);
+	const drawerRef = useRef<HTMLDivElement>(null);
+	const shownKey = useHeldWhileClosed(selRow?.key ?? null, selRow !== undefined);
+	const shownRow = shownKey === null ? undefined : rows.find((r) => r.key === shownKey);
 	const toOlderBatch = () => {
 		setPlayback({ ...playback, on: false, pending: null, paused: null });
 		setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
@@ -325,7 +330,6 @@ export function LogsView() {
 		return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 	};
 
-	const panelOpen = selRow !== undefined;
 	const freeWords = searchWords(text);
 	const error = logs.error ?? (tail ? tailState.error : null);
 	const query = queryStr(tokens, text);
@@ -450,8 +454,8 @@ export function LogsView() {
 											n === 0 && "opacity-55 aria-pressed:opacity-100",
 										)}
 									>
-										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_SERIES[l].color }} />
-										{LEVEL_SERIES[l].label}
+										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_COLOR[l] }} />
+										{LEVEL_LABEL[l]}
 										<span className="font-mono text-[11.5px] text-fg3">
 											{volume.data === undefined && !backend.impossible ? "—" : formatCount(n)}
 										</span>
@@ -477,145 +481,152 @@ export function LogsView() {
 						)}
 					</section>
 
-					<div
-						className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[var(--log-columns)]"
-						style={
-							{
-								"--log-columns": panelOpen ? "minmax(0,1fr) minmax(380px,440px)" : "minmax(0,1fr)",
-							} as CSSProperties
-						}
-					>
-						<section aria-label="Log lines" className="flex min-w-0 flex-col rounded-card bg-panel">
-							{held > 0 && (
-								<button
-									type="button"
-									onClick={() => {
-										setFreezeTs(allTail[0]?.ts ?? nowMs);
-										setView(0, selectedKey);
-									}}
-									className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-t-card bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
-								>
-									<ArrowUpIcon className="size-[13px]" />
-									{held} {held === 1 ? "new line" : "new lines"}
-								</button>
+					<section aria-label="Log lines" className="flex min-w-0 flex-col rounded-card bg-panel">
+						{held > 0 && (
+							<button
+								type="button"
+								onClick={() => {
+									setFreezeTs(allTail[0]?.ts ?? nowMs);
+									setView(0, selectedKey);
+								}}
+								className="flex h-[30px] w-full items-center justify-center gap-1.5 rounded-t-card bg-ok-bg font-medium text-ok-fg hover:brightness-[0.97]"
+							>
+								<ArrowUpIcon className="size-[13px]" />
+								{held} {held === 1 ? "new line" : "new lines"}
+							</button>
+						)}
+						<div className="overflow-x-auto px-5 pt-1 pb-3 [scrollbar-width:thin]">
+							<LogTable
+								rows={pageRows}
+								columns={columns}
+								compact={mobile}
+								selectedKey={selRow?.key ?? null}
+								words={freeWords}
+								highlightAfter={tail ? nowMs - FRESH_MS : null}
+								onSelect={(key) => {
+									select(key === selRow?.key ? null : key);
+								}}
+								onColumns={setColumns}
+								widths={widths}
+								onWidths={(next) => {
+									void setParams({ widths: next });
+								}}
+							/>
+							{isLoading && <LoadingRows />}
+							{!isLoading && error !== null && (
+								<div role="alert" className="px-3 py-6 break-words text-bad-fg">
+									{getErrorMessage(error, "Failed to load logs")}
+								</div>
 							)}
-							<div className="overflow-x-auto px-5 pt-1 pb-3 [scrollbar-width:thin]">
-								<LogTable
-									rows={pageRows}
-									columns={columns}
-									compact={panelOpen || mobile}
-									selectedKey={selRow?.key ?? null}
+							{!isLoading && error === null && rows.length === 0 && tail && (
+								<div className="px-3 py-6 text-fg3">Waiting for new logs…</div>
+							)}
+							{!isLoading && error === null && rows.length === 0 && !tail && query !== "" && (
+								<NoMatches title="No lines match these filters" />
+							)}
+						</div>
+						<Pager
+							label={
+								rows.length > 0
+									? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`
+									: "0"
+							}
+							page={curPage}
+							pages={pages}
+							more={truncated}
+							total={rows.length}
+							pageSizes={LOG_PAGE_SIZES}
+							pageSize={size}
+							onPageSize={(n) => {
+								void setParams({ size: n, page: null });
+							}}
+							prevLabel="Newer"
+							nextLabel="Older"
+							firstLabel="Newest"
+							lastLabel="Oldest"
+							onFirst={
+								atNewest
+									? null
+									: () => {
+											setFocusActive(false);
+											setPlayback({ ...playback, on: false, pending: null, paused: null });
+											if (anchor === null) setHistory(createLogHistory());
+											setView(0, null);
+										}
+							}
+							onPrev={
+								canNewer
+									? () => {
+											setFocusActive(false);
+											if (curPage > 0) setView(curPage - 1, selectedKey);
+											else toNewerBatch();
+										}
+									: null
+							}
+							onNext={
+								canOlder
+									? () => {
+											setFocusActive(false);
+											if (curPage < pages - 1) setView(curPage + 1, selectedKey);
+											else toOlderBatch();
+										}
+									: null
+							}
+							onLast={
+								atOldest || anchor !== null || tail
+									? null
+									: () => {
+											setFocusActive(false);
+											setPlayback({ ...playback, on: false, pending: null, paused: null });
+											// Lines past this batch are reachable only through cursors, so jump to the oldest batch.
+											if (cutoffCursor !== null || history.older.length > 0) setHistory(oldestLogHistory());
+											setView("last", null);
+										}
+							}
+						/>
+					</section>
+					<Sheet
+						open={selRow !== undefined}
+						onOpenChange={(open) => {
+							if (!open) select(null);
+						}}
+					>
+						<SheetContent
+							ref={drawerRef}
+							size="wide"
+							showCloseButton={false}
+							initialFocus={drawerRef}
+							onKeyDown={onListKeyDown}
+						>
+							{shownRow !== undefined && (
+								<LogDetail
+									key={shownRow.key}
+									row={shownRow}
+									title={SheetTitle}
 									words={freeWords}
-									highlightAfter={tail ? nowMs - FRESH_MS : null}
-									onSelect={(key) => {
-										select(key === selRow?.key ? null : key);
-									}}
+									columns={columns}
 									onColumns={setColumns}
-									widths={widths}
-									onWidths={(next) => {
-										void setParams({ widths: next });
+									onPrev={
+										selIdx > 0
+											? () => {
+													select(rows[selIdx - 1]?.key ?? null);
+												}
+											: null
+									}
+									onNext={
+										selIdx >= 0 && selIdx < rows.length - 1
+											? () => {
+													select(rows[selIdx + 1]?.key ?? null);
+												}
+											: null
+									}
+									onClose={() => {
+										select(null);
 									}}
 								/>
-								{isLoading && <LoadingRows />}
-								{!isLoading && error !== null && (
-									<div role="alert" className="px-3 py-6 break-words text-bad-fg">
-										{getErrorMessage(error, "Failed to load logs")}
-									</div>
-								)}
-								{!isLoading && error === null && rows.length === 0 && tail && (
-									<div className="px-3 py-6 text-fg3">Waiting for new logs…</div>
-								)}
-								{!isLoading && error === null && rows.length === 0 && !tail && query !== "" && (
-									<NoMatches title="No lines match these filters" />
-								)}
-							</div>
-							<Pager
-								label={
-									rows.length > 0
-										? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`
-										: "0"
-								}
-								page={curPage}
-								pages={pages}
-								more={truncated}
-								total={rows.length}
-								pageSizes={LOG_PAGE_SIZES}
-								pageSize={size}
-								onPageSize={(n) => {
-									void setParams({ size: n, page: null });
-								}}
-								prevLabel="Newer"
-								nextLabel="Older"
-								firstLabel="Newest"
-								lastLabel="Oldest"
-								onFirst={
-									atNewest
-										? null
-										: () => {
-												setFocusActive(false);
-												setPlayback({ ...playback, on: false, pending: null, paused: null });
-												if (anchor === null) setHistory(createLogHistory());
-												setView(0, null);
-											}
-								}
-								onPrev={
-									canNewer
-										? () => {
-												setFocusActive(false);
-												if (curPage > 0) setView(curPage - 1, selectedKey);
-												else toNewerBatch();
-											}
-										: null
-								}
-								onNext={
-									canOlder
-										? () => {
-												setFocusActive(false);
-												if (curPage < pages - 1) setView(curPage + 1, selectedKey);
-												else toOlderBatch();
-											}
-										: null
-								}
-								onLast={
-									atOldest || anchor !== null || tail
-										? null
-										: () => {
-												setFocusActive(false);
-												setPlayback({ ...playback, on: false, pending: null, paused: null });
-												// Lines past this batch are reachable only through cursors, so jump to the oldest batch.
-												if (cutoffCursor !== null || history.older.length > 0) setHistory(oldestLogHistory());
-												setView("last", null);
-											}
-								}
-							/>
-						</section>
-						{selRow !== undefined && (
-							<LogDetail
-								key={selRow.key}
-								row={selRow}
-								words={freeWords}
-								columns={columns}
-								onColumns={setColumns}
-								onPrev={
-									selIdx > 0
-										? () => {
-												select(rows[selIdx - 1]?.key ?? null);
-											}
-										: null
-								}
-								onNext={
-									selIdx < rows.length - 1
-										? () => {
-												select(rows[selIdx + 1]?.key ?? null);
-											}
-										: null
-								}
-								onClose={() => {
-									select(null);
-								}}
-							/>
-						)}
-					</div>
+							)}
+						</SheetContent>
+					</Sheet>
 				</>
 			)}
 		</>
