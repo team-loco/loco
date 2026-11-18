@@ -622,12 +622,29 @@ with session(out) as browser:
     assert stored_drafts(page) == [name], stored_drafts(page)
     page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
     page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
+    # The drawer learns of the retained resource before it is deleted elsewhere.
+    taken = f"{name}.{platform_domain} is taken"
+    expect(drawer.get_by_text(taken, exact=True).first).to_be_visible()
     orphan = sql(state, f"SELECT id FROM resources WHERE name='{name}';")
     call(
         state, "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan}
     )
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+    draft_row(page, name).get_by_role("link", name=name, exact=True).click()
+    expect(page).to_have_url(DRAFT_URL)
+    expect(
+        drawer.get_by_text(f"{name}.{platform_domain} is available", exact=True)
+    ).to_be_visible()
+    expect(drawer.get_by_text(taken, exact=True)).to_have_count(0)
+    expect(drawer.get_by_text("already uses this name")).to_have_count(0)
+    drawer.get_by_role("button", name="Close", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+    expect(
+        page.get_by_role("row").filter(
+            has=page.get_by_role("link", name=name, exact=True)
+        )
+    ).to_have_count(1)
     draft_row(page, name).get_by_role("link", name=name, exact=True).click()
     expect(page).to_have_url(DRAFT_URL)
     secret_value.fill("sk_test")

@@ -25,6 +25,7 @@ export function useDomainAvailability(subdomain: string, platformDomain: string,
 		},
 		enabled: target !== null,
 		staleTime: AVAILABILITY_STALE_MS,
+		refetchOnMount: "always",
 		retry: false,
 	});
 	return domainCheck(subdomain, platformDomain, own, {
