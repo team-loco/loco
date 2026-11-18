@@ -78,7 +78,7 @@ def stamp(delta):
 
 
 telemetry_points = []
-# Per-second gateway rates and p95 milliseconds each traffic series answers at every point.
+# The value each gateway traffic series answers at every point.
 TRAFFIC_RATES = {
     "cluster.upstream_rq_completed": 10,
     "cluster.upstream_rq_xx": 1,
@@ -650,6 +650,7 @@ def dashboard(page):
                                 "minReplicas": 1,
                                 "maxReplicas": 1,
                                 "port": 8080,
+                                "observability": {"injectOtel": True},
                             },
                         }
                     ],
@@ -810,22 +811,16 @@ def dashboard(page):
 
 def traffic(page):
     global traffic_empty
-    page.set_viewport_size(evidence.DESKTOP)
     totals = page.get_by_role("region", name="Totals", exact=True)
     section = page.get_by_role("region", name="Traffic", exact=True)
-
-    def five_xx():
-        return section.get_by_text("5xx", exact=True).locator("..")
-
     for empty in (False, True):
         traffic_empty = empty
         page.goto(state["ui_url"] + base + "?env=production&range=1h")
-        # Three points at 10 requests/s and 1 5xx/s, each a 60s bucket.
+        # 3 points × 10/s × 60 s buckets (1h range) = 1800 requests, 180 5xx.
         requests, errors = ("—", "—") if empty else ("1.8K", "180")
-        expect(
-            totals.get_by_role("group", name=f"Requests: {requests},")
-        ).to_be_visible()
-        expect(totals.get_by_role("group", name=f"Errors: {errors},")).to_be_visible()
+        for label, value in (("Requests", requests), ("Errors", errors)):
+            card = totals.get_by_role("group", name=f"{label}: {value},")
+            expect(card).to_contain_text("vs prior 1h")
         page.get_by_role("region", name="Resources", exact=True).get_by_role(
             "link", name="dashboard-0", exact=True
         ).click()
@@ -833,8 +828,9 @@ def traffic(page):
             expect(
                 section.get_by_text("No data in this range", exact=True)
             ).to_have_count(4)
+            expect(section.get_by_role("alert")).to_have_count(0)
         else:
-            expect(five_xx()).to_contain_text("10%")
+            expect(section).to_contain_text("10%")
             expect(section).to_contain_text("10/s")
             expect(section).to_contain_text("190 ms")
     traffic_empty = False
