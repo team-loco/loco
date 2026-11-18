@@ -20,7 +20,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -152,7 +151,7 @@ func clientAddress(info *connect.CallInfo) netip.Addr {
 	return peer.Addr()
 }
 
-func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
+func webGrant(ctx context.Context) (cliGrant, error) {
 	p, err := principalFrom(ctx)
 	if err != nil {
 		return cliGrant{}, err
@@ -161,20 +160,8 @@ func (s *AuthServer) webIdentity(ctx context.Context) (cliGrant, error) {
 	if entity.Type != genDb.EntityTypeUser {
 		return cliGrant{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
-	if p.Method == genDb.DeploymentMethodWeb {
-		return cliGrant{UserID: entity.ID}, nil
-	}
-	login, ok := auth.LoginFrom(ctx)
-	identity := login.Identity
-	if !ok {
+	if p.Method != genDb.DeploymentMethodWeb {
 		return cliGrant{}, rpcerr.New(connect.CodePermissionDenied, ErrApproveFromWeb)
-	}
-	row, err := s.queries.GetIdentity(ctx, genDb.GetIdentityParams{Issuer: identity.Issuer, Subject: identity.Subject})
-	if err != nil {
-		return cliGrant{}, fmt.Errorf("get identity for cli approval: %w", err)
-	}
-	if row.UserID != entity.ID {
-		return cliGrant{}, connect.NewError(connect.CodePermissionDenied, publicPermissionDenied)
 	}
 	return cliGrant{UserID: entity.ID}, nil
 }
@@ -227,7 +214,7 @@ func (s *AuthServer) ApproveCLILogin(
 	ctx context.Context,
 	req *authv1.ApproveCLILoginRequest,
 ) (*authv1.ApproveCLILoginResponse, error) {
-	grant, err := s.webIdentity(ctx)
+	grant, err := webGrant(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +318,7 @@ func (s *AuthServer) ApproveDeviceLogin(
 	ctx context.Context,
 	req *authv1.ApproveDeviceLoginRequest,
 ) (*authv1.ApproveDeviceLoginResponse, error) {
-	grant, err := s.webIdentity(ctx)
+	grant, err := webGrant(ctx)
 	if err != nil {
 		return nil, err
 	}
