@@ -24,7 +24,8 @@ import {
 	deployPhase,
 	deploySteps,
 	finishedLabel,
-	readyLabel,
+	rolloutGroups,
+	rolloutReadyLabel,
 	withoutRunningDeploys,
 	type StepState,
 } from "@/lib/activity-deploys";
@@ -82,12 +83,17 @@ function CardName({
 	);
 }
 
-function RegionChip({ region }: { region: string }) {
+function RegionChips({ regions }: { regions: readonly string[] }) {
 	return (
 		<div className="flex flex-wrap gap-1">
-			<span className="dwa-chip rounded-[4px] bg-background px-[7px] py-0.5 font-mono text-[11.5px] text-fg2 shadow-[inset_0_0_0_1px_var(--line)]">
-				{region}
-			</span>
+			{regions.map((region) => (
+				<span
+					key={region}
+					className="dwa-chip rounded-[4px] bg-background px-[7px] py-0.5 font-mono text-[11.5px] text-fg2 shadow-[inset_0_0_0_1px_var(--line)]"
+				>
+					{region}
+				</span>
+			))}
 		</div>
 	);
 }
@@ -148,7 +154,7 @@ function AlertCard({
 				)}
 			</div>
 			<CardName name={alert.name} href={resourceHref} note={alert.description} onNavigate={onNavigate} />
-			<RegionChip region={alert.region} />
+			<RegionChips regions={[alert.region]} />
 			{alert.message !== "" && <p className="m-0 font-mono text-[12px] break-words text-fg2">{alert.message}</p>}
 			<CardActions name={alert.name} resourceHref={resourceHref} logsHref={logsHref} onNavigate={onNavigate} />
 		</ActivityCard>
@@ -156,20 +162,21 @@ function AlertCard({
 }
 
 function DeployCard({
-	deployment,
+	rollout,
 	name,
 	resourceHref,
 	logsHref,
 	buildLogsHref,
 	onNavigate,
 }: {
-	deployment: Deployment;
+	rollout: readonly [Deployment, ...Deployment[]];
 	name: string;
 	resourceHref: string;
 	logsHref: string;
 	buildLogsHref: string | undefined;
 	onNavigate: () => void;
 }) {
+	const deployment = rollout.find((d) => d.problem !== undefined) ?? rollout[0];
 	const running = isInFlight(deployment.status);
 	const nowMs = useNow(running ? 1000 : CLOCK_TICK_MS).getTime();
 	const buildId = getServiceSpec(deployment)?.build?.buildId ?? "";
@@ -196,7 +203,7 @@ function DeployCard({
 				</span>
 			</div>
 			<CardName name={name} href={resourceHref} note={build?.gitCommitMessage ?? ""} onNavigate={onNavigate} />
-			<RegionChip region={deployment.region} />
+			<RegionChips regions={rollout.map((d) => d.region)} />
 			{running ? (
 				<div className="flex items-center gap-2.5 text-[13px]">
 					<span aria-hidden className="flex shrink-0 gap-[3px]">
@@ -221,7 +228,7 @@ function DeployCard({
 			) : (
 				deployment.status !== DeploymentStatus.FAILED &&
 				deployment.status !== DeploymentStatus.CANCELED && (
-					<span className="text-[12.5px] text-fg2">{readyLabel(deployment)}</span>
+					<span className="text-[12.5px] text-fg2">{rolloutReadyLabel(rollout)}</span>
 				)
 			)}
 			<CardActions
@@ -272,13 +279,14 @@ export function AlertsDrawer() {
 	const close = () => {
 		setOpen(false);
 	};
-	const deployCard = (d: Deployment) => {
+	const deployCard = ([d, ...rest]: Deployment[]) => {
+		if (d === undefined) return null;
 		const name = names.get(d.resourceId) ?? "";
 		const buildId = getServiceSpec(d)?.build?.buildId ?? "";
 		return (
 			<DeployCard
 				key={d.id}
-				deployment={d}
+				rollout={[d, ...rest]}
 				name={name}
 				resourceHref={resourcePath(activeOrgId, activeWorkspaceId, d.resourceId)}
 				logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [name] })}
@@ -338,7 +346,7 @@ export function AlertsDrawer() {
 							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">Nothing needs attention.</p>
 						) : (
 							<ul className="flex flex-col gap-2.5">
-								{deployments.filter((d) => isInFlight(d.status)).map(deployCard)}
+								{rolloutGroups(deployments.filter((d) => isInFlight(d.status))).map(deployCard)}
 								{alerts.map((a) => (
 									<AlertCard
 										key={a.key}
@@ -349,7 +357,7 @@ export function AlertsDrawer() {
 										onNavigate={close}
 									/>
 								))}
-								{deployments.filter((d) => !isInFlight(d.status)).map(deployCard)}
+								{rolloutGroups(deployments.filter((d) => !isInFlight(d.status))).map(deployCard)}
 							</ul>
 						)}
 					</SheetBody>

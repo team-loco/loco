@@ -16,6 +16,7 @@ interface UseQueryMetricsOptions {
 	region?: string;
 	aggregation?: string;
 	attributes?: Record<string, string>;
+	byPod?: boolean;
 	enabled?: boolean;
 }
 export function metricsQueryOptions(
@@ -30,6 +31,7 @@ export function metricsQueryOptions(
 		region = "",
 		aggregation = "avg",
 		attributes = {},
+		byPod = false,
 		enabled = true,
 	}: UseQueryMetricsOptions,
 ) {
@@ -41,6 +43,7 @@ export function metricsQueryOptions(
 		region,
 		aggregation,
 		attributes,
+		byPod,
 		intervalSeconds: stepSeconds(spanMs),
 	};
 	return {

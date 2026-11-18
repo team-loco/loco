@@ -1,6 +1,12 @@
+import type { ReplicaExit } from "@gen/loco/deployment/v1/deployment_pb";
+import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { ResourceStatus, type EnvironmentStatus, type RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
-import { agoLabel, maybeTsMs } from "@/lib/time";
+import { agoLabel, maybeTsMs, shortAgoLabel } from "@/lib/time";
+
+export const POD_LABEL = "k8s.pod.name";
+/** Two collection intervals of the worker's kubeletstats receiver. */
+const USAGE_FRESH_MS = 120_000;
 
 function unreportedRegions(environment: EnvironmentStatus | undefined): RegionStatus[] {
 	return (environment?.regions ?? []).filter((r) => r.status === ResourceStatus.UNKNOWN);
@@ -31,4 +37,23 @@ export function replicaLine(environment: EnvironmentStatus | undefined, nowMs: n
 	const names = unreported.map((r) => r.region).join(", ");
 	const age = reportedMs === undefined ? "never reported" : `last reported ${agoLabel(reportedMs, nowMs)}`;
 	return `${counts}${regionSuffix} · ${names} ${age}`;
+}
+
+/** Each pod's newest value from pod-grouped series, leaving out pods without a recent sample. */
+export function podUsage(series: readonly MetricSeries[], nowMs: number): Map<string, number> {
+	const usage = new Map<string, number>();
+	for (const s of series) {
+		const pod = s.labels[POD_LABEL];
+		const last = s.points.at(-1);
+		const at = maybeTsMs(last?.timestamp);
+		if (pod === undefined || last === undefined || at === undefined || nowMs - at > USAGE_FRESH_MS) continue;
+		usage.set(pod, last.value);
+	}
+	return usage;
+}
+
+export function exitLabel(exit: ReplicaExit, nowMs: number): string {
+	const label = `${exit.reason} · exit ${exit.exitCode.toString()}`;
+	const at = maybeTsMs(exit.finishedAt);
+	return at === undefined ? label : `${label} · ${shortAgoLabel(at, nowMs)}`;
 }

@@ -16,6 +16,7 @@ import { METRIC_RANGES, sharedLimit, type MetricRange } from "./metric";
 import { MetricChart } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
+import { ReplicaList } from "./ReplicaList";
 import { replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
@@ -186,9 +187,17 @@ export function ReplicasPanel({
 					/>
 				))}
 			</div>
-			<div className="flex items-center gap-2 rounded-md border border-dashed border-line2 px-3 py-2.5 text-[12.5px] text-fg3">
-				Per-replica status, usage and restarts
-				<SoonTag />
+			<div className="flex flex-col gap-3">
+				{charted.map((r) => (
+					<ReplicaList
+						key={r.name}
+						workspaceId={workspaceId}
+						environmentId={environmentId}
+						resourceId={resourceId}
+						region={r}
+						nowMs={nowMs}
+					/>
+				))}
 			</div>
 			<div className="grid grid-cols-1 gap-7 border-t border-line2 pt-3.5 lg:grid-cols-2">
 				{compare ? (

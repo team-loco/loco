@@ -57,9 +57,12 @@ export function deploySteps(d: Deployment): { build: StepState; deploy: StepStat
 	return { build: built, deploy: active, current: "deploy" };
 }
 
+function readyCount(d: Deployment): number {
+	return d.replicas.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
+}
+
 export function readyLabel(d: Deployment): string {
-	const ready = d.replicas.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
-	return `${ready.toString()} of ${d.desiredReplicas.toString()} ready`;
+	return `${readyCount(d).toString()} of ${d.desiredReplicas.toString()} ready`;
 }
 
 export function clockLabel(ms: number): string {
@@ -78,4 +81,23 @@ export function finishedLabel(d: Deployment, nowMs: number): string {
 export function withoutRunningDeploys(alerts: readonly Alert[], deployments: readonly Deployment[]): Alert[] {
 	const running = new Set(deployments.filter((d) => isInFlight(d.status)).map((d) => `${d.resourceId}/${d.region}`));
 	return alerts.filter((a) => a.status !== ResourceStatus.DEPLOYING || !running.has(a.key));
+}
+
+/** Deployments grouped by the rollout that created them, in order of each rollout's first deployment. */
+export function rolloutGroups(deployments: readonly Deployment[]): Deployment[][] {
+	const groups = new Map<string, Deployment[]>();
+	for (const d of deployments) {
+		const key = `${d.resourceId}/${d.rolloutId === "" ? d.id : d.rolloutId}`;
+		const group = groups.get(key);
+		if (group === undefined) groups.set(key, [d]);
+		else group.push(d);
+	}
+	return [...groups.values()];
+}
+
+export function rolloutReadyLabel(deployments: readonly Deployment[]): string {
+	if (deployments.length === 1 && deployments[0] !== undefined) return readyLabel(deployments[0]);
+	const ready = deployments.reduce((sum, d) => sum + readyCount(d), 0);
+	const desired = deployments.reduce((sum, d) => sum + d.desiredReplicas, 0);
+	return `${ready.toString()} of ${desired.toString()} ready in ${deployments.length.toString()} regions`;
 }
