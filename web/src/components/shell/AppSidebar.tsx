@@ -191,9 +191,9 @@ export function AppSidebar() {
 
 			<SidebarFooter className="p-3">
 				<DropdownMenu>
-					<DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors duration-150 hover:bg-shell-hover focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-shell-hover">
+					<DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none transition-colors duration-150 hover:bg-shell-hover focus-visible:ring-2 focus-visible:ring-sidebar-ring aria-expanded:bg-shell-hover">
 						<UserAvatar name={displayName} src={user?.avatarUrl} className="size-7 text-[10.5px]" />
-						<span className="flex min-w-0 flex-1 flex-col leading-tight">
+						<span className="flex min-w-0 flex-1 flex-col">
 							<span className="truncate text-[13px] font-medium">{displayName}</span>
 							<span className="truncate text-[11.5px] text-fg3">{user?.email ?? ""}</span>
 						</span>
