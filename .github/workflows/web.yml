@@ -55,6 +55,8 @@ jobs:
         with:
           go-cache: web
 
+      - uses: ./.github/actions/docker-hub-cache
+
       - uses: ./.github/actions/setup-playwright
 
       - name: Test the dashboard suites

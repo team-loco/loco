@@ -25,6 +25,8 @@ auth-conformance:
     - "mise-tasks/test/auth-invitations"
     - ".github/workflows/auth-conformance.yml"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - "mise.toml"
     - "mise.lock"
   push: *auth-conformance
@@ -77,6 +79,8 @@ charts:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - ".github/workflows/charts.yml"
     - ".github/workflows/images.yml"
     - "docker-bake.hcl"
@@ -94,6 +98,8 @@ controller-helm-chart:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - ".github/workflows/controller-helm-chart.yml"
   push: *controller-helm-chart
 
@@ -116,6 +122,8 @@ docker:
     - "bunfig.toml"
     - "renovate.json5"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - "api/**"
     - "agent/**"
     - "builder/**"
@@ -214,6 +222,8 @@ e2e:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - ".github/workflows/e2e.yml"
     - ".github/workflows/images.yml"
     - "docker-bake.hcl"
@@ -265,6 +275,8 @@ e2e-installation:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - ".github/workflows/e2e-installation.yml"
     - ".github/workflows/images.yml"
     - "docker-bake.hcl"
@@ -297,6 +309,9 @@ go-lint-and-test:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
+    - ".github/compose.api-tests.yaml"
     - ".golangci.yml"
     - "mise-tasks/lint/go"
     - ".github/workflows/go-lint-and-test.yml"
@@ -341,6 +356,8 @@ obs-chart:
     - "mise.lock"
     - ".github/workflows/obs-chart.yml"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - "!**/*_test.go"
   push: *obs-chart
 
@@ -443,6 +460,8 @@ web:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
+    - ".github/actions/docker-hub-cache/**"
+    - "tools/imagecache/**"
     - ".github/actions/setup-playwright/**"
   push: *web
 

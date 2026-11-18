@@ -1,0 +1,71 @@
+name: Docker Hub cache
+description: >-
+  Restore the Docker Hub images `go run ./tools/imagecache images` lists from the Actions cache and
+  serve them as the Docker Hub mirror of the Docker daemon, BuildKit builders and the e2e kind
+  nodes, at the address DOCKER_HUB_MIRROR holds. Run it after setup-tools, before anything starts a
+  container: it restarts the Docker daemon. An image the cache lacks is pulled from Docker Hub.
+
+inputs:
+  save:
+    description: Set to true in the one job that pulls every image and saves the cache on main.
+    required: false
+    default: "false"
+
+outputs:
+  buildkitd-config:
+    description: A buildkitd.toml mirroring Docker Hub, for docker/setup-buildx-action's buildkitd-config-inline; empty when nothing was restored.
+    value: ${{ steps.serve.outputs.buildkitd-config }}
+
+runs:
+  using: composite
+  steps:
+    - id: key
+      shell: bash
+      run: |
+        images=$(go run ./tools/imagecache images)
+        echo "$images"
+        echo "key=docker-hub-images-$(sha256sum <<<"$images" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+    - if: inputs.save == 'true'
+      id: save
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/docker-hub-images
+        key: ${{ steps.key.outputs.key }}
+
+    - if: inputs.save == 'true' && steps.save.outputs.cache-hit != 'true'
+      shell: bash
+      run: go run ./tools/imagecache save "$RUNNER_TEMP/docker-hub-images"
+
+    - if: inputs.save != 'true'
+      id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/docker-hub-images
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: |
+          docker-hub-images-
+
+    - if: steps.restore.outputs.cache-matched-key != ''
+      id: serve
+      shell: bash
+      run: |
+        mirror=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'):5555
+        go build -o "$RUNNER_TEMP/imagecache" ./tools/imagecache
+        nohup "$RUNNER_TEMP/imagecache" serve "$RUNNER_TEMP/docker-hub-images" :5555 \
+          >"$RUNNER_TEMP/docker-hub-mirror.log" 2>&1 &
+        curl -sf --retry 10 --retry-connrefused --retry-delay 1 "http://$mirror/v2/"
+        config=/etc/docker/daemon.json
+        sudo test -s "$config" || echo '{}' | sudo tee "$config" >/dev/null
+        sudo jq --arg mirror "$mirror" \
+          '."registry-mirrors" = ["http://" + $mirror] | ."insecure-registries" += [$mirror]' "$config" |
+          sudo tee "$config.new" >/dev/null
+        sudo mv "$config.new" "$config"
+        sudo systemctl restart docker
+        docker info --format '{{json .RegistryConfig.Mirrors}}'
+        echo "DOCKER_HUB_MIRROR=$mirror" >> "$GITHUB_ENV"
+        {
+          echo "buildkitd-config<<EOF"
+          printf '[registry."docker.io"]\n  mirrors = ["%s"]\n[registry."%s"]\n  http = true\n' "$mirror" "$mirror"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"

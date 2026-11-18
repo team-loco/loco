@@ -1,4 +1,4 @@
-name: E2E Cache
+name: Warm Caches
 
 on:
   push:
@@ -10,6 +10,12 @@ on:
       - "mise-tasks/e2e/**"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/e2e-cache.yml"
+      - ".github/actions/docker-hub-cache/**"
+      - ".github/compose.api-tests.yaml"
+      - "dev/compose.yaml"
+      - "charts/*/values.yaml"
+      - "tests/e2e/fixtures/**Dockerfile"
+      - "tools/imagecache/**"
   workflow_dispatch:
 
 permissions:
@@ -37,3 +43,19 @@ jobs:
           mise run e2e:build "$RUNNER_TEMP/e2e-bin" e2e
           go build -o "$RUNNER_TEMP/e2e-bin/pullimage" ./tools/pullimage
           go -C tests/e2e test -c -o "$RUNNER_TEMP/e2e-tests/" ./...
+
+  docker-hub:
+    name: Save the Docker Hub Images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: imagecache
+
+      - uses: ./.github/actions/docker-hub-cache
+        with:
+          save: ${{ github.ref == 'refs/heads/main' }}

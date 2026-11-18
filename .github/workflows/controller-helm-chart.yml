@@ -43,6 +43,8 @@ jobs:
         with:
           go-cache: controller-helm-chart
 
+      - uses: ./.github/actions/docker-hub-cache
+
       - name: Create kind cluster
         run: kind create cluster
 

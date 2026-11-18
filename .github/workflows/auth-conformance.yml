@@ -20,6 +20,8 @@ jobs:
         with:
           go-cache: auth-conformance
 
+      - uses: ./.github/actions/docker-hub-cache
+
       - name: Run the auth contract against Supabase Auth, Keycloak, Zitadel and Dex
         run: mise run test:auth-conformance
         timeout-minutes: 15

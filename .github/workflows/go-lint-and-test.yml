@@ -25,6 +25,8 @@ jobs:
           go-cache: go
           lint-cache: true
 
+      - uses: ./.github/actions/docker-hub-cache
+
       # Every affected module is linted and tested even after one fails. The E2E
       # workflow runs the cluster-backed suites separately.
       - name: Lint and test each module the changes affect
@@ -58,33 +60,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
-    services:
-      postgres:
-        image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
-        env:
-          POSTGRES_USER: loco_test
-          POSTGRES_PASSWORD: loco_test
-          POSTGRES_DB: loco_test
-          POSTGRES_INITDB_ARGS: --set fsync=off --set synchronous_commit=off --set full_page_writes=off
-        ports:
-          - 5432:5432
-        options: >-
-          --tmpfs /var/lib/postgresql
-          --health-cmd "pg_isready -U loco_test -d loco_test"
-          --health-interval 1s
-          --health-timeout 3s
-          --health-retries 30
-
-      valkey:
-        image: valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "valkey-cli ping"
-          --health-interval 1s
-          --health-timeout 3s
-          --health-retries 30
-
     env:
       LOCO_TEST_DATABASE_URL: postgres://loco_test:loco_test@localhost:5432/loco_test?sslmode=disable
       LOCO_TEST_VALKEY_URL: redis://localhost:6379
@@ -95,6 +70,11 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: test-api
+
+      - uses: ./.github/actions/docker-hub-cache
+
+      - name: Start Postgres and Valkey
+        run: docker compose -f .github/compose.api-tests.yaml up -d --wait
 
       - name: Run tests
         run: mise run test:api

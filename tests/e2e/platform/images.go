@@ -267,7 +267,7 @@ func (i *images) loadImage(ctx context.Context, spec imageSpec) (string, error) 
 // mirrorUpstream copies platform's image of the digest-pinned source, and the index naming it, to
 // registry under the source registry's name and repository, keeping their digests, and returns the
 // copy's reference.
-func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.Platform) (string, error) {
+func (c *Cluster) mirrorUpstream(ctx context.Context, source, registry string, platform *v1.Platform) (string, error) {
 	src, err := name.NewDigest(source)
 	if err != nil {
 		return "", err
@@ -279,7 +279,7 @@ func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.P
 	if err != nil {
 		return "", err
 	}
-	descriptor, err := remote.Get(src, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	descriptor, err := c.getUpstream(ctx, src)
 	if err != nil {
 		return "", fmt.Errorf("mirror %s: %w", source, err)
 	}
@@ -302,6 +302,23 @@ func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.P
 		return "", fmt.Errorf("mirror the index of %s: %w", source, err)
 	}
 	return dst.Name(), nil
+}
+
+// getUpstream reads src from the Docker Hub mirror when one is set and holds it, and from its
+// registry otherwise.
+func (c *Cluster) getUpstream(ctx context.Context, src name.Digest) (*remote.Descriptor, error) {
+	if c.dockerHubMirror != "" && src.Context().RegistryStr() == name.DefaultRegistry {
+		mirrored, err := name.NewDigest(
+			c.dockerHubMirror+"/"+src.Context().RepositoryStr()+"@"+src.DigestStr(), name.Insecure,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if descriptor, err := remote.Get(mirrored, remote.WithContext(ctx)); err == nil {
+			return descriptor, nil
+		}
+	}
+	return remote.Get(src, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
 
 // upstreamRegistry is the registry of ref as BuildKit names it in its registry configuration.
@@ -378,7 +395,7 @@ func (p *Platform) mirrorBaseImages(ctx context.Context, host, mirror string, ta
 			if err != nil {
 				return err
 			}
-			if _, err = mirrorUpstream(ctx, image, host, target); err != nil {
+			if _, err = p.mirrorUpstream(ctx, image, host, target); err != nil {
 				return err
 			}
 			mirrored[image], registries[upstreamRegistry(ref)] = true, true
