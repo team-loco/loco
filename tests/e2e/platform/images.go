@@ -71,11 +71,7 @@ func (i *images) build(ctx context.Context) error {
 	group, ctx := errgroup.WithContext(ctx)
 	if i.p.Builds {
 		group.Go(func() error {
-			return i.p.pullImages(
-				ctx,
-				i.p.values.buildkitImage,
-				fromImage(i.p.root, "tests/e2e/fixtures/aws-cli/Dockerfile"),
-			)
+			return i.p.pullImages(ctx, fromImage(i.p.root, "tests/e2e/fixtures/aws-cli/Dockerfile"))
 		})
 	}
 	if i.p.skipBuild {
@@ -198,7 +194,7 @@ func (c *Cluster) pullPrebuilt(ctx context.Context, reference, tag string, retry
 }
 
 // load loads the images into the kind node, each under a tag naming its image ID, so a rebuilt
-// image rolls the workloads that run it.
+// image rolls the workloads that run it, and has the node pull BuildKit.
 func (i *images) load(ctx context.Context) error {
 	var err error
 	if i.controller, err = i.loadImage(ctx, controllerImage); err != nil {
@@ -213,33 +209,11 @@ func (i *images) load(ctx context.Context) error {
 	if i.builder, err = i.loadImage(ctx, builderImage); err != nil {
 		return err
 	}
-	platform, err := i.p.Kubectl(
-		ctx,
-		"get",
-		"nodes",
-		"-o",
-		"jsonpath={.items[0].status.nodeInfo.operatingSystem}/{.items[0].status.nodeInfo.architecture}",
-	)
-	if err != nil {
+	// The node pulls BuildKit itself, so the image keeps the digest the chart pins.
+	return waitFor(ctx, readyTimeout, "the node to pull "+i.p.values.buildkitImage, func(ctx context.Context) error {
+		_, err := i.p.Command(ctx, "docker", "exec", i.p.Node(), "crictl", "pull", i.p.values.buildkitImage)
 		return err
-	}
-	archive := filepath.Join(i.p.dir, "buildkit.tar")
-	defer os.Remove(archive)
-	if _, err = i.p.Command(
-		ctx,
-		"docker",
-		"image",
-		"save",
-		"--platform",
-		platform,
-		"--output",
-		archive,
-		i.p.values.buildkitImage,
-	); err != nil {
-		return err
-	}
-	_, err = i.p.Command(ctx, "kind", "load", "image-archive", archive, "--name", i.p.cluster)
-	return err
+	})
 }
 
 func (i *images) loadImage(ctx context.Context, spec imageSpec) (string, error) {
