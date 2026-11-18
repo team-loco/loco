@@ -38,8 +38,9 @@ func NewConfigServer(
 	historyRetention *configv1.HistoryRetention,
 ) *ConfigServer {
 	var authConfig *configv1.AuthConfig
-	if ic, enabled := auth.WebIssuer(issuers); enabled {
-		authConfig = &configv1.AuthConfig{Issuer: ic.Issuer, ClientId: ic.Web.ClientID, Scopes: ic.Web.Scopes}
+	if _, enabled := auth.WebIssuer(issuers); enabled {
+		// Released CLIs check field presence before starting the device flow.
+		authConfig = &configv1.AuthConfig{}
 	}
 	return &ConfigServer{
 		apiVersion:                apiVersion,

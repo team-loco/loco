@@ -17,6 +17,7 @@ message GetConfigRequest {}
 message GetConfigResponse {
   DefaultServiceConfig service_defaults = 1;
   string min_cli_version = 2;
+  // Present when sign-in is configured so older CLIs can start the device flow.
   AuthConfig auth = 3;
   string schema_url = 4;
   repeated OrgLink org_links = 5;

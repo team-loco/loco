@@ -60,14 +60,15 @@ func (*GetConfigRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetConfigResponse struct {
-	state                      protoimpl.MessageState `protogen:"open.v1"`
-	ServiceDefaults            *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
-	MinCliVersion              string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
-	Auth                       *AuthConfig            `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
-	SchemaUrl                  string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
-	OrgLinks                   []*OrgLink             `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
-	ApiTokenMaxLifetimeSeconds int64                  `protobuf:"varint,6,opt,name=api_token_max_lifetime_seconds,json=apiTokenMaxLifetimeSeconds,proto3" json:"api_token_max_lifetime_seconds,omitempty"`
-	SizeLimits                 *SizeLimits            `protobuf:"bytes,7,opt,name=size_limits,json=sizeLimits,proto3" json:"size_limits,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ServiceDefaults *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
+	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
+	// Present when sign-in is configured so older CLIs can start the device flow.
+	Auth                       *AuthConfig `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
+	SchemaUrl                  string      `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
+	OrgLinks                   []*OrgLink  `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
+	ApiTokenMaxLifetimeSeconds int64       `protobuf:"varint,6,opt,name=api_token_max_lifetime_seconds,json=apiTokenMaxLifetimeSeconds,proto3" json:"api_token_max_lifetime_seconds,omitempty"`
+	SizeLimits                 *SizeLimits `protobuf:"bytes,7,opt,name=size_limits,json=sizeLimits,proto3" json:"size_limits,omitempty"`
 	// count_limits are the install's defaults; GetOrgLimits reports an organization's own.
 	CountLimits *CountLimits `protobuf:"bytes,8,opt,name=count_limits,json=countLimits,proto3" json:"count_limits,omitempty"`
 	// history_retention applies across the installation and cannot be overridden per organization.

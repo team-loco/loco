@@ -23,8 +23,6 @@ const (
 	fakeOrgID           = "1"
 	fakeOrgName         = "acme"
 	fakeWorkspaceName   = "production"
-	fakeIssuer          = "https://idp.loco.test"
-	fakeClientID        = "loco-cli"
 
 	deviceLoginApproved = "approved"
 	deviceLoginExpired  = "expired"

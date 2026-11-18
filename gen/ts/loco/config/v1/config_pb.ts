@@ -50,6 +50,8 @@ export type GetConfigResponse = Message<"loco.config.v1.GetConfigResponse"> & {
   minCliVersion: string;
 
   /**
+   * Present when sign-in is configured so older CLIs can start the device flow.
+   *
    * @generated from field: loco.config.v1.AuthConfig auth = 3;
    */
   auth?: AuthConfig | undefined;
@@ -119,6 +121,8 @@ export type GetConfigResponseJson = {
   minCliVersion?: string;
 
   /**
+   * Present when sign-in is configured so older CLIs can start the device flow.
+   *
    * @generated from field: loco.config.v1.AuthConfig auth = 3;
    */
   auth?: AuthConfigJson;

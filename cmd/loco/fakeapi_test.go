@@ -205,7 +205,7 @@ func (c *fakeConfigService) GetConfig(
 	var auth *configv1.AuthConfig
 	c.api.mu.Lock()
 	if c.api.identityProvider {
-		auth = &configv1.AuthConfig{Issuer: fakeIssuer, ClientId: fakeClientID}
+		auth = &configv1.AuthConfig{}
 	}
 	minimum := c.api.minCLIVersion
 	c.api.mu.Unlock()
@@ -219,6 +219,7 @@ func (c *fakeConfigService) GetConfig(
 		ServiceDefaults: defaults,
 		SchemaUrl:       fakeSchemaURL,
 		Auth:            auth,
+		WebAuthEnabled:  auth != nil,
 		MinCliVersion:   minimum,
 	}
 	return resp, nil
