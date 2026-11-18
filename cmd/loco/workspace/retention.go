@@ -1,14 +1,16 @@
 package workspace
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
+	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
+	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
@@ -19,17 +21,30 @@ var (
 
 // retentionSignal is one signal a workspace keeps for a number of days.
 type retentionSignal struct {
-	name  string
-	field string
-	days  func(*workspacev1.RetentionDays) **int32
+	name    string
+	days    func(*workspacev1.RetentionDays) *int32
+	limit   func(*configv1.CountLimits) int32
+	request func(*workspacev1.UpdateWorkspaceRequest) **int32
 }
 
 var retentionSignals = []retentionSignal{
-	{name: "logs", field: "log_days", days: func(d *workspacev1.RetentionDays) **int32 { return &d.LogDays }},
-	{name: "traces", field: "trace_days", days: func(d *workspacev1.RetentionDays) **int32 { return &d.TraceDays }},
 	{
-		name: "metrics", field: "metric_days",
-		days: func(d *workspacev1.RetentionDays) **int32 { return &d.MetricDays },
+		name:    "logs",
+		days:    func(d *workspacev1.RetentionDays) *int32 { return d.LogDays },
+		limit:   (*configv1.CountLimits).GetLogRetentionDays,
+		request: func(r *workspacev1.UpdateWorkspaceRequest) **int32 { return &r.LogRetentionDays },
+	},
+	{
+		name:    "traces",
+		days:    func(d *workspacev1.RetentionDays) *int32 { return d.TraceDays },
+		limit:   (*configv1.CountLimits).GetTraceRetentionDays,
+		request: func(r *workspacev1.UpdateWorkspaceRequest) **int32 { return &r.TraceRetentionDays },
+	},
+	{
+		name:    "metrics",
+		days:    func(d *workspacev1.RetentionDays) *int32 { return d.MetricDays },
+		limit:   (*configv1.CountLimits).GetMetricRetentionDays,
+		request: func(r *workspacev1.UpdateWorkspaceRequest) **int32 { return &r.MetricRetentionDays },
 	},
 }
 
@@ -39,7 +54,7 @@ func buildRetentionCmd() *cobra.Command {
 		Short: "Show or set how long a workspace keeps its logs, traces and metrics",
 		Long: `Show or set how many days a workspace keeps its logs, traces and metrics. Each value is at
 most the organization's retention limit; a signal without one keeps the limit. A change applies
-to telemetry ingested after it. Setting and unsetting require workspace admin.`,
+to telemetry ingested after it. Setting and unsetting require write access to the workspace.`,
 		Example: `  # Show the workspace's retention
   loco workspace retention get <workspace-id>
 
@@ -63,13 +78,7 @@ func buildRetentionGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resp, err := target.Clients.Workspace.GetWorkspaceRetention(
-				cmd.Context(), &workspacev1.GetWorkspaceRetentionRequest{WorkspaceId: args[0]},
-			)
-			if err != nil {
-				return fmt.Errorf("get workspace retention: %w", err)
-			}
-			return printRetention(cmd, resp.GetRetention())
+			return printRetention(cmd, target, args[0])
 		},
 	}
 	cmd.Flags().String("host", "", "API host URL")
@@ -82,8 +91,8 @@ func buildRetentionSetCmd() *cobra.Command {
 		Short: "Set how many days the workspace keeps each signal; the others keep their value",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			settings := &workspacev1.RetentionDays{}
-			var paths []string
+			req := &workspacev1.UpdateWorkspaceRequest{WorkspaceId: args[0]}
+			changed := false
 			for _, signal := range retentionSignals {
 				if !cmd.Flags().Changed(signal.name) {
 					continue
@@ -92,13 +101,13 @@ func buildRetentionSetCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				*signal.days(settings) = &days
-				paths = append(paths, signal.field)
+				*signal.request(req) = &days
+				changed = true
 			}
-			if len(paths) == 0 {
+			if !changed {
 				return errNoSignals
 			}
-			return setRetention(cmd, args[0], settings, paths)
+			return updateRetention(cmd, req)
 		},
 	}
 	cmd.Flags().String("host", "", "API host URL")
@@ -114,15 +123,15 @@ func buildRetentionUnsetCmd() *cobra.Command {
 		Short: "Return signals (logs, traces, metrics) to the organization's retention limit",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			paths := make([]string, 0, len(args)-1)
+			req := &workspacev1.UpdateWorkspaceRequest{WorkspaceId: args[0]}
 			for _, name := range args[1:] {
 				signal, ok := signalNamed(name)
 				if !ok {
 					return fmt.Errorf("%w %q; use logs, traces or metrics", errUnknownSignal, name)
 				}
-				paths = append(paths, signal.field)
+				*signal.request(req) = new(int32(0))
 			}
-			return setRetention(cmd, args[0], &workspacev1.RetentionDays{}, paths)
+			return updateRetention(cmd, req)
 		},
 	}
 	cmd.Flags().String("host", "", "API host URL")
@@ -138,41 +147,47 @@ func signalNamed(name string) (retentionSignal, bool) {
 	return retentionSignal{}, false
 }
 
-func setRetention(cmd *cobra.Command, workspaceID string, settings *workspacev1.RetentionDays, paths []string) error {
+func updateRetention(cmd *cobra.Command, req *workspacev1.UpdateWorkspaceRequest) error {
 	target, err := cmdutil.ResolveLogin(cmd)
 	if err != nil {
 		return err
 	}
-	resp, err := target.Clients.Workspace.SetWorkspaceRetention(
-		cmd.Context(),
-		&workspacev1.SetWorkspaceRetentionRequest{
-			WorkspaceId: workspaceID,
-			Settings:    settings,
-			UpdateMask:  &fieldmaskpb.FieldMask{Paths: paths},
-		},
-	)
-	if err != nil {
+	if _, err = target.Clients.Workspace.UpdateWorkspace(cmd.Context(), req); err != nil {
 		return fmt.Errorf("set workspace retention: %w", err)
 	}
-	return printRetention(cmd, resp.GetRetention())
+	return printRetention(cmd, target, req.GetWorkspaceId())
 }
 
-func printRetention(cmd *cobra.Command, retention *workspacev1.WorkspaceRetention) error {
+func printRetention(cmd *cobra.Command, target cmdutil.Target, workspaceID string) error {
+	workspace, err := target.Clients.Workspace.GetWorkspace(
+		cmd.Context(), &workspacev1.GetWorkspaceRequest{WorkspaceId: workspaceID},
+	)
+	if err != nil {
+		return fmt.Errorf("get workspace: %w", err)
+	}
+	limits, err := target.Clients.Org.GetOrgLimits(
+		cmd.Context(), &orgv1.GetOrgLimitsRequest{OrgId: workspace.GetWorkspace().GetOrgId()},
+	)
+	if err != nil {
+		return fmt.Errorf("get organization limits: %w", err)
+	}
+	own := cmp.Or(workspace.GetWorkspace().GetRetention(), &workspacev1.RetentionDays{})
+	effective := cmp.Or(workspace.GetWorkspace().GetEffectiveRetention(), &workspacev1.RetentionDays{})
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "SIGNAL\tWORKSPACE\tORGANIZATION LIMIT\tAPPLIED")
 	for _, signal := range retentionSignals {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", signal.name,
-			signal.format(retention.GetSettings()),
-			signal.format(retention.GetLimits()),
-			signal.format(retention.GetEffective()))
+			formatDays(signal.days(own)),
+			formatDays(new(signal.limit(limits.GetLimits().GetLimits()))),
+			formatDays(signal.days(effective)))
 	}
 	return w.Flush()
 }
 
-// format prints the signal's days in a response, or "-" when the response leaves it unset.
-func (s retentionSignal) format(days *workspacev1.RetentionDays) string {
-	if days == nil || *s.days(days) == nil {
+// formatDays prints days, or "-" when the response leaves them unset.
+func formatDays(days *int32) string {
+	if days == nil {
 		return "-"
 	}
-	return fmt.Sprintf("%d days", **s.days(days))
+	return fmt.Sprintf("%d days", *days)
 }
