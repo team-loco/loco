@@ -19,7 +19,7 @@ export function replicaLine(environment: EnvironmentStatus | undefined, nowMs: n
 	const regions = environment.regions;
 	const desired = regions.reduce((sum, r) => sum + r.desiredReplicas, 0);
 	const ready = regions.reduce((sum, r) => sum + r.readyReplicas, 0);
-	const counts = `${ready.toString()}/${desired.toString()} replicas ready`;
+	const counts = `${ready.toString()} of ${desired.toString()} ready`;
 	const regionSuffix = regions.length > 1 ? ` · ${regions.length.toString()} regions` : "";
 	const unreported = unreportedRegions(environment);
 	if (unreported.length === 0) return `${counts}${regionSuffix}`;

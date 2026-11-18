@@ -14,11 +14,13 @@ import { cn } from "@/lib/utils";
 
 import { METRIC_RANGES, sharedLimit, type MetricRange } from "./metric";
 import { MetricChart } from "./MetricChart";
+import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
 import { replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
 const UNSUPPORTED_RANGE = "7d";
+const ALL_REGIONS = "all";
 const PERCENT = 100;
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
 const MEMORY_METRIC = "k8s.pod.memory_request_utilization";
@@ -26,13 +28,17 @@ const MEMORY_METRIC = "k8s.pod.memory_request_utilization";
 function scaleText(regions: RegionView[]): string {
 	const pairs = regions.flatMap((r) => {
 		const svc = r.current === undefined ? undefined : getServiceSpec(r.current);
-		return svc === undefined ? [] : [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0 }];
+		return svc === undefined
+			? []
+			: [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0, cpu: svc.scalers?.cpuTarget }];
 	});
 	const first = pairs[0];
 	if (first === undefined) return "not deployed";
-	if (pairs.some((p) => p.min !== first.min || p.max !== first.max)) return "replicas differ by region";
-	const { min, max } = first;
-	return min === max ? `fixed at ${min.toString()} per region` : `${min.toString()} to ${max.toString()} per region`;
+	if (pairs.some((p) => p.min !== first.min || p.max !== first.max || p.cpu !== first.cpu))
+		return "scaling differs by region";
+	const { min, max, cpu } = first;
+	if (min === max) return `fixed at ${min.toString()} per region`;
+	return `autoscaling ${min.toString()}–${max.toString()}${cpu === undefined ? "" : `, CPU ${cpu.toString()}%`}`;
 }
 
 function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: boolean; onPick: () => void }) {
@@ -102,25 +108,44 @@ export function ReplicasPanel({
 	const specs = charted.map((r) => (r.current === undefined ? undefined : getServiceSpec(r.current)));
 	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
 	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
-	const replicas = charted.reduce((n, r) => n + (r.status?.desiredReplicas ?? 0), 0);
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
+	const picked = deployed.find((r) => r.name === selected)?.status;
+	const selectedLine =
+		picked === undefined
+			? undefined
+			: `${picked.readyReplicas.toString()} of ${picked.desiredReplicas.toString()} ready in ${picked.region}`;
+	const compare = selected === null && deployed.length > 1;
+	const averages = {
+		regions: deployed.map((r) => r.name),
+		workspaceId,
+		environmentId,
+		resourceId,
+		range,
+	};
 
 	return (
 		<Section
 			title="Replicas"
-			meta={`${replicaLine(environment, nowMs)} · ${scaleText(deployed)}`}
+			meta={`${selectedLine ?? replicaLine(environment, nowMs)} · ${scaleText(deployed)}`}
 			bodyClassName="flex flex-col gap-4 px-5 pt-[18px] pb-4"
 			actions={
 				<>
-					{selected !== null && (
-						<Button
-							variant="plain-link"
-							onClick={() => {
-								onSelect(null);
+					{deployed.length > 1 && (
+						<ToggleGroup
+							variant="segmented"
+							aria-label="Region"
+							value={[selected ?? ALL_REGIONS]}
+							onValueChange={(v: string[]) => {
+								if (v[0] !== undefined) onSelect(v[0] === ALL_REGIONS ? null : v[0]);
 							}}
 						>
-							Show all regions
-						</Button>
+							<ToggleGroupItem value={ALL_REGIONS}>All regions</ToggleGroupItem>
+							{deployed.map((r) => (
+								<ToggleGroupItem key={r.name} value={r.name} className="font-mono">
+									{r.name}
+								</ToggleGroupItem>
+							))}
+						</ToggleGroup>
 					)}
 					{metricsHref !== undefined && (
 						<Button variant="link" nativeButton={false} render={<Link to={metricsHref} />}>
@@ -166,30 +191,43 @@ export function ReplicasPanel({
 				<SoonTag />
 			</div>
 			<div className="grid grid-cols-1 gap-7 border-t border-line2 pt-3.5 lg:grid-cols-2">
-				<MetricChart
-					title={selected === null ? "CPU" : `CPU · ${selected}`}
-					points={cpu.points}
-					isLoading={cpu.isLoading}
-					failed={cpu.error !== null}
-					from={cpu.from}
-					to={cpu.to}
-					markers={markers}
-					limit={cpuLimit}
-					format={formatCpu}
-					replicas={replicas}
-				/>
-				<MetricChart
-					title={selected === null ? "Memory" : `Memory · ${selected}`}
-					points={memory.points}
-					isLoading={memory.isLoading}
-					failed={memory.error !== null}
-					from={memory.from}
-					to={memory.to}
-					markers={markers}
-					limit={memoryLimit}
-					format={formatMemory}
-					replicas={replicas}
-				/>
+				{compare ? (
+					<>
+						<RegionAverages {...averages} title="CPU" metricName={CPU_METRIC} limit={cpuLimit} format={formatCpu} />
+						<RegionAverages
+							{...averages}
+							title="Memory"
+							metricName={MEMORY_METRIC}
+							limit={memoryLimit}
+							format={formatMemory}
+						/>
+					</>
+				) : (
+					<>
+						<MetricChart
+							title={selected === null ? "CPU" : `CPU · ${selected}`}
+							points={cpu.points}
+							isLoading={cpu.isLoading}
+							failed={cpu.error !== null}
+							from={cpu.from}
+							to={cpu.to}
+							markers={markers}
+							limit={cpuLimit}
+							format={formatCpu}
+						/>
+						<MetricChart
+							title={selected === null ? "Memory" : `Memory · ${selected}`}
+							points={memory.points}
+							isLoading={memory.isLoading}
+							failed={memory.error !== null}
+							from={memory.from}
+							to={memory.to}
+							markers={markers}
+							limit={memoryLimit}
+							format={formatMemory}
+						/>
+					</>
+				)}
 			</div>
 		</Section>
 	);

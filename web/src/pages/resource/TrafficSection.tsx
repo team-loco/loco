@@ -45,9 +45,14 @@ export function TrafficSection({
 	return (
 		<Section title="Traffic">
 			{traffic.error !== null ? (
-				<p role="alert" className="m-0 px-5 py-4 text-bad-fg">
-					{getErrorMessage(traffic.error, "Failed to load traffic")}
-				</p>
+				<div className="p-5">
+					<p
+						role="alert"
+						className="m-0 flex h-32 items-center justify-center rounded-md border border-dashed border-line2 text-sm text-fg3"
+					>
+						{getErrorMessage(traffic.error, "Failed to load traffic")}
+					</p>
+				</div>
 			) : (
 				<div className="grid gap-6 p-5 sm:grid-cols-2">
 					{CHARTS.map(({ key, title, unit }) => (

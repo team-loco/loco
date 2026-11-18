@@ -17,6 +17,7 @@ import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { SoonTag } from "@/components/design/SoonTag";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
@@ -93,19 +94,25 @@ function Detail({
 	const took = tookMs(dep);
 	const changes = prev === undefined ? [] : specChanges(prev, dep);
 	return (
-		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-8">
-			<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
-				<dt className="text-fg3">Image</dt>
-				<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>
-				<dt className="text-fg3">Created</dt>
-				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt), timePref)}</dd>
-				<dt className="text-fg3">Started</dt>
-				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.startedAt), timePref)}</dd>
-				<dt className="text-fg3">Completed</dt>
-				<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt), timePref)}</dd>
-				<dt className="text-fg3">Took</dt>
-				<dd className="m-0 font-mono">{took === undefined ? "—" : formatDuration(took)}</dd>
-			</dl>
+		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-9">
+			<div className="flex min-w-0 flex-col gap-1.5">
+				<span className="flex items-center gap-2 text-[12px] text-fg3">
+					Rollout
+					<SoonTag />
+				</span>
+				<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
+					<dt className="text-fg3">Image</dt>
+					<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>
+					<dt className="text-fg3">Created</dt>
+					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt), timePref)}</dd>
+					<dt className="text-fg3">Started</dt>
+					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.startedAt), timePref)}</dd>
+					<dt className="text-fg3">Completed</dt>
+					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt), timePref)}</dd>
+					<dt className="text-fg3">Took</dt>
+					<dd className="m-0 font-mono">{took === undefined ? "—" : formatDuration(took)}</dd>
+				</dl>
+			</div>
 			<div className="flex min-w-0 flex-col gap-1.5">
 				<span className="text-[12px] text-fg3">Changes from previous</span>
 				{prev === undefined && <span className="text-[12.5px] text-fg3">First deployment in {region.name}</span>}
@@ -305,7 +312,7 @@ export function DeploymentsSection({
 						<Table inset className="min-w-[900px] table-fixed [--row-h:58px]">
 							<TableHeader>
 								<TableRow>
-									<TableHead className="w-6" />
+									<TableHead className="w-7" />
 									<TableHead className="w-[130px]">Status</TableHead>
 									<TableHead className="w-[180px]">Version</TableHead>
 									<TableHead className="w-[200px]">Deployed by</TableHead>
@@ -318,7 +325,7 @@ export function DeploymentsSection({
 							<TableBody>
 								{deployRows.rows.length === 0 && (
 									<TableRow>
-										<TableCell colSpan={columns} className="text-fg3">
+										<TableCell colSpan={columns} className="h-24 text-center text-fg3">
 											No deployments yet.
 										</TableCell>
 									</TableRow>
