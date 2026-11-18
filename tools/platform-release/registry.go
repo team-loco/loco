@@ -372,9 +372,6 @@ func (r *registry) ensure(
 	}
 	var manifest struct {
 		Annotations map[string]string `json:"annotations"`
-		Layers      []struct {
-			Digest string `json:"digest"`
-		} `json:"layers"`
 	}
 	if checkErr := json.Unmarshal(body, &manifest); checkErr != nil {
 		return "", checkErr

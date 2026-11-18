@@ -93,10 +93,12 @@ func TestArchiveContentIgnoresMetadataAndCompression(t *testing.T) {
 
 func TestCanonicalJSONMatchesPython(t *testing.T) {
 	t.Parallel()
-	require.JSONEq(t, `{"a":"<&>\u00e9\ud83d\ude80","z":1}`, string(encoded(struct {
+	want := []byte(`{"a":"<&>\u00e9\ud83d\ude80","z":1}`)
+	got := encoded(struct {
 		Z int    `json:"z"`
 		A string `json:"a"`
-	}{1, "<&>é🚀"})))
+	}{1, "<&>é🚀"})
+	require.True(t, bytes.Equal(want, got), "canonical JSON differs: want %q, got %q", want, got)
 }
 
 func TestVersionOrdering(t *testing.T) {

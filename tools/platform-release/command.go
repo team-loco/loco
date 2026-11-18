@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"go.yaml.in/yaml/v3"
 	"golang.org/x/mod/semver"
 )
 
@@ -26,15 +25,12 @@ type tool struct {
 	ctx  context.Context
 }
 
-func (t *tool) run(args ...string) (string, error) { return t.input(nil, args...) }
-
-func (t *tool) input(input []byte, args ...string) (string, error) {
+func (t *tool) run(args ...string) (string, error) {
 	cmd, err := t.command(args...)
 	if err != nil {
 		return "", err
 	}
 	cmd.Dir = t.root
-	cmd.Stdin = bytes.NewReader(input)
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
@@ -49,7 +45,7 @@ func (t *tool) command(args ...string) (*exec.Cmd, error) {
 	}
 	arguments := args[1:]
 	switch args[0] {
-	case "git", "go", "helm", "mise", "yq", dockerCommand, "gh":
+	case "git", "go", "helm", "mise", dockerCommand, "gh":
 		// #nosec G702 -- The operator supplies argv; executable names are allowlisted and no shell is used.
 		return exec.CommandContext(t.ctx, args[0], arguments...), nil
 	default:
@@ -57,21 +53,7 @@ func (t *tool) command(args ...string) (*exec.Cmd, error) {
 	}
 }
 
-func (t *tool) parse(data []byte, expression string) (any, error) {
-	out, err := t.input(data, "yq", "-o=json", expression, "-")
-	if err != nil {
-		return nil, err
-	}
-	var result any
-	decoder := json.NewDecoder(strings.NewReader(out))
-	decoder.UseNumber()
-	if checkErr := decoder.Decode(&result); checkErr != nil {
-		return nil, checkErr
-	}
-	return result, nil
-}
-
-func (t *tool) value(path, expression, ref string) (any, error) {
+func (t *tool) value(path, key, ref string) (any, error) {
 	var data []byte
 	if ref == "" {
 		var err error
@@ -93,7 +75,14 @@ func (t *tool) value(path, expression, ref string) (any, error) {
 		}
 		data = []byte(out)
 	}
-	return t.parse(data, expression)
+	var document object
+	if err := yaml.Unmarshal(data, &document); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	if key == "" {
+		return document, nil
+	}
+	return document[key], nil
 }
 
 func validateVersion(version string) error {

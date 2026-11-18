@@ -210,6 +210,18 @@ func TestInvalidReleaseInputsPublishNothing(t *testing.T) {
 
 func TestProtectedCRDHasIndependentOwnership(t *testing.T) {
 	tool := testTool(t)
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(tool.root, crdSources[0].path), []byte(`apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: applications.infra.loco.io
+  annotations:
+    existing: retained
+spec:
+  group: infra.loco.io
+`), 0o600),
+	)
 	data, err := tool.protectedCRD(crdSources[0].path)
 	require.NoError(t, err)
 	files, err := archiveFiles(data)
@@ -218,4 +230,5 @@ func TestProtectedCRDHasIndependentOwnership(t *testing.T) {
 	require.NoError(t, json.Unmarshal(files["crd.yaml"], &crd))
 	annotations := fields(crd, fieldMetadata, "annotations")
 	require.Equal(t, "disabled", annotations["kustomize.toolkit.fluxcd.io/prune"])
+	require.Equal(t, "retained", annotations["existing"])
 }

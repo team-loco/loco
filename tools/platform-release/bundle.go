@@ -93,7 +93,7 @@ func kustomization(resources []string) []byte {
 }
 
 func (t *tool) bundle(manifest releaseManifest) (releaseFiles, error) {
-	namespace, err := t.value("manifests/namespaces/loco-system.yaml", ".", "")
+	namespace, err := t.value("manifests/namespaces/loco-system.yaml", "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -299,7 +299,7 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 			imageAgent:      object{fieldImage: pinned[imageAgent]},
 			imageController: object{fieldImage: pinned[imageController]},
 			buildsName:      object{"builderImage": pinned["builder"]},
-			"gateway-helm":  object{fieldEnabled: false},
+			gatewayChart:    object{fieldEnabled: false},
 		},
 		[]string{certManagerName, "envoy-gateway"},
 	)

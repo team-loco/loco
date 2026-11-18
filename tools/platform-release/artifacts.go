@@ -12,13 +12,13 @@ import (
 )
 
 const crdVersions = "tools/platform-release/crds.yaml"
+const gatewayChart = "gateway-helm"
 const certManager = "charts/cert-manager.yaml"
-const gatewayExpression = `.dependencies[] | select(.name == "gateway-helm")`
 
-var crdSources = []struct{ name, path, expression string }{
-	{"applications", "controller/config/crd/bases/infra.loco.io_applications.yaml", "."},
-	{buildsName, "controller/config/crd/bases/infra.loco.io_builds.yaml", "."},
-	{gatewayName, "charts/loco-worker/Chart.yaml", gatewayExpression},
+var crdSources = []struct{ name, path string }{
+	{"applications", "controller/config/crd/bases/infra.loco.io_applications.yaml"},
+	{buildsName, "controller/config/crd/bases/infra.loco.io_builds.yaml"},
+	{gatewayName, "charts/loco-worker/Chart.yaml"},
 }
 
 type artifact struct {
@@ -28,14 +28,14 @@ type artifact struct {
 	mediaType     string
 }
 
-func (t *tool) stringValue(manifestPath, expression, ref string) (string, error) {
-	value, err := t.value(manifestPath, expression, ref)
+func (t *tool) stringValue(manifestPath, key, ref string) (string, error) {
+	value, err := t.value(manifestPath, key, ref)
 	if err != nil {
 		return "", err
 	}
 	result, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("%s %s must be a string", manifestPath, expression)
+		return "", fmt.Errorf("%s %s must be a string", manifestPath, key)
 	}
 	return result, nil
 }
@@ -43,14 +43,14 @@ func (t *tool) stringValue(manifestPath, expression, ref string) (string, error)
 func (t *tool) versions(ref string) (map[string]string, error) {
 	result := map[string]string{}
 	for _, name := range charts {
-		version, err := t.stringValue("charts/"+name+"/Chart.yaml", ".version", ref)
+		version, err := t.stringValue("charts/"+name+"/Chart.yaml", fieldVersion, ref)
 		if err != nil {
 			return nil, err
 		}
 		result[name] = version
 	}
 	for _, entry := range crdSources {
-		version, err := t.stringValue(crdVersions, "."+entry.name, ref)
+		version, err := t.stringValue(crdVersions, entry.name, ref)
 		if err != nil {
 			return nil, err
 		}
@@ -61,16 +61,20 @@ func (t *tool) versions(ref string) (map[string]string, error) {
 			return nil, checkErr
 		}
 	}
-	cert, err := t.stringValue(certManager, ".version", ref)
+	cert, err := t.stringValue(certManager, fieldVersion, ref)
 	if err != nil {
 		return nil, err
 	}
 	result["cert-manager-chart"] = cert
-	gateway, err := t.stringValue("charts/loco-worker/Chart.yaml", gatewayExpression+" | .version", ref)
+	gateway, err := t.gateway(ref)
 	if err != nil {
 		return nil, err
 	}
-	result["gateway-chart"] = gateway
+	gatewayVersion, ok := gateway[fieldVersion].(string)
+	if !ok {
+		return nil, errors.New("gateway dependency version must be a string")
+	}
+	result["gateway-chart"] = gatewayVersion
 	return result, nil
 }
 
@@ -91,18 +95,18 @@ func repositories(repository string) map[string]string {
 func (t *tool) unbumped(base string) ([]string, error) {
 	stale := []string{}
 	for _, entry := range crdSources {
-		old, err := t.value(crdVersions, "."+entry.name, base)
+		old, err := t.value(crdVersions, entry.name, base)
 		if err != nil {
 			return nil, err
 		}
 		if old == nil {
 			continue
 		}
-		a, err := t.value(entry.path, entry.expression, base)
+		a, err := t.crdDocument(entry.name, entry.path, base)
 		if err != nil {
 			return nil, err
 		}
-		b, err := t.value(entry.path, entry.expression, "")
+		b, err := t.crdDocument(entry.name, entry.path, "")
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +117,7 @@ func (t *tool) unbumped(base string) ([]string, error) {
 		if !ok {
 			return nil, errors.New("old CRD version must be a string")
 		}
-		current, err := t.stringValue(crdVersions, "."+entry.name, "")
+		current, err := t.stringValue(crdVersions, entry.name, "")
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +133,7 @@ func (t *tool) unbumped(base string) ([]string, error) {
 }
 
 func (t *tool) protectedCRD(manifestPath string) ([]byte, error) {
-	value, err := t.value(manifestPath, ".", "")
+	value, err := t.value(manifestPath, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +204,7 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 		); checkErr != nil {
 			return nil, checkErr
 		}
-		config, configErr := t.value("charts/"+name+"/Chart.yaml", ".", "")
+		config, configErr := t.value("charts/"+name+"/Chart.yaml", "", "")
 		if configErr != nil {
 			return nil, configErr
 		}
@@ -210,7 +214,7 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 		}
 		result = append(result, artifact{name, pinned[name], data, config, helmLayerType})
 	}
-	cert, err := t.value(certManager, ".", "")
+	cert, err := t.value(certManager, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -239,14 +243,7 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 	); checkErr != nil {
 		return nil, checkErr
 	}
-	certFiles, err := filepath.Glob(filepath.Join(directory, "cert-manager-*.tgz"))
-	if err != nil {
-		return nil, err
-	}
-	if len(certFiles) != 1 {
-		return nil, errors.New("expected one cert-manager chart archive")
-	}
-	certData, err := os.ReadFile(certFiles[0])
+	certData, err := os.ReadFile(filepath.Join(directory, chart+"-"+pinned["cert-manager-chart"]+".tgz"))
 	if err != nil {
 		return nil, err
 	}
@@ -260,14 +257,9 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 			helmLayerType,
 		},
 	)
-	gateways, err := filepath.Glob(filepath.Join(t.root, "charts", "loco-worker", "charts", "gateway-helm-*.tgz"))
-	if err != nil {
-		return nil, err
-	}
-	if len(gateways) != 1 {
-		return nil, errors.New("expected one gateway dependency archive")
-	}
-	data, err := os.ReadFile(gateways[0])
+	data, err := os.ReadFile(
+		filepath.Join(t.root, "charts", "loco-worker", "charts", "gateway-helm-"+pinned["gateway-chart"]+".tgz"),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +269,7 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 			"gateway-chart",
 			pinned["gateway-chart"],
 			data,
-			object{fieldName: "gateway-helm", fieldVersion: pinned["gateway-chart"]},
+			object{fieldName: gatewayChart, fieldVersion: pinned["gateway-chart"]},
 			helmLayerType,
 		},
 	)
@@ -299,4 +291,32 @@ func (t *tool) packagedArtifacts(directory, commit string) ([]artifact, error) {
 		)
 	}
 	return result, nil
+}
+
+func (t *tool) gateway(ref string) (object, error) {
+	dependencies, err := t.value("charts/loco-worker/Chart.yaml", "dependencies", ref)
+	if err != nil {
+		return nil, err
+	}
+	entries, ok := dependencies.([]any)
+	if !ok {
+		return nil, errors.New("worker chart dependencies must be a list")
+	}
+	for _, value := range entries {
+		dependency, ok := value.(map[string]any)
+		if !ok {
+			return nil, errors.New("chart dependency must be an object")
+		}
+		if dependency[fieldName] == gatewayChart {
+			return dependency, nil
+		}
+	}
+	return nil, errors.New("worker chart has no gateway-helm dependency")
+}
+
+func (t *tool) crdDocument(name, manifestPath, ref string) (any, error) {
+	if name == gatewayName {
+		return t.gateway(ref)
+	}
+	return t.value(manifestPath, "", ref)
 }

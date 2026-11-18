@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +22,7 @@ func testTool(t *testing.T) *tool {
 	executable, err := os.Executable()
 	require.NoError(t, err)
 	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
-	for _, name := range []string{"git", "yq", "helm", "mise", dockerCommand, "go", "gh"} {
+	for _, name := range []string{"git", "helm", "mise", dockerCommand, "go", "gh"} {
 		script := "#!/bin/sh\nexec " + quote(
 			executable,
 		) + " -test.run=TestReleaseCommandHelper -- " + name + " \"$@\"\n"
@@ -125,8 +124,6 @@ func releaseCommandHelper(root string, args []string) error {
 	switch args[0] {
 	case "git":
 		return fixture.git()
-	case "yq":
-		return fixture.yq()
 	case "go":
 		data, err := fixture.read("fingerprints.json")
 		if err != nil {
@@ -184,49 +181,6 @@ func (fixture commandFixture) git() error {
 	case "rev-list":
 		fmt.Print(strings.Repeat("b", 40))
 	}
-
-	return nil
-}
-
-func (fixture commandFixture) yq() error {
-	data, err := io.ReadAll(os.Stdin)
-	if err != nil {
-		return err
-	}
-	var value any
-	if checkErr := json.Unmarshal(data, &value); checkErr != nil {
-		return checkErr
-	}
-	expression := fixture.args[2]
-	if expression != "." {
-		document, ok := value.(map[string]any)
-		if !ok {
-			return errors.New("expected document")
-		}
-		if strings.HasPrefix(expression, ".dependencies") {
-			dependencies, ok := document["dependencies"].([]any)
-			if !ok {
-				return errors.New("missing dependencies")
-			}
-			value = nil
-			for _, dependency := range dependencies {
-				entry, ok := dependency.(map[string]any)
-				if !ok {
-					return errors.New("invalid fixture dependency")
-				}
-				if entry[fieldName] == "gateway-helm" {
-					value = entry
-					if strings.HasSuffix(expression, ".version") {
-						value = entry[fieldVersion]
-					}
-					break
-				}
-			}
-		} else {
-			value = document[strings.TrimPrefix(expression, ".")]
-		}
-	}
-	fmt.Print(string(encoded(value)))
 
 	return nil
 }
