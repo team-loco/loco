@@ -188,11 +188,10 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
-	if req.GetSpec().GetService() == nil {
+	serviceSpec := req.GetSpec().GetService()
+	if serviceSpec == nil {
 		return nil, errOnlyServiceResources
 	}
-
-	serviceSpec := req.GetSpec().GetService()
 
 	region := req.GetRegion()
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
