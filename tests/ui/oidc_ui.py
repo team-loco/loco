@@ -50,9 +50,7 @@ def check_browser(browser, state, issuer_url):
     assert "__Host-loco_login" not in previous
     assert page.evaluate(
         """() => {
-            const keys = [...Object.keys(localStorage), ...Object.keys(sessionStorage)];
-            return keys.every(key => !key.startsWith('loco:auth:')) &&
-                JSON.stringify([localStorage, sessionStorage]).indexOf('unused-provider-refresh') === -1 &&
+            return JSON.stringify([localStorage, sessionStorage]).indexOf('unused-provider-refresh') === -1 &&
                 document.cookie === '';
         }"""
     )

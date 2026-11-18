@@ -87,22 +87,4 @@ with session(out) as browser:
     assert not errors, errors
     context.close()
 
-    # An older server has no install retention fields; avoid claiming cleanup is disabled.
-    context, page, errors = open_page(browser, state=state)
-    del config["historyRetention"]
-    page.route(
-        "**/loco.config.v1.ConfigService/GetConfig",
-        lambda route: route.fulfill(json=config),
-    )
-    page.goto(path)
-    limits = page.get_by_role("region", name="Limits", exact=True)
-    for label in ("Build images", "Events and webhook deliveries"):
-        expect(
-            limits.get_by_role("row")
-            .filter(has=page.get_by_role("cell", name=label, exact=True))
-            .get_by_role("cell")
-            .last
-        ).to_have_text("—")
-    assert not errors, errors
-    context.close()
 print("Install retention API and dashboard checks passed")

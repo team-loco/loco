@@ -37,7 +37,6 @@ DB_NAME = "evidence"
 SESSION_PREFIX = "loco_s_"
 MODE_KEY = "loco:mode:v1"
 COLOR_KEY = "loco:color:v1"
-LEGACY_AUTH_KEY = "loco:auth:oidc:v1"
 SESSION_COOKIE = "__Host-loco_session"
 REFRESH_COOKIE = "__Host-loco_refresh"
 THEMES = ("light", "dark")
@@ -45,7 +44,6 @@ DESKTOP = {"width": 1280, "height": 800}
 NARROW = {"width": 390, "height": 844}
 SCALE = 2
 SESSION_TTL = "1 day"
-SESSION_EXPIRY_MS = 4102444800000
 READY_TIMEOUT_S = 120
 POSTGRES_READY_TIMEOUT_S = 300
 STEP_TIMEOUT_MS = 15000
@@ -634,22 +632,19 @@ def seed(state, scenario):
             f"INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES {scope_rows};",
         )
         token = session_token()
-        columns, extra = "", ""
-        if state["cookie_session"]:
-            psql(
-                container,
-                "INSERT INTO identities (user_id, issuer, subject, email, email_verified) "
-                f"VALUES ({sql_literal(user_id)}, {sql_literal(state['issuer'])}, "
-                f"{sql_literal('evidence-' + key)}, {sql_literal(user['email'])}, true);",
-            )
-            columns, extra = ", kind", ", 'web'"
+        psql(
+            container,
+            "INSERT INTO identities (user_id, issuer, subject, email, email_verified) "
+            f"VALUES ({sql_literal(user_id)}, {sql_literal(state['issuer'])}, "
+            f"{sql_literal('evidence-' + key)}, {sql_literal(user['email'])}, true);",
+        )
         psql(
             container,
             "INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, "
-            f"access_expires_at, refresh_expires_at{columns}) VALUES "
+            "access_expires_at, refresh_expires_at, kind) VALUES "
             f"({sql_literal(uuid.uuid4())}, {sql_literal(token_hash(token))}, "
             f"{sql_literal(token_hash('refresh-' + token))}, {sql_literal(user_id)}, "
-            f"NOW() + INTERVAL '{SESSION_TTL}', NOW() + INTERVAL '{SESSION_TTL}'{extra});",
+            f"NOW() + INTERVAL '{SESSION_TTL}', NOW() + INTERVAL '{SESSION_TTL}', 'web');",
         )
         users[key] = {"id": user_id, "email": user["email"], "token": token}
 
@@ -947,8 +942,6 @@ def start_state(*, ref, name, scenario, issuer=None):
                 "api_url": f"http://{HOST}:{api_port}",
                 "ui_url": f"http://{HOST}:{ui_port}",
                 "issuer": issuer or f"http://{HOST}:{ui_port}/dex",
-                # A screenshot can compare this checkout with a pre-cookie ref.
-                "cookie_session": not (worktree / "web/src/auth/session.ts").is_file(),
             }
         )
         write_json(state_path, state)
@@ -1205,27 +1198,19 @@ def settle(page, *, wait_for_network=True, exclude_animations=()):
 
 
 def authenticate(context, state, token):
-    if state["cookie_session"]:
-        # Chromium's cookie injection requires a secure scheme for __Host-
-        # cookies. The browser still sends them to the loopback HTTP fixture.
-        context.add_cookies(
-            [
-                {
-                    "name": SESSION_COOKIE,
-                    "value": token,
-                    "url": state["ui_url"].replace("http://", "https://", 1),
-                    "httpOnly": True,
-                    "secure": True,
-                    "sameSite": "Lax",
-                }
-            ]
-        )
-        return
-    stored = json.dumps(
-        {"idToken": token, "refreshToken": None, "expiresAt": SESSION_EXPIRY_MS}
-    )
-    context.add_init_script(
-        f"localStorage.setItem({json.dumps(LEGACY_AUTH_KEY)}, {json.dumps(stored)});"
+    # Chromium's cookie injection requires a secure scheme for __Host-
+    # cookies. The browser still sends them to the loopback HTTP fixture.
+    context.add_cookies(
+        [
+            {
+                "name": SESSION_COOKIE,
+                "value": token,
+                "url": state["ui_url"].replace("http://", "https://", 1),
+                "httpOnly": True,
+                "secure": True,
+                "sameSite": "Lax",
+            }
+        ]
     )
 
 
