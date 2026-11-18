@@ -10,11 +10,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var errEmptyScopeName = errors.New("scope name cannot be empty")
-
 const (
 	ConfigFileName = "config.yaml"
-	DefaultScope   = "default"
 
 	configFileMode = 0o600
 )
@@ -22,14 +19,8 @@ const (
 // SessionConfig represents the CLI's local state and authentication configuration.
 // It is persisted to ~/.loco/config.yaml.
 type SessionConfig struct {
-	LocoHost     string            `json:"locoHost,omitempty"`
-	WebHost      string            `json:"webHost,omitempty"`
-	Scopes       map[string]*Scope `json:"scopes"`
-	CurrentScope string            `json:"currentScope"`
-}
-
-// Scope represents a CLI context with an organization and workspace.
-type Scope struct {
+	LocoHost     string          `json:"locoHost,omitempty"`
+	WebHost      string          `json:"webHost,omitempty"`
 	Organization SimpleOrg       `json:"organization"`
 	Workspace    SimpleWorkspace `json:"workspace"`
 }
@@ -68,14 +59,6 @@ func GetConfigPath() (string, error) {
 	return filepath.Join(locoDir, ConfigFileName), nil
 }
 
-// NewSessionConfig creates a new SessionConfig with the default scope.
-func NewSessionConfig() *SessionConfig {
-	return &SessionConfig{
-		Scopes:       make(map[string]*Scope),
-		CurrentScope: DefaultScope,
-	}
-}
-
 // Load reads the SessionConfig from ~/.loco/config.yaml. Returns a new config if the file doesn't exist.
 func Load() (*SessionConfig, error) {
 	configPath, err := GetConfigPath()
@@ -85,7 +68,7 @@ func Load() (*SessionConfig, error) {
 
 	data, err := os.ReadFile(configPath)
 	if errors.Is(err, fs.ErrNotExist) {
-		return NewSessionConfig(), nil
+		return &SessionConfig{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config: %w", err)
@@ -94,10 +77,6 @@ func Load() (*SessionConfig, error) {
 	var cfg SessionConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("decode config %s: %w", configPath, err)
-	}
-
-	if cfg.CurrentScope == "" {
-		cfg.CurrentScope = DefaultScope
 	}
 
 	return &cfg, nil
@@ -122,40 +101,9 @@ func (c *SessionConfig) Save() error {
 	return nil
 }
 
-// GetScope returns the current scope or an error if it's not found.
-func (c *SessionConfig) GetScope() (*Scope, error) {
-	ctx, ok := c.Scopes[c.CurrentScope]
-	if !ok {
-		return nil, fmt.Errorf("current scope %q not found", c.CurrentScope)
-	}
-	return ctx, nil
-}
-
-// SetScope creates or updates a scope with the given organization and workspace, sets it as current,
-// and persists the config.
-func (c *SessionConfig) SetScope(scopeName string, org SimpleOrg, wks SimpleWorkspace) error {
-	if scopeName == "" {
-		return errEmptyScopeName
-	}
-
-	if c.Scopes == nil {
-		c.Scopes = make(map[string]*Scope)
-	}
-
-	ctx, exists := c.Scopes[scopeName]
-	if !exists {
-		ctx = &Scope{}
-		c.Scopes[scopeName] = ctx
-	}
-
-	ctx.Organization = org
-	ctx.Workspace = wks
-	c.CurrentScope = scopeName
-
+// SetScope saves org and wks as the organization and workspace commands use by default.
+func (c *SessionConfig) SetScope(org SimpleOrg, wks SimpleWorkspace) error {
+	c.Organization = org
+	c.Workspace = wks
 	return c.Save()
-}
-
-// SetDefaultScope is a convenience method to set the default scope.
-func (c *SessionConfig) SetDefaultScope(org SimpleOrg, wks SimpleWorkspace) error {
-	return c.SetScope(DefaultScope, org, wks)
 }

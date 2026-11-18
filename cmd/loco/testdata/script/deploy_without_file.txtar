@@ -20,15 +20,12 @@ stderr '(?i)a domain needs --port; without a port the service runs as a worker'
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
 -- home/.loco/config.yaml --
-currentScope: default
-scopes:
-  default:
-    organization:
-      name: acme
-      id: "1"
-    workspace:
-      name: production
-      id: "2"
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"
 -- app/Dockerfile --
 FROM scratch
 COPY main.go /

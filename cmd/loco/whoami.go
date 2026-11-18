@@ -47,13 +47,7 @@ func newWhoAmICmd(env Env) *cobra.Command {
 				return fmt.Errorf("failed to get user info: %w", err)
 			}
 
-			var currentOrg, currentWorkspace string
-			if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
-				currentOrg = scope.Organization.Name
-				currentWorkspace = scope.Workspace.Name
-			}
-
-			card := renderCardString(resp.GetUser(), currentOrg, currentWorkspace)
+			card := renderCardString(resp.GetUser(), cfg.Organization.Name, cfg.Workspace.Name)
 			out := cmd.OutOrStdout()
 			_, err = lipgloss.Fprintln(out, card)
 			return err

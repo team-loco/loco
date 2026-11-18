@@ -13,26 +13,22 @@ func TestSaveWritesYAMLThatLoadReadsBack(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 
-	cfg := NewSessionConfig()
-	cfg.LocoHost = "https://api.loco.test"
+	cfg := &SessionConfig{LocoHost: "https://api.loco.test"}
 	org := SimpleOrg{Name: "acme", ID: "1"}
 	wks := SimpleWorkspace{Name: "production", ID: "2"}
-	require.NoError(t, cfg.SetDefaultScope(org, wks))
+	require.NoError(t, cfg.SetScope(org, wks))
 
 	configPath := filepath.Join(home, ".loco", "config.yaml")
 	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.YAMLEq(t, `
 locoHost: https://api.loco.test
-currentScope: default
-scopes:
-  default:
-    organization:
-      name: acme
-      id: "1"
-    workspace:
-      name: production
-      id: "2"
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"
 `, string(data))
 
 	loaded, err := Load()
@@ -40,10 +36,10 @@ scopes:
 	assert.Equal(t, cfg, loaded)
 }
 
-func TestLoadWithoutConfigFileReturnsDefaultScope(t *testing.T) {
+func TestLoadWithoutConfigFileReturnsAnEmptyConfig(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
 	cfg, err := Load()
 	require.NoError(t, err)
-	assert.Equal(t, NewSessionConfig(), cfg)
+	assert.Equal(t, &SessionConfig{}, cfg)
 }

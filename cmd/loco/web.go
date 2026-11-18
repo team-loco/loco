@@ -98,11 +98,7 @@ func webCmdFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	var orgID, workspaceID string
-	if scope, scopeErr := cfg.GetScope(); scopeErr == nil {
-		orgID = scope.Organization.ID
-		workspaceID = scope.Workspace.ID
-	}
+	orgID, workspaceID := cfg.Organization.ID, cfg.Workspace.ID
 
 	if page == "" {
 		page = pageDashboard

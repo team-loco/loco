@@ -121,12 +121,11 @@ func setupLoginScope(
 	}
 
 	if cfg.LocoHost == apiHost {
-		scope, scopeErr := cfg.GetScope()
-		if scopeErr == nil {
+		if cfg.Workspace.ID != "" {
 			if storeErr := store.Set(newToken); storeErr != nil {
 				return fmt.Errorf("failed to store token: %w", storeErr)
 			}
-			return printLoginSuccess("Logged in!", scope.Organization.Name, scope.Workspace.Name)
+			return printLoginSuccess("Logged in!", cfg.Organization.Name, cfg.Workspace.Name)
 		}
 	}
 
@@ -136,8 +135,7 @@ func setupLoginScope(
 	}
 
 	cfg.LocoHost = apiHost
-	cfg.Scopes = make(map[string]*session.Scope)
-	if err := cfg.SetDefaultScope(org, workspace); err != nil {
+	if err := cfg.SetScope(org, workspace); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
