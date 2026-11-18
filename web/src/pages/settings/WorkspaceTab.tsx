@@ -32,6 +32,7 @@ import { userLabel } from "@/lib/user";
 
 import { EnvironmentsSection } from "./EnvironmentsSection";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
+import { RetentionSection } from "./RetentionSection";
 import type { ResourceCount } from "./useResourceCounts";
 
 const MAX_NAME = 63;
@@ -214,6 +215,8 @@ export function WorkspaceTab({
 				canWrite={canWrite}
 				canAdmin={canAdmin}
 			/>
+
+			<RetentionSection workspace={ws} canWrite={canWrite} />
 
 			<SettingsSection title="Danger zone">
 				<DangerZone

@@ -1,7 +1,8 @@
+import { useQuery } from "@connectrpc/connect-query";
 import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
+import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { EmptyHero } from "@/components/design/EmptyHero";
 import { ErrorState } from "@/components/design/ErrorState";
-import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { Spinner } from "@/components/design/Spinner";
 import { useState, type KeyboardEventHandler } from "react";
 
@@ -43,8 +44,10 @@ export function TraceDrawer({
 	onRetry: () => Promise<unknown>;
 	onClose: () => void;
 }) {
-	const { orgId, resourceById } = useObs();
-	const limits = useOrgLimits(orgId);
+	const { workspaceId, scopedResourceIds, resourceById } = useObs();
+	// Only workspace readers may read its retention.
+	const traceDays = useQuery(getWorkspace, { workspaceId }, { enabled: scopedResourceIds === null }).data?.workspace
+		?.effectiveRetention?.traceDays;
 	const { zoom, change: setZoom, drawerRef } = useTraceZoom();
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
@@ -103,7 +106,7 @@ export function TraceDrawer({
 								<EmptyHero
 									art={<ScrollTextIcon className="size-8 text-fg3" />}
 									title="This trace is no longer available"
-									subtitle={`${limits === undefined ? "" : `Traces are kept for ${String(limits.traceRetentionDays)} days. `}It may also have been dropped before it was stored.`}
+									subtitle={`${traceDays === undefined ? "" : `Traces are kept for ${String(traceDays)} days. `}It may also have been dropped before it was stored.`}
 								>
 									<Button variant="outline" onClick={onClose}>
 										Back to traces

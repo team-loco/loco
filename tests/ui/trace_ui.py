@@ -774,12 +774,15 @@ with session(out) as browser:
     expect(
         gone.get_by_role("heading", name="This trace is no longer available")
     ).to_be_visible()
-    limits = call(state, "loco.org.v1.OrgService/GetOrgLimits", {"orgId": org_id})[
-        "limits"
-    ]["limits"]
+    call(
+        state,
+        "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
+        {"workspaceId": workspace_id, "traceRetentionDays": 9},
+    )
+    page.reload()
     expect(
         gone.get_by_text(
-            f"Traces are kept for {limits['traceRetentionDays']} days. It may also have been dropped before it was stored.",
+            "Traces are kept for 9 days. It may also have been dropped before it was stored.",
             exact=True,
         )
     ).to_be_visible()
