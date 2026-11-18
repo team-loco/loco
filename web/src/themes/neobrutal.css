@@ -255,10 +255,11 @@
 		border: 1.5px solid color-mix(in oklch, var(--ink) 35%, transparent);
 		box-shadow: none;
 	}
-	& :is([data-slot="badge"], [data-request-id] [data-slot="button"]) {
+	& :is([data-slot="chip"], [data-request-id] [data-slot="button"]) {
 		border: 2px solid var(--ink);
 		border-radius: 5px;
 		background: var(--raise);
+		color: var(--fg);
 	}
 	& :is([data-slot="toggle-group"], [data-slot="tabs-list"])[data-segmented] {
 		border: 2px solid var(--ink);

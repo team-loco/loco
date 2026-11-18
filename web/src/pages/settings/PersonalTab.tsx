@@ -67,7 +67,12 @@ export function PersonalTab({
 			<SettingsSection title="Profile">
 				<SettingsCard className="flex flex-col gap-4 px-5 py-[18px]">
 					<div className="flex min-w-0 items-center gap-3.5">
-						<MemberAvatar name={user.name} email={user.email} avatarUrl={user.avatarUrl} className="size-12" />
+						<MemberAvatar
+							name={user.name}
+							email={user.email}
+							avatarUrl={user.avatarUrl}
+							className="size-12 text-[14px]"
+						/>
 						<div className="flex min-w-0 flex-col gap-0.5">
 							<span className="truncate text-[15px] font-medium">{userLabel(user)}</span>
 							<span className="truncate font-mono text-[12px] text-fg3">{user.email}</span>

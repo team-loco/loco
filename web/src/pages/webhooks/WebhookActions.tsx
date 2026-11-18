@@ -11,7 +11,7 @@ import { Field } from "@/components/design/Field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
 import { RowMenu } from "@/components/design/RowMenu";
-import { CopyIcon, PencilIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, PencilIcon, RotateCwIcon, SendIcon, Trash2Icon } from "lucide-react";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 
 import { NewWebhookDialog, SigningSecret } from "./NewWebhookDialog";
@@ -67,6 +67,7 @@ export function WebhookActions({
 								if (!test.isPending) test.mutate({ workspaceId, webhookId: webhook.id });
 							}}
 						>
+							<SendIcon />
 							Send test event
 						</DropdownMenuItem>
 					)}

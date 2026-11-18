@@ -2,14 +2,12 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { Fragment, type ReactNode } from "react";
 
 import { Section } from "@/components/design/Page";
-import { formatMonthDay, formatMonthDayYear, formatIsoDate, maybeTsMs, type TimePreferences } from "@/lib/time";
+import { formatMonthDayYear, maybeTsMs, type TimePreferences } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 export function formatDay(ts: Timestamp | undefined, pref: TimePreferences): string {
 	const ms = maybeTsMs(ts);
-	if (ms === undefined) return "—";
-	const sameYear = formatIsoDate(ms, pref).slice(0, 4) === formatIsoDate(Date.now(), pref).slice(0, 4);
-	return sameYear ? formatMonthDay(ms, pref) : formatMonthDayYear(ms, pref);
+	return ms === undefined ? "—" : formatMonthDayYear(ms, pref);
 }
 
 export function SettingsCard({ className, children }: { className?: string; children: ReactNode }) {

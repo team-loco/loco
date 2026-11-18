@@ -124,7 +124,7 @@ export function Team() {
 			});
 			setRoleChange(null);
 			toast("Organization role updated");
-			await data.invalidateRoles(roleChange.userId === meId);
+			await data.invalidateRoles();
 		} catch (err) {
 			toastConnectError(err, "Failed to change the organization role");
 		}
@@ -136,7 +136,7 @@ export function Team() {
 			await remove.mutateAsync({ orgId, userId: removing.userId });
 			setRemoving(null);
 			toast(`Removed ${removing.name} from ${orgName}`);
-			await Promise.all([data.invalidateRoles(false), data.invalidateAccess()]);
+			await Promise.all([data.invalidateRoles(), data.invalidateAccess()]);
 		} catch (err) {
 			toastConnectError(err, "Failed to remove the member");
 		}
