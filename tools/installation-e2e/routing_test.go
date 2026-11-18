@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -15,10 +19,35 @@ import (
 func TestWorkerDNSRejectsMissingOrInvalidLoadBalancerAddress(t *testing.T) {
 	for _, address := range []string{"", "not-an-address"} {
 		t.Run(address, func(t *testing.T) {
-			fakeCommand(t, kubectlExecutable, "#!/bin/sh\nprintf '%s' \"$FIXTURE_LB_ADDRESS\"\n")
+			// Only the address lookup succeeds, and each lookup reports itself on a FIFO.
+			fakeCommand(t, kubectlExecutable, `#!/bin/sh
+[ "$4" = services ] || exit 1
+printf '%s' "$FIXTURE_LB_ADDRESS"
+echo >"$FIXTURE_LOOKUPS"
+`)
 			t.Setenv("FIXTURE_LB_ADDRESS", address)
-			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+			fifo := filepath.Join(t.TempDir(), "lookups")
+			if err := syscall.Mkfifo(fifo, 0600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("FIXTURE_LOOKUPS", fifo)
+			lookups, err := os.OpenFile(fifo, os.O_RDWR, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer lookups.Close()
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
+			go func() {
+				// A second lookup means the first address was read and rejected.
+				scanner := bufio.NewScanner(lookups)
+				for range 2 {
+					if !scanner.Scan() {
+						return
+					}
+				}
+				cancel()
+			}()
 			if err := configureGatewayDNS(ctx, true); !errors.Is(err, errGatewayAddress) {
 				t.Fatalf("invalid LoadBalancer address accepted: %v", err)
 			}
@@ -29,7 +58,7 @@ func TestWorkerDNSRejectsMissingOrInvalidLoadBalancerAddress(t *testing.T) {
 func TestGatewayDNSWaitsForMatchingAnswers(t *testing.T) {
 	for name, worker := range map[string]bool{"control-plane": false, "worker": true} {
 		t.Run(name, func(t *testing.T) {
-			queries := useGatewayTestDNS(t, true)
+			queries := useGatewayTestDNS(t, true, nil)
 			fakeGatewayDNSCommands(t)
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
@@ -44,11 +73,18 @@ func TestGatewayDNSWaitsForMatchingAnswers(t *testing.T) {
 }
 
 func TestGatewayDNSPersistentMismatchIsBounded(t *testing.T) {
-	useGatewayTestDNS(t, false)
-	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	answered := make(chan struct{}, 2)
+	useGatewayTestDNS(t, false, answered)
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
+	go func() {
+		// A second answer means the wait rejected the first and polled again.
+		<-answered
+		<-answered
+		cancel()
+	}()
 	err := waitGatewayDNS(ctx, []string{"ingest.installation.test"}, "192.0.2.10")
-	if !errors.Is(err, context.DeadlineExceeded) {
+	if !errors.Is(err, errDNSAnswer) || !errors.Is(err, context.Canceled) {
 		t.Fatalf("persistent DNS mismatch was accepted: %v", err)
 	}
 }
@@ -64,7 +100,7 @@ fi
 `)
 }
 
-func useGatewayTestDNS(t *testing.T, converge bool) *atomic.Int32 {
+func useGatewayTestDNS(t *testing.T, converge bool, answered chan<- struct{}) *atomic.Int32 {
 	t.Helper()
 	var listener net.ListenConfig
 	conn, err := listener.ListenPacket(t.Context(), "udp", "127.0.0.1:0")
@@ -133,6 +169,12 @@ func useGatewayTestDNS(t *testing.T, converge bool) *atomic.Int32 {
 			if _, writeErr := conn.WriteTo(response, peer); writeErr != nil && !errors.Is(writeErr, net.ErrClosed) {
 				t.Error(writeErr)
 				return
+			}
+			if answered != nil {
+				select {
+				case answered <- struct{}{}:
+				default:
+				}
 			}
 		}
 	}()
