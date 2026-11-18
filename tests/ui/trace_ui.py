@@ -192,6 +192,14 @@ def last_page_request():
     )
 
 
+def page_request(**fields):
+    return lambda body: (
+        "startTime" in body
+        and body.get("limit") in (25, 50, 100)
+        and all(body.get(key) == value for key, value in fields.items())
+    )
+
+
 def handle(route):
     body = route.request.post_data_json
     recorded.append(body)
@@ -356,7 +364,7 @@ with session(out) as browser:
 
     context.route("**/loco.config.v1.ConfigService/GetConfig", six_hour_config)
     page.goto(state["ui_url"] + f"/org/{org_id}/wks/{workspace_id}/resources")
-    page.wait_for_load_state("networkidle")
+    expect(page).to_have_url(re.compile(r"[?&]env="))
     page.get_by_role("link", name="Traces", exact=True).click()
     open_trace = page.get_by_role("region", name="Trace list").get_by_role(
         "button", name="Open trace " + root_name, exact=True
@@ -832,7 +840,7 @@ with session(out) as browser:
     mode[0] = "paged"
     context, page, _ = open_page(browser, state=state)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
-    with page.expect_response("**/ListTraces"):
+    with expect_rpc(page, "ListTraces", page_request(limit=25)):
         page.goto(state["ui_url"] + base)
     assert last_page_request().get("limit") == 25
     expect(page.get_by_text("1–25 of 67", exact=True)).to_be_visible()
@@ -843,11 +851,11 @@ with session(out) as browser:
     ).to_have_count(25)
     page.get_by_role("separator", name="Resize column Root span").press("ArrowRight")
     expect(page).to_have_url(re.compile(r"widths=span:276"))
-    with page.expect_response("**/ListTraces"):
+    with expect_rpc(page, "ListTraces", page_request(offset=25)):
         page.get_by_role("button", name="Next page", exact=True).click()
     assert last_page_request()["offset"] == 25
     expect(page.get_by_text("26–50 of 67", exact=True)).to_be_visible()
-    with page.expect_response("**/ListTraces"):
+    with expect_rpc(page, "ListTraces", page_request(offset=50)):
         page.get_by_role("button", name="Last page", exact=True).click()
     assert last_page_request()["offset"] == 50
     expect(
@@ -857,12 +865,20 @@ with session(out) as browser:
     ).to_have_count(17)
     expect(page.get_by_text("51–67 of 67", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name=re.compile(r"^All\s*67$"))).to_be_visible()
-    with page.expect_response("**/ListTraces"):
+    with expect_rpc(
+        page,
+        "ListTraces",
+        page_request(sort="TRACE_SUMMARY_SORT_DURATION", ascending=None, offset=None),
+    ):
         page.get_by_role("button", name="Duration", exact=True).click()
     assert last_page_request().get("offset", 0) == 0
     assert last_page_request()["sort"] == "TRACE_SUMMARY_SORT_DURATION"
     assert not last_page_request().get("ascending")
-    with page.expect_response("**/ListTraces"):
+    with expect_rpc(
+        page,
+        "ListTraces",
+        page_request(sort="TRACE_SUMMARY_SORT_DURATION", ascending=True),
+    ):
         page.get_by_role(
             "button", name=re.compile(r"^Duration\W*sorted descending$")
         ).click()
@@ -873,16 +889,24 @@ with session(out) as browser:
         ("Status", "STATUS"),
         ("Spans", "SPAN_COUNT"),
     ]:
-        with page.expect_response("**/ListTraces"):
+        with expect_rpc(
+            page,
+            "ListTraces",
+            page_request(sort="TRACE_SUMMARY_SORT_" + key, ascending=None),
+        ):
             page.get_by_role("button", name=label, exact=True).click()
         assert last_page_request()["sort"] == "TRACE_SUMMARY_SORT_" + key
         assert not last_page_request().get("ascending")
-        with page.expect_response("**/ListTraces"):
+        with expect_rpc(
+            page,
+            "ListTraces",
+            page_request(sort="TRACE_SUMMARY_SORT_" + key, ascending=True),
+        ):
             page.get_by_role(
                 "button", name=re.compile("^" + label + r"\W*sorted descending$")
             ).click()
         assert last_page_request()["ascending"] is True
-    with page.expect_response("**/ListTraces"):
+    with expect_rpc(page, "ListTraces", page_request(query="@status:error")):
         page.get_by_role("button", name=re.compile(r"^Errors")).click()
     assert last_page_request()["query"] == "@status:error"
     wait_for_query(page, lambda query: query.get("q") == ["@status:error"])
@@ -988,7 +1012,11 @@ with session(out) as browser:
     context.close()
     context, page, _ = open_page(browser, state=state)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
-    with page.expect_response("**/loco.observability.v1.ObservabilityService/*Trace*"):
+    with expect_rpc(
+        page,
+        "GetTrace",
+        lambda body: body.get("scope", {}).get("environmentId") == staging,
+    ):
         page.goto(shared_url)
     assert recorded[-1]["scope"]["environmentId"] == staging
     context.close()
