@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/team-loco/loco/cmd/internal/auth"
 	"github.com/team-loco/loco/cmd/internal/host"
+	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
+	"github.com/team-loco/loco/internal/rpc"
 
 	"charm.land/lipgloss/v2"
 	"connectrpc.com/connect/v2"
@@ -46,7 +47,7 @@ func newLogoutCmd(env Env) *cobra.Command {
 			if t.Host != "" {
 				host = t.Host
 			}
-			if err = auth.RevokeToken(ctx, host, t.Token); err != nil {
+			if _, err = rpc.ForHost(host, t.Token).User.Logout(ctx, &userv1.LogoutRequest{}); err != nil {
 				if connect.CodeOf(err) != connect.CodeUnauthenticated {
 					warning := lipgloss.NewStyle().
 						Foreground(ui.Warn).
