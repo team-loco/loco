@@ -14,6 +14,23 @@ inputs:
     description: Set to true in the one job that downloads every module of every go.mod and saves the shared Go module cache on main.
     required: false
     default: "false"
+  image-cache:
+    description: >-
+      Set to true to serve the images `mise run images:public` lists from the image cache, as the
+      mirror of the public image registry for the Docker daemon, the BuildKit builders given the
+      buildkitd-config output and the e2e kind nodes, at the address DOCKER_HUB_MIRROR holds. An
+      image the cache lacks comes from the public registry. Docker reloads its configuration.
+    required: false
+    default: "false"
+  save-image-cache:
+    description: Set to true in the one job that pulls every image through a syncing registry and saves the image cache on main.
+    required: false
+    default: "false"
+
+outputs:
+  buildkitd-config:
+    description: A buildkitd.toml mirroring the public image registry to the image cache; empty when the cache serves nothing.
+    value: ${{ steps.image-mirror.outputs.buildkitd-config }}
 
 runs:
   using: composite
@@ -114,3 +131,77 @@ runs:
         key: ${{ steps.go-build.outputs.prefix }}${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ steps.go-build.outputs.prefix }}
+
+    # The cache holds the amd64 image of each pinned index, with the index and its attestation
+    # manifests. Saving pulls them through a Zot syncing on demand from the public registry;
+    # serving runs Zot without sync, so a miss returns 404 and the client goes to the registry.
+    - if: inputs.image-cache == 'true' || inputs.save-image-cache == 'true'
+      id: image-cache-key
+      shell: bash
+      run: echo "key=public-images-${{ hashFiles('mise-tasks/images/public', 'dev/compose.yaml', '.github/compose.api-tests.yaml', 'tests/conformance/*/compose.yaml', 'charts/*/values.yaml', '**/Dockerfile', '**/*.Dockerfile') }}" >> "$GITHUB_OUTPUT"
+
+    - if: inputs.save-image-cache == 'true' && github.ref == 'refs/heads/main'
+      id: image-cache-save
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/public-images
+        key: ${{ steps.image-cache-key.outputs.key }}
+
+    - if: inputs.image-cache == 'true' && inputs.save-image-cache != 'true'
+      id: image-cache-restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/public-images
+        key: ${{ steps.image-cache-key.outputs.key }}
+        restore-keys: |
+          public-images-
+
+    - if: (steps.image-cache-save.outcome == 'success' && steps.image-cache-save.outputs.cache-hit != 'true') || steps.image-cache-restore.outputs.cache-matched-key != ''
+      id: image-mirror
+      shell: bash
+      env:
+        SYNC: ${{ steps.image-cache-save.outcome == 'success' }}
+      run: |
+        dir=$RUNNER_TEMP/public-images
+        mkdir -p "$dir"
+        mirror=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}'):5555
+        root=$dir
+        if [ "$SYNC" = true ]; then
+          root=/var/lib/registry
+        fi
+        jq -n --arg root "$root" --argjson sync "$SYNC" '{
+          distSpecVersion: "1.1.1",
+          storage: {rootDirectory: $root, gc: false, dedupe: false},
+          http: {address: "0.0.0.0", port: "5555", compat: ["docker2s2"]},
+          log: {level: "warn"}
+        } + if $sync then {extensions: {sync: {enable: true, registries: [
+          {urls: ["https://registry-1.docker.io"], onDemand: true, content: [{prefix: "**"}]}
+        ]}}} else {} end' > "$RUNNER_TEMP/zot.json"
+        if [ "$SYNC" = true ]; then
+          docker run -d --name public-images -p 5555:5555 -v "$dir:$root" \
+            -v "$RUNNER_TEMP/zot.json:/etc/zot/config.json:ro" "$(yq '.services.registry.image' dev/compose.yaml)"
+        else
+          nohup zot serve "$RUNNER_TEMP/zot.json" > "$RUNNER_TEMP/zot.log" 2>&1 &
+        fi
+        curl -sf --retry 30 --retry-connrefused --retry-delay 1 "http://$mirror/v2/"
+        config=/etc/docker/daemon.json
+        sudo test -s "$config" || echo '{}' | sudo tee "$config" > /dev/null
+        sudo jq --arg mirror "$mirror" '."registry-mirrors" = ["http://" + $mirror] | ."insecure-registries" += [$mirror]' "$config" |
+          sudo tee "$config.new" > /dev/null
+        sudo mv "$config.new" "$config"
+        sudo systemctl reload docker
+        until docker info --format '{{json .RegistryConfig.Mirrors}}' | grep -q "$mirror"; do sleep 1; done
+        echo "DOCKER_HUB_MIRROR=$mirror" >> "$GITHUB_ENV"
+        {
+          echo "buildkitd-config<<EOF"
+          printf '[registry."docker.io"]\n  mirrors = ["%s"]\n[registry."%s"]\n  http = true\n' "$mirror" "$mirror"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - if: steps.image-mirror.outcome == 'success' && steps.image-cache-save.outcome == 'success'
+      shell: bash
+      run: |
+        mise run --quiet images:public | xargs -n1 docker pull -q
+        docker rm -f public-images
+        sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/public-images"
+        du -sh "$RUNNER_TEMP/public-images"

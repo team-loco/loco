@@ -31,6 +31,8 @@ helm = "4.3.1"
 "github:helm-unittest/helm-unittest" = { version = "1.2.1", rename_exe = "untt" }
 kubectl = "1.37.2"
 kind = "0.33.0"
+# Serves the CI image cache; the minimal build has no sync extension.
+"github:project-zot/zot" = { version = "2.1.23", rename_exe = "zot", os = ["linux"], platforms = { linux-x64 = { asset_pattern = "zot-linux-amd64-minimal" }, linux-arm64 = { asset_pattern = "zot-linux-arm64-minimal" } } }
 infisical = "0.45.4"
 
 [settings]

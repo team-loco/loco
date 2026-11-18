@@ -10,12 +10,13 @@ on:
       - "mise-tasks/e2e/**"
       - ".github/actions/setup-tools/**"
       - ".github/workflows/e2e-cache.yml"
-      - ".github/actions/docker-hub-cache/**"
-      - ".github/compose.api-tests.yaml"
+      - "mise-tasks/images/public"
       - "dev/compose.yaml"
+      - ".github/compose.api-tests.yaml"
+      - "tests/conformance/*/compose.yaml"
       - "charts/*/values.yaml"
-      - "tests/e2e/fixtures/**Dockerfile"
-      - "tools/imagecache/**"
+      - "**/Dockerfile"
+      - "**/*.Dockerfile"
   workflow_dispatch:
 
 permissions:
@@ -44,8 +45,8 @@ jobs:
           go build -o "$RUNNER_TEMP/e2e-bin/pullimage" ./tools/pullimage
           go -C tests/e2e test -c -o "$RUNNER_TEMP/e2e-tests/" ./...
 
-  docker-hub:
-    name: Save the Docker Hub Images
+  images:
+    name: Save the Public Images
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -54,8 +55,4 @@ jobs:
 
       - uses: ./.github/actions/setup-tools
         with:
-          go-cache: imagecache
-
-      - uses: ./.github/actions/docker-hub-cache
-        with:
-          save: ${{ github.ref == 'refs/heads/main' }}
+          save-image-cache: true

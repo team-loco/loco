@@ -22,7 +22,7 @@ jobs:
           gh api --paginate "repos/$GITHUB_REPOSITORY/actions/caches?ref=refs/heads/main&per_page=100" \
             --jq '.actions_caches[]' |
             jq -rs '
-              [.[] | select(.key | test("^(go-build|go-mod|mise|playwright|docker-hub-images)-"))
+              [.[] | select(.key | test("^(go-build|go-mod|mise|playwright|public-images)-"))
                    | .family = (.key | sub("-[0-9a-f]{20,}$"; "") | sub("^(playwright-[^-]+)-.*$"; "\\1"))]
               | group_by(.family)
               | map(sort_by(.last_accessed_at) | reverse | .[1:][])

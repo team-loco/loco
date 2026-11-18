@@ -24,8 +24,7 @@ jobs:
         with:
           go-cache: go
           lint-cache: true
-
-      - uses: ./.github/actions/docker-hub-cache
+          image-cache: true
 
       # Every affected module is linted and tested even after one fails. The E2E
       # workflow runs the cluster-backed suites separately.
@@ -70,8 +69,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: test-api
-
-      - uses: ./.github/actions/docker-hub-cache
+          image-cache: true
 
       - name: Start Postgres and Valkey
         run: docker compose -f .github/compose.api-tests.yaml up -d --wait

@@ -26,7 +26,7 @@ jobs:
       - uses: ./.github/actions/setup-tools
         with:
           go-cache: e2e
-      - uses: ./.github/actions/docker-hub-cache
+          image-cache: true
       - name: Install and test deployment, networking, secrets, registry tokens and deletion
         env:
           SHARD: ${{ matrix.shard }}
