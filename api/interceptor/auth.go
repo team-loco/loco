@@ -56,10 +56,14 @@ func (i *authInterceptor) WebCookies(cookies auth.WebCookies) *authInterceptor {
 }
 
 var publicProcedures = map[string]struct{}{
-	authv1connect.AuthServiceExchangeCLICodeProcedure:  {},
-	authv1connect.AuthServiceStartDeviceLoginProcedure: {},
-	authv1connect.AuthServicePollDeviceLoginProcedure:  {},
-	authv1connect.AuthServiceRefreshCLITokenProcedure:  {},
+	authv1connect.AuthServiceExchangeCLICodeProcedure:   {},
+	authv1connect.AuthServiceStartDeviceLoginProcedure:  {},
+	authv1connect.AuthServicePollDeviceLoginProcedure:   {},
+	authv1connect.AuthServiceRefreshCLITokenProcedure:   {},
+	authv1connect.AuthServiceStartWebLoginProcedure:     {},
+	authv1connect.AuthServiceCompleteWebLoginProcedure:  {},
+	authv1connect.AuthServiceRefreshWebSessionProcedure: {},
+	authv1connect.AuthServiceSignOutProcedure:           {},
 }
 
 func isPublicProcedure(procedure string) bool {

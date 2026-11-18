@@ -320,7 +320,13 @@ func newDeps(
 
 	workspaceWebhookClient := webhooks.NewClient(ac.Webhooks, ac.WebhooksAllowPrivate)
 	installWebhookClient := webhooks.NewClient(ac.Webhooks, true)
-	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, ac.WebURL)
+	var provider *auth.WebProvider
+	if issuer, configured := auth.WebIssuer(ac.AuthIssuers); configured {
+		provider = auth.NewWebProvider(authClient, verifier, issuer, ac.WebURL)
+	}
+	authServiceHandler := service.NewAuthServer(pool, queries, machine, appCache, ac.WebURL,
+		service.WebAuth{Provider: provider, Resolver: resolver, Cookies: auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins)},
+	)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)
 
 	sourceBucket, err := newSourceBucket(ac.SourceBucket)

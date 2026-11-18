@@ -30,8 +30,9 @@ type ClaimPaths struct {
 }
 
 type WebConfig struct {
-	ClientID string `json:"clientId"`
-	Scopes   string `json:"scopes"`
+	ClientID     string `json:"clientId"`
+	ClientSecret string `json:"clientSecret"`
+	Scopes       string `json:"scopes"`
 }
 
 type IssuerConfig struct {

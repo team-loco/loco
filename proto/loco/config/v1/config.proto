@@ -28,6 +28,7 @@ message GetConfigResponse {
   HistoryRetention history_retention = 9;
   google.protobuf.Duration observability_max_time_range = 10;
   string api_version = 11;
+  bool web_auth_enabled = 12;
 }
 
 message HistoryRetention {

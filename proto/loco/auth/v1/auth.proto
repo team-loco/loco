@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.auth.v1;
 
 import "buf/validate/validate.proto";
+import "loco/user/v1/user.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/auth/v1;authv1";
 
@@ -13,6 +14,10 @@ service AuthService {
   rpc ApproveDeviceLogin(ApproveDeviceLoginRequest) returns (ApproveDeviceLoginResponse);
   rpc PollDeviceLogin(PollDeviceLoginRequest) returns (PollDeviceLoginResponse);
   rpc RefreshCLIToken(RefreshCLITokenRequest) returns (RefreshCLITokenResponse);
+  rpc StartWebLogin(StartWebLoginRequest) returns (StartWebLoginResponse);
+  rpc CompleteWebLogin(CompleteWebLoginRequest) returns (CompleteWebLoginResponse);
+  rpc RefreshWebSession(RefreshWebSessionRequest) returns (RefreshWebSessionResponse);
+  rpc SignOut(SignOutRequest) returns (SignOutResponse);
 }
 
 message CLITokens {
@@ -92,3 +97,33 @@ message RefreshCLITokenRequest {
 message RefreshCLITokenResponse {
   CLITokens tokens = 1;
 }
+
+message StartWebLoginRequest {
+  string redirect_to = 1 [(buf.validate.field).string.max_len = 4096];
+  string login_hint = 2 [(buf.validate.field).string.max_len = 320];
+}
+
+message StartWebLoginResponse {
+  string authorization_url = 1;
+}
+
+message CompleteWebLoginRequest {
+  string callback_url = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 16384
+  }];
+}
+
+message CompleteWebLoginResponse {
+  user.v1.User user = 1;
+  repeated user.v1.ClaimedOrg claimed_orgs = 2;
+  string redirect_to = 3;
+}
+
+message RefreshWebSessionRequest {}
+
+message RefreshWebSessionResponse {}
+
+message SignOutRequest {}
+
+message SignOutResponse {}

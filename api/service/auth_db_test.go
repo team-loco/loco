@@ -74,7 +74,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 		queries: queries,
 		clock:   time.Now(),
 	}
-	f.server = NewAuthServer(pool, queries, machine, store, "https://app.loco.test/")
+	f.server = NewAuthServer(pool, queries, machine, store, "https://app.loco.test/", WebAuth{})
 	f.server.now = func() time.Time { return f.clock }
 	rpcServer := connect.NewServer()
 	authv1connect.RegisterAuthServiceHandler(rpcServer, f.server)

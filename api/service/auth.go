@@ -56,6 +56,7 @@ type AuthServer struct {
 	machine *tvm.VendingMachine
 	cache   cache.Cache
 	webURL  string
+	web     WebAuth
 	now     func() time.Time
 }
 
@@ -65,6 +66,7 @@ func NewAuthServer(
 	machine *tvm.VendingMachine,
 	store cache.Cache,
 	webURL string,
+	web WebAuth,
 ) *AuthServer {
 	return &AuthServer{
 		db:      db,
@@ -72,6 +74,7 @@ func NewAuthServer(
 		machine: machine,
 		cache:   store,
 		webURL:  strings.TrimSuffix(webURL, "/"),
+		web:     web,
 		now:     time.Now,
 	}
 }

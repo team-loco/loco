@@ -68,12 +68,19 @@ func LooksLikeJWT(token string) bool {
 }
 
 func (v *Verifier) Verify(ctx context.Context, raw string) (Identity, error) {
+	return v.verify(ctx, raw, "", "")
+}
+
+func (v *Verifier) verify(ctx context.Context, raw, issuer, nonce string) (Identity, error) {
 	if !LooksLikeJWT(raw) {
 		return Identity{}, ErrNotJWT
 	}
 	iss, err := unverifiedIssuer(raw)
 	if err != nil {
 		return Identity{}, err
+	}
+	if issuer != "" && iss != issuer {
+		return Identity{}, ErrUnknownIssuer
 	}
 	iv, ok := v.issuers[iss]
 	if !ok {
@@ -82,6 +89,9 @@ func (v *Verifier) Verify(ctx context.Context, raw string) (Identity, error) {
 	tok, err := iv.verifier.Verify(ctx, raw)
 	if err != nil {
 		return Identity{}, fmt.Errorf("%w: %w", ErrInvalidToken, err)
+	}
+	if nonce != "" && tok.Nonce != nonce {
+		return Identity{}, fmt.Errorf("%w: nonce mismatch", ErrInvalidToken)
 	}
 	var claims map[string]any
 	if claimsErr := tok.Claims(&claims); claimsErr != nil {

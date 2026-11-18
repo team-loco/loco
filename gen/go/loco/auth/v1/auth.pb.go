@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/team-loco/loco/gen/go/loco/user/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -650,11 +651,355 @@ func (x *RefreshCLITokenResponse) GetTokens() *CLITokens {
 	return nil
 }
 
+type StartWebLoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RedirectTo    string                 `protobuf:"bytes,1,opt,name=redirect_to,json=redirectTo,proto3" json:"redirect_to,omitempty"`
+	LoginHint     string                 `protobuf:"bytes,2,opt,name=login_hint,json=loginHint,proto3" json:"login_hint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartWebLoginRequest) Reset() {
+	*x = StartWebLoginRequest{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartWebLoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartWebLoginRequest) ProtoMessage() {}
+
+func (x *StartWebLoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartWebLoginRequest.ProtoReflect.Descriptor instead.
+func (*StartWebLoginRequest) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *StartWebLoginRequest) GetRedirectTo() string {
+	if x != nil {
+		return x.RedirectTo
+	}
+	return ""
+}
+
+func (x *StartWebLoginRequest) GetLoginHint() string {
+	if x != nil {
+		return x.LoginHint
+	}
+	return ""
+}
+
+type StartWebLoginResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	AuthorizationUrl string                 `protobuf:"bytes,1,opt,name=authorization_url,json=authorizationUrl,proto3" json:"authorization_url,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *StartWebLoginResponse) Reset() {
+	*x = StartWebLoginResponse{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartWebLoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartWebLoginResponse) ProtoMessage() {}
+
+func (x *StartWebLoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartWebLoginResponse.ProtoReflect.Descriptor instead.
+func (*StartWebLoginResponse) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *StartWebLoginResponse) GetAuthorizationUrl() string {
+	if x != nil {
+		return x.AuthorizationUrl
+	}
+	return ""
+}
+
+type CompleteWebLoginRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CallbackUrl   string                 `protobuf:"bytes,1,opt,name=callback_url,json=callbackUrl,proto3" json:"callback_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteWebLoginRequest) Reset() {
+	*x = CompleteWebLoginRequest{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteWebLoginRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteWebLoginRequest) ProtoMessage() {}
+
+func (x *CompleteWebLoginRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteWebLoginRequest.ProtoReflect.Descriptor instead.
+func (*CompleteWebLoginRequest) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CompleteWebLoginRequest) GetCallbackUrl() string {
+	if x != nil {
+		return x.CallbackUrl
+	}
+	return ""
+}
+
+type CompleteWebLoginResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *v1.User               `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	ClaimedOrgs   []*v1.ClaimedOrg       `protobuf:"bytes,2,rep,name=claimed_orgs,json=claimedOrgs,proto3" json:"claimed_orgs,omitempty"`
+	RedirectTo    string                 `protobuf:"bytes,3,opt,name=redirect_to,json=redirectTo,proto3" json:"redirect_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteWebLoginResponse) Reset() {
+	*x = CompleteWebLoginResponse{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteWebLoginResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteWebLoginResponse) ProtoMessage() {}
+
+func (x *CompleteWebLoginResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteWebLoginResponse.ProtoReflect.Descriptor instead.
+func (*CompleteWebLoginResponse) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *CompleteWebLoginResponse) GetUser() *v1.User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+func (x *CompleteWebLoginResponse) GetClaimedOrgs() []*v1.ClaimedOrg {
+	if x != nil {
+		return x.ClaimedOrgs
+	}
+	return nil
+}
+
+func (x *CompleteWebLoginResponse) GetRedirectTo() string {
+	if x != nil {
+		return x.RedirectTo
+	}
+	return ""
+}
+
+type RefreshWebSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshWebSessionRequest) Reset() {
+	*x = RefreshWebSessionRequest{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshWebSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshWebSessionRequest) ProtoMessage() {}
+
+func (x *RefreshWebSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshWebSessionRequest.ProtoReflect.Descriptor instead.
+func (*RefreshWebSessionRequest) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{17}
+}
+
+type RefreshWebSessionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RefreshWebSessionResponse) Reset() {
+	*x = RefreshWebSessionResponse{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RefreshWebSessionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RefreshWebSessionResponse) ProtoMessage() {}
+
+func (x *RefreshWebSessionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RefreshWebSessionResponse.ProtoReflect.Descriptor instead.
+func (*RefreshWebSessionResponse) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{18}
+}
+
+type SignOutRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignOutRequest) Reset() {
+	*x = SignOutRequest{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignOutRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignOutRequest) ProtoMessage() {}
+
+func (x *SignOutRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignOutRequest.ProtoReflect.Descriptor instead.
+func (*SignOutRequest) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{19}
+}
+
+type SignOutResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignOutResponse) Reset() {
+	*x = SignOutResponse{}
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignOutResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignOutResponse) ProtoMessage() {}
+
+func (x *SignOutResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_auth_v1_auth_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignOutResponse.ProtoReflect.Descriptor instead.
+func (*SignOutResponse) Descriptor() ([]byte, []int) {
+	return file_loco_auth_v1_auth_proto_rawDescGZIP(), []int{20}
+}
+
 var File_loco_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_loco_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x17loco/auth/v1/auth.proto\x12\floco.auth.v1\x1a\x1bbuf/validate/validate.proto\"r\n" +
+	"\x17loco/auth/v1/auth.proto\x12\floco.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a\x17loco/user/v1/user.proto\"r\n" +
 	"\tCLITokens\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x1d\n" +
@@ -697,14 +1042,36 @@ const file_loco_auth_v1_auth_proto_rawDesc = "" +
 	"\rrefresh_token\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\frefreshToken\"J\n" +
 	"\x17RefreshCLITokenResponse\x12/\n" +
-	"\x06tokens\x18\x01 \x01(\v2\x17.loco.auth.v1.CLITokensR\x06tokens2\xd9\x04\n" +
+	"\x06tokens\x18\x01 \x01(\v2\x17.loco.auth.v1.CLITokensR\x06tokens\"j\n" +
+	"\x14StartWebLoginRequest\x12)\n" +
+	"\vredirect_to\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\n" +
+	"redirectTo\x12'\n" +
+	"\n" +
+	"login_hint\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xc0\x02R\tloginHint\"D\n" +
+	"\x15StartWebLoginResponse\x12+\n" +
+	"\x11authorization_url\x18\x01 \x01(\tR\x10authorizationUrl\"I\n" +
+	"\x17CompleteWebLoginRequest\x12.\n" +
+	"\fcallback_url\x18\x01 \x01(\tB\v\xbaH\br\x06\x10\x01\x18\x80\x80\x01R\vcallbackUrl\"\xa0\x01\n" +
+	"\x18CompleteWebLoginResponse\x12&\n" +
+	"\x04user\x18\x01 \x01(\v2\x12.loco.user.v1.UserR\x04user\x12;\n" +
+	"\fclaimed_orgs\x18\x02 \x03(\v2\x18.loco.user.v1.ClaimedOrgR\vclaimedOrgs\x12\x1f\n" +
+	"\vredirect_to\x18\x03 \x01(\tR\n" +
+	"redirectTo\"\x1a\n" +
+	"\x18RefreshWebSessionRequest\"\x1b\n" +
+	"\x19RefreshWebSessionResponse\"\x10\n" +
+	"\x0eSignOutRequest\"\x11\n" +
+	"\x0fSignOutResponse2\xc4\a\n" +
 	"\vAuthService\x12^\n" +
 	"\x0fApproveCLILogin\x12$.loco.auth.v1.ApproveCLILoginRequest\x1a%.loco.auth.v1.ApproveCLILoginResponse\x12^\n" +
 	"\x0fExchangeCLICode\x12$.loco.auth.v1.ExchangeCLICodeRequest\x1a%.loco.auth.v1.ExchangeCLICodeResponse\x12a\n" +
 	"\x10StartDeviceLogin\x12%.loco.auth.v1.StartDeviceLoginRequest\x1a&.loco.auth.v1.StartDeviceLoginResponse\x12g\n" +
 	"\x12ApproveDeviceLogin\x12'.loco.auth.v1.ApproveDeviceLoginRequest\x1a(.loco.auth.v1.ApproveDeviceLoginResponse\x12^\n" +
 	"\x0fPollDeviceLogin\x12$.loco.auth.v1.PollDeviceLoginRequest\x1a%.loco.auth.v1.PollDeviceLoginResponse\x12^\n" +
-	"\x0fRefreshCLIToken\x12$.loco.auth.v1.RefreshCLITokenRequest\x1a%.loco.auth.v1.RefreshCLITokenResponseB6Z4github.com/team-loco/loco/gen/go/loco/auth/v1;authv1b\x06proto3"
+	"\x0fRefreshCLIToken\x12$.loco.auth.v1.RefreshCLITokenRequest\x1a%.loco.auth.v1.RefreshCLITokenResponse\x12X\n" +
+	"\rStartWebLogin\x12\".loco.auth.v1.StartWebLoginRequest\x1a#.loco.auth.v1.StartWebLoginResponse\x12a\n" +
+	"\x10CompleteWebLogin\x12%.loco.auth.v1.CompleteWebLoginRequest\x1a&.loco.auth.v1.CompleteWebLoginResponse\x12d\n" +
+	"\x11RefreshWebSession\x12&.loco.auth.v1.RefreshWebSessionRequest\x1a'.loco.auth.v1.RefreshWebSessionResponse\x12F\n" +
+	"\aSignOut\x12\x1c.loco.auth.v1.SignOutRequest\x1a\x1d.loco.auth.v1.SignOutResponseB6Z4github.com/team-loco/loco/gen/go/loco/auth/v1;authv1b\x06proto3"
 
 var (
 	file_loco_auth_v1_auth_proto_rawDescOnce sync.Once
@@ -718,7 +1085,7 @@ func file_loco_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_loco_auth_v1_auth_proto_rawDescData
 }
 
-var file_loco_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_loco_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_loco_auth_v1_auth_proto_goTypes = []any{
 	(*CLITokens)(nil),                  // 0: loco.auth.v1.CLITokens
 	(*ApproveCLILoginRequest)(nil),     // 1: loco.auth.v1.ApproveCLILoginRequest
@@ -733,28 +1100,48 @@ var file_loco_auth_v1_auth_proto_goTypes = []any{
 	(*PollDeviceLoginResponse)(nil),    // 10: loco.auth.v1.PollDeviceLoginResponse
 	(*RefreshCLITokenRequest)(nil),     // 11: loco.auth.v1.RefreshCLITokenRequest
 	(*RefreshCLITokenResponse)(nil),    // 12: loco.auth.v1.RefreshCLITokenResponse
+	(*StartWebLoginRequest)(nil),       // 13: loco.auth.v1.StartWebLoginRequest
+	(*StartWebLoginResponse)(nil),      // 14: loco.auth.v1.StartWebLoginResponse
+	(*CompleteWebLoginRequest)(nil),    // 15: loco.auth.v1.CompleteWebLoginRequest
+	(*CompleteWebLoginResponse)(nil),   // 16: loco.auth.v1.CompleteWebLoginResponse
+	(*RefreshWebSessionRequest)(nil),   // 17: loco.auth.v1.RefreshWebSessionRequest
+	(*RefreshWebSessionResponse)(nil),  // 18: loco.auth.v1.RefreshWebSessionResponse
+	(*SignOutRequest)(nil),             // 19: loco.auth.v1.SignOutRequest
+	(*SignOutResponse)(nil),            // 20: loco.auth.v1.SignOutResponse
+	(*v1.User)(nil),                    // 21: loco.user.v1.User
+	(*v1.ClaimedOrg)(nil),              // 22: loco.user.v1.ClaimedOrg
 }
 var file_loco_auth_v1_auth_proto_depIdxs = []int32{
 	0,  // 0: loco.auth.v1.ExchangeCLICodeResponse.tokens:type_name -> loco.auth.v1.CLITokens
 	0,  // 1: loco.auth.v1.PollDeviceLoginResponse.tokens:type_name -> loco.auth.v1.CLITokens
 	0,  // 2: loco.auth.v1.RefreshCLITokenResponse.tokens:type_name -> loco.auth.v1.CLITokens
-	1,  // 3: loco.auth.v1.AuthService.ApproveCLILogin:input_type -> loco.auth.v1.ApproveCLILoginRequest
-	3,  // 4: loco.auth.v1.AuthService.ExchangeCLICode:input_type -> loco.auth.v1.ExchangeCLICodeRequest
-	5,  // 5: loco.auth.v1.AuthService.StartDeviceLogin:input_type -> loco.auth.v1.StartDeviceLoginRequest
-	7,  // 6: loco.auth.v1.AuthService.ApproveDeviceLogin:input_type -> loco.auth.v1.ApproveDeviceLoginRequest
-	9,  // 7: loco.auth.v1.AuthService.PollDeviceLogin:input_type -> loco.auth.v1.PollDeviceLoginRequest
-	11, // 8: loco.auth.v1.AuthService.RefreshCLIToken:input_type -> loco.auth.v1.RefreshCLITokenRequest
-	2,  // 9: loco.auth.v1.AuthService.ApproveCLILogin:output_type -> loco.auth.v1.ApproveCLILoginResponse
-	4,  // 10: loco.auth.v1.AuthService.ExchangeCLICode:output_type -> loco.auth.v1.ExchangeCLICodeResponse
-	6,  // 11: loco.auth.v1.AuthService.StartDeviceLogin:output_type -> loco.auth.v1.StartDeviceLoginResponse
-	8,  // 12: loco.auth.v1.AuthService.ApproveDeviceLogin:output_type -> loco.auth.v1.ApproveDeviceLoginResponse
-	10, // 13: loco.auth.v1.AuthService.PollDeviceLogin:output_type -> loco.auth.v1.PollDeviceLoginResponse
-	12, // 14: loco.auth.v1.AuthService.RefreshCLIToken:output_type -> loco.auth.v1.RefreshCLITokenResponse
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	21, // 3: loco.auth.v1.CompleteWebLoginResponse.user:type_name -> loco.user.v1.User
+	22, // 4: loco.auth.v1.CompleteWebLoginResponse.claimed_orgs:type_name -> loco.user.v1.ClaimedOrg
+	1,  // 5: loco.auth.v1.AuthService.ApproveCLILogin:input_type -> loco.auth.v1.ApproveCLILoginRequest
+	3,  // 6: loco.auth.v1.AuthService.ExchangeCLICode:input_type -> loco.auth.v1.ExchangeCLICodeRequest
+	5,  // 7: loco.auth.v1.AuthService.StartDeviceLogin:input_type -> loco.auth.v1.StartDeviceLoginRequest
+	7,  // 8: loco.auth.v1.AuthService.ApproveDeviceLogin:input_type -> loco.auth.v1.ApproveDeviceLoginRequest
+	9,  // 9: loco.auth.v1.AuthService.PollDeviceLogin:input_type -> loco.auth.v1.PollDeviceLoginRequest
+	11, // 10: loco.auth.v1.AuthService.RefreshCLIToken:input_type -> loco.auth.v1.RefreshCLITokenRequest
+	13, // 11: loco.auth.v1.AuthService.StartWebLogin:input_type -> loco.auth.v1.StartWebLoginRequest
+	15, // 12: loco.auth.v1.AuthService.CompleteWebLogin:input_type -> loco.auth.v1.CompleteWebLoginRequest
+	17, // 13: loco.auth.v1.AuthService.RefreshWebSession:input_type -> loco.auth.v1.RefreshWebSessionRequest
+	19, // 14: loco.auth.v1.AuthService.SignOut:input_type -> loco.auth.v1.SignOutRequest
+	2,  // 15: loco.auth.v1.AuthService.ApproveCLILogin:output_type -> loco.auth.v1.ApproveCLILoginResponse
+	4,  // 16: loco.auth.v1.AuthService.ExchangeCLICode:output_type -> loco.auth.v1.ExchangeCLICodeResponse
+	6,  // 17: loco.auth.v1.AuthService.StartDeviceLogin:output_type -> loco.auth.v1.StartDeviceLoginResponse
+	8,  // 18: loco.auth.v1.AuthService.ApproveDeviceLogin:output_type -> loco.auth.v1.ApproveDeviceLoginResponse
+	10, // 19: loco.auth.v1.AuthService.PollDeviceLogin:output_type -> loco.auth.v1.PollDeviceLoginResponse
+	12, // 20: loco.auth.v1.AuthService.RefreshCLIToken:output_type -> loco.auth.v1.RefreshCLITokenResponse
+	14, // 21: loco.auth.v1.AuthService.StartWebLogin:output_type -> loco.auth.v1.StartWebLoginResponse
+	16, // 22: loco.auth.v1.AuthService.CompleteWebLogin:output_type -> loco.auth.v1.CompleteWebLoginResponse
+	18, // 23: loco.auth.v1.AuthService.RefreshWebSession:output_type -> loco.auth.v1.RefreshWebSessionResponse
+	20, // 24: loco.auth.v1.AuthService.SignOut:output_type -> loco.auth.v1.SignOutResponse
+	15, // [15:25] is the sub-list for method output_type
+	5,  // [5:15] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_loco_auth_v1_auth_proto_init() }
@@ -768,7 +1155,7 @@ func file_loco_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_auth_v1_auth_proto_rawDesc), len(file_loco_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

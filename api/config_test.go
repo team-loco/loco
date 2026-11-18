@@ -871,6 +871,21 @@ func TestClusterEnrollmentDurations(t *testing.T) {
 	}
 }
 
+func TestDashboardIssuerRequiresWebURL(t *testing.T) {
+	clearAPIConfigEnv(t)
+	t.Setenv(authIssuersEnv, `[{"issuer":"https://provider.test","audience":"loco","web":{"clientId":"loco"}}]`)
+	for _, invalid := range []string{"", "/dashboard", "https://example.test/dashboard", "https://example.test/?query"} {
+		t.Setenv("WEB_URL", invalid)
+		if err := panicValue(t, func() { newAPIConfig() }); err == nil {
+			t.Fatalf("WEB_URL %q accepted", invalid)
+		}
+	}
+	t.Setenv("WEB_URL", "https://example.test/")
+	if got := newAPIConfig().WebURL; got != "https://example.test/" {
+		t.Fatalf("WEB_URL = %q", got)
+	}
+}
+
 func TestNewAPIConfigReadsInvitations(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv("WEB_URL", "https://app.loco.test")

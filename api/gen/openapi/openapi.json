@@ -542,6 +542,67 @@
         }
       }
     },
+    "/loco.auth.v1.AuthService/CompleteWebLogin": {
+      "post": {
+        "tags": [
+          "loco.auth.v1.AuthService"
+        ],
+        "summary": "CompleteWebLogin",
+        "operationId": "loco.auth.v1.AuthService.CompleteWebLogin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.auth.v1.CompleteWebLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.auth.v1.CompleteWebLoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.auth.v1.AuthService/ExchangeCLICode": {
       "post": {
         "tags": [
@@ -725,6 +786,128 @@
         }
       }
     },
+    "/loco.auth.v1.AuthService/RefreshWebSession": {
+      "post": {
+        "tags": [
+          "loco.auth.v1.AuthService"
+        ],
+        "summary": "RefreshWebSession",
+        "operationId": "loco.auth.v1.AuthService.RefreshWebSession",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.auth.v1.RefreshWebSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.auth.v1.RefreshWebSessionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.auth.v1.AuthService/SignOut": {
+      "post": {
+        "tags": [
+          "loco.auth.v1.AuthService"
+        ],
+        "summary": "SignOut",
+        "operationId": "loco.auth.v1.AuthService.SignOut",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.auth.v1.SignOutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.auth.v1.SignOutResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.auth.v1.AuthService/StartDeviceLogin": {
       "post": {
         "tags": [
@@ -779,6 +962,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.auth.v1.StartDeviceLoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.auth.v1.AuthService/StartWebLogin": {
+      "post": {
+        "tags": [
+          "loco.auth.v1.AuthService"
+        ],
+        "summary": "StartWebLogin",
+        "operationId": "loco.auth.v1.AuthService.StartWebLogin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.auth.v1.StartWebLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.auth.v1.StartWebLoginResponse"
                 }
               }
             }
@@ -8825,6 +9069,41 @@
         "title": "CLITokens",
         "additionalProperties": false
       },
+      "loco.auth.v1.CompleteWebLoginRequest": {
+        "type": "object",
+        "properties": {
+          "callbackUrl": {
+            "type": "string",
+            "title": "callback_url",
+            "maxLength": 16384,
+            "minLength": 1
+          }
+        },
+        "title": "CompleteWebLoginRequest",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.CompleteWebLoginResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "title": "user",
+            "$ref": "#/components/schemas/loco.user.v1.User"
+          },
+          "claimedOrgs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.user.v1.ClaimedOrg"
+            },
+            "title": "claimed_orgs"
+          },
+          "redirectTo": {
+            "type": "string",
+            "title": "redirect_to"
+          }
+        },
+        "title": "CompleteWebLoginResponse",
+        "additionalProperties": false
+      },
       "loco.auth.v1.ExchangeCLICodeRequest": {
         "type": "object",
         "properties": {
@@ -8903,6 +9182,26 @@
         "title": "RefreshCLITokenResponse",
         "additionalProperties": false
       },
+      "loco.auth.v1.RefreshWebSessionRequest": {
+        "type": "object",
+        "title": "RefreshWebSessionRequest",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.RefreshWebSessionResponse": {
+        "type": "object",
+        "title": "RefreshWebSessionResponse",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.SignOutRequest": {
+        "type": "object",
+        "title": "SignOutRequest",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.SignOutResponse": {
+        "type": "object",
+        "title": "SignOutResponse",
+        "additionalProperties": false
+      },
       "loco.auth.v1.StartDeviceLoginRequest": {
         "type": "object",
         "title": "StartDeviceLoginRequest",
@@ -8939,6 +9238,34 @@
           }
         },
         "title": "StartDeviceLoginResponse",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.StartWebLoginRequest": {
+        "type": "object",
+        "properties": {
+          "redirectTo": {
+            "type": "string",
+            "title": "redirect_to",
+            "maxLength": 4096
+          },
+          "loginHint": {
+            "type": "string",
+            "title": "login_hint",
+            "maxLength": 320
+          }
+        },
+        "title": "StartWebLoginRequest",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.StartWebLoginResponse": {
+        "type": "object",
+        "properties": {
+          "authorizationUrl": {
+            "type": "string",
+            "title": "authorization_url"
+          }
+        },
+        "title": "StartWebLoginResponse",
         "additionalProperties": false
       },
       "loco.build.v1.Build": {
@@ -9847,6 +10174,10 @@
           "apiVersion": {
             "type": "string",
             "title": "api_version"
+          },
+          "webAuthEnabled": {
+            "type": "boolean",
+            "title": "web_auth_enabled"
           }
         },
         "title": "GetConfigResponse",
@@ -16446,6 +16777,14 @@
       "description": "AgentService handles communication between the control plane and data plane agents."
     },
     {
+      "name": "loco.token.v1.TokenService",
+      "description": "TokenService manages personal access tokens and fine-grained tokens."
+    },
+    {
+      "name": "loco.user.v1.UserService",
+      "description": "UserService manages user accounts and operations."
+    },
+    {
       "name": "loco.auth.v1.AuthService"
     },
     {
@@ -16497,14 +16836,6 @@
     {
       "name": "loco.secret.v1.SecretService",
       "description": "SecretService stores named values of one service in one environment. Values are write-only: no RPC\n returns one."
-    },
-    {
-      "name": "loco.token.v1.TokenService",
-      "description": "TokenService manages personal access tokens and fine-grained tokens."
-    },
-    {
-      "name": "loco.user.v1.UserService",
-      "description": "UserService manages user accounts and operations."
     },
     {
       "name": "loco.webhook.v1.WebhookService"
