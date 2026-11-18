@@ -17,10 +17,6 @@ var (
 	errWorkspaceIDMissing     = errors.New("workspaceId must be set")
 	errTypeMissing            = errors.New("type must be set")
 	errServiceSpecMissing     = errors.New("serviceSpec must be set for SERVICE type")
-	errDatabaseValidationTODO = errors.New("database resource type validation: TODO")
-	errCacheValidationTODO    = errors.New("cache resource type validation: TODO")
-	errQueueValidationTODO    = errors.New("queue resource type validation: TODO")
-	errBlobValidationTODO     = errors.New("blob resource type validation: TODO")
 	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
 	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 1 and 2147483647")
 	errImageMissing           = errors.New("image must be set")
@@ -95,14 +91,6 @@ func (spec *ApplicationSpec) Validate() error {
 			return errServiceSpecMissing
 		}
 		return validateServiceSpec(spec.ServiceSpec)
-	case "DATABASE":
-		return errDatabaseValidationTODO
-	case "CACHE":
-		return errCacheValidationTODO
-	case "QUEUE":
-		return errQueueValidationTODO
-	case "BLOB":
-		return errBlobValidationTODO
 	default:
 		return fmt.Errorf("unknown resource type: %s", spec.Type)
 	}

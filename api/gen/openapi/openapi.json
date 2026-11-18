@@ -10416,12 +10416,6 @@
         "additionalProperties": false,
         "description": "BuildSource defines where the code comes from."
       },
-      "loco.deployment.v1.CacheDeploymentSpec": {
-        "type": "object",
-        "title": "CacheDeploymentSpec",
-        "additionalProperties": false,
-        "description": "CacheDeploymentSpec is the spec of the corresponding resource type."
-      },
       "loco.deployment.v1.CreateDeploymentRequest": {
         "type": "object",
         "properties": {
@@ -10476,12 +10470,6 @@
         "title": "CreateDeploymentResponse",
         "additionalProperties": false,
         "description": "CreateDeploymentResponse is the response containing the created deployment ID."
-      },
-      "loco.deployment.v1.DatabaseDeploymentSpec": {
-        "type": "object",
-        "title": "DatabaseDeploymentSpec",
-        "additionalProperties": false,
-        "description": "DatabaseDeploymentSpec is the spec of the corresponding resource type."
       },
       "loco.deployment.v1.DeleteDeploymentRequest": {
         "type": "object",
@@ -10662,67 +10650,15 @@
       },
       "loco.deployment.v1.DeploymentSpec": {
         "type": "object",
-        "not": {
-          "anyOf": [
-            {
-              "required": [
-                "service",
-                "database"
-              ]
-            },
-            {
-              "required": [
-                "service",
-                "cache"
-              ]
-            },
-            {
-              "required": [
-                "service",
-                "queue"
-              ]
-            },
-            {
-              "required": [
-                "database",
-                "cache"
-              ]
-            },
-            {
-              "required": [
-                "database",
-                "queue"
-              ]
-            },
-            {
-              "required": [
-                "cache",
-                "queue"
-              ]
-            }
-          ]
-        },
         "properties": {
           "service": {
             "title": "service",
             "$ref": "#/components/schemas/loco.deployment.v1.ServiceDeploymentSpec"
-          },
-          "database": {
-            "title": "database",
-            "$ref": "#/components/schemas/loco.deployment.v1.DatabaseDeploymentSpec"
-          },
-          "cache": {
-            "title": "cache",
-            "$ref": "#/components/schemas/loco.deployment.v1.CacheDeploymentSpec"
-          },
-          "queue": {
-            "title": "queue",
-            "$ref": "#/components/schemas/loco.deployment.v1.QueueDeploymentSpec"
           }
         },
         "title": "DeploymentSpec",
         "additionalProperties": false,
-        "description": "DeploymentSpec is the immutable runtime snapshot for a deployment.\n Uses oneof to support different resource types.\n\nAt most one of `service`, `database`, `cache`, `queue` may be set."
+        "description": "DeploymentSpec is the immutable runtime snapshot for a deployment.\n Uses oneof to support different resource types."
       },
       "loco.deployment.v1.DeploymentStatus": {
         "type": "string",
@@ -10951,12 +10887,6 @@
         },
         "title": "Problem",
         "additionalProperties": false
-      },
-      "loco.deployment.v1.QueueDeploymentSpec": {
-        "type": "object",
-        "title": "QueueDeploymentSpec",
-        "additionalProperties": false,
-        "description": "QueueDeploymentSpec is the spec of the corresponding resource type."
       },
       "loco.deployment.v1.Replica": {
         "type": "object",
@@ -14087,18 +14017,6 @@
         "title": "IssuePullCredentialResponse",
         "additionalProperties": false
       },
-      "loco.resource.v1.BlobSpec": {
-        "type": "object",
-        "title": "BlobSpec",
-        "additionalProperties": false,
-        "description": "BlobSpec is the spec of the corresponding resource type."
-      },
-      "loco.resource.v1.CacheSpec": {
-        "type": "object",
-        "title": "CacheSpec",
-        "additionalProperties": false,
-        "description": "CacheSpec is the spec of the corresponding resource type."
-      },
       "loco.resource.v1.CreateResourceRequest": {
         "type": "object",
         "properties": {
@@ -14170,12 +14088,6 @@
         "title": "CreateResourceResponse",
         "additionalProperties": false,
         "description": "CreateResourceResponse is the response containing the created resource ID."
-      },
-      "loco.resource.v1.DatabaseSpec": {
-        "type": "object",
-        "title": "DatabaseSpec",
-        "additionalProperties": false,
-        "description": "DatabaseSpec is the spec of the corresponding resource type."
       },
       "loco.resource.v1.DeleteResourceRequest": {
         "type": "object",
@@ -14389,12 +14301,6 @@
         "title": "ListWorkspaceResourcesResponse",
         "additionalProperties": false,
         "description": "ListWorkspaceResourcesResponse is the response containing the list of resources."
-      },
-      "loco.resource.v1.QueueSpec": {
-        "type": "object",
-        "title": "QueueSpec",
-        "additionalProperties": false,
-        "description": "QueueSpec is the spec of the corresponding resource type."
       },
       "loco.resource.v1.RegionAvailability": {
         "type": "string",
@@ -14634,95 +14540,15 @@
       },
       "loco.resource.v1.ResourceSpec": {
         "type": "object",
-        "not": {
-          "allOf": [
-            {
-              "anyOf": [
-                {
-                  "required": [
-                    "service"
-                  ]
-                },
-                {
-                  "required": [
-                    "database"
-                  ]
-                },
-                {
-                  "required": [
-                    "cache"
-                  ]
-                },
-                {
-                  "required": [
-                    "queue"
-                  ]
-                },
-                {
-                  "required": [
-                    "blob"
-                  ]
-                }
-              ]
-            },
-            {
-              "not": {
-                "oneOf": [
-                  {
-                    "required": [
-                      "service"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "database"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "cache"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "queue"
-                    ]
-                  },
-                  {
-                    "required": [
-                      "blob"
-                    ]
-                  }
-                ]
-              }
-            }
-          ]
-        },
         "properties": {
           "service": {
             "title": "service",
             "$ref": "#/components/schemas/loco.resource.v1.ServiceSpec"
-          },
-          "database": {
-            "title": "database",
-            "$ref": "#/components/schemas/loco.resource.v1.DatabaseSpec"
-          },
-          "cache": {
-            "title": "cache",
-            "$ref": "#/components/schemas/loco.resource.v1.CacheSpec"
-          },
-          "queue": {
-            "title": "queue",
-            "$ref": "#/components/schemas/loco.resource.v1.QueueSpec"
-          },
-          "blob": {
-            "title": "blob",
-            "$ref": "#/components/schemas/loco.resource.v1.BlobSpec"
           }
         },
         "title": "ResourceSpec",
         "additionalProperties": false,
-        "description": "ResourceSpec defines the global infrastructure intent for a resource.\n Uses oneof to support different resource types.\n\nAt most one of `service`, `database`, `cache`, `queue`, `blob` may be set."
+        "description": "ResourceSpec defines the global infrastructure intent for a resource.\n Uses oneof to support different resource types."
       },
       "loco.resource.v1.ResourceStatus": {
         "type": "string",

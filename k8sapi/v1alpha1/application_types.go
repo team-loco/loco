@@ -87,7 +87,7 @@ type RoutingSpec struct {
 type ApplicationSpec struct {
 	// Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)
 	// Only the corresponding TypeSpec field should be populated
-	Type           string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
+	Type           string `json:"type"`                 // SERVICE
 	ResourceID     string `json:"resourceId,omitempty"` // UUIDv7 as string
 	Slug           string `json:"slug,omitempty"`
 	OrganizationID string `json:"organizationId,omitempty"` // UUIDv7 as string
@@ -99,12 +99,7 @@ type ApplicationSpec struct {
 	EnvironmentName string `json:"environmentName,omitempty"` // e.g. "production", "staging"
 	DeploymentID    string `json:"deploymentId,omitempty"`    // UUIDv7 as string
 
-	// Type-specific specs (only one populated based on Type)
-	ServiceSpec  *ServiceSpec  `json:"serviceSpec,omitempty"`
-	DatabaseSpec *DatabaseSpec `json:"databaseSpec,omitempty"`
-	CacheSpec    *CacheSpec    `json:"cacheSpec,omitempty"`
-	QueueSpec    *QueueSpec    `json:"queueSpec,omitempty"`
-	BlobSpec     *BlobSpec     `json:"blobSpec,omitempty"`
+	ServiceSpec *ServiceSpec `json:"serviceSpec,omitempty"`
 }
 
 // ServiceSpec contains service-specific deployment and resource configuration
@@ -172,18 +167,6 @@ type EnvSecretRef struct {
 	// +kubebuilder:validation:Minimum=1
 	Revision int64 `json:"revision"`
 }
-
-// DatabaseSpec is a placeholder for future DATABASE type resources
-type DatabaseSpec struct{}
-
-// CacheSpec is a placeholder for future CACHE type resources
-type CacheSpec struct{}
-
-// QueueSpec is a placeholder for future QUEUE type resources
-type QueueSpec struct{}
-
-// BlobSpec is a placeholder for future BLOB type resources
-type BlobSpec struct{}
 
 // ApplicationStatus defines the observed state of Application.
 type ApplicationStatus struct {

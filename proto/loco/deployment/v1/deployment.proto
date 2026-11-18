@@ -131,23 +131,11 @@ message ServiceRouting {
   int32 idle_timeout = 2;
 }
 
-// DatabaseDeploymentSpec is the spec of the corresponding resource type.
-message DatabaseDeploymentSpec {}
-
-// CacheDeploymentSpec is the spec of the corresponding resource type.
-message CacheDeploymentSpec {}
-
-// QueueDeploymentSpec is the spec of the corresponding resource type.
-message QueueDeploymentSpec {}
-
 // DeploymentSpec is the immutable runtime snapshot for a deployment.
 // Uses oneof to support different resource types.
 message DeploymentSpec {
   oneof spec {
     ServiceDeploymentSpec service = 1;
-    DatabaseDeploymentSpec database = 2;
-    CacheDeploymentSpec cache = 3;
-    QueueDeploymentSpec queue = 4;
   }
 }
 

@@ -183,3 +183,14 @@ func TestApplicationRequiresEnvironmentIdentity(t *testing.T) {
 		t.Fatalf("missing environment: %v", err)
 	}
 }
+
+func TestApplicationAcceptsOnlyTheServiceType(t *testing.T) {
+	for _, kind := range []string{"DATABASE", "CACHE", "QUEUE", "BLOB"} {
+		spec := ApplicationSpec{
+			ResourceID: "resource", WorkspaceID: "workspace", EnvironmentID: "environment", Type: kind,
+		}
+		if err := spec.Validate(); err == nil || !strings.Contains(err.Error(), "unknown resource type") {
+			t.Errorf("%s: error = %v, want an unknown resource type", kind, err)
+		}
+	}
+}
