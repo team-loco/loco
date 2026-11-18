@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import re
 import urllib.parse
 import uuid
@@ -535,7 +536,9 @@ def volume(page):
         .locator("..")
     )
     bars = area.locator("> div").first.locator("> div")
-    count = bars.count()
+    width = math.ceil(3_600 / 59) * 1000
+    count = end // width - (end - 3_600_000) // width + 1
+    expect(bars).to_have_count(count)
     assert (
         bars.first.locator("span")
         .nth(1)
