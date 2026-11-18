@@ -836,6 +836,31 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 	}
 }
 
+func TestSecretWritesWaitOutLocksOutsideTheSecretLocks(t *testing.T) {
+	f := newSecretFixture(t)
+	server := f.serverWith(t, newTestKeyProvider(t, "k1"), SecretConfig{
+		MaxValueBytes: testMaxValue, MaxPlacementBytes: testMaxPlacementBytes,
+		LockTimeout: 100 * time.Millisecond,
+	})
+	tx, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	rollbackOnCleanup(t, tx)
+	if _, err = tx.Exec(t.Context(), "LOCK TABLE events IN SHARE MODE"); err != nil {
+		t.Fatalf("lock events: %v", err)
+	}
+	released := make(chan error, 1)
+	go func() {
+		time.Sleep(time.Second)
+		released <- tx.Rollback(context.Background())
+	}()
+	f.set(t, server, map[string]string{alphaKey: "1"})
+	if err := <-released; err != nil {
+		t.Fatalf("release events: %v", err)
+	}
+}
+
 func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)

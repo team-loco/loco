@@ -293,6 +293,7 @@ type Querier interface {
 	RemoveUserScope(ctx context.Context, arg RemoveUserScopeParams) error
 	RemoveWorkspace(ctx context.Context, id uuid.UUID) error
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
+	ResetLockTimeout(ctx context.Context) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
 	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]uuid.UUID, error)
 	ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error)

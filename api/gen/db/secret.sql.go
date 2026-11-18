@@ -550,6 +550,15 @@ func (q *Queries) ReencryptSecrets(ctx context.Context, arg ReencryptSecretsPara
 	return result.RowsAffected(), nil
 }
 
+const resetLockTimeout = `-- name: ResetLockTimeout :exec
+SET LOCAL lock_timeout TO DEFAULT
+`
+
+func (q *Queries) ResetLockTimeout(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, resetLockTimeout)
+	return err
+}
+
 const rewrapEnvironmentKey = `-- name: RewrapEnvironmentKey :execrows
 UPDATE environment_keys
 SET provider = $1,

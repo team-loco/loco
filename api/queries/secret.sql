@@ -10,6 +10,9 @@ RETURNING *;
 -- name: SetLockTimeout :exec
 SELECT set_config('lock_timeout', sqlc.arg(timeout)::text, true);
 
+-- name: ResetLockTimeout :exec
+SET LOCAL lock_timeout TO DEFAULT;
+
 -- name: LockEnvironmentKey :one
 SELECT * FROM environment_keys WHERE environment_id = $1 FOR UPDATE;
 

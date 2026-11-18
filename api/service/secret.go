@@ -379,6 +379,7 @@ func openSecret(dek []byte, target secretTarget, row genDb.ListSecretCiphertexts
 	return plaintext, nil
 }
 
+// lockEnvironmentKey bounds lock waits by the secrets lock timeout until the caller runs ResetLockTimeout.
 func (s *SecretServer) lockEnvironmentKey(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -424,6 +425,9 @@ func (s *SecretServer) lockTarget(
 	}
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
+	}
+	if err = qtx.ResetLockTimeout(ctx); err != nil {
+		return genDb.EnvironmentKey{}, 0, fmt.Errorf("reset lock timeout: %w", err)
 	}
 	return key, revision, nil
 }
@@ -648,6 +652,9 @@ func (s *SecretServer) rewrapEnvironmentKey(
 		locked, _, lockErr := s.lockEnvironmentKey(ctx, qtx, env)
 		if lockErr != nil {
 			return lockErr
+		}
+		if resetErr := qtx.ResetLockTimeout(ctx); resetErr != nil {
+			return fmt.Errorf("reset lock timeout: %w", resetErr)
 		}
 		if !bytes.Equal(locked.WrappedDek, key.WrappedDek) {
 			return errKeyChanged
