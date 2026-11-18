@@ -467,7 +467,7 @@ export function LogsView() {
 						</ToggleGroup>
 						{volume.error !== null ? (
 							<ErrorState error={volume.error} what="log volume" rpc={queryLogBuckets} onRetry={volume.refetch} />
-						) : volume.isLoading ? (
+						) : volume.isLoading || environmentLoading ? (
 							<Skeleton className="h-14 w-full" />
 						) : (
 							<>
