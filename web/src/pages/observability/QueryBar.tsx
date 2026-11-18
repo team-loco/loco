@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { HistoryIcon, SearchIcon, StarIcon, TagIcon, XIcon } from "lucide-react";
+import { HistoryIcon, SearchIcon, StarIcon, XIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -50,7 +50,7 @@ import { Dot } from "./shared";
 
 interface Suggestion {
 	key: string;
-	icon: ReactNode;
+	icon?: ReactNode;
 	main: string;
 	hint: string;
 	apply: () => void;
@@ -76,7 +76,7 @@ export type ValueCounts = (key: FieldKey) => [string, number][];
 function placeholder(view: string): string {
 	switch (view) {
 		case "logs":
-			return "Search messages, or filter with @key:value, OR, - and ( )…";
+			return "Search messages, or type @ to filter by resource, level, status…";
 		case "metrics":
 			return "Type @resource to filter";
 		default:
@@ -163,7 +163,6 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 
 	const keyItem = (def: FieldDef, neg: boolean): Suggestion => ({
 		key: `f:${def.key}:${String(neg)}`,
-		icon: <TagIcon className="size-3.5" />,
 		main: `${neg ? "-" : ""}@${def.key}`,
 		hint: def.label,
 		apply: () => {
@@ -183,9 +182,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 				<span className={cn("size-2 rounded-full", levelStyle(levelOf(v)).dot)} />
 			) : key === "resource" && res !== undefined ? (
 				<Dot size={8} color={res.color} />
-			) : (
-				<TagIcon className="size-3.5" />
-			);
+			) : undefined;
 		return {
 			key: `v:${key}:${v}`,
 			icon,
@@ -458,7 +455,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 									</div>
 									{g.items.map((s) => (
 										<ComboboxItem key={s.key} value={s}>
-											<span className="flex text-fg3">{s.icon}</span>
+											{s.icon !== undefined && <span className="flex text-fg3">{s.icon}</span>}
 											<span className="min-w-0 flex-1 truncate font-mono">{s.main}</span>
 											<span className="text-[12px] whitespace-nowrap text-fg3">{s.hint}</span>
 											{s.remove !== undefined && (
@@ -483,8 +480,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 						<ComboboxEmpty className="p-2.5 text-fg3">No matches</ComboboxEmpty>
 					</ComboboxList>
 					<div className="mt-1 flex flex-wrap items-center gap-1.5 border-t border-line px-2 pt-2 pb-1 text-[11.5px] text-fg3">
-						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-</Kbd> exclude <Kbd>OR</Kbd> either <Kbd>( )</Kbd> group{" "}
-						<Kbd>*</Kbd> prefix <Kbd>&gt;5</Kbd> <Kbd>1..9</Kbd> numbers
+						<Kbd>↑↓</Kbd> move <Kbd>enter</Kbd> add <Kbd>-@</Kbd> exclude <Kbd>OR</Kbd> either
 					</div>
 				</ComboboxContent>
 			</div>

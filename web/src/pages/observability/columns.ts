@@ -10,11 +10,11 @@ export const PICKABLE_COLUMNS: ColumnKey[] = [
 	"resource",
 	"replica",
 	"region",
-	"trace",
 	"method",
 	"path",
 	"status",
 	"duration",
+	"trace",
 ];
 export const DEFAULT_COLUMNS: ColumnKey[] = ["level", "resource"];
 

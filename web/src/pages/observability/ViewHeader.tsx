@@ -29,8 +29,8 @@ export function ViewHeader({ actions }: { actions?: ReactNode }) {
 				title={viewTitle(view)}
 				actions={
 					<div className="flex flex-wrap items-center gap-2">
-						{actions}
 						<TimePicker />
+						{actions}
 					</div>
 				}
 			/>

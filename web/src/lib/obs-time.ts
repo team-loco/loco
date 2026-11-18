@@ -7,7 +7,7 @@ export const HOUR_MS = 60 * MINUTE_MS;
 const WEEK_MS = 7 * DAY_MS;
 
 export const EVENTS_MAX_MS = WEEK_MS;
-export const DEFAULT_SPAN_MS = HOUR_MS;
+export const DEFAULT_SPAN_MS = 15 * MINUTE_MS;
 export const AROUND_MS = 5 * MINUTE_MS;
 
 const PRESETS_MS = [15 * MINUTE_MS, HOUR_MS, 4 * HOUR_MS, 12 * HOUR_MS, DAY_MS, 2 * DAY_MS, WEEK_MS];

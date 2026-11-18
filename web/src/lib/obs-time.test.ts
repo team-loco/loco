@@ -8,6 +8,7 @@ import {
 	fromLocalInput,
 	checkCustomRange,
 	formatSpan,
+	DEFAULT_SPAN_MS,
 	HOUR_MS,
 	joinLocalInput,
 	MINUTE_MS,
@@ -85,7 +86,7 @@ describe("time range limits", () => {
 	test("falls back to the default for unreadable bounds", () => {
 		expect(readWindow("?from=abc&to=1")).toEqual({
 			kind: "relative",
-			spanMs: HOUR_MS,
+			spanMs: DEFAULT_SPAN_MS,
 		});
 	});
 

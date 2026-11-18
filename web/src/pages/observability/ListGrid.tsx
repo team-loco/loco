@@ -12,7 +12,7 @@ export const LIST_HEAD_CLASS = "list-head grid h-[38px] items-center border-b bo
 export function listRowClass(index: number, selected: boolean): string {
 	return cn(
 		"list-row grid min-h-[34px] w-full items-center rounded-lg text-left text-[12px] transition-[background] duration-900 ease-out hover:bg-[var(--list-hover,var(--panel2))] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-		index % 2 === 1 && "bg-[color-mix(in_oklab,var(--panel2)_45%,transparent)]",
+		index % 2 === 1 && "bg-[var(--list-zebra,color-mix(in_oklab,var(--panel2)_45%,transparent))]",
 		selected &&
 			"bg-[var(--list-selected,var(--bg))] shadow-[inset_0_0_0_1px_var(--list-ring,var(--line2))] hover:bg-[var(--list-selected,var(--bg))]",
 	);
