@@ -205,23 +205,18 @@ WHERE pw.resource_id = $1 AND pw.cluster_id = $2 AND pw.removed_at IS NULL
 -- name: ListClusterPlacementWindows :many
 -- Returns each workspace's windows on the cluster that are open or closed after the cutoff,
 -- merged into non-overlapping intervals.
-WITH recent AS (
-    SELECT id, workspace_id, placed_at, COALESCE(removed_at, 'infinity') AS ends_at
+WITH starts AS (
+    SELECT id, workspace_id, placed_at, COALESCE(removed_at, 'infinity') AS ends_at,
+        CASE WHEN placed_at <= MAX(COALESCE(removed_at, 'infinity')) OVER (
+            PARTITION BY workspace_id ORDER BY placed_at, id
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+        ) THEN 0 ELSE 1 END AS starts_interval
     FROM placement_windows
     WHERE cluster_id = sqlc.arg(cluster_id)::uuid
       AND (removed_at IS NULL OR removed_at > sqlc.arg(cutoff)::timestamptz)
-), starts AS (
-    SELECT id, workspace_id, placed_at, ends_at,
-        CASE WHEN placed_at <= MAX(ends_at) OVER (
-            PARTITION BY workspace_id ORDER BY placed_at, ends_at
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-        ) THEN 0 ELSE 1 END AS starts_interval
-    FROM recent
 ), intervals AS (
     SELECT id, workspace_id, placed_at, ends_at,
-        SUM(starts_interval) OVER (
-            PARTITION BY workspace_id ORDER BY placed_at, ends_at ROWS UNBOUNDED PRECEDING
-        ) AS interval_number
+        SUM(starts_interval) OVER (PARTITION BY workspace_id ORDER BY placed_at, id) AS interval_number
     FROM starts
 ), merged AS (
     SELECT MIN(placed_at) AS placed_at, (ARRAY_AGG(id ORDER BY ends_at DESC))[1] AS last_id

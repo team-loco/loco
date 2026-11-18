@@ -226,23 +226,18 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
-WITH recent AS (
-    SELECT id, workspace_id, placed_at, COALESCE(removed_at, 'infinity') AS ends_at
+WITH starts AS (
+    SELECT id, workspace_id, placed_at, COALESCE(removed_at, 'infinity') AS ends_at,
+        CASE WHEN placed_at <= MAX(COALESCE(removed_at, 'infinity')) OVER (
+            PARTITION BY workspace_id ORDER BY placed_at, id
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+        ) THEN 0 ELSE 1 END AS starts_interval
     FROM placement_windows
     WHERE cluster_id = $1::uuid
       AND (removed_at IS NULL OR removed_at > $2::timestamptz)
-), starts AS (
-    SELECT id, workspace_id, placed_at, ends_at,
-        CASE WHEN placed_at <= MAX(ends_at) OVER (
-            PARTITION BY workspace_id ORDER BY placed_at, ends_at
-            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
-        ) THEN 0 ELSE 1 END AS starts_interval
-    FROM recent
 ), intervals AS (
     SELECT id, workspace_id, placed_at, ends_at,
-        SUM(starts_interval) OVER (
-            PARTITION BY workspace_id ORDER BY placed_at, ends_at ROWS UNBOUNDED PRECEDING
-        ) AS interval_number
+        SUM(starts_interval) OVER (PARTITION BY workspace_id ORDER BY placed_at, id) AS interval_number
     FROM starts
 ), merged AS (
     SELECT MIN(placed_at) AS placed_at, (ARRAY_AGG(id ORDER BY ends_at DESC))[1] AS last_id
