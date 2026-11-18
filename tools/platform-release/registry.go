@@ -3,26 +3,27 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
+
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/static"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 const (
-	acceptHeader   = "Accept"
-	archAMD64      = "amd64"
-	archARM64      = "arm64"
-	linuxOS        = "linux"
-	fieldDigest    = "digest"
-	fieldMediaType = "mediaType"
+	archAMD64 = "amd64"
+	archARM64 = "arm64"
+	linuxOS   = "linux"
 )
 
 const (
@@ -33,209 +34,119 @@ const (
 )
 
 var repositoryPattern = regexp.MustCompile(`^[a-z0-9-]+/[a-z0-9_.-]+$`)
-var challengeFields = regexp.MustCompile(`(\w+)="([^"]+)"`)
 
 type registry struct {
-	repository, username, password, host, base string
-	client                                     *http.Client
-	mu                                         sync.Mutex
-	tokens                                     map[string]string
+	repository, username, password, host string
+	transport                            http.RoundTripper
 }
 
 func newRegistry(repository, username, password, host string) (*registry, error) {
 	if !repositoryPattern.MatchString(repository) {
 		return nil, errors.New("repository must be a lowercase owner/repository")
 	}
-	scheme := "https://"
-	if strings.HasPrefix(host, "localhost:") {
-		scheme = "http://"
-	}
-	return &registry{repository: repository, username: username, password: password, host: host, base: scheme + host,
-		client: &http.Client{Timeout: registryTimeout, CheckRedirect: blobRedirect}, tokens: map[string]string{}}, nil
-}
-
-// blobRedirect follows only a blob download's redirect to storage, without registry credentials.
-func blobRedirect(req *http.Request, via []*http.Request) error {
-	if len(via) != 1 || via[0].Method != http.MethodGet || !strings.Contains(via[0].URL.Path, "/blobs/") {
-		return http.ErrUseLastResponse
-	}
-	req.Header.Del("Authorization")
-	return nil
+	base := &http.Transport{Proxy: http.ProxyFromEnvironment, ResponseHeaderTimeout: registryTimeout}
+	return &registry{repository: repository, username: username, password: password, host: host, transport: base}, nil
 }
 
 func (r *registry) public() *registry {
-	return &registry{
-		repository: r.repository,
-		host:       r.host,
-		base:       r.base,
-		client:     r.client,
-		tokens:     map[string]string{},
+	return &registry{repository: r.repository, host: r.host, transport: r.transport}
+}
+
+func (r *registry) options(ctx context.Context) []remote.Option {
+	auth := authn.Anonymous
+	if r.password != "" {
+		auth = &authn.Basic{Username: r.username, Password: r.password}
+	}
+	return []remote.Option{
+		remote.WithContext(ctx),
+		remote.WithAuth(auth),
+		remote.WithTransport(confinedTransport{host: r.host, next: r.transport}),
 	}
 }
 
-func (r *registry) request(
-	ctx context.Context,
-	method, path string,
-	data []byte,
-	headers http.Header,
-	missing bool,
-) ([]byte, http.Header, error) {
-	parts := strings.SplitN(strings.TrimPrefix(path, "/v2/"), "/manifests/", 2)
-	repository, _, _ := strings.Cut(parts[0], "/blobs/")
-	actions := "pull,push"
-	if method == http.MethodGet || method == http.MethodHead {
-		actions = "pull"
-	}
-	scope := "repository:" + repository + ":" + actions
-	requestHeaders := headers.Clone()
-	if requestHeaders == nil {
-		requestHeaders = http.Header{}
-	}
-	r.mu.Lock()
-	auth := r.tokens[scope]
-	r.mu.Unlock()
-	if auth != "" {
-		requestHeaders.Set("Authorization", auth)
-	}
-	for attempt := range 2 {
-		endpoint, err := registryEndpoint(r.base, path)
-		if err != nil {
-			return nil, nil, err
-		}
-		// #nosec G704 -- The operator selects the registry; registryEndpoint confines requests to its origin.
-		req, err := http.NewRequestWithContext(ctx, method, endpoint.String(), bytes.NewReader(data))
-		if err != nil {
-			return nil, nil, err
-		}
-		req.Header = requestHeaders.Clone()
-		// #nosec G704 -- req targets the operator-selected registry validated above.
-		response, err := r.client.Do(req)
-		if err != nil {
-			return nil, nil, err
-		}
-		body, readErr := io.ReadAll(response.Body)
-		closeErr := response.Body.Close()
-		if readErr != nil {
-			return nil, nil, readErr
-		}
-		if closeErr != nil {
-			return nil, nil, closeErr
-		}
-		if response.StatusCode >= 200 && response.StatusCode < 300 {
-			return body, response.Header, nil
-		}
-		if response.StatusCode == http.StatusNotFound && missing {
-			var payload struct {
-				Errors []struct {
-					Code string `json:"code"`
-				} `json:"errors"`
-			}
-			if checkErr := json.Unmarshal(body, &payload); checkErr != nil {
-				return nil, nil, fmt.Errorf("registry returned an invalid absence response: %w", checkErr)
-			}
-			if len(payload.Errors) == 0 {
-				return nil, nil, errors.New("registry absence is not confirmed")
-			}
-			for _, item := range payload.Errors {
-				if item.Code != "MANIFEST_UNKNOWN" && item.Code != "NAME_UNKNOWN" && item.Code != "BLOB_UNKNOWN" {
-					return nil, nil, errors.New("registry absence is not confirmed")
-				}
-			}
-			return nil, http.Header{}, nil
-		}
-		if response.StatusCode != http.StatusUnauthorized || attempt != 0 {
-			return nil, nil, fmt.Errorf("registry %s failed with HTTP %d", method, response.StatusCode)
-		}
-		auth, err = r.authenticate(ctx, response.Header.Get("WWW-Authenticate"), scope)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		r.mu.Lock()
-		r.tokens[scope] = auth
-		r.mu.Unlock()
-		requestHeaders.Set("Authorization", auth)
-	}
-	return nil, nil, errors.New("registry authentication failed")
+// confinedTransport keeps requests on the registry, except one credential-free redirect of a blob download.
+type confinedTransport struct {
+	host string
+	next http.RoundTripper
 }
 
-func registryEndpoint(base, path string) (*url.URL, error) {
-	origin, err := url.Parse(base)
+func (t confinedTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.Response == nil {
+		if req.URL.Host != t.host {
+			return nil, fmt.Errorf("unexpected registry location %s", req.URL.Host)
+		}
+		return t.next.RoundTrip(req)
+	}
+	from := req.Response.Request
+	if from.Response != nil || from.Method != http.MethodGet || !strings.Contains(from.URL.Path, "/blobs/") {
+		return nil, fmt.Errorf(
+			"registry %s %s redirected with HTTP %d",
+			from.Method,
+			from.URL.Path,
+			req.Response.StatusCode,
+		)
+	}
+	req = req.Clone(req.Context())
+	req.Header.Del("Authorization")
+	return t.next.RoundTrip(req)
+}
+
+func (r *registry) reference(repository, reference string) (name.Reference, error) {
+	separator := ":"
+	if strings.HasPrefix(reference, "sha256:") {
+		separator = "@"
+	}
+	return name.ParseReference(r.host + "/" + repository + separator + reference)
+}
+
+func (r *registry) get(ctx context.Context, repository, reference string) (*remote.Descriptor, error) {
+	ref, err := r.reference(repository, reference)
 	if err != nil {
 		return nil, err
 	}
-	relative, err := url.ParseRequestURI(path)
-	if err != nil {
-		return nil, err
-	}
-	if origin.Host == "" || (origin.Scheme != "https" && origin.Scheme != "http") ||
-		origin.User != nil || relative.IsAbs() || relative.Host != "" || !strings.HasPrefix(relative.Path, "/v2/") {
-		return nil, errors.New("invalid registry endpoint")
-	}
-	endpoint := origin.ResolveReference(relative)
-	if endpoint.Scheme != origin.Scheme || endpoint.Host != origin.Host || !strings.HasPrefix(endpoint.Path, "/v2/") {
-		return nil, errors.New("registry endpoint changes origin")
-	}
-	return endpoint, nil
+	return remote.Get(ref, r.options(ctx)...)
 }
 
+// manifest returns the digest of a manifest, or "" when missing allows a registry-confirmed absence.
 func (r *registry) manifest(ctx context.Context, repository, reference string, missing bool) (string, error) {
-	accept := strings.Join([]string{manifestType,
-		"application/vnd.oci.image.index.v1+json",
-		"application/vnd.docker.distribution.manifest.list.v2+json",
-		"application/vnd.docker.distribution.manifest.v2+json"}, ",")
-	data, headers, err := r.request(
-		ctx,
-		http.MethodGet,
-		"/v2/"+repository+"/manifests/"+reference,
-		nil,
-		http.Header{acceptHeader: {accept}},
-		missing,
-	)
-	if err != nil || data == nil {
+	descriptor, err := r.get(ctx, repository, reference)
+	if err != nil {
+		if missing && absent(err) {
+			return "", nil
+		}
 		return "", err
 	}
-	result := digest(data)
-	if supplied := headers.Get("Docker-Content-Digest"); supplied != "" && supplied != result {
-		return "", errors.New("registry manifest digest mismatch")
+	return descriptor.Digest.String(), nil
+}
+
+func absent(err error) bool {
+	var failure *transport.Error
+	if !errors.As(err, &failure) || failure.StatusCode != http.StatusNotFound || len(failure.Errors) == 0 {
+		return false
 	}
-	return result, nil
+	for _, diagnostic := range failure.Errors {
+		switch diagnostic.Code {
+		case transport.ManifestUnknownErrorCode, transport.NameUnknownErrorCode, transport.BlobUnknownErrorCode:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (r *registry) requireImagePlatforms(ctx context.Context, repository, reference string) error {
-	data, _, err := r.request(
-		ctx,
-		http.MethodGet,
-		"/v2/"+repository+"/manifests/"+reference,
-		nil,
-		http.Header{
-			acceptHeader: {
-				"application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
-			},
-		},
-		false,
-	)
+	descriptor, err := r.get(ctx, repository, reference)
 	if err != nil {
 		return err
 	}
-	if digest(data) != reference {
-		return errors.New("registry image index digest mismatch")
-	}
-	var index struct {
-		Manifests []struct {
-			Platform struct {
-				OS           string `json:"os"`
-				Architecture string `json:"architecture"`
-			} `json:"platform"`
-		} `json:"manifests"`
-	}
-	if checkErr := json.Unmarshal(data, &index); checkErr != nil {
-		return checkErr
+	index, err := v1.ParseIndexManifest(bytes.NewReader(descriptor.Manifest))
+	if err != nil {
+		return err
 	}
 	for _, arch := range []string{archAMD64, archARM64} {
 		matches := 0
 		for _, entry := range index.Manifests {
-			if entry.Platform.OS == linuxOS && entry.Platform.Architecture == arch {
+			if entry.Platform != nil && entry.Platform.OS == linuxOS && entry.Platform.Architecture == arch {
 				matches++
 			}
 		}
@@ -257,37 +168,12 @@ func (r *registry) assertAbsent(ctx context.Context, repository, version string)
 	return nil
 }
 
-func (r *registry) blob(ctx context.Context, repository string, data []byte) (string, error) {
-	_, headers, err := r.request(ctx, http.MethodPost, "/v2/"+repository+"/blobs/uploads/", []byte{}, nil, false)
-	if err != nil {
-		return "", err
-	}
-	base, err := url.Parse(r.base)
-	if err != nil {
-		return "", err
-	}
-	location, err := url.Parse(headers.Get("Location"))
-	if err != nil {
-		return "", err
-	}
-	resolved := base.ResolveReference(location)
-	if resolved.Scheme != base.Scheme || resolved.Host != base.Host {
-		return "", errors.New("unexpected registry upload location")
-	}
-	value := digest(data)
-	query := resolved.Query()
-	query.Add(fieldDigest, value)
-	resolved.RawQuery = query.Encode()
-	_, _, err = r.request(
-		ctx,
-		http.MethodPut,
-		resolved.RequestURI(),
-		data,
-		http.Header{"Content-Type": {"application/octet-stream"}},
-		false,
-	)
-	return value, err
-}
+// rawManifest is a manifest published byte for byte.
+type rawManifest struct{ data []byte }
+
+func (m rawManifest) RawManifest() ([]byte, error) { return m.data, nil }
+
+func (rawManifest) MediaType() (types.MediaType, error) { return manifestType, nil }
 
 func (r *registry) publish(
 	ctx context.Context,
@@ -302,12 +188,7 @@ func (r *registry) publish(
 			return "", checkErr
 		}
 	}
-	configData := encoded(config)
-	configDigest, err := r.blob(ctx, repository, configData)
-	if err != nil {
-		return "", err
-	}
-	layerDigest, err := r.blob(ctx, repository, data)
+	target, err := name.NewRepository(r.host + "/" + repository)
 	if err != nil {
 		return "", err
 	}
@@ -315,11 +196,24 @@ func (r *registry) publish(
 	if mediaType == helmLayerType {
 		configType = "application/vnd.cncf.helm.config.v1+json"
 	}
+	configData := encoded(config)
+	for _, blob := range []v1.Layer{
+		static.NewLayer(configData, types.MediaType(configType)),
+		static.NewLayer(data, types.MediaType(mediaType)),
+	} {
+		if err = remote.WriteLayer(target, blob, r.options(ctx)...); err != nil {
+			return "", err
+		}
+	}
 	body := encoded(map[string]any{
 		"schemaVersion": 2,
 		fieldMediaType:  manifestType,
-		"config":        map[string]any{fieldMediaType: configType, fieldDigest: configDigest, "size": len(configData)},
-		"layers":        []any{map[string]any{fieldMediaType: mediaType, fieldDigest: layerDigest, "size": len(data)}},
+		"config": map[string]any{
+			fieldMediaType: configType,
+			fieldDigest:    digest(configData),
+			"size":         len(configData),
+		},
+		"layers": []any{map[string]any{fieldMediaType: mediaType, fieldDigest: digest(data), "size": len(data)}},
 		"annotations": map[string]string{
 			"org.opencontainers.image.source":  "https://github.com/" + r.repository,
 			"org.opencontainers.image.version": version,
@@ -330,15 +224,8 @@ func (r *registry) publish(
 			return "", checkErr
 		}
 	}
-	if _, _, checkErr := r.request(
-		ctx,
-		http.MethodPut,
-		"/v2/"+repository+"/manifests/"+version,
-		body,
-		http.Header{"Content-Type": {manifestType}},
-		false,
-	); checkErr != nil {
-		return "", checkErr
+	if err = remote.Put(target.Tag(version), rawManifest{body}, r.options(ctx)...); err != nil {
+		return "", err
 	}
 	result, err := r.manifest(ctx, repository, version, false)
 	if err != nil {
@@ -357,45 +244,32 @@ func (r *registry) ensure(
 	config any,
 	mediaType string,
 ) (string, error) {
-	reference, err := r.manifest(ctx, repository, version, true)
+	descriptor, err := r.get(ctx, repository, version)
+	if err != nil {
+		if absent(err) {
+			return r.publish(ctx, repository, version, data, config, mediaType, false)
+		}
+		return "", err
+	}
+	image, err := descriptor.Image()
 	if err != nil {
 		return "", err
 	}
-	if reference == "" {
-		return r.publish(ctx, repository, version, data, config, mediaType, false)
-	}
-	body, _, err := r.request(
-		ctx,
-		http.MethodGet,
-		"/v2/"+repository+"/manifests/"+reference,
-		nil,
-		http.Header{acceptHeader: {manifestType}},
-		false,
-	)
+	layers, err := image.Layers()
 	if err != nil {
 		return "", err
 	}
-	if digest(body) != reference {
-		return "", errors.New("registry manifest digest mismatch")
-	}
-	var manifest struct {
-		Layers []struct {
-			Digest string `json:"digest"`
-		} `json:"layers"`
-	}
-	if checkErr := json.Unmarshal(body, &manifest); checkErr != nil {
-		return "", checkErr
-	}
-	if len(manifest.Layers) != 1 {
+	if len(layers) != 1 {
 		return "", fmt.Errorf("%s:%s must have exactly one layer", repository, version)
 	}
-	layer := manifest.Layers[0].Digest
-	published, _, err := r.request(ctx, http.MethodGet, "/v2/"+repository+"/blobs/"+layer, nil, nil, false)
+	reader, err := layers[0].Compressed()
 	if err != nil {
 		return "", err
 	}
-	if digest(published) != layer {
-		return "", errors.New("registry layer digest mismatch")
+	published, err := io.ReadAll(reader)
+	closeErr := reader.Close()
+	if err = errors.Join(err, closeErr); err != nil {
+		return "", err
 	}
 	changed, err := changedFiles(published, data)
 	if err != nil {
@@ -409,57 +283,5 @@ func (r *registry) ensure(
 			strings.Join(changed, ", "),
 		)
 	}
-	return reference, nil
-}
-
-func (r *registry) authenticate(ctx context.Context, challenge, scope string) (string, error) {
-	var auth string
-	basic := "Basic " + base64.StdEncoding.EncodeToString([]byte(r.username+":"+r.password))
-	if strings.HasPrefix(challenge, "Basic ") && r.password != "" {
-		auth = basic
-	} else {
-		parameters := map[string]string{}
-		for _, match := range challengeFields.FindAllStringSubmatch(challenge, -1) {
-			parameters[match[1]] = match[2]
-		}
-		if parameters["realm"] != r.base+"/token" || parameters["service"] != r.host {
-			return "", errors.New("unexpected registry authentication challenge")
-		}
-		query := url.Values{"service": {r.host}, "scope": {scope}}
-		tokenRequest, err := http.NewRequestWithContext(
-			ctx,
-			http.MethodGet,
-			parameters["realm"]+"?"+query.Encode(),
-			nil,
-		)
-		if err != nil {
-			return "", err
-		}
-		if r.password != "" {
-			tokenRequest.Header.Set("Authorization", basic)
-		}
-		tokenResponse, err := r.client.Do(tokenRequest)
-		if err != nil {
-			return "", err
-		}
-		var token struct {
-			Token string `json:"token"`
-		}
-		err = json.NewDecoder(tokenResponse.Body).Decode(&token)
-		closeErr := tokenResponse.Body.Close()
-		if tokenResponse.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("registry token request failed with HTTP %d", tokenResponse.StatusCode)
-		}
-		if err != nil {
-			return "", err
-		}
-		if closeErr != nil {
-			return "", closeErr
-		}
-		if token.Token == "" {
-			return "", errors.New("registry token response contains no token")
-		}
-		auth = "Bearer " + token.Token
-	}
-	return auth, nil
+	return descriptor.Digest.String(), nil
 }

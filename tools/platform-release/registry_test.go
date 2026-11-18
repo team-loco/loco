@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -20,19 +21,40 @@ type registryFixture struct {
 	registry         *registry
 	mu               sync.Mutex
 	manifests, blobs map[string][]byte
+	uploads          map[string][]byte
 	writes           int
+	basic            bool
 }
 
 func testRegistry(t *testing.T) *registryFixture {
 	t.Helper()
-	fixture := &registryFixture{manifests: map[string][]byte{}, blobs: map[string][]byte{}}
+	fixture := &registryFixture{
+		manifests: map[string][]byte{},
+		blobs:     map[string][]byte{},
+		uploads:   map[string][]byte{},
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
 		fixture.mu.Lock()
 		defer fixture.mu.Unlock()
+		if ref, ok := strings.CutPrefix(request.URL.Path, "/storage/"); ok {
+			assert.Empty(t, request.Header.Get("Authorization"))
+			writeResponse(t, w, fixture.blobs[ref])
+			return
+		}
+		if fixture.basic && request.Header.Get("Authorization") == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if request.URL.Path == pingPath {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		path := strings.TrimPrefix(request.URL.Path, "/v2/")
-		if strings.Contains(path, "/blobs/uploads/") {
+		if _, upload, ok := strings.Cut(path, "/blobs/uploads/"); ok {
 			if request.Method == http.MethodPost {
-				w.Header().Set("Location", request.URL.Path+"upload")
+				w.Header().Set("Location", request.URL.Path+strconv.Itoa(len(fixture.uploads)))
+				fixture.uploads[strconv.Itoa(len(fixture.uploads))] = nil
 				w.WriteHeader(http.StatusAccepted)
 				return
 			}
@@ -41,17 +63,23 @@ func testRegistry(t *testing.T) *registryFixture {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			fixture.blobs[request.URL.Query().Get(fieldDigest)] = data
+			fixture.uploads[upload] = append(fixture.uploads[upload], data...)
+			if request.Method == http.MethodPatch {
+				w.Header().Set("Location", request.URL.Path)
+				w.WriteHeader(http.StatusAccepted)
+				return
+			}
+			fixture.blobs[request.URL.Query().Get(fieldDigest)] = fixture.uploads[upload]
 			w.WriteHeader(http.StatusCreated)
-			return
-		}
-		if ref, ok := strings.CutPrefix(request.URL.Path, "/storage/"); ok {
-			assert.Empty(t, request.Header.Get("Authorization"))
-			writeResponse(t, w, fixture.blobs[ref])
 			return
 		}
 		if _, ref, ok := strings.Cut(path, "/blobs/"); ok {
 			if data, found := fixture.blobs[ref]; found {
+				if request.Method == http.MethodHead {
+					w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+					w.WriteHeader(http.StatusOK)
+					return
+				}
 				w.Header().Set("Location", "/storage/"+digest(data))
 				w.WriteHeader(http.StatusTemporaryRedirect)
 				return
@@ -72,7 +100,7 @@ func testRegistry(t *testing.T) *registryFixture {
 				return
 			}
 			if data, found := fixture.manifests[key]; found {
-				w.Header().Set("Docker-Content-Digest", digest(data))
+				w.Header().Set("Content-Type", manifestType)
 				writeResponse(t, w, data)
 				return
 			}
@@ -81,14 +109,19 @@ func testRegistry(t *testing.T) *registryFixture {
 		writeResponse(t, w, []byte(`{"errors":[{"code":"MANIFEST_UNKNOWN"}]}`))
 	}))
 	t.Cleanup(server.Close)
-	fixture.registry = &registry{
-		repository: "example/platform",
-		host:       strings.TrimPrefix(server.URL, "http://"),
-		base:       server.URL,
-		client:     &http.Client{CheckRedirect: blobRedirect},
-		tokens:     map[string]string{},
-	}
+	fixture.registry = testClient(server)
+	fixture.registry.repository = "example/platform"
 	return fixture
+}
+
+const (
+	pingPath     = "/v2/"
+	testUsername = "publisher"
+	testPassword = "credential"
+)
+
+func testClient(server *httptest.Server) *registry {
+	return &registry{host: strings.TrimPrefix(server.URL, "http://"), transport: http.DefaultTransport}
 }
 
 func TestRegistryPublishAndEnsureContent(t *testing.T) {
@@ -149,13 +182,15 @@ func TestRegistryAbsenceRequiresStructuredConfirmation(t *testing.T) {
 		{"server-error", "", 500, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+				if request.URL.Path == pingPath {
+					return
+				}
 				w.WriteHeader(test.status)
 				writeResponse(t, w, []byte(test.body))
 			}))
 			defer server.Close()
-			r := &registry{base: server.URL, client: server.Client(), tokens: map[string]string{}}
-			ref, err := r.manifest(context.Background(), "example/chart", fixtureVersion, true)
+			ref, err := testClient(server).manifest(context.Background(), "example/chart", fixtureVersion, true)
 			if test.wantError {
 				require.Error(t, err)
 			} else {
@@ -199,14 +234,8 @@ func TestRegistryAuthentication(t *testing.T) {
 				writeResponse(t, w, []byte("manifest"))
 			}))
 			defer server.Close()
-			r := &registry{
-				base:     server.URL,
-				host:     strings.TrimPrefix(server.URL, "http://"),
-				username: "publisher",
-				password: "credential",
-				client:   server.Client(),
-				tokens:   map[string]string{},
-			}
+			r := testClient(server)
+			r.username, r.password = testUsername, testPassword
 			ref, err := r.manifest(context.Background(), "example/chart", fixtureVersion, false)
 			require.NoError(t, err)
 			require.Equal(t, digest([]byte("manifest")), ref)
@@ -219,23 +248,34 @@ func TestRegistryRejectsUnexpectedAuthenticationAndUploadLocations(t *testing.T)
 	const authentication = "authentication"
 	for _, operation := range []string{authentication, "upload"} {
 		t.Run(operation, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				if operation == authentication {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, request *http.Request) {
+				switch {
+				case operation == authentication:
 					w.Header().
 						Set("WWW-Authenticate", `Bearer realm="https://unexpected.invalid/token",service="wrong"`)
 					w.WriteHeader(http.StatusUnauthorized)
-				} else {
+				case request.Method == http.MethodPost:
 					w.Header().Set("Location", "https://unexpected.invalid/upload")
 					w.WriteHeader(http.StatusAccepted)
+				case request.URL.Path != pingPath:
+					w.WriteHeader(http.StatusNotFound)
 				}
 			}))
 			defer server.Close()
-			r := &registry{base: server.URL, host: "registry", client: server.Client(), tokens: map[string]string{}}
+			r := testClient(server)
 			var err error
 			if operation == authentication {
 				_, err = r.manifest(context.Background(), "example/chart", fixtureVersion, false)
 			} else {
-				_, err = r.blob(context.Background(), "example/chart", []byte("layer"))
+				_, err = r.publish(
+					context.Background(),
+					"example/chart",
+					fixtureVersion,
+					[]byte("layer"),
+					object{},
+					layerType,
+					true,
+				)
 			}
 			require.ErrorContains(t, err, "unexpected registry")
 		})
@@ -275,13 +315,12 @@ func TestRegistryImagePlatforms(t *testing.T) {
 func TestRegistryRejectsIncorrectManifestDigest(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Docker-Content-Digest", "sha256:"+strings.Repeat("a", 64))
 		writeResponse(t, w, []byte("different"))
 	}))
 	defer server.Close()
-	r := &registry{base: server.URL, client: server.Client(), tokens: map[string]string{}}
-	_, err := r.manifest(context.Background(), "example/chart", fixtureVersion, false)
-	require.ErrorContains(t, err, "digest mismatch")
+	requested := "sha256:" + strings.Repeat("a", 64)
+	_, err := testClient(server).manifest(context.Background(), "example/chart", requested, false)
+	require.ErrorContains(t, err, "does not match requested digest")
 }
 
 func TestRegistryManifestUsesCorrectMediaTypes(t *testing.T) {
@@ -292,7 +331,7 @@ func TestRegistryManifestUsesCorrectMediaTypes(t *testing.T) {
 		ref, err := fixture.registry.publish(
 			context.Background(),
 			"example/chart",
-			mediaType,
+			fixtureVersion,
 			data,
 			object{},
 			mediaType,
@@ -319,11 +358,12 @@ func writeResponse(t *testing.T, w http.ResponseWriter, data []byte) {
 func TestRegistryEnsureComparesPublishedFiles(t *testing.T) {
 	t.Parallel()
 	fixture := testRegistry(t)
-	fixture.registry.tokens["repository:example/chart:pull"] = "Bearer token"
+	fixture.basic = true
+	fixture.registry.username, fixture.registry.password = testUsername, testPassword
 	layer := mustArchive(t, releaseFiles{"chart/Chart.yaml": []byte("name: chart"), "chart/removed": []byte("old")})
 	fixture.blobs[digest(layer)] = layer
 	manifest := encoded(object{
-		"layers":      []any{object{fieldDigest: digest(layer)}},
+		"layers":      []any{object{fieldDigest: digest(layer), "size": len(layer)}},
 		"annotations": object{"io.loco.platform.content": digest(layer)},
 	})
 	fixture.manifests["example/chart@"+fixtureVersion] = manifest
