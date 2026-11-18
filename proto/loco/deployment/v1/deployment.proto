@@ -267,12 +267,24 @@ message Replica {
   google.protobuf.Timestamp state_since = 6;
   google.protobuf.Timestamp state_deadline = 7;
   int32 restarts = 8;
-  optional int32 exit_code = 9;
+  reserved 9;
   string detail = 10;
   // The deployment that created this Pod.
   string deployment_id = 11;
   // The Pod was ready and not terminating in this observation.
   bool ready = 12;
+  // When the kubelet started the Pod.
+  google.protobuf.Timestamp started_at = 13;
+  // The most recent container exit the kubelet recorded for the Pod.
+  ReplicaExit last_exit = 14;
+}
+
+// ReplicaExit is how a replica's container last terminated.
+message ReplicaExit {
+  // The kubelet's termination reason, such as OOMKilled, Error or Completed.
+  string reason = 1;
+  int32 exit_code = 2;
+  google.protobuf.Timestamp at = 3;
 }
 
 message Problem {

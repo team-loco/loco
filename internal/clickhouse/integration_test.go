@@ -42,6 +42,7 @@ const (
 	testOtherEnvironmentID = "77777777-8888-9999-0000-111111111111"
 	avgAggregation         = "avg"
 	maxAggregation         = "max"
+	rateAggregation        = "rate"
 	logsInsertColumns      = "Timestamp, SeverityText, Body, ResourceAttributes, TraceId, SpanId, LogAttributes"
 	gaugeInsertColumns     = "ResourceAttributes, MetricName, Attributes, TimeUnix, Value"
 	testSeverity           = "INFO"

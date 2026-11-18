@@ -6,6 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 import "loco/cluster/v1/cluster.proto";
+import "loco/deployment/v1/deployment.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/agent/v1;agentv1";
 
@@ -121,10 +122,12 @@ message ReplicaReport {
   google.protobuf.Timestamp state_since = 6;
   google.protobuf.Timestamp state_deadline = 7;
   int32 restarts = 8;
-  optional int32 exit_code = 9;
+  reserved 9;
   string detail = 10 [(buf.validate.field).string.max_len = 512];
   string deployment_id = 11;
   bool ready = 12;
+  google.protobuf.Timestamp started_at = 13;
+  loco.deployment.v1.ReplicaExit last_exit = 14;
 }
 
 message ProblemReport {

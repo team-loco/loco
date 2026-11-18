@@ -8727,14 +8727,6 @@
             "title": "restarts",
             "format": "int32"
           },
-          "exitCode": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "exit_code",
-            "format": "int32"
-          },
           "detail": {
             "type": "string",
             "title": "detail",
@@ -8747,6 +8739,14 @@
           "ready": {
             "type": "boolean",
             "title": "ready"
+          },
+          "startedAt": {
+            "title": "started_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "lastExit": {
+            "title": "last_exit",
+            "$ref": "#/components/schemas/loco.deployment.v1.ReplicaExit"
           }
         },
         "title": "ReplicaReport",
@@ -10758,14 +10758,6 @@
             "title": "restarts",
             "format": "int32"
           },
-          "exitCode": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "exit_code",
-            "format": "int32"
-          },
           "detail": {
             "type": "string",
             "title": "detail"
@@ -10779,10 +10771,42 @@
             "type": "boolean",
             "title": "ready",
             "description": "The Pod was ready and not terminating in this observation."
+          },
+          "startedAt": {
+            "title": "started_at",
+            "description": "When the kubelet started the Pod.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "lastExit": {
+            "title": "last_exit",
+            "description": "The most recent container exit the kubelet recorded for the Pod.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ReplicaExit"
           }
         },
         "title": "Replica",
         "additionalProperties": false
+      },
+      "loco.deployment.v1.ReplicaExit": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "reason",
+            "description": "The kubelet's termination reason, such as OOMKilled, Error or Completed."
+          },
+          "exitCode": {
+            "type": "integer",
+            "title": "exit_code",
+            "format": "int32"
+          },
+          "at": {
+            "title": "at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "ReplicaExit",
+        "additionalProperties": false,
+        "description": "ReplicaExit is how a replica's container last terminated."
       },
       "loco.deployment.v1.ResolveImageRequest": {
         "type": "object",
@@ -12101,6 +12125,14 @@
         ],
         "description": "LogOrder defines the sort order for historical log queries."
       },
+      "loco.observability.v1.MetricGroup": {
+        "type": "string",
+        "title": "MetricGroup",
+        "enum": [
+          "METRIC_GROUP_UNSPECIFIED",
+          "METRIC_GROUP_POD"
+        ]
+      },
       "loco.observability.v1.MetricPoint": {
         "type": "object",
         "properties": {
@@ -12391,6 +12423,11 @@
               "type": "string",
               "title": "value"
             }
+          },
+          "groupBy": {
+            "title": "group_by",
+            "description": "Pod grouping returns one series per pod of a single resource.",
+            "$ref": "#/components/schemas/loco.observability.v1.MetricGroup"
           }
         },
         "title": "QueryMetricsRequest",
@@ -12399,7 +12436,7 @@
           "endTime"
         ],
         "additionalProperties": false,
-        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
+        "description": "QueryMetricsRequest specifies a metrics query with aggregation parameters.\ngroup_by.pod_needs_one_resource // pod grouping needs exactly one resource_id\ntime_range.start_lte_end // start_time must be before or equal to end_time\n"
       },
       "loco.observability.v1.QueryMetricsResponse": {
         "type": "object",
@@ -14198,6 +14235,14 @@
               }
             ],
             "title": "reported_at"
+          },
+          "replicas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.Replica"
+            },
+            "title": "replicas",
+            "description": "The replicas the cluster last reported for this region's placement. GetResource fills them;\n list responses leave them empty."
           }
         },
         "title": "RegionStatus",
@@ -16560,6 +16605,10 @@
       "name": "loco.cluster.v1.ClusterAdminService"
     },
     {
+      "name": "loco.deployment.v1.DeploymentService",
+      "description": "DeploymentService manages resource deployments."
+    },
+    {
       "name": "loco.agent.v1.AgentService",
       "description": "AgentService handles communication between the control plane and data plane agents."
     },
@@ -16576,10 +16625,6 @@
     },
     {
       "name": "loco.build.v1.BuildService"
-    },
-    {
-      "name": "loco.deployment.v1.DeploymentService",
-      "description": "DeploymentService manages resource deployments."
     },
     {
       "name": "loco.config.v1.ConfigService",

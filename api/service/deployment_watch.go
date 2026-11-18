@@ -224,7 +224,8 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []
 				StateSince:        r.GetStateSince(),
 				StateDeadline:     r.GetStateDeadline(),
 				Restarts:          r.GetRestarts(),
-				ExitCode:          r.ExitCode,
+				StartedAt:         r.GetStartedAt(),
+				LastExit:          r.GetLastExit(),
 				Detail:            r.GetDetail(),
 			},
 		)

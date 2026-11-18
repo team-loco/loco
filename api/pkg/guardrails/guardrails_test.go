@@ -195,3 +195,30 @@ func TestEveryTenantQueryRequiresCanonicalUUIDScope(t *testing.T) {
 		}
 	}
 }
+
+func TestPodGroupingNeedsExactlyOneResource(t *testing.T) {
+	now := time.Now()
+	resource := "01a11886-e710-7fc9-a6e9-5e0c367f2cd1"
+	other := "01a11886-e710-7fc9-a6e9-5e0c367f2cd2"
+	for name, tc := range map[string]struct {
+		resources []string
+		valid     bool
+	}{
+		"one resource":  {[]string{resource}, true},
+		"no resource":   {nil, false},
+		"two resources": {[]string{resource, other}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			req := &observabilityv1.QueryMetricsRequest{
+				WorkspaceId: testWorkspaceID, ResourceIds: tc.resources,
+				StartTime: timestamppb.New(now.Add(-time.Minute)), EndTime: timestamppb.New(now),
+				MetricName: "k8s.pod.cpu_limit_utilization", IntervalSeconds: 60, Aggregation: "avg",
+				GroupBy: observabilityv1.MetricGroup_METRIC_GROUP_POD,
+			}
+			err := validated(req, func() error { return ValidateMetricsRequest(req, Limits{MaxTimeRange: time.Hour}) })
+			if (err == nil) != tc.valid {
+				t.Fatalf("validation = %v, valid = %v", err, tc.valid)
+			}
+		})
+	}
+}
