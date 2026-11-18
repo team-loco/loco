@@ -12,7 +12,7 @@ The fixture activates the head CLI after the upgrade reconciles. Enrollment supp
 
 Upgrade checks compare agent identity, seal material and initialization material before and after reconciliation. A transit ciphertext created before the upgrade must decrypt afterwards, and the ingest signing key must retain its public identity. A fresh operator login and a 72-hour token issuance exercise the upgraded CLI against the running API.
 
-The application workflow builds source, checks CA-verified HTTPS and enforces build-network isolation. `locoadm verify` creates its own source service and checks secret and log delivery. Fixture DNS points at cloud-provider-kind LoadBalancers, including wildcard application routing.
+The application workflow builds source, checks CA-verified HTTPS and enforces build-network isolation. Before the install, the runner copies the source build's base images into the fixture registry, reading Docker Hub images from `DOCKER_HUB_MIRROR` when it holds them, and the head worker's `builds.buildkitdConfig` points BuildKit at those copies. `locoadm verify` creates its own source service and checks secret and log delivery. Fixture DNS points at cloud-provider-kind LoadBalancers, including wildcard application routing.
 
 Recovery exports ciphertext to separate throwaway age custodians. A disposable OpenBao instance restores the raft snapshot with the exported seal key, restarts to exercise auto-unseal, decrypts an existing ciphertext and signs data with the original ingest identity. Temporary roots are revoked and disposable resources are removed after success or failure.
 

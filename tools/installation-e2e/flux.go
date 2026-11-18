@@ -120,7 +120,7 @@ func (f *fixture) installFlux(
 	if err = f.prepareSchema(ctx, strings.TrimSpace(string(databaseURL))); err != nil {
 		return "", "", err
 	}
-	upgraded, err := f.publishRepo(ctx, repo, current, "./all")
+	upgraded, err := f.publishHead(ctx, repo, current)
 	if err != nil {
 		return "", "", err
 	}
@@ -159,6 +159,29 @@ func (f *fixture) installFlux(
 		}
 	}
 	return enrolled, upgraded, nil
+}
+
+// publishHead publishes the operator repository for the head bundle, whose worker alone runs the
+// source build and gets the BuildKit configuration, and leaves the repository as it found it.
+func (f *fixture) publishHead(ctx context.Context, repo operatorrepo.Repository, current string) (string, error) {
+	values := repo.Values("loco-worker")
+	baseline, err := os.ReadFile(values)
+	if err != nil {
+		return "", err
+	}
+	head, err := json.Marshal(map[string]any{"builds": map[string]any{"buildkitdConfig": f.buildkitdConfig}})
+	if err != nil {
+		return "", err
+	}
+	if err = operatorrepo.Merge(values, head); err != nil {
+		return "", err
+	}
+	published, err := f.publishRepo(ctx, repo, current, "./all")
+	if err != nil {
+		return "", err
+	}
+	restoreErr := os.WriteFile(values, baseline, 0o600) //nolint:gosec // repo.Values names a run directory file.
+	return published, restoreErr
 }
 
 func (f *fixture) publishRepo(
