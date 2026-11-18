@@ -1,6 +1,7 @@
 package rpcerr
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -51,4 +52,13 @@ func Public(err error) (*connect.Error, bool) {
 		return nil, false
 	}
 	return connect.NewError(coded.code, coded.msg).WithCause(err), true
+}
+
+// DependencyCanceled returns err as an internal failure when it wraps context.Canceled while ctx is
+// live, because then a dependency, such as a closing connection pool, canceled its own work.
+func DependencyCanceled(ctx context.Context, err error) error {
+	if errors.Is(err, context.Canceled) && ctx.Err() == nil {
+		return connect.NewError(connect.CodeInternal, "request failed").WithCause(err)
+	}
+	return err
 }
