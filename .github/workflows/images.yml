@@ -84,7 +84,7 @@ jobs:
           mkdir -p bin/operator-tools
           for tool in helm kubectl flux; do
             cp "$(mise which "$tool")" "bin/operator-tools/$tool"
-            python3 tools/platform-images/verify.py binary "bin/operator-tools/$tool" "linux/$ARCH"
+            go run ./tools/platform-images binary "bin/operator-tools/$tool" "linux/$ARCH"
           done
 
       - name: Build and push the Go images

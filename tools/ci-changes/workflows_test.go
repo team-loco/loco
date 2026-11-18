@@ -139,7 +139,11 @@ func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
 		}
 	}
 	require.NotEmpty(t, script, "the operator fixture needs the pinned runner tools")
-	verifier, err := os.ReadFile("../platform-images/verify.py")
+	verifier, err := os.ReadFile("../platform-images/main.go")
+	require.NoError(t, err)
+	mod, err := os.ReadFile("../../go.mod")
+	require.NoError(t, err)
+	goBinary, err := exec.LookPath("go")
 	require.NoError(t, err)
 	for _, tc := range []struct {
 		name        string
@@ -163,12 +167,13 @@ func TestOperatorToolsUseVerifiedNativeBinaries(t *testing.T) {
 			for _, path := range []string{bin, pinned, verifyDir} {
 				require.NoError(t, os.MkdirAll(path, 0o700))
 			}
-			require.NoError(t, os.WriteFile(filepath.Join(verifyDir, "verify.py"), verifier, 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(verifyDir, "main.go"), verifier, 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), mod, 0o600))
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "go"), []byte(`#!/bin/sh
-case "$2" in
-GOHOSTOS) printf '%s\n' "$OPERATOR_TEST_OS" ;;
-GOHOSTARCH) printf '%s\n' "$OPERATOR_TEST_ARCH" ;;
-*) exit 1 ;;
+case "$1 $2" in
+"env GOHOSTOS") printf '%s\n' "$OPERATOR_TEST_OS" ;;
+"env GOHOSTARCH") printf '%s\n' "$OPERATOR_TEST_ARCH" ;;
+*) exec "$OPERATOR_TEST_GO" "$@" ;;
 esac
 `), 0o700))
 			require.NoError(t, os.WriteFile(filepath.Join(bin, "mise"), []byte(`#!/bin/sh
@@ -176,7 +181,8 @@ esac
 printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 `), 0o700))
 			elf := make([]byte, 128)
-			copy(elf, "\x7fELF\x02\x01")
+			copy(elf, "\x7fELF\x02\x01\x01")
+			binary.LittleEndian.PutUint32(elf[20:], 1)
 			binary.LittleEndian.PutUint16(elf[18:], tc.machine)
 			binary.LittleEndian.PutUint64(elf[32:], 64)
 			binary.LittleEndian.PutUint16(elf[54:], 56)
@@ -193,7 +199,7 @@ printf '%s/%s\n' "$OPERATOR_TEST_TOOLS" "$2"
 			cmd.Dir = dir
 			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 				"ARCH="+targetArch, "OPERATOR_TEST_OS="+tc.hostOS, "OPERATOR_TEST_ARCH="+tc.hostArch,
-				"OPERATOR_TEST_TOOLS="+pinned)
+				"OPERATOR_TEST_TOOLS="+pinned, "OPERATOR_TEST_GO="+goBinary)
 			output, err := cmd.CombinedOutput()
 			if tc.wantError != "" {
 				require.Error(t, err, string(output))
