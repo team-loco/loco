@@ -22,7 +22,7 @@ type ConfigServer struct {
 	observabilityMaxTimeRange time.Duration
 	schemaURL                 string
 	defaults                  servicedefaults.Defaults
-	auth                      *configv1.AuthConfig
+	webAuthEnabled            bool
 	orgLinks                  []*configv1.OrgLink
 	counts                    *configv1.CountLimits
 	historyRetention          *configv1.HistoryRetention
@@ -37,18 +37,14 @@ func NewConfigServer(
 	counts *configv1.CountLimits,
 	historyRetention *configv1.HistoryRetention,
 ) *ConfigServer {
-	var authConfig *configv1.AuthConfig
-	if _, enabled := auth.WebIssuer(issuers); enabled {
-		// Released CLIs check field presence before starting the device flow.
-		authConfig = &configv1.AuthConfig{}
-	}
+	_, webAuthEnabled := auth.WebIssuer(issuers)
 	return &ConfigServer{
 		apiVersion:                apiVersion,
 		minCLIVersion:             minCLIVersion,
 		schemaURL:                 schemaURL,
 		defaults:                  defaults,
 		orgLinks:                  orgLinksProto(orgLinks),
-		auth:                      authConfig,
+		webAuthEnabled:            webAuthEnabled,
 		apiTokenMaxLifetime:       apiTokenMaxLifetime,
 		observabilityMaxTimeRange: observabilityMaxTimeRange,
 		counts:                    counts,
@@ -66,8 +62,7 @@ func (s *ConfigServer) GetConfig(
 		ApiVersion:                 s.apiVersion,
 		ApiTokenMaxLifetimeSeconds: int64(s.apiTokenMaxLifetime / time.Second),
 		SchemaUrl:                  s.schemaURL,
-		Auth:                       s.auth,
-		WebAuthEnabled:             s.auth != nil,
+		WebAuthEnabled:             s.webAuthEnabled,
 		OrgLinks:                   s.orgLinks,
 		CountLimits:                s.counts,
 		HistoryRetention:           s.historyRetention,

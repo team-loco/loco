@@ -72,7 +72,7 @@ func Run(ctx context.Context, opts Options) error {
 	if err != nil {
 		return fmt.Errorf("login to %s failed: %w", opts.APIHost, err)
 	}
-	if config.GetAuth() == nil {
+	if !config.GetWebAuthEnabled() {
 		return fmt.Errorf("login to %s failed: %w", opts.APIHost, errNoIdentityProvider)
 	}
 	if err = providerLogin(ctx, httpClient, opts); err != nil {

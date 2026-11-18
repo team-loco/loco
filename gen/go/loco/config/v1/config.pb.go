@@ -60,15 +60,13 @@ func (*GetConfigRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetConfigResponse struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	ServiceDefaults *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
-	MinCliVersion   string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
-	// Present when sign-in is configured so older CLIs can start the device flow.
-	Auth                       *AuthConfig `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
-	SchemaUrl                  string      `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
-	OrgLinks                   []*OrgLink  `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
-	ApiTokenMaxLifetimeSeconds int64       `protobuf:"varint,6,opt,name=api_token_max_lifetime_seconds,json=apiTokenMaxLifetimeSeconds,proto3" json:"api_token_max_lifetime_seconds,omitempty"`
-	SizeLimits                 *SizeLimits `protobuf:"bytes,7,opt,name=size_limits,json=sizeLimits,proto3" json:"size_limits,omitempty"`
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	ServiceDefaults            *DefaultServiceConfig  `protobuf:"bytes,1,opt,name=service_defaults,json=serviceDefaults,proto3" json:"service_defaults,omitempty"`
+	MinCliVersion              string                 `protobuf:"bytes,2,opt,name=min_cli_version,json=minCliVersion,proto3" json:"min_cli_version,omitempty"`
+	SchemaUrl                  string                 `protobuf:"bytes,4,opt,name=schema_url,json=schemaUrl,proto3" json:"schema_url,omitempty"`
+	OrgLinks                   []*OrgLink             `protobuf:"bytes,5,rep,name=org_links,json=orgLinks,proto3" json:"org_links,omitempty"`
+	ApiTokenMaxLifetimeSeconds int64                  `protobuf:"varint,6,opt,name=api_token_max_lifetime_seconds,json=apiTokenMaxLifetimeSeconds,proto3" json:"api_token_max_lifetime_seconds,omitempty"`
+	SizeLimits                 *SizeLimits            `protobuf:"bytes,7,opt,name=size_limits,json=sizeLimits,proto3" json:"size_limits,omitempty"`
 	// count_limits are the install's defaults; GetOrgLimits reports an organization's own.
 	CountLimits *CountLimits `protobuf:"bytes,8,opt,name=count_limits,json=countLimits,proto3" json:"count_limits,omitempty"`
 	// history_retention applies across the installation and cannot be overridden per organization.
@@ -122,13 +120,6 @@ func (x *GetConfigResponse) GetMinCliVersion() string {
 		return x.MinCliVersion
 	}
 	return ""
-}
-
-func (x *GetConfigResponse) GetAuth() *AuthConfig {
-	if x != nil {
-		return x.Auth
-	}
-	return nil
 }
 
 func (x *GetConfigResponse) GetSchemaUrl() string {
@@ -555,66 +546,6 @@ func (x *OrgLink) GetUrl() string {
 	return ""
 }
 
-type AuthConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Issuer        string                 `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
-	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	Scopes        string                 `protobuf:"bytes,3,opt,name=scopes,proto3" json:"scopes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AuthConfig) Reset() {
-	*x = AuthConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AuthConfig) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AuthConfig) ProtoMessage() {}
-
-func (x *AuthConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AuthConfig.ProtoReflect.Descriptor instead.
-func (*AuthConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *AuthConfig) GetIssuer() string {
-	if x != nil {
-		return x.Issuer
-	}
-	return ""
-}
-
-func (x *AuthConfig) GetClientId() string {
-	if x != nil {
-		return x.ClientId
-	}
-	return ""
-}
-
-func (x *AuthConfig) GetScopes() string {
-	if x != nil {
-		return x.Scopes
-	}
-	return ""
-}
-
 // DefaultServiceConfig contains default values for service deployments.
 // These values are used when users don't specify explicit configuration.
 type DefaultServiceConfig struct {
@@ -638,7 +569,7 @@ type DefaultServiceConfig struct {
 
 func (x *DefaultServiceConfig) Reset() {
 	*x = DefaultServiceConfig{}
-	mi := &file_loco_config_v1_config_proto_msgTypes[7]
+	mi := &file_loco_config_v1_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -650,7 +581,7 @@ func (x *DefaultServiceConfig) String() string {
 func (*DefaultServiceConfig) ProtoMessage() {}
 
 func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_config_v1_config_proto_msgTypes[7]
+	mi := &file_loco_config_v1_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -663,7 +594,7 @@ func (x *DefaultServiceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DefaultServiceConfig.ProtoReflect.Descriptor instead.
 func (*DefaultServiceConfig) Descriptor() ([]byte, []int) {
-	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{7}
+	return file_loco_config_v1_config_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DefaultServiceConfig) GetHealthCheck() *v1.HealthCheckConfig {
@@ -741,11 +672,10 @@ var File_loco_config_v1_config_proto protoreflect.FileDescriptor
 const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\n" +
 	"\x1bloco/config/v1/config.proto\x12\x0eloco.config.v1\x1a\x1egoogle/protobuf/duration.proto\x1a#loco/deployment/v1/deployment.proto\"\x12\n" +
-	"\x10GetConfigRequest\"\xc8\x05\n" +
+	"\x10GetConfigRequest\"\xa4\x05\n" +
 	"\x11GetConfigResponse\x12O\n" +
 	"\x10service_defaults\x18\x01 \x01(\v2$.loco.config.v1.DefaultServiceConfigR\x0fserviceDefaults\x12&\n" +
-	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12.\n" +
-	"\x04auth\x18\x03 \x01(\v2\x1a.loco.config.v1.AuthConfigR\x04auth\x12\x1d\n" +
+	"\x0fmin_cli_version\x18\x02 \x01(\tR\rminCliVersion\x12\x1d\n" +
 	"\n" +
 	"schema_url\x18\x04 \x01(\tR\tschemaUrl\x124\n" +
 	"\torg_links\x18\x05 \x03(\v2\x17.loco.config.v1.OrgLinkR\borgLinks\x12B\n" +
@@ -758,7 +688,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	" \x01(\v2\x19.google.protobuf.DurationR\x19observabilityMaxTimeRange\x12\x1f\n" +
 	"\vapi_version\x18\v \x01(\tR\n" +
 	"apiVersion\x12(\n" +
-	"\x10web_auth_enabled\x18\f \x01(\bR\x0ewebAuthEnabled\"\x80\x01\n" +
+	"\x10web_auth_enabled\x18\f \x01(\bR\x0ewebAuthEnabledJ\x04\b\x03\x10\x04R\x04auth\"\x80\x01\n" +
 	"\x10HistoryRetention\x129\n" +
 	"\x19build_images_per_resource\x18\x01 \x01(\x05R\x16buildImagesPerResource\x121\n" +
 	"\x06events\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06events\"\xdb\x05\n" +
@@ -789,12 +719,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\"1\n" +
 	"\aOrgLink\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url\"Y\n" +
-	"\n" +
-	"AuthConfig\x12\x16\n" +
-	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12\x1b\n" +
-	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x01(\tR\x06scopes\"\xd4\x03\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\xd4\x03\n" +
 	"\x14DefaultServiceConfig\x12H\n" +
 	"\fhealth_check\x18\x01 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
@@ -823,7 +748,7 @@ func file_loco_config_v1_config_proto_rawDescGZIP() []byte {
 	return file_loco_config_v1_config_proto_rawDescData
 }
 
-var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_loco_config_v1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_loco_config_v1_config_proto_goTypes = []any{
 	(*GetConfigRequest)(nil),       // 0: loco.config.v1.GetConfigRequest
 	(*GetConfigResponse)(nil),      // 1: loco.config.v1.GetConfigResponse
@@ -831,30 +756,28 @@ var file_loco_config_v1_config_proto_goTypes = []any{
 	(*CountLimits)(nil),            // 3: loco.config.v1.CountLimits
 	(*SizeLimits)(nil),             // 4: loco.config.v1.SizeLimits
 	(*OrgLink)(nil),                // 5: loco.config.v1.OrgLink
-	(*AuthConfig)(nil),             // 6: loco.config.v1.AuthConfig
-	(*DefaultServiceConfig)(nil),   // 7: loco.config.v1.DefaultServiceConfig
-	(*durationpb.Duration)(nil),    // 8: google.protobuf.Duration
-	(*v1.HealthCheckConfig)(nil),   // 9: loco.deployment.v1.HealthCheckConfig
-	(*v1.ObservabilityConfig)(nil), // 10: loco.deployment.v1.ObservabilityConfig
+	(*DefaultServiceConfig)(nil),   // 6: loco.config.v1.DefaultServiceConfig
+	(*durationpb.Duration)(nil),    // 7: google.protobuf.Duration
+	(*v1.HealthCheckConfig)(nil),   // 8: loco.deployment.v1.HealthCheckConfig
+	(*v1.ObservabilityConfig)(nil), // 9: loco.deployment.v1.ObservabilityConfig
 }
 var file_loco_config_v1_config_proto_depIdxs = []int32{
-	7,  // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
-	6,  // 1: loco.config.v1.GetConfigResponse.auth:type_name -> loco.config.v1.AuthConfig
-	5,  // 2: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
-	4,  // 3: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
-	3,  // 4: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
-	2,  // 5: loco.config.v1.GetConfigResponse.history_retention:type_name -> loco.config.v1.HistoryRetention
-	8,  // 6: loco.config.v1.GetConfigResponse.observability_max_time_range:type_name -> google.protobuf.Duration
-	8,  // 7: loco.config.v1.HistoryRetention.events:type_name -> google.protobuf.Duration
-	9,  // 8: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	10, // 9: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.deployment.v1.ObservabilityConfig
-	0,  // 10: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
-	1,  // 11: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
-	11, // [11:12] is the sub-list for method output_type
-	10, // [10:11] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	6,  // 0: loco.config.v1.GetConfigResponse.service_defaults:type_name -> loco.config.v1.DefaultServiceConfig
+	5,  // 1: loco.config.v1.GetConfigResponse.org_links:type_name -> loco.config.v1.OrgLink
+	4,  // 2: loco.config.v1.GetConfigResponse.size_limits:type_name -> loco.config.v1.SizeLimits
+	3,  // 3: loco.config.v1.GetConfigResponse.count_limits:type_name -> loco.config.v1.CountLimits
+	2,  // 4: loco.config.v1.GetConfigResponse.history_retention:type_name -> loco.config.v1.HistoryRetention
+	7,  // 5: loco.config.v1.GetConfigResponse.observability_max_time_range:type_name -> google.protobuf.Duration
+	7,  // 6: loco.config.v1.HistoryRetention.events:type_name -> google.protobuf.Duration
+	8,  // 7: loco.config.v1.DefaultServiceConfig.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	9,  // 8: loco.config.v1.DefaultServiceConfig.observability:type_name -> loco.deployment.v1.ObservabilityConfig
+	0,  // 9: loco.config.v1.ConfigService.GetConfig:input_type -> loco.config.v1.GetConfigRequest
+	1,  // 10: loco.config.v1.ConfigService.GetConfig:output_type -> loco.config.v1.GetConfigResponse
+	10, // [10:11] is the sub-list for method output_type
+	9,  // [9:10] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_loco_config_v1_config_proto_init() }
@@ -868,7 +791,7 @@ func file_loco_config_v1_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_config_v1_config_proto_rawDesc), len(file_loco_config_v1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

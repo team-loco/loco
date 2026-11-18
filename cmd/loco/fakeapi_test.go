@@ -202,11 +202,8 @@ func (c *fakeConfigService) GetConfig(
 	if err := c.api.record(connect.Spec{Procedure: configv1connect.ConfigServiceGetConfigProcedure}, ""); err != nil {
 		return nil, err
 	}
-	var auth *configv1.AuthConfig
 	c.api.mu.Lock()
-	if c.api.identityProvider {
-		auth = &configv1.AuthConfig{}
-	}
+	webAuthEnabled := c.api.identityProvider
 	minimum := c.api.minCLIVersion
 	c.api.mu.Unlock()
 	defaults := &configv1.DefaultServiceConfig{
@@ -218,8 +215,7 @@ func (c *fakeConfigService) GetConfig(
 	resp := &configv1.GetConfigResponse{
 		ServiceDefaults: defaults,
 		SchemaUrl:       fakeSchemaURL,
-		Auth:            auth,
-		WebAuthEnabled:  auth != nil,
+		WebAuthEnabled:  webAuthEnabled,
 		MinCliVersion:   minimum,
 	}
 	return resp, nil

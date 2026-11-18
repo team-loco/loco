@@ -3,8 +3,6 @@ package service
 import (
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
@@ -23,11 +21,8 @@ func TestGetConfigReportsDashboardSignInAvailability(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if config.GetWebAuthEnabled() != configured || (config.GetAuth() != nil) != configured {
-			t.Fatalf("dashboard sign-in availability fields disagree with issuer configuration")
-		}
-		if configured && !proto.Equal(config.GetAuth(), &configv1.AuthConfig{}) {
-			t.Fatal("GetConfig exposed provider configuration")
+		if config.GetWebAuthEnabled() != configured {
+			t.Fatalf("dashboard sign-in enabled = %t, want %t", config.GetWebAuthEnabled(), configured)
 		}
 	}
 }

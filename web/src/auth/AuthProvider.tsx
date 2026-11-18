@@ -26,10 +26,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export const QUERY_CACHE_KEY = "loco:query-cache:v1";
 
-// Remove provider credentials left by the browser-based sign-in flow.
-removeStorage("loco:auth:oidc:v1");
-removeStorage("loco:auth:oidc:pending:v1", "session");
-
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const { pathname } = useLocation();
 	const { data, isPending, error } = useQuery(
