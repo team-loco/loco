@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -117,44 +118,32 @@ func blockingCI(commits []commitCI, jobs func(int64) (map[string]string, error))
 	var blocked []string
 	for i, commit := range commits {
 		target := i == len(commits)-1
-		reason, err := ciBlockReason(commit.run, target, commits[i+1:], jobs)
-		if err != nil {
-			return nil, err
+		run := commit.run
+		reason := "no run"
+		switch {
+		case run == nil:
+			if !target {
+				continue
+			}
+		case run.Conclusion == ciSuccess:
+			continue
+		case run.Conclusion == "":
+			reason = "in progress"
+		case !target && (run.Conclusion == "failure" || run.Conclusion == ciCanceled):
+			pending, err := remainingJobs(run.ID, commits[i+1:], jobs)
+			if err != nil {
+				return nil, err
+			}
+			if len(pending) == 0 {
+				continue
+			}
+			reason = run.Conclusion + " (" + strings.Join(pending, ", ") + ")"
+		default:
+			reason = run.Conclusion
 		}
-		if reason != "" {
-			blocked = append(blocked, "ci.yml on "+commit.sha+": "+reason)
-		}
+		blocked = append(blocked, "ci.yml on "+commit.sha+": "+reason)
 	}
 	return blocked, nil
-}
-
-func ciBlockReason(
-	run *ciRun,
-	target bool,
-	later []commitCI,
-	jobs func(int64) (map[string]string, error),
-) (string, error) {
-	if run == nil {
-		if target {
-			return "no run", nil
-		}
-		return "", nil
-	}
-	switch run.Conclusion {
-	case ciSuccess:
-		return "", nil
-	case "":
-		return "in progress", nil
-	case "failure", ciCanceled:
-		if !target {
-			pending, err := remainingJobs(run.ID, later, jobs)
-			if err != nil || len(pending) == 0 {
-				return "", err
-			}
-			return run.Conclusion + " (" + strings.Join(pending, ", ") + ")", nil
-		}
-	}
-	return run.Conclusion, nil
 }
 
 func remainingJobs(id int64, later []commitCI, jobs func(int64) (map[string]string, error)) ([]string, error) {
@@ -185,10 +174,5 @@ func remainingJobs(id int64, later []commitCI, jobs func(int64) (map[string]stri
 			}
 		}
 	}
-	pending := make([]string, 0, len(failed))
-	for name := range failed {
-		pending = append(pending, name)
-	}
-	sort.Strings(pending)
-	return pending, nil
+	return slices.Sorted(maps.Keys(failed)), nil
 }

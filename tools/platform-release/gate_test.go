@@ -41,7 +41,7 @@ func TestBlockingCI(t *testing.T) {
 		{"target must pass", []*ciRun{skipped, failed}, "ci.yml on b: failure"},
 		{"target must finish", []*ciRun{nil, progress}, "ci.yml on b: in progress"},
 		{"later success clears cancellation", []*ciRun{stopped, passed}, ""},
-		{"skip leaves cancellation", []*ciRun{stopped, skipped}, "ci.yml on a: ciCanceled (" + osv + ")"},
+		{"skip leaves cancellation", []*ciRun{stopped, skipped}, "ci.yml on a: " + ciCanceled + " (" + osv + ")"},
 		{"earlier run must finish", []*ciRun{progress, passed}, "ci.yml on a: in progress"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
