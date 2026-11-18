@@ -227,6 +227,17 @@ func sorted(ids ...string) []string {
 	return ids
 }
 
+func TestRemovingALeaseAnotherReaperReleasedSucceeds(t *testing.T) {
+	registry := open(t)
+	lease := lease(t, registry, "run", Owner{TTL: time.Hour})
+	if err := lease.Release(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if err := registry.remove(t.Context(), lease.ID); err != nil {
+		t.Fatalf("remove after another release: %v", err)
+	}
+}
+
 func TestReleaseRemovesTheLeaseDirectory(t *testing.T) {
 	registry := open(t)
 	lease := lease(t, registry, "run", Owner{TTL: time.Hour})

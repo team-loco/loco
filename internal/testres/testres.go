@@ -369,6 +369,9 @@ func (r *Registry) alive(ctx context.Context, rec record) (bool, error) {
 // directory. A failure leaves the lease for the next reap.
 func (r *Registry) remove(ctx context.Context, id string) error {
 	rec, err := r.read(id)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
