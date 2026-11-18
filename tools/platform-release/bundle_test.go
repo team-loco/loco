@@ -1,11 +1,14 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -71,24 +74,27 @@ func TestBundleRejectsUnpinnedReferences(t *testing.T) {
 	require.ErrorContains(t, err, "sha256 digest")
 }
 
-func TestArchiveContentIgnoresMetadataAndCompression(t *testing.T) {
+func TestChangedFilesIgnoresMetadataAndCompression(t *testing.T) {
 	t.Parallel()
 	input := releaseFiles{"a.txt": []byte("alpha"), "nested/b.txt": []byte("beta")}
-	data, err := archive(input)
+	data := mustArchive(t, input)
+	require.Equal(t, data, mustArchive(t, input))
+	var repackaged bytes.Buffer
+	gz, err := gzip.NewWriterLevel(&repackaged, gzip.BestSpeed)
 	require.NoError(t, err)
-	actual, err := archiveFiles(data)
+	tw := tar.NewWriter(gz)
+	require.NoError(t, tw.WriteHeader(&tar.Header{Name: "nested/", Typeflag: tar.TypeDir, Mode: 0o755}))
+	for _, name := range []string{"nested/b.txt", "a.txt"} {
+		header := &tar.Header{Name: name, Mode: 0o600, Size: int64(len(input[name])), ModTime: time.Unix(1, 0)}
+		require.NoError(t, tw.WriteHeader(header))
+		_, err = tw.Write(input[name])
+		require.NoError(t, err)
+	}
+	require.NoError(t, tw.Close())
+	require.NoError(t, gz.Close())
+	changed, err := changedFiles(data, repackaged.Bytes())
 	require.NoError(t, err)
-	require.Equal(t, input, actual)
-	hash, err := content(data)
-	require.NoError(t, err)
-	require.Equal(
-		t,
-		digest(encoded(map[string]string{"a.txt": digest([]byte("alpha")), "nested/b.txt": digest([]byte("beta"))})),
-		hash,
-	)
-	data2, err := archive(input)
-	require.NoError(t, err)
-	require.True(t, bytes.Equal(data, data2))
+	require.Empty(t, changed)
 }
 
 func TestCanonicalJSONSortsKeysAndEscapesNonASCII(t *testing.T) {

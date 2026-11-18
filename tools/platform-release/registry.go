@@ -17,11 +17,10 @@ import (
 )
 
 const (
-	manifestType      = "application/vnd.oci.image.manifest.v1+json"
-	layerType         = "application/vnd.oci.image.layer.v1.tar+gzip"
-	helmLayerType     = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
-	contentAnnotation = "io.loco.platform.content"
-	registryTimeout   = 120 * time.Second
+	manifestType    = "application/vnd.oci.image.manifest.v1+json"
+	layerType       = "application/vnd.oci.image.layer.v1.tar+gzip"
+	helmLayerType   = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	registryTimeout = 120 * time.Second
 )
 
 var repositoryPattern = regexp.MustCompile(`^[a-z0-9-]+/[a-z0-9_.-]+$`)
@@ -68,7 +67,7 @@ func (r *registry) request(
 	missing bool,
 ) ([]byte, http.Header, error) {
 	parts := strings.SplitN(strings.TrimPrefix(path, "/v2/"), "/manifests/", 2)
-	repository, _, _ := strings.Cut(parts[0], "/blobs/")
+	repository, _, blob := strings.Cut(parts[0], "/blobs/")
 	actions := "pull,push"
 	if method == http.MethodGet || method == http.MethodHead {
 		actions = "pull"
@@ -111,6 +110,10 @@ func (r *registry) request(
 		if response.StatusCode >= 200 && response.StatusCode < 300 {
 			return body, response.Header, nil
 		}
+		if location := response.Header.Get("Location"); method == http.MethodGet && blob && location != "" &&
+			response.StatusCode >= 300 && response.StatusCode < 400 {
+			return r.redirected(ctx, endpoint, location)
+		}
 		if response.StatusCode == http.StatusNotFound && missing {
 			var payload struct {
 				Errors []struct {
@@ -144,6 +147,36 @@ func (r *registry) request(
 		requestHeaders.Set("Authorization", auth)
 	}
 	return nil, nil, errors.New("registry authentication failed")
+}
+
+// redirected fetches blob storage the registry points to, without registry credentials.
+func (r *registry) redirected(ctx context.Context, endpoint *url.URL, location string) ([]byte, http.Header, error) {
+	target, err := endpoint.Parse(location)
+	if err != nil {
+		return nil, nil, err
+	}
+	// #nosec G704 -- The registry names its blob storage; the request carries no credentials.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	// #nosec G704 -- req carries no credentials.
+	response, err := r.client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	body, readErr := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if readErr != nil {
+		return nil, nil, readErr
+	}
+	if closeErr != nil {
+		return nil, nil, closeErr
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("registry blob storage GET failed with HTTP %d", response.StatusCode)
+	}
+	return body, response.Header, nil
 }
 
 func registryEndpoint(base, path string) (*url.URL, error) {
@@ -298,10 +331,6 @@ func (r *registry) publish(
 	if err != nil {
 		return "", err
 	}
-	annotation, err := content(data)
-	if err != nil {
-		return "", err
-	}
 	configType := "application/vnd.oci.image.config.v1+json"
 	if mediaType == helmLayerType {
 		configType = "application/vnd.cncf.helm.config.v1+json"
@@ -314,7 +343,6 @@ func (r *registry) publish(
 		"annotations": map[string]string{
 			"org.opencontainers.image.source":  "https://github.com/" + r.repository,
 			"org.opencontainers.image.version": version,
-			contentAnnotation:                  annotation,
 		},
 	})
 	if !replace {
@@ -371,19 +399,37 @@ func (r *registry) ensure(
 		return "", errors.New("registry manifest digest mismatch")
 	}
 	var manifest struct {
-		Annotations map[string]string `json:"annotations"`
+		Layers []struct {
+			Digest string `json:"digest"`
+		} `json:"layers"`
 	}
 	if checkErr := json.Unmarshal(body, &manifest); checkErr != nil {
 		return "", checkErr
 	}
-	annotation, err := content(data)
+	if len(manifest.Layers) != 1 {
+		return "", fmt.Errorf("%s:%s must have exactly one layer", repository, version)
+	}
+	layer := manifest.Layers[0].Digest
+	published, _, err := r.request(ctx, http.MethodGet, "/v2/"+repository+"/blobs/"+layer, nil, nil, false)
 	if err != nil {
 		return "", err
 	}
-	if manifest.Annotations[contentAnnotation] == annotation {
-		return reference, nil
+	if digest(published) != layer {
+		return "", errors.New("registry layer digest mismatch")
 	}
-	return "", fmt.Errorf("%s:%s is already published with different content; bump its version", repository, version)
+	changed, err := changedFiles(published, data)
+	if err != nil {
+		return "", err
+	}
+	if len(changed) != 0 {
+		return "", fmt.Errorf(
+			"%s:%s is already published with different content; bump its version; differing files: %s",
+			repository,
+			version,
+			strings.Join(changed, ", "),
+		)
+	}
+	return reference, nil
 }
 
 func (r *registry) authenticate(ctx context.Context, challenge, scope string) (string, error) {
