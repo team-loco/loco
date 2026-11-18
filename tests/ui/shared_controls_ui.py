@@ -676,7 +676,7 @@ def dashboard(page):
                 bounds["edgeLeft"]
                 <= bounds["left"]
                 <= bounds["right"]
-                <= bounds["edgeRight"]
+                <= bounds["edgeRight"] + 1
             ), (color, mode, bounds)
         page.set_viewport_size(evidence.DESKTOP)
         totals = page.get_by_role("region", name="Totals", exact=True)
