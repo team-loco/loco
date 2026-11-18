@@ -10,10 +10,12 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
@@ -32,7 +34,7 @@ func TestDiscovery(t *testing.T) {
 	w := p.NewTenant(t)
 	t.Cleanup(func() {
 		if t.Failed() {
-			dumpDiscovery(t, w.Namespace)
+			dumpDiscovery(t, w)
 		}
 	})
 	dir := t.TempDir()
@@ -184,8 +186,20 @@ func workspaceBuilds(t *testing.T, w *platform.Workspace) int {
 }
 
 // dumpDiscovery preserves routing and workload diagnostics before failure cleanup removes them.
-func dumpDiscovery(t *testing.T, namespace string) {
+func dumpDiscovery(t *testing.T, w *platform.Workspace) {
 	t.Helper()
+	var jobs batchv1.JobList
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), aliasTimeout)
+	defer cancel()
+	selector := locolabels.LabelWorkspaceID + "=" + w.ID
+	if err := p.Get(ctx, &jobs, "-n", p.BuildNamespace, "jobs", "-l", selector); err != nil {
+		t.Logf("list build jobs for workspace %s: %v", w.ID, err)
+	}
+	for _, job := range jobs.Items {
+		dumpBuild(t, job.Name)
+	}
+
+	namespace := w.Namespace
 	p.LogWorkspaceRuntime(t, namespace)
 	p.LogKubectl(t,
 		"-n "+namespace+" get services,endpointslices,networkpolicies -o wide",
@@ -268,7 +282,7 @@ func (d *discovery) otherWorkspace(t *testing.T) {
 	other := w.NewWorkspace(t, w.Name+"-two")
 	t.Cleanup(func() {
 		if t.Failed() {
-			dumpDiscovery(t, other.Namespace)
+			dumpDiscovery(t, other)
 		}
 	})
 	otherDir := t.TempDir()
