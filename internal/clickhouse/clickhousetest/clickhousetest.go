@@ -34,7 +34,10 @@ type Database struct {
 // drops it and closes the admin connection when the test ends.
 func New(tb testing.TB, prefix string) *Database {
 	tb.Helper()
-	dsn := testURL(tb)
+	dsn := os.Getenv(URLEnv)
+	if dsn == "" {
+		tb.Skip(URLEnv + " not set")
+	}
 	options, err := clickhouse.ParseDSN(dsn)
 	if err != nil {
 		tb.Fatalf("parse %s: %v", URLEnv, err)
@@ -43,7 +46,11 @@ func New(tb testing.TB, prefix string) *Database {
 	if err != nil {
 		tb.Fatalf("open clickhouse: %v", err)
 	}
-	database := &Database{DSN: dsn, Name: prefix + randomHex(tb), Admin: admin}
+	suffix := make([]byte, nameBytes)
+	if _, err := rand.Read(suffix); err != nil {
+		tb.Fatalf("random database name: %v", err)
+	}
+	database := &Database{DSN: dsn, Name: prefix + hex.EncodeToString(suffix), Admin: admin}
 	tb.Cleanup(func() {
 		if err := admin.Exec(context.Background(), "DROP DATABASE IF EXISTS "+database.Name+" SYNC"); err != nil {
 			tb.Errorf("drop %s: %v", database.Name, err)
@@ -94,22 +101,4 @@ func Rejecting(tb testing.TB, code int, name string) (string, *atomic.Int32) {
 	}))
 	tb.Cleanup(server.Close)
 	return server.URL, &requests
-}
-
-func testURL(tb testing.TB) string {
-	tb.Helper()
-	dsn := os.Getenv(URLEnv)
-	if dsn == "" {
-		tb.Skip(URLEnv + " not set")
-	}
-	return dsn
-}
-
-func randomHex(tb testing.TB) string {
-	tb.Helper()
-	suffix := make([]byte, nameBytes)
-	if _, err := rand.Read(suffix); err != nil {
-		tb.Fatalf("random database name: %v", err)
-	}
-	return hex.EncodeToString(suffix)
 }
