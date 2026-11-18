@@ -177,30 +177,40 @@ func (l *Lock) renew(ctx context.Context, conn driver.Conn, lose context.CancelC
 	defer ticker.Stop()
 	renewedAt := time.Now()
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-		}
-		attemptedAt := time.Now()
-		holder, err := l.extend(ctx, conn)
+		// The lease ends TTL after the last successful renewal was sent, and the holder stops then.
+		lease, cancelLease := context.WithDeadline(ctx, renewedAt.Add(l.cfg.TTL))
+		attemptedAt, holder, err := l.renewOnce(lease, conn, ticker.C)
+		expired := lease.Err() != nil
+		cancelLease()
 		switch {
+		case ctx.Err() != nil:
+			return
 		case err == nil && holder == l.identity:
 			renewedAt = attemptedAt
-			continue
 		case err == nil:
 			slog.WarnContext(ctx, "migration lock taken over", append(l.logAttrs(), "current_holder", holder)...)
 			lose(ErrLockLost)
 			return
-		case ctx.Err() != nil:
-			return
-		}
-		slog.WarnContext(ctx, "migration lock renewal failed", append(l.logAttrs(), "error", err)...)
-		if time.Since(renewedAt) >= l.cfg.TTL {
+		case expired:
+			slog.WarnContext(ctx, "migration lock expired", append(l.logAttrs(), "error", err)...)
 			lose(ErrLockLost)
 			return
+		default:
+			slog.WarnContext(ctx, "migration lock renewal failed", append(l.logAttrs(), "error", err)...)
 		}
 	}
+}
+
+// renewOnce waits for the next tick and extends the lock, both within lease.
+func (l *Lock) renewOnce(lease context.Context, conn driver.Conn, tick <-chan time.Time) (time.Time, string, error) {
+	select {
+	case <-lease.Done():
+		return time.Time{}, "", context.Cause(lease)
+	case <-tick:
+	}
+	attemptedAt := time.Now()
+	holder, err := l.extend(lease, conn)
+	return attemptedAt, holder, err
 }
 
 func (l *Lock) extend(ctx context.Context, conn driver.Conn) (string, error) {

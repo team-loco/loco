@@ -3,6 +3,9 @@ package migrationlock_test
 import (
 	"context"
 	"errors"
+	"io"
+	"net"
+	"net/url"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -25,6 +28,7 @@ const (
 	authenticationFailed = 516
 	deadHolder           = "dead-holder"
 	otherHolder          = "other-holder"
+	proxyBufferBytes     = 32 << 10
 )
 
 var errMigration = errors.New("migration failed")
@@ -234,10 +238,24 @@ func TestHolderStopsWhenTheLockIsTakenOver(t *testing.T) {
 }
 
 func TestHolderThatCannotRenewStopsWithinTheTTL(t *testing.T) {
-	h := newHarness(t)
+	t.Run("renewals fail", func(t *testing.T) {
+		h := newHarness(t)
+		holderStopsWithinTheTTL(t, h.cfg, func() { h.exec(t, "DROP TABLE "+h.table()+" SYNC") })
+	})
+	t.Run("renewals hang", func(t *testing.T) {
+		h := newHarness(t)
+		cfg := h.cfg
+		var stall func()
+		cfg.DSN, stall = stallingProxy(t, h.cfg.DSN)
+		holderStopsWithinTheTTL(t, cfg, stall)
+	})
+}
+
+func holderStopsWithinTheTTL(t *testing.T, cfg migrationlock.Config, cut func()) {
+	t.Helper()
 	var stoppedAfter time.Duration
-	err := migrationlock.New(h.cfg).WithLock(t.Context(), func(ctx context.Context) error {
-		h.exec(t, "DROP TABLE "+h.table()+" SYNC")
+	err := migrationlock.New(cfg).WithLock(t.Context(), func(ctx context.Context) error {
+		cut()
 		cutAt := time.Now()
 		select {
 		case <-ctx.Done():
@@ -254,6 +272,84 @@ func TestHolderThatCannotRenewStopsWithinTheTTL(t *testing.T) {
 	if stoppedAfter > testTTL+testRetryPeriod {
 		t.Fatalf("holder kept migrating %s after renewals failed, past the %s ttl", stoppedAfter, testTTL)
 	}
+}
+
+// stallingProxy forwards connections to the server dsn names and returns a dsn that reaches it
+// through the proxy, plus a stall func after which the proxy reads requests and never answers.
+// The dsn bounds each connection attempt by the lock ttl, which keeps the release after a stall short.
+func stallingProxy(t *testing.T, dsn string) (string, func()) {
+	t.Helper()
+	target, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatalf("parse clickhouse dsn: %v", err)
+	}
+	var lc net.ListenConfig
+	listener, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	stalled := make(chan struct{})
+	closed := make(chan struct{})
+	var mu sync.Mutex
+	closers := []io.Closer{listener}
+	var wg sync.WaitGroup
+	forward := func(dst, src net.Conn) {
+		buf := make([]byte, proxyBufferBytes)
+		for {
+			n, readErr := src.Read(buf)
+			if readErr != nil {
+				return
+			}
+			select {
+			case <-stalled:
+				<-closed
+				return
+			default:
+			}
+			if _, writeErr := dst.Write(buf[:n]); writeErr != nil {
+				return
+			}
+		}
+	}
+	wg.Go(func() {
+		var dialer net.Dialer
+		for {
+			client, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return
+			}
+			server, dialErr := dialer.DialContext(t.Context(), "tcp", target.Host)
+			if dialErr != nil {
+				t.Errorf("dial %s: %v", target.Host, dialErr)
+				if closeErr := client.Close(); closeErr != nil {
+					t.Errorf("close proxied connection: %v", closeErr)
+				}
+				return
+			}
+			mu.Lock()
+			closers = append(closers, client, server)
+			mu.Unlock()
+			wg.Go(func() { forward(server, client) })
+			wg.Go(func() { forward(client, server) })
+		}
+	})
+	t.Cleanup(func() {
+		close(closed)
+		mu.Lock()
+		for _, closer := range closers {
+			if closeErr := closer.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+				t.Errorf("close proxy: %v", closeErr)
+			}
+		}
+		mu.Unlock()
+		wg.Wait()
+	})
+	proxied := *target
+	proxied.Host = listener.Addr().String()
+	query := proxied.Query()
+	query.Set("dial_timeout", testTTL.String())
+	proxied.RawQuery = query.Encode()
+	return proxied.String(), func() { close(stalled) }
 }
 
 func TestWithLockFailsImmediatelyOnRejectedCredentials(t *testing.T) {
