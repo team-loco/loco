@@ -133,15 +133,13 @@ def discovery_document(issuer):
     }
 
 
-def compose(worktree, project, env, *args, capture=False, labels=None):
+def compose(worktree, project, env, *args, capture=False):
     files = [
         "-f",
         str(worktree / "dev" / "compose.yaml"),
         "-f",
         str(Path(__file__).resolve().parents[2] / "dev" / "compose.subnet.yaml"),
     ]
-    if labels is not None:
-        files += ["-f", str(labels)]
     return run(
         ["docker", "compose", *files, "-p", project, *args], env=env, capture=capture
     )
@@ -157,7 +155,7 @@ def openbao_env(worktree, env):
 
 def start_openbao(worktree, project, env, state_path):
     compose_env = openbao_env(worktree, env)
-    labels = Path(state_path).with_name("compose.labels.yaml")
+    labels = state_path.with_name("compose.labels.yaml")
     labels.write_text(
         json.dumps(
             {
@@ -179,24 +177,26 @@ def start_openbao(worktree, project, env, state_path):
             worktree,
             project,
             compose_env,
+            "-f",
+            str(labels),
             "up",
             "-d",
             "--wait",
             "--pull",
             "never",
             OPENBAO_SERVICE,
-            labels=labels,
         )
         compose(
             worktree,
             project,
             compose_env,
+            "-f",
+            str(labels),
             "run",
             "--rm",
             "--pull",
             "never",
             OPENBAO_SEED_SERVICE,
-            labels=labels,
         )
         published = compose(
             worktree,
@@ -881,19 +881,17 @@ def reap():
         try:
             state = load_state(state_path)
         except FileNotFoundError:
-            state = None
+            log(f"reaping {owner}: its run {state_path} is gone")
+            if project:
+                stop_compose(project)
+            else:
+                subprocess.run(["docker", "rm", "-f", "-v", name], capture_output=True)
+            continue
         except OSError, ValueError:
             continue
-        if state is not None:
-            if state["expires_at"] < now:
-                log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
-                stop_state(state)
-            continue
-        log(f"reaping {owner}: its run {state_path} is gone")
-        if project:
-            stop_compose(project)
-        else:
-            subprocess.run(["docker", "rm", "-f", "-v", name], capture_output=True)
+        if state["expires_at"] < now:
+            log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
+            stop_state(state)
 
 
 def start_state(*, ref, name, scenario, issuer=None):
