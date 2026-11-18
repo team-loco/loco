@@ -152,6 +152,45 @@ def mock_telemetry(context):
     )
 
 
+def assert_sidebar_slide(target):
+    target.hover()
+    traveled = target.evaluate("""async node => {
+        const sidebar = node.closest('[data-slot="sidebar-content"]');
+        const selector = '[data-slot="sidebar-highlight"]';
+        const center = rect => rect.top + rect.height / 2;
+        const start = center(sidebar.querySelector(selector).getBoundingClientRect());
+        const end = center(node.getBoundingClientRect());
+        const direction = Math.sign(end - start);
+        const deadline = performance.now() + 1000;
+        node.click();
+        while (performance.now() < deadline) {
+            await new Promise(requestAnimationFrame);
+            const highlight = sidebar.querySelector('[aria-current="page"]')
+                ?.closest('li')?.querySelector(selector);
+            if (node.getAttribute('aria-current') !== 'page' || !highlight) continue;
+            const rect = highlight.getBoundingClientRect();
+            const y = center(rect);
+            if (Math.abs(y - end) <= 1) return false;
+            if ((y - start) * direction <= 2 || Math.abs(y - end) <= rect.height / 2) continue;
+            // Hit testing checks whether the moving highlight is clipped by its row.
+            highlight.style.pointerEvents = 'auto';
+            const visible = document.elementsFromPoint(rect.left + rect.width / 2, y)
+                .includes(highlight);
+            highlight.style.removeProperty('pointer-events');
+            if (visible) return true;
+        }
+        return false;
+    }""")
+    assert traveled, (
+        f"Sidebar highlight did not visibly travel to {target.inner_text()}"
+    )
+    expect(target).to_have_attribute("aria-current", "page")
+    target.page.wait_for_function("""() => {
+        const highlight = document.querySelector('[data-slot="sidebar-highlight"]');
+        return highlight && getComputedStyle(highlight).transform === 'none';
+    }""")
+
+
 def shell_navigation(page):
     page.set_viewport_size(evidence.DESKTOP)
     page.goto(state["ui_url"] + base + "?env=production")
@@ -166,13 +205,15 @@ def shell_navigation(page):
     expect(activity).to_be_focused()
     sidebar = page.locator('[data-slot="sidebar-content"]')
     resources = sidebar.get_by_role("link", name="Resources", exact=True)
-    resources.click()
-    expect(resources).to_have_attribute("aria-current", "page")
-    sidebar.get_by_role("link", name="Dashboard", exact=True).click()
-    expect(sidebar.get_by_role("link", name="Dashboard", exact=True)).to_have_attribute(
-        "aria-current", "page"
-    )
+    dashboard = sidebar.get_by_role("link", name="Dashboard", exact=True)
+    assert_sidebar_slide(resources)
+    assert_sidebar_slide(dashboard)
     page.emulate_media(reduced_motion="reduce")
+    resources.press("Enter")
+    expect(resources).to_have_attribute("aria-current", "page")
+    expect(sidebar.locator('[data-slot="sidebar-highlight"]')).to_have_css(
+        "transform", "none"
+    )
     activity.hover()
     activity.click()
     page.keyboard.press("Escape")

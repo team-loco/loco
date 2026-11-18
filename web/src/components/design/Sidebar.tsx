@@ -1,5 +1,5 @@
 import { createContext, use, useId, useState } from "react";
-import { LayoutGroup, MotionConfig, useReducedMotion, motion as motionElement } from "motion/react";
+import { LayoutGroup, MotionConfig, motion as motionElement } from "motion/react";
 
 import {
 	Sidebar as SidebarBase,
@@ -180,30 +180,25 @@ function SidebarMenuButton({ className, ...props }: React.ComponentProps<typeof 
 	);
 }
 
-function SidebarContent(props: React.ComponentProps<typeof SidebarContentBase>) {
+function SidebarContent({ className, ...props }: React.ComponentProps<typeof SidebarContentBase>) {
 	const id = useId();
 	return (
 		<MotionConfig reducedMotion="user">
 			<LayoutGroup id={id}>
-				<SidebarContentBase {...props} />
+				<SidebarContentBase className={cn("isolate", className)} {...props} />
 			</LayoutGroup>
 		</MotionConfig>
 	);
 }
 
 function SidebarHighlight() {
-	const reduced = useReducedMotion();
 	return (
 		<motionElement.span
 			aria-hidden
 			data-slot="sidebar-highlight"
 			layoutId="sidebar-highlight"
-			initial={reduced ? false : { opacity: 0 }}
-			animate={{ opacity: 1 }}
-			transition={{
-				layout: { duration: reduced ? 0 : 0.22, ease: [0.2, 0.8, 0.2, 1] },
-				opacity: { duration: reduced ? 0 : 0.12 },
-			}}
+			initial={false}
+			transition={{ layout: { duration: 0.22, ease: [0.2, 0.8, 0.2, 1] } }}
 			className="pointer-events-none absolute inset-0 -z-10 rounded-[5px] bg-shell-active"
 		/>
 	);

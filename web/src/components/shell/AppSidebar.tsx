@@ -151,6 +151,7 @@ export function AppSidebar() {
 						<SidebarMenu className="gap-0.5">
 							{section.items.map((item) => (
 								<SidebarMenuItem key={item.href === undefined ? item.name : `${item.name} ${item.href}`}>
+									{item.active && item.to !== undefined && <SidebarHighlight />}
 									{item.href !== undefined ? (
 										<SidebarMenuButton render={<a href={item.href} target="_blank" rel="noopener noreferrer" />}>
 											{item.icon}
@@ -169,7 +170,6 @@ export function AppSidebar() {
 												preloadPage(item.preload);
 											}}
 										>
-											{item.active && <SidebarHighlight />}
 											{item.icon}
 											<span>{item.name}</span>
 										</SidebarMenuButton>
