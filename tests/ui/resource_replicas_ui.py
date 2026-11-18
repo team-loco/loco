@@ -22,6 +22,7 @@ EAST, WEST = "us-east-1", "eu-west-1"
 if "replicas" not in state:
     spec = {
         "platform": "linux/amd64",
+        "observability": {"injectOtel": True},
         "build": {"type": "image", "image": "registry.example.test/replicas:v2"},
         "cpu": "500m",
         "memory": "256Mi",
@@ -228,13 +229,18 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     page.get_by_role("button", name="Activity", exact=False).click()
     drawer = page.get_by_role("dialog")
-    cards = drawer.get_by_role("listitem").filter(has_text="replicas-ui")
+    cards = (
+        drawer.get_by_role("listitem")
+        .filter(has_text="replicas-ui")
+        .filter(has_text="Deploying")
+    )
     expect(cards).to_have_count(1)
     expect(cards.first).to_contain_text(EAST)
     expect(cards.first).to_contain_text(WEST)
     page.keyboard.press("Escape")
 
-    heartbeat(WEST, "10 minutes")
+    # The evidence API counts a cluster silent after three missed two-hour heartbeats.
+    heartbeat(WEST, "7 hours")
     report_replicas()
     page.reload()
     west = page.get_by_role("region", name=f"Replicas in {WEST}", exact=True)

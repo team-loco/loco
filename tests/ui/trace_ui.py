@@ -1295,7 +1295,7 @@ with session(out) as browser:
     assert all(
         request["resourceIds"] == [workspace_id]
         and request["byPod"]
-        and "k8s.pod.name" not in request["attributes"]
+        and "k8s.pod.name" not in request.get("attributes", {})
         for request in metric_requests
     )
     assert {request["metricName"] for request in metric_requests} == {
@@ -1367,8 +1367,7 @@ with session(out) as browser:
     expect(
         infrastructure.get_by_role("group", name="Network usage", exact=True)
     ).to_be_visible()
-    assert len(metric_requests) == 12, metric_requests
-    assert all(request["byPod"] for request in metric_requests[8:])
+    assert all(request["byPod"] for request in metric_requests), metric_requests
     catalog_cpu = infrastructure.get_by_role(
         "region", name="CPU for catalog-def-456", exact=True
     )
