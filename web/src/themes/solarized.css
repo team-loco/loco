@@ -26,6 +26,7 @@
 	--series-1: #6c71c4;
 	--series-2: #2aa198;
 	--series-3: #cb4b16;
+	--theme-accent: #268bd2;
 }
 
 .dark[data-theme="solarized"] {
@@ -54,6 +55,7 @@
 	--series-1: #8b8fe0;
 	--series-2: #2aa198;
 	--series-3: #e0662f;
+	--theme-accent: #2aa198;
 }
 
 [data-theme="solarized"] {

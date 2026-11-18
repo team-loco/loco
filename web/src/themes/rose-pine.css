@@ -28,6 +28,7 @@
 	--series-1: #907aa9;
 	--series-2: #d7827e;
 	--series-3: #ea9d34;
+	--theme-accent: var(--btn);
 }
 
 .dark[data-theme="rose-pine"] {
@@ -56,4 +57,14 @@
 	--series-1: #c4a7e7;
 	--series-2: #ebbcba;
 	--series-3: #f6c177;
+}
+
+[data-theme="rose-pine"] {
+	& h1 {
+		font-weight: 300;
+		letter-spacing: -0.035em;
+	}
+	& section h2 {
+		font-weight: 300;
+	}
 }

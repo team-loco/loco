@@ -10,7 +10,7 @@ function ThemeSwatch({ color, dark, className }: { color: ColorTheme; dark: bool
 			aria-hidden
 			data-theme={color}
 			className={cn(
-				"size-4 shrink-0 rounded-sm bg-[linear-gradient(135deg,var(--bg)_0_50%,var(--btn)_50%_100%)] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--fg)_14%,transparent)]",
+				"size-4 shrink-0 rounded-sm bg-[linear-gradient(135deg,var(--bg)_0_50%,var(--theme-accent)_50%_100%)] shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--fg)_14%,transparent)]",
 				dark && "dark",
 				className,
 			)}
@@ -31,7 +31,7 @@ function ThemeHalf({ color, dark, split }: { color: ColorTheme; dark: boolean; s
 				<span className="h-1 w-[70%] rounded-xs bg-foreground opacity-85" />
 				<span className="h-1 w-[40%] rounded-xs bg-foreground opacity-50" />
 				<span className="flex-1 rounded-sm bg-panel" />
-				<span className="h-[9px] w-[34%] self-end rounded-xs bg-primary" />
+				<span className="h-[9px] w-[34%] self-end rounded-xs bg-(--theme-accent)" />
 			</span>
 		</span>
 	);

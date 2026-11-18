@@ -150,7 +150,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<typeof Sideb
 	return (
 		<SidebarInsetBase
 			className={cn(
-				"min-w-0 bg-background transition-[margin] md:peer-data-[variant=inset]:rounded-overlay md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-line md:peer-data-[variant=inset]:shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+				"min-w-0 bg-background transition-[margin] md:peer-data-[variant=inset]:rounded-[12px] md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-line md:peer-data-[variant=inset]:shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
 				motion,
 				className,
 			)}

@@ -56,6 +56,7 @@
 	--sh-class: #047857;
 	--sh-sign: var(--ink);
 	--logo: var(--fg);
+	--theme-accent: var(--btn);
 }
 
 .dark[data-theme="neobrutal"] {
@@ -104,6 +105,9 @@
 	}
 	& :is(.rounded-card, .rounded-overlay, [data-slot="sidebar-inset"], [data-slot="sheet-content"]) {
 		border: 2px solid var(--ink);
+	}
+	& [data-slot="sidebar-inset"] {
+		border-radius: 5px;
 	}
 	& :is(.rounded-card:not([role="menu"], [role="listbox"], [role="radio"]), [data-slot="sidebar-inset"]) {
 		box-shadow: 4px 4px 0 0 var(--ink);
