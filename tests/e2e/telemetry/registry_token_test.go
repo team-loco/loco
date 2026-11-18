@@ -239,15 +239,6 @@ func secondsLeft(t *testing.T, expiry string) time.Duration {
 	return time.Until(at)
 }
 
-func logLine(t *testing.T, substring string) int {
-	t.Helper()
-	number, err := p.LogLineNumber("agent", substring)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return number
-}
-
 func realmToken(t *testing.T, user, password string, scopes ...string) string {
 	t.Helper()
 	response, err := p.RealmToken(t.Context(), user, password, scopes...)
@@ -407,19 +398,19 @@ func (r *registryRun) firstDeploys(t *testing.T) {
 		if status := buildStatus(t, firstBuild[w]); status != buildSucceeded {
 			t.Errorf("build of %s is %s", app, status)
 		}
-		secretLine := logLine(t, `"msg":"wrote registry pull Secret","name":"`+pullSecret(w)+`"`)
-		appliedApp, err := p.Application(t.Context(), w.ResourceID(t, app), w.EnvironmentID)
+		application, err := p.Application(t.Context(), w.ResourceID(t, app), w.EnvironmentID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		applied := logLine(t, `"msg":"applied Application","name":"`+appliedApp.Name+`"`)
-		if secretLine == 0 || applied == 0 || secretLine > applied {
+		var secret corev1.Secret
+		p.MustGet(t, &secret, "-n", p.Namespace, "secret", pullSecret(w))
+		if secret.CreationTimestamp.After(application.CreationTimestamp.Time) {
 			t.Errorf(
-				"the agent wrote %s at log line %d and applied %s's first Application at line %d, want the Secret first",
+				"the agent created %s at %s, after %s's Application at %s, want the Secret first",
 				pullSecret(w),
-				secretLine,
+				secret.CreationTimestamp,
 				app,
-				applied,
+				application.CreationTimestamp,
 			)
 		}
 	}

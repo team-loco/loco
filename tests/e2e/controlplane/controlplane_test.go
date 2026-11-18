@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"maps"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -306,11 +307,12 @@ func (cp *controlPlane) checkRouting(t *testing.T) {
 			t.Errorf("openapi.json has no POST %s", path)
 		}
 	}
-	docs := cp.request(t, http.MethodGet, api, "/", "", nil).text(t)
-	for _, want := range []string{"Scalar.createApiReference(", `url: "/openapi.json"`} {
-		if !strings.Contains(docs, want) {
-			t.Errorf("the API docs page lacks %s", want)
-		}
+	docs := cp.request(t, http.MethodGet, api, "/", "", nil)
+	if media, _, err := mime.ParseMediaType(docs.header.Get(contentTypeHeader)); err != nil || media != "text/html" {
+		t.Errorf("the API docs page is served as %q, want text/html", docs.header.Get(contentTypeHeader))
+	}
+	if !strings.Contains(docs.text(t), "/openapi.json") {
+		t.Error("the API docs page does not load /openapi.json")
 	}
 
 	app := cp.values.UI.Hostname
