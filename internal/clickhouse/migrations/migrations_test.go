@@ -6,16 +6,17 @@ import (
 	"io/fs"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/team-loco/loco/internal/clickhouse/clickhousetest"
 )
 
 const (
-	unreachableDSN    = "clickhouse://127.0.0.1:1?dial_timeout=100ms"
-	testRetryBudget   = 300 * time.Millisecond
-	testRetryInterval = 50 * time.Millisecond
-	retrySlack        = 2 * time.Second
+	unreachableDSN         = "clickhouse://127.0.0.1:1?dial_timeout=100ms"
+	unreachableDialTimeout = 100 * time.Millisecond
+	testRetryBudget        = 300 * time.Millisecond
+	testRetryInterval      = 50 * time.Millisecond
 
 	rejectedBudget       = 3 * time.Second
 	authenticationFailed = 516
@@ -86,20 +87,23 @@ func TestSubstituteRejectsUnknownPlaceholder(t *testing.T) {
 }
 
 func TestUpWithRetryGivesUpAfterBudget(t *testing.T) {
-	ctx, cancel := context.WithTimeout(t.Context(), testRetryBudget)
-	defer cancel()
-	started := time.Now()
-	err := UpWithRetry(ctx, validConfig(), testRetryInterval)
-	elapsed := time.Since(started)
-	if !errors.Is(err, context.DeadlineExceeded) {
-		t.Fatalf("UpWithRetry error = %v, want %v", err, context.DeadlineExceeded)
-	}
-	if elapsed < testRetryBudget {
-		t.Errorf("UpWithRetry returned after %s, before its %s budget", elapsed, testRetryBudget)
-	}
-	if elapsed > testRetryBudget+retrySlack {
-		t.Errorf("UpWithRetry returned after %s, long after its %s budget", elapsed, testRetryBudget)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), testRetryBudget)
+		defer cancel()
+		started := time.Now()
+		err := UpWithRetry(ctx, validConfig(), testRetryInterval)
+		elapsed := time.Since(started)
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("UpWithRetry error = %v, want %v", err, context.DeadlineExceeded)
+		}
+		if elapsed < testRetryBudget {
+			t.Errorf("UpWithRetry returned after %s, before its %s budget", elapsed, testRetryBudget)
+		}
+		// An attempt under way when the budget ends runs at most until its dial timeout.
+		if elapsed > testRetryBudget+unreachableDialTimeout {
+			t.Errorf("UpWithRetry returned after %s, long after its %s budget", elapsed, testRetryBudget)
+		}
+	})
 }
 
 func TestUpWithRetryStopsWhenContextEnds(t *testing.T) {
@@ -114,14 +118,16 @@ func TestUpWithRetryStopsWhenContextEnds(t *testing.T) {
 func TestUpWithRetryRejectsInvalidConfigWithoutRetrying(t *testing.T) {
 	cfg := validConfig()
 	cfg.Database = "loco-obs"
-	started := time.Now()
-	err := UpWithRetry(t.Context(), cfg, testRetryInterval)
-	if !errors.Is(err, ErrInvalidDatabase) {
-		t.Fatalf("UpWithRetry error = %v, want %v", err, ErrInvalidDatabase)
-	}
-	if elapsed := time.Since(started); elapsed > retrySlack {
-		t.Errorf("UpWithRetry retried an invalid configuration for %s", elapsed)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		started := time.Now()
+		err := UpWithRetry(t.Context(), cfg, testRetryInterval)
+		if !errors.Is(err, ErrInvalidDatabase) {
+			t.Fatalf("UpWithRetry error = %v, want %v", err, ErrInvalidDatabase)
+		}
+		if elapsed := time.Since(started); elapsed >= testRetryInterval {
+			t.Errorf("UpWithRetry retried an invalid configuration for %s", elapsed)
+		}
+	})
 }
 
 func TestUpWithRetryFailsImmediatelyOnRejectedCredentials(t *testing.T) {
@@ -130,13 +136,9 @@ func TestUpWithRetryFailsImmediatelyOnRejectedCredentials(t *testing.T) {
 	cfg.DSN = dsn
 	ctx, cancel := context.WithTimeout(t.Context(), rejectedBudget)
 	defer cancel()
-	started := time.Now()
 	err := UpWithRetry(ctx, cfg, testRetryInterval)
 	if err == nil || errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("UpWithRetry error = %v, want the authentication error", err)
-	}
-	if elapsed := time.Since(started); elapsed > retrySlack {
-		t.Errorf("UpWithRetry retried rejected credentials for %s", elapsed)
 	}
 	if got := requests.Load(); got != 1 {
 		t.Errorf("clickhouse received %d requests, want 1", got)
