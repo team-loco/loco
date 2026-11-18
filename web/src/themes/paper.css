@@ -1,4 +1,6 @@
 [data-theme="paper"] {
+	--font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+	--font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 	--sl: var(--brand);
 	--sl-track: var(--line2);
 	--radius-card: 6px;
@@ -27,6 +29,7 @@
 	--series-1: #8250df;
 	--series-2: #1b7c83;
 	--series-3: #bc4c00;
+	--theme-accent: var(--btn);
 }
 
 .dark[data-theme="paper"] {
@@ -103,5 +106,47 @@
 		border: 1px solid var(--line2);
 		border-radius: 6px;
 		background: var(--bg);
+	}
+	& h1 {
+		font-size: 24px;
+		font-weight: 600;
+		letter-spacing: 0;
+	}
+	& section h2 {
+		font-size: 16px;
+		font-weight: 600;
+		letter-spacing: 0;
+	}
+	& [data-slot="table-header"] tr > :first-child {
+		border-top-left-radius: 6px;
+	}
+	& [data-slot="table-header"] tr > :last-child {
+		border-top-right-radius: 6px;
+	}
+	& [data-slot="button"][data-variant="outline"] {
+		border-color: var(--line2);
+		background: var(--panel);
+		font-weight: 500;
+		box-shadow: 0 1px 0 rgba(31, 35, 40, 0.04);
+		&:hover {
+			background: var(--panel2);
+		}
+	}
+	& [data-slot="button"][data-variant="default"] {
+		font-weight: 600;
+		box-shadow:
+			inset 0 0 0 1px rgba(31, 35, 40, 0.15),
+			0 1px 0 rgba(31, 35, 40, 0.1);
+	}
+	& [data-segmented] {
+		background: var(--panel);
+		box-shadow: inset 0 0 0 1px var(--line2);
+	}
+	& [data-slot="segmented-indicator"] {
+		box-shadow: 0 0 0 1px var(--line2);
+	}
+	& :is([data-slot="input"], [data-slot="textarea"], [data-slot="input-group"]):focus-within {
+		border-color: var(--brand);
+		box-shadow: inset 0 0 0 1px var(--brand);
 	}
 }

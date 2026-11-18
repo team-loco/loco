@@ -29,6 +29,7 @@
 	--series-1: #8839ef;
 	--series-2: #179299;
 	--series-3: #fe640b;
+	--theme-accent: var(--btn);
 }
 
 .dark[data-theme="catppuccin"] {
@@ -57,4 +58,9 @@
 	--series-1: #cba6f7;
 	--series-2: #94e2d5;
 	--series-3: #fab387;
+}
+
+[data-theme="catppuccin"] [data-segmented] {
+	--radius-control: 99px;
+	--radius-control-inner: 99px;
 }

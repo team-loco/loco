@@ -156,6 +156,7 @@
 		--series-6: oklch(0.66 0.13 95);
 		--series-7: oklch(0.55 0.02 260);
 		--logo: var(--brand);
+		--theme-accent: var(--brand);
 		--code-bg: var(--panel);
 		--code-line-number: var(--fg3);
 		--lv-warn: #e0a100;
