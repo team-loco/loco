@@ -932,7 +932,9 @@ func (s *ResourceServer) redeployRegions(
 	}
 
 	bumped := make(map[uuid.UUID]bool, len(plans))
+	rolloutID := uuid.New()
 	for _, plan := range plans {
+		plan.params.RolloutID = rolloutID
 		environmentID := plan.params.EnvironmentID
 		if !bumped[environmentID] {
 			if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {

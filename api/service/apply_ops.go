@@ -277,6 +277,7 @@ func (a *applier) deploy(
 	if err != nil {
 		return err
 	}
+	rolloutID := uuid.New()
 	for _, region := range regions {
 		if rolloutErr := ensureNoRollout(
 			ctx,
@@ -314,6 +315,7 @@ func (a *applier) deploy(
 			a.defaults,
 		)
 		deploymentID, deployErr := createDeploymentWithCleanup(ctx, qtx, a.counts, genDb.CreateDeploymentParams{
+			RolloutID:     rolloutID,
 			ResourceID:    res.ID,
 			ClusterID:     cluster.ID,
 			Region:        region,

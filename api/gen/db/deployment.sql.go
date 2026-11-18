@@ -45,8 +45,8 @@ func (q *Queries) AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploy
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, rollout_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 RETURNING id
 `
 
@@ -66,6 +66,7 @@ type CreateDeploymentParams struct {
 	Method        DeploymentMethod    `json:"method"`
 	CommitSha     *string             `json:"commitSha"`
 	CommitDirty   bool                `json:"commitDirty"`
+	RolloutID     uuid.UUID           `json:"rolloutId"`
 }
 
 // Deployment queries
@@ -86,6 +87,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Method,
 		arg.CommitSha,
 		arg.CommitDirty,
+		arg.RolloutID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -93,7 +95,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 }
 
 const getActiveDeploymentForResourceAndRegion = `-- name: GetActiveDeploymentForResourceAndRegion :one
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, rollout_id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
 ORDER BY created_at DESC
 LIMIT 1
@@ -110,6 +112,7 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
+		&i.RolloutID,
 		&i.ResourceID,
 		&i.ClusterID,
 		&i.Region,
@@ -135,7 +138,7 @@ func (q *Queries) GetActiveDeploymentForResourceAndRegion(ctx context.Context, a
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, rollout_id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -143,6 +146,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
+		&i.RolloutID,
 		&i.ResourceID,
 		&i.ClusterID,
 		&i.Region,
@@ -224,7 +228,7 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 }
 
 const getDeploymentView = `-- name: GetDeploymentView :one
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.rollout_id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
    FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
@@ -255,6 +259,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 	var i GetDeploymentViewRow
 	err := row.Scan(
 		&i.Deployment.ID,
+		&i.Deployment.RolloutID,
 		&i.Deployment.ResourceID,
 		&i.Deployment.ClusterID,
 		&i.Deployment.Region,
@@ -286,7 +291,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 }
 
 const listActiveDeploymentsForEnvironment = `-- name: ListActiveDeploymentsForEnvironment :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, rollout_id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE environment_id = $1 AND is_active = true
 ORDER BY resource_id, created_at DESC
 `
@@ -302,6 +307,7 @@ func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, envir
 		var i Deployment
 		if err := rows.Scan(
 			&i.ID,
+			&i.RolloutID,
 			&i.ResourceID,
 			&i.ClusterID,
 			&i.Region,
@@ -334,7 +340,7 @@ func (q *Queries) ListActiveDeploymentsForEnvironment(ctx context.Context, envir
 }
 
 const listActiveDeploymentsForResource = `-- name: ListActiveDeploymentsForResource :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, rollout_id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1 AND is_active = true
 ORDER BY created_at DESC
 `
@@ -350,6 +356,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 		var i Deployment
 		if err := rows.Scan(
 			&i.ID,
+			&i.RolloutID,
 			&i.ResourceID,
 			&i.ClusterID,
 			&i.Region,
@@ -382,7 +389,7 @@ func (q *Queries) ListActiveDeploymentsForResource(ctx context.Context, resource
 }
 
 const listBuildingDeployments = `-- name: ListBuildingDeployments :many
-SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, rollout_id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE spec->'build'->>'buildId' = $1::text
  AND status = 'building' AND is_active
 ORDER BY id FOR UPDATE
@@ -399,6 +406,7 @@ func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) (
 		var i Deployment
 		if err := rows.Scan(
 			&i.ID,
+			&i.RolloutID,
 			&i.ResourceID,
 			&i.ClusterID,
 			&i.Region,
@@ -431,7 +439,7 @@ func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) (
 }
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.rollout_id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
    FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
@@ -509,6 +517,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 		var i ListEnvironmentDeploymentsRow
 		if err := rows.Scan(
 			&i.Deployment.ID,
+			&i.Deployment.RolloutID,
 			&i.Deployment.ResourceID,
 			&i.Deployment.ClusterID,
 			&i.Deployment.Region,
@@ -547,7 +556,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 }
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
-SELECT d.id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.rollout_id, d.resource_id, d.cluster_id, d.region, d.replicas, d.status, d.is_active, d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
  COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
  COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
    FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
@@ -625,6 +634,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 		var i ListResourceDeploymentsRow
 		if err := rows.Scan(
 			&i.Deployment.ID,
+			&i.Deployment.RolloutID,
 			&i.Deployment.ResourceID,
 			&i.Deployment.ClusterID,
 			&i.Deployment.Region,
@@ -745,7 +755,7 @@ func (q *Queries) PlacementForDeployment(ctx context.Context, deploymentID *uuid
 }
 
 const previousDeploymentForRollback = `-- name: PreviousDeploymentForRollback :one
-SELECT previous.id, previous.resource_id, previous.cluster_id, previous.region, previous.replicas, previous.status, previous.is_active, previous.environment_id, previous.spec, previous.spec_version, previous.actor_type, previous.actor_id, previous.method, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployments previous JOIN deployments failed ON failed.id = $1
+SELECT previous.id, previous.rollout_id, previous.resource_id, previous.cluster_id, previous.region, previous.replicas, previous.status, previous.is_active, previous.environment_id, previous.spec, previous.spec_version, previous.actor_type, previous.actor_id, previous.method, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployments previous JOIN deployments failed ON failed.id = $1
 WHERE previous.resource_id = failed.resource_id
  AND previous.environment_id = failed.environment_id AND previous.region = failed.region
  AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
@@ -765,6 +775,7 @@ func (q *Queries) PreviousDeploymentForRollback(ctx context.Context, id uuid.UUI
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
+		&i.RolloutID,
 		&i.ResourceID,
 		&i.ClusterID,
 		&i.Region,

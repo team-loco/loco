@@ -576,6 +576,7 @@ type ClusterAssertion struct {
 
 type Deployment struct {
 	ID            uuid.UUID           `json:"id"`
+	RolloutID     uuid.UUID           `json:"rolloutId"`
 	ResourceID    uuid.UUID           `json:"resourceId"`
 	ClusterID     uuid.UUID           `json:"clusterId"`
 	Region        string              `json:"region"`
