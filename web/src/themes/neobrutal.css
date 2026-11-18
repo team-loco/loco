@@ -476,6 +476,12 @@
 		background: color-mix(in oklch, var(--btn) 25%, transparent);
 		border: 2px solid var(--ink);
 	}
+	& [data-slot="code-block"] {
+		border: 2px solid var(--ink);
+		border-radius: 5px;
+		box-shadow: 3px 3px 0 var(--ink);
+		background: var(--raise);
+	}
 }
 
 [data-theme="neobrutal"] [data-slot="sidebar-highlight"] {
@@ -604,11 +610,4 @@
 		scale: 1;
 		box-shadow: 1px 1px 0 var(--ink);
 	}
-}
-
-[data-theme="neobrutal"] [data-slot="code-block"] {
-	border: 2px solid var(--ink);
-	border-radius: 5px;
-	background-color: var(--raise);
-	box-shadow: 3px 3px 0 0 var(--ink);
 }
