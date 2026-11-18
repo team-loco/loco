@@ -1,0 +1,70 @@
+name: Stress
+
+on:
+  workflow_call:
+  schedule:
+    - cron: "41 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stress:
+    name: Go Tests Under Load
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 60 || 330 }}
+
+    services:
+      postgres:
+        image: postgres:18.6-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        env:
+          POSTGRES_USER: loco_test
+          POSTGRES_PASSWORD: loco_test
+          POSTGRES_DB: loco_test
+          POSTGRES_INITDB_ARGS: --set fsync=off --set synchronous_commit=off --set full_page_writes=off
+        ports:
+          - 5432:5432
+        options: >-
+          --tmpfs /var/lib/postgresql
+          --health-cmd "pg_isready -U loco_test -d loco_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+
+      valkey:
+        image: valkey/valkey:9.1.3-alpine@sha256:bf09d58e96d6b4524a15396b65b242bbe18beebbcc15a04d8ee75ddac62fae0b
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      LOCO_TEST_DATABASE_URL: postgres://loco_test:loco_test@localhost:5432/loco_test?sslmode=disable
+      LOCO_TEST_VALKEY_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup-tools
+        with:
+          go-cache: stress
+
+      - name: Stress the packages this pull request changes
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: mise run test:stress --base "$BASE" --count 1
+
+      # The tests/e2e module brings up kind clusters and runs in the E2E workflow.
+      - name: Stress every Go module
+        if: github.event_name != 'pull_request'
+        run: |
+          mapfile -t modules < <(git ls-files '*go.mod' | grep -v '^tests/e2e/' | xargs -n1 dirname)
+          mise run test:stress "${modules[@]/%//...}"

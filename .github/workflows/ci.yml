@@ -383,6 +383,15 @@ jobs:
       image_name: ${{ github.repository }}-${{ matrix.image }}
       tag_suffix: ${{ matrix.tag_suffix || '' }}
 
+  # Reports test failures under load in the changed packages; the gate does not wait for it.
+  stress:
+    name: Stress
+    needs: [changes, gate]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.go-lint-and-test == 'true' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/stress.yml
+
   pass-markers:
     name: Pass Marker ${{ matrix.check }}
     needs: [gate]

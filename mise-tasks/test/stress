@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+#MISE description="Run Go test packages repeatedly with the race detector under CPU load: one test process and two CPU burners per CPU, each process running every test --count times on one CPU, two at a time; prints the output of each failing process and how often each test failed. Without packages, it stresses those whose Go files differ from --base. ClickHouse starts as in test:api; the database tests need LOCO_TEST_DATABASE_URL"
+#USAGE flag "--base <ref>" default="origin/main" help="ref whose merge base selects the changed packages"
+#USAGE flag "--count <n>" default="5" help="runs of each test per process"
+#USAGE arg "[package]..." var=#true help="repo-relative directories, dir/... for every package below one"
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+read -ra patterns <<<"${usage_package:-}"
+if [[ ${#patterns[@]} -eq 0 ]]; then
+	while IFS= read -r dir; do
+		[[ -d $dir ]] && patterns+=("$dir")
+	done < <(git diff --name-only "$(git merge-base "$usage_base" HEAD)" -- '*.go' ':!tests/e2e/**' ':!**/testdata/**' | xargs -r -n1 dirname | sort -u)
+fi
+
+packages=()
+for pattern in ${patterns[@]+"${patterns[@]}"}; do
+	dir=${pattern%/...}
+	[[ $dir == "$pattern" ]] && target=. || target=./...
+	while IFS= read -r package; do
+		[[ -n $package ]] && packages+=("$package")
+	done < <(go -C "$root/$dir" list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.Dir}}{{end}}' "$target")
+done
+if [[ ${#packages[@]} -eq 0 ]]; then
+	echo "No test packages to stress."
+	exit 0
+fi
+
+source "$root/mise-tasks/test/lib/clickhouse.sh"
+if [[ -z ${KUBEBUILDER_ASSETS:-} ]] && printf '%s\n' "${packages[@]}" | grep -q "^$root/controller/"; then
+	KUBEBUILDER_ASSETS=$(make -s -C "$root/controller" envtest-assets)
+	export KUBEBUILDER_ASSETS
+fi
+
+cpus=$(getconf _NPROCESSORS_ONLN)
+work=$(mktemp -d)
+burners=()
+cleanup() {
+	[[ ${#burners[@]} -eq 0 ]] || kill "${burners[@]}" 2>/dev/null || true
+	rm -rf "$work"
+	if declare -F clickhouse_cleanup >/dev/null; then clickhouse_cleanup; fi
+}
+trap cleanup EXIT
+
+for _ in $(seq $((cpus * 2))); do
+	yes >/dev/null &
+	burners+=($!)
+	disown
+done
+
+failed=()
+failed_tests=()
+for package in "${packages[@]}"; do
+	binary=$work/package.test
+	rm -f "$binary"
+	go -C "$package" test -c -race -o "$binary" .
+	echo "Stressing ${package#"$root"/}: $cpus processes x $usage_count runs"
+	pids=()
+	for i in $(seq "$cpus"); do
+		# Two tests at a time per process keep the database tests within Postgres's default 100 connections.
+		(cd "$package" && exec "$binary" -test.count="$usage_count" -test.cpu=1 -test.parallel=2 -test.timeout="$((usage_count * 20))m" >"$work/$i.log" 2>&1) &
+		pids+=($!)
+	done
+	package_failed=false
+	for i in "${!pids[@]}"; do
+		if ! wait "${pids[$i]}"; then
+			package_failed=true
+			echo "--- ${package#"$root"/}: process $((i + 1)) failed:"
+			cat "$work/$((i + 1)).log"
+		fi
+	done
+	if [[ $package_failed == true ]]; then
+		failed+=("${package#"$root"/}")
+		failed_tests+=("$(cat "$work"/*.log | grep -E -- '--- FAIL|^panic: ' | sed 's/ ([0-9.]*s)$//' | sort | uniq -c)")
+	fi
+done
+
+if [[ ${#failed[@]} -gt 0 ]]; then
+	printf '%s\n' "${failed_tests[@]}" >&2
+	printf 'Failed under stress: %s\n' "${failed[@]}" >&2
+	exit 1
+fi
