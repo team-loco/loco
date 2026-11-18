@@ -199,7 +199,11 @@ case "$2" in
         echo $((attempts + 1)) > "$PROBE_DIR/attempts"
         [ "$attempts" -ge 12 ]
         ;;
-    build) echo 'build started after delayed readiness' ;;
+    build)
+        [ "${CRASH:-}" != 1 ]
+        [ "$(cat "$PROBE_DIR/attempts")" -gt 12 ]
+        echo 'build started after delayed readiness'
+        ;;
     *) exit 2 ;;
 esac
 EOF
@@ -227,17 +231,10 @@ func testBuildkitStartup(t *testing.T, jobName string) {
 	buildkit.Command = []string{"sh", "-c", buildkitStartupProbe, "startup-probe", launcher}
 	buildkit.Args = nil
 	buildkit.VolumeMounts = nil
-	pod := corev1.Pod{
-		Spec: corev1.PodSpec{
-			Containers:                   []corev1.Container{buildkit},
-			RestartPolicy:                corev1.RestartPolicyNever,
-			AutomountServiceAccountToken: spec.AutomountServiceAccountToken,
-			SecurityContext:              spec.SecurityContext,
-			NodeSelector:                 spec.NodeSelector,
-			Tolerations:                  spec.Tolerations,
-			RuntimeClassName:             spec.RuntimeClassName,
-		},
-	}
+	spec.InitContainers = nil
+	spec.Containers = []corev1.Container{buildkit}
+	spec.Volumes = nil
+	pod := corev1.Pod{Spec: spec}
 	pod.APIVersion, pod.Kind = "v1", "Pod"
 	pod.Name, pod.Namespace = "buildkit-startup-probe", p.BuildNamespace
 	manifest, err := json.Marshal(&pod)
