@@ -1,7 +1,6 @@
 import type { Activity, Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { LogsIcon } from "lucide-react";
-import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 import { Badge } from "@/components/design/Badge";
@@ -9,6 +8,7 @@ import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Progress } from "@/components/design/Progress";
+import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
 import { cn, formatShortId } from "@/lib/utils";
 
@@ -38,28 +38,23 @@ function followActivity(node: HTMLDivElement) {
 
 export function ProblemBanner({ deployment, logsHref }: { deployment: Deployment; logsHref: string | undefined }) {
 	const problem = deployment.problem;
+	if (problem === undefined) return null;
 	const problemHref = problemLogsHref(logsHref, deployment);
 	return (
-		<>
-			{problem !== undefined && (
-				<Banner
-					title={problem.message}
-					tone={deployment.status === DeploymentStatus.FAILED ? "bad" : "warn"}
-					className="mx-0 mt-0"
-				>
-					{problem.detail !== "" && (
-						<p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>
-					)}
-					{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
-					{problemHref !== undefined && (
-						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={problemHref} />}>
-							<LogsIcon />
-							View logs
-						</Button>
-					)}
-				</Banner>
+		<Banner
+			title={problem.message}
+			tone={deployment.status === DeploymentStatus.FAILED ? "bad" : "warn"}
+			className="mx-0 mt-0"
+		>
+			{problem.detail !== "" && <p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>}
+			{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
+			{problemHref !== undefined && (
+				<Button variant="outline" size="sm" nativeButton={false} render={<Link to={problemHref} />}>
+					<LogsIcon />
+					View logs
+				</Button>
 			)}
-		</>
+		</Banner>
 	);
 }
 
@@ -123,20 +118,15 @@ export function ReplicaGroups({ deployment }: { deployment: Deployment }) {
 	);
 }
 
-export function ActivityFeed({
-	deployment,
-	activity,
-	aside,
-}: {
-	deployment: Deployment;
-	activity: readonly Activity[];
-	aside?: ReactNode;
-}) {
+export function ActivityFeed({ deployment, activity }: { deployment: Deployment; activity: readonly Activity[] }) {
 	return (
 		<section aria-label="Deployment activity" className="min-w-0">
 			<div className="mb-2 flex items-center justify-between gap-2">
 				<h3 className="m-0 text-[12px] font-medium text-fg3">Activity</h3>
-				{aside}
+				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
+					Replica logs
+					<SoonTag />
+				</span>
 			</div>
 			<div
 				ref={followActivity}

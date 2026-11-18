@@ -35,8 +35,6 @@ import {
 	type StepState,
 } from "./deployment-progress";
 import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
-
-const CARD_TICK_MS = 15_000;
 import { depImage, depTag, type RegionView } from "./model";
 
 function ProgressPanel({
@@ -48,7 +46,6 @@ function ProgressPanel({
 	logsHref,
 	canWrite,
 	onRollback,
-	onDismiss,
 }: {
 	region: RegionView;
 	deployment: Deployment;
@@ -58,7 +55,6 @@ function ProgressPanel({
 	logsHref: string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
-	onDismiss: () => void;
 }) {
 	const titleId = useId();
 	const phase = deployment.status;
@@ -75,6 +71,8 @@ function ProgressPanel({
 				query.state.data?.build !== undefined && !isBuildFinished(query.state.data.build.status) ? 15000 : false,
 		},
 	);
+	const [dismissed, setDismissed] = useState(false);
+	if (dismissed) return null;
 	const build = buildQuery.data?.build;
 	const desired = deployment.isActive ? deployment : region.current;
 	const serving = servingDeployments(desired?.replicas ?? []);
@@ -212,7 +210,14 @@ function ProgressPanel({
 							<SoonTag />
 						</Button>
 					) : (
-						<Button variant="ghost" size="icon-sm" aria-label="Dismiss" onClick={onDismiss}>
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Dismiss"
+							onClick={() => {
+								setDismissed(true);
+							}}
+						>
 							<XIcon />
 						</Button>
 					)}
@@ -229,16 +234,7 @@ function ProgressPanel({
 					<StepRail steps={steps} note={stepNote} />
 					<ReplicaGroups deployment={deployment} />
 				</div>
-				<ActivityFeed
-					deployment={deployment}
-					activity={activity}
-					aside={
-						<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-							Replica logs
-							<SoonTag />
-						</span>
-					}
-				/>
+				<ActivityFeed deployment={deployment} activity={activity} />
 			</div>
 			{desired?.isActive && (
 				<dl aria-label="Deployment versions" className="m-0 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
@@ -344,15 +340,14 @@ export function DeploymentProgress({
 }) {
 	const progress = progressDeployments(regions);
 	const watchOf = useDeploymentWatch(progress.map(({ deployment }) => deployment.id));
-	const nowMs = useNow(CARD_TICK_MS).getTime();
-	const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
+	const nowMs = useNow(15_000).getTime();
 	return progress.map(({ region, deployment, previous }) => {
 		const watched = watchOf(deployment.id);
 		const current =
 			watched.deployment !== undefined && tsMs(watched.deployment.updatedAt) >= tsMs(deployment.updatedAt)
 				? watched.deployment
 				: deployment;
-		if (dismissed.has(current.id) || !showsCard(current, nowMs)) return null;
+		if (!showsCard(current, nowMs)) return null;
 		return (
 			<ProgressPanel
 				key={deployment.id}
@@ -364,9 +359,6 @@ export function DeploymentProgress({
 				logsHref={logsHref}
 				canWrite={canWrite}
 				onRollback={onRollback}
-				onDismiss={() => {
-					setDismissed((prev) => new Set([...prev, current.id]));
-				}}
 			/>
 		);
 	});
