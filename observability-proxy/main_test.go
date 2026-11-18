@@ -66,11 +66,7 @@ func testListeners(t *testing.T, main net.Listener) listeners {
 
 func silentListener(t *testing.T) net.Listener {
 	t.Helper()
-	var lc net.ListenConfig
-	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
+	ln := localListener(t)
 
 	var (
 		mu    sync.Mutex
