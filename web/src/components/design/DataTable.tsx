@@ -130,14 +130,14 @@ function DataTableHead<T extends RowData>({
 			{column.getCanSort() ? (
 				<button
 					type="button"
-					className={cn(
-						"flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-						sorted !== false && "text-foreground",
-					)}
+					className="group/sort flex items-center gap-1 rounded-sm outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
 					onClick={column.getToggleSortingHandler()}
 				>
 					{label}
-					<Arrow aria-hidden="true" className={cn("size-3", sorted === false && "invisible")} />
+					<Arrow
+						aria-hidden="true"
+						className="invisible size-3 group-hover/sort:visible group-focus-visible/sort:visible"
+					/>
 				</button>
 			) : (
 				<span className="inline-flex items-center gap-2">{label}</span>
@@ -150,17 +150,19 @@ function DataTableHead<T extends RowData>({
 export function DataTable<T extends RowData>({
 	table,
 	empty,
+	inset = false,
 	className,
 	style,
 }: {
 	table: DataTableInstance<T>;
 	empty: ReactNode;
+	inset?: boolean;
 	className?: string;
 	style?: CSSProperties;
 }) {
 	const rows = table.getRowModel().rows;
 	return (
-		<Table className={className} style={style}>
+		<Table inset={inset} className={className} style={style}>
 			<TableHeader>
 				{table.getHeaderGroups().map((group) => (
 					<TableRow key={group.id}>

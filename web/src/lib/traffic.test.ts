@@ -2,7 +2,17 @@ import { create } from "@bufbuild/protobuf";
 import { describe, expect, it } from "bun:test";
 import { MetricSeriesSchema } from "@gen/loco/observability/v1/observability_pb";
 import { msToTimestamp } from "./time";
-import { errorShare, latestTraffic, trafficPoints } from "./traffic";
+import {
+	changeLabel,
+	errorShare,
+	formatBytes,
+	formatCompact,
+	latestTraffic,
+	sumTotals,
+	trafficPoints,
+	trafficSeries,
+	trafficTotals,
+} from "./traffic";
 
 describe("gateway traffic", () => {
 	it("joins metrics by resource and bucket without converting rates again", () => {
@@ -48,5 +58,43 @@ describe("gateway traffic", () => {
 				{ resourceId: "b", time: 2, requests: 2 },
 			])?.requests,
 		).toBe(2);
+	});
+});
+
+describe("traffic over a range", () => {
+	const points = [
+		{ resourceId: "a", time: 0, requests: 2, errors: 1, bytes: 1000 },
+		{ resourceId: "b", time: 0, requests: 1 },
+		{ resourceId: "a", time: 60_000, requests: 4, errors: 0, bytes: 3000 },
+	];
+	it("turns per-second rates into totals per resource", () => {
+		const totals = trafficTotals(points, "requests", 60_000);
+		expect(totals).toEqual(
+			new Map([
+				["a", 360],
+				["b", 60],
+			]),
+		);
+		expect(sumTotals(totals)).toBe(420);
+		expect(sumTotals(trafficTotals(points, "bytes", 0))).toBe(0);
+		expect(sumTotals(trafficTotals([], "bytes", 60_000))).toBeUndefined();
+	});
+	it("sums buckets across resources in time order", () => {
+		expect(trafficSeries(points, "requests")).toEqual([3, 4]);
+		expect(trafficSeries(points, "requests", "b")).toEqual([1]);
+	});
+	it("labels the change from the prior range", () => {
+		expect(changeLabel(110, 100)).toBe("↑ 10%");
+		expect(changeLabel(95, 100)).toBe("↓ 5.0%");
+		expect(changeLabel(5, 0)).toBeUndefined();
+		expect(changeLabel(undefined, 3)).toBeUndefined();
+	});
+	it("formats counts and bytes compactly", () => {
+		expect([formatCompact(1234), formatCompact(12)]).toEqual(["1.2K", "12"]);
+		expect([formatBytes(512), formatBytes(1_500_000), formatBytes(412_000_000_000)]).toEqual([
+			"512 B",
+			"1.5 MB",
+			"412 GB",
+		]);
 	});
 });

@@ -99,6 +99,34 @@ function middle(p: MapPoint): number {
 	return p.y + MAP_NODE_H / 2;
 }
 
+/** With nothing public there are no routes to draw, so internal resources flow into rows that fill the width. */
+function internalGrid(shown: DashboardItem[], total: number, availableWidth: number): MapLayout {
+	const perRow = Math.max(1, Math.min(shown.length, Math.floor((availableWidth + ROW_GAP) / (MAP_NODE_W + ROW_GAP))));
+	const rows = Math.ceil(shown.length / perRow);
+	const top = MAP_LABEL_H + ROW_GAP;
+	const internalNodes = shown.map((row, i) => ({
+		row,
+		x: (i % perRow) * (MAP_NODE_W + ROW_GAP),
+		y: top + Math.floor(i / perRow) * (MAP_NODE_H + ROW_GAP),
+	}));
+	const more = total > shown.length;
+	const bottom = top + rows * MAP_NODE_H + (rows - 1) * ROW_GAP;
+	return {
+		width: Math.max(availableWidth, perRow * MAP_NODE_W + (perRow - 1) * ROW_GAP),
+		height: bottom + (more ? ROW_GAP + MAP_MORE_H : 0),
+		internet: null,
+		gateways: [],
+		publicNodes: [],
+		hiddenPublic: 0,
+		publicMore: null,
+		internalLabel: { x: 0, y: 0 },
+		internalNodes,
+		hiddenInternal: total - shown.length,
+		internalMore: more ? { x: 0, y: bottom + ROW_GAP } : null,
+		gaps: [],
+	};
+}
+
 export function mapLayout(rows: DashboardItem[], regionOrder: string[], availableWidth: number): MapLayout {
 	const ranked = rows.toSorted((a, b) => itemRank(a) - itemRank(b) || itemName(a).localeCompare(itemName(b)));
 	const publicRows = ranked.filter(itemIsPublic);
@@ -111,6 +139,8 @@ export function mapLayout(rows: DashboardItem[], regionOrder: string[], availabl
 	const served = [...regionNames]
 		.map((region) => ({ region, rows: shownPublic.filter((r) => r.regions.some((g) => g.region === region)) }))
 		.filter((g) => g.rows.length > 0);
+
+	if (shownPublic.length === 0) return internalGrid(shownInternal, internalRows.length, availableWidth);
 
 	const columns: Column[] = [];
 	if (shownPublic.length > 0) {
