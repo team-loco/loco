@@ -724,7 +724,7 @@ with session(out) as browser:
             region = page.get_by_role("menuitemradio", name=re.compile(r"^eu-west-1"))
             region.click()
             expect(region).to_have_attribute("aria-checked", "true")
-            expect(region.locator("svg")).to_have_count(0)
+            expect(region.locator("svg")).to_be_hidden()
             page.keyboard.press("Escape")
             page.get_by_role(
                 "checkbox", name="Select history-pilot", exact=True
