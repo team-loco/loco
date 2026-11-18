@@ -102,27 +102,11 @@ message ServiceSpec {
   bool rollback_on_failure = 5;
 }
 
-// DatabaseSpec is the spec of the corresponding resource type.
-message DatabaseSpec {}
-
-// CacheSpec is the spec of the corresponding resource type.
-message CacheSpec {}
-
-// QueueSpec is the spec of the corresponding resource type.
-message QueueSpec {}
-
-// BlobSpec is the spec of the corresponding resource type.
-message BlobSpec {}
-
 // ResourceSpec defines the global infrastructure intent for a resource.
 // Uses oneof to support different resource types.
 message ResourceSpec {
   oneof spec {
     ServiceSpec service = 1;
-    DatabaseSpec database = 2;
-    CacheSpec cache = 3;
-    QueueSpec queue = 4;
-    BlobSpec blob = 5;
   }
 }
 
