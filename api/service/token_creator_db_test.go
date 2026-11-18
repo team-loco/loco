@@ -41,16 +41,6 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 				t.Fatalf("create token creator = %q, want %q", got, creator)
 			}
 
-			token, err := server.GetToken(f.owner, &tokenv1.GetTokenRequest{
-				Name: name, EntityType: tc.entityType, EntityId: tc.entityID,
-			})
-			if err != nil {
-				t.Fatalf("get token: %v", err)
-			}
-			if got := token.GetToken().GetCreatedBy(); got != creator {
-				t.Fatalf("get token creator = %q, want %q", got, creator)
-			}
-
 			listed, err := server.ListTokens(f.owner, &tokenv1.ListTokensRequest{
 				EntityType: tc.entityType, EntityId: tc.entityID,
 			})
@@ -61,7 +51,7 @@ func TestTokenMetadataIncludesCreator(t *testing.T) {
 			if len(tokens) != 1 || tokens[0].GetName() != name || tokens[0].GetCreatedBy() != creator {
 				t.Fatalf("list tokens = %v, want token %q created by %q", tokens, name, creator)
 			}
-			for _, metadata := range append(listed.GetTokens(), created.GetTokenMetadata(), token.GetToken()) {
+			for _, metadata := range append(listed.GetTokens(), created.GetTokenMetadata()) {
 				secret := created.GetToken()
 				if metadata.GetDisplaySuffix() != secret[len(secret)-4:] {
 					t.Fatalf("display suffix = %v", metadata)

@@ -536,112 +536,6 @@ func (x *ListTokensResponse) GetTokens() []*Token {
 	return nil
 }
 
-// GetTokenRequest is the request to get a specific token's metadata.
-type GetTokenRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	EntityType    EntityType             `protobuf:"varint,2,opt,name=entity_type,json=entityType,proto3,enum=loco.token.v1.EntityType" json:"entity_type,omitempty"`
-	EntityId      string                 `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetTokenRequest) Reset() {
-	*x = GetTokenRequest{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetTokenRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetTokenRequest) ProtoMessage() {}
-
-func (x *GetTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetTokenRequest.ProtoReflect.Descriptor instead.
-func (*GetTokenRequest) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *GetTokenRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *GetTokenRequest) GetEntityType() EntityType {
-	if x != nil {
-		return x.EntityType
-	}
-	return EntityType_ENTITY_TYPE_UNSPECIFIED
-}
-
-func (x *GetTokenRequest) GetEntityId() string {
-	if x != nil {
-		return x.EntityId
-	}
-	return ""
-}
-
-// GetTokenResponse contains the token metadata.
-type GetTokenResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         *Token                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetTokenResponse) Reset() {
-	*x = GetTokenResponse{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetTokenResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetTokenResponse) ProtoMessage() {}
-
-func (x *GetTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetTokenResponse.ProtoReflect.Descriptor instead.
-func (*GetTokenResponse) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *GetTokenResponse) GetToken() *Token {
-	if x != nil {
-		return x.Token
-	}
-	return nil
-}
-
 // RevokeTokenRequest is the request to revoke a token.
 type RevokeTokenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -654,7 +548,7 @@ type RevokeTokenRequest struct {
 
 func (x *RevokeTokenRequest) Reset() {
 	*x = RevokeTokenRequest{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[8]
+	mi := &file_loco_token_v1_token_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -666,7 +560,7 @@ func (x *RevokeTokenRequest) String() string {
 func (*RevokeTokenRequest) ProtoMessage() {}
 
 func (x *RevokeTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[8]
+	mi := &file_loco_token_v1_token_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -679,7 +573,7 @@ func (x *RevokeTokenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeTokenRequest.ProtoReflect.Descriptor instead.
 func (*RevokeTokenRequest) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{8}
+	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *RevokeTokenRequest) GetName() string {
@@ -712,7 +606,7 @@ type RevokeTokenResponse struct {
 
 func (x *RevokeTokenResponse) Reset() {
 	*x = RevokeTokenResponse{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[9]
+	mi := &file_loco_token_v1_token_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -724,7 +618,7 @@ func (x *RevokeTokenResponse) String() string {
 func (*RevokeTokenResponse) ProtoMessage() {}
 
 func (x *RevokeTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[9]
+	mi := &file_loco_token_v1_token_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -737,7 +631,7 @@ func (x *RevokeTokenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeTokenResponse.ProtoReflect.Descriptor instead.
 func (*RevokeTokenResponse) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{9}
+	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{7}
 }
 
 // GetScopesRequest has no fields; the token is read from the auth context.
@@ -749,7 +643,7 @@ type GetScopesRequest struct {
 
 func (x *GetScopesRequest) Reset() {
 	*x = GetScopesRequest{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[10]
+	mi := &file_loco_token_v1_token_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -761,7 +655,7 @@ func (x *GetScopesRequest) String() string {
 func (*GetScopesRequest) ProtoMessage() {}
 
 func (x *GetScopesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[10]
+	mi := &file_loco_token_v1_token_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -774,7 +668,7 @@ func (x *GetScopesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScopesRequest.ProtoReflect.Descriptor instead.
 func (*GetScopesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{10}
+	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{8}
 }
 
 // CheckPermissionRequest specifies the entity and scope to check for the authenticated caller.
@@ -789,7 +683,7 @@ type CheckPermissionRequest struct {
 
 func (x *CheckPermissionRequest) Reset() {
 	*x = CheckPermissionRequest{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[11]
+	mi := &file_loco_token_v1_token_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +695,7 @@ func (x *CheckPermissionRequest) String() string {
 func (*CheckPermissionRequest) ProtoMessage() {}
 
 func (x *CheckPermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[11]
+	mi := &file_loco_token_v1_token_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +708,7 @@ func (x *CheckPermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPermissionRequest.ProtoReflect.Descriptor instead.
 func (*CheckPermissionRequest) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{11}
+	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CheckPermissionRequest) GetEntityType() EntityType {
@@ -848,7 +742,7 @@ type CheckPermissionResponse struct {
 
 func (x *CheckPermissionResponse) Reset() {
 	*x = CheckPermissionResponse{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[12]
+	mi := &file_loco_token_v1_token_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -860,7 +754,7 @@ func (x *CheckPermissionResponse) String() string {
 func (*CheckPermissionResponse) ProtoMessage() {}
 
 func (x *CheckPermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[12]
+	mi := &file_loco_token_v1_token_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -873,7 +767,7 @@ func (x *CheckPermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckPermissionResponse.ProtoReflect.Descriptor instead.
 func (*CheckPermissionResponse) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{12}
+	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CheckPermissionResponse) GetAllowed() bool {
@@ -895,7 +789,7 @@ type GetScopesResponse struct {
 
 func (x *GetScopesResponse) Reset() {
 	*x = GetScopesResponse{}
-	mi := &file_loco_token_v1_token_proto_msgTypes[13]
+	mi := &file_loco_token_v1_token_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -907,7 +801,7 @@ func (x *GetScopesResponse) String() string {
 func (*GetScopesResponse) ProtoMessage() {}
 
 func (x *GetScopesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_token_v1_token_proto_msgTypes[13]
+	mi := &file_loco_token_v1_token_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -920,7 +814,7 @@ func (x *GetScopesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScopesResponse.ProtoReflect.Descriptor instead.
 func (*GetScopesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{13}
+	return file_loco_token_v1_token_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetScopesResponse) GetEntityType() EntityType {
@@ -991,15 +885,7 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"entityType\x12%\n" +
 	"\tentity_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\"B\n" +
 	"\x12ListTokensResponse\x12,\n" +
-	"\x06tokens\x18\x01 \x03(\v2\x14.loco.token.v1.TokenR\x06tokens\"\x9d\x01\n" +
-	"\x0fGetTokenRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12F\n" +
-	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
-	"entityType\x12%\n" +
-	"\tentity_id\x18\x03 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\bentityId\">\n" +
-	"\x10GetTokenResponse\x12*\n" +
-	"\x05token\x18\x01 \x01(\v2\x14.loco.token.v1.TokenR\x05token\"\xa0\x01\n" +
+	"\x06tokens\x18\x01 \x03(\v2\x14.loco.token.v1.TokenR\x06tokens\"\xa0\x01\n" +
 	"\x12RevokeTokenRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12F\n" +
 	"\ventity_type\x18\x02 \x01(\x0e2\x19.loco.token.v1.EntityTypeB\n" +
@@ -1036,12 +922,11 @@ const file_loco_token_v1_token_proto_rawDesc = "" +
 	"SCOPE_READ\x10\x01\x12\x0f\n" +
 	"\vSCOPE_WRITE\x10\x02\x12\x0f\n" +
 	"\vSCOPE_ADMIN\x10\x03\x12\x10\n" +
-	"\fSCOPE_MEMBER\x10\x042\x8c\x04\n" +
+	"\fSCOPE_MEMBER\x10\x042\xbf\x03\n" +
 	"\fTokenService\x12T\n" +
 	"\vCreateToken\x12!.loco.token.v1.CreateTokenRequest\x1a\".loco.token.v1.CreateTokenResponse\x12Q\n" +
 	"\n" +
-	"ListTokens\x12 .loco.token.v1.ListTokensRequest\x1a!.loco.token.v1.ListTokensResponse\x12K\n" +
-	"\bGetToken\x12\x1e.loco.token.v1.GetTokenRequest\x1a\x1f.loco.token.v1.GetTokenResponse\x12T\n" +
+	"ListTokens\x12 .loco.token.v1.ListTokensRequest\x1a!.loco.token.v1.ListTokensResponse\x12T\n" +
 	"\vRevokeToken\x12!.loco.token.v1.RevokeTokenRequest\x1a\".loco.token.v1.RevokeTokenResponse\x12N\n" +
 	"\tGetScopes\x12\x1f.loco.token.v1.GetScopesRequest\x1a .loco.token.v1.GetScopesResponse\x12`\n" +
 	"\x0fCheckPermission\x12%.loco.token.v1.CheckPermissionRequest\x1a&.loco.token.v1.CheckPermissionResponseB8Z6github.com/team-loco/loco/gen/go/loco/token/v1;tokenv1b\x06proto3"
@@ -1059,7 +944,7 @@ func file_loco_token_v1_token_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_token_v1_token_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_loco_token_v1_token_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_loco_token_v1_token_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_loco_token_v1_token_proto_goTypes = []any{
 	(EntityType)(0),                 // 0: loco.token.v1.EntityType
 	(Scope)(0),                      // 1: loco.token.v1.Scope
@@ -1069,53 +954,47 @@ var file_loco_token_v1_token_proto_goTypes = []any{
 	(*CreateTokenResponse)(nil),     // 5: loco.token.v1.CreateTokenResponse
 	(*ListTokensRequest)(nil),       // 6: loco.token.v1.ListTokensRequest
 	(*ListTokensResponse)(nil),      // 7: loco.token.v1.ListTokensResponse
-	(*GetTokenRequest)(nil),         // 8: loco.token.v1.GetTokenRequest
-	(*GetTokenResponse)(nil),        // 9: loco.token.v1.GetTokenResponse
-	(*RevokeTokenRequest)(nil),      // 10: loco.token.v1.RevokeTokenRequest
-	(*RevokeTokenResponse)(nil),     // 11: loco.token.v1.RevokeTokenResponse
-	(*GetScopesRequest)(nil),        // 12: loco.token.v1.GetScopesRequest
-	(*CheckPermissionRequest)(nil),  // 13: loco.token.v1.CheckPermissionRequest
-	(*CheckPermissionResponse)(nil), // 14: loco.token.v1.CheckPermissionResponse
-	(*GetScopesResponse)(nil),       // 15: loco.token.v1.GetScopesResponse
-	(*timestamppb.Timestamp)(nil),   // 16: google.protobuf.Timestamp
+	(*RevokeTokenRequest)(nil),      // 8: loco.token.v1.RevokeTokenRequest
+	(*RevokeTokenResponse)(nil),     // 9: loco.token.v1.RevokeTokenResponse
+	(*GetScopesRequest)(nil),        // 10: loco.token.v1.GetScopesRequest
+	(*CheckPermissionRequest)(nil),  // 11: loco.token.v1.CheckPermissionRequest
+	(*CheckPermissionResponse)(nil), // 12: loco.token.v1.CheckPermissionResponse
+	(*GetScopesResponse)(nil),       // 13: loco.token.v1.GetScopesResponse
+	(*timestamppb.Timestamp)(nil),   // 14: google.protobuf.Timestamp
 }
 var file_loco_token_v1_token_proto_depIdxs = []int32{
 	1,  // 0: loco.token.v1.EntityScope.scope:type_name -> loco.token.v1.Scope
 	0,  // 1: loco.token.v1.EntityScope.entity_type:type_name -> loco.token.v1.EntityType
 	0,  // 2: loco.token.v1.Token.entity_type:type_name -> loco.token.v1.EntityType
 	2,  // 3: loco.token.v1.Token.scopes:type_name -> loco.token.v1.EntityScope
-	16, // 4: loco.token.v1.Token.expires_at:type_name -> google.protobuf.Timestamp
-	16, // 5: loco.token.v1.Token.created_at:type_name -> google.protobuf.Timestamp
-	16, // 6: loco.token.v1.Token.last_used_at:type_name -> google.protobuf.Timestamp
+	14, // 4: loco.token.v1.Token.expires_at:type_name -> google.protobuf.Timestamp
+	14, // 5: loco.token.v1.Token.created_at:type_name -> google.protobuf.Timestamp
+	14, // 6: loco.token.v1.Token.last_used_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: loco.token.v1.CreateTokenRequest.entity_type:type_name -> loco.token.v1.EntityType
 	2,  // 8: loco.token.v1.CreateTokenRequest.scopes:type_name -> loco.token.v1.EntityScope
 	3,  // 9: loco.token.v1.CreateTokenResponse.token_metadata:type_name -> loco.token.v1.Token
 	0,  // 10: loco.token.v1.ListTokensRequest.entity_type:type_name -> loco.token.v1.EntityType
 	3,  // 11: loco.token.v1.ListTokensResponse.tokens:type_name -> loco.token.v1.Token
-	0,  // 12: loco.token.v1.GetTokenRequest.entity_type:type_name -> loco.token.v1.EntityType
-	3,  // 13: loco.token.v1.GetTokenResponse.token:type_name -> loco.token.v1.Token
-	0,  // 14: loco.token.v1.RevokeTokenRequest.entity_type:type_name -> loco.token.v1.EntityType
-	0,  // 15: loco.token.v1.CheckPermissionRequest.entity_type:type_name -> loco.token.v1.EntityType
-	1,  // 16: loco.token.v1.CheckPermissionRequest.scope:type_name -> loco.token.v1.Scope
-	0,  // 17: loco.token.v1.GetScopesResponse.entity_type:type_name -> loco.token.v1.EntityType
-	2,  // 18: loco.token.v1.GetScopesResponse.scopes:type_name -> loco.token.v1.EntityScope
-	4,  // 19: loco.token.v1.TokenService.CreateToken:input_type -> loco.token.v1.CreateTokenRequest
-	6,  // 20: loco.token.v1.TokenService.ListTokens:input_type -> loco.token.v1.ListTokensRequest
-	8,  // 21: loco.token.v1.TokenService.GetToken:input_type -> loco.token.v1.GetTokenRequest
-	10, // 22: loco.token.v1.TokenService.RevokeToken:input_type -> loco.token.v1.RevokeTokenRequest
-	12, // 23: loco.token.v1.TokenService.GetScopes:input_type -> loco.token.v1.GetScopesRequest
-	13, // 24: loco.token.v1.TokenService.CheckPermission:input_type -> loco.token.v1.CheckPermissionRequest
-	5,  // 25: loco.token.v1.TokenService.CreateToken:output_type -> loco.token.v1.CreateTokenResponse
-	7,  // 26: loco.token.v1.TokenService.ListTokens:output_type -> loco.token.v1.ListTokensResponse
-	9,  // 27: loco.token.v1.TokenService.GetToken:output_type -> loco.token.v1.GetTokenResponse
-	11, // 28: loco.token.v1.TokenService.RevokeToken:output_type -> loco.token.v1.RevokeTokenResponse
-	15, // 29: loco.token.v1.TokenService.GetScopes:output_type -> loco.token.v1.GetScopesResponse
-	14, // 30: loco.token.v1.TokenService.CheckPermission:output_type -> loco.token.v1.CheckPermissionResponse
-	25, // [25:31] is the sub-list for method output_type
-	19, // [19:25] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	0,  // 12: loco.token.v1.RevokeTokenRequest.entity_type:type_name -> loco.token.v1.EntityType
+	0,  // 13: loco.token.v1.CheckPermissionRequest.entity_type:type_name -> loco.token.v1.EntityType
+	1,  // 14: loco.token.v1.CheckPermissionRequest.scope:type_name -> loco.token.v1.Scope
+	0,  // 15: loco.token.v1.GetScopesResponse.entity_type:type_name -> loco.token.v1.EntityType
+	2,  // 16: loco.token.v1.GetScopesResponse.scopes:type_name -> loco.token.v1.EntityScope
+	4,  // 17: loco.token.v1.TokenService.CreateToken:input_type -> loco.token.v1.CreateTokenRequest
+	6,  // 18: loco.token.v1.TokenService.ListTokens:input_type -> loco.token.v1.ListTokensRequest
+	8,  // 19: loco.token.v1.TokenService.RevokeToken:input_type -> loco.token.v1.RevokeTokenRequest
+	10, // 20: loco.token.v1.TokenService.GetScopes:input_type -> loco.token.v1.GetScopesRequest
+	11, // 21: loco.token.v1.TokenService.CheckPermission:input_type -> loco.token.v1.CheckPermissionRequest
+	5,  // 22: loco.token.v1.TokenService.CreateToken:output_type -> loco.token.v1.CreateTokenResponse
+	7,  // 23: loco.token.v1.TokenService.ListTokens:output_type -> loco.token.v1.ListTokensResponse
+	9,  // 24: loco.token.v1.TokenService.RevokeToken:output_type -> loco.token.v1.RevokeTokenResponse
+	13, // 25: loco.token.v1.TokenService.GetScopes:output_type -> loco.token.v1.GetScopesResponse
+	12, // 26: loco.token.v1.TokenService.CheckPermission:output_type -> loco.token.v1.CheckPermissionResponse
+	22, // [22:27] is the sub-list for method output_type
+	17, // [17:22] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_loco_token_v1_token_proto_init() }
@@ -1130,7 +1009,7 @@ func file_loco_token_v1_token_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_token_v1_token_proto_rawDesc), len(file_loco_token_v1_token_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   14,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

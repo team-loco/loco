@@ -1,6 +1,7 @@
 package apps
 
 import (
+	"slices"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -73,10 +74,15 @@ func TestPersonalAndOwnedTokenLifecycle(t *testing.T) {
 	}
 	readLifecycleWorkspace(t, p.Clients(broad), other.ID, new(connect.CodePermissionDenied))
 	readLifecycleWorkspace(t, p.Clients(owned), w.ID, nil)
-	if _, err := p.User.Token.GetToken(t.Context(), &tokenv1.GetTokenRequest{
-		Name: "automation", EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, EntityId: w.ID,
-	}); err != nil {
+	listed, err := p.User.Token.ListTokens(t.Context(), &tokenv1.ListTokensRequest{
+		EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, EntityId: w.ID,
+	})
+	if err != nil {
 		t.Fatal(err)
+	}
+	automation := func(token *tokenv1.Token) bool { return token.GetName() == "automation" }
+	if !slices.ContainsFunc(listed.GetTokens(), automation) {
+		t.Fatalf("workspace tokens = %v, want automation", listed.GetTokens())
 	}
 	if _, err := p.User.Token.RevokeToken(t.Context(), &tokenv1.RevokeTokenRequest{
 		Name: "automation", EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, EntityId: w.ID,
