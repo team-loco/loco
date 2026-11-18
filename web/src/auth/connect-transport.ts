@@ -1,14 +1,11 @@
-import { isMessage } from "@bufbuild/protobuf";
 import { Code, ConnectError, createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { AuthService } from "@gen/loco/auth/v1/auth_pb";
 import { ConfigService } from "@gen/loco/config/v1/config_pb";
 import { TokenService } from "@gen/loco/token/v1/token_pb";
-import { WhoAmIResponseSchema } from "@gen/loco/user/v1/user_pb";
 import { PUBLIC_API_URL, PUBLIC_APP_ENV } from "loco:env";
 
 import { resolveAPIURL } from "./api-url";
-import { setClaimedOrgs } from "./claimed";
 
 export const BASE_URL = resolveAPIURL(window.locoConfig?.apiURL, PUBLIC_API_URL, window.location.origin);
 
@@ -101,23 +98,13 @@ export const transport = createConnectTransport({
 					})(),
 				};
 			}
-			let response;
 			try {
-				response = await next(req);
+				return await next(req);
 			} catch (err) {
 				if (!unauthenticated(err)) throw err;
 				await refreshSession(generation);
-				response = await next(req);
+				return await next(req);
 			}
-			if (
-				!response.stream &&
-				isMessage(response.message, WhoAmIResponseSchema) &&
-				response.message.claimedOrgs.length
-			) {
-				setClaimedOrgs(response.message.claimedOrgs);
-				response.message.claimedOrgs = [];
-			}
-			return response;
 		},
 	],
 });
