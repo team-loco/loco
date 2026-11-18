@@ -75,7 +75,6 @@ with session(out) as browser:
         )["regions"]
 
     def save():
-        calls.clear()
         page.get_by_role("button", name="Save & redeploy", exact=True).click()
 
     page.goto(
@@ -181,13 +180,14 @@ with session(out) as browser:
 
     west.click()
     page.get_by_role("textbox", name="Tag or digest", exact=True).fill("next")
+    sent = len(calls)
     save()
     expect(
         page.get_by_text(
             "Save region, size and scaling changes separately", exact=False
         )
     ).to_be_visible()
-    assert calls == [], calls
+    assert calls[sent:] == [], calls
     page.get_by_role("button", name="Discard", exact=True).click()
 
     sql(state, "UPDATE clusters SET is_active=false WHERE region='us-east-1';")

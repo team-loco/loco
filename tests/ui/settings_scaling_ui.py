@@ -3,7 +3,16 @@ import json
 import uuid
 from pathlib import Path
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -149,18 +158,17 @@ with session(out) as browser:
             sql(state, f"SELECT spec FROM resources WHERE id='{resource}';")
         )["regions"]
 
-    def save_and_settle():
-        calls.clear()
+    def save_and_settle(method="UpdateResource"):
         expected_deployments = len(deployments) + len(regions)
-        with page.expect_response(
-            lambda response: (
-                response.url.endswith("/UpdateResource")
-                or (
-                    response.url.endswith("/CreateDeployment")
-                    and len(deployments) == expected_deployments
-                    and response.request.post_data_json == deployments[-1]
-                )
-            )
+        with expect_rpc(
+            page,
+            method,
+            lambda body: (
+                body.get("resourceId") == resource
+                if method == "UpdateResource"
+                else len(deployments) == expected_deployments
+                and body == deployments[-1]
+            ),
         ) as completed:
             save.click()
         assert completed.value.ok, completed.value.text()
@@ -188,8 +196,9 @@ with session(out) as browser:
         assert sent["scalers"] == {"enabled": True, "cpuTarget": target}, sent
 
     failing[0] = False
+    before = len(calls)
     save_and_settle()
-    assert len(calls) == 1, calls
+    assert len(calls) - before == 1, calls
     for region in regions:
         assert stored_regions()[region]["scalers"] == {
             "enabled": True,
@@ -249,13 +258,13 @@ with session(out) as browser:
     assert all(
         call["spec"]["service"]["observability"] == expected for call in deployments
     ), deployments
-    deployments.clear()
+    before = len(deployments)
     deploy_mode[0] = "pass"
-    save_and_settle()
-    assert len(deployments) == len(regions), deployments
+    save_and_settle("CreateDeployment")
+    assert len(deployments) - before == len(regions), deployments
     expect(sdk).not_to_be_checked()
     sdk.click()
-    save_and_settle()
+    save_and_settle("CreateDeployment")
     expect(sdk).to_be_checked()
     runtime = json.loads(
         sql(

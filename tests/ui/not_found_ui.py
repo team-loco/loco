@@ -7,6 +7,7 @@ from pathlib import Path
 from harness import (
     call,
     evidence,
+    expect_rpc,
     load_state,
     open_page as new_page,
     repo,
@@ -339,7 +340,9 @@ with session(out) as browser:
     page.get_by_role("dialog", name="New organization").get_by_role(
         "textbox", name="Name"
     ).fill(new_org_name)
-    with page.expect_response("**/CreateOrg") as creation:
+    with expect_rpc(
+        page, "CreateOrg", lambda body: body.get("name") == new_org_name
+    ) as creation:
         page.get_by_role("button", name="Create", exact=True).click()
     created_org = creation.value.json()["orgId"]
     expect(page).to_have_url(

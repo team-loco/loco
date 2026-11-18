@@ -114,8 +114,8 @@ with session(out) as browser:
     ), list_events(calls)
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("ledger")
 
-    with page.expect_response(
-        lambda response: response.url.endswith("/ListEvents")
+    with expect_rpc(
+        page, "ListEvents", lambda body: bool(body.get("beforeSeq"))
     ) as older:
         page.get_by_role("button", name="Older events", exact=True).click()
     assert older.value.request.post_data_json.get("beforeSeq"), (
@@ -140,11 +140,7 @@ with session(out) as browser:
         "loco.resource.v1.ResourceService/UpdateResource",
         {"resourceId": state["audit"]["checkout"], "description": "live audit update"},
     )
-    with page.expect_response(
-        lambda response: response.url.endswith("/ListEvents"), timeout=15000
-    ):
-        pass
-    expect(rows.first).to_contain_text("Updated a resource")
+    expect(rows.first).to_contain_text("Updated a resource", timeout=15000)
     page.get_by_role("button", name="Pause", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"[?&]live="))
     page.get_by_role("button", name="Event", exact=True).click()

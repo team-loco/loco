@@ -6,7 +6,7 @@ import urllib.parse
 from pathlib import Path
 
 from activity_fixture import prepare_activity, verify_activity_access
-from harness import call, evidence, load_state, open_page, repo, session
+from harness import call, evidence, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -299,8 +299,10 @@ def check_scoped_user(browser):
             ),
         )
         if scene == "metrics":
-            with page.expect_response(
-                lambda response: response.url.endswith("/QueryMetrics")
+            with expect_rpc(
+                page,
+                "QueryMetrics",
+                lambda body: body.get("scope", body).get("environmentId") == production,
             ):
                 page.goto(origin + path)
         else:
@@ -409,9 +411,13 @@ with session(out) as browser:
         context.route("**/*", route_request)
         if user == "member":
             with (
-                page.expect_response(lambda response: response.url.endswith("/GetOrg")),
-                page.expect_response(
-                    lambda response: response.url.endswith("/ListOrgMembers")
+                expect_rpc(
+                    page, "GetOrg", lambda body: body.get("orgId") == activity["orgId"]
+                ),
+                expect_rpc(
+                    page,
+                    "ListOrgMembers",
+                    lambda body: body.get("orgId") == activity["orgId"],
                 ),
             ):
                 page.goto(origin + path)

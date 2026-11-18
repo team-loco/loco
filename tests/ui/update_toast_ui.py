@@ -3,7 +3,7 @@ import json
 from functools import partial
 from pathlib import Path
 
-from harness import load_state, open_page as new_page, repo, session
+from harness import expect_json, load_state, open_page as new_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -23,9 +23,11 @@ TITLE = "Loco has been updated"
 
 
 open_page = partial(new_page, state=state)
+served = []
 
 
 def serve(page, version):
+    served.append(version)
     page.unroute("**/version.json")
     page.route(
         "**/version.json",
@@ -37,7 +39,7 @@ def serve(page, version):
 
 def check(page):
     # Coming back to the tab is one of the moments the dashboard checks for a newer build.
-    with page.expect_response("**/version.json"):
+    with expect_json(page, "/version.json", lambda body: body["version"] == served[-1]):
         page.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
 
 

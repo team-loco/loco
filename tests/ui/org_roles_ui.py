@@ -3,7 +3,7 @@ import re
 import uuid
 from datetime import datetime
 
-from harness import call, load_state, open_page, repo, session
+from harness import call, expect_rpc, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -60,8 +60,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(page).not_to_have_url(re.compile(r"[?&]new="))
     page.goto(state["ui_url"] + "/organizations?new=1")
     name.fill("  Acme & Partners 🚀  ")
-    with page.expect_response(
-        lambda response: response.url.endswith("/CreateOrg")
+    with expect_rpc(
+        page, "CreateOrg", lambda body: body.get("name") == "Acme & Partners 🚀"
     ) as creation:
         create.click()
     assert creation.value.ok
@@ -82,7 +82,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/resources")
     page.get_by_title("Switch workspace", exact=True).click()
     page.get_by_role("menuitem", name="New organization", exact=True).click()
-    name.fill("sidebar-" + uuid.uuid4().hex[:8])
+    sidebar_name = "sidebar-" + uuid.uuid4().hex[:8]
+    name.fill(sidebar_name)
     workspace_rpc = "**/loco.workspace.v1.WorkspaceService/CreateWorkspace"
     context.route(
         workspace_rpc,
@@ -92,8 +93,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         ),
     )
     before_orgs = sum(url.endswith("/CreateOrg") for url in requests)
-    with page.expect_response(
-        lambda response: response.url.endswith("/CreateOrg")
+    with expect_rpc(
+        page, "CreateOrg", lambda body: body.get("name") == sidebar_name
     ) as sidebar_creation:
         create.click()
     expect(
@@ -103,8 +104,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(create).to_be_enabled()
     sidebar_org = sidebar_creation.value.json()["orgId"]
     context.unroute(workspace_rpc)
-    with page.expect_response(
-        lambda response: response.url.endswith("/CreateWorkspace")
+    with expect_rpc(
+        page, "CreateWorkspace", lambda body: body.get("orgId") == sidebar_org
     ) as workspace_creation:
         create.click()
     assert workspace_creation.value.ok
@@ -122,7 +123,6 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     assert [workspace["name"] for workspace in workspaces] == ["default"], workspaces
     call(state, "loco.org.v1.OrgService/DeleteOrg", {"orgId": sidebar_org})
     page.goto(path)
-    page.wait_for_load_state("networkidle")
     members = call(state, "loco.org.v1.OrgService/ListOrgMembers", {"orgId": org})[
         "members"
     ]

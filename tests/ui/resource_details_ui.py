@@ -6,7 +6,16 @@ import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -204,8 +213,8 @@ with session(out) as browser:
     more.click()
     restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
     expect(restart).to_be_enabled()
-    with page.expect_response(
-        lambda response: response.url.endswith("/RestartResource")
+    with expect_rpc(
+        page, "RestartResource", lambda body: body.get("resourceId") == resource
     ) as restarted:
         restart.click()
     assert restarted.value.ok, restarted.value.text()
