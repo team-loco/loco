@@ -34,15 +34,8 @@ apiVersion: v1
 kind: Secret
 metadata: {name: fixture-inputs, namespace: loco-system}
 stringData:
-  database-url: postgresql://loco:fixture-database-canary@postgres.installation-fixtures.svc.cluster.local:5432/loco?sslmode=disable
   access-key-id: fixture-access
   secret-access-key: fixture-source-canary
-  api-username: api
-  api-password: loco-dev-api
-  push-username: builder
-  push-password: loco-dev-builder
-  pull-username: nodes
-  pull-password: loco-dev-nodes
 {{ range .Services }}
 ---
 apiVersion: apps/v1
