@@ -301,8 +301,6 @@ message GetResourceEnvResponse {
   repeated string secret_names = 2;
 }
 
-// --- Events ---
-
 // --- Resource Operations ---
 
 // ScaleResourceRequest is the request to scale a resource's active deployments in one environment.

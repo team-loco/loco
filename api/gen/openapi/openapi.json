@@ -10925,23 +10925,6 @@
         "additionalProperties": false,
         "description": "ObservabilityConfig controls automatic application SDK environment configuration.\n Omitted inject_otel defaults to true."
       },
-      "loco.deployment.v1.Port": {
-        "type": "object",
-        "properties": {
-          "port": {
-            "type": "integer",
-            "title": "port",
-            "format": "int32"
-          },
-          "protocol": {
-            "type": "string",
-            "title": "protocol"
-          }
-        },
-        "title": "Port",
-        "additionalProperties": false,
-        "description": "Port defines a network port configuration."
-      },
       "loco.deployment.v1.Problem": {
         "type": "object",
         "properties": {
@@ -11065,28 +11048,6 @@
         },
         "title": "ResolveImageResponse",
         "additionalProperties": false
-      },
-      "loco.deployment.v1.ResourceSpec": {
-        "type": "object",
-        "properties": {
-          "cpu": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "cpu"
-          },
-          "memory": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "memory"
-          }
-        },
-        "title": "ResourceSpec",
-        "additionalProperties": false,
-        "description": "ResourceSpec defines CPU and memory resource constraints."
       },
       "loco.deployment.v1.Scalers": {
         "type": "object",
@@ -16869,33 +16830,6 @@
         "title": "Workspace",
         "additionalProperties": false,
         "description": "Workspace represents a project container within an organization where resources are deployed and managed."
-      },
-      "loco.workspace.v1.WorkspaceMember": {
-        "type": "object",
-        "properties": {
-          "workspaceId": {
-            "type": "string",
-            "title": "workspace_id"
-          },
-          "userId": {
-            "type": "string",
-            "title": "user_id"
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "title": "scopes"
-          },
-          "createdAt": {
-            "title": "created_at",
-            "$ref": "#/components/schemas/google.protobuf.Timestamp"
-          }
-        },
-        "title": "WorkspaceMember",
-        "additionalProperties": false,
-        "description": "WorkspaceMember represents a user's membership in a workspace and their granted scopes."
       },
       "loco.workspace.v1.WorkspaceMemberWithUser": {
         "type": "object",

@@ -29,7 +29,7 @@ type DomainType int32
 
 const (
 	DomainType_DOMAIN_TYPE_UNSPECIFIED       DomainType = 0
-	DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED DomainType = 1 // eventually add support for custom domains.
+	DomainType_DOMAIN_TYPE_PLATFORM_PROVIDED DomainType = 1
 )
 
 // Enum value maps for DomainType.

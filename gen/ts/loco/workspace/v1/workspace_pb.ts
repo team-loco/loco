@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/workspace/v1/workspace.proto.
  */
 export const file_loco_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("CiFsb2NvL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SEWxvY28ud29ya3NwYWNlLnYxItABCglXb3Jrc3BhY2USCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghvcmdfbmFtZRgIIAEoCSJ4Cg9Xb3Jrc3BhY2VNZW1iZXISFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDgoGc2NvcGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIsABChdXb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHdXNlcl9pZBgCIAEoCRIOCgZzY29wZXMYAyADKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdXNlcl9uYW1lGAUgASgJEhIKCnVzZXJfZW1haWwYBiABKAkSFwoPdXNlcl9hdmF0YXJfdXJsGAcgASgJIn8KFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIXCgRuYW1lGAIgASgJQgm6SAZyBBABGD8SIgoLZGVzY3JpcHRpb24YAyABKAlCCLpIBXIDGIACSACIAQFCDgoMX2Rlc2NyaXB0aW9uIi8KF0NyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCSI1ChNHZXRXb3Jrc3BhY2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEiRwoUR2V0V29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlIl8KGUxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJnChpMaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJnChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJmChlMaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIpMBChZVcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoEbmFtZRgCIAEoCUIJukgGcgQQARg/SACIAQESIgoLZGVzY3JpcHRpb24YAyABKAlCCLpIBXIDGIACSAGIAQFCBwoFX25hbWVCDgoMX2Rlc2NyaXB0aW9uIi8KF1VwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCSJVChZEZWxldGVXb3Jrc3BhY2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESGwoTY29uZmlybV9kZWxldGVfYXBwcxgCIAEoCCIZChdEZWxldGVXb3Jrc3BhY2VSZXNwb25zZSLZAQoTQ3JlYXRlTWVtYmVyUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhkKB3VzZXJfaWQYAiABKAlCCLpIBXIDsAEBEoYBCgZzY29wZXMYAyADKAlCdrpIc5IBcAgBGAEiaroBZwoSc2NvcGUudmFsaWRfdmFsdWVzEi1lYWNoIHNjb3BlIG11c3QgYmUgb25lIG9mOiByZWFkLCB3cml0ZSwgYWRtaW4aInRoaXMgaW4gWydyZWFkJywgJ3dyaXRlJywgJ2FkbWluJ10iPQoUQ3JlYXRlTWVtYmVyUmVzcG9uc2USFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkiUAoTRGVsZXRlTWVtYmVyUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhkKB3VzZXJfaWQYAiABKAlCCLpIBXIDsAEBIhYKFERlbGV0ZU1lbWJlclJlc3BvbnNlInAKG0xpc3RXb3Jrc3BhY2VNZW1iZXJzUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJInQKHExpc3RXb3Jrc3BhY2VNZW1iZXJzUmVzcG9uc2USOwoHbWVtYmVycxgBIAMoCzIqLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZU1lbWJlcldpdGhVc2VyEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCTLPBwoQV29ya3NwYWNlU2VydmljZRJoCg9DcmVhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVzcG9uc2USXwoMR2V0V29ya3NwYWNlEiYubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlc3BvbnNlEmgKD1VwZGF0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRJoCg9EZWxldGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVzcG9uc2UScQoSTGlzdFVzZXJXb3Jrc3BhY2VzEiwubG9jby53b3Jrc3BhY2UudjEuTGlzdFVzZXJXb3Jrc3BhY2VzUmVxdWVzdBotLmxvY28ud29ya3NwYWNlLnYxLkxpc3RVc2VyV29ya3NwYWNlc1Jlc3BvbnNlEm4KEUxpc3RPcmdXb3Jrc3BhY2VzEisubG9jby53b3Jrc3BhY2UudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0GiwubG9jby53b3Jrc3BhY2UudjEuTGlzdE9yZ1dvcmtzcGFjZXNSZXNwb25zZRJfCgxDcmVhdGVNZW1iZXISJi5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVNZW1iZXJSZXF1ZXN0GicubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlTWVtYmVyUmVzcG9uc2USXwoMRGVsZXRlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZU1lbWJlclJlc3BvbnNlEncKFExpc3RXb3Jrc3BhY2VNZW1iZXJzEi4ubG9jby53b3Jrc3BhY2UudjEuTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXF1ZXN0Gi8ubG9jby53b3Jrc3BhY2UudjEuTGlzdFdvcmtzcGFjZU1lbWJlcnNSZXNwb25zZUJAWj5naXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL3dvcmtzcGFjZS92MTt3b3Jrc3BhY2V2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiFsb2NvL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SEWxvY28ud29ya3NwYWNlLnYxItABCglXb3Jrc3BhY2USCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghvcmdfbmFtZRgIIAEoCSLAAQoXV29ya3NwYWNlTWVtYmVyV2l0aFVzZXISFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDgoGc2NvcGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCXVzZXJfbmFtZRgFIAEoCRISCgp1c2VyX2VtYWlsGAYgASgJEhcKD3VzZXJfYXZhdGFyX3VybBgHIAEoCSJ/ChZDcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESFwoEbmFtZRgCIAEoCUIJukgGcgQQARg/EiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgAiAEBQg4KDF9kZXNjcmlwdGlvbiIvChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkiNQoTR2V0V29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBIkcKFEdldFdvcmtzcGFjZVJlc3BvbnNlEi8KCXdvcmtzcGFjZRgBIAEoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSJfChlMaXN0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkSHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiZwoaTGlzdFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiZwoYTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiZgoZTGlzdE9yZ1dvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKTAQoWVXBkYXRlV29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKBG5hbWUYAiABKAlCCbpIBnIEEAEYP0gAiAEBEiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgBiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbiIvChdVcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkiVQoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiGQoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2Ui2QEKE0NyZWF0ZU1lbWJlclJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARKGAQoGc2NvcGVzGAMgAygJQna6SHOSAXAIARgBImq6AWcKEnNjb3BlLnZhbGlkX3ZhbHVlcxItZWFjaCBzY29wZSBtdXN0IGJlIG9uZSBvZjogcmVhZCwgd3JpdGUsIGFkbWluGiJ0aGlzIGluIFsncmVhZCcsICd3cml0ZScsICdhZG1pbiddIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJIlAKE0RlbGV0ZU1lbWJlclJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABASIWChREZWxldGVNZW1iZXJSZXNwb25zZSJwChtMaXN0V29ya3NwYWNlTWVtYmVyc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJ0ChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkyzwcKEFdvcmtzcGFjZVNlcnZpY2USaAoPQ3JlYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEl8KDEdldFdvcmtzcGFjZRImLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXNwb25zZRJoCg9VcGRhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USaAoPRGVsZXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlEnEKEkxpc3RVc2VyV29ya3NwYWNlcxIsLmxvY28ud29ya3NwYWNlLnYxLkxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QaLS5sb2NvLndvcmtzcGFjZS52MS5MaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJuChFMaXN0T3JnV29ya3NwYWNlcxIrLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBosLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USXwoMQ3JlYXRlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZU1lbWJlclJlc3BvbnNlEl8KDERlbGV0ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVNZW1iZXJSZXNwb25zZRJ3ChRMaXN0V29ya3NwYWNlTWVtYmVycxIuLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVxdWVzdBovLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVzcG9uc2VCQFo+Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby93b3Jrc3BhY2UvdjE7d29ya3NwYWNldjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Workspace represents a project container within an organization where resources are deployed and managed.
@@ -117,67 +117,6 @@ export const WorkspaceSchema: GenMessage<Workspace, {jsonType: WorkspaceJson}> =
   messageDesc(file_loco_workspace_v1_workspace, 0);
 
 /**
- * WorkspaceMember represents a user's membership in a workspace and their granted scopes.
- *
- * @generated from message loco.workspace.v1.WorkspaceMember
- */
-export type WorkspaceMember = Message<"loco.workspace.v1.WorkspaceMember"> & {
-  /**
-   * @generated from field: string workspace_id = 1;
-   */
-  workspaceId: string;
-
-  /**
-   * @generated from field: string user_id = 2;
-   */
-  userId: string;
-
-  /**
-   * @generated from field: repeated string scopes = 3;
-   */
-  scopes: string[];
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 4;
-   */
-  createdAt?: Timestamp | undefined;
-};
-
-/**
- * WorkspaceMember represents a user's membership in a workspace and their granted scopes.
- *
- * @generated from message loco.workspace.v1.WorkspaceMember
- */
-export type WorkspaceMemberJson = {
-  /**
-   * @generated from field: string workspace_id = 1;
-   */
-  workspaceId?: string;
-
-  /**
-   * @generated from field: string user_id = 2;
-   */
-  userId?: string;
-
-  /**
-   * @generated from field: repeated string scopes = 3;
-   */
-  scopes?: string[];
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 4;
-   */
-  createdAt?: TimestampJson;
-};
-
-/**
- * Describes the message loco.workspace.v1.WorkspaceMember.
- * Use `create(WorkspaceMemberSchema)` to create a new message.
- */
-export const WorkspaceMemberSchema: GenMessage<WorkspaceMember, {jsonType: WorkspaceMemberJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 1);
-
-/**
  * WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
  *
  * @generated from message loco.workspace.v1.WorkspaceMemberWithUser
@@ -266,7 +205,7 @@ export type WorkspaceMemberWithUserJson = {
  * Use `create(WorkspaceMemberWithUserSchema)` to create a new message.
  */
 export const WorkspaceMemberWithUserSchema: GenMessage<WorkspaceMemberWithUser, {jsonType: WorkspaceMemberWithUserJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 2);
+  messageDesc(file_loco_workspace_v1_workspace, 1);
 
 /**
  * CreateWorkspaceRequest is the request to create a new workspace.
@@ -317,7 +256,7 @@ export type CreateWorkspaceRequestJson = {
  * Use `create(CreateWorkspaceRequestSchema)` to create a new message.
  */
 export const CreateWorkspaceRequestSchema: GenMessage<CreateWorkspaceRequest, {jsonType: CreateWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 3);
+  messageDesc(file_loco_workspace_v1_workspace, 2);
 
 /**
  * CreateWorkspaceResponse is the response containing the created workspace ID.
@@ -348,7 +287,7 @@ export type CreateWorkspaceResponseJson = {
  * Use `create(CreateWorkspaceResponseSchema)` to create a new message.
  */
 export const CreateWorkspaceResponseSchema: GenMessage<CreateWorkspaceResponse, {jsonType: CreateWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 4);
+  messageDesc(file_loco_workspace_v1_workspace, 3);
 
 /**
  * GetWorkspaceRequest is the request to retrieve a workspace.
@@ -379,7 +318,7 @@ export type GetWorkspaceRequestJson = {
  * Use `create(GetWorkspaceRequestSchema)` to create a new message.
  */
 export const GetWorkspaceRequestSchema: GenMessage<GetWorkspaceRequest, {jsonType: GetWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 5);
+  messageDesc(file_loco_workspace_v1_workspace, 4);
 
 /**
  * GetWorkspaceResponse is the response containing the workspace.
@@ -410,7 +349,7 @@ export type GetWorkspaceResponseJson = {
  * Use `create(GetWorkspaceResponseSchema)` to create a new message.
  */
 export const GetWorkspaceResponseSchema: GenMessage<GetWorkspaceResponse, {jsonType: GetWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 6);
+  messageDesc(file_loco_workspace_v1_workspace, 5);
 
 /**
  * ListUserWorkspacesRequest is the request to list workspaces for a user.
@@ -469,7 +408,7 @@ export type ListUserWorkspacesRequestJson = {
  * Use `create(ListUserWorkspacesRequestSchema)` to create a new message.
  */
 export const ListUserWorkspacesRequestSchema: GenMessage<ListUserWorkspacesRequest, {jsonType: ListUserWorkspacesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 7);
+  messageDesc(file_loco_workspace_v1_workspace, 6);
 
 /**
  * ListUserWorkspacesResponse contains the list of user's workspaces.
@@ -514,7 +453,7 @@ export type ListUserWorkspacesResponseJson = {
  * Use `create(ListUserWorkspacesResponseSchema)` to create a new message.
  */
 export const ListUserWorkspacesResponseSchema: GenMessage<ListUserWorkspacesResponse, {jsonType: ListUserWorkspacesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 8);
+  messageDesc(file_loco_workspace_v1_workspace, 7);
 
 /**
  * ListOrgWorkspacesRequest is the request to list workspaces in an organization.
@@ -573,7 +512,7 @@ export type ListOrgWorkspacesRequestJson = {
  * Use `create(ListOrgWorkspacesRequestSchema)` to create a new message.
  */
 export const ListOrgWorkspacesRequestSchema: GenMessage<ListOrgWorkspacesRequest, {jsonType: ListOrgWorkspacesRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 9);
+  messageDesc(file_loco_workspace_v1_workspace, 8);
 
 /**
  * ListOrgWorkspacesResponse contains the list of workspaces.
@@ -618,7 +557,7 @@ export type ListOrgWorkspacesResponseJson = {
  * Use `create(ListOrgWorkspacesResponseSchema)` to create a new message.
  */
 export const ListOrgWorkspacesResponseSchema: GenMessage<ListOrgWorkspacesResponse, {jsonType: ListOrgWorkspacesResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 10);
+  messageDesc(file_loco_workspace_v1_workspace, 9);
 
 /**
  * UpdateWorkspaceRequest is the request to update a workspace.
@@ -669,7 +608,7 @@ export type UpdateWorkspaceRequestJson = {
  * Use `create(UpdateWorkspaceRequestSchema)` to create a new message.
  */
 export const UpdateWorkspaceRequestSchema: GenMessage<UpdateWorkspaceRequest, {jsonType: UpdateWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 11);
+  messageDesc(file_loco_workspace_v1_workspace, 10);
 
 /**
  * UpdateWorkspaceResponse is the response containing the updated workspace ID.
@@ -700,7 +639,7 @@ export type UpdateWorkspaceResponseJson = {
  * Use `create(UpdateWorkspaceResponseSchema)` to create a new message.
  */
 export const UpdateWorkspaceResponseSchema: GenMessage<UpdateWorkspaceResponse, {jsonType: UpdateWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 12);
+  messageDesc(file_loco_workspace_v1_workspace, 11);
 
 /**
  * DeleteWorkspaceRequest is the request to delete a workspace.
@@ -741,7 +680,7 @@ export type DeleteWorkspaceRequestJson = {
  * Use `create(DeleteWorkspaceRequestSchema)` to create a new message.
  */
 export const DeleteWorkspaceRequestSchema: GenMessage<DeleteWorkspaceRequest, {jsonType: DeleteWorkspaceRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 13);
+  messageDesc(file_loco_workspace_v1_workspace, 12);
 
 /**
  * DeleteWorkspaceResponse is the response after deleting a workspace.
@@ -764,7 +703,7 @@ export type DeleteWorkspaceResponseJson = {
  * Use `create(DeleteWorkspaceResponseSchema)` to create a new message.
  */
 export const DeleteWorkspaceResponseSchema: GenMessage<DeleteWorkspaceResponse, {jsonType: DeleteWorkspaceResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 14);
+  messageDesc(file_loco_workspace_v1_workspace, 13);
 
 /**
  * CreateMemberRequest is the request to add a member to a workspace.
@@ -815,7 +754,7 @@ export type CreateMemberRequestJson = {
  * Use `create(CreateMemberRequestSchema)` to create a new message.
  */
 export const CreateMemberRequestSchema: GenMessage<CreateMemberRequest, {jsonType: CreateMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 15);
+  messageDesc(file_loco_workspace_v1_workspace, 14);
 
 /**
  * CreateMemberResponse is the response containing the workspace and user IDs.
@@ -856,7 +795,7 @@ export type CreateMemberResponseJson = {
  * Use `create(CreateMemberResponseSchema)` to create a new message.
  */
 export const CreateMemberResponseSchema: GenMessage<CreateMemberResponse, {jsonType: CreateMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 16);
+  messageDesc(file_loco_workspace_v1_workspace, 15);
 
 /**
  * DeleteMemberRequest is the request to remove a member from a workspace.
@@ -897,7 +836,7 @@ export type DeleteMemberRequestJson = {
  * Use `create(DeleteMemberRequestSchema)` to create a new message.
  */
 export const DeleteMemberRequestSchema: GenMessage<DeleteMemberRequest, {jsonType: DeleteMemberRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 17);
+  messageDesc(file_loco_workspace_v1_workspace, 16);
 
 /**
  * DeleteMemberResponse is the response after removing a member from a workspace.
@@ -920,7 +859,7 @@ export type DeleteMemberResponseJson = {
  * Use `create(DeleteMemberResponseSchema)` to create a new message.
  */
 export const DeleteMemberResponseSchema: GenMessage<DeleteMemberResponse, {jsonType: DeleteMemberResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 18);
+  messageDesc(file_loco_workspace_v1_workspace, 17);
 
 /**
  * ListWorkspaceMembersRequest is the request to list members of a workspace.
@@ -979,7 +918,7 @@ export type ListWorkspaceMembersRequestJson = {
  * Use `create(ListWorkspaceMembersRequestSchema)` to create a new message.
  */
 export const ListWorkspaceMembersRequestSchema: GenMessage<ListWorkspaceMembersRequest, {jsonType: ListWorkspaceMembersRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 19);
+  messageDesc(file_loco_workspace_v1_workspace, 18);
 
 /**
  * ListWorkspaceMembersResponse contains the list of workspace members.
@@ -1024,7 +963,7 @@ export type ListWorkspaceMembersResponseJson = {
  * Use `create(ListWorkspaceMembersResponseSchema)` to create a new message.
  */
 export const ListWorkspaceMembersResponseSchema: GenMessage<ListWorkspaceMembersResponse, {jsonType: ListWorkspaceMembersResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_workspace_v1_workspace, 20);
+  messageDesc(file_loco_workspace_v1_workspace, 19);
 
 /**
  * WorkspaceService manages workspaces and their members.

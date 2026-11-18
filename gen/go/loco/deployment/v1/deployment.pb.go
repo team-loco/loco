@@ -185,112 +185,6 @@ func (DeploymentMethod) EnumDescriptor() ([]byte, []int) {
 	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{2}
 }
 
-// Port defines a network port configuration.
-type Port struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Port          int32                  `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
-	Protocol      string                 `protobuf:"bytes,2,opt,name=protocol,proto3" json:"protocol,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Port) Reset() {
-	*x = Port{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Port) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Port) ProtoMessage() {}
-
-func (x *Port) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Port.ProtoReflect.Descriptor instead.
-func (*Port) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *Port) GetPort() int32 {
-	if x != nil {
-		return x.Port
-	}
-	return 0
-}
-
-func (x *Port) GetProtocol() string {
-	if x != nil {
-		return x.Protocol
-	}
-	return ""
-}
-
-// ResourceSpec defines CPU and memory resource constraints.
-type ResourceSpec struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cpu           *string                `protobuf:"bytes,1,opt,name=cpu,proto3,oneof" json:"cpu,omitempty"`
-	Memory        *string                `protobuf:"bytes,2,opt,name=memory,proto3,oneof" json:"memory,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ResourceSpec) Reset() {
-	*x = ResourceSpec{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceSpec) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceSpec) ProtoMessage() {}
-
-func (x *ResourceSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceSpec.ProtoReflect.Descriptor instead.
-func (*ResourceSpec) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *ResourceSpec) GetCpu() string {
-	if x != nil && x.Cpu != nil {
-		return *x.Cpu
-	}
-	return ""
-}
-
-func (x *ResourceSpec) GetMemory() string {
-	if x != nil && x.Memory != nil {
-		return *x.Memory
-	}
-	return ""
-}
-
 // HealthCheckConfig defines health check parameters.
 type HealthCheckConfig struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
@@ -305,7 +199,7 @@ type HealthCheckConfig struct {
 
 func (x *HealthCheckConfig) Reset() {
 	*x = HealthCheckConfig{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[2]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -317,7 +211,7 @@ func (x *HealthCheckConfig) String() string {
 func (*HealthCheckConfig) ProtoMessage() {}
 
 func (x *HealthCheckConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[2]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -330,7 +224,7 @@ func (x *HealthCheckConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckConfig.ProtoReflect.Descriptor instead.
 func (*HealthCheckConfig) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{2}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *HealthCheckConfig) GetPath() string {
@@ -380,7 +274,7 @@ type Scalers struct {
 
 func (x *Scalers) Reset() {
 	*x = Scalers{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[3]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -392,7 +286,7 @@ func (x *Scalers) String() string {
 func (*Scalers) ProtoMessage() {}
 
 func (x *Scalers) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[3]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +299,7 @@ func (x *Scalers) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Scalers.ProtoReflect.Descriptor instead.
 func (*Scalers) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{3}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Scalers) GetEnabled() bool {
@@ -441,7 +335,7 @@ type BuildSource struct {
 
 func (x *BuildSource) Reset() {
 	*x = BuildSource{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[4]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +347,7 @@ func (x *BuildSource) String() string {
 func (*BuildSource) ProtoMessage() {}
 
 func (x *BuildSource) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[4]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +360,7 @@ func (x *BuildSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BuildSource.ProtoReflect.Descriptor instead.
 func (*BuildSource) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{4}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BuildSource) GetType() string {
@@ -501,7 +395,7 @@ type ObservabilityConfig struct {
 
 func (x *ObservabilityConfig) Reset() {
 	*x = ObservabilityConfig{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[5]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -513,7 +407,7 @@ func (x *ObservabilityConfig) String() string {
 func (*ObservabilityConfig) ProtoMessage() {}
 
 func (x *ObservabilityConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[5]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -526,7 +420,7 @@ func (x *ObservabilityConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservabilityConfig.ProtoReflect.Descriptor instead.
 func (*ObservabilityConfig) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{5}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ObservabilityConfig) GetInjectOtel() bool {
@@ -567,7 +461,7 @@ type ServiceDeploymentSpec struct {
 
 func (x *ServiceDeploymentSpec) Reset() {
 	*x = ServiceDeploymentSpec{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[6]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +473,7 @@ func (x *ServiceDeploymentSpec) String() string {
 func (*ServiceDeploymentSpec) ProtoMessage() {}
 
 func (x *ServiceDeploymentSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[6]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +486,7 @@ func (x *ServiceDeploymentSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceDeploymentSpec.ProtoReflect.Descriptor instead.
 func (*ServiceDeploymentSpec) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{6}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ServiceDeploymentSpec) GetBuild() *BuildSource {
@@ -711,7 +605,7 @@ type ServiceRouting struct {
 
 func (x *ServiceRouting) Reset() {
 	*x = ServiceRouting{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[7]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +617,7 @@ func (x *ServiceRouting) String() string {
 func (*ServiceRouting) ProtoMessage() {}
 
 func (x *ServiceRouting) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[7]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +630,7 @@ func (x *ServiceRouting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceRouting.ProtoReflect.Descriptor instead.
 func (*ServiceRouting) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{7}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ServiceRouting) GetPathPrefix() string {
@@ -762,7 +656,7 @@ type DatabaseDeploymentSpec struct {
 
 func (x *DatabaseDeploymentSpec) Reset() {
 	*x = DatabaseDeploymentSpec{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[8]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +668,7 @@ func (x *DatabaseDeploymentSpec) String() string {
 func (*DatabaseDeploymentSpec) ProtoMessage() {}
 
 func (x *DatabaseDeploymentSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[8]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +681,7 @@ func (x *DatabaseDeploymentSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DatabaseDeploymentSpec.ProtoReflect.Descriptor instead.
 func (*DatabaseDeploymentSpec) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{8}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{6}
 }
 
 // CacheDeploymentSpec is the spec of the corresponding resource type.
@@ -799,7 +693,7 @@ type CacheDeploymentSpec struct {
 
 func (x *CacheDeploymentSpec) Reset() {
 	*x = CacheDeploymentSpec{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[9]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +705,7 @@ func (x *CacheDeploymentSpec) String() string {
 func (*CacheDeploymentSpec) ProtoMessage() {}
 
 func (x *CacheDeploymentSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[9]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +718,7 @@ func (x *CacheDeploymentSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CacheDeploymentSpec.ProtoReflect.Descriptor instead.
 func (*CacheDeploymentSpec) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{9}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{7}
 }
 
 // QueueDeploymentSpec is the spec of the corresponding resource type.
@@ -836,7 +730,7 @@ type QueueDeploymentSpec struct {
 
 func (x *QueueDeploymentSpec) Reset() {
 	*x = QueueDeploymentSpec{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[10]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -848,7 +742,7 @@ func (x *QueueDeploymentSpec) String() string {
 func (*QueueDeploymentSpec) ProtoMessage() {}
 
 func (x *QueueDeploymentSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[10]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -861,7 +755,7 @@ func (x *QueueDeploymentSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueueDeploymentSpec.ProtoReflect.Descriptor instead.
 func (*QueueDeploymentSpec) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{10}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{8}
 }
 
 // DeploymentSpec is the immutable runtime snapshot for a deployment.
@@ -881,7 +775,7 @@ type DeploymentSpec struct {
 
 func (x *DeploymentSpec) Reset() {
 	*x = DeploymentSpec{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[11]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +787,7 @@ func (x *DeploymentSpec) String() string {
 func (*DeploymentSpec) ProtoMessage() {}
 
 func (x *DeploymentSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[11]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +800,7 @@ func (x *DeploymentSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeploymentSpec.ProtoReflect.Descriptor instead.
 func (*DeploymentSpec) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{11}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DeploymentSpec) GetSpec() isDeploymentSpec_Spec {
@@ -1014,7 +908,7 @@ type Deployment struct {
 
 func (x *Deployment) Reset() {
 	*x = Deployment{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[12]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +920,7 @@ func (x *Deployment) String() string {
 func (*Deployment) ProtoMessage() {}
 
 func (x *Deployment) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[12]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +933,7 @@ func (x *Deployment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Deployment.ProtoReflect.Descriptor instead.
 func (*Deployment) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{12}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Deployment) GetId() string {
@@ -1219,7 +1113,7 @@ type CreateDeploymentRequest struct {
 
 func (x *CreateDeploymentRequest) Reset() {
 	*x = CreateDeploymentRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[13]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1231,7 +1125,7 @@ func (x *CreateDeploymentRequest) String() string {
 func (*CreateDeploymentRequest) ProtoMessage() {}
 
 func (x *CreateDeploymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[13]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +1138,7 @@ func (x *CreateDeploymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*CreateDeploymentRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{13}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateDeploymentRequest) GetResourceId() string {
@@ -1300,7 +1194,7 @@ type DeploymentSecretBindings struct {
 
 func (x *DeploymentSecretBindings) Reset() {
 	*x = DeploymentSecretBindings{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[14]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1312,7 +1206,7 @@ func (x *DeploymentSecretBindings) String() string {
 func (*DeploymentSecretBindings) ProtoMessage() {}
 
 func (x *DeploymentSecretBindings) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[14]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1325,7 +1219,7 @@ func (x *DeploymentSecretBindings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeploymentSecretBindings.ProtoReflect.Descriptor instead.
 func (*DeploymentSecretBindings) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{14}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeploymentSecretBindings) GetNames() []string {
@@ -1346,7 +1240,7 @@ type CreateDeploymentResponse struct {
 
 func (x *CreateDeploymentResponse) Reset() {
 	*x = CreateDeploymentResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[15]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1358,7 +1252,7 @@ func (x *CreateDeploymentResponse) String() string {
 func (*CreateDeploymentResponse) ProtoMessage() {}
 
 func (x *CreateDeploymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[15]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1371,7 +1265,7 @@ func (x *CreateDeploymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateDeploymentResponse.ProtoReflect.Descriptor instead.
 func (*CreateDeploymentResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{15}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateDeploymentResponse) GetDeploymentId() string {
@@ -1398,7 +1292,7 @@ type GetDeploymentRequest struct {
 
 func (x *GetDeploymentRequest) Reset() {
 	*x = GetDeploymentRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[16]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1410,7 +1304,7 @@ func (x *GetDeploymentRequest) String() string {
 func (*GetDeploymentRequest) ProtoMessage() {}
 
 func (x *GetDeploymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[16]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1423,7 +1317,7 @@ func (x *GetDeploymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*GetDeploymentRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{16}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetDeploymentRequest) GetDeploymentId() string {
@@ -1443,7 +1337,7 @@ type GetDeploymentResponse struct {
 
 func (x *GetDeploymentResponse) Reset() {
 	*x = GetDeploymentResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[17]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1455,7 +1349,7 @@ func (x *GetDeploymentResponse) String() string {
 func (*GetDeploymentResponse) ProtoMessage() {}
 
 func (x *GetDeploymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[17]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1468,7 +1362,7 @@ func (x *GetDeploymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDeploymentResponse.ProtoReflect.Descriptor instead.
 func (*GetDeploymentResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{17}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetDeploymentResponse) GetDeployment() *Deployment {
@@ -1495,7 +1389,7 @@ type ListDeploymentsRequest struct {
 
 func (x *ListDeploymentsRequest) Reset() {
 	*x = ListDeploymentsRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[18]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1507,7 +1401,7 @@ func (x *ListDeploymentsRequest) String() string {
 func (*ListDeploymentsRequest) ProtoMessage() {}
 
 func (x *ListDeploymentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[18]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1520,7 +1414,7 @@ func (x *ListDeploymentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDeploymentsRequest.ProtoReflect.Descriptor instead.
 func (*ListDeploymentsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{18}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListDeploymentsRequest) GetResourceId() string {
@@ -1583,7 +1477,7 @@ type ListDeploymentsResponse struct {
 
 func (x *ListDeploymentsResponse) Reset() {
 	*x = ListDeploymentsResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[19]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1595,7 +1489,7 @@ func (x *ListDeploymentsResponse) String() string {
 func (*ListDeploymentsResponse) ProtoMessage() {}
 
 func (x *ListDeploymentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[19]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1608,7 +1502,7 @@ func (x *ListDeploymentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDeploymentsResponse.ProtoReflect.Descriptor instead.
 func (*ListDeploymentsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{19}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListDeploymentsResponse) GetDeployments() []*Deployment {
@@ -1647,7 +1541,7 @@ type Replica struct {
 
 func (x *Replica) Reset() {
 	*x = Replica{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1659,7 +1553,7 @@ func (x *Replica) String() string {
 func (*Replica) ProtoMessage() {}
 
 func (x *Replica) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1672,7 +1566,7 @@ func (x *Replica) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Replica.ProtoReflect.Descriptor instead.
 func (*Replica) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{20}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Replica) GetUid() string {
@@ -1772,7 +1666,7 @@ type Problem struct {
 
 func (x *Problem) Reset() {
 	*x = Problem{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1784,7 +1678,7 @@ func (x *Problem) String() string {
 func (*Problem) ProtoMessage() {}
 
 func (x *Problem) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1797,7 +1691,7 @@ func (x *Problem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Problem.ProtoReflect.Descriptor instead.
 func (*Problem) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{21}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *Problem) GetReason() string {
@@ -1849,7 +1743,7 @@ type Activity struct {
 
 func (x *Activity) Reset() {
 	*x = Activity{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1861,7 +1755,7 @@ func (x *Activity) String() string {
 func (*Activity) ProtoMessage() {}
 
 func (x *Activity) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1874,7 +1768,7 @@ func (x *Activity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Activity.ProtoReflect.Descriptor instead.
 func (*Activity) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{22}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *Activity) GetSeq() int64 {
@@ -1929,7 +1823,7 @@ type WatchDeploymentRequest struct {
 
 func (x *WatchDeploymentRequest) Reset() {
 	*x = WatchDeploymentRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1941,7 +1835,7 @@ func (x *WatchDeploymentRequest) String() string {
 func (*WatchDeploymentRequest) ProtoMessage() {}
 
 func (x *WatchDeploymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1954,7 +1848,7 @@ func (x *WatchDeploymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*WatchDeploymentRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{23}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *WatchDeploymentRequest) GetDeploymentId() string {
@@ -1982,7 +1876,7 @@ type WatchDeploymentResponse struct {
 
 func (x *WatchDeploymentResponse) Reset() {
 	*x = WatchDeploymentResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1994,7 +1888,7 @@ func (x *WatchDeploymentResponse) String() string {
 func (*WatchDeploymentResponse) ProtoMessage() {}
 
 func (x *WatchDeploymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2007,7 +1901,7 @@ func (x *WatchDeploymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchDeploymentResponse.ProtoReflect.Descriptor instead.
 func (*WatchDeploymentResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{24}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *WatchDeploymentResponse) GetDeployment() *Deployment {
@@ -2042,7 +1936,7 @@ type ListDeploymentActivityRequest struct {
 
 func (x *ListDeploymentActivityRequest) Reset() {
 	*x = ListDeploymentActivityRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2054,7 +1948,7 @@ func (x *ListDeploymentActivityRequest) String() string {
 func (*ListDeploymentActivityRequest) ProtoMessage() {}
 
 func (x *ListDeploymentActivityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2067,7 +1961,7 @@ func (x *ListDeploymentActivityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDeploymentActivityRequest.ProtoReflect.Descriptor instead.
 func (*ListDeploymentActivityRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{25}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListDeploymentActivityRequest) GetDeploymentId() string {
@@ -2101,7 +1995,7 @@ type ListDeploymentActivityResponse struct {
 
 func (x *ListDeploymentActivityResponse) Reset() {
 	*x = ListDeploymentActivityResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2113,7 +2007,7 @@ func (x *ListDeploymentActivityResponse) String() string {
 func (*ListDeploymentActivityResponse) ProtoMessage() {}
 
 func (x *ListDeploymentActivityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2126,7 +2020,7 @@ func (x *ListDeploymentActivityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDeploymentActivityResponse.ProtoReflect.Descriptor instead.
 func (*ListDeploymentActivityResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{26}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListDeploymentActivityResponse) GetActivity() []*Activity {
@@ -2153,7 +2047,7 @@ type DeleteDeploymentRequest struct {
 
 func (x *DeleteDeploymentRequest) Reset() {
 	*x = DeleteDeploymentRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[27]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2165,7 +2059,7 @@ func (x *DeleteDeploymentRequest) String() string {
 func (*DeleteDeploymentRequest) ProtoMessage() {}
 
 func (x *DeleteDeploymentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[27]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2178,7 +2072,7 @@ func (x *DeleteDeploymentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDeploymentRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDeploymentRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{27}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DeleteDeploymentRequest) GetDeploymentId() string {
@@ -2197,7 +2091,7 @@ type DeleteDeploymentResponse struct {
 
 func (x *DeleteDeploymentResponse) Reset() {
 	*x = DeleteDeploymentResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[28]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2209,7 +2103,7 @@ func (x *DeleteDeploymentResponse) String() string {
 func (*DeleteDeploymentResponse) ProtoMessage() {}
 
 func (x *DeleteDeploymentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[28]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2222,7 +2116,7 @@ func (x *DeleteDeploymentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDeploymentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDeploymentResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{28}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{26}
 }
 
 type ResolveImageRequest struct {
@@ -2235,7 +2129,7 @@ type ResolveImageRequest struct {
 
 func (x *ResolveImageRequest) Reset() {
 	*x = ResolveImageRequest{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[29]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2247,7 +2141,7 @@ func (x *ResolveImageRequest) String() string {
 func (*ResolveImageRequest) ProtoMessage() {}
 
 func (x *ResolveImageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[29]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2260,7 +2154,7 @@ func (x *ResolveImageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveImageRequest.ProtoReflect.Descriptor instead.
 func (*ResolveImageRequest) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{29}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ResolveImageRequest) GetWorkspaceId() string {
@@ -2286,7 +2180,7 @@ type ResolveImageResponse struct {
 
 func (x *ResolveImageResponse) Reset() {
 	*x = ResolveImageResponse{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[30]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2298,7 +2192,7 @@ func (x *ResolveImageResponse) String() string {
 func (*ResolveImageResponse) ProtoMessage() {}
 
 func (x *ResolveImageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[30]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2311,7 +2205,7 @@ func (x *ResolveImageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveImageResponse.ProtoReflect.Descriptor instead.
 func (*ResolveImageResponse) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{30}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ResolveImageResponse) GetImage() string {
@@ -2332,7 +2226,7 @@ type SourceCommit struct {
 
 func (x *SourceCommit) Reset() {
 	*x = SourceCommit{}
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[31]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2344,7 +2238,7 @@ func (x *SourceCommit) String() string {
 func (*SourceCommit) ProtoMessage() {}
 
 func (x *SourceCommit) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[31]
+	mi := &file_loco_deployment_v1_deployment_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2357,7 +2251,7 @@ func (x *SourceCommit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceCommit.ProtoReflect.Descriptor instead.
 func (*SourceCommit) Descriptor() ([]byte, []int) {
-	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{31}
+	return file_loco_deployment_v1_deployment_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SourceCommit) GetSha() string {
@@ -2378,15 +2272,7 @@ var File_loco_deployment_v1_deployment_proto protoreflect.FileDescriptor
 
 const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\n" +
-	"#loco/deployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"6\n" +
-	"\x04Port\x12\x12\n" +
-	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1a\n" +
-	"\bprotocol\x18\x02 \x01(\tR\bprotocol\"U\n" +
-	"\fResourceSpec\x12\x15\n" +
-	"\x03cpu\x18\x01 \x01(\tH\x00R\x03cpu\x88\x01\x01\x12\x1b\n" +
-	"\x06memory\x18\x02 \x01(\tH\x01R\x06memory\x88\x01\x01B\x06\n" +
-	"\x04_cpuB\t\n" +
-	"\a_memory\"\x80\x02\n" +
+	"#loco/deployment/v1/deployment.proto\x12\x12loco.deployment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x02\n" +
 	"\x11HealthCheckConfig\x12\x1b\n" +
 	"\x04path\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04path\x122\n" +
 	"\x15initial_delay_seconds\x18\x02 \x01(\x05R\x13initialDelaySeconds\x122\n" +
@@ -2630,97 +2516,95 @@ func file_loco_deployment_v1_deployment_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_deployment_v1_deployment_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_loco_deployment_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_loco_deployment_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_loco_deployment_v1_deployment_proto_goTypes = []any{
 	(DeploymentStatus)(0),                  // 0: loco.deployment.v1.DeploymentStatus
 	(DeploymentActorType)(0),               // 1: loco.deployment.v1.DeploymentActorType
 	(DeploymentMethod)(0),                  // 2: loco.deployment.v1.DeploymentMethod
-	(*Port)(nil),                           // 3: loco.deployment.v1.Port
-	(*ResourceSpec)(nil),                   // 4: loco.deployment.v1.ResourceSpec
-	(*HealthCheckConfig)(nil),              // 5: loco.deployment.v1.HealthCheckConfig
-	(*Scalers)(nil),                        // 6: loco.deployment.v1.Scalers
-	(*BuildSource)(nil),                    // 7: loco.deployment.v1.BuildSource
-	(*ObservabilityConfig)(nil),            // 8: loco.deployment.v1.ObservabilityConfig
-	(*ServiceDeploymentSpec)(nil),          // 9: loco.deployment.v1.ServiceDeploymentSpec
-	(*ServiceRouting)(nil),                 // 10: loco.deployment.v1.ServiceRouting
-	(*DatabaseDeploymentSpec)(nil),         // 11: loco.deployment.v1.DatabaseDeploymentSpec
-	(*CacheDeploymentSpec)(nil),            // 12: loco.deployment.v1.CacheDeploymentSpec
-	(*QueueDeploymentSpec)(nil),            // 13: loco.deployment.v1.QueueDeploymentSpec
-	(*DeploymentSpec)(nil),                 // 14: loco.deployment.v1.DeploymentSpec
-	(*Deployment)(nil),                     // 15: loco.deployment.v1.Deployment
-	(*CreateDeploymentRequest)(nil),        // 16: loco.deployment.v1.CreateDeploymentRequest
-	(*DeploymentSecretBindings)(nil),       // 17: loco.deployment.v1.DeploymentSecretBindings
-	(*CreateDeploymentResponse)(nil),       // 18: loco.deployment.v1.CreateDeploymentResponse
-	(*GetDeploymentRequest)(nil),           // 19: loco.deployment.v1.GetDeploymentRequest
-	(*GetDeploymentResponse)(nil),          // 20: loco.deployment.v1.GetDeploymentResponse
-	(*ListDeploymentsRequest)(nil),         // 21: loco.deployment.v1.ListDeploymentsRequest
-	(*ListDeploymentsResponse)(nil),        // 22: loco.deployment.v1.ListDeploymentsResponse
-	(*Replica)(nil),                        // 23: loco.deployment.v1.Replica
-	(*Problem)(nil),                        // 24: loco.deployment.v1.Problem
-	(*Activity)(nil),                       // 25: loco.deployment.v1.Activity
-	(*WatchDeploymentRequest)(nil),         // 26: loco.deployment.v1.WatchDeploymentRequest
-	(*WatchDeploymentResponse)(nil),        // 27: loco.deployment.v1.WatchDeploymentResponse
-	(*ListDeploymentActivityRequest)(nil),  // 28: loco.deployment.v1.ListDeploymentActivityRequest
-	(*ListDeploymentActivityResponse)(nil), // 29: loco.deployment.v1.ListDeploymentActivityResponse
-	(*DeleteDeploymentRequest)(nil),        // 30: loco.deployment.v1.DeleteDeploymentRequest
-	(*DeleteDeploymentResponse)(nil),       // 31: loco.deployment.v1.DeleteDeploymentResponse
-	(*ResolveImageRequest)(nil),            // 32: loco.deployment.v1.ResolveImageRequest
-	(*ResolveImageResponse)(nil),           // 33: loco.deployment.v1.ResolveImageResponse
-	(*SourceCommit)(nil),                   // 34: loco.deployment.v1.SourceCommit
-	nil,                                    // 35: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
-	(*timestamppb.Timestamp)(nil),          // 36: google.protobuf.Timestamp
+	(*HealthCheckConfig)(nil),              // 3: loco.deployment.v1.HealthCheckConfig
+	(*Scalers)(nil),                        // 4: loco.deployment.v1.Scalers
+	(*BuildSource)(nil),                    // 5: loco.deployment.v1.BuildSource
+	(*ObservabilityConfig)(nil),            // 6: loco.deployment.v1.ObservabilityConfig
+	(*ServiceDeploymentSpec)(nil),          // 7: loco.deployment.v1.ServiceDeploymentSpec
+	(*ServiceRouting)(nil),                 // 8: loco.deployment.v1.ServiceRouting
+	(*DatabaseDeploymentSpec)(nil),         // 9: loco.deployment.v1.DatabaseDeploymentSpec
+	(*CacheDeploymentSpec)(nil),            // 10: loco.deployment.v1.CacheDeploymentSpec
+	(*QueueDeploymentSpec)(nil),            // 11: loco.deployment.v1.QueueDeploymentSpec
+	(*DeploymentSpec)(nil),                 // 12: loco.deployment.v1.DeploymentSpec
+	(*Deployment)(nil),                     // 13: loco.deployment.v1.Deployment
+	(*CreateDeploymentRequest)(nil),        // 14: loco.deployment.v1.CreateDeploymentRequest
+	(*DeploymentSecretBindings)(nil),       // 15: loco.deployment.v1.DeploymentSecretBindings
+	(*CreateDeploymentResponse)(nil),       // 16: loco.deployment.v1.CreateDeploymentResponse
+	(*GetDeploymentRequest)(nil),           // 17: loco.deployment.v1.GetDeploymentRequest
+	(*GetDeploymentResponse)(nil),          // 18: loco.deployment.v1.GetDeploymentResponse
+	(*ListDeploymentsRequest)(nil),         // 19: loco.deployment.v1.ListDeploymentsRequest
+	(*ListDeploymentsResponse)(nil),        // 20: loco.deployment.v1.ListDeploymentsResponse
+	(*Replica)(nil),                        // 21: loco.deployment.v1.Replica
+	(*Problem)(nil),                        // 22: loco.deployment.v1.Problem
+	(*Activity)(nil),                       // 23: loco.deployment.v1.Activity
+	(*WatchDeploymentRequest)(nil),         // 24: loco.deployment.v1.WatchDeploymentRequest
+	(*WatchDeploymentResponse)(nil),        // 25: loco.deployment.v1.WatchDeploymentResponse
+	(*ListDeploymentActivityRequest)(nil),  // 26: loco.deployment.v1.ListDeploymentActivityRequest
+	(*ListDeploymentActivityResponse)(nil), // 27: loco.deployment.v1.ListDeploymentActivityResponse
+	(*DeleteDeploymentRequest)(nil),        // 28: loco.deployment.v1.DeleteDeploymentRequest
+	(*DeleteDeploymentResponse)(nil),       // 29: loco.deployment.v1.DeleteDeploymentResponse
+	(*ResolveImageRequest)(nil),            // 30: loco.deployment.v1.ResolveImageRequest
+	(*ResolveImageResponse)(nil),           // 31: loco.deployment.v1.ResolveImageResponse
+	(*SourceCommit)(nil),                   // 32: loco.deployment.v1.SourceCommit
+	nil,                                    // 33: loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	(*timestamppb.Timestamp)(nil),          // 34: google.protobuf.Timestamp
 }
 var file_loco_deployment_v1_deployment_proto_depIdxs = []int32{
-	7,  // 0: loco.deployment.v1.ServiceDeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
-	5,  // 1: loco.deployment.v1.ServiceDeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
-	6,  // 2: loco.deployment.v1.ServiceDeploymentSpec.scalers:type_name -> loco.deployment.v1.Scalers
-	35, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
-	10, // 4: loco.deployment.v1.ServiceDeploymentSpec.routing:type_name -> loco.deployment.v1.ServiceRouting
-	8,  // 5: loco.deployment.v1.ServiceDeploymentSpec.observability:type_name -> loco.deployment.v1.ObservabilityConfig
-	9,  // 6: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
-	11, // 7: loco.deployment.v1.DeploymentSpec.database:type_name -> loco.deployment.v1.DatabaseDeploymentSpec
-	12, // 8: loco.deployment.v1.DeploymentSpec.cache:type_name -> loco.deployment.v1.CacheDeploymentSpec
-	13, // 9: loco.deployment.v1.DeploymentSpec.queue:type_name -> loco.deployment.v1.QueueDeploymentSpec
+	5,  // 0: loco.deployment.v1.ServiceDeploymentSpec.build:type_name -> loco.deployment.v1.BuildSource
+	3,  // 1: loco.deployment.v1.ServiceDeploymentSpec.health_check:type_name -> loco.deployment.v1.HealthCheckConfig
+	4,  // 2: loco.deployment.v1.ServiceDeploymentSpec.scalers:type_name -> loco.deployment.v1.Scalers
+	33, // 3: loco.deployment.v1.ServiceDeploymentSpec.env:type_name -> loco.deployment.v1.ServiceDeploymentSpec.EnvEntry
+	8,  // 4: loco.deployment.v1.ServiceDeploymentSpec.routing:type_name -> loco.deployment.v1.ServiceRouting
+	6,  // 5: loco.deployment.v1.ServiceDeploymentSpec.observability:type_name -> loco.deployment.v1.ObservabilityConfig
+	7,  // 6: loco.deployment.v1.DeploymentSpec.service:type_name -> loco.deployment.v1.ServiceDeploymentSpec
+	9,  // 7: loco.deployment.v1.DeploymentSpec.database:type_name -> loco.deployment.v1.DatabaseDeploymentSpec
+	10, // 8: loco.deployment.v1.DeploymentSpec.cache:type_name -> loco.deployment.v1.CacheDeploymentSpec
+	11, // 9: loco.deployment.v1.DeploymentSpec.queue:type_name -> loco.deployment.v1.QueueDeploymentSpec
 	0,  // 10: loco.deployment.v1.Deployment.status:type_name -> loco.deployment.v1.DeploymentStatus
-	36, // 11: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
-	36, // 12: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
-	36, // 13: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
-	36, // 14: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
-	14, // 15: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	34, // 11: loco.deployment.v1.Deployment.created_at:type_name -> google.protobuf.Timestamp
+	34, // 12: loco.deployment.v1.Deployment.started_at:type_name -> google.protobuf.Timestamp
+	34, // 13: loco.deployment.v1.Deployment.completed_at:type_name -> google.protobuf.Timestamp
+	34, // 14: loco.deployment.v1.Deployment.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 15: loco.deployment.v1.Deployment.spec:type_name -> loco.deployment.v1.DeploymentSpec
 	1,  // 16: loco.deployment.v1.Deployment.actor_type:type_name -> loco.deployment.v1.DeploymentActorType
 	2,  // 17: loco.deployment.v1.Deployment.method:type_name -> loco.deployment.v1.DeploymentMethod
-	34, // 18: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
-	24, // 19: loco.deployment.v1.Deployment.problem:type_name -> loco.deployment.v1.Problem
-	23, // 20: loco.deployment.v1.Deployment.replicas:type_name -> loco.deployment.v1.Replica
-	14, // 21: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
-	17, // 22: loco.deployment.v1.CreateDeploymentRequest.secret_bindings:type_name -> loco.deployment.v1.DeploymentSecretBindings
-	34, // 23: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
-	7,  // 24: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
-	15, // 25: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	36, // 26: loco.deployment.v1.ListDeploymentsRequest.since:type_name -> google.protobuf.Timestamp
-	36, // 27: loco.deployment.v1.ListDeploymentsRequest.until:type_name -> google.protobuf.Timestamp
-	15, // 28: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
-	36, // 29: loco.deployment.v1.Replica.state_since:type_name -> google.protobuf.Timestamp
-	36, // 30: loco.deployment.v1.Replica.state_deadline:type_name -> google.protobuf.Timestamp
-	36, // 31: loco.deployment.v1.Problem.since:type_name -> google.protobuf.Timestamp
-	36, // 32: loco.deployment.v1.Activity.at:type_name -> google.protobuf.Timestamp
-	15, // 33: loco.deployment.v1.WatchDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
-	25, // 34: loco.deployment.v1.WatchDeploymentResponse.activity:type_name -> loco.deployment.v1.Activity
-	25, // 35: loco.deployment.v1.ListDeploymentActivityResponse.activity:type_name -> loco.deployment.v1.Activity
-	16, // 36: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
-	19, // 37: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
-	21, // 38: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
-	26, // 39: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
-	28, // 40: loco.deployment.v1.DeploymentService.ListDeploymentActivity:input_type -> loco.deployment.v1.ListDeploymentActivityRequest
-	30, // 41: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
-	32, // 42: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
-	18, // 43: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
-	20, // 44: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
-	22, // 45: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
-	27, // 46: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
-	29, // 47: loco.deployment.v1.DeploymentService.ListDeploymentActivity:output_type -> loco.deployment.v1.ListDeploymentActivityResponse
-	31, // 48: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
-	33, // 49: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
+	32, // 18: loco.deployment.v1.Deployment.commit:type_name -> loco.deployment.v1.SourceCommit
+	22, // 19: loco.deployment.v1.Deployment.problem:type_name -> loco.deployment.v1.Problem
+	21, // 20: loco.deployment.v1.Deployment.replicas:type_name -> loco.deployment.v1.Replica
+	12, // 21: loco.deployment.v1.CreateDeploymentRequest.spec:type_name -> loco.deployment.v1.DeploymentSpec
+	15, // 22: loco.deployment.v1.CreateDeploymentRequest.secret_bindings:type_name -> loco.deployment.v1.DeploymentSecretBindings
+	32, // 23: loco.deployment.v1.CreateDeploymentRequest.commit:type_name -> loco.deployment.v1.SourceCommit
+	5,  // 24: loco.deployment.v1.CreateDeploymentResponse.build:type_name -> loco.deployment.v1.BuildSource
+	13, // 25: loco.deployment.v1.GetDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	34, // 26: loco.deployment.v1.ListDeploymentsRequest.since:type_name -> google.protobuf.Timestamp
+	34, // 27: loco.deployment.v1.ListDeploymentsRequest.until:type_name -> google.protobuf.Timestamp
+	13, // 28: loco.deployment.v1.ListDeploymentsResponse.deployments:type_name -> loco.deployment.v1.Deployment
+	34, // 29: loco.deployment.v1.Replica.state_since:type_name -> google.protobuf.Timestamp
+	34, // 30: loco.deployment.v1.Replica.state_deadline:type_name -> google.protobuf.Timestamp
+	34, // 31: loco.deployment.v1.Problem.since:type_name -> google.protobuf.Timestamp
+	34, // 32: loco.deployment.v1.Activity.at:type_name -> google.protobuf.Timestamp
+	13, // 33: loco.deployment.v1.WatchDeploymentResponse.deployment:type_name -> loco.deployment.v1.Deployment
+	23, // 34: loco.deployment.v1.WatchDeploymentResponse.activity:type_name -> loco.deployment.v1.Activity
+	23, // 35: loco.deployment.v1.ListDeploymentActivityResponse.activity:type_name -> loco.deployment.v1.Activity
+	14, // 36: loco.deployment.v1.DeploymentService.CreateDeployment:input_type -> loco.deployment.v1.CreateDeploymentRequest
+	17, // 37: loco.deployment.v1.DeploymentService.GetDeployment:input_type -> loco.deployment.v1.GetDeploymentRequest
+	19, // 38: loco.deployment.v1.DeploymentService.ListDeployments:input_type -> loco.deployment.v1.ListDeploymentsRequest
+	24, // 39: loco.deployment.v1.DeploymentService.WatchDeployment:input_type -> loco.deployment.v1.WatchDeploymentRequest
+	26, // 40: loco.deployment.v1.DeploymentService.ListDeploymentActivity:input_type -> loco.deployment.v1.ListDeploymentActivityRequest
+	28, // 41: loco.deployment.v1.DeploymentService.DeleteDeployment:input_type -> loco.deployment.v1.DeleteDeploymentRequest
+	30, // 42: loco.deployment.v1.DeploymentService.ResolveImage:input_type -> loco.deployment.v1.ResolveImageRequest
+	16, // 43: loco.deployment.v1.DeploymentService.CreateDeployment:output_type -> loco.deployment.v1.CreateDeploymentResponse
+	18, // 44: loco.deployment.v1.DeploymentService.GetDeployment:output_type -> loco.deployment.v1.GetDeploymentResponse
+	20, // 45: loco.deployment.v1.DeploymentService.ListDeployments:output_type -> loco.deployment.v1.ListDeploymentsResponse
+	25, // 46: loco.deployment.v1.DeploymentService.WatchDeployment:output_type -> loco.deployment.v1.WatchDeploymentResponse
+	27, // 47: loco.deployment.v1.DeploymentService.ListDeploymentActivity:output_type -> loco.deployment.v1.ListDeploymentActivityResponse
+	29, // 48: loco.deployment.v1.DeploymentService.DeleteDeployment:output_type -> loco.deployment.v1.DeleteDeploymentResponse
+	31, // 49: loco.deployment.v1.DeploymentService.ResolveImage:output_type -> loco.deployment.v1.ResolveImageResponse
 	43, // [43:50] is the sub-list for method output_type
 	36, // [36:43] is the sub-list for method input_type
 	36, // [36:36] is the sub-list for extension type_name
@@ -2734,25 +2618,24 @@ func file_loco_deployment_v1_deployment_proto_init() {
 		return
 	}
 	file_loco_deployment_v1_deployment_proto_msgTypes[1].OneofWrappers = []any{}
+	file_loco_deployment_v1_deployment_proto_msgTypes[2].OneofWrappers = []any{}
 	file_loco_deployment_v1_deployment_proto_msgTypes[3].OneofWrappers = []any{}
 	file_loco_deployment_v1_deployment_proto_msgTypes[4].OneofWrappers = []any{}
-	file_loco_deployment_v1_deployment_proto_msgTypes[5].OneofWrappers = []any{}
-	file_loco_deployment_v1_deployment_proto_msgTypes[6].OneofWrappers = []any{}
-	file_loco_deployment_v1_deployment_proto_msgTypes[11].OneofWrappers = []any{
+	file_loco_deployment_v1_deployment_proto_msgTypes[9].OneofWrappers = []any{
 		(*DeploymentSpec_Service)(nil),
 		(*DeploymentSpec_Database)(nil),
 		(*DeploymentSpec_Cache)(nil),
 		(*DeploymentSpec_Queue)(nil),
 	}
-	file_loco_deployment_v1_deployment_proto_msgTypes[12].OneofWrappers = []any{}
-	file_loco_deployment_v1_deployment_proto_msgTypes[20].OneofWrappers = []any{}
+	file_loco_deployment_v1_deployment_proto_msgTypes[10].OneofWrappers = []any{}
+	file_loco_deployment_v1_deployment_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_deployment_v1_deployment_proto_rawDesc), len(file_loco_deployment_v1_deployment_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   33,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
