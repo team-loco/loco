@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/authztest"
 	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
@@ -15,7 +16,7 @@ func TestIntersectPreservesMembershipBetweenSystemPermissions(t *testing.T) {
 	authorizer := authz.New(nil)
 	member := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
-		EntityID:   org1UUID,
+		EntityID:   authztest.Org1,
 		Scope:      queries.ScopeMember,
 	}
 	for _, permissions := range [][2]queries.Scope{

@@ -1,12 +1,10 @@
 package interceptor
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -73,20 +71,11 @@ func TestHandlerErrorsOnTheWire(t *testing.T) {
 			if !ok || failure.Code() != tc.wantCode || failure.Message() != tc.wantMessage {
 				t.Fatalf("wire error = %v, want %s %q", err, tc.wantCode, tc.wantMessage)
 			}
-			if got := strings.Count(logs.String(), "level=ERROR"); got != tc.wantLogs {
-				t.Fatalf("error records = %d, want %d: %s", got, tc.wantLogs, logs)
+			if got := len(logs.atLeast(slog.LevelError)); got != tc.wantLogs {
+				t.Fatalf("error records = %d, want %d", got, tc.wantLogs)
 			}
 		})
 	}
-}
-
-func captureLogs(t *testing.T) *bytes.Buffer {
-	t.Helper()
-	var logs bytes.Buffer
-	previous := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
-	t.Cleanup(func() { slog.SetDefault(previous) })
-	return &logs
 }
 
 func TestPublicHandlerErrorsKeepServerCause(t *testing.T) {

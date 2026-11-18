@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/authztest"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
@@ -30,13 +31,13 @@ func (q *countedOwners) GetWorkspaceOrganizationIDByResourceID(
 
 func TestScopeChecksShareOwners(t *testing.T) {
 	for _, entity := range []queries.Entity{
-		{Type: queries.EntityTypeWorkspace, ID: ws1UUID},
+		{Type: queries.EntityTypeWorkspace, ID: authztest.Workspace1},
 		{Type: queries.EntityTypeResource, ID: res1UUID},
 	} {
 		t.Run(string(entity.Type), func(t *testing.T) {
 			q := &countedOwners{}
 			a := authz.New(q)
-			granted := grantedScopes(t, a, user2UUID)
+			granted := grantedScopes(t, a, authztest.User2)
 			required := []queries.EntityScope{
 				{EntityType: entity.Type, EntityID: entity.ID, Scope: queries.ScopeRead},
 				{EntityType: entity.Type, EntityID: entity.ID, Scope: queries.ScopeWrite},
@@ -60,16 +61,16 @@ func TestScopeChecksShareOwners(t *testing.T) {
 
 func TestScopeCheckDecisions(t *testing.T) {
 	entities := []queries.Entity{
-		{Type: queries.EntityTypeUser, ID: user1UUID},
-		{Type: queries.EntityTypeOrganization, ID: org1UUID},
-		{Type: queries.EntityTypeWorkspace, ID: ws1UUID},
-		{Type: queries.EntityTypeWorkspace, ID: ws3UUID},
+		{Type: queries.EntityTypeUser, ID: authztest.User1},
+		{Type: queries.EntityTypeOrganization, ID: authztest.Org1},
+		{Type: queries.EntityTypeWorkspace, ID: authztest.Workspace1},
+		{Type: queries.EntityTypeWorkspace, ID: authztest.Workspace3},
 		{Type: queries.EntityTypeResource, ID: res1UUID},
 		{Type: queries.EntityTypeResource, ID: res3UUID},
 		{Type: queries.EntityTypeResource, ID: uuid.Nil},
 		{Type: queries.EntityTypeSystem},
 	}
-	for _, user := range []uuid.UUID{user1UUID, user2UUID, user3UUID, user4UUID, user5UUID} {
+	for _, user := range []uuid.UUID{authztest.User1, authztest.User2, authztest.User3, authztest.User4, authztest.User5} {
 		a := authz.New(&fakeQueries{})
 		granted := grantedScopes(t, a, user)
 		for _, entity := range entities {
@@ -106,7 +107,7 @@ func TestScopeCheckDecisions(t *testing.T) {
 func TestScopeChecksDirectGrantsSkipOwners(t *testing.T) {
 	required := []queries.EntityScope{
 		{EntityType: queries.EntityTypeResource, EntityID: res1UUID, Scope: queries.ScopeRead},
-		{EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID, Scope: queries.ScopeWrite},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: authztest.Workspace1, Scope: queries.ScopeWrite},
 	}
 	for _, granted := range [][]queries.EntityScope{required, {
 		{EntityType: queries.EntityTypeSystem, Scope: queries.ScopeRead},

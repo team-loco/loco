@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/authz/authztest"
 	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/tvm"
@@ -45,31 +46,8 @@ func newTestingQueries() *TestingQueries {
 	}
 }
 
-var (
-	user1UUID = uuid.MustParse("01890000-0000-0000-0000-000000000001")
-	user3UUID = uuid.MustParse("01890000-0000-0000-0000-000000000003")
-	org1UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000011")
-)
-
 func (*TestingQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.GetUserScopesRow, error) {
-	switch userID {
-	case user1UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
-		}, nil
-	case user3UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-		}, nil
-	default:
-		return nil, errUnknownUser
-	}
+	return authztest.UserScopes(userID)
 }
 
 // --- Session token mock implementations ---
@@ -182,8 +160,6 @@ func (*TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return 
 
 // --- Test helpers ---
 
-var errUnknownUser = errors.New("unknown test user")
-
 func session(t *testing.T, machine *tvm.VendingMachine, userID uuid.UUID) (string, string) {
 	t.Helper()
 	access, refresh, err := machine.IssueSession(t.Context(), userID, netip.Addr{}, "")
@@ -205,17 +181,17 @@ func testConfig() tvm.Config {
 func TestSessionCarriesLiveUserScopes(t *testing.T) {
 	t.Parallel()
 	machine := tvm.NewVendingMachine(newTestingQueries(), testConfig())
-	access, _ := session(t, machine, user3UUID)
+	access, _ := session(t, machine, authztest.User3)
 	principal, err := machine.GetToken(t.Context(), access)
 	if err != nil {
 		t.Fatalf("get token: %v", err)
 	}
-	if principal.Entity.Type != queries.EntityTypeUser || principal.Entity.ID != user3UUID {
+	if principal.Entity.Type != queries.EntityTypeUser || principal.Entity.ID != authztest.User3 {
 		t.Fatalf("entity = %+v", principal.Entity)
 	}
 	want := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
-		EntityID:   org1UUID,
+		EntityID:   authztest.Org1,
 		Scope:      queries.ScopeWrite,
 	}
 	found := false
@@ -249,7 +225,7 @@ func (rq racingRefreshQueries) RotateSessionToken(
 func TestRefreshRotatesTokens(t *testing.T) {
 	t.Parallel()
 	machine := tvm.NewVendingMachine(newTestingQueries(), testConfig())
-	_, refreshToken := session(t, machine, user1UUID)
+	_, refreshToken := session(t, machine, authztest.User1)
 
 	access, newRefresh, err := machine.Refresh(t.Context(), refreshToken, queries.SessionKindCli)
 	if err != nil {
@@ -270,7 +246,7 @@ func TestRefreshLosingRaceRevokesSession(t *testing.T) {
 	t.Parallel()
 	tq := newTestingQueries()
 	machine := tvm.NewVendingMachine(racingRefreshQueries{tq}, testConfig())
-	_, refreshToken := session(t, machine, user1UUID)
+	_, refreshToken := session(t, machine, authztest.User1)
 
 	if _, _, err := machine.Refresh(
 		t.Context(), refreshToken, queries.SessionKindCli,

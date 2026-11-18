@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/authz"
+	"github.com/team-loco/loco/api/authz/authztest"
 	"github.com/team-loco/loco/api/db/dbtest"
 	queries "github.com/team-loco/loco/api/gen/db"
 )
@@ -18,75 +19,23 @@ type fakeQueries struct {
 	queries.Querier
 }
 
-var errUnknownUser = errors.New("unknown test user")
-
 var (
-	user1UUID = uuid.MustParse("01890000-0000-0000-0000-000000000001")
-	user2UUID = uuid.MustParse("01890000-0000-0000-0000-000000000002")
-	user3UUID = uuid.MustParse("01890000-0000-0000-0000-000000000003")
-	user4UUID = uuid.MustParse("01890000-0000-0000-0000-000000000004")
-	user5UUID = uuid.MustParse("01890000-0000-0000-0000-000000000005")
-	org1UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000011")
-	org2UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000012")
-	ws1UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000021")
-	ws2UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000022")
-	ws3UUID   = uuid.MustParse("01890000-0000-0000-0000-000000000023")
-	res1UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000031")
-	res2UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000032")
-	res3UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000033")
+	org2UUID = uuid.MustParse("01890000-0000-0000-0000-000000000012")
+	ws2UUID  = uuid.MustParse("01890000-0000-0000-0000-000000000022")
+	res1UUID = uuid.MustParse("01890000-0000-0000-0000-000000000031")
+	res2UUID = uuid.MustParse("01890000-0000-0000-0000-000000000032")
+	res3UUID = uuid.MustParse("01890000-0000-0000-0000-000000000033")
 )
 
 func (*fakeQueries) GetUserScopes(_ context.Context, userID uuid.UUID) ([]queries.GetUserScopesRow, error) {
-	switch userID {
-	case user1UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user1UUID},
-		}, nil
-	case user2UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user2UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-		}, nil
-	case user3UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user3UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeOrganization, EntityID: org1UUID},
-		}, nil
-	case user4UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user4UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID},
-		}, nil
-	case user5UUID:
-		return []queries.GetUserScopesRow{
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeUser, EntityID: user5UUID},
-			{Scope: queries.ScopeRead, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
-			{Scope: queries.ScopeWrite, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
-			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID},
-		}, nil
-	default:
-		return nil, errUnknownUser
-	}
+	return authztest.UserScopes(userID)
 }
 
 func (*fakeQueries) GetOrganizationIDByWorkspaceID(_ context.Context, id uuid.UUID) (uuid.UUID, error) {
-	if id == ws1UUID || id == ws2UUID {
-		return org1UUID, nil
+	if id == authztest.Workspace1 || id == ws2UUID {
+		return authztest.Org1, nil
 	}
-	if id == ws3UUID {
+	if id == authztest.Workspace3 {
 		return org2UUID, nil
 	}
 	return uuid.UUID{}, pgx.ErrNoRows
@@ -98,19 +47,19 @@ func (*fakeQueries) GetWorkspaceOrganizationIDByResourceID(
 ) (queries.GetWorkspaceOrganizationIDByResourceIDRow, error) {
 	if id == res1UUID {
 		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
-			WorkspaceID: ws1UUID,
-			OrgID:       org1UUID,
+			WorkspaceID: authztest.Workspace1,
+			OrgID:       authztest.Org1,
 		}, nil
 	}
 	if id == res2UUID {
 		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
 			WorkspaceID: ws2UUID,
-			OrgID:       org1UUID,
+			OrgID:       authztest.Org1,
 		}, nil
 	}
 	if id == res3UUID {
 		return queries.GetWorkspaceOrganizationIDByResourceIDRow{
-			WorkspaceID: ws3UUID,
+			WorkspaceID: authztest.Workspace3,
 			OrgID:       org2UUID,
 		}, nil
 	}
@@ -129,12 +78,12 @@ func grantedScopes(t *testing.T, a *authz.Authorizer, userID uuid.UUID) []querie
 // user 1 has only self read/write/admin
 func TestUser1Permissions(t *testing.T) {
 	a := authz.New(&fakeQueries{})
-	granted := grantedScopes(t, a, user1UUID)
+	granted := grantedScopes(t, a, authztest.User1)
 
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -145,7 +94,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("denied workspace 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws1UUID,
+			EntityID:   authztest.Workspace1,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -156,7 +105,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("granted self read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   user1UUID,
+			EntityID:   authztest.User1,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -167,7 +116,7 @@ func TestUser1Permissions(t *testing.T) {
 	t.Run("denied other user read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeUser,
-			EntityID:   user2UUID,
+			EntityID:   authztest.User2,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -179,12 +128,12 @@ func TestUser1Permissions(t *testing.T) {
 // user 2 has org 1 r, w, a
 func TestUser2Permissions(t *testing.T) {
 	a := authz.New(&fakeQueries{})
-	granted := grantedScopes(t, a, user2UUID)
+	granted := grantedScopes(t, a, authztest.User2)
 
 	t.Run("granted org 1 admin", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
@@ -195,7 +144,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("granted org 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -217,7 +166,7 @@ func TestUser2Permissions(t *testing.T) {
 	t.Run("denied workspace 3 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws3UUID,
+			EntityID:   authztest.Workspace3,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -262,12 +211,12 @@ func TestUser2Permissions(t *testing.T) {
 // user 3 has org 1 r, w
 func TestUser3Permissions(t *testing.T) {
 	a := authz.New(&fakeQueries{})
-	granted := grantedScopes(t, a, user3UUID)
+	granted := grantedScopes(t, a, authztest.User3)
 
 	t.Run("granted org 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -278,7 +227,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted org 1 write", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -289,7 +238,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("denied org 1 admin", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeAdmin,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -300,7 +249,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("granted workspace 1 write via org 1", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws1UUID,
+			EntityID:   authztest.Workspace1,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -322,7 +271,7 @@ func TestUser3Permissions(t *testing.T) {
 	t.Run("denied workspace 3 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws3UUID,
+			EntityID:   authztest.Workspace3,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -367,12 +316,12 @@ func TestUser3Permissions(t *testing.T) {
 // user 4 has r of ws 1
 func TestUser4Permissions(t *testing.T) {
 	a := authz.New(&fakeQueries{})
-	granted := grantedScopes(t, a, user4UUID)
+	granted := grantedScopes(t, a, authztest.User4)
 
 	t.Run("granted workspace 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws1UUID,
+			EntityID:   authztest.Workspace1,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -383,7 +332,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied workspace 1 write", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws1UUID,
+			EntityID:   authztest.Workspace1,
 			Scope:      queries.ScopeWrite,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -394,7 +343,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied workspace 1 admin", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws1UUID,
+			EntityID:   authztest.Workspace1,
 			Scope:      queries.ScopeAdmin,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -416,7 +365,7 @@ func TestUser4Permissions(t *testing.T) {
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -461,12 +410,12 @@ func TestUser4Permissions(t *testing.T) {
 // user 5 has r, w, a of wks 3
 func TestUser5Permissions(t *testing.T) {
 	a := authz.New(&fakeQueries{})
-	granted := grantedScopes(t, a, user5UUID)
+	granted := grantedScopes(t, a, authztest.User5)
 
 	t.Run("granted workspace 3 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws3UUID,
+			EntityID:   authztest.Workspace3,
 			Scope:      queries.ScopeRead,
 		})
 		if err != nil {
@@ -477,7 +426,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted workspace 3 write", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws3UUID,
+			EntityID:   authztest.Workspace3,
 			Scope:      queries.ScopeWrite,
 		})
 		if err != nil {
@@ -488,7 +437,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("granted workspace 3 admin", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws3UUID,
+			EntityID:   authztest.Workspace3,
 			Scope:      queries.ScopeAdmin,
 		})
 		if err != nil {
@@ -499,7 +448,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied workspace 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeWorkspace,
-			EntityID:   ws1UUID,
+			EntityID:   authztest.Workspace1,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -510,7 +459,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied org 1 read", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeRead,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -543,7 +492,7 @@ func TestUser5Permissions(t *testing.T) {
 	t.Run("denied org 1 admin", func(t *testing.T) {
 		err := a.Check(t.Context(), granted, queries.EntityScope{
 			EntityType: queries.EntityTypeOrganization,
-			EntityID:   org1UUID,
+			EntityID:   authztest.Org1,
 			Scope:      queries.ScopeAdmin,
 		})
 		if !errors.Is(err, authz.ErrInsufficientPermissions) {
@@ -599,12 +548,12 @@ func TestUser5Permissions(t *testing.T) {
 func TestOrgMemberScopeDoesNotCascade(t *testing.T) {
 	a := authz.New(&fakeQueries{})
 	granted := []queries.EntityScope{
-		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeMember},
+		{EntityType: queries.EntityTypeOrganization, EntityID: authztest.Org1, Scope: queries.ScopeMember},
 	}
 	denied := []queries.EntityScope{
-		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeOrganization, EntityID: authztest.Org1, Scope: queries.ScopeRead},
 		{EntityType: queries.EntityTypeOrganization, EntityID: org2UUID, Scope: queries.ScopeMember},
-		{EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: authztest.Workspace1, Scope: queries.ScopeRead},
 		{EntityType: queries.EntityTypeResource, EntityID: res1UUID, Scope: queries.ScopeRead},
 	}
 	for _, required := range denied {
@@ -614,7 +563,7 @@ func TestOrgMemberScopeDoesNotCascade(t *testing.T) {
 	}
 	member := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
-		EntityID:   org1UUID,
+		EntityID:   authztest.Org1,
 		Scope:      queries.ScopeMember,
 	}
 	if err := a.Check(t.Context(), granted, member); err != nil {
@@ -626,11 +575,13 @@ func TestEveryOrgScopeImpliesMembership(t *testing.T) {
 	a := authz.New(&fakeQueries{})
 	member := queries.EntityScope{
 		EntityType: queries.EntityTypeOrganization,
-		EntityID:   org1UUID,
+		EntityID:   authztest.Org1,
 		Scope:      queries.ScopeMember,
 	}
 	for _, scope := range []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin} {
-		granted := []queries.EntityScope{{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: scope}}
+		granted := []queries.EntityScope{
+			{EntityType: queries.EntityTypeOrganization, EntityID: authztest.Org1, Scope: scope},
+		}
 		if err := a.Check(t.Context(), granted, member); err != nil {
 			t.Errorf("org %s denied membership: %v", scope, err)
 		}
@@ -658,17 +609,17 @@ func TestCheckReportsDatabaseFailure(t *testing.T) {
 func TestReadableEntities(t *testing.T) {
 	a := authz.New(nil)
 	granted := []queries.EntityScope{
-		{EntityType: queries.EntityTypeOrganization, EntityID: org1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeOrganization, EntityID: authztest.Org1, Scope: queries.ScopeRead},
 		{EntityType: queries.EntityTypeOrganization, EntityID: org2UUID, Scope: queries.ScopeAdmin},
-		{EntityType: queries.EntityTypeWorkspace, EntityID: ws1UUID, Scope: queries.ScopeRead},
-		{EntityType: queries.EntityTypeWorkspace, EntityID: ws3UUID, Scope: queries.ScopeWrite},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: authztest.Workspace1, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeWorkspace, EntityID: authztest.Workspace3, Scope: queries.ScopeWrite},
 		{EntityType: queries.EntityTypeResource, EntityID: res1UUID, Scope: queries.ScopeRead},
 		{EntityType: queries.EntityTypeResource, EntityID: uuid.New(), Scope: queries.ScopeMember},
-		{EntityType: queries.EntityTypeUser, EntityID: user1UUID, Scope: queries.ScopeRead},
+		{EntityType: queries.EntityTypeUser, EntityID: authztest.User1, Scope: queries.ScopeRead},
 	}
 	got := a.ReadableEntities(granted)
-	if got.System || !slices.Equal(got.Organizations, []uuid.UUID{org1UUID}) ||
-		!slices.Equal(got.Workspaces, []uuid.UUID{ws1UUID}) ||
+	if got.System || !slices.Equal(got.Organizations, []uuid.UUID{authztest.Org1}) ||
+		!slices.Equal(got.Workspaces, []uuid.UUID{authztest.Workspace1}) ||
 		!slices.Equal(got.Resources, []uuid.UUID{res1UUID}) {
 		t.Fatalf("readable entities = %+v", got)
 	}
