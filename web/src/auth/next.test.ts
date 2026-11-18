@@ -9,6 +9,7 @@ describe("safeNextPath", () => {
 
 	test.each([
 		["protocol-relative", "//evil.example/x"],
+		["embedded control characters", "/\t/evil.example/x"],
 		["backslash", "/\\evil.example/x"],
 		["inner backslash", "/a\\b"],
 		["scheme", "https://evil.example/x"],

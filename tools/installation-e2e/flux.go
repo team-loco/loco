@@ -212,18 +212,7 @@ func reconcilePlatform(ctx context.Context, path string) error {
 }
 
 func upgradePlatform(ctx context.Context) error {
-	if err := switchRepository(ctx, "/installation/current"); err != nil {
-		return err
-	}
-	return activateHeadCLI()
-}
-
-func activateHeadCLI() error {
-	active, err := exec.LookPath(locoadmExecutable)
-	if err != nil {
-		return err
-	}
-	return os.Rename(filepath.Join(filepath.Dir(active), "locoadm-head"), active)
+	return switchRepository(ctx, "/installation/current")
 }
 
 func switchRepository(ctx context.Context, path string) error {

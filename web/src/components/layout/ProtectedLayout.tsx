@@ -12,9 +12,7 @@ import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
 import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
-import { whoAmI } from "@gen/loco/user/v1/user-UserService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
-import { Code, ConnectError } from "@connectrpc/connect";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
@@ -26,10 +24,9 @@ interface ProtectedLayoutProps {
 
 export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 	const { orgId: orgParam, workspaceId: workspaceParam } = useParams();
-	const { pathname, search } = useLocation();
+	const { pathname, search, hash } = useLocation();
 	const transport = useTransport();
-	const { user, signedOut } = useAuth();
-	const { isPending, error } = useQuery(whoAmI, {}, { enabled: !signedOut });
+	const { user, signedOut, isPending, error } = useAuth();
 
 	const { data: orgsRes } = useQuery(listUserOrgs, { userId: user?.id ?? "" }, { enabled: !!user });
 	const orgs = orgsRes?.orgs;
@@ -66,10 +63,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 			scopes.scopes,
 		);
 
-	const unauthenticated = error instanceof ConnectError && error.code === Code.Unauthenticated;
-
-	if (signedOut || unauthenticated) {
-		return <Navigate to="/login" replace state={nextPathState(pathname + search)} />;
+	if (signedOut) {
+		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
 	}
 
 	if (isPending) {

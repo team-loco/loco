@@ -235,15 +235,7 @@ def check_scoped_user(browser):
 
         def route_request(route, *, recorded=recorded, scene=scene):
             url = urllib.parse.urlparse(route.request.url)
-            if url.path == "/runtime-config.js":
-                route.fulfill(
-                    content_type="application/javascript",
-                    body="window.locoConfig=" + json.dumps({"apiURL": origin}) + ";",
-                )
-                return
-            if url.path == "/dex/.well-known/openid-configuration":
-                route.fulfill(json=evidence.discovery_document(origin + "/dex"))
-                return
+            url = url._replace(path=url.path.removeprefix("/api"))
             if not url.path.startswith("/loco."):
                 route.continue_()
                 return
@@ -271,13 +263,9 @@ def check_scoped_user(browser):
                         },
                     )
                 return
-            response = route.fetch(url=state["api_url"] + url.path)
+            response = route.fetch()
             recorded.append({"method": method, "body": body, "status": response.status})
-            if method == "GetConfig":
-                config = response.json()
-                config["auth"]["issuer"] = origin + "/dex"
-                route.fulfill(response=response, json=config)
-            elif (
+            if (
                 method == "ListEvents"
                 and scene in ("resource", "events")
                 and body.get("environmentId")
@@ -386,15 +374,7 @@ with session(out) as browser:
 
         def route_request(route, *, mode=mode, held=held, recorded=recorded):
             url = urllib.parse.urlparse(route.request.url)
-            if url.path == "/runtime-config.js":
-                route.fulfill(
-                    content_type="application/javascript",
-                    body="window.locoConfig=" + json.dumps({"apiURL": origin}) + ";",
-                )
-                return
-            if url.path == "/dex/.well-known/openid-configuration":
-                route.fulfill(json=evidence.discovery_document(origin + "/dex"))
-                return
+            url = url._replace(path=url.path.removeprefix("/api"))
             if url.path.startswith("/loco."):
                 method = url.path.rsplit("/", 1)[-1]
                 assert method.startswith(("Get", "List", "WhoAmI", "Query")), method
@@ -423,16 +403,11 @@ with session(out) as browser:
                         },
                     )
                     return
-                response = route.fetch(url=state["api_url"] + url.path)
+                response = route.fetch()
                 recorded.append(
                     {"method": method, "body": body, "status": response.status}
                 )
-                if method == "GetConfig":
-                    config = response.json()
-                    config["auth"]["issuer"] = origin + "/dex"
-                    route.fulfill(response=response, json=config)
-                else:
-                    route.fulfill(response=response)
+                route.fulfill(response=response)
                 return
             route.continue_()
 

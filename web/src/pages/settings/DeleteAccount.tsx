@@ -5,7 +5,7 @@ import type { User } from "@gen/loco/user/v1/user_pb";
 import { TokenSchema, type Token } from "@gen/loco/token/v1/token_pb";
 import { keepPreviousData, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { toast } from "sonner";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -25,7 +25,6 @@ const TOKEN_PAGE_SIZE = 10;
 
 export function DeleteAccount({ user }: { user: User }) {
 	const { logout } = useAuth();
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [pages, setPages] = useState([""]);
 	const impact = useQuery(
@@ -60,8 +59,7 @@ export function DeleteAccount({ user }: { user: User }) {
 				onSuccess: () => {
 					toast.success("Account deleted");
 					setDeleteOpen(false);
-					void logout();
-					void navigate("/login", { replace: true });
+					void logout("/login");
 				},
 				onError: (err) => {
 					setError(getErrorMessage(err, "Failed to delete account"));

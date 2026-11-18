@@ -11,11 +11,11 @@ from playwright.sync_api import sync_playwright
 repo = Path(__file__).resolve().parents[2]
 
 
-def load_state(args, name, scenario):
+def load_state(args, name, scenario, *, issuer=None):
     os.chdir(repo)
     if args.state is None:
         args.state = evidence.start_state(
-            ref="HEAD", name=name, scenario=repo / scenario
+            ref="HEAD", name=name, scenario=repo / scenario, issuer=issuer
         )
         print("Preview state:", args.state, flush=True)
         if not getattr(args, "keep", False):
@@ -23,21 +23,6 @@ def load_state(args, name, scenario):
                 lambda: evidence.stop_state(evidence.load_state(args.state))
             )
     return evidence.load_state(args.state)
-
-
-def authenticate(context, token, storage=None):
-    values = {evidence.MODE_KEY: "light", **(storage or {})}
-    if token is not None:
-        values[evidence.AUTH_KEY] = json.dumps(
-            {
-                "idToken": token,
-                "refreshToken": None,
-                "expiresAt": evidence.SESSION_EXPIRY_MS,
-            }
-        )
-    context.add_init_script(
-        f"for (const [key, value] of Object.entries({json.dumps(values)})) localStorage.setItem(key, value);"
-    )
 
 
 @contextlib.contextmanager
@@ -74,8 +59,11 @@ def open_page(
     }
     context = browser.new_context(**options)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
-    authenticate(
-        context, None if user is None else state["users"][user]["token"], storage
+    if user is not None:
+        evidence.authenticate(context, state, state["users"][user]["token"])
+    values = {evidence.MODE_KEY: "light", **(storage or {})}
+    context.add_init_script(
+        f"for (const [key, value] of Object.entries({json.dumps(values)})) localStorage.setItem(key, value);"
     )
     page = context.new_page()
     errors = []

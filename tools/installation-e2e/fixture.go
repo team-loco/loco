@@ -212,11 +212,9 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	); checkErr != nil {
 		return checkErr
 	}
-	for source, destination := range map[string]string{"locoadm-baseline": "locoadm", "locoadm": "locoadm-head"} {
-		if _, err := command(ctx, f.root, nil, "kubectl", "-n", fixtureNamespace, "cp",
-			filepath.Join(f.dir, source), "operator:/usr/local/bin/"+destination); err != nil {
-			return err
-		}
+	if _, err := command(ctx, f.root, nil, "kubectl", "-n", fixtureNamespace, "cp",
+		filepath.Join(f.dir, "locoadm"), "operator:/usr/local/bin/locoadm"); err != nil {
+		return err
 	}
 	fmt.Println("Running public operator and application workflow")
 	return f.runOperator(ctx)

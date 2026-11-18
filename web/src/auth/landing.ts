@@ -12,13 +12,17 @@ import { hasOrganizationMembership } from "@/hooks/useMyScopes";
 import { pageImporters } from "@/lib/lazy-pages";
 import { workspacePath } from "@/lib/routes";
 
-import { takeNextPath } from "./next";
-
-export async function landingPath(transport: Transport, queryClient: QueryClient): Promise<string> {
-	const { user } = await queryClient.query(createQueryOptions(whoAmI, {}, { transport }));
+export async function landingPath(
+	transport: Transport,
+	queryClient: QueryClient,
+	next: string | null,
+): Promise<string> {
+	const { user } = await queryClient.query({
+		...createQueryOptions(whoAmI, {}, { transport }),
+		meta: { persist: false },
+	});
 	if (user === undefined) throw new Error("Your account could not be loaded");
 
-	const next = takeNextPath();
 	const orgs = await callUnaryMethod(transport, listUserOrgs, { userId: user.id, createIfMissing: true });
 	queryClient.setQueryData(
 		createConnectQueryKey({ schema: listUserOrgs, input: { userId: user.id }, transport, cardinality: "finite" }),

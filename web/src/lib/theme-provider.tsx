@@ -32,9 +32,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 	const [color, setColor] = useState<ColorTheme>(readColorTheme);
 	const systemDark = useSyncExternalStore(subscribeSystemTheme, systemPrefersDark);
 	const { pathname } = useLocation();
-	const { signedOut } = useAuth();
+	const { isAuthenticated } = useAuth();
 	const resolved = resolveMode(mode, systemDark);
-	const page = pageTheme(pathname, !signedOut, resolved, color);
+	const page = pageTheme(pathname, isAuthenticated, resolved, color);
 
 	useLayoutEffect(() => {
 		applyTheme(page.mode, page.color);

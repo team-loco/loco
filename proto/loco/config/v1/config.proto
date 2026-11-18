@@ -15,9 +15,11 @@ service ConfigService {
 message GetConfigRequest {}
 
 message GetConfigResponse {
+  reserved 3;
+  reserved "auth";
+
   DefaultServiceConfig service_defaults = 1;
   string min_cli_version = 2;
-  AuthConfig auth = 3;
   string schema_url = 4;
   repeated OrgLink org_links = 5;
   int64 api_token_max_lifetime_seconds = 6;
@@ -83,12 +85,6 @@ message SizeLimits {
 message OrgLink {
   string label = 1;
   string url = 2;
-}
-
-message AuthConfig {
-  string issuer = 1;
-  string client_id = 2;
-  string scopes = 3;
 }
 
 // DefaultServiceConfig contains default values for service deployments.

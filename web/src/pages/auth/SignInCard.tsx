@@ -13,14 +13,16 @@ export function SignInCard({
 	next,
 	loginHint,
 	error,
+	autoStart = true,
 }: {
 	subtitle?: string | undefined;
 	next: string | null;
 	loginHint: string | null;
 	error: string | null;
+	autoStart?: boolean;
 }) {
 	const { signIn, redirecting, failed } = useSignIn();
-	const automatic = error === null && !failed;
+	const automatic = autoStart && error === null && !failed;
 	const startedRef = useRef(false);
 
 	useEffect(() => {

@@ -12,13 +12,16 @@ export function Login() {
 	const { isAuthenticated, isPending } = useAuth();
 	const [loginHint] = useQueryState("login_hint");
 	const location = useLocation();
+	const error = signInError(location.state);
 
-	if (isAuthenticated) {
+	if (isAuthenticated && loginHint === null && error === null) {
 		return <Navigate to="/dashboard" />;
 	}
 	if (isPending) {
 		return <AppLoading />;
 	}
 
-	return <SignInCard next={nextPathFrom(location.state)} loginHint={loginHint} error={signInError(location.state)} />;
+	return (
+		<SignInCard next={nextPathFrom(location.state)} loginHint={loginHint} error={error} autoStart={!isAuthenticated} />
+	);
 }

@@ -9950,25 +9950,6 @@
         "title": "ResumeClusterResponse",
         "additionalProperties": false
       },
-      "loco.config.v1.AuthConfig": {
-        "type": "object",
-        "properties": {
-          "issuer": {
-            "type": "string",
-            "title": "issuer"
-          },
-          "clientId": {
-            "type": "string",
-            "title": "client_id"
-          },
-          "scopes": {
-            "type": "string",
-            "title": "scopes"
-          }
-        },
-        "title": "AuthConfig",
-        "additionalProperties": false
-      },
       "loco.config.v1.CountLimits": {
         "type": "object",
         "properties": {
@@ -10132,10 +10113,6 @@
           "minCliVersion": {
             "type": "string",
             "title": "min_cli_version"
-          },
-          "auth": {
-            "title": "auth",
-            "$ref": "#/components/schemas/loco.config.v1.AuthConfig"
           },
           "schemaUrl": {
             "type": "string",

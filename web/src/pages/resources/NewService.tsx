@@ -340,7 +340,7 @@ function DraftPanel({
 		}
 		if (config === undefined || defaults === undefined || regionsQuery.data === undefined) {
 			return (
-				<SheetBody>
+				<SheetBody role="status" aria-label="Loading draft">
 					{Array.from({ length: SKELETON_ROWS }, (_, i) => (
 						<Skeleton key={i} className="h-14 w-full" />
 					))}

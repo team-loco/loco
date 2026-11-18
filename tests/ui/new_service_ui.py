@@ -724,7 +724,7 @@ with session(out) as browser:
                 "service-new-1"
             )
             page.wait_for_function(
-                f"localStorage.getItem({json.dumps(drafts_key)}) === null"
+                f"() => localStorage.getItem({json.dumps(drafts_key)}) === null"
             )
             resource = urlparse(page.url).path.rsplit("/", 1)[-1]
             assert (
