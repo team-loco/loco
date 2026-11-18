@@ -33,16 +33,26 @@ func (s *recordSink) WithAttrs([]slog.Attr) slog.Handler { return s }
 
 func (s *recordSink) WithGroup(string) slog.Handler { return s }
 
-func (s *recordSink) loud() []slog.Record {
+func (s *recordSink) atLeast(level slog.Level) []slog.Record {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var loud []slog.Record
+	var matched []slog.Record
 	for _, r := range s.records {
-		if r.Level >= slog.LevelWarn {
-			loud = append(loud, r)
+		if r.Level >= level {
+			matched = append(matched, r)
 		}
 	}
-	return loud
+	return matched
+}
+
+// captureLogs sends the default logger's records to a sink until the test ends.
+func captureLogs(t *testing.T) *recordSink {
+	t.Helper()
+	sink := &recordSink{}
+	previous := slog.Default()
+	slog.SetDefault(slog.New(sink))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	return sink
 }
 
 func TestFailedAuthenticationIsLoggedOnce(t *testing.T) {
@@ -79,10 +89,7 @@ func TestFailedAuthenticationIsLoggedOnce(t *testing.T) {
 				connect.NewClient(connecthttp.NewTransport(srv.Client(), srv.URL)),
 			)
 
-			sink := &recordSink{}
-			previous := slog.Default()
-			slog.SetDefault(slog.New(sink))
-			t.Cleanup(func() { slog.SetDefault(previous) })
+			sink := captureLogs(t)
 
 			ctx, info := connect.NewClientContext(t.Context())
 			if tc.token != "" {
@@ -92,7 +99,7 @@ func TestFailedAuthenticationIsLoggedOnce(t *testing.T) {
 			if connect.CodeOf(err) != tc.code {
 				t.Fatalf("code = %s (%v), want %s", connect.CodeOf(err), err, tc.code)
 			}
-			loud := sink.loud()
+			loud := sink.atLeast(slog.LevelWarn)
 			if len(loud) != tc.wantCount {
 				for _, r := range loud {
 					t.Logf("%s %s", r.Level, r.Message)
