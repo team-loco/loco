@@ -1026,14 +1026,6 @@ func (o *observed) attributeLogs(t *testing.T) {
 func (o *observed) gatewayMetrics(t *testing.T) {
 	unreadyHost := o.w.Host(unreadyApp)
 	unreadyID := o.w.ResourceID(t, unreadyApp)
-	platform.Eventually(t, routeTimeout, "the gateway to answer 503 for "+unreadyHost, func(ctx context.Context) error {
-		status, err := gatewayStatus(ctx, unreadyHost, "/", "")
-		if err != nil || status != http.StatusServiceUnavailable {
-			return fmt.Errorf("HTTP %d (%w)", status, err)
-		}
-		return nil
-	})
-
 	var app, unready gatewayTraffic
 	platform.Eventually(
 		t,
@@ -1044,7 +1036,6 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 				host, path string
 				status     int
 			}{
-				{o.host, "/status/200", http.StatusOK},
 				{o.host, "/status/200", http.StatusOK},
 				{o.host, "/status/503", http.StatusServiceUnavailable},
 				{unreadyHost, "/", http.StatusServiceUnavailable},
@@ -1062,10 +1053,10 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 				}
 			}
 			var err error
-			if app, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, o.resourceID); err != nil {
+			if app, err = o.queryGatewayTraffic(ctx, o.own, o.resourceID); err != nil {
 				return err
 			}
-			if unready, err = o.queryGatewayTraffic(ctx, o.own, o.w.ID, unreadyID); err != nil {
+			if unready, err = o.queryGatewayTraffic(ctx, o.own, unreadyID); err != nil {
 				return err
 			}
 			if app.requests == 0 || app.errors == 0 || app.bytes == 0 || app.latency == 0 ||
@@ -1080,7 +1071,7 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 			t.Errorf("%s: %.2f errors exceed %.2f requests", what, traffic.errors, traffic.requests)
 		}
 	}
-	if _, err := o.queryGatewayTraffic(t.Context(), o.other, o.w.ID, o.resourceID); connect.CodeOf(err) !=
+	if _, err := o.queryGatewayTraffic(t.Context(), o.other, o.resourceID); connect.CodeOf(err) !=
 		connect.CodePermissionDenied {
 		t.Errorf("the second workspace reading the fixture's gateway traffic: %v, want permission_denied", err)
 	}
@@ -1092,11 +1083,11 @@ const rateAggregation = "rate"
 // and the highest p95 latency.
 type gatewayTraffic struct{ requests, errors, bytes, latency float64 }
 
-// queryGatewayTraffic queries the dashboard's gateway metrics of resourceID in workspace.
+// queryGatewayTraffic queries the dashboard's gateway metrics of resourceID with client.
 func (o *observed) queryGatewayTraffic(
 	ctx context.Context,
 	client *rpc.Clients,
-	workspace, resourceID string,
+	resourceID string,
 ) (gatewayTraffic, error) {
 	var traffic gatewayTraffic
 	for _, metric := range []struct {
@@ -1110,7 +1101,7 @@ func (o *observed) queryGatewayTraffic(
 		{&traffic.latency, "cluster.upstream_rq_time", "p95", nil},
 	} {
 		request := o.metricsRequest(metric.name)
-		request.WorkspaceId, request.ResourceIds = workspace, []string{resourceID}
+		request.ResourceIds = []string{resourceID}
 		request.EnvironmentId, request.Aggregation, request.Attributes =
 			o.tenant.EnvironmentID, metric.aggregation, metric.attributes
 		response, err := client.Observability.QueryMetrics(ctx, request)
