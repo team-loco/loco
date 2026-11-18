@@ -81,7 +81,7 @@ export function TraceDrawer({
 						onHover={setHovered}
 						onPin={setPinned}
 					/>
-					<SheetBody className="gap-4 min-[1100px]:overflow-hidden">
+					<SheetBody className="gap-0 p-0 min-[1100px]:overflow-hidden">
 						{loading && (
 							<div role="status" className="flex min-h-[200px] items-center justify-center gap-2 text-fg3">
 								<Spinner className="size-4" />
@@ -89,23 +89,27 @@ export function TraceDrawer({
 							</div>
 						)}
 						{!loading && error !== null && (
-							<ErrorState
-								error={error}
-								what="this trace"
-								rpc={ObservabilityService.method.getTrace}
-								onRetry={onRetry}
-							/>
+							<div className="px-6 py-5">
+								<ErrorState
+									error={error}
+									what="this trace"
+									rpc={ObservabilityService.method.getTrace}
+									onRetry={onRetry}
+								/>
+							</div>
 						)}
 						{!loading && error === null && trace === undefined && (
-							<EmptyHero
-								art={<ScrollTextIcon className="size-8 text-fg3" />}
-								title="This trace is no longer available"
-								subtitle={`${limits === undefined ? "" : `Traces are kept for ${String(limits.traceRetentionDays)} days. `}It may also have been dropped before it was stored.`}
-							>
-								<Button variant="outline" onClick={onClose}>
-									Back to traces
-								</Button>
-							</EmptyHero>
+							<div className="px-6 py-5">
+								<EmptyHero
+									art={<ScrollTextIcon className="size-8 text-fg3" />}
+									title="This trace is no longer available"
+									subtitle={`${limits === undefined ? "" : `Traces are kept for ${String(limits.traceRetentionDays)} days. `}It may also have been dropped before it was stored.`}
+								>
+									<Button variant="outline" onClick={onClose}>
+										Back to traces
+									</Button>
+								</EmptyHero>
+							</div>
 						)}
 						{trace !== undefined && selected !== undefined && (
 							<TraceLogs

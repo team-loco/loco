@@ -31,11 +31,11 @@ export function errorRateLabel(traces: number, errors: number): string {
 	return `${(rate * PERCENT).toFixed(rate < LOW_RATE && errors > 0 ? 1 : 0)}% errors`;
 }
 
-/** A duration tick label without trailing zeros: 250 ms, 2.5 ms, 1 s. */
+/** A duration tick label without trailing zeros: 250ms, 2.5ms, 1s. */
 export function durationTick(nanos: number): string {
 	return durationLabel(BigInt(Math.round(nanos)))
-		.replace(/(\.\d*?)0+ /, "$1 ")
-		.replace(/\. /, " ");
+		.replace(/(\.\d*?)0+(?=\D)/, "$1")
+		.replace(/\.(?=\D)/, "");
 }
 
 function traceCount(n: number, word: string): string {
@@ -51,7 +51,7 @@ export interface BucketReadout {
 	p95: bigint;
 }
 
-/** "13:05–13:06 · 42 traces · 3 errors · p50 12.00 ms · p95 80.00 ms" */
+/** "13:05–13:06 · 42 traces · 3 errors · p50 12ms · p95 80ms" */
 export function bucketReadout(b: BucketReadout, pref: TimePreferences): string {
 	const clock = (ms: number) =>
 		b.widthSeconds % SECONDS_PER_MINUTE === 0 ? formatHourMinute(ms, pref) : formatClock(ms, false, pref);

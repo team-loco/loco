@@ -424,8 +424,8 @@ with session(out) as browser:
         spans[10]["events"][1]["attributes"]["exception.stacktrace"]
     )
     expect(events.get_by_role("listitem")).to_have_count(2)
-    expect(events.get_by_role("listitem").nth(0)).to_contain_text("+12.40 ms")
-    expect(events.get_by_role("listitem").nth(1)).to_contain_text("+90.00 ms")
+    expect(events.get_by_role("listitem").nth(0)).to_contain_text("+12ms")
+    expect(events.get_by_role("listitem").nth(1)).to_contain_text("+90ms")
     events.get_by_role("button", name="Copy stack trace", exact=True).click()
     assert (
         page.evaluate("navigator.clipboard.readText()")
@@ -930,13 +930,13 @@ with session(out) as browser:
     )
     expect(chart).to_be_visible()
     expect(page.get_by_text("14% errors", exact=True)).to_be_visible()
-    expect(page.get_by_text("360.00 ms", exact=True)).to_be_visible()
+    expect(page.get_by_text("360ms", exact=True)).to_be_visible()
     box = chart.bounding_box()
     chart.hover(position={"x": box["width"] - 2, "y": box["height"] / 2})
     expect(
         page.get_by_text(
             re.compile(
-                r"^\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)? · 5 traces · 1 error · p50 80\.00 ms · p95 360\.00 ms$"
+                r"^\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)? · 5 traces · 1 error · p50 80ms · p95 360ms$"
             )
         )
     ).to_be_visible()
@@ -1168,7 +1168,7 @@ with session(out) as browser:
     ).to_be_visible()
     expect(
         log_rows.get_by_role("button", name="Open log: Trace started")
-    ).to_contain_text("+333 ns")
+    ).to_contain_text("+333ns")
     failing_button = drawer.get_by_role("region", name="Flame graph").get_by_role(
         "button", name=failing
     )

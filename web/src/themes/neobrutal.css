@@ -636,3 +636,7 @@
 	border: 2px solid var(--ink);
 	box-shadow: 3px 3px 0 0 var(--ink);
 }
+
+[data-theme="neobrutal"] [data-slot="trace-header"] {
+	border-bottom: 2px solid var(--ink);
+}

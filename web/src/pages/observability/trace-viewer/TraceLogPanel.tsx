@@ -107,7 +107,7 @@ export function TraceLogPanel({
 				}}
 				className="flex min-h-0 flex-1 flex-col"
 			>
-				<div className="flex flex-wrap items-center min-h-11 gap-2 border-b border-line px-2">
+				<div className="flex min-h-11 flex-wrap items-center gap-2 border-b border-line pr-3 pl-5">
 					<TabsList aria-label="Trace bottom panel" variant="segmented" className="w-auto">
 						<TabsTrigger
 							value="logs"
@@ -200,18 +200,18 @@ export function TraceLogPanel({
 							) : (
 								<section aria-label="Logs in this trace" className="min-w-0">
 									{logs.isLoading && (
-										<p role="status" className="flex items-center gap-2 px-3 text-fg3">
+										<p role="status" className="flex items-center gap-2 px-5 py-3 text-fg3">
 											<Spinner />
 											Loading logs…
 										</p>
 									)}
 									{logs.error !== null && (
-										<p role="alert" className="px-3 text-bad-fg">
+										<p role="alert" className="px-5 py-3 text-bad-fg">
 											{getErrorMessage(logs.error, "Couldn’t load trace logs")}
 										</p>
 									)}
 									{!logs.isLoading && logs.error === null && rows.length === 0 && (
-										<p className="px-3 py-4 text-[12px] text-fg3">
+										<p className="px-5 py-4 text-[12px] text-fg3">
 											{more
 												? "No matching lines among the loaded logs. Open in Logs to search the full trace."
 												: scope === "span"
@@ -245,18 +245,25 @@ export function TraceLogPanel({
 														onOpen(row);
 													}}
 													className={cn(
-														"grid w-full grid-cols-[minmax(0,1fr)_80px_44px] sm:grid-cols-[minmax(90px,128px)_66px_44px_minmax(0,1fr)] items-baseline gap-2 border-b border-line px-3 py-1.5 text-left font-mono text-[11px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+														"grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 pr-3 pl-5 text-left font-mono text-[12px] hover:bg-panel2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:grid-cols-[96px_60px_64px_minmax(72px,104px)_minmax(0,1fr)]",
 														highlighted.has(row.key) && "bg-info/10 shadow-[inset_3px_0_0_var(--info)]",
 													)}
 												>
 													<span className="text-fg3">{formatClock(row.ts, true, timePref)}</span>
 													<span className="text-fg3">+{durationLabel(logOffset(trace, row.entry.timestamp))}</span>
-													<span className={levelStyle(row.level).body}>{LEVEL_LABEL[row.level]}</span>
+													<span
+														className={cn(
+															"inline-flex h-5 w-fit items-center rounded-[5px] px-[7px] font-sans text-[12px]",
+															levelStyle(row.level).badge,
+														)}
+													>
+														{LEVEL_LABEL[row.level]}
+													</span>
+													<span className="col-span-3 flex min-w-0 items-center gap-1.5 font-sans sm:col-span-1">
+														<i className="size-2 shrink-0 rounded-[2px]" style={{ background: row.color }} />
+														<span className="truncate">{row.resourceName}</span>
+													</span>
 													<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
-														<span className="mr-2 inline-flex items-center gap-1 text-fg3">
-															<i className="size-1.5 rounded-full" style={{ background: row.color }} />
-															{row.resourceName}
-														</span>
 														{row.entry.body}
 													</span>
 												</button>
@@ -264,7 +271,7 @@ export function TraceLogPanel({
 										))}
 									</ol>
 									{more && (
-										<Button variant="link" size="sm" onClick={openLogs}>
+										<Button variant="link" size="sm" className="ml-3" onClick={openLogs}>
 											All lines in Logs
 										</Button>
 									)}

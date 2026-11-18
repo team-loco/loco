@@ -30,23 +30,21 @@ describe("trace overview", () => {
 	});
 
 	test("duration ticks drop trailing zeros", () => {
-		expect(durationTick(250e6)).toBe("250 ms");
-		expect(durationTick(2.5e6)).toBe("2.5 ms");
-		expect(durationTick(1e9)).toBe("1 s");
-		expect(durationTick(100)).toBe("100 ns");
+		expect(durationTick(250e6)).toBe("250ms");
+		expect(durationTick(2.5e6)).toBe("2.5ms");
+		expect(durationTick(1e9)).toBe("1s");
+		expect(durationTick(100)).toBe("100ns");
 	});
 
 	test("readout names the bucket, its counts and percentiles", () => {
 		const start = Date.UTC(2026, 10, 15, 13, 5);
 		const utc = { zone: "utc", clock: "24" } as const;
 		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
-		expect(bucketReadout(bucket, utc)).toBe("13:05–13:06 · 42 traces · 3 errors · p50 12.00 ms · p95 80.00 ms");
+		expect(bucketReadout(bucket, utc)).toBe("13:05–13:06 · 42 traces · 3 errors · p50 12ms · p95 80ms");
 		expect(bucketReadout({ ...bucket, widthSeconds: 30, traces: 0, errors: 0 }, utc)).toBe(
 			"13:05:00–13:05:30 · 0 traces",
 		);
-		expect(bucketReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe(
-			"13:05–13:06 · 1 trace · p50 12.00 ms · p95 80.00 ms",
-		);
+		expect(bucketReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe("13:05–13:06 · 1 trace · p50 12ms · p95 80ms");
 		expect(bucketReadout(bucket, { zone: "utc", clock: "12" })).toStartWith("1:05 PM–1:06 PM · ");
 	});
 });
