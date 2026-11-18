@@ -268,7 +268,7 @@ export function AppSidebar() {
 										}}
 									>
 										{colorThemes.map((t) => (
-											<DropdownMenuRadioItem key={t.id} value={t.id}>
+											<DropdownMenuRadioItem key={t.id} value={t.id} className="min-h-9">
 												<ThemeSwatch color={t.id} dark={dark} />
 												{t.name}
 											</DropdownMenuRadioItem>
@@ -327,7 +327,7 @@ function MenuLink({
 			className={menuItem}
 		>
 			{children}
-			<span className="flex text-fg3 [&_svg]:size-[15px]">{icon}</span>
+			<span className="flex text-fg3 [&_svg]:size-[17px]">{icon}</span>
 		</DropdownMenuItem>
 	);
 }
@@ -335,11 +335,11 @@ function MenuLink({
 function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: string; children: ReactNode }) {
 	return (
 		<DropdownMenuItem render={<a href={href} target="_blank" rel="noopener noreferrer" />} className={menuItem}>
-			<span className="flex items-center gap-1">
+			<span className="flex items-center gap-2">
 				{children}
-				<ArrowUpRightIcon className="size-3 text-fg3" />
+				<ArrowUpRightIcon className="size-3.5 text-fg3" />
 			</span>
-			<span className="flex text-fg3 [&_svg]:size-[15px]">{icon}</span>
+			<span className="flex text-fg3 [&_svg]:size-[17px]">{icon}</span>
 		</DropdownMenuItem>
 	);
 }

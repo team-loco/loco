@@ -1,4 +1,4 @@
-import { createContext, use, useEffect, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Dialog, DialogBody, DialogContent, DialogDescription } from "@/components/design/Dialog";
 import { Kbd } from "@/components/design/Kbd";
@@ -23,9 +23,13 @@ const GROUPS: { title: string; rows: [string[], string][] }[] = [
 		],
 	},
 	{
+		title: "Logs, traces and events",
+		rows: [[["↑", "↓"], "Previous or next item, with its panel open"]],
+	},
+	{
 		title: "Trace viewer",
 		rows: [
-			[["↑", "↓"], "Previous or next span"],
+			[["↑", "↓", "or", "J", "K"], "Previous or next span"],
 			[["←", "→"], "Collapse or expand a span"],
 			[[modifierKey, "Scroll"], "Zoom around the pointer"],
 			[["Shift", "Scroll"], "Pan"],
@@ -43,6 +47,7 @@ export function useOpenShortcuts() {
 
 export function KeyboardShortcutsProvider({ children }: { children: ReactNode }) {
 	const [open, setOpen] = useState(false);
+	const bodyRef = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		const onKeyDown = (event: KeyboardEvent) => {
 			if (event.key !== "?" || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -52,7 +57,7 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 			)
 				return;
 			event.preventDefault();
-			setOpen(true);
+			setOpen((was) => !was);
 		};
 		window.addEventListener("keydown", onKeyDown);
 		return () => {
@@ -69,29 +74,36 @@ export function KeyboardShortcutsProvider({ children }: { children: ReactNode })
 			<Dialog open={open} onOpenChange={setOpen}>
 				<DialogContent
 					title="Keyboard shortcuts"
-					className="kbd-modal w-[560px] **:data-[slot=dialog-title]:text-[18px]"
+					initialFocus={bodyRef}
+					className="kbd-modal w-[560px] *:data-[slot=dialog-header]:items-center *:data-[slot=dialog-header]:border-b *:data-[slot=dialog-header]:border-line *:data-[slot=dialog-header]:pt-4 *:data-[slot=dialog-header]:pr-3.5 *:data-[slot=dialog-header]:pb-3 *:data-[slot=dialog-header]:pl-[22px] **:data-[slot=dialog-title]:text-[18px] **:data-[slot=dialog-title]:tracking-[-0.02em]"
 				>
 					<DialogDescription className="sr-only">Keys for navigation, search and the trace viewer.</DialogDescription>
-					<DialogBody className="gap-5 pt-4">
+					<DialogBody ref={bodyRef} tabIndex={-1} className="gap-1.5 px-[22px] pt-2 pb-5 outline-none">
 						{GROUPS.map((group) => (
 							<section key={group.title}>
-								<h3 className="mb-1 text-xs text-fg3">{group.title}</h3>
+								<h3 className="mt-3.5 mb-1.5 text-xs font-medium text-fg3">{group.title}</h3>
 								<dl>
 									{group.rows.map(([keys, label]) => (
 										<div
 											key={label}
-											className="flex min-h-[34px] items-center justify-between gap-4 border-b border-line py-1 text-[13px]"
+											className="flex min-h-[34px] items-center justify-between gap-4 border-b border-line py-1 text-[13.5px] last:border-b-0"
 										>
 											<dt>{label}</dt>
 											<dd className="flex shrink-0 gap-1">
-												{keys.map((key) => (
-													<Kbd
-														key={key}
-														className="h-6 bg-panel2 px-1.5 text-[11.5px] shadow-[inset_0_-1px_0_var(--line2)]"
-													>
-														{key}
-													</Kbd>
-												))}
+												{keys.map((key) =>
+													key === "or" ? (
+														<span key={key} className="self-center px-0.5 text-xs text-fg3">
+															or
+														</span>
+													) : (
+														<Kbd
+															key={key}
+															className="h-6 min-w-6 justify-center rounded-[5px] bg-panel2 px-[7px] text-[11.5px] shadow-[inset_0_-1px_0_var(--line2)] inset-ring-0"
+														>
+															{key}
+														</Kbd>
+													),
+												)}
 											</dd>
 										</div>
 									))}
