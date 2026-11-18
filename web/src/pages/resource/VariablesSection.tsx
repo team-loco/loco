@@ -1,7 +1,7 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { ClipboardPasteIcon, EyeIcon, EyeOffIcon, PlusIcon, Trash2Icon, Undo2Icon } from "lucide-react";
+import { ClipboardPasteIcon, EyeIcon, EyeOffIcon, LockIcon, PlusIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
@@ -173,8 +173,13 @@ function RevealButton({
 function PlainVariable({ name, value }: { name: string; value: string }) {
 	const reveal = useTimedReveal();
 	return (
-		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_92px]">
-			<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
+		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]">
+			<div className="flex min-w-0 flex-col gap-0.5">
+				<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
+				<span className="text-[11.5px] text-fg3">
+					Plain · from the <code className="font-mono">env</code> map of loco.yaml
+				</span>
+			</div>
 			<Input
 				type={reveal.shown ? "text" : "password"}
 				aria-label={`Value of ${name}`}
@@ -184,6 +189,8 @@ function PlainVariable({ name, value }: { name: string; value: string }) {
 			/>
 			<div className="flex items-center justify-end">
 				<RevealButton name={name} reveal={reveal} />
+				<span className="size-7" aria-hidden />
+				<span className="size-7" aria-hidden />
 			</div>
 		</div>
 	);
@@ -214,7 +221,7 @@ function SecretLine({
 			? "No value stored"
 			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt), timePref)}`;
 	return (
-		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_92px]">
+		<div className="grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]">
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="flex items-center gap-2">
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
@@ -240,10 +247,15 @@ function SecretLine({
 					onValue(e.target.value);
 				}}
 			/>
-			<div className="flex items-center justify-end gap-2">
-				<RevealButton name={row.name} reveal={reveal} disabled={value === "" || removed} />
+			<div className="flex items-center justify-end">
 				{value === "" && secret !== undefined && <SoonTag />}
-				{secret !== undefined && (
+				<RevealButton name={row.name} reveal={reveal} disabled={value === "" || removed} />
+				<span className="flex size-7 items-center justify-center text-fg3" title="Secret">
+					<LockIcon aria-label="Secret" className="size-3.5" />
+				</span>
+				{secret === undefined ? (
+					<span className="size-7" aria-hidden />
+				) : (
 					<Button
 						variant="ghost"
 						size="icon-sm"
@@ -286,6 +298,7 @@ export function VariablesSection({
 		enabled: canReadWorkspace,
 	});
 	const [importing, setImporting] = useState(false);
+	const [adding, setAdding] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [newValue, setNewValue] = useState("");
 
@@ -321,120 +334,121 @@ export function VariablesSection({
 			hint="Values stay hidden. Revealing one shows it for 30 seconds."
 			actions={
 				canWrite && (
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => {
-							setImporting(true);
-						}}
-					>
-						<ClipboardPasteIcon />
-						Import .env
-					</Button>
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => {
+								setImporting(true);
+							}}
+						>
+							<ClipboardPasteIcon />
+							Import .env
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							aria-expanded={adding}
+							onClick={() => {
+								setAdding(true);
+							}}
+						>
+							<PlusIcon />
+							Add
+						</Button>
+					</div>
 				)
 			}
 		>
-			<div className="flex flex-col gap-2">
-				<span className="text-[13px] font-medium">Secrets</span>
-				<div className="overflow-hidden rounded-card border border-line bg-background">
-					{secretsQuery.isLoading && (
-						<div className="flex flex-col gap-2 p-3.5">
-							<Skeleton className="h-9 w-full" />
-							<Skeleton className="h-9 w-full" />
-						</div>
-					)}
-					{secretsQuery.error !== null && (
-						<div role="alert" className="px-3.5 py-3 text-bad-fg">
-							{getErrorMessage(secretsQuery.error, "Failed to load secrets")}
-						</div>
-					)}
-					{!secretsQuery.isLoading && rows.length === 0 && (
-						<div className="px-3.5 py-4 text-fg3">
-							No secrets. Add them here or with <code className="font-mono">loco env set</code>.
-						</div>
-					)}
-					{rows.map((row) => (
-						<SecretLine
-							key={row.name}
-							row={row}
-							members={members}
-							value={staged[row.name] ?? ""}
-							removed={removed.has(row.name)}
-							canWrite={canWrite}
-							onValue={(value) => {
-								stage(row.name, value);
-							}}
-							onRemove={(remove) => {
-								const next = new Set(removed);
-								if (remove) next.add(row.name);
-								else next.delete(row.name);
-								onChange({ removedSecrets: [...next], secrets: withoutKey(staged, row.name) });
-							}}
-						/>
-					))}
-					{canWrite && (
-						<form
-							noValidate
-							className="grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_92px]"
-							onSubmit={(e) => {
-								e.preventDefault();
-								if (secretNameProblem(newName) !== undefined || newValue === "") return;
-								stage(newName, newValue);
-								setNewName("");
-								setNewValue("");
-							}}
-						>
-							<div className="flex flex-col gap-1">
-								<Input
-									aria-label="New secret name"
-									className="font-mono"
-									placeholder="STRIPE_API_KEY"
-									autoComplete="off"
-									spellCheck={false}
-									value={newName}
-									aria-invalid={newProblem !== undefined}
-									onChange={(e) => {
-										setNewName(e.target.value);
-									}}
-								/>
-								{newProblem !== undefined && <span className="text-[12px] text-bad-fg">{newProblem}</span>}
-							</div>
+			<div className="overflow-hidden rounded-card border border-line bg-background">
+				{secretsQuery.isLoading && (
+					<div className="flex flex-col gap-2 p-3.5">
+						<Skeleton className="h-9 w-full" />
+						<Skeleton className="h-9 w-full" />
+					</div>
+				)}
+				{secretsQuery.error !== null && (
+					<div role="alert" className="px-3.5 py-3 text-bad-fg">
+						{getErrorMessage(secretsQuery.error, "Failed to load secrets")}
+					</div>
+				)}
+				{!secretsQuery.isLoading && rows.length === 0 && plain.length === 0 && !adding && (
+					<div className="px-3.5 py-4 text-fg3">
+						No variables. Add secrets here or with <code className="font-mono">loco env set</code>.
+					</div>
+				)}
+				{rows.map((row) => (
+					<SecretLine
+						key={row.name}
+						row={row}
+						members={members}
+						value={staged[row.name] ?? ""}
+						removed={removed.has(row.name)}
+						canWrite={canWrite}
+						onValue={(value) => {
+							stage(row.name, value);
+						}}
+						onRemove={(remove) => {
+							const next = new Set(removed);
+							if (remove) next.add(row.name);
+							else next.delete(row.name);
+							onChange({ removedSecrets: [...next], secrets: withoutKey(staged, row.name) });
+						}}
+					/>
+				))}
+				{plain.map(([name, value]) => (
+					<PlainVariable key={name} name={name} value={value} />
+				))}
+				{canWrite && adding && (
+					<form
+						noValidate
+						className="grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5 md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]"
+						onSubmit={(e) => {
+							e.preventDefault();
+							if (secretNameProblem(newName) !== undefined || newValue === "") return;
+							stage(newName, newValue);
+							setNewName("");
+							setNewValue("");
+						}}
+					>
+						<div className="flex flex-col gap-1">
 							<Input
-								type="password"
-								aria-label="New secret value"
+								autoFocus
+								aria-label="New secret name"
 								className="font-mono"
-								autoComplete="new-password"
-								placeholder="value"
-								value={newValue}
+								placeholder="STRIPE_API_KEY"
+								autoComplete="off"
+								spellCheck={false}
+								value={newName}
+								aria-invalid={newProblem !== undefined}
 								onChange={(e) => {
-									setNewValue(e.target.value);
+									setNewName(e.target.value);
 								}}
 							/>
-							<LimitedAction reason={addBlocked}>
-								<Button
-									type="submit"
-									variant="outline"
-									disabled={newName === "" || newProblem !== undefined || newValue === "" || addBlocked !== null}
-								>
-									<PlusIcon />
-									Add
-								</Button>
-							</LimitedAction>
-						</form>
-					)}
-				</div>
-			</div>
-			<div className="flex flex-col gap-2">
-				<span className="text-[13px] font-medium">Plain variables</span>
-				<span className="text-[12.5px] text-fg3">
-					Read-only here. They come from the <code className="font-mono">env</code> map of loco.yaml.
-				</span>
-				{plain.length > 0 && (
-					<div className="overflow-hidden rounded-card border border-line bg-background">
-						{plain.map(([name, value]) => (
-							<PlainVariable key={name} name={name} value={value} />
-						))}
-					</div>
+							{newProblem !== undefined && <span className="text-[12px] text-bad-fg">{newProblem}</span>}
+						</div>
+						<Input
+							type="password"
+							aria-label="New secret value"
+							className="font-mono"
+							autoComplete="new-password"
+							placeholder="value"
+							value={newValue}
+							onChange={(e) => {
+								setNewValue(e.target.value);
+							}}
+						/>
+						<LimitedAction reason={addBlocked}>
+							<Button
+								type="submit"
+								variant="outline"
+								disabled={newName === "" || newProblem !== undefined || newValue === "" || addBlocked !== null}
+							>
+								<PlusIcon />
+								Add secret
+							</Button>
+						</LimitedAction>
+					</form>
 				)}
 			</div>
 			<ImportDialog

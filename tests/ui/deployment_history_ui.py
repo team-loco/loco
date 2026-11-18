@@ -409,7 +409,9 @@ with session(out) as browser:
                 section.get_by_role("button", name="Copy SHA", exact=True)
             ).to_have_attribute("title", f"Copy {'7c41e9a'.ljust(40, '0')}")
             section.get_by_role("button", name="View spec", exact=True).click()
-            spec_dialog = page.get_by_role("dialog", name="Deployment spec", exact=True)
+            spec_dialog = page.get_by_role(
+                "dialog", name="history-pilot deployment spec", exact=True
+            )
             for index, deployment_id in enumerate(data["releases"][:2]):
                 picker = spec_dialog.get_by_role(
                     "button", name="Deployment", exact=True
@@ -426,7 +428,7 @@ with session(out) as browser:
                     ).click()
                 assert (
                     download.value.suggested_filename
-                    == f"deployment-{deployment_id[-8:]}.json"
+                    == f"deployment-{deployment_id[-8:]}.yaml"
                 )
             page.keyboard.press("Escape")
             section.get_by_role(

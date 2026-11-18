@@ -497,6 +497,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			>
 				{modal?.kind === "spec" && (
 					<SpecDialogContent
+						resourceName={resource.name}
 						deployments={specDeployments}
 						deploymentId={modal.deploymentId}
 						compareId={modal.compareId}

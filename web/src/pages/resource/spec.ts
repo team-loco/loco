@@ -38,8 +38,41 @@ function specObject(dep: Deployment): JsonObject {
 	return isObject(normalized) ? normalized : {};
 }
 
+const PLAIN_SCALAR = /^[\w/.][\w./:@-]*$/;
+const YAML_WORDS = new Set(["true", "false", "null", "yes", "no", "on", "off", "~"]);
+
+function yamlScalar(value: string | number | boolean | null): string {
+	if (typeof value !== "string") return String(value);
+	const plain = PLAIN_SCALAR.test(value) && !YAML_WORDS.has(value.toLowerCase()) && Number.isNaN(Number(value));
+	return plain ? value : JSON.stringify(value);
+}
+
+/** Block-style YAML for a JSON value, keys in their given order. */
+export function toYaml(value: JsonValue, indent = ""): string {
+	if (Array.isArray(value)) {
+		if (value.length === 0) return "[]";
+		return value
+			.map((v) => {
+				const inner = toYaml(v, `${indent}  `);
+				return `${indent}- ${isObject(v) || Array.isArray(v) ? inner.trimStart() : inner}`;
+			})
+			.join("\n");
+	}
+	if (isObject(value)) {
+		const entries = Object.entries(value);
+		if (entries.length === 0) return "{}";
+		return entries
+			.map(([k, v]) => {
+				const nested = (isObject(v) && Object.keys(v).length > 0) || (Array.isArray(v) && v.length > 0);
+				return nested ? `${indent}${k}:\n${toYaml(v, `${indent}  `)}` : `${indent}${k}: ${toYaml(v, "")}`;
+			})
+			.join("\n");
+	}
+	return yamlScalar(value);
+}
+
 export function specText(dep: Deployment): string {
-	return JSON.stringify(specObject(dep), null, 2);
+	return toYaml(specObject(dep));
 }
 
 interface DiffLine {

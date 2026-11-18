@@ -7,6 +7,7 @@ import { Input } from "@/components/design/Input";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
+import { SoonTag } from "@/components/design/SoonTag";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, splitImage } from "@/lib/image";
 import type { SizeOptions } from "@/lib/sizing";
@@ -177,7 +178,7 @@ export function SizeSection({
 }: SectionProps & { sizes: SizeOptions }) {
 	return (
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
-			<div className="flex flex-col gap-3.5">
+			<div className="flex max-w-[520px] flex-col gap-3.5">
 				<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, draft.cpu ?? base.cpu)} />}>
 					<StepSlider
 						label="CPU"
@@ -202,6 +203,10 @@ export function SizeSection({
 						}}
 					/>
 				</Field>
+				<span className="flex items-center gap-1.5 text-[12.5px] text-fg3">
+					Cost per replica
+					<SoonTag />
+				</span>
 			</div>
 		</SettingsBlock>
 	);
@@ -238,7 +243,10 @@ function SecondsInput({
 						onChange(e.target.value);
 					}}
 				/>
-				<InputGroupAddon align="inline-end">
+				<InputGroupAddon
+					align="inline-end"
+					className="h-full self-stretch rounded-r-[inherit] border-l border-line2 bg-panel px-2.5"
+				>
 					<InputGroupText>{unit}</InputGroupText>
 				</InputGroupAddon>
 			</InputGroup>
