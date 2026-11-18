@@ -82,7 +82,7 @@ func TestEgressExclusionsDualStackAndGlobalIPv6PodRanges(t *testing.T) {
 	assertStrings(t, "ipv6", exclusions.ipv6, []string{
 		"64:ff9b::/96", serviceCIDRv6, globalPodCIDRv6, "fc00::/7", "fe80::/10", "ff00::/8",
 	})
-	if !containsString(exclusions.ipv4, "203.0.113.9/32") || !containsString(exclusions.ipv4, "198.51.100.0/24") {
+	if !slices.Contains(exclusions.ipv4, "203.0.113.9/32") || !slices.Contains(exclusions.ipv4, "198.51.100.0/24") {
 		t.Errorf("ipv4 exclusions %v missing a discovered range", exclusions.ipv4)
 	}
 	for _, cidr := range exclusions.ipv4 {
@@ -123,11 +123,11 @@ func TestClusterAddressRangesReadsNodesAndServiceCIDRs(t *testing.T) {
 		"100.96.3.0/24", "203.0.113.4/32", podCIDRB, "2600:1f18::/64",
 		"203.0.113.5/32", "2600:1f18::5/128", serviceCIDRv4, serviceCIDRv6,
 	} {
-		if !containsString(ranges, want) {
+		if !slices.Contains(ranges, want) {
 			t.Errorf("ranges %v missing %s", ranges, want)
 		}
 	}
-	if containsString(ranges, "198.51.100.200/32") {
+	if slices.Contains(ranges, "198.51.100.200/32") {
 		t.Errorf("external address included: %v", ranges)
 	}
 }
@@ -153,7 +153,7 @@ func TestClusterAddressRangesWithoutServiceCIDRAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("clusterAddressRanges without ServiceCIDR API: %v", err)
 	}
-	if !containsString(ranges, "203.0.113.6/32") {
+	if !slices.Contains(ranges, "203.0.113.6/32") {
 		t.Errorf("ranges %v missing the node address", ranges)
 	}
 }
@@ -192,18 +192,9 @@ func TestNodeRangesChangedOnlyForAddressChanges(t *testing.T) {
 
 func assertStrings(t *testing.T, name string, got, want []string) {
 	t.Helper()
-	if len(got) != len(want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("%s = %v, want %v", name, got, want)
 	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("%s = %v, want %v", name, got, want)
-		}
-	}
-}
-
-func containsString(values []string, want string) bool {
-	return slices.Contains(values, want)
 }
 
 func updateEvent(oldNode, newNode *corev1.Node) event.UpdateEvent {

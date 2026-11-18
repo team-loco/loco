@@ -82,7 +82,6 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	)
 	register := func(mgr ctrl.Manager) error {
 		reconciler := &controller.ApplicationReconciler{
-			RuntimeRecoveryWindow:    operator.RuntimeRecoveryWindow,
 			Client:                   mgr.GetClient(),
 			Scheme:                   mgr.GetScheme(),
 			APIReader:                mgr.GetAPIReader(),

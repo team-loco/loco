@@ -21,8 +21,8 @@ const (
 	reasonPodInitializing     = "PodInitializing"
 )
 
-func replicaState(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
-	result := classifyReplica(pod, pull, recoveryWindow, now)
+func replicaState(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaStatus {
+	result := classifyReplica(pod, pull, now)
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == corev1.PodReady {
 			result.Ready = condition.Status == corev1.ConditionTrue && pod.DeletionTimestamp == nil
@@ -39,7 +39,7 @@ func replicaState(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration
 	return result
 }
 
-func classifyReplica(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Duration, now time.Time) loco.ReplicaStatus {
+func classifyReplica(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaStatus {
 	result := loco.ReplicaStatus{State: loco.ReplicaUnknown, StateSince: pod.CreationTimestamp.DeepCopy()}
 	for _, status := range pod.Status.ContainerStatuses {
 		result.Restarts += status.RestartCount
@@ -64,7 +64,7 @@ func classifyReplica(pod *corev1.Pod, pull *pullEvent, recoveryWindow time.Durat
 			}
 		}
 		if status.State.Terminated != nil && status.RestartCount > 0 ||
-			status.LastTerminationState.Terminated != nil && replicaRecoveringAt(*pod, status, recoveryWindow, now) {
+			status.LastTerminationState.Terminated != nil && replicaRecoveringAt(*pod, status, now) {
 			result.State = loco.ReplicaFailing
 			result.Detail = fmt.Sprintf("restarting · %d restarts", result.Restarts)
 			return result

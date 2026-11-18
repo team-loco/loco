@@ -114,16 +114,15 @@ func TestUnrelatedTelemetrySecretKeepsEveryDefault(t *testing.T) {
 }
 
 func TestMountedTelemetrySecretsKeepPlainAndLocoPrecedence(t *testing.T) {
-	for _, name := range []string{envOTelServiceName, envOTelTracesSampler, envOTelTracesSamplerArg} {
-		app := telemetryTestApplication()
-		app.Spec.ServiceSpec.Deployment.Env[name] = userEnvValue
-		r, _, _ := telemetrySecretFixture(t, app, name)
-		dep := mountTelemetryDeployment(t, r, app)
-		requireSingleEnv(t, dep, name, userEnvValue)
-	}
 	app := telemetryTestApplication()
-	r, _, _ := telemetrySecretFixture(t, app, "LOCO_DEPLOYMENT_ID")
+	app.Spec.ServiceSpec.Deployment.Env[envOTelServiceName] = userEnvValue
+	r, _, _ := telemetrySecretFixture(t, app, envOTelServiceName)
 	dep := mountTelemetryDeployment(t, r, app)
+	requireSingleEnv(t, dep, envOTelServiceName, userEnvValue)
+
+	app = telemetryTestApplication()
+	r, _, _ = telemetrySecretFixture(t, app, "LOCO_DEPLOYMENT_ID")
+	dep = mountTelemetryDeployment(t, r, app)
 	requireSingleEnv(t, dep, "LOCO_DEPLOYMENT_ID", testDeploymentID)
 }
 

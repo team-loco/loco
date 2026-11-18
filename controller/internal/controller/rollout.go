@@ -60,7 +60,7 @@ func (r *ApplicationReconciler) deletedReplicas(key types.NamespacedName, now ti
 	}
 	return pods
 }
-func replicaProblem(pods []corev1.Pod, window time.Duration, now time.Time) *locov1alpha1.Problem {
+func replicaProblem(pods []corev1.Pod, now time.Time) *locov1alpha1.Problem {
 	var best *locov1alpha1.Problem
 	consider := func(reason locov1alpha1.ProblemReason, pod corev1.Pod, detail string) {
 		if best == nil || locov1alpha1.ProblemHigherPriority(reason, best.Reason) ||
@@ -78,7 +78,7 @@ func replicaProblem(pods []corev1.Pod, window time.Duration, now time.Time) *loc
 		if pod.DeletionTimestamp != nil {
 			continue
 		}
-		reason := replicaProblemReason(pod, window, now)
+		reason := replicaProblemReason(pod, now)
 		if reason != "" {
 			consider(reason, pod, replicaProblemDetail(pod, reason))
 		}
@@ -116,7 +116,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
 		pull := pulls[pod.UID]
-		replica := replicaState(&pod, &pull, r.RuntimeRecoveryWindow, now)
+		replica := replicaState(&pod, &pull, now)
 		if deleted[pod.UID] && replica.State != locov1alpha1.ReplicaKilled &&
 			replica.State != locov1alpha1.ReplicaStopped {
 			replica.State = locov1alpha1.ReplicaStopped
@@ -148,7 +148,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		rollout.Replicas = append(rollout.Replicas, replica)
 	}
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
-	rollout.Problem = replicaProblem(current, r.RuntimeRecoveryWindow, now)
+	rollout.Problem = replicaProblem(current, now)
 	failure, expired := deploymentFailure(dep)
 	rollout.ProgressDeadlineExceeded = expired
 	if rollout.Problem == nil && expired {

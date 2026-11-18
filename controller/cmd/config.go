@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/team-loco/loco/controller/internal/builds"
 	"github.com/team-loco/loco/controller/internal/controller"
@@ -34,7 +33,6 @@ var errInvalidRegistryAuth = errors.New(
 )
 
 type operatorConfig struct {
-	RuntimeRecoveryWindow    time.Duration
 	LocoNamespace            string
 	PullSecretName           string
 	RegistryTokenMode        bool
@@ -59,7 +57,6 @@ func newOperatorConfig() operatorConfig {
 		HTTPPort:         portEnv(envOTelCollectorHTTPPort),
 	}
 	return operatorConfig{
-		RuntimeRecoveryWindow:    time.Minute,
 		LocoNamespace:            os.Getenv(envLocoNamespace),
 		PullSecretName:           os.Getenv(envRegistryPullSecretName),
 		RegistryTokenMode:        registryTokenMode(),

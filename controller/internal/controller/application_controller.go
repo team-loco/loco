@@ -84,11 +84,10 @@ var (
 
 // ApplicationReconciler reconciles an Application object
 type ApplicationReconciler struct {
-	pullMu                sync.Mutex
-	pullEvents            map[types.UID]pullEvent
-	deletedMu             sync.Mutex
-	deletedPods           map[types.NamespacedName]map[types.UID]deletedReplica
-	RuntimeRecoveryWindow time.Duration
+	pullMu      sync.Mutex
+	pullEvents  map[types.UID]pullEvent
+	deletedMu   sync.Mutex
+	deletedPods map[types.NamespacedName]map[types.UID]deletedReplica
 	client.Client
 	APIReader client.Reader
 	Scheme    *runtime.Scheme
