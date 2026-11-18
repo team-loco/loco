@@ -4,24 +4,24 @@ set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
 cd "$root"
-compose=(docker compose -f "$root/tests/conformance/transit/compose.yaml")
-OPENBAO_IMAGE=$(yq '.openbao.image' "$root/charts/loco-control-plane/values.yaml")
-export OPENBAO_IMAGE
+source mise-tasks/test/lib/testres.sh loco-transit-conformance
+compose=(docker compose -p "$testres_id" -f "$root/tests/conformance/transit/compose.yaml")
 cleanup() {
 	status=$?
 	if [ "$status" -ne 0 ]; then
 		"${compose[@]}" ps -a
 		"${compose[@]}" logs --no-color --tail=80
 	fi
-	if [ "${KEEP:-}" = "" ]; then
-		"${compose[@]}" down -v >/dev/null 2>&1
-	fi
+	testres_release
 }
 trap cleanup EXIT
+OPENBAO_IMAGE=$(yq '.openbao.image' "$root/charts/loco-control-plane/values.yaml")
+export OPENBAO_IMAGE
+testres_add compose "$testres_id"
 "${compose[@]}" up -d --wait
 cd api
 LOCO_CONFORMANCE_TRANSIT_ROOT_TOKEN=loco-conformance-root \
-	LOCO_CONFORMANCE_OPENBAO_ADDR="http://localhost:$("${compose[@]}" port openbao 8200 | sed 's/.*://')" \
-	LOCO_CONFORMANCE_VAULT_ADDR="http://localhost:$("${compose[@]}" port vault 8200 | sed 's/.*://')" \
+	LOCO_CONFORMANCE_OPENBAO_ADDR="http://$("${compose[@]}" port openbao 8200)" \
+	LOCO_CONFORMANCE_VAULT_ADDR="http://$("${compose[@]}" port vault 8200)" \
 	LOCO_CONFORMANCE_KUBERNETES_HOST=host.docker.internal \
 	go test -tags conformance -count=1 -run 'TestTransit(Kubernetes)?Conformance' -v ./pkg/transit/ "$@"
