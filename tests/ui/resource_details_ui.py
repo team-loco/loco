@@ -257,6 +257,8 @@ with session(out) as browser:
     expect(copy_receipt).to_contain_text(receipt)
     copy_receipt.click()
     assert page.evaluate("navigator.clipboard.readText()") == receipt
+    # Toasts pause their timers while hovered.
+    page.mouse.move(0, 0)
     page.clock.fast_forward(8000)
     expect(copy_receipt).to_be_visible()
     context.unroute(failed_restart)
