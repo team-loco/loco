@@ -85,15 +85,13 @@ func (spec *ApplicationSpec) Validate() error {
 		return errTypeMissing
 	}
 
-	switch spec.Type {
-	case "SERVICE":
-		if spec.ServiceSpec == nil {
-			return errServiceSpecMissing
-		}
-		return validateServiceSpec(spec.ServiceSpec)
-	default:
+	if spec.Type != "SERVICE" {
 		return fmt.Errorf("unknown resource type: %s", spec.Type)
 	}
+	if spec.ServiceSpec == nil {
+		return errServiceSpecMissing
+	}
+	return validateServiceSpec(spec.ServiceSpec)
 }
 
 // validateServiceSpec validates the ServiceSpec

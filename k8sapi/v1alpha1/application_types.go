@@ -83,11 +83,9 @@ type RoutingSpec struct {
 }
 
 // ApplicationSpec defines the desired state of Application
-// Uses a type discriminator with type-specific specs to support multiple resource types
 type ApplicationSpec struct {
-	// Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)
-	// Only the corresponding TypeSpec field should be populated
-	Type           string `json:"type"`                 // SERVICE
+	// Type is the resource type. SERVICE is the only one.
+	Type           string `json:"type"`
 	ResourceID     string `json:"resourceId,omitempty"` // UUIDv7 as string
 	Slug           string `json:"slug,omitempty"`
 	OrganizationID string `json:"organizationId,omitempty"` // UUIDv7 as string
