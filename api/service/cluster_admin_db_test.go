@@ -230,7 +230,7 @@ func TestClusterAdminHTTPRemovalReportsWorkloadsAndRestoresIdentity(t *testing.T
 			LastUsedUpdateInterval:      time.Hour,
 		},
 	)
-	token, _, issueErr := machine.IssueSession(ctx, userID, nil, netip.Addr{}, "admin-test")
+	token, _, issueErr := machine.IssueSession(ctx, userID, netip.Addr{}, "admin-test")
 	if issueErr != nil {
 		t.Fatal(issueErr)
 	}

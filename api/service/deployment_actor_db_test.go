@@ -240,7 +240,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 	token := issuer.Sign("k1", issuer.Claims("deployer", "deployer@example.test", true))
 	switch method {
 	case genDb.DeploymentMethodCli:
-		token, _, err = machine.IssueSession(t.Context(), user.ID, nil, netip.Addr{}, "")
+		token, _, err = machine.IssueSession(t.Context(), user.ID, netip.Addr{}, "")
 	case genDb.DeploymentMethodApiToken:
 		var metadata genDb.CreateAPITokenRow
 		token, metadata, err = machine.Issue(t.Context(), "deploy-token", user.ID,

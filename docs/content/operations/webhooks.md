@@ -55,4 +55,4 @@ The `creator_*` fields are absent when that user no longer exists, and on `deplo
 
 ## User deletion
 
-`user.deleted` records a deleted Loco user. Its `subject.id` is the user ID, and its `data.identities` lists the sign-in identities removed with the user, each with the `issuer` and `subject` that the identity provider put in its tokens. Loco erases those identities when the user is deleted, so a consumer that removes the matching accounts at an identity provider takes them from this list. A retried delivery carries the same list.
+`user.deleted` records a deleted Loco user. Its `subject.id` is the user ID, and its `data.identity` is the sign-in identity removed with the user, with the `issuer` and `subject` that the identity provider put in its tokens. Loco erases that identity when the user is deleted, so a consumer that removes the matching account at an identity provider takes it from this object. A retried delivery carries the same object.

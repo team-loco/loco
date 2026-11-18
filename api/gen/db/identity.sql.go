@@ -74,12 +74,14 @@ func (q *Queries) GetIdentity(ctx context.Context, arg GetIdentityParams) (Ident
 	return i, err
 }
 
-const getIdentityByID = `-- name: GetIdentityByID :one
-SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at FROM identities WHERE id = $1
+const getIdentityForUser = `-- name: GetIdentityForUser :one
+SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
+FROM identities
+WHERE user_id = $1
 `
 
-func (q *Queries) GetIdentityByID(ctx context.Context, id uuid.UUID) (Identity, error) {
-	row := q.db.QueryRow(ctx, getIdentityByID, id)
+func (q *Queries) GetIdentityForUser(ctx context.Context, userID uuid.UUID) (Identity, error) {
+	row := q.db.QueryRow(ctx, getIdentityForUser, userID)
 	var i Identity
 	err := row.Scan(
 		&i.ID,
@@ -132,42 +134,6 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.Identity.LastLoginAt,
 	)
 	return i, err
-}
-
-const listIdentitiesForUser = `-- name: ListIdentitiesForUser :many
-SELECT id, user_id, issuer, subject, email, email_verified, created_at, last_login_at
-FROM identities
-WHERE user_id = $1
-ORDER BY created_at
-`
-
-func (q *Queries) ListIdentitiesForUser(ctx context.Context, userID uuid.UUID) ([]Identity, error) {
-	rows, err := q.db.Query(ctx, listIdentitiesForUser, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Identity
-	for rows.Next() {
-		var i Identity
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.Issuer,
-			&i.Subject,
-			&i.Email,
-			&i.EmailVerified,
-			&i.CreatedAt,
-			&i.LastLoginAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const touchIdentity = `-- name: TouchIdentity :exec

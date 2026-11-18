@@ -222,7 +222,7 @@ func (s *AuthServer) issueWebSession(
 			return fmt.Errorf("get dashboard identity: %w", err)
 		}
 		access, refresh, err = s.machine.WithQueries(qtx).IssueWebSession(
-			ctx, userID, row.ID, clientAddress(info), info.RequestHeader().Get(userAgentHeader),
+			ctx, userID, clientAddress(info), info.RequestHeader().Get(userAgentHeader),
 		)
 		return err
 	})

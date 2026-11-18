@@ -152,11 +152,7 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 func TestIdleDashboardStreamClosesAfterSuspension(t *testing.T) {
 	t.Parallel()
 	f, userID, workspaceID := newStreamCredentialFixture(t)
-	identities, err := f.queries.ListIdentitiesForUser(t.Context(), userID)
-	if err != nil || len(identities) != 1 {
-		t.Fatalf("fixture identity = %v, error = %v", identities, err)
-	}
-	access, _, err := f.machine.IssueWebSession(t.Context(), userID, identities[0].ID, netip.Addr{}, "stream")
+	access, _, err := f.machine.IssueWebSession(t.Context(), userID, netip.Addr{}, "stream")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,11 +334,7 @@ func issueStreamCredential(t *testing.T, f *eventFixture, userID, workspaceID uu
 ) string {
 	t.Helper()
 	if kind == streamSession {
-		identities, err := f.queries.ListIdentitiesForUser(t.Context(), userID)
-		if err != nil || len(identities) != 1 {
-			t.Fatalf("fixture identity = %v, error = %v", identities, err)
-		}
-		token, _, err := f.machine.IssueSession(t.Context(), userID, &identities[0].ID, netip.Addr{}, "stream")
+		token, _, err := f.machine.IssueSession(t.Context(), userID, netip.Addr{}, "stream")
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -37,15 +37,11 @@ func TestCookieAuthenticationRequiresConnectAndTrustedOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	principal, _ := reqctx.PrincipalFrom(ctx)
-	identities, err := f.queries.ListIdentitiesForUser(ctx, principal.UserID)
-	if err != nil || len(identities) != 1 {
-		t.Fatalf("fixture identities = %v, error = %v", identities, err)
-	}
-	web, _, err := f.machine.IssueWebSession(ctx, principal.UserID, identities[0].ID, netip.Addr{}, "")
+	web, _, err := f.machine.IssueWebSession(ctx, principal.UserID, netip.Addr{}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cli, _, err := f.machine.IssueSession(ctx, principal.UserID, nil, netip.Addr{}, "")
+	cli, _, err := f.machine.IssueSession(ctx, principal.UserID, netip.Addr{}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,8 +63,8 @@ func TestCookieAuthenticationRequiresConnectAndTrustedOrigin(t *testing.T) {
 		},
 		Handler: func(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 			p, _ := reqctx.PrincipalFrom(ctx)
-			if p.Token == web && (p.Method != genDb.DeploymentMethodWeb || p.IdentityID != identities[0].ID) {
-				t.Errorf("dashboard method = %v, identity = %s", p.Method, p.IdentityID)
+			if p.Token == web && p.Method != genDb.DeploymentMethodWeb {
+				t.Errorf("dashboard method = %v", p.Method)
 			}
 			if err := stream.Receive(&userv1.WhoAmIRequest{}); err != nil {
 				return err

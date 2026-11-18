@@ -228,25 +228,25 @@ func (s *UserServer) DeleteUser(
 					fmt.Sprintf("organization %q must keep at least one active admin", org.Name))
 			}
 		}
-		identities, listErr := qtx.ListIdentitiesForUser(lockedCtx, userID)
-		if listErr != nil {
-			return fmt.Errorf("list user identities: %w", listErr)
+		data := map[string]any{}
+		identity, identityErr := qtx.GetIdentityForUser(lockedCtx, userID)
+		switch {
+		case identityErr == nil:
+			data[events.FieldIdentity] = map[string]string{
+				events.FieldIssuer:  identity.Issuer,
+				events.FieldSubject: identity.Subject,
+			}
+		case !errors.Is(identityErr, pgx.ErrNoRows):
+			return fmt.Errorf("get user identity: %w", identityErr)
 		}
 		if deleteErr := qtx.DeleteUser(lockedCtx, userID); deleteErr != nil {
 			return fmt.Errorf("delete user: %w", deleteErr)
-		}
-		removed := make([]map[string]string, 0, len(identities))
-		for _, identity := range identities {
-			removed = append(removed, map[string]string{
-				events.FieldIssuer:  identity.Issuer,
-				events.FieldSubject: identity.Subject,
-			})
 		}
 		return events.Record(lockedCtx, qtx, events.Event{
 			Type:        events.UserDeleted,
 			SubjectType: events.SubjectUser,
 			SubjectID:   new(userID),
-			Data:        map[string]any{events.FieldIdentities: removed},
+			Data:        data,
 		})
 	})
 	if err != nil {

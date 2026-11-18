@@ -179,7 +179,7 @@ func TestAuthenticateRejectsSuspendedUsers(t *testing.T) {
 	}); scopeErr != nil {
 		t.Fatalf("grant org scope: %v", scopeErr)
 	}
-	sessionToken, _, err := f.machine.IssueSession(t.Context(), user.ID, nil, netip.Addr{}, "")
+	sessionToken, _, err := f.machine.IssueSession(t.Context(), user.ID, netip.Addr{}, "")
 	if err != nil {
 		t.Fatalf("issue session: %v", err)
 	}

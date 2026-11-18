@@ -822,7 +822,6 @@ type SessionToken struct {
 	AccessTokenHash  string      `json:"accessTokenHash"`
 	RefreshTokenHash string      `json:"refreshTokenHash"`
 	UserID           uuid.UUID   `json:"userId"`
-	IdentityID       *uuid.UUID  `json:"identityId"`
 	Kind             SessionKind `json:"kind"`
 	AccessExpiresAt  time.Time   `json:"accessExpiresAt"`
 	RefreshExpiresAt time.Time   `json:"refreshExpiresAt"`

@@ -62,21 +62,18 @@ func (tvm *VendingMachine) getToken(ctx context.Context, token string, touchLast
 		}
 
 		method := queries.DeploymentMethodCli
-		identityID := uuid.Nil
 		if session.Kind == queries.SessionKindWeb {
 			method = queries.DeploymentMethodWeb
-			identityID = *session.IdentityID
 		}
 		return reqctx.Principal{
-			Entity:     entity,
-			Scopes:     liveScopes,
-			Token:      token,
-			ActorType:  queries.DeploymentActorTypeUser,
-			ActorID:    session.UserID,
-			UserID:     session.UserID,
-			SessionID:  session.ID,
-			Method:     method,
-			IdentityID: identityID,
+			Entity:    entity,
+			Scopes:    liveScopes,
+			Token:     token,
+			ActorType: queries.DeploymentActorTypeUser,
+			ActorID:   session.UserID,
+			UserID:    session.UserID,
+			SessionID: session.ID,
+			Method:    method,
 		}, nil
 
 	case prefixAPIKey:

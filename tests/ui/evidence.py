@@ -636,13 +636,13 @@ def seed(state, scenario):
         token = session_token()
         columns, extra = "", ""
         if state["cookie_session"]:
-            identity = psql(
+            psql(
                 container,
                 "INSERT INTO identities (user_id, issuer, subject, email, email_verified) "
                 f"VALUES ({sql_literal(user_id)}, {sql_literal(state['issuer'])}, "
-                f"{sql_literal('evidence-' + key)}, {sql_literal(user['email'])}, true) RETURNING id;",
+                f"{sql_literal('evidence-' + key)}, {sql_literal(user['email'])}, true);",
             )
-            columns, extra = ", kind, identity_id", f", 'web', {sql_literal(identity)}"
+            columns, extra = ", kind", ", 'web'"
         psql(
             container,
             "INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, "

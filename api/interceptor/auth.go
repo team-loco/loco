@@ -226,7 +226,7 @@ func (i *authInterceptor) revalidate(ctx context.Context, original reqctx.Princi
 	}
 	if current.ActorType != original.ActorType || current.ActorID != original.ActorID ||
 		current.UserID != original.UserID || current.Entity != original.Entity ||
-		current.Method != original.Method || current.IdentityID != original.IdentityID {
+		current.Method != original.Method {
 		return reqctx.Principal{}, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
 	return current, nil

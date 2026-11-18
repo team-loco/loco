@@ -64,15 +64,14 @@ WHERE user_id = $1
 -- -----------------------------------------------------------------------------
 
 -- name: CreateSessionToken :exec
-INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, identity_id, kind)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);
+INSERT INTO session_tokens (id, access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at, ip_address, user_agent, kind)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: GetSessionWithScopesByAccessToken :one
 SELECT
     st.id,
     st.user_id,
     st.kind,
-    st.identity_id,
     st.last_used_at,
     COALESCE(
         (
