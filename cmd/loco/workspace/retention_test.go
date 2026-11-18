@@ -3,19 +3,14 @@ package workspace
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"slices"
 	"testing"
-	"time"
 
 	"connectrpc.com/connect/v2"
-	"connectrpc.com/connect/v2/connecthttp"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/clitest"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/gen/go/loco/workspace/v1/workspacev1connect"
 )
@@ -67,31 +62,16 @@ func (s *retentionServer) SetWorkspaceRetention(
 // what it printed.
 func runWorkspaceCmd(t *testing.T, fake workspacev1connect.WorkspaceServiceHandler, args ...string) (string, error) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv(keychain.StoreEnvVar, "file")
-	server := connect.NewServer()
-	workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
-	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server)
-	endpoint := httptest.NewServer(mux)
-	t.Cleanup(endpoint.Close)
-	t.Setenv("LOCO_HOST", endpoint.URL)
-	store, err := keychain.ForCurrentUser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = store.Set(
-		keychain.UserToken{Host: endpoint.URL, Token: rand.Text(), ExpiresAt: time.Now().Add(time.Hour)},
-	); err != nil {
-		t.Fatal(err)
-	}
+	clitest.Session(t, func(server *connect.Server) {
+		workspacev1connect.RegisterWorkspaceServiceHandler(server, fake)
+	})
 	var stdout bytes.Buffer
 	cmd := BuildWorkspaceCmd()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.SetOut(&stdout)
 	cmd.SetArgs(args)
-	err = cmd.Execute()
+	err := cmd.Execute()
 	return stdout.String(), err
 }
 
