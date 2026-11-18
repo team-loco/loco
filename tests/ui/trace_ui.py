@@ -615,6 +615,10 @@ with session(out) as browser:
     first_name = waterfall.locator("[data-span]").first
     first_name.press("ArrowDown")
     expect(waterfall.locator("[data-span]").nth(1)).to_be_focused()
+    page.keyboard.press("j")
+    expect(waterfall.locator("[data-span]").nth(2)).to_be_focused()
+    page.keyboard.press("k")
+    expect(waterfall.locator("[data-span]").nth(1)).to_be_focused()
     waterfall.get_by_role("separator", name="Resize span column").press("ArrowRight")
     expect(
         waterfall.get_by_role("separator", name="Resize span column")

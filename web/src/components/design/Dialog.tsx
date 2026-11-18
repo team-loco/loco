@@ -37,7 +37,7 @@ function DialogContent({
 			{...props}
 		>
 			{title !== undefined && (
-				<div className="flex items-start gap-2 px-5 pt-[18px]">
+				<div data-slot="dialog-header" className="flex items-start gap-2 px-5 pt-[18px]">
 					<DialogTitle className="flex-1">{title}</DialogTitle>
 					{showCloseButton && (
 						<DialogClose

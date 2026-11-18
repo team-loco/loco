@@ -320,7 +320,11 @@ with session(out) as browser:
             page.locator("body").click(position={"x": 700, "y": 500})
             page.keyboard.press("?")
             expect(shortcuts).to_be_visible()
-            page.keyboard.press("Escape")
+            expect(shortcuts).to_contain_text(
+                "Previous or next item, with its panel open"
+            )
+            page.keyboard.press("?")
+            expect(shortcuts).not_to_be_visible()
             top_search.click()
             expect(query).to_be_focused()
             page.keyboard.press("?")

@@ -19,19 +19,21 @@ const CLOCK_TICK_MS = 60_000;
 
 function AlertCard({
 	alert,
+	index,
 	resourceHref,
 	logsHref,
 	nowMs,
 	onNavigate,
 }: {
 	alert: Alert;
+	index: number;
 	resourceHref: string;
 	logsHref: string;
 	nowMs: number;
 	onNavigate: () => void;
 }) {
 	return (
-		<li className="rounded-card bg-panel p-4">
+		<li className="act-card rounded-[10px] bg-panel p-4" style={{ "--i": index } as React.CSSProperties}>
 			<div className="flex items-center justify-between gap-3">
 				<ResourceStatusBadge status={alert.status} />
 				{alert.reportedMs !== undefined && (
@@ -39,7 +41,7 @@ function AlertCard({
 				)}
 			</div>
 			<div className="mt-3 flex items-baseline gap-2">
-				<span className="text-base font-medium">{alert.name}</span>
+				<span className="text-[16px] font-medium">{alert.name}</span>
 				<span className="font-mono text-xs text-fg3">{alert.region}</span>
 			</div>
 			{alert.description !== "" && <p className="mt-0.5 text-[13px] text-fg3">{alert.description}</p>}
@@ -90,7 +92,7 @@ export function AlertsDrawer() {
 				onClick={() => {
 					setOpen(true);
 				}}
-				className="act-btn px-2.5"
+				className="act-btn gap-[7px] border-line bg-background pr-2.5 pl-[9px] text-fg2 hover:border-line2 hover:bg-background hover:text-foreground aria-expanded:border-line2 aria-expanded:bg-background aria-expanded:text-foreground dark:border-line dark:bg-background dark:hover:border-line2 dark:hover:bg-background dark:aria-expanded:bg-background"
 			>
 				<span className="act-ico" aria-hidden>
 					<svg
@@ -129,10 +131,11 @@ export function AlertsDrawer() {
 							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">Nothing needs attention.</p>
 						) : (
 							<ul className="flex flex-col gap-2.5">
-								{alerts.map((a) => (
+								{alerts.map((a, i) => (
 									<AlertCard
 										key={a.key}
 										alert={a}
+										index={i}
 										resourceHref={resourcePath(activeOrgId, activeWorkspaceId, a.resourceId)}
 										logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [a.name] })}
 										nowMs={nowMs}

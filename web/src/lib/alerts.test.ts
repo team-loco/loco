@@ -79,8 +79,8 @@ describe("buildAlerts", () => {
 		expect(buildAlerts([api, worker], "env-other")).toEqual([]);
 	});
 
-	test("alerts on a failed deployment but not on a rollout alone", () => {
-		expect(buildAlerts([api, worker], STAGING).map((a) => a.key)).toEqual(["r-api/eu-west"]);
+	test("lists rollouts and failed deployments", () => {
+		expect(buildAlerts([api, worker], STAGING).map((a) => a.key)).toEqual(["r-api/us-east", "r-api/eu-west"]);
 	});
 });
 

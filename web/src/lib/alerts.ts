@@ -38,16 +38,18 @@ export function needsAttention(region: RegionStatus): boolean {
 
 export function buildAlerts(resources: Resource[], environmentId: string): Alert[] {
 	return resources.flatMap((resource) =>
-		(environmentStatus(resource, environmentId)?.regions ?? []).filter(needsAttention).map((r) => ({
-			key: `${resource.id}/${r.region}`,
-			resourceId: resource.id,
-			name: resource.name,
-			description: resource.description ?? "",
-			region: r.region,
-			status: r.status,
-			message: r.message ?? "",
-			reportedMs: maybeTsMs(r.reportedAt),
-		})),
+		(environmentStatus(resource, environmentId)?.regions ?? [])
+			.filter((r) => needsAttention(r) || r.status === ResourceStatus.DEPLOYING)
+			.map((r) => ({
+				key: `${resource.id}/${r.region}`,
+				resourceId: resource.id,
+				name: resource.name,
+				description: resource.description ?? "",
+				region: r.region,
+				status: r.status,
+				message: r.message ?? "",
+				reportedMs: maybeTsMs(r.reportedAt),
+			})),
 	);
 }
 

@@ -1,6 +1,14 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, SettingsIcon } from "lucide-react";
+import {
+	Building2Icon,
+	CheckIcon,
+	ChevronDownIcon,
+	ChevronsUpDownIcon,
+	PlusIcon,
+	Settings2Icon,
+	SettingsIcon,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
@@ -235,7 +243,7 @@ export function ShellBreadcrumb() {
 										render={<Link to={settingsPath(activeOrgId, activeWorkspaceId, "workspace")} />}
 										className="text-[13px] text-fg2"
 									>
-										<SettingsIcon className="text-fg3" />
+										<Settings2Icon className="text-fg3" />
 										Manage environments
 									</DropdownMenuItem>
 								</>

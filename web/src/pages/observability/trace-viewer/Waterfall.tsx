@@ -147,9 +147,9 @@ export function Waterfall({
 									onSelect(span);
 								}}
 								onKeyDown={(e) => {
-									if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+									if (["ArrowDown", "ArrowUp", "j", "k"].includes(e.key)) {
 										e.preventDefault();
-										const next = rows[index + (e.key === "ArrowDown" ? 1 : -1)];
+										const next = rows[index + (e.key === "ArrowDown" || e.key === "j" ? 1 : -1)];
 										if (next !== undefined) {
 											onSelect(next.span);
 											e.currentTarget
