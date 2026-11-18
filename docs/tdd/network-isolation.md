@@ -8,10 +8,11 @@ internals, or cloud metadata.
 
 ## Model
 
-Each workspace has one namespace per cluster, `ws-<workspaceId>`, holding all of its apps.
-Clusters separate environments, so a namespace is one workspace in one environment.
+Each environment has one namespace per cluster, named by the operator chart value
+`workspaceNamespacePrefix` (`loco-ws-` by default) followed by the environment ID. It holds
+that environment's apps and carries the workspace ID label `loco.io/workspace-id`.
 
-- Apps in the same workspace namespace can reach each other on any port, by default.
+- Apps in the namespaces of one workspace's environments can reach each other on any port.
 - Nothing else can reach an app, except the Envoy Gateway proxies on the app's container
   port when the app has a route.
 - Apps can reach DNS, the telemetry collector's OTLP ports, and public addresses. They
@@ -25,7 +26,7 @@ Clusters separate environments, so a namespace is one workspace in one environme
 
 | Namespace | Role |
 |---|---|
-| `ws-*` | workspace namespaces, one per workspace per cluster, holding its apps |
+| `loco-ws-*` | environment namespaces, one per environment per cluster, holding its apps |
 | `loco-system` | agent, controller, Envoy Gateway proxies (`gateway.envoyproxy.io/owning-gateway-name=eg`) |
 | `loco-obs` | otel-col-deploy (OTLP receiver), otel-col-cluster; the `loco-worker` chart's `otel-col-deploy.namespaceOverride` |
 | `kube-system` | kube-dns |
@@ -35,18 +36,18 @@ Clusters separate environments, so a namespace is one workspace in one environme
 
 ## Allowed traffic
 
-### Ingress into a workspace namespace
+### Ingress into an environment namespace
 
 | Source | Port | Reason |
 |---|---|---|
-| pods in the same namespace | any | apps of one workspace talking to each other |
+| pods in the workspace's environment namespaces | any | apps of one workspace talking to each other |
 | Envoy Gateway proxies in `loco-system` | the app's container port, routed apps only | HTTP traffic forwarding |
 
-### Egress from a workspace namespace
+### Egress from an environment namespace
 
 | Destination | Port | Reason |
 |---|---|---|
-| pods in the same namespace | any | apps of one workspace talking to each other |
+| pods in the workspace's environment namespaces | any | apps of one workspace talking to each other |
 | `kube-system` kube-dns pods | 53 UDP + TCP | DNS resolution |
 | `otel-col-deploy` in the observability namespace | 4317, 4318 TCP (`otel-col-deploy.ports` in the `loco-worker` chart) | traces and metrics |
 | `0.0.0.0/0` and `::/0`, except reserved ranges and the cluster's own ranges (below) | any | external APIs |
@@ -72,7 +73,7 @@ Each range goes under its family's block (IPv4 under `0.0.0.0/0`, IPv6 under `::
 Ranges already inside a reserved range are left out, and the lists are deduplicated and
 sorted, so the policy only changes when the cluster's ranges do. The controller watches
 Nodes and, when a node is added, removed, or its pod CIDRs or internal addresses change,
-reconciles one Application per workspace, which re-applies that workspace's policy.
+reconciles one Application per environment, which re-applies that namespace's policies.
 
 ### Private egress for build pods
 
@@ -97,14 +98,13 @@ app is deleted.
 | Policy | Effect |
 |---|---|
 | `default-deny` | all pods, ingress and egress, no rules |
-| `allow-workspace` | all pods, ingress from and egress to `podSelector: {}` (same namespace only) |
+| `allow-workspace` | all pods, ingress from and egress to every pod in namespaces labelled with the workspace's ID, managed by the controller and marked as Loco app namespaces |
 | `allow-dns-egress` | egress to kube-dns on 53 UDP and TCP |
 | `allow-telemetry-egress` | egress to `otel-col-deploy` on 4317 and 4318 |
 | `allow-internet-egress` | egress to public addresses, excluding the ranges above |
 
-A `from` or `to` peer with only a `podSelector` matches pods in the policy's own namespace,
-which holds a single workspace, so `allow-workspace` cannot open traffic to another
-workspace.
+The `allow-workspace` peer selects namespaces by the workspace ID label that the controller
+sets on each environment namespace, so it cannot open traffic to another workspace.
 
 ### Per-app gateway policy
 
