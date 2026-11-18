@@ -415,7 +415,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					{deployed.length > 0 && environmentId !== undefined && !isWorker(resource) && (
+					{deployed.length > 0 && environmentId !== undefined && !isWorker(resource, currents) && (
 						<TrafficSection
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
