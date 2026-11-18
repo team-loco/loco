@@ -1,5 +1,5 @@
 # The installation suite's operator pod: locoadm, loco and the suite's helm and
-# kubectl wrappers. HELM_VERSION and KUBECTL_VERSION come from mise.toml.
+# kubectl wrappers. HELM_VERSION, KUBECTL_VERSION and FLUX_VERSION come from mise.toml.
 FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82 AS builder
 ARG TARGETARCH
 ENV CGO_ENABLED=0 \

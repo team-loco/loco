@@ -5,31 +5,20 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from pathlib import Path
 
 import pytest
+from helpers import chart_values
 
-ROOT = Path(__file__).resolve().parents[2]
 TIMEOUT_SECONDS = 30
 POLL_SECONDS = 0.1
 
 
-def chart_value(expression):
-    return json.loads(
-        subprocess.check_output(
-            ["yq", "-o=json", expression, str(ROOT / "charts/loco-worker/values.yaml")],
-            text=True,
-        )
-    )
-
-
 @pytest.mark.parametrize("source", ["otlp", "file_log"])
 def test_collected_log_severity(tmp_path, source):
-    transform = chart_value(
-        '.["otel-col-daemon"].config.processors."transform/log_severity"'
-    )
-    image = chart_value('.["otel-col-daemon"].image')
-    arguments = chart_value('.["otel-col-daemon"].command.extraArgs')
+    daemon = chart_values("loco-worker")["otel-col-daemon"]
+    transform = daemon["config"]["processors"]["transform/log_severity"]
+    image = daemon["image"]
+    arguments = daemon["command"]["extraArgs"]
     name = f"loco-log-severity-{uuid.uuid4().hex}"
     cases = [
         ('{"level":"warning","message":"low memory"}', "WARN", 13, {}),

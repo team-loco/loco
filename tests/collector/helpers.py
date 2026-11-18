@@ -39,7 +39,7 @@ def parse_documents(rendered):
     ]
 
 
-def render_chart(chart, overrides, check=True):
+def render_chart(chart, overrides):
     with tempfile.TemporaryDirectory() as directory:
         base = Path(directory) / "base.json"
         base.write_text(json.dumps(WORKER_BASE_VALUES))
@@ -58,8 +58,6 @@ def render_chart(chart, overrides, check=True):
             str(values),
         ]
         result = subprocess.run(command, capture_output=True, text=True)
-    if not check:
-        return result
     if result.returncode != 0:
         raise subprocess.CalledProcessError(
             result.returncode, command, result.stdout, result.stderr
