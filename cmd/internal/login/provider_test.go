@@ -91,24 +91,23 @@ func fakeBrowser(t *testing.T, fake *fakeCLIAuth, mutate func(url.Values)) func(
 		fake.mu.Unlock()
 		callback := url.Values{"code": {"the-code"}, "state": {q.Get("state")}}
 		mutate(callback)
-		go func() {
-			req, reqErr := http.NewRequestWithContext(
-				context.WithoutCancel(t.Context()), http.MethodGet,
-				"http://127.0.0.1:"+q.Get("port")+"/callback?"+callback.Encode(), http.NoBody,
-			)
-			if reqErr != nil {
-				t.Errorf("callback request: %v", reqErr)
-				return
-			}
-			resp, getErr := http.DefaultClient.Do(req)
-			if getErr != nil {
-				t.Errorf("callback: %v", getErr)
-				return
-			}
-			if closeErr := resp.Body.Close(); closeErr != nil {
-				t.Errorf("close: %v", closeErr)
-			}
-		}()
+		// The loopback server is serving before the browser opens, so the callback completes here.
+		req, err := http.NewRequestWithContext(
+			t.Context(), http.MethodGet,
+			"http://127.0.0.1:"+q.Get("port")+"/callback?"+callback.Encode(), http.NoBody,
+		)
+		if err != nil {
+			t.Errorf("callback request: %v", err)
+			return err
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Errorf("callback: %v", err)
+			return err
+		}
+		if err = resp.Body.Close(); err != nil {
+			t.Errorf("close: %v", err)
+		}
 		return nil
 	}
 }
@@ -127,11 +126,15 @@ func TestBrowserLoginExchangesCode(t *testing.T) {
 func TestBrowserLoginRejectsWrongStateAndCancellation(t *testing.T) {
 	fake, client := newFakeCLIAuth(t)
 
-	ctx, cancel := context.WithTimeout(t.Context(), 500*time.Millisecond)
-	defer cancel()
-	_, err := browserLogin(ctx, client, "https://app.loco.test", fakeBrowser(t, fake, func(q url.Values) {
+	expiring := expiringContext{Context: t.Context(), done: make(chan struct{})}
+	forged := fakeBrowser(t, fake, func(q url.Values) {
 		q.Set("state", "forged")
-	}))
+	})
+	_, err := browserLogin(expiring, client, "https://app.loco.test", func(ctx context.Context, raw string) error {
+		// The login times out only after the forged callback was answered.
+		defer close(expiring.done)
+		return forged(ctx, raw)
+	})
 	if !errors.Is(err, errLoginTimedOut) {
 		t.Fatalf("forged state: %v", err)
 	}
@@ -153,5 +156,22 @@ func TestPollDeviceLoginBacksOff(t *testing.T) {
 	}
 	if tokens.GetAccessToken() != "loco_s_d" || fake.polls != 3 {
 		t.Fatalf("tokens = %+v after %d polls", tokens, fake.polls)
+	}
+}
+
+// expiringContext reports a passed deadline once done closes.
+type expiringContext struct {
+	context.Context
+	done chan struct{}
+}
+
+func (c expiringContext) Done() <-chan struct{} { return c.done }
+
+func (c expiringContext) Err() error {
+	select {
+	case <-c.done:
+		return context.DeadlineExceeded
+	default:
+		return nil
 	}
 }
