@@ -8,7 +8,10 @@ import subprocess
 import sys
 import time
 
-from release import run
+
+def run(*args):
+    return subprocess.check_output(args, text=True).strip()
+
 
 GH_ATTEMPTS = 5
 

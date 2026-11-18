@@ -1,5 +1,7 @@
 # Platform releases
 
+The release CLI is Go code in `tools/platform-release`, split by command execution, registry publication, artifact packaging, bundle rendering and local builds. The `mise run release:*` tasks run it with `go run ./tools/platform-release`.
+
 Each Helm chart and CRD bundle is versioned on its own and published as an immutable OCI artifact. A Flux OCI bundle, published with each release, pins chart, CRD bundle and image digests for control-plane and worker clusters.
 
 ## Charts and CRD bundles

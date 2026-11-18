@@ -3,4 +3,4 @@
 set -euo pipefail
 
 base=$(git merge-base "${1:-origin/main}" HEAD)
-exec python tools/platform-release/release.py check-versions --base "$base"
+exec go run ./tools/platform-release check-versions --base "$base"

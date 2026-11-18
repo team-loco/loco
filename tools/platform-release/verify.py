@@ -1,9 +1,27 @@
+import io
 import json
 import subprocess
+import tarfile
 import tempfile
 from pathlib import Path
 
-import release
+ROOT = Path(__file__).resolve().parents[2]
+CHARTS = ("loco-worker", "loco-control-plane")
+IMAGES = ("agent", "controller", "builder", "obs-proxy", "api", "ui")
+
+
+def run(*args):
+    return subprocess.check_output(args, cwd=ROOT, text=True).strip()
+
+
+def archive_files(data):
+    with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+        return {
+            entry.name: archive.extractfile(entry).read()
+            for entry in archive.getmembers()
+            if entry.isfile()
+        }
+
 
 FIXTURE_VERSION = "0.0.0"
 FIXTURE_COMMIT = "a" * 40
@@ -27,7 +45,7 @@ def documents(data):
 
 def main():
     names = (
-        *release.CHARTS,
+        *CHARTS,
         "loco-applications-crd",
         "loco-builds-crd",
         "loco-gateway-crd",
@@ -40,15 +58,36 @@ def main():
     }
     images = {
         name: "ghcr.io/example/platform-" + name + "@" + FIXTURE_DIGEST
-        for name in release.IMAGES
+        for name in IMAGES
     }
-    files = release.bundle(FIXTURE_VERSION, FIXTURE_COMMIT, refs, images)
     with tempfile.TemporaryDirectory(prefix="loco-render-") as directory:
         temp = Path(directory)
-        for name, data in files.items():
-            path = temp / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
+        manifest = temp / "input-release.json"
+        manifest.write_text(
+            json.dumps(
+                {
+                    "version": FIXTURE_VERSION,
+                    "coreCommit": FIXTURE_COMMIT,
+                    "artifacts": refs,
+                    "images": images,
+                }
+            )
+        )
+        run(
+            "go",
+            "run",
+            "./tools/platform-release",
+            "render",
+            "--manifest",
+            str(manifest),
+            "--output",
+            directory,
+        )
+        files = {
+            str(path.relative_to(temp)): path.read_bytes()
+            for path in temp.rglob("*")
+            if path.is_file() and path != manifest
+        }
         for layer in (
             "control-plane",
             "worker",
@@ -61,7 +100,7 @@ def main():
         ):
             if layer.startswith("layers/"):
                 name = layer.split("/")[1]
-                rendered = release.run(
+                rendered = run(
                     "flux",
                     "build",
                     "kustomization",
@@ -73,7 +112,7 @@ def main():
                     str(temp / "all" / (name + ".yaml")),
                 )
             else:
-                rendered = release.run("kustomize", "build", str(temp / layer))
+                rendered = run("kustomize", "build", str(temp / layer))
             if not documents(rendered):
                 raise RuntimeError("bundle layer rendered no resources")
         name = "loco-worker"
@@ -86,11 +125,11 @@ def main():
         }
         path = temp / (name + "-values.json")
         path.write_text(json.dumps(values))
-        rendered = release.run(
+        rendered = run(
             "helm",
             "template",
             name,
-            str(release.ROOT / "charts" / name),
+            str(ROOT / "charts" / name),
             "--namespace",
             hr["spec"]["targetNamespace"],
             "--include-crds",
@@ -116,13 +155,13 @@ def main():
         if not pinned_images:
             raise RuntimeError("chart rendered no digest-pinned Loco deployments")
         gateway_chart = next(
-            (release.ROOT / "charts/loco-worker/charts").glob("gateway-helm-*.tgz")
+            (ROOT / "charts/loco-worker/charts").glob("gateway-helm-*.tgz")
         )
         gateway = json.loads(files["layers/infra/envoy-gateway-helmrelease.yaml"])
         gateway_values = temp / "gateway-values.json"
         gateway_values.write_text(json.dumps(gateway["spec"]["values"]))
         gateway_resources = documents(
-            release.run(
+            run(
                 "helm",
                 "template",
                 "envoy-gateway",
@@ -179,11 +218,11 @@ def main():
         cp_path = temp / "control-plane-values.json"
         cp_path.write_text(json.dumps(cp_values))
         cp_resources = documents(
-            release.run(
+            run(
                 "helm",
                 "template",
                 "regional",
-                str(release.ROOT / "charts/loco-control-plane"),
+                str(ROOT / "charts/loco-control-plane"),
                 "--namespace",
                 "loco-system",
                 "--values",
@@ -204,36 +243,43 @@ def main():
             raise RuntimeError(
                 "control-plane chart does not render the pinned API and observability proxy images"
             )
-        versions = release.versions()
-        for name in release.CHARTS:
-            release.run(
+        for name in CHARTS:
+            run(
                 "helm",
                 "package",
-                str(release.ROOT / "charts" / name),
+                str(ROOT / "charts" / name),
                 "--destination",
                 directory,
             )
-            package = temp / (name + "-" + versions[name] + ".tgz")
-            metadata = documents(release.run("helm", "show", "chart", str(package)))[0]
-            if metadata["version"] != versions[name]:
+            version = documents(
+                run("helm", "show", "chart", str(ROOT / "charts" / name))
+            )[0]["version"]
+            package = temp / (name + "-" + version + ".tgz")
+            metadata = documents(run("helm", "show", "chart", str(package)))[0]
+            if metadata["version"] != version:
                 raise RuntimeError("packaged chart version differs from its Chart.yaml")
             again = temp / "again"
-            release.run(
+            run(
                 "helm",
                 "package",
-                str(release.ROOT / "charts" / name),
+                str(ROOT / "charts" / name),
                 "--destination",
                 str(again),
             )
-            if release.content((again / package.name).read_bytes()) != release.content(
+            if archive_files((again / package.name).read_bytes()) != archive_files(
                 package.read_bytes()
             ):
                 raise RuntimeError("packaged chart content is not reproducible")
-        release.gateway_crds(gateway_chart)
+        with tarfile.open(gateway_chart) as archive:
+            if not any(
+                "/crds/crds/" in entry.name and entry.isfile()
+                for entry in archive.getmembers()
+            ):
+                raise RuntimeError("gateway dependency contains no CRDs")
         for name in ("applications", "builds"):
-            release.protected_crd(
-                release.ROOT / f"controller/config/crd/bases/infra.loco.io_{name}.yaml"
-            )
+            path = ROOT / f"controller/config/crd/bases/infra.loco.io_{name}.yaml"
+            if documents(path.read_text())[0].get("kind") != "CustomResourceDefinition":
+                raise RuntimeError(f"{path} is not a CRD")
     print("Platform bundle, chart packages, image digests and CRD ownership verified")
 
 
