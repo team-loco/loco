@@ -183,14 +183,30 @@ printf '%b' "$LOGIN_TEST_STDOUT"
 }
 
 func TestSignInDNSRetryHonorsContext(t *testing.T) {
-	fakeLocoadm(t, "", "Login to http://api failed: could not reach the Loco API: lookup api: no such host", "exit 1")
-	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	exited := filepath.Join(t.TempDir(), "exited")
+	t.Setenv("LOGIN_TEST_EXITED", exited)
+	fakeLocoadm(
+		t,
+		"",
+		"Login to http://api failed: could not reach the Loco API: lookup api: no such host",
+		`: > "$LOGIN_TEST_EXITED"; exit 1`,
+	)
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
+	// Cancels once the first attempt has failed, while signIn waits to retry.
+	go func() {
+		for ctx.Err() == nil {
+			if _, err := os.Stat(exited); err == nil {
+				cancel()
+			}
+			time.Sleep(time.Millisecond)
+		}
+	}()
 	var loginErr error
 	output := captureStderr(t, func() {
 		loginErr = signIn(ctx, func(context.Context, string) error { t.Fatal("unexpected approval"); return nil })
 	})
-	if !errors.Is(loginErr, context.DeadlineExceeded) || !strings.Contains(output, loginFailurePrefix+loginFailureDNS) {
+	if !errors.Is(loginErr, context.Canceled) || !strings.Contains(output, loginFailurePrefix+loginFailureDNS) {
 		t.Fatalf("bounded DNS retry: %v, %q", loginErr, output)
 	}
 }
