@@ -52,6 +52,17 @@ mise run docs:serve
 
 Use the repository's tasks for builds, tests, code generation, and linting so local tools match CI. See [documentation maintenance](documentation.md) to edit this site.
 
+## Tests under load
+
+Some races only show when the machine is busy. `test:stress` runs Go test packages with the race detector, one test process per CPU beside one CPU burner per CPU, each process running every test `--count` times on one CPU. Without packages it runs the ones whose Go files differ from `--base` (default `origin/main`). It prints the output of every failing process.
+
+```sh
+LOCO_TEST_DATABASE_URL=postgres://... mise run test:stress api/service internal/clickhouse/migrationlock
+mise run test:stress --count 20 internal/...
+```
+
+CI runs it on the packages a pull request changes, and every night on every Go module but `tests/e2e`.
+
 ## Installation end-to-end suite
 
 The installation suite uses Flux to install the newest stable published release and upgrade to the head bundle, checks retained identities and encryption keys, then exercises login, enrollment, source deployment, verification and recovery.

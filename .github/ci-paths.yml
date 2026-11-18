@@ -391,6 +391,13 @@ python:
     - ".github/actions/setup-tools/**"
   push: *python
 
+stress:
+  pull_request:
+    - "**/*.go"
+    - "!tests/e2e/**"
+    - "mise-tasks/test/stress"
+    - ".github/workflows/stress.yml"
+
 transit-conformance:
   pull_request: &transit-conformance
     - "api/pkg/transit/**"
