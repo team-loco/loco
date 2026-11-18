@@ -61,7 +61,7 @@ LOCO_TEST_DATABASE_URL=postgres://... mise run test:stress api/service internal/
 mise run test:stress --count 20 internal/...
 ```
 
-CI runs it on the packages a pull request changes, and every night on every Go module but `tests/e2e`.
+CI runs it on the packages a pull request changes, reporting failures without blocking the merge, and every night on every Go module but `tests/e2e`.
 
 ## Installation end-to-end suite
 

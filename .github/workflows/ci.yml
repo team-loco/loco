@@ -55,7 +55,6 @@ jobs:
       osv: ${{ steps.select.outputs.osv }}
       platform-release: ${{ steps.select.outputs.platform-release }}
       python: ${{ steps.select.outputs.python }}
-      stress: ${{ steps.select.outputs.stress }}
       transit-conformance: ${{ steps.select.outputs.transit-conformance }}
       web: ${{ steps.select.outputs.web }}
       workflows: ${{ steps.select.outputs.workflows }}
@@ -278,14 +277,6 @@ jobs:
       contents: read
     uses: ./.github/workflows/python.yml
 
-  stress:
-    name: Stress
-    needs: [changes]
-    if: needs.changes.outputs.stress == 'true'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/stress.yml
-
   transit-conformance:
     name: Transit Conformance
     needs: [changes]
@@ -330,7 +321,6 @@ jobs:
       - osv
       - platform-release
       - python
-      - stress
       - transit-conformance
       - web
       - workflows
@@ -392,6 +382,15 @@ jobs:
     with:
       image_name: ${{ github.repository }}-${{ matrix.image }}
       tag_suffix: ${{ matrix.tag_suffix || '' }}
+
+  # Reports test failures under load in the changed packages; the gate does not wait for it.
+  stress:
+    name: Stress
+    needs: [changes, gate]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.changes.outputs.go-lint-and-test == 'true' }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/stress.yml
 
   pass-markers:
     name: Pass Marker ${{ matrix.check }}
