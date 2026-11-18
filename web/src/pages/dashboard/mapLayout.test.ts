@@ -96,6 +96,25 @@ describe("mapLayout", () => {
 		expect(layout.internalNodes[0]?.y).toBeGreaterThan(0);
 	});
 
+	test("internal resources without public ones fill rows across the width", () => {
+		const names = ["a", "b", "c", "d", "e", "f", "g"];
+		const wide = mapLayout(
+			names.map((n) => row(n)),
+			[],
+			WIDE,
+		);
+		const xs = wide.internalNodes.map((n) => n.x);
+		expect(new Set(wide.internalNodes.map((n) => n.y)).size).toBe(2);
+		expect(Math.max(...xs) + MAP_NODE_W).toBeLessThanOrEqual(WIDE);
+		expect(wide.width).toBe(WIDE);
+		const phone = mapLayout(
+			names.map((n) => row(n)),
+			[],
+			PHONE,
+		);
+		expect(new Set(phone.internalNodes.map((n) => n.x))).toEqual(new Set([0]));
+	});
+
 	test("public resources past the limit are counted, not drawn, and unhealthy ones are drawn first", () => {
 		const healthy = Array.from({ length: MAP_PUBLIC_LIMIT + 2 }, (_, i) =>
 			row(`a-${i.toString().padStart(2, "0")}`, { domain: `a-${i.toString()}.example.dev` }),

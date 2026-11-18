@@ -10,8 +10,10 @@ import { cn } from "@/lib/utils";
 
 const FLUSH = "[&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5";
 
-function Table({ className, ...props }: React.ComponentProps<typeof TableBase>) {
-	return <TableBase className={cn("text-[13px]", FLUSH, className)} {...props} />;
+/** `inset` keeps rows and their dividers 20px inside the card instead of running edge to edge. */
+function Table({ className, inset = false, ...props }: React.ComponentProps<typeof TableBase> & { inset?: boolean }) {
+	const table = <TableBase className={cn("text-[13px]", !inset && FLUSH, className)} {...props} />;
+	return inset ? <div className="px-5">{table}</div> : table;
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<typeof TableHeaderBase>) {

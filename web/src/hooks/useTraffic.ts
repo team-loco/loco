@@ -9,6 +9,7 @@ export function useTraffic(options: {
 	environmentId: string;
 	resourceIds: string[];
 	spanMs: number;
+	endMs?: number;
 	region?: string;
 }) {
 	const transport = useTransport();

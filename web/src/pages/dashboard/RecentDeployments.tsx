@@ -89,7 +89,7 @@ export function RecentDeployments({
 			{recent.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
-				<Table className="min-w-[880px] table-fixed [--row-h:66px]">
+				<Table inset className="min-w-[880px] table-fixed [--row-h:66px]">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[120px]">Status</TableHead>

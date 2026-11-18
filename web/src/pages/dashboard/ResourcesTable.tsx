@@ -3,7 +3,14 @@ import { useTransport } from "@connectrpc/connect-query";
 import { useQuery } from "@tanstack/react-query";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { HOUR_MS } from "@/lib/obs-time";
-import { TRAFFIC_METRICS, latestTraffic, trafficPoints, trafficValue, type TrafficPoint } from "@/lib/traffic";
+import {
+	TRAFFIC_METRICS,
+	latestTraffic,
+	trafficPoints,
+	trafficSeries,
+	trafficValue,
+	type TrafficPoint,
+} from "@/lib/traffic";
 import { functionalUpdate, useTable } from "@tanstack/react-table";
 import { ArrowRightIcon, GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { createContext, use } from "react";
@@ -25,6 +32,7 @@ import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { RowLink } from "@/components/design/RowLink";
+import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -97,7 +105,7 @@ function ReplicaPips({ desired, ready, degraded }: { desired: number; ready: num
 				<span
 					key={i}
 					className={cn(
-						"h-3.5 w-1 shrink-0 rounded-[1.5px]",
+						"h-4 w-1.5 shrink-0 rounded-[1.5px]",
 						i >= ready ? "ring-1 ring-line2 ring-inset" : degraded ? "bg-warn" : "bg-foreground",
 					)}
 				/>
@@ -250,13 +258,21 @@ function MenuCell({ item }: { item: DashboardItem }) {
 function TrafficCell({ item }: { item: DashboardItem }) {
 	const { traffic, trafficLoading, trafficError } = useCells();
 	if (isDraftItem(item)) return <span className="text-fg3">—</span>;
-	const point = latestTraffic(traffic, item.resource.id);
+	const rate = trafficLoading
+		? "…"
+		: trafficError
+			? "Unavailable"
+			: trafficValue(latestTraffic(traffic, item.resource.id)?.requests, "/s");
 	return (
 		<span
-			className="font-mono text-[12px] whitespace-nowrap"
-			title={trafficError ? "Failed to load traffic" : "Latest request rate"}
+			className="flex items-center gap-2.5"
+			title={trafficError ? "Failed to load traffic" : "Requests per second over the last hour"}
 		>
-			{trafficLoading ? "…" : trafficError ? "Unavailable" : trafficValue(point?.requests, "/s")}
+			<Sparkline
+				values={trafficLoading || trafficError ? [] : trafficSeries(traffic, "requests", item.resource.id)}
+				className="h-6 min-w-0 flex-1 text-fg2"
+			/>
+			<span className="w-[62px] shrink-0 text-right font-mono text-[12px] whitespace-nowrap">{rate}</span>
 		</span>
 	);
 }
@@ -291,14 +307,14 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 		accessorFn: replicaTotal,
 		sortFn: "basic",
 		sortDescFirst: true,
-		meta: { headClassName: "w-[160px]" },
+		meta: { headClassName: "w-[184px]" },
 		cell: ({ row }) => <ReplicasCell item={row.original} />,
 	},
 	{
 		id: "traffic",
-		header: "Traffic",
+		header: "Traffic, last hour",
 		enableSorting: false,
-		meta: { headClassName: "w-[90px]" },
+		meta: { headClassName: "w-[170px]" },
 		cell: ({ row }) => <TrafficCell item={row.original} />,
 	},
 	{
@@ -553,7 +569,7 @@ export function ResourcesTable({
 							trafficError: traffic.error !== null,
 						}}
 					>
-						<DataTable table={table} className="min-w-[820px] table-fixed [--row-h:66px]" empty={empty} />
+						<DataTable table={table} inset className="min-w-[880px] table-fixed [--row-h:66px]" empty={empty} />
 					</DashboardCellContext>
 					<DataTablePager table={table} pageSizes={[PAGE_SIZE]} empty={`0 of ${items.length.toString()}`} />
 				</>

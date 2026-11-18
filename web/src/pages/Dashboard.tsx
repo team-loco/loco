@@ -94,7 +94,7 @@ export function Dashboard() {
 	}
 
 	return (
-		<Page>
+		<Page className="gap-14 pt-9">
 			{heading}
 			{loading || active === undefined ? (
 				<DashboardSkeleton />
@@ -114,6 +114,7 @@ export function Dashboard() {
 						environmentId={active.id}
 						value={allocation(data.envResources)}
 						hrefFor={hrefFor}
+						nowMs={nowMs}
 					/>
 					<ResourcesTable
 						key={active.id}
