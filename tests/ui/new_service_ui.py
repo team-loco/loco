@@ -707,10 +707,8 @@ with session(out) as browser:
             expect(new_version.get_by_text("worker-east-1", exact=True)).to_be_visible()
             expect(new_version.get_by_text("Starting", exact=True)).to_be_visible()
             expect(
-                panel.get_by_role(
-                    "region", name="Previous version", exact=True
-                ).get_by_text("No replicas", exact=True)
-            ).to_be_visible()
+                panel.get_by_role("region", name="Previous version", exact=True)
+            ).to_have_count(0)
             activity = panel.get_by_role("region", name="Activity feed", exact=True)
             expect(activity.get_by_role("listitem")).to_have_count(2)
             expect(activity.get_by_role("listitem").last).to_contain_text(

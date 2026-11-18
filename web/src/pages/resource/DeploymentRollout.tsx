@@ -8,6 +8,7 @@ import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Progress } from "@/components/design/Progress";
+import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
 import { cn, formatShortId } from "@/lib/utils";
 
@@ -35,56 +36,48 @@ function followActivity(node: HTMLDivElement) {
 	};
 }
 
-export function DeploymentRollout({
-	deployment,
-	activity,
-	logsHref,
-}: {
-	deployment: Deployment;
-	activity: readonly Activity[];
-	logsHref: string | undefined;
-}) {
-	const now = useNow(deployment.replicas.some((r) => r.state === "Stopping") ? 1000 : undefined).getTime();
+export function ProblemBanner({ deployment, logsHref }: { deployment: Deployment; logsHref: string | undefined }) {
 	const problem = deployment.problem;
+	if (problem === undefined) return null;
 	const problemHref = problemLogsHref(logsHref, deployment);
 	return (
-		<div className="flex min-w-0 flex-col gap-4">
-			{problem !== undefined && (
-				<Banner
-					title={problem.message}
-					tone={deployment.status === DeploymentStatus.FAILED ? "bad" : "warn"}
-					className="mx-0 mt-0"
-				>
-					{problem.detail !== "" && (
-						<p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>
-					)}
-					{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
-					{problemHref !== undefined && (
-						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={problemHref} />}>
-							<LogsIcon />
-							View logs
-						</Button>
-					)}
-				</Banner>
+		<Banner
+			title={problem.message}
+			tone={deployment.status === DeploymentStatus.FAILED ? "bad" : "warn"}
+			className="mx-0 mt-0"
+		>
+			{problem.detail !== "" && <p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>}
+			{problem.replicaName !== "" && <p className="my-1 break-all font-mono text-[12px]">{problem.replicaName}</p>}
+			{problemHref !== undefined && (
+				<Button variant="outline" size="sm" nativeButton={false} render={<Link to={problemHref} />}>
+					<LogsIcon />
+					View logs
+				</Button>
 			)}
-			<div className="grid min-w-0 gap-4">
-				{groupReplicas(deployment.replicas, deployment.currentRevision, deployment.id).map((group) => (
+		</Banner>
+	);
+}
+
+export function ReplicaGroups({ deployment }: { deployment: Deployment }) {
+	const now = useNow(deployment.replicas.some((r) => r.state === "Stopping") ? 1000 : undefined).getTime();
+	return (
+		<div className="grid min-w-0 gap-3">
+			{groupReplicas(deployment.replicas, deployment.currentRevision, deployment.id)
+				.filter((group, i) => i === 0 || group.replicas.length > 0)
+				.map((group) => (
 					<section key={group.label} aria-label={group.label}>
-						<h3 className="mt-0 mb-2 text-[12px] font-medium text-fg3">
+						<h3 className="mt-0 mb-1.5 text-[12px] font-medium text-fg3">
 							{group.label} <span className="font-mono">({group.replicas.length})</span>
 						</h3>
-						<ul className="m-0 list-none divide-y divide-line rounded-lg border border-line p-0">
-							{group.replicas.length === 0 && <li className="px-3 py-2.5 text-[12px] text-fg3">No replicas</li>}
+						<ul className="m-0 list-none divide-y divide-line2 p-0">
+							{group.replicas.length === 0 && <li className="py-1.5 text-[12px] text-fg3">No replicas</li>}
 							{group.replicas.map((replica) => {
 								const state = replicaState(replica.state);
 								const countdown = stoppingCountdown(replica, now);
 								return (
 									<li
 										key={replica.uid}
-										className={cn(
-											"flex min-w-0 flex-col gap-1.5 px-3 py-2.5",
-											replica.state === "Stopped" && "opacity-50",
-										)}
+										className={cn("flex min-w-0 flex-col gap-1.5 py-2", replica.state === "Stopped" && "opacity-50")}
 									>
 										<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
 											<span className="min-w-0 break-all font-mono text-[12px]">{replica.name}</span>
@@ -121,44 +114,54 @@ export function DeploymentRollout({
 						</ul>
 					</section>
 				))}
-			</div>
-			<section aria-label="Deployment activity">
-				<h3 className="mt-0 mb-2 text-[12px] font-medium text-fg3">Activity</h3>
-				<div
-					ref={followActivity}
-					// oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scroll region needs keyboard access.
-					tabIndex={0}
-					role="region"
-					aria-label="Activity feed"
-					className="max-h-64 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-3 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-ring"
-				>
-					{activity.length === 0 && <p className="m-0 text-[12px] text-fg3">Waiting for activity…</p>}
-					<ol className="m-0 flex list-none flex-col gap-2 p-0">
-						{activity.map((entry) => (
-							<li
-								key={String(entry.seq)}
-								className="grid grid-cols-[3.5rem_0.5rem_minmax(0,1fr)] items-baseline gap-2 text-[12px]"
-							>
-								<span className="font-mono text-fg3 tabular-nums">{activityTime(entry.at, deployment.createdAt)}</span>
-								<span
-									className={cn(
-										"size-1.5 self-start mt-1.5 rounded-full bg-info",
-										entry.severity === "ok" && "bg-ok-glyph",
-										entry.severity === "warn" && "bg-warn",
-										entry.severity === "error" && "bg-bad-fg",
-									)}
-								>
-									<span className="sr-only">{entry.severity}</span>
-								</span>
-								<span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-									{entry.replicaName !== "" && <span className="mr-2 font-mono text-fg3">{entry.replicaName}</span>}
-									{entry.message}
-								</span>
-							</li>
-						))}
-					</ol>
-				</div>
-			</section>
 		</div>
+	);
+}
+
+export function ActivityFeed({ deployment, activity }: { deployment: Deployment; activity: readonly Activity[] }) {
+	return (
+		<section aria-label="Deployment activity" className="min-w-0">
+			<div className="mb-2 flex items-center justify-between gap-2">
+				<h3 className="m-0 text-[12px] font-medium text-fg3">Activity</h3>
+				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
+					Replica logs
+					<SoonTag />
+				</span>
+			</div>
+			<div
+				ref={followActivity}
+				// oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scroll region needs keyboard access.
+				tabIndex={0}
+				role="region"
+				aria-label="Activity feed"
+				className="max-h-64 overflow-y-auto overscroll-contain rounded-lg border border-line bg-background p-3 [scrollbar-gutter:stable] focus-visible:outline-2 focus-visible:outline-ring"
+			>
+				{activity.length === 0 && <p className="m-0 text-[12px] text-fg3">Waiting for activity…</p>}
+				<ol className="m-0 flex list-none flex-col gap-2 p-0">
+					{activity.map((entry) => (
+						<li
+							key={String(entry.seq)}
+							className="grid grid-cols-[3.5rem_0.5rem_minmax(0,1fr)] items-baseline gap-2 text-[12px]"
+						>
+							<span className="font-mono text-fg3 tabular-nums">{activityTime(entry.at, deployment.createdAt)}</span>
+							<span
+								className={cn(
+									"size-1.5 self-start mt-1.5 rounded-full bg-info",
+									entry.severity === "ok" && "bg-ok-glyph",
+									entry.severity === "warn" && "bg-warn",
+									entry.severity === "error" && "bg-bad-fg",
+								)}
+							>
+								<span className="sr-only">{entry.severity}</span>
+							</span>
+							<span className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+								{entry.replicaName !== "" && <span className="mr-2 font-mono text-fg3">{entry.replicaName}</span>}
+								{entry.message}
+							</span>
+						</li>
+					))}
+				</ol>
+			</div>
+		</section>
 	);
 }
