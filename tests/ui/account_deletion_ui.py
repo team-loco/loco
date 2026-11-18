@@ -106,7 +106,7 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     expect(tokens.get_by_role("listitem")).to_have_count(10)
     pending_pages = []
     context.route(preview, lambda route: pending_pages.append(route))
-    next_page = page.get_by_role("button", name=re.compile(r"^Next(?: page)?$"))
+    next_page = page.get_by_role("button", name="Next page", exact=True)
     with page.expect_request(preview):
         next_page.click()
     expect(tokens.get_by_role("listitem")).to_have_count(10)

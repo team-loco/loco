@@ -18,7 +18,6 @@ parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
 args = parser.parse_args()
 state = load_state(args, "webhooks", "tests/ui/fixtures/webhooks/scenario.json")
-token = state["users"]["owner"]["token"]
 workspace = state["workspaces"]["acme/shared"]
 DELIVERY_TIMEOUT_S = 30
 FAILING_PATH = "/failing"

@@ -2,7 +2,6 @@ import argparse
 import calendar
 import json
 import re
-import sys
 import time
 import urllib.parse
 from pathlib import Path
@@ -10,7 +9,6 @@ from pathlib import Path
 from harness import evidence, load_state, open_page, repo, session, wait_for_query
 from playwright.sync_api import expect
 
-sys.dont_write_bytecode = True
 parser = argparse.ArgumentParser(
     description="Exercise the production trace viewer with fixture trace responses"
 )
@@ -772,9 +770,6 @@ with session(out) as browser:
     drawer.get_by_text("The selected span is unavailable.", exact=True).wait_for()
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(drawer).to_have_count(0)
-    if drawer.count():
-        drawer.get_by_role("button", name="Close", exact=True).click()
-        expect(drawer).to_have_count(0)
     mode[0] = "drawer-error"
     page.goto(state["ui_url"] + base + "&trace=" + trace)
     failed_drawer = page.get_by_role("dialog", name="Trace", exact=True)

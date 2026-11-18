@@ -18,7 +18,7 @@ def load_state(args, name, scenario, *, issuer=None):
             ref="HEAD", name=name, scenario=repo / scenario, issuer=issuer
         )
         print("Preview state:", args.state, flush=True)
-        if not getattr(args, "keep", False):
+        if not args.keep:
             atexit.register(
                 lambda: evidence.stop_state(evidence.load_state(args.state))
             )

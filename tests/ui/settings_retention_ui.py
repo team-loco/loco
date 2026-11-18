@@ -51,10 +51,6 @@ with session(out) as browser:
             expect(images.get_by_role("cell").last).to_have_text("Cleanup disabled")
             expect(events.get_by_role("cell").last).to_have_text("90 days")
             expect(images.get_by_text("Raised", exact=True)).to_have_count(0)
-            limits.screenshot(
-                path=out / f"retention-after-{mode}{'-narrow' if narrow else ''}.png",
-                animations="disabled",
-            )
             if narrow:
                 scroller = limits.locator('[data-slot="table-container"]')
                 events.get_by_role("cell").last.scroll_into_view_if_needed()
