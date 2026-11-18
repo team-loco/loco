@@ -11,14 +11,11 @@ export interface MarkerGroup {
 /** Merges deploys that would draw on top of each other into one line, labelled by the first. */
 export function markerGroups(markers: ChartMarker[], from: number, to: number): MarkerGroup[] {
 	const gap = (to - from) * MERGE_SHARE;
-	const groups: { t: number; labels: string[] }[] = [];
+	const groups: { t: number; label: string; more: number }[] = [];
 	for (const m of markers.toSorted((a, b) => a.t - b.t)) {
 		const last = groups.at(-1);
-		if (last !== undefined && m.t - last.t < gap) last.labels.push(m.label);
-		else groups.push({ t: m.t, labels: [m.label] });
+		if (last !== undefined && m.t - last.t < gap) last.more++;
+		else groups.push({ t: m.t, label: m.label, more: 0 });
 	}
-	return groups.map((g) => ({
-		t: g.t,
-		label: g.labels.length > 1 ? `${g.labels[0] ?? ""} +${String(g.labels.length - 1)}` : (g.labels[0] ?? ""),
-	}));
+	return groups.map((g) => ({ t: g.t, label: g.more > 0 ? `${g.label} +${String(g.more)}` : g.label }));
 }
