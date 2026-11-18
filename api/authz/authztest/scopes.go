@@ -10,8 +10,8 @@ import (
 	queries "github.com/team-loco/loco/api/gen/db"
 )
 
-// ErrUnknownUser is UserScopes' answer for a user outside the table.
-var ErrUnknownUser = errors.New("unknown test user")
+// errUnknownUser is UserScopes' answer for a user outside the table.
+var errUnknownUser = errors.New("unknown test user")
 
 var (
 	User1      = uuid.MustParse("01890000-0000-0000-0000-000000000001")
@@ -69,6 +69,6 @@ func UserScopes(userID uuid.UUID) ([]queries.GetUserScopesRow, error) {
 			{Scope: queries.ScopeAdmin, EntityType: queries.EntityTypeWorkspace, EntityID: Workspace3},
 		}, nil
 	default:
-		return nil, ErrUnknownUser
+		return nil, errUnknownUser
 	}
 }

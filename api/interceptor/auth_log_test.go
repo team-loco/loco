@@ -33,7 +33,6 @@ func (s *recordSink) WithAttrs([]slog.Attr) slog.Handler { return s }
 
 func (s *recordSink) WithGroup(string) slog.Handler { return s }
 
-// atLeast returns the records at level or above.
 func (s *recordSink) atLeast(level slog.Level) []slog.Record {
 	s.mu.Lock()
 	defer s.mu.Unlock()
