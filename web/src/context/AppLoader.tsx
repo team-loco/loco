@@ -122,6 +122,7 @@ function AppLoaderOverlay({ active, message }: { active: boolean; message: strin
 
 	return (
 		<div
+			data-slot="app-loader"
 			role="status"
 			aria-live="polite"
 			aria-busy
