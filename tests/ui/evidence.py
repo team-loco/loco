@@ -1374,23 +1374,6 @@ def cmd_shoot(args):
     out.mkdir(parents=True, exist_ok=True)
     manifest_path = out / ".scenarios.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
-    targets = [
-        shot_filename(shot["name"], state["name"], theme, narrow)
-        for shot in shots
-        for theme in THEMES
-        for narrow in ((False, True) if shot.get("narrow") else (False,))
-    ]
-    clashes = [
-        name
-        for name in targets
-        if (out / name).exists()
-        and manifest.get(name, state["scenario"]) != state["scenario"]
-    ]
-    if clashes:
-        raise EvidenceError(
-            f"{', '.join(clashes)} in {out} came from scenario {manifest[clashes[0]]}; "
-            "shoot this run into another --out"
-        )
     run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
     written, failures = [], []
     with sync_playwright() as playwright:
@@ -1402,6 +1385,13 @@ def cmd_shoot(args):
                     target = out / shot_filename(
                         shot["name"], state["name"], theme, narrow
                     )
+                    owner = manifest.get(target.name, state["scenario"])
+                    if target.exists() and owner != state["scenario"]:
+                        failures.append(
+                            f"{target.name}: written by scenario {owner}; "
+                            "shoot this run into another --out"
+                        )
+                        continue
                     target.unlink(missing_ok=True)
                     try:
                         capture(browser, state, shot, theme, narrow, target)
