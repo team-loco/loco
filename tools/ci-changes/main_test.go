@@ -193,6 +193,17 @@ func TestAffectedE2EShards(t *testing.T) {
 	}
 }
 
+func TestReleaseToolChangesRunTheInstallation(t *testing.T) {
+	filters, err := loadFilters("../../.github/ci-paths.yml")
+	require.NoError(t, err)
+	for file, want := range map[string]bool{
+		"tools/platform-release/registry.go":      true,
+		"tools/platform-release/registry_test.go": false,
+	} {
+		assert.Equal(t, want, selectOwn(filters, "pull_request", []string{file})["e2e-installation"], file)
+	}
+}
+
 func TestInstallationRunnerUnitTests(t *testing.T) {
 	filters, err := loadFilters("../../.github/ci-paths.yml")
 	require.NoError(t, err)
