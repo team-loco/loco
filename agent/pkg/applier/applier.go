@@ -19,6 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/team-loco/loco/agent/pkg/kube"
+	"github.com/team-loco/loco/agent/pkg/registrycred"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -39,19 +40,15 @@ var (
 	errEnvSecretRevision = errors.New("env secret revision differs from the apply revision")
 )
 
-type PullSecrets interface {
-	Ensure(ctx context.Context, workspaceID string) error
-}
-
 // Applier handles applying Kubernetes resources.
 type Applier struct {
 	client      client.Client
 	namespace   string
-	pullSecrets PullSecrets
+	pullSecrets *registrycred.Manager
 }
 
 // New creates a new Applier for the given cluster config.
-func New(cfg *rest.Config, namespace string, pullSecrets PullSecrets) (*Applier, error) {
+func New(cfg *rest.Config, namespace string, pullSecrets *registrycred.Manager) (*Applier, error) {
 	scheme, err := kube.NewScheme()
 	if err != nil {
 		return nil, err
@@ -66,7 +63,7 @@ func New(cfg *rest.Config, namespace string, pullSecrets PullSecrets) (*Applier,
 }
 
 // NewWithClient creates an Applier that writes through the given client.
-func NewWithClient(c client.Client, namespace string, pullSecrets PullSecrets) *Applier {
+func NewWithClient(c client.Client, namespace string, pullSecrets *registrycred.Manager) *Applier {
 	return &Applier{client: c, namespace: namespace, pullSecrets: pullSecrets}
 }
 
