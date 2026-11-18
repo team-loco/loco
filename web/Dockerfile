@@ -42,6 +42,7 @@ RUN find web/dist -type f -size +1k \( \
 FROM dependencies AS docs-builder
 COPY web/sws.toml ./web/
 COPY web/public/favicon.svg web/public/logo.svg ./web/public/
+COPY web/src/fonts.css web/src/theme.css ./web/src/
 WORKDIR /app/docs
 COPY docs ./
 ARG DOCS_ENVIRONMENT=production
