@@ -78,7 +78,6 @@ func main() {
 	}
 
 	var pullSecrets *registrycred.Manager
-	var applierPullSecrets applier.PullSecrets
 	if cfg.RegistryTokenMode() {
 		backoff := func() wait.Backoff { return newReconnectBackoff(cfg) }
 		pullSecrets, err = registrycred.New(
@@ -92,10 +91,9 @@ func main() {
 			slog.Error("failed to create the registry pull credential manager", "error", err)
 			os.Exit(1)
 		}
-		applierPullSecrets = pullSecrets
 	}
 
-	kubeApplier, err := applier.New(restConfig, cfg.Namespace, applierPullSecrets)
+	kubeApplier, err := applier.New(restConfig, cfg.Namespace, pullSecrets)
 	if err != nil {
 		slog.Error("failed to create kubernetes applier", "error", err)
 		os.Exit(1)
