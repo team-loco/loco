@@ -66,23 +66,21 @@ export function ActiveSessions() {
 	const [selected, setSelected] = useState<Session | null>(null);
 	const revoke = useMutation(revokeSession);
 
-	const signOut = () => {
+	const signOut = async () => {
 		if (selected === null || revoke.isPending) return;
-		revoke.mutate(
-			{ sessionId: selected.id },
-			{
-				onSuccess: async (_, { sessionId }) => {
-					await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
-					queryClient.setQueryData<ListSessionsResponse>(options.queryKey, (data) =>
-						data === undefined
-							? data
-							: { ...data, sessions: data.sessions.filter((session) => session.id !== sessionId) },
-					);
-					setSelected(null);
-					toast.success("Session signed out");
-				},
-			},
+		const sessionId = selected.id;
+		try {
+			await revoke.mutateAsync({ sessionId });
+		} catch {
+			return;
+		}
+
+		await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
+		queryClient.setQueryData<ListSessionsResponse>(options.queryKey, (data) =>
+			data === undefined ? data : { ...data, sessions: data.sessions.filter((session) => session.id !== sessionId) },
 		);
+		setSelected(null);
+		toast.success("Session signed out");
 	};
 
 	const rows = sessions.data?.sessions.toSorted((a, b) => Number(b.current) - Number(a.current)) ?? [];
@@ -160,8 +158,12 @@ export function ActiveSessions() {
 				confirmLabel="Sign out"
 				pendingLabel="Signing out…"
 				pending={revoke.isPending}
-				onConfirm={signOut}
-				onClose={() => setSelected(null)}
+				onConfirm={() => {
+					void signOut();
+				}}
+				onClose={() => {
+					setSelected(null);
+				}}
 			>
 				{revoke.isError && (
 					<p role="alert" className="text-[13.5px] text-bad-fg">
