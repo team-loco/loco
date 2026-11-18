@@ -6,6 +6,26 @@ The API wraps the data key that encrypts each environment's secrets, and the dat
 
 The API refuses to start without a valid transit configuration, and stops at startup unless it can log in to the server and read both of its keys with the types below.
 
+## Application secrets
+
+`loco env` and the dashboard store a service's secrets through `SecretService`. A secret belongs to one service in one environment. `ListSecrets` returns each name with its version and who set it; no API returns a stored value.
+
+### Storage
+
+Each environment has one 32-byte data key. The first `SetSecrets` call in an environment generates it, wraps it with the Transit key using `loco/dek/v1|environment=<environment id>` as the derivation context, and stores the wrapped key in the `environment_keys` table. The API encrypts each value with AES-256-GCM under that data key and a fresh 12-byte nonce, and stores the nonce and ciphertext in the `secrets` table, one row per service, environment and name. The additional authenticated data names the workspace, environment, service, secret name and version, so a ciphertext copied into another row fails to decrypt. Setting a name to its stored value changes nothing; any other value gets the next version. `LOCO_SECRETS_MAX_VALUE_BYTES` and `LOCO_SECRETS_MAX_PLACEMENT_BYTES` in the [API environment](../reference/api-environment.md) limit the size of one value and of the values one placement delivers.
+
+### Delivery
+
+A deployment names the secrets the service reads: `secrets` in [`loco.yaml`](../deployment/loco-yaml.md#variables-and-secrets), or `secret_bindings` in `CreateDeployment`. Each placement of that deployment records those names. When the API sends a placement to its cluster's agent over the Sync stream, it reads the ciphertexts in the same read-only transaction as the placement, unwraps the environment's data key, decrypts the values and sends them in `Apply.env_secret` beside the `Application`, tagged with the placement revision. The `Application` holds no secret value. A declared name with no stored value, or a value that fails to decrypt, records an apply error on the placement and nothing is sent.
+
+The agent writes the values to the Secret `env-<placement id>` in its own namespace, labelled with the placement ID and revision and owned by the `Application`, and sets the `Application`'s `envSecretRef` to that Secret and revision. The controller copies the Secret's data into `resource-<resource id>-env` in the environment's namespace, adds it to the container with `envFrom`, and writes the revision to the pod template annotation `loco.io/env-secret-revision`. Until the staging Secret carries the referenced revision, the controller requeues every 5 seconds and the agent's inventory reports the placement as pending, so the API sends it again. Every `agent.inventoryInterval` (10 minutes by default) the agent deletes staging Secrets that no `Application` references. A placement that declares no secrets has neither Secret.
+
+Plaintext values exist in the API's memory while it sends a placement, in the two worker Secrets and in the running container. A copy of the database holds only ciphertext and wrapped keys.
+
+### When values reach pods
+
+Saving or deleting a secret starts no rollout. The API decrypts values each time it sends a placement, so the next deploy or `loco resource restart` delivers the current values. While a deployment of the service is building or rolling out in the environment, the API rejects secret changes with `failed_precondition`. `DeleteSecrets` rejects a name the service's active deployment declares.
+
 ## OpenBao in the control-plane chart
 
 `loco-control-plane` runs OpenBao as the StatefulSet `<release>-openbao`, `openbao.replicas` nodes (3 by default) in one raft cluster with a PersistentVolumeClaim each, and points the API at it. OpenBao serves TLS with a certificate cert-manager issues from a CA the chart creates in the release namespace (the Issuers `<release>-openbao-selfsigned` and `<release>-openbao-ca`); the API and the chart's Jobs verify it against that CA, and OpenBao reloads the certificate when cert-manager renews it. The cert-manager controller is required whatever `certManager.enabled` says. A NetworkPolicy admits only the API, the setup Job and the other OpenBao nodes. `openbao.enabled: false` uses an external OpenBao or Vault at `openbao.external.address` instead, with the CA bundle in the Secret `openbao.external.caSecret`.
@@ -143,7 +163,7 @@ Each webhook delivery opens the webhook's signing secrets with its data key, thr
 
 ### Rotation
 
-`bao write -f transit/keys/loco/rotate` creates a new key version. New data keys are wrapped with it, and data keys wrapped with older versions still unwrap. Call `SecretService.RewrapEnvironmentKeys` to rewrap every environment's data key with the new version. A webhook's data key stays wrapped with the version that was current when the webhook was created; each API start wraps the install webhooks' data keys with the latest version. Raise the key's `min_decryption_version` only past versions that no environment key, no webhook key and no retained database backup still uses.
+`bao write -f transit/keys/loco/rotate` creates a new key version. New data keys are wrapped with it, and data keys wrapped with older versions still unwrap. Call `SecretService.RewrapEnvironmentKeys` to rewrap every environment's data key with the new version. With an environment ID and `new_dek` set, it replaces that environment's data key and re-encrypts every value under the new one, keeping each version. A webhook's data key stays wrapped with the version that was current when the webhook was created; each API start wraps the install webhooks' data keys with the latest version. Raise the key's `min_decryption_version` only past versions that no environment key, no webhook key and no retained database backup still uses.
 
 `bao write -f transit/keys/loco-ingest/rotate` rotates the ingest signing key. The API signs new tokens with the latest version and publishes every version from the key's `min_decryption_version` in its JWKS, so tokens signed with older versions keep verifying until the minimum is raised past them. Raise it once the token lifetime has passed since the rotation.
 
