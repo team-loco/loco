@@ -3,7 +3,15 @@ import base64
 import re
 from pathlib import Path
 
-from harness import call, evidence, load_state, open_page as new_page, repo, session
+from harness import (
+    call,
+    evidence,
+    expect_rpc,
+    load_state,
+    open_page as new_page,
+    repo,
+    session,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -174,12 +182,10 @@ with session(out) as browser:
     search = page.get_by_role(
         "textbox", name="Search request ID, actor or target", exact=True
     )
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query")
-            == "(@type:resource.created) ledger"
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "(@type:resource.created) ledger",
     ):
         search.fill("ledger")
     expect(rows).to_have_count(1)
@@ -191,32 +197,29 @@ with session(out) as browser:
     expect(page.get_by_role("list", name="Audit events")).not_to_contain_text(
         "inventory"
     )
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query") == "INVENTORY"
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "INVENTORY",
     ):
         search.fill("INVENTORY")
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
     # Typing sends only the query the typing pauses on, so a half-typed field neither reads nor fails.
     typed_from = len(list_events(calls))
     search.press("ControlOrMeta+a")
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query") == "@type:secret.set"
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@type:secret.set",
     ):
         search.press_sequentially("@type:secret.set", delay=20)
     typed = [call["body"].get("query") for call in list_events(calls)[typed_from:]]
     assert typed == ["@type:secret.set"], typed
     expect(page.get_by_role("alert")).to_have_count(0)
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query") == "@type:>1"
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@type:>1",
     ) as rejected:
         search.fill("@type:>1")
     assert rejected.value.status == 400, rejected.value.status
@@ -238,32 +241,28 @@ with session(out) as browser:
     expect(page.locator('[data-slot="table-header"]')).to_have_count(0)
     expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
     expect(page.get_by_role("group", name="Rows per page")).to_have_count(0)
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query") == "@actor:"
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@actor:",
     ):
         panel.get_by_role("button", name=re.compile(r"^@actor:")).click()
     expect(search).to_be_focused()
     expect(search).to_have_value("@actor:")
     assert search.evaluate("node => node.selectionStart") == len("@actor:")
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query")
-            == "@actor:" + users["owner"]["id"]
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@actor:" + users["owner"]["id"],
     ):
         search.press_sequentially(users["owner"]["id"])
     expect(search).to_have_attribute("aria-invalid", "false")
     expect(panel).to_have_count(0)
     expect(rows).to_have_count(50)
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query") == "@wrong:value"
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@wrong:value",
     ):
         search.fill("@wrong:value")
     expect(panel.locator("mark")).to_have_text("@wrong:value")
@@ -274,11 +273,10 @@ with session(out) as browser:
     expect(search).to_have_attribute("aria-invalid", "true")
     page.set_viewport_size(evidence.DESKTOP)
 
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query") == request_id
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == request_id,
     ) as searched:
         search.fill(request_id)
     assert not searched.value.request.post_data_json.get("beforeSeq")
@@ -297,11 +295,10 @@ with session(out) as browser:
     page.get_by_role("button", name="Actor", exact=True).click()
     expect(page.get_by_role("option", name="Loco", exact=True)).to_be_visible()
     expect(page.get_by_role("option", name="Cluster agent", exact=True)).to_be_visible()
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and "@actor_type:system" in response.request.post_data_json.get("query", "")
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: "@actor_type:system" in body.get("query", ""),
     ) as system_events:
         page.get_by_role("option", name="Loco", exact=True).click()
     assert (
@@ -321,12 +318,10 @@ with session(out) as browser:
     page.keyboard.press("Escape")
     expect(rows).to_have_count(3)
     rows.first.click()
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and "@actor:" + users["owner"]["id"]
-            in response.request.post_data_json.get("query", "")
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: "@actor:" + users["owner"]["id"] in body.get("query", ""),
     ) as by_actor:
         page.get_by_role("dialog").get_by_role(
             "button", name=re.compile(r"^More by ")
@@ -469,12 +464,10 @@ with session(out) as browser:
     assert {call["body"]["workspaceId"] for call in reads} == {shared, sibling}, reads
     assert all(call["status"] == 200 for call in reads), reads
     page.get_by_role("button", name="Actor", exact=True).click()
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("query")
-            == "@actor:" + users["workspace_admin"]["id"]
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: body.get("query") == "@actor:" + users["workspace_admin"]["id"],
     ):
         page.get_by_role("option", name=re.compile("Wren Workspace")).click()
     expect(
@@ -492,13 +485,13 @@ with session(out) as browser:
     page.wait_for_url(f"**{audit_path}?range=90d&ws={sibling}")
     expect(page.get_by_role("button", name="Past 90 days", exact=True)).to_be_visible()
     expect(page.get_by_role("button", name="sibling", exact=True)).to_be_visible()
-    with page.expect_response(
-        lambda response: (
-            response.url.endswith("/ListEvents")
-            and response.request.post_data_json.get("resourceId")
-            == state["audit"]["inventory"]
-            and response.request.post_data_json.get("workspaceId") == sibling
-        )
+    with expect_rpc(
+        page,
+        "ListEvents",
+        lambda body: (
+            body.get("resourceId") == state["audit"]["inventory"]
+            and body.get("workspaceId") == sibling
+        ),
     ) as filtered:
         page.goto(
             state["ui_url"]
