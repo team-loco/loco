@@ -147,12 +147,14 @@ with session(out) as browser:
             section = page.locator("#set-scaling")
             expect(section).to_be_visible()
             for region in regions:
-                for _ in range(2):
-                    section.get_by_role(
-                        "button",
-                        name=f"Increase maximum replicas in {region}",
-                        exact=True,
-                    ).click()
+                section.get_by_role(
+                    "switch", name=f"Autoscaling in {region}", exact=True
+                ).click()
+                section.get_by_role(
+                    "button",
+                    name=f"Increase maximum replicas in {region}",
+                    exact=True,
+                ).click()
                 section.get_by_role(
                     "slider", name=f"CPU target (%) in {region}", exact=True
                 ).focus()
@@ -246,26 +248,27 @@ with session(out) as browser:
             save_and_settle()
             assert stored_regions()[regions[0]]["scalers"]["cpuTarget"] == target - 1
 
-            for _ in range(2):
-                section.get_by_role(
-                    "button",
-                    name=f"Decrease maximum replicas in {regions[0]}",
-                    exact=True,
-                ).click()
+            section.get_by_role(
+                "button",
+                name=f"Decrease maximum replicas in {regions[0]}",
+                exact=True,
+            ).click()
+            section.get_by_role(
+                "switch", name=f"Autoscaling in {regions[0]}", exact=True
+            ).click()
             save_and_settle()
             fixed = stored_regions()[regions[0]]
             assert fixed["minReplicas"] == fixed["maxReplicas"] == 1, fixed
             assert not fixed.get("scalers", {}).get("enabled", False), fixed
-            section.get_by_role(
-                "button", name=f"Increase maximum replicas in {regions[0]}", exact=True
-            ).click()
+            autoscaling = section.get_by_role(
+                "switch", name=f"Autoscaling in {regions[0]}", exact=True
+            )
+            autoscaling.click()
             section.get_by_role(
                 "slider", name=f"CPU target (%) in {regions[0]}", exact=True
             ).focus()
             page.keyboard.press("ArrowLeft")
-            section.get_by_role(
-                "button", name=f"Decrease maximum replicas in {regions[0]}", exact=True
-            ).click()
+            autoscaling.click()
             expect(
                 page.get_by_role("button", name="Discard", exact=True)
             ).to_have_count(0)

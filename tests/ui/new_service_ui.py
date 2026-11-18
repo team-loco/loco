@@ -171,7 +171,7 @@ with session(out) as browser:
             drawer = page.get_by_role("dialog", name="loading-draft", exact=True)
             expect(page.get_by_role("status")).to_be_visible()
             expect(
-                drawer.get_by_role("group", name="Minimum replicas", exact=True)
+                drawer.get_by_role("group", name="Replicas", exact=True)
             ).to_have_count(0)
             expect(
                 drawer.get_by_text("Use at most 0 replicas per region", exact=True)
@@ -179,7 +179,7 @@ with session(out) as browser:
             for route in pending_config:
                 route.continue_()
             expect(
-                drawer.get_by_role("group", name="Minimum replicas", exact=True)
+                drawer.get_by_role("group", name="Replicas", exact=True)
             ).to_be_visible()
             assert not errors, errors
         finally:
@@ -341,13 +341,9 @@ with session(out) as browser:
             expect(port).to_have_value("")
             port.fill("8080")
             expect(
-                drawer.get_by_role(
-                    "button", name="Decrease minimum replicas", exact=True
-                )
+                drawer.get_by_role("button", name="Decrease replicas", exact=True)
             ).to_be_disabled()
-            drawer.get_by_role(
-                "button", name="Increase minimum replicas", exact=True
-            ).click()
+            drawer.get_by_role("button", name="Increase replicas", exact=True).click()
             expect(
                 drawer.get_by_text("Runs exactly 2 per region.", exact=True)
             ).to_be_visible()
@@ -857,13 +853,11 @@ with session(out) as browser:
             drawer = page.get_by_role("dialog", name=name, exact=True)
             assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
             drawer.get_by_role("textbox", name="Port", exact=True).fill("8080")
-            drawer.get_by_role(
-                "button", name="Increase minimum replicas", exact=True
-            ).click()
+            drawer.get_by_role("button", name="Increase replicas", exact=True).click()
+            drawer.get_by_role("switch", name="Autoscaling", exact=True).click()
             increase_max = drawer.get_by_role(
                 "button", name="Increase maximum replicas", exact=True
             )
-            increase_max.click()
             expect(
                 drawer.get_by_text(
                     "Scales per region based on CPU utilization.", exact=True

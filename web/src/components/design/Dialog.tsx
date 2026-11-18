@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const dialogWidths = {
 	default: "w-[460px]",
+	form: "w-[520px]",
 	wide: "w-[820px]",
 } as const;
 
@@ -23,22 +24,33 @@ function DialogContent({
 	className,
 	children,
 	title,
+	titleClassName,
 	size = "default",
+	top = false,
 	showCloseButton = true,
 	...props
 }: Omit<React.ComponentProps<typeof DialogContentBase>, "title"> & {
 	title?: React.ReactNode;
+	titleClassName?: string;
 	size?: keyof typeof dialogWidths;
+	/** Anchors the dialog 14% from the top so it stays put while its content grows. */
+	top?: boolean;
 }) {
 	return (
 		<DialogContentBase
 			showCloseButton={title === undefined && showCloseButton}
-			className={cn(modalSurface, "flex flex-col sm:max-w-[calc(100%-32px)]", dialogWidths[size], className)}
+			className={cn(
+				modalSurface,
+				"flex flex-col sm:max-w-[calc(100%-32px)]",
+				dialogWidths[size],
+				top && "top-[14vh] max-h-[calc(86dvh-16px)] translate-y-0",
+				className,
+			)}
 			{...props}
 		>
 			{title !== undefined && (
 				<div data-slot="dialog-header" className="flex items-start gap-2 px-5 pt-[18px]">
-					<DialogTitle className="flex-1">{title}</DialogTitle>
+					<DialogTitle className={cn("flex-1", titleClassName)}>{title}</DialogTitle>
 					{showCloseButton && (
 						<DialogClose
 							aria-label="Close"

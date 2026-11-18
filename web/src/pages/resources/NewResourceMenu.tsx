@@ -19,7 +19,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
-import { SoonTag } from "@/components/design/SoonTag";
 
 const TYPES: { type: ResourceType; label: string; icon: ReactNode }[] = [
 	{ type: ResourceType.SERVICE, label: "Service", icon: <ServerIcon /> },
@@ -38,7 +37,7 @@ export function NewResourceMenu({ serviceHref, disabled }: { serviceHref: string
 				New resource
 				<ChevronDownIcon className="opacity-70" />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-[220px]">
+			<DropdownMenuContent align="end" className="w-[230px]">
 				{TYPES.map((t) =>
 					t.type === ResourceType.SERVICE ? (
 						<DropdownMenuItem key={t.type} render={<Link to={serviceHref} />}>
@@ -46,10 +45,10 @@ export function NewResourceMenu({ serviceHref, disabled }: { serviceHref: string
 							{t.label}
 						</DropdownMenuItem>
 					) : (
-						<DropdownMenuItem key={t.type} disabled className="text-fg3">
-							<span className="flex text-fg4">{t.icon}</span>
-							<span className="flex-1">{t.label}</span>
-							<SoonTag />
+						<DropdownMenuItem key={t.type} disabled className="data-disabled:opacity-100">
+							<span className="flex text-fg3">{t.icon}</span>
+							<span className="flex-1 text-fg3">{t.label}</span>
+							<span className="text-[11.5px] text-fg3">Coming soon</span>
 						</DropdownMenuItem>
 					),
 				)}

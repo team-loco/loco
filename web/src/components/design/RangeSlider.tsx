@@ -1,10 +1,13 @@
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 
 import { Slider as SliderBase } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 import "./Slider.css";
 
+/** A percentage slider with its heading and value on one row above it. */
 export function RangeSlider({
 	label,
+	heading,
 	value,
 	min,
 	max,
@@ -12,6 +15,7 @@ export function RangeSlider({
 	onChange,
 }: {
 	label: string;
+	heading: ReactNode;
 	value: number;
 	min: number;
 	max: number;
@@ -20,8 +24,11 @@ export function RangeSlider({
 }) {
 	const labelId = useId();
 	return (
-		<div className="flex max-w-[420px] flex-col gap-2">
-			<span className="font-mono text-[13px]">{value}%</span>
+		<div className={cn("flex min-w-0 flex-col gap-2", disabled === true && "opacity-60")}>
+			<span className="flex items-center justify-between gap-2 text-[13px] font-medium">
+				{heading}
+				<span className="font-mono font-normal text-fg2">{value}%</span>
+			</span>
 			<span id={labelId} className="sr-only">
 				{label}
 			</span>

@@ -9,12 +9,14 @@ export const FieldControlContext = createContext<
 
 export function Field({
 	label,
+	aside,
 	hint,
 	error,
 	className,
 	children,
 }: {
 	label: ReactNode;
+	aside?: ReactNode;
 	hint?: ReactNode;
 	error?: ReactNode;
 	className?: string;
@@ -26,9 +28,18 @@ export function Field({
 	const message = failed ? error : hint;
 	return (
 		<FieldBase className={cn("min-w-0 gap-1.5", className)}>
-			<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
-				{label}
-			</FieldLabel>
+			{aside === undefined ? (
+				<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
+					{label}
+				</FieldLabel>
+			) : (
+				<span className="flex items-baseline justify-between gap-2.5">
+					<FieldLabel htmlFor={id} className="text-[13px] font-medium text-foreground">
+						{label}
+					</FieldLabel>
+					{aside}
+				</span>
+			)}
 			<FieldControlContext value={{ id, describedBy: message == null ? undefined : messageId, invalid: failed }}>
 				{children}
 			</FieldControlContext>

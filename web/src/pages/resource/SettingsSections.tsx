@@ -4,9 +4,9 @@ import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 import { RegionCard, RegionCards } from "@/components/design/RegionCards";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
-import { StepSlider } from "@/components/design/StepSlider";
+import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
-import { ScalingFields } from "@/components/design/ScalingFields";
+import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, splitImage } from "@/lib/image";
 import type { SizeOptions } from "@/lib/sizing";
@@ -127,13 +127,24 @@ export function ScalingSection({
 			id="set-scaling"
 			sectionRef={sectionRef}
 			title="Scaling"
-			hint="Set equal bounds for fixed replicas or a range for CPU autoscaling."
+			hint="Run a fixed number of replicas, or turn on autoscaling to scale between bounds on CPU."
 		>
 			{names.length === 0 && <span className="text-fg3">Scaling is available once the resource is deployed.</span>}
 			<div className="flex flex-col gap-5">
 				{Object.entries(base.scaling).map(([name, value]) => (
-					<div key={name} className="flex flex-col gap-1.5">
-						<span className="font-mono text-[12.5px] text-fg2">{name}</span>
+					<div key={name} className="flex flex-col gap-2.5">
+						<div className="flex items-center justify-between gap-3">
+							<span className="font-mono text-[12.5px] text-fg2">{name}</span>
+							<AutoscalingSwitch
+								value={draft.scaling?.[name] ?? value}
+								region={name}
+								replicaRange={sizes.replicas}
+								disabled={locked}
+								onChange={(scaling) => {
+									onChange({ scaling: { ...draft.scaling, [name]: scaling } });
+								}}
+							/>
+						</div>
 						<ScalingFields
 							value={draft.scaling?.[name] ?? value}
 							region={name}
@@ -167,7 +178,7 @@ export function SizeSection({
 	return (
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
 			<div className="flex flex-col gap-3.5">
-				<Field label="CPU">
+				<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, draft.cpu ?? base.cpu)} />}>
 					<StepSlider
 						label="CPU"
 						options={sizes.cpu}
@@ -179,7 +190,7 @@ export function SizeSection({
 						}}
 					/>
 				</Field>
-				<Field label="Memory">
+				<Field label="Memory" aside={<SliderValue text={stepLabel(sizes.memory, draft.memory ?? base.memory)} />}>
 					<StepSlider
 						label="Memory"
 						options={sizes.memory}

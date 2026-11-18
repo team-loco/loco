@@ -17,7 +17,7 @@ export function Stepper({
 }) {
 	const field = label.charAt(0).toLowerCase() + label.slice(1);
 	return (
-		<div role="group" className="flex h-[34px] w-fit items-center rounded-sm border border-line" aria-label={label}>
+		<div role="group" className="flex h-[34px] w-fit! items-center rounded-sm border border-line" aria-label={label}>
 			<Button
 				variant="ghost"
 				className="h-full w-[34px] rounded-none px-0 text-[15px] text-fg2"
