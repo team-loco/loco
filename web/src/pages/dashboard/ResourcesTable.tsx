@@ -24,6 +24,7 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
+import { RowLink } from "@/components/design/RowLink";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -32,7 +33,7 @@ import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
-import { agoLabel, tsMs } from "@/lib/time";
+import { shortDurationLabel, tsMs } from "@/lib/time";
 import { pageParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
@@ -163,9 +164,9 @@ function NameCell({ item }: { item: DashboardItem }) {
 	const draft = isDraftItem(item);
 	return (
 		<div className="flex min-w-0 flex-col gap-0.5">
-			<Link to={hrefFor(item)} className={cn(NAME_CLASS, draft && "underline decoration-fg4 decoration-dashed")}>
+			<RowLink to={hrefFor(item)} className={cn(NAME_CLASS, draft && "underline decoration-fg4 decoration-dashed")}>
 				{itemName(item)}
-			</Link>
+			</RowLink>
 			<span className="truncate text-[12.5px] text-fg3">{draft ? DRAFT_NOTE : (item.resource.description ?? "")}</span>
 		</div>
 	);
@@ -237,7 +238,7 @@ function LastDeployCell({ item }: { item: DashboardItem }) {
 function DeployedCell({ item }: { item: DashboardItem }) {
 	const { nowMs } = useCells();
 	const last = isDraftItem(item) ? undefined : item.last;
-	return <>{last === undefined ? "—" : agoLabel(tsMs(last.createdAt), nowMs)}</>;
+	return <>{last === undefined ? "—" : shortDurationLabel(nowMs - tsMs(last.createdAt))}</>;
 }
 
 function MenuCell({ item }: { item: DashboardItem }) {
@@ -552,7 +553,7 @@ export function ResourcesTable({
 							trafficError: traffic.error !== null,
 						}}
 					>
-						<DataTable table={table} className="min-w-[820px] table-fixed" empty={empty} />
+						<DataTable table={table} className="min-w-[820px] table-fixed [--row-h:66px]" empty={empty} />
 					</DashboardCellContext>
 					<DataTablePager table={table} pageSizes={[PAGE_SIZE]} empty={`0 of ${items.length.toString()}`} />
 				</>

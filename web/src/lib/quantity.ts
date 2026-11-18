@@ -33,6 +33,6 @@ export function formatCpu(milli: number): string {
 }
 
 export function formatMemory(mi: number): string {
-	if (mi >= MI_PER_GI) return `${trimDecimals(mi / MI_PER_GI, GI_DECIMALS)} GiB`;
-	return `${Math.round(mi).toString()} MiB`;
+	if (mi >= MI_PER_GI) return `${trimDecimals(mi / MI_PER_GI, GI_DECIMALS)} Gi`;
+	return `${Math.round(mi).toString()} Mi`;
 }

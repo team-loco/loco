@@ -114,7 +114,7 @@ with session(out) as browser:
             page.get_by_role("button", name="Scale", exact=True).click()
             dialog = page.get_by_role("dialog", name="Scale 2 resources in production")
             expect(dialog.locator("dd")).to_have_text(
-                ["1–3", "0.25–0.5 vCPU", "512 MiB–2 GiB"]
+                ["1–3", "0.25–0.5 vCPU", "512 Mi–2 Gi"]
             )
             replicas = dialog.get_by_role("textbox", name="Replicas per region")
             cpu = dialog.get_by_role("group", name="CPU per replica", exact=True)
@@ -148,7 +148,7 @@ with session(out) as browser:
             ).to_have_attribute("aria-pressed", "false")
             expect(submit).to_be_disabled()
             replicas.fill(str(high))
-            memory.get_by_role("button", name="4 GiB", exact=True).click()
+            memory.get_by_role("button", name="4 Gi", exact=True).click()
             expect(submit).to_be_enabled()
             assert dialog.bounding_box() == box, (box, dialog.bounding_box())
             submit.click()

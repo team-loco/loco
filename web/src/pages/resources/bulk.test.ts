@@ -82,14 +82,14 @@ describe("scale form", () => {
 		expect(currentSetup([sized(500, 512, 2, 2), sized(500, 512, 2, 2)])).toEqual({
 			replicas: "2",
 			cpu: "0.5 vCPU",
-			memory: "512 MiB",
+			memory: "512 Mi",
 		});
 		expect(currentSetup([sized(250, 256, 1, 1), sized(1000, 2048, 3, 3)])).toEqual({
 			replicas: "1–3",
 			cpu: "0.25–1 vCPU",
-			memory: "256 MiB–2 GiB",
+			memory: "256 Mi–2 Gi",
 		});
-		expect(currentSetup([sized(250, 256, 1, 1), sized(500, 512, 1, 1)]).memory).toBe("256–512 MiB");
+		expect(currentSetup([sized(250, 256, 1, 1), sized(500, 512, 1, 1)]).memory).toBe("256–512 Mi");
 		expect(currentSetup([row("a", ["prod"])])).toEqual({ replicas: "—", cpu: "—", memory: "—" });
 	});
 

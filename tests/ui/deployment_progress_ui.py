@@ -256,7 +256,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     panel.get_by_role("button", name="Copy deployment ID", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == p["current"]
     panel.get_by_role("button", name="What’s being deployed", exact=True).click()
-    expect(panel.get_by_text("0.1 vCPU · 128 MiB", exact=True)).to_be_visible()
+    expect(panel.get_by_text("0.1 vCPU · 128 Mi", exact=True)).to_be_visible()
     expect(panel.get_by_text("/health every 10s", exact=True)).to_be_visible()
     phase("deploying")
     page.reload()

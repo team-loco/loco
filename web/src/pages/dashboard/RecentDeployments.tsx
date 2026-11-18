@@ -14,7 +14,7 @@ import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, formatStarted, tsMs } from "@/lib/time";
+import { formatStarted, shortDurationLabel, tsMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -89,7 +89,7 @@ export function RecentDeployments({
 			{recent.length === 0 ? (
 				<EmptyState icon={<RocketIcon />} title={`No deployments to ${envName} in the last 24 hours`} />
 			) : (
-				<Table className="min-w-[880px] table-fixed">
+				<Table className="min-w-[880px] table-fixed [--row-h:66px]">
 					<TableHeader>
 						<TableRow>
 							<TableHead className="w-[120px]">Status</TableHead>
@@ -142,7 +142,13 @@ export function RecentDeployments({
 										className="text-right font-mono text-[12px] whitespace-nowrap text-fg3"
 										title={formatStarted(createdMs, timePref)}
 									>
-										{agoLabel(createdMs, nowMs)}
+										<span className="inline-flex items-center gap-1.5">
+											{shortDurationLabel(nowMs - createdMs)}
+											<ArrowRightIcon
+												aria-hidden
+												className="size-3.5 -translate-x-[3px] text-foreground opacity-0 transition-[opacity,translate] duration-120 group-hover/row:translate-x-0 group-hover/row:opacity-100"
+											/>
+										</span>
 									</TableCell>
 								</TableRow>
 							);
