@@ -202,12 +202,6 @@ func TestOrganizationLimitCapsWorkspaceRetention(t *testing.T) {
 	}
 }
 
-// addWorkspace adds a workspace to the fixture's organization.
-func (f *deployFixture) addWorkspace(t *testing.T) uuid.UUID {
-	t.Helper()
-	return f.tenant.workspace(t, "second")
-}
-
 func (f *deployFixture) workspaceUpdates(t *testing.T, workspaceID uuid.UUID) [][]byte {
 	t.Helper()
 	rows, err := f.pool.Query(t.Context(),

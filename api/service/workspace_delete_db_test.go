@@ -60,7 +60,7 @@ func TestDeleteWorkspaceConfirmationDeletesAllResourcePlacements(t *testing.T) {
 	if _, err := f.deployTo(ctx, f.otherCluster, staticSpec); err != nil {
 		t.Fatalf("deploy to other cluster: %v", err)
 	}
-	sibling := f.tenant.resource(t, f.workspaceID(t), "sibling", &resourcev1.ServiceSpec{})
+	sibling := f.otherResource(t, "sibling")
 	if _, err := f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: sibling, ClusterID: f.clusterID, Region: testRegion, DesiredSpec: []byte(`{}`),
 		EnvironmentID: f.envID, SecretNames: []string{},

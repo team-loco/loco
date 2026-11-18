@@ -369,7 +369,7 @@ func TestGetRetentionReturnsEachWorkspacesRetention(t *testing.T) {
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.MetricRetentionDays, 40)
 	first := f.workspaceID(t)
-	second := f.addWorkspace(t)
+	second := f.tenant.workspace(t, "second")
 	workspaces := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	if _, err := workspaces.UpdateWorkspace(f.workspaceWriter(t, first), &workspacev1.UpdateWorkspaceRequest{
 		WorkspaceId: first.String(), LogRetentionDays: new(int32(7)),
