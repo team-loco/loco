@@ -7,17 +7,19 @@ import { cn } from "@/lib/utils";
 
 function PagerButton({
 	label,
+	text = false,
 	onClick,
 	children,
 }: {
 	label: string;
+	text?: boolean;
 	onClick: (() => void) | null;
 	children: ReactNode;
 }) {
 	return (
 		<Button
 			variant="outline"
-			size="icon"
+			size={text ? "sm" : "icon"}
 			aria-label={label}
 			title={label}
 			disabled={onClick === null}
@@ -45,6 +47,7 @@ function Pager({
 	onPrev,
 	onNext,
 	onLast,
+	text,
 	className,
 }: {
 	label: ReactNode;
@@ -63,6 +66,8 @@ function Pager({
 	onPrev: (() => void) | null;
 	onNext: (() => void) | null;
 	onLast?: (() => void) | null | undefined;
+	/** Shows text buttons with these labels instead of chevrons; the first-page button shows only when it can act. */
+	text?: { first: string; prev: string; next: string } | undefined;
 	className?: string | undefined;
 }) {
 	if (total === 0 && onPrev === null && onNext === null) return null;
@@ -102,19 +107,26 @@ function Pager({
 					{more && "+"}
 				</span>
 			)}
+			{text !== undefined && onFirst !== undefined && onFirst !== null && (
+				<PagerButton label={firstLabel} text onClick={onFirst}>
+					{text.first}
+				</PagerButton>
+			)}
 			<span className="flex gap-1">
-				{onFirst !== undefined && (
+				{text === undefined && onFirst !== undefined && (
 					<PagerButton label={firstLabel} onClick={onFirst}>
 						<ChevronsLeftIcon />
 					</PagerButton>
 				)}
-				<PagerButton label={prevLabel} onClick={onPrev}>
+				<PagerButton label={prevLabel} text={text !== undefined} onClick={onPrev}>
 					<ChevronLeftIcon />
+					{text?.prev}
 				</PagerButton>
-				<PagerButton label={nextLabel} onClick={onNext}>
+				<PagerButton label={nextLabel} text={text !== undefined} onClick={onNext}>
+					{text?.next}
 					<ChevronRightIcon />
 				</PagerButton>
-				{onLast !== undefined && (
+				{text === undefined && onLast !== undefined && (
 					<PagerButton label={lastLabel} onClick={onLast}>
 						<ChevronsRightIcon />
 					</PagerButton>

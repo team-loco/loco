@@ -16,10 +16,12 @@ export function FilterPopover({
 	placeholder,
 	children,
 	footer,
+	width = "w-[300px]",
 }: {
 	icon: ReactNode;
 	label: string;
 	value: string;
+	width?: string;
 	mono?: boolean;
 	onClear?: (() => void) | undefined;
 	placeholder?: string | undefined;
@@ -27,11 +29,21 @@ export function FilterPopover({
 	children: (close: () => void) => ReactNode;
 }) {
 	const [open, setOpen] = useState(false);
+	const [engaged, setEngaged] = useState(false);
+	const engage = () => {
+		if (!engaged) setEngaged(true);
+	};
 	const set = value !== "";
 	const clearable = set && onClear !== undefined;
 	return (
 		<span data-slot="filter-control" data-active={set || undefined} className="flex shrink-0 items-center">
-			<Popover open={open} onOpenChange={setOpen}>
+			<Popover
+				open={open}
+				onOpenChange={(next) => {
+					setOpen(next);
+					setEngaged(false);
+				}}
+			>
 				<PopoverTrigger
 					render={
 						<Button
@@ -44,10 +56,15 @@ export function FilterPopover({
 					{set ? <span className={mono ? "truncate font-mono" : "truncate"}>{value}</span> : label}
 					{!clearable && <ChevronDownIcon className="size-3 text-fg3" />}
 				</PopoverTrigger>
-				<PopoverContent align="start" className="w-[300px] p-0" aria-label={`Filter by ${label.toLowerCase()}`}>
-					<Command>
-						{placeholder !== undefined && <CommandInput placeholder={placeholder} />}
-						<CommandList>
+				<PopoverContent align="start" className={cn("p-0", width)} aria-label={`Filter by ${label.toLowerCase()}`}>
+					<Command
+						data-engaged={engaged || undefined}
+						className="[&:not([data-engaged])_[data-selected=true]]:bg-transparent"
+						onKeyDown={engage}
+						onPointerMove={engage}
+					>
+						{placeholder !== undefined && <CommandInput compact placeholder={placeholder} />}
+						<CommandList className="max-h-[320px] p-[5px]">
 							<CommandEmpty>Nothing matches.</CommandEmpty>
 							{children(() => {
 								setOpen(false);

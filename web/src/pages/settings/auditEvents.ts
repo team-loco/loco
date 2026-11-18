@@ -9,13 +9,13 @@ interface AuditType {
 }
 
 const AUDIT_TYPES: Record<string, AuditType> = {
-	"invitation.created": { label: "Invited a member", category: "access" },
+	"invitation.created": { label: "Invited someone", category: "access" },
 	"invitation.resent": { label: "Resent an invitation", category: "access" },
 	"invitation.claimed": { label: "Accepted an invitation", category: "access" },
 	"invitation.revoked": { label: "Revoked an invitation", category: "access" },
-	"webhook.test": { label: "Tested a webhook", category: "workspaces" },
+	"webhook.test": { label: "Sent a test webhook", category: "workspaces" },
 	"secret_key.rewrapped": {
-		label: "Rewrapped a secret key",
+		label: "Rewrapped an environment’s secret key",
 		category: "deploys",
 	},
 	"org.created": {
@@ -42,10 +42,10 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 		label: "Changed the organization's limits",
 		category: "organization",
 	},
-	"member.added": { label: "Added a member", category: "access" },
-	"member.removed": { label: "Removed a member", category: "access" },
+	"member.added": { label: "Added someone to a workspace", category: "access" },
+	"member.removed": { label: "Removed someone from a workspace", category: "access" },
 	"org_member.added": {
-		label: "Added an organization member",
+		label: "Joined the organization",
 		category: "access",
 	},
 	"org_member.role_changed": {
