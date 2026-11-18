@@ -93,6 +93,7 @@ func TestCancelledAcceptanceStillCleansUp(t *testing.T) {
 func TestHostSetupDeadlineStillRunsCleanup(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
+	t.Setenv("HOME", t.TempDir())
 	if err := os.WriteFile("mise.toml", nil, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +141,7 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 	})
 	// Any attempt to remove a cluster or cloud provider fails without invoking Docker.
 	t.Setenv("PATH", t.TempDir())
-	kept := fixture{dir: directory, name: "kept", forward: forward, cloudManaged: true}
+	kept := fixture{dir: directory, name: "kept", forward: forward}
 	if err := kept.cleanup(t.Context(), true); err != nil {
 		t.Fatal(err)
 	}
@@ -149,5 +150,30 @@ func TestKeptFixtureStopsForwardWithoutDeletingResources(t *testing.T) {
 	}
 	if _, err := os.Stat(marker); err != nil {
 		t.Fatal("kept fixture removed local state")
+	}
+}
+
+func TestNextRunRemovesClusterOfDeletedRun(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	calls := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("KIND_CALLS", calls)
+	fakeCommand(t, "kind", "#!/bin/sh\necho \"$@\" >>\"$KIND_CALLS\"\n")
+	deleted := t.TempDir()
+	gone, err := newFixture(t.Context(), deleted, false, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.RemoveAll(deleted); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = newFixture(t.Context(), t.TempDir(), false, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(calls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "delete cluster --name " + gone.name; strings.TrimSpace(string(got)) != want {
+		t.Fatalf("kind calls = %q, want %q", got, want)
 	}
 }

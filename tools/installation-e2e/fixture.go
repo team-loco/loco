@@ -21,6 +21,8 @@ import (
 
 	registryname "github.com/google/go-containerregistry/pkg/name"
 	"sigs.k8s.io/yaml"
+
+	"github.com/team-loco/loco/internal/testres"
 )
 
 var (
@@ -61,18 +63,34 @@ type fixture struct {
 	// dockerHubMirror is the address of a registry mirroring Docker Hub, which CI serves from its cache.
 	dockerHubMirror string
 	forward         *exec.Cmd
-	cloudManaged    bool
 	platform        string
+	// lease records the run's kind cluster, compose project and ports in the machine's
+	// test-resource registry, owned by the run's directory.
+	lease *testres.Lease
 }
 
-func newFixture(root string, skip bool, images, dockerHubMirror string) (*fixture, error) {
+// newFixture claims the run's lease, which releases the leftovers of runs whose owner is gone,
+// and records the run's kind cluster under it.
+func newFixture(ctx context.Context, root string, skip bool, images, dockerHubMirror string) (*fixture, error) {
 	digest := sha256.Sum256([]byte(root))
 	name := "loco-installation-" + hex.EncodeToString(digest[:4])
 	directory := filepath.Join(root, "tests", "e2e", "runs", name)
 	if checkErr := os.MkdirAll(directory, 0700); checkErr != nil {
 		return nil, checkErr
 	}
+	registry, err := testres.Default()
+	if err != nil {
+		return nil, err
+	}
+	lease, err := registry.Claim(ctx, name, testres.Owner{Path: directory})
+	if err != nil {
+		return nil, err
+	}
+	if err := lease.Add(ctx, testres.KindCluster, name); err != nil {
+		return nil, err
+	}
 	return &fixture{
+		lease:           lease,
 		root:            root,
 		dir:             directory,
 		name:            name,
@@ -238,8 +256,10 @@ func (f *fixture) runOperator(ctx context.Context) error {
 	return nil
 }
 
+// cleanup stops the registry forward and, unless keep is set, releases the run's lease and
+// removes the run's directory.
 func (f *fixture) cleanup(ctx context.Context, keep bool) error {
-	var stopErr, cloudErr, removeErr error
+	var stopErr error
 	if f.forward != nil {
 		stopErr = stopProcess(f.forward)
 	}
@@ -247,25 +267,11 @@ func (f *fixture) cleanup(ctx context.Context, keep bool) error {
 		fmt.Println("Kept installation fixture:", f.name)
 		return stopErr
 	}
-	_, kindErr := command(ctx, f.root, nil, "kind", "delete", "cluster", "--name", f.name)
-	if f.cloudManaged {
-		_, cloudErr = command(
-			ctx,
-			f.root,
-			nil,
-			"docker",
-			"compose",
-			"-p",
-			f.name,
-			"-f",
-			"dev/compose.cloud-provider-kind.yaml",
-			"down",
-		)
+	if err := f.lease.Release(ctx); err != nil {
+		return errors.Join(stopErr, err)
 	}
-	if kindErr == nil {
-		removeErr = os.RemoveAll(f.dir) //nolint:gosec // newFixture derives the directory from the checkout root.
-	}
-	return errors.Join(stopErr, kindErr, cloudErr, removeErr)
+	removeErr := os.RemoveAll(f.dir) //nolint:gosec // newFixture derives the directory from the checkout root.
+	return errors.Join(stopErr, removeErr)
 }
 
 func (f *fixture) apply(ctx context.Context, objects ...map[string]any) error {
@@ -552,28 +558,11 @@ func (f *fixture) registryHosts(ctx context.Context, host, config string) error 
 }
 
 func (f *fixture) forwardRegistry(ctx context.Context) error {
-	portPath := filepath.Join(f.dir, "registry-port")
-	port, err := os.ReadFile(portPath)
-	if os.IsNotExist(err) {
-		listener, listenErr := (&net.ListenConfig{}).Listen(ctx, "tcp", "127.0.0.1:0")
-		if listenErr != nil {
-			return listenErr
-		}
-		_, value, splitErr := net.SplitHostPort(listener.Addr().String())
-		if closeErr := listener.Close(); closeErr != nil {
-			return closeErr
-		}
-		if splitErr != nil {
-			return splitErr
-		}
-		port = []byte(value)
-		if writeErr := os.WriteFile(portPath, port, 0600); writeErr != nil {
-			return writeErr
-		}
-	} else if err != nil {
+	ports, err := f.lease.Ports(ctx, 1)
+	if err != nil {
 		return err
 	}
-
+	port := strconv.Itoa(ports[0])
 	cmd := exec.CommandContext(
 		ctx,
 		"kubectl",
@@ -581,7 +570,7 @@ func (f *fixture) forwardRegistry(ctx context.Context) error {
 		fixtureNamespace,
 		"port-forward",
 		"service/registry",
-		string(port)+":5000",
+		port+":5000",
 		"--address=127.0.0.1",
 	)
 
@@ -591,7 +580,7 @@ func (f *fixture) forwardRegistry(ctx context.Context) error {
 		return startErr
 	}
 	f.forward = cmd
-	f.registryURL = "http://127.0.0.1:" + string(port)
+	f.registryURL = "http://127.0.0.1:" + port
 	return waitRegistry(ctx, f.registryURL)
 }
 

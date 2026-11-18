@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"strings"
 	"time"
+
+	"github.com/team-loco/loco/internal/testres"
 )
 
 var (
@@ -48,8 +50,7 @@ func (f *fixture) startLoadBalancer(ctx context.Context) error {
 		return err
 	}
 	if len(strings.TrimSpace(string(own))) > 0 {
-		f.cloudManaged = true
-		return nil
+		return f.lease.Add(ctx, testres.Compose, f.name)
 	}
 	running, err := command(ctx, f.root, nil, "docker", "ps", "-q", "--filter", "ancestor="+image)
 	if err != nil {
@@ -57,6 +58,9 @@ func (f *fixture) startLoadBalancer(ctx context.Context) error {
 	}
 	if len(strings.TrimSpace(string(running))) > 0 {
 		return nil
+	}
+	if err := f.lease.Add(ctx, testres.Compose, f.name); err != nil {
+		return err
 	}
 	if _, checkErr := command(
 		ctx,
@@ -73,7 +77,6 @@ func (f *fixture) startLoadBalancer(ctx context.Context) error {
 	); checkErr != nil {
 		return checkErr
 	}
-	f.cloudManaged = true
 	return nil
 }
 
