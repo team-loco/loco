@@ -106,8 +106,9 @@ mise exec -- uv run --script "$E" <command>
 
    Reserve `down --all` for manual machine-wide cleanup; it stops other callers' runs.
    Every `up`, `shoot` and `down`
-   also stops runs nobody has used for two hours, and a failed `up` stops itself after printing
-   its API and UI logs, so an interrupted capture does not leave containers behind.
+   also stops runs nobody has used for two hours and containers whose run's state file is gone.
+   Each container names its run's state file, so this works across temporary directories. A failed `up` stops itself after printing its API and UI logs, so an
+   interrupted capture does not leave containers behind.
 
 Return the PNG paths, one line per file saying what it shows, every `scenario note:` line and every
 failure.

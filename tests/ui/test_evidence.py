@@ -64,8 +64,10 @@ def test_reap_removed_checkout(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(
             cmd,
             0,
-            stdout="live-openbao\tloco-ui-evidence-live\nloco-ui-evidence-live\t\n"
-            "loco-ui-evidence-expired\t\nforeign-openbao\tforeign-project\n",
+            stdout=f"live-openbao\tloco-ui-evidence-live\t{live / 'state.json'}\n"
+            f"loco-ui-evidence-live\t\t{live / 'state.json'}\n"
+            f"loco-ui-evidence-expired\t\t{root / 'state.json'}\n"
+            "foreign-openbao\tforeign-project\t\n",
         )
 
     monkeypatch.setattr(evidence.subprocess, "run", docker)
@@ -86,7 +88,7 @@ def test_shared_openbao_outlives_its_starting_shell(tmp_path, monkeypatch, capsy
     monkeypatch.setattr(evidence, "repo_root", lambda: repo)
     projects = []
 
-    def start_openbao(worktree, project, env):
+    def start_openbao(worktree, project, env, state_path):
         projects.append(project)
         return "http://127.0.0.1:8200"
 
@@ -102,7 +104,12 @@ def test_shared_openbao_outlives_its_starting_shell(tmp_path, monkeypatch, capsy
         evidence.subprocess,
         "run",
         lambda *a, **kw: subprocess.CompletedProcess(
-            a, 0, stdout="".join(f"openbao-1\t{p}\n" for p in projects)
+            a,
+            0,
+            stdout="".join(
+                f"openbao-1\t{p}\t{tmp_path / p.removeprefix('loco-ui-evidence-') / 'state.json'}\n"
+                for p in projects
+            ),
         ),
     )
     evidence.cmd_openbao(argparse.Namespace())
@@ -261,3 +268,47 @@ def test_settle_excludes_only_named_targets():
         assert page.evaluate("countdown.playState") == "running"
         assert page.evaluate("transition.playState") == "finished"
         browser.close()
+
+
+def test_reap_keeps_containers_whose_run_lives_elsewhere(tmp_path, monkeypatch):
+    other = tmp_path / "other-tmpdir" / "capture"
+    evidence.write_json(
+        other / "state.json",
+        {
+            "id": "capture",
+            "root": str(other),
+            "expires_at": evidence.time.time() + evidence.LEASE_S,
+        },
+    )
+    expired = tmp_path / "other-tmpdir" / "expired"
+    evidence.write_json(
+        expired / "state.json",
+        {
+            "id": "expired",
+            "root": str(expired),
+            "container": "loco-ui-evidence-expired",
+            "expires_at": 0,
+        },
+    )
+    gone = tmp_path / "other-tmpdir" / "gone" / "state.json"
+    monkeypatch.setattr(evidence, "BASE_DIR", tmp_path / "own")
+    monkeypatch.setattr(evidence, "run", lambda cmd, **kwargs: "")
+    removed = []
+
+    def docker(cmd, **kwargs):
+        if cmd[:2] == ["docker", "rm"]:
+            removed.append(cmd[-1])
+        return subprocess.CompletedProcess(
+            cmd,
+            0,
+            stdout=f"loco-ui-evidence-capture\t\t{other / 'state.json'}\n"
+            f"loco-ui-evidence-expired\t\t{expired / 'state.json'}\n"
+            f"loco-ui-evidence-gone\t\t{gone}\n"
+            "loco-ui-evidence-unlabelled\t\t\n",
+        )
+
+    monkeypatch.setattr(evidence.subprocess, "run", docker)
+    evidence.reap()
+    assert removed == ["loco-ui-evidence-expired", "loco-ui-evidence-gone"]
+    assert (other / "state.json").exists()
+    assert not expired.exists()

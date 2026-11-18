@@ -27,6 +27,8 @@ LABEL = "loco-ui-evidence"
 HOST = "127.0.0.1"
 UI_BACKLOG = 128
 BASE_DIR = Path(tempfile.gettempdir()) / LABEL
+# Each container names its run's state file, which may sit under another process's temporary directory.
+STATE_LABEL = LABEL + ".state"
 # A run nobody has used for this long is a leak: its agent died or never ran `down`.
 LEASE_S = 2 * 60 * 60
 DB_USER = "evidence"
@@ -131,13 +133,15 @@ def discovery_document(issuer):
     }
 
 
-def compose(worktree, project, env, *args, capture=False):
+def compose(worktree, project, env, *args, capture=False, labels=None):
     files = [
         "-f",
         str(worktree / "dev" / "compose.yaml"),
         "-f",
         str(Path(__file__).resolve().parents[2] / "dev" / "compose.subnet.yaml"),
     ]
+    if labels is not None:
+        files += ["-f", str(labels)]
     return run(
         ["docker", "compose", *files, "-p", project, *args], env=env, capture=capture
     )
@@ -151,8 +155,19 @@ def openbao_env(worktree, env):
     return dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
 
 
-def start_openbao(worktree, project, env):
+def start_openbao(worktree, project, env, state_path):
     compose_env = openbao_env(worktree, env)
+    labels = Path(state_path).with_name("compose.labels.yaml")
+    labels.write_text(
+        json.dumps(
+            {
+                "services": {
+                    service: {"labels": {STATE_LABEL: str(state_path)}}
+                    for service in (OPENBAO_SERVICE, OPENBAO_SEED_SERVICE)
+                }
+            }
+        )
+    )
     image = compose_env["OPENBAO_IMAGE"]
     run(
         ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
@@ -170,6 +185,7 @@ def start_openbao(worktree, project, env):
             "--pull",
             "never",
             OPENBAO_SERVICE,
+            labels=labels,
         )
         compose(
             worktree,
@@ -180,6 +196,7 @@ def start_openbao(worktree, project, env):
             "--pull",
             "never",
             OPENBAO_SEED_SERVICE,
+            labels=labels,
         )
         published = compose(
             worktree,
@@ -786,7 +803,10 @@ def cmd_openbao(args):
     renew(state)
     try:
         state["address"] = start_openbao(
-            repo_root(), state["compose"], dict(os.environ)
+            repo_root(),
+            state["compose"],
+            dict(os.environ),
+            Path(state["root"]) / "state.json",
         )
     except BaseException:
         stop_state(state)
@@ -836,7 +856,7 @@ def renew(state):
 
 
 def reap():
-    """Stops runs whose lease expired and Docker leftovers no live run owns."""
+    """Stops runs whose lease expired and Docker leftovers whose run is gone."""
     now = time.time()
     for state in states():
         if state["expires_at"] < now:
@@ -848,19 +868,28 @@ def reap():
             "ps",
             "-a",
             "--format",
-            '{{.Names}}\t{{.Label "com.docker.compose.project"}}',
+            f'{{{{.Names}}}}\t{{{{.Label "com.docker.compose.project"}}}}\t{{{{.Label "{STATE_LABEL}"}}}}',
         ],
         capture_output=True,
         text=True,
     ).stdout.splitlines()
     for line in listed:
-        name, _, project = line.partition("\t")
+        name, project, state_path = line.split("\t")
         owner = project or name
-        if not owner.startswith(LABEL + "-"):
+        if not owner.startswith(LABEL + "-") or not state_path:
             continue
-        if (BASE_DIR / owner.removeprefix(LABEL + "-") / "state.json").exists():
+        try:
+            state = load_state(state_path)
+        except FileNotFoundError:
+            state = None
+        except OSError, ValueError:
             continue
-        log(f"reaping {owner}: no run owns it")
+        if state is not None:
+            if state["expires_at"] < now:
+                log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
+                stop_state(state)
+            continue
+        log(f"reaping {owner}: its run {state_path} is gone")
         if project:
             stop_compose(project)
         else:
@@ -931,7 +960,7 @@ def start_state(*, ref, name, scenario, issuer=None):
             state["compose"] = f"{LABEL}-{run_id}"
             write_json(state_path, state)
             run(["mise", "trust", "--quiet", str(worktree / "mise.toml")])
-            openbao = start_openbao(worktree, state["compose"], env)
+            openbao = start_openbao(worktree, state["compose"], env, state_path)
             build(worktree, env)
         dist = worktree / "web" / "dist"
 
@@ -953,6 +982,8 @@ def start_state(*, ref, name, scenario, issuer=None):
                 container,
                 "--label",
                 f"{LABEL}={run_id}",
+                "--label",
+                f"{STATE_LABEL}={state_path}",
                 "-e",
                 f"POSTGRES_USER={DB_USER}",
                 "-e",
