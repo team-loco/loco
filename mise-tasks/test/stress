@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run Go test packages repeatedly with the race detector under full CPU load, one test process and one CPU burner per CPU, each process running every test --count times on one CPU; prints the output of each failing process. Packages are repo-relative directories, `dir/...` for every package below one; without any, the packages whose Go files differ from --base (default origin/main). ClickHouse starts as in test:api; the database tests need LOCO_TEST_DATABASE_URL: test:stress [--base ref] [--count n] [package...]"
+#MISE description="Run Go test packages repeatedly with the race detector under CPU load: one test process and two CPU burners per CPU, each process running every test --count times on one CPU, two at a time; prints the output of each failing process and the failed tests. Packages are repo-relative directories, `dir/...` for every package below one; without any, the packages whose Go files differ from --base (default origin/main). ClickHouse starts as in test:api; the database tests need LOCO_TEST_DATABASE_URL: test:stress [--base ref] [--count n] [package...]"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
@@ -58,13 +58,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for _ in $(seq "$cpus"); do
+for _ in $(seq $((cpus * 2))); do
 	yes >/dev/null &
 	burners+=($!)
 	disown
 done
 
 failed=()
+failed_tests=()
 for package in "${packages[@]}"; do
 	binary=$work/package.test
 	rm -f "$binary"
@@ -72,7 +73,8 @@ for package in "${packages[@]}"; do
 	echo "Stressing ${package#"$root"/}: $cpus processes x $count runs"
 	pids=()
 	for i in $(seq "$cpus"); do
-		(cd "$package" && exec "$binary" -test.count="$count" -test.cpu=1 >"$work/$i.log" 2>&1) &
+		# Two tests at a time per process keep the database tests within Postgres's default 100 connections.
+		(cd "$package" && exec "$binary" -test.count="$count" -test.cpu=1 -test.parallel=2 -test.timeout="$((count * 20))m" >"$work/$i.log" 2>&1) &
 		pids+=($!)
 	done
 	package_failed=false
@@ -83,10 +85,14 @@ for package in "${packages[@]}"; do
 			cat "$work/$((i + 1)).log"
 		fi
 	done
-	[[ $package_failed == false ]] || failed+=("${package#"$root"/}")
+	if [[ $package_failed == true ]]; then
+		failed+=("${package#"$root"/}")
+		failed_tests+=("$(cat "$work"/*.log | grep -E -- '--- FAIL|^panic: ' | sed 's/ ([0-9.]*s)$//' | sort | uniq -c)")
+	fi
 done
 
 if [[ ${#failed[@]} -gt 0 ]]; then
+	printf '%s\n' "${failed_tests[@]}" >&2
 	printf 'Failed under stress: %s\n' "${failed[@]}" >&2
 	exit 1
 fi
