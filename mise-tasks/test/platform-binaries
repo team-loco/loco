@@ -11,6 +11,6 @@ for architecture in amd64 arm64; do
         binary="$workdir/$module-$architecture"
         echo "Building $module for linux/$architecture"
         (cd "$root/$module" && CGO_ENABLED=0 GOOS=linux GOARCH="$architecture" go build -ldflags '-X main.version=architecture-check' -o "$binary" "$package")
-        python3 "$root/tools/platform-images/verify.py" binary "$binary" "linux/$architecture"
+        go -C "$root" run ./tools/platform-images binary "$binary" "linux/$architecture"
     done
 done

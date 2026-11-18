@@ -100,13 +100,11 @@ controller-helm-chart:
 
 docker:
   pull_request: &docker
-    - "tests/pyproject.toml"
-    - "ruff.toml"
-    - "tests/uv.lock"
     - "**/Dockerfile"
     - "**/*.dockerignore"
     - "**/*compose*.yaml"
     - "**/*compose*.yml"
+    - ".github/workflows/build-push.yml"
     - ".github/workflows/docker.yml"
     - ".github/workflows/images.yml"
     - "docker-bake.hcl"

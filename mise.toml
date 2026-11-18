@@ -369,7 +369,7 @@ run = "python tools/platform-release/verify.py"
 
 [tasks."test:platform-images"]
 description = "Test image platform selection and executable architecture"
-run = "uv run --locked --project tests pytest tools/platform-images/tests"
+run = "go test ./tools/platform-images"
 
 [tasks."obs:serve"]
 description = "Run a local ClickHouse container and serve the observability proxy against it: the proxy migrates the schema and ingests OTLP from the kind collectors, and the API reads it"
