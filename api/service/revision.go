@@ -18,7 +18,7 @@ import (
 //  1. the environments of the workspace, in ascending id (lockWorkspaceEnvironments or
 //     lockResourceEnvironments)
 //  2. the environment_keys row of an environment whose secrets it reads or writes
-//     (lockEnvironmentKey)
+//     (SecretServer.lockEnvironmentKey)
 //  3. the resources it writes, in ascending id (lockResources or lockResource)
 //  4. the deployment, placement and domain rows of those resources
 //
