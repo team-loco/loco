@@ -1148,16 +1148,34 @@ with session(out) as browser:
             if body["attributes"].get("direction") == "receive"
             else [512, 1024, 256]
         )
-        points = [
-            {
-                "timestamp": time.strftime(
-                    "%Y-%m-%dT%H:%M:%SZ", time.gmtime(start + offset)
-                ),
-                "value": value,
+
+        def points(scale):
+            return [
+                {
+                    "timestamp": time.strftime(
+                        "%Y-%m-%dT%H:%M:%SZ", time.gmtime(start + offset)
+                    ),
+                    "value": value * scale,
+                }
+                for offset, value in zip((-60, 60, 120), values, strict=True)
+            ]
+
+        route.fulfill(
+            json={
+                "series": [
+                    {
+                        "resourceId": workspace_id,
+                        "labels": {"k8s.pod.name": pod},
+                        "points": points(scale),
+                    }
+                    for pod, scale in (
+                        ("other-pod-999", 0.1),
+                        ("checkout-abc-123", 1),
+                        ("catalog-def-456", 1),
+                    )
+                ]
             }
-            for offset, value in zip((-60, 60, 120), values, strict=True)
-        ]
-        route.fulfill(json={"series": [{"resourceId": workspace_id, "points": points}]})
+        )
 
     context.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
     page.mouse.move(0, 0)
@@ -1276,7 +1294,8 @@ with session(out) as browser:
     assert len(metric_requests) == 4, metric_requests
     assert all(
         request["resourceIds"] == [workspace_id]
-        and request["attributes"]["k8s.pod.name"] == "checkout-abc-123"
+        and request["byPod"]
+        and "k8s.pod.name" not in request["attributes"]
         for request in metric_requests
     )
     assert {request["metricName"] for request in metric_requests} == {
@@ -1349,10 +1368,7 @@ with session(out) as browser:
         infrastructure.get_by_role("group", name="Network usage", exact=True)
     ).to_be_visible()
     assert len(metric_requests) == 12, metric_requests
-    assert all(
-        request["attributes"]["k8s.pod.name"] == "catalog-def-456"
-        for request in metric_requests[8:]
-    )
+    assert all(request["byPod"] for request in metric_requests[8:])
     page.set_viewport_size({"width": 390, "height": 844})
     infrastructure.get_by_role(
         "region", name="Network for catalog-def-456", exact=True

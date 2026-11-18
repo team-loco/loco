@@ -10,6 +10,8 @@ import {
 	deploySteps,
 	finishedLabel,
 	readyLabel,
+	rolloutGroups,
+	rolloutReadyLabel,
 	withoutRunningDeploys,
 } from "./activity-deploys";
 import type { Alert } from "./alerts";
@@ -133,4 +135,41 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 		`r-b:${ResourceStatus.DEPLOYING.toString()}`,
 		`r-a:${ResourceStatus.DEGRADED.toString()}`,
 	]);
+});
+
+describe("rolloutGroups", () => {
+	test("groups the regions of one rollout of a resource and keeps the order of first appearance", () => {
+		const east = deployment("east", DeploymentStatus.DEPLOYING, 1, { resourceId: "r", rolloutId: "a" });
+		const other = deployment("other", DeploymentStatus.RUNNING, 2, { resourceId: "s", rolloutId: "b" });
+		const west = deployment("west", DeploymentStatus.DEPLOYING, 1, {
+			resourceId: "r",
+			rolloutId: "a",
+			region: "eu-west-1",
+		});
+		const groups = rolloutGroups([east, other, west]);
+		expect(groups.map((group) => group.map((d) => d.id))).toEqual([["east", "west"], ["other"]]);
+	});
+
+	test("keeps deployments of separate rollouts apart", () => {
+		const first = deployment("first", DeploymentStatus.RUNNING, 5, { resourceId: "r", rolloutId: "a" });
+		const second = deployment("second", DeploymentStatus.DEPLOYING, 1, { resourceId: "r", rolloutId: "b" });
+		expect(rolloutGroups([second, first]).map((group) => group.map((d) => d.id))).toEqual([["second"], ["first"]]);
+	});
+});
+
+describe("rolloutReadyLabel", () => {
+	test("counts the ready replicas of every region of the rollout", () => {
+		const replica = (deploymentId: string, ready: boolean) => ({ deploymentId, ready });
+		const east = deployment("east", DeploymentStatus.DEPLOYING, 1, {
+			desiredReplicas: 2,
+			replicas: [replica("east", true), replica("east", false)],
+		});
+		const west = deployment("west", DeploymentStatus.DEPLOYING, 1, {
+			desiredReplicas: 2,
+			region: "eu-west-1",
+			replicas: [replica("west", true), replica("west", true), replica("old", true)],
+		});
+		expect(rolloutReadyLabel([east, west])).toBe("3 of 4 ready in 2 regions");
+		expect(rolloutReadyLabel([east])).toBe("1 of 2 ready");
+	});
 });
