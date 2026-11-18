@@ -195,10 +195,11 @@ def test_every_pipeline_stamps_the_region_last(worker_relays, subtests):
         with subtests.test(collector=collector, pipeline=name):
             assert pipeline["processors"][-1] == "resource/region"
     for collector, config in worker_relays.items():
-        (region,) = config["processors"]["resource/region"]["attributes"]
-        assert region["key"] == "loco.region", collector
-        assert region["value"] == TEST_REGION, collector
-        assert region["action"] == "upsert", collector
+        assert config["processors"]["resource/region"] == {
+            "attributes": [
+                {"key": "loco.region", "value": TEST_REGION, "action": "upsert"}
+            ]
+        }, collector
 
 
 def test_memory_limiter_runs_first(worker_relays):

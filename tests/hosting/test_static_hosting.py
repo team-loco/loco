@@ -449,7 +449,6 @@ def test_image_serves_the_ui_and_docs(tmp_path):
 
 @pytest.mark.parametrize("failures", [1, NAVIGATION_ATTEMPTS])
 def test_navigation_retries_network_changes(failures, monkeypatch):
-
     failure = Error("Page.goto: net::ERR_NETWORK_CHANGED")
     page = Mock()
     page.goto.side_effect = [failure] * failures + ["response"]
@@ -464,7 +463,6 @@ def test_navigation_retries_network_changes(failures, monkeypatch):
 
 
 def test_navigation_preserves_other_errors():
-
     failure = Error("Page.goto: net::ERR_CONNECTION_REFUSED")
     page = Mock()
     page.goto.side_effect = failure
