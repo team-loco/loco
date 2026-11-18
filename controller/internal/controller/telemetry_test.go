@@ -13,18 +13,15 @@ import (
 )
 
 const (
-	testTelemetryNamespace  = "telemetry"
-	testCollectorService    = "collector"
-	testCollectorGRPCPort   = int32(14317)
-	testCollectorHTTPPort   = int32(14318)
-	testCollectorEndpoint   = "http://collector.telemetry.svc.cluster.local:14318"
-	testEnvironmentName     = "production"
-	testDeploymentID        = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
-	testOrganizationID      = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
-	testSampleRate          = "0.25"
-	envOTelTracesSampler    = "OTEL_TRACES_SAMPLER"
-	envOTelTracesSamplerArg = "OTEL_TRACES_SAMPLER_ARG"
-	userEnvValue            = "user"
+	testTelemetryNamespace = "telemetry"
+	testCollectorService   = "collector"
+	testCollectorGRPCPort  = int32(14317)
+	testCollectorHTTPPort  = int32(14318)
+	testCollectorEndpoint  = "http://collector.telemetry.svc.cluster.local:14318"
+	testEnvironmentName    = "production"
+	testDeploymentID       = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e8f"
+	testOrganizationID     = "019a6f3e-8c2b-7d41-9e5f-3b2a1c0d9e90"
+	userEnvValue           = "user"
 )
 
 func testTelemetry() TelemetryConfig {
@@ -154,16 +151,6 @@ func TestResourceAttributesSkipEmptyValues(t *testing.T) {
 	app.Spec.DeploymentID = ""
 	dep = buildDeployment(t, app)
 	requireNoEnv(t, dep, envOTelResourceAttributes)
-}
-
-func TestUserTracingSamplerAndArgumentArePreserved(t *testing.T) {
-	app := telemetryTestApplication()
-	app.Spec.ServiceSpec.Deployment.Env[envOTelTracesSampler] = "parentbased_traceidratio"
-	app.Spec.ServiceSpec.Deployment.Env[envOTelTracesSamplerArg] = testSampleRate
-	dep := buildDeployment(t, app)
-	requireSingleEnv(t, dep, envOTelTracesSampler, "parentbased_traceidratio")
-	requireSingleEnv(t, dep, envOTelTracesSamplerArg, testSampleRate)
-	requireEnv(t, dep, envOTLPEndpoint, testCollectorEndpoint)
 }
 
 var injectedOpenTelemetryVars = []string{

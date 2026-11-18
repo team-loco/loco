@@ -71,7 +71,7 @@ var (
 	envVarNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
-// ValidateApplicationSpec validates the entire ApplicationSpec
+// Validate checks the identity fields and the spec of the application's type.
 func (spec *ApplicationSpec) Validate() error {
 	if spec.ResourceID == "" {
 		return errResourceIDMissing

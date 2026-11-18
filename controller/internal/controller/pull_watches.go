@@ -28,7 +28,7 @@ func workspaceNamespaceSelector() labels.Selector {
 	}
 	return labels.SelectorFromSet(labels.Set{
 		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		locolabels.LabelLocoApp:   "true",
+		locolabels.LabelLocoApp:   namespaceAppLabelValue,
 	}).Add(*workspace)
 }
 

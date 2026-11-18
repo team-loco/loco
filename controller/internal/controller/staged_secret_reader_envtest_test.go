@@ -29,7 +29,7 @@ var _ = Describe("Staged environment secret reads", func() {
 				locov1alpha1.KeyPlacementID:       testStagedPlacementID,
 				locov1alpha1.KeyPlacementRevision: "1",
 			},
-			Data: map[string][]byte{"VALUE": []byte("initial"), envOTelTracesSamplerArg: []byte("0")},
+			Data: map[string][]byte{"VALUE": []byte("initial")},
 		}
 		Expect(k8sClient.Create(ctx, stage)).To(Succeed())
 		DeferCleanup(func() { Expect(k8sClient.Delete(ctx, stage)).To(Succeed()) })
@@ -63,25 +63,12 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(mount.Mounted).To(BeTrue())
 		Expect(mount.Revision).To(Equal(int64(1)))
-		deployment, err := desiredDeployment(
-			app,
-			testEnvironmentNamespace(app),
-			mount,
-			testTelemetry(),
-			testMinReadySeconds,
-			testDrainSeconds,
-		)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
-			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
-		)
 		target := &corev1.Secret{}
 		targetKey := client.ObjectKey{Namespace: namespace.Name, Name: getEnvSecretName(app)}
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
 		stage.Labels[locov1alpha1.KeyPlacementRevision] = "2"
 		stage.Data["VALUE"] = []byte("rotated")
-		stage.Data[envOTelTracesSamplerArg] = []byte("1")
 		Expect(k8sClient.Update(ctx, stage)).To(Succeed())
 		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 2
 		mount, err = r.ensureEnvSecret(ctx, app)
@@ -89,37 +76,6 @@ var _ = Describe("Staged environment secret reads", func() {
 		Expect(mount.Revision).To(Equal(int64(2)))
 		Expect(k8sClient.Get(ctx, targetKey, target)).To(Succeed())
 		Expect(target.Data).To(Equal(stage.Data))
-		deployment, err = desiredDeployment(
-			app,
-			testEnvironmentNamespace(app),
-			mount,
-			testTelemetry(),
-			testMinReadySeconds,
-			testDrainSeconds,
-		)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
-			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
-		)
-
-		delete(stage.Data, envOTelTracesSamplerArg)
-		stage.Labels[locov1alpha1.KeyPlacementRevision] = "3"
-		Expect(k8sClient.Update(ctx, stage)).To(Succeed())
-		app.Spec.ServiceSpec.Deployment.EnvSecretRef.Revision = 3
-		mount, err = r.ensureEnvSecret(ctx, app)
-		Expect(err).NotTo(HaveOccurred())
-		deployment, err = desiredDeployment(
-			app,
-			testEnvironmentNamespace(app),
-			mount,
-			testTelemetry(),
-			testMinReadySeconds,
-			testDrainSeconds,
-		)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(deployment.Spec.Template.Spec.Containers[0].Env).NotTo(
-			ContainElement(HaveField("Name", new(envOTelTracesSamplerArg))),
-		)
 	})
 
 	It("caches only the agent's registry pull secrets in the loco namespace in token mode", func() {

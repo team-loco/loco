@@ -20,9 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ResourcesSpec contains CPU, Memory, replicas, and autoscaling
 type ResourcesSpec struct {
 	// +required
@@ -88,11 +85,6 @@ type RoutingSpec struct {
 // ApplicationSpec defines the desired state of Application
 // Uses a type discriminator with type-specific specs to support multiple resource types
 type ApplicationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	// The following markers will use OpenAPI v3 schema to validate the value
-	// More info: https://book.kubebuilder.io/reference/markers/crd-validation.html
-
 	// Type indicates the resource type (SERVICE, DATABASE, CACHE, QUEUE, BLOB)
 	// Only the corresponding TypeSpec field should be populated
 	Type           string `json:"type"`                 // SERVICE, DATABASE, CACHE, QUEUE, BLOB
@@ -195,12 +187,6 @@ type BlobSpec struct{}
 
 // ApplicationStatus defines the observed state of Application.
 type ApplicationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// For Kubernetes API conventions, see:
-	// https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
-
 	ReadyReplicas int32 `json:"readyReplicas,omitzero"`
 
 	Rollout *RolloutStatus `json:"rollout,omitempty"`

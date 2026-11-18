@@ -18,7 +18,11 @@ import (
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-const deletedPodRetention = 2 * time.Minute
+const (
+	deletedPodRetention = 2 * time.Minute
+	// A restarted replica counts as recovered once it has stayed ready this long.
+	runtimeRecoveryWindow = time.Minute
+)
 
 type deletedReplica struct {
 	pod *corev1.Pod
@@ -116,7 +120,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
 		pull := pulls[pod.UID]
-		replica := replicaState(&pod, &pull, r.RuntimeRecoveryWindow, now)
+		replica := replicaState(&pod, &pull, runtimeRecoveryWindow, now)
 		if deleted[pod.UID] && replica.State != locov1alpha1.ReplicaKilled &&
 			replica.State != locov1alpha1.ReplicaStopped {
 			replica.State = locov1alpha1.ReplicaStopped
@@ -148,7 +152,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		rollout.Replicas = append(rollout.Replicas, replica)
 	}
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
-	rollout.Problem = replicaProblem(current, r.RuntimeRecoveryWindow, now)
+	rollout.Problem = replicaProblem(current, runtimeRecoveryWindow, now)
 	failure, expired := deploymentFailure(dep)
 	rollout.ProgressDeadlineExceeded = expired
 	if rollout.Problem == nil && expired {
