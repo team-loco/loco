@@ -1,4 +1,5 @@
 import argparse
+import json
 import subprocess
 from pathlib import Path
 
@@ -211,8 +212,6 @@ def test_capture_scrolls_drag_target_into_view(tmp_path):
 
 
 def test_suite_failure_records_browser_diagnostics(tmp_path):
-    import json
-
     from harness import open_page, session
 
     with pytest.raises(RuntimeError, match="suite failed"):
@@ -261,3 +260,21 @@ def test_settle_excludes_only_named_targets():
         assert page.evaluate("countdown.playState") == "running"
         assert page.evaluate("transition.playState") == "finished"
         browser.close()
+
+
+def test_shoot_keeps_screenshots_another_run_wrote(tmp_path, monkeypatch):
+    root = tmp_path / "run"
+    evidence.write_json(root / "state.json", {"root": str(root), "name": "before"})
+    spec = tmp_path / "shots.json"
+    spec.write_text(json.dumps({"shots": [{"name": "home", "path": "/"}]}))
+    out = tmp_path / "evidence"
+    out.mkdir()
+    existing = out / "home-before-light.png"
+    existing.write_bytes(b"first run")
+    monkeypatch.setattr(evidence, "reap", lambda: None)
+    args = argparse.Namespace(
+        state=str(root / "state.json"), spec=str(spec), out=str(out)
+    )
+    with pytest.raises(evidence.EvidenceError, match="home-before-light.png"):
+        evidence.cmd_shoot(args)
+    assert existing.read_bytes() == b"first run"

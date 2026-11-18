@@ -1369,24 +1369,34 @@ def cmd_shoot(args):
     renew(state)
     shots = validate_spec(json.loads(Path(args.spec).read_text()))
     out = Path(args.out)
+    targets = [
+        (
+            shot,
+            theme,
+            narrow,
+            out / shot_filename(shot["name"], state["name"], theme, narrow),
+        )
+        for shot in shots
+        for theme in THEMES
+        for narrow in ((False, True) if shot.get("narrow") else (False,))
+    ]
+    taken = [target.name for *_, target in targets if target.exists()]
+    if taken:
+        raise EvidenceError(
+            f"{out} already holds {', '.join(taken)}; remove them or shoot into another --out"
+        )
     out.mkdir(parents=True, exist_ok=True)
     run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
     written, failures = [], []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        for shot in shots:
+        for shot, theme, narrow, target in targets:
             renew(state)
-            for theme in THEMES:
-                for narrow in (False, True) if shot.get("narrow") else (False,):
-                    target = out / shot_filename(
-                        shot["name"], state["name"], theme, narrow
-                    )
-                    target.unlink(missing_ok=True)
-                    try:
-                        capture(browser, state, shot, theme, narrow, target)
-                        written.append(target)
-                    except EvidenceError as err:
-                        failures.append(f"{target.name}: {err}")
+            try:
+                capture(browser, state, shot, theme, narrow, target)
+                written.append(target)
+            except EvidenceError as err:
+                failures.append(f"{target.name}: {err}")
         browser.close()
     for path in written:
         print(f"{path}\t{path.stat().st_size} bytes")
