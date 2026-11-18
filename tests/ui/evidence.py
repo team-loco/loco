@@ -825,9 +825,7 @@ def reap():
         except OSError, ValueError:
             continue
         if state["expires_at"] < now:
-            log(
-                f"reaping {state.get('id', path.parent.name)}: unused for {LEASE_S // 3600}h"
-            )
+            log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
             stop_state(state)
     listed = subprocess.run(
         [
