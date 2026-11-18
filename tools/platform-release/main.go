@@ -12,9 +12,12 @@ import (
 	"syscall"
 )
 
-const mainCommand = "main"
-
-const localCommand = "local"
+const (
+	artifactsCommand = "artifacts"
+	bundleCommand    = "bundle"
+	mainCommand      = "main"
+	localCommand     = "local"
+)
 
 type commandOptions struct {
 	mode, commit, version, repository, address, push, username, password, cache, prebuilt, base, input, output string
@@ -40,16 +43,16 @@ func parseOptions(args []string) (commandOptions, error) {
 	options.mode = args[0]
 	flags := flag.NewFlagSet(options.mode, flag.ContinueOnError)
 	switch options.mode {
-	case artifactsName, bundleCommand, mainCommand, localCommand:
+	case artifactsCommand, bundleCommand, mainCommand, localCommand:
 		flags.StringVar(&options.repository, "repository", "", "Artifact owner/repository")
 		if options.mode != localCommand {
 			flags.StringVar(&options.commit, "commit", "", "Source commit")
 		}
 		if options.mode == bundleCommand {
-			flags.StringVar(&options.version, fieldVersion, "", "Stable release version")
+			flags.StringVar(&options.version, "version", "", "Stable release version")
 		}
 		if options.mode == localCommand {
-			flags.StringVar(&options.push, pushOperation, "", "Registry address on this machine")
+			flags.StringVar(&options.push, "push", "", "Registry address on this machine")
 			flags.StringVar(&options.address, "address", "", "Registry address for cluster pulls")
 			flags.StringVar(&options.username, "username", "", "Push identity")
 			flags.StringVar(&options.password, "password", "", "Push credential")
@@ -148,7 +151,7 @@ func (t *tool) execute(options commandOptions) (any, error) {
 		return t.localRelease(r, localOptions{options.address, options.prebuilt, options.cache})
 	case mainCommand:
 		return t.mainRelease(options.commit, r)
-	case artifactsName:
+	case artifactsCommand:
 		if options.commit == "" {
 			return nil, errors.New("--commit is required")
 		}

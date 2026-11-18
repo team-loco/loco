@@ -13,6 +13,13 @@ import (
 	"github.com/team-loco/loco/tools/internal/imageinputs"
 )
 
+const (
+	fieldAuth      = "auth"
+	buildOperation = "build"
+	pushOperation  = "push"
+	tagOperation   = "tag"
+)
+
 type imageCacheEntry struct {
 	Fingerprint string `json:"fingerprint"`
 	Repository  string `json:"repository"`
@@ -115,7 +122,7 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 	}
 	digest, err := r.publish(
 		t.ctx,
-		names[fieldPlatform],
+		names[platformName],
 		version,
 		data,
 		object{fieldVersion: version, fieldCoreCommit: commit},
@@ -133,8 +140,8 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 			return manifest, checkErr
 		}
 	}
-	manifest.Bundle = options.address + "/" + names[fieldPlatform] + "@" + digest
-	fmt.Fprintf(os.Stderr, "published %s:%s@%s\n", options.address+"/"+names[fieldPlatform], version, digest)
+	manifest.Bundle = options.address + "/" + names[platformName] + "@" + digest
+	fmt.Fprintf(os.Stderr, "published %s:%s@%s\n", options.address+"/"+names[platformName], version, digest)
 	return manifest, nil
 }
 

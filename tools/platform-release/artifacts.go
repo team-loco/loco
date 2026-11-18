@@ -11,6 +11,14 @@ import (
 	"strings"
 )
 
+const (
+	buildsName      = "builds"
+	gatewayName     = "gateway"
+	fieldVersion    = "version"
+	fieldCoreCommit = "coreCommit"
+	platformName    = "platform"
+)
+
 const crdVersions = "tools/platform-release/crds.yaml"
 const gatewayChart = "gateway-helm"
 const certManager = "charts/cert-manager.yaml"
@@ -88,7 +96,7 @@ func repositories(repository string) map[string]string {
 	}
 	result["cert-manager-chart"] = repository + "/charts/cert-manager"
 	result["gateway-chart"] = repository + "/charts/gateway-helm"
-	result[fieldPlatform] = repository + "/platform"
+	result[platformName] = repository + "/platform"
 	return result
 }
 

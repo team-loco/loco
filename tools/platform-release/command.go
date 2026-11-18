@@ -14,6 +14,8 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+const dockerCommand = "docker"
+
 var (
 	versionPattern = regexp.MustCompile(`^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-rc\.(0|[1-9]\d*))?$`)
 	shaPattern     = regexp.MustCompile(`^[a-f0-9]{40}$`)

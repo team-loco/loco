@@ -7,16 +7,31 @@ import (
 	"strings"
 )
 
+const (
+	kindKustomization = "Kustomization"
+	kindOCIRepository = "OCIRepository"
+	imageAgent        = "agent"
+	imageAPI          = "api"
+	artifactsName     = "artifacts"
+	certManagerName   = "cert-manager"
+	controlPlaneName  = "control-plane"
+	crdsName          = "crds"
+	infraLayer        = "infra"
+	namespacesLayer   = "namespaces"
+	workerLayer       = "worker"
+	imageController   = "controller"
+	fieldEnabled      = "enabled"
+	fieldImage        = "image"
+	fieldInterval     = "interval"
+	fieldNamespace    = "namespace"
+	fluxNamespace     = "flux-system"
+	reconcilerAccount = "platform-reconciler"
+)
+
 type object = map[string]any
 type releaseFiles = map[string][]byte
 
 var charts = []string{"loco-worker", "loco-control-plane"}
-
-const workerLayer = "worker"
-
-const namespacesLayer = "namespaces"
-const imageController = "controller"
-const fieldPlatform = "platform"
 
 var images = []string{imageAgent, imageController, "builder", "obs-proxy", imageAPI, "ui"}
 
@@ -268,7 +283,7 @@ func buildBundle(manifest releaseManifest, ns object) (releaseFiles, error) {
 		if !ok || !digestPattern.MatchString(digest) {
 			return nil, errors.New("image reference must contain a sha256 digest")
 		}
-		pinned[name] = object{"repository": repository, tagOperation: "sha-" + manifest.CoreCommit + "@" + digest}
+		pinned[name] = object{"repository": repository, "tag": "sha-" + manifest.CoreCommit + "@" + digest}
 	}
 	for _, name := range images {
 		if pinned[name] == nil {

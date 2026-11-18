@@ -17,6 +17,15 @@ import (
 )
 
 const (
+	acceptHeader   = "Accept"
+	archAMD64      = "amd64"
+	archARM64      = "arm64"
+	linuxOS        = "linux"
+	fieldDigest    = "digest"
+	fieldMediaType = "mediaType"
+)
+
+const (
 	manifestType    = "application/vnd.oci.image.manifest.v1+json"
 	layerType       = "application/vnd.oci.image.layer.v1.tar+gzip"
 	helmLayerType   = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
