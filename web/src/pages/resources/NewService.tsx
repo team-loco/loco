@@ -82,7 +82,7 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
 
 function useTakenNames(orgId: string, workspaceId: string): Map<string, string> {
-	const resourcesQuery = useQuery({ ...useWorkspaceResourcesOptions(orgId, workspaceId), refetchOnMount: "always" });
+	const resourcesQuery = useQuery(useWorkspaceResourcesOptions(orgId, workspaceId));
 	return new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.slug, r.name]));
 }
 

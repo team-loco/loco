@@ -34,8 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		{
 			enabled: pathname !== "/auth/callback",
 			meta: { persist: false },
-			staleTime: 0,
-			refetchOnWindowFocus: true,
 		},
 	);
 	const queryClient = useQueryClient();
