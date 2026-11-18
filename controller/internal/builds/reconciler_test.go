@@ -271,6 +271,7 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		buildkit := findContainer(spec.InitContainers, buildContainerBuild)
 		push := findContainer(spec.Containers, buildContainerPush)
 		Expect(spec.InitContainers[0].Name).To(Equal(buildContainerFetch))
+		Expect(buildkit.Env).To(ContainElement(corev1.EnvVar{Name: "BUILDCTL_CONNECT_RETRIES_MAX", Value: "49"}))
 
 		Expect(mountNames(push)).To(ContainElement(buildVolumePushCreds))
 		Expect(mountNames(push)).NotTo(ContainElement(buildVolumePullCreds))

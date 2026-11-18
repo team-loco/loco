@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -52,6 +53,10 @@ func TestBuilds(t *testing.T) {
 			}
 		}
 		t.Logf("first build took %s", buildDuration(first))
+	})
+
+	t.Run("the BuildKit launcher tolerates delayed readiness and reports daemon crashes", func(t *testing.T) {
+		testBuildkitStartup(t, first.Name)
 	})
 
 	t.Run("images report their build version", func(t *testing.T) {
@@ -180,6 +185,95 @@ func TestBuilds(t *testing.T) {
 	})
 }
 
+// The fake client withholds readiness by probe count so scheduler delays cannot change the result.
+const buildkitStartupProbe = `set -eu
+export PROBE_DIR=$(mktemp -d)
+export BUILDCTL="$PROBE_DIR/client" BUILDKITD="$PROBE_DIR/daemon" ROOTLESSKIT=env
+cat > "$BUILDCTL" <<'EOF'
+#!/bin/sh
+set -eu
+case "$2" in
+    debug)
+        [ "${CRASH:-}" != 1 ] || exit 1
+        attempts=$(cat "$PROBE_DIR/attempts")
+        echo $((attempts + 1)) > "$PROBE_DIR/attempts"
+        [ "$attempts" -ge 12 ]
+        ;;
+    build)
+        [ "${CRASH:-}" != 1 ]
+        [ "$(cat "$PROBE_DIR/attempts")" -gt 12 ]
+        echo 'build started after delayed readiness'
+        ;;
+    *) exit 2 ;;
+esac
+EOF
+cat > "$BUILDKITD" <<'EOF'
+#!/bin/sh
+if [ "${CRASH:-}" = 1 ]; then
+    echo 'simulated buildkitd startup failure' >&2
+    exit 1
+fi
+exec sleep 60
+EOF
+chmod +x "$BUILDCTL" "$BUILDKITD"
+echo 0 > "$PROBE_DIR/attempts"
+"$1" build
+CRASH=1 exec "$1" build
+`
+
+func testBuildkitStartup(t *testing.T, jobName string) {
+	t.Helper()
+	var job batchv1.Job
+	p.MustGet(t, &job, "-n", p.BuildNamespace, "job", jobName)
+	spec := job.Spec.Template.Spec
+	buildkit := spec.InitContainers[1]
+	launcher := buildkit.Command[0]
+	buildkit.Command = []string{"sh", "-c", buildkitStartupProbe, "startup-probe", launcher}
+	buildkit.Args = nil
+	buildkit.VolumeMounts = nil
+	spec.InitContainers = nil
+	spec.Containers = []corev1.Container{buildkit}
+	spec.Volumes = nil
+	pod := corev1.Pod{Spec: spec}
+	pod.APIVersion, pod.Kind = "v1", "Pod"
+	pod.Name, pod.Namespace = "buildkit-startup-probe", p.BuildNamespace
+	manifest, err := json.Marshal(&pod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.MustApply(t, string(manifest))
+	p.DeleteOnCleanup(t, "-n", pod.Namespace, "pod", pod.Name)
+	t.Cleanup(func() {
+		if t.Failed() {
+			p.LogKubectl(t, "-n "+pod.Namespace+" describe pod "+pod.Name, "-n "+pod.Namespace+" logs "+pod.Name)
+		}
+	})
+	var observed corev1.Pod
+	platform.Eventually(t, 2*time.Minute, "BuildKit startup probe to terminate", func(ctx context.Context) error {
+		if err := p.Get(ctx, &observed, "-n", pod.Namespace, "pod", pod.Name); err != nil {
+			return err
+		}
+		if observed.Status.Phase != corev1.PodFailed && observed.Status.Phase != corev1.PodSucceeded {
+			return fmt.Errorf("pod phase %s", observed.Status.Phase)
+		}
+		return nil
+	})
+	logs := p.MustKubectl(t, "-n", pod.Namespace, "logs", pod.Name)
+	if !strings.Contains(logs, "build started after delayed readiness") {
+		t.Fatalf("launcher did not wait for the delayed daemon:\n%s", logs)
+	}
+	if observed.Status.Phase != corev1.PodFailed {
+		t.Errorf("pod phase %s after daemon crash, want Failed", observed.Status.Phase)
+	}
+	if len(observed.Status.ContainerStatuses) != 1 {
+		t.Fatalf("startup probe expected one container status, got %v", observed.Status.ContainerStatuses)
+	}
+	state := observed.Status.ContainerStatuses[0].State.Terminated
+	if state == nil || state.ExitCode != 1 || !strings.Contains(state.Message, "simulated buildkitd startup failure") {
+		t.Errorf("launcher did not preserve the daemon failure in the termination message: %v\n%s", state, logs)
+	}
+}
+
 // applyBuild applies a Build in the build namespace and waits for it to finish.
 func applyBuild(t *testing.T, name, sourceURL, dockerfile, repository, cacheRef string) *v1alpha1.Build {
 	t.Helper()
@@ -247,9 +341,11 @@ func dumpBuild(t *testing.T, name string) {
 	t.Helper()
 	builds := "-n " + p.BuildNamespace + " "
 	p.LogKubectl(t,
-		builds+"get build "+name+" -o yaml",
-		builds+"describe job "+name,
-		builds+"describe pods -l loco.io/build-id="+name,
+		builds+"get build "+name+" -o=jsonpath={.status}",
+		builds+"get job "+name+" -o wide",
+		builds+"get pods -l batch.kubernetes.io/job-name="+name+
+			" -o=custom-columns=NAME:.metadata.name,NODE:.spec.nodeName,PHASE:.status.phase,"+
+			"INIT:.status.initContainerStatuses[*].state,CONTAINERS:.status.containerStatuses[*].state",
 		builds+"logs job/"+name+" -c fetch --tail 100",
 		builds+"logs job/"+name+" -c build --tail 100",
 		builds+"logs job/"+name+" -c push --tail 100",

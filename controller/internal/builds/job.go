@@ -44,6 +44,10 @@ const (
 	buildkitFlags         = "--oci-worker-no-process-sandbox"
 	buildTerminationLog   = "/dev/termination-log"
 
+	// The daemonless launcher sleeps for a total of 29.5s over 50 retries.
+	// The Job deadline also bounds probe execution and the rest of the build.
+	buildkitConnectRetries = "49"
+
 	builderEnvSourceURL       = "SOURCE_URL"
 	builderEnvDownloadTimeout = "DOWNLOAD_TIMEOUT"
 )
@@ -210,7 +214,10 @@ func (r *Reconciler) buildkitContainer(build *locov1alpha1.Build) corev1.Contain
 		ImagePullPolicy: cfg.BuildkitImage.PullPolicy,
 		Command:         []string{"buildctl-daemonless.sh"},
 		Args:            args,
-		Env:             []corev1.EnvVar{{Name: "BUILDKITD_FLAGS", Value: buildkitFlags}},
+		Env: []corev1.EnvVar{
+			{Name: "BUILDKITD_FLAGS", Value: buildkitFlags},
+			{Name: "BUILDCTL_CONNECT_RETRIES_MAX", Value: buildkitConnectRetries},
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			{Name: buildVolumeWorkspace, MountPath: buildWorkspaceDir, ReadOnly: true},
 			{Name: buildVolumeCache, MountPath: buildCacheDir, ReadOnly: true},
