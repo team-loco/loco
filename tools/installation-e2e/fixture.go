@@ -64,8 +64,6 @@ type fixture struct {
 	dockerHubMirror string
 	forward         *exec.Cmd
 	platform        string
-	// buildkitdConfig points the head worker's BuildKit at the base images in the fixture registry.
-	buildkitdConfig string
 	// lease records the run's kind cluster, compose project and ports in the machine's
 	// test-resource registry, owned by the run's directory.
 	lease *testres.Lease
@@ -212,11 +210,6 @@ func (f *fixture) acceptance(ctx context.Context) error {
 	if checkErr := f.forwardRegistry(ctx); checkErr != nil {
 		return checkErr
 	}
-	config, err := f.mirrorBaseImages(ctx)
-	if err != nil {
-		return err
-	}
-	f.buildkitdConfig = config
 	fmt.Println("Publishing fixture release artifacts")
 	previous, current, err := f.releases(ctx)
 	if err != nil {
@@ -651,7 +644,6 @@ func (f *fixture) registryConfiguration() ([]byte, error) {
 			},
 		},
 	}
-	repos[baseImageMirror+"/**"] = repos["platform/**"]
 	httpConfig["auth"] = map[string]any{"htpasswd": map[string]string{"path": "/config/htpasswd"}}
 	httpConfig["compat"] = []string{"docker2s2"}
 	return json.Marshal(registry)

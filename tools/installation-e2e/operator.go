@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -43,6 +44,16 @@ func (f *fixture) configureClient(ctx context.Context, previous, current, image 
 				map[string]any{"cidr": netip.PrefixFrom(address, address.BitLen()).String(), "port": service.port},
 			)
 		}
+	}
+	if f.dockerHubMirror != "" {
+		mirror, err := netip.ParseAddrPort(f.dockerHubMirror)
+		if err != nil {
+			return fmt.Errorf("DOCKER_HUB_MIRROR: %w", err)
+		}
+		allowances = append(allowances, map[string]any{
+			"cidr": netip.PrefixFrom(mirror.Addr(), mirror.Addr().BitLen()).String(),
+			"port": int(mirror.Port()),
+		})
 	}
 	previous, current, err := f.installFlux(ctx, allowances, previous, current)
 	if err != nil {

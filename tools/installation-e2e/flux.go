@@ -120,7 +120,11 @@ func (f *fixture) installFlux(
 	if err = f.prepareSchema(ctx, strings.TrimSpace(string(databaseURL))); err != nil {
 		return "", "", err
 	}
-	upgraded, err := f.publishHead(ctx, repo, current)
+	publish := f.publishRepo
+	if f.dockerHubMirror != "" {
+		publish = f.publishHead
+	}
+	upgraded, err := publish(ctx, repo, current, "./all")
 	if err != nil {
 		return "", "", err
 	}
@@ -161,22 +165,31 @@ func (f *fixture) installFlux(
 	return enrolled, upgraded, nil
 }
 
-// publishHead publishes the operator repository for the head bundle, whose worker alone runs the
-// source build and gets the BuildKit configuration, and leaves the repository as it found it.
-func (f *fixture) publishHead(ctx context.Context, repo operatorrepo.Repository, current string) (string, error) {
+// publishHead publishes the operator repository for the head bundle with its worker's BuildKit
+// pulling Docker Hub images through the Docker Hub mirror, and leaves the repository as it found
+// it. Only the head worker runs the source build.
+func (f *fixture) publishHead(
+	ctx context.Context,
+	repo operatorrepo.Repository,
+	reference, entry string,
+) (string, error) {
 	values := repo.Values("loco-worker")
 	baseline, err := os.ReadFile(values)
 	if err != nil {
 		return "", err
 	}
-	head, err := json.Marshal(map[string]any{"builds": map[string]any{"buildkitdConfig": f.buildkitdConfig}})
+	config := fmt.Sprintf(
+		"[registry.\"docker.io\"]\n  mirrors = [%q]\n[registry.%q]\n  http = true\n",
+		f.dockerHubMirror, f.dockerHubMirror,
+	)
+	head, err := json.Marshal(map[string]any{"builds": map[string]any{"buildkitdConfig": config}})
 	if err != nil {
 		return "", err
 	}
 	if err = operatorrepo.Merge(values, head); err != nil {
 		return "", err
 	}
-	published, err := f.publishRepo(ctx, repo, current, "./all")
+	published, err := f.publishRepo(ctx, repo, reference, entry)
 	if err != nil {
 		return "", err
 	}
