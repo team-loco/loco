@@ -50,6 +50,8 @@ type fakeAPI struct {
 	users    map[string]*userv1.User
 	failures map[string]connect.Code
 	calls    []apiCall
+	// recorded closes when the next call is recorded.
+	recorded chan struct{}
 	platform *fakePlatform
 
 	identityProvider bool
@@ -67,6 +69,7 @@ func newFakeAPI() *fakeAPI {
 			},
 		},
 		failures: map[string]connect.Code{},
+		recorded: make(chan struct{}),
 		platform: newFakePlatform(),
 	}
 }
@@ -104,6 +107,8 @@ func (f *fakeAPI) called(method, authorization string) bool {
 func (f *fakeAPI) record(spec connect.Spec, authorization string) error {
 	method := path.Base(spec.Procedure)
 	f.calls = append(f.calls, apiCall{method: method, authorization: authorization})
+	close(f.recorded)
+	f.recorded = make(chan struct{})
 	if code, ok := f.failures[method]; ok {
 		return connect.Errorf(code, "fakeapi: %s configured to fail", method)
 	}

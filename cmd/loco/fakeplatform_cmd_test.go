@@ -87,7 +87,7 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		cmdFakeSecrets(ts, api, neg, args)
 	case "wait":
 		requireArgs(ts, neg, args, 2, "fakeapi wait <method>")
-		waitForCall(ts, api, args[1])
+		waitForCall(api, args[1])
 	case "plan":
 		requireArgs(ts, neg, args, 2, "fakeapi plan <plan.json>")
 		data := ts.ReadFile(args[1])
@@ -400,15 +400,16 @@ func checkScaled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []strin
 		args[1], replicas, args[2], api.platform.scales)
 }
 
-func waitForCall(ts *testscript.TestScript, api *fakeAPI, method string) {
-	deadline := time.Now().Add(waitTimeout)
-	for time.Now().Before(deadline) {
+func waitForCall(api *fakeAPI, method string) {
+	for {
+		api.mu.Lock()
+		recorded := api.recorded
+		api.mu.Unlock()
 		if api.called(method, "") {
 			return
 		}
-		time.Sleep(50 * time.Millisecond)
+		<-recorded
 	}
-	ts.Fatalf("fakeapi: %s was not called within %s", method, waitTimeout)
 }
 
 func checkImageOverride(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
