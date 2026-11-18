@@ -58,7 +58,6 @@ var (
 	)
 
 	errDomainInUse          = rpcerr.NewCoded(connect.CodeAlreadyExists, "domain already in use")
-	errUnknownResourceSpec  = rpcerr.NewCoded(connect.CodeInvalidArgument, "unknown resource spec type")
 	errOnlyServiceResources = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"only service resources are currently supported",
@@ -130,15 +129,14 @@ func (s *ResourceServer) CreateResource(
 	if req.GetSpec().GetService() == nil {
 		return nil, errOnlyServiceResources
 	}
-
-	specJSON, err := marshalResourceSpec(req.GetSpec())
-	if err != nil {
-		return nil, err
-	}
-
 	if req.GetType() != resourcev1.ResourceType_RESOURCE_TYPE_SERVICE {
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).
 			WithCause(ErrInvalidResourceType)
+	}
+
+	specJSON, err := protojson.Marshal(req.GetSpec().GetService())
+	if err != nil {
+		return nil, fmt.Errorf("marshal resource spec: %w", err)
 	}
 
 	params := genDb.CreateResourceParams{
@@ -269,31 +267,6 @@ func resourceDomainEnvironment(
 		return genDb.Environment{}, ErrEnvironmentNotFound
 	}
 	return env, nil
-}
-
-func marshalResourceSpec(spec *resourcev1.ResourceSpec) ([]byte, error) {
-	var (
-		specJSON []byte
-		err      error
-	)
-	switch specType := spec.GetSpec().(type) {
-	case *resourcev1.ResourceSpec_Service:
-		specJSON, err = protojson.Marshal(specType.Service)
-	case *resourcev1.ResourceSpec_Database:
-		specJSON, err = protojson.Marshal(specType.Database)
-	case *resourcev1.ResourceSpec_Cache:
-		specJSON, err = protojson.Marshal(specType.Cache)
-	case *resourcev1.ResourceSpec_Queue:
-		specJSON, err = protojson.Marshal(specType.Queue)
-	case *resourcev1.ResourceSpec_Blob:
-		specJSON, err = protojson.Marshal(specType.Blob)
-	default:
-		return nil, errUnknownResourceSpec
-	}
-	if err != nil {
-		return nil, fmt.Errorf("marshal resource spec: %w", err)
-	}
-	return specJSON, nil
 }
 
 // GetResource retrieves a resource by ID

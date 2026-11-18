@@ -188,12 +188,8 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, fmt.Errorf("get resource: %w", err)
 	}
 
-	// validate that request spec contains a service deployment (for now, only services are supported)
 	if req.GetSpec().GetService() == nil {
-		return nil, connect.NewError(
-			connect.CodeInvalidArgument,
-			"only service deployments are currently supported",
-		)
+		return nil, errOnlyServiceResources
 	}
 
 	serviceSpec := req.GetSpec().GetService()

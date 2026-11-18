@@ -220,7 +220,6 @@ func (s *DomainServer) UpdateResourceDomain(
 	ctx context.Context,
 	req *domainv1.UpdateResourceDomainRequest,
 ) (*domainv1.UpdateResourceDomainResponse, error) {
-	// get the domain to check its resource
 	domainID := uuid.MustParse(req.GetDomainId())
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
@@ -370,7 +369,6 @@ func (s *DomainServer) DeleteResourceDomain(
 	ctx context.Context,
 	req *domainv1.DeleteResourceDomainRequest,
 ) (*domainv1.DeleteResourceDomainResponse, error) {
-	// get the domain to check its resource and whether it's primary
 	domainID := uuid.MustParse(req.GetDomainId())
 
 	domainRow, err := s.queries.GetResourceDomainByID(ctx, domainID)
