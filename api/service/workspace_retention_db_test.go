@@ -205,14 +205,7 @@ func TestOrganizationLimitCapsWorkspaceRetention(t *testing.T) {
 // addWorkspace adds a workspace to the fixture's organization.
 func (f *deployFixture) addWorkspace(t *testing.T) uuid.UUID {
 	t.Helper()
-	var workspaceID uuid.UUID
-	err := f.pool.QueryRow(t.Context(), `
-INSERT INTO workspaces (org_id, name, created_by)
-SELECT org_id, 'second', created_by FROM workspaces WHERE id = $1 RETURNING id`, f.workspaceID(t)).Scan(&workspaceID)
-	if err != nil {
-		t.Fatalf("add workspace: %v", err)
-	}
-	return workspaceID
+	return f.tenant.workspace(t, "second")
 }
 
 func (f *deployFixture) workspaceUpdates(t *testing.T, workspaceID uuid.UUID) [][]byte {

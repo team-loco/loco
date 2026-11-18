@@ -10,25 +10,14 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 func TestResourceReaderListsTheEnvironmentsOfTheirResourcesWorkspace(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	workspaceID := f.workspaceID(t)
-	var otherResource uuid.UUID
-	err := f.pool.QueryRow(t.Context(), `
-WITH other AS (
-  INSERT INTO workspaces (org_id, name, created_by)
-  SELECT org_id, 'other', created_by FROM workspaces WHERE id = $1
-  RETURNING id, created_by
-)
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-SELECT id, 'elsewhere', 'elsewhere', 'service', '', '{}', 1, created_by FROM other
-RETURNING id`, workspaceID).Scan(&otherResource)
-	if err != nil {
-		t.Fatalf("create resource in another workspace: %v", err)
-	}
+	otherResource := f.tenant.resource(t, f.tenant.workspace(t, "other"), "elsewhere", &resourcev1.ServiceSpec{})
 	server := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	list := func(scopes []genDb.EntityScope) ([]*environmentv1.Environment, error) {
 		ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})

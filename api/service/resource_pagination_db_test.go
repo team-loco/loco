@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -22,23 +21,8 @@ func TestResourcePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 	position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)
 	ids := make([]uuid.UUID, 3)
 	for i := range ids {
-		id, err := f.queries.CreateResource(
-			ctx,
-			genDb.CreateResourceParams{
-				CreatedBy:   f.userID,
-				WorkspaceID: workspaceID,
-				Name:        "page-" + strconv.Itoa(i),
-				Slug:        "page-" + strconv.Itoa(i),
-				Type:        genDb.ResourceTypeService,
-				Spec:        []byte(sameRegionSpec),
-				SpecVersion: 1,
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		ids[i] = id
-		if _, err := f.pool.Exec(ctx, "UPDATE resources SET created_at=$1 WHERE id=$2", position, id); err != nil {
+		ids[i] = f.otherResource(t, "page-"+strconv.Itoa(i))
+		if _, err := f.pool.Exec(ctx, "UPDATE resources SET created_at=$1 WHERE id=$2", position, ids[i]); err != nil {
 			t.Fatal(err)
 		}
 	}

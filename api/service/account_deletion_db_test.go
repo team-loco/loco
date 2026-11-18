@@ -283,13 +283,7 @@ func TestAccountDeletionImpactMatchesOwnerReadHierarchy(t *testing.T) {
 	u := o.api.signUp(t, "issuer")
 	o.addOrgMember(t, u)
 	workspace := uuid.MustParse(o.shared)
-	resource, err := o.api.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
-		WorkspaceID: workspace, Name: "preview-service", Slug: "preview-service", Type: genDb.ResourceTypeService,
-		Spec: []byte(`{}`), SpecVersion: 1, CreatedBy: o.owner.id,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	resource := o.sharedResource(t, "preview-service")
 	for _, owner := range []genDb.Entity{
 		{Type: genDb.EntityTypeResource, ID: resource},
 		{Type: genDb.EntityTypeWorkspace, ID: workspace},

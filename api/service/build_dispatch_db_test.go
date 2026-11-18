@@ -360,7 +360,7 @@ func TestStatusForABuildTheControlPlaneCanceledCancelsIt(t *testing.T) {
 
 func (f *buildFixture) insertBuild(t *testing.T, status genDb.BuildStatus) string {
 	t.Helper()
-	resourceID := f.otherResource(t)
+	resourceID := f.otherResource(t, "other-"+uuid.NewString()[:8])
 	id := uuid.Must(uuid.NewV7())
 	key := buildsource.Key(id)
 	var digest *string
@@ -387,23 +387,6 @@ func (f *buildFixture) row(t *testing.T, id string) genDb.Build {
 		t.Fatalf("get build %s: %v", id, err)
 	}
 	return build
-}
-
-func (f *buildFixture) otherResource(t *testing.T) uuid.UUID {
-	t.Helper()
-	var id uuid.UUID
-	err := f.pool.QueryRow(f.ctx, `
-WITH r AS (
-    INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-    SELECT workspace_id, n.name, n.name, type, '', '{}', 1, created_by
-    FROM resources, (SELECT 'other-' || substr(md5(random()::text), 1, 8) AS name) n WHERE id = $1
-    RETURNING id
-)
-SELECT id FROM r`, f.resourceID).Scan(&id)
-	if err != nil {
-		t.Fatalf("create other resource: %v", err)
-	}
-	return id
 }
 
 func TestInventoryRecoversBuildsAfterAReconnect(t *testing.T) {

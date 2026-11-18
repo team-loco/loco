@@ -277,17 +277,10 @@ func (d *deployFixture) upsertSecrets(t *testing.T, resourceID uuid.UUID, names 
 	}
 }
 
+// otherResource creates another service in the fixture's workspace.
 func (d *deployFixture) otherResource(t *testing.T, name string) uuid.UUID {
 	t.Helper()
-	var id uuid.UUID
-	err := d.pool.QueryRow(t.Context(), `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-SELECT workspace_id, $2, $2, type, '', '{}', 1, created_by FROM resources WHERE id = $1
-RETURNING id`, d.resourceID, name).Scan(&id)
-	if err != nil {
-		t.Fatalf("resource %s: %v", name, err)
-	}
-	return id
+	return d.tenant.resource(t, d.workspaceID(t), name, &resourcev1.ServiceSpec{})
 }
 
 func (d *deployFixture) placeWithSecrets(t *testing.T, resourceID, clusterID uuid.UUID, names []string) {

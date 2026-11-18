@@ -336,9 +336,9 @@ func TestApplyImportsAnUnownedServiceOnConfirmation(t *testing.T) {
 func TestApplyDeletesAnOwnedServiceOnConfirmation(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	start := f.revision(t, f.envID)
 	file := seedOwnedAsLive(t, f)
 	f.addResource(t, planOld, planPartial)
+	start := f.revision(t, f.envID)
 
 	_, err := applyFile(t, f, file, applyOptions{}, f.adminScopes(t))
 	refusal := wantRefusal(t, err)

@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 func (f *deployFixture) deployStaging(t *testing.T, stagingID uuid.UUID) uuid.UUID {
@@ -129,32 +130,9 @@ func TestListDeploymentsWorkspaceEnvironment(t *testing.T) {
 	}
 	workspaceID := resource.WorkspaceID
 	stagingID := f.addStagingEnvironment(t)
-	var secondResource, hiddenResource, foreignResource uuid.UUID
-	for _, seed := range []struct {
-		name    string
-		id      *uuid.UUID
-		foreign bool
-	}{
-		{"second", &secondResource, false},
-		{"hidden", &hiddenResource, false},
-		{"foreign", &foreignResource, true},
-	} {
-		ws := workspaceID
-		if seed.foreign {
-			err = f.pool.QueryRow(ctx, `INSERT INTO workspaces (org_id, name, created_by)
-				SELECT org_id, 'other', created_by FROM workspaces WHERE id = $1 RETURNING id`, workspaceID).Scan(&ws)
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-		err = f.pool.QueryRow(ctx, `INSERT INTO resources
-			(workspace_id, name, slug, type, description, spec, spec_version, created_by)
-			VALUES ($1, $2, $2, 'service', '', '{}', 1, $3) RETURNING id`, ws, seed.name, f.userID).
-			Scan(seed.id)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
+	secondResource := f.tenant.resource(t, workspaceID, "second", &resourcev1.ServiceSpec{})
+	hiddenResource := f.tenant.resource(t, workspaceID, "hidden", &resourcev1.ServiceSpec{})
+	foreignResource := f.tenant.resource(t, f.tenant.workspace(t, "other"), "foreign", &resourcev1.ServiceSpec{})
 	base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	var visible []string
 	for i, seed := range []struct{ resource, env uuid.UUID }{

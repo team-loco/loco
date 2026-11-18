@@ -13,6 +13,8 @@ import (
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -62,16 +64,18 @@ func (f *deployFixture) setRoutedSpec(t *testing.T) {
 	}
 }
 
+// addResource creates a service with planRoutedSpec owned by partial.
 func (f *deployFixture) addResource(t *testing.T, name, partial string) {
 	t.Helper()
-	insert := `
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, partial, created_by)
-VALUES ($1, $2, $2, 'service', '', $3, 1, $4, $5)`
-	workspaceID := f.workspaceID(t)
-	if _, err := f.pool.Exec(
-		context.Background(), insert, workspaceID, name, planRoutedSpec, partial, f.userID,
-	); err != nil {
-		t.Fatalf("add resource %s: %v", name, err)
+	spec := &resourcev1.ServiceSpec{}
+	if err := protojson.Unmarshal([]byte(planRoutedSpec), spec); err != nil {
+		t.Fatalf("decode %s spec: %v", name, err)
+	}
+	id := f.tenant.resource(t, f.workspaceID(t), name, spec)
+	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	request := &resourcev1.TransferPartialRequest{ResourceId: id.String(), Partial: partial}
+	if _, err := server.TransferPartial(f.tenant.owner(t), request); err != nil {
+		t.Fatalf("give %s to partial %s: %v", name, partial, err)
 	}
 }
 

@@ -115,17 +115,7 @@ func testCreateResourceDomain(t *testing.T, platform, staging bool) {
 	}
 
 	if staging {
-		var otherEnvironment uuid.UUID
-		err = f.pool.QueryRow(ctx, `
-WITH w AS (
-    INSERT INTO workspaces (org_id, name, created_by)
-    SELECT org_id, 'other', created_by FROM workspaces WHERE id = $1 RETURNING id, created_by
-)
-INSERT INTO environments (workspace_id, name, created_by)
-SELECT id, 'prod', created_by FROM w RETURNING id`, workspaceID).Scan(&otherEnvironment)
-		if err != nil {
-			t.Fatalf("create another workspace's environment: %v", err)
-		}
+		otherEnvironment := f.tenant.defaultEnvironment(t, f.tenant.workspace(t, "other"))
 		req.EnvironmentId = new(otherEnvironment.String())
 		_, err = server.CreateResource(scoped, req)
 		wantCode(t, err, connect.CodeNotFound)

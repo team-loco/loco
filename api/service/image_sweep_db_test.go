@@ -270,7 +270,7 @@ func (r *tokenSweepRegistry) listedTags(path string) bool {
 
 func (f *imageSweepFixture) deletedResourceRepository(t *testing.T) string {
 	t.Helper()
-	gone := f.otherResource(t)
+	gone := f.otherResource(t, "gone")
 	if _, err := f.pool.Exec(f.ctx, `DELETE FROM resources WHERE id = $1`, gone); err != nil {
 		t.Fatalf("delete resource: %v", err)
 	}

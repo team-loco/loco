@@ -225,16 +225,7 @@ func TestScaleResourceRefusesAnEnvironmentOfAnotherWorkspace(t *testing.T) {
 	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("deploy production: %v", err)
 	}
-	insert := `
-WITH w AS (
-    INSERT INTO workspaces (org_id, name, created_by)
-    SELECT org_id, 'other', created_by FROM workspaces LIMIT 1 RETURNING id, created_by
-)
-INSERT INTO environments (workspace_id, name, created_by) SELECT id, 'prod', created_by FROM w RETURNING id`
-	var foreignID uuid.UUID
-	if err := f.pool.QueryRow(context.Background(), insert).Scan(&foreignID); err != nil {
-		t.Fatalf("add foreign environment: %v", err)
-	}
+	foreignID := f.tenant.defaultEnvironment(t, f.tenant.workspace(t, "other"))
 
 	err := scaleResourceIn(t, f, foreignID, 2)
 	wantCode(t, err, connect.CodeNotFound)
