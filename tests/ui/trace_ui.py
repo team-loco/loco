@@ -708,7 +708,7 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(drawer).to_have_count(0)
     spans.pop()
-    page.get_by_role("button", name=re.compile(r"^Past hour ")).click()
+    page.get_by_role("button", name=re.compile(r"^Past 15 minutes ")).click()
     expect(page.get_by_text("Ranges up to 6h.", exact=True)).to_be_visible()
     expect(
         page.get_by_role("group", name="Presets").get_by_role(
@@ -716,11 +716,11 @@ with session(out) as browser:
         )
     ).to_have_count(0)
     page.get_by_role("group", name="Presets").get_by_role(
-        "button", name="Past 15 minutes", exact=False
+        "button", name="Past hour", exact=False
     ).click()
-    expect(page).to_have_url(re.compile(r"[?&]range=15m"))
+    expect(page).to_have_url(re.compile(r"[?&]range=1h"))
     page.go_back()
-    expect(page).not_to_have_url(re.compile(r"[?&]range=15m"))
+    expect(page).not_to_have_url(re.compile(r"[?&]range=1h"))
     page.goto(previous_url)
     expect(flame.get_by_role("button", name=failing)).to_have_attribute(
         "aria-pressed", "true"

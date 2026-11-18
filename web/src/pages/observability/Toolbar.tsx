@@ -237,6 +237,7 @@ export function LiveButton({
 	return (
 		<ToggleChip
 			variant="button"
+			data-live-button
 			pressed={on}
 			aria-busy={pending}
 			disabled={disabled}
@@ -248,7 +249,7 @@ export function LiveButton({
 			}}
 			className={cn("h-8", on && "border-[color-mix(in_oklab,var(--ok)_40%,transparent)] text-ok-fg")}
 		>
-			{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon className="fill-current" />}
+			{on ? <StatusDot pulse className="text-ok-fg" /> : <PlayIcon />}
 			{pending ? "Starting…" : "Live"}
 			{on && detail !== undefined && <span className="font-mono text-[11.5px] opacity-85">{detail}</span>}
 			{on && <PauseIcon className="fill-current" />}

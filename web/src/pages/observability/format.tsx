@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { formatClock, formatSlashDate, type TimePreferences } from "@/lib/time";
-import { cn } from "@/lib/utils";
 
 import type { Level } from "./query";
 
@@ -101,56 +100,9 @@ function highlight(s: string, words: string[], keyBase: string): ReactNode[] {
 // oxlint-disable-next-line no-control-regex
 const SGR_RE = /(?:\u001b\[|\u009b)[\d:;]*m/g;
 
-const BODY_RE = /(\b[1-5]\d\d\b)|(\b\d+(?:\.\d+)?(?:ms|s|MB|MiB)\b)|(\b[\w.]+=[^\s]+)|("[^"]*")/g;
-
-function statusClass(code: string): string {
-	if (code.startsWith("5")) return "text-err";
-	if (code.startsWith("4")) return "text-warn";
-	if (code.startsWith("2")) return "text-ok-fg";
-	return "text-fg3";
-}
-
+/** A log body as plain text, with ANSI colour codes removed and search words marked. */
 export function bodyParts(source: string, words: string[]): ReactNode[] {
-	const body = source.replace(SGR_RE, "");
-	const out: ReactNode[] = [];
-	let last = 0;
-	let k = 0;
-	for (const m of body.matchAll(BODY_RE)) {
-		const idx = m.index;
-		if (idx > last) out.push(...highlight(body.slice(last, idx), words, `t${String(k++)}`));
-		const [, status, dur, kv, quoted] = m;
-		if (status !== undefined) {
-			out.push(
-				<span key={`s${String(k++)}`} className={cn("font-semibold", statusClass(status))}>
-					{status}
-				</span>,
-			);
-		} else if (dur !== undefined) {
-			out.push(
-				<span key={`d${String(k++)}`} className="text-fg3">
-					{dur}
-				</span>,
-			);
-		} else if (kv !== undefined) {
-			const eq = kv.indexOf("=");
-			const key = `k${String(k++)}`;
-			out.push(
-				<span key={key}>
-					<span className="text-fg3">{kv.slice(0, eq + 1)}</span>
-					<span className="text-info-fg">{highlight(kv.slice(eq + 1), words, key)}</span>
-				</span>,
-			);
-		} else if (quoted !== undefined) {
-			out.push(
-				<span key={`q${String(k++)}`} className="text-ok-fg">
-					{quoted}
-				</span>,
-			);
-		}
-		last = idx + m[0].length;
-	}
-	if (last < body.length) out.push(...highlight(body.slice(last), words, `t${String(k++)}`));
-	return out;
+	return highlight(source.replace(SGR_RE, ""), words, "t");
 }
 
 const MAIN_KEYS = ["msg", "message", "event"];

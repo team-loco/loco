@@ -160,6 +160,7 @@
 		--code-bg: var(--panel);
 		--code-line-number: var(--fg3);
 		--lv-warn: #e0a100;
+		--lv-debug: var(--line2);
 		--sh-identifier: var(--fg);
 		--sh-sign: var(--fg3);
 		--sh-property: #2348a8;

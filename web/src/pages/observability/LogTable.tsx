@@ -1,5 +1,5 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { PlusIcon, XIcon } from "lucide-react";
+import { CheckIcon, PlusIcon, XIcon } from "lucide-react";
 
 import {
 	DropdownMenu,
@@ -18,15 +18,15 @@ import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import type { LogRow } from "./rows";
 
-const TIME_WIDTH = 204;
-const COMPACT_TIME_WIDTH = 152;
+const TIME_WIDTH = 112;
+const DATED_TIME_WIDTH = 172;
 const MESSAGE_MIN = "minmax(260px,1fr)";
 const ADD_WIDTH = 36;
 
 export function LogTable({
 	rows,
 	columns,
-	compact,
+	dated,
 	selectedKey,
 	words,
 	highlightAfter,
@@ -39,7 +39,8 @@ export function LogTable({
 	columns: ColumnKey[];
 	widths: ColumnWidths;
 	onWidths: (next: ColumnWidths) => void;
-	compact: boolean;
+	/** Whether the time column shows the date, for ranges longer than a day. */
+	dated: boolean;
 	selectedKey: string | null;
 	words: string[];
 	highlightAfter: number | null;
@@ -49,7 +50,7 @@ export function LogTable({
 	const timePref = useTimePreferences();
 	const { live, handle } = useResizableColumns(widths, onWidths, columnWidth);
 	const grid = [
-		`${String(compact ? COMPACT_TIME_WIDTH : TIME_WIDTH)}px`,
+		`${String(dated ? DATED_TIME_WIDTH : TIME_WIDTH)}px`,
 		...columns.map((c) => `${String(columnWidth(c, live))}px`),
 		MESSAGE_MIN,
 		`${String(ADD_WIDTH)}px`,
@@ -59,9 +60,9 @@ export function LogTable({
 		<div className="w-max min-w-full">
 			<div>
 				<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
-					<span className="px-3">Time</span>
+					<span className="flex h-full items-center px-3">Time</span>
 					{columns.map((c) => (
-						<span key={c} className="group/col relative flex min-w-0 items-center gap-1 px-3">
+						<span key={c} className="group/col relative flex h-full min-w-0 items-center gap-1 px-3">
 							<span className="truncate">{columnLabel(c)}</span>
 							<button
 								type="button"
@@ -76,15 +77,15 @@ export function LogTable({
 							{handle(c, columnLabel(c))}
 						</span>
 					))}
-					<span className="px-3">Message</span>
-					<span className="flex justify-end">
+					<span className="flex h-full items-center px-3">Message</span>
+					<span className="flex h-full items-center justify-end">
 						<DropdownMenu>
 							<DropdownMenuTrigger
 								render={<Button variant="ghost" size="icon-xs" aria-label="Add a column" title="Add a column" />}
 							>
 								<PlusIcon />
 							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-[220px]">
+							<DropdownMenuContent align="end" className="w-[200px]">
 								<DropdownMenuGroup>
 									<DropdownMenuLabel>Columns</DropdownMenuLabel>
 									{[...PICKABLE_COLUMNS, ...extra].map((c) => {
@@ -92,11 +93,21 @@ export function LogTable({
 										return (
 											<DropdownMenuCheckboxItem
 												key={c}
+												className="pr-2.5 [&>[data-slot=dropdown-menu-checkbox-item-indicator]]:hidden"
 												checked={on}
 												onCheckedChange={() => {
 													onColumns(on ? columns.filter((x) => x !== c) : [...columns, c]);
 												}}
 											>
+												<span
+													aria-hidden
+													className={cn(
+														"flex size-3.5 shrink-0 items-center justify-center rounded-[4px]",
+														on ? "bg-foreground text-background" : "shadow-[inset_0_0_0_1.5px_var(--line2)]",
+													)}
+												>
+													{on && <CheckIcon className="size-2.5" strokeWidth={3} />}
+												</span>
 												<span className={cn(!PICKABLE_COLUMNS.includes(c) && "font-mono text-[12.5px]")}>
 													{columnLabel(c)}
 												</span>
@@ -126,7 +137,7 @@ export function LogTable({
 							style={{ gridTemplateColumns: grid }}
 						>
 							<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
-								{compact ? formatClock(l.ts, true, timePref) : fmtTs(l.ts, true, timePref)}
+								{dated ? fmtTs(l.ts, true, timePref) : formatClock(l.ts, true, timePref)}
 							</span>
 							{columns.map((c) => (
 								<span key={c} className="min-w-0 truncate px-3">

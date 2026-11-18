@@ -30,6 +30,7 @@
 	--series-2: #179299;
 	--series-3: #fe640b;
 	--theme-accent: var(--btn);
+	--list-zebra: #e6e4e8;
 }
 
 .dark[data-theme="catppuccin"] {
@@ -58,6 +59,7 @@
 	--series-1: #cba6f7;
 	--series-2: #94e2d5;
 	--series-3: #fab387;
+	--list-zebra: #2a2b3f;
 }
 
 [data-theme="catppuccin"] [data-segmented] {

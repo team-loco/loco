@@ -13,7 +13,6 @@ import { ErrorState } from "@/components/design/ErrorState";
 import { Pager } from "@/components/design/Pager";
 import { Sheet, SheetContent, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
@@ -24,7 +23,7 @@ import { getErrorMessage, isUnimplemented } from "@/lib/error-handler";
 import { formatCount } from "@/lib/format";
 import { pagingParsers } from "@/lib/paging";
 import { createLogHistory, moveLogHistory, oldestLogHistory } from "@/lib/log-history";
-import { msToTimestamp } from "@/lib/time";
+import { DAY_MS, msToTimestamp } from "@/lib/time";
 import { msParser, windowLabel, windowSpan } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +78,7 @@ const LEVEL_COLOR: Record<Level, string> = {
 	error: "var(--err)",
 	warn: "var(--lv-warn)",
 	info: "var(--lv-info)",
-	debug: "var(--line2)",
+	debug: "var(--lv-debug)",
 };
 
 function levelToken(level: Level): Token {
@@ -101,7 +100,6 @@ export function LogsView() {
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
-	const mobile = useIsMobile();
 	const { size, page, log: selectedKey, cols: columns, widths, at: anchor } = params;
 	const [history, setHistory] = useState(createLogHistory);
 	const [focusActive, setFocusActive] = useState(anchor !== null);
@@ -454,7 +452,11 @@ export function LogsView() {
 											n === 0 && "opacity-55 aria-pressed:opacity-100",
 										)}
 									>
-										<span className="size-2 rounded-[2px]" style={{ background: LEVEL_COLOR[l] }} />
+										<span
+											data-slot="legend-swatch"
+											className="size-2 rounded-[2px]"
+											style={{ background: LEVEL_COLOR[l] }}
+										/>
 										{LEVEL_LABEL[l]}
 										<span className="font-mono text-[11.5px] text-fg3">
 											{volume.data === undefined && !backend.impossible ? "—" : formatCount(n)}
@@ -499,7 +501,7 @@ export function LogsView() {
 							<LogTable
 								rows={pageRows}
 								columns={columns}
-								compact={mobile}
+								dated={spanMs > DAY_MS}
 								selectedKey={selRow?.key ?? null}
 								words={freeWords}
 								highlightAfter={tail ? nowMs - FRESH_MS : null}

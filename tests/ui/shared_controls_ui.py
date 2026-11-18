@@ -1012,7 +1012,9 @@ def metrics(page):
             }
         ),
     )
-    page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
+    )
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
     expect(chart.get_by_text("controls-pilot 1.27").first).to_be_visible()
@@ -1031,7 +1033,9 @@ def metrics(page):
         "cell"
     ).nth(1).click()
     expect(page).to_have_url(re.compile(r"resource:controls-alpha"))
-    page.goto(state["ui_url"] + base + "/observability?env=production&view=metrics")
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
+    )
     expect(chart.locator(".recharts-line")).to_be_visible()
     chart.click(position={"x": chart.bounding_box()["width"] / 2, "y": 60})
     menu = page.get_by_role("menu", name=re.compile(r"^Around"))
