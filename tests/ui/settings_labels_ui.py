@@ -352,12 +352,11 @@ with session(out) as browser:
                         row.hover()
                         expect(row).not_to_have_css("background-color", background)
                         page.mouse.move(0, 0)
-                        # The list fits the smallest page size, so it has no pager.
                         expect(
                             workspaces.get_by_role(
                                 "button", name="Next page", exact=True
                             )
-                        ).to_have_count(0)
+                        ).to_be_disabled()
                     if tab == "ws" and user == "owner":
                         settings_url = page.url
                         page.goto(settings_url.split("/settings")[0] + "/webhooks")

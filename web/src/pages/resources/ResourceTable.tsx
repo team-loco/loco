@@ -1,5 +1,5 @@
 import { functionalUpdate, useTable, type RowSelectionState } from "@tanstack/react-table";
-import { SearchXIcon, XIcon } from "lucide-react";
+import { GlobeIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQueryStates } from "nuqs";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
@@ -133,6 +133,8 @@ export function ResourceTable({
 			</ToggleGroup>
 			<FilterMenu
 				label="Region"
+				icon={<GlobeIcon />}
+				mono
 				value={filter.region}
 				options={regionOptions}
 				onChange={(region) => {

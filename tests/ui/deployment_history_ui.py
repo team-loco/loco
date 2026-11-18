@@ -508,8 +508,11 @@ with session(out) as browser:
                     exact=True,
                 )
             ).to_be_visible()
-            # One deployment fits the smallest page size, so the pager is gone.
-            expect(section.get_by_text("1–1 of 1", exact=False)).to_have_count(0)
+            expect(section.get_by_text("1–1 of 1", exact=False)).to_be_visible()
+            expect(section.get_by_text("Page 1 of 1", exact=True)).to_be_visible()
+            expect(
+                section.get_by_role("button", name="Next page", exact=True)
+            ).to_be_disabled()
             assert not section.get_by_role(
                 "button",
                 name=f"Show details for {data['releases'][220][-8:]}",
@@ -721,12 +724,7 @@ with session(out) as browser:
             region = page.get_by_role("menuitemradio", name=re.compile(r"^eu-west-1"))
             region.click()
             expect(region).to_have_attribute("aria-checked", "true")
-            check_box = region.locator("svg").bounding_box()
-            count_box = region.get_by_text(re.compile(r"^\d+$")).bounding_box()
-            assert check_box["x"] >= count_box["x"] + count_box["width"], (
-                check_box,
-                count_box,
-            )
+            expect(region.locator("svg")).to_have_count(0)
             page.keyboard.press("Escape")
             page.get_by_role(
                 "checkbox", name="Select history-pilot", exact=True

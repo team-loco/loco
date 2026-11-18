@@ -6,7 +6,7 @@ export function Page({ className, children }: { className?: string; children: Re
 	return (
 		<div
 			className={cn(
-				"mx-auto flex w-full max-w-[1240px] min-w-0 flex-col gap-7 px-[clamp(16px,4vw,48px)] pt-7 pb-24",
+				"mx-auto flex w-full max-w-[1240px] min-w-0 flex-col gap-[22px] px-[clamp(16px,4vw,48px)] pt-7 pb-24",
 				className,
 			)}
 		>

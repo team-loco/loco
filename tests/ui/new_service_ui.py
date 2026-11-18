@@ -514,7 +514,7 @@ with session(out) as browser:
                 dashboard_row.get_by_text("Not deployed yet", exact=True)
             ).to_be_visible()
             expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
-            page.get_by_role("button", name="Region: All", exact=True).click()
+            page.get_by_role("button", name="Region: All regions", exact=True).click()
             expect(
                 page.get_by_role("menuitemradio", name=re.compile(r"^us-east-1\b"))
             ).to_be_visible()

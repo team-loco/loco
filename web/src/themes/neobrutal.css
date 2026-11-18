@@ -258,6 +258,9 @@
 		padding: 2px;
 		box-shadow: 3px 3px 0 var(--ink);
 	}
+	& :is([data-slot="toggle-group"], [data-slot="tabs-list"])[data-segmented] > * {
+		font-weight: 500;
+	}
 	& [data-sonner-toast][data-styled="true"] {
 		border: 2px solid var(--ink);
 		border-radius: 5px;

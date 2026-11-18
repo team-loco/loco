@@ -53,7 +53,7 @@ export function ColumnResizeHandle({
 			onLostPointerCapture={() => {
 				dragRef.current = null;
 			}}
-			className="absolute top-2 right-0 bottom-2 w-2 cursor-col-resize touch-none rounded-sm outline-none after:absolute after:inset-y-0 after:right-[3px] after:w-px after:bg-line2 hover:after:bg-fg4 focus-visible:after:bg-foreground"
+			className="absolute top-2 right-0 bottom-2 w-2 cursor-col-resize touch-none rounded-sm outline-none after:absolute after:inset-y-0 after:right-[3px] after:w-px after:bg-line2 after:opacity-0 after:transition-opacity after:duration-120 in-[[data-slot=table-header]:hover]:after:opacity-100 hover:after:bg-fg3 hover:after:opacity-100 focus-visible:after:bg-foreground focus-visible:after:opacity-100"
 		/>
 	);
 }

@@ -375,6 +375,8 @@ function TraceSession({
 				</div>
 				<Pager
 					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
+					page={paging.page}
+					pages={pages}
 					total={total}
 					pageSizes={PAGE_SIZES}
 					pageSize={paging.size}

@@ -535,6 +535,9 @@ export function LogsView() {
 										? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`
 										: "0"
 								}
+								page={curPage}
+								pages={pages}
+								more={truncated}
 								total={rows.length}
 								pageSizes={LOG_PAGE_SIZES}
 								pageSize={size}

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "./Button";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "./Command";
 import { Popover, PopoverContent, PopoverTrigger } from "./Popover";
+import { cn } from "@/lib/utils";
 
 /** A filter button that opens a searchable list; once set it shows the value and a clear button. */
 export function FilterPopover({
@@ -35,7 +36,7 @@ export function FilterPopover({
 					render={
 						<Button
 							variant="outline"
-							className={clearable ? "max-w-[260px] rounded-r-none border-r-0 px-2.5" : "max-w-[260px] px-2.5"}
+							className={cn("h-[30px] max-w-[260px] px-2.5", clearable && "rounded-r-none border-r-0")}
 						/>
 					}
 				>

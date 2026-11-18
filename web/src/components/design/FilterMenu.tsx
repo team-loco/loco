@@ -1,4 +1,5 @@
 import { ChevronDownIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Button } from "./Button";
 import {
@@ -18,30 +19,36 @@ export interface FilterOption {
 
 export function FilterMenu({
 	label,
+	icon,
 	value,
 	options,
 	onChange,
 	allValue = "all",
+	mono = false,
 }: {
 	label: string;
+	icon?: ReactNode;
 	value: string;
 	options: FilterOption[];
 	onChange: (value: string) => void;
 	allValue?: string;
+	mono?: boolean;
 }) {
-	const current = options.find((o) => o.value === value);
+	const current = options.find((o) => o.value === value)?.label ?? "All";
 	const active = value !== allValue;
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger
-				render={<Button variant="outline" className={cn("shrink-0 px-2.5", active && "border-foreground")} />}
+				aria-label={`${label}: ${current}`}
+				render={
+					<Button variant="outline" size="sm" className={cn("shrink-0 pr-2.5 pl-3", active && "border-foreground")} />
+				}
 			>
-				<span>
-					{label}: <span className="font-medium">{current?.label ?? "All"}</span>
-				</span>
+				{icon !== undefined && <span className="flex text-fg3">{icon}</span>}
+				{current}
 				<ChevronDownIcon className="size-3 text-fg3" />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-auto min-w-[200px]">
+			<DropdownMenuContent className="w-auto min-w-[220px] p-1">
 				<DropdownMenuRadioGroup
 					value={value}
 					onValueChange={(v: string) => {
@@ -49,9 +56,16 @@ export function FilterMenu({
 					}}
 				>
 					{options.map((o) => (
-						<DropdownMenuRadioItem key={o.value} value={o.value} className="justify-between gap-3">
+						<DropdownMenuRadioItem
+							key={o.value}
+							value={o.value}
+							className={cn(
+								"min-h-8 justify-between gap-3 py-0 pr-2.5 text-[12.5px] data-checked:bg-panel dark:data-checked:bg-panel2 [&>[data-slot=dropdown-menu-radio-item-indicator]]:hidden",
+								mono && "font-mono",
+							)}
+						>
 							<span>{o.label}</span>
-							{o.count !== undefined && <span className="text-sm text-fg3">{o.count}</span>}
+							{o.count !== undefined && <span className="font-mono text-fg3">{o.count}</span>}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>
