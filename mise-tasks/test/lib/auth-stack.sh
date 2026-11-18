@@ -1,7 +1,7 @@
 # Sourced by the auth conformance tasks: runs tests/conformance/auth/compose.yaml as a compose
 # project under a lease of the shared test-resource registry, on ports the lease reserves, and
 # exports the providers' URLs. auth_stack_up starts the named services, or all of them. The stack
-# is removed when the task exits, unless KEEP is set; the next harness's reap removes a kept stack.
+# is removed when the task exits.
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 source mise-tasks/test/lib/testres.sh loco-auth-conformance
@@ -12,9 +12,7 @@ auth_stack_cleanup() {
 		"${compose[@]}" ps -a
 		"${compose[@]}" logs --no-color --tail=80
 	fi
-	if [ "${KEEP:-}" = "" ]; then
-		testres_release
-	fi
+	testres_release
 }
 trap auth_stack_cleanup EXIT
 read -r CONFORMANCE_POSTGRES_PORT CONFORMANCE_SUPABASE_PORT CONFORMANCE_KEYCLOAK_PORT \
@@ -28,7 +26,6 @@ export LOCO_CONFORMANCE_ZITADEL_URL="http://localhost:$CONFORMANCE_ZITADEL_PORT"
 export LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:$CONFORMANCE_POSTGRES_PORT/loco_test?sslmode=disable"
 export CONFORMANCE_DEX_CONFIG=$testres_lease/dex.yaml
 ISSUER=$LOCO_CONFORMANCE_DEX_URL yq '.issuer = strenv(ISSUER)' tests/conformance/auth/dex.yaml >"$CONFORMANCE_DEX_CONFIG"
-chmod a+r "$CONFORMANCE_DEX_CONFIG"
 export CONFORMANCE_ZITADEL_BOOTSTRAP=$testres_lease/zitadel
 mkdir "$CONFORMANCE_ZITADEL_BOOTSTRAP"
 chmod 777 "$CONFORMANCE_ZITADEL_BOOTSTRAP"
