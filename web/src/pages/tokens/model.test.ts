@@ -30,8 +30,8 @@ describe("token expiry", () => {
 	});
 
 	test("labels an expired token with how long ago it expired", () => {
-		expect(expiresLabel(expiringIn(-3 * DAY_MS), NOW)).toBe("expired 3 days ago");
-		expect(expiresLabel(expiringIn(DAY_MS), NOW)).toBe("in 1 day");
+		expect(expiresLabel(expiringIn(-3 * DAY_MS), NOW)).toBe("expired 3d ago");
+		expect(expiresLabel(expiringIn(23 * DAY_MS), NOW)).toBe("in 23d");
 	});
 });
 

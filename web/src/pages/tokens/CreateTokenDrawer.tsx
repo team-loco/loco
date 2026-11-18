@@ -20,11 +20,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
 import { toLocalInput, fromLocalInput } from "@/lib/obs-time";
-import { DAY_MS, formatMonthDayYear } from "@/lib/time";
+import { DAY_MS, formatMonthDayYear, formatHourMinute } from "@/lib/time";
 
 import { AccessPicker } from "./AccessPicker";
 import type { AccessItem } from "./AccessPicker";
-import { ownerIcon } from "./icons";
 import {
 	allowsFor,
 	customExpiryError,
@@ -250,9 +249,8 @@ function CreateForm({
 									value={k}
 									disabled={!o.canCreate}
 									title={o.createHint ?? o.label}
-									className="disabled:opacity-45 [&_svg]:size-[13px] [&_svg]:text-fg3"
+									className="disabled:opacity-45"
 								>
-									{ownerIcon(k)}
 									{OWNER_TITLE[k]}
 								</ToggleGroupItem>
 							);
@@ -296,7 +294,8 @@ function CreateForm({
 					)}
 					{expiryErr === null ? (
 						<span className="text-[12.5px] text-fg3">
-							Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND, timePref)}
+							Expires {formatMonthDayYear(now + seconds * MS_PER_SECOND, timePref)},{" "}
+							{formatHourMinute(now + seconds * MS_PER_SECOND, timePref)}
 						</span>
 					) : (
 						<span className="text-[12.5px] text-bad-fg">{expiryErr}</span>
