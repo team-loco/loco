@@ -11,7 +11,7 @@ loco resource logs --help
 loco resource events --help
 ```
 
-`loco resource` also includes `env`, `scale`, `restart`, and `destroy`. Inspect an operation's help before changing resources or removing an application.
+`loco resource` also includes `scale`, `restart`, and `destroy`; `loco env` manages a service's secrets. Inspect an operation's help before changing resources or removing an application.
 
 `loco resource logs --query` prints only the lines that match a [log query](../reference/log-queries.md), such as `loco resource logs api --query '@level:error -@path:/healthz'`.
 

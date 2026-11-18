@@ -60,15 +60,13 @@ services:
 
 Use the cluster's configured DNS suffix in place of `cluster.local` when it has a custom cluster domain. Namespace-qualified names distinguish a service’s environments and separate identical service names in different workspaces. Loco uses the cluster's DNS. Namespace-qualified names identify Services; network policies control which callers can reach them.
 
-The operator creates a ClusterIP Service named after the slug. It exposes TCP port 80 and the configured application port, both forwarding to each ready replica's application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use the configured port or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the existing `resource-<UUID>:80` endpoint and public HTTP routes continue to work.
+The operator creates a ClusterIP Service named after the slug. It exposes TCP port 80 and the configured application port, both forwarding to each ready replica's application port. When the application uses port 80, the Service exposes it once. gRPC and other TCP clients can use the configured port or port 80 explicitly; their default port depends on the client protocol. A non-HTTP service can omit `health` to avoid HTTP probes. Short names such as `cart:7070`, the `resource-<UUID>:80` endpoint and public HTTP routes also reach the application.
 
 A resource's name is a display label of at most 63 characters. Its private hostname and the subdomain `loco deploy` generates use the name's slug: the name lowercased, with each run of characters other than letters and digits replaced by one hyphen, such as `cart` for `Cart` and `shopping-cart` for `Shopping Cart`. Slugs are unique within a workspace: creating or renaming a resource to a name whose slug another resource holds fails and names that resource. A name without a letter or digit has no slug and is rejected. Digit-leading slugs require [`RelaxedServiceNameValidation`](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/), enabled by default in Kubernetes 1.36 and stable in 1.37. The slugs `localhost` and `resource-<UUID>` are reserved, and new resources and renames reject names that produce them.
 
 Renaming a resource through the Resource API moves its logical endpoint without an image build. The operator creates the new alias before removing the old alias. Port changes update the logical endpoint while preserving its ClusterIP. Port 80 keeps reaching ready replicas on their own application ports while old and new replicas overlap. The additional port follows the latest configured application port, so callers that must survive a port change use port 80. Resource deletion removes its aliases. Replacing a resource with another of the same slug waits for the previous resource to release it. An unmanaged Service or a Service owned by another Application causes reconciliation to fail; the operator does not adopt or overwrite it.
 
 Each environment has its own namespace, so the same service can run independently in several environments on one worker cluster. A short name such as `cart` reaches the caller’s own environment; a namespace-qualified name reaches the named environment. The workspace network policies allow communication across that workspace’s environment namespaces. Other workspaces remain isolated.
-
-Upgrade the API, agent, Application controller and operator CRDs together. Applications carrying a logical name gain the port 80 endpoint on controller reconciliation.
 
 ## Runtime user
 
@@ -83,7 +81,7 @@ services:
 
 These fields override the image's UID and primary GID independently. Omitted fields use the image defaults; an environment override can replace an ID or remove it with `null`. IDs must be between 1 and 2147483647. Loco continues to enforce non-root execution, disabled privilege escalation, dropped capabilities and the runtime's default seccomp profile.
 
-Choose IDs that can read the application and write its working directories. The override does not create users, change file ownership or make an application that requires root compatible. Changes roll out new pods without rebuilding the image. Upgrade the API, controller and Application CRD together before using these fields.
+Choose IDs that can read the application and write its working directories. The override does not create users, change file ownership or make an application that requires root compatible. Changes roll out new pods without rebuilding the image.
 
 ## Health checks
 
