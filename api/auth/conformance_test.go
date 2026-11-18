@@ -15,6 +15,8 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/internal/bearer"
+	"golang.org/x/oauth2"
 )
 
 const (
@@ -212,5 +214,43 @@ func TestProviderConformance(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+const (
+	conformanceWebURL   = "http://localhost:5173"
+	conformanceCallback = conformanceWebURL + "/auth/callback"
+)
+
+func checkWebProvider(
+	t *testing.T,
+	issuerURL string,
+	clientID, secret, email string,
+	authorize func(string) string,
+) {
+	t.Helper()
+	issuer := auth.IssuerConfig{Issuer: issuerURL, Audience: clientID, Web: &auth.WebConfig{
+		ClientID: clientID, ClientSecret: secret, Scopes: oidcScopes,
+	}, Claims: auth.ClaimPaths{Subject: "sub", Email: "email", EmailVerified: "email_verified"}}
+	verifier := auth.NewVerifier(http.DefaultClient, []auth.IssuerConfig{issuer})
+	provider := auth.NewWebProvider(http.DefaultClient, verifier, issuer, conformanceWebURL)
+	state, nonce, proof := bearer.New(""), bearer.New(""), oauth2.GenerateVerifier()
+	authorizeURL, err := provider.AuthorizationURL(t.Context(), state, nonce, proof, email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	callback, err := provider.CallbackValues(authorize(authorizeURL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if callback.Get("state") != state || callback.Get(paramCode) == "" {
+		t.Fatal("authorize callback requires a code and the original state")
+	}
+	identity, err := provider.Exchange(t.Context(), callback.Get(paramCode), proof, nonce)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.Email != email || !identity.EmailVerified {
+		t.Errorf("identity = %+v, want verified email %s", identity, email)
 	}
 }
