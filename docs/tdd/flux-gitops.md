@@ -1,6 +1,4 @@
-# Technical Design Document: Platform delivery with Flux
-
-**Status:** Approved design.
+# Platform delivery with Flux
 
 Flux installs and upgrades Loco's platform software on control-plane and worker clusters. Each cluster reconciles its own configuration from an operator-owned repository. Core publishes versioned charts, images and an OCI platform bundle; CI holds no kubeconfig.
 
@@ -21,7 +19,7 @@ Each cluster runs four Flux controllers and reads only its own directory. There 
 
 ## Operator repository
 
-Self-hosters keep their own repository. Loco Cloud uses its private fleet repository for workers; its control plane stays on its hosted service. Moving that control plane into Kubernetes is a separate decision.
+Self-hosters keep their own repository. Loco Cloud uses its private fleet repository for workers; its control plane runs on its hosted service.
 
 ```text
 releases/
@@ -64,7 +62,7 @@ Flux applies these layers in dependency order and checks health before proceedin
 
 CRDs are never pruned. Changes must be additive because worker clusters upgrade independently. Envoy Gateway has its own chart and release; the worker bundle disables the `gateway-helm` subchart. Third-party versions remain pinned in tracked chart metadata.
 
-Each release accepts optional `<release>-base-values` and `<release>-values` ConfigMaps in that order and an optional values Secret. Image digests stay pinned in the bundle. Credentials are standalone Secrets referenced by name, never Helm values. The bundle has no `configVersion` field.
+Each release accepts optional `<release>-base-values` and `<release>-values` ConfigMaps in that order and an optional values Secret. Image digests stay pinned in the bundle. Credentials are standalone Secrets referenced by name, never Helm values.
 
 The control-plane bundle supports external ClickHouse and external OpenBao. Postgres is operator-supplied and sits outside the bundle. The worker entry point accepts an API endpoint without assuming where the control plane runs. Registry authentication defaults to token mode; static credentials remain supported.
 
@@ -83,6 +81,7 @@ The first administrator is listed in `api.systemAdmins` and claims access by sig
 Core has no SOPS dependency. `locoadm init` writes plaintext Kubernetes Secret files and `locoadm cluster create -o secret` prints a Secret manifest. Operators encrypt these manifests before committing, or deliver the named Secrets through External Secrets or another tool. The generated README documents this boundary.
 
 With SOPS, operators install it themselves, select cluster and offline recipients, and configure Flux decryption. The cluster decryption key and Git deploy key are bootstrap inputs outside reconciliation. Core consumes plain Kubernetes Secrets by name.
+
 | Secret | Created by | Delivery and custody |
 |---|---|---|
 | Database URLs, source bucket keys, control-plane registry credentials | Operator | Operator secret delivery |
@@ -109,7 +108,7 @@ locoadm cluster create --name worker-staging --region example-east --tier stagin
 
 The command prints a plaintext Secret manifest for direct application to the worker. Direct application keeps tokens outside Git by default. An unenrolled agent reads the token from a mounted file and retries with backoff while waiting for delivery or successful enrollment. It retains its identity after enrollment. Cluster list and status expose enrollment state. The default one-hour token TTL covers immediate application.
 
-An approval-based join flow is outside this design. Pulling a token from the API would itself require a credential.
+There is no approval-based join flow: pulling a token from the API would itself require a credential.
 
 ## Operator commands
 
@@ -124,7 +123,7 @@ An approval-based join flow is outside this design. Pulling a token from the API
 | `recovery export` | Export recovery material using `--context` and `--namespace` |
 | `admin`, `user`, `org` | Manage API records |
 
-`locoadm` has no `apply`, `plan`, `cluster attach` or `validate` command, and no `loco-install.yaml` format. Flux provides reconciliation and diff/build tools. Installation state ConfigMaps, installer locks, ownership annotations, release guards and resolution, prerequisite installers, issuer checks and value templates are outside `locoadm`'s responsibilities. Each Flux reconciles its own cluster; enrollment binds an agent's identity to its API cluster record.
+Flux provides reconciliation and diff/build tools. Each Flux reconciles its own cluster; enrollment binds an agent's identity to its API cluster record.
 
 ## Upgrades and rollback
 
@@ -154,17 +153,3 @@ mise run dev:deploy
 Chart and bundle changes run `flux build` over `examples/gitops/`, render chart values with their schemas, and validate resources with kubeconform, including schemas for the installed CRDs. CI needs neither a kubeconfig nor decryption keys; examples contain plain placeholder Secrets.
 
 The installation e2e test installs bundle N−1 through Flux, upgrades to N, and checks that the agent identity key, OpenBao data and ClickHouse credentials survive. It then exercises login, cluster creation and verification. Local validation checks startup, automatic login and enrollment, changed-image deployment and Flux reconciliation.
-
-## Core implementation order
-
-1. Document this delivery design and the join-token and auto-unseal contracts.
-2. Add agent enrollment waiting and issue-time join-token TTL with a server cap.
-3. Add chart credential generation, separate gateway delivery, setup Job cleanup and typed schemas.
-4. Publish layered bundles and entry points; push bundles from `release:local`.
-5. Ship and validate `examples/gitops/` with a control plane and worker.
-6. Implement the operator commands and flag-based connection inputs.
-7. Exercise Flux installation and N−1-to-N state preservation.
-8. Run local development through Flux and retain the local-stack fixtures and automatic login.
-9. Delete installer commands, implementation and schema; document installation, self-hosting and registration.
-
-The demo uses a `gitops/` directory and the same local workflow. Fleet provisioning and pinned tooling remain operator concerns; fleet configuration consumes the worker entry point, per-cluster values, join tokens and cohort release sources.
