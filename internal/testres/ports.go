@@ -18,6 +18,9 @@ import (
 // ephemeral range up the kernel and the container engine assign ports themselves.
 const lowestPort = 20000
 
+// containerEphemeralStart is where a Linux container engine starts publishing ports, whatever the host's range.
+const containerEphemeralStart = 32768
+
 var errNoPorts = errors.New("no free ports left below the ephemeral range")
 
 // Ports returns n ports reserved for the lease, the same ones on every call, reserving more when
@@ -104,5 +107,5 @@ func firstEphemeralPort(ctx context.Context) (int, error) {
 	if err != nil || first <= lowestPort {
 		return 0, fmt.Errorf("ephemeral ports start at %q, not above %d", fields[0], lowestPort)
 	}
-	return first, nil
+	return min(first, containerEphemeralStart), nil
 }
