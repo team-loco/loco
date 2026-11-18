@@ -236,12 +236,16 @@ def activity_deployments(page):
             **extra,
         }
 
+    finished = datetime.now(UTC) - timedelta(minutes=7)
     deployments = [
         deployment(
             "00000000-0000-7000-8000-000000000001",
             "DEPLOYMENT_STATUS_RUNNING",
             8,
-            completedAt=stamp(timedelta(minutes=7)),
+            createdAt=(finished - timedelta(minutes=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            completedAt=finished.isoformat().replace("+00:00", "Z"),
             replicas=[{"ready": True}],
         ),
         deployment(
