@@ -39,6 +39,10 @@ const (
 	UserServiceDeleteUserProcedure = "/loco.user.v1.UserService/DeleteUser"
 	// UserServiceLogoutProcedure is the procedure name of the UserService's Logout RPC.
 	UserServiceLogoutProcedure = "/loco.user.v1.UserService/Logout"
+	// UserServiceListSessionsProcedure is the procedure name of the UserService's ListSessions RPC.
+	UserServiceListSessionsProcedure = "/loco.user.v1.UserService/ListSessions"
+	// UserServiceRevokeSessionProcedure is the procedure name of the UserService's RevokeSession RPC.
+	UserServiceRevokeSessionProcedure = "/loco.user.v1.UserService/RevokeSession"
 	// UserServiceSetUserStatusProcedure is the procedure name of the UserService's SetUserStatus RPC.
 	UserServiceSetUserStatusProcedure = "/loco.user.v1.UserService/SetUserStatus"
 )
@@ -93,6 +97,20 @@ var (
 			Procedure:  UserServiceLogoutProcedure,
 		}
 	})
+	userServiceListSessionsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods().ByName("ListSessions"),
+			Procedure:  UserServiceListSessionsProcedure,
+		}
+	})
+	userServiceRevokeSessionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_user_v1_user_proto.Services().ByName("UserService").Methods().ByName("RevokeSession"),
+			Procedure:  UserServiceRevokeSessionProcedure,
+		}
+	})
 	userServiceSetUserStatusSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -118,6 +136,10 @@ type UserServiceClient interface {
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
+	// ListSessions lists active sessions owned by the signed-in account.
+	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
+	// RevokeSession ends a session owned by the signed-in account.
+	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
 	// SetUserStatus suspends or reinstates a user. Requires system admin.
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 }
@@ -144,6 +166,10 @@ type UserServiceHandler interface {
 	DeleteUser(context.Context, *v1.DeleteUserRequest) (*v1.DeleteUserResponse, error)
 	// Logout logs out the current user.
 	Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error)
+	// ListSessions lists active sessions owned by the signed-in account.
+	ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error)
+	// RevokeSession ends a session owned by the signed-in account.
+	RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error)
 	// SetUserStatus suspends or reinstates a user. Requires system admin.
 	SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error)
 }
@@ -160,6 +186,8 @@ func RegisterUserServiceHandler(server *connect.Server, svc UserServiceHandler) 
 		connect.Method{Spec: userServiceGetAccountDeletionImpactSpec(), Handler: adapter.getAccountDeletionImpact},
 		connect.Method{Spec: userServiceDeleteUserSpec(), Handler: adapter.deleteUser},
 		connect.Method{Spec: userServiceLogoutSpec(), Handler: adapter.logout},
+		connect.Method{Spec: userServiceListSessionsSpec(), Handler: adapter.listSessions},
+		connect.Method{Spec: userServiceRevokeSessionSpec(), Handler: adapter.revokeSession},
 		connect.Method{Spec: userServiceSetUserStatusSpec(), Handler: adapter.setUserStatus},
 	)
 }
@@ -193,6 +221,14 @@ func (UnimplementedUserServiceHandler) DeleteUser(context.Context, *v1.DeleteUse
 
 func (UnimplementedUserServiceHandler) Logout(context.Context, *v1.LogoutRequest) (*v1.LogoutResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.Logout is not implemented")
+}
+
+func (UnimplementedUserServiceHandler) ListSessions(context.Context, *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.ListSessions is not implemented")
+}
+
+func (UnimplementedUserServiceHandler) RevokeSession(context.Context, *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.user.v1.UserService.RevokeSession is not implemented")
 }
 
 func (UnimplementedUserServiceHandler) SetUserStatus(context.Context, *v1.SetUserStatusRequest) (*v1.SetUserStatusResponse, error) {
@@ -254,6 +290,22 @@ func (c *userServiceClient) DeleteUser(ctx context.Context, req *v1.DeleteUserRe
 func (c *userServiceClient) Logout(ctx context.Context, req *v1.LogoutRequest) (*v1.LogoutResponse, error) {
 	var res v1.LogoutResponse
 	if err := c.client.CallUnary(ctx, userServiceLogoutSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *userServiceClient) ListSessions(ctx context.Context, req *v1.ListSessionsRequest) (*v1.ListSessionsResponse, error) {
+	var res v1.ListSessionsResponse
+	if err := c.client.CallUnary(ctx, userServiceListSessionsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *userServiceClient) RevokeSession(ctx context.Context, req *v1.RevokeSessionRequest) (*v1.RevokeSessionResponse, error) {
+	var res v1.RevokeSessionResponse
+	if err := c.client.CallUnary(ctx, userServiceRevokeSessionSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -347,6 +399,30 @@ func (h userServiceHandler) logout(ctx context.Context, _ connect.Spec, stream c
 		return err
 	}
 	res, err := h.svc.Logout(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h userServiceHandler) listSessions(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListSessionsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListSessions(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h userServiceHandler) revokeSession(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.RevokeSessionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeSession(ctx, &req)
 	if err != nil {
 		return err
 	}

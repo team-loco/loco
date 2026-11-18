@@ -33,6 +33,8 @@ type Principal struct {
 	ActorID   uuid.UUID
 	// UserID is the human principal for a session or personal token, and Nil for an owned token.
 	UserID uuid.UUID
+	// SessionID is set only for a Loco session.
+	SessionID uuid.UUID
 	// IdentityID identifies the provider login that created a web session.
 	IdentityID uuid.UUID
 	// Method identifies dashboard, CLI, and API token callers.

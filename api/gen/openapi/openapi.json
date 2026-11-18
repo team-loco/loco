@@ -6596,6 +6596,68 @@
         }
       }
     },
+    "/loco.user.v1.UserService/ListSessions": {
+      "post": {
+        "tags": [
+          "loco.user.v1.UserService"
+        ],
+        "summary": "ListSessions",
+        "description": "ListSessions lists active sessions owned by the signed-in account.",
+        "operationId": "loco.user.v1.UserService.ListSessions",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.user.v1.ListSessionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.user.v1.ListSessionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.user.v1.UserService/ListUsers": {
       "post": {
         "tags": [
@@ -6713,6 +6775,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/loco.user.v1.LogoutResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/loco.user.v1.UserService/RevokeSession": {
+      "post": {
+        "tags": [
+          "loco.user.v1.UserService"
+        ],
+        "summary": "RevokeSession",
+        "description": "RevokeSession ends a session owned by the signed-in account.",
+        "operationId": "loco.user.v1.UserService.RevokeSession",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.user.v1.RevokeSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.user.v1.RevokeSessionResponse"
                 }
               }
             }
@@ -15693,6 +15817,25 @@
         "additionalProperties": false,
         "description": "GetUserResponse is the response containing the user."
       },
+      "loco.user.v1.ListSessionsRequest": {
+        "type": "object",
+        "title": "ListSessionsRequest",
+        "additionalProperties": false
+      },
+      "loco.user.v1.ListSessionsResponse": {
+        "type": "object",
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.user.v1.Session"
+            },
+            "title": "sessions"
+          }
+        },
+        "title": "ListSessionsResponse",
+        "additionalProperties": false
+      },
       "loco.user.v1.ListUsersRequest": {
         "type": "object",
         "properties": {
@@ -15745,6 +15888,65 @@
         "title": "LogoutResponse",
         "additionalProperties": false,
         "description": "LogoutResponse is the response after logging out."
+      },
+      "loco.user.v1.RevokeSessionRequest": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "title": "session_id",
+            "format": "uuid"
+          }
+        },
+        "title": "RevokeSessionRequest",
+        "additionalProperties": false
+      },
+      "loco.user.v1.RevokeSessionResponse": {
+        "type": "object",
+        "title": "RevokeSessionResponse",
+        "additionalProperties": false
+      },
+      "loco.user.v1.Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "kind": {
+            "title": "kind",
+            "$ref": "#/components/schemas/loco.user.v1.SessionKind"
+          },
+          "createdAt": {
+            "title": "created_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "lastUsedAt": {
+            "title": "last_used_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "userAgent": {
+            "type": "string",
+            "title": "user_agent"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "current"
+          }
+        },
+        "title": "Session",
+        "additionalProperties": false,
+        "description": "Session is a sign-in that can still be refreshed."
+      },
+      "loco.user.v1.SessionKind": {
+        "type": "string",
+        "title": "SessionKind",
+        "enum": [
+          "SESSION_KIND_UNSPECIFIED",
+          "SESSION_KIND_WEB",
+          "SESSION_KIND_CLI"
+        ],
+        "description": "SessionKind identifies the client that signed in."
       },
       "loco.user.v1.SetUserStatusRequest": {
         "type": "object",

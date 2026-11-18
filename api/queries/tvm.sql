@@ -174,10 +174,14 @@ DELETE FROM used_session_refresh_tokens WHERE expires_at <= NOW();
 DELETE FROM session_tokens WHERE refresh_expires_at < NOW();
 
 -- name: ListSessionsForUser :many
-SELECT id, access_expires_at, refresh_expires_at, last_used_at, ip_address, user_agent, created_at
+SELECT id, kind, last_used_at, user_agent, created_at
 FROM session_tokens
-WHERE user_id = $1
-ORDER BY last_used_at DESC;
+WHERE user_id = $1 AND refresh_expires_at > NOW()
+ORDER BY last_used_at DESC, id DESC;
+
+-- name: DeleteSessionForUser :exec
+DELETE FROM session_tokens
+WHERE id = $1 AND user_id = $2;
 
 -- -----------------------------------------------------------------------------
 -- API token queries

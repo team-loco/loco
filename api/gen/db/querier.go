@@ -89,6 +89,7 @@ type Querier interface {
 	DeleteResource(ctx context.Context, id uuid.UUID) error
 	DeleteResourceDomain(ctx context.Context, id uuid.UUID) error
 	DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error)
+	DeleteSessionForUser(ctx context.Context, arg DeleteSessionForUserParams) error
 	DeleteSessionToken(ctx context.Context, id uuid.UUID) error
 	DeleteSessionTokenByAccessHash(ctx context.Context, accessTokenHash string) error
 	DeleteStoppedBuildRegistryCredentials(ctx context.Context) (int64, error)
