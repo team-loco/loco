@@ -1,14 +1,12 @@
 package service
 
 import (
-	"context"
-	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
@@ -52,7 +50,7 @@ func egressReport(observedAt time.Time, complete bool, counters ...*agentv1.Egre
 
 func (f *usageFixture) listEgress(t *testing.T, cursor string) *usagev1.ListEgressUsageResponse {
 	t.Helper()
-	waitForEarlierTransactions(t, f.pool)
+	f.publish(t)
 	resp, err := f.usage.ListEgressUsage(f.system, &usagev1.ListEgressUsageRequest{Cursor: cursor})
 	if err != nil {
 		t.Fatalf("list egress usage: %v", err)
@@ -217,17 +215,8 @@ func TestListEgressUsageNeverSkipsABucketFromASlowerTransaction(t *testing.T) {
 			Bytes:           []int64{1},
 		}
 	}
-	slow, err := f.pool.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
-	defer func() {
-		if rollbackErr := slow.Rollback(context.Background()); rollbackErr != nil &&
-			!errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			t.Errorf("rollback: %v", rollbackErr)
-		}
-	}()
-	if addErr := genDb.New(slow).AddEgressUsage(ctx, bucket(f.resourceID)); addErr != nil {
+	slow, queries := f.openReport(t)
+	if addErr := queries.AddEgressUsage(ctx, bucket(f.resourceID)); addErr != nil {
 		t.Fatalf("add in the slow transaction: %v", addErr)
 	}
 	if addErr := f.queries.AddEgressUsage(ctx, bucket(uuid.New())); addErr != nil {
@@ -238,15 +227,15 @@ func TestListEgressUsageNeverSkipsABucketFromASlowerTransaction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(early.GetUsage()) != 0 {
-		t.Fatalf("listed %v past a transaction that is still open", early.GetUsage())
-	}
-	if commitErr := slow.Commit(ctx); commitErr != nil {
-		t.Fatalf("commit: %v", commitErr)
-	}
+
+	f.publishWhileOpen(t, slow)
 	usage := f.listEgress(t, early.GetNextCursor()).GetUsage()
-	if len(usage) != 2 || usage[0].GetResourceId() != f.resourceID.String() {
-		t.Fatalf("usage = %v, want the slow transaction's bucket and then the fast one's", usage)
+	resources := make([]string, 0, 2)
+	for _, row := range usage {
+		resources = append(resources, row.GetResourceId())
+	}
+	if len(resources) != 2 || !slices.Contains(resources, f.resourceID.String()) {
+		t.Fatalf("usage = %v, want the slow and the fast transaction's buckets once each", usage)
 	}
 }
 

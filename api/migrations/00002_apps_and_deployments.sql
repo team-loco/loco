@@ -452,7 +452,8 @@ FOR EACH ROW EXECUTE FUNCTION notify_deployment_change();
 CREATE TABLE
     workload_runs (
         pod_uid UUID PRIMARY KEY,
-        xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
+        stream_position BIGINT,
+        published BOOLEAN NOT NULL DEFAULT FALSE,
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
         region TEXT NOT NULL,
         organization_id UUID NOT NULL,
@@ -468,12 +469,17 @@ CREATE TABLE
 
 CREATE INDEX idx_workload_runs_cluster_id ON workload_runs (cluster_id);
 
-CREATE INDEX idx_workload_runs_xid ON workload_runs (xid, pod_uid);
+CREATE UNIQUE INDEX idx_workload_runs_stream_position ON workload_runs (stream_position);
+
+CREATE INDEX idx_workload_runs_unpublished ON workload_runs (pod_uid)
+WHERE
+    NOT published;
 
 CREATE TABLE
     egress_usage (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
+        stream_position BIGINT,
+        published BOOLEAN NOT NULL DEFAULT FALSE,
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
         region TEXT NOT NULL,
         organization_id UUID NOT NULL,
@@ -485,7 +491,11 @@ CREATE TABLE
         UNIQUE (cluster_id, resource_id, environment_id, hour_start)
     );
 
-CREATE INDEX idx_egress_usage_xid ON egress_usage (xid, id);
+CREATE UNIQUE INDEX idx_egress_usage_stream_position ON egress_usage (stream_position);
+
+CREATE INDEX idx_egress_usage_unpublished ON egress_usage (id)
+WHERE
+    NOT published;
 
 CREATE TABLE
     egress_counters (
@@ -504,11 +514,20 @@ CREATE TABLE
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE CASCADE,
         feed TEXT NOT NULL CHECK (feed IN ('workload_runs', 'egress')),
         reported_at TIMESTAMPTZ NOT NULL,
-        xid XID8 NOT NULL DEFAULT pg_current_xact_id (),
+        published BOOLEAN NOT NULL DEFAULT FALSE,
         PRIMARY KEY (cluster_id, feed, reported_at)
     );
 
+CREATE TABLE
+    usage_stream_counter (
+        singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+        position BIGINT NOT NULL DEFAULT 0
+    );
+
+INSERT INTO usage_stream_counter DEFAULT VALUES;
+
 -- +goose Down
+DROP TABLE IF EXISTS usage_stream_counter;
 DROP TABLE IF EXISTS cluster_usage_reports;
 DROP TABLE IF EXISTS egress_counters;
 DROP TABLE IF EXISTS egress_usage;

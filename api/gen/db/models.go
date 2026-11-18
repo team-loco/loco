@@ -578,7 +578,7 @@ type ClusterUsageReport struct {
 	ClusterID  uuid.UUID `json:"clusterId"`
 	Feed       string    `json:"feed"`
 	ReportedAt time.Time `json:"reportedAt"`
-	Xid        uint64    `json:"xid"`
+	Published  bool      `json:"published"`
 }
 
 type Deployment struct {
@@ -633,7 +633,8 @@ type EgressCounter struct {
 
 type EgressUsage struct {
 	ID             uuid.UUID `json:"id"`
-	Xid            uint64    `json:"xid"`
+	StreamPosition *int64    `json:"streamPosition"`
+	Published      bool      `json:"published"`
 	ClusterID      uuid.UUID `json:"clusterId"`
 	Region         string    `json:"region"`
 	OrganizationID uuid.UUID `json:"organizationId"`
@@ -870,6 +871,11 @@ type SystemAdminGrant struct {
 	UserID uuid.UUID `json:"userId"`
 }
 
+type UsageStreamCounter struct {
+	Singleton bool  `json:"singleton"`
+	Position  int64 `json:"position"`
+}
+
 type UsedSessionRefreshToken struct {
 	TokenHash string    `json:"tokenHash"`
 	SessionID uuid.UUID `json:"sessionId"`
@@ -940,7 +946,8 @@ type WebhookDeliveryResult struct {
 
 type WorkloadRun struct {
 	PodUid         uuid.UUID  `json:"podUid"`
-	Xid            uint64     `json:"xid"`
+	StreamPosition *int64     `json:"streamPosition"`
+	Published      bool       `json:"published"`
 	ClusterID      uuid.UUID  `json:"clusterId"`
 	Region         string     `json:"region"`
 	OrganizationID uuid.UUID  `json:"organizationId"`

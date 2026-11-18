@@ -33,7 +33,7 @@ const (
 	cursorBytes        = 8
 )
 
-var ErrInvalidCursor = errors.New("invalid event stream cursor")
+var errInvalidCursor = errors.New("invalid stream cursor")
 
 type streamPosition int64
 
@@ -49,7 +49,7 @@ func decodeStreamCursor(cursor string) (streamPosition, error) {
 	}
 	raw, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil || len(raw) != cursorBytes {
-		return streamPosition(0), ErrInvalidCursor
+		return streamPosition(0), errInvalidCursor
 	}
 	return streamPosition(binary.BigEndian.Uint64(raw)), nil
 }

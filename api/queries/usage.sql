@@ -27,7 +27,7 @@ SET started_at = LEAST(workload_runs.started_at, EXCLUDED.started_at),
         workload_runs.ended_at, EXCLUDED.ended_at, GREATEST(workload_runs.last_seen_at, EXCLUDED.last_seen_at)
     ),
     ended_at = COALESCE(workload_runs.ended_at, EXCLUDED.ended_at),
-    xid = pg_current_xact_id()
+    published = FALSE
 WHERE workload_runs.cluster_id = EXCLUDED.cluster_id
   AND (
       LEAST(workload_runs.started_at, EXCLUDED.started_at),
@@ -36,17 +36,6 @@ WHERE workload_runs.cluster_id = EXCLUDED.cluster_id
       ),
       COALESCE(workload_runs.ended_at, EXCLUDED.ended_at)
   ) IS DISTINCT FROM (workload_runs.started_at, workload_runs.last_seen_at, workload_runs.ended_at);
-
--- name: PruneClusterUsageReports :exec
-DELETE FROM cluster_usage_reports stale
-WHERE stale.cluster_id = sqlc.arg(cluster_id)
-  AND stale.feed = sqlc.arg(feed)
-  AND stale.reported_at < (
-      SELECT max(final.reported_at) FROM cluster_usage_reports final
-      WHERE final.cluster_id = sqlc.arg(cluster_id)
-        AND final.feed = sqlc.arg(feed)
-        AND final.xid < pg_snapshot_xmin(pg_current_snapshot())
-  );
 
 -- name: RecordClusterUsageReport :exec
 INSERT INTO cluster_usage_reports (cluster_id, feed, reported_at)
@@ -57,16 +46,15 @@ ON CONFLICT (cluster_id, feed, reported_at) DO NOTHING;
 SELECT DISTINCT ON (c.id) c.id, r.reported_at
 FROM clusters c
 LEFT JOIN cluster_usage_reports r
-    ON r.cluster_id = c.id AND r.feed = sqlc.arg(feed) AND r.xid < pg_snapshot_xmin(pg_current_snapshot())
+    ON r.cluster_id = c.id AND r.feed = sqlc.arg(feed) AND r.published
 WHERE c.removed_at IS NULL AND c.agent_public_key IS NOT NULL
 ORDER BY c.id, r.reported_at DESC NULLS LAST;
 
 -- name: ListWorkloadRunsAfter :many
 SELECT *
 FROM workload_runs
-WHERE (xid, pod_uid) > (sqlc.arg(after_xid)::xid8, sqlc.arg(after_id)::uuid)
-  AND xid < pg_snapshot_xmin(pg_current_snapshot())
-ORDER BY xid, pod_uid
+WHERE stream_position > sqlc.arg(after_position)::bigint
+ORDER BY stream_position
 LIMIT sqlc.arg(max_rows);
 
 -- name: LockEgressCounters :many
@@ -114,12 +102,51 @@ FROM added a
 JOIN clusters c ON c.id = sqlc.arg(cluster_id)
 ON CONFLICT (cluster_id, resource_id, environment_id, hour_start) DO UPDATE
 SET bytes = egress_usage.bytes + EXCLUDED.bytes,
-    xid = pg_current_xact_id();
+    published = FALSE;
 
 -- name: ListEgressUsageAfter :many
 SELECT *
 FROM egress_usage
-WHERE (xid, id) > (sqlc.arg(after_xid)::xid8, sqlc.arg(after_id)::uuid)
-  AND xid < pg_snapshot_xmin(pg_current_snapshot())
-ORDER BY xid, id
+WHERE stream_position > sqlc.arg(after_position)::bigint
+ORDER BY stream_position
 LIMIT sqlc.arg(max_rows);
+
+-- name: ShareUsageStreamCounter :exec
+SELECT position FROM usage_stream_counter WHERE singleton FOR SHARE;
+
+-- name: LockUsageStreamCounter :one
+SELECT position FROM usage_stream_counter WHERE singleton FOR UPDATE;
+
+-- name: PublishClusterUsageReports :exec
+UPDATE cluster_usage_reports SET published = TRUE WHERE NOT published;
+
+-- name: PruneClusterUsageReports :exec
+DELETE FROM cluster_usage_reports stale
+USING cluster_usage_reports latest
+WHERE stale.cluster_id = latest.cluster_id AND stale.feed = latest.feed
+  AND stale.reported_at < latest.reported_at AND latest.published;
+
+-- name: PublishWorkloadRuns :one
+WITH numbered AS (
+    SELECT pod_uid, sqlc.arg(position)::bigint + row_number() OVER (ORDER BY pod_uid) AS position
+    FROM workload_runs WHERE NOT published
+), published AS (
+    UPDATE workload_runs SET stream_position = numbered.position, published = TRUE
+    FROM numbered WHERE workload_runs.pod_uid = numbered.pod_uid
+    RETURNING workload_runs.stream_position
+)
+SELECT COALESCE(max(stream_position), sqlc.arg(position))::bigint FROM published;
+
+-- name: PublishEgressUsage :one
+WITH numbered AS (
+    SELECT id, sqlc.arg(position)::bigint + row_number() OVER (ORDER BY id) AS position
+    FROM egress_usage WHERE NOT published
+), published AS (
+    UPDATE egress_usage SET stream_position = numbered.position, published = TRUE
+    FROM numbered WHERE egress_usage.id = numbered.id
+    RETURNING egress_usage.stream_position
+)
+SELECT COALESCE(max(stream_position), sqlc.arg(position))::bigint FROM published;
+
+-- name: UpdateUsageStreamCounter :exec
+UPDATE usage_stream_counter SET position = sqlc.arg(position) WHERE singleton;

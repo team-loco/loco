@@ -257,6 +257,7 @@ type Querier interface {
 	// Locks every system:admin row so concurrent revocations cannot remove the last admin.
 	LockSystemAdmins(ctx context.Context) ([]uuid.UUID, error)
 	LockTokenOwner(ctx context.Context, entityID uuid.UUID) error
+	LockUsageStreamCounter(ctx context.Context) (int64, error)
 	LockUserAdminOrganizations(ctx context.Context, userID uuid.UUID) ([]LockUserAdminOrganizationsRow, error)
 	LockUserForMembership(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWebhookDeliveryStatus(ctx context.Context, arg LockWebhookDeliveryStatusParams) (string, error)
@@ -286,11 +287,14 @@ type Querier interface {
 	// build, image are gone: the sweepers find what to delete through these rows. The image
 	// sweeper treats a failed or canceled build's tags like those of a missing row.
 	PruneBuildHistory(ctx context.Context, arg PruneBuildHistoryParams) (int64, error)
-	PruneClusterUsageReports(ctx context.Context, arg PruneClusterUsageReportsParams) error
+	PruneClusterUsageReports(ctx context.Context) error
 	// Deletes the resource's deployments in the environment past the newest keep, except active
 	// and unfinished ones and those a placement still runs.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
+	PublishClusterUsageReports(ctx context.Context) error
+	PublishEgressUsage(ctx context.Context, position int64) (int64, error)
 	PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error)
+	PublishWorkloadRuns(ctx context.Context, position int64) (int64, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	RecordClusterUsageReport(ctx context.Context, arg RecordClusterUsageReportParams) error
@@ -324,6 +328,7 @@ type Querier interface {
 	SetResourceDomainPrimary(ctx context.Context, arg SetResourceDomainPrimaryParams) (uuid.UUID, error)
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
+	ShareUsageStreamCounter(ctx context.Context) error
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
@@ -347,6 +352,7 @@ type Querier interface {
 	UpdateResourceDomain(ctx context.Context, arg UpdateResourceDomainParams) (uuid.UUID, error)
 	UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error
 	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
+	UpdateUsageStreamCounter(ctx context.Context, position int64) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)

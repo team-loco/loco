@@ -33,7 +33,7 @@ FROM added a
 JOIN clusters c ON c.id = $2
 ON CONFLICT (cluster_id, resource_id, environment_id, hour_start) DO UPDATE
 SET bytes = egress_usage.bytes + EXCLUDED.bytes,
-    xid = pg_current_xact_id()
+    published = FALSE
 `
 
 type AddEgressUsageParams struct {
@@ -78,7 +78,7 @@ const listClusterUsageReportTimes = `-- name: ListClusterUsageReportTimes :many
 SELECT DISTINCT ON (c.id) c.id, r.reported_at
 FROM clusters c
 LEFT JOIN cluster_usage_reports r
-    ON r.cluster_id = c.id AND r.feed = $1 AND r.xid < pg_snapshot_xmin(pg_current_snapshot())
+    ON r.cluster_id = c.id AND r.feed = $1 AND r.published
 WHERE c.removed_at IS NULL AND c.agent_public_key IS NOT NULL
 ORDER BY c.id, r.reported_at DESC NULLS LAST
 `
@@ -109,22 +109,20 @@ func (q *Queries) ListClusterUsageReportTimes(ctx context.Context, feed string) 
 }
 
 const listEgressUsageAfter = `-- name: ListEgressUsageAfter :many
-SELECT id, xid, cluster_id, region, organization_id, workspace_id, resource_id, environment_id, hour_start, bytes
+SELECT id, stream_position, published, cluster_id, region, organization_id, workspace_id, resource_id, environment_id, hour_start, bytes
 FROM egress_usage
-WHERE (xid, id) > ($1::xid8, $2::uuid)
-  AND xid < pg_snapshot_xmin(pg_current_snapshot())
-ORDER BY xid, id
-LIMIT $3
+WHERE stream_position > $1::bigint
+ORDER BY stream_position
+LIMIT $2
 `
 
 type ListEgressUsageAfterParams struct {
-	AfterXid uint64    `json:"afterXid"`
-	AfterID  uuid.UUID `json:"afterId"`
-	MaxRows  int32     `json:"maxRows"`
+	AfterPosition int64 `json:"afterPosition"`
+	MaxRows       int32 `json:"maxRows"`
 }
 
 func (q *Queries) ListEgressUsageAfter(ctx context.Context, arg ListEgressUsageAfterParams) ([]EgressUsage, error) {
-	rows, err := q.db.Query(ctx, listEgressUsageAfter, arg.AfterXid, arg.AfterID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listEgressUsageAfter, arg.AfterPosition, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +132,8 @@ func (q *Queries) ListEgressUsageAfter(ctx context.Context, arg ListEgressUsageA
 		var i EgressUsage
 		if err := rows.Scan(
 			&i.ID,
-			&i.Xid,
+			&i.StreamPosition,
+			&i.Published,
 			&i.ClusterID,
 			&i.Region,
 			&i.OrganizationID,
@@ -155,22 +154,20 @@ func (q *Queries) ListEgressUsageAfter(ctx context.Context, arg ListEgressUsageA
 }
 
 const listWorkloadRunsAfter = `-- name: ListWorkloadRunsAfter :many
-SELECT pod_uid, xid, cluster_id, region, organization_id, workspace_id, resource_id, environment_id, cpu_millicores, memory_bytes, started_at, last_seen_at, ended_at
+SELECT pod_uid, stream_position, published, cluster_id, region, organization_id, workspace_id, resource_id, environment_id, cpu_millicores, memory_bytes, started_at, last_seen_at, ended_at
 FROM workload_runs
-WHERE (xid, pod_uid) > ($1::xid8, $2::uuid)
-  AND xid < pg_snapshot_xmin(pg_current_snapshot())
-ORDER BY xid, pod_uid
-LIMIT $3
+WHERE stream_position > $1::bigint
+ORDER BY stream_position
+LIMIT $2
 `
 
 type ListWorkloadRunsAfterParams struct {
-	AfterXid uint64    `json:"afterXid"`
-	AfterID  uuid.UUID `json:"afterId"`
-	MaxRows  int32     `json:"maxRows"`
+	AfterPosition int64 `json:"afterPosition"`
+	MaxRows       int32 `json:"maxRows"`
 }
 
 func (q *Queries) ListWorkloadRunsAfter(ctx context.Context, arg ListWorkloadRunsAfterParams) ([]WorkloadRun, error) {
-	rows, err := q.db.Query(ctx, listWorkloadRunsAfter, arg.AfterXid, arg.AfterID, arg.MaxRows)
+	rows, err := q.db.Query(ctx, listWorkloadRunsAfter, arg.AfterPosition, arg.MaxRows)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +177,8 @@ func (q *Queries) ListWorkloadRunsAfter(ctx context.Context, arg ListWorkloadRun
 		var i WorkloadRun
 		if err := rows.Scan(
 			&i.PodUid,
-			&i.Xid,
+			&i.StreamPosition,
+			&i.Published,
 			&i.ClusterID,
 			&i.Region,
 			&i.OrganizationID,
@@ -247,26 +245,74 @@ func (q *Queries) LockEgressCounters(ctx context.Context, arg LockEgressCounters
 	return items, nil
 }
 
-const pruneClusterUsageReports = `-- name: PruneClusterUsageReports :exec
-DELETE FROM cluster_usage_reports stale
-WHERE stale.cluster_id = $1
-  AND stale.feed = $2
-  AND stale.reported_at < (
-      SELECT max(final.reported_at) FROM cluster_usage_reports final
-      WHERE final.cluster_id = $1
-        AND final.feed = $2
-        AND final.xid < pg_snapshot_xmin(pg_current_snapshot())
-  )
+const lockUsageStreamCounter = `-- name: LockUsageStreamCounter :one
+SELECT position FROM usage_stream_counter WHERE singleton FOR UPDATE
 `
 
-type PruneClusterUsageReportsParams struct {
-	ClusterID uuid.UUID `json:"clusterId"`
-	Feed      string    `json:"feed"`
+func (q *Queries) LockUsageStreamCounter(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, lockUsageStreamCounter)
+	var position int64
+	err := row.Scan(&position)
+	return position, err
 }
 
-func (q *Queries) PruneClusterUsageReports(ctx context.Context, arg PruneClusterUsageReportsParams) error {
-	_, err := q.db.Exec(ctx, pruneClusterUsageReports, arg.ClusterID, arg.Feed)
+const pruneClusterUsageReports = `-- name: PruneClusterUsageReports :exec
+DELETE FROM cluster_usage_reports stale
+USING cluster_usage_reports latest
+WHERE stale.cluster_id = latest.cluster_id AND stale.feed = latest.feed
+  AND stale.reported_at < latest.reported_at AND latest.published
+`
+
+func (q *Queries) PruneClusterUsageReports(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, pruneClusterUsageReports)
 	return err
+}
+
+const publishClusterUsageReports = `-- name: PublishClusterUsageReports :exec
+UPDATE cluster_usage_reports SET published = TRUE WHERE NOT published
+`
+
+func (q *Queries) PublishClusterUsageReports(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, publishClusterUsageReports)
+	return err
+}
+
+const publishEgressUsage = `-- name: PublishEgressUsage :one
+WITH numbered AS (
+    SELECT id, $1::bigint + row_number() OVER (ORDER BY id) AS position
+    FROM egress_usage WHERE NOT published
+), published AS (
+    UPDATE egress_usage SET stream_position = numbered.position, published = TRUE
+    FROM numbered WHERE egress_usage.id = numbered.id
+    RETURNING egress_usage.stream_position
+)
+SELECT COALESCE(max(stream_position), $1)::bigint FROM published
+`
+
+func (q *Queries) PublishEgressUsage(ctx context.Context, position int64) (int64, error) {
+	row := q.db.QueryRow(ctx, publishEgressUsage, position)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
+const publishWorkloadRuns = `-- name: PublishWorkloadRuns :one
+WITH numbered AS (
+    SELECT pod_uid, $1::bigint + row_number() OVER (ORDER BY pod_uid) AS position
+    FROM workload_runs WHERE NOT published
+), published AS (
+    UPDATE workload_runs SET stream_position = numbered.position, published = TRUE
+    FROM numbered WHERE workload_runs.pod_uid = numbered.pod_uid
+    RETURNING workload_runs.stream_position
+)
+SELECT COALESCE(max(stream_position), $1)::bigint FROM published
+`
+
+func (q *Queries) PublishWorkloadRuns(ctx context.Context, position int64) (int64, error) {
+	row := q.db.QueryRow(ctx, publishWorkloadRuns, position)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const recordClusterUsageReport = `-- name: RecordClusterUsageReport :exec
@@ -283,6 +329,24 @@ type RecordClusterUsageReportParams struct {
 
 func (q *Queries) RecordClusterUsageReport(ctx context.Context, arg RecordClusterUsageReportParams) error {
 	_, err := q.db.Exec(ctx, recordClusterUsageReport, arg.ClusterID, arg.Feed, arg.ReportedAt)
+	return err
+}
+
+const shareUsageStreamCounter = `-- name: ShareUsageStreamCounter :exec
+SELECT position FROM usage_stream_counter WHERE singleton FOR SHARE
+`
+
+func (q *Queries) ShareUsageStreamCounter(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, shareUsageStreamCounter)
+	return err
+}
+
+const updateUsageStreamCounter = `-- name: UpdateUsageStreamCounter :exec
+UPDATE usage_stream_counter SET position = $1 WHERE singleton
+`
+
+func (q *Queries) UpdateUsageStreamCounter(ctx context.Context, position int64) error {
+	_, err := q.db.Exec(ctx, updateUsageStreamCounter, position)
 	return err
 }
 
@@ -349,7 +413,7 @@ SET started_at = LEAST(workload_runs.started_at, EXCLUDED.started_at),
         workload_runs.ended_at, EXCLUDED.ended_at, GREATEST(workload_runs.last_seen_at, EXCLUDED.last_seen_at)
     ),
     ended_at = COALESCE(workload_runs.ended_at, EXCLUDED.ended_at),
-    xid = pg_current_xact_id()
+    published = FALSE
 WHERE workload_runs.cluster_id = EXCLUDED.cluster_id
   AND (
       LEAST(workload_runs.started_at, EXCLUDED.started_at),

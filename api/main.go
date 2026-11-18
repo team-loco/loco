@@ -43,6 +43,7 @@ import (
 	"github.com/team-loco/loco/api/service"
 	"github.com/team-loco/loco/api/sweepers"
 	"github.com/team-loco/loco/api/tvm"
+	"github.com/team-loco/loco/api/usage"
 	"github.com/team-loco/loco/api/webhooks"
 	"github.com/team-loco/loco/gen/go/loco/admin/v1/adminv1connect"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
@@ -250,7 +251,7 @@ func run() error {
 }
 
 type deps struct {
-	eventPool          *pgxpool.Pool
+	pool               *pgxpool.Pool
 	machine            *tvm.VendingMachine
 	queries            *genDb.Queries
 	verifier           *auth.Verifier
@@ -423,7 +424,7 @@ func newDeps(
 		resolver:           resolver,
 		authorizer:         authorizer,
 		webhookDispatcher:  webhookDispatcher,
-		eventPool:          pool,
+		pool:               pool,
 		placementNotifier:  placementNotifier,
 		deploymentNotifier: deploymentNotifier,
 		sourceSweeper:      sourceSweeper,
@@ -451,7 +452,7 @@ func newDeps(
 		user:         service.NewUserServer(pool, queries, machine),
 		auth:         authServiceHandler,
 		event:        service.NewEventServer(pool, queries),
-		usage:        service.NewUsageServer(queries),
+		usage:        service.NewUsageServer(pool),
 		webhook: service.NewWebhookServer(
 			pool, queries, secretKeyProvider, ac.WebhooksAllowPrivate, ac.CountLimits,
 		),
@@ -580,7 +581,8 @@ func startBackground(ctx context.Context, background *sync.WaitGroup, ac *APICon
 	background.Go(func() { events.RunRetention(ctx, d.queries, ac.EventsRetention, eventsRetentionInterval) })
 	background.Go(func() { d.placementWindowSweeper.Run(ctx) })
 	background.Go(func() { d.webhookDispatcher.Run(ctx) })
-	background.Go(func() { events.RunPublisher(ctx, d.eventPool) })
+	background.Go(func() { events.RunPublisher(ctx, d.pool) })
+	background.Go(func() { usage.RunPublisher(ctx, d.pool) })
 	background.Go(func() { d.placementNotifier.Run(ctx) })
 	background.Go(func() { d.deploymentNotifier.Run(ctx) })
 	if d.sourceSweeper != nil {

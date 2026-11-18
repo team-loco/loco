@@ -43,6 +43,10 @@ func (s *AgentServer) recordUsageReport(ctx context.Context, clusterID uuid.UUID
 	reportedAt := earliest(report.GetObservedAt().AsTime(), time.Now())
 	params := workloadRunParams(clusterID, reportedAt, report.GetRuns())
 	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
+		// The publisher locks the counter exclusively, so it never runs while a report is half written.
+		if err := qtx.ShareUsageStreamCounter(ctx); err != nil {
+			return fmt.Errorf("lock usage stream counter: %w", err)
+		}
 		if err := qtx.UpsertWorkloadRuns(ctx, params); err != nil {
 			return fmt.Errorf("upsert workload runs: %w", err)
 		}
@@ -70,10 +74,6 @@ func recordFeedReport(
 	feed string,
 	reportedAt time.Time,
 ) error {
-	prune := genDb.PruneClusterUsageReportsParams{ClusterID: clusterID, Feed: feed}
-	if err := qtx.PruneClusterUsageReports(ctx, prune); err != nil {
-		return fmt.Errorf("prune %s reports: %w", feed, err)
-	}
 	record := genDb.RecordClusterUsageReportParams{ClusterID: clusterID, Feed: feed, ReportedAt: reportedAt}
 	if err := qtx.RecordClusterUsageReport(ctx, record); err != nil {
 		return fmt.Errorf("record %s report: %w", feed, err)

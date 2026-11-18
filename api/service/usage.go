@@ -2,14 +2,12 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/binary"
-	"errors"
 	"fmt"
 	"time"
 
 	"connectrpc.com/connect/v2"
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
@@ -18,52 +16,19 @@ import (
 	usagev1 "github.com/team-loco/loco/gen/go/loco/usage/v1"
 )
 
-const (
-	defaultUsagePage   = 500
-	feedCursorXidBytes = 8
-	feedCursorBytes    = feedCursorXidBytes + len(uuid.UUID{})
-)
-
-var errInvalidFeedCursor = errors.New("invalid usage cursor")
-
-type feedPosition struct {
-	xid uint64
-	id  uuid.UUID
-}
-
-func (p feedPosition) encode() string {
-	buf := make([]byte, 0, feedCursorBytes)
-	buf = binary.BigEndian.AppendUint64(buf, p.xid)
-	buf = append(buf, p.id[:]...)
-	return base64.RawURLEncoding.EncodeToString(buf)
-}
-
-func decodeFeedCursor(cursor string) (feedPosition, error) {
-	if cursor == "" {
-		return feedPosition{}, nil
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil || len(raw) != feedCursorBytes {
-		return feedPosition{}, errInvalidFeedCursor
-	}
-	id, err := uuid.FromBytes(raw[feedCursorXidBytes:])
-	if err != nil {
-		return feedPosition{}, errInvalidFeedCursor
-	}
-	return feedPosition{xid: binary.BigEndian.Uint64(raw[:feedCursorXidBytes]), id: id}, nil
-}
+const defaultUsagePage = 500
 
 type UsageServer struct {
-	queries genDb.Querier
-	authz   *authz.Authorizer
+	db    *pgxpool.Pool
+	authz *authz.Authorizer
 }
 
-func NewUsageServer(queries genDb.Querier) *UsageServer {
-	return &UsageServer{queries: queries, authz: authz.New(queries)}
+func NewUsageServer(pool *pgxpool.Pool) *UsageServer {
+	return &UsageServer{db: pool, authz: authz.New(genDb.New(pool))}
 }
 
-func (s *UsageServer) meteredThrough(ctx context.Context, feed string) (*timestamppb.Timestamp, error) {
-	clusters, err := s.queries.ListClusterUsageReportTimes(ctx, feed)
+func meteredThrough(ctx context.Context, queries *genDb.Queries, feed string) (*timestamppb.Timestamp, error) {
+	clusters, err := queries.ListClusterUsageReportTimes(ctx, feed)
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +54,9 @@ type feedRequest struct {
 }
 
 type feed[Row, Out any] struct {
-	list     func(ctx context.Context, after feedPosition, maxRows int32) ([]Row, error)
+	list     func(ctx context.Context, queries *genDb.Queries, after streamPosition, maxRows int32) ([]Row, error)
 	convert  func(Row) Out
-	position func(Row) feedPosition
+	position func(Row) streamPosition
 }
 
 type feedPage[Out any] struct {
@@ -109,7 +74,7 @@ func readFeed[Row, Out any](
 	if err := authorizeSystem(ctx, s.authz, actions.ReadUsage); err != nil {
 		return feedPage[Out]{}, err
 	}
-	position, err := decodeFeedCursor(req.cursor)
+	position, err := decodeStreamCursor(req.cursor)
 	if err != nil {
 		return feedPage[Out]{}, connect.NewError(connect.CodeInvalidArgument, publicInvalidRequest).WithCause(err)
 	}
@@ -117,21 +82,31 @@ func readFeed[Row, Out any](
 	if pageSize == 0 {
 		pageSize = defaultUsagePage
 	}
-	through, err := s.meteredThrough(ctx, req.feed)
+	page := feedPage[Out]{next: req.cursor}
+	// One snapshot: the coverage never runs ahead of the rows on the page.
+	readOnly := pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly}
+	err = pgx.BeginTxFunc(ctx, s.db, readOnly, func(tx pgx.Tx) error {
+		queries := genDb.New(tx)
+		through, readErr := meteredThrough(ctx, queries, req.feed)
+		if readErr != nil {
+			return fmt.Errorf("read %s coverage: %w", req.feed, readErr)
+		}
+		rows, readErr := source.list(ctx, queries, position, pageSize)
+		if readErr != nil {
+			return fmt.Errorf("list %s: %w", req.feed, readErr)
+		}
+		page.through = through
+		page.rows = make([]Out, len(rows))
+		for i, row := range rows {
+			page.rows[i] = source.convert(row)
+		}
+		if len(rows) > 0 {
+			page.next = source.position(rows[len(rows)-1]).encode()
+		}
+		return nil
+	})
 	if err != nil {
-		return feedPage[Out]{}, fmt.Errorf("read %s coverage: %w", req.feed, err)
-	}
-	rows, err := source.list(ctx, position, pageSize)
-	if err != nil {
-		return feedPage[Out]{}, fmt.Errorf("list %s: %w", req.feed, err)
-	}
-	page := feedPage[Out]{rows: make([]Out, len(rows)), next: req.cursor, through: through}
-	for i, row := range rows {
-		page.rows[i] = source.convert(row)
-	}
-	if len(rows) > 0 {
-		last := source.position(rows[len(rows)-1])
-		page.next = last.encode()
+		return feedPage[Out]{}, err
 	}
 	return page, nil
 }
@@ -142,9 +117,9 @@ func (s *UsageServer) ListWorkloadRuns(
 ) (*usagev1.ListWorkloadRunsResponse, error) {
 	request := feedRequest{cursor: req.GetCursor(), pageSize: req.GetPageSize(), feed: feedWorkloadRuns}
 	source := feed[genDb.WorkloadRun, *usagev1.WorkloadRun]{
-		list:     s.workloadRunsAfter,
+		list:     workloadRunsAfter,
 		convert:  workloadRunToProto,
-		position: workloadRunPosition,
+		position: func(row genDb.WorkloadRun) streamPosition { return streamPosition(*row.StreamPosition) },
 	}
 	page, err := readFeed(ctx, s, request, source)
 	if err != nil {
@@ -159,9 +134,9 @@ func (s *UsageServer) ListEgressUsage(
 ) (*usagev1.ListEgressUsageResponse, error) {
 	request := feedRequest{cursor: req.GetCursor(), pageSize: req.GetPageSize(), feed: feedEgress}
 	source := feed[genDb.EgressUsage, *usagev1.EgressUsage]{
-		list:     s.egressUsageAfter,
+		list:     egressUsageAfter,
 		convert:  egressUsageToProto,
-		position: egressUsagePosition,
+		position: func(row genDb.EgressUsage) streamPosition { return streamPosition(*row.StreamPosition) },
 	}
 	page, err := readFeed(ctx, s, request, source)
 	if err != nil {
@@ -170,30 +145,24 @@ func (s *UsageServer) ListEgressUsage(
 	return &usagev1.ListEgressUsageResponse{Usage: page.rows, NextCursor: page.next, MeteredThrough: page.through}, nil
 }
 
-func (s *UsageServer) workloadRunsAfter(
+func workloadRunsAfter(
 	ctx context.Context,
-	after feedPosition,
+	queries *genDb.Queries,
+	after streamPosition,
 	maxRows int32,
 ) ([]genDb.WorkloadRun, error) {
-	params := genDb.ListWorkloadRunsAfterParams{AfterXid: after.xid, AfterID: after.id, MaxRows: maxRows}
-	return s.queries.ListWorkloadRunsAfter(ctx, params)
+	params := genDb.ListWorkloadRunsAfterParams{AfterPosition: int64(after), MaxRows: maxRows}
+	return queries.ListWorkloadRunsAfter(ctx, params)
 }
 
-func workloadRunPosition(row genDb.WorkloadRun) feedPosition {
-	return feedPosition{xid: row.Xid, id: row.PodUid}
-}
-
-func (s *UsageServer) egressUsageAfter(
+func egressUsageAfter(
 	ctx context.Context,
-	after feedPosition,
+	queries *genDb.Queries,
+	after streamPosition,
 	maxRows int32,
 ) ([]genDb.EgressUsage, error) {
-	params := genDb.ListEgressUsageAfterParams{AfterXid: after.xid, AfterID: after.id, MaxRows: maxRows}
-	return s.queries.ListEgressUsageAfter(ctx, params)
-}
-
-func egressUsagePosition(row genDb.EgressUsage) feedPosition {
-	return feedPosition{xid: row.Xid, id: row.ID}
+	params := genDb.ListEgressUsageAfterParams{AfterPosition: int64(after), MaxRows: maxRows}
+	return queries.ListEgressUsageAfter(ctx, params)
 }
 
 func egressUsageToProto(row genDb.EgressUsage) *usagev1.EgressUsage {

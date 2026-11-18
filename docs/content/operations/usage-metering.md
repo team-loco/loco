@@ -35,7 +35,7 @@ curl -sS -X POST https://api.example.com/loco.usage.v1.UsageService/ListWorkload
 
 `ListEgressUsage` works the same way. Each row is one service and environment on one cluster for one UTC hour, with the bytes counted for that hour so far; keep the latest version of each `(cluster_id, resource_id, environment_id, hour_start)`.
 
-`page_size` defaults to 500 and allows at most 1000. A feed returns a change only once every transaction that started before it has finished, so a cursor never moves past a change that a slower transaction commits later.
+`page_size` defaults to 500 and allows at most 1000. Once a second the API publishes recorded changes: it gives each changed row the next stream position and makes the reports recorded with them count toward `metered_through`, all in one transaction that waits for every report still being written. A cursor holds only a stream position, so it never moves past a change that commits later. Each page reads `metered_through` and its rows from one database snapshot, so `metered_through` only covers values the feed has published; while a changed row waits for publication, `metered_through` keeps its last published value.
 
 ## Verification
 

@@ -3,16 +3,18 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/usage"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	usagev1 "github.com/team-loco/loco/gen/go/loco/usage/v1"
 )
@@ -21,9 +23,6 @@ const (
 	testMalformedCursor = "not-a-cursor"
 	testRunMillicores   = 500
 	testRunBytes        = 512 << 20
-
-	transactionWaitTimeout  = 30 * time.Second
-	transactionPollInterval = 10 * time.Millisecond
 )
 
 var testRunStart = time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
@@ -38,8 +37,8 @@ type usageFixture struct {
 func newUsageFixture(t *testing.T) *usageFixture {
 	t.Helper()
 	f := newDeployFixture(t)
-	usage := NewUsageServer(f.queries)
-	return &usageFixture{deployFixture: f, agent: f.agentServer(), usage: usage, system: systemAdminContext(t)}
+	server := NewUsageServer(f.pool)
+	return &usageFixture{deployFixture: f, agent: f.agentServer(), usage: server, system: systemAdminContext(t)}
 }
 
 func (f *usageFixture) podRun(podUID uuid.UUID, ended *time.Time) *agentv1.PodRun {
@@ -72,7 +71,7 @@ func (f *usageFixture) report(t *testing.T, clusterID uuid.UUID, report *agentv1
 
 func (f *usageFixture) list(t *testing.T, cursor string) *usagev1.ListWorkloadRunsResponse {
 	t.Helper()
-	waitForEarlierTransactions(t, f.pool)
+	f.publish(t)
 	resp, err := f.usage.ListWorkloadRuns(f.system, &usagev1.ListWorkloadRunsRequest{Cursor: cursor})
 	if err != nil {
 		t.Fatalf("list workload runs: %v", err)
@@ -80,33 +79,48 @@ func (f *usageFixture) list(t *testing.T, cursor string) *usagev1.ListWorkloadRu
 	return resp
 }
 
-// waitForEarlierTransactions returns once every transaction that started before it has finished.
-func waitForEarlierTransactions(t *testing.T, pool *pgxpool.Pool) {
+func (f *usageFixture) publish(t *testing.T) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), transactionWaitTimeout)
-	defer cancel()
-	var horizon string
-	if err := pool.QueryRow(ctx, "SELECT pg_snapshot_xmax(pg_current_snapshot())::text").Scan(&horizon); err != nil {
-		t.Fatalf("read transaction horizon: %v", err)
+	if err := usage.Publish(t.Context(), f.pool); err != nil {
+		t.Fatalf("publish usage: %v", err)
 	}
-	ticker := time.NewTicker(transactionPollInterval)
-	defer ticker.Stop()
-	for {
-		var finished bool
-		if err := pool.QueryRow(
-			ctx,
-			"SELECT pg_snapshot_xmin(pg_current_snapshot()) >= $1::text::xid8",
-			horizon,
-		).Scan(&finished); err != nil {
-			t.Fatalf("check transactions before %s: %v", horizon, err)
+}
+
+// openReport starts a report transaction the way recordUsageReport does and leaves it open.
+func (f *usageFixture) openReport(t *testing.T) (pgx.Tx, *genDb.Queries) {
+	t.Helper()
+	tx, err := f.pool.Begin(t.Context())
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	t.Cleanup(func() {
+		if rollbackErr := tx.Rollback(context.Background()); rollbackErr != nil &&
+			!errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("rollback: %v", rollbackErr)
 		}
-		if finished {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("transactions before %s still open after %s", horizon, transactionWaitTimeout)
-		case <-ticker.C:
+	})
+	queries := genDb.New(tx)
+	if err = queries.ShareUsageStreamCounter(t.Context()); err != nil {
+		t.Fatalf("lock usage stream counter: %v", err)
+	}
+	return tx, queries
+}
+
+// publishWhileOpen starts two publishers that overlap the open report, commits it, and checks
+// that both finish without an error.
+func (f *usageFixture) publishWhileOpen(t *testing.T, open pgx.Tx) {
+	t.Helper()
+	errs := make(chan error, 2)
+	for range 2 {
+		go func() { errs <- usage.Publish(t.Context(), f.pool) }()
+	}
+	dbtest.WaitForLockWaiters(t, f.pool, 2)
+	if err := open.Commit(t.Context()); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatalf("a publisher that overlapped a report failed: %v", err)
 		}
 	}
 }
@@ -201,45 +215,28 @@ func TestUsageReportClampsTimesToTheServerClock(t *testing.T) {
 
 func TestListWorkloadRunsNeverSkipsARunFromASlowerTransaction(t *testing.T) {
 	f := newUsageFixture(t)
-	ctx := t.Context()
 	observed := testRunStart.Add(time.Minute)
 	slowPod := uuid.New()
 	fastPod := uuid.New()
 
-	slow, err := f.pool.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
-	defer func() {
-		if rollbackErr := slow.Rollback(context.Background()); rollbackErr != nil &&
-			!errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			t.Errorf("rollback: %v", rollbackErr)
-		}
-	}()
+	slow, queries := f.openReport(t)
 	slowParams := workloadRunParams(f.clusterID, observed, []*agentv1.PodRun{f.podRun(slowPod, nil)})
-	if upsertErr := genDb.New(slow).UpsertWorkloadRuns(ctx, slowParams); upsertErr != nil {
-		t.Fatalf("upsert in the slow transaction: %v", upsertErr)
+	if err := queries.UpsertWorkloadRuns(t.Context(), slowParams); err != nil {
+		t.Fatalf("upsert in the slow transaction: %v", err)
 	}
 	f.report(t, f.clusterID, usageReport(observed, f.podRun(fastPod, nil)))
-
-	resp, err := f.usage.ListWorkloadRuns(f.system, &usagev1.ListWorkloadRunsRequest{})
+	early, err := f.usage.ListWorkloadRuns(f.system, &usagev1.ListWorkloadRunsRequest{})
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(resp.GetRuns()) != 0 || resp.GetNextCursor() != "" {
-		t.Fatalf("listed %v past a transaction that is still open", resp.GetRuns())
-	}
 
-	if commitErr := slow.Commit(ctx); commitErr != nil {
-		t.Fatalf("commit: %v", commitErr)
-	}
-	first := f.list(t, resp.GetNextCursor())
-	ids := make([]string, 0, len(first.GetRuns()))
-	for _, run := range first.GetRuns() {
+	f.publishWhileOpen(t, slow)
+	ids := make([]string, 0, 2)
+	for _, run := range f.list(t, early.GetNextCursor()).GetRuns() {
 		ids = append(ids, run.GetId())
 	}
-	if len(ids) != 2 || ids[0] != slowPod.String() || ids[1] != fastPod.String() {
-		t.Fatalf("runs = %v, want the slow transaction's run and then the fast one's", ids)
+	if len(ids) != 2 || !slices.Contains(ids, slowPod.String()) || !slices.Contains(ids, fastPod.String()) {
+		t.Fatalf("runs = %v, want the slow and the fast transaction's runs once each", ids)
 	}
 }
 
@@ -249,8 +246,8 @@ func TestListWorkloadRunsPagesInOrder(t *testing.T) {
 	pods := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
 	for _, pod := range pods {
 		f.report(t, f.clusterID, usageReport(observed, f.podRun(pod, nil)))
+		f.publish(t)
 	}
-	waitForEarlierTransactions(t, f.pool)
 	seen := make([]string, 0, len(pods))
 	cursor := ""
 	for range pods {
@@ -299,7 +296,6 @@ func TestMeteredThroughIsTheEarliestReportOfEveryActiveCluster(t *testing.T) {
 
 	third := second.Add(time.Minute)
 	f.report(t, f.clusterID, usageReport(third))
-	waitForEarlierTransactions(t, f.pool)
 	f.report(t, f.clusterID, usageReport(first))
 	if through := f.list(t, "").GetMeteredThrough(); !through.AsTime().Equal(third) {
 		t.Fatalf("metered through %v, want the latest report %s after an older one arrives", through, third)
@@ -314,46 +310,38 @@ func TestMeteredThroughIsTheEarliestReportOfEveryActiveCluster(t *testing.T) {
 	}
 }
 
-func TestMeteredThroughWaitsForTheReportsRunsToBeListable(t *testing.T) {
+func TestMeteredThroughStaysWhileChangedRunsAwaitPublication(t *testing.T) {
 	f := newUsageFixture(t)
-	ctx := t.Context()
+	pod := uuid.New()
 	first := testRunStart.Add(time.Minute)
-	f.report(t, f.clusterID, usageReport(first))
+	f.report(t, f.clusterID, usageReport(first, f.podRun(pod, nil)))
 	f.report(t, f.otherCluster, usageReport(first))
-	waitForEarlierTransactions(t, f.pool)
+	published := f.list(t, "")
+	if len(published.GetRuns()) != 1 || !published.GetMeteredThrough().AsTime().Equal(first) {
+		t.Fatalf("listed %v metered through %v, want the run through %s",
+			published.GetRuns(), published.GetMeteredThrough(), first)
+	}
 
-	open, err := f.pool.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
-	defer func() {
-		if rollbackErr := open.Rollback(context.Background()); rollbackErr != nil &&
-			!errors.Is(rollbackErr, pgx.ErrTxClosed) {
-			t.Errorf("rollback: %v", rollbackErr)
-		}
-	}()
-	if _, execErr := open.Exec(ctx, "SELECT pg_current_xact_id()"); execErr != nil {
-		t.Fatalf("assign transaction id: %v", execErr)
-	}
 	later := first.Add(time.Minute)
-	f.report(t, f.clusterID, usageReport(later, f.podRun(uuid.New(), nil)))
+	f.report(t, f.clusterID, usageReport(later, f.podRun(pod, nil)))
 	f.report(t, f.otherCluster, usageReport(later))
-
-	resp, err := f.usage.ListWorkloadRuns(f.system, &usagev1.ListWorkloadRunsRequest{})
+	pending, err := f.usage.ListWorkloadRuns(
+		f.system,
+		&usagev1.ListWorkloadRunsRequest{Cursor: published.GetNextCursor()},
+	)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(resp.GetRuns()) != 0 || !resp.GetMeteredThrough().AsTime().Equal(first) {
-		t.Fatalf("listed %v metered through %s while an older transaction is open, want nothing through %s",
-			resp.GetRuns(), resp.GetMeteredThrough().AsTime(), first)
+	if len(pending.GetRuns()) != 0 || !pending.GetMeteredThrough().AsTime().Equal(first) {
+		t.Fatalf("listed %v metered through %v before publication, want nothing new and coverage kept at %s",
+			pending.GetRuns(), pending.GetMeteredThrough(), first)
 	}
-	if commitErr := open.Commit(ctx); commitErr != nil {
-		t.Fatalf("commit: %v", commitErr)
-	}
-	caughtUp := f.list(t, "")
-	if len(caughtUp.GetRuns()) != 1 || !caughtUp.GetMeteredThrough().AsTime().Equal(later) {
-		t.Fatalf("listed %v metered through %s, want the run through %s",
-			caughtUp.GetRuns(), caughtUp.GetMeteredThrough().AsTime(), later)
+
+	caughtUp := f.list(t, published.GetNextCursor())
+	if len(caughtUp.GetRuns()) != 1 || !caughtUp.GetRuns()[0].GetLastSeenAt().AsTime().Equal(later) ||
+		!caughtUp.GetMeteredThrough().AsTime().Equal(later) {
+		t.Fatalf("listed %v metered through %v, want the run seen at %s and coverage through it",
+			caughtUp.GetRuns(), caughtUp.GetMeteredThrough(), later)
 	}
 }
 
@@ -411,5 +399,31 @@ func TestSyncAcknowledgesARecordedUsageReport(t *testing.T) {
 	}
 	if runs := f.list(t, "").GetRuns(); len(runs) != 1 {
 		t.Fatalf("runs = %v, want only the valid report's run", runs)
+	}
+}
+
+func TestUsageFeedIgnoresTransactionsInOtherDatabases(t *testing.T) {
+	f := newUsageFixture(t)
+	other, err := dbtest.NewPool(t).Begin(t.Context())
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	t.Cleanup(func() {
+		if rollbackErr := other.Rollback(context.Background()); rollbackErr != nil {
+			t.Errorf("rollback: %v", rollbackErr)
+		}
+	})
+	if _, err = other.Exec(t.Context(), "SELECT pg_current_xact_id()"); err != nil {
+		t.Fatalf("assign transaction id: %v", err)
+	}
+	pod := uuid.New()
+	observed := testRunStart.Add(time.Minute)
+	f.report(t, f.clusterID, usageReport(observed, f.podRun(pod, nil)))
+	f.report(t, f.otherCluster, usageReport(observed))
+	page := f.list(t, "")
+	if len(page.GetRuns()) != 1 || page.GetRuns()[0].GetId() != pod.String() ||
+		!page.GetMeteredThrough().AsTime().Equal(observed) {
+		t.Fatalf("listed %v metered through %v while another database has an open transaction, want %s through %s",
+			page.GetRuns(), page.GetMeteredThrough(), pod, observed)
 	}
 }
