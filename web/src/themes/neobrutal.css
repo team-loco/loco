@@ -502,6 +502,18 @@
 	color: var(--btn-fg);
 }
 
+[data-theme="neobrutal"] [data-slot="dialog-overlay"]:has(~ .cmd-palette) {
+	background: rgba(20, 20, 20, 0.18);
+}
+.dark[data-theme="neobrutal"] [data-slot="dialog-overlay"]:has(~ .cmd-palette) {
+	background: rgba(0, 0, 0, 0.5);
+}
+[data-theme="neobrutal"] .cmd-palette [data-slot="kbd"] {
+	border: 0;
+	background: var(--panel2);
+	color: var(--fg3);
+}
+
 [data-theme="neobrutal"] .cmd-crumb {
 	border: 2px solid var(--ink);
 	border-radius: 4px;

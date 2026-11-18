@@ -169,20 +169,26 @@ with session(out) as browser:
 
             top_search.click()
             expect(query).to_be_focused()
-            for group in ("Actions", "Pages"):
+            for group in ("This page", "Actions", "Pages"):
                 expect(results.get_by_role("group", name=group)).to_be_visible()
             expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
-            expect(
-                palette.get_by_role("option", name="New resource")
-            ).to_have_attribute("aria-selected", "true")
-            page.keyboard.press("ArrowDown")
-            expect(palette.get_by_role("option", name="New webhook")).to_have_attribute(
-                "aria-selected", "true"
-            )
-            page.keyboard.press("ArrowDown")
-            expect(palette.get_by_role("option", name="New token")).to_have_attribute(
-                "aria-selected", "true"
-            )
+            for option in (
+                "Show architecture map",
+                "Show resource table",
+                "New resource",
+                "New token",
+                "New webhook",
+            ):
+                expect(palette.get_by_role("option", name=option)).to_have_attribute(
+                    "aria-selected", "true"
+                )
+                page.keyboard.press("ArrowDown")
+            page.keyboard.press("Home")
+            page.keyboard.press("Enter")
+            expect(palette).to_have_count(0)
+            expect(page).to_have_url(re.compile(r"/resources\?(.*&)?view=map(&|$)"))
+            top_search.click()
+            expect(query).to_be_focused()
             query.fill("no such command")
             expect(palette.get_by_text("Nothing matches.", exact=True)).to_be_visible()
             query.fill("sibling")
