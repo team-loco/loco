@@ -124,75 +124,6 @@ func (x *Workspace) GetOrgName() string {
 	return ""
 }
 
-// WorkspaceMember represents a user's membership in a workspace and their granted scopes.
-type WorkspaceMember struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Scopes        []string               `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WorkspaceMember) Reset() {
-	*x = WorkspaceMember{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WorkspaceMember) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WorkspaceMember) ProtoMessage() {}
-
-func (x *WorkspaceMember) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WorkspaceMember.ProtoReflect.Descriptor instead.
-func (*WorkspaceMember) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *WorkspaceMember) GetWorkspaceId() string {
-	if x != nil {
-		return x.WorkspaceId
-	}
-	return ""
-}
-
-func (x *WorkspaceMember) GetUserId() string {
-	if x != nil {
-		return x.UserId
-	}
-	return ""
-}
-
-func (x *WorkspaceMember) GetScopes() []string {
-	if x != nil {
-		return x.Scopes
-	}
-	return nil
-}
-
-func (x *WorkspaceMember) GetCreatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return nil
-}
-
 // WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
 type WorkspaceMemberWithUser struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -209,7 +140,7 @@ type WorkspaceMemberWithUser struct {
 
 func (x *WorkspaceMemberWithUser) Reset() {
 	*x = WorkspaceMemberWithUser{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[2]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -221,7 +152,7 @@ func (x *WorkspaceMemberWithUser) String() string {
 func (*WorkspaceMemberWithUser) ProtoMessage() {}
 
 func (x *WorkspaceMemberWithUser) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[2]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -234,7 +165,7 @@ func (x *WorkspaceMemberWithUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WorkspaceMemberWithUser.ProtoReflect.Descriptor instead.
 func (*WorkspaceMemberWithUser) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{2}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *WorkspaceMemberWithUser) GetWorkspaceId() string {
@@ -298,7 +229,7 @@ type CreateWorkspaceRequest struct {
 
 func (x *CreateWorkspaceRequest) Reset() {
 	*x = CreateWorkspaceRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[3]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -310,7 +241,7 @@ func (x *CreateWorkspaceRequest) String() string {
 func (*CreateWorkspaceRequest) ProtoMessage() {}
 
 func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[3]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -323,7 +254,7 @@ func (x *CreateWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*CreateWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{3}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateWorkspaceRequest) GetOrgId() string {
@@ -357,7 +288,7 @@ type CreateWorkspaceResponse struct {
 
 func (x *CreateWorkspaceResponse) Reset() {
 	*x = CreateWorkspaceResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[4]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -369,7 +300,7 @@ func (x *CreateWorkspaceResponse) String() string {
 func (*CreateWorkspaceResponse) ProtoMessage() {}
 
 func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[4]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -382,7 +313,7 @@ func (x *CreateWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*CreateWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{4}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreateWorkspaceResponse) GetWorkspaceId() string {
@@ -402,7 +333,7 @@ type GetWorkspaceRequest struct {
 
 func (x *GetWorkspaceRequest) Reset() {
 	*x = GetWorkspaceRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[5]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -414,7 +345,7 @@ func (x *GetWorkspaceRequest) String() string {
 func (*GetWorkspaceRequest) ProtoMessage() {}
 
 func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[5]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -427,7 +358,7 @@ func (x *GetWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*GetWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{5}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetWorkspaceRequest) GetWorkspaceId() string {
@@ -447,7 +378,7 @@ type GetWorkspaceResponse struct {
 
 func (x *GetWorkspaceResponse) Reset() {
 	*x = GetWorkspaceResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[6]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -459,7 +390,7 @@ func (x *GetWorkspaceResponse) String() string {
 func (*GetWorkspaceResponse) ProtoMessage() {}
 
 func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[6]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -472,7 +403,7 @@ func (x *GetWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*GetWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{6}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetWorkspaceResponse) GetWorkspace() *Workspace {
@@ -494,7 +425,7 @@ type ListUserWorkspacesRequest struct {
 
 func (x *ListUserWorkspacesRequest) Reset() {
 	*x = ListUserWorkspacesRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[7]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -506,7 +437,7 @@ func (x *ListUserWorkspacesRequest) String() string {
 func (*ListUserWorkspacesRequest) ProtoMessage() {}
 
 func (x *ListUserWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[7]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -519,7 +450,7 @@ func (x *ListUserWorkspacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserWorkspacesRequest.ProtoReflect.Descriptor instead.
 func (*ListUserWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{7}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListUserWorkspacesRequest) GetUserId() string {
@@ -554,7 +485,7 @@ type ListUserWorkspacesResponse struct {
 
 func (x *ListUserWorkspacesResponse) Reset() {
 	*x = ListUserWorkspacesResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[8]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +497,7 @@ func (x *ListUserWorkspacesResponse) String() string {
 func (*ListUserWorkspacesResponse) ProtoMessage() {}
 
 func (x *ListUserWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[8]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +510,7 @@ func (x *ListUserWorkspacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListUserWorkspacesResponse.ProtoReflect.Descriptor instead.
 func (*ListUserWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{8}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListUserWorkspacesResponse) GetWorkspaces() []*Workspace {
@@ -608,7 +539,7 @@ type ListOrgWorkspacesRequest struct {
 
 func (x *ListOrgWorkspacesRequest) Reset() {
 	*x = ListOrgWorkspacesRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[9]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -620,7 +551,7 @@ func (x *ListOrgWorkspacesRequest) String() string {
 func (*ListOrgWorkspacesRequest) ProtoMessage() {}
 
 func (x *ListOrgWorkspacesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[9]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -633,7 +564,7 @@ func (x *ListOrgWorkspacesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgWorkspacesRequest.ProtoReflect.Descriptor instead.
 func (*ListOrgWorkspacesRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{9}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListOrgWorkspacesRequest) GetOrgId() string {
@@ -668,7 +599,7 @@ type ListOrgWorkspacesResponse struct {
 
 func (x *ListOrgWorkspacesResponse) Reset() {
 	*x = ListOrgWorkspacesResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[10]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -680,7 +611,7 @@ func (x *ListOrgWorkspacesResponse) String() string {
 func (*ListOrgWorkspacesResponse) ProtoMessage() {}
 
 func (x *ListOrgWorkspacesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[10]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -693,7 +624,7 @@ func (x *ListOrgWorkspacesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListOrgWorkspacesResponse.ProtoReflect.Descriptor instead.
 func (*ListOrgWorkspacesResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{10}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListOrgWorkspacesResponse) GetWorkspaces() []*Workspace {
@@ -722,7 +653,7 @@ type UpdateWorkspaceRequest struct {
 
 func (x *UpdateWorkspaceRequest) Reset() {
 	*x = UpdateWorkspaceRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[11]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -734,7 +665,7 @@ func (x *UpdateWorkspaceRequest) String() string {
 func (*UpdateWorkspaceRequest) ProtoMessage() {}
 
 func (x *UpdateWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[11]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -747,7 +678,7 @@ func (x *UpdateWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*UpdateWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{11}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateWorkspaceRequest) GetWorkspaceId() string {
@@ -781,7 +712,7 @@ type UpdateWorkspaceResponse struct {
 
 func (x *UpdateWorkspaceResponse) Reset() {
 	*x = UpdateWorkspaceResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[12]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -793,7 +724,7 @@ func (x *UpdateWorkspaceResponse) String() string {
 func (*UpdateWorkspaceResponse) ProtoMessage() {}
 
 func (x *UpdateWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[12]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -806,7 +737,7 @@ func (x *UpdateWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*UpdateWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{12}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateWorkspaceResponse) GetWorkspaceId() string {
@@ -827,7 +758,7 @@ type DeleteWorkspaceRequest struct {
 
 func (x *DeleteWorkspaceRequest) Reset() {
 	*x = DeleteWorkspaceRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[13]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +770,7 @@ func (x *DeleteWorkspaceRequest) String() string {
 func (*DeleteWorkspaceRequest) ProtoMessage() {}
 
 func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[13]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +783,7 @@ func (x *DeleteWorkspaceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkspaceRequest.ProtoReflect.Descriptor instead.
 func (*DeleteWorkspaceRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{13}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DeleteWorkspaceRequest) GetWorkspaceId() string {
@@ -878,7 +809,7 @@ type DeleteWorkspaceResponse struct {
 
 func (x *DeleteWorkspaceResponse) Reset() {
 	*x = DeleteWorkspaceResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[14]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +821,7 @@ func (x *DeleteWorkspaceResponse) String() string {
 func (*DeleteWorkspaceResponse) ProtoMessage() {}
 
 func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[14]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +834,7 @@ func (x *DeleteWorkspaceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteWorkspaceResponse.ProtoReflect.Descriptor instead.
 func (*DeleteWorkspaceResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{14}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{13}
 }
 
 // CreateMemberRequest is the request to add a member to a workspace.
@@ -918,7 +849,7 @@ type CreateMemberRequest struct {
 
 func (x *CreateMemberRequest) Reset() {
 	*x = CreateMemberRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[15]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -930,7 +861,7 @@ func (x *CreateMemberRequest) String() string {
 func (*CreateMemberRequest) ProtoMessage() {}
 
 func (x *CreateMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[15]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -943,7 +874,7 @@ func (x *CreateMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMemberRequest.ProtoReflect.Descriptor instead.
 func (*CreateMemberRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{15}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateMemberRequest) GetWorkspaceId() string {
@@ -978,7 +909,7 @@ type CreateMemberResponse struct {
 
 func (x *CreateMemberResponse) Reset() {
 	*x = CreateMemberResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[16]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -990,7 +921,7 @@ func (x *CreateMemberResponse) String() string {
 func (*CreateMemberResponse) ProtoMessage() {}
 
 func (x *CreateMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[16]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1003,7 +934,7 @@ func (x *CreateMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateMemberResponse.ProtoReflect.Descriptor instead.
 func (*CreateMemberResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{16}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateMemberResponse) GetWorkspaceId() string {
@@ -1031,7 +962,7 @@ type DeleteMemberRequest struct {
 
 func (x *DeleteMemberRequest) Reset() {
 	*x = DeleteMemberRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[17]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1043,7 +974,7 @@ func (x *DeleteMemberRequest) String() string {
 func (*DeleteMemberRequest) ProtoMessage() {}
 
 func (x *DeleteMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[17]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1056,7 +987,7 @@ func (x *DeleteMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemberRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMemberRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{17}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeleteMemberRequest) GetWorkspaceId() string {
@@ -1082,7 +1013,7 @@ type DeleteMemberResponse struct {
 
 func (x *DeleteMemberResponse) Reset() {
 	*x = DeleteMemberResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[18]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1094,7 +1025,7 @@ func (x *DeleteMemberResponse) String() string {
 func (*DeleteMemberResponse) ProtoMessage() {}
 
 func (x *DeleteMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[18]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1107,7 +1038,7 @@ func (x *DeleteMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemberResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMemberResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{18}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{17}
 }
 
 // ListWorkspaceMembersRequest is the request to list members of a workspace.
@@ -1122,7 +1053,7 @@ type ListWorkspaceMembersRequest struct {
 
 func (x *ListWorkspaceMembersRequest) Reset() {
 	*x = ListWorkspaceMembersRequest{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[19]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1134,7 +1065,7 @@ func (x *ListWorkspaceMembersRequest) String() string {
 func (*ListWorkspaceMembersRequest) ProtoMessage() {}
 
 func (x *ListWorkspaceMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[19]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1147,7 +1078,7 @@ func (x *ListWorkspaceMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspaceMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListWorkspaceMembersRequest) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{19}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListWorkspaceMembersRequest) GetWorkspaceId() string {
@@ -1182,7 +1113,7 @@ type ListWorkspaceMembersResponse struct {
 
 func (x *ListWorkspaceMembersResponse) Reset() {
 	*x = ListWorkspaceMembersResponse{}
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[20]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1194,7 +1125,7 @@ func (x *ListWorkspaceMembersResponse) String() string {
 func (*ListWorkspaceMembersResponse) ProtoMessage() {}
 
 func (x *ListWorkspaceMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[20]
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1207,7 +1138,7 @@ func (x *ListWorkspaceMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListWorkspaceMembersResponse.ProtoReflect.Descriptor instead.
 func (*ListWorkspaceMembersResponse) Descriptor() ([]byte, []int) {
-	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{20}
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListWorkspaceMembersResponse) GetMembers() []*WorkspaceMemberWithUser {
@@ -1240,13 +1171,7 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x19\n" +
-	"\borg_name\x18\b \x01(\tR\aorgName\"\xa0\x01\n" +
-	"\x0fWorkspaceMember\x12!\n" +
-	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06scopes\x18\x03 \x03(\tR\x06scopes\x129\n" +
-	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x8c\x02\n" +
+	"\borg_name\x18\b \x01(\tR\aorgName\"\x8c\x02\n" +
 	"\x17WorkspaceMemberWithUser\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
@@ -1346,63 +1271,61 @@ func file_loco_workspace_v1_workspace_proto_rawDescGZIP() []byte {
 	return file_loco_workspace_v1_workspace_proto_rawDescData
 }
 
-var file_loco_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_loco_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_loco_workspace_v1_workspace_proto_goTypes = []any{
 	(*Workspace)(nil),                    // 0: loco.workspace.v1.Workspace
-	(*WorkspaceMember)(nil),              // 1: loco.workspace.v1.WorkspaceMember
-	(*WorkspaceMemberWithUser)(nil),      // 2: loco.workspace.v1.WorkspaceMemberWithUser
-	(*CreateWorkspaceRequest)(nil),       // 3: loco.workspace.v1.CreateWorkspaceRequest
-	(*CreateWorkspaceResponse)(nil),      // 4: loco.workspace.v1.CreateWorkspaceResponse
-	(*GetWorkspaceRequest)(nil),          // 5: loco.workspace.v1.GetWorkspaceRequest
-	(*GetWorkspaceResponse)(nil),         // 6: loco.workspace.v1.GetWorkspaceResponse
-	(*ListUserWorkspacesRequest)(nil),    // 7: loco.workspace.v1.ListUserWorkspacesRequest
-	(*ListUserWorkspacesResponse)(nil),   // 8: loco.workspace.v1.ListUserWorkspacesResponse
-	(*ListOrgWorkspacesRequest)(nil),     // 9: loco.workspace.v1.ListOrgWorkspacesRequest
-	(*ListOrgWorkspacesResponse)(nil),    // 10: loco.workspace.v1.ListOrgWorkspacesResponse
-	(*UpdateWorkspaceRequest)(nil),       // 11: loco.workspace.v1.UpdateWorkspaceRequest
-	(*UpdateWorkspaceResponse)(nil),      // 12: loco.workspace.v1.UpdateWorkspaceResponse
-	(*DeleteWorkspaceRequest)(nil),       // 13: loco.workspace.v1.DeleteWorkspaceRequest
-	(*DeleteWorkspaceResponse)(nil),      // 14: loco.workspace.v1.DeleteWorkspaceResponse
-	(*CreateMemberRequest)(nil),          // 15: loco.workspace.v1.CreateMemberRequest
-	(*CreateMemberResponse)(nil),         // 16: loco.workspace.v1.CreateMemberResponse
-	(*DeleteMemberRequest)(nil),          // 17: loco.workspace.v1.DeleteMemberRequest
-	(*DeleteMemberResponse)(nil),         // 18: loco.workspace.v1.DeleteMemberResponse
-	(*ListWorkspaceMembersRequest)(nil),  // 19: loco.workspace.v1.ListWorkspaceMembersRequest
-	(*ListWorkspaceMembersResponse)(nil), // 20: loco.workspace.v1.ListWorkspaceMembersResponse
-	(*timestamppb.Timestamp)(nil),        // 21: google.protobuf.Timestamp
+	(*WorkspaceMemberWithUser)(nil),      // 1: loco.workspace.v1.WorkspaceMemberWithUser
+	(*CreateWorkspaceRequest)(nil),       // 2: loco.workspace.v1.CreateWorkspaceRequest
+	(*CreateWorkspaceResponse)(nil),      // 3: loco.workspace.v1.CreateWorkspaceResponse
+	(*GetWorkspaceRequest)(nil),          // 4: loco.workspace.v1.GetWorkspaceRequest
+	(*GetWorkspaceResponse)(nil),         // 5: loco.workspace.v1.GetWorkspaceResponse
+	(*ListUserWorkspacesRequest)(nil),    // 6: loco.workspace.v1.ListUserWorkspacesRequest
+	(*ListUserWorkspacesResponse)(nil),   // 7: loco.workspace.v1.ListUserWorkspacesResponse
+	(*ListOrgWorkspacesRequest)(nil),     // 8: loco.workspace.v1.ListOrgWorkspacesRequest
+	(*ListOrgWorkspacesResponse)(nil),    // 9: loco.workspace.v1.ListOrgWorkspacesResponse
+	(*UpdateWorkspaceRequest)(nil),       // 10: loco.workspace.v1.UpdateWorkspaceRequest
+	(*UpdateWorkspaceResponse)(nil),      // 11: loco.workspace.v1.UpdateWorkspaceResponse
+	(*DeleteWorkspaceRequest)(nil),       // 12: loco.workspace.v1.DeleteWorkspaceRequest
+	(*DeleteWorkspaceResponse)(nil),      // 13: loco.workspace.v1.DeleteWorkspaceResponse
+	(*CreateMemberRequest)(nil),          // 14: loco.workspace.v1.CreateMemberRequest
+	(*CreateMemberResponse)(nil),         // 15: loco.workspace.v1.CreateMemberResponse
+	(*DeleteMemberRequest)(nil),          // 16: loco.workspace.v1.DeleteMemberRequest
+	(*DeleteMemberResponse)(nil),         // 17: loco.workspace.v1.DeleteMemberResponse
+	(*ListWorkspaceMembersRequest)(nil),  // 18: loco.workspace.v1.ListWorkspaceMembersRequest
+	(*ListWorkspaceMembersResponse)(nil), // 19: loco.workspace.v1.ListWorkspaceMembersResponse
+	(*timestamppb.Timestamp)(nil),        // 20: google.protobuf.Timestamp
 }
 var file_loco_workspace_v1_workspace_proto_depIdxs = []int32{
-	21, // 0: loco.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	21, // 1: loco.workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
-	21, // 2: loco.workspace.v1.WorkspaceMember.created_at:type_name -> google.protobuf.Timestamp
-	21, // 3: loco.workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 4: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	0,  // 5: loco.workspace.v1.ListUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	0,  // 6: loco.workspace.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	2,  // 7: loco.workspace.v1.ListWorkspaceMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
-	3,  // 8: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
-	5,  // 9: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
-	11, // 10: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
-	13, // 11: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
-	7,  // 12: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:input_type -> loco.workspace.v1.ListUserWorkspacesRequest
-	9,  // 13: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:input_type -> loco.workspace.v1.ListOrgWorkspacesRequest
-	15, // 14: loco.workspace.v1.WorkspaceService.CreateMember:input_type -> loco.workspace.v1.CreateMemberRequest
-	17, // 15: loco.workspace.v1.WorkspaceService.DeleteMember:input_type -> loco.workspace.v1.DeleteMemberRequest
-	19, // 16: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:input_type -> loco.workspace.v1.ListWorkspaceMembersRequest
-	4,  // 17: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
-	6,  // 18: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
-	12, // 19: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
-	14, // 20: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
-	8,  // 21: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:output_type -> loco.workspace.v1.ListUserWorkspacesResponse
-	10, // 22: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:output_type -> loco.workspace.v1.ListOrgWorkspacesResponse
-	16, // 23: loco.workspace.v1.WorkspaceService.CreateMember:output_type -> loco.workspace.v1.CreateMemberResponse
-	18, // 24: loco.workspace.v1.WorkspaceService.DeleteMember:output_type -> loco.workspace.v1.DeleteMemberResponse
-	20, // 25: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:output_type -> loco.workspace.v1.ListWorkspaceMembersResponse
-	17, // [17:26] is the sub-list for method output_type
-	8,  // [8:17] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	20, // 0: loco.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	20, // 1: loco.workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 2: loco.workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 3: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
+	0,  // 4: loco.workspace.v1.ListUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
+	0,  // 5: loco.workspace.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
+	1,  // 6: loco.workspace.v1.ListWorkspaceMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
+	2,  // 7: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
+	4,  // 8: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
+	10, // 9: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
+	12, // 10: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
+	6,  // 11: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:input_type -> loco.workspace.v1.ListUserWorkspacesRequest
+	8,  // 12: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:input_type -> loco.workspace.v1.ListOrgWorkspacesRequest
+	14, // 13: loco.workspace.v1.WorkspaceService.CreateMember:input_type -> loco.workspace.v1.CreateMemberRequest
+	16, // 14: loco.workspace.v1.WorkspaceService.DeleteMember:input_type -> loco.workspace.v1.DeleteMemberRequest
+	18, // 15: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:input_type -> loco.workspace.v1.ListWorkspaceMembersRequest
+	3,  // 16: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
+	5,  // 17: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
+	11, // 18: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
+	13, // 19: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
+	7,  // 20: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:output_type -> loco.workspace.v1.ListUserWorkspacesResponse
+	9,  // 21: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:output_type -> loco.workspace.v1.ListOrgWorkspacesResponse
+	15, // 22: loco.workspace.v1.WorkspaceService.CreateMember:output_type -> loco.workspace.v1.CreateMemberResponse
+	17, // 23: loco.workspace.v1.WorkspaceService.DeleteMember:output_type -> loco.workspace.v1.DeleteMemberResponse
+	19, // 24: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:output_type -> loco.workspace.v1.ListWorkspaceMembersResponse
+	16, // [16:25] is the sub-list for method output_type
+	7,  // [7:16] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_workspace_v1_workspace_proto_init() }
@@ -1410,15 +1333,15 @@ func file_loco_workspace_v1_workspace_proto_init() {
 	if File_loco_workspace_v1_workspace_proto != nil {
 		return
 	}
-	file_loco_workspace_v1_workspace_proto_msgTypes[3].OneofWrappers = []any{}
-	file_loco_workspace_v1_workspace_proto_msgTypes[11].OneofWrappers = []any{}
+	file_loco_workspace_v1_workspace_proto_msgTypes[2].OneofWrappers = []any{}
+	file_loco_workspace_v1_workspace_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_workspace_v1_workspace_proto_rawDesc), len(file_loco_workspace_v1_workspace_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   21,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

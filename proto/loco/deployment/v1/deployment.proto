@@ -34,18 +34,6 @@ service DeploymentService {
   rpc ResolveImage(ResolveImageRequest) returns (ResolveImageResponse);
 }
 
-// Port defines a network port configuration.
-message Port {
-  int32 port = 1;
-  string protocol = 2;
-}
-
-// ResourceSpec defines CPU and memory resource constraints.
-message ResourceSpec {
-  optional string cpu = 1;
-  optional string memory = 2;
-}
-
 // HealthCheckConfig defines health check parameters.
 message HealthCheckConfig {
   string path = 1 [(buf.validate.field).string.min_len = 1];

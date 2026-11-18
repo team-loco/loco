@@ -777,8 +777,6 @@ export enum DomainType {
   UNSPECIFIED = 0,
 
   /**
-   * eventually add support for custom domains.
-   *
    * @generated from enum value: DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
    */
   PLATFORM_PROVIDED = 1,

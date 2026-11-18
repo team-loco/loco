@@ -12,7 +12,6 @@ option go_package = "github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1";
 enum DomainType {
   DOMAIN_TYPE_UNSPECIFIED = 0;
   DOMAIN_TYPE_PLATFORM_PROVIDED = 1;
-  // eventually add support for custom domains.
 }
 
 // --- Messages ---
@@ -103,8 +102,6 @@ message LocoOwnedDomain {
   string resource_id = 4;
   string platform_domain = 5;
 }
-
-// Loco owned domain already has string ids. No changes needed.
 
 // ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
 message ListLocoOwnedDomainsRequest {}
