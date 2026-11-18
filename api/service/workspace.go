@@ -413,7 +413,7 @@ func (s *WorkspaceServer) CreateMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := requireSession(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -500,6 +500,9 @@ func (s *WorkspaceServer) DeleteMember(
 ) (*workspacev1.DeleteMemberResponse, error) {
 	wsID, err := parseID("workspace_id", req.GetWorkspaceId())
 	if err != nil {
+		return nil, err
+	}
+	if _, err = requireSession(ctx); err != nil {
 		return nil, err
 	}
 	if err = authorize(ctx, s.authz, actions.RemoveWorkspaceMember, wsID); err != nil {

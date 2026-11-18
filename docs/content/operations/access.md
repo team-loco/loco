@@ -21,7 +21,7 @@ A user holds one or more scopes on an organization:
 
 ## Invite and remove members
 
-Sessions and API tokens use the same action permissions for organization, invitation, membership, role and account-status operations. Organization creation requires a real human owner, which a personal token can represent. A workspace created by a session or personal token receives the existing human creator grants; the token's stored scope ceiling still limits its access. Organization, workspace and resource tokens create no human grants.
+Inviting members, resending and revoking invitations, changing roles, removing members, granting and removing workspace access, and granting and revoking system admin require a signed-in session. A request made with a personal or owned API token gets `PermissionDenied`. API tokens can list organization members, invitations, workspace members and system admins with the same permissions as a session. Sessions and API tokens use the same action permissions for account-status operations. Organization creation requires a real human owner, which a personal token can represent. A workspace created by a session or personal token receives the existing human creator grants; the token's stored scope ceiling still limits its access. Organization, workspace and resource tokens create no human grants.
 
 A user joins an organization only by accepting an invitation. An organization admin invites an email address with `loco org invite <email>` (`OrgService.InviteOrgMember`), and the user becomes a `member` the next time they sign in with that verified email address. `loco org invitations` lists pending invitations and `loco org revoke-invite <id>` revokes one.
 

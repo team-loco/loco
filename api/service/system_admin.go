@@ -78,6 +78,9 @@ func (s *SystemAdminServer) GrantSystemAdmin(
 	ctx context.Context,
 	req *adminv1.GrantSystemAdminRequest,
 ) (*adminv1.GrantSystemAdminResponse, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if err := authorizeSystem(ctx, s.authz, actions.ManageSystemAdmins); err != nil {
 		return nil, err
 	}
@@ -119,6 +122,9 @@ func (s *SystemAdminServer) RevokeSystemAdmin(
 	ctx context.Context,
 	req *adminv1.RevokeSystemAdminRequest,
 ) (*adminv1.RevokeSystemAdminResponse, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if err := authorizeSystem(ctx, s.authz, actions.ManageSystemAdmins); err != nil {
 		return nil, err
 	}

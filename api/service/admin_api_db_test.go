@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"slices"
 	"testing"
 
@@ -9,7 +8,6 @@ import (
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
-	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
@@ -52,146 +50,109 @@ func organizationAdminScopes(id uuid.UUID) []genDb.EntityScope {
 	return scopes
 }
 
-func TestAPITokensAdministerInvitations(t *testing.T) {
+func TestMembershipChangesRequireSession(t *testing.T) {
 	t.Parallel()
-	for _, ownerType := range []genDb.EntityType{genDb.EntityTypeUser, genDb.EntityTypeOrganization} {
-		t.Run(string(ownerType), func(t *testing.T) {
-			o := newInvitationOrg(t)
-			orgID := uuid.MustParse(o.orgID)
-			owner := genDb.Entity{Type: ownerType, ID: orgID}
-			if ownerType == genDb.EntityTypeUser {
-				owner.ID = o.owner.id
-			}
-			client, principal := administrativeToken(t, o.api, o.owner, owner, organizationAdminScopes(orgID)...)
-			invited, err := client.Org.InviteOrgMember(t.Context(), &orgv1.InviteOrgMemberRequest{
-				OrgId: o.orgID, Email: "pending@delegation.test",
+	o := newInvitationOrg(t)
+	orgID := uuid.MustParse(o.orgID)
+	member := o.api.signUp(t, "member")
+	o.addOrgMember(t, member)
+	invitation := o.invite(t, "pending@session.test")
+	if err := o.api.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
+		UserID: o.owner.id, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	system := genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin}
+	personal, _ := administrativeToken(t, o.api, o.owner, genDb.Entity{Type: genDb.EntityTypeUser, ID: o.owner.id},
+		append(organizationAdminScopes(orgID), system)...)
+	owned, _ := administrativeToken(t, o.api, o.owner, genDb.Entity{Type: genDb.EntityTypeOrganization, ID: orgID},
+		organizationAdminScopes(orgID)...)
+	calls := []struct {
+		name string
+		call func(*rpc.Clients) error
+	}{
+		{"invite member", func(c *rpc.Clients) error {
+			_, err := c.Org.InviteOrgMember(t.Context(), &orgv1.InviteOrgMemberRequest{
+				OrgId: o.orgID, Email: "new@session.test",
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
-			invitation := invited.GetInvitation()
-			expectedInviter := o.owner.id
-			if ownerType != genDb.EntityTypeUser {
-				expectedInviter = principal.ActorID
-			}
-			if got := invitation.GetInvitedBy(); got.GetId() != expectedInviter.String() {
-				t.Fatalf("inviter = %v, want %s", got, expectedInviter)
-			}
-			if ownerType != genDb.EntityTypeUser &&
-				(invitation.GetInvitedBy().GetName() != invitationUnavailableName || invitation.GetInvitedBy().GetEmail() != "") {
-				t.Fatalf("owned token has a human inviter profile: %v", invitation.GetInvitedBy())
-			}
-			var actorType string
-			var actorID uuid.UUID
-			var raw []byte
-			if err = o.api.pool.QueryRow(
-				t.Context(),
-				"SELECT actor_type, actor_id, data FROM events WHERE type=$1 AND subject_id=$2",
-				events.InvitationCreated, uuid.MustParse(invitation.GetId())).
-				Scan(&actorType, &actorID, &raw); err != nil {
-				t.Fatal(err)
-			}
-			if actorType != string(genDb.DeploymentActorTypeApiToken) || actorID != principal.ActorID {
-				t.Fatalf("invitation actor = %s/%s", actorType, actorID)
-			}
-			var data map[string]string
-			if err = json.Unmarshal(raw, &data); err != nil {
-				t.Fatal(err)
-			}
-			if ownerType != genDb.EntityTypeUser &&
-				(data[events.FieldInviterName] != invitationUnavailableName || data[events.FieldInviterEmail] != "") {
-				t.Fatalf("owned invitation event = %v", data)
-			}
-			listed, err := client.Org.ListInvitations(t.Context(), &orgv1.ListInvitationsRequest{OrgId: o.orgID})
-			if err != nil || len(listed.GetInvitations()) != 1 {
-				t.Fatalf("list invitations = %v, %v", listed, err)
-			}
-			if _, err = client.Org.ResendInvitation(
-				t.Context(),
-				&orgv1.ResendInvitationRequest{Id: invitation.GetId()},
-			); err != nil {
-				t.Fatal(err)
-			}
-			if _, err = client.Org.RevokeInvitation(
-				t.Context(),
-				&orgv1.RevokeInvitationRequest{Id: invitation.GetId()},
-			); err != nil {
-				t.Fatal(err)
-			}
-			if _, err = client.Org.InviteOrgMember(
-				t.Context(),
-				&orgv1.InviteOrgMemberRequest{OrgId: o.orgID, Email: membershipEmail("claimed")},
-			); err != nil {
-				t.Fatal(err)
-			}
-			_, claimed := o.api.signIn(t, "claimed")
-			if len(claimed) != 1 || claimed[0].OrgID != orgID {
-				t.Fatalf("claim = %v", claimed)
-			}
-			if ownerType != genDb.EntityTypeUser && claimed[0].InviterName != invitationUnavailableName {
-				t.Fatalf("owned inviter claim = %v", claimed)
+			return err
+		}},
+		{"resend invitation", func(c *rpc.Clients) error {
+			_, err := c.Org.ResendInvitation(t.Context(), &orgv1.ResendInvitationRequest{Id: invitation.GetId()})
+			return err
+		}},
+		{"revoke invitation", func(c *rpc.Clients) error {
+			_, err := c.Org.RevokeInvitation(t.Context(), &orgv1.RevokeInvitationRequest{Id: invitation.GetId()})
+			return err
+		}},
+		{"workspace grant", func(c *rpc.Clients) error {
+			_, err := c.Workspace.CreateMember(t.Context(), &workspacev1.CreateMemberRequest{
+				WorkspaceId: o.shared, UserId: member.id.String(), Scopes: []string{genDb.ScopeRead},
+			})
+			return err
+		}},
+		{"workspace removal", func(c *rpc.Clients) error {
+			_, err := c.Workspace.DeleteMember(t.Context(), &workspacev1.DeleteMemberRequest{
+				WorkspaceId: o.shared, UserId: member.id.String(),
+			})
+			return err
+		}},
+		{"org role", func(c *rpc.Clients) error {
+			_, err := c.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
+				OrgId: o.orgID, UserId: member.id.String(), Role: orgv1.OrgRole_ORG_ROLE_ADMIN,
+			})
+			return err
+		}},
+		{"system grant", func(c *rpc.Clients) error {
+			_, err := c.SystemAdmin.GrantSystemAdmin(t.Context(), &adminv1.GrantSystemAdminRequest{
+				UserId: member.id.String(),
+			})
+			return err
+		}},
+		{"system revoke", func(c *rpc.Clients) error {
+			_, err := c.SystemAdmin.RevokeSystemAdmin(t.Context(), &adminv1.RevokeSystemAdminRequest{
+				UserId: member.id.String(),
+			})
+			return err
+		}},
+		{"org removal", func(c *rpc.Clients) error {
+			_, err := c.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
+				OrgId: o.orgID, UserId: member.id.String(),
+			})
+			return err
+		}},
+	}
+	for _, tc := range calls {
+		t.Run(tc.name, func(t *testing.T) {
+			wantSessionRequired(t, tc.call(personal))
+			wantSessionRequired(t, tc.call(owned))
+			if err := tc.call(o.owner.clients); err != nil {
+				t.Fatalf("session: %v", err)
 			}
 		})
 	}
-}
-
-func TestAPITokensAdministerOrganizationAndWorkspace(t *testing.T) {
-	t.Parallel()
-	for _, ownerType := range []genDb.EntityType{genDb.EntityTypeUser, genDb.EntityTypeOrganization} {
-		t.Run(string(ownerType), func(t *testing.T) {
-			o := newInvitationOrg(t)
-			member := o.api.signUp(t, "member")
-			o.addOrgMember(t, member)
-			orgID := uuid.MustParse(o.orgID)
-			owner := genDb.Entity{Type: ownerType, ID: orgID}
-			if ownerType == genDb.EntityTypeUser {
-				owner.ID = o.owner.id
-			}
-			client, _ := administrativeToken(t, o.api, o.owner, owner, organizationAdminScopes(orgID)...)
-			if _, err := client.Workspace.CreateMember(t.Context(), &workspacev1.CreateMemberRequest{
-				WorkspaceId: o.shared, UserId: member.id.String(), Scopes: []string{genDb.ScopeRead, genDb.ScopeWrite},
-			}); err != nil {
-				t.Fatal(err)
-			}
-			scopes, err := o.api.queries.GetUserScopesOnEntity(
-				t.Context(),
-				genDb.GetUserScopesOnEntityParams{
-					UserID:     member.id,
-					EntityType: genDb.EntityTypeWorkspace,
-					EntityID:   uuid.MustParse(o.shared),
-				},
-			)
-			if err != nil || len(scopes) != 2 {
-				t.Fatalf("workspace scopes = %v, %v", scopes, err)
-			}
-			if _, err = client.Workspace.DeleteMember(
-				t.Context(),
-				&workspacev1.DeleteMemberRequest{WorkspaceId: o.shared, UserId: member.id.String()},
-			); err != nil {
-				t.Fatal(err)
-			}
-			for _, role := range []orgv1.OrgRole{orgv1.OrgRole_ORG_ROLE_ADMIN, orgv1.OrgRole_ORG_ROLE_MEMBER} {
-				if _, err = client.Org.SetOrgMemberRole(
-					t.Context(),
-					&orgv1.SetOrgMemberRoleRequest{OrgId: o.orgID, UserId: member.id.String(), Role: role},
-				); err != nil {
-					t.Fatal(err)
-				}
-			}
-			if _, err = client.Org.RemoveOrgMember(
-				t.Context(),
-				&orgv1.RemoveOrgMemberRequest{OrgId: o.orgID, UserId: member.id.String()},
-			); err != nil {
-				t.Fatal(err)
-			}
-			remains, err := o.api.queries.IsOrgMember(
-				t.Context(),
-				genDb.IsOrgMemberParams{OrgID: orgID, UserID: member.id},
-			)
-			if err != nil || remains {
-				t.Fatalf("removed member still present = %v, %v", remains, err)
-			}
-		})
+	for _, client := range []*rpc.Clients{personal, owned} {
+		if _, err := client.Org.ListOrgMembers(
+			t.Context(),
+			&orgv1.ListOrgMembersRequest{OrgId: o.orgID},
+		); err != nil {
+			t.Fatalf("token lists organization members: %v", err)
+		}
+		if _, err := client.Org.ListInvitations(
+			t.Context(),
+			&orgv1.ListInvitationsRequest{OrgId: o.orgID},
+		); err != nil {
+			t.Fatalf("token lists invitations: %v", err)
+		}
+		if _, err := client.Workspace.ListWorkspaceMembers(
+			t.Context(),
+			&workspacev1.ListWorkspaceMembersRequest{WorkspaceId: o.shared},
+		); err != nil {
+			t.Fatalf("token lists workspace members: %v", err)
+		}
+	}
+	if _, err := personal.SystemAdmin.ListSystemAdmins(t.Context(), &adminv1.ListSystemAdminsRequest{}); err != nil {
+		t.Fatalf("personal token lists system admins: %v", err)
 	}
 }
 
@@ -221,28 +182,13 @@ func TestPersonalAPITokenCreatesHumanOwnedOrganizations(t *testing.T) {
 	}
 }
 
-func TestPersonalAPITokenManagesSystemAdministratorsAndStatus(t *testing.T) {
+func TestPersonalAPITokenManagesAccountStatus(t *testing.T) {
 	t.Parallel()
 	api, admin := newSystemAdminAPI(t)
 	member := api.signUp(t, "member")
 	client, _ := administrativeToken(t, api, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id},
 		genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin},
 	)
-	if _, err := client.SystemAdmin.GrantSystemAdmin(
-		t.Context(),
-		&adminv1.GrantSystemAdminRequest{UserId: member.id.String()},
-	); err != nil {
-		t.Fatal(err)
-	}
-	if got := adminSources(listAdmins(t, admin), member.id); len(got) != 1 {
-		t.Fatalf("granted admin sources = %v", got)
-	}
-	if _, err := client.SystemAdmin.RevokeSystemAdmin(
-		t.Context(),
-		&adminv1.RevokeSystemAdminRequest{UserId: member.id.String()},
-	); err != nil {
-		t.Fatal(err)
-	}
 	for _, status := range []userv1.UserStatus{
 		userv1.UserStatus_USER_STATUS_SUSPENDED,
 		userv1.UserStatus_USER_STATUS_ACTIVE,
@@ -287,136 +233,17 @@ func TestCreateTokenRejectsSystemOwner(t *testing.T) {
 
 func TestAdministrativeAPITokensRequireActionPermissions(t *testing.T) {
 	t.Parallel()
-	for _, ownerType := range []genDb.EntityType{genDb.EntityTypeUser, genDb.EntityTypeOrganization} {
-		t.Run(string(ownerType), func(t *testing.T) {
-			o := newInvitationOrg(t)
-			member := o.api.signUp(t, "member")
-			o.addOrgMember(t, member)
-			invitation := o.invite(t, "pending@permission.test")
-			orgID := uuid.MustParse(o.orgID)
-			owner := genDb.Entity{Type: ownerType, ID: orgID}
-			if ownerType == genDb.EntityTypeUser {
-				owner.ID = o.owner.id
-			}
-			if err := o.api.queries.AddUserScope(t.Context(), genDb.AddUserScopeParams{
-				UserID: o.owner.id, EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeAdmin,
-			}); err != nil {
-				t.Fatal(err)
-			}
-
-			client, _ := administrativeToken(
-				t,
-				o.api,
-				o.owner,
-				owner,
-				genDb.EntityScope{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeRead},
-			)
-			for _, tc := range []struct {
-				name string
-				call func() error
-			}{
-				{"invite member", func() error {
-					_, err := client.Org.InviteOrgMember(t.Context(), &orgv1.InviteOrgMemberRequest{
-						OrgId: o.orgID,
-						Email: "denied@permission.test",
-					})
-					return err
-				}},
-				{"resend invitation", func() error {
-					_, err := client.Org.ResendInvitation(t.Context(), &orgv1.ResendInvitationRequest{Id: invitation.GetId()})
-					return err
-				}},
-				{"revoke invitation", func() error {
-					_, err := client.Org.RevokeInvitation(t.Context(), &orgv1.RevokeInvitationRequest{Id: invitation.GetId()})
-					return err
-				}},
-				{"org role", func() error {
-					_, err := client.Org.SetOrgMemberRole(t.Context(), &orgv1.SetOrgMemberRoleRequest{
-						OrgId:  o.orgID,
-						UserId: member.id.String(),
-						Role:   orgv1.OrgRole_ORG_ROLE_ADMIN,
-					})
-					return err
-				}},
-				{"org removal", func() error {
-					_, err := client.Org.RemoveOrgMember(t.Context(), &orgv1.RemoveOrgMemberRequest{
-						OrgId:  o.orgID,
-						UserId: member.id.String(),
-					})
-					return err
-				}},
-				{"workspace grant", func() error {
-					_, err := client.Workspace.CreateMember(t.Context(), &workspacev1.CreateMemberRequest{
-						WorkspaceId: o.shared,
-						UserId:      member.id.String(),
-						Scopes:      []string{genDb.ScopeRead},
-					})
-					return err
-				}},
-				{"workspace removal", func() error {
-					_, err := client.Workspace.DeleteMember(t.Context(), &workspacev1.DeleteMemberRequest{
-						WorkspaceId: o.shared,
-						UserId:      member.id.String(),
-					})
-					return err
-				}},
-				{"system grant", func() error {
-					_, err := client.SystemAdmin.GrantSystemAdmin(t.Context(), &adminv1.GrantSystemAdminRequest{
-						UserId: member.id.String(),
-					})
-					return err
-				}},
-				{"system revoke", func() error {
-					_, err := client.SystemAdmin.RevokeSystemAdmin(t.Context(), &adminv1.RevokeSystemAdminRequest{
-						UserId: member.id.String(),
-					})
-					return err
-				}},
-				{"user suspension", func() error {
-					_, err := client.User.SetUserStatus(t.Context(), &userv1.SetUserStatusRequest{
-						Key:    &userv1.SetUserStatusRequest_UserId{UserId: member.id.String()},
-						Status: userv1.UserStatus_USER_STATUS_SUSPENDED,
-					})
-					return err
-				}},
-			} {
-				t.Run(tc.name, func(t *testing.T) {
-					if err := tc.call(); connect.CodeOf(err) != connect.CodePermissionDenied {
-						t.Fatalf("error = %v, want PermissionDenied", err)
-					}
-				})
-			}
-			remains, err := o.api.queries.IsOrgMember(
-				t.Context(),
-				genDb.IsOrgMemberParams{OrgID: orgID, UserID: member.id},
-			)
-			if err != nil || !remains {
-				t.Fatalf("denied writes changed membership: %v, %v", remains, err)
-			}
-			// Administration alone does not include the read permission being granted.
-			adminOnly, _ := administrativeToken(
-				t,
-				o.api,
-				o.owner,
-				owner,
-				genDb.EntityScope{
-					EntityType: genDb.EntityTypeWorkspace,
-					EntityID:   uuid.MustParse(o.shared),
-					Scope:      genDb.ScopeAdmin,
-				},
-			)
-			_, err = adminOnly.Workspace.CreateMember(
-				t.Context(),
-				&workspacev1.CreateMemberRequest{
-					WorkspaceId: o.shared,
-					UserId:      member.id.String(),
-					Scopes:      []string{genDb.ScopeRead},
-				},
-			)
-			if connect.CodeOf(err) != connect.CodePermissionDenied {
-				t.Fatalf("unheld permission grant = %v", err)
-			}
-		})
+	api, admin := newSystemAdminAPI(t)
+	member := api.signUp(t, "member")
+	client, _ := administrativeToken(t, api, admin, genDb.Entity{Type: genDb.EntityTypeUser, ID: admin.id},
+		genDb.EntityScope{EntityType: genDb.EntityTypeSystem, EntityID: uuid.Nil, Scope: genDb.ScopeRead},
+	)
+	_, err := client.User.SetUserStatus(t.Context(), &userv1.SetUserStatusRequest{
+		Key:    &userv1.SetUserStatusRequest_UserId{UserId: member.id.String()},
+		Status: userv1.UserStatus_USER_STATUS_SUSPENDED,
+	})
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("error = %v, want PermissionDenied", err)
 	}
 }
 
@@ -430,15 +257,18 @@ func TestPersonalAPITokenAdministrationUsesLiveUserAccess(t *testing.T) {
 		o.owner,
 		genDb.Entity{Type: genDb.EntityTypeUser, ID: o.owner.id},
 		organizationAdminScopes(orgID)...)
-	if err := o.api.queries.RemoveUserScope(t.Context(), genDb.RemoveUserScopeParams{
-		UserID: o.owner.id, EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeAdmin,
-	}); err != nil {
+	request := &orgv1.ListInvitationsRequest{OrgId: o.orgID}
+	if _, err := client.Org.ListInvitations(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
-	_, err := client.Org.InviteOrgMember(
-		t.Context(),
-		&orgv1.InviteOrgMemberRequest{OrgId: o.orgID, Email: "lost-access@permission.test"},
-	)
+	for _, scope := range []genDb.Scope{genDb.ScopeMember, genDb.ScopeRead, genDb.ScopeWrite, genDb.ScopeAdmin} {
+		if err := o.api.queries.RemoveUserScope(t.Context(), genDb.RemoveUserScopeParams{
+			UserID: o.owner.id, EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: scope,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err := client.Org.ListInvitations(t.Context(), request)
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("removed live access = %v", err)
 	}
@@ -448,16 +278,13 @@ func TestPersonalAPITokenAdministrationUsesLiveUserAccess(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.Org.InviteOrgMember(
-		t.Context(),
-		&orgv1.InviteOrgMemberRequest{OrgId: o.orgID, Email: "suspended@permission.test"},
-	)
+	_, err = client.Org.ListInvitations(t.Context(), request)
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("suspended personal actor = %v", err)
 	}
 }
 
-func TestOwnedAPITokenAdministrationKeepsAHumanSuccessor(t *testing.T) {
+func TestOwnedAPITokenOutlivesItsIssuer(t *testing.T) {
 	t.Parallel()
 	o := newInvitationOrg(t)
 	successor := o.api.signUp(t, "successor")
@@ -491,31 +318,11 @@ func TestOwnedAPITokenAdministrationKeepsAHumanSuccessor(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := client.Org.InviteOrgMember(
+	if _, err := client.Org.ListOrgMembers(
 		t.Context(),
-		&orgv1.InviteOrgMemberRequest{OrgId: o.orgID, Email: "after-departure@permission.test"},
+		&orgv1.ListOrgMembersRequest{OrgId: o.orgID},
 	); err != nil {
 		t.Fatalf("owned token depends on issuer membership: %v", err)
-	}
-	if _, err := client.Org.SetOrgMemberRole(
-		t.Context(),
-		&orgv1.SetOrgMemberRoleRequest{
-			OrgId:  o.orgID,
-			UserId: successor.id.String(),
-			Role:   orgv1.OrgRole_ORG_ROLE_MEMBER,
-		},
-	); connect.CodeOf(
-		err,
-	) != connect.CodeFailedPrecondition {
-		t.Fatalf("owned token replaces human admin = %v", err)
-	}
-	if _, err := client.Org.RemoveOrgMember(
-		t.Context(),
-		&orgv1.RemoveOrgMemberRequest{OrgId: o.orgID, UserId: successor.id.String()},
-	); connect.CodeOf(
-		err,
-	) != connect.CodeFailedPrecondition {
-		t.Fatalf("owned token removes last human admin = %v", err)
 	}
 }
 

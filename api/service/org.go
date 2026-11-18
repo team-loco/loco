@@ -488,6 +488,9 @@ func (s *OrgServer) SetOrgMemberRole(
 	default:
 		return nil, errInvalidOrgRole
 	}
+	if _, err = requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if err = authorize(ctx, s.authz, actions.SetOrgMemberRole, orgID); err != nil {
 		return nil, err
 	}
@@ -581,7 +584,7 @@ func (s *OrgServer) RemoveOrgMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := requireSession(ctx)
 	if err != nil {
 		return nil, err
 	}

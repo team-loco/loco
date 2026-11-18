@@ -57,7 +57,7 @@ func (s *OrgServer) InviteOrgMember(
 	if err != nil {
 		return nil, err
 	}
-	p, err := principalFrom(ctx)
+	p, err := requireSession(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +69,6 @@ func (s *OrgServer) InviteOrgMember(
 		return nil, ErrInvalidInviteEmail
 	}
 	email := strings.ToLower(address.Address)
-	inviterID := p.UserID
-	if inviterID == uuid.Nil {
-		inviterID = p.ActorID
-	}
 
 	var result *orgv1.Invitation
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -99,7 +95,7 @@ func (s *OrgServer) InviteOrgMember(
 		created, createErr := qtx.CreateInvitation(lockedCtx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
-			InvitedBy: inviterID,
+			InvitedBy: p.UserID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
 		if isUniqueViolation(createErr, pgOpenInvitationUnique) {
@@ -278,6 +274,9 @@ func (s *OrgServer) ResendInvitation(
 }
 
 func (s *OrgServer) adminInvitation(ctx context.Context, action actions.Action, id string) (genDb.Invitation, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return genDb.Invitation{}, err
+	}
 	invitationID, err := parseID("invitation_id", id)
 	if err != nil {
 		return genDb.Invitation{}, err
