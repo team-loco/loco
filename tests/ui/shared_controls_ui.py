@@ -78,6 +78,14 @@ def stamp(delta):
 
 
 telemetry_points = []
+# Per-second gateway rates and p95 milliseconds each traffic series answers at every point.
+TRAFFIC_RATES = {
+    "cluster.upstream_rq_completed": 10,
+    "cluster.upstream_rq_xx": 1,
+    "cluster.upstream_cx_rx_bytes_total": 1000,
+    "cluster.upstream_rq_time": 190,
+}
+traffic_empty = False
 log_bucket_requests = []
 
 
@@ -131,11 +139,26 @@ def mock_telemetry(context):
     context.route(
         "**/loco.observability.v1.ObservabilityService/QueryLogBuckets", log_buckets
     )
+
+    def query_metrics(route):
+        body = route.request.post_data_json
+        rate = TRAFFIC_RATES.get(body["metricName"])
+        if rate is None:
+            series = [{"resourceId": resource, "points": points}]
+        elif traffic_empty:
+            series = []
+        else:
+            series = [
+                {
+                    "resourceId": rid,
+                    "points": [{**point, "value": rate} for point in points],
+                }
+                for rid in body.get("resourceIds") or [resource]
+            ]
+        route.fulfill(json={"series": series})
+
     context.route(
-        "**/loco.observability.v1.ObservabilityService/QueryMetrics",
-        lambda route: route.fulfill(
-            json={"series": [{"resourceId": resource, "points": points}]}
-        ),
+        "**/loco.observability.v1.ObservabilityService/QueryMetrics", query_metrics
     )
 
 
@@ -785,6 +808,38 @@ def dashboard(page):
     )
 
 
+def traffic(page):
+    global traffic_empty
+    page.set_viewport_size(evidence.DESKTOP)
+    totals = page.get_by_role("region", name="Totals", exact=True)
+    section = page.get_by_role("region", name="Traffic", exact=True)
+
+    def five_xx():
+        return section.get_by_text("5xx", exact=True).locator("..")
+
+    for empty in (False, True):
+        traffic_empty = empty
+        page.goto(state["ui_url"] + base + "?env=production&range=1h")
+        # Three points at 10 requests/s and 1 5xx/s, each a 60s bucket.
+        requests, errors = ("—", "—") if empty else ("1.8K", "180")
+        expect(
+            totals.get_by_role("group", name=f"Requests: {requests},")
+        ).to_be_visible()
+        expect(totals.get_by_role("group", name=f"Errors: {errors},")).to_be_visible()
+        page.get_by_role("region", name="Resources", exact=True).get_by_role(
+            "link", name="dashboard-0", exact=True
+        ).click()
+        if empty:
+            expect(
+                section.get_by_text("No data in this range", exact=True)
+            ).to_have_count(4)
+        else:
+            expect(five_xx()).to_contain_text("10%")
+            expect(section).to_contain_text("10/s")
+            expect(section).to_contain_text("190 ms")
+    traffic_empty = False
+
+
 def token_empty(page):
     page.goto(state["ui_url"] + "/tokens?owner=personal")
     expect(
@@ -1136,6 +1191,7 @@ with session(out) as browser:
         token_empty,
         limit_display,
         dashboard,
+        traffic,
     ):
         check(page)
     assert not errors, errors
