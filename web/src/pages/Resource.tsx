@@ -425,6 +425,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						/>
 					)}
 					<DeploymentsSection
+						environmentId={environmentId}
 						nowMs={nowMs}
 						resourceId={resource.id}
 						workspaceId={resource.workspaceId}

@@ -9067,6 +9067,14 @@
           "platform": {
             "type": "string",
             "title": "platform"
+          },
+          "originEnvironmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "origin_environment_id",
+            "description": "Historical context for the operation that initiated this build, not image ownership."
           }
         },
         "title": "Build",
@@ -9165,6 +9173,15 @@
             ],
             "title": "git_commit_message",
             "description": "git_commit_message longer than the API's limit is stored clipped."
+          },
+          "originEnvironmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "origin_environment_id",
+            "format": "uuid",
+            "description": "Omit for a build that was not initiated for an environment."
           }
         },
         "title": "CreateBuildRequest",
@@ -9230,6 +9247,15 @@
           "pageToken": {
             "type": "string",
             "title": "page_token"
+          },
+          "originEnvironmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "origin_environment_id",
+            "format": "uuid",
+            "description": "When set, return only builds initiated from this environment; omitted returns all origins."
           }
         },
         "title": "ListBuildsRequest",

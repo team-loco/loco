@@ -1,3 +1,4 @@
+import { useEnvironments } from "@/hooks/useEnvironment";
 import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
@@ -106,76 +107,123 @@ function BuildLog({ build, workspaceId }: { build: Build; workspaceId: string })
 	);
 }
 
-function Detail({
+export function BuildDetail({
 	build,
 	workspaceId,
 	deployment,
 	logsHref,
 	canWrite,
-	onCancel,
+	onCanceled,
 }: {
 	build: Build;
 	workspaceId: string;
 	deployment: BuildDeploymentLink | undefined;
 	logsHref: string | undefined;
 	canWrite: boolean;
-	onCancel: () => void;
+	onCanceled: () => void;
 }) {
+	const [confirming, setConfirming] = useState(false);
+	const cancel = useMutation(cancelBuild);
+
+	const confirmCancel = () => {
+		const short = formatShortId(build.id);
+		cancel.mutate(
+			{ buildId: build.id },
+			{
+				onSuccess: () => {
+					toast.success(`Canceled build ${short}`);
+					setConfirming(false);
+					onCanceled();
+				},
+				onError: (err) => {
+					toastConnectError(err, `Could not cancel build ${short}`);
+				},
+			},
+		);
+	};
+
+	const { environments } = useEnvironments();
+	const origin =
+		environments.find((environment) => environment.id === build.originEnvironmentId)?.name ??
+		build.originEnvironmentId ??
+		"Not recorded";
 	const message = buildMessage(build);
 	const facts: [string, string][] = [
 		["Build ID", build.id],
+		["Origin environment", origin],
 		["Dockerfile", build.dockerfilePath],
 		["Context", build.context === "" ? "." : build.context],
 		["Source", build.sourceType],
 		["Image digest", build.imageDigest ?? "—"],
 	];
 	return (
-		<div className="grid grid-cols-1 gap-6 pt-1 pb-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,1fr)] lg:pl-8">
-			<div className="flex min-w-0 flex-col gap-2">
-				{message !== undefined && (
-					<div
-						className={cn(
-							"rounded-md px-2.5 py-2 text-[12.5px]",
-							build.status === BuildStatus.FAILED ? "bg-bad-bg text-bad-fg" : "bg-panel2 text-fg2",
+		<>
+			<div className="grid grid-cols-1 gap-6 pt-1 pb-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,1fr)] lg:pl-8">
+				<div className="flex min-w-0 flex-col gap-2">
+					{message !== undefined && (
+						<div
+							className={cn(
+								"rounded-md px-2.5 py-2 text-[12.5px]",
+								build.status === BuildStatus.FAILED ? "bg-bad-bg text-bad-fg" : "bg-panel2 text-fg2",
+							)}
+						>
+							{message}
+						</div>
+					)}
+					<BuildLog build={build} workspaceId={workspaceId} />
+				</div>
+				<div className="flex min-w-0 flex-col gap-3.5">
+					<dl className="m-0 grid grid-cols-[90px_minmax(0,1fr)] gap-x-3 gap-y-[7px] text-[12.5px]">
+						{facts.map(([k, v]) => (
+							<Fragment key={k}>
+								<dt className="text-fg3">{k}</dt>
+								<dd className="m-0 font-mono text-[12px] [overflow-wrap:anywhere]">{v}</dd>
+							</Fragment>
+						))}
+					</dl>
+					<div className="flex flex-wrap gap-2">
+						{deployment !== undefined && (
+							<Button variant="outline" size="sm" onClick={deployment.onOpen}>
+								<RocketIcon />
+								Deployment <span className="font-mono">{deployment.tag}</span>
+							</Button>
 						)}
-					>
-						{message}
+						{logsHref !== undefined && (
+							<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
+								<ScrollTextIcon />
+								Open in Logs
+							</Button>
+						)}
+						<CopyButton text={build.id} label="Copy ID" name={`Copy build ID ${formatShortId(build.id)}`} />
+						{canWrite && canCancelBuild(build.status) && (
+							<Button
+								variant="destructive-outline"
+								size="sm"
+								onClick={() => {
+									setConfirming(true);
+								}}
+							>
+								<XIcon />
+								Cancel build
+							</Button>
+						)}
 					</div>
-				)}
-				<BuildLog build={build} workspaceId={workspaceId} />
-			</div>
-			<div className="flex min-w-0 flex-col gap-3.5">
-				<dl className="m-0 grid grid-cols-[90px_minmax(0,1fr)] gap-x-3 gap-y-[7px] text-[12.5px]">
-					{facts.map(([k, v]) => (
-						<Fragment key={k}>
-							<dt className="text-fg3">{k}</dt>
-							<dd className="m-0 font-mono text-[12px] [overflow-wrap:anywhere]">{v}</dd>
-						</Fragment>
-					))}
-				</dl>
-				<div className="flex flex-wrap gap-2">
-					{deployment !== undefined && (
-						<Button variant="outline" size="sm" onClick={deployment.onOpen}>
-							<RocketIcon />
-							Deployment <span className="font-mono">{deployment.tag}</span>
-						</Button>
-					)}
-					{logsHref !== undefined && (
-						<Button variant="outline" size="sm" nativeButton={false} render={<Link to={logsHref} />}>
-							<ScrollTextIcon />
-							Open in Logs
-						</Button>
-					)}
-					<CopyButton text={build.id} label="Copy ID" name={`Copy build ID ${formatShortId(build.id)}`} />
-					{canWrite && canCancelBuild(build.status) && (
-						<Button variant="destructive-outline" size="sm" onClick={onCancel}>
-							<XIcon />
-							Cancel build
-						</Button>
-					)}
 				</div>
 			</div>
-		</div>
+			<ConfirmDialog
+				open={confirming}
+				title={`Cancel build ${formatShortId(build.id)}?`}
+				description="The build stops and produces no image."
+				confirmLabel="Cancel build"
+				pendingLabel="Canceling…"
+				cancelLabel="Keep building"
+				pending={cancel.isPending}
+				onConfirm={confirmCancel}
+				onClose={() => {
+					setConfirming(false);
+				}}
+			/>
+		</>
 	);
 }
 
@@ -203,144 +251,107 @@ export function BuildsTable({
 	onCanceled: () => void;
 }) {
 	const timePref = useTimePreferences();
-	const [confirming, setConfirming] = useState<Build | null>(null);
-	const cancel = useMutation(cancelBuild);
-
-	const confirmCancel = () => {
-		if (confirming === null) return;
-		const short = formatShortId(confirming.id);
-		cancel.mutate(
-			{ buildId: confirming.id },
-			{
-				onSuccess: () => {
-					toast.success(`Canceled build ${short}`);
-					setConfirming(null);
-					onCanceled();
-				},
-				onError: (err) => {
-					toastConnectError(err, `Could not cancel build ${short}`);
-				},
-			},
-		);
-	};
 
 	return (
-		<>
-			<Table className="min-w-[860px]">
-				<TableHeader>
+		<Table className="min-w-[860px]">
+			<TableHeader>
+				<TableRow>
+					<TableHead className="w-6" />
+					<TableHead className="w-[140px]">Status</TableHead>
+					<TableHead className="w-[100px]">Build</TableHead>
+					<TableHead className="w-[220px]">Started by</TableHead>
+					<TableHead>Image</TableHead>
+					<TableHead className="w-[72px] text-right">Took</TableHead>
+					<TableHead className="w-[100px] text-right">Time</TableHead>
+				</TableRow>
+			</TableHeader>
+			<TableBody>
+				{builds.length === 0 && (
 					<TableRow>
-						<TableHead className="w-6" />
-						<TableHead className="w-[140px]">Status</TableHead>
-						<TableHead className="w-[100px]">Build</TableHead>
-						<TableHead className="w-[220px]">Started by</TableHead>
-						<TableHead>Image</TableHead>
-						<TableHead className="w-[72px] text-right">Took</TableHead>
-						<TableHead className="w-[100px] text-right">Time</TableHead>
+						<TableCell colSpan={COLUMNS} className="text-fg3">
+							No builds yet.
+						</TableCell>
 					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{builds.length === 0 && (
-						<TableRow>
-							<TableCell colSpan={COLUMNS} className="text-fg3">
-								No builds yet.
+				)}
+			</TableBody>
+			{builds.map((build) => {
+				const expanded = openId === build.id;
+				const style = buildStatusStyle(build.status);
+				const actor = actors.get(build.createdBy);
+				const actorName = actor === undefined ? formatShortId(build.createdBy) : actor.name || actor.email;
+				const image = buildImageLabel(build);
+				const took = buildTookMs(build);
+				const created = maybeTsMs(build.createdAt);
+				const toggle = () => {
+					onOpen(expanded ? null : build.id);
+				};
+				return (
+					<Collapsible
+						key={build.id}
+						open={expanded}
+						onOpenChange={(next) => {
+							onOpen(next ? build.id : null);
+						}}
+						render={<TableBody />}
+					>
+						<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
+							<TableCell>
+								<CollapsibleTrigger
+									render={<Button variant="ghost" size="icon-xs" />}
+									aria-label={`${expanded ? "Hide" : "Show"} build ${formatShortId(build.id)}`}
+									onClick={(e) => {
+										e.stopPropagation();
+									}}
+								>
+									<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
+								</CollapsibleTrigger>
+							</TableCell>
+							<TableCell>
+								<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap">
+									<StatusGlyph glyph={style.glyph} />
+									{style.label}
+								</span>
+							</TableCell>
+							<TableCell className="font-mono text-[12.5px]">{formatShortId(build.id)}</TableCell>
+							<TableCell>
+								<span className="flex min-w-0 items-center gap-2">
+									<MemberAvatar
+										name={actor?.name ?? actorName}
+										email={actor?.email ?? ""}
+										avatarUrl={actor?.avatarUrl ?? ""}
+										className="size-[22px]"
+									/>
+									<span className="truncate">{actorName}</span>
+								</span>
+							</TableCell>
+							<TableCell className={cn("truncate font-mono text-[12px]", image.muted && "text-fg3")}>
+								{image.text}
+							</TableCell>
+							<TableCell className="text-right font-mono text-[12px] text-fg2">
+								{took === undefined ? "—" : formatBuildDuration(took)}
+							</TableCell>
+							<TableCell
+								className="text-right font-mono text-[12px] text-fg2"
+								title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
+							>
+								{created === undefined ? "—" : agoLabel(created, nowMs)}
 							</TableCell>
 						</TableRow>
-					)}
-				</TableBody>
-				{builds.map((build) => {
-					const expanded = openId === build.id;
-					const style = buildStatusStyle(build.status);
-					const actor = actors.get(build.createdBy);
-					const actorName = actor === undefined ? formatShortId(build.createdBy) : actor.name || actor.email;
-					const image = buildImageLabel(build);
-					const took = buildTookMs(build);
-					const created = maybeTsMs(build.createdAt);
-					const toggle = () => {
-						onOpen(expanded ? null : build.id);
-					};
-					return (
-						<Collapsible
-							key={build.id}
-							open={expanded}
-							onOpenChange={(next) => {
-								onOpen(next ? build.id : null);
-							}}
-							render={<TableBody />}
-						>
-							<TableRow className={expanded ? "border-b-0" : undefined} onClick={toggle}>
-								<TableCell>
-									<CollapsibleTrigger
-										render={<Button variant="ghost" size="icon-xs" />}
-										aria-label={`${expanded ? "Hide" : "Show"} build ${formatShortId(build.id)}`}
-										onClick={(e) => {
-											e.stopPropagation();
-										}}
-									>
-										<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
-									</CollapsibleTrigger>
-								</TableCell>
-								<TableCell>
-									<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap">
-										<StatusGlyph glyph={style.glyph} />
-										{style.label}
-									</span>
-								</TableCell>
-								<TableCell className="font-mono text-[12.5px]">{formatShortId(build.id)}</TableCell>
-								<TableCell>
-									<span className="flex min-w-0 items-center gap-2">
-										<MemberAvatar
-											name={actor?.name ?? actorName}
-											email={actor?.email ?? ""}
-											avatarUrl={actor?.avatarUrl ?? ""}
-											className="size-[22px]"
-										/>
-										<span className="truncate">{actorName}</span>
-									</span>
-								</TableCell>
-								<TableCell className={cn("truncate font-mono text-[12px]", image.muted && "text-fg3")}>
-									{image.text}
-								</TableCell>
-								<TableCell className="text-right font-mono text-[12px] text-fg2">
-									{took === undefined ? "—" : formatBuildDuration(took)}
-								</TableCell>
-								<TableCell
-									className="text-right font-mono text-[12px] text-fg2"
-									title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
-								>
-									{created === undefined ? "—" : agoLabel(created, nowMs)}
-								</TableCell>
-							</TableRow>
-							<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
-								<TableCell colSpan={COLUMNS} className="h-auto p-0 whitespace-normal">
-									<Detail
-										build={build}
-										workspaceId={workspaceId}
-										deployment={deploymentFor(build.id)}
-										logsHref={logsHref(build.id)}
-										canWrite={canWrite}
-										onCancel={() => {
-											setConfirming(build);
-										}}
-									/>
-								</TableCell>
-							</CollapsibleContent>
-						</Collapsible>
-					);
-				})}
-			</Table>
-			<ConfirmDialog
-				open={confirming !== null}
-				title={`Cancel build ${confirming === null ? "" : formatShortId(confirming.id)}?`}
-				description="The build stops and produces no image."
-				confirmLabel="Cancel build"
-				pendingLabel="Canceling…"
-				cancelLabel="Keep building"
-				pending={cancel.isPending}
-				onConfirm={confirmCancel}
-				onClose={() => {
-					setConfirming(null);
-				}}
-			/>
-		</>
+						<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
+							<TableCell colSpan={COLUMNS} className="h-auto p-0 whitespace-normal">
+								<BuildDetail
+									build={build}
+									workspaceId={workspaceId}
+									deployment={deploymentFor(build.id)}
+									logsHref={logsHref(build.id)}
+									canWrite={canWrite}
+									onCanceled={onCanceled}
+								/>
+							</TableCell>
+						</CollapsibleContent>
+					</Collapsible>
+				);
+			})}
+		</Table>
 	);
 }

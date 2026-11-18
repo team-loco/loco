@@ -469,31 +469,32 @@ type ApiToken struct {
 }
 
 type Build struct {
-	ID               uuid.UUID   `json:"id"`
-	ResourceID       uuid.UUID   `json:"resourceId"`
-	ClusterID        *uuid.UUID  `json:"clusterId"`
-	Status           BuildStatus `json:"status"`
-	SourceType       string      `json:"sourceType"`
-	Stage            string      `json:"stage"`
-	SourceKey        string      `json:"sourceKey"`
-	SourceSize       int64       `json:"sourceSize"`
-	DockerfilePath   string      `json:"dockerfilePath"`
-	Context          string      `json:"context"`
-	GitCommit        *string     `json:"gitCommit"`
-	GitBranch        *string     `json:"gitBranch"`
-	GitCommitMessage *string     `json:"gitCommitMessage"`
-	ImageRepository  string      `json:"imageRepository"`
-	Platform         string      `json:"platform"`
-	ImageDigest      *string     `json:"imageDigest"`
-	CacheDigest      *string     `json:"cacheDigest"`
-	Message          string      `json:"message"`
-	CreatedBy        uuid.UUID   `json:"createdBy"`
-	ApiTokenID       *uuid.UUID  `json:"apiTokenId"`
-	CreatedAt        time.Time   `json:"createdAt"`
-	StartedAt        *time.Time  `json:"startedAt"`
-	FinishedAt       *time.Time  `json:"finishedAt"`
-	SourceDeletedAt  *time.Time  `json:"sourceDeletedAt"`
-	ImageDeletedAt   *time.Time  `json:"imageDeletedAt"`
+	ID                  uuid.UUID   `json:"id"`
+	ResourceID          uuid.UUID   `json:"resourceId"`
+	OriginEnvironmentID *uuid.UUID  `json:"originEnvironmentId"`
+	ClusterID           *uuid.UUID  `json:"clusterId"`
+	Status              BuildStatus `json:"status"`
+	SourceType          string      `json:"sourceType"`
+	Stage               string      `json:"stage"`
+	SourceKey           string      `json:"sourceKey"`
+	SourceSize          int64       `json:"sourceSize"`
+	DockerfilePath      string      `json:"dockerfilePath"`
+	Context             string      `json:"context"`
+	GitCommit           *string     `json:"gitCommit"`
+	GitBranch           *string     `json:"gitBranch"`
+	GitCommitMessage    *string     `json:"gitCommitMessage"`
+	ImageRepository     string      `json:"imageRepository"`
+	Platform            string      `json:"platform"`
+	ImageDigest         *string     `json:"imageDigest"`
+	CacheDigest         *string     `json:"cacheDigest"`
+	Message             string      `json:"message"`
+	CreatedBy           uuid.UUID   `json:"createdBy"`
+	ApiTokenID          *uuid.UUID  `json:"apiTokenId"`
+	CreatedAt           time.Time   `json:"createdAt"`
+	StartedAt           *time.Time  `json:"startedAt"`
+	FinishedAt          *time.Time  `json:"finishedAt"`
+	SourceDeletedAt     *time.Time  `json:"sourceDeletedAt"`
+	ImageDeletedAt      *time.Time  `json:"imageDeletedAt"`
 }
 
 type Cluster struct {

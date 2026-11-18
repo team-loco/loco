@@ -43,7 +43,12 @@ export function useBuildLog(workspaceId: string, buildId: string, source: BuildL
 		enabled: source.kind === "tail",
 	});
 	if (source.kind === "tail") {
-		return { entries: tail.entries.toReversed(), truncated: false, isLoading: false, error: tail.error };
+		return {
+			entries: tail.entries.toReversed(),
+			truncated: false,
+			isLoading: false,
+			error: tail.error,
+		};
 	}
 	return {
 		entries: query.entries,
@@ -53,10 +58,12 @@ export function useBuildLog(workspaceId: string, buildId: string, source: BuildL
 	};
 }
 
-export function useResourceBuilds(resourceId: string) {
+export function useResourceBuilds(resourceId: string, originEnvironmentId: string | undefined) {
 	const query = useInfiniteQuery(
 		listBuilds,
-		resourceId === "" ? skipToken : { resourceId, pageSize: BUILDS_PAGE_SIZE, pageToken: "" },
+		resourceId === "" || originEnvironmentId === undefined || originEnvironmentId === ""
+			? skipToken
+			: { resourceId, originEnvironmentId, pageSize: BUILDS_PAGE_SIZE, pageToken: "" },
 		{
 			pageParamKey: "pageToken",
 			getNextPageParam: (last) => (last.nextPageToken === "" ? undefined : last.nextPageToken),

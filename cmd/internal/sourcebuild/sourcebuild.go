@@ -53,11 +53,12 @@ func New(clients *rpc.Clients, out io.Writer) *Builder {
 // to upload, the commit it was packed from, and the Dockerfile relative to the context
 // directory of the archive.
 type Input struct {
-	ResourceID string
-	Archive    *sourcepack.Archive
-	Commit     gitsource.Commit
-	Dockerfile string
-	Context    string
+	ResourceID          string
+	OriginEnvironmentID string
+	Archive             *sourcepack.Archive
+	Commit              gitsource.Commit
+	Dockerfile          string
+	Context             string
 }
 
 // PackedArchive prints what an archive holds, as the deploy reports it before the first build.
@@ -101,13 +102,14 @@ func (b *Builder) createBuild(ctx context.Context, in Input) (*buildv1.CreateBui
 		}
 	}
 	req := &buildv1.CreateBuildRequest{
-		ResourceId:       in.ResourceID,
-		DockerfilePath:   in.Dockerfile,
-		SourceSize:       in.Archive.Size,
-		Context:          in.Context,
-		GitCommit:        gitCommit,
-		GitBranch:        gitBranch,
-		GitCommitMessage: gitMessage,
+		OriginEnvironmentId: new(in.OriginEnvironmentID),
+		ResourceId:          in.ResourceID,
+		DockerfilePath:      in.Dockerfile,
+		SourceSize:          in.Archive.Size,
+		Context:             in.Context,
+		GitCommit:           gitCommit,
+		GitBranch:           gitBranch,
+		GitCommitMessage:    gitMessage,
 	}
 	resp, err := b.clients.Build.CreateBuild(ctx, req)
 	if unavailable := buildsUnavailable(err); unavailable != nil {

@@ -111,8 +111,10 @@ type Build struct {
 	// git_commit_message is the commit's subject line.
 	GitCommitMessage *string `protobuf:"bytes,20,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
 	Platform         string  `protobuf:"bytes,21,opt,name=platform,proto3" json:"platform,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Historical context for the operation that initiated this build, not image ownership.
+	OriginEnvironmentId *string `protobuf:"bytes,22,opt,name=origin_environment_id,json=originEnvironmentId,proto3,oneof" json:"origin_environment_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Build) Reset() {
@@ -292,6 +294,13 @@ func (x *Build) GetPlatform() string {
 	return ""
 }
 
+func (x *Build) GetOriginEnvironmentId() string {
+	if x != nil && x.OriginEnvironmentId != nil {
+		return *x.OriginEnvironmentId
+	}
+	return ""
+}
+
 type BuildsUnavailable struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -340,8 +349,10 @@ type CreateBuildRequest struct {
 	GitBranch *string `protobuf:"bytes,6,opt,name=git_branch,json=gitBranch,proto3,oneof" json:"git_branch,omitempty"`
 	// git_commit_message longer than the API's limit is stored clipped.
 	GitCommitMessage *string `protobuf:"bytes,7,opt,name=git_commit_message,json=gitCommitMessage,proto3,oneof" json:"git_commit_message,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Omit for a build that was not initiated for an environment.
+	OriginEnvironmentId *string `protobuf:"bytes,8,opt,name=origin_environment_id,json=originEnvironmentId,proto3,oneof" json:"origin_environment_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *CreateBuildRequest) Reset() {
@@ -419,6 +430,13 @@ func (x *CreateBuildRequest) GetGitBranch() string {
 func (x *CreateBuildRequest) GetGitCommitMessage() string {
 	if x != nil && x.GitCommitMessage != nil {
 		return *x.GitCommitMessage
+	}
+	return ""
+}
+
+func (x *CreateBuildRequest) GetOriginEnvironmentId() string {
+	if x != nil && x.OriginEnvironmentId != nil {
+		return *x.OriginEnvironmentId
 	}
 	return ""
 }
@@ -660,12 +678,14 @@ func (x *GetBuildResponse) GetBuild() *Build {
 }
 
 type ListBuildsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageToken     string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	PageSize   int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken  string                 `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// When set, return only builds initiated from this environment; omitted returns all origins.
+	OriginEnvironmentId *string `protobuf:"bytes,4,opt,name=origin_environment_id,json=originEnvironmentId,proto3,oneof" json:"origin_environment_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ListBuildsRequest) Reset() {
@@ -715,6 +735,13 @@ func (x *ListBuildsRequest) GetPageSize() int32 {
 func (x *ListBuildsRequest) GetPageToken() string {
 	if x != nil {
 		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListBuildsRequest) GetOriginEnvironmentId() string {
+	if x != nil && x.OriginEnvironmentId != nil {
+		return *x.OriginEnvironmentId
 	}
 	return ""
 }
@@ -863,7 +890,7 @@ var File_loco_build_v1_build_proto protoreflect.FileDescriptor
 
 const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\a\n" +
+	"\x19loco/build/v1/build.proto\x12\rloco.build.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\b\n" +
 	"\x05Build\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vresource_id\x18\x02 \x01(\tR\n" +
@@ -897,7 +924,8 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
 	"git_branch\x18\x13 \x01(\tH\x06R\tgitBranch\x88\x01\x01\x121\n" +
 	"\x12git_commit_message\x18\x14 \x01(\tH\aR\x10gitCommitMessage\x88\x01\x01\x12\x1a\n" +
-	"\bplatform\x18\x15 \x01(\tR\bplatformB\r\n" +
+	"\bplatform\x18\x15 \x01(\tR\bplatform\x127\n" +
+	"\x15origin_environment_id\x18\x16 \x01(\tH\bR\x13originEnvironmentId\x88\x01\x01B\r\n" +
 	"\v_cluster_idB\x0f\n" +
 	"\r_image_digestB\r\n" +
 	"\v_started_atB\x0e\n" +
@@ -905,8 +933,9 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x11_image_deleted_atB\r\n" +
 	"\v_git_commitB\r\n" +
 	"\v_git_branchB\x15\n" +
-	"\x13_git_commit_message\"\x13\n" +
-	"\x11BuildsUnavailable\"\xde\x06\n" +
+	"\x13_git_commit_messageB\x18\n" +
+	"\x16_origin_environment_id\"\x13\n" +
+	"\x11BuildsUnavailable\"\xbb\a\n" +
 	"\x12CreateBuildRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12\x80\x02\n" +
@@ -921,10 +950,12 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\n" +
 	"git_branch\x18\x06 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\bH\x01R\tgitBranch\x88\x01\x01\x121\n" +
-	"\x12git_commit_message\x18\a \x01(\tH\x02R\x10gitCommitMessage\x88\x01\x01B\r\n" +
+	"\x12git_commit_message\x18\a \x01(\tH\x02R\x10gitCommitMessage\x88\x01\x01\x12A\n" +
+	"\x15origin_environment_id\x18\b \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x03R\x13originEnvironmentId\x88\x01\x01B\r\n" +
 	"\v_git_commitB\r\n" +
 	"\v_git_branchB\x15\n" +
-	"\x13_git_commit_message\"\x97\x01\n" +
+	"\x13_git_commit_messageB\x18\n" +
+	"\x16_origin_environment_id\"\x97\x01\n" +
 	"\x13CreateBuildResponse\x12\x19\n" +
 	"\bbuild_id\x18\x01 \x01(\tR\abuildId\x12\x1d\n" +
 	"\n" +
@@ -937,14 +968,16 @@ const file_loco_build_v1_build_proto_rawDesc = "" +
 	"\x0fGetBuildRequest\x12#\n" +
 	"\bbuild_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\abuildId\">\n" +
 	"\x10GetBuildResponse\x12*\n" +
-	"\x05build\x18\x01 \x01(\v2\x14.loco.build.v1.BuildR\x05build\"\x86\x01\n" +
+	"\x05build\x18\x01 \x01(\v2\x14.loco.build.v1.BuildR\x05build\"\xe3\x01\n" +
 	"\x11ListBuildsRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12'\n" +
 	"\tpage_size\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xc8\x01(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\"j\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x12A\n" +
+	"\x15origin_environment_id\x18\x04 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x13originEnvironmentId\x88\x01\x01B\x18\n" +
+	"\x16_origin_environment_id\"j\n" +
 	"\x12ListBuildsResponse\x12,\n" +
 	"\x06builds\x18\x01 \x03(\v2\x14.loco.build.v1.BuildR\x06builds\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"9\n" +
@@ -1034,6 +1067,7 @@ func file_loco_build_v1_build_proto_init() {
 	}
 	file_loco_build_v1_build_proto_msgTypes[0].OneofWrappers = []any{}
 	file_loco_build_v1_build_proto_msgTypes[2].OneofWrappers = []any{}
+	file_loco_build_v1_build_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

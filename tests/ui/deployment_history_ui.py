@@ -241,7 +241,7 @@ def fixture():
             else "NULL"
         )
         sql.append(
-            f"INSERT INTO builds (platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
+            f"INSERT INTO builds (origin_environment_id, platform, id,resource_id,status,source_type,source_key,source_size,dockerfile_path,context,image_repository,image_digest,message,created_by,created_at,started_at,finished_at) VALUES ('{production}', 'linux/amd64', '{builds[name]}','{resource}','{status}','upload','pilot/{builds[name]}',1024,'Dockerfile','.','example.invalid/browser-pilot',{digest},'{message}','{owner_id}',NOW()-INTERVAL '{minutes} minutes',{started},{finished});"
         )
     sql.append(
         f"UPDATE deployments SET commit_sha='{'7c41e9a'.ljust(40, '0')}', commit_dirty=true WHERE id='{release_ids[0]}';"
@@ -637,6 +637,63 @@ with session(out) as browser:
                 section.get_by_role("button", name="Cancel build", exact=True)
             ).to_have_count(0)
             expect(section.get_by_text("canceled", exact=True).first).to_be_visible()
+            stage = "cross-environment-build"
+            # Reuse the existing deployment's build from a different initiating environment.
+            evidence.psql(
+                state["container"],
+                f"UPDATE builds SET origin_environment_id='{data['staging']}' WHERE id='{builds['deployed']}';"
+                f"UPDATE builds SET origin_environment_id=NULL WHERE id='{builds['older']}';",
+            )
+            page.goto(
+                state["ui_url"]
+                + base
+                + "/resource/"
+                + data["resource"]
+                + "?env=production"
+            )
+            section.get_by_role("tab", name=re.compile(r"^Builds")).click()
+            expect(
+                section.get_by_role("tab", name=re.compile(r"^Builds\s*4$"))
+            ).to_be_visible()
+            expect(
+                section.get_by_role(
+                    "button", name=f"Show build {builds['deployed'][-8:]}"
+                )
+            ).to_have_count(0)
+            expect(
+                section.get_by_role("button", name=f"Show build {builds['older'][-8:]}")
+            ).to_have_count(0)
+            section.get_by_role("tab", name=re.compile(r"^Deployments")).click()
+            section.get_by_role(
+                "button",
+                name=f"Show details for {data['releases'][1][-8:]}",
+                exact=True,
+            ).click()
+            source_link = section.get_by_role(
+                "button", name=f"Build {builds['deployed'][-8:]}", exact=True
+            )
+            source_link.click()
+            detail = page.get_by_role(
+                "dialog", name=f"Build {builds['deployed'][-8:]}", exact=True
+            )
+            expect(detail.get_by_text("Origin environment", exact=True)).to_be_visible()
+            expect(detail.get_by_text("staging", exact=True)).to_be_visible()
+            expect(detail.get_by_text(BUILD_LOG[0][1], exact=True)).to_be_visible()
+            expect(
+                detail.get_by_role("link", name="Open in Logs", exact=True)
+            ).to_have_attribute("href", re.compile(f"q=@build:{builds['deployed']}"))
+            page.keyboard.press("Escape")
+            expect(source_link).to_be_focused()
+            page.get_by_title("Switch environment", exact=True).click()
+            page.get_by_role("menuitem", name="staging", exact=True).click()
+            section.get_by_role("tab", name=re.compile(r"^Builds")).click()
+            expect(
+                section.get_by_role("tab", name=re.compile(r"^Builds\s*1$"))
+            ).to_be_visible()
+            section.get_by_role(
+                "button", name=f"Show build {builds['deployed'][-8:]}", exact=True
+            ).click()
+            expect(section.get_by_text("staging", exact=True)).to_be_visible()
             stage = "resources"
             page.goto(
                 state["ui_url"]

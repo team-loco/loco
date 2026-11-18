@@ -8,7 +8,13 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { useEnvironments } from "@/hooks/useEnvironment";
-import { ENVIRONMENT_EVENT_TYPES, ROLLOUT_EVENT_TYPES, runtimeEvent, type RuntimeEvent } from "@/lib/runtime-events";
+import {
+	ENVIRONMENT_EVENT_TYPES,
+	eventInEnvironment,
+	ROLLOUT_EVENT_TYPES,
+	runtimeEvent,
+	type RuntimeEvent,
+} from "@/lib/runtime-events";
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { mergeEvents, runtimeEventsOptions } from "@/hooks/runtimeEvents";
@@ -83,7 +89,10 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 				}
 			} catch (error) {
 				if (!abort.signal.aborted)
-					setTail((previous) => ({ ...previous, error: error instanceof Error ? error : new Error(String(error)) }));
+					setTail((previous) => ({
+						...previous,
+						error: error instanceof Error ? error : new Error(String(error)),
+					}));
 			}
 		};
 		void consume();
@@ -101,8 +110,7 @@ export function useWorkspaceEvents(workspaceId: string, resourceFilter?: Resourc
 		);
 		list.forEach((event) => {
 			const e = runtimeEvent(event);
-			// The workspace stream spans environments; build events belong to none.
-			if (e.environmentId !== "" && e.environmentId !== environmentId) return;
+			if (!eventInEnvironment(e, environmentId)) return;
 			events.push({ ...e, resourceId: resource.id, resourceName: resource.name });
 		});
 	});

@@ -333,13 +333,14 @@ func RecordBuildOutcome(
 		AddCreator(data, creator.CreatorID, creator.CreatorEmail, creator.CreatorName)
 	}
 	return Record(ctx, q, Event{
-		Type:        kind,
-		ActorType:   actorType,
-		ActorID:     &actorID,
-		ResourceID:  new(resourceID),
-		SubjectType: SubjectBuild,
-		SubjectID:   new(buildID),
-		Data:        data,
+		Type:          kind,
+		EnvironmentID: creator.OriginEnvironmentID,
+		ActorType:     actorType,
+		ActorID:       &actorID,
+		ResourceID:    new(resourceID),
+		SubjectType:   SubjectBuild,
+		SubjectID:     new(buildID),
+		Data:          data,
 	})
 }
 

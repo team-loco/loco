@@ -4,11 +4,11 @@ import { QueryClient } from "@tanstack/react-query";
 import { create } from "@bufbuild/protobuf";
 import { EventSchema, EventService, type ListEventsRequest } from "@gen/loco/event/v1/event_pb";
 import { mergeEvents, runtimeEventsOptions } from "./runtimeEvents";
-import { ENVIRONMENT_EVENT_TYPES, ROLLOUT_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
+import { ENVIRONMENT_EVENT_TYPES, eventInEnvironment, ROLLOUT_EVENT_TYPES, runtimeEvent } from "@/lib/runtime-events";
 import { recentWarningCount } from "@/pages/resource/events";
 import { msToTimestamp } from "@/lib/time";
 
-test("deployment and scaling history is requested in the selected environment while builds span environments", async () => {
+test("build, deployment and scaling history requests use the selected environment", async () => {
 	const requests: ListEventsRequest[] = [];
 	const transport = createRouterTransport((router) => {
 		router.service(EventService, {
@@ -40,12 +40,9 @@ test("deployment and scaling history is requested in the selected environment wh
 		expect(requests.map((r) => [r.environmentId, r.query])).toEqual([
 			[
 				"production",
-				"(@type:resource.degraded OR @type:resource.recovered OR @type:resource.restarted OR @type:deployment.created OR @type:resource.scaled)",
+				"(@type:resource.degraded OR @type:resource.recovered OR @type:resource.restarted OR @type:deployment.created OR @type:resource.scaled OR @type:build.created OR @type:build.started OR @type:build.succeeded OR @type:build.failed OR @type:build.canceled)",
 			],
-			[
-				"",
-				"(@type:deployment.ready OR @type:deployment.failed OR @type:build.created OR @type:build.started OR @type:build.succeeded OR @type:build.failed OR @type:build.canceled)",
-			],
+			["", "(@type:deployment.ready OR @type:deployment.failed)"],
 		]);
 	} finally {
 		client.clear();
@@ -111,4 +108,13 @@ describe("streamed event history", () => {
 		expect(mergeEvents([older, incoming], tail)).toEqual([older, incoming]);
 		expect(mergeEvents(tail, [incoming])).toEqual([incoming]);
 	});
+});
+
+test("selected activity follows build origin and excludes missing origins", () => {
+	for (const type of ["build.created", "build.started", "build.succeeded", "build.failed", "build.canceled"]) {
+		const event = runtimeEvent(create(EventSchema, { type, environmentId: "staging" }));
+		expect(eventInEnvironment(event, "staging")).toBe(true);
+		expect(eventInEnvironment(event, "production")).toBe(false);
+		expect(eventInEnvironment({ ...event, environmentId: "" }, "production")).toBe(false);
+	}
 });

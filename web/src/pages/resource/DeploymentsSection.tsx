@@ -1,7 +1,8 @@
 import { deploymentMessage } from "@/hooks/deployment-watch";
 import type { TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { useTransport } from "@connectrpc/connect-query";
+import { skipToken, useQuery, useTransport } from "@connectrpc/connect-query";
+import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon } from "lucide-react";
 import { useState } from "react";
@@ -14,6 +15,9 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/component
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
+import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
+import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
@@ -31,8 +35,8 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { formatCount } from "@/lib/format";
 
-import { deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
-import { BuildsTable, type BuildActor } from "./BuildsTable";
+import { buildStatusStyle, deploymentBuildId, deploymentsByBuild, pageOf } from "./builds";
+import { BuildDetail, BuildsTable, type BuildActor } from "./BuildsTable";
 import { formatDuration, formatFullTime } from "./format";
 import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type RegionView } from "./model";
 import { ABSENT, specChanges } from "./spec";
@@ -171,6 +175,7 @@ function Detail({
 export function DeploymentsSection({
 	resourceId,
 	workspaceId,
+	environmentId,
 	regions,
 	hasMore,
 	isLoadingMore,
@@ -186,6 +191,7 @@ export function DeploymentsSection({
 }: {
 	resourceId: string;
 	workspaceId: string;
+	environmentId: string | undefined;
 	regions: RegionView[];
 	hasMore: boolean;
 	isLoadingMore: boolean;
@@ -205,7 +211,10 @@ export function DeploymentsSection({
 	const [open, setOpen] = useState<string | null>(null);
 	const [buildPaging, setBuildPaging] = useState<Paging>({ page: 0, size: BUILD_PAGE_SIZE });
 	const [openBuild, setOpenBuild] = useState<string | null>(null);
-	const builds = useResourceBuilds(resourceId);
+	const builds = useResourceBuilds(resourceId, environmentId);
+	const [selectedBuild, setSelectedBuild] = useState<string | null>(null);
+	const selected = useQuery(getBuild, selectedBuild === null ? skipToken : { buildId: selectedBuild });
+	const selectedStatus = selected.data?.build === undefined ? undefined : buildStatusStyle(selected.data.build.status);
 	const { activeOrgId } = useOrgWorkspace();
 	const limits = useOrgLimits(activeOrgId ?? "");
 	const { data: membersRes } = useTanstackQuery({
@@ -238,15 +247,31 @@ export function DeploymentsSection({
 	const buildRows = pagedRows(builds.builds, buildPaging, setBuildPaging, BUILD_PAGE_SIZES);
 
 	const goBuild = (buildId: string) => {
-		const index = builds.builds.findIndex((b) => b.id === buildId);
-		void setHist("builds");
-		setOpenBuild(buildId);
-		if (index !== -1) setBuildPaging({ page: pageOf(index, BUILD_PAGE_SIZE), size: BUILD_PAGE_SIZE });
+		const index = builds.builds.findIndex((build) => build.id === buildId);
+		if (index !== -1) {
+			void setHist("builds");
+			setOpenBuild(buildId);
+			setBuildPaging({ page: pageOf(index, BUILD_PAGE_SIZE), size: BUILD_PAGE_SIZE });
+			return;
+		}
+		setSelectedBuild(buildId);
 	};
 	const goDeployment = (row: Row) => {
 		void setHist("deploys");
 		setOpen(row.dep.id);
 		setPagination({ page: pageOf(all.indexOf(row), pagination.size), size: pagination.size });
+	};
+	const buildDeployment = (buildId: string) => {
+		const row = byBuild.get(buildId);
+		return row === undefined
+			? undefined
+			: {
+					tag: depTag(row.dep),
+					onOpen: () => {
+						setSelectedBuild(null);
+						goDeployment(row);
+					},
+				};
 	};
 
 	return (
@@ -403,17 +428,7 @@ export function DeploymentsSection({
 							canWrite={canWrite}
 							openId={openBuild}
 							onOpen={setOpenBuild}
-							deploymentFor={(buildId) => {
-								const row = byBuild.get(buildId);
-								return row === undefined
-									? undefined
-									: {
-											tag: depTag(row.dep),
-											onOpen: () => {
-												goDeployment(row);
-											},
-										};
-							}}
+							deploymentFor={buildDeployment}
 							logsHref={buildLogsHref}
 							onCanceled={builds.refresh}
 						/>
@@ -442,6 +457,46 @@ export function DeploymentsSection({
 					)}
 				</TabsContent>
 			</Tabs>
+			<Dialog
+				open={selectedBuild !== null}
+				onOpenChange={(isOpen) => {
+					if (!isOpen) setSelectedBuild(null);
+				}}
+			>
+				<DialogContent size="wide" title={`Build ${selectedBuild === null ? "" : formatShortId(selectedBuild)}`}>
+					<DialogBody>
+						{selected.isPending && (
+							<div role="status" className="flex items-center gap-2 py-5 text-fg3">
+								<Spinner /> Loading build
+							</div>
+						)}
+						{selected.error !== null && (
+							<div role="alert" className="py-5 text-bad-fg">
+								{getErrorMessage(selected.error, "Could not load build.")}
+							</div>
+						)}
+						{selectedStatus !== undefined && (
+							<div className="flex items-center gap-2 text-sm">
+								<StatusGlyph glyph={selectedStatus.glyph} />
+								{selectedStatus.label}
+							</div>
+						)}
+						{selected.data?.build !== undefined && (
+							<BuildDetail
+								build={selected.data.build}
+								workspaceId={workspaceId}
+								canWrite={canWrite}
+								deployment={buildDeployment(selected.data.build.id)}
+								logsHref={buildLogsHref(selected.data.build.id)}
+								onCanceled={() => {
+									builds.refresh();
+									void selected.refetch();
+								}}
+							/>
+						)}
+					</DialogBody>
+				</DialogContent>
+			</Dialog>
 		</Section>
 	);
 }
