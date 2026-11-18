@@ -42,6 +42,7 @@ type tokenIDsServer struct {
 	calls       int
 	whoAmICalls int
 	maximum     int64
+	createErr   error
 }
 
 func (s *tokenIDsServer) record(ctx context.Context, entityType tokenv1.EntityType, entityID string) {
@@ -61,6 +62,9 @@ func (s *tokenIDsServer) CreateToken(
 	req *tokenv1.CreateTokenRequest,
 ) (*tokenv1.CreateTokenResponse, error) {
 	s.record(ctx, req.GetEntityType(), req.GetEntityId())
+	if s.createErr != nil {
+		return nil, s.createErr
+	}
 	if req.GetName() != testTokenName || req.GetExpiresInSec() != min(30*secondsPerDay, s.maximum) ||
 		len(req.GetScopes()) != 1 {
 		s.t.Errorf("unexpected create request: %v", req)
@@ -173,16 +177,17 @@ func TestTokenCommandsUseUUIDs(t *testing.T) {
 	}
 }
 
-func TestTokenCreateAcceptsAPICredentials(t *testing.T) {
+func TestTokenCreateWithAPICredentialsAsksForLogin(t *testing.T) {
 	fake := &tokenIDsServer{t: t, entityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, entityID: testEntityID}
+	fake.createErr = connect.NewError(connect.CodePermissionDenied, "this action requires a signed-in session")
 	cmd := tokenIDCommand(t, fake, testCreateAction)
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 	t.Setenv("LOCO_TOKEN", fake.credential)
 	cmd.SetArgs([]string{testTokenName, testEntityTypeFlag, testWorkspaceEntity, testEntityIDFlag, testEntityID})
-	if err := cmd.Execute(); err != nil {
-		t.Fatal(err)
-	}
-	if fake.calls != 1 || fake.whoAmICalls != 0 {
-		t.Fatalf("create calls = %d, WhoAmI calls = %d", fake.calls, fake.whoAmICalls)
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "unset LOCO_TOKEN and run 'loco login'") {
+		t.Fatalf("create with an API token: %v", err)
 	}
 }
 

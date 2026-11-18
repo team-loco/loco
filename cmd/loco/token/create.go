@@ -1,12 +1,14 @@
 package token
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
@@ -15,6 +17,10 @@ import (
 )
 
 const secondsPerDay = int64(24 * time.Hour / time.Second)
+
+var errSessionRequired = errors.New(
+	"creating API tokens requires a signed-in session: unset LOCO_TOKEN and run 'loco login'",
+)
 
 func buildCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -116,6 +122,9 @@ Tokens can be scoped to different entity types:
 			}
 
 			resp, err := target.Clients.Token.CreateToken(ctx, req)
+			if target.APIToken && connect.CodeOf(err) == connect.CodePermissionDenied {
+				return errSessionRequired
+			}
 			if err != nil {
 				return fmt.Errorf("failed to create token: %w", err)
 			}
