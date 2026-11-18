@@ -79,6 +79,10 @@ CREATE TABLE
         org_id UUID NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         description TEXT,
+        -- Days to keep each signal, capped by the organization's limit; NULL leaves it to the limit
+        log_retention_days INT CHECK (log_retention_days > 0),
+        trace_retention_days INT CHECK (trace_retention_days > 0),
+        metric_retention_days INT CHECK (metric_retention_days > 0),
         created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()

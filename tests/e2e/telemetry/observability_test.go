@@ -24,6 +24,7 @@ import (
 
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	tokenv1 "github.com/team-loco/loco/gen/go/loco/token/v1"
+	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpc"
 	"github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -41,6 +42,8 @@ const (
 	metricInterval   = 60
 	crashRecords     = 50
 	crashFlush       = 6 * time.Minute
+	// logRetentionDays is the fixture workspace's own log retention, below the install's.
+	logRetentionDays = 9
 	// The otel-app fixture's tracerName, span link and forged attributes, in tests/e2e/fixtures/otel-app/main.go.
 	fixtureScope         = "github.com/team-loco/loco/tests/e2e/fixtures/otel-app"
 	fixtureLinkTrace     = "0102030405060708090a0b0c0d0e0f10"
@@ -59,13 +62,20 @@ const (
 
 // TestObservability follows telemetry from an application deployed through Loco, its gateway and
 // its cluster, over the collectors and OTLP ingest into ClickHouse, and back out through the API:
-// injected SDK settings, cluster events stored once, traces, logs, access logs, Envoy and cluster
-// metrics, forged tenancy attributes, workspace isolation, user-owned SDK settings, injection
-// turned off, dependency spans, and replay of acknowledged logs after a collector SIGKILL.
+// injected SDK settings, cluster events stored once, traces, logs with the workspace's retention,
+// access logs, Envoy and cluster metrics, forged tenancy attributes, workspace isolation, user-owned
+// SDK settings, injection turned off, dependency spans, and replay of acknowledged logs after a
+// collector SIGKILL.
 func TestObservability(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	second := w.NewWorkspace(t, w.Name+"-isolation")
+	if _, err := p.User.Workspace.UpdateWorkspace(t.Context(), &workspacev1.UpdateWorkspaceRequest{
+		WorkspaceId:      w.ID,
+		LogRetentionDays: new(int32(logRetentionDays)),
+	}); err != nil {
+		t.Fatal(err)
+	}
 	dir := t.TempDir()
 	p.CopyFixture(t, "otel-app", dir)
 	host := w.Host(otelApp)
@@ -804,11 +814,12 @@ func (o *observed) ingressTrace(t *testing.T) {
 
 func (o *observed) appLogs(t *testing.T) {
 	w, resourceID, tenant, traceID := o.w, o.resourceID, o.tenant, o.traceID
-	waitRows(t, "the fixture's log lines with the trace", fmt.Sprintf(
-		"SELECT WorkspaceId, EnvironmentId, ResourceId, OrganizationId FROM otel_logs WHERE Body LIKE '%%trace_id=%s%%'",
+	waitRows(t, "the fixture's log lines with the trace and the workspace's retention", fmt.Sprintf(
+		"SELECT WorkspaceId, EnvironmentId, ResourceId, OrganizationId, RetentionDays FROM otel_logs "+
+			"WHERE Body LIKE '%%trace_id=%s%%'",
 		traceID,
 	),
-		anyRow(w.ID, tenant.EnvironmentID, resourceID, w.OrgID))
+		anyRow(w.ID, tenant.EnvironmentID, resourceID, w.OrgID, strconv.Itoa(logRetentionDays)))
 }
 
 func (o *observed) logBuckets(t *testing.T) {

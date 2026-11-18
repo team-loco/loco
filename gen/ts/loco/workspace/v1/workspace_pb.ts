@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/workspace/v1/workspace.proto.
  */
 export const file_loco_workspace_v1_workspace: GenFile = /*@__PURE__*/
-  fileDesc("CiFsb2NvL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SEWxvY28ud29ya3NwYWNlLnYxItABCglXb3Jrc3BhY2USCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghvcmdfbmFtZRgIIAEoCSLAAQoXV29ya3NwYWNlTWVtYmVyV2l0aFVzZXISFAoMd29ya3NwYWNlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSDgoGc2NvcGVzGAMgAygJEi4KCmNyZWF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhEKCXVzZXJfbmFtZRgFIAEoCRISCgp1c2VyX2VtYWlsGAYgASgJEhcKD3VzZXJfYXZhdGFyX3VybBgHIAEoCSJ/ChZDcmVhdGVXb3Jrc3BhY2VSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESFwoEbmFtZRgCIAEoCUIJukgGcgQQARg/EiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgAiAEBQg4KDF9kZXNjcmlwdGlvbiIvChdDcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkiNQoTR2V0V29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBIkcKFEdldFdvcmtzcGFjZVJlc3BvbnNlEi8KCXdvcmtzcGFjZRgBIAEoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZSJfChlMaXN0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Eg8KB3VzZXJfaWQYASABKAkSHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiZwoaTGlzdFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USMAoKd29ya3NwYWNlcxgBIAMoCzIcLmxvY28ud29ya3NwYWNlLnYxLldvcmtzcGFjZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiZwoYTGlzdE9yZ1dvcmtzcGFjZXNSZXF1ZXN0EhgKBm9yZ19pZBgBIAEoCUIIukgFcgOwAQESHQoJcGFnZV9zaXplGAIgASgFQgq6SAcaBRjIASgAEhIKCnBhZ2VfdG9rZW4YAyABKAkiZgoZTGlzdE9yZ1dvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKTAQoWVXBkYXRlV29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhwKBG5hbWUYAiABKAlCCbpIBnIEEAEYP0gAiAEBEiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgBiAEBQgcKBV9uYW1lQg4KDF9kZXNjcmlwdGlvbiIvChdVcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkiVQoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiGQoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2Ui2QEKE0NyZWF0ZU1lbWJlclJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARKGAQoGc2NvcGVzGAMgAygJQna6SHOSAXAIARgBImq6AWcKEnNjb3BlLnZhbGlkX3ZhbHVlcxItZWFjaCBzY29wZSBtdXN0IGJlIG9uZSBvZjogcmVhZCwgd3JpdGUsIGFkbWluGiJ0aGlzIGluIFsncmVhZCcsICd3cml0ZScsICdhZG1pbiddIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJIlAKE0RlbGV0ZU1lbWJlclJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABASIWChREZWxldGVNZW1iZXJSZXNwb25zZSJwChtMaXN0V29ya3NwYWNlTWVtYmVyc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJ0ChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkyzwcKEFdvcmtzcGFjZVNlcnZpY2USaAoPQ3JlYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEl8KDEdldFdvcmtzcGFjZRImLmxvY28ud29ya3NwYWNlLnYxLkdldFdvcmtzcGFjZVJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXNwb25zZRJoCg9VcGRhdGVXb3Jrc3BhY2USKS5sb2NvLndvcmtzcGFjZS52MS5VcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0GioubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVzcG9uc2USaAoPRGVsZXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlc3BvbnNlEnEKEkxpc3RVc2VyV29ya3NwYWNlcxIsLmxvY28ud29ya3NwYWNlLnYxLkxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QaLS5sb2NvLndvcmtzcGFjZS52MS5MaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRJuChFMaXN0T3JnV29ya3NwYWNlcxIrLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVxdWVzdBosLmxvY28ud29ya3NwYWNlLnYxLkxpc3RPcmdXb3Jrc3BhY2VzUmVzcG9uc2USXwoMQ3JlYXRlTWVtYmVyEiYubG9jby53b3Jrc3BhY2UudjEuQ3JlYXRlTWVtYmVyUmVxdWVzdBonLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZU1lbWJlclJlc3BvbnNlEl8KDERlbGV0ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVNZW1iZXJSZXNwb25zZRJ3ChRMaXN0V29ya3NwYWNlTWVtYmVycxIuLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVxdWVzdBovLmxvY28ud29ya3NwYWNlLnYxLkxpc3RXb3Jrc3BhY2VNZW1iZXJzUmVzcG9uc2VCQFo+Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby93b3Jrc3BhY2UvdjE7d29ya3NwYWNldjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiFsb2NvL3dvcmtzcGFjZS92MS93b3Jrc3BhY2UucHJvdG8SEWxvY28ud29ya3NwYWNlLnYxIsQCCglXb3Jrc3BhY2USCgoCaWQYASABKAkSDgoGb3JnX2lkGAIgASgJEgwKBG5hbWUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEgoKY3JlYXRlZF9ieRgFIAEoCRIuCgpjcmVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghvcmdfbmFtZRgIIAEoCRIzCglyZXRlbnRpb24YCSABKAsyIC5sb2NvLndvcmtzcGFjZS52MS5SZXRlbnRpb25EYXlzEj0KE2VmZmVjdGl2ZV9yZXRlbnRpb24YCiABKAsyIC5sb2NvLndvcmtzcGFjZS52MS5SZXRlbnRpb25EYXlzIsABChdXb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIUCgx3b3Jrc3BhY2VfaWQYASABKAkSDwoHdXNlcl9pZBgCIAEoCRIOCgZzY29wZXMYAyADKAkSLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEQoJdXNlcl9uYW1lGAUgASgJEhIKCnVzZXJfZW1haWwYBiABKAkSFwoPdXNlcl9hdmF0YXJfdXJsGAcgASgJIn8KFkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIXCgRuYW1lGAIgASgJQgm6SAZyBBABGD8SIgoLZGVzY3JpcHRpb24YAyABKAlCCLpIBXIDGIACSACIAQFCDgoMX2Rlc2NyaXB0aW9uIi8KF0NyZWF0ZVdvcmtzcGFjZVJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCSI1ChNHZXRXb3Jrc3BhY2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEiRwoUR2V0V29ya3NwYWNlUmVzcG9uc2USLwoJd29ya3NwYWNlGAEgASgLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlIl8KGUxpc3RVc2VyV29ya3NwYWNlc1JlcXVlc3QSDwoHdXNlcl9pZBgBIAEoCRIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJnChpMaXN0VXNlcldvcmtzcGFjZXNSZXNwb25zZRIwCgp3b3Jrc3BhY2VzGAEgAygLMhwubG9jby53b3Jrc3BhY2UudjEuV29ya3NwYWNlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSJnChhMaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QSGAoGb3JnX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJmChlMaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEjAKCndvcmtzcGFjZXMYASADKAsyHC5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2USFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIsUCChZVcGRhdGVXb3Jrc3BhY2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESHAoEbmFtZRgCIAEoCUIJukgGcgQQARg/SACIAQESIgoLZGVzY3JpcHRpb24YAyABKAlCCLpIBXIDGIACSAGIAQESHwoSbG9nX3JldGVudGlvbl9kYXlzGAQgASgFSAKIAQESIQoUdHJhY2VfcmV0ZW50aW9uX2RheXMYBSABKAVIA4gBARIiChVtZXRyaWNfcmV0ZW50aW9uX2RheXMYBiABKAVIBIgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25CFQoTX2xvZ19yZXRlbnRpb25fZGF5c0IXChVfdHJhY2VfcmV0ZW50aW9uX2RheXNCGAoWX21ldHJpY19yZXRlbnRpb25fZGF5cyIvChdVcGRhdGVXb3Jrc3BhY2VSZXNwb25zZRIUCgx3b3Jrc3BhY2VfaWQYASABKAkiVQoWRGVsZXRlV29ya3NwYWNlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhsKE2NvbmZpcm1fZGVsZXRlX2FwcHMYAiABKAgiGQoXRGVsZXRlV29ya3NwYWNlUmVzcG9uc2Ui2QEKE0NyZWF0ZU1lbWJlclJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABARKGAQoGc2NvcGVzGAMgAygJQna6SHOSAXAIARgBImq6AWcKEnNjb3BlLnZhbGlkX3ZhbHVlcxItZWFjaCBzY29wZSBtdXN0IGJlIG9uZSBvZjogcmVhZCwgd3JpdGUsIGFkbWluGiJ0aGlzIGluIFsncmVhZCcsICd3cml0ZScsICdhZG1pbiddIj0KFENyZWF0ZU1lbWJlclJlc3BvbnNlEhQKDHdvcmtzcGFjZV9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJIlAKE0RlbGV0ZU1lbWJlclJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIZCgd1c2VyX2lkGAIgASgJQgi6SAVyA7ABASIWChREZWxldGVNZW1iZXJSZXNwb25zZSJwChtMaXN0V29ya3NwYWNlTWVtYmVyc1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCSJ0ChxMaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlEjsKB21lbWJlcnMYASADKAsyKi5sb2NvLndvcmtzcGFjZS52MS5Xb3Jrc3BhY2VNZW1iZXJXaXRoVXNlchIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkihQEKDVJldGVudGlvbkRheXMSFQoIbG9nX2RheXMYASABKAVIAIgBARIXCgp0cmFjZV9kYXlzGAIgASgFSAGIAQESGAoLbWV0cmljX2RheXMYAyABKAVIAogBAUILCglfbG9nX2RheXNCDQoLX3RyYWNlX2RheXNCDgoMX21ldHJpY19kYXlzMs8HChBXb3Jrc3BhY2VTZXJ2aWNlEmgKD0NyZWF0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVXb3Jrc3BhY2VSZXNwb25zZRJfCgxHZXRXb3Jrc3BhY2USJi5sb2NvLndvcmtzcGFjZS52MS5HZXRXb3Jrc3BhY2VSZXF1ZXN0GicubG9jby53b3Jrc3BhY2UudjEuR2V0V29ya3NwYWNlUmVzcG9uc2USaAoPVXBkYXRlV29ya3NwYWNlEikubG9jby53b3Jrc3BhY2UudjEuVXBkYXRlV29ya3NwYWNlUmVxdWVzdBoqLmxvY28ud29ya3NwYWNlLnYxLlVwZGF0ZVdvcmtzcGFjZVJlc3BvbnNlEmgKD0RlbGV0ZVdvcmtzcGFjZRIpLmxvY28ud29ya3NwYWNlLnYxLkRlbGV0ZVdvcmtzcGFjZVJlcXVlc3QaKi5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVXb3Jrc3BhY2VSZXNwb25zZRJxChJMaXN0VXNlcldvcmtzcGFjZXMSLC5sb2NvLndvcmtzcGFjZS52MS5MaXN0VXNlcldvcmtzcGFjZXNSZXF1ZXN0Gi0ubG9jby53b3Jrc3BhY2UudjEuTGlzdFVzZXJXb3Jrc3BhY2VzUmVzcG9uc2USbgoRTGlzdE9yZ1dvcmtzcGFjZXMSKy5sb2NvLndvcmtzcGFjZS52MS5MaXN0T3JnV29ya3NwYWNlc1JlcXVlc3QaLC5sb2NvLndvcmtzcGFjZS52MS5MaXN0T3JnV29ya3NwYWNlc1Jlc3BvbnNlEl8KDENyZWF0ZU1lbWJlchImLmxvY28ud29ya3NwYWNlLnYxLkNyZWF0ZU1lbWJlclJlcXVlc3QaJy5sb2NvLndvcmtzcGFjZS52MS5DcmVhdGVNZW1iZXJSZXNwb25zZRJfCgxEZWxldGVNZW1iZXISJi5sb2NvLndvcmtzcGFjZS52MS5EZWxldGVNZW1iZXJSZXF1ZXN0GicubG9jby53b3Jrc3BhY2UudjEuRGVsZXRlTWVtYmVyUmVzcG9uc2USdwoUTGlzdFdvcmtzcGFjZU1lbWJlcnMSLi5sb2NvLndvcmtzcGFjZS52MS5MaXN0V29ya3NwYWNlTWVtYmVyc1JlcXVlc3QaLy5sb2NvLndvcmtzcGFjZS52MS5MaXN0V29ya3NwYWNlTWVtYmVyc1Jlc3BvbnNlQkBaPmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vd29ya3NwYWNlL3YxO3dvcmtzcGFjZXYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Workspace represents a project container within an organization where resources are deployed and managed.
@@ -60,6 +60,22 @@ export type Workspace = Message<"loco.workspace.v1.Workspace"> & {
    * @generated from field: string org_name = 8;
    */
   orgName: string;
+
+  /**
+   * retention is the workspace's own days per signal; an unset field leaves the signal to its
+   * organization's limit.
+   *
+   * @generated from field: loco.workspace.v1.RetentionDays retention = 9;
+   */
+  retention?: RetentionDays | undefined;
+
+  /**
+   * effective_retention is how many days ingest keeps each signal, with every field set: the
+   * workspace's own value capped by its organization's limit.
+   *
+   * @generated from field: loco.workspace.v1.RetentionDays effective_retention = 10;
+   */
+  effectiveRetention?: RetentionDays | undefined;
 };
 
 /**
@@ -107,6 +123,22 @@ export type WorkspaceJson = {
    * @generated from field: string org_name = 8;
    */
   orgName?: string;
+
+  /**
+   * retention is the workspace's own days per signal; an unset field leaves the signal to its
+   * organization's limit.
+   *
+   * @generated from field: loco.workspace.v1.RetentionDays retention = 9;
+   */
+  retention?: RetentionDaysJson;
+
+  /**
+   * effective_retention is how many days ingest keeps each signal, with every field set: the
+   * workspace's own value capped by its organization's limit.
+   *
+   * @generated from field: loco.workspace.v1.RetentionDays effective_retention = 10;
+   */
+  effectiveRetention?: RetentionDaysJson;
 };
 
 /**
@@ -579,6 +611,25 @@ export type UpdateWorkspaceRequest = Message<"loco.workspace.v1.UpdateWorkspaceR
    * @generated from field: optional string description = 3;
    */
   description?: string | undefined;
+
+  /**
+   * log_retention_days, trace_retention_days and metric_retention_days set how many days the
+   * workspace keeps each signal, from 1 to the organization's limit; 0 clears the workspace's value.
+   * A change applies to records ingested after it.
+   *
+   * @generated from field: optional int32 log_retention_days = 4;
+   */
+  logRetentionDays?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 trace_retention_days = 5;
+   */
+  traceRetentionDays?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 metric_retention_days = 6;
+   */
+  metricRetentionDays?: number | undefined;
 };
 
 /**
@@ -601,6 +652,25 @@ export type UpdateWorkspaceRequestJson = {
    * @generated from field: optional string description = 3;
    */
   description?: string;
+
+  /**
+   * log_retention_days, trace_retention_days and metric_retention_days set how many days the
+   * workspace keeps each signal, from 1 to the organization's limit; 0 clears the workspace's value.
+   * A change applies to records ingested after it.
+   *
+   * @generated from field: optional int32 log_retention_days = 4;
+   */
+  logRetentionDays?: number;
+
+  /**
+   * @generated from field: optional int32 trace_retention_days = 5;
+   */
+  traceRetentionDays?: number;
+
+  /**
+   * @generated from field: optional int32 metric_retention_days = 6;
+   */
+  metricRetentionDays?: number;
 };
 
 /**
@@ -966,6 +1036,57 @@ export const ListWorkspaceMembersResponseSchema: GenMessage<ListWorkspaceMembers
   messageDesc(file_loco_workspace_v1_workspace, 19);
 
 /**
+ * RetentionDays is how many days to keep each signal's rows.
+ *
+ * @generated from message loco.workspace.v1.RetentionDays
+ */
+export type RetentionDays = Message<"loco.workspace.v1.RetentionDays"> & {
+  /**
+   * @generated from field: optional int32 log_days = 1;
+   */
+  logDays?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 trace_days = 2;
+   */
+  traceDays?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 metric_days = 3;
+   */
+  metricDays?: number | undefined;
+};
+
+/**
+ * RetentionDays is how many days to keep each signal's rows.
+ *
+ * @generated from message loco.workspace.v1.RetentionDays
+ */
+export type RetentionDaysJson = {
+  /**
+   * @generated from field: optional int32 log_days = 1;
+   */
+  logDays?: number;
+
+  /**
+   * @generated from field: optional int32 trace_days = 2;
+   */
+  traceDays?: number;
+
+  /**
+   * @generated from field: optional int32 metric_days = 3;
+   */
+  metricDays?: number;
+};
+
+/**
+ * Describes the message loco.workspace.v1.RetentionDays.
+ * Use `create(RetentionDaysSchema)` to create a new message.
+ */
+export const RetentionDaysSchema: GenMessage<RetentionDays, {jsonType: RetentionDaysJson}> = /*@__PURE__*/
+  messageDesc(file_loco_workspace_v1_workspace, 20);
+
+/**
  * WorkspaceService manages workspaces and their members.
  *
  * @generated from service loco.workspace.v1.WorkspaceService
@@ -992,7 +1113,7 @@ export const WorkspaceService: GenService<{
     output: typeof GetWorkspaceResponseSchema;
   },
   /**
-   * UpdateWorkspace updates workspace information.
+   * UpdateWorkspace updates workspace information. It requires workspace:write.
    *
    * @generated from rpc loco.workspace.v1.WorkspaceService.UpdateWorkspace
    */

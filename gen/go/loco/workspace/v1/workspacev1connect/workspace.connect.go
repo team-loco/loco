@@ -125,7 +125,7 @@ type WorkspaceServiceClient interface {
 	CreateWorkspace(context.Context, *v1.CreateWorkspaceRequest) (*v1.CreateWorkspaceResponse, error)
 	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *v1.GetWorkspaceRequest) (*v1.GetWorkspaceResponse, error)
-	// UpdateWorkspace updates workspace information.
+	// UpdateWorkspace updates workspace information. It requires workspace:write.
 	UpdateWorkspace(context.Context, *v1.UpdateWorkspaceRequest) (*v1.UpdateWorkspaceResponse, error)
 	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *v1.DeleteWorkspaceRequest) (*v1.DeleteWorkspaceResponse, error)
@@ -154,7 +154,7 @@ type WorkspaceServiceHandler interface {
 	CreateWorkspace(context.Context, *v1.CreateWorkspaceRequest) (*v1.CreateWorkspaceResponse, error)
 	// GetWorkspace retrieves a workspace by ID.
 	GetWorkspace(context.Context, *v1.GetWorkspaceRequest) (*v1.GetWorkspaceResponse, error)
-	// UpdateWorkspace updates workspace information.
+	// UpdateWorkspace updates workspace information. It requires workspace:write.
 	UpdateWorkspace(context.Context, *v1.UpdateWorkspaceRequest) (*v1.UpdateWorkspaceResponse, error)
 	// DeleteWorkspace deletes a workspace and optionally its resources.
 	DeleteWorkspace(context.Context, *v1.DeleteWorkspaceRequest) (*v1.DeleteWorkspaceResponse, error)

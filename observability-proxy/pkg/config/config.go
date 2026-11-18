@@ -25,6 +25,7 @@ const (
 
 	defaultIngestJWKSRefreshInterval = 30 * time.Second
 	defaultIngestPlacementCacheTTL   = 30 * time.Second
+	defaultIngestRetentionCacheTTL   = 30 * time.Second
 	defaultIngestPlacementRefetch    = 5 * time.Second
 	defaultIngestClockSkew           = 5 * time.Minute
 	defaultIngestRetryAfter          = 30 * time.Second
@@ -50,6 +51,7 @@ type Config struct {
 
 	IngestJWKSRefreshInterval time.Duration
 	IngestPlacementCacheTTL   time.Duration
+	IngestRetentionCacheTTL   time.Duration
 	IngestPlacementRefetch    time.Duration
 	IngestClockSkew           time.Duration
 	IngestRetryAfter          time.Duration
@@ -81,6 +83,9 @@ func Load() *Config {
 		IngestPlacementCacheTTL: envconfig.PositiveDuration(
 			"INGEST_PLACEMENT_CACHE_TTL", defaultIngestPlacementCacheTTL,
 		),
+		IngestRetentionCacheTTL: envconfig.PositiveDuration(
+			"INGEST_RETENTION_CACHE_TTL", defaultIngestRetentionCacheTTL,
+		),
 		IngestPlacementRefetch: envconfig.PositiveDuration(
 			"INGEST_PLACEMENT_REFETCH_INTERVAL",
 			defaultIngestPlacementRefetch,
@@ -109,6 +114,7 @@ func (c *Config) IngestGate() ingest.GateConfig {
 		RequestTimeout:      ingestAuthTimeout,
 		JWKSRefreshInterval: c.IngestJWKSRefreshInterval,
 		PlacementTTL:        c.IngestPlacementCacheTTL,
+		RetentionTTL:        c.IngestRetentionCacheTTL,
 		RefetchInterval:     c.IngestPlacementRefetch,
 		ClockSkew:           c.IngestClockSkew,
 	}

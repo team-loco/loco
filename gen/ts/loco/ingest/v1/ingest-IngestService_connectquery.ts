@@ -17,3 +17,12 @@ export const issueToken = IngestService.method.issueToken;
  * @generated from rpc loco.ingest.v1.IngestService.ListPlacementWindows
  */
 export const listPlacementWindows = IngestService.method.listPlacementWindows;
+
+/**
+ * GetRetention returns how many days to keep each workspace's records: the workspace's own
+ * value capped by its organization's limit for each signal. It takes an ingest token like
+ * ListPlacementWindows.
+ *
+ * @generated from rpc loco.ingest.v1.IngestService.GetRetention
+ */
+export const getRetention = IngestService.method.getRetention;

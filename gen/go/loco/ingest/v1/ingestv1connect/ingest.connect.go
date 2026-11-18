@@ -29,6 +29,8 @@ const (
 	// IngestServiceListPlacementWindowsProcedure is the procedure name of the IngestService's
 	// ListPlacementWindows RPC.
 	IngestServiceListPlacementWindowsProcedure = "/loco.ingest.v1.IngestService/ListPlacementWindows"
+	// IngestServiceGetRetentionProcedure is the procedure name of the IngestService's GetRetention RPC.
+	IngestServiceGetRetentionProcedure = "/loco.ingest.v1.IngestService/GetRetention"
 )
 
 var (
@@ -46,6 +48,13 @@ var (
 			Procedure:  IngestServiceListPlacementWindowsProcedure,
 		}
 	})
+	ingestServiceGetRetentionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_ingest_v1_ingest_proto.Services().ByName("IngestService").Methods().ByName("GetRetention"),
+			Procedure:  IngestServiceGetRetentionProcedure,
+		}
+	})
 )
 
 // IngestServiceClient is a client for the loco.ingest.v1.IngestService service.
@@ -54,6 +63,10 @@ type IngestServiceClient interface {
 	IssueToken(context.Context, *v1.IssueTokenRequest) (*v1.IssueTokenResponse, error)
 	// ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
 	ListPlacementWindows(context.Context, *v1.ListPlacementWindowsRequest) (*v1.ListPlacementWindowsResponse, error)
+	// GetRetention returns how many days to keep each workspace's records: the workspace's own
+	// value capped by its organization's limit for each signal. It takes an ingest token like
+	// ListPlacementWindows.
+	GetRetention(context.Context, *v1.GetRetentionRequest) (*v1.GetRetentionResponse, error)
 }
 
 // NewIngestServiceClient constructs a client for the loco.ingest.v1.IngestService service. Multiple
@@ -68,6 +81,10 @@ type IngestServiceHandler interface {
 	IssueToken(context.Context, *v1.IssueTokenRequest) (*v1.IssueTokenResponse, error)
 	// ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
 	ListPlacementWindows(context.Context, *v1.ListPlacementWindowsRequest) (*v1.ListPlacementWindowsResponse, error)
+	// GetRetention returns how many days to keep each workspace's records: the workspace's own
+	// value capped by its organization's limit for each signal. It takes an ingest token like
+	// ListPlacementWindows.
+	GetRetention(context.Context, *v1.GetRetentionRequest) (*v1.GetRetentionResponse, error)
 }
 
 // RegisterIngestServiceHandler registers svc as the loco.ingest.v1.IngestService implementation on
@@ -77,6 +94,7 @@ func RegisterIngestServiceHandler(server *connect.Server, svc IngestServiceHandl
 	server.Register(
 		connect.Method{Spec: ingestServiceIssueTokenSpec(), Handler: adapter.issueToken},
 		connect.Method{Spec: ingestServiceListPlacementWindowsSpec(), Handler: adapter.listPlacementWindows},
+		connect.Method{Spec: ingestServiceGetRetentionSpec(), Handler: adapter.getRetention},
 	)
 }
 
@@ -89,6 +107,10 @@ func (UnimplementedIngestServiceHandler) IssueToken(context.Context, *v1.IssueTo
 
 func (UnimplementedIngestServiceHandler) ListPlacementWindows(context.Context, *v1.ListPlacementWindowsRequest) (*v1.ListPlacementWindowsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.ingest.v1.IngestService.ListPlacementWindows is not implemented")
+}
+
+func (UnimplementedIngestServiceHandler) GetRetention(context.Context, *v1.GetRetentionRequest) (*v1.GetRetentionResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.ingest.v1.IngestService.GetRetention is not implemented")
 }
 
 type ingestServiceClient struct {
@@ -106,6 +128,14 @@ func (c *ingestServiceClient) IssueToken(ctx context.Context, req *v1.IssueToken
 func (c *ingestServiceClient) ListPlacementWindows(ctx context.Context, req *v1.ListPlacementWindowsRequest) (*v1.ListPlacementWindowsResponse, error) {
 	var res v1.ListPlacementWindowsResponse
 	if err := c.client.CallUnary(ctx, ingestServiceListPlacementWindowsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *ingestServiceClient) GetRetention(ctx context.Context, req *v1.GetRetentionRequest) (*v1.GetRetentionResponse, error) {
+	var res v1.GetRetentionResponse
+	if err := c.client.CallUnary(ctx, ingestServiceGetRetentionSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -131,6 +161,18 @@ func (h ingestServiceHandler) listPlacementWindows(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.ListPlacementWindows(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h ingestServiceHandler) getRetention(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetRetentionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetRetention(ctx, &req)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"sync"
 	"time"
 
@@ -30,8 +31,10 @@ type State struct {
 	Windows []*ingestv1.PlacementWindow
 	// Retention applies to records that name no workspace.
 	Retention *ingestv1.Retention
-	Revoked   bool
-	Outage    bool
+	// WorkspaceRetention is each workspace's effective retention.
+	WorkspaceRetention map[string]*ingestv1.Retention
+	Revoked            bool
+	Outage             bool
 }
 
 // retention is what the fake control plane gives the cluster and each workspace it places.
@@ -42,11 +45,12 @@ func retention() *ingestv1.Retention {
 type ControlPlane struct {
 	ingestv1connect.UnimplementedIngestServiceHandler
 
-	mu        sync.Mutex
-	state     State
-	listCalls int
-	jwksCalls int
-	server    *httptest.Server
+	mu             sync.Mutex
+	state          State
+	listCalls      int
+	jwksCalls      int
+	retentionCalls [][]string
+	server         *httptest.Server
 }
 
 func Start(keys []Signer) *ControlPlane {
@@ -54,7 +58,11 @@ func Start(keys []Signer) *ControlPlane {
 }
 
 func Serve(listener net.Listener, keys []Signer) *ControlPlane {
-	cp := &ControlPlane{state: State{Keys: keys, Retention: retention()}}
+	cp := &ControlPlane{state: State{
+		Keys:               keys,
+		Retention:          retention(),
+		WorkspaceRetention: map[string]*ingestv1.Retention{},
+	}}
 	rpcServer := connect.NewServer()
 	ingestv1connect.RegisterIngestServiceHandler(rpcServer, cp)
 	mux := http.NewServeMux()
@@ -92,18 +100,27 @@ func (c *ControlPlane) Place(workspaceID string, placedAt, removedAt time.Time) 
 	window := &ingestv1.PlacementWindow{
 		WorkspaceId: workspaceID,
 		PlacedAt:    timestamppb.New(placedAt),
-		Retention:   retention(),
 	}
 	if !removedAt.IsZero() {
 		window.RemovedAt = timestamppb.New(removedAt)
 	}
-	c.Update(func(s *State) { s.Windows = append(s.Windows, window) })
+	c.Update(func(s *State) {
+		s.Windows = append(s.Windows, window)
+		s.WorkspaceRetention[workspaceID] = retention()
+	})
 }
 
 func (c *ControlPlane) Calls() (list, jwks int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.listCalls, c.jwksCalls
+}
+
+// RetentionCalls returns the workspace IDs of each GetRetention call so far.
+func (c *ControlPlane) RetentionCalls() [][]string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return slices.Clone(c.retentionCalls)
 }
 
 func (c *ControlPlane) serveJWKS(w http.ResponseWriter, _ *http.Request) {
@@ -141,4 +158,28 @@ func (c *ControlPlane) ListPlacementWindows(
 		return nil, connect.NewError(connect.CodePermissionDenied, revoked)
 	}
 	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows, Retention: c.state.Retention}, nil
+}
+
+func (c *ControlPlane) GetRetention(
+	ctx context.Context,
+	req *ingestv1.GetRetentionRequest,
+) (*ingestv1.GetRetentionResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.retentionCalls = append(c.retentionCalls, req.GetWorkspaceIds())
+	info, _ := connect.CallInfoForServerContext(ctx)
+	token, _ := bearer.FromHeader(info.RequestHeader())
+	if _, err := ingesttoken.Verify(token, KeySet(c.state.Keys), time.Now()); err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, unauthorized)
+	}
+	if c.state.Outage {
+		return nil, connect.NewError(connect.CodeUnavailable, outage)
+	}
+	retention := map[string]*ingestv1.Retention{}
+	for _, id := range req.GetWorkspaceIds() {
+		if days, ok := c.state.WorkspaceRetention[id]; ok {
+			retention[id] = days
+		}
+	}
+	return &ingestv1.GetRetentionResponse{Retention: retention}, nil
 }

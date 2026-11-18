@@ -86,26 +86,9 @@ func (s *IngestServer) ListPlacementWindows(
 	ctx context.Context,
 	_ *ingestv1.ListPlacementWindowsRequest,
 ) (*ingestv1.ListPlacementWindowsResponse, error) {
-	info, _ := connect.CallInfoForServerContext(ctx)
-	token, _ := bearer.FromHeader(info.RequestHeader())
-	keys, err := s.keySet(ctx)
+	clusterID, err := s.authenticateCluster(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
-	}
-	claims, err := ingesttoken.Verify(token, keys, time.Now())
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
-	}
-	clusterID, err := uuid.Parse(claims.ClusterID)
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
-	}
-	_, err = s.queries.GetEnrolledCluster(ctx, clusterID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, rpcerr.New(connect.CodePermissionDenied, errClusterRevoked)
-	}
-	if err != nil {
-		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+		return nil, err
 	}
 	rows, err := s.queries.ListClusterPlacementWindows(ctx, clusterID)
 	if err != nil {
@@ -115,22 +98,11 @@ func (s *IngestServer) ListPlacementWindows(
 	if err != nil {
 		return nil, err
 	}
-	orgs := map[uuid.UUID]*ingestv1.Retention{}
 	windows := make([]*ingestv1.PlacementWindow, 0, len(rows))
 	for _, row := range rows {
-		if _, loaded := orgs[row.OrgID]; !loaded {
-			counts, limitsErr := limits.ForOrg(ctx, s.queries, s.counts, row.OrgID)
-			if limitsErr != nil {
-				return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(limitsErr)
-			}
-			if orgs[row.OrgID], err = retention(counts); err != nil {
-				return nil, err
-			}
-		}
 		window := &ingestv1.PlacementWindow{
 			WorkspaceId: row.WorkspaceID.String(),
 			PlacedAt:    timestamppb.New(row.PlacedAt),
-			Retention:   orgs[row.OrgID],
 		}
 		if row.RemovedAt != nil {
 			window.RemovedAt = timestamppb.New(*row.RemovedAt)
@@ -138,6 +110,72 @@ func (s *IngestServer) ListPlacementWindows(
 		windows = append(windows, window)
 	}
 	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, Retention: install}, nil
+}
+
+func (s *IngestServer) GetRetention(
+	ctx context.Context,
+	req *ingestv1.GetRetentionRequest,
+) (*ingestv1.GetRetentionResponse, error) {
+	if _, err := s.authenticateCluster(ctx); err != nil {
+		return nil, err
+	}
+	ids := make([]uuid.UUID, 0, len(req.GetWorkspaceIds()))
+	for _, raw := range req.GetWorkspaceIds() {
+		id, err := parseID("workspace_ids", raw)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows, err := s.queries.ListWorkspaceRetention(ctx, ids)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+	}
+	orgs := orgLimits{queries: s.queries, defaults: s.counts}
+	days := make(map[string]*ingestv1.Retention, len(rows))
+	for _, row := range rows {
+		counts, limitsErr := orgs.get(ctx, row.OrgID)
+		if limitsErr != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(limitsErr)
+		}
+		own := ownRetention(row.LogRetentionDays, row.TraceRetentionDays, row.MetricRetentionDays)
+		effective, effectiveErr := effectiveRetention(counts, own)
+		if effectiveErr != nil {
+			return nil, effectiveErr
+		}
+		days[row.ID.String()] = &ingestv1.Retention{
+			LogDays:    effective.GetLogDays(),
+			TraceDays:  effective.GetTraceDays(),
+			MetricDays: effective.GetMetricDays(),
+		}
+	}
+	return &ingestv1.GetRetentionResponse{Retention: days}, nil
+}
+
+// authenticateCluster returns the enrolled cluster named by the request's ingest token.
+func (s *IngestServer) authenticateCluster(ctx context.Context) (uuid.UUID, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	token, _ := bearer.FromHeader(info.RequestHeader())
+	keys, err := s.keySet(ctx)
+	if err != nil {
+		return uuid.Nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+	}
+	claims, err := ingesttoken.Verify(token, keys, time.Now())
+	if err != nil {
+		return uuid.Nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	}
+	clusterID, err := uuid.Parse(claims.ClusterID)
+	if err != nil {
+		return uuid.Nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
+	}
+	_, err = s.queries.GetEnrolledCluster(ctx, clusterID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, rpcerr.New(connect.CodePermissionDenied, errClusterRevoked)
+	}
+	if err != nil {
+		return uuid.Nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
+	}
+	return clusterID, nil
 }
 
 // retention returns how many days to keep each signal under counts.

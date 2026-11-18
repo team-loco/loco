@@ -3209,6 +3209,68 @@
         }
       }
     },
+    "/loco.ingest.v1.IngestService/GetRetention": {
+      "post": {
+        "tags": [
+          "loco.ingest.v1.IngestService"
+        ],
+        "summary": "GetRetention",
+        "description": "GetRetention returns how many days to keep each workspace's records: the workspace's own\n value capped by its organization's limit for each signal. It takes an ingest token like\n ListPlacementWindows.",
+        "operationId": "loco.ingest.v1.IngestService.GetRetention",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.ingest.v1.GetRetentionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.ingest.v1.GetRetentionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.ingest.v1.IngestService/IssueToken": {
       "post": {
         "tags": [
@@ -7901,7 +7963,7 @@
           "loco.workspace.v1.WorkspaceService"
         ],
         "summary": "UpdateWorkspace",
-        "description": "UpdateWorkspace updates workspace information.",
+        "description": "UpdateWorkspace updates workspace information. It requires workspace:write.",
         "operationId": "loco.workspace.v1.WorkspaceService.UpdateWorkspace",
         "parameters": [
           {
@@ -11756,6 +11818,36 @@
         "title": "StreamEventsResponse",
         "additionalProperties": false
       },
+      "loco.ingest.v1.GetRetentionRequest": {
+        "type": "object",
+        "properties": {
+          "workspaceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "workspace_ids"
+          }
+        },
+        "title": "GetRetentionRequest",
+        "additionalProperties": false
+      },
+      "loco.ingest.v1.GetRetentionResponse": {
+        "type": "object",
+        "properties": {
+          "retention": {
+            "type": "object",
+            "title": "retention",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/loco.ingest.v1.Retention"
+            },
+            "description": "retention maps each requested workspace ID to its retention; an ID that names no workspace is left out."
+          }
+        },
+        "title": "GetRetentionResponse",
+        "additionalProperties": false
+      },
       "loco.ingest.v1.IssueTokenRequest": {
         "type": "object",
         "title": "IssueTokenRequest",
@@ -11814,11 +11906,6 @@
           "removedAt": {
             "title": "removed_at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
-          },
-          "retention": {
-            "title": "retention",
-            "description": "retention applies to the workspace's records: its organization's retention limits.",
-            "$ref": "#/components/schemas/loco.ingest.v1.Retention"
           }
         },
         "title": "PlacementWindow",
@@ -16363,6 +16450,38 @@
         "additionalProperties": false,
         "description": "ListWorkspaceMembersResponse contains the list of workspace members."
       },
+      "loco.workspace.v1.RetentionDays": {
+        "type": "object",
+        "properties": {
+          "logDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "log_days",
+            "format": "int32"
+          },
+          "traceDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "trace_days",
+            "format": "int32"
+          },
+          "metricDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "metric_days",
+            "format": "int32"
+          }
+        },
+        "title": "RetentionDays",
+        "additionalProperties": false,
+        "description": "RetentionDays is how many days to keep each signal's rows."
+      },
       "loco.workspace.v1.UpdateWorkspaceRequest": {
         "type": "object",
         "properties": {
@@ -16387,6 +16506,31 @@
             ],
             "title": "description",
             "maxLength": 256
+          },
+          "logRetentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "log_retention_days",
+            "format": "int32",
+            "description": "log_retention_days, trace_retention_days and metric_retention_days set how many days the\n workspace keeps each signal, from 1 to the organization's limit; 0 clears the workspace's value.\n A change applies to records ingested after it."
+          },
+          "traceRetentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "trace_retention_days",
+            "format": "int32"
+          },
+          "metricRetentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "metric_retention_days",
+            "format": "int32"
           }
         },
         "title": "UpdateWorkspaceRequest",
@@ -16439,6 +16583,16 @@
           "orgName": {
             "type": "string",
             "title": "org_name"
+          },
+          "retention": {
+            "title": "retention",
+            "description": "retention is the workspace's own days per signal; an unset field leaves the signal to its\n organization's limit.",
+            "$ref": "#/components/schemas/loco.workspace.v1.RetentionDays"
+          },
+          "effectiveRetention": {
+            "title": "effective_retention",
+            "description": "effective_retention is how many days ingest keeps each signal, with every field set: the\n workspace's own value capped by its organization's limit.",
+            "$ref": "#/components/schemas/loco.workspace.v1.RetentionDays"
           }
         },
         "title": "Workspace",

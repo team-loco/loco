@@ -166,10 +166,12 @@ func (s *WorkspaceServer) GetWorkspace(
 	if err != nil {
 		return nil, fmt.Errorf("get workspace: %w", err)
 	}
-
-	return &workspacev1.GetWorkspaceResponse{
-		Workspace: workspaceToProto(ws),
-	}, nil
+	orgs := orgLimits{queries: s.queries, defaults: s.counts}
+	workspace, err := workspaceToProto(ctx, &orgs, ws)
+	if err != nil {
+		return nil, err
+	}
+	return &workspacev1.GetWorkspaceResponse{Workspace: workspace}, nil
 }
 
 // ListUserWorkspaces retrieves all workspaces for a user
@@ -205,9 +207,14 @@ func (s *WorkspaceServer) ListUserWorkspaces(
 		return nil, fmt.Errorf("list user workspaces: %w", err)
 	}
 
+	orgs := orgLimits{queries: s.queries, defaults: s.counts}
 	var workspaces []*workspacev1.Workspace
 	for _, ws := range workspaceList {
-		workspaces = append(workspaces, workspaceToProto(genDb.GetWorkspaceByIDQueryRow(ws)))
+		workspace, convertErr := workspaceToProto(ctx, &orgs, genDb.GetWorkspaceByIDQueryRow(ws))
+		if convertErr != nil {
+			return nil, convertErr
+		}
+		workspaces = append(workspaces, workspace)
 	}
 
 	token := nextPageToken(
@@ -260,10 +267,15 @@ func (s *WorkspaceServer) ListOrgWorkspaces(
 		return nil, fmt.Errorf("list organization workspaces: %w", err)
 	}
 
+	orgs := orgLimits{queries: s.queries, defaults: s.counts}
 	var workspaces []*workspacev1.Workspace
 	for _, ws := range workspaceList {
 		if allWorkspaces || slices.Contains(workspaceIDs, ws.ID) {
-			workspaces = append(workspaces, workspaceToProto(genDb.GetWorkspaceByIDQueryRow(ws)))
+			workspace, convertErr := workspaceToProto(ctx, &orgs, genDb.GetWorkspaceByIDQueryRow(ws))
+			if convertErr != nil {
+				return nil, convertErr
+			}
+			workspaces = append(workspaces, workspace)
 			continue
 		}
 		// A caller who reads only resources in this workspace sees what names it, not the
@@ -316,19 +328,41 @@ func (s *WorkspaceServer) UpdateWorkspace(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		_, updateErr := qtx.UpdateWorkspace(ctx, params)
-		if errors.Is(updateErr, pgx.ErrNoRows) {
+		row, lockErr := qtx.LockWorkspaceRetention(ctx, wsID)
+		if errors.Is(lockErr, pgx.ErrNoRows) {
 			return ErrWorkspaceNotFound
 		}
-		if updateErr != nil {
-			return fmt.Errorf("update workspace: %w", updateErr)
+		if lockErr != nil {
+			return fmt.Errorf("lock workspace: %w", lockErr)
 		}
-		return events.Record(ctx, qtx, events.Event{
+		event := events.Event{
 			Type:        events.WorkspaceUpdated,
 			WorkspaceID: new(wsID),
 			SubjectType: events.SubjectWorkspace,
 			SubjectID:   new(wsID),
-		})
+		}
+		before := ownRetention(row.LogRetentionDays, row.TraceRetentionDays, row.MetricRetentionDays)
+		after := before
+		if requestsRetention(req) {
+			counts, limitsErr := limits.ForOrg(ctx, qtx, s.counts, row.OrgID)
+			if limitsErr != nil {
+				return limitsErr
+			}
+			if after, limitsErr = updateRetention(req, counts, before); limitsErr != nil {
+				return limitsErr
+			}
+			event.Data = map[string]any{
+				events.FieldOld: retentionData(before),
+				events.FieldNew: retentionData(after),
+			}
+		}
+		params.LogRetentionDays = after.LogDays
+		params.TraceRetentionDays = after.TraceDays
+		params.MetricRetentionDays = after.MetricDays
+		if updateErr := qtx.UpdateWorkspace(ctx, params); updateErr != nil {
+			return fmt.Errorf("update workspace: %w", updateErr)
+		}
+		return events.Record(ctx, qtx, event)
 	})
 	if err != nil {
 		return nil, err
@@ -605,15 +639,30 @@ func (s *WorkspaceServer) ListWorkspaceMembers(
 
 // workspaceToProto takes the single-workspace row type; the list queries select the same columns
 // and convert to it.
-func workspaceToProto(ws genDb.GetWorkspaceByIDQueryRow) *workspacev1.Workspace {
-	return &workspacev1.Workspace{
-		Id:          ws.ID.String(),
-		OrgId:       ws.OrgID.String(),
-		OrgName:     ws.OrgName,
-		Name:        ws.Name,
-		Description: derefString(ws.Description),
-		CreatedBy:   ws.CreatedBy.String(),
-		CreatedAt:   timestamppb.New(ws.CreatedAt),
-		UpdatedAt:   timestamppb.New(ws.UpdatedAt),
+func workspaceToProto(
+	ctx context.Context,
+	orgs *orgLimits,
+	ws genDb.GetWorkspaceByIDQueryRow,
+) (*workspacev1.Workspace, error) {
+	counts, err := orgs.get(ctx, ws.OrgID)
+	if err != nil {
+		return nil, err
 	}
+	own := ownRetention(ws.LogRetentionDays, ws.TraceRetentionDays, ws.MetricRetentionDays)
+	effective, err := effectiveRetention(counts, own)
+	if err != nil {
+		return nil, err
+	}
+	return &workspacev1.Workspace{
+		Id:                 ws.ID.String(),
+		OrgId:              ws.OrgID.String(),
+		OrgName:            ws.OrgName,
+		Name:               ws.Name,
+		Description:        derefString(ws.Description),
+		CreatedBy:          ws.CreatedBy.String(),
+		CreatedAt:          timestamppb.New(ws.CreatedAt),
+		UpdatedAt:          timestamppb.New(ws.UpdatedAt),
+		Retention:          own,
+		EffectiveRetention: effective,
+	}, nil
 }

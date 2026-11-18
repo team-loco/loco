@@ -19,7 +19,7 @@ export const createWorkspace = WorkspaceService.method.createWorkspace;
 export const getWorkspace = WorkspaceService.method.getWorkspace;
 
 /**
- * UpdateWorkspace updates workspace information.
+ * UpdateWorkspace updates workspace information. It requires workspace:write.
  *
  * @generated from rpc loco.workspace.v1.WorkspaceService.UpdateWorkspace
  */

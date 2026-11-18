@@ -54,11 +54,7 @@ func (f *tenancyFilter) reject(resource pcommon.Resource, timestamp pcommon.Time
 	if f.err != nil {
 		return false
 	}
-	var workspaceID string
-	if value, ok := resource.Attributes().Get(workspaceAttribute); ok {
-		workspaceID = value.Str()
-	}
-	result, err := f.admission.check(f.ctx, workspaceID, timestamp.AsTime())
+	result, err := f.admission.check(f.ctx, workspaceOf(resource), timestamp.AsTime())
 	if err != nil {
 		f.err = err
 		return false
@@ -94,22 +90,47 @@ func (f *tenancyFilter) record(counter *prometheus.CounterVec) {
 	}
 }
 
-// stamp sets the cluster and the days to keep the resource's records of one signal, replacing
+// stamp sets the cluster and the days to keep each resource's records of one signal, replacing
 // any values the client sent.
-func (f *tenancyFilter) stamp(resource pcommon.Resource, signalDays func(*ingestv1.Retention) int32) {
-	attrs := resource.Attributes()
-	attrs.PutStr(clusterAttribute, f.admission.ClusterID)
-	workspace, _ := attrs.Get(workspaceAttribute)
-	days, ok := f.admission.retention(workspace.Str())
-	if !ok {
-		attrs.Remove(retentionAttribute)
+func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ingestv1.Retention) int32) {
+	if f.err != nil {
 		return
 	}
-	attrs.PutStr(retentionAttribute, strconv.Itoa(int(signalDays(days))))
+	var placed []string
+	for _, resource := range resources {
+		if workspace := workspaceOf(resource); workspace != "" && f.admission.placed(workspace) {
+			placed = append(placed, workspace)
+		}
+	}
+	gate := f.admission.gate
+	retention, err := gate.retention.lookup(f.ctx, placed, gate.fetchRetention(f.admission.token))
+	if err != nil {
+		f.err = err
+		return
+	}
+	for _, resource := range resources {
+		attrs := resource.Attributes()
+		attrs.PutStr(clusterAttribute, f.admission.ClusterID)
+		days := f.admission.placements.retention
+		if workspace := workspaceOf(resource); workspace != "" {
+			days = retention[workspace]
+		}
+		if days == nil {
+			attrs.Remove(retentionAttribute)
+			continue
+		}
+		attrs.PutStr(retentionAttribute, strconv.Itoa(int(signalDays(days))))
+	}
+}
+
+func workspaceOf(resource pcommon.Resource) string {
+	value, _ := resource.Attributes().Get(workspaceAttribute)
+	return value.Str()
 }
 
 func (f *tenancyFilter) logs(logs plog.Logs) {
-	logs.ResourceLogs().RemoveIf(func(resourceLogs plog.ResourceLogs) bool {
+	all := logs.ResourceLogs()
+	all.RemoveIf(func(resourceLogs plog.ResourceLogs) bool {
 		resource := resourceLogs.Resource()
 		resourceLogs.ScopeLogs().RemoveIf(func(scopeLogs plog.ScopeLogs) bool {
 			scopeLogs.LogRecords().RemoveIf(func(record plog.LogRecord) bool {
@@ -121,13 +142,18 @@ func (f *tenancyFilter) logs(logs plog.Logs) {
 			})
 			return scopeLogs.LogRecords().Len() == 0
 		})
-		f.stamp(resource, (*ingestv1.Retention).GetLogDays)
 		return resourceLogs.ScopeLogs().Len() == 0
 	})
+	resources := make([]pcommon.Resource, 0, all.Len())
+	for i := range all.Len() {
+		resources = append(resources, all.At(i).Resource())
+	}
+	f.stamp(resources, (*ingestv1.Retention).GetLogDays)
 }
 
 func (f *tenancyFilter) traces(traces ptrace.Traces) {
-	traces.ResourceSpans().RemoveIf(func(resourceSpans ptrace.ResourceSpans) bool {
+	all := traces.ResourceSpans()
+	all.RemoveIf(func(resourceSpans ptrace.ResourceSpans) bool {
 		resource := resourceSpans.Resource()
 		resourceSpans.ScopeSpans().RemoveIf(func(scopeSpans ptrace.ScopeSpans) bool {
 			scopeSpans.Spans().RemoveIf(func(span ptrace.Span) bool {
@@ -135,13 +161,18 @@ func (f *tenancyFilter) traces(traces ptrace.Traces) {
 			})
 			return scopeSpans.Spans().Len() == 0
 		})
-		f.stamp(resource, (*ingestv1.Retention).GetTraceDays)
 		return resourceSpans.ScopeSpans().Len() == 0
 	})
+	resources := make([]pcommon.Resource, 0, all.Len())
+	for i := range all.Len() {
+		resources = append(resources, all.At(i).Resource())
+	}
+	f.stamp(resources, (*ingestv1.Retention).GetTraceDays)
 }
 
 func (f *tenancyFilter) metrics(metrics pmetric.Metrics) {
-	metrics.ResourceMetrics().RemoveIf(func(resourceMetrics pmetric.ResourceMetrics) bool {
+	all := metrics.ResourceMetrics()
+	all.RemoveIf(func(resourceMetrics pmetric.ResourceMetrics) bool {
 		resource := resourceMetrics.Resource()
 		resourceMetrics.ScopeMetrics().RemoveIf(func(scopeMetrics pmetric.ScopeMetrics) bool {
 			scopeMetrics.Metrics().RemoveIf(func(metric pmetric.Metric) bool {
@@ -149,9 +180,13 @@ func (f *tenancyFilter) metrics(metrics pmetric.Metrics) {
 			})
 			return scopeMetrics.Metrics().Len() == 0
 		})
-		f.stamp(resource, (*ingestv1.Retention).GetMetricDays)
 		return resourceMetrics.ScopeMetrics().Len() == 0
 	})
+	resources := make([]pcommon.Resource, 0, all.Len())
+	for i := range all.Len() {
+		resources = append(resources, all.At(i).Resource())
+	}
+	f.stamp(resources, (*ingestv1.Retention).GetMetricDays)
 }
 
 func (f *tenancyFilter) metricEmptied(resource pcommon.Resource, metric pmetric.Metric) bool {

@@ -219,6 +219,7 @@ type Querier interface {
 	ListWorkspaceMembersWithUserDetails(ctx context.Context, arg ListWorkspaceMembersWithUserDetailsParams) ([]ListWorkspaceMembersWithUserDetailsRow, error)
 	ListWorkspaceResourceNames(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourceNamesRow, error)
 	ListWorkspaceResourcesForDeletion(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceResourcesForDeletionRow, error)
+	ListWorkspaceRetention(ctx context.Context, ids []uuid.UUID) ([]ListWorkspaceRetentionRow, error)
 	ListWorkspaceServiceResources(ctx context.Context, workspaceID uuid.UUID) ([]Resource, error)
 	ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UUID) ([]Webhook, error)
 	ListWorkspacesForUser(ctx context.Context, arg ListWorkspacesForUserParams) ([]ListWorkspacesForUserRow, error)
@@ -255,6 +256,7 @@ type Querier interface {
 	LockWorkspaceForCreate(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceForDeletion(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	LockWorkspaceOrganization(ctx context.Context, id uuid.UUID) error
+	LockWorkspaceRetention(ctx context.Context, id uuid.UUID) (LockWorkspaceRetentionRow, error)
 	MarkBuildImageDeleted(ctx context.Context, id uuid.UUID) (int64, error)
 	MarkBuildRunning(ctx context.Context, arg MarkBuildRunningParams) (int64, error)
 	MarkBuildSourceDeleted(ctx context.Context, id uuid.UUID) error
@@ -336,7 +338,7 @@ type Querier interface {
 	UpdateResourceDomainPrimary(ctx context.Context, arg UpdateResourceDomainPrimaryParams) error
 	UpdateResourceSpec(ctx context.Context, arg UpdateResourceSpecParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
-	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) (uuid.UUID, error)
+	UpdateWorkspace(ctx context.Context, arg UpdateWorkspaceParams) error
 	UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error)
 	UpsertInstallWebhook(ctx context.Context, arg UpsertInstallWebhookParams) error
 	UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimitOverridesParams) (OrgLimitOverride, error)

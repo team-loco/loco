@@ -25,17 +25,23 @@ const (
 
 // Workspace represents a project container within an organization where resources are deployed and managed.
 type Workspace struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	OrgId         string                 `protobuf:"bytes,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
-	CreatedBy     string                 `protobuf:"bytes,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	OrgName       string                 `protobuf:"bytes,8,opt,name=org_name,json=orgName,proto3" json:"org_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	OrgId       string                 `protobuf:"bytes,2,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	CreatedBy   string                 `protobuf:"bytes,5,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	OrgName     string                 `protobuf:"bytes,8,opt,name=org_name,json=orgName,proto3" json:"org_name,omitempty"`
+	// retention is the workspace's own days per signal; an unset field leaves the signal to its
+	// organization's limit.
+	Retention *RetentionDays `protobuf:"bytes,9,opt,name=retention,proto3" json:"retention,omitempty"`
+	// effective_retention is how many days ingest keeps each signal, with every field set: the
+	// workspace's own value capped by its organization's limit.
+	EffectiveRetention *RetentionDays `protobuf:"bytes,10,opt,name=effective_retention,json=effectiveRetention,proto3" json:"effective_retention,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Workspace) Reset() {
@@ -122,6 +128,20 @@ func (x *Workspace) GetOrgName() string {
 		return x.OrgName
 	}
 	return ""
+}
+
+func (x *Workspace) GetRetention() *RetentionDays {
+	if x != nil {
+		return x.Retention
+	}
+	return nil
+}
+
+func (x *Workspace) GetEffectiveRetention() *RetentionDays {
+	if x != nil {
+		return x.EffectiveRetention
+	}
+	return nil
 }
 
 // WorkspaceMemberWithUser includes user details along with membership information for convenient retrieval.
@@ -643,12 +663,18 @@ func (x *ListOrgWorkspacesResponse) GetNextPageToken() string {
 
 // UpdateWorkspaceRequest is the request to update a workspace.
 type UpdateWorkspaceRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Name        *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// log_retention_days, trace_retention_days and metric_retention_days set how many days the
+	// workspace keeps each signal, from 1 to the organization's limit; 0 clears the workspace's value.
+	// A change applies to records ingested after it.
+	LogRetentionDays    *int32 `protobuf:"varint,4,opt,name=log_retention_days,json=logRetentionDays,proto3,oneof" json:"log_retention_days,omitempty"`
+	TraceRetentionDays  *int32 `protobuf:"varint,5,opt,name=trace_retention_days,json=traceRetentionDays,proto3,oneof" json:"trace_retention_days,omitempty"`
+	MetricRetentionDays *int32 `protobuf:"varint,6,opt,name=metric_retention_days,json=metricRetentionDays,proto3,oneof" json:"metric_retention_days,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *UpdateWorkspaceRequest) Reset() {
@@ -700,6 +726,27 @@ func (x *UpdateWorkspaceRequest) GetDescription() string {
 		return *x.Description
 	}
 	return ""
+}
+
+func (x *UpdateWorkspaceRequest) GetLogRetentionDays() int32 {
+	if x != nil && x.LogRetentionDays != nil {
+		return *x.LogRetentionDays
+	}
+	return 0
+}
+
+func (x *UpdateWorkspaceRequest) GetTraceRetentionDays() int32 {
+	if x != nil && x.TraceRetentionDays != nil {
+		return *x.TraceRetentionDays
+	}
+	return 0
+}
+
+func (x *UpdateWorkspaceRequest) GetMetricRetentionDays() int32 {
+	if x != nil && x.MetricRetentionDays != nil {
+		return *x.MetricRetentionDays
+	}
+	return 0
 }
 
 // UpdateWorkspaceResponse is the response containing the updated workspace ID.
@@ -1155,11 +1202,72 @@ func (x *ListWorkspaceMembersResponse) GetNextPageToken() string {
 	return ""
 }
 
+// RetentionDays is how many days to keep each signal's rows.
+type RetentionDays struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LogDays       *int32                 `protobuf:"varint,1,opt,name=log_days,json=logDays,proto3,oneof" json:"log_days,omitempty"`
+	TraceDays     *int32                 `protobuf:"varint,2,opt,name=trace_days,json=traceDays,proto3,oneof" json:"trace_days,omitempty"`
+	MetricDays    *int32                 `protobuf:"varint,3,opt,name=metric_days,json=metricDays,proto3,oneof" json:"metric_days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetentionDays) Reset() {
+	*x = RetentionDays{}
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetentionDays) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetentionDays) ProtoMessage() {}
+
+func (x *RetentionDays) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_workspace_v1_workspace_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetentionDays.ProtoReflect.Descriptor instead.
+func (*RetentionDays) Descriptor() ([]byte, []int) {
+	return file_loco_workspace_v1_workspace_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *RetentionDays) GetLogDays() int32 {
+	if x != nil && x.LogDays != nil {
+		return *x.LogDays
+	}
+	return 0
+}
+
+func (x *RetentionDays) GetTraceDays() int32 {
+	if x != nil && x.TraceDays != nil {
+		return *x.TraceDays
+	}
+	return 0
+}
+
+func (x *RetentionDays) GetMetricDays() int32 {
+	if x != nil && x.MetricDays != nil {
+		return *x.MetricDays
+	}
+	return 0
+}
+
 var File_loco_workspace_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
-	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x02\n" +
+	"!loco/workspace/v1/workspace.proto\x12\x11loco.workspace.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x03\n" +
 	"\tWorkspace\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06org_id\x18\x02 \x01(\tR\x05orgId\x12\x12\n" +
@@ -1171,7 +1279,10 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x19\n" +
-	"\borg_name\x18\b \x01(\tR\aorgName\"\x8c\x02\n" +
+	"\borg_name\x18\b \x01(\tR\aorgName\x12>\n" +
+	"\tretention\x18\t \x01(\v2 .loco.workspace.v1.RetentionDaysR\tretention\x12Q\n" +
+	"\x13effective_retention\x18\n" +
+	" \x01(\v2 .loco.workspace.v1.RetentionDaysR\x12effectiveRetention\"\x8c\x02\n" +
 	"\x17WorkspaceMemberWithUser\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
@@ -1214,13 +1325,19 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"\n" +
 	"workspaces\x18\x01 \x03(\v2\x1c.loco.workspace.v1.WorkspaceR\n" +
 	"workspaces\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb3\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa0\x03\n" +
 	"\x16UpdateWorkspaceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x121\n" +
+	"\x12log_retention_days\x18\x04 \x01(\x05H\x02R\x10logRetentionDays\x88\x01\x01\x125\n" +
+	"\x14trace_retention_days\x18\x05 \x01(\x05H\x03R\x12traceRetentionDays\x88\x01\x01\x127\n" +
+	"\x15metric_retention_days\x18\x06 \x01(\x05H\x04R\x13metricRetentionDays\x88\x01\x01B\a\n" +
 	"\x05_nameB\x0e\n" +
-	"\f_description\"<\n" +
+	"\f_descriptionB\x15\n" +
+	"\x13_log_retention_daysB\x17\n" +
+	"\x15_trace_retention_daysB\x18\n" +
+	"\x16_metric_retention_days\"<\n" +
 	"\x17UpdateWorkspaceResponse\x12!\n" +
 	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"u\n" +
 	"\x16DeleteWorkspaceRequest\x12+\n" +
@@ -1247,7 +1364,16 @@ const file_loco_workspace_v1_workspace_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x8c\x01\n" +
 	"\x1cListWorkspaceMembersResponse\x12D\n" +
 	"\amembers\x18\x01 \x03(\v2*.loco.workspace.v1.WorkspaceMemberWithUserR\amembers\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2\xcf\a\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa5\x01\n" +
+	"\rRetentionDays\x12\x1e\n" +
+	"\blog_days\x18\x01 \x01(\x05H\x00R\alogDays\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"trace_days\x18\x02 \x01(\x05H\x01R\ttraceDays\x88\x01\x01\x12$\n" +
+	"\vmetric_days\x18\x03 \x01(\x05H\x02R\n" +
+	"metricDays\x88\x01\x01B\v\n" +
+	"\t_log_daysB\r\n" +
+	"\v_trace_daysB\x0e\n" +
+	"\f_metric_days2\xcf\a\n" +
 	"\x10WorkspaceService\x12h\n" +
 	"\x0fCreateWorkspace\x12).loco.workspace.v1.CreateWorkspaceRequest\x1a*.loco.workspace.v1.CreateWorkspaceResponse\x12_\n" +
 	"\fGetWorkspace\x12&.loco.workspace.v1.GetWorkspaceRequest\x1a'.loco.workspace.v1.GetWorkspaceResponse\x12h\n" +
@@ -1271,7 +1397,7 @@ func file_loco_workspace_v1_workspace_proto_rawDescGZIP() []byte {
 	return file_loco_workspace_v1_workspace_proto_rawDescData
 }
 
-var file_loco_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_loco_workspace_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_loco_workspace_v1_workspace_proto_goTypes = []any{
 	(*Workspace)(nil),                    // 0: loco.workspace.v1.Workspace
 	(*WorkspaceMemberWithUser)(nil),      // 1: loco.workspace.v1.WorkspaceMemberWithUser
@@ -1293,39 +1419,42 @@ var file_loco_workspace_v1_workspace_proto_goTypes = []any{
 	(*DeleteMemberResponse)(nil),         // 17: loco.workspace.v1.DeleteMemberResponse
 	(*ListWorkspaceMembersRequest)(nil),  // 18: loco.workspace.v1.ListWorkspaceMembersRequest
 	(*ListWorkspaceMembersResponse)(nil), // 19: loco.workspace.v1.ListWorkspaceMembersResponse
-	(*timestamppb.Timestamp)(nil),        // 20: google.protobuf.Timestamp
+	(*RetentionDays)(nil),                // 20: loco.workspace.v1.RetentionDays
+	(*timestamppb.Timestamp)(nil),        // 21: google.protobuf.Timestamp
 }
 var file_loco_workspace_v1_workspace_proto_depIdxs = []int32{
-	20, // 0: loco.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	20, // 1: loco.workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 2: loco.workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
-	0,  // 4: loco.workspace.v1.ListUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	0,  // 5: loco.workspace.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
-	1,  // 6: loco.workspace.v1.ListWorkspaceMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
-	2,  // 7: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
-	4,  // 8: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
-	10, // 9: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
-	12, // 10: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
-	6,  // 11: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:input_type -> loco.workspace.v1.ListUserWorkspacesRequest
-	8,  // 12: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:input_type -> loco.workspace.v1.ListOrgWorkspacesRequest
-	14, // 13: loco.workspace.v1.WorkspaceService.CreateMember:input_type -> loco.workspace.v1.CreateMemberRequest
-	16, // 14: loco.workspace.v1.WorkspaceService.DeleteMember:input_type -> loco.workspace.v1.DeleteMemberRequest
-	18, // 15: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:input_type -> loco.workspace.v1.ListWorkspaceMembersRequest
-	3,  // 16: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
-	5,  // 17: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
-	11, // 18: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
-	13, // 19: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
-	7,  // 20: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:output_type -> loco.workspace.v1.ListUserWorkspacesResponse
-	9,  // 21: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:output_type -> loco.workspace.v1.ListOrgWorkspacesResponse
-	15, // 22: loco.workspace.v1.WorkspaceService.CreateMember:output_type -> loco.workspace.v1.CreateMemberResponse
-	17, // 23: loco.workspace.v1.WorkspaceService.DeleteMember:output_type -> loco.workspace.v1.DeleteMemberResponse
-	19, // 24: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:output_type -> loco.workspace.v1.ListWorkspaceMembersResponse
-	16, // [16:25] is the sub-list for method output_type
-	7,  // [7:16] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	21, // 0: loco.workspace.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	21, // 1: loco.workspace.v1.Workspace.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 2: loco.workspace.v1.Workspace.retention:type_name -> loco.workspace.v1.RetentionDays
+	20, // 3: loco.workspace.v1.Workspace.effective_retention:type_name -> loco.workspace.v1.RetentionDays
+	21, // 4: loco.workspace.v1.WorkspaceMemberWithUser.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 5: loco.workspace.v1.GetWorkspaceResponse.workspace:type_name -> loco.workspace.v1.Workspace
+	0,  // 6: loco.workspace.v1.ListUserWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
+	0,  // 7: loco.workspace.v1.ListOrgWorkspacesResponse.workspaces:type_name -> loco.workspace.v1.Workspace
+	1,  // 8: loco.workspace.v1.ListWorkspaceMembersResponse.members:type_name -> loco.workspace.v1.WorkspaceMemberWithUser
+	2,  // 9: loco.workspace.v1.WorkspaceService.CreateWorkspace:input_type -> loco.workspace.v1.CreateWorkspaceRequest
+	4,  // 10: loco.workspace.v1.WorkspaceService.GetWorkspace:input_type -> loco.workspace.v1.GetWorkspaceRequest
+	10, // 11: loco.workspace.v1.WorkspaceService.UpdateWorkspace:input_type -> loco.workspace.v1.UpdateWorkspaceRequest
+	12, // 12: loco.workspace.v1.WorkspaceService.DeleteWorkspace:input_type -> loco.workspace.v1.DeleteWorkspaceRequest
+	6,  // 13: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:input_type -> loco.workspace.v1.ListUserWorkspacesRequest
+	8,  // 14: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:input_type -> loco.workspace.v1.ListOrgWorkspacesRequest
+	14, // 15: loco.workspace.v1.WorkspaceService.CreateMember:input_type -> loco.workspace.v1.CreateMemberRequest
+	16, // 16: loco.workspace.v1.WorkspaceService.DeleteMember:input_type -> loco.workspace.v1.DeleteMemberRequest
+	18, // 17: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:input_type -> loco.workspace.v1.ListWorkspaceMembersRequest
+	3,  // 18: loco.workspace.v1.WorkspaceService.CreateWorkspace:output_type -> loco.workspace.v1.CreateWorkspaceResponse
+	5,  // 19: loco.workspace.v1.WorkspaceService.GetWorkspace:output_type -> loco.workspace.v1.GetWorkspaceResponse
+	11, // 20: loco.workspace.v1.WorkspaceService.UpdateWorkspace:output_type -> loco.workspace.v1.UpdateWorkspaceResponse
+	13, // 21: loco.workspace.v1.WorkspaceService.DeleteWorkspace:output_type -> loco.workspace.v1.DeleteWorkspaceResponse
+	7,  // 22: loco.workspace.v1.WorkspaceService.ListUserWorkspaces:output_type -> loco.workspace.v1.ListUserWorkspacesResponse
+	9,  // 23: loco.workspace.v1.WorkspaceService.ListOrgWorkspaces:output_type -> loco.workspace.v1.ListOrgWorkspacesResponse
+	15, // 24: loco.workspace.v1.WorkspaceService.CreateMember:output_type -> loco.workspace.v1.CreateMemberResponse
+	17, // 25: loco.workspace.v1.WorkspaceService.DeleteMember:output_type -> loco.workspace.v1.DeleteMemberResponse
+	19, // 26: loco.workspace.v1.WorkspaceService.ListWorkspaceMembers:output_type -> loco.workspace.v1.ListWorkspaceMembersResponse
+	18, // [18:27] is the sub-list for method output_type
+	9,  // [9:18] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_loco_workspace_v1_workspace_proto_init() }
@@ -1335,13 +1464,14 @@ func file_loco_workspace_v1_workspace_proto_init() {
 	}
 	file_loco_workspace_v1_workspace_proto_msgTypes[2].OneofWrappers = []any{}
 	file_loco_workspace_v1_workspace_proto_msgTypes[10].OneofWrappers = []any{}
+	file_loco_workspace_v1_workspace_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_workspace_v1_workspace_proto_rawDesc), len(file_loco_workspace_v1_workspace_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
