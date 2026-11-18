@@ -224,6 +224,56 @@ def shell_navigation(page):
     page.emulate_media(reduced_motion="no-preference")
 
 
+def activity_deployments(page):
+    def deployment(id, status, minutes, **extra):
+        return {
+            "id": id,
+            "resourceId": resource,
+            "region": "us-east-1",
+            "status": status,
+            "desiredReplicas": 1,
+            "createdAt": stamp(timedelta(minutes=minutes)),
+            **extra,
+        }
+
+    finished = datetime.now(UTC) - timedelta(minutes=7)
+    deployments = [
+        deployment(
+            "00000000-0000-7000-8000-000000000001",
+            "DEPLOYMENT_STATUS_RUNNING",
+            8,
+            createdAt=(finished - timedelta(minutes=1))
+            .isoformat()
+            .replace("+00:00", "Z"),
+            completedAt=finished.isoformat().replace("+00:00", "Z"),
+            replicas=[{"ready": True}],
+        ),
+        deployment(
+            "00000000-0000-7000-8000-000000000002", "DEPLOYMENT_STATUS_DEPLOYING", 1
+        ),
+    ]
+    page.route(
+        "**/loco.deployment.v1.DeploymentService/ListDeployments",
+        lambda route: route.fulfill(json={"deployments": deployments}),
+    )
+    page.goto(state["ui_url"] + base + "?env=production")
+    activity = page.get_by_role("button", name="Activity, 0 active", exact=True)
+    activity.click()
+    drawer = page.get_by_role("dialog", name="Activity", exact=True)
+    cards = drawer.get_by_role("listitem")
+    expect(cards).to_have_count(2)
+    expect(cards.nth(0)).to_contain_text("Deploying")
+    expect(cards.nth(0)).to_contain_text("Deploy replicas")
+    expect(cards.nth(1)).to_contain_text("Deployed")
+    expect(cards.nth(1)).to_contain_text("1 of 1 ready")
+    expect(cards.nth(1)).to_contain_text(re.compile(r"took 1:00 · 7m ago"))
+    expect(
+        cards.nth(0).get_by_role("link", name="Open controls-pilot", exact=True)
+    ).to_be_visible()
+    page.keyboard.press("Escape")
+    page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
+
+
 def log_levels(page):
     page.goto(
         state["ui_url"]
@@ -1116,6 +1166,7 @@ with session(out) as browser:
             )
             for check in (
                 shell_navigation,
+                activity_deployments,
                 log_levels,
                 log_paging,
                 live_focus,
