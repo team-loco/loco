@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,7 +16,6 @@ import (
 
 	"github.com/team-loco/loco/api/auth"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/tvm"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -39,7 +37,6 @@ type WebAuth struct {
 }
 
 type webLogin struct {
-	Binding    string `json:"binding"`
 	Nonce      string `json:"nonce"`
 	Verifier   string `json:"verifier"`
 	RedirectTo string `json:"redirectTo"`
@@ -58,9 +55,9 @@ func (s *AuthServer) StartWebLogin(
 	if path != "" && !validWebReturnPath(path) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, "return path must be relative to the dashboard")
 	}
-	state := bearer.New("")
+	state, binding := bearer.New(""), bearer.New("")
 	login := webLogin{
-		Binding: bearer.New(""), Nonce: bearer.New(""), Verifier: oauth2.GenerateVerifier(), RedirectTo: path,
+		Nonce: bearer.New(""), Verifier: oauth2.GenerateVerifier(), RedirectTo: path,
 	}
 	destination, err := s.web.Provider.AuthorizationURL(ctx, state, login.Nonce, login.Verifier, req.GetLoginHint())
 	if err != nil {
@@ -71,13 +68,13 @@ func (s *AuthServer) StartWebLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode dashboard login: %w", err)
 	}
-	if err := s.cache.Set(ctx, webLoginKey(state), data, webLoginTTL); err != nil {
+	if err := s.cache.Set(ctx, webLoginKey(state, binding), data, webLoginTTL); err != nil {
 		return nil, authStoreUnavailable(err)
 	}
 	s.web.Cookies.Set(
 		info.ResponseHeader(),
 		auth.WebLoginCookie,
-		login.Binding,
+		binding,
 		s.now().Add(webLoginTTL),
 		http.SameSiteLaxMode,
 	)
@@ -96,14 +93,19 @@ func (s *AuthServer) CompleteWebLogin(
 	if err != nil {
 		return nil, webSignInError(err)
 	}
-	if len(callback[webLoginState]) != 1 || callback.Get(webLoginState) == "" {
+	state := callback.Get(webLoginState)
+	binding := s.web.Cookies.Read(info.RequestHeader(), auth.WebLoginCookie)
+	if len(callback[webLoginState]) != 1 || state == "" || binding == "" {
 		return nil, webSignInError(errInvalidWebLogin)
 	}
 
-	binding := s.web.Cookies.Read(info.RequestHeader(), auth.WebLoginCookie)
-	login, err := s.takeWebLogin(ctx, callback.Get(webLoginState), binding)
+	var login webLogin
+	found, err := s.take(ctx, webLoginKey(state, binding), &login)
 	if err != nil {
-		return nil, err
+		return nil, authStoreUnavailable(err)
+	}
+	if !found {
+		return nil, webSignInError(errInvalidWebLogin)
 	}
 	if len(callback["code"]) != 1 || callback.Get("code") == "" || callback.Has("error") {
 		return nil, webSignInError(errInvalidWebLogin)
@@ -201,37 +203,6 @@ func (s *AuthServer) webCallInfo(ctx context.Context) (*connect.CallInfo, error)
 	return info, nil
 }
 
-func (s *AuthServer) takeWebLogin(ctx context.Context, state, binding string) (webLogin, error) {
-	if binding == "" {
-		return webLogin{}, webSignInError(errInvalidWebLogin)
-	}
-	key := webLoginKey(state)
-	data, err := s.cache.Get(ctx, key)
-	if errors.Is(err, cache.ErrNotFound) {
-		return webLogin{}, webSignInError(errInvalidWebLogin)
-	}
-	if err != nil {
-		return webLogin{}, authStoreUnavailable(err)
-	}
-	var login webLogin
-	if decodeErr := json.Unmarshal(data, &login); decodeErr != nil {
-		return webLogin{}, fmt.Errorf("decode dashboard login: %w", decodeErr)
-	}
-	if subtle.ConstantTimeCompare([]byte(login.Binding), []byte(binding)) != 1 {
-		return webLogin{}, webSignInError(errInvalidWebLogin)
-	}
-	// The compare runs before the atomic removal so a request without the
-	// binding cookie cannot consume a pending login.
-	taken, err := s.cache.Take(ctx, key)
-	if err != nil {
-		return webLogin{}, authStoreUnavailable(err)
-	}
-	if !taken {
-		return webLogin{}, webSignInError(errInvalidWebLogin)
-	}
-	return login, nil
-}
-
 func (s *AuthServer) issueWebSession(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -273,8 +244,9 @@ func webSignInError(err error) error {
 	return connect.NewError(connect.CodeUnauthenticated, "Could not sign you in").WithCause(err)
 }
 
-func webLoginKey(state string) string {
-	return "web:login:" + bearer.Hash(state)
+func webLoginKey(state, binding string) string {
+	// Both values are required to consume the pending login.
+	return "web:login:" + bearer.Hash(state) + ":" + bearer.Hash(binding)
 }
 
 func validWebReturnPath(path string) bool {

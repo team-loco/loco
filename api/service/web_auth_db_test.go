@@ -186,6 +186,13 @@ func TestWebLoginRequiresBoundSingleUseStateAndNonce(t *testing.T) {
 		t.Fatalf("callback without binding: %v", err)
 	}
 
+	wrongBinding := *binding
+	wrongBinding.Value = "wrong-browser"
+	ctx, _ = webCall(t, &wrongBinding)
+	if _, err := f.client.CompleteWebLogin(ctx, callback); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("callback with wrong binding: %v", err)
+	}
+
 	ctx, info := webCall(t, binding)
 	signedIn, err := f.client.CompleteWebLogin(ctx, callback)
 	if err != nil {
