@@ -34,7 +34,7 @@ type WebProvider struct {
 
 func ValidateWebURL(raw string) error {
 	u, err := url.Parse(raw)
-	if err != nil || !isWebEndpoint(u) || u.User != nil ||
+	if err != nil || webOrigin(u) == "" || u.User != nil ||
 		u.RawQuery != "" || u.ForceQuery || strings.Contains(raw, "#") || (u.EscapedPath() != "" && u.EscapedPath() != "/") {
 		return errInvalidWebURL
 	}
@@ -42,7 +42,10 @@ func ValidateWebURL(raw string) error {
 }
 
 func NewWebProvider(client *http.Client, verifier *Verifier, issuer IssuerConfig, webURL string) *WebProvider {
-	origin, _ := url.Parse(webURL) // Validated at startup.
+	origin, err := url.Parse(webURL)
+	if err != nil {
+		panic(errInvalidWebURL)
+	}
 	return &WebProvider{
 		client: client, verifier: verifier, issuer: issuer, origin: webOrigin(origin),
 		redirectURI: strings.TrimSuffix(webURL, "/") + webCallbackPath,
@@ -112,7 +115,7 @@ func (p *WebProvider) oauthConfig(ctx context.Context) (*oauth2.Config, error) {
 	endpoint := provider.Endpoint()
 	for _, raw := range []string{endpoint.AuthURL, endpoint.TokenURL} {
 		u, err := url.Parse(raw)
-		if err != nil || !isWebEndpoint(u) || u.User != nil || u.Fragment != "" {
+		if err != nil || webOrigin(u) == "" || u.User != nil || u.Fragment != "" {
 			return nil, errors.New("provider discovery contains an invalid OAuth endpoint")
 		}
 	}
@@ -142,8 +145,4 @@ func (p *WebProvider) oauthConfig(ctx context.Context) (*oauth2.Config, error) {
 		Endpoint: endpoint, RedirectURL: p.redirectURI, Scopes: scopes,
 	}
 	return p.config, nil
-}
-
-func isWebEndpoint(u *url.URL) bool {
-	return (u.Scheme == "https" || u.Scheme == "http") && u.Hostname() != ""
 }

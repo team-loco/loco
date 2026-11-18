@@ -95,7 +95,8 @@ func newWebAuthFixture(t *testing.T) *webAuthFixture {
 		t.Fatal(err)
 	}
 	issuers, err := auth.ParseIssuers(
-		`[{"issuer":"` + issuerURL + `","audience":"authenticated","web":{"clientId":"dashboard","scopes":"openid email offline_access"}}]`,
+		`[{"issuer":"` + issuerURL + `","audience":"authenticated",` +
+			`"web":{"clientId":"dashboard","scopes":"openid email offline_access"}}]`,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -163,14 +164,14 @@ func (f *webAuthFixture) start(t *testing.T, code string) (*authv1.CompleteWebLo
 	}
 	values := authorization.Query()
 	if values.Get("code_challenge_method") != "S256" || values.Get("code_challenge") == "" ||
-		values.Get("nonce") == "" || values.Get("state") == "" ||
+		values.Get("nonce") == "" || values.Get(webLoginState) == "" ||
 		values.Get("login_hint") != dashboardEmail || values.Get("scope") != "openid email" {
 		t.Fatal("incorrect authorization parameters")
 	}
 	f.OIDC.mu.Lock()
 	f.OIDC.challenge, f.OIDC.nonce = values.Get("code_challenge"), values.Get("nonce")
 	f.OIDC.mu.Unlock()
-	callback := url.Values{"code": {code}, "state": {values.Get("state")}}
+	callback := url.Values{"code": {code}, webLoginState: {values.Get(webLoginState)}}
 	return &authv1.CompleteWebLoginRequest{CallbackUrl: dashboardOrigin + "/auth/callback?" + callback.Encode()},
 		responseCookie(t, info, auth.WebLoginCookie)
 }

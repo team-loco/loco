@@ -26,6 +26,7 @@ import (
 
 const (
 	webLoginTTL     = 5 * time.Minute
+	webLoginState   = "state"
 	userAgentHeader = "User-Agent"
 )
 
@@ -38,10 +39,10 @@ type WebAuth struct {
 }
 
 type webLogin struct {
-	Binding    string
-	Nonce      string
-	Verifier   string
-	RedirectTo string
+	Binding    string `json:"binding"`
+	Nonce      string `json:"nonce"`
+	Verifier   string `json:"verifier"`
+	RedirectTo string `json:"redirectTo"`
 }
 
 func (s *AuthServer) StartWebLogin(
@@ -95,12 +96,12 @@ func (s *AuthServer) CompleteWebLogin(
 	if err != nil {
 		return nil, webSignInError(err)
 	}
-	if len(callback["state"]) != 1 || callback.Get("state") == "" {
+	if len(callback[webLoginState]) != 1 || callback.Get(webLoginState) == "" {
 		return nil, webSignInError(errInvalidWebLogin)
 	}
 
 	binding := s.web.Cookies.Read(info.RequestHeader(), auth.WebLoginCookie)
-	login, err := s.takeWebLogin(ctx, callback.Get("state"), binding)
+	login, err := s.takeWebLogin(ctx, callback.Get(webLoginState), binding)
 	if err != nil {
 		return nil, err
 	}
@@ -213,8 +214,8 @@ func (s *AuthServer) takeWebLogin(ctx context.Context, state, binding string) (w
 		return webLogin{}, authStoreUnavailable(err)
 	}
 	var login webLogin
-	if err := json.Unmarshal(data, &login); err != nil {
-		return webLogin{}, fmt.Errorf("decode dashboard login: %w", err)
+	if decodeErr := json.Unmarshal(data, &login); decodeErr != nil {
+		return webLogin{}, fmt.Errorf("decode dashboard login: %w", decodeErr)
 	}
 	if subtle.ConstantTimeCompare([]byte(login.Binding), []byte(binding)) != 1 {
 		return webLogin{}, webSignInError(errInvalidWebLogin)
