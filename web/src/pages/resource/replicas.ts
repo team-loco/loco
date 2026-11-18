@@ -44,10 +44,15 @@ export function podUsage(series: readonly MetricSeries[], nowMs: number): Map<st
 	const usage = new Map<string, number>();
 	for (const s of series) {
 		const pod = s.labels[POD_LABEL];
-		const last = s.points.at(-1);
-		const at = maybeTsMs(last?.timestamp);
-		if (pod === undefined || last === undefined || at === undefined || nowMs - at > USAGE_FRESH_MS) continue;
-		usage.set(pod, last.value);
+		if (pod === undefined) continue;
+		let newestMs = nowMs - USAGE_FRESH_MS;
+		for (const point of s.points) {
+			const at = maybeTsMs(point.timestamp);
+			if (at !== undefined && at >= newestMs) {
+				newestMs = at;
+				usage.set(pod, point.value);
+			}
+		}
 	}
 	return usage;
 }
