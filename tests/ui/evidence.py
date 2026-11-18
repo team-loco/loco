@@ -873,6 +873,7 @@ def start_state(*, ref, name, scenario, issuer=None):
     openbao = os.environ.get(OPENBAO_ENV)
     if not openbao:
         check_ref_worktree(repo, ref)
+    scenario_path = str(Path(scenario).resolve())
     scenario = json.loads(Path(scenario).read_text())
     run_id = f"{name}-{secrets.token_hex(4)}"
     root = BASE_DIR / run_id
@@ -882,6 +883,7 @@ def start_state(*, ref, name, scenario, issuer=None):
         "id": run_id,
         "name": name,
         "ref": ref,
+        "scenario": scenario_path,
         "root": str(root),
         "pids": [],
     }
@@ -1370,6 +1372,8 @@ def cmd_shoot(args):
     shots = validate_spec(json.loads(Path(args.spec).read_text()))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    manifest_path = out / ".scenarios.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
     run([sys.executable, "-m", "playwright", "install", "chromium"], capture=True)
     written, failures = [], []
     with sync_playwright() as playwright:
@@ -1381,13 +1385,22 @@ def cmd_shoot(args):
                     target = out / shot_filename(
                         shot["name"], state["name"], theme, narrow
                     )
+                    owner = manifest.get(target.name, state["scenario"])
+                    if target.exists() and owner != state["scenario"]:
+                        failures.append(
+                            f"{target.name}: written by scenario {owner}; "
+                            "shoot this run into another --out"
+                        )
+                        continue
                     target.unlink(missing_ok=True)
                     try:
                         capture(browser, state, shot, theme, narrow, target)
                         written.append(target)
+                        manifest[target.name] = state["scenario"]
                     except EvidenceError as err:
                         failures.append(f"{target.name}: {err}")
         browser.close()
+    write_json(manifest_path, manifest)
     for path in written:
         print(f"{path}\t{path.stat().st_size} bytes")
     for failure in failures:

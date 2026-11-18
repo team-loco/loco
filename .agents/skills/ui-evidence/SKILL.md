@@ -92,7 +92,8 @@ mise exec -- uv run --script "$E" <command>
    mise exec -- uv run --script "$E" shoot --state "$after" --spec "$capture/shots.json" --out "$capture/evidence"
    ```
 
-   Files are `<shot>-<before|after>-<light|dark>[-narrow].png`. `shoot` exits non-zero and
+   Files are `<shot>-<before|after>-<light|dark>[-narrow].png`. `shoot` refuses to overwrite a
+   file that a run with another scenario wrote into the same `--out`. It also exits non-zero and
    saves nothing for a shot whose selector is missing or whose theme did not apply. Fix the spec
    or the scenario; never keep a shot that shows the wrong screen.
 5. Open every PNG with Read and check it shows what the shot claims.
