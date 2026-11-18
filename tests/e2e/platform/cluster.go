@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	"slices"
-	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/team-loco/loco/internal/testres"
 )
 
 // Cluster is the kind cluster of a run and the commands its tests run against it. A shard that
@@ -33,6 +33,8 @@ type Cluster struct {
 	clusterReused bool
 	// dockerHubMirror is the address of a registry mirroring Docker Hub, which CI serves from its cache.
 	dockerHubMirror string
+	// lease records every container, compose project and cluster of the run, and its ports.
+	lease *testres.Lease
 }
 
 // NewCluster reads the run's configuration for a shard. It starts nothing.
@@ -65,11 +67,31 @@ func NewCluster(shard string) *Cluster {
 	return c
 }
 
+// claim takes the run's lease in the machine's test-resource registry, owned by the run's
+// directory, and releases the leftovers of runs whose owner is gone.
+func (c *Cluster) claim() error {
+	if err := mkdirReadable(c.dir); err != nil {
+		return err
+	}
+	registry, err := testres.Default()
+	if err != nil {
+		return err
+	}
+	c.lease, err = registry.Claim(context.Background(), c.run, testres.Owner{Path: c.dir})
+	return err
+}
+
 // Run creates or reuses the kind cluster, runs setup and the package's tests, and deletes the
 // cluster, or leaves it running with E2E_KEEP. It returns the exit code.
 func (c *Cluster) Run(m *testing.M, setup func(ctx context.Context) error) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if c.lease == nil {
+		if err := c.claim(); err != nil {
+			logf("claim the lease of run %s: %v", c.run, err)
+			return 1
+		}
+	}
 	if envBool("E2E_TEARDOWN_ONLY") {
 		return c.teardown(ctx, 0)
 	}
@@ -85,10 +107,6 @@ func (c *Cluster) Run(m *testing.M, setup func(ctx context.Context) error) int {
 func (c *Cluster) runTests(ctx context.Context, m *testing.M, setup func(ctx context.Context) error) int {
 	setupCtx, cancel := context.WithTimeout(ctx, setupTimeout)
 	defer cancel()
-	if err := mkdirReadable(c.dir); err != nil {
-		logf("setup of run %s failed: %v", c.run, err)
-		return 1
-	}
 	if err := c.setupKind(setupCtx); err != nil {
 		logf("setup of run %s failed: %v", c.run, err)
 		c.dumpCluster(ctx)
@@ -109,28 +127,20 @@ func (c *Cluster) runTests(ctx context.Context, m *testing.M, setup func(ctx con
 }
 
 func (c *Cluster) teardown(ctx context.Context, code int) int {
-	err := c.deleteCluster(ctx)
-	if err == nil {
-		err = os.RemoveAll(c.dir)
-	}
-	if err != nil {
+	if err := c.release(ctx); err != nil {
 		logf("teardown: %v", err)
 		return 1
 	}
 	return code
 }
 
-func (c *Cluster) deleteCluster(ctx context.Context) error {
+// release removes everything the run's lease records, then the run's directory.
+func (c *Cluster) release(ctx context.Context) error {
 	logf("Tearing down run %s", c.run)
-	clusters, err := c.Command(ctx, "kind", "get", "clusters")
-	if err != nil {
+	if err := c.lease.Release(ctx); err != nil {
 		return err
 	}
-	if !slices.Contains(strings.Fields(clusters), c.cluster) {
-		return nil
-	}
-	_, err = c.Command(ctx, "kind", "delete", "cluster", "--name", c.cluster, "--kubeconfig", c.kubeconfig)
-	return err
+	return os.RemoveAll(c.dir)
 }
 
 // KindCluster is the name of the run's kind cluster.

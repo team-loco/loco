@@ -34,9 +34,6 @@ type Features struct {
 }
 
 const (
-	portRangeStart = 20000
-	portBlocks     = 1000
-	portBlockSize  = 10
 	setupTimeout   = 30 * time.Minute
 	defaultVersion = "e2e"
 )
@@ -110,10 +107,19 @@ type ports struct {
 	api, obsProxy, s3, clickhouse, gateway, apiReplica, otlpGRPC, otlpHTTP, registry, auth int
 }
 
-// New reads the run's configuration for a shard. It starts nothing.
+const portCount = 10
+
+// New reads the run's configuration for a shard, claims its lease and reserves its ports, the
+// same ones for every run of the shard in this worktree. It starts nothing.
 func New(features Features) *Platform {
 	c := NewCluster(features.Name)
-	base := portRangeStart + int(hash(c.run)%portBlocks)*portBlockSize
+	if err := c.claim(); err != nil {
+		panic(fmt.Sprintf("claim the lease of run %s: %v", c.run, err))
+	}
+	reserved, err := c.lease.Ports(context.Background(), portCount)
+	if err != nil {
+		panic(fmt.Sprintf("reserve the ports of run %s: %v", c.run, err))
+	}
 	p := &Platform{
 		Features:       features,
 		Cluster:        c,
@@ -123,8 +129,16 @@ func New(features Features) *Platform {
 		subnet:         os.Getenv("LOCO_TEST_SUBNET"),
 		adminHome:      filepath.Join(c.dir, "admin-home"),
 		ports: ports{
-			api: base, obsProxy: base + 1, s3: base + 2, clickhouse: base + 3, gateway: base + 4,
-			apiReplica: base + 5, otlpGRPC: base + 6, otlpHTTP: base + 7, registry: base + 8, auth: base + 9,
+			api:        reserved[0],
+			obsProxy:   reserved[1],
+			s3:         reserved[2],
+			clickhouse: reserved[3],
+			gateway:    reserved[4],
+			apiReplica: reserved[5],
+			otlpGRPC:   reserved[6],
+			otlpHTTP:   reserved[7],
+			registry:   reserved[8],
+			auth:       reserved[9],
 		},
 	}
 	p.values = readValues(c.root)
