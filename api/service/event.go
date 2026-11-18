@@ -20,7 +20,6 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/reqctx"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/gen/go/loco/event/v1/eventv1connect"
 	"github.com/team-loco/loco/internal/logquery"
@@ -235,6 +234,7 @@ func (s *EventServer) StreamEvents(
 	stream eventv1connect.EventServiceStreamEventsServerStream,
 ) (err error) {
 	var scoped *eventv1.ListEventsRequest
+	var scope eventScope
 	var filter logquery.Expr
 	if req.GetWorkspaceId() != "" {
 		scoped = &eventv1.ListEventsRequest{
@@ -248,6 +248,9 @@ func (s *EventServer) StreamEvents(
 		}
 		filter, err = parseEventFilter(scoped)
 		if err != nil {
+			return err
+		}
+		if scope, err = s.authorizeStreamScope(ctx, scoped); err != nil {
 			return err
 		}
 	} else {
@@ -289,11 +292,6 @@ func (s *EventServer) StreamEvents(
 				genDb.ListEventsAfterParams{AfterPosition: int64(position), MaxRows: streamBatch},
 			)
 		} else {
-			var scope eventScope
-			scope, err = s.authorizeStreamScope(ctx, scoped)
-			if err != nil {
-				return err
-			}
 			query, queryErr := auditQuery(scoped, scope, filter, streamBatch)
 			if queryErr != nil {
 				return queryErr
@@ -314,11 +312,6 @@ func (s *EventServer) StreamEvents(
 		if len(rows) > 0 {
 			batch := make([]*eventv1.Event, len(rows))
 			for i, row := range rows {
-				if scoped != nil {
-					if _, authorizationErr := s.authorizeStreamScope(ctx, scoped); authorizationErr != nil {
-						return authorizationErr
-					}
-				}
 				batch[i] = eventToProto(row)
 			}
 			last := rows[len(rows)-1]
@@ -343,17 +336,6 @@ func (s *EventServer) StreamEvents(
 }
 
 func (s *EventServer) authorizeStreamScope(ctx context.Context, req *eventv1.ListEventsRequest) (eventScope, error) {
-	p, err := principalFrom(ctx)
-	if err != nil {
-		return eventScope{}, err
-	}
-	if p.ActorType == genDb.DeploymentActorTypeUser {
-		p.Scopes, err = s.authz.UserScopes(ctx, p.UserID)
-		if err != nil {
-			return eventScope{}, fmt.Errorf("read stream permissions: %w", err)
-		}
-	}
-	ctx = reqctx.WithPrincipal(ctx, p)
 	workspaceID, err := parseID("workspace_id", req.GetWorkspaceId())
 	if err != nil {
 		return eventScope{}, err

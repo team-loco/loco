@@ -51,6 +51,12 @@ func GuardStream(
 		if err == nil {
 			err = authorize(reqctx.WithPrincipal(ctx, principal))
 		}
+		// Deleting a credential also removes its grants, so a denial can mean the credential is gone.
+		if connect.CodeOf(err) == connect.CodePermissionDenied {
+			if _, readErr := validation.read(ctx); readErr != nil {
+				err = readErr
+			}
+		}
 		// A dependency can cancel its own work while this request remains live.
 		if errors.Is(err, context.Canceled) && ctx.Err() == nil {
 			return connect.NewError(connect.CodeInternal, "stream validation failed").WithCause(err)

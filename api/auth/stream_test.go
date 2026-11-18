@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect/v2"
+
 	"github.com/team-loco/loco/api/reqctx"
 )
 
@@ -42,6 +44,35 @@ func TestGuardStreamEndsIdleStreamsOnCredentialOrPermissionLoss(t *testing.T) {
 				t.Fatalf("stream failure = %v, want access removed", err)
 			}
 		})
+	}
+}
+
+func TestGuardStreamReportsCredentialRemovedDuringPermissionCheck(t *testing.T) {
+	t.Parallel()
+	var removed atomic.Bool
+	gone := connect.NewError(connect.CodeUnauthenticated, "credential removed")
+	ctx := WithStreamValidation(t.Context(), StreamConfig{Interval: time.Millisecond, Timeout: time.Second},
+		func(context.Context) (reqctx.Principal, error) {
+			if removed.Load() {
+				return reqctx.Principal{}, gone
+			}
+			return reqctx.Principal{}, nil
+		})
+	var checks atomic.Int32
+	ctx, stop, err := GuardStream(ctx, func(context.Context) error {
+		if checks.Add(1) == 1 {
+			return nil
+		}
+		// The credential disappears after this check read it.
+		removed.Store(true)
+		return connect.NewError(connect.CodePermissionDenied, "permission denied")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-ctx.Done()
+	if err = stop(); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("stream failure = %v, want unauthenticated", err)
 	}
 }
 
