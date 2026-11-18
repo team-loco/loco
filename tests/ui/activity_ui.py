@@ -6,7 +6,7 @@ import urllib.parse
 from pathlib import Path
 
 from activity_fixture import prepare_activity, verify_activity_access
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -17,10 +17,10 @@ parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/activity-ui"))
 args = parser.parse_args()
 state = load_state(args, "activity_ui", "tests/ui/fixtures/activity/scenario.json")
-activity = prepare_activity(evidence, state)
+activity = prepare_activity(state)
 state["activity"] = activity
 evidence.write_json(Path(args.state), state)
-access = verify_activity_access(evidence, state, activity)
+access = verify_activity_access(state, activity)
 origin = state["ui_url"]
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
@@ -32,10 +32,8 @@ VIEWPORT = {"width": 1440, "height": 1000}
 def check_scoped_user(browser):
     """A member whose only grant is read on one resource sees it on every page without a refused request."""
     rid = activity["resourceId"]
-    owner = state["users"]["owner"]["token"]
-    environments = evidence.rpc(
-        state["api_url"],
-        owner,
+    environments = call(
+        state,
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": activity["workspaceId"]},
     )["environments"]

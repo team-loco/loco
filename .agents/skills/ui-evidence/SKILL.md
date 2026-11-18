@@ -30,7 +30,8 @@ mise exec -- uv run --script "$E" <command>
    Edit the scenario JSON: the users, the organizations each owner creates with their
    workspaces and members, and workspace grants. Start from `scenario.example.json`.
    An optional `resources` list seeds synthetic services. Each entry names a `workspace`
-   (`org/workspace`), a `name` and a non-empty `deployments` list. Each deployment specifies
+   (`org/workspace`), a `name` and a `deployments` list; an entry with a `service` spec
+   creates the service from that spec and may omit `deployments`. Each deployment specifies
    an existing `environment`, `region`, deployment `status`, placement `ready_replicas`
    and a service deployment `spec` with `observability`, an image `build`, `cpu`, `memory`, `minReplicas`,
    `maxReplicas` and optional `port`. Use one deployment per environment and region.
@@ -38,7 +39,8 @@ mise exec -- uv run --script "$E" <command>
    clusters, deployments and placements use SQL without contacting a registry or worker.
    The evidence API uses the two-hour run lease as its heartbeat interval; synthetic clusters
    stay live for six hours after seeding, covering long light/dark and narrow capture batches.
-   The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths.
+   The state file's `resources` maps `org/workspace/name` to resource IDs for shot paths, and
+   `orgs` maps each organization name to its `id` and `owner`.
 2. Write a shot spec JSON. Each shot names a path, an optional user, optional steps
    (`{"click": selector}`, `{"hover": selector}`, `{"wait": selector}`,
    `{"type": {"selector": selector, "text": "value"}}`, `{"press": {"selector": selector, "key": "ArrowLeft"}}`,

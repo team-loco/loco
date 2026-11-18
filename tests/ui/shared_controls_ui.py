@@ -3,11 +3,19 @@ import json
 import math
 import re
 import urllib.parse
-import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session, wait_for_query
+from harness import (
+    call,
+    evidence,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+    wait_for_query,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -22,66 +30,43 @@ state = load_state(
 )
 owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
+org = state["orgs"]["acme"]["id"]
+
+
+def service(cpu="100m"):
+    return {
+        "routing": {"port": 8080},
+        "regions": {
+            "us-east-1": {
+                "enabled": True,
+                "cpu": cpu,
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1,
+            }
+        },
+    }
+
+
 resource = state.get("shared_controls_resource")
 if resource is None:
-    resource = evidence.rpc(
-        state["api_url"],
-        owner["token"],
-        "loco.resource.v1.ResourceService/CreateResource",
-        {
-            "workspaceId": workspace,
-            "name": "controls-pilot",
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {
-                        "us-east-1": {
-                            "enabled": True,
-                            "cpu": "100m",
-                            "memory": "128Mi",
-                            "minReplicas": 1,
-                            "maxReplicas": 1,
-                        }
-                    },
-                }
-            },
-        },
-    )["resourceId"]
+    resource = evidence.seed_resources(
+        state,
+        [{"workspace": "acme/shared", "name": "controls-pilot", "service": service()}],
+    )["acme/shared/controls-pilot"]
     state["shared_controls_resource"] = resource
     evidence.write_json(Path(args.state), state)
 sorted_resources = state.get("controls_resources")
 if sorted_resources is None:
-    sorted_resources = [
-        evidence.rpc(
-            state["api_url"],
-            owner["token"],
-            "loco.resource.v1.ResourceService/CreateResource",
-            {
-                "workspaceId": workspace,
-                "name": name,
-                "type": "RESOURCE_TYPE_SERVICE",
-                "spec": {
-                    "service": {
-                        "routing": {"port": 8080},
-                        "regions": {
-                            "us-east-1": {
-                                "enabled": True,
-                                "cpu": cpu,
-                                "memory": "128Mi",
-                                "minReplicas": 1,
-                                "maxReplicas": 1,
-                            }
-                        },
-                    }
-                },
-            },
-        )["resourceId"]
-        for name, cpu in (("controls-alpha", "100m"), ("controls-zeta", "200m"))
-    ]
+    sorted_resources = list(
+        evidence.seed_resources(
+            state,
+            [
+                {"workspace": "acme/shared", "name": name, "service": service(cpu)}
+                for name, cpu in (("controls-alpha", "100m"), ("controls-zeta", "200m"))
+            ],
+        ).values()
+    )
     state["controls_resources"] = sorted_resources
     evidence.write_json(Path(args.state), state)
 base = f"/org/{org}/wks/{workspace}"
@@ -586,71 +571,42 @@ def volume(page):
 def dashboard(page):
     page.set_viewport_size(evidence.DESKTOP)
     if not state.get("dashboard_resources"):
-        environment = next(
-            e["id"]
-            for e in evidence.rpc(
-                state["api_url"],
-                owner["token"],
-                "loco.environment.v1.EnvironmentService/ListEnvironments",
-                {"workspaceId": workspace},
-            )["environments"]
-            if e["name"] == "production"
-        )
-        cluster = str(uuid.uuid4())
-        sql = [
-            f"INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES (ARRAY['linux/amd64'], '{cluster}','dashboard-pilot','us-east-1','fixture',true,false,'healthy',NOW());"
-        ]
-        for index in range(7):
-            resource_id = evidence.rpc(
-                state["api_url"],
-                owner["token"],
-                "loco.resource.v1.ResourceService/CreateResource",
+        cluster = evidence.seed_cluster(state, "us-east-1", name="dashboard-pilot")
+        evidence.seed_resources(
+            state,
+            [
                 {
-                    "workspaceId": workspace,
+                    "workspace": "acme/shared",
                     "name": f"dashboard-{index}",
-                    "type": "RESOURCE_TYPE_SERVICE",
-                    "spec": {
-                        "service": {
-                            "routing": {"port": 8080},
-                            "regions": {
-                                "us-east-1": {
-                                    "enabled": True,
-                                    "cpu": "100m",
-                                    "memory": "128Mi",
-                                }
+                    "service": service(),
+                    "deployments": [
+                        {
+                            "cluster": cluster,
+                            "environment": "production",
+                            "region": "us-east-1",
+                            "method": "cli",
+                            "spec": {
+                                "platform": "linux/amd64",
+                                "build": {
+                                    "type": "image",
+                                    "image": "example.invalid/dashboard:1",
+                                },
+                                "cpu": f"{(index + 1) * 100}m",
+                                "memory": "128Mi",
+                                "minReplicas": 1,
+                                "maxReplicas": 1,
+                                "port": 8080,
                             },
                         }
-                    },
-                },
-            )["resourceId"]
-            deployment = str(uuid.uuid4())
-            runtime = evidence.sql_literal(
-                json.dumps(
-                    {
-                        "platform": "linux/amd64",
-                        "build": {
-                            "type": "image",
-                            "image": "example.invalid/dashboard:1",
-                        },
-                        "cpu": f"{(index + 1) * 100}m",
-                        "memory": "128Mi",
-                        "minReplicas": 1,
-                        "maxReplicas": 1,
-                        "port": 8080,
-                    }
-                )
-            )
-            sql.append(
-                f"INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES ('user','{owner['id']}','cli','{deployment}','{resource_id}','{cluster}','us-east-1',1,'running',true,'{environment}',{runtime},1,NOW());"
-            )
-            sql.append(
-                f"INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES ('{resource_id}','{cluster}','us-east-1','{deployment}','{environment}','{{}}',1,NOW());"
-            )
-        evidence.psql(state["container"], "\n".join(sql))
+                    ],
+                }
+                for index in range(7)
+            ],
+        )
         state["dashboard_resources"] = True
         evidence.write_json(Path(args.state), state)
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');",
     )
     for color, mode in (
@@ -786,8 +742,8 @@ def dashboard(page):
             "dark" if next_mode == "Dark" else None
         )
         page.keyboard.press("Escape")
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"UPDATE placements SET ready_replicas=48 FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name='dashboard-0';",
     )
     page.reload()
@@ -827,8 +783,8 @@ def token_empty(page):
 
 def limit_display(page):
     user_id = owner["id"]
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"INSERT INTO api_tokens (display_suffix,token_hash,name,entity_type,entity_id,scopes,created_by,expires_at) SELECT 'test','limit-display-' || n,'limit-display-' || n,'user','{user_id}','[]','{user_id}',NOW() - INTERVAL '1 day' FROM generate_series(1,9) n;",
     )
     limit = 11
@@ -900,8 +856,8 @@ def limit_display(page):
                 expect(create).to_be_enabled()
     finally:
         page.unroute(config_url, config)
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"DELETE FROM api_tokens WHERE entity_id='{user_id}' AND name LIKE 'limit-display-%';",
         )
 
@@ -987,9 +943,8 @@ def resources(page):
 
 
 def metrics(page):
-    environments = evidence.rpc(
-        state["api_url"],
-        owner["token"],
+    environments = call(
+        state,
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]

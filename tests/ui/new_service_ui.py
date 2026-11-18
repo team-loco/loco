@@ -6,7 +6,15 @@ from functools import partial
 from pathlib import Path
 from urllib.parse import urlparse
 
-from harness import evidence, load_state, open_page as new_page, repo, session
+from harness import (
+    call,
+    evidence,
+    load_state,
+    open_page as new_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -22,30 +30,37 @@ state = load_state(
     args, "new-service", "tests/ui/fixtures/deployment-history/scenario.json"
 )
 workspace = state["workspaces"]["acme/shared"]
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
+org = state["orgs"]["acme"]["id"]
 suffix = uuid.uuid4().hex[:6]
 platform_domain = "apps.e2e.test"
-evidence.psql(
-    state["container"],
-    f"""UPDATE clusters SET is_active=false WHERE provider='fixture';
-INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat,domains)
-VALUES(ARRAY['linux/amd64'], '{uuid.uuid4()}','new-service-{suffix}','us-east-1','fixture',true,true,'healthy',NOW(),'{{{platform_domain}}}'),
-(ARRAY['linux/amd64'], '{uuid.uuid4()}','degraded-{suffix}','eu-west-1','fixture',true,false,'degraded',NOW(),'{{{platform_domain}}}'),
-(ARRAY['linux/amd64'], '{uuid.uuid4()}','offline-{suffix}','eu-north-1','fixture',true,false,'unhealthy',NOW()-INTERVAL '1 day','{{{platform_domain}}}');""",
+sql(state, "UPDATE clusters SET is_active=false WHERE provider='fixture';")
+clusters = {
+    health: evidence.seed_cluster(
+        state,
+        region,
+        name=f"{health}-{suffix}",
+        domains=[platform_domain],
+        health=health,
+        default=health == "healthy",
+    )
+    for region, health in (
+        ("us-east-1", "healthy"),
+        ("eu-west-1", "degraded"),
+        ("eu-north-1", "unhealthy"),
+    )
+}
+sql(
+    state,
+    f"UPDATE clusters SET last_heartbeat=NOW()-INTERVAL '1 day' WHERE id='{clusters['unhealthy']}';",
 )
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
-production = evidence.psql(
-    state["container"],
+production = sql(
+    state,
     f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';",
 )
-replica_limit = evidence.rpc(
-    state["api_url"],
-    state["users"]["owner"]["token"],
-    "loco.config.v1.ConfigService/GetConfig",
-    {},
-)["sizeLimits"]["maxReplicas"]
+replica_limit = call(state, "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"][
+    "maxReplicas"
+]
 drafts_key = f"loco:drafts:v1:{org}:{workspace}:{production}"
 DRAFT_URL = re.compile(r"/resources\?env=production&draft=[0-9a-f-]+$")
 
@@ -77,7 +92,23 @@ def seeded_draft(name, image):
 
 
 def seed_deployment(body, status, replica_state, detail, problem=None):
-    cluster, deployment, placement = (str(uuid.uuid4()) for _ in range(3))
+    spec = {**body["spec"]["service"], "observability": {"injectOtel": True}}
+    [deployment] = evidence.seed_deployments(
+        state,
+        body["resourceId"],
+        [
+            {
+                "environment": "production",
+                "region": body["region"],
+                "status": status,
+                "spec": spec,
+                "ready_replicas": 0,
+            }
+        ],
+    )
+    placement = sql(
+        state, f"SELECT id FROM placements WHERE deployment_id='{deployment}';"
+    )
     replica = {
         "uid": f"replica-{deployment}",
         "name": "service-new-1",
@@ -88,8 +119,6 @@ def seed_deployment(body, status, replica_state, detail, problem=None):
         "state": replica_state,
         "detail": detail,
     }
-    spec = {**body["spec"]["service"], "observability": {"injectOtel": True}}
-    replicas = spec["minReplicas"]
     snapshot = {"placementId": placement, "replicas": [replica]}
     if problem is not None:
         snapshot["problem"] = {
@@ -97,15 +126,9 @@ def seed_deployment(body, status, replica_state, detail, problem=None):
             "detail": detail,
             "replica_name": replica["name"],
         }
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"""BEGIN;
-INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat)
-VALUES(ARRAY['linux/amd64'], '{cluster}','service-{deployment}','{body["region"]}','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,actor_type,actor_id,method)
-VALUES('{deployment}','{body["resourceId"]}','{cluster}','{body["region"]}',{replicas},'{status}',true,'{body["environmentId"]}',{evidence.sql_literal(json.dumps(spec))},1,'user','{state["users"]["owner"]["id"]}','web');
-INSERT INTO placements(id,resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,applied_revision,observed_revision,status_updated_at)
-VALUES('{placement}','{body["resourceId"]}','{cluster}','{body["region"]}','{deployment}','{body["environmentId"]}','{{}}',1,1,NOW());
 INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
 VALUES('{deployment}',1,{evidence.sql_literal(json.dumps(snapshot))});
 INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message)
@@ -500,13 +523,7 @@ with session(out) as browser:
         "Health check interval: Must be greater than or equal to 1"
     )
     assert not rejected, rejected
-    assert (
-        evidence.psql(
-            state["container"],
-            f"SELECT count(*) FROM resources WHERE name='{name}';",
-        )
-        == "0"
-    )
+    assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
     interval.fill("15")
     expect(drawer.get_by_role("alert")).to_have_count(0)
     creations_before = len(creations)
@@ -525,13 +542,7 @@ with session(out) as browser:
         "Container image: Invalid image reference. Use a repository with a tag or digest."
     )
     assert len(creations) == creations_before, creations
-    assert (
-        evidence.psql(
-            state["container"],
-            f"SELECT count(*) FROM resources WHERE name='{name}';",
-        )
-        == "0"
-    )
+    assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
     assert stored_drafts(page) == [name], stored_drafts(page)
     assert not order, order
 
@@ -580,13 +591,7 @@ with session(out) as browser:
     expect(drawer.get_by_role("link", name="Open resource", exact=True)).to_have_count(
         0
     )
-    assert (
-        evidence.psql(
-            state["container"],
-            f"SELECT count(*) FROM resources WHERE name='{name}';",
-        )
-        == "0"
-    )
+    assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
     assert stored_drafts(page) == [name], stored_drafts(page)
     page.unroute(
         "**/loco.deployment.v1.DeploymentService/CreateDeployment",
@@ -617,14 +622,9 @@ with session(out) as browser:
     assert stored_drafts(page) == [name], stored_drafts(page)
     page.unroute("**/loco.secret.v1.SecretService/SetSecrets")
     page.unroute("**/loco.resource.v1.ResourceService/DeleteResource")
-    orphan = evidence.psql(
-        state["container"], f"SELECT id FROM resources WHERE name='{name}';"
-    )
-    evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        "loco.resource.v1.ResourceService/DeleteResource",
-        {"resourceId": orphan},
+    orphan = sql(state, f"SELECT id FROM resources WHERE name='{name}';")
+    call(
+        state, "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan}
     )
     drawer.get_by_role("button", name="Close", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
@@ -654,18 +654,9 @@ with session(out) as browser:
         f"() => localStorage.getItem({json.dumps(drafts_key)}) === null"
     )
     resource = urlparse(page.url).path.rsplit("/", 1)[-1]
+    assert sql(state, f"SELECT name FROM resources WHERE id='{resource}';") == name
     assert (
-        evidence.psql(
-            state["container"],
-            f"SELECT name FROM resources WHERE id='{resource}';",
-        )
-        == name
-    )
-    assert (
-        evidence.psql(
-            state["container"],
-            f"SELECT description FROM resources WHERE id='{resource}';",
-        )
+        sql(state, f"SELECT description FROM resources WHERE id='{resource}';")
         == "Takes checkout payments"
     )
     assert [(d["resourceId"], d["region"]) for d in deployments] == [
@@ -688,9 +679,8 @@ with session(out) as browser:
         ("SetSecrets", resource),
         ("CreateDeployment", resource),
     ], order
-    names = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
+    names = call(
+        state,
         "loco.secret.v1.SecretService/ListSecrets",
         {"resourceId": resource, "environmentId": production},
     )
@@ -702,8 +692,8 @@ with session(out) as browser:
         check["timeoutSeconds"],
         check["failureThreshold"],
     ) == (health_path, 15, 4, 6), check
-    domain = evidence.psql(
-        state["container"],
+    domain = sql(
+        state,
         f"SELECT subdomain_label || '.' || platform_domain FROM resource_domains WHERE resource_id='{resource}';",
     )
     assert domain == f"{name}.{platform_domain}", domain
@@ -890,9 +880,8 @@ with session(out) as browser:
         ]
         assert all(body["environmentId"] == production for body in regional_requests)
         resource = urlparse(page.url).path.rsplit("/", 1)[-1]
-        assert evidence.psql(
-            state["container"],
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}';",
+        assert sql(
+            state, f"SELECT count(*) FROM deployments WHERE resource_id='{resource}';"
         ) == ("1" if partial_failure else "2")
         assert not errors, errors
         context.close()

@@ -6,7 +6,7 @@ import time
 import urllib.parse
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session, wait_for_query
+from harness import call, load_state, open_page, repo, session, wait_for_query
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -17,13 +17,7 @@ parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/trace-ui"))
 args = parser.parse_args()
 state = load_state(args, "trace_ui", "tests/ui/fixtures/trace.json")
-orgs = evidence.rpc(
-    state["api_url"],
-    state["users"]["owner"]["token"],
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": state["users"]["owner"]["id"], "pageSize": 200},
-)
-org_id = orgs["orgs"][0]["id"]
+org_id = state["orgs"]["acme"]["id"]
 workspace_id = state["workspaces"]["acme/shared"]
 base = f"/org/{org_id}/wks/{workspace_id}/observability?view=traces"
 trace = "4bf92f3577b34da6a3ce929d0e0e4736"
@@ -781,12 +775,9 @@ with session(out) as browser:
     expect(
         gone.get_by_role("heading", name="This trace is no longer available")
     ).to_be_visible()
-    limits = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        "loco.org.v1.OrgService/GetOrgLimits",
-        {"orgId": org_id},
-    )["limits"]["limits"]
+    limits = call(state, "loco.org.v1.OrgService/GetOrgLimits", {"orgId": org_id})[
+        "limits"
+    ]["limits"]
     expect(
         gone.get_by_text(
             f"Traces are kept for {limits['traceRetentionDays']} days. It may also have been dropped before it was stored.",
@@ -954,9 +945,8 @@ with session(out) as browser:
     ).to_be_visible()
     context.close()
     mode[0] = "normal"
-    environments = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
+    environments = call(
+        state,
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace_id},
     )["environments"]
@@ -969,9 +959,8 @@ with session(out) as browser:
         None,
     )
     if staging is None:
-        staging = evidence.rpc(
-            state["api_url"],
-            state["users"]["owner"]["token"],
+        staging = call(
+            state,
             "loco.environment.v1.EnvironmentService/CreateEnvironment",
             {
                 "workspaceId": workspace_id,

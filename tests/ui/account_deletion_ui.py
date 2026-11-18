@@ -1,7 +1,7 @@
 import argparse
 import re
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -15,25 +15,18 @@ state = load_state(
 )
 
 
-def call(user, method, body):
-    return evidence.rpc(state["api_url"], state["users"][user]["token"], method, body)
-
-
 def role(caller, org_id, user, value):
     call(
-        caller,
+        state,
         "loco.org.v1.OrgService/SetOrgMemberRole",
-        {
-            "orgId": org_id,
-            "userId": state["users"][user]["id"],
-            "role": value,
-        },
+        {"orgId": org_id, "userId": state["users"][user]["id"], "role": value},
+        user=caller,
     )
 
 
 def token(name, workspace):
     return call(
-        "departing",
+        state,
         "loco.token.v1.TokenService/CreateToken",
         {
             "name": name,
@@ -48,19 +41,12 @@ def token(name, workspace):
                 }
             ],
         },
+        user="departing",
     )["token"]
 
 
-acme = call(
-    "owner",
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": state["users"]["owner"]["id"]},
-)["orgs"][0]["id"]
-private = call(
-    "other",
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": state["users"]["other"]["id"]},
-)["orgs"][0]["id"]
+acme = state["orgs"]["acme"]["id"]
+private = state["orgs"]["private-owner"]["id"]
 shared = state["workspaces"]["acme/shared"]
 private_workspace = state["workspaces"]["private-owner/private-workspace"]
 role("owner", acme, "departing", "ORG_ROLE_ADMIN")
@@ -69,9 +55,10 @@ for index in range(12):
     surviving = token(f"automation-{index:02d}", shared)
 token("private-credential", private_workspace)
 call(
-    "other",
+    state,
     "loco.org.v1.OrgService/RemoveOrgMember",
     {"orgId": private, "userId": state["users"]["departing"]["id"]},
+    user="other",
 )
 
 with session(repo / "tests/ui/out/account-deletion") as browser:
@@ -178,9 +165,7 @@ evidence.rpc(
     "loco.workspace.v1.WorkspaceService/GetWorkspace",
     {"workspaceId": shared},
 )
-call(
-    "owner", "loco.workspace.v1.WorkspaceService/GetWorkspace", {"workspaceId": shared}
-)
+call(state, "loco.workspace.v1.WorkspaceService/GetWorkspace", {"workspaceId": shared})
 print(
     "Account deletion: filtered review, pagination, revoke, stale preview, typed confirmation and surviving automation passed"
 )

@@ -4,7 +4,14 @@ import uuid
 from functools import partial
 from pathlib import Path
 
-from harness import evidence, load_state, open_page as new_page, repo, session
+from harness import (
+    call,
+    evidence,
+    load_state,
+    open_page as new_page,
+    repo,
+    session,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -22,9 +29,7 @@ state = load_state(
 ui = state["ui_url"]
 shared = state["workspaces"]["acme/shared"]
 sibling = state["workspaces"]["acme/sibling"]
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{shared}';"
-)
+org = state["orgs"]["acme"]["id"]
 base = f"{ui}/org/{org}/wks/{shared}"
 WORKSPACE_URL = re.compile(re.escape(base) + r"(\?env=[\w-]+)?$")
 issuer = f"{ui}/dex"
@@ -298,12 +303,7 @@ with session(out) as browser:
     context.close()
 
     other_org_name = f"globex-{uuid.uuid4().hex}"
-    other_org = evidence.rpc(
-        state["api_url"],
-        state["users"]["owner"]["token"],
-        evidence.RPC_CREATE_ORG,
-        {"name": other_org_name},
-    )["orgId"]
+    other_org = call(state, evidence.RPC_CREATE_ORG, {"name": other_org_name})["orgId"]
     context, page, errors = open_page(browser, "owner")
     for path in (
         f"/org/{other_org}/wks/{shared}",

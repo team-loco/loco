@@ -2,7 +2,7 @@ import argparse
 import re
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -14,10 +14,7 @@ parser.add_argument("--out", default=str(repo / "tests/ui/out/webhooks-ui"))
 args = parser.parse_args()
 state = load_state(args, "webhooks-ui", "tests/ui/fixtures/webhooks/scenario.json")
 workspace = state["workspaces"]["acme/shared"]
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
-token = state["users"]["owner"]["token"]
+org = state["orgs"]["acme"]["id"]
 service = "loco.webhook.v1.WebhookService/"
 
 held = []
@@ -31,25 +28,23 @@ def unavailable(route):
     route.fulfill(status=503, json={"code": "unavailable"})
 
 
-def call(method, **body):
-    return evidence.rpc(
-        state["api_url"], token, service + method, {"workspaceId": workspace, **body}
-    )
-
-
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 with session(out) as browser:
     hook = call(
-        "CreateWebhook",
-        url="https://hooks.invalid/loco",
-        eventTypes=["resource.created"],
+        state,
+        service + "CreateWebhook",
+        {
+            "workspaceId": workspace,
+            "url": "https://hooks.invalid/loco",
+            "eventTypes": ["resource.created"],
+        },
     )["webhook"]
     hook_id = hook["id"]
     # Seed runtime records through the real event-to-delivery trigger. Keep pending
     # attempts in the future so the sender does not change fixture statuses.
-    evidence.psql(
-        state["container"],
+    sql(
+        state,
         f"""INSERT INTO events(type,workspace_id,actor_type,created_at)
 SELECT 'resource.created','{workspace}','system',NOW() - n * INTERVAL '1 minute' FROM generate_series(1,31) n;
 UPDATE webhook_deliveries SET status=CASE WHEN mod(event_seq,3)=0 THEN 'failed' WHEN mod(event_seq,3)=1 THEN 'succeeded' ELSE 'pending' END,
@@ -108,14 +103,14 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     all_filter = drawer.get_by_role("button", name=re.compile(r"^All\b"))
     expect(all_filter).to_have_attribute("aria-pressed", "true")
     total_count = int(
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}';",
         )
     )
     failing_count = int(
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"SELECT COUNT(*) FROM webhook_deliveries WHERE webhook_id='{hook_id}' AND (status='failed' OR (status='pending' AND COALESCE(last_error,'')<>''));",
         )
     )
@@ -215,7 +210,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     page.unroute("**/" + service + "UpdateWebhook")
     edit.get_by_role("button", name="Save", exact=True).click()
     expect(edit).not_to_be_visible()
-    updated = call("ListWebhooks")["webhooks"]
+    updated = call(state, service + "ListWebhooks", {"workspaceId": workspace})[
+        "webhooks"
+    ]
     assert (
         next(h for h in updated if h["id"] == hook_id)["url"]
         == "https://hooks.invalid/updated"

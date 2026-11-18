@@ -3,7 +3,7 @@ import json
 import uuid
 from pathlib import Path
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -16,79 +16,50 @@ args = parser.parse_args()
 state = load_state(
     args, "settings-scaling", "tests/ui/fixtures/deployment-history/scenario.json"
 )
-owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
-production = evidence.psql(
-    state["container"],
-    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';",
-)
-defaults = evidence.rpc(
-    state["api_url"], owner["token"], "loco.config.v1.ConfigService/GetConfig", {}
-)["serviceDefaults"]
+org = state["orgs"]["acme"]["id"]
+defaults = call(state, "loco.config.v1.ConfigService/GetConfig", {})["serviceDefaults"]
 regions = ("us-east-1", "eu-west-1")
 source_commit = {"sha": "a" * 40, "dirty": True}
-clusters = {region: str(uuid.uuid4()) for region in regions}
-for region, cluster in clusters.items():
-    evidence.psql(
-        state["container"],
-        f"INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','scaling-{cluster}','{region}','fixture',true,false,'healthy',NOW());",
-    )
+clusters = {region: evidence.seed_cluster(state, region) for region in regions}
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 
 def resource_fixture():
     name = "scaling-" + uuid.uuid4().hex[:8]
-    resource = evidence.rpc(
-        state["api_url"],
-        owner["token"],
-        "loco.resource.v1.ResourceService/CreateResource",
-        {
-            "workspaceId": workspace,
-            "name": name,
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": {
-                "service": {
-                    "routing": {"port": 8080},
-                    "regions": {
-                        region: {
-                            "enabled": True,
-                            "cpu": "100m",
-                            "memory": "128Mi",
-                            "minReplicas": 1,
-                            "maxReplicas": 1,
-                        }
-                        for region in regions
-                    },
-                }
-            },
-        },
-    )["resourceId"]
-    runtime = json.dumps(
-        {
-            "platform": "linux/amd64",
-            "build": {"type": "image", "image": "registry.example.com/app:1"},
-            "cpu": "100m",
-            "memory": "128Mi",
-            "minReplicas": 1,
-            "maxReplicas": 1,
-            "port": 8080,
-            "observability": defaults["observability"],
-        }
+    runtime = {
+        "platform": "linux/amd64",
+        "build": {"type": "image", "image": "registry.example.com/app:1"},
+        "cpu": "100m",
+        "memory": "128Mi",
+        "minReplicas": 1,
+        "maxReplicas": 1,
+        "port": 8080,
+        "observability": defaults["observability"],
+    }
+    resource = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": name,
+                "deployments": [
+                    {
+                        "cluster": cluster,
+                        "environment": "production",
+                        "region": region,
+                        "spec": runtime,
+                    }
+                    for region, cluster in clusters.items()
+                ],
+            }
+        ],
+    )[f"acme/shared/{name}"]
+    sql(
+        state,
+        f"UPDATE deployments SET commit_sha='{source_commit['sha']}', commit_dirty=true WHERE resource_id='{resource}';",
     )
-    for region in regions:
-        deployment = str(uuid.uuid4())
-        cluster = clusters[region]
-        evidence.psql(
-            state["container"],
-            f"""INSERT INTO deployments(actor_type,actor_id,method,commit_sha,commit_dirty,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at)
-VALUES('user','{owner["id"]}','web','{source_commit["sha"]}',true,'{deployment}','{resource}','{cluster}','{region}',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at)
-VALUES('{resource}','{cluster}','{region}','{deployment}','{production}','{{"app_spec":{{}}}}',1,NOW());""",
-        )
     return resource
 
 
@@ -129,8 +100,8 @@ with session(out) as browser:
             # The fixture image has no registry. Store the requested snapshot so the
             # normal read path exercises the saved state without resolving that image.
             runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
-            deployment = evidence.psql(
-                state["container"],
+            deployment = sql(
+                state,
                 f"UPDATE deployments SET spec={runtime} WHERE resource_id='{resource}' AND region='{body['region']}' AND is_active RETURNING id;",
             )
             route.fulfill(json={"deploymentId": deployment})
@@ -175,10 +146,7 @@ with session(out) as browser:
 
     def stored_regions():
         return json.loads(
-            evidence.psql(
-                state["container"],
-                f"SELECT spec FROM resources WHERE id='{resource}';",
-            )
+            sql(state, f"SELECT spec FROM resources WHERE id='{resource}';")
         )["regions"]
 
     def save_and_settle():
@@ -201,8 +169,8 @@ with session(out) as browser:
         expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
         # The API leaves new deployments deploying without a worker; finish them so the
         # next save is not refused as a rollout in progress.
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
         )
 
@@ -228,8 +196,8 @@ with session(out) as browser:
             "cpuTarget": target,
         }
         assert_edits(region, target)
-    commits = evidence.psql(
-        state["container"],
+    commits = sql(
+        state,
         f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;",
     )
     assert commits == f"{source_commit['sha']}:true", commits
@@ -290,8 +258,8 @@ with session(out) as browser:
     save_and_settle()
     expect(sdk).to_be_checked()
     runtime = json.loads(
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"SELECT json_agg(spec) FROM deployments WHERE resource_id='{resource}' AND is_active;",
         )
     )

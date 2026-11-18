@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import evidence, load_state, open_page, repo, session
+from harness import load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -17,14 +17,7 @@ args = parser.parse_args()
 state = load_state(
     args, "settings-labels", "tests/ui/fixtures/settings-labels/scenario.json"
 )
-orgs = evidence.rpc(
-    state["api_url"],
-    state["users"]["owner"]["token"],
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": state["users"]["owner"]["id"]},
-)
-org_ids = {org["name"]: org["id"] for org in orgs["orgs"]}
-org_id = org_ids["acme"]
+org_id = state["orgs"]["acme"]["id"]
 workspace_id = state["workspaces"]["acme/shared"]
 base = f"/org/{org_id}/wks/{workspace_id}/settings"
 out = Path(args.out)
@@ -233,7 +226,7 @@ with session(out) as browser:
                 f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
                 f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
             )
-            beta_id = org_ids["beta"]
+            beta_id = state["orgs"]["beta"]["id"]
             beta_workspace = state["workspaces"]["beta/beta-workspace"]
             org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
             page.route(org_list_rpc, lambda route: route.abort())
@@ -246,7 +239,7 @@ with session(out) as browser:
                 == "beta"
             )
             page.unroute(org_list_rpc)
-            page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
+            page.goto(f"{state['ui_url']}/org/{state['orgs']['empty']['id']}/settings")
             page.wait_for_url(f"{state['ui_url']}/organizations")
             page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
             expect(

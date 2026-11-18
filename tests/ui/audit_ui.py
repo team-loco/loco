@@ -3,7 +3,7 @@ import base64
 import re
 from pathlib import Path
 
-from harness import evidence, load_state, open_page as new_page, repo, session
+from harness import call, evidence, load_state, open_page as new_page, repo, session
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -14,57 +14,39 @@ parser.add_argument("--keep", action="store_true")
 parser.add_argument("--out", default=str(repo / "tests/ui/out/audit-ui"))
 args = parser.parse_args()
 state = load_state(args, "audit", "tests/ui/fixtures/audit/scenario.json")
-api = state["api_url"]
 users = state["users"]
-org = evidence.rpc(
-    api,
-    users["owner"]["token"],
-    "loco.org.v1.OrgService/ListUserOrgs",
-    {"userId": users["owner"]["id"]},
-)["orgs"][0]["id"]
+org = state["orgs"]["acme"]["id"]
 shared = state["workspaces"]["acme/shared"]
 sibling = state["workspaces"]["acme/sibling"]
-private = state["workspaces"]["acme/private"]
 if "audit" not in state:
-    spec_body = {
-        "service": {
-            "routing": {"port": 8080},
-            "regions": {
-                "us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}
-            },
-        }
+    service = {
+        "routing": {"port": 8080},
+        "regions": {"us-east-1": {"enabled": True, "cpu": "100m", "memory": "128Mi"}},
     }
-
-    def create(workspace, name):
-        body = {
-            "workspaceId": workspace,
-            "name": name,
-            "type": "RESOURCE_TYPE_SERVICE",
-            "spec": spec_body,
-        }
-        return evidence.rpc(
-            api,
-            users["owner"]["token"],
-            "loco.resource.v1.ResourceService/CreateResource",
-            body,
-        )["resourceId"]
-
-    checkout = create(shared, "checkout")
-    inventory = create(sibling, "inventory")
+    resources = evidence.seed_resources(
+        state,
+        [
+            {"workspace": "acme/shared", "name": "checkout", "service": service},
+            {"workspace": "acme/sibling", "name": "inventory", "service": service},
+        ],
+    )
+    checkout = resources["acme/shared/checkout"]
+    inventory = resources["acme/sibling/inventory"]
     # More than one page of events, so the pager has an older page.
     for index in range(55):
-        evidence.rpc(
-            api,
-            users["owner"]["token"],
+        call(
+            state,
             "loco.resource.v1.ResourceService/UpdateResource",
             {"resourceId": checkout, "description": f"Checkout revision {index}"},
         )
-    create(private, "ledger")
-    evidence.rpc(
-        api,
-        users["workspace_admin"]["token"],
+    evidence.seed_resources(
+        state, [{"workspace": "acme/private", "name": "ledger", "service": service}]
+    )
+    call(
+        state,
         "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
         {"workspaceId": sibling, "description": "Stock levels"},
+        user="workspace_admin",
     )
     state["audit"] = {"checkout": checkout, "inventory": inventory}
     evidence.write_json(Path(args.state), state)
@@ -145,9 +127,8 @@ with session(out) as browser:
     expect(separator).to_have_attribute("aria-valuenow", str(initial_width + 16))
     page.get_by_role("button", name="Live", exact=True).click()
     expect(page).to_have_url(re.compile(r"[?&]live=1"))
-    evidence.rpc(
-        api,
-        users["owner"]["token"],
+    call(
+        state,
         "loco.resource.v1.ResourceService/UpdateResource",
         {"resourceId": state["audit"]["checkout"], "description": "live audit update"},
     )

@@ -3,11 +3,10 @@ import datetime
 import json
 import re
 import uuid
-from functools import partial
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import evidence, load_state, open_page, repo, rpc as api_rpc, session
+from harness import call, evidence, load_state, open_page, repo, session, sql
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -22,32 +21,25 @@ out.mkdir(parents=True, exist_ok=True)
 state = load_state(
     args, "resource-details", "tests/ui/fixtures/deployment-history/scenario.json"
 )
-owner = state["users"]["owner"]
 workspace = state["workspaces"]["acme/shared"]
 
-
-rpc = partial(api_rpc, state)
-
-
-org = evidence.psql(
-    state["container"], f"SELECT org_id FROM workspaces WHERE id='{workspace}';"
-)
+org = state["orgs"]["acme"]["id"]
 production = next(
     env["id"]
-    for env in rpc("environment", "ListEnvironments", {"workspaceId": workspace})[
-        "environments"
-    ]
+    for env in call(
+        state,
+        "loco.environment.v1.EnvironmentService/ListEnvironments",
+        {"workspaceId": workspace},
+    )["environments"]
     if env["name"] == "production"
 )
 name = "details-" + uuid.uuid4().hex[:8]
-resource = rpc(
-    "resource",
-    "CreateResource",
-    {
-        "workspaceId": workspace,
-        "name": name,
-        "type": "RESOURCE_TYPE_SERVICE",
-        "spec": {
+resource = evidence.seed_resources(
+    state,
+    [
+        {
+            "workspace": "acme/shared",
+            "name": name,
             "service": {
                 "routing": {"port": 8080},
                 "regions": {
@@ -59,47 +51,55 @@ resource = rpc(
                         "maxReplicas": 1,
                     }
                 },
-            }
-        },
-    },
-)["resourceId"]
-cluster, deployment = str(uuid.uuid4()), str(uuid.uuid4())
+            },
+        }
+    ],
+)[f"acme/shared/{name}"]
+deployment = str(uuid.uuid4())
 image = f"registry.example.com/recommendation-{resource}:{deployment}"
-runtime = json.dumps(
-    {
-        "platform": "linux/amd64",
-        "observability": {"injectOtel": True},
-        "build": {"type": "image", "image": image},
-        "cpu": "500m",
-        "memory": "512Mi",
-        "minReplicas": 1,
-        "maxReplicas": 1,
-        "port": 8080,
-        "healthCheck": {
-            "path": "/health",
-            "initialDelaySeconds": 5,
-            "intervalSeconds": 10,
-            "timeoutSeconds": 2,
-            "failureThreshold": 3,
-        },
-    }
+runtime = {
+    "platform": "linux/amd64",
+    "observability": {"injectOtel": True},
+    "build": {"type": "image", "image": image},
+    "cpu": "500m",
+    "memory": "512Mi",
+    "minReplicas": 1,
+    "maxReplicas": 1,
+    "port": 8080,
+    "healthCheck": {
+        "path": "/health",
+        "initialDelaySeconds": 5,
+        "intervalSeconds": 10,
+        "timeoutSeconds": 2,
+        "failureThreshold": 3,
+    },
+}
+evidence.seed_deployments(
+    state,
+    resource,
+    [
+        {
+            "id": deployment,
+            "environment": "production",
+            "region": "us-east-1",
+            "spec": runtime,
+            "ready_replicas": 0,
+        }
+    ],
 )
-evidence.psql(
-    state["container"],
+sql(
+    state,
     f"""BEGIN;
 UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
-INSERT INTO clusters(platforms, id,name,region,provider,is_active,is_default,health_status,last_heartbeat) VALUES(ARRAY['linux/amd64'], '{cluster}','resource-details','us-east-1','fixture',true,false,'healthy',NOW());
-INSERT INTO deployments(actor_type,actor_id,method,id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,spec_version,started_at) VALUES('user','{owner["id"]}','web','{deployment}','{resource}','{cluster}','us-east-1',1,'running',true,'{production}',{evidence.sql_literal(runtime)},1,NOW());
-INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,ready_replicas,status_updated_at) VALUES('{resource}','{cluster}','us-east-1','{deployment}','{production}','{{\"app_spec\":{{}}}}',1,NOW());
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
 VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','crash_loop','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
-UPDATE placements SET ready_replicas=0 WHERE resource_id='{resource}'; INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"crash_loop","detail":"The pod restarted"}}}}');
+INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"crash_loop","detail":"The pod restarted"}}}}');
 COMMIT;""",
 )
 assert (
-    rpc(
-        "resource",
-        "GetResourceEnv",
+    call(
+        state,
+        "loco.resource.v1.ResourceService/GetResourceEnv",
         {"resourceId": resource, "environmentId": production},
     )
     == {}
@@ -118,13 +118,13 @@ desired = json.dumps(
         }
     }
 )
-evidence.psql(
-    state["container"],
+sql(
+    state,
     f"UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';",
 )
-rpc(
-    "secret",
-    "SetSecrets",
+call(
+    state,
+    "loco.secret.v1.SecretService/SetSecrets",
     {
         "resourceId": resource,
         "environmentId": production,
@@ -132,9 +132,9 @@ rpc(
     },
 )
 assert (
-    rpc(
-        "resource",
-        "GetResourceEnv",
+    call(
+        state,
+        "loco.resource.v1.ResourceService/GetResourceEnv",
         {"resourceId": resource, "environmentId": production},
     )["env"]["MODE"]
     == "production"
@@ -219,15 +219,15 @@ with session(out) as browser:
     assert restarted.value.ok, restarted.value.text()
     expect(page.get_by_text(f"Restarting {name}", exact=True)).to_be_visible()
     assert (
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"SELECT deployment_id FROM placements WHERE resource_id='{resource}';",
         )
         == deployment
     )
     assert (
-        evidence.psql(
-            state["container"],
+        sql(
+            state,
             f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}' AND environment_id='{production}';",
         )
         == "1"
@@ -255,10 +255,7 @@ with session(out) as browser:
     page.wait_for_timeout(8000)
     expect(copy_receipt).to_be_visible()
     context.unroute(failed_restart)
-    evidence.psql(
-        state["container"],
-        f"UPDATE deployments SET status='running' WHERE id='{deployment}';",
-    )
+    sql(state, f"UPDATE deployments SET status='running' WHERE id='{deployment}';")
     more.click()
     page.get_by_role("menuitem", name="View spec", exact=True).click()
     dialog = page.get_by_role("dialog")
@@ -367,10 +364,7 @@ with session(out) as browser:
     expect(page).to_have_url(
         state["ui_url"] + f"/org/{org}/wks/{workspace}?env=production"
     )
-    remaining = evidence.psql(
-        state["container"],
-        f"SELECT COUNT(*) FROM resources WHERE id='{resource}';",
-    )
+    remaining = sql(state, f"SELECT COUNT(*) FROM resources WHERE id='{resource}';")
     assert remaining == "0", remaining
     assert not errors, errors
     results.append({"spec": geometry})
