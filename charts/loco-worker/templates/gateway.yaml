@@ -109,8 +109,6 @@ spec:
     metrics:
       prometheus:
         disable: true
-      enablePerEndpointStats: true
-      enableRequestResponseSizesStats: true
       sinks:
         - type: OpenTelemetry
           openTelemetry:
