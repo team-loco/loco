@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -83,6 +84,7 @@ func run(logger *slog.Logger) error {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthz)
+	mux.HandleFunc("GET /status/{code}", status)
 	mux.HandleFunc("GET /", a.serve)
 	server := &http.Server{Addr: listenAddr, Handler: mux, ReadHeaderTimeout: readHeaderTimeout}
 
@@ -137,6 +139,16 @@ var (
 
 func healthz(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+// status answers with the status code in its path, for the e2e suite's error traffic.
+func status(w http.ResponseWriter, r *http.Request) {
+	code, err := strconv.Atoi(r.PathValue("code"))
+	if err != nil || code < http.StatusOK || code > 599 {
+		http.Error(w, "status must be 200 to 599", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(code)
 }
 
 func (a *app) serve(w http.ResponseWriter, r *http.Request) {
