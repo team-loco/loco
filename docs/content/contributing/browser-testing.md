@@ -8,7 +8,7 @@ The dashboard uses Python Playwright with headless Chromium to check interaction
 
 Browser tests use the [UI evidence fixture](https://github.com/team-loco/loco/blob/main/tests/ui/evidence.py). It builds a git ref, starts its API and PostgreSQL, seeds test identities, and serves the production dashboard on free loopback ports. No Kubernetes cluster, shared development database, identity provider or personal browser session is required.
 
-Each flow's suite is a file in `tests/ui/`. Add a browser regression when unit tests cannot show the interaction failing: cursor recovery, keyboard behavior, scoped navigation or responsive controls. Keep calculations in Bun tests and backend policy in real database tests. Controlled response fixtures, such as the trace viewer's telemetry fixture, must be identified as fixtures rather than evidence that the backend works.
+Add a browser regression when unit tests cannot show the interaction failing: cursor recovery, keyboard behavior, scoped navigation or responsive controls. Keep calculations in Bun tests and backend policy in real database tests. Controlled response fixtures, such as the trace viewer's telemetry fixture, must be identified as fixtures rather than evidence that the backend works.
 
 ## Run locally
 

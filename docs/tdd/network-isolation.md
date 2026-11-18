@@ -8,8 +8,8 @@ internals, or cloud metadata.
 
 ## Model
 
-Each environment has one namespace per cluster, named by the operator chart value
-`workspaceNamespacePrefix` (`loco-ws-` by default) followed by the environment ID. It holds
+Each environment has one namespace per cluster, named by the `loco-worker` chart value
+`global.workspaceNamespacePrefix` (`loco-ws-` by default) followed by the environment ID. It holds
 that environment's apps and carries the workspace ID label `loco.io/workspace-id`.
 
 - Apps in the namespaces of one workspace's environments can reach each other on any port.
@@ -78,7 +78,7 @@ reconciles one Application per environment, which re-applies that namespace's po
 ### Private egress for build pods
 
 Build pods get the policies above and no private destination. An operator opens one with
-the operator chart value `builds.privateEgress`, a list of `{cidr, port}` entries, each
+the `loco-worker` chart value `builds.privateEgress`, a list of `{cidr, port}` entries, each
 rendered as a TCP egress rule to that CIDR on that port. The `allow-private-egress`
 policy is applied on every reconcile, so removing an entry revokes it.
 
@@ -92,8 +92,8 @@ its field owner, before any workload.
 ### Workspace policies
 
 Fixed names, identical for every app in the namespace, so the apps sharing it apply the
-same object and never overwrite each other. They go away with the namespace when its last
-app is deleted.
+same object and never overwrite each other. They go away with the namespace, which the agent
+deletes when the workspace is deleted.
 
 | Policy | Effect |
 |---|---|
@@ -125,6 +125,6 @@ Images must run as a numeric non-root user.
 ## Out of scope
 
 - Per-app isolation inside a workspace. If needed, an app could opt out of `allow-workspace`
-  with its own deny policy; nothing asks for it yet.
+  with its own deny policy.
 - L7 / HTTP-level policies.
 - Egress to `loco-system` from app pods: apps call the API through its public domain.
