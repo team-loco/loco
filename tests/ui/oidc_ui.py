@@ -102,12 +102,10 @@ def check_browser(browser, state, issuer_url):
     if args.screenshots is not None:
         args.screenshots.mkdir(parents=True, exist_ok=True)
         for theme in evidence.THEMES:
-            page.emulate_media(color_scheme=theme)
-            page.evaluate("(key) => localStorage.removeItem(key)", evidence.MODE_KEY)
-            page.reload()
-            expect(
-                page.get_by_role("link", name="Dashboard", exact=True)
-            ).to_be_visible()
+            page.get_by_role("button").filter(has_text="Olivia Owner").click()
+            mode = page.get_by_role("radiogroup", name="Mode", exact=True)
+            mode.get_by_role("radio", name=theme.capitalize(), exact=True).click()
+            page.keyboard.press("Escape")
             page.wait_for_function(
                 "dark => document.documentElement.classList.contains('dark') === dark",
                 arg=theme == "dark",
