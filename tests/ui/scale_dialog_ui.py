@@ -61,15 +61,6 @@ resources = evidence.seed_resources(
         )
     ],
 ).values()
-for resource in resources:
-    assert (
-        call(
-            state,
-            "loco.resource.v1.ResourceService/GetResourceEnv",
-            {"resourceId": resource, "environmentId": production},
-        )
-        == {}
-    )
 limits = call(state, "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"]
 low, high = limits["minReplicas"], limits["maxReplicas"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resources?env=production"

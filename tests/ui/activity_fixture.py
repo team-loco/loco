@@ -182,9 +182,3 @@ def verify_activity_access(state, activity):
             assert error.code == "not_found", (user, error.code)
         else:
             raise AssertionError((user, "mismatched parent accepted"))
-    return {
-        "limitedScopeSuccess": True,
-        "widerAndOtherScopeDenied": True,
-        "pagingAndTypes": True,
-        "parentConsistency": True,
-    }

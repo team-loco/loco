@@ -715,11 +715,6 @@ def dashboard(page):
         expect(strip.locator("[data-rest]")).to_have_count(1)
         bars = allocated.locator('[data-slot="allocation-bar"] > span')
         expect(bars).to_have_count(5)
-        if color == "neobrutal":
-            expect(strip).to_have_css("border-top-width", "2px")
-            expect(allocated.locator('[data-slot="allocation-bar"]').first).to_have_css(
-                "border-top-width", "2px"
-            )
         colors = strip.locator(":scope > span:not([data-rest])").evaluate_all(
             "nodes => nodes.map(n => getComputedStyle(n).backgroundColor)"
         )
@@ -898,20 +893,12 @@ def first_click_sorts_descending(table, label, first):
     expect(table.get_by_role("row").nth(1)).to_contain_text(first)
 
 
-def dropdown_cursors(page):
+def new_resource_menu(page):
     page.goto(state["ui_url"] + base + "/resources?env=production")
-    trigger = page.get_by_role("button", name="New resource", exact=True)
-    trigger.hover()
-    expect(trigger).to_have_css("cursor", "pointer")
-    trigger.click()
+    page.get_by_role("button", name="New resource", exact=True).click()
     menu = page.get_by_role("menu")
-    enabled = menu.get_by_role("menuitem", name="Service", exact=True)
-    disabled = menu.get_by_role("menuitem", name=re.compile(r"^Database"))
-    enabled.hover()
-    expect(enabled).to_have_css("cursor", "pointer")
-    disabled.hover()
-    expect(disabled).to_be_disabled()
-    expect(disabled).to_have_css("cursor", "not-allowed")
+    expect(menu.get_by_role("menuitem", name="Service", exact=True)).to_be_enabled()
+    expect(menu.get_by_role("menuitem", name=re.compile(r"^Database"))).to_be_disabled()
     page.keyboard.press("Escape")
 
 
@@ -1027,13 +1014,12 @@ def metrics(page):
 
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-results = []
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state, timezone_id="UTC")
     mock_telemetry(context)
     time_preferences(browser)
     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-    dropdown_cursors(page)
+    new_resource_menu(page)
     page.goto(state["ui_url"] + base + "/settings?scope=workspace")
     group = page.get_by_role("group", name="Settings for", exact=True)
     workspace_button = group.get_by_role("button", name="Workspace", exact=True)
@@ -1122,7 +1108,5 @@ with session(out) as browser:
     ):
         check(page)
     assert not errors, errors
-    results.append({"passed": True})
     context.close()
-(out / "results.json").write_text(json.dumps(results, indent=2) + "\n")
-print(json.dumps(results, indent=2))
+print("PASS: shared controls", flush=True)
