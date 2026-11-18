@@ -24,6 +24,18 @@ Provide Kubernetes and its CNI, PostgreSQL, OIDC, an S3-compatible source bucket
 
 Follow the [installation guide](../reference/installation.md) to scaffold the operator repository, review chart values, encrypt Secrets and bootstrap Flux. Each cluster has its own Git directory referencing a shared role base in `bases/` and exactly one cohort file from `releases/`. Shared values merge before per-cluster overrides. `locoadm` emits plaintext Secret manifests; operators choose encryption or external Secret delivery. With SOPS, configure Flux decryption and keep an offline recipient for recovery. Credential Secrets are referenced by name. Join tokens are one-time bootstrap material: bootstrap the worker’s Flux first, then run `locoadm cluster create --kube-context WORKER` with the default one-hour TTL. The command writes the Secret directly and prints only a confirmation. An encrypted token in Git is an option for fully unattended installation. Chart values expose API limits, service defaults, retention and join-token lifetimes; `values.schema.json` validates their types and supported forms. The API validates configuration at startup. Set `api.env.LOCO_TARGET_PLATFORM` to `linux/arm64` for ARM applications, or retain the `linux/amd64` default. The target applies across deployment regions. Each destination must report matching worker nodes, and source builds run on native nodes for that target. Existing build and deployment snapshots retain their target; rebuild source images before deploying them under a changed target.
 
+Source builds pull the base images of a Dockerfile from their registries. To pull them through a registry mirror, such as a pull-through cache for Docker Hub, set the `loco-worker` value `builds.buildkitdConfig` to a [BuildKit `buildkitd.toml`](https://github.com/moby/buildkit/blob/master/docs/buildkitd.toml.md) and add the mirror's address and port to `builds.privateEgress` when it is on a private network:
+
+```yaml
+builds:
+  buildkitdConfig: |
+    [registry."docker.io"]
+      mirrors = ["registry-cache.internal:5000"]
+  privateEgress:
+    - cidr: 10.0.12.7/32
+      port: 5000
+```
+
 The control-plane chart generates missing ClickHouse credentials and preserves existing ones. OpenBao supports static, KMS or transit auto-unseal. Keep the seal material, recovery shares and snapshots under separate backup and custody procedures. External ClickHouse and OpenBao remain supported through their chart settings.
 
 ## First system admin

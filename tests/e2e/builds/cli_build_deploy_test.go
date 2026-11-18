@@ -137,7 +137,7 @@ func TestCLIBuildDeploy(t *testing.T) {
 		minimalDir := t.TempDir()
 		p.CopyFixture(t, "build-app", minimalDir)
 		out := w.MustLoco(t, minimalDir, "deploy", "--name", minimal, "--port", "8080", "--region", p.Region,
-			"--dockerfile", platform.BuildAppDockerfile, "--yes", "--wait").Stdout
+			"--dockerfile", platform.FixtureDockerfile, "--yes", "--wait").Stdout
 		if _, err := os.Stat(filepath.Join(minimalDir, locofile.FileName)); !errors.Is(err, os.ErrNotExist) {
 			t.Errorf("a deploy without loco.yaml wrote one (%v)", err)
 		}

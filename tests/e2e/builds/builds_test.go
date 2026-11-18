@@ -45,7 +45,7 @@ func TestBuilds(t *testing.T) {
 		t,
 		"e2e-app-1",
 		p.UploadSource(t, "e2e-app-1", fixture),
-		platform.BuildAppDockerfile,
+		platform.FixtureDockerfile,
 		appRepository,
 		"",
 	)
@@ -107,7 +107,7 @@ func TestBuilds(t *testing.T) {
 			t,
 			"e2e-app-2",
 			p.UploadSource(t, "e2e-app-2", fixture),
-			platform.BuildAppDockerfile,
+			platform.FixtureDockerfile,
 			appRepository,
 			appRepository+"@"+first.Status.CacheDigest,
 		)
@@ -132,7 +132,7 @@ func TestBuilds(t *testing.T) {
 			t,
 			"e2e-probe",
 			p.UploadSource(t, "e2e-probe", probeSource),
-			"Dockerfile",
+			platform.FixtureDockerfile,
 			p.RegistryHost+"/e2e/build-probe",
 			"",
 		)

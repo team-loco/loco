@@ -78,6 +78,7 @@ type Config struct {
 	MaxContextFiles         int                 `json:"maxContextFiles"`
 	MaxImageSize            resource.Quantity   `json:"maxImageSize"`
 	InsecureRegistry        bool                `json:"insecureRegistry"`
+	BuildkitdConfig         string              `json:"buildkitdConfig"`
 	PrivateEgress           []PrivateEgress     `json:"privateEgress"`
 	SeccompLocalhostProfile string              `json:"seccompLocalhostProfile"`
 	RuntimeClassName        string              `json:"runtimeClassName"`
