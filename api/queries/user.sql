@@ -56,15 +56,6 @@ SELECT id, name, created_by, created_at, updated_at
 FROM organizations
 WHERE id = $1;
 
-
--- name: IsOrganizationNameUnique :one
-SELECT COUNT(*) = 0 AS is_unique
-FROM organizations
-WHERE name = $1;
-
--- name: DeleteOrganization :exec
-DELETE FROM organizations WHERE id = $1;
-
 -- name: DeleteWorkspace :exec
 DELETE FROM workspaces WHERE id = $1;
 

@@ -34,33 +34,6 @@ WITH entity_hierarchy AS (
  WHERE us.user_id = $2
  ORDER BY us.entity_type, us.entity_id, us.scope;
 
--- name: GetUserScopesOnWorkspace :many
-WITH RECURSIVE entity_hierarchy AS (
-     -- Base case: the workspace itself
-     SELECT
-         'workspace'::entity_type as entity_type,
-         w.id as entity_id,
-         w.name as entity_name
-     FROM workspaces w
-     WHERE w.id = $1
-
-     UNION ALL
-
-     -- Resources in the workspace
-     SELECT
-         'resource'::entity_type,
-         r.id,
-         r.name
-     FROM resources r
-     INNER JOIN entity_hierarchy eh ON eh.entity_type = 'workspace' AND eh.entity_id = r.workspace_id
- )
- SELECT DISTINCT ON (us.entity_type, us.entity_id, us.scope)
-     us.entity_type, us.entity_id, us.scope
- FROM user_scopes us
- INNER JOIN entity_hierarchy eh ON us.entity_type = eh.entity_type AND us.entity_id = eh.entity_id
- WHERE us.user_id = $2
- ORDER BY us.entity_type, us.entity_id, us.scope;
-
  -- what users have scope z on entity y?
 -- name: GetUsersWithScopeOnEntity :many
 SELECT user_id FROM user_scopes WHERE entity_type = $1 AND entity_id = $2 AND scope = $3;
@@ -85,12 +58,6 @@ DELETE FROM user_scopes
 WHERE user_id = $1
   AND entity_type = 'resource'
   AND entity_id IN (SELECT id FROM resources WHERE workspace_id = $2);
-
--- name: RemoveAllScopesForEntity :exec
-DELETE FROM user_scopes WHERE entity_type = $1 AND entity_id = $2;
-
--- name: RemoveAllScopesForUser :exec
-DELETE FROM user_scopes WHERE user_id = $1;
 
 -- -----------------------------------------------------------------------------
 -- Session token queries
@@ -205,9 +172,6 @@ WHERE t.token_hash = $1 AND t.expires_at > NOW()
 -- name: TouchAPITokenLastUsed :exec
 UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1;
 
--- name: DeleteAPIToken :exec
-DELETE FROM api_tokens WHERE id = $1;
-
 -- name: DeleteAPITokenByHash :exec
 DELETE FROM api_tokens WHERE token_hash = $1;
 
@@ -219,9 +183,6 @@ SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires
 FROM api_tokens
 WHERE entity_type = $1 AND entity_id = $2
 ORDER BY created_at DESC;
-
--- name: DeleteAPITokensForEntity :exec
-DELETE FROM api_tokens WHERE entity_type = $1 AND entity_id = $2;
 
 -- name: GetAPITokenByNameAndEntity :one
 SELECT id, name, entity_type, entity_id, scopes, created_by, created_at, expires_at, last_used_at, display_suffix

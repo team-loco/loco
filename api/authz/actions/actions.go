@@ -11,9 +11,7 @@ type Action struct {
 	scope      db.Scope
 }
 
-// The following actions do not have an Action listed below because they are publicly accessible:
-// - CheckSubdomainAvailability
-// - Logout
+// Logout is public and has no Action.
 var (
 	// resources
 
@@ -42,16 +40,6 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeRead,
 	}
-	// StreamResourceLogs requires resource:read.
-	StreamResourceLogs = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeRead,
-	}
-	// GetResourceEvents requires resource:read.
-	GetResourceEvents = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeRead,
-	}
 	AddDomain = Action{
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
@@ -73,28 +61,13 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// DeployResource requires resource:write.
-	DeployResource = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeWrite,
-	}
 	// ScaleResource requires resource:write.
 	ScaleResource = Action{
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
-	// UpdateDeploymentStatus requires resource:write.
-	UpdateDeploymentStatus = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeWrite,
-	}
 	// RestartResource requires resource:write.
 	RestartResource = Action{
-		entityType: db.EntityTypeResource,
-		scope:      db.ScopeWrite,
-	}
-	// StopResource requires resource:write.
-	StopResource = Action{
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
@@ -163,8 +136,7 @@ var (
 	}
 
 	// orgs
-	// CreateOrg requires user:write. (user scopes are only granted when the user is onboarded,
-	// so this kinda exists as a check to ensure the user is onboarded)
+	// CreateOrg requires user:write, which only onboarded users hold.
 	CreateOrg = Action{
 		entityType: db.EntityTypeUser,
 		scope:      db.ScopeWrite,
@@ -229,11 +201,6 @@ var (
 	}
 	// GetCurrentUser requires user:read.
 	GetCurrentUser = Action{
-		entityType: db.EntityTypeUser,
-		scope:      db.ScopeRead,
-	}
-	// GetCurrentUserOrgs requires user:read.
-	GetCurrentUserOrgs = Action{
 		entityType: db.EntityTypeUser,
 		scope:      db.ScopeRead,
 	}

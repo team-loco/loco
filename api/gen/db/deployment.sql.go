@@ -285,30 +285,6 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 	return i, err
 }
 
-const listActiveDeployments = `-- name: ListActiveDeployments :many
-SELECT resource_id FROM deployments WHERE is_active = true
-`
-
-func (q *Queries) ListActiveDeployments(ctx context.Context) ([]uuid.UUID, error) {
-	rows, err := q.db.Query(ctx, listActiveDeployments)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []uuid.UUID
-	for rows.Next() {
-		var resource_id uuid.UUID
-		if err := rows.Scan(&resource_id); err != nil {
-			return nil, err
-		}
-		items = append(items, resource_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listActiveDeploymentsForEnvironment = `-- name: ListActiveDeploymentsForEnvironment :many
 SELECT id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE environment_id = $1 AND is_active = true
@@ -735,17 +711,6 @@ func (q *Queries) LockPlacementResource(ctx context.Context, arg LockPlacementRe
 	return id, err
 }
 
-const markPreviousDeploymentsNotActive = `-- name: MarkPreviousDeploymentsNotActive :exec
-UPDATE deployments
-SET is_active = false, updated_at = NOW()
-WHERE resource_id = $1 AND is_active = true
-`
-
-func (q *Queries) MarkPreviousDeploymentsNotActive(ctx context.Context, resourceID uuid.UUID) error {
-	_, err := q.db.Exec(ctx, markPreviousDeploymentsNotActive, resourceID)
-	return err
-}
-
 const placementForDeployment = `-- name: PlacementForDeployment :one
 SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, created_at, updated_at FROM placements WHERE deployment_id = $1 AND NOT desired_deleted
 `
@@ -905,22 +870,6 @@ WHERE current.id = $1 AND old.resource_id = current.resource_id
 
 func (q *Queries) SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, supersedePreviousDeployments, id)
-	return err
-}
-
-const updateDeploymentStatus = `-- name: UpdateDeploymentStatus :exec
-UPDATE deployments
-SET status = $2, updated_at = NOW()
-WHERE id = $1
-`
-
-type UpdateDeploymentStatusParams struct {
-	ID     uuid.UUID        `json:"id"`
-	Status DeploymentStatus `json:"status"`
-}
-
-func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error {
-	_, err := q.db.Exec(ctx, updateDeploymentStatus, arg.ID, arg.Status)
 	return err
 }
 

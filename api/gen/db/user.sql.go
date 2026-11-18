@@ -75,15 +75,6 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	return i, err
 }
 
-const deleteOrganization = `-- name: DeleteOrganization :exec
-DELETE FROM organizations WHERE id = $1
-`
-
-func (q *Queries) DeleteOrganization(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteOrganization, id)
-	return err
-}
-
 const deleteUser = `-- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1
 `
@@ -169,19 +160,6 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const isOrganizationNameUnique = `-- name: IsOrganizationNameUnique :one
-SELECT COUNT(*) = 0 AS is_unique
-FROM organizations
-WHERE name = $1
-`
-
-func (q *Queries) IsOrganizationNameUnique(ctx context.Context, name string) (bool, error) {
-	row := q.db.QueryRow(ctx, isOrganizationNameUnique, name)
-	var is_unique bool
-	err := row.Scan(&is_unique)
-	return is_unique, err
 }
 
 const listUsers = `-- name: ListUsers :many

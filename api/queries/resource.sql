@@ -60,11 +60,6 @@ UPDATE resources
 SET partial = $2, updated_at = NOW()
 WHERE id = $1;
 
--- name: GetClusterDetails :one
-SELECT id, is_active, health_status, agent_version, last_heartbeat
-FROM clusters
-WHERE id = $1;
-
 -- name: LockResources :many
 SELECT id FROM resources
 WHERE id = ANY(sqlc.arg(ids)::uuid[])

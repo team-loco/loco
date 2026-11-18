@@ -214,51 +214,7 @@ func (*TestingQueries) DeleteExpiredSessionTokens(_ context.Context) error { ret
 
 func (*TestingQueries) DeleteExpiredUsedRefreshTokens(_ context.Context) error { return nil }
 
-// --- API token mock implementations (no-op; not exercised by permission tests) ---
-
-func (*TestingQueries) CreateAPIToken(
-	_ context.Context,
-	_ queries.CreateAPITokenParams,
-) (queries.CreateAPITokenRow, error) {
-	return queries.CreateAPITokenRow{}, nil
-}
-
-func (*TestingQueries) GetAPIToken(_ context.Context, _ string) (queries.GetAPITokenRow, error) {
-	return queries.GetAPITokenRow{}, pgx.ErrNoRows
-}
-
-func (*TestingQueries) TouchAPITokenLastUsed(_ context.Context, _ uuid.UUID) error { return nil }
-
-func (*TestingQueries) DeleteAPIToken(_ context.Context, _ uuid.UUID) error { return nil }
-
-func (*TestingQueries) DeleteAPITokenByHash(_ context.Context, _ string) error { return nil }
-
 func (*TestingQueries) DeleteExpiredAPITokens(_ context.Context) error { return nil }
-
-func (*TestingQueries) ListAPITokensForEntity(
-	_ context.Context,
-	_ queries.ListAPITokensForEntityParams,
-) ([]queries.ListAPITokensForEntityRow, error) {
-	return nil, nil
-}
-
-func (*TestingQueries) DeleteAPITokensForEntity(_ context.Context, _ queries.DeleteAPITokensForEntityParams) error {
-	return nil
-}
-
-func (*TestingQueries) GetAPITokenByNameAndEntity(
-	_ context.Context,
-	_ queries.GetAPITokenByNameAndEntityParams,
-) (queries.GetAPITokenByNameAndEntityRow, error) {
-	return queries.GetAPITokenByNameAndEntityRow{}, pgx.ErrNoRows
-}
-
-func (*TestingQueries) DeleteAPITokenByNameAndEntity(
-	_ context.Context,
-	_ queries.DeleteAPITokenByNameAndEntityParams,
-) error {
-	return nil
-}
 
 // --- Test helpers ---
 
