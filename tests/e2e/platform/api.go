@@ -23,8 +23,8 @@ const (
 	registryAccessTokenLifetime     = "1m"
 	registryPullCredentialLifetime  = "1m"
 	registryCredentialCheckInterval = "10s"
-	// SystemAdmin is the admin the API's LOCO_SYSTEM_ADMINS lists.
-	SystemAdmin = "loco-admin@test.local"
+	// systemAdmin is the admin the API's LOCO_SYSTEM_ADMINS lists.
+	systemAdmin = "loco-admin@test.local"
 	// DashboardOrigin is the browser origin the API allows.
 	DashboardOrigin = "https://dashboard.e2e.test"
 	apiProcess      = "api"
@@ -67,7 +67,7 @@ func (p *Platform) startAPI(ctx context.Context, name string, port int) error {
 		"LOCO_TARGET_PLATFORM=" + p.TargetPlatform,
 		`AUTH_ISSUERS=[{"issuer":"` + p.authIssuer() + `","audience":"loco-e2e"}]`,
 		"AUTH_SIGNUP_MODE=open",
-		"LOCO_SYSTEM_ADMINS=" + SystemAdmin,
+		"LOCO_SYSTEM_ADMINS=" + systemAdmin,
 		// Every test tenant is an organization of the one e2e user.
 		"LOCO_LIMIT_ORGS_PER_USER=50",
 		"DATABASE_URL=" + p.databaseURL,

@@ -42,8 +42,6 @@ const (
 	expiryMargin      = 10 * time.Second
 )
 
-var digestPattern = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
-
 // TestRegistryToken runs the registry in token mode: the API as its token endpoint, per-workspace
 // pull credentials and per-build credentials the agent writes, their scopes, renewal and
 // revocation, and the image sweeper on its own tokens.
@@ -202,7 +200,7 @@ func imageDigest(t *testing.T, build string) string {
 		Scan(&digest); err != nil {
 		t.Fatal(err)
 	}
-	if !digestPattern.MatchString(digest) {
+	if !platform.IsDigest(digest) {
 		t.Fatalf("build %s image digest %q", build, digest)
 	}
 	return digest
@@ -629,7 +627,7 @@ func (r *registryRun) resentBuild(t *testing.T) {
 	platform.Eventually(
 		t,
 		secretTimeout,
-		"the r.resent StartBuild to replace the build Secret's password",
+		"the resent StartBuild to replace the build Secret's password",
 		func(ctx context.Context) error {
 			credential, err := p.RegistrySecret(ctx, p.BuildNamespace, "build-"+r.resent+"-registry")
 			if err != nil {
@@ -643,7 +641,7 @@ func (r *registryRun) resentBuild(t *testing.T) {
 		},
 	)
 	if status := buildStatus(t, r.resent); status != "queued" {
-		t.Errorf("the r.resent build is %s, want queued", status)
+		t.Errorf("the resent build is %s, want queued", status)
 	}
 }
 
@@ -668,7 +666,7 @@ func (r *registryRun) buildCredentialScoped(t *testing.T) {
 		manifest.Body,
 		&image,
 	); err != nil || len(image.Layers) == 0 ||
-		!digestPattern.MatchString(image.Layers[len(image.Layers)-1].Digest) {
+		!platform.IsDigest(image.Layers[len(image.Layers)-1].Digest) {
 		t.Fatalf("read the top layer of B's image: %v %s", err, manifest.Body)
 	}
 	layer := image.Layers[len(image.Layers)-1].Digest

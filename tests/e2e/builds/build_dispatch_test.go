@@ -83,10 +83,10 @@ func TestBuildDispatch(t *testing.T) {
 		if finished.GetStatus() != buildv1.BuildStatus_BUILD_STATUS_SUCCEEDED {
 			t.Fatalf("first build ended %v: %s", finished.GetStatus(), finished.GetMessage())
 		}
-		if !digestPattern.MatchString(finished.GetImageDigest()) {
+		if !platform.IsDigest(finished.GetImageDigest()) {
 			t.Errorf("image digest %q", finished.GetImageDigest())
 		}
-		if cache := cacheDigest(t, first.id); !digestPattern.MatchString(cache) {
+		if cache := cacheDigest(t, first.id); !platform.IsDigest(cache) {
 			t.Errorf("cache digest %q", cache)
 		}
 		if finished.GetStartedAt() == nil || finished.GetFinishedAt() == nil {

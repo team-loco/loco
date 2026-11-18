@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -422,7 +423,8 @@ func collectorCrashReplay(t *testing.T) {
 	var config corev1.ConfigMap
 	p.MustGet(t, &config, "-n", namespace, "configmap", collector)
 	original := config.DeepCopy()
-	t.Cleanup(func() { restoreCollector(t, original) })
+	restore := sync.OnceFunc(func() { restoreCollector(t, original) })
+	t.Cleanup(restore)
 	var relay map[string]any
 	if err := yaml.Unmarshal([]byte(config.Data["relay"]), &relay); err != nil {
 		t.Fatal(err)
@@ -558,7 +560,7 @@ func collectorCrashReplay(t *testing.T) {
 		}
 		return nil
 	})
-	restoreCollector(t, original)
+	restore()
 	waitCount(t, fmt.Sprintf("all %d acknowledged logs to replay after SIGKILL", crashRecords),
 		fmt.Sprintf("SELECT count(DISTINCT Body) FROM otel_logs WHERE startsWith(Body, '%s-')", marker),
 		func(count int) bool { return count == crashRecords })

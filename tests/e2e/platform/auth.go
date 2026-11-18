@@ -52,7 +52,7 @@ type session struct {
 // signIn signs the configured admin and the application user in through the identity provider and
 // the API's CLI login, so the run holds API-issued sessions, not rows inserted into the database.
 func (p *Platform) signIn(ctx context.Context) error {
-	admin, err := p.cliSession(ctx, SystemAdmin)
+	admin, err := p.cliSession(ctx, systemAdmin)
 	if err != nil {
 		return err
 	}
@@ -60,8 +60,8 @@ func (p *Platform) signIn(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	p.adminSession, p.userSession = admin, user
-	p.AdminToken, p.UserToken = admin.Token, user.Token
+	p.userSession = user
+	p.UserToken = user.Token
 	p.Admin = rpc.ForHost(p.APIURL, admin.Token)
 	p.User = rpc.ForHost(p.APIURL, user.Token)
 	me, err := p.User.User.WhoAmI(ctx, &userv1.WhoAmIRequest{})
