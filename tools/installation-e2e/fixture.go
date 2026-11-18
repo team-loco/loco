@@ -19,6 +19,7 @@ import (
 	"text/template"
 	"time"
 
+	registryname "github.com/google/go-containerregistry/pkg/name"
 	"sigs.k8s.io/yaml"
 )
 
@@ -52,6 +53,7 @@ const (
 
 type fixture struct {
 	root, dir, name, kubeconfig, registryURL string
+	apiImage                                 registryname.Digest
 	skip                                     bool
 	version                                  string
 	// images names prebuilt images, with * standing for the image name.

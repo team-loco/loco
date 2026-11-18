@@ -12,10 +12,7 @@ func TestFixtureSchemaUsesHeadMigrationsBeforeBaseline(t *testing.T) {
 		t.Run(map[bool]string{false: "initialized", true: "migration failure"}[fail], func(t *testing.T) {
 			bin := t.TempDir()
 			commands := map[string]string{
-				kubectlExecutable: `if [ "$3" = exec ]; then
-  printf '%s\n' "$*" > "$SCHEMA_QUERY"
-  exit 0
-fi
+				kubectlExecutable: `[ "$3" = port-forward ] || exit 45
 printf 'Forwarding from 127.0.0.1:15432 -> 5432\n'
 exec /bin/sleep 30`,
 				"goose": `[ "$*" = "-dir $SCHEMA_ROOT/api/migrations up" ] || exit 41
@@ -34,7 +31,6 @@ if [ "$SCHEMA_FAIL" = yes ]; then echo 'migration rejected' >&2; exit 44; fi`,
 			}
 			t.Setenv("PATH", bin)
 			t.Setenv("SCHEMA_ROOT", bin)
-			t.Setenv("SCHEMA_QUERY", filepath.Join(bin, "query"))
 			value := "no"
 			if fail {
 				value = "yes"
@@ -53,15 +49,6 @@ if [ "$SCHEMA_FAIL" = yes ]; then echo 'migration rejected' >&2; exit 44; fi`,
 			}
 			if err != nil {
 				t.Fatal(err)
-			}
-			query, err := os.ReadFile(filepath.Join(bin, "query"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, column := range []string{"environments ADD COLUMN environment_type", "clusters ADD COLUMN tier"} {
-				if !strings.Contains(string(query), column) {
-					t.Fatalf("missing published schema column %s: %s", column, query)
-				}
 			}
 		})
 	}

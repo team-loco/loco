@@ -35,13 +35,18 @@ func (f *fixture) release(ctx context.Context) (string, error) {
 		return "", err
 	}
 	var manifest struct {
-		Version string `json:"version"`
+		Version string            `json:"version"`
+		Images  map[string]string `json:"images"`
 	}
 	if err = json.Unmarshal(output, &manifest); err != nil {
 		return "", err
 	}
 	if manifest.Version == "" {
 		return "", errReleaseVersion
+	}
+	f.apiImage, err = registryname.NewDigest(manifest.Images["api"])
+	if err != nil {
+		return "", fmt.Errorf("fixture release API digest: %w", err)
 	}
 	f.version = manifest.Version
 	tag, err := registryname.NewTag(

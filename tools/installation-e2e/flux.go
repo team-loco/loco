@@ -111,15 +111,26 @@ func (f *fixture) installFlux(
 	if err = f.prepareSchema(ctx, strings.TrimSpace(string(databaseURL))); err != nil {
 		return "", "", err
 	}
+	upgraded, err := f.publishRepo(ctx, repo, current, "./all")
+	if err != nil {
+		return "", "", err
+	}
+	// Publish the unmodified head config first. Only the baseline chart needs an API image override.
+	override, err := renderFixtureFile(filepath.Join(overrides, "baseline-api.yaml"), map[string]any{
+		"Repository": f.apiImage.Context().Name(),
+		"Digest":     f.apiImage.DigestStr(),
+	})
+	if err != nil {
+		return "", "", err
+	}
+	if err = operatorrepo.Merge(filepath.Join(repo.Path, "bases", "all", "kustomization.yaml"), override); err != nil {
+		return "", "", err
+	}
 	initial, err := f.publishRepo(ctx, repo, previous, "./control-plane")
 	if err != nil {
 		return "", "", err
 	}
 	enrolled, err := f.publishRepo(ctx, repo, previous, "./all")
-	if err != nil {
-		return "", "", err
-	}
-	upgraded, err := f.publishRepo(ctx, repo, current, "./all")
 	if err != nil {
 		return "", "", err
 	}
@@ -201,10 +212,6 @@ func reconcilePlatform(ctx context.Context, path string) error {
 }
 
 func upgradePlatform(ctx context.Context) error {
-	if err := fixtureSchemaQuery(ctx, `ALTER TABLE environments DROP COLUMN environment_type;
-ALTER TABLE clusters DROP COLUMN tier;`); err != nil {
-		return err
-	}
 	if err := switchRepository(ctx, "/installation/current"); err != nil {
 		return err
 	}
