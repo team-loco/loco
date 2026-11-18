@@ -11,7 +11,8 @@ service IngestService {
   // IssueToken exchanges a cluster assertion for a short-lived ingest token.
   rpc IssueToken(IssueTokenRequest) returns (IssueTokenResponse);
 
-  // ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
+  // ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:
+  // the windows still open and those closed after since, with the overlapping windows of each workspace merged.
   rpc ListPlacementWindows(ListPlacementWindowsRequest) returns (ListPlacementWindowsResponse);
 
   // GetRetention returns how many days to keep each workspace's records: the workspace's own
@@ -27,7 +28,10 @@ message IssueTokenResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
-message ListPlacementWindowsRequest {}
+message ListPlacementWindowsRequest {
+  // since is required; windows closed at or before it are left out.
+  google.protobuf.Timestamp since = 1;
+}
 
 message ListPlacementWindowsResponse {
   repeated PlacementWindow windows = 1;

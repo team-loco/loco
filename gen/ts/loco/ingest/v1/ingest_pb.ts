@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/ingest/v1/ingest.proto.
  */
 export const file_loco_ingest_v1_ingest: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCIdChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QifgocTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRIwCgd3aW5kb3dzGAEgAygLMh8ubG9jby5pbmdlc3QudjEuUGxhY2VtZW50V2luZG93EiwKCXJldGVudGlvbhgCIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbiKGAQoPUGxhY2VtZW50V2luZG93EhQKDHdvcmtzcGFjZV9pZBgBIAEoCRItCglwbGFjZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJlbW92ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIkYKCVJldGVudGlvbhIQCghsb2dfZGF5cxgBIAEoBRISCgp0cmFjZV9kYXlzGAIgASgFEhMKC21ldHJpY19kYXlzGAMgASgFIiwKE0dldFJldGVudGlvblJlcXVlc3QSFQoNd29ya3NwYWNlX2lkcxgBIAMoCSKrAQoUR2V0UmV0ZW50aW9uUmVzcG9uc2USRgoJcmV0ZW50aW9uGAEgAygLMjMubG9jby5pbmdlc3QudjEuR2V0UmV0ZW50aW9uUmVzcG9uc2UuUmV0ZW50aW9uRW50cnkaSwoOUmV0ZW50aW9uRW50cnkSCwoDa2V5GAEgASgJEigKBXZhbHVlGAIgASgLMhkubG9jby5pbmdlc3QudjEuUmV0ZW50aW9uOgI4ATKyAgoNSW5nZXN0U2VydmljZRJTCgpJc3N1ZVRva2VuEiEubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlcXVlc3QaIi5sb2NvLmluZ2VzdC52MS5Jc3N1ZVRva2VuUmVzcG9uc2UScQoUTGlzdFBsYWNlbWVudFdpbmRvd3MSKy5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QaLC5sb2NvLmluZ2VzdC52MS5MaXN0UGxhY2VtZW50V2luZG93c1Jlc3BvbnNlElkKDEdldFJldGVudGlvbhIjLmxvY28uaW5nZXN0LnYxLkdldFJldGVudGlvblJlcXVlc3QaJC5sb2NvLmluZ2VzdC52MS5HZXRSZXRlbnRpb25SZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2luZ2VzdC92MTtpbmdlc3R2MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2luZ2VzdC92MS9pbmdlc3QucHJvdG8SDmxvY28uaW5nZXN0LnYxIhMKEUlzc3VlVG9rZW5SZXF1ZXN0IlMKEklzc3VlVG9rZW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIuCgpleHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJIChtMaXN0UGxhY2VtZW50V2luZG93c1JlcXVlc3QSKQoFc2luY2UYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIn4KHExpc3RQbGFjZW1lbnRXaW5kb3dzUmVzcG9uc2USMAoHd2luZG93cxgBIAMoCzIfLmxvY28uaW5nZXN0LnYxLlBsYWNlbWVudFdpbmRvdxIsCglyZXRlbnRpb24YAiABKAsyGS5sb2NvLmluZ2VzdC52MS5SZXRlbnRpb24ihgEKD1BsYWNlbWVudFdpbmRvdxIUCgx3b3Jrc3BhY2VfaWQYASABKAkSLQoJcGxhY2VkX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpyZW1vdmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJGCglSZXRlbnRpb24SEAoIbG9nX2RheXMYASABKAUSEgoKdHJhY2VfZGF5cxgCIAEoBRITCgttZXRyaWNfZGF5cxgDIAEoBSIsChNHZXRSZXRlbnRpb25SZXF1ZXN0EhUKDXdvcmtzcGFjZV9pZHMYASADKAkiqwEKFEdldFJldGVudGlvblJlc3BvbnNlEkYKCXJldGVudGlvbhgBIAMoCzIzLmxvY28uaW5nZXN0LnYxLkdldFJldGVudGlvblJlc3BvbnNlLlJldGVudGlvbkVudHJ5GksKDlJldGVudGlvbkVudHJ5EgsKA2tleRgBIAEoCRIoCgV2YWx1ZRgCIAEoCzIZLmxvY28uaW5nZXN0LnYxLlJldGVudGlvbjoCOAEysgIKDUluZ2VzdFNlcnZpY2USUwoKSXNzdWVUb2tlbhIhLmxvY28uaW5nZXN0LnYxLklzc3VlVG9rZW5SZXF1ZXN0GiIubG9jby5pbmdlc3QudjEuSXNzdWVUb2tlblJlc3BvbnNlEnEKFExpc3RQbGFjZW1lbnRXaW5kb3dzEisubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXF1ZXN0GiwubG9jby5pbmdlc3QudjEuTGlzdFBsYWNlbWVudFdpbmRvd3NSZXNwb25zZRJZCgxHZXRSZXRlbnRpb24SIy5sb2NvLmluZ2VzdC52MS5HZXRSZXRlbnRpb25SZXF1ZXN0GiQubG9jby5pbmdlc3QudjEuR2V0UmV0ZW50aW9uUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9pbmdlc3QvdjE7aW5nZXN0djFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message loco.ingest.v1.IssueTokenRequest
@@ -74,12 +74,24 @@ export const IssueTokenResponseSchema: GenMessage<IssueTokenResponse, {jsonType:
  * @generated from message loco.ingest.v1.ListPlacementWindowsRequest
  */
 export type ListPlacementWindowsRequest = Message<"loco.ingest.v1.ListPlacementWindowsRequest"> & {
+  /**
+   * since is required; windows closed at or before it are left out.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: Timestamp | undefined;
 };
 
 /**
  * @generated from message loco.ingest.v1.ListPlacementWindowsRequest
  */
 export type ListPlacementWindowsRequestJson = {
+  /**
+   * since is required; windows closed at or before it are left out.
+   *
+   * @generated from field: google.protobuf.Timestamp since = 1;
+   */
+  since?: TimestampJson;
 };
 
 /**
@@ -309,7 +321,8 @@ export const IngestService: GenService<{
     output: typeof IssueTokenResponseSchema;
   },
   /**
-   * ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
+   * ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:
+   * the windows still open and those closed after since, with the overlapping windows of each workspace merged.
    *
    * @generated from rpc loco.ingest.v1.IngestService.ListPlacementWindows
    */

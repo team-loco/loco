@@ -130,6 +130,7 @@ func TestLoadPanicsOnInvalidValues(t *testing.T) {
 		"INGEST_RETENTION_CACHE_TTL":        {"0s"},
 		"INGEST_PLACEMENT_REFETCH_INTERVAL": {"0s"},
 		"INGEST_CLOCK_SKEW":                 {"-5m"},
+		"INGEST_MAX_RECORD_LATENESS":        {"0s"},
 		"INGEST_RETRY_AFTER":                {fractionalSeconds, "0s"},
 	}
 	for name, values := range invalid {
@@ -181,14 +182,18 @@ func TestLoadReadsIngestAuthSettings(t *testing.T) {
 		RetentionTTL:        defaultIngestRetentionCacheTTL,
 		RefetchInterval:     defaultIngestPlacementRefetch,
 		ClockSkew:           defaultIngestClockSkew,
+		MaxRecordLateness:   defaultIngestMaxRecordLateness,
 	}
 	if gate != wantGate {
 		t.Fatalf("IngestGate() = %+v, want %+v", gate, wantGate)
 	}
 	t.Setenv("INGEST_CLOCK_SKEW", "2m")
+	t.Setenv("INGEST_MAX_RECORD_LATENESS", "3h")
 	t.Setenv("INGEST_RETRY_AFTER", "10s")
 	overridden := Load()
-	if overridden.IngestGate().ClockSkew != 2*time.Minute || overridden.IngestService().RetryAfter != 10*time.Second {
+	gate = overridden.IngestGate()
+	if gate.ClockSkew != 2*time.Minute || gate.MaxRecordLateness != 3*time.Hour ||
+		overridden.IngestService().RetryAfter != 10*time.Second {
 		t.Fatalf("overrides = %+v, %+v", overridden.IngestGate(), overridden.IngestService())
 	}
 }

@@ -12,7 +12,8 @@ import { IngestService } from "./ingest_pb";
 export const issueToken = IngestService.method.issueToken;
 
 /**
- * ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.
+ * ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:
+ * the windows still open and those closed after since, with the overlapping windows of each workspace merged.
  *
  * @generated from rpc loco.ingest.v1.IngestService.ListPlacementWindows
  */

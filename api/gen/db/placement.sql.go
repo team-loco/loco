@@ -117,6 +117,19 @@ func (q *Queries) DeleteAppliedPlacement(ctx context.Context, arg DeleteAppliedP
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredPlacementWindows = `-- name: DeleteExpiredPlacementWindows :execrows
+DELETE FROM placement_windows
+WHERE removed_at <= $1::timestamptz
+`
+
+func (q *Queries) DeleteExpiredPlacementWindows(ctx context.Context, cutoff time.Time) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredPlacementWindows, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getClusterSyncGeneration = `-- name: GetClusterSyncGeneration :one
 SELECT sync_generation FROM clusters WHERE id = $1 AND removed_at IS NULL
 `
@@ -213,10 +226,34 @@ func (q *Queries) ListClusterPlacementRevisions(ctx context.Context, clusterID u
 }
 
 const listClusterPlacementWindows = `-- name: ListClusterPlacementWindows :many
-SELECT workspace_id, placed_at, removed_at FROM placement_windows
-WHERE cluster_id = $1
-ORDER BY placed_at, id
+WITH starts AS (
+    SELECT id, workspace_id, placed_at, COALESCE(removed_at, 'infinity') AS ends_at,
+        CASE WHEN placed_at <= MAX(COALESCE(removed_at, 'infinity')) OVER (
+            PARTITION BY workspace_id ORDER BY placed_at, id
+            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+        ) THEN 0 ELSE 1 END AS starts_interval
+    FROM placement_windows
+    WHERE cluster_id = $1::uuid
+      AND (removed_at IS NULL OR removed_at > $2::timestamptz)
+), intervals AS (
+    SELECT id, workspace_id, placed_at, ends_at,
+        SUM(starts_interval) OVER (PARTITION BY workspace_id ORDER BY placed_at, id) AS interval_number
+    FROM starts
+), merged AS (
+    SELECT MIN(placed_at) AS placed_at, (ARRAY_AGG(id ORDER BY ends_at DESC))[1] AS last_id
+    FROM intervals
+    GROUP BY workspace_id, interval_number
+)
+SELECT pw.workspace_id, m.placed_at::timestamptz AS placed_at, pw.removed_at
+FROM merged m
+JOIN placement_windows pw ON pw.id = m.last_id
+ORDER BY m.placed_at, pw.workspace_id
 `
+
+type ListClusterPlacementWindowsParams struct {
+	ClusterID uuid.UUID `json:"clusterId"`
+	Since     time.Time `json:"since"`
+}
 
 type ListClusterPlacementWindowsRow struct {
 	WorkspaceID uuid.UUID  `json:"workspaceId"`
@@ -224,8 +261,10 @@ type ListClusterPlacementWindowsRow struct {
 	RemovedAt   *time.Time `json:"removedAt"`
 }
 
-func (q *Queries) ListClusterPlacementWindows(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementWindowsRow, error) {
-	rows, err := q.db.Query(ctx, listClusterPlacementWindows, clusterID)
+// Returns each workspace's windows on the cluster that are open or closed after since,
+// merged into non-overlapping intervals.
+func (q *Queries) ListClusterPlacementWindows(ctx context.Context, arg ListClusterPlacementWindowsParams) ([]ListClusterPlacementWindowsRow, error) {
+	rows, err := q.db.Query(ctx, listClusterPlacementWindows, arg.ClusterID, arg.Since)
 	if err != nil {
 		return nil, err
 	}

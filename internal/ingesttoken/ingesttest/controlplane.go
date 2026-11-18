@@ -140,7 +140,7 @@ func (c *ControlPlane) serveJWKS(w http.ResponseWriter, _ *http.Request) {
 
 func (c *ControlPlane) ListPlacementWindows(
 	ctx context.Context,
-	_ *ingestv1.ListPlacementWindowsRequest,
+	req *ingestv1.ListPlacementWindowsRequest,
 ) (*ingestv1.ListPlacementWindowsResponse, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -156,6 +156,9 @@ func (c *ControlPlane) ListPlacementWindows(
 	}
 	if c.state.Revoked {
 		return nil, connect.NewError(connect.CodePermissionDenied, revoked)
+	}
+	if err := req.GetSince().CheckValid(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err.Error())
 	}
 	return &ingestv1.ListPlacementWindowsResponse{Windows: c.state.Windows, Retention: c.state.Retention}, nil
 }

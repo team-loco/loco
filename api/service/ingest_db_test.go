@@ -15,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -27,6 +28,7 @@ import (
 
 const (
 	testIngestTokenLifetime = 10 * time.Minute
+	testPlacementWindowAge  = time.Hour
 	testCurrentIngestKey    = "v2"
 	testPreviousIngestKey   = "v1"
 )
@@ -108,8 +110,13 @@ func placementWindows(
 	t.Helper()
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+token)
-	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	resp, err := client.ListPlacementWindows(ctx, recentWindows())
 	return resp.GetWindows(), err
+}
+
+// recentWindows asks for the windows open or closed within testPlacementWindowAge.
+func recentWindows() *ingestv1.ListPlacementWindowsRequest {
+	return &ingestv1.ListPlacementWindowsRequest{Since: timestamppb.New(time.Now().Add(-testPlacementWindowAge))}
 }
 
 func signedIngestToken(t *testing.T, key ingesttest.Signer, clusterID uuid.UUID, issuedAt time.Time) string {
@@ -348,7 +355,7 @@ func TestPlacementWindowsCarryTheInstallRetention(t *testing.T) {
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
 
-	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	resp, err := client.ListPlacementWindows(ctx, recentWindows())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,5 +408,68 @@ func TestGetRetentionReturnsEachWorkspacesRetention(t *testing.T) {
 		if !proto.Equal(got[id], days) {
 			t.Errorf("workspace %s keeps %v, want %v", id, got[id], days)
 		}
+	}
+}
+
+func TestPlacementWindowsMergeTheWindowsOpenOrClosedSince(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first := f.workspaceID(t)
+	second := f.tenant.workspace(t, "second")
+	now := time.Now().Truncate(time.Second)
+	keep := testPlacementWindowAge
+	open := time.Time{}
+	insert := func(cluster, workspace uuid.UUID, placed, removed time.Time) {
+		t.Helper()
+		var removedAt *time.Time
+		if !removed.IsZero() {
+			removedAt = &removed
+		}
+		if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO placement_windows (resource_id, cluster_id, workspace_id, placed_at, removed_at)
+VALUES ($1, $2, $3, $4, $5)`, uuid.New(), cluster, workspace, placed, removedAt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	insert(f.clusterID, first, now.Add(-3*time.Hour), open)
+	insert(f.clusterID, first, now.Add(-2*time.Hour), now.Add(-30*time.Minute))
+	insert(f.clusterID, first, now.Add(-10*keep), now.Add(-2*keep))
+	insert(f.otherCluster, first, now.Add(-4*time.Hour), open)
+	insert(f.clusterID, second, now.Add(-5*keep), now.Add(-4*keep))
+	insert(f.clusterID, second, now.Add(-keep-time.Hour), now.Add(-keep+time.Minute))
+	insert(f.clusterID, second, now.Add(-50*time.Minute), now.Add(-40*time.Minute))
+	insert(f.clusterID, second, now.Add(-45*time.Minute), now.Add(-20*time.Minute))
+	insert(f.clusterID, second, now.Add(-10*time.Minute), open)
+
+	key := newIngestKey(t, testCurrentIngestKey)
+	client := ingestClient(newIngestServer(f, signingWith(key)))
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
+	_, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	requireCode(t, err, connect.CodeInvalidArgument, "windows without since")
+	since := &ingestv1.ListPlacementWindowsRequest{Since: timestamppb.New(now.Add(-keep))}
+	resp, err := client.ListPlacementWindows(ctx, since)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	window := func(workspace uuid.UUID, placed, removed time.Time) *ingestv1.PlacementWindow {
+		w := &ingestv1.PlacementWindow{WorkspaceId: workspace.String(), PlacedAt: timestamppb.New(placed)}
+		if !removed.IsZero() {
+			w.RemovedAt = timestamppb.New(removed)
+		}
+		return w
+	}
+	want := &ingestv1.ListPlacementWindowsResponse{
+		Windows: []*ingestv1.PlacementWindow{
+			window(first, now.Add(-3*time.Hour), open),
+			window(second, now.Add(-keep-time.Hour), now.Add(-keep+time.Minute)),
+			window(second, now.Add(-50*time.Minute), now.Add(-20*time.Minute)),
+			window(second, now.Add(-10*time.Minute), open),
+		},
+		Retention: resp.GetRetention(),
+	}
+	if !proto.Equal(resp, want) {
+		t.Fatalf("response = %v\nwant %v", resp, want)
 	}
 }

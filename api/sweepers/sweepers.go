@@ -1,4 +1,5 @@
-// Package sweepers holds the background jobs that reclaim build sources, images and registry credentials.
+// Package sweepers holds the background jobs that reclaim build sources, images, registry credentials
+// and placement windows.
 package sweepers
 
 import (

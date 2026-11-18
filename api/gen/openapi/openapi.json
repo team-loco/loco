@@ -3339,7 +3339,7 @@
           "loco.ingest.v1.IngestService"
         ],
         "summary": "ListPlacementWindows",
-        "description": "ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token.",
+        "description": "ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:\n the windows still open and those closed after since, with the overlapping windows of each workspace merged.",
         "operationId": "loco.ingest.v1.IngestService.ListPlacementWindows",
         "parameters": [
           {
@@ -11808,6 +11808,13 @@
       },
       "loco.ingest.v1.ListPlacementWindowsRequest": {
         "type": "object",
+        "properties": {
+          "since": {
+            "title": "since",
+            "description": "since is required; windows closed at or before it are left out.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
         "title": "ListPlacementWindowsRequest",
         "additionalProperties": false
       },

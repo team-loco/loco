@@ -84,13 +84,19 @@ func (s *IngestServer) IssueToken(
 
 func (s *IngestServer) ListPlacementWindows(
 	ctx context.Context,
-	_ *ingestv1.ListPlacementWindowsRequest,
+	req *ingestv1.ListPlacementWindowsRequest,
 ) (*ingestv1.ListPlacementWindowsResponse, error) {
 	clusterID, err := s.authenticateCluster(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.queries.ListClusterPlacementWindows(ctx, clusterID)
+	if err = req.GetSince().CheckValid(); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, "invalid since").WithCause(err)
+	}
+	rows, err := s.queries.ListClusterPlacementWindows(ctx, genDb.ListClusterPlacementWindowsParams{
+		ClusterID: clusterID,
+		Since:     req.GetSince().AsTime(),
+	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, publicRequestFailed).WithCause(err)
 	}

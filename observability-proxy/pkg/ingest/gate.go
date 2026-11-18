@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/go-jose/go-jose/v4"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
@@ -40,6 +41,8 @@ type GateConfig struct {
 	RetentionTTL        time.Duration
 	RefetchInterval     time.Duration
 	ClockSkew           time.Duration
+	// MaxRecordLateness is how far in the past a workspace's record may be.
+	MaxRecordLateness time.Duration
 }
 
 type Gate struct {
@@ -195,7 +198,10 @@ func (c *clusterPlacements) load(ctx context.Context, g *Gate, token string, max
 func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) error {
 	ctx, info := connect.NewClientContext(ctx)
 	info.RequestHeader().Set("Authorization", bearer.Header(token))
-	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	since := time.Now().Add(-g.cfg.MaxRecordLateness - g.cfg.ClockSkew)
+	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{
+		Since: timestamppb.New(since),
+	})
 	if err != nil && connect.CodeOf(err) == connect.CodePermissionDenied {
 		c.revoked = true
 		c.snapshot = snapshot{}
@@ -244,11 +250,15 @@ const (
 	accepted              verdict = ""
 	rejectNotPlaced       verdict = "workspace_not_placed"
 	rejectOutsideOfWindow verdict = "outside_placement_window"
+	rejectTooLate         verdict = "older_than_max_lateness"
 )
 
 func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time) (verdict, error) {
 	if workspaceID == "" {
 		return accepted, nil
+	}
+	if at.Before(time.Now().Add(-a.gate.cfg.MaxRecordLateness)) {
+		return rejectTooLate, nil
 	}
 	result := a.match(workspaceID, at)
 	if result == accepted || a.refetched {
