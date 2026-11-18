@@ -16,6 +16,7 @@ import { observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel } from "@/lib/time";
 
 const CLOCK_TICK_MS = 60_000;
+const PULSE = "M2 12h4l3-8 6 16 3-8h4";
 
 function AlertCard({
 	alert,
@@ -105,7 +106,8 @@ export function AlertsDrawer() {
 						strokeLinecap="round"
 						strokeLinejoin="round"
 					>
-						<path className="act-pulse" pathLength="100" d="M2 12h4l3-8 6 16 3-8h4" />
+						<path className="act-base" d={PULSE} />
+						<path className="act-pulse" pathLength="100" d={PULSE} />
 					</svg>
 				</span>
 				<span className="hidden md:inline">Activity</span>
