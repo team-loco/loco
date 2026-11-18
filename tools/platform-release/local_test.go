@@ -96,12 +96,9 @@ func TestLocalReleaseCacheBuildsOnlyChangedInputs(t *testing.T) {
 	options := localOptions{address: fixtureAddress, cache: cache}
 	_, err := tool.localRelease(fixture.registry, options)
 	require.NoError(t, err)
-	fingerprints := map[string]string{}
-	for _, name := range images {
-		fingerprints[name] = name
-	}
-	fingerprints[imageAgent] = "changed"
-	require.NoError(t, os.WriteFile(filepath.Join(tool.root, "fingerprints.json"), encoded(fingerprints), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(tool.root, "agent"), 0o750))
+	ignore := filepath.Join(tool.root, dockerfiles[imageAgent]+".dockerignore")
+	require.NoError(t, os.WriteFile(ignore, []byte("*\n"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(tool.root, "calls.jsonl"), nil, 0o644))
 	_, err = tool.localRelease(fixture.registry, options)
 	require.NoError(t, err)

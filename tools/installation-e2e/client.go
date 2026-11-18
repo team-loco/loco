@@ -152,7 +152,7 @@ func clientFlow(ctx context.Context, audit *leakAudit, hostname string) error {
 		return err
 	}
 	operatorPhase(phaseUpgrade)
-	if err = recoveryDrill(ctx, upgradePlatform); err != nil {
+	if err = recoveryDrill(ctx); err != nil {
 		return err
 	}
 	after, err := identitySnapshot(ctx)

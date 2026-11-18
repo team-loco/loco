@@ -238,10 +238,8 @@ func (cfg config) deployEntry(ctx context.Context, suspend bool, entry string) e
 	if _, err = cfg.flux(ctx, "reconcile", "kustomization", repo.Source); err != nil {
 		return err
 	}
-	for _, source := range []string{"platform-bundle"} {
-		if _, err = cfg.flux(ctx, "reconcile", "source", "oci", source); err != nil {
-			return err
-		}
+	if _, err = cfg.flux(ctx, "reconcile", "source", "oci", "platform-bundle"); err != nil {
+		return err
 	}
 	layers := []string{
 		"loco",

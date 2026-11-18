@@ -1,54 +1,22 @@
-package main
+// Package imageinputs fingerprints the build inputs of a Docker image.
+package imageinputs
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/moby/patternmatcher"
 	"github.com/moby/patternmatcher/ignorefile"
 )
 
-func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-}
-
-func run() error {
-	files, err := exec.CommandContext(
-		context.Background(), "git", "ls-files", "-z", "--cached", "--others", "--exclude-standard",
-	).
-		Output()
-	if err != nil {
-		return err
-	}
-	result := map[string]string{}
-	for _, argument := range os.Args[1:] {
-		name, dockerfile, ok := strings.Cut(argument, "=")
-		if !ok || name == "" || dockerfile == "" {
-			return fmt.Errorf("expected image=Dockerfile, got %q", argument)
-		}
-		sum, err := fingerprint(".", dockerfile, strings.Split(strings.TrimSuffix(string(files), "\x00"), "\x00"))
-		if err != nil {
-			return err
-		}
-		result[name] = sum
-	}
-	return json.NewEncoder(os.Stdout).Encode(result)
-}
-
-func fingerprint(root, dockerfile string, files []string) (string, error) {
+// Fingerprint hashes the Dockerfile, its ignore rules and every file in files that enters its build context.
+func Fingerprint(root, dockerfile string, files []string) (string, error) {
 	ignorePath := dockerfile + ".dockerignore"
 	// #nosec G703 -- Dockerfile paths are explicit local build inputs.
 	data, err := os.ReadFile(filepath.Join(root, ignorePath))

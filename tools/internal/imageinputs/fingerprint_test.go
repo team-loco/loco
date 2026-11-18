@@ -1,4 +1,4 @@
-package main
+package imageinputs
 
 import (
 	"os"
@@ -21,7 +21,7 @@ func TestFingerprintTracksOnlyDockerInputs(t *testing.T) {
 	files := []string{"Dockerfile", "Dockerfile.dockerignore", "source", "unrelated"}
 	sum := func() string {
 		t.Helper()
-		result, err := fingerprint(root, "Dockerfile", files)
+		result, err := Fingerprint(root, "Dockerfile", files)
 		if err != nil {
 			t.Fatal(err)
 		}

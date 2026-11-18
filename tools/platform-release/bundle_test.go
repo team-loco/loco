@@ -91,7 +91,7 @@ func TestArchiveContentIgnoresMetadataAndCompression(t *testing.T) {
 	require.True(t, bytes.Equal(data, data2))
 }
 
-func TestCanonicalJSONMatchesPython(t *testing.T) {
+func TestCanonicalJSONSortsKeysAndEscapesNonASCII(t *testing.T) {
 	t.Parallel()
 	want := []byte(`{"a":"<&>\u00e9\ud83d\ude80","z":1}`)
 	got := encoded(struct {

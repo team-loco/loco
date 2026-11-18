@@ -45,7 +45,7 @@ func (t *tool) command(args ...string) (*exec.Cmd, error) {
 	}
 	arguments := args[1:]
 	switch args[0] {
-	case "git", "go", "helm", "mise", dockerCommand, "gh":
+	case "git", "helm", "mise", dockerCommand, "gh":
 		// #nosec G702 -- The operator supplies argv; executable names are allowlisted and no shell is used.
 		return exec.CommandContext(t.ctx, args[0], arguments...), nil
 	default:

@@ -73,29 +73,8 @@ spec:
 	var chartCommands [][]string
 	for _, cluster := range clusters {
 		dir := filepath.Join(example, "clusters", cluster.name)
-		if err = checkCohort(example, dir); err != nil {
+		if err = buildCluster(ctx, root, spec, example, dir, &resources); err != nil {
 			return err
-		}
-		for _, path := range []string{dir, filepath.Join(dir, "config")} {
-			built, buildErr := command(
-				ctx,
-				root,
-				nil,
-				"flux",
-				"build",
-				"kustomization",
-				"example",
-				"--dry-run",
-				"--path",
-				path,
-				"--kustomization-file",
-				spec,
-			)
-			if buildErr != nil {
-				return buildErr
-			}
-			resources.Write(built)
-			resources.WriteString("\n---\n")
 		}
 		args := chartArgs(root, cluster.chart,
 			filepath.Join(example, "bases", strings.TrimPrefix(cluster.chart, "loco-"), "values", "values.yaml"),
@@ -246,7 +225,12 @@ func checkSingleCluster(ctx context.Context, root, scratch, spec string, resourc
 		return err
 	}
 	cluster := filepath.Join(output, "clusters", "combined")
-	if err := checkCohort(output, cluster); err != nil {
+	return buildCluster(ctx, root, spec, output, cluster, resources)
+}
+
+// buildCluster checks a cluster's release cohort and appends its rendered Flux kustomizations to resources.
+func buildCluster(ctx context.Context, root, spec, repo, cluster string, resources *bytes.Buffer) error {
+	if err := checkCohort(repo, cluster); err != nil {
 		return err
 	}
 	for _, path := range []string{cluster, filepath.Join(cluster, "config")} {

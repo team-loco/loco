@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/team-loco/loco/tools/internal/imageinputs"
 )
 
 type imageCacheEntry struct {
@@ -207,21 +209,17 @@ func (t *tool) imageInputs(cachePath string) (map[string]imageCacheEntry, map[st
 				return nil, nil, checkErr
 			}
 		}
-		args := []string{"go", "run", "./tools/image-inputs"}
-		for _, name := range images {
-			args = append(args, name+"="+dockerfiles[name])
-		}
-		output, err := t.run(args...)
+		output, err := t.run("git", "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 		if err != nil {
 			return nil, nil, err
 		}
-		if checkErr := json.Unmarshal([]byte(output), &fingerprints); checkErr != nil {
-			return nil, nil, checkErr
-		}
+		files := strings.FieldsFunc(output, func(r rune) bool { return r == 0 })
 		for _, name := range images {
-			if fingerprints[name] == "" {
-				return nil, nil, fmt.Errorf("missing fingerprint for %s", name)
+			sum, err := imageinputs.Fingerprint(t.root, dockerfiles[name], files)
+			if err != nil {
+				return nil, nil, fmt.Errorf("fingerprint %s: %w", name, err)
 			}
+			fingerprints[name] = sum
 		}
 	}
 	return cached, fingerprints, nil
