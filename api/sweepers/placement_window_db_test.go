@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
-func TestPlacementWindowSweepDeletesWindowsClosedLongerThanKeep(t *testing.T) {
+func TestPlacementWindowSweepDeletesWindowsClosedLongAgo(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
-	const keep = time.Hour
+	const keep = placementWindowKeep
 	now := time.Now()
 	insert := func(placed time.Time, removed *time.Time) uuid.UUID {
 		t.Helper()
@@ -33,7 +33,7 @@ VALUES ($1, $2, $3, $4, $5) RETURNING id`,
 	recent := insert(*at(10 * keep), at(keep-time.Minute))
 	insert(*at(10 * keep), at(keep+time.Minute))
 
-	result, err := NewPlacementWindowSweeper(f.pool, time.Minute, keep).Sweep(t.Context())
+	result, err := NewPlacementWindowSweeper(f.pool, time.Minute).Sweep(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

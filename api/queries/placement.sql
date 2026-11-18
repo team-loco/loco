@@ -203,7 +203,7 @@ WHERE pw.resource_id = $1 AND pw.cluster_id = $2 AND pw.removed_at IS NULL
   );
 
 -- name: ListClusterPlacementWindows :many
--- Returns each workspace's windows on the cluster that are open or closed after the cutoff,
+-- Returns each workspace's windows on the cluster that are open or closed after since,
 -- merged into non-overlapping intervals.
 WITH starts AS (
     SELECT id, workspace_id, placed_at, COALESCE(removed_at, 'infinity') AS ends_at,
@@ -213,7 +213,7 @@ WITH starts AS (
         ) THEN 0 ELSE 1 END AS starts_interval
     FROM placement_windows
     WHERE cluster_id = sqlc.arg(cluster_id)::uuid
-      AND (removed_at IS NULL OR removed_at > sqlc.arg(cutoff)::timestamptz)
+      AND (removed_at IS NULL OR removed_at > sqlc.arg(since)::timestamptz)
 ), intervals AS (
     SELECT id, workspace_id, placed_at, ends_at,
         SUM(starts_interval) OVER (PARTITION BY workspace_id ORDER BY placed_at, id) AS interval_number

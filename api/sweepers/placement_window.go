@@ -15,6 +15,8 @@ import (
 )
 
 const (
+	// placementWindowKeep must exceed any ingest lateness the observability proxy allows.
+	placementWindowKeep      = 24 * time.Hour
 	placementWindowSweepSpan = "placement_window.sweep"
 	windowsDeletedAttr       = "loco.sweep.placement_windows_deleted"
 )
@@ -24,15 +26,14 @@ type PlacementWindowSweepResult struct {
 	WindowsDeleted int64
 }
 
-// PlacementWindowSweeper deletes placement windows closed longer ago than keep.
+// PlacementWindowSweeper deletes placement windows closed longer ago than placementWindowKeep.
 type PlacementWindowSweeper struct {
 	db       *pgxpool.Pool
 	interval time.Duration
-	keep     time.Duration
 }
 
-func NewPlacementWindowSweeper(db *pgxpool.Pool, interval, keep time.Duration) *PlacementWindowSweeper {
-	return &PlacementWindowSweeper{db: db, interval: interval, keep: keep}
+func NewPlacementWindowSweeper(db *pgxpool.Pool, interval time.Duration) *PlacementWindowSweeper {
+	return &PlacementWindowSweeper{db: db, interval: interval}
 }
 
 func (s *PlacementWindowSweeper) Run(ctx context.Context) {
@@ -61,7 +62,7 @@ func (s *PlacementWindowSweeper) tracedSweep(ctx context.Context) (PlacementWind
 func (s *PlacementWindowSweeper) Sweep(ctx context.Context) (PlacementWindowSweepResult, error) {
 	var result PlacementWindowSweepResult
 	ran, err := runLocked(ctx, s.db, advisorylock.PlacementWindowSweep, func() error {
-		deleted, err := genDb.New(s.db).DeleteExpiredPlacementWindows(ctx, time.Now().Add(-s.keep))
+		deleted, err := genDb.New(s.db).DeleteExpiredPlacementWindows(ctx, time.Now().Add(-placementWindowKeep))
 		result.WindowsDeleted = deleted
 		if err != nil {
 			return fmt.Errorf("delete expired placement windows: %w", err)

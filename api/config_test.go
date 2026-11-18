@@ -75,8 +75,6 @@ const (
 	transitCacheEnv     = "LOCO_SECRETS_TRANSIT_CACHE_TTL"
 	ingestKeyEnv        = "LOCO_INGEST_TRANSIT_KEY"
 	ingestLifetimeEnv   = "LOCO_INGEST_TOKEN_LIFETIME"
-	ingestLatenessEnv   = "LOCO_INGEST_MAX_RECORD_LATENESS"
-	ingestClockSkewEnv  = "LOCO_INGEST_CLOCK_SKEW"
 	testIngestKey       = "loco-ingest"
 	registryAuthEnv     = "LOCO_REGISTRY_AUTH"
 	registryKeyEnv      = "LOCO_REGISTRY_TRANSIT_KEY"
@@ -908,30 +906,16 @@ func TestNewAPIConfigReadsInvitations(t *testing.T) {
 func TestIngestTokenConfiguration(t *testing.T) {
 	clearAPIConfigEnv(t)
 	defaults := newAPIConfig().Ingest
-	wantDefaults := service.IngestConfig{
-		TokenLifetime:     defaultIngestTokenLifetime,
-		MaxRecordLateness: defaultIngestMaxRecordLateness,
-		ClockSkew:         defaultIngestClockSkew,
-	}
-	if defaults.TransitKey != testIngestKey || defaults.IngestConfig != wantDefaults {
+	if defaults.TransitKey != testIngestKey || defaults.TokenLifetime != defaultIngestTokenLifetime {
 		t.Fatalf("defaults = %+v", defaults)
 	}
 	t.Setenv(ingestLifetimeEnv, "15m")
-	t.Setenv(ingestLatenessEnv, "2h")
-	t.Setenv(ingestClockSkewEnv, "1m")
-	wantSet := service.IngestConfig{
-		TokenLifetime:     15 * time.Minute,
-		MaxRecordLateness: 2 * time.Hour,
-		ClockSkew:         time.Minute,
-	}
-	if set := newIngestConfig(); set.IngestConfig != wantSet {
+	if set := newIngestConfig(); set.TokenLifetime != 15*time.Minute {
 		t.Fatalf("configured = %+v", set)
 	}
 	for env, value := range map[string]string{
-		ingestKeyEnv:       "",
-		ingestLifetimeEnv:  "0s",
-		ingestLatenessEnv:  "0s",
-		ingestClockSkewEnv: "-1m",
+		ingestKeyEnv:      "",
+		ingestLifetimeEnv: "0s",
 	} {
 		t.Run(env+"="+value, func(t *testing.T) {
 			t.Setenv(env, value)

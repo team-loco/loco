@@ -130,8 +130,6 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_SECRETS_LOCK_TIMEOUT` | `10s` | How long a secret write waits for the lock on its workspace's environments. |
 | `LOCO_INGEST_TRANSIT_KEY` | required | Transit key that signs ingest tokens. |
 | `LOCO_INGEST_TOKEN_LIFETIME` | `1h` | Lifetime of an ingest token. |
-| `LOCO_INGEST_MAX_RECORD_LATENESS` | `1h` | How far in the past a workspace's telemetry record may be. The observability proxy rejects older records, and the API deletes placement windows closed longer ago than this plus `LOCO_INGEST_CLOCK_SKEW`. |
-| `LOCO_INGEST_CLOCK_SKEW` | `5m` | How far the observability proxy widens each placement window at both ends when it matches a record's time. |
 
 ## Observability queries
 

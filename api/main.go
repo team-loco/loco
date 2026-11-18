@@ -428,7 +428,7 @@ func newDeps(
 		imageSweeper:       imageSweeper,
 		registrySweeper:    registrySweeper,
 
-		placementWindowSweeper: sweepers.NewPlacementWindowSweeper(pool, placementWindowSweep, ac.Ingest.WindowKeep()),
+		placementWindowSweeper: sweepers.NewPlacementWindowSweeper(pool, placementWindowSweep),
 
 		config: service.NewConfigServer(ac.Version,
 			ac.MinCLIVersion,
@@ -491,7 +491,7 @@ func newDeps(
 			queries,
 			clusterAuthenticator,
 			transitKeys.Ingest,
-			ac.Ingest.IngestConfig,
+			ac.Ingest.TokenLifetime,
 			ac.CountLimits,
 		),
 		registry: registryServiceHandler,

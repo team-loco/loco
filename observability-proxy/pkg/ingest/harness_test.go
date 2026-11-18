@@ -45,10 +45,6 @@ func newControlPlane(t *testing.T) *controlPlane {
 	t.Helper()
 	fake := ingesttest.Start([]ingesttest.Signer{newSigningKey(t, testCurrentKeyID)})
 	t.Cleanup(fake.Close)
-	fake.Update(func(s *ingesttest.State) {
-		s.ClockSkew = testClockSkew
-		s.MaxRecordLateness = testMaxRecordLateness
-	})
 	return &controlPlane{ControlPlane: fake, t: t}
 }
 
@@ -74,6 +70,8 @@ func (c *controlPlane) gate() *Gate {
 		PlacementTTL:        testPlacementTTL,
 		RetentionTTL:        testRetentionTTL,
 		RefetchInterval:     testPlacementRefetch,
+		ClockSkew:           testClockSkew,
+		MaxRecordLateness:   testMaxRecordLateness,
 	})
 }
 

@@ -15,7 +15,6 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -29,8 +28,7 @@ import (
 
 const (
 	testIngestTokenLifetime = 10 * time.Minute
-	testMaxRecordLateness   = time.Hour
-	testIngestClockSkew     = 5 * time.Minute
+	testPlacementWindowAge  = time.Hour
 	testCurrentIngestKey    = "v2"
 	testPreviousIngestKey   = "v1"
 )
@@ -79,12 +77,7 @@ func newIngestKey(t *testing.T, id string) ingesttest.Signer {
 
 func newIngestServer(f *deployFixture, signer *testIngestSigner) *IngestServer {
 	clusters := NewClusterAuthenticator(f.queries, testAgentConfig().AssertionMaxLifetime)
-	cfg := IngestConfig{
-		TokenLifetime:     testIngestTokenLifetime,
-		MaxRecordLateness: testMaxRecordLateness,
-		ClockSkew:         testIngestClockSkew,
-	}
-	return NewIngestServer(f.queries, clusters, signer, cfg, limits.Defaults())
+	return NewIngestServer(f.queries, clusters, signer, testIngestTokenLifetime, limits.Defaults())
 }
 
 func signingWith(keys ...ingesttest.Signer) *testIngestSigner {
@@ -117,8 +110,13 @@ func placementWindows(
 	t.Helper()
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+token)
-	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	resp, err := client.ListPlacementWindows(ctx, recentWindows())
 	return resp.GetWindows(), err
+}
+
+// recentWindows asks for the windows open or closed within testPlacementWindowAge.
+func recentWindows() *ingestv1.ListPlacementWindowsRequest {
+	return &ingestv1.ListPlacementWindowsRequest{Since: timestamppb.New(time.Now().Add(-testPlacementWindowAge))}
 }
 
 func signedIngestToken(t *testing.T, key ingesttest.Signer, clusterID uuid.UUID, issuedAt time.Time) string {
@@ -357,7 +355,7 @@ func TestPlacementWindowsCarryTheInstallRetention(t *testing.T) {
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
 
-	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	resp, err := client.ListPlacementWindows(ctx, recentWindows())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,13 +411,13 @@ func TestGetRetentionReturnsEachWorkspacesRetention(t *testing.T) {
 	}
 }
 
-func TestPlacementWindowsMergeTheWindowsThatCanStillMatch(t *testing.T) {
+func TestPlacementWindowsMergeTheWindowsOpenOrClosedSince(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	first := f.workspaceID(t)
 	second := f.tenant.workspace(t, "second")
 	now := time.Now().Truncate(time.Second)
-	keep := testMaxRecordLateness + testIngestClockSkew
+	keep := testPlacementWindowAge
 	open := time.Time{}
 	insert := func(cluster, workspace uuid.UUID, placed, removed time.Time) {
 		t.Helper()
@@ -447,7 +445,10 @@ VALUES ($1, $2, $3, $4, $5)`, uuid.New(), cluster, workspace, placed, removedAt)
 	client := ingestClient(newIngestServer(f, signingWith(key)))
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("Authorization", "Bearer "+signedIngestToken(t, key, f.clusterID, time.Now()))
-	resp, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	_, err := client.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	requireCode(t, err, connect.CodeInvalidArgument, "windows without since")
+	since := &ingestv1.ListPlacementWindowsRequest{Since: timestamppb.New(now.Add(-keep))}
+	resp, err := client.ListPlacementWindows(ctx, since)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,9 +467,7 @@ VALUES ($1, $2, $3, $4, $5)`, uuid.New(), cluster, workspace, placed, removedAt)
 			window(second, now.Add(-50*time.Minute), now.Add(-20*time.Minute)),
 			window(second, now.Add(-10*time.Minute), open),
 		},
-		Retention:         resp.GetRetention(),
-		MaxRecordLateness: durationpb.New(testMaxRecordLateness),
-		ClockSkew:         durationpb.New(testIngestClockSkew),
+		Retention: resp.GetRetention(),
 	}
 	if !proto.Equal(resp, want) {
 		t.Fatalf("response = %v\nwant %v", resp, want)

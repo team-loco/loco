@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/go-jose/go-jose/v4"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/gen/go/loco/ingest/v1/ingestv1connect"
@@ -39,6 +40,9 @@ type GateConfig struct {
 	PlacementTTL        time.Duration
 	RetentionTTL        time.Duration
 	RefetchInterval     time.Duration
+	ClockSkew           time.Duration
+	// MaxRecordLateness is how far in the past a workspace's record may be.
+	MaxRecordLateness time.Duration
 }
 
 type Gate struct {
@@ -63,10 +67,8 @@ type window struct {
 
 // snapshot is one ListPlacementWindows response; retention applies to records that name no workspace.
 type snapshot struct {
-	windows           []window
-	retention         *ingestv1.Retention
-	maxRecordLateness time.Duration
-	clockSkew         time.Duration
+	windows   []window
+	retention *ingestv1.Retention
 }
 
 type clusterPlacements struct {
@@ -196,7 +198,10 @@ func (c *clusterPlacements) load(ctx context.Context, g *Gate, token string, max
 func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) error {
 	ctx, info := connect.NewClientContext(ctx)
 	info.RequestHeader().Set("Authorization", bearer.Header(token))
-	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{})
+	since := time.Now().Add(-g.cfg.MaxRecordLateness - g.cfg.ClockSkew)
+	resp, err := g.placements.ListPlacementWindows(ctx, &ingestv1.ListPlacementWindowsRequest{
+		Since: timestamppb.New(since),
+	})
 	if err != nil && connect.CodeOf(err) == connect.CodePermissionDenied {
 		c.revoked = true
 		c.snapshot = snapshot{}
@@ -212,15 +217,6 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 	if err = checkRetention(resp.GetRetention()); err != nil {
 		return err
 	}
-	lateness, skew := resp.GetMaxRecordLateness().AsDuration(), resp.GetClockSkew().AsDuration()
-	if lateness <= 0 || skew < 0 {
-		return fmt.Errorf(
-			"%w: control plane sent a lateness of %s and a clock skew of %s",
-			ErrAuthUnavailable,
-			lateness,
-			skew,
-		)
-	}
 	windows := make([]window, 0, len(resp.GetWindows()))
 	for _, w := range resp.GetWindows() {
 		entry := window{
@@ -232,12 +228,7 @@ func (c *clusterPlacements) fetch(ctx context.Context, g *Gate, token string) er
 		}
 		windows = append(windows, entry)
 	}
-	c.snapshot = snapshot{
-		windows:           windows,
-		retention:         resp.GetRetention(),
-		maxRecordLateness: lateness,
-		clockSkew:         skew,
-	}
+	c.snapshot = snapshot{windows: windows, retention: resp.GetRetention()}
 	c.revoked = false
 	c.fetchedAt = time.Now()
 	return nil
@@ -266,7 +257,7 @@ func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time)
 	if workspaceID == "" {
 		return accepted, nil
 	}
-	if at.Before(time.Now().Add(-a.placements.maxRecordLateness)) {
+	if at.Before(time.Now().Add(-a.gate.cfg.MaxRecordLateness)) {
 		return rejectTooLate, nil
 	}
 	result := a.match(workspaceID, at)
@@ -283,7 +274,7 @@ func (a *Admission) check(ctx context.Context, workspaceID string, at time.Time)
 }
 
 func (a *Admission) match(workspaceID string, at time.Time) verdict {
-	skew := a.placements.clockSkew
+	skew := a.gate.cfg.ClockSkew
 	result := rejectNotPlaced
 	for _, w := range a.placements.windows {
 		if w.workspaceID != workspaceID {

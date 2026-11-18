@@ -171,7 +171,7 @@ type Querier interface {
 	ListBuildsForResource(ctx context.Context, arg ListBuildsForResourceParams) ([]Build, error)
 	ListClusterDomains(ctx context.Context, ids []uuid.UUID) ([]ListClusterDomainsRow, error)
 	ListClusterPlacementRevisions(ctx context.Context, clusterID uuid.UUID) ([]ListClusterPlacementRevisionsRow, error)
-	// Returns each workspace's windows on the cluster that are open or closed after the cutoff,
+	// Returns each workspace's windows on the cluster that are open or closed after since,
 	// merged into non-overlapping intervals.
 	ListClusterPlacementWindows(ctx context.Context, arg ListClusterPlacementWindowsParams) ([]ListClusterPlacementWindowsRow, error)
 	ListClusterRegions(ctx context.Context, arg ListClusterRegionsParams) ([]ListClusterRegionsRow, error)

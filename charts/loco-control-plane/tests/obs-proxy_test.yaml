@@ -36,12 +36,12 @@ tests:
 
   - it: passes obsProxy.ingest.env to the proxy and keeps the chart's own settings
     set:
-      obsProxy.ingest.env: {INGEST_RETRY_AFTER: 2m, PORT: "9999", CLICKHOUSE_INGEST_URL: wrong}
+      obsProxy.ingest.env: {INGEST_CLOCK_SKEW: 2m, PORT: "9999", CLICKHOUSE_INGEST_URL: wrong}
     template: templates/obs-proxy-ingest-deployment.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: INGEST_RETRY_AFTER, value: 2m}
+          content: {name: INGEST_CLOCK_SKEW, value: 2m}
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: PORT, value: "8080"}

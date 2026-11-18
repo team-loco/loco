@@ -27,6 +27,8 @@ const (
 	defaultIngestPlacementCacheTTL   = 30 * time.Second
 	defaultIngestRetentionCacheTTL   = 30 * time.Second
 	defaultIngestPlacementRefetch    = 5 * time.Second
+	defaultIngestClockSkew           = 5 * time.Minute
+	defaultIngestMaxRecordLateness   = time.Hour
 	defaultIngestRetryAfter          = 30 * time.Second
 )
 
@@ -52,6 +54,8 @@ type Config struct {
 	IngestPlacementCacheTTL   time.Duration
 	IngestRetentionCacheTTL   time.Duration
 	IngestPlacementRefetch    time.Duration
+	IngestClockSkew           time.Duration
+	IngestMaxRecordLateness   time.Duration
 	IngestRetryAfter          time.Duration
 }
 
@@ -88,6 +92,11 @@ func Load() *Config {
 			"INGEST_PLACEMENT_REFETCH_INTERVAL",
 			defaultIngestPlacementRefetch,
 		),
+		IngestClockSkew: envconfig.PositiveDuration("INGEST_CLOCK_SKEW", defaultIngestClockSkew),
+		IngestMaxRecordLateness: envconfig.PositiveDuration(
+			"INGEST_MAX_RECORD_LATENESS",
+			defaultIngestMaxRecordLateness,
+		),
 		IngestRetryAfter: ttlEnv("INGEST_RETRY_AFTER", defaultIngestRetryAfter),
 	}
 	if err := cfg.MigrationLock().Validate(); err != nil {
@@ -113,6 +122,8 @@ func (c *Config) IngestGate() ingest.GateConfig {
 		PlacementTTL:        c.IngestPlacementCacheTTL,
 		RetentionTTL:        c.IngestRetentionCacheTTL,
 		RefetchInterval:     c.IngestPlacementRefetch,
+		ClockSkew:           c.IngestClockSkew,
+		MaxRecordLateness:   c.IngestMaxRecordLateness,
 	}
 }
 

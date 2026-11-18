@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package loco.ingest.v1;
 
-import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/ingest/v1;ingestv1";
@@ -13,8 +12,7 @@ service IngestService {
   rpc IssueToken(IssueTokenRequest) returns (IssueTokenResponse);
 
   // ListPlacementWindows returns when each workspace was placed on the cluster named by the caller's ingest token:
-  // the windows still open and those closed within clock_skew plus max_record_lateness, with the overlapping
-  // windows of each workspace merged.
+  // the windows still open and those closed after since, with the overlapping windows of each workspace merged.
   rpc ListPlacementWindows(ListPlacementWindowsRequest) returns (ListPlacementWindowsResponse);
 
   // GetRetention returns how many days to keep each workspace's records: the workspace's own
@@ -30,16 +28,15 @@ message IssueTokenResponse {
   google.protobuf.Timestamp expires_at = 2;
 }
 
-message ListPlacementWindowsRequest {}
+message ListPlacementWindowsRequest {
+  // since is required; windows closed at or before it are left out.
+  google.protobuf.Timestamp since = 1;
+}
 
 message ListPlacementWindowsResponse {
   repeated PlacementWindow windows = 1;
   // retention applies to records that name no workspace: the installation's defaults.
   Retention retention = 2;
-  // max_record_lateness is how far in the past a workspace's record may be; older records are rejected.
-  google.protobuf.Duration max_record_lateness = 3;
-  // clock_skew widens each window at both ends.
-  google.protobuf.Duration clock_skew = 4;
 }
 
 // PlacementWindow is the interval [placed_at, removed_at) during which a workspace had a placement on the cluster;

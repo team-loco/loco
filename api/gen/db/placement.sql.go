@@ -252,7 +252,7 @@ ORDER BY m.placed_at, pw.workspace_id
 
 type ListClusterPlacementWindowsParams struct {
 	ClusterID uuid.UUID `json:"clusterId"`
-	Cutoff    time.Time `json:"cutoff"`
+	Since     time.Time `json:"since"`
 }
 
 type ListClusterPlacementWindowsRow struct {
@@ -261,10 +261,10 @@ type ListClusterPlacementWindowsRow struct {
 	RemovedAt   *time.Time `json:"removedAt"`
 }
 
-// Returns each workspace's windows on the cluster that are open or closed after the cutoff,
+// Returns each workspace's windows on the cluster that are open or closed after since,
 // merged into non-overlapping intervals.
 func (q *Queries) ListClusterPlacementWindows(ctx context.Context, arg ListClusterPlacementWindowsParams) ([]ListClusterPlacementWindowsRow, error) {
-	rows, err := q.db.Query(ctx, listClusterPlacementWindows, arg.ClusterID, arg.Cutoff)
+	rows, err := q.db.Query(ctx, listClusterPlacementWindows, arg.ClusterID, arg.Since)
 	if err != nil {
 		return nil, err
 	}
