@@ -13,6 +13,7 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -950,7 +951,8 @@ def local_release(registry, address, images=None, cache=None):
         daemon = run(
             "docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"
         )
-        for name in IMAGES:
+
+        def publish_image(name):
             repository = registry.repository + "-" + name
             tag = registry.host + "/" + repository + ":" + version
             previous = cached.get(name, {})
@@ -963,9 +965,7 @@ def local_release(registry, address, images=None, cache=None):
                     repository, previous["digest"], missing=True
                 )
                 if existing:
-                    images[name] = address + "/" + repository + "@" + existing
-                    next_cache[name] = previous
-                    continue
+                    return address + "/" + repository + "@" + existing, previous
             if prebuilt:
                 run("docker", "tag", prebuilt.replace("*", name), tag)
             else:
@@ -981,19 +981,29 @@ def local_release(registry, address, images=None, cache=None):
                     ".",
                 )
             run("docker", "--config", directory, "--host", daemon, "push", tag)
-            images[name] = (
+            image = (
                 address
                 + "/"
                 + repository
                 + "@"
                 + registry.manifest(repository, version)
             )
+            cached_image = None
             if cache:
-                next_cache[name] = {
+                cached_image = {
                     "fingerprint": fingerprints[name],
                     "repository": registry.host + "/" + repository,
-                    "digest": images[name].split("@")[1],
+                    "digest": image.split("@")[1],
                 }
+            return image, cached_image
+
+        with ThreadPoolExecutor(max_workers=len(IMAGES)) as executor:
+            for name, (image, cached_image) in zip(
+                IMAGES, executor.map(publish_image, IMAGES), strict=True
+            ):
+                images[name] = image
+                if cache:
+                    next_cache[name] = cached_image
     files = bundle(version, commit, refs, images)
     result = registry.publish(
         names["platform"],

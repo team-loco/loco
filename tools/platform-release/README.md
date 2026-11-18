@@ -80,7 +80,7 @@ git fetch origin main
 mise run release:main -- --repository team-loco/loco > release.json
 ```
 
-`release:local` builds the checkout, including uncommitted changes, into a registry you run. It packages the charts and CRD bundles, builds the six images for the Docker daemon's platform and pushes the layered Flux bundle and its artifacts as version `0.0.0-local.g<commit>`, replacing an earlier push of that version. `--push` is the registry address on this machine, served over plain HTTP when it starts with `localhost:`. `--address` is the name the `release.json` gives the same registry, which both `locoadm` and the cluster's nodes must reach. The registry must allow anonymous pulls of the pushed repositories.
+`release:local` builds the checkout, including uncommitted changes, into a registry you run. It packages the charts and CRD bundles, builds and pushes the six images concurrently for the Docker daemon's platform, then publishes the layered Flux bundle after every image succeeds. It uses version `0.0.0-local.g<commit>`, replacing an earlier push of that version. `--push` is the registry address on this machine, served over plain HTTP when it starts with `localhost:`. `--address` is the name the `release.json` gives the same registry, which both `locoadm` and the cluster's nodes must reach. The registry must allow anonymous pulls of the pushed repositories.
 
 ```sh
 mise run release:local -- --repository team-loco/loco \

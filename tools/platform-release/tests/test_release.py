@@ -7,6 +7,7 @@ import urllib.error
 from contextlib import ExitStack
 from functools import partial
 from pathlib import Path
+from threading import Barrier, Lock
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -996,14 +997,18 @@ def test_local_release_builds_and_pushes_each_image(local_release):
     pushes = [
         call for call in local_release.calls if "push" in call and call[0] == "docker"
     ]
-    assert [call[-2:] for call in builds] == [
-        ("localhost:15000/example/platform-" + name + ":" + version, ".")
-        for name in release.IMAGES
-    ]
-    assert [call[-1] for call in pushes] == [
-        "localhost:15000/example/platform-" + name + ":" + version
-        for name in release.IMAGES
-    ]
+    assert sorted(call[-2:] for call in builds) == sorted(
+        [
+            ("localhost:15000/example/platform-" + name + ":" + version, ".")
+            for name in release.IMAGES
+        ]
+    )
+    assert sorted(call[-1] for call in pushes) == sorted(
+        [
+            "localhost:15000/example/platform-" + name + ":" + version
+            for name in release.IMAGES
+        ]
+    )
     assert not [
         call for call in local_release.calls if call[:2] == ("gh", "attestation")
     ]
@@ -1057,11 +1062,80 @@ def test_local_release_reuses_images_and_isolates_push_credentials(publication, 
     )
     assert not [call for call in publication.calls if call[:2] == ("docker", "build")]
     tags = [call for call in publication.calls if call[:2] == ("docker", "tag")]
-    assert [call[2] for call in tags] == [
-        images.replace("*", name) for name in release.IMAGES
-    ]
+    assert sorted(call[2] for call in tags) == sorted(
+        [images.replace("*", name) for name in release.IMAGES]
+    )
     assert set(lock["images"]) == set(release.IMAGES)
     assert all("@sha256:" in ref for ref in lock["images"].values())
+
+
+def test_local_release_overlaps_builds_and_pushes_before_bundle(publication):
+    publication.registry.host = "localhost:15000"
+    publication.registry.username = "push"
+    publication.registry.password = "fixture"
+    builds = Barrier(len(release.IMAGES), timeout=3)
+    pushes = Barrier(len(release.IMAGES), timeout=3)
+    completed = set()
+    lock = Lock()
+    commands = partial(_command, publication)
+
+    def command(*args):
+        if args[:2] == ("git", "rev-parse"):
+            return publication.commit
+        if args[:2] == ("docker", "build"):
+            builds.wait()
+        if args[0] == "docker" and "push" in args:
+            pushes.wait()
+            with lock:
+                completed.add(args[-1])
+        return commands(*args)
+
+    def publish(repository, *args, **kwargs):
+        if repository == release.repositories(publication.registry)["platform"]:
+            assert len(completed) == len(release.IMAGES)
+        return "sha256:" + "a" * 64
+
+    publication.registry.publish.side_effect = publish
+    with patch.object(release, "run", side_effect=command), patch("builtins.print"):
+        release.local_release(publication.registry, "registry.localhost:15000")
+
+
+@pytest.mark.parametrize("failure", ["build", "push"])
+def test_local_release_image_failure_preserves_bundle_and_cache(
+    publication, tmp_path, failure
+):
+    publication.registry.host = "localhost:15000"
+    publication.registry.username = "push"
+    publication.registry.password = "fixture"
+    cache = tmp_path / "images.json"
+    cache.write_text("{}")
+    commands = partial(_command, publication)
+
+    def command(*args):
+        if args[:2] == ("git", "rev-parse"):
+            return publication.commit
+        if args[:3] == ("go", "run", "./tools/image-inputs"):
+            return json.dumps(dict.fromkeys(release.IMAGES, "new-input"))
+        if (
+            args[0] == "docker"
+            and failure in args
+            and any("platform-api:" in arg for arg in args)
+        ):
+            raise RuntimeError("image operation failed")
+        return commands(*args)
+
+    with (
+        patch.object(release, "run", side_effect=command),
+        pytest.raises(RuntimeError, match="image operation failed"),
+    ):
+        release.local_release(
+            publication.registry, "registry.localhost:15000", cache=cache
+        )
+    platform = release.repositories(publication.registry)["platform"]
+    assert all(
+        call.args[0] != platform for call in publication.registry.publish.call_args_list
+    )
+    assert cache.read_text() == "{}"
 
 
 def test_prerelease_bundle_is_rejected():
