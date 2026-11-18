@@ -4,10 +4,12 @@ import {
 	Building2Icon,
 	KeyboardIcon,
 	SunMoonIcon,
+	TableIcon,
 	ChartLineIcon,
 	CornerDownLeftIcon,
 	KeyRoundIcon,
 	LayersIcon,
+	NetworkIcon,
 	PaletteIcon,
 	PlusIcon,
 	ScrollTextIcon,
@@ -51,12 +53,16 @@ import {
 	observabilityPath,
 	orgSettingsPath,
 	resourcePath,
+	resourcesPath,
+	resourceViewParser,
 	switchWorkspacePath,
+	workspacePath,
 	type ObservabilityView,
 } from "@/lib/routes";
 import { shortcutLabel } from "@/lib/keyboard";
 import { colorThemes, modes } from "@/lib/theme";
 import { useTheme } from "@/lib/use-theme";
+import { cn } from "@/lib/utils";
 
 import { useOpenShortcuts } from "./KeyboardShortcuts";
 
@@ -65,7 +71,8 @@ import { useNavSections } from "./nav";
 const SHORTCUT_KEY = "k";
 export const SHORTCUT_LABEL = shortcutLabel("K");
 const PLACEHOLDER = "Search pages, resources and actions";
-const PALETTE_GROUPS = ["Actions", "Resources", "Pages", "Workspaces", "Appearance", "Help"] as const;
+const PALETTE_GROUPS = ["This page", "Actions", "Resources", "Pages", "Workspaces", "Appearance", "Help"] as const;
+const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";
 const BROWSE_LIMIT = 8;
 
 interface PaletteItem {
@@ -92,6 +99,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const openShortcuts = useOpenShortcuts();
 	const { pathname, search } = useLocation();
 	const [env] = useQueryState("env");
+	const [, setResourceView] = useQueryState("view", resourceViewParser);
 	const { mode, setMode, color, setColor } = useTheme();
 	const { active: activeEnv } = useEnvironments();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
@@ -107,18 +115,53 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 		void navigate(to);
 	};
 	const items: PaletteItem[] = [];
+	const newToken: PaletteItem = {
+		id: "action-new-token",
+		group: "Actions",
+		label: "New token",
+		keywords: "create api ci key",
+		icon: <KeyRoundIcon />,
+		run: go("/tokens?new=1"),
+	};
 
 	if (activeOrgId !== null && activeWorkspaceId !== null) {
 		const orgId = activeOrgId;
 		const workspaceId = activeWorkspaceId;
-		items.push({
-			id: "action-new-resource",
-			group: "Actions",
-			label: "New resource",
-			keywords: "create deploy service",
-			icon: <PlusIcon />,
-			run: go(newResourcePath(orgId, workspaceId, envParams)),
-		});
+		if (pathname === workspacePath(orgId, workspaceId) || pathname === resourcesPath(orgId, workspaceId)) {
+			items.push(
+				{
+					id: "page-show-map",
+					group: "This page",
+					label: "Show architecture map",
+					keywords: "view diagram graph",
+					icon: <NetworkIcon />,
+					run: () => {
+						void setResourceView("map");
+					},
+				},
+				{
+					id: "page-show-table",
+					group: "This page",
+					label: "Show resource table",
+					keywords: "view list",
+					icon: <TableIcon />,
+					run: () => {
+						void setResourceView(null);
+					},
+				},
+			);
+		}
+		items.push(
+			{
+				id: "action-new-resource",
+				group: "Actions",
+				label: "New resource",
+				keywords: "create deploy service",
+				icon: <PlusIcon />,
+				run: go(newResourcePath(orgId, workspaceId, envParams)),
+			},
+			newToken,
+		);
 		if (scopes.workspaceLevel(orgId, workspaceId) >= scopeLevel(Scope.ADMIN))
 			items.push({
 				id: "action-new-webhook",
@@ -150,16 +193,9 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				});
 			}
 		}
+	} else {
+		items.push(newToken);
 	}
-
-	items.push({
-		id: "action-new-token",
-		group: "Actions",
-		label: "New token",
-		keywords: "create api ci key",
-		icon: <KeyRoundIcon />,
-		run: go("/tokens?new=1"),
-	});
 	if (activeOrgId !== null && scopes.holds(activeOrgId, "", Scope.ADMIN)) {
 		items.push({
 			id: "action-invite",
@@ -170,6 +206,14 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			run: go(`/org/${activeOrgId}/team?invite=1`),
 		});
 	}
+	items.push({
+		id: "action-new-organization",
+		group: "Actions",
+		label: "New organization",
+		keywords: "create org",
+		icon: <Building2Icon />,
+		run: go("/organizations?new=1"),
+	});
 	for (const page of navPages) {
 		if (page.to === undefined) continue;
 		const label = page.name === "Settings" ? "Workspace settings" : page.name;
@@ -192,14 +236,6 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			run: go(orgSettingsPath(activeOrgId, activeWorkspaceId)),
 		});
 	}
-	items.push({
-		id: "action-new-organization",
-		group: "Actions",
-		label: "New organization",
-		keywords: "create org",
-		icon: <Building2Icon />,
-		run: go("/organizations?new=1"),
-	});
 	items.push(
 		{
 			id: "page-organizations",
@@ -347,7 +383,7 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 					) : undefined
 				}
 			>
-				<Kbd>esc</Kbd>
+				<Kbd className={cn(KEY_HINT, "px-1.5 py-0.5 text-[11px]")}>esc</Kbd>
 			</CommandInput>
 			<CommandList label="Results">
 				<CommandEmpty>Nothing matches.</CommandEmpty>
@@ -390,16 +426,16 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 			</CommandList>
 			<CommandFooter>
 				<span className="flex items-center gap-1.5">
-					<Kbd>↑</Kbd>
-					<Kbd>↓</Kbd>
+					<Kbd className={KEY_HINT}>↑</Kbd>
+					<Kbd className={KEY_HINT}>↓</Kbd>
 					to navigate
 				</span>
 				<span className="flex items-center gap-1.5">
-					<Kbd>↵</Kbd>
+					<Kbd className={KEY_HINT}>↵</Kbd>
 					to open
 				</span>
 				<span className="flex items-center gap-1.5">
-					<Kbd>esc</Kbd>
+					<Kbd className={KEY_HINT}>esc</Kbd>
 					{list === null ? "to close" : "to go back"}
 				</span>
 			</CommandFooter>
