@@ -138,9 +138,10 @@ func (t *tool) publishBundle(version, commit string, r *registry) (releaseManife
 		t.ctx,
 		repository,
 		version,
-		data,
-		object{fieldVersion: version, fieldCoreCommit: commit},
-		layerType,
+		artifact{
+			version: version, data: data,
+			config: object{fieldVersion: version, fieldCoreCommit: commit}, mediaType: layerType,
+		},
 		false,
 	)
 	if err != nil {

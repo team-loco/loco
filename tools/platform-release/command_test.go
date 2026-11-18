@@ -153,6 +153,10 @@ func (fixture commandFixture) argument(flag string) string {
 func (fixture commandFixture) git() error {
 	switch fixture.args[1] {
 	case "rev-parse":
+		if head := os.Getenv("LOCO_RELEASE_TEST_HEAD"); head != "" {
+			fmt.Print(head)
+			return nil
+		}
 		fmt.Print(strings.Repeat("b", 40))
 	case "ls-tree":
 		fmt.Print(fixture.args[len(fixture.args)-1])

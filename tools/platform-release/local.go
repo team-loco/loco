@@ -62,15 +62,8 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 	}
 	names := repositories(r.repository)
 	for _, artifact := range artifacts {
-		digest, publishErr := r.publish(
-			t.ctx,
-			names[artifact.name],
-			version,
-			artifact.data,
-			artifact.config,
-			artifact.mediaType,
-			true,
-		)
+		// Use the artifact version in its manifest so a new local tag does not force a chart upgrade.
+		digest, publishErr := r.publish(t.ctx, names[artifact.name], version, artifact, true)
 		if publishErr != nil {
 			return manifest, publishErr
 		}
@@ -123,9 +116,10 @@ func (t *tool) localRelease(r *registry, options localOptions) (releaseManifest,
 		t.ctx,
 		names[platformName],
 		version,
-		data,
-		object{fieldVersion: version, fieldCoreCommit: commit},
-		layerType,
+		artifact{
+			version: version, data: data,
+			config: object{fieldVersion: version, fieldCoreCommit: commit}, mediaType: layerType,
+		},
 		true,
 	)
 	if err != nil {
