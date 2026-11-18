@@ -18,8 +18,9 @@ import (
 	"testing"
 )
 
+var zitadelURL = os.Getenv("LOCO_CONFORMANCE_ZITADEL_URL")
+
 const (
-	zitadelURL      = "http://localhost:25090"
 	zitadelRedirect = "http://localhost:5173/callback"
 	zitadelPassword = "Conformance-password-1!"
 	randomSuffixLen = 3

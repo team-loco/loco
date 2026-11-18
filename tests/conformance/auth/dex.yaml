@@ -1,4 +1,3 @@
-issuer: http://localhost:25556/dex
 storage:
   type: memory
 web:

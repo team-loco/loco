@@ -19,8 +19,9 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+var supabaseURL = os.Getenv("LOCO_CONFORMANCE_SUPABASE_URL")
+
 const (
-	supabaseURL        = "http://localhost:25999"
 	supabaseRedirect   = "http://localhost:5173/callback"
 	supabaseServiceEnv = "AUTH_SUPABASE_SERVICE_KEY"
 	supabasePassword   = "conformance-password"
