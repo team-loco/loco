@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/team-loco/loco/builder/internal/extract"
@@ -15,6 +16,9 @@ const (
 	commandPush        = "push"
 	envSourceURL       = "SOURCE_URL"
 	envDownloadTimeout = "DOWNLOAD_TIMEOUT"
+	envNodeIP          = "NODE_IP"
+	// kubeletPort answers on every node, and the build's network policy forbids every node address.
+	kubeletPort = "10250"
 )
 
 var (
@@ -22,18 +26,21 @@ var (
 	errUnknownCommand    = errors.New("unknown command")
 	errNoSourceURL       = errors.New(envSourceURL + " is required")
 	errNoDownloadTimeout = errors.New(envDownloadTimeout + " must be a positive duration")
+	errNoNodeIP          = errors.New(envNodeIP + " is required")
 	errMissingFlag       = errors.New("required flag not set")
 )
 
 type fetchConfig struct {
-	Source        extract.Download
-	Limits        extract.Limits
-	Workspace     string
-	Dockerfile    string
-	CacheDir      string
-	CacheRef      string
-	MaxCacheBytes int64
-	Insecure      bool
+	// ForbiddenAddress is an address the build's network policy forbids, dialed to confirm the policy is in effect.
+	ForbiddenAddress string
+	Source           extract.Download
+	Limits           extract.Limits
+	Workspace        string
+	Dockerfile       string
+	CacheDir         string
+	CacheRef         string
+	MaxCacheBytes    int64
+	Insecure         bool
 }
 
 type pushConfig struct {
@@ -104,6 +111,11 @@ func newFetchConfig(args []string, getenv func(string) string) (fetchConfig, err
 		return fetchConfig{}, fmt.Errorf("%w: %q", errNoDownloadTimeout, rawTimeout)
 	}
 	cfg.Source.Timeout = timeout
+	nodeIP := getenv(envNodeIP)
+	if nodeIP == "" {
+		return fetchConfig{}, errNoNodeIP
+	}
+	cfg.ForbiddenAddress = net.JoinHostPort(nodeIP, kubeletPort)
 	return cfg, nil
 }
 

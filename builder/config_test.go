@@ -26,7 +26,11 @@ func testEnv(values map[string]string) func(string) string {
 }
 
 func fetchEnv() map[string]string {
-	return map[string]string{envSourceURL: testSourceURL, envDownloadTimeout: testFetchTimeout.String()}
+	return map[string]string{
+		envSourceURL:       testSourceURL,
+		envDownloadTimeout: testFetchTimeout.String(),
+		envNodeIP:          "fd00::1",
+	}
 }
 
 func TestNewConfigFetch(t *testing.T) {
@@ -59,6 +63,9 @@ func TestNewConfigFetch(t *testing.T) {
 	if fetch.CacheRef != testCacheRef || fetch.MaxCacheBytes != 400 || !fetch.Insecure {
 		t.Errorf("cache = %+v", fetch)
 	}
+	if fetch.ForbiddenAddress != "[fd00::1]:10250" {
+		t.Errorf("forbidden address = %q, want the node's kubelet", fetch.ForbiddenAddress)
+	}
 }
 
 func TestNewConfigPush(t *testing.T) {
@@ -87,6 +94,8 @@ func TestNewConfigRejectsInvalid(t *testing.T) {
 	badTimeout[envDownloadTimeout] = "ten minutes"
 	zeroTimeout := fetchEnv()
 	zeroTimeout[envDownloadTimeout] = "0s"
+	noNodeIP := fetchEnv()
+	delete(noNodeIP, envNodeIP)
 
 	fetchArgs := []string{commandFetch, flagWorkspace, flagDockerfile}
 	cases := map[string]struct {
@@ -100,6 +109,7 @@ func TestNewConfigRejectsInvalid(t *testing.T) {
 		"no timeout":       {args: fetchArgs, env: noTimeout, want: errNoDownloadTimeout},
 		"unparsed timeout": {args: fetchArgs, env: badTimeout, want: errNoDownloadTimeout},
 		"zero timeout":     {args: fetchArgs, env: zeroTimeout, want: errNoDownloadTimeout},
+		"no node ip":       {args: fetchArgs, env: noNodeIP, want: errNoNodeIP},
 		"fetch no workspace": {
 			args: []string{commandFetch, flagDockerfile}, env: fetchEnv(), want: errMissingFlag,
 		},
