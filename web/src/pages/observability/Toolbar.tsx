@@ -175,9 +175,10 @@ export function TimePicker() {
 							Apply
 						</Button>
 					</div>
-					<div className="flex flex-col gap-2 border-t border-line pt-2.5">
+					<div className="flex items-center justify-between gap-2 border-t border-line pt-2.5">
 						<span className="text-[12px] text-fg3">Time zone</span>
 						<TimeZoneControl
+							short
 							onChange={(zone) => {
 								const next = { ...pref, zone };
 								if (Number.isFinite(from.ms)) setFrom({ ...from, text: toLocalInput(from.ms, next) });
@@ -185,12 +186,11 @@ export function TimePicker() {
 							}}
 						/>
 					</div>
-					<div className="flex flex-col gap-2 border-t border-line pt-2.5">
+					<div className="flex items-center justify-between gap-2">
 						<span className="text-[12px] text-fg3">Clock</span>
 						<ToggleGroup
 							variant="segmented"
 							aria-label="Clock"
-							className="self-start"
 							value={[pref.clock]}
 							onValueChange={(values) => {
 								const value = values[0];
