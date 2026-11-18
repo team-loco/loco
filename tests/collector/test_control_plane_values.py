@@ -1,26 +1,13 @@
-import json
 import subprocess
 
 import pytest
-from helpers import ROOT
+from helpers import render_chart
 
 
 def render_setting(path, value):
-    chart = ROOT / "charts/loco-control-plane"
-    return subprocess.run(
-        [
-            "helm",
-            "template",
-            "settings",
-            str(chart),
-            "-f",
-            str(chart / "ci/default-values.yaml"),
-            "--set-json",
-            f"{path}={json.dumps(value)}",
-        ],
-        capture_output=True,
-        text=True,
-    )
+    for key in reversed(path.split(".")):
+        value = {key: value}
+    return render_chart("loco-control-plane", value)
 
 
 @pytest.mark.parametrize(
@@ -48,26 +35,28 @@ def render_setting(path, value):
     ],
 )
 def test_invalid_api_settings_fail_rendering(path, value):
-    rendered = render_setting(path, value)
-    assert rendered.returncode != 0
-    assert "values don't meet the specifications" in rendered.stderr
+    with pytest.raises(subprocess.CalledProcessError) as failure:
+        render_setting(path, value)
+    assert "values don't meet the specifications" in failure.value.stderr
 
 
 @pytest.mark.parametrize(
-    "path,values",
+    "path,value",
     [
-        ("api.defaults.cpu", ["", "100m", "+1", "0.5", "1e0"]),
-        ("api.defaults.memory", ["", "32Mi", "1G", "0.5Gi", "1e9"]),
-        (
-            "api.joinToken.ttl",
-            ["", "1h30m", "+.5m", "1.5s", "1ms", "1us", "1µs", "1μs", "1ns"],
-        ),
-        ("api.joinToken.maxTtl", ["168h", "72h"]),
-        ("api.retention.events", ["1h0m0s", "720h"]),
-        ("api.retention.images", [0, 1]),
+        (path, value)
+        for path, values in [
+            ("api.defaults.cpu", ["", "100m", "+1", "0.5", "1e0"]),
+            ("api.defaults.memory", ["", "32Mi", "1G", "0.5Gi", "1e9"]),
+            (
+                "api.joinToken.ttl",
+                ["", "1h30m", "+.5m", "1.5s", "1ms", "1us", "1µs", "1μs", "1ns"],
+            ),
+            ("api.joinToken.maxTtl", ["168h", "72h"]),
+            ("api.retention.events", ["1h0m0s", "720h"]),
+            ("api.retention.images", [0, 1]),
+        ]
+        for value in values
     ],
 )
-def test_valid_api_settings_render(path, values):
-    for value in values:
-        rendered = render_setting(path, value)
-        assert rendered.returncode == 0, rendered.stderr
+def test_valid_api_settings_render(path, value):
+    render_setting(path, value)
