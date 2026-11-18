@@ -318,7 +318,6 @@ func newStreamCredentialFixture(t *testing.T) (*eventFixture, uuid.UUID, uuid.UU
 	t.Helper()
 	f := newEventFixture(t)
 	f.events.poll = time.Hour
-	f.machine.Cfg.MaxAPITokenDuration = time.Hour
 	principal, _ := reqctx.PrincipalFrom(f.owner)
 	workspaceID, err := f.queries.CreateWorkspace(t.Context(), genDb.CreateWorkspaceParams{
 		OrgID: uuid.MustParse(f.orgID), Name: "stream", CreatedBy: principal.UserID,

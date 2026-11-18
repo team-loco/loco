@@ -35,7 +35,8 @@ func testEnvironmentQuota(t *testing.T, isolation pgx.TxIsoLevel) {
 	}
 	t.Cleanup(pool.Close)
 	server := NewEnvironmentServer(pool, genDb.New(pool), limits.Defaults())
-	for range defaultEnvironmentLimit - 1 {
+	// The workspace's default environment takes one slot; this fills all but the last.
+	for range defaultEnvironmentLimit - 2 {
 		if _, createErr := server.CreateEnvironment(f.owner, newEnvironmentRequest(f.workspaceID)); createErr != nil {
 			t.Fatal(createErr)
 		}

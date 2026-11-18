@@ -75,7 +75,7 @@ func TestCreateTokenRequiresSession(t *testing.T) {
 			wantSessionRequired(t, err)
 		}
 	}
-	other := f.signUp(t, "other", "other@tokens.test")
+	other := signUp(t, f.resolver, "other", "other@tokens.test")
 	p, _ := reqctx.PrincipalFrom(f.owner)
 	p.Scopes = append(
 		p.Scopes,

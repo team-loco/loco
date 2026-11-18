@@ -82,7 +82,7 @@ func TestApplyResourceRecordsTheCredentialActor(t *testing.T) {
 			})
 			_, err := newPlanServer(f).Apply(ctx, &planv1.ApplyRequest{
 				File: []byte(planFileHeader + planFileNew), EnvironmentId: f.envID.String(),
-				Provision: []string{planNew},
+				Revision: f.revision(t, f.envID), Provision: []string{planNew},
 			})
 			if err != nil {
 				t.Fatal(err)

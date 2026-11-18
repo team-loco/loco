@@ -30,14 +30,6 @@ func TestWorkspacePaginationSurvivesDeletingTheCursorRow(t *testing.T) {
 				{EntityType: genDb.EntityTypeOrganization, EntityID: orgID, Scope: genDb.ScopeMember},
 				{EntityType: genDb.EntityTypeUser, EntityID: userID, Scope: genDb.ScopeRead},
 			}
-			if _, err := f.pool.Exec(
-				t.Context(),
-				"INSERT INTO user_scopes (user_id, entity_type, entity_id, scope) VALUES ($1, 'organization', $2, 'read')",
-				userID,
-				orgID,
-			); err != nil {
-				t.Fatal(err)
-			}
 			entity := genDb.Entity{ID: userID, Type: genDb.EntityTypeUser}
 			ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Entity: entity, Scopes: scopes})
 			position := time.Now().UTC().Add(time.Minute).Truncate(time.Microsecond)

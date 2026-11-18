@@ -13,10 +13,18 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-func (f *deployFixture) assertResourceAuditContext(t *testing.T, resourceID uuid.UUID, expectedTypes ...string) {
+// assertResourceAuditContext checks the resource, deployment and domain events recorded after
+// seq name resourceID and include expectedTypes.
+func (f *deployFixture) assertResourceAuditContext(
+	t *testing.T,
+	seq int64,
+	resourceID uuid.UUID,
+	expectedTypes ...string,
+) {
 	t.Helper()
-	rows, err := f.pool.Query(t.Context(), "SELECT type, resource_id FROM events WHERE subject_type=ANY($1::text[])",
-		[]string{events.SubjectResource, events.SubjectDeployment, events.SubjectDomain})
+	rows, err := f.pool.Query(t.Context(),
+		"SELECT type, resource_id FROM events WHERE subject_type=ANY($1::text[]) AND seq > $2",
+		[]string{events.SubjectResource, events.SubjectDeployment, events.SubjectDomain}, seq)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,6 +89,7 @@ func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
 	}
 	f.assertResourceAuditContext(
 		t,
+		0,
 		f.resourceID,
 		events.DomainCreated,
 		events.DomainDeleted,
@@ -93,6 +102,7 @@ func TestApplyChildAuditEventsRetainResource(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
+	seeded := f.lastEventSeq(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
 	f.finishRollouts(t)
 	changed := strings.Replace(applyFileWorkerDebug, applyWorkerDomain, applyAPIDomain, 1)
@@ -103,7 +113,8 @@ func TestApplyChildAuditEventsRetainResource(t *testing.T) {
 		t.Fatal("worker resource missing")
 	}
 	applyOK(t, f, emptyServicesFile, applyOptions{confirmDestructive: true})
-	f.assertResourceAuditContext(t, resource.ID, events.ResourceCreated, events.ResourceUpdated, events.ResourceDeleted,
+	f.assertResourceAuditContext(t, seeded, resource.ID,
+		events.ResourceCreated, events.ResourceUpdated, events.ResourceDeleted,
 		events.DomainCreated, events.DomainUpdated, events.DomainDeleted, events.DeploymentCreated)
 	for _, owned := range []struct{ table, key string }{
 		{"resources", "id"},
@@ -119,4 +130,13 @@ func TestApplyChildAuditEventsRetainResource(t *testing.T) {
 			t.Errorf("%s has %d rows after resource deletion", owned.table, remaining)
 		}
 	}
+}
+
+func (f *deployFixture) lastEventSeq(t *testing.T) int64 {
+	t.Helper()
+	var seq int64
+	if err := f.pool.QueryRow(t.Context(), "SELECT coalesce(max(seq), 0) FROM events").Scan(&seq); err != nil {
+		t.Fatal(err)
+	}
+	return seq
 }

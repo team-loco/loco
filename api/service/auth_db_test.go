@@ -18,7 +18,6 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/cache"
 	"github.com/team-loco/loco/api/reqctx"
 	"github.com/team-loco/loco/api/tvm"
@@ -44,11 +43,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(queries, tvm.Config{
-		SessionAccessTokenDuration:  time.Hour,
-		SessionRefreshTokenDuration: 24 * time.Hour,
-		LastUsedUpdateInterval:      time.Minute,
-	})
+	machine := testMachine(queries)
 	store, err := cache.NewMemory()
 	if err != nil {
 		t.Fatalf("cache: %v", err)
@@ -59,15 +54,8 @@ func newAuthFixture(t *testing.T) *authFixture {
 		}
 	})
 
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatalf("policy: %v", err)
-	}
 	identity := auth.Identity{Issuer: testIssuer, Subject: "sub-1", Email: "dev@example.test", EmailVerified: true}
-	user, _, err := auth.NewResolver(pool, policy, limits.Defaults(), time.Hour).Resolve(t.Context(), identity)
-	if err != nil {
-		t.Fatalf("resolve: %v", err)
-	}
+	userID := signUp(t, openResolver(t, pool), identity.Subject, identity.Email)
 
 	f := &authFixture{
 		machine: machine,
@@ -80,10 +68,10 @@ func newAuthFixture(t *testing.T) *authFixture {
 	authv1connect.RegisterAuthServiceHandler(rpcServer, f.server)
 	transport := connectinprocess.New(rpcServer)
 	f.client = authv1connect.NewAuthServiceClient(connect.NewClient(transport))
-	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: user.ID}
+	entity := genDb.Entity{Type: genDb.EntityTypeUser, ID: userID}
 	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
-		Entity: entity, UserID: user.ID, Method: genDb.DeploymentMethodWeb,
-		ActorType: genDb.DeploymentActorTypeUser, ActorID: user.ID,
+		Entity: entity, UserID: userID, Method: genDb.DeploymentMethodWeb,
+		ActorType: genDb.DeploymentActorTypeUser, ActorID: userID,
 	})
 	f.webCtx = auth.WithLogin(ctx, auth.Login{Identity: identity})
 	return f

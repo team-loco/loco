@@ -11,6 +11,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -41,15 +42,6 @@ func (f *secretFixture) ciphertexts(t *testing.T) []genDb.ListEnvironmentSecretC
 		t.Fatalf("ciphertexts: %v", err)
 	}
 	return rows
-}
-
-func (f *secretFixture) revision(t *testing.T) int64 {
-	t.Helper()
-	env, err := f.queries.GetEnvironmentByID(t.Context(), f.environmentID)
-	if err != nil {
-		t.Fatalf("environment: %v", err)
-	}
-	return env.Revision
 }
 
 func TestRewrapEnvironmentKeysActsOnTheNamedEnvironmentOnly(t *testing.T) {
@@ -128,7 +120,7 @@ func TestRewrapWithANewDEKReencryptsWithoutBumpingVersions(t *testing.T) {
 		t.Fatalf("key: %v", err)
 	}
 	rowsBefore := f.ciphertexts(t)
-	revisionBefore := f.revision(t)
+	revisionBefore := environmentRevision(t, f.queries, f.environmentID)
 	setEvents := f.eventCount(t, "secret.set")
 
 	res := rewrapKeys(t, server, &secretv1.RewrapEnvironmentKeysRequest{
@@ -158,7 +150,7 @@ func TestRewrapWithANewDEKReencryptsWithoutBumpingVersions(t *testing.T) {
 	if got, version := f.plaintext(t, provider, betaKey); got != "beta-1" || version != 1 {
 		t.Fatalf("BETA = %q at version %d, want beta-1 at version 1", got, version)
 	}
-	if revision := f.revision(t); revision != revisionBefore {
+	if revision := environmentRevision(t, f.queries, f.environmentID); revision != revisionBefore {
 		t.Fatalf("revision = %d, want %d", revision, revisionBefore)
 	}
 	if n := f.eventCount(t, "secret.set"); n != setEvents {
@@ -208,7 +200,7 @@ func TestRewrapWithANewDEKKeepsTheValuesOfTwoServicesThatShareAName(t *testing.T
 	provider := newTestKeyProvider(t, "k1")
 	server := f.server(t, provider)
 	worker := *f
-	worker.resourceID = f.resource(t, f.workspaceID, workerService)
+	worker.resourceID = f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
 	f.set(t, server, map[string]string{alphaKey: "web-alpha"})
 	worker.set(t, server, map[string]string{alphaKey: "worker-alpha"})
 

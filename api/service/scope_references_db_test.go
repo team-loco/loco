@@ -14,27 +14,30 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
+// hierarchyScopes are read grants on the fixture's organization, workspace and resource for a
+// user who holds no other scope on them.
 func hierarchyScopes(t *testing.T, f *deployFixture) []genDb.AddUserScopeParams {
 	t.Helper()
 	workspace, err := f.queries.GetWorkspaceByIDQuery(t.Context(), f.workspaceID(t))
 	if err != nil {
 		t.Fatal(err)
 	}
+	holder := signUp(t, openResolver(t, f.pool), "scope-holder", "scope-holder@example.test")
 	return []genDb.AddUserScopeParams{
 		{
-			UserID:     workspace.CreatedBy,
+			UserID:     holder,
 			EntityType: genDb.EntityTypeOrganization,
 			EntityID:   workspace.OrgID,
 			Scope:      genDb.ScopeRead,
 		},
 		{
-			UserID:     workspace.CreatedBy,
+			UserID:     holder,
 			EntityType: genDb.EntityTypeWorkspace,
 			EntityID:   workspace.ID,
 			Scope:      genDb.ScopeRead,
 		},
 		{
-			UserID:     workspace.CreatedBy,
+			UserID:     holder,
 			EntityType: genDb.EntityTypeResource,
 			EntityID:   f.resourceID,
 			Scope:      genDb.ScopeRead,
@@ -92,6 +95,7 @@ func TestEntityDeletionCascadesHierarchyScopes(t *testing.T) {
 			if err := f.queries.AddUserScope(t.Context(), self); err != nil {
 				t.Fatal(err)
 			}
+			selfScopes := scopeCount(t, f, self)
 			if err := deleteScopeEntity(t.Context(), f.queries, scopes[index]); err != nil {
 				t.Fatal(err)
 			}
@@ -104,8 +108,8 @@ func TestEntityDeletionCascadesHierarchyScopes(t *testing.T) {
 					t.Errorf("%s scopes after deleting %s=%d, want %d", scope.EntityType, kind, got, want)
 				}
 			}
-			if got := scopeCount(t, f, self); got != 1 {
-				t.Errorf("self scopes=%d, want 1", got)
+			if got := scopeCount(t, f, self); got != selfScopes {
+				t.Errorf("self scopes=%d, want %d", got, selfScopes)
 			}
 		})
 	}

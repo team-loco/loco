@@ -223,13 +223,7 @@ func TestClusterAdminHTTPRemovalReportsWorkloadsAndRestoresIdentity(t *testing.T
 	); err != nil {
 		t.Fatal(err)
 	}
-	machine := tvm.NewVendingMachine(f.queries,
-		tvm.Config{
-			SessionAccessTokenDuration:  time.Hour,
-			SessionRefreshTokenDuration: time.Hour,
-			LastUsedUpdateInterval:      time.Hour,
-		},
-	)
+	machine := testMachine(f.queries)
 	token, _, issueErr := machine.IssueSession(ctx, userID, netip.Addr{}, "admin-test")
 	if issueErr != nil {
 		t.Fatal(issueErr)

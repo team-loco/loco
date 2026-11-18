@@ -4,17 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/tvm"
-	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
 const (
@@ -30,13 +27,10 @@ const (
 )
 
 type secretFixture struct {
-	pool          *pgxpool.Pool
-	queries       *genDb.Queries
+	tenant
 	machine       *tvm.VendingMachine
 	resolver      *auth.Resolver
-	ownerID       uuid.UUID
 	owner         context.Context
-	orgID         uuid.UUID
 	workspaceID   uuid.UUID
 	environmentID uuid.UUID
 	resourceID    uuid.UUID
@@ -46,91 +40,17 @@ func newSecretFixture(t *testing.T) *secretFixture {
 	t.Helper()
 	pool := dbtest.NewPool(t)
 	queries := genDb.New(pool)
-	machine := tvm.NewVendingMachine(queries, tvm.Config{
-		SessionAccessTokenDuration:  time.Hour,
-		SessionRefreshTokenDuration: time.Hour,
-		LastUsedUpdateInterval:      time.Minute,
-		MaxAPITokenDuration:         time.Hour,
-	})
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatalf("policy: %v", err)
-	}
+	machine := testMachine(queries)
 	f := &secretFixture{
-		pool:     pool,
-		queries:  queries,
+		tenant:   seedTenant(t, pool, queries, "owner@secrets.test", "secrets"),
 		machine:  machine,
-		resolver: auth.NewResolver(pool, policy, limits.Defaults(), time.Hour),
+		resolver: openResolver(t, pool),
 	}
-	f.ownerID = f.signUp(t, "owner", "owner@secrets.test")
-	ownerCtx := scoped(t, queries, f.ownerID)
-	created, err := NewOrgServer(
-		pool,
-		queries,
-		InvitationConfig{},
-		limits.Defaults(),
-	).CreateOrg(ownerCtx, &orgv1.CreateOrgRequest{
-		Name: new("secrets"),
-	})
-	if err != nil {
-		t.Fatalf("org: %v", err)
-	}
-	f.orgID = uuid.MustParse(created.GetOrgId())
 	f.workspaceID = f.workspace(t, "storefront")
-	f.environmentID = f.environment(t, f.workspaceID, "prod")
-	f.resourceID = f.resource(t, f.workspaceID, webService)
-	f.owner = scoped(t, queries, f.ownerID)
+	f.environmentID = f.defaultEnvironment(t, f.workspaceID)
+	f.resourceID = f.resource(t, f.workspaceID, webService, &resourcev1.ServiceSpec{})
+	f.owner = f.tenant.owner(t)
 	return f
-}
-
-func (f *secretFixture) signUp(t *testing.T, sub, email string) uuid.UUID {
-	t.Helper()
-	user, _, err := f.resolver.Resolve(t.Context(), auth.Identity{
-		Issuer: testIssuer, Subject: sub, Email: email, EmailVerified: true,
-	})
-	if err != nil {
-		t.Fatalf("resolve %s: %v", sub, err)
-	}
-	return user.ID
-}
-
-func (f *secretFixture) workspace(t *testing.T, name string) uuid.UUID {
-	t.Helper()
-	id, err := f.queries.CreateWorkspace(t.Context(), genDb.CreateWorkspaceParams{
-		OrgID: f.orgID, Name: name, CreatedBy: f.ownerID,
-	})
-	if err != nil {
-		t.Fatalf("workspace %s: %v", name, err)
-	}
-	return id
-}
-
-func (f *secretFixture) environment(t *testing.T, workspaceID uuid.UUID, name string) uuid.UUID {
-	t.Helper()
-	env, err := f.queries.CreateEnvironment(t.Context(), genDb.CreateEnvironmentParams{
-		WorkspaceID: workspaceID, Name: name, CreatedBy: f.ownerID,
-	})
-	if err != nil {
-		t.Fatalf("environment %s: %v", name, err)
-	}
-	return env.ID
-}
-
-func (f *secretFixture) resource(t *testing.T, workspaceID uuid.UUID, name string) uuid.UUID {
-	t.Helper()
-	id, err := f.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
-		CreatedBy:   f.ownerID,
-		WorkspaceID: workspaceID,
-		Name:        name,
-		Slug:        name,
-		Type:        genDb.ResourceTypeService,
-		Spec:        []byte("{}"),
-		SpecVersion: 1,
-	})
-	if err != nil {
-		t.Fatalf("resource %s: %v", name, err)
-	}
-	return id
 }
 
 func (f *secretFixture) upsert(t *testing.T, names []string, versions []int32) {
@@ -297,7 +217,7 @@ func TestDeletingAResourceDropsOnlyItsSecrets(t *testing.T) {
 	f := newSecretFixture(t)
 	ctx := t.Context()
 	prod := f.environmentID
-	worker := f.resource(t, f.workspaceID, workerService)
+	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
 	staging := f.environment(t, f.workspaceID, "staging")
 	f.upsert(t, []string{stripeKey}, []int32{1})
 	f.upsertFor(t, worker, []string{stripeKey}, []int32{1})

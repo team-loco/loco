@@ -20,7 +20,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/interceptor"
 	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/tvm"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
@@ -179,11 +178,7 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.DeploymentMethod) (*rpc.Clients, uuid.UUID) {
 	t.Helper()
 	issuer := authtest.NewIssuer(t)
-	policy, err := auth.ParseSignupPolicy("open")
-	if err != nil {
-		t.Fatal(err)
-	}
-	resolver := auth.NewResolver(f.pool, policy, limits.Defaults(), time.Hour)
+	resolver := openResolver(t, f.pool)
 	user, _, err := resolver.Resolve(t.Context(), auth.Identity{
 		Issuer: issuer.URL(), Subject: "deployer", Email: "deployer@example.test", EmailVerified: true,
 	})
@@ -197,10 +192,7 @@ func deploymentActorClients(t *testing.T, f *deployFixture, method genDb.Deploym
 			t.Fatal(scopeErr)
 		}
 	}
-	machine := tvm.NewVendingMachine(f.queries, tvm.Config{
-		MaxAPITokenDuration: time.Hour, SessionAccessTokenDuration: time.Hour,
-		SessionRefreshTokenDuration: time.Hour, LastUsedUpdateInterval: time.Minute,
-	})
+	machine := testMachine(f.queries)
 	verifier := auth.NewVerifier(http.DefaultClient, []auth.IssuerConfig{{
 		Issuer: issuer.URL(), JWKSURL: issuer.URL() + "/.well-known/jwks.json", Audience: "authenticated",
 		Claims: auth.ClaimPaths{Subject: "sub", Email: "email", EmailVerified: "email_verified"},

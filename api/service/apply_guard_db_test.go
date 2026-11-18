@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"strconv"
 	"sync"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect/v2"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -140,6 +142,7 @@ func TestApplyOfAnEmptyServicesMapDeletesOnlyThePartialsServices(t *testing.T) {
 func TestApplyCommitsNothingForInvalidValues(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
+	start := f.revision(t, f.envID)
 	f.prepareApply(t)
 	file := planFileHeader + `  worker:
     port: 8080
@@ -154,8 +157,8 @@ func TestApplyCommitsNothingForInvalidValues(t *testing.T) {
 	if f.hasResource(t, guardWorker) {
 		t.Fatal("worker was created with invalid values")
 	}
-	if rev := f.revision(t, f.envID); rev != 0 {
-		t.Fatalf("revision = %d, want 0", rev)
+	if rev := f.revision(t, f.envID); rev != start {
+		t.Fatalf("revision = %d, want %d", rev, start)
 	}
 }
 
@@ -215,6 +218,12 @@ func (f *deployFixture) holdResourceLock(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("begin gate: %v", err)
 	}
+	// A test that fails while the gate is held still releases it, so cleanup can close the pool.
+	t.Cleanup(func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			t.Errorf("release gate: %v", err)
+		}
+	})
 	if _, err := tx.Exec(ctx, `SELECT id FROM resources WHERE id = $1 FOR UPDATE`, f.resourceID); err != nil {
 		t.Fatalf("lock resource: %v", err)
 	}

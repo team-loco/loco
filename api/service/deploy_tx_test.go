@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/clusterassertion"
 )
 
@@ -81,28 +82,25 @@ func newDeployFixture(t *testing.T) *deployFixture {
 	ctx := context.Background()
 
 	f := &deployFixture{pool: pool, queries: genDb.New(pool)}
+	tn := seedTenant(t, pool, f.queries, deployFixtureEmail, "org")
+	workspaceID := tn.workspace(t, "ws")
+	f.userID = tn.ownerID
+	f.envID = tn.defaultEnvironment(t, workspaceID)
+	tn.renameEnvironment(t, f.envID, statusProduction)
+	f.resourceID = tn.resource(t, workspaceID, "svc", &resourcev1.ServiceSpec{
+		Routing: &resourcev1.RoutingConfig{Port: new(int32(8080))},
+	})
 	row := pool.QueryRow(ctx, `
-WITH u AS (
-    INSERT INTO users (email) VALUES ($1) RETURNING id
-), o AS (
-    INSERT INTO organizations (name, created_by) SELECT 'org', id FROM u RETURNING id
-), w AS (
-    INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ws', u.id FROM o, u RETURNING id
-), e AS (
-    INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'prod', u.id FROM w, u RETURNING id
-), c AS (
+WITH c AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
     VALUES (ARRAY['linux/amd64'], 'c1', 'us-east-1', 'kind', true, true) RETURNING id
 ), c2 AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
     VALUES (ARRAY['linux/amd64'], 'c2', 'us-east-1', 'kind', true, false) RETURNING id
-), r AS (
-    INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-    SELECT w.id, 'svc', 'svc', 'service', '', '{"routing":{"port":8080}}', 1, u.id FROM w, u RETURNING id
 )
-SELECT c.id, c2.id, r.id, e.id, u.id FROM c, c2, r, e, u`, deployFixtureEmail)
-	if err := row.Scan(&f.clusterID, &f.otherCluster, &f.resourceID, &f.envID, &f.userID); err != nil {
-		t.Fatalf("seed: %v", err)
+SELECT c.id, c2.id FROM c, c2`)
+	if err := row.Scan(&f.clusterID, &f.otherCluster); err != nil {
+		t.Fatalf("seed clusters: %v", err)
 	}
 	enrollTestCluster(t, pool, f.clusterID)
 	enrollTestCluster(t, pool, f.otherCluster)
