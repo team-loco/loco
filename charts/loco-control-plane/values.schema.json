@@ -754,6 +754,10 @@
             "timeoutSeconds": {
               "type": "integer",
               "minimum": 1
+            },
+            "ttlSecondsAfterFinished": {
+              "type": "integer",
+              "minimum": 1
             }
           },
           "additionalProperties": false
@@ -868,16 +872,6 @@
       "properties": {
         "cloudflareToken": {
           "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "setup": {
-      "type": "object",
-      "properties": {
-        "ttlSecondsAfterFinished": {
-          "type": "integer",
-          "minimum": 1
         }
       },
       "additionalProperties": false
