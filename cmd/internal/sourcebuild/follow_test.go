@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -69,10 +70,14 @@ func TestFollowBoundsBlockedBackfillAfterBuildFinishes(t *testing.T) {
 			follower := NewFollower(clients, io.Discard)
 			initial := &buildv1.Build{Id: buildID, ClusterId: new(clusterID),
 				Status: buildv1.BuildStatus_BUILD_STATUS_RUNNING, CreatedAt: createdAt}
-			// The backfill never ends, so Follow returning at all proves the drain budget ended it.
+			// The backfill never ends, so only the drain budget can end Follow.
+			start := time.Now()
 			finished, err := follower.Follow(t.Context(), initial, "workspace-drain")
 			if err != nil {
 				t.Fatal(err)
+			}
+			if elapsed := time.Since(start); elapsed > buildPollInterval+2*buildLogDrain {
+				t.Fatalf("Follow returned %s after it started, past the %s drain budget", elapsed, buildLogDrain)
 			}
 			actual := finished.GetStatus()
 			if actual != status {
