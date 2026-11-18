@@ -281,77 +281,29 @@ tests:
 
   - it: lets the node and deployment collectors get, list and watch the pods, namespaces and ReplicaSets they extract metadata from
     asserts:
-      - contains:
+      - equal:
           path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          content: get
+          value: [get, watch, list]
         template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
+      - equal:
+          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
+          value: [get, watch, list]
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - equal:
+          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
+          value: [get, watch, list]
+        template: charts/otel-col-daemon/templates/clusterrole.yaml
+      - equal:
           path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          content: list
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          content: watch
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
+          value: [get, watch, list]
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - equal:
           path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
-          content: get
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
-          content: list
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
-          content: watch
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
+          value: [get, watch, list]
+        template: charts/otel-col-deploy/templates/clusterrole.yaml
+      - equal:
           path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
-          content: get
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
-          content: list
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
-          content: watch
-        template: charts/otel-col-daemon/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          content: get
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          content: list
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'pods')])].verbs
-          content: watch
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
-          content: get
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
-          content: list
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'namespaces')])].verbs
-          content: watch
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
-          content: get
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
-          content: list
-        template: charts/otel-col-deploy/templates/clusterrole.yaml
-      - contains:
-          path: rules[?(@.resources[?(@ == 'replicasets')])].verbs
-          content: watch
+          value: [get, watch, list]
         template: charts/otel-col-deploy/templates/clusterrole.yaml
 
   - it: runs one cluster collector, without an autoscaler

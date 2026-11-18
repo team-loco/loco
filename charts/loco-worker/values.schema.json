@@ -545,9 +545,6 @@
           "properties": {
             "annotations": {
               "type": "object"
-            },
-            "type": {
-              "type": "string"
             }
           },
           "additionalProperties": false
@@ -734,15 +731,6 @@
             },
             "platformOnly": {
               "type": "boolean"
-            }
-          },
-          "additionalProperties": false
-        },
-        "ports": {
-          "type": "object",
-          "properties": {
-            "agent": {
-              "type": "integer"
             }
           },
           "additionalProperties": false

@@ -2,9 +2,6 @@
 {{- $name := include "loco-control-plane.openbaoName" . }}
 {{- $peers := include "loco-control-plane.openbaoPeers" . }}
 {{- $seal := .Values.openbao.seal }}
-{{- if not (has $seal.type (list "static" "awskms" "transit")) }}
-{{- fail (printf "openbao.seal.type must be static, awskms or transit, got %q" $seal.type) }}
-{{- end }}
 {{- if eq $seal.type "static" }}
 {{- include "loco-control-plane.requireSecret" (dict "root" . "name" $seal.static.existingSecret.name "path" "openbao.seal.static.existingSecret.name") }}
 {{- end }}

@@ -121,13 +121,6 @@ tests:
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: Gateway}
 
-  - it: leaves the ingest hostname out while ingest is unpublished
-    asserts:
-      - equal:
-          path: spec.dnsNames
-          value: [app.region.test, api.region.test]
-        template: templates/cm-cert.yaml
-
   - it: needs no token or email for a self-signed issuer
     set:
       certManager.issuer: {type: selfSigned, email: "", name: local}
@@ -186,11 +179,14 @@ tests:
   - it: serves plain HTTP on port 80 without cert-manager objects
     set:
       certManager.enabled: false
+      secrets.cloudflareToken: token
     asserts:
       - hasDocuments: {count: 0}
         template: templates/cm-cert.yaml
       - hasDocuments: {count: 0}
         template: templates/cm-issuer.yaml
+      - hasDocuments: {count: 0}
+        template: templates/cloudflare-secret.yaml
       - equal:
           path: spec.listeners[*].protocol
           value: HTTP

@@ -5,7 +5,7 @@
 {{- $template = "opentelemetry-collector.daemonsetConfig" -}}
 {{- end -}}
 {{- $config := include $template $collector | fromYaml -}}
-{{/* The subchart still defines batch; only the persistent exporter queue may buffer records. */}}
+{{/* The subchart defines batch; only the persistent exporter queue buffers records. */}}
 {{- $_ := unset $config.processors "batch" -}}
 {{- $settings := .root.Values.global.platformTelemetry -}}
 {{- $export := .root.Values.global.exporter -}}
