@@ -136,7 +136,8 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 		args = append(args,
 			setFlag, "builds.builderImage.repository="+repository(images.builder),
 			setFlag, "builds.builderImage.tag="+tag(images.builder),
-			"--set-json", "builds.privateEgress="+string(egress))
+			"--set-json", "builds.privateEgress="+string(egress),
+			"--set-file", "builds.buildkitdConfig="+p.buildkitdConfig)
 	} else {
 		args = append(args, setFlag, "cluster.role=apps")
 	}

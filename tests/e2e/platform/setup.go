@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	"golang.org/x/sync/errgroup"
@@ -448,8 +449,9 @@ func (p *Platform) startTokenRegistry(ctx context.Context) error {
 	return p.connectRegistry(ctx)
 }
 
-// setupPublicImages mirrors the public fixture image into the run's anonymous registry, with a
-// crashing and a worker variant.
+// setupPublicImages mirrors the node platform's image of the public fixture image, with a crashing
+// and a worker variant, and of the base images of the source-build fixtures, into the run's
+// anonymous registry, and points BuildKit at it for their registries.
 func (p *Platform) setupPublicImages(ctx context.Context) error {
 	if _, err := p.compose(ctx, "up", "-d", "public-image-registry"); err != nil {
 		return err
@@ -464,33 +466,39 @@ func (p *Platform) setupPublicImages(ctx context.Context) error {
 	}); err != nil {
 		return err
 	}
-	source := fromImage(p.root, "tests/e2e/fixtures/public-image/Dockerfile")
+	target, err := v1.ParsePlatform(p.TargetPlatform)
+	if err != nil {
+		return err
+	}
+	source, err := mirrorUpstream(ctx, fromImage(p.root, "tests/e2e/fixtures/public-image/Dockerfile"), host, target)
+	if err != nil {
+		return err
+	}
 	p.PublicImage = host + "/public-image:e2e"
 	p.AlternatePortImage = host + "/public-image:e2e-port-9090"
 	p.CrashingImage = host + "/public-image:e2e-crashing"
 	p.WorkerImage = host + "/public-image:e2e-worker"
-	if err = mirrorImage(ctx, source, p.PublicImage, nil); err != nil {
-		return err
-	}
-	if err = mirrorImage(ctx, p.PublicImage, p.AlternatePortImage, []string{"sh", "-ec",
-		`sed 's@/etc/nginx/conf.d/\*.conf@/tmp/e2e-server.conf@' /etc/nginx/nginx.conf > /tmp/e2e-nginx.conf
+	for destination, cmd := range map[string][]string{
+		p.PublicImage: nil,
+		p.AlternatePortImage: {"sh", "-ec",
+			`sed 's@/etc/nginx/conf.d/\*.conf@/tmp/e2e-server.conf@' /etc/nginx/nginx.conf > /tmp/e2e-nginx.conf
 sed 's/8080/9090/g' /etc/nginx/conf.d/default.conf > /tmp/e2e-server.conf
 exec nginx -c /tmp/e2e-nginx.conf -g 'daemon off;'`,
-	}); err != nil {
-		return err
+		},
+		p.CrashingImage: {"sh", "-c", "sleep 5; exit 1"},
+		p.WorkerImage:   {"sh", "-c", `trap "exit 0" TERM; while :; do sleep 1; done`},
+	} {
+		if err = mirrorImage(ctx, source, destination, target, cmd); err != nil {
+			return err
+		}
 	}
-	if err = mirrorImage(ctx, p.PublicImage, p.CrashingImage, []string{"sh", "-c", "sleep 5; exit 1"}); err != nil {
-		return err
+	alias := p.composeProject + "-public-image:5000"
+	if p.Builds {
+		if err = p.mirrorBaseImages(ctx, host, alias, target); err != nil {
+			return err
+		}
 	}
-	if err = mirrorImage(
-		ctx,
-		p.PublicImage,
-		p.WorkerImage,
-		[]string{"sh", "-c", `trap "exit 0" TERM; while :; do sleep 1; done`},
-	); err != nil {
-		return err
-	}
-	return p.registryHosts(ctx, host, p.composeProject+"-public-image:5000")
+	return p.registryHosts(ctx, host, alias)
 }
 
 // resetClusterState removes what a previous run of a reused cluster left.

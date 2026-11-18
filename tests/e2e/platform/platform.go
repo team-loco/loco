@@ -89,20 +89,21 @@ type Platform struct {
 
 	DB *pgxpool.Pool
 
-	binDir         string
-	logDir         string
-	composeProject string
-	subnet         string
-	ports          ports
-	values         values
-	adminHome      string
-	userSession    session
-	processes      processes
-	runCtx         context.Context
-	databaseURL    string
-	transitAddr    string
-	buildEgress    []egressRule
-	agentEnv       []corev1.EnvVar
+	binDir          string
+	logDir          string
+	composeProject  string
+	subnet          string
+	ports           ports
+	values          values
+	adminHome       string
+	userSession     session
+	processes       processes
+	runCtx          context.Context
+	databaseURL     string
+	transitAddr     string
+	buildEgress     []egressRule
+	buildkitdConfig string
+	agentEnv        []corev1.EnvVar
 }
 
 type ports struct {

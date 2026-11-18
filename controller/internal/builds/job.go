@@ -29,6 +29,7 @@ const (
 	buildVolumeBuildkit   = "buildkit"
 	buildVolumePushCreds  = "push-credentials"
 	buildVolumePullCreds  = "pull-credentials"
+	buildVolumeBuildkitd  = "buildkitd-config"
 	buildPushSecret       = "registry-push"
 	buildPullSecret       = "registry-pull"
 	buildWorkspaceDir     = "/workspace"
@@ -43,6 +44,9 @@ const (
 	buildUser             = int64(1000)
 	buildkitFlags         = "--oci-worker-no-process-sandbox"
 	buildTerminationLog   = "/dev/termination-log"
+	buildkitdConfigDir    = "/etc/buildkit"
+	buildkitdConfigFile   = "buildkitd.toml"
+	annotationBuildkitd   = "loco.io/buildkitd-config"
 
 	// The daemonless launcher sleeps for a total of 29.5s over 50 retries.
 	// The Job deadline also bounds probe execution and the rest of the build.
@@ -208,6 +212,21 @@ func (r *Reconciler) buildkitContainer(build *locov1alpha1.Build) corev1.Contain
 		"--export-cache=type=local,mode=max,dest=" + buildCacheOutDir,
 		"--import-cache=type=local,src=" + buildCacheDir,
 	}
+	flags := buildkitFlags
+	mounts := []corev1.VolumeMount{
+		{Name: buildVolumeWorkspace, MountPath: buildWorkspaceDir, ReadOnly: true},
+		{Name: buildVolumeCache, MountPath: buildCacheDir, ReadOnly: true},
+		{Name: buildVolumeOut, MountPath: buildOutDir},
+		{Name: buildVolumeBuildkit, MountPath: buildkitStateDir},
+	}
+	if cfg.BuildkitdConfig != "" {
+		flags += " --config=" + path.Join(buildkitdConfigDir, buildkitdConfigFile)
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      buildVolumeBuildkitd,
+			MountPath: buildkitdConfigDir,
+			ReadOnly:  true,
+		})
+	}
 	return corev1.Container{
 		Name:            buildContainerBuild,
 		Image:           cfg.BuildkitImage.Reference(),
@@ -215,15 +234,10 @@ func (r *Reconciler) buildkitContainer(build *locov1alpha1.Build) corev1.Contain
 		Command:         []string{"buildctl-daemonless.sh"},
 		Args:            args,
 		Env: []corev1.EnvVar{
-			{Name: "BUILDKITD_FLAGS", Value: buildkitFlags},
+			{Name: "BUILDKITD_FLAGS", Value: flags},
 			{Name: "BUILDCTL_CONNECT_RETRIES_MAX", Value: buildkitConnectRetries},
 		},
-		VolumeMounts: []corev1.VolumeMount{
-			{Name: buildVolumeWorkspace, MountPath: buildWorkspaceDir, ReadOnly: true},
-			{Name: buildVolumeCache, MountPath: buildCacheDir, ReadOnly: true},
-			{Name: buildVolumeOut, MountPath: buildOutDir},
-			{Name: buildVolumeBuildkit, MountPath: buildkitStateDir},
-		},
+		VolumeMounts:             mounts,
 		Resources:                cfg.Resources.Build,
 		SecurityContext:          buildkitSecurityContext(cfg),
 		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
@@ -277,6 +291,18 @@ func (r *Reconciler) buildJob(build *locov1alpha1.Build) (*batchv1.Job, error) {
 		pullVolume := dockerConfigVolume(buildVolumePullCreds, r.pullSecretName(build))
 		volumes = append(volumes, pullVolume)
 	}
+	var annotations map[string]string
+	if cfg.BuildkitdConfig != "" {
+		annotations = map[string]string{annotationBuildkitd: cfg.BuildkitdConfig}
+		file := corev1.DownwardAPIVolumeFile{
+			Path:     buildkitdConfigFile,
+			FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.annotations['" + annotationBuildkitd + "']"},
+		}
+		volumes = append(volumes, corev1.Volume{
+			Name:        buildVolumeBuildkitd,
+			DownwardAPI: &corev1.DownwardAPIVolumeSource{Items: []corev1.DownwardAPIVolumeFile{file}},
+		})
+	}
 	var runtimeClassName *string
 	if cfg.RuntimeClassName != "" {
 		runtimeClassName = new(cfg.RuntimeClassName)
@@ -310,7 +336,7 @@ func (r *Reconciler) buildJob(build *locov1alpha1.Build) (*batchv1.Job, error) {
 			ActiveDeadlineSeconds:   new(timeout),
 			TTLSecondsAfterFinished: new(ttl),
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: labels},
+				ObjectMeta: metav1.ObjectMeta{Labels: labels, Annotations: annotations},
 				Spec: corev1.PodSpec{
 					RestartPolicy:                corev1.RestartPolicyNever,
 					AutomountServiceAccountToken: new(false),

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -143,19 +144,36 @@ func ReadYAML(path string, into any) error {
 	return nil
 }
 
-// fromImage reads the image of a fixture Dockerfile's FROM line.
+// fromImage reads the image of a fixture Dockerfile's first FROM line.
 func fromImage(root, dockerfile string) string {
-	data, err := os.ReadFile(filepath.Join(root, dockerfile))
+	return fromImages(filepath.Join(root, dockerfile))[0]
+}
+
+// fromImages reads the images of a Dockerfile's FROM lines, without earlier stages.
+func fromImages(dockerfile string) []string {
+	data, err := os.ReadFile(dockerfile)
 	if err != nil {
 		panic(err)
 	}
+	var images []string
+	stages := map[string]bool{}
 	for line := range strings.Lines(string(data)) {
 		fields := strings.Fields(line)
-		if len(fields) >= 2 && fields[0] == "FROM" {
-			return fields[1]
+		if len(fields) < 2 || fields[0] != "FROM" {
+			continue
+		}
+		fields = slices.DeleteFunc(fields[1:], func(field string) bool { return strings.HasPrefix(field, "--") })
+		if !stages[strings.ToLower(fields[0])] {
+			images = append(images, fields[0])
+		}
+		if len(fields) == 3 && strings.EqualFold(fields[1], "AS") {
+			stages[strings.ToLower(fields[2])] = true
 		}
 	}
-	panic(dockerfile + " has no FROM line")
+	if len(images) == 0 {
+		panic(dockerfile + " has no FROM line")
+	}
+	return images
 }
 
 // kindNodeImage is the node image of E2E_KUBERNETES_VERSION, oldest or newest.

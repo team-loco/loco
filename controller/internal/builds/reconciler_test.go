@@ -3,6 +3,7 @@ package builds
 import (
 	"context"
 	"fmt"
+	"path"
 	"slices"
 	"strings"
 	"time"
@@ -708,6 +709,45 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		Expect(push.Env).To(ContainElement(corev1.EnvVar{Name: "DOCKER_CONFIG", Value: buildPushCredsDir}))
 		Expect(mountNames(buildkit)).NotTo(ContainElement(buildVolumePushCreds))
 		Expect(mountNames(buildkit)).NotTo(ContainElement(buildVolumePullCreds))
+	})
+
+	It("starts BuildKit with the configured buildkitd.toml", func() {
+		r := testReconciler()
+		r.Config.BuildkitdConfig = "[registry.\"docker.io\"]\n  mirrors = [\"mirror.example.com\"]\n"
+		build := testBuild("buildkitd-config")
+		Expect(k8sClient.Create(ctx, build)).To(Succeed())
+		reconcileBuild(r, build)
+
+		template := buildJobFor(build).Spec.Template
+		buildkit := findContainer(template.Spec.InitContainers, buildContainerBuild)
+		var flags string
+		for _, env := range buildkit.Env {
+			if env.Name == "BUILDKITD_FLAGS" {
+				flags = env.Value
+			}
+		}
+		_, configPath, found := strings.Cut(flags, "--config=")
+		Expect(found).To(BeTrue(), flags)
+		var mount corev1.VolumeMount
+		for _, m := range buildkit.VolumeMounts {
+			if strings.HasPrefix(configPath, m.MountPath+"/") {
+				mount = m
+			}
+		}
+		Expect(mount.Name).NotTo(BeEmpty(), "no mount holds %s", configPath)
+		var file *corev1.DownwardAPIVolumeFile
+		for _, volume := range template.Spec.Volumes {
+			if volume.Name == mount.Name && volume.DownwardAPI != nil {
+				for _, item := range volume.DownwardAPI.Items {
+					if path.Join(mount.MountPath, item.Path) == configPath {
+						file = &item
+					}
+				}
+			}
+		}
+		Expect(file).NotTo(BeNil(), "no file at %s", configPath)
+		key := strings.TrimSuffix(strings.TrimPrefix(file.FieldRef.FieldPath, "metadata.annotations['"), "']")
+		Expect(template.Annotations).To(HaveKeyWithValue(key, r.Config.BuildkitdConfig))
 	})
 
 	It("leaves a foreign job alone", func() {

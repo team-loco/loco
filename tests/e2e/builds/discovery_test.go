@@ -57,7 +57,7 @@ func TestDiscovery(t *testing.T) {
 	file := locofile.File{Partial: "discovery", Services: map[string]locofile.Service{
 		cartName: {
 			Context:    "services/cart",
-			Dockerfile: platform.BuildAppDockerfile,
+			Dockerfile: platform.FixtureDockerfile,
 			Env:        map[string]string{"MESSAGE": workspaceOne},
 			RunAsUser:  new(int64(1000)),
 			RunAsGroup: new(int64(1000)),
@@ -69,7 +69,7 @@ func TestDiscovery(t *testing.T) {
 			Port:    new(int32(8080)),
 			Regions: map[string]locofile.Region{p.Region: platform.OneReplica()},
 		},
-		"payment": {Context: "services/payment", Dockerfile: platform.BuildAppDockerfile, Port: new(int32(50051)),
+		"payment": {Context: "services/payment", Dockerfile: platform.FixtureDockerfile, Port: new(int32(50051)),
 			Regions: map[string]locofile.Region{p.Region: platform.OneReplica()}},
 	}}
 	platform.WriteLocoFile(t, dir, file)
@@ -293,7 +293,7 @@ func (d *discovery) otherWorkspace(t *testing.T) {
 		locofile.File{Partial: "discovery-two", Services: map[string]locofile.Service{
 			cartName: {
 				Context:    "services/cart",
-				Dockerfile: platform.BuildAppDockerfile,
+				Dockerfile: platform.FixtureDockerfile,
 				Port:       new(int32(8080)),
 				Env: map[string]string{
 					"MESSAGE": "workspace-two",

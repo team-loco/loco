@@ -9,8 +9,8 @@ import (
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 )
 
-// BuildAppDockerfile is the build-app fixture's Dockerfile.
-const BuildAppDockerfile = "deploy/Dockerfile"
+// FixtureDockerfile is the Dockerfile of every source-build fixture.
+const FixtureDockerfile = "deploy/Dockerfile"
 
 // StartedBuild is a build StartBuild created, uploaded and started.
 type StartedBuild struct {
@@ -46,7 +46,7 @@ func (p *Platform) StartBuild(tb testing.TB, resourceID, label string) StartedBu
 		tb.Fatal(err)
 	}
 	created, err := p.User.Build.CreateBuild(tb.Context(), &buildv1.CreateBuildRequest{
-		ResourceId: resourceID, DockerfilePath: BuildAppDockerfile, SourceSize: info.Size(),
+		ResourceId: resourceID, DockerfilePath: FixtureDockerfile, SourceSize: info.Size(),
 	})
 	if err != nil {
 		tb.Fatalf("create build %s: %v", label, err)

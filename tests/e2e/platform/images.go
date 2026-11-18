@@ -5,15 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"golang.org/x/sync/errgroup"
@@ -263,15 +264,77 @@ func (i *images) loadImage(ctx context.Context, spec imageSpec) (string, error) 
 	return reference, nil
 }
 
-// mirrorImage copies every platform of source to destination, with its command replaced when cmd
-// is set, so a fixture can behave differently without a second pinned base image.
-func mirrorImage(ctx context.Context, source, destination string, cmd []string) error {
-	if cmd == nil {
-		if err := crane.Copy(source, destination, crane.WithContext(ctx), crane.Insecure); err != nil {
-			return fmt.Errorf("mirror %s: %w", source, err)
-		}
-		return nil
+// mirrorUpstream copies platform's image of the digest-pinned source, and the index naming it, to
+// registry under the source registry's name and repository, keeping their digests, and returns the
+// copy's reference.
+func mirrorUpstream(ctx context.Context, source, registry string, platform *v1.Platform) (string, error) {
+	src, err := name.NewDigest(source)
+	if err != nil {
+		return "", err
 	}
+	dst, err := name.NewDigest(
+		registry+"/"+upstreamRegistry(src)+"/"+src.Context().RepositoryStr()+"@"+src.DigestStr(),
+		name.Insecure,
+	)
+	if err != nil {
+		return "", err
+	}
+	descriptor, err := remote.Get(src, remote.WithContext(ctx), remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		return "", fmt.Errorf("mirror %s: %w", source, err)
+	}
+	if !descriptor.MediaType.IsIndex() {
+		image, imageErr := descriptor.Image()
+		if imageErr != nil {
+			return "", imageErr
+		}
+		return dst.Name(), remote.Write(dst, image, remote.WithContext(ctx))
+	}
+	index, err := descriptor.ImageIndex()
+	if err != nil {
+		return "", err
+	}
+	image, err := platformImage(index, platform)
+	if err != nil {
+		return "", fmt.Errorf("mirror %s: %w", source, err)
+	}
+	digest, err := image.Digest()
+	if err != nil {
+		return "", err
+	}
+	if err = remote.Write(dst.Context().Digest(digest.String()), image, remote.WithContext(ctx)); err != nil {
+		return "", fmt.Errorf("mirror %s: %w", source, err)
+	}
+	if err = remote.Put(dst, descriptor, remote.WithContext(ctx)); err != nil {
+		return "", fmt.Errorf("mirror the index of %s: %w", source, err)
+	}
+	return dst.Name(), nil
+}
+
+// upstreamRegistry is the registry of ref as BuildKit names it in its registry configuration.
+func upstreamRegistry(ref name.Reference) string {
+	if registry := ref.Context().RegistryStr(); registry != name.DefaultRegistry {
+		return registry
+	}
+	return "docker.io"
+}
+
+func platformImage(index v1.ImageIndex, platform *v1.Platform) (v1.Image, error) {
+	manifest, err := index.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	for _, descriptor := range manifest.Manifests {
+		if descriptor.Platform != nil && descriptor.Platform.Satisfies(*platform) {
+			return index.Image(descriptor.Digest)
+		}
+	}
+	return nil, fmt.Errorf("no %s image", platform)
+}
+
+// mirrorImage copies platform's image of source to destination, with its command replaced when cmd
+// is set, so a fixture can behave differently without a second pinned base image.
+func mirrorImage(ctx context.Context, source, destination string, platform *v1.Platform, cmd []string) error {
 	src, err := name.ParseReference(source, name.Insecure)
 	if err != nil {
 		return err
@@ -284,20 +347,11 @@ func mirrorImage(ctx context.Context, source, destination string, cmd []string) 
 	if err != nil {
 		return err
 	}
-	manifest, err := index.IndexManifest()
+	image, err := platformImage(index, platform)
 	if err != nil {
-		return err
+		return fmt.Errorf("mirror %s: %w", source, err)
 	}
-	var mutated v1.ImageIndex = empty.Index
-	for _, descriptor := range manifest.Manifests {
-		// Attestation manifests carry no runnable image config.
-		if descriptor.Platform == nil || descriptor.Platform.OS == "unknown" {
-			continue
-		}
-		image, err := index.Image(descriptor.Digest)
-		if err != nil {
-			return err
-		}
+	if cmd != nil {
 		config, err := image.ConfigFile()
 		if err != nil {
 			return err
@@ -307,12 +361,43 @@ func mirrorImage(ctx context.Context, source, destination string, cmd []string) 
 		if image, err = mutate.ConfigFile(image, config); err != nil {
 			return err
 		}
-		mutated = mutate.AppendManifests(mutated, mutate.IndexAddendum{Add: image, Platform: descriptor.Platform})
 	}
-	if err := remote.WriteIndex(dst, mutated, remote.WithContext(ctx)); err != nil {
-		return fmt.Errorf("mirror %s with a new command: %w", source, err)
+	if err := remote.Write(dst, image, remote.WithContext(ctx)); err != nil {
+		return fmt.Errorf("mirror %s to %s: %w", source, destination, err)
 	}
 	return nil
+}
+
+// mirrorBaseImages mirrors the base images of the source-build fixtures and writes a BuildKit
+// configuration that pulls their registries from mirror.
+func (p *Platform) mirrorBaseImages(ctx context.Context, host, mirror string, target *v1.Platform) error {
+	dockerfiles, err := filepath.Glob(filepath.Join(p.root, "tests", "e2e", "fixtures", "*", FixtureDockerfile))
+	if err != nil {
+		return err
+	}
+	mirrored, registries := map[string]bool{}, map[string]bool{}
+	for _, dockerfile := range dockerfiles {
+		for _, image := range fromImages(dockerfile) {
+			if mirrored[image] {
+				continue
+			}
+			ref, err := name.ParseReference(image)
+			if err != nil {
+				return err
+			}
+			if _, err = mirrorUpstream(ctx, image, host, target); err != nil {
+				return err
+			}
+			mirrored[image], registries[upstreamRegistry(ref)] = true, true
+		}
+	}
+	var config strings.Builder
+	for _, registry := range slices.Sorted(maps.Keys(registries)) {
+		fmt.Fprintf(&config, "[registry.%q]\n  mirrors = [%q]\n", registry, mirror+"/"+registry)
+	}
+	fmt.Fprintf(&config, "[registry.%q]\n  http = true\n", mirror)
+	p.buildkitdConfig = filepath.Join(p.dir, "buildkitd.toml")
+	return writeReadable(p.buildkitdConfig, []byte(config.String()))
 }
 
 func writeExecutable(path string, data []byte) error {
