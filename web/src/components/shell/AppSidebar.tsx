@@ -346,11 +346,9 @@ function ExternalMenuLink({ icon, href, children }: { icon: ReactNode; href: str
 
 function UserAvatar({ name, src, className }: { name: string; src?: string | undefined; className?: string }) {
 	return (
-		<Avatar className={cn("rounded-full after:hidden [&_img]:rounded-full", className)}>
+		<Avatar className={className}>
 			{src !== undefined && src !== "" && <AvatarImage src={src} alt="" />}
-			<AvatarFallback className="rounded-full bg-panel2 font-mono text-[length:inherit] font-normal text-fg2">
-				{initials(name)}
-			</AvatarFallback>
+			<AvatarFallback>{initials(name)}</AvatarFallback>
 		</Avatar>
 	);
 }

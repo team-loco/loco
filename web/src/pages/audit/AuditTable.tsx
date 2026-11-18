@@ -18,14 +18,7 @@ const TOKEN_ACTORS = new Set(["organization", "workspace", "resource"]);
 function ActorBadge({ row }: { row: AuditRow }) {
 	const { actorType, actorEmail } = row.event;
 	if (actorType === "user") {
-		return (
-			<MemberAvatar
-				name={row.actor.name}
-				email={actorEmail}
-				avatarUrl=""
-				className="size-6 [&_[data-slot=avatar-fallback]]:text-[10px]"
-			/>
-		);
+		return <MemberAvatar name={row.actor.name} email={actorEmail} avatarUrl="" className="size-6" />;
 	}
 	const Icon = TOKEN_ACTORS.has(actorType) ? KeyRoundIcon : actorType === "agent" ? ServerIcon : CpuIcon;
 	return (
@@ -136,7 +129,10 @@ export function AuditTable({
 											<span className="flex min-w-0 items-center gap-2 font-mono text-[12px] text-fg2">
 												<span className="truncate">{row.where}</span>
 												{row.environment !== "" && (
-													<span className="shrink-0 rounded-[5px] border border-line px-1.5 text-[11px] text-fg3">
+													<span
+														data-slot="chip"
+														className="shrink-0 rounded-[5px] border border-line px-1.5 text-[11px] text-fg3"
+													>
 														{row.environment}
 													</span>
 												)}

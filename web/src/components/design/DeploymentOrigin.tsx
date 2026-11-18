@@ -22,7 +22,7 @@ export function DeploymentActor({ deployment: d }: { deployment: Deployment }) {
 					name={d.actorName}
 					email=""
 					avatarUrl={d.actorAvatarUrl}
-					className="size-[22px] shrink-0 [&_[data-slot=avatar-fallback]]:text-[9.5px]"
+					className="size-[22px] shrink-0 text-[9.5px]"
 				/>
 			)}
 			<span className="flex min-w-0 flex-col gap-px">

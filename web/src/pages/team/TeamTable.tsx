@@ -80,6 +80,12 @@ function RoleItems({ role, onPick }: { role: Role; onPick: (role: Role) => void 
 	);
 }
 
+function roleTitle(isMe: boolean, canChangeRoles: boolean): string | undefined {
+	if (!canChangeRoles) return "Only organization admins can change roles";
+	if (isMe) return "Another admin can change your role";
+	return undefined;
+}
+
 function Dash() {
 	return <span className="text-fg4">—</span>;
 }
@@ -107,6 +113,7 @@ function MemberRow({
 	const openAccess = () => {
 		actions.onAccess(member);
 	};
+	const roleLocked = isMe || !actions.canChangeRoles;
 	return (
 		<TableRow>
 			<TableCell>
@@ -138,15 +145,15 @@ function MemberRow({
 							<Button
 								variant="ghost"
 								size="xs"
-								disabled={!actions.canChangeRoles}
+								disabled={roleLocked}
 								aria-label={`Change role for ${name}`}
-								title={actions.canChangeRoles ? undefined : "Only organization admins can change roles"}
+								title={roleTitle(isMe, actions.canChangeRoles)}
 								className="-ml-2 gap-1 text-[13px] text-foreground disabled:opacity-100"
 							/>
 						}
 					>
 						{role}
-						<ChevronDownIcon className="text-fg4" />
+						{!roleLocked && <ChevronDownIcon className="text-fg4" />}
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" className="w-[260px]">
 						<RoleItems
@@ -348,7 +355,7 @@ export function TeamTable({
 						<TableRow key={i}>
 							<TableCell>
 								<span className="flex items-center gap-2.5">
-									<Skeleton className="size-[30px] rounded-lg" />
+									<Skeleton className="size-[30px] rounded-full" />
 									<Skeleton className="h-3.5 w-36" />
 								</span>
 							</TableCell>

@@ -167,14 +167,8 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         "button", name="Change role for Olivia Owner", exact=True
     )
     expect(member_role).to_have_text("Member")
-    owner_role.click()
-    page.get_by_role("menuitem", name=re.compile(r"^Member")).click()
-    page.get_by_role("button", name="Change role", exact=True).click()
-    page.get_by_text(
-        "Organization must keep at least one active admin.", exact=True
-    ).wait_for()
-    expect(page.get_by_role("alertdialog")).to_be_visible()
-    page.get_by_role("button", name="Cancel", exact=True).click()
+    expect(owner_role).to_be_disabled()
+    expect(owner_role).to_have_text("Admin")
     member_role.focus()
     page.keyboard.press("Enter")
     page.get_by_role("menuitem", name=re.compile(r"^Admin")).click()
@@ -226,17 +220,24 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     )
     page.get_by_role("button", name="Remove", exact=True).click()
     expect(page.get_by_role("row").filter(has_text="Lee Leaver")).to_have_count(0)
-    owner_role.click()
-    page.get_by_role("menuitem", name=re.compile(r"^Member")).click()
-    page.get_by_role("button", name="Change role", exact=True).click()
-    expect(owner_role).to_have_text("Member")
-    expect(owner_role).to_be_disabled()
-    expect(member_role).to_be_disabled()
-    assert sum(url.endswith("/GetScopes") for url in requests) > scopes_before
     assert (
         sum(url.endswith("/ListInvitations") for url in requests) == invitations_before
     )
     member_token = state["users"]["member"]["token"]
+    evidence.rpc(
+        state["api_url"],
+        member_token,
+        "loco.org.v1.OrgService/SetOrgMemberRole",
+        {
+            "orgId": org["id"],
+            "userId": state["users"]["owner"]["id"],
+            "role": "ORG_ROLE_MEMBER",
+        },
+    )
+    page.reload()
+    expect(owner_role).to_have_text("Member")
+    expect(owner_role).to_be_disabled()
+    expect(member_role).to_be_disabled()
     for user, role in (("owner", "ORG_ROLE_ADMIN"), ("member", "ORG_ROLE_MEMBER")):
         evidence.rpc(
             state["api_url"],

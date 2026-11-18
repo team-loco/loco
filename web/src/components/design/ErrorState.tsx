@@ -244,7 +244,7 @@ function Denied({ scope, className }: { scope: DeniedScope; className: string | 
 							name={user?.name ?? ""}
 							email={user?.email ?? ""}
 							avatarUrl={user?.avatarUrl ?? ""}
-							className="size-6 rounded-full [&_*]:rounded-full [&_[data-slot=avatar-fallback]]:text-[10px]"
+							className="size-6"
 						/>
 						You
 						{scope !== "org" && <Badge size="sm">{orgLevel(orgId) >= 3 ? "Admin" : "Member"}</Badge>}
@@ -260,12 +260,7 @@ function Denied({ scope, className }: { scope: DeniedScope; className: string | 
 									title={a.email}
 									className="inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-0.5 no-underline hover:bg-panel2 hover:text-foreground"
 								>
-									<MemberAvatar
-										name={a.name}
-										email={a.email}
-										avatarUrl={a.avatarUrl}
-										className="size-6 rounded-full [&_*]:rounded-full [&_[data-slot=avatar-fallback]]:text-[10px]"
-									/>
+									<MemberAvatar name={a.name} email={a.email} avatarUrl={a.avatarUrl} className="size-6" />
 									{userLabel(a)}
 								</a>
 							))}

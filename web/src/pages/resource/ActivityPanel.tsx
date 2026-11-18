@@ -25,12 +25,7 @@ function ActivityRow({ event, names, nowMs }: { event: Event; names: ReadonlyMap
 	return (
 		<li className="flex min-h-[42px] items-center gap-2.5 border-b border-line2 text-[13px] last:border-b-0">
 			{event.actorType === "user" ? (
-				<MemberAvatar
-					name={actor.name}
-					email={event.actorEmail}
-					avatarUrl=""
-					className="size-[22px] [&_[data-slot=avatar-fallback]]:text-[9.5px]"
-				/>
+				<MemberAvatar name={actor.name} email={event.actorEmail} avatarUrl="" className="size-[22px] text-[9.5px]" />
 			) : (
 				<span className="flex size-[22px] shrink-0 items-center justify-center rounded-[6px] border border-line bg-background text-fg2">
 					<KeyRoundIcon className="size-3" />
