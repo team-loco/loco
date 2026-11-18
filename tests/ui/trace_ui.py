@@ -29,7 +29,8 @@ org_id = state["orgs"]["acme"]["id"]
 workspace_id = state["workspaces"]["acme/shared"]
 base = f"/org/{org_id}/wks/{workspace_id}/observability?view=traces"
 trace = "4bf92f3577b34da6a3ce929d0e0e4736"
-start = int(time.time()) - 600
+now = int(time.time())
+start = now - 600
 rows = [
     ("0001", "", "frontend-proxy", "POST /api/checkout", 0, 427.6),
     ("0002", "0001", "frontend", "POST /api/checkout", 1.2, 424.1),
@@ -349,6 +350,7 @@ with session(out) as browser:
     context, page, errors = open_page(
         browser,
         state=state,
+        now=now,
         permissions=["clipboard-read", "clipboard-write"],
         device_scale_factor=2,
         reduced_motion="reduce",
@@ -837,7 +839,7 @@ with session(out) as browser:
     open_trace.wait_for()
     context.close()
     mode[0] = "paged"
-    context, page, _ = open_page(browser, state=state)
+    context, page, _ = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     with expect_rpc(page, "ListTraces", page_request(limit=25)):
         page.goto(state["ui_url"] + base)
@@ -992,7 +994,10 @@ with session(out) as browser:
             },
         )["environmentId"]
     context, page, _ = open_page(
-        browser, state=state, storage={"loco:env:v1:" + workspace_id: "staging"}
+        browser,
+        state=state,
+        now=now,
+        storage={"loco:env:v1:" + workspace_id: "staging"},
     )
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     with expect_rpc(
@@ -1009,7 +1014,7 @@ with session(out) as browser:
     assert "env=staging" in shared_url
     assert recorded[-1]["scope"]["environmentId"] == staging
     context.close()
-    context, page, _ = open_page(browser, state=state)
+    context, page, _ = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     with expect_rpc(
         page,
@@ -1022,7 +1027,7 @@ with session(out) as browser:
     raw_service = "resource-" + workspace_id
     spans[0]["serviceName"] = raw_service
     spans[0]["resourceAttributes"]["service.name"] = raw_service
-    context, page, _ = open_page(browser, narrow=True, state=state)
+    context, page, _ = open_page(browser, narrow=True, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     page.goto(
         state["ui_url"] + base + "&trace=" + trace + "&span=" + spans[0]["spanId"]
@@ -1036,7 +1041,7 @@ with session(out) as browser:
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     context.close()
     mode[0] = "normal"
-    context, page, _ = open_page(browser, state=state)
+    context, page, _ = open_page(browser, state=state, now=now)
     original_spans = json.loads(json.dumps(spans))
     for row in spans:
         row["resourceId"] = workspace_id
@@ -1414,7 +1419,7 @@ with session(out) as browser:
     context.close()
     spans[:] = original_spans
     mode[0] = "zero"
-    context, page, errors = open_page(browser, state=state)
+    context, page, errors = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     page.goto(state["ui_url"] + base + "&trace=" + trace)
     zero = (
@@ -1430,7 +1435,7 @@ with session(out) as browser:
     assert not errors, errors
     context.close()
     mode[0] = "large"
-    context, page, errors = open_page(browser, state=state)
+    context, page, errors = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     page.goto(state["ui_url"] + base + "&trace=" + trace)
     drawer = page.get_by_role("dialog", name=root_name)
@@ -1448,7 +1453,7 @@ with session(out) as browser:
     assert not errors, errors
     context.close()
     mode[0] = "many"
-    context, page, _ = open_page(browser, state=state)
+    context, page, _ = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
     page.goto(state["ui_url"] + base + "&trace=" + trace)
     flame = page.get_by_role("dialog", name=root_name).get_by_role(
@@ -1471,9 +1476,8 @@ with session(out) as browser:
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
     context.close()
     mode[0] = "normal"
-    context, page, _ = open_page(browser, state=state)
+    context, page, _ = open_page(browser, state=state, now=now)
     context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
-    page.clock.install()
     recent_save_ms = 1500
     search = page.get_by_role("combobox", name="Search and filter")
     suggestions = page.get_by_role("listbox", name="Suggestions")
@@ -1525,7 +1529,7 @@ with session(out) as browser:
     context.close()
     mode[0] = "concurrent"
     for narrow in (False, True):
-        context, page, errors = open_page(browser, narrow=narrow, state=state)
+        context, page, errors = open_page(browser, narrow=narrow, state=state, now=now)
         context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
         page.goto(state["ui_url"] + base + "&trace=" + trace)
         drawer = page.get_by_role("dialog", name="GET /recommendations")

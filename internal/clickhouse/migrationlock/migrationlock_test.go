@@ -98,6 +98,15 @@ func (h *harness) rows(t *testing.T) uint64 {
 	return count
 }
 
+func (h *harness) serverTime(t *testing.T, query string) time.Time {
+	t.Helper()
+	var at time.Time
+	if err := h.admin.QueryRow(t.Context(), query).Scan(&at); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+	return at
+}
+
 func (h *harness) holdUntil(t *testing.T, started chan<- struct{}, release <-chan struct{}) <-chan error {
 	t.Helper()
 	done := make(chan error, 1)
@@ -199,18 +208,19 @@ func TestDeadHolderLockIsTakenAfterItExpires(t *testing.T) {
 	diedAt := time.Now()
 	h.exec(t, "INSERT INTO "+h.table()+" SELECT 'schema', ?, now64(3) + toIntervalMillisecond(?)",
 		deadHolder, testTTL.Milliseconds())
+	expiresAt := h.serverTime(t, "SELECT expires_at FROM "+h.table()+" WHERE key = 'schema'")
 	var acquiredAt time.Time
 	err = migrationlock.New(h.cfg).WithLock(t.Context(), func(context.Context) error {
-		acquiredAt = time.Now()
+		acquiredAt = h.serverTime(t, "SELECT now64(3)")
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("successor WithLock(): %v", err)
 	}
-	waited := acquiredAt.Sub(diedAt)
+	waited := time.Since(diedAt)
 	t.Logf("successor took the lock %s after the dead holder's last renewal (ttl %s)", waited, testTTL)
-	if waited < testTTL-testRetryPeriod {
-		t.Fatalf("successor took the lock after %s, before the %s ttl expired", waited, testTTL)
+	if acquiredAt.Before(expiresAt) {
+		t.Fatalf("successor took the lock at %s, before the dead holder's lease ended at %s", acquiredAt, expiresAt)
 	}
 	if waited > settleDeadline {
 		t.Fatalf("successor took %s to take an expired lock", waited)

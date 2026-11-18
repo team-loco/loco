@@ -38,8 +38,8 @@ def check_scoped_user(browser):
         {"workspaceId": activity["workspaceId"]},
     )["environments"]
     production = next(e["id"] for e in environments if e["name"] == "production")
-    minute_ago = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)
-    stamp = minute_ago.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    now = datetime.datetime.now(datetime.UTC)
+    stamp = (now - datetime.timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     telemetry = {
         "QueryLogBuckets": {
             "buckets": [{"startTime": stamp, "severity": "INFO", "count": "1"}]
@@ -224,7 +224,7 @@ def check_scoped_user(browser):
     checked = []
     for scene, path, visible in pages:
         context, page, errors = open_page(
-            browser, "scoped", state=state, viewport=VIEWPORT
+            browser, "scoped", state=state, now=now, viewport=VIEWPORT
         )
         recorded = []
 

@@ -50,7 +50,14 @@ def session(out):
 
 
 def open_page(
-    browser, user="owner", narrow=False, *, state, storage=None, **context_options
+    browser,
+    user="owner",
+    narrow=False,
+    *,
+    state,
+    storage=None,
+    now=None,
+    **context_options,
 ):
     options = {
         "viewport": evidence.NARROW if narrow else evidence.DESKTOP,
@@ -59,6 +66,8 @@ def open_page(
     }
     context = browser.new_context(**options)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
+    if now is not None:
+        context.clock.install(time=now)
     if user is not None:
         evidence.authenticate(context, state, state["users"][user]["token"])
     values = {evidence.MODE_KEY: "light", **(storage or {})}
