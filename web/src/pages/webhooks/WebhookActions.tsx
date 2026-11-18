@@ -50,7 +50,8 @@ export function WebhookActions({
 			<div className="flex shrink-0 items-center gap-1">
 				{!menuOnly && (
 					<Button
-						variant="ghost"
+						variant="outline"
+						size="sm"
 						aria-disabled={test.isPending}
 						onClick={() => {
 							if (!test.isPending) test.mutate({ workspaceId, webhookId: webhook.id });

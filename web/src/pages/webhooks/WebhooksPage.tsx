@@ -133,19 +133,19 @@ export function WebhooksPage({
 				) : query.error !== null ? (
 					<ErrorState error={query.error} what="webhooks" rpc={listWebhooks} onRetry={query.refetch} />
 				) : webhooks.length === 0 ? (
-					<div className="px-5 py-7 text-fg3">
+					<div className="px-5 py-7 text-center text-[13px] text-fg3">
 						No webhooks yet. Create one to get a POST for events in this workspace.
 					</div>
 				) : filtered.length === 0 ? (
-					<div className="px-5 py-7 text-fg3">No webhooks match.</div>
+					<div className="px-5 py-7 text-center text-[13px] text-fg3">No webhooks match.</div>
 				) : (
-					<Table>
+					<Table className="table-fixed">
 						<TableHeader>
 							<TableRow>
-								<TableHead>Endpoint</TableHead>
-								<TableHead className="hidden md:table-cell">Events</TableHead>
+								<TableHead className="w-[45%] md:w-[38%]">Endpoint</TableHead>
+								<TableHead className="hidden w-[130px] md:table-cell">Events</TableHead>
 								<TableHead>Last {DELIVERY_TICKS} deliveries</TableHead>
-								<TableHead className="hidden md:table-cell">Created</TableHead>
+								<TableHead className="hidden w-[130px] md:table-cell">Created</TableHead>
 								<TableHead className="w-10">
 									<span className="sr-only">Actions</span>
 								</TableHead>
@@ -240,7 +240,7 @@ function WebhookRow({
 	const url = new URL(webhook.url);
 	return (
 		<TableRow onClick={onOpen}>
-			<TableCell className="w-full max-w-0">
+			<TableCell>
 				<button
 					type="button"
 					aria-label={`Deliveries for ${webhook.url}`}
@@ -257,7 +257,7 @@ function WebhookRow({
 			<TableCell className="hidden text-[12.5px] whitespace-nowrap text-fg2 md:table-cell">
 				{eventsSummary(webhook.eventTypes)}
 			</TableCell>
-			<TableCell className="max-w-[180px]">
+			<TableCell>
 				<DeliveryTicks workspaceId={workspaceId} webhookId={webhook.id} />
 			</TableCell>
 			<TableCell className="hidden font-mono text-[12px] whitespace-nowrap text-fg3 md:table-cell">

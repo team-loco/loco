@@ -13,7 +13,6 @@ import { useState } from "react";
 import { Button } from "@/components/design/Button";
 import { RotateCwIcon } from "lucide-react";
 import { CopyId } from "@/components/design/CopyId";
-import { Badge } from "@/components/design/Badge";
 import { Pager } from "@/components/design/Pager";
 import { Sheet, SheetBody, SheetContent, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -134,7 +133,6 @@ function WebhookDetail({
 			toastConnectError(error, "Could not redeliver the event");
 		},
 	});
-	const chips = webhook.eventTypes.length === 0 ? ["All events in this workspace"] : webhook.eventTypes;
 
 	return (
 		<>
@@ -154,7 +152,7 @@ function WebhookDetail({
 				/>
 			</SheetHeader>
 			<SheetBody>
-				<dl className="grid grid-cols-[84px_minmax(0,1fr)] items-start gap-y-3 text-[12.5px]">
+				<dl className="grid grid-cols-[84px_minmax(0,1fr)] text-[12.5px] leading-[22px] [&>*]:border-line [&>*]:py-2 [&>:not(:nth-last-child(-n+2))]:border-b">
 					<dt className="text-fg3">URL</dt>
 					<dd className="m-0 flex min-w-0 items-start gap-1 font-mono">
 						<CopyId
@@ -168,15 +166,21 @@ function WebhookDetail({
 					</dd>
 					<dt className="text-fg3">Events</dt>
 					<dd className="m-0">
-						<ul aria-label="Events" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-							{chips.map((c) => (
-								<li key={c}>
-									<Badge tone="muted" size="sm" className="font-mono font-normal">
+						{webhook.eventTypes.length === 0 ? (
+							<span className="text-[13px]">All events in this workspace</span>
+						) : (
+							<ul aria-label="Events" className="m-0 flex list-none flex-wrap gap-1 p-0">
+								{webhook.eventTypes.map((c) => (
+									<li
+										key={c}
+										data-slot="chip"
+										className="rounded-[5px] bg-panel2 px-[7px] font-mono text-[11.5px] leading-5 text-fg2"
+									>
 										{c}
-									</Badge>
-								</li>
-							))}
-						</ul>
+									</li>
+								))}
+							</ul>
+						)}
 					</dd>
 					<dt className="text-fg3">Created</dt>
 					<dd className="m-0">

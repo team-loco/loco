@@ -232,9 +232,7 @@ export function AccessPicker({
 			autoHighlight
 		>
 			<div ref={anchorRef} className={cn("relative rounded-lg border bg-raise", focus ? "border-fg4" : "border-line2")}>
-				{items.length === 0 && (
-					<div className="border-b border-line p-3 text-[12.5px] text-fg3">No permissions yet.</div>
-				)}
+				{items.length === 0 && <div className="p-3 pb-1 text-[12.5px] text-fg3">No permissions yet.</div>}
 				{rows}
 				<div className="flex h-[38px] items-center gap-2 px-3">
 					<SearchIcon className="size-3.5 text-fg3" />
