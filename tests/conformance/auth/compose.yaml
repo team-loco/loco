@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: loco_test
       POSTGRES_DB: loco_test
     ports:
-      - "${CONFORMANCE_POSTGRES_PORT:-25440}:5432"
+      - "25440:5432"
     volumes:
       - ./auth-db.sql:/docker-entrypoint-initdb.d/auth-db.sql:ro
     healthcheck:
