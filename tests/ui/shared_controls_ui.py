@@ -521,11 +521,20 @@ def query_suggestions(page):
 
 def volume(page):
     end = int(datetime.now(UTC).timestamp() * 1000)
-    page.goto(
-        state["ui_url"]
-        + base
-        + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
+    info = page.get_by_role("group", name="Log levels").get_by_role(
+        "button", name=re.compile(r"^Info")
     )
+
+    def open_hour():
+        page.goto(
+            state["ui_url"]
+            + base
+            + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
+        )
+        # The chart remounts once the volume query starts; its counts show it has settled.
+        expect(info).to_contain_text("10,005")
+
+    open_hour()
     slider = page.get_by_role("slider", name=re.compile(r"^Log volume"))
     expect(slider).to_be_visible()
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
@@ -548,20 +557,11 @@ def volume(page):
     area.hover(position=point)
     expect(area).to_have_attribute("title", re.compile(r"lines"))
     assert log_bucket_requests[-1]["groupBy"] == "LOG_BUCKET_GROUP_SEVERITY"
-    expect(
-        page.get_by_role("group", name="Log levels").get_by_role(
-            "button", name=re.compile(r"^Info")
-        )
-    ).to_contain_text("10,005")
     area.click(position=point)
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
     clicked = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0]
     page.mouse.move(0, 0)
-    page.goto(
-        state["ui_url"]
-        + base
-        + f"/observability?env=production&view=logs&from={end - 3_600_000}&to={end}"
-    )
+    open_hour()
     slider.focus()
     page.keyboard.press("ArrowRight")
     expect(slider).to_have_attribute("aria-valuenow", "0")
