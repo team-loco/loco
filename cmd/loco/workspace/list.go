@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/paginate"
 	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/rpc"
@@ -76,7 +77,7 @@ func listWorkspaces(ctx context.Context, clients *rpc.Clients, orgID string) ([]
 	if orgID == "" {
 		workspaces, err = cmdutil.ListUserWorkspaces(ctx, clients.Workspace)
 	} else {
-		workspaces, err = cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
+		workspaces, err = paginate.All(func(token string) ([]*workspacev1.Workspace, string, error) {
 			request := &workspacev1.ListOrgWorkspacesRequest{OrgId: orgID, PageToken: token}
 			response, listErr := clients.Workspace.ListOrgWorkspaces(ctx, request)
 			if listErr != nil {

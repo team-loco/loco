@@ -16,9 +16,9 @@ import (
 
 	"github.com/team-loco/loco/cmd/internal/auth"
 	"github.com/team-loco/loco/cmd/internal/keychain"
+	"github.com/team-loco/loco/cmd/internal/paginate"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/internal/ui"
-	"github.com/team-loco/loco/cmd/loco/cmdutil"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -166,7 +166,7 @@ func resolveLoginScope(
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to get current user: %w", err)
 	}
 
-	orgs, err := cmdutil.Paginate(func(token string) ([]*orgv1.Organization, string, error) {
+	orgs, err := paginate.All(func(token string) ([]*orgv1.Organization, string, error) {
 		resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
 			UserId:          currentUserResp.GetUser().GetId(),
 			PageToken:       token,
@@ -185,7 +185,7 @@ func resolveLoginScope(
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, errNoOrganization
 	}
 	selectedOrg := orgs[0]
-	workspaces, err := cmdutil.Paginate(func(token string) ([]*workspacev1.Workspace, string, error) {
+	workspaces, err := paginate.All(func(token string) ([]*workspacev1.Workspace, string, error) {
 		resp, listErr := wsClient.ListOrgWorkspaces(ctx, &workspacev1.ListOrgWorkspacesRequest{
 			OrgId:     selectedOrg.GetId(),
 			PageToken: token,
