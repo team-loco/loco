@@ -404,7 +404,7 @@ func streamCredentialClients(t *testing.T, f *eventFixture, token string) *rpc.C
 }
 
 // The recheck timeout leaves room for the recheck's database reads on a loaded machine.
-var streamCheck = auth.StreamConfig{Interval: 5 * time.Millisecond, Timeout: 10 * time.Second}
+var streamCheck = auth.StreamConfig{Interval: 5 * time.Second, Timeout: 5 * time.Second}
 
 // A stream ends within one recheck interval plus timeout of an access change; clients wait twice that.
 var streamWait = 2 * (streamCheck.Interval + streamCheck.Timeout)
