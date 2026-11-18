@@ -154,9 +154,11 @@ def mock_telemetry(context):
 
 def assert_sidebar_slide(target):
     target.hover()
-    traveled = target.evaluate("""async node => {
+    highlight_selector = '[data-slot="sidebar-highlight"]'
+    traveled = target.evaluate(
+        """async (node, selector) => {
         const sidebar = node.closest('[data-slot="sidebar-content"]');
-        const selector = '[data-slot="sidebar-highlight"]';
+        const row = node.closest('li');
         const center = rect => rect.top + rect.height / 2;
         const start = center(sidebar.querySelector(selector).getBoundingClientRect());
         const end = center(node.getBoundingClientRect());
@@ -165,33 +167,35 @@ def assert_sidebar_slide(target):
         node.click();
         while (performance.now() < deadline) {
             await new Promise(requestAnimationFrame);
-            const highlight = sidebar.querySelector('[aria-current="page"]')
-                ?.closest('li')?.querySelector(selector);
-            if (node.getAttribute('aria-current') !== 'page' || !highlight) continue;
+            const highlight = row.querySelector(selector);
+            if (!highlight) continue;
             const rect = highlight.getBoundingClientRect();
             const y = center(rect);
-            if (Math.abs(y - end) <= 1) return false;
-            if ((y - start) * direction <= 2 || Math.abs(y - end) <= rect.height / 2) continue;
-            // Hit testing checks whether the moving highlight is clipped by its row.
+            if (Math.abs(y - end) <= 2) return false;
+            if ((y - start) * direction <= 2) continue;
+            // The trailing edge should remain visible outside the destination row.
+            const trailingEdge = y - direction * (rect.height / 2 - 1);
             highlight.style.pointerEvents = 'auto';
-            const visible = document.elementsFromPoint(rect.left + rect.width / 2, y)
+            const visible = document.elementsFromPoint(rect.left + rect.width / 2, trailingEdge)
                 .includes(highlight);
             highlight.style.removeProperty('pointer-events');
             if (visible) return true;
         }
         return false;
-    }""")
+    }""",
+        highlight_selector,
+    )
     assert traveled, (
         f"Sidebar highlight did not visibly travel to {target.inner_text()}"
     )
     expect(target).to_have_attribute("aria-current", "page")
-    target.page.wait_for_function("""() => {
-        const highlight = document.querySelector('[data-slot="sidebar-highlight"]');
-        return highlight && getComputedStyle(highlight).transform === 'none';
-    }""")
+    expect(target.locator("..").locator(highlight_selector)).to_have_css(
+        "transform", "none"
+    )
 
 
 def shell_navigation(page):
+    page.emulate_media(reduced_motion="no-preference")
     page.set_viewport_size(evidence.DESKTOP)
     page.goto(state["ui_url"] + base + "?env=production")
     activity = page.get_by_role("button", name="Activity, 0 active", exact=True)
