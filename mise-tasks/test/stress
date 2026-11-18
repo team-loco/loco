@@ -1,36 +1,21 @@
 #!/usr/bin/env bash
-#MISE description="Run Go test packages repeatedly with the race detector under CPU load: one test process and two CPU burners per CPU, each process running every test --count times on one CPU, two at a time; prints the output of each failing process and the failed tests. Packages are repo-relative directories, `dir/...` for every package below one; without any, the packages whose Go files differ from --base (default origin/main). ClickHouse starts as in test:api; the database tests need LOCO_TEST_DATABASE_URL: test:stress [--base ref] [--count n] [package...]"
+#MISE description="Run Go test packages repeatedly with the race detector under CPU load: one test process and two CPU burners per CPU, each process running every test --count times on one CPU, two at a time; prints the output of each failing process and how often each test failed. Without packages, it stresses those whose Go files differ from --base. ClickHouse starts as in test:api; the database tests need LOCO_TEST_DATABASE_URL"
+#USAGE flag "--base <ref>" default="origin/main" help="ref whose merge base selects the changed packages"
+#USAGE flag "--count <n>" default="5" help="runs of each test per process"
+#USAGE arg "[package]..." var=#true help="repo-relative directories, dir/... for every package below one"
 set -euo pipefail
 
 root=$(git rev-parse --show-toplevel)
 cd "$root"
-base=origin/main
-count=5
-patterns=()
-while [[ $# -gt 0 ]]; do
-	case $1 in
-	--base | --count)
-		[[ $# -ge 2 ]] || {
-			echo "usage: mise run test:stress [--base ref] [--count n] [package...]" >&2
-			exit 2
-		}
-		if [[ $1 == --base ]]; then base=$2; else count=$2; fi
-		shift 2
-		;;
-	*)
-		patterns+=("$1")
-		shift
-		;;
-	esac
-done
+read -ra patterns <<<"${usage_package:-}"
 if [[ ${#patterns[@]} -eq 0 ]]; then
 	while IFS= read -r dir; do
 		[[ -d $dir ]] && patterns+=("$dir")
-	done < <(git diff --name-only "$(git merge-base "$base" HEAD)" -- '*.go' ':!tests/e2e/**' ':!**/testdata/**' | xargs -r -n1 dirname | sort -u)
+	done < <(git diff --name-only "$(git merge-base "$usage_base" HEAD)" -- '*.go' ':!tests/e2e/**' ':!**/testdata/**' | xargs -r -n1 dirname | sort -u)
 fi
 
 packages=()
-for pattern in "${patterns[@]}"; do
+for pattern in ${patterns[@]+"${patterns[@]}"}; do
 	dir=${pattern%/...}
 	[[ $dir == "$pattern" ]] && target=. || target=./...
 	while IFS= read -r package; do
@@ -70,11 +55,11 @@ for package in "${packages[@]}"; do
 	binary=$work/package.test
 	rm -f "$binary"
 	go -C "$package" test -c -race -o "$binary" .
-	echo "Stressing ${package#"$root"/}: $cpus processes x $count runs"
+	echo "Stressing ${package#"$root"/}: $cpus processes x $usage_count runs"
 	pids=()
 	for i in $(seq "$cpus"); do
 		# Two tests at a time per process keep the database tests within Postgres's default 100 connections.
-		(cd "$package" && exec "$binary" -test.count="$count" -test.cpu=1 -test.parallel=2 -test.timeout="$((count * 20))m" >"$work/$i.log" 2>&1) &
+		(cd "$package" && exec "$binary" -test.count="$usage_count" -test.cpu=1 -test.parallel=2 -test.timeout="$((usage_count * 20))m" >"$work/$i.log" 2>&1) &
 		pids+=($!)
 	done
 	package_failed=false

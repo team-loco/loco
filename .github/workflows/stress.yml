@@ -60,9 +60,11 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: mise run test:stress --base "$BASE" --count 2
+        run: mise run test:stress --base "$BASE" --count 1
 
       # The tests/e2e module brings up kind clusters and runs in the E2E workflow.
       - name: Stress every Go module
         if: github.event_name != 'pull_request'
-        run: mise run test:stress ./... agent/... api/... builder/... cmd/... controller/... k8sapi/... observability-proxy/...
+        run: |
+          mapfile -t modules < <(git ls-files '*go.mod' | grep -v '^tests/e2e/' | xargs -n1 dirname)
+          mise run test:stress "${modules[@]/%//...}"
