@@ -138,7 +138,7 @@ runs:
     - if: inputs.image-cache == 'true' || inputs.save-image-cache == 'true'
       id: image-cache-key
       shell: bash
-      run: echo "key=public-images-${{ hashFiles('mise-tasks/images/public', 'dev/compose.yaml', '.github/compose.api-tests.yaml', 'tests/conformance/*/compose.yaml', 'charts/*/values.yaml', '**/Dockerfile', '**/*.Dockerfile') }}" >> "$GITHUB_OUTPUT"
+      run: echo "key=public-images-$(mise run --quiet images:public | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
     - if: inputs.save-image-cache == 'true' && github.ref == 'refs/heads/main'
       id: image-cache-save

@@ -17,6 +17,7 @@ on:
       - "charts/*/values.yaml"
       - "**/Dockerfile"
       - "**/*.Dockerfile"
+      - ".github/workflows/*.yml"
   workflow_dispatch:
 
 permissions:
