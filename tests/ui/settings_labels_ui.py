@@ -1,5 +1,4 @@
 import argparse
-import contextlib
 import json
 import re
 from pathlib import Path
@@ -227,202 +226,168 @@ def check_create_dialogs(page):
 
 
 with session(out) as browser:
-    try:
-        for user in ("owner", "member"):
-            context, page, errors = open_page(browser, user, state=state)
-            if user == "owner":
-                context.add_init_script(
-                    f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
-                    f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
+    for user in ("owner", "member"):
+        context, page, errors = open_page(browser, user, state=state)
+        if user == "owner":
+            context.add_init_script(
+                f"localStorage.setItem('loco:active-org:v1', {json.dumps(org_id)});"
+                f"localStorage.setItem('loco:active-workspace:v1', {json.dumps(workspace_id)});"
+            )
+            beta_id = org_ids["beta"]
+            beta_workspace = state["workspaces"]["beta/beta-workspace"]
+            org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
+            page.route(org_list_rpc, lambda route: route.abort())
+            page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
+            page.wait_for_url(
+                f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?scope=org"
+            )
+            assert (
+                page.get_by_role("textbox", name="Name", exact=True).input_value()
+                == "beta"
+            )
+            page.unroute(org_list_rpc)
+            page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
+            page.wait_for_url(f"{state['ui_url']}/organizations")
+            page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
+            expect(
+                page.get_by_placeholder("Search workspaces", exact=True)
+            ).to_have_value("zzz")
+            workspace_scope = page.get_by_role(
+                "group", name="Settings for"
+            ).get_by_role("button", name="Workspace", exact=True)
+            workspace_scope.click()
+            page.wait_for_url(
+                lambda url: (
+                    parse_qs(urlparse(url).query).get("scope", ["workspace"])
+                    == ["workspace"]
+                    and "q=" not in url
                 )
-                beta_id = org_ids["beta"]
-                beta_workspace = state["workspaces"]["beta/beta-workspace"]
-                org_list_rpc = "**/loco.org.v1.OrgService/ListUserOrgs"
-                page.route(org_list_rpc, lambda route: route.abort())
-                page.goto(f"{state['ui_url']}/org/{beta_id}/settings")
-                page.wait_for_url(
-                    f"{state['ui_url']}/org/{beta_id}/wks/{beta_workspace}/settings?scope=org"
+            )
+            expect(workspace_scope).to_have_attribute("aria-pressed", "true")
+            expect(page.get_by_placeholder("storefront", exact=True)).to_be_visible()
+        for tab in ("ws", "org"):
+            page.goto(
+                state["ui_url"]
+                + base
+                + "?scope="
+                + ("workspace" if tab == "ws" else "org")
+            )
+            page.get_by_placeholder(
+                "storefront" if tab == "ws" else "team-loco"
+            ).wait_for()
+            name = page.get_by_role("textbox", name="Name", exact=True)
+            assert name.count() == 1
+            assert (
+                page.get_by_text("Created", exact=True).first.evaluate(
+                    "node => node.tagName"
+                )
+                == "DT"
+            )
+            assert name.evaluate("node => node.labels.length") == 1
+            assert descriptions(name) == []
+            if user == "member":
+                assert name.is_disabled()
+            else:
+                original = name.input_value()
+                page.locator(
+                    f"label[for={json.dumps(name.get_attribute('id'))}]"
+                ).click()
+                assert name.evaluate("node => node === document.activeElement")
+                name.fill("")
+                page.get_by_text("Name required", exact=True).wait_for()
+                assert name.get_attribute("aria-invalid") == "true"
+                assert "Name required" in descriptions(name)
+                page.get_by_role("button", name="Discard", exact=True).click()
+                assert name.input_value() == original
+                assert name.get_attribute("aria-invalid") == "false"
+                assert "Name required" not in descriptions(name)
+            if tab == "ws":
+                description = page.get_by_role(
+                    "textbox", name="Description", exact=True
                 )
                 assert (
-                    page.get_by_role("textbox", name="Name", exact=True).input_value()
-                    == "beta"
+                    description.count() == 1
+                    and description.evaluate("node => node.labels.length") == 1
                 )
-                page.unroute(org_list_rpc)
-                page.goto(f"{state['ui_url']}/org/{org_ids['empty']}/settings")
-                page.wait_for_url(f"{state['ui_url']}/organizations")
-                page.goto(state["ui_url"] + base + "?scope=org&q=zzz")
-                expect(
-                    page.get_by_placeholder("Search workspaces", exact=True)
-                ).to_have_value("zzz")
-                workspace_scope = page.get_by_role(
-                    "group", name="Settings for"
-                ).get_by_role("button", name="Workspace", exact=True)
-                workspace_scope.click()
-                page.wait_for_url(
-                    lambda url: (
-                        parse_qs(urlparse(url).query).get("scope", ["workspace"])
-                        == ["workspace"]
-                        and "q=" not in url
+                assert "256" in " ".join(descriptions(description))
+                assert description.get_attribute("id") != name.get_attribute("id")
+                if user == "member":
+                    assert description.is_disabled()
+                else:
+                    page.locator(
+                        f"label[for={json.dumps(description.get_attribute('id'))}]"
+                    ).click()
+                    assert description.evaluate(
+                        "node => node === document.activeElement"
                     )
-                )
-                expect(workspace_scope).to_have_attribute("aria-pressed", "true")
+                    name.focus()
+                    page.keyboard.press("Tab")
+                    assert description.evaluate(
+                        "node => node === document.activeElement"
+                    )
+            if tab == "org":
+                workspaces = page.get_by_role("region", name="Workspaces", exact=True)
                 expect(
-                    page.get_by_placeholder("storefront", exact=True)
+                    workspaces.get_by_role("link", name="shared", exact=True)
                 ).to_be_visible()
-            for tab in ("ws", "org"):
-                try:
-                    page.goto(
-                        state["ui_url"]
-                        + base
-                        + "?scope="
-                        + ("workspace" if tab == "ws" else "org")
+                row = workspaces.get_by_role("link", name="shared", exact=True).locator(
+                    "xpath=ancestor::tr"
+                )
+                assert (
+                    row.evaluate("node => getComputedStyle(node).cursor") == "pointer"
+                )
+                background = row.evaluate(
+                    "node => getComputedStyle(node).backgroundColor"
+                )
+                row.hover()
+                expect(row).not_to_have_css("background-color", background)
+                page.mouse.move(0, 0)
+                expect(
+                    workspaces.get_by_role("button", name="Next page", exact=True)
+                ).to_be_disabled()
+            if tab == "ws" and user == "owner":
+                settings_url = page.url
+                page.goto(settings_url.split("/settings")[0] + "/webhooks")
+                expect(
+                    page.get_by_role("heading", name="Webhooks", exact=True)
+                ).to_be_visible()
+                check_webhooks(page)
+                page.goto(settings_url)
+                expect(
+                    page.get_by_role("region", name="Environments", exact=True)
+                ).to_be_visible()
+                check_environments(page)
+                check_create_dialogs(page)
+            check_table_geometry(page)
+            assert not errors, errors
+            results.append({"user": user, "tab": tab, "errors": list(errors)})
+        if user == "owner":
+            for theme in ("neobrutal", "catppuccin"):
+                for mode in ("light", "dark"):
+                    page.evaluate(
+                        "theme => localStorage.setItem('loco:color:v1', theme)",
+                        theme,
                     )
-                    page.get_by_placeholder(
-                        "storefront" if tab == "ws" else "team-loco"
-                    ).wait_for()
-                    name = page.get_by_role("textbox", name="Name", exact=True)
-                    assert name.count() == 1
-                    assert (
-                        page.get_by_text("Created", exact=True).first.evaluate(
-                            "node => node.tagName"
-                        )
-                        == "DT"
-                    )
-                    assert name.evaluate("node => node.labels.length") == 1
-                    assert descriptions(name) == []
-                    if user == "member":
-                        assert name.is_disabled()
-                    else:
-                        original = name.input_value()
-                        page.locator(
-                            f"label[for={json.dumps(name.get_attribute('id'))}]"
+                    page.goto(state["ui_url"] + base + "?scope=workspace")
+                    page.get_by_role("columnheader", name="Name", exact=True).wait_for()
+                    if mode == "dark":
+                        page.get_by_role("button").filter(
+                            has_text="Olivia Owner"
                         ).click()
-                        assert name.evaluate("node => node === document.activeElement")
-                        name.fill("")
-                        page.get_by_text("Name required", exact=True).wait_for()
-                        assert name.get_attribute("aria-invalid") == "true"
-                        assert "Name required" in descriptions(name)
-                        page.get_by_role("button", name="Discard", exact=True).click()
-                        assert name.input_value() == original
-                        assert name.get_attribute("aria-invalid") == "false"
-                        assert "Name required" not in descriptions(name)
-                    if tab == "ws":
-                        description = page.get_by_role(
-                            "textbox", name="Description", exact=True
+                        page.get_by_role("radiogroup", name="Mode").get_by_role(
+                            "radio", name="Dark", exact=True
+                        ).click()
+                        page.keyboard.press("Escape")
+                        expect(page.locator("html")).to_have_class(
+                            re.compile(r"\bdark\b")
                         )
-                        assert (
-                            description.count() == 1
-                            and description.evaluate("node => node.labels.length") == 1
+                    else:
+                        expect(page.locator("html")).not_to_have_class(
+                            re.compile(r"\bdark\b")
                         )
-                        assert "256" in " ".join(descriptions(description))
-                        assert description.get_attribute("id") != name.get_attribute(
-                            "id"
-                        )
-                        if user == "member":
-                            assert description.is_disabled()
-                        else:
-                            page.locator(
-                                f"label[for={json.dumps(description.get_attribute('id'))}]"
-                            ).click()
-                            assert description.evaluate(
-                                "node => node === document.activeElement"
-                            )
-                            name.focus()
-                            page.keyboard.press("Tab")
-                            assert description.evaluate(
-                                "node => node === document.activeElement"
-                            )
-                    if tab == "org":
-                        workspaces = page.get_by_role(
-                            "region", name="Workspaces", exact=True
-                        )
-                        expect(
-                            workspaces.get_by_role("link", name="shared", exact=True)
-                        ).to_be_visible()
-                        row = workspaces.get_by_role(
-                            "link", name="shared", exact=True
-                        ).locator("xpath=ancestor::tr")
-                        assert (
-                            row.evaluate("node => getComputedStyle(node).cursor")
-                            == "pointer"
-                        )
-                        background = row.evaluate(
-                            "node => getComputedStyle(node).backgroundColor"
-                        )
-                        row.hover()
-                        expect(row).not_to_have_css("background-color", background)
-                        page.mouse.move(0, 0)
-                        expect(
-                            workspaces.get_by_role(
-                                "button", name="Next page", exact=True
-                            )
-                        ).to_be_disabled()
-                    if tab == "ws" and user == "owner":
-                        settings_url = page.url
-                        page.goto(settings_url.split("/settings")[0] + "/webhooks")
-                        expect(
-                            page.get_by_role("heading", name="Webhooks", exact=True)
-                        ).to_be_visible()
-                        check_webhooks(page)
-                        page.goto(settings_url)
-                        expect(
-                            page.get_by_role("region", name="Environments", exact=True)
-                        ).to_be_visible()
-                        check_environments(page)
-                        check_create_dialogs(page)
                     check_table_geometry(page)
-                    assert not errors, errors
-                    results.append({"user": user, "tab": tab, "errors": list(errors)})
-                except BaseException as error:
-                    with contextlib.suppress(Exception):
-                        page.screenshot(
-                            path=out / f"failure-{user}-{tab}.png",
-                            animations="disabled",
-                        )
-                    (out / "failure.json").write_text(
-                        json.dumps(
-                            {
-                                "user": user,
-                                "tab": tab,
-                                "error": repr(error),
-                                "errors": errors,
-                                "completed": results,
-                            },
-                            indent=2,
-                        )
-                    )
-                    raise
-            if user == "owner":
-                for theme in ("neobrutal", "catppuccin"):
-                    for mode in ("light", "dark"):
-                        page.evaluate(
-                            "theme => localStorage.setItem('loco:color:v1', theme)",
-                            theme,
-                        )
-                        page.goto(state["ui_url"] + base + "?scope=workspace")
-                        page.get_by_role(
-                            "columnheader", name="Name", exact=True
-                        ).wait_for()
-                        if mode == "dark":
-                            page.get_by_role("button").filter(
-                                has_text="Olivia Owner"
-                            ).click()
-                            page.get_by_role("radiogroup", name="Mode").get_by_role(
-                                "radio", name="Dark", exact=True
-                            ).click()
-                            page.keyboard.press("Escape")
-                            expect(page.locator("html")).to_have_class(
-                                re.compile(r"\bdark\b")
-                            )
-                        else:
-                            expect(page.locator("html")).not_to_have_class(
-                                re.compile(r"\bdark\b")
-                            )
-                        check_table_geometry(page)
-            page.goto(state["ui_url"] + base + "?scope=account")
-            check_time_preferences(page)
-            context.close()
-    finally:
-        browser.close()
+        page.goto(state["ui_url"] + base + "?scope=account")
+        check_time_preferences(page)
+        context.close()
 (out / "results.json").write_text(json.dumps(results, indent=2))
 print(f"PASS: {len(results)} settings field-label cases", flush=True)

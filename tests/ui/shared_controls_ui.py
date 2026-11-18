@@ -1071,28 +1071,21 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 results = []
 with session(out) as browser:
-    try:
-        context, page, errors = open_page(browser, state=state, timezone_id="UTC")
-        mock_telemetry(context)
-        time_preferences(browser)
-        try:
-            page.goto(
-                state["ui_url"] + base + "/resource/" + resource + "?env=production"
-            )
-            dropdown_cursors(page)
-            page.goto(state["ui_url"] + base + "/settings?scope=workspace")
-            group = page.get_by_role("group", name="Settings for", exact=True)
-            workspace_button = group.get_by_role("button", name="Workspace", exact=True)
-            personal = group.get_by_role("button", name="Personal", exact=True)
-            expect(workspace_button).to_have_attribute("aria-pressed", "true")
-            indicator = group.locator('[data-slot="segmented-indicator"]').first
-            assert (
-                abs(
-                    indicator.bounding_box()["x"] - workspace_button.bounding_box()["x"]
-                )
-                <= 1
-            )
-            personal.evaluate("""node => {
+    context, page, errors = open_page(browser, state=state, timezone_id="UTC")
+    mock_telemetry(context)
+    time_preferences(browser)
+    page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
+    dropdown_cursors(page)
+    page.goto(state["ui_url"] + base + "/settings?scope=workspace")
+    group = page.get_by_role("group", name="Settings for", exact=True)
+    workspace_button = group.get_by_role("button", name="Workspace", exact=True)
+    personal = group.get_by_role("button", name="Personal", exact=True)
+    expect(workspace_button).to_have_attribute("aria-pressed", "true")
+    indicator = group.locator('[data-slot="segmented-indicator"]').first
+    assert (
+        abs(indicator.bounding_box()["x"] - workspace_button.bounding_box()["x"]) <= 1
+    )
+    personal.evaluate("""node => {
                 window.indicatorPositions = [];
                 window.indicatorSampleDone = false;
                 const group = node.parentElement;
@@ -1105,92 +1098,73 @@ with session(out) as browser:
                 node.click();
                 requestAnimationFrame(sample);
             }""")
-            expect(personal).to_have_attribute("aria-pressed", "true")
-            page.wait_for_function("() => window.indicatorSampleDone")
-            assert (
-                abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
-            )
-            positions = page.evaluate("window.indicatorPositions")
-            start = workspace_button.bounding_box()["x"]
-            end = personal.bounding_box()["x"]
-            assert any(start + 2 < position < end - 2 for position in positions), (
-                positions
-            )
-            personal.focus()
-            page.keyboard.press("ArrowLeft")
-            expect(workspace_button).to_be_focused()
-            page.keyboard.press("Space")
-            expect(workspace_button).to_have_attribute("aria-pressed", "true")
-            page.emulate_media(reduced_motion="reduce")
-            personal.click()
-            expect(indicator).to_have_css("transform", "none")
-            assert (
-                abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
-            )
-            assert (
-                indicator.evaluate("node => getComputedStyle(node).transform") == "none"
-            )
-            personal.click()
-            modes = page.get_by_role("radiogroup", name="Mode")
-            html = page.locator("html")
-            dark_class = re.compile(r"\bdark\b")
-            modes.get_by_role("radio", name="Dark", exact=True).click()
-            expect(html).to_have_class(dark_class)
-            modes.get_by_role("radio", name="System", exact=True).click()
-            expect(html).not_to_have_class(dark_class)
-            colours = page.get_by_role("radiogroup", name="Color theme")
-            loco = colours.get_by_role("radio", name="Loco", exact=True)
-            expect(
-                colours.get_by_role("radio", name="Solarized", exact=True)
-            ).to_be_visible()
-            loco.focus()
-            page.keyboard.press("ArrowRight")
-            catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
-            expect(catppuccin).to_be_focused()
-            expect(catppuccin).to_be_checked()
-            page.keyboard.press("ArrowLeft")
-            expect(loco).to_be_checked()
-            page.set_viewport_size(evidence.NARROW)
-            workspace_button.click()
-            page.get_by_role("textbox", name="Name", exact=True).wait_for()
-            page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
-            page.wait_for_function("() => window.scrollY > 0")
-            name = page.get_by_role("textbox", name="Name", exact=True)
-            name.focus()
-            expect(name).to_be_focused()
-            name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
-            box = name.bounding_box()
-            assert (
-                0 <= box["y"]
-                and box["y"] + box["height"] <= page.viewport_size["height"]
-            )
-            for check in (
-                shell_navigation,
-                activity_deployments,
-                log_levels,
-                log_paging,
-                live_focus,
-                time_presets,
-                calendar,
-                metrics,
-                query_enter,
-                query_suggestions,
-                volume,
-                access_picker,
-                resources,
-                token_empty,
-                limit_display,
-                dashboard,
-            ):
-                check(page)
-            assert not errors, errors
-            results.append({"passed": True})
-        except BaseException:
-            page.screenshot(path=str(out / "failure.png"), full_page=True)
-            raise
-        finally:
-            context.close()
-    finally:
-        browser.close()
+    expect(personal).to_have_attribute("aria-pressed", "true")
+    page.wait_for_function("() => window.indicatorSampleDone")
+    assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
+    positions = page.evaluate("window.indicatorPositions")
+    start = workspace_button.bounding_box()["x"]
+    end = personal.bounding_box()["x"]
+    assert any(start + 2 < position < end - 2 for position in positions), positions
+    personal.focus()
+    page.keyboard.press("ArrowLeft")
+    expect(workspace_button).to_be_focused()
+    page.keyboard.press("Space")
+    expect(workspace_button).to_have_attribute("aria-pressed", "true")
+    page.emulate_media(reduced_motion="reduce")
+    personal.click()
+    expect(indicator).to_have_css("transform", "none")
+    assert abs(indicator.bounding_box()["x"] - personal.bounding_box()["x"]) <= 1
+    assert indicator.evaluate("node => getComputedStyle(node).transform") == "none"
+    personal.click()
+    modes = page.get_by_role("radiogroup", name="Mode")
+    html = page.locator("html")
+    dark_class = re.compile(r"\bdark\b")
+    modes.get_by_role("radio", name="Dark", exact=True).click()
+    expect(html).to_have_class(dark_class)
+    modes.get_by_role("radio", name="System", exact=True).click()
+    expect(html).not_to_have_class(dark_class)
+    colours = page.get_by_role("radiogroup", name="Color theme")
+    loco = colours.get_by_role("radio", name="Loco", exact=True)
+    expect(colours.get_by_role("radio", name="Solarized", exact=True)).to_be_visible()
+    loco.focus()
+    page.keyboard.press("ArrowRight")
+    catppuccin = colours.get_by_role("radio", name="Catppuccin", exact=True)
+    expect(catppuccin).to_be_focused()
+    expect(catppuccin).to_be_checked()
+    page.keyboard.press("ArrowLeft")
+    expect(loco).to_be_checked()
+    page.set_viewport_size(evidence.NARROW)
+    workspace_button.click()
+    page.get_by_role("textbox", name="Name", exact=True).wait_for()
+    page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+    page.wait_for_function("() => window.scrollY > 0")
+    name = page.get_by_role("textbox", name="Name", exact=True)
+    name.focus()
+    expect(name).to_be_focused()
+    name.evaluate("node => node.scrollIntoView({block: 'nearest'})")
+    box = name.bounding_box()
+    assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
+    for check in (
+        shell_navigation,
+        activity_deployments,
+        log_levels,
+        log_paging,
+        live_focus,
+        time_presets,
+        calendar,
+        metrics,
+        query_enter,
+        query_suggestions,
+        volume,
+        access_picker,
+        resources,
+        token_empty,
+        limit_display,
+        dashboard,
+    ):
+        check(page)
+    assert not errors, errors
+    results.append({"passed": True})
+    context.close()
 (out / "results.json").write_text(json.dumps(results, indent=2) + "\n")
 print(json.dumps(results, indent=2))
