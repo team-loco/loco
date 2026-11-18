@@ -196,10 +196,9 @@ func TestDeadHolderLockIsTakenAfterItExpires(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create lock table: %v", err)
 	}
+	diedAt := time.Now()
 	h.exec(t, "INSERT INTO "+h.table()+" SELECT 'schema', ?, now64(3) + toIntervalMillisecond(?)",
 		deadHolder, testTTL.Milliseconds())
-
-	diedAt := time.Now()
 	var acquiredAt time.Time
 	err = migrationlock.New(h.cfg).WithLock(t.Context(), func(context.Context) error {
 		acquiredAt = time.Now()
@@ -276,7 +275,7 @@ func holderStopsWithinTheTTL(t *testing.T, cfg migrationlock.Config, cut func())
 
 // stallingProxy forwards connections to the server dsn names and returns a dsn that reaches it
 // through the proxy, plus a stall func after which the proxy reads requests and never answers.
-// The dsn bounds each connection attempt by the lock ttl, which keeps the release after a stall short.
+// The dsn bounds each connection attempt by the lock ttl.
 func stallingProxy(t *testing.T, dsn string) (string, func()) {
 	t.Helper()
 	target, err := url.Parse(dsn)
