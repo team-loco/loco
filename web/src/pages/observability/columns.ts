@@ -1,5 +1,6 @@
 import { createParser } from "nuqs";
 
+import { LEVEL_LABEL } from "./format";
 import type { LogRow } from "./rows";
 
 export type ColumnKey = string;
@@ -104,7 +105,7 @@ function rowAttributes(row: LogRow): Record<string, string> {
 export function columnValue(row: LogRow, key: ColumnKey): string {
 	switch (key) {
 		case "level":
-			return row.label;
+			return LEVEL_LABEL[row.level];
 		case "resource":
 			return row.resourceName;
 		case "replica":

@@ -10,7 +10,6 @@ export interface LogRow {
 	key: string;
 	ts: number;
 	level: Level;
-	label: string;
 	resourceId: string;
 	resourceName: string;
 	color: string;
@@ -47,13 +46,10 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 		const n = seen.get(base) ?? 0;
 		seen.set(base, n + 1);
 		const res = resourceById.get(entry.resourceId);
-		const sev = entry.severity.toUpperCase();
-		const level = levelOf(entry.severity);
 		rows.push({
 			key: `${base}#${String(n)}`,
 			ts,
-			level,
-			label: sev === "" ? "INFO" : sev.length > 5 ? level.toUpperCase() : sev,
+			level: levelOf(entry.severity),
 			resourceId: entry.resourceId,
 			resourceName: res?.name ?? (entry.resourceId.slice(0, 8) || "unknown"),
 			color: res?.color ?? "var(--fg4)",

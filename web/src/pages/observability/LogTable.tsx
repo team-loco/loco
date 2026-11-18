@@ -14,7 +14,7 @@ import { formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { columnLabel, columnValue, columnWidth, PICKABLE_COLUMNS, type ColumnKey, type ColumnWidths } from "./columns";
-import { bodyParts, fmtTs, jsonPreview, levelStyle } from "./format";
+import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import type { LogRow } from "./rows";
 
@@ -148,7 +148,7 @@ export function LogTable({
 function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 	switch (column) {
 		case "level":
-			return <span className={cn("text-[12.5px]", levelStyle(row.level).text)}>{row.label}</span>;
+			return <span className={cn("text-[12.5px]", levelStyle(row.level).text)}>{LEVEL_LABEL[row.level]}</span>;
 		case "resource":
 			return <span className="block truncate text-[12.5px]">{row.resourceName}</span>;
 		default: {
