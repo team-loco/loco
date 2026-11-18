@@ -127,6 +127,11 @@ def check_not_found_renders(address, pages, out_dir):
 
 
 def check_path_opens_ui(page, path):
+    # The image has no API behind /api. Reply as an API would for a signed-out browser.
+    page.route(
+        "**/api/**",
+        lambda route: route.fulfill(status=401, json={"code": "unauthenticated"}),
+    )
     errors = []
     page.on(
         "console",
