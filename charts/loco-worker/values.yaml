@@ -363,11 +363,6 @@ builds:
     # @schema type: [string, integer]
     buildkit: 10Gi
 
-# @schema additionalProperties: false
-metrics:
-  enable: true
-  port: 8443
-
 # @schema skipProperties
 otel-col-daemon:
   enabled: true

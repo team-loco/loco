@@ -761,18 +761,6 @@
         }
       }
     },
-    "metrics": {
-      "type": "object",
-      "properties": {
-        "enable": {
-          "type": "boolean"
-        },
-        "port": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false
-    },
     "metrics-server": {
       "type": "object"
     },

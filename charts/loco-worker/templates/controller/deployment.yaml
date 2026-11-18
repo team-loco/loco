@@ -21,11 +21,6 @@ spec:
             containers:
                 - args:
                     - --reconciler=application
-                    {{- if .Values.metrics.enable }}
-                    - --metrics-bind-address=:{{ .Values.metrics.port }}
-                    {{- else }}
-                    - --metrics-bind-address=0
-                    {{- end }}
                     - --health-probe-bind-address=:8081
                     {{- range .Values.controller.args }}
                     - {{ . }}

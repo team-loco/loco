@@ -12,7 +12,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
@@ -37,15 +36,12 @@ func init() {
 var version string
 
 func main() {
-	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
 	var pprofAddr string
 	var reconcilerName string
 	flag.StringVar(&reconcilerName, "reconciler", "",
 		"The reconciler this manager runs: "+reconcilerApplication+" or "+reconcilerBuild+".")
-	flag.StringVar(&metricsAddr, "metrics-bind-address", "0",
-		"The address the metrics endpoint serves HTTPS on, e.g. :8443. Leave as 0 to disable it.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&pprofAddr, "pprof-bind-address", "0",
 		"The address the pprof endpoint binds to, e.g. :6060. Leave as 0 to disable pprof.")
@@ -62,12 +58,6 @@ func main() {
 	managerVersion := buildinfo.Version(version)
 	setupLog.Info("starting loco controller", "version", managerVersion)
 
-	metricsServerOptions := metricsserver.Options{
-		BindAddress:    metricsAddr,
-		SecureServing:  true,
-		FilterProvider: filters.WithAuthenticationAndAuthorization,
-	}
-
 	operator := newOperatorConfig()
 	setup, err := selectReconciler(reconcilerName, operator)
 	if err != nil {
@@ -79,7 +69,7 @@ func main() {
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Cache:                  setup.cache,
-		Metrics:                metricsServerOptions,
+		Metrics:                metricsserver.Options{BindAddress: "0"},
 		HealthProbeBindAddress: probeAddr,
 		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,
