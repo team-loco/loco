@@ -58,7 +58,7 @@ Use space to distinguish levels, not to make every element a card. Section gaps 
 
 On narrow screens, let the document scroll and allow toolbars/actions to wrap. Choose a deliberate treatment for each data surface: deployment-history rows reflow into labeled groups, Traces reduces visible columns and uses a bottom Sheet for span details, and the dashboard resource table retains horizontal scrolling. Do not shrink text until every desktop column fits. Keep identity, state and the main action available; full technical values belong in copy/detail controls.
 
-Resizable columns use [ColumnResizeHandle](web/src/components/design/ColumnResizeHandle.tsx) with [DataTable](web/src/components/design/DataTable.tsx). Headers and rows share geometry. Preserve minimum bounds, keyboard controls, cancellation and distinct desktop/narrow preferences. Reuse the [Sheet](web/src/components/design/Sheet.tsx) and [Dialog](web/src/components/design/Dialog.tsx) wrappers for overlays rather than building a page-specific modal.
+Resizable columns use [ColumnResizeHandle](web/src/components/design/ColumnResizeHandle.tsx) with [DataTable](web/src/components/design/DataTable.tsx). Headers and rows share geometry. Preserve minimum bounds, keyboard controls and cancellation. Reuse the [Sheet](web/src/components/design/Sheet.tsx) and [Dialog](web/src/components/design/Dialog.tsx) wrappers for overlays rather than building a page-specific modal.
 
 ## Elevation & Depth
 
@@ -113,8 +113,8 @@ A new screen should have an identifiable task and scope, the appropriate existin
 
 These are feature/API requirements, separate from the visual guidance above. Follow the maintained implementation and protocol when behavior changes:
 
-- Column resizing: `ColumnResizeHandle` and `DataTable`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation. Versioned browser-local preferences keep desktop and narrow layouts separate.
-- Scoped audit history: [ActivityPanel](web/src/pages/resource/ActivityPanel.tsx) reuses audit actors, categories and rows across organization, workspace and resource history. [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
+- Column resizing: `ColumnResizeHandle` and `DataTable`; adjacent columns share bounded geometry, keyboard resizing and pointer cancellation.
+- Scoped audit history: [Audit](web/src/pages/Audit.tsx) shows organization and workspace history; [ActivityPanel](web/src/pages/resource/ActivityPanel.tsx) shows resource history. Both take event labels and actors from [auditEvents](web/src/pages/settings/auditEvents.ts). [EventService.ListEvents](proto/loco/event/v1/event.proto) owns authorization and sequence cursors; failed older pages preserve loaded rows and retry the same cursor.
 - Async request identity: Connect Query/TanStack Query, scoped by resource and environment.
 - Current regional deployment: `RegionStatus.deployment_id` in [resource.proto](proto/loco/resource/v1/resource.proto), independent of the history page.
 - Deployment-history pagination: [deployment.proto](proto/loco/deployment/v1/deployment.proto) and [DeploymentsSection](web/src/pages/resource/DeploymentsSection.tsx).
