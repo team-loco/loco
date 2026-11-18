@@ -35,7 +35,9 @@ locoadm login --api https://api.example.com --web https://app.example.com
 locoadm admin list
 ```
 
-Only use an identity provider that verifies email addresses. Register a public authorization-code client with PKCE and allow the dashboard's `/auth/callback`. `locoadm login --device` supports browser approval on another machine. Configure OIDC, API endpoints, source storage and registry settings in the control-plane values and referenced Secret.
+Configure the dashboard issuer and callback in the control-plane values and referenced Secret. `locoadm login --device` supports browser approval on another machine. [Dashboard identity provider setup](../reference/installation.md#register-the-dashboard-with-your-identity-provider)
+
+For a separately hosted dashboard, forward `/api` on the dashboard origin to the control-plane API and strip the prefix. If the browser connects directly to an API on a sibling host, serve both hosts over HTTPS, allow the dashboard origin for API CORS and add the API origin to the dashboard's `connect-src` policy. Dashboard and API hosts on different sites cannot use the session cookies.
 
 Manage administrator grants with `locoadm admin grant USER_UUID` and `revoke USER_UUID`. Status lists configured emails that remain unclaimed. [Cluster enrollment](../reference/cluster-attachment.md) describes worker registration and join-token Secret delivery.
 

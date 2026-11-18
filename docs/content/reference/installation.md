@@ -10,7 +10,16 @@ Provide Kubernetes with its CNI, PostgreSQL, an OIDC provider, an S3-compatible 
 
 Each cluster runs its own Flux and reads its own directory. The control plane uses `./control-plane`, a worker uses `./worker`, and a single-cluster installation uses `./all`. Keep the staging and production installations of Loco on separate clusters. A team’s user environments can share worker clusters within one installation.
 
-Register one public OIDC client with authorization code and PKCE; allow the dashboard origin followed by `/auth/callback`. Use a provider that verifies administrator email addresses.
+### Register the dashboard with your identity provider
+
+Register an OpenID Connect client for authorization code with PKCE. Set `WEB_URL` to the dashboard origin, such as `https://app.example.com`, and register that origin followed by `/auth/callback` as the redirect URI. Use a provider that verifies administrator email addresses.
+
+Set `web.clientId` on the dashboard issuer in the API environment Secret's `AUTH_ISSUERS` entry. A public PKCE client can use its existing registration if the provider allows a server to exchange the code. For a confidential client, also set `web.clientSecret` in the Secret.
+
+- **Microsoft Entra ID.** Move the existing callback URI from **Single-page application** to **Web** in the app registration, then set `web.clientSecret`. Use the tenant-specific issuer. [Microsoft authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
+- **Google.** Use a **Web application** client and set `web.clientSecret`. [Google OpenID Connect setup](https://developers.google.com/identity/openid-connect/openid-connect)
+
+The API exchanges the sign-in code and sets Loco session cookies. The control-plane chart routes dashboard RPCs through `/api` on the dashboard origin.
 
 ## Scaffold the repository
 
