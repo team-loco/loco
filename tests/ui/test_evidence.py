@@ -18,135 +18,58 @@ def no_docker(monkeypatch):
     monkeypatch.setattr(subprocess, "Popen", Popen)
 
 
-def test_reap_removed_checkout(tmp_path, monkeypatch):
-    root = tmp_path / "expired"
-    root.mkdir()
-    evidence.write_json(
-        root / "state.json",
-        {
-            "id": "expired",
-            "root": str(root),
-            "worktree": str(root / "src"),
-            "compose": "loco-ui-evidence-expired",
-            "container": "loco-ui-evidence-expired",
-            "expires_at": 0,
-        },
-    )
-    live = tmp_path / "live"
-    evidence.write_json(
-        live / "state.json",
-        {
-            "id": "live",
-            "root": str(live),
-            "compose": "loco-ui-evidence-live",
-            "container": "loco-ui-evidence-live",
-            "expires_at": evidence.time.time() + evidence.LEASE_S,
-        },
-    )
-    monkeypatch.setattr(evidence, "BASE_DIR", tmp_path)
-    commands = []
+@pytest.fixture
+def leases(tmp_path, monkeypatch):
+    """Stands in for tools/testres: records its calls and hands out lease directories."""
+    calls = []
+    created = []
 
-    def run(cmd, **kwargs):
-        commands.append(cmd)
-        if cmd[0] == "git":
-            return str(Path(__file__).resolve().parents[2])
-        if "yq" in cmd:
-            assert Path(cmd[-1]).exists()
-            return "openbao:test"
+    def testres(*args):
+        args = tuple(map(str, args))
+        calls.append(args)
+        if args[0] == "lease":
+            root = (
+                tmp_path / "leases" / f"{args[args.index('-name') + 1]}-{len(created)}"
+            )
+            root.mkdir(parents=True)
+            created.append(root)
+            return str(root)
+        if args[0] == "list":
+            return "\n".join(map(str, created))
+        if args[0] == "ports":
+            return "\n".join(str(20000 + i) for i in range(int(args[2])))
         return ""
 
-    monkeypatch.setattr(evidence, "run", run)
-    removed = []
-
-    def docker(cmd, **kwargs):
-        if cmd[:2] == ["docker", "rm"]:
-            removed.append(cmd[-1])
-        return subprocess.CompletedProcess(
-            cmd,
-            0,
-            stdout=f"live-openbao\tloco-ui-evidence-live\t{live / 'state.json'}\n"
-            f"loco-ui-evidence-live\t\t{live / 'state.json'}\n"
-            f"loco-ui-evidence-expired\t\t{root / 'state.json'}\n"
-            "foreign-openbao\tforeign-project\t\n",
-        )
-
-    monkeypatch.setattr(evidence.subprocess, "run", docker)
-    evidence.reap()
-    assert set(removed) == {"loco-ui-evidence-expired"}
-    assert not root.exists()
-    assert (live / "state.json").exists()
-    down = next(cmd for cmd in commands if "down" in cmd)
-    assert down[down.index("-p") + 1] == "loco-ui-evidence-expired"
-    assert [cmd for cmd in commands if "down" in cmd] == [down]
+    monkeypatch.setattr(evidence, "testres", testres)
+    return calls
 
 
-def test_shared_openbao_outlives_its_starting_shell(tmp_path, monkeypatch, capsys):
-    repo = Path(__file__).resolve().parents[2]
-    clock = [1000.0]
-    monkeypatch.setattr(evidence.time, "time", lambda: clock[0])
-    monkeypatch.setattr(evidence, "BASE_DIR", tmp_path)
-    monkeypatch.setattr(evidence, "repo_root", lambda: repo)
-    projects = []
-
-    def start_openbao(worktree, project, env, state_path):
-        projects.append(project)
-        return "http://127.0.0.1:8200"
-
-    monkeypatch.setattr(evidence, "start_openbao", start_openbao)
-    commands = []
-
-    def run(cmd, **kwargs):
-        commands.append(cmd)
-        return "openbao:test" if "yq" in cmd else ""
-
-    monkeypatch.setattr(evidence, "run", run)
+def test_capture_renews_the_shared_openbao_it_uses(leases, monkeypatch, capsys):
+    monkeypatch.setattr(evidence, "repo_root", lambda: Path(__file__).parents[2])
     monkeypatch.setattr(
-        evidence.subprocess,
-        "run",
-        lambda *a, **kw: subprocess.CompletedProcess(
-            a,
-            0,
-            stdout="".join(
-                f"openbao-1\t{p}\t{tmp_path / p.removeprefix('loco-ui-evidence-') / 'state.json'}\n"
-                for p in projects
-            ),
-        ),
+        evidence, "start_openbao", lambda *args: "http://127.0.0.1:8200"
     )
     evidence.cmd_openbao(argparse.Namespace())
     address = capsys.readouterr().out.strip()
+    openbao = next(call[1] for call in leases if call[0] == "add")
+    assert ("add", openbao, "compose", Path(openbao).name) in leases
 
-    def stopped():
-        return [cmd[cmd.index("-p") + 1] for cmd in commands if "down" in cmd]
-
-    capture = tmp_path / "capture"
-    evidence.write_json(
-        capture / "state.json",
-        {"id": "capture", "root": str(capture), "openbao": address},
-    )
-    clock[0] += evidence.LEASE_S - 1
-    evidence.renew(evidence.load_state(capture / "state.json"))
-    clock[0] += 2
-    evidence.reap()
-    assert stopped() == []
-    clock[0] += evidence.LEASE_S
-    evidence.reap()
-    assert not capture.exists()
-    assert projects[0] in stopped()
+    monkeypatch.setenv("TMPDIR", str(Path(openbao).parent / "elsewhere"))
+    capture = {"id": "capture", "root": "/capture", "openbao": address}
+    evidence.renew(capture)
+    assert leases[-1] == ("renew", "/capture", openbao)
 
 
-def test_postgres_pulled_before_start(tmp_path, monkeypatch):
+def test_postgres_pulled_and_recorded_before_start(tmp_path, monkeypatch, leases):
     repo = Path(__file__).resolve().parents[2]
-    monkeypatch.setattr(evidence, "BASE_DIR", tmp_path)
     monkeypatch.setenv(evidence.OPENBAO_ENV, "http://openbao")
     monkeypatch.setattr(evidence, "repo_root", lambda: repo)
-    monkeypatch.setattr(evidence, "reap", lambda: None)
     monkeypatch.setattr(evidence, "stop_state", lambda state: None)
     scenario = tmp_path / "scenario.json"
     scenario.write_text("{}")
-    commands = []
 
     def run(cmd, **kwargs):
-        commands.append(cmd)
+        leases.append(tuple(cmd))
         return "commit"
 
     monkeypatch.setattr(evidence, "run", run)
@@ -157,11 +80,15 @@ def test_postgres_pulled_before_start(tmp_path, monkeypatch):
     )
     with pytest.raises(RuntimeError, match="started"):
         evidence.start_state(name="test", ref="HEAD", scenario=scenario)
-    pull = next(cmd for cmd in commands if "./tools/pullimage" in cmd)
-    start = next(cmd for cmd in commands if cmd[:2] == ["docker", "run"])
-    assert commands.index(pull) < commands.index(start)
+    pull = next(call for call in leases if "./tools/pullimage" in call)
+    start = next(call for call in leases if call[:2] == ("docker", "run"))
+    name = start[start.index("--name") + 1]
+    recorded = next(call for call in leases if call[0] == "add" and call[3] == name)
+    assert leases.index(pull) < leases.index(start)
+    assert leases.index(recorded) < leases.index(start)
     assert pull[-1] == start[-1]
     assert start[start.index("--pull") + 1] == "never"
+    assert f"{evidence.HOST}:20000:5432" in start
 
 
 def test_capture_scrolls_drag_target_into_view(tmp_path):
@@ -268,45 +195,13 @@ def test_settle_excludes_only_named_targets():
         browser.close()
 
 
-def test_reap_keeps_containers_whose_run_lives_elsewhere(tmp_path, monkeypatch):
-    other = tmp_path / "other-tmpdir" / "capture"
-    evidence.write_json(
-        other / "state.json",
-        {
-            "id": "capture",
-            "root": str(other),
-            "expires_at": evidence.time.time() + evidence.LEASE_S,
-        },
+def test_down_all_stops_every_evidence_lease(leases, monkeypatch):
+    monkeypatch.setattr(
+        evidence, "run", lambda cmd, **kwargs: leases.append(tuple(cmd))
     )
-    expired = tmp_path / "other-tmpdir" / "expired"
-    evidence.write_json(
-        expired / "state.json",
-        {
-            "id": "expired",
-            "root": str(expired),
-            "container": "loco-ui-evidence-expired",
-            "expires_at": 0,
-        },
-    )
-    gone = tmp_path / "other-tmpdir" / "gone" / "state.json"
-    monkeypatch.setattr(evidence, "BASE_DIR", tmp_path / "own")
-    monkeypatch.setattr(evidence, "run", lambda cmd, **kwargs: "")
-    removed = []
-
-    def docker(cmd, **kwargs):
-        if cmd[:2] == ["docker", "rm"]:
-            removed.append(cmd[-1])
-        return subprocess.CompletedProcess(
-            cmd,
-            0,
-            stdout=f"loco-ui-evidence-capture\t\t{other / 'state.json'}\n"
-            f"loco-ui-evidence-expired\t\t{expired / 'state.json'}\n"
-            f"loco-ui-evidence-gone\t\t{gone}\n"
-            "loco-ui-evidence-unlabelled\t\t\n",
-        )
-
-    monkeypatch.setattr(evidence.subprocess, "run", docker)
-    evidence.reap()
-    assert removed == ["loco-ui-evidence-expired", "loco-ui-evidence-gone"]
-    assert (other / "state.json").exists()
-    assert not expired.exists()
+    early = evidence.testres("lease", "-name", f"{evidence.LABEL}-before")
+    other = evidence.testres("lease", "-name", "loco-clickhouse-test")
+    evidence.cmd_down(argparse.Namespace(all=True, state=None))
+    assert ("release", early) in leases
+    assert ("release", other) not in leases
+    assert ("git", "worktree", "prune") in leases

@@ -9,13 +9,8 @@ import http.server
 import json
 import os
 import re
-import secrets
-import shutil
-import signal
-import socket
 import subprocess
 import sys
-import tempfile
 import time
 import tomllib
 import urllib.error
@@ -26,9 +21,8 @@ from pathlib import Path
 LABEL = "loco-ui-evidence"
 HOST = "127.0.0.1"
 UI_BACKLOG = 128
-BASE_DIR = Path(tempfile.gettempdir()) / LABEL
-# Each container names its run's state file, which may sit under another process's temporary directory.
-STATE_LABEL = LABEL + ".state"
+# The checkout of this script, whose tools/testres owns every run's resources and ports.
+TOOLS_ROOT = Path(__file__).resolve().parents[2]
 # A run nobody has used for this long is a leak: its agent died or never ran `down`.
 LEASE_S = 2 * 60 * 60
 DB_USER = "evidence"
@@ -91,23 +85,13 @@ def run(cmd, cwd=None, env=None, capture=False):
     return result.stdout if capture else ""
 
 
-def port_in_use(port):
-    for host in ("127.0.0.1", "::1"):
-        family = socket.AF_INET6 if ":" in host else socket.AF_INET
-        with socket.socket(family, socket.SOCK_STREAM) as sock:
-            sock.settimeout(0.2)
-            if sock.connect_ex((host, port)) == 0:
-                return True
-    return False
-
-
-def free_port(taken=()):
-    while True:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            sock.bind(("0.0.0.0", 0))
-            port = sock.getsockname()[1]
-        if port not in taken and not port_in_use(port):
-            return port
+def testres(*args):
+    """Runs tools/testres, the registry of test leases every local harness shares."""
+    return run(
+        ["mise", "exec", "--", "go", "run", "./tools/testres", *map(str, args)],
+        cwd=TOOLS_ROOT,
+        capture=True,
+    ).strip()
 
 
 def session_token():
@@ -136,7 +120,7 @@ def compose(worktree, project, env, *args, capture=False):
         "-f",
         str(worktree / "dev" / "compose.yaml"),
         "-f",
-        str(Path(__file__).resolve().parents[2] / "dev" / "compose.subnet.yaml"),
+        str(TOOLS_ROOT / "dev" / "compose.subnet.yaml"),
     ]
     return run(
         ["docker", "compose", *files, "-p", project, *args], env=env, capture=capture
@@ -151,19 +135,8 @@ def openbao_env(worktree, env):
     return dict(env, OPENBAO_PORT=f"{HOST}:", OPENBAO_IMAGE=image)
 
 
-def start_openbao(worktree, project, env, state_path):
+def start_openbao(worktree, project, env):
     compose_env = openbao_env(worktree, env)
-    labels = state_path.with_name("compose.labels.yaml")
-    labels.write_text(
-        json.dumps(
-            {
-                "services": {
-                    service: {"labels": {STATE_LABEL: str(state_path)}}
-                    for service in (OPENBAO_SERVICE, OPENBAO_SEED_SERVICE)
-                }
-            }
-        )
-    )
     image = compose_env["OPENBAO_IMAGE"]
     run(
         ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
@@ -175,8 +148,6 @@ def start_openbao(worktree, project, env, state_path):
             worktree,
             project,
             compose_env,
-            "-f",
-            str(labels),
             "up",
             "-d",
             "--wait",
@@ -188,8 +159,6 @@ def start_openbao(worktree, project, env, state_path):
             worktree,
             project,
             compose_env,
-            "-f",
-            str(labels),
             "run",
             "--rm",
             "--pull",
@@ -207,62 +176,41 @@ def start_openbao(worktree, project, env, state_path):
         )
         return f"http://{HOST}:{published.strip().rsplit(':', 1)[1]}"
     except EvidenceError:
-        try:
-            for arguments in (
-                ("logs", "--no-color", OPENBAO_SERVICE),
-                ("ps", "-a", "--format", "json"),
-            ):
-                try:
-                    log(
-                        compose(
-                            worktree, project, compose_env, *arguments, capture=True
-                        )
-                    )
-                except EvidenceError as error:
-                    log(str(error))
+        for arguments in (
+            ("logs", "--no-color", OPENBAO_SERVICE),
+            ("ps", "-a", "--format", "json"),
+        ):
             try:
-                containers = compose(
-                    worktree,
-                    project,
-                    compose_env,
-                    "ps",
-                    "-a",
-                    "-q",
-                    OPENBAO_SERVICE,
-                    capture=True,
-                ).split()
-                if containers:
-                    log(
-                        run(
-                            [
-                                "docker",
-                                "inspect",
-                                "--format",
-                                "{{json .State}} restart_count={{.RestartCount}}",
-                                *containers,
-                            ],
-                            capture=True,
-                        )
-                    )
+                log(compose(worktree, project, compose_env, *arguments, capture=True))
             except EvidenceError as error:
                 log(str(error))
-        finally:
-            stop_compose(project, worktree)
+        try:
+            containers = compose(
+                worktree,
+                project,
+                compose_env,
+                "ps",
+                "-a",
+                "-q",
+                OPENBAO_SERVICE,
+                capture=True,
+            ).split()
+            if containers:
+                log(
+                    run(
+                        [
+                            "docker",
+                            "inspect",
+                            "--format",
+                            "{{json .State}} restart_count={{.RestartCount}}",
+                            *containers,
+                        ],
+                        capture=True,
+                    )
+                )
+        except EvidenceError as error:
+            log(str(error))
         raise
-
-
-def stop_compose(project, worktree=None):
-    worktree = Path(worktree) if worktree else repo_root()
-    if not worktree.exists():
-        worktree = Path(__file__).resolve().parents[2]
-    compose(
-        worktree,
-        project,
-        openbao_env(worktree, dict(os.environ)),
-        "down",
-        "-v",
-        "--remove-orphans",
-    )
 
 
 def compose_postgres_image(compose_text):
@@ -285,9 +233,10 @@ def read_api_env(text):
     return values
 
 
-def api_env(dev_env, db_port, api_port, ui_port, issuer=None):
-    issuer = issuer or f"http://{HOST}:{ui_port}/dex"
-    unused = free_port({db_port, api_port, ui_port})
+def api_env(dev_env, ports, issuer):
+    db_port, api_port, ui_port, unused = (
+        ports[key] for key in ("db", "api", "ui", "unused")
+    )
     env = dict(dev_env)
     env.update(
         {
@@ -822,25 +771,19 @@ def cmd_build(args):
 
 
 def cmd_openbao(args):
-    reap()
-    run_id = f"shared-openbao-{secrets.token_hex(4)}"
-    state = {
-        "id": run_id,
-        "root": str(BASE_DIR / run_id),
-        "compose": f"{LABEL}-{run_id}",
-    }
-    renew(state)
+    root = Path(
+        testres("lease", "-name", f"{LABEL}-shared-openbao", "-ttl", f"{LEASE_S}s")
+    )
+    state = {"id": root.name, "root": str(root), "compose": root.name}
     try:
+        testres("add", root, "compose", state["compose"])
         state["address"] = start_openbao(
-            repo_root(),
-            state["compose"],
-            dict(os.environ),
-            Path(state["root"]) / "state.json",
+            repo_root(), state["compose"], dict(os.environ)
         )
+        write_json(root / "state.json", state)
     except BaseException:
         stop_state(state)
         raise
-    renew(state)
     print(state["address"])
 
 
@@ -868,9 +811,10 @@ def check_ref_worktree(repo, ref):
 
 
 def states():
-    for path in BASE_DIR.glob("*/state.json"):
+    """Yields the state of every run and shared OpenBao on this machine."""
+    for lease in testres("list").splitlines():
         try:
-            yield load_state(path)
+            yield load_state(Path(lease) / "state.json")
         except OSError, ValueError:
             continue
 
@@ -878,62 +822,24 @@ def states():
 def renew(state):
     """Extends the lease of a run and of the shared OpenBao it uses."""
     address = state.get("openbao")
-    shared = [s for s in states() if address and s.get("address") == address]
-    for current in (state, *shared):
-        current["expires_at"] = time.time() + LEASE_S
-        write_json(Path(current["root"]) / "state.json", current)
+    shared = [s["root"] for s in states() if address and s.get("address") == address]
+    testres("renew", state["root"], *shared)
 
 
 def reap():
-    """Stops runs whose lease expired and Docker leftovers whose run is gone."""
-    now = time.time()
-    for state in states():
-        if state["expires_at"] < now:
-            log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
-            stop_state(state)
-    listed = subprocess.run(
-        [
-            "docker",
-            "ps",
-            "-a",
-            "--format",
-            f'{{{{.Names}}}}\t{{{{.Label "com.docker.compose.project"}}}}\t{{{{.Label "{STATE_LABEL}"}}}}',
-        ],
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    for line in listed:
-        name, project, state_path = line.split("\t")
-        owner = project or name
-        if not owner.startswith(LABEL + "-") or not state_path:
-            continue
-        try:
-            state = load_state(state_path)
-        except FileNotFoundError:
-            log(f"reaping {owner}: its run {state_path} is gone")
-            if project:
-                stop_compose(project)
-            else:
-                subprocess.run(["docker", "rm", "-f", "-v", name], capture_output=True)
-            continue
-        except OSError, ValueError:
-            continue
-        if state["expires_at"] < now:
-            log(f"reaping {state['id']}: unused for {LEASE_S // 3600}h")
-            stop_state(state)
+    """Stops runs whose lease expired, and every other harness's leftovers whose owner is gone."""
+    testres("reap")
 
 
 def start_state(*, ref, name, scenario, issuer=None):
-    reap()
     repo = repo_root()
     openbao = os.environ.get(OPENBAO_ENV)
     if not openbao:
         check_ref_worktree(repo, ref)
     scenario_path = str(Path(scenario).resolve())
     scenario = json.loads(Path(scenario).read_text())
-    run_id = f"{name}-{secrets.token_hex(4)}"
-    root = BASE_DIR / run_id
-    root.mkdir(parents=True)
+    root = Path(testres("lease", "-name", f"{LABEL}-{name}", "-ttl", f"{LEASE_S}s"))
+    run_id = root.name
     state_path = root / "state.json"
     state = {
         "id": run_id,
@@ -941,7 +847,6 @@ def start_state(*, ref, name, scenario, issuer=None):
         "ref": ref,
         "scenario": scenario_path,
         "root": str(root),
-        "pids": [],
     }
     if openbao:
         worktree = repo
@@ -949,9 +854,10 @@ def start_state(*, ref, name, scenario, issuer=None):
     else:
         worktree = root / "src"
         state["worktree"] = str(worktree)
-    renew(state)
     try:
+        renew(state)
         if not openbao:
+            testres("add", root, "worktree", worktree)
             run(
                 [
                     "git",
@@ -967,12 +873,13 @@ def start_state(*, ref, name, scenario, issuer=None):
         state["commit"] = run(
             ["git", "-C", str(worktree), "rev-parse", "HEAD"], capture=True
         ).strip()
-        db_port = free_port()
-        api_port = free_port({db_port})
-        ui_port = free_port({db_port, api_port})
+        names = ("db", "api", "ui", "unused")
+        reserved = map(int, testres("ports", root, len(names)).split())
+        ports = dict(zip(names, reserved, strict=True))
+        db_port, api_port, ui_port = ports["db"], ports["api"], ports["ui"]
         state.update(
             {
-                "ports": {"db": db_port, "api": api_port, "ui": ui_port},
+                "ports": ports,
                 "api_url": f"http://{HOST}:{api_port}",
                 "ui_url": f"http://{HOST}:{ui_port}",
                 "issuer": issuer or f"http://{HOST}:{ui_port}/dex",
@@ -982,20 +889,22 @@ def start_state(*, ref, name, scenario, issuer=None):
 
         env = dict(os.environ)
         if not openbao:
-            state["compose"] = f"{LABEL}-{run_id}"
+            state["compose"] = run_id
             write_json(state_path, state)
+            testres("add", root, "compose", state["compose"])
             run(["mise", "trust", "--quiet", str(worktree / "mise.toml")])
-            openbao = start_openbao(worktree, state["compose"], env, state_path)
+            openbao = start_openbao(worktree, state["compose"], env)
             build(worktree, env)
         dist = worktree / "web" / "dist"
 
         image = compose_postgres_image((worktree / "dev" / "compose.yaml").read_text())
-        container = f"{LABEL}-{run_id}"
+        container = run_id
         run(
             ["mise", "exec", "--", "go", "run", "./tools/pullimage", image],
             cwd=worktree,
             env=env,
         )
+        testres("add", root, "container", container)
         run(
             [
                 "docker",
@@ -1005,10 +914,6 @@ def start_state(*, ref, name, scenario, issuer=None):
                 "-d",
                 "--name",
                 container,
-                "--label",
-                f"{LABEL}={run_id}",
-                "--label",
-                f"{STATE_LABEL}={state_path}",
                 "-e",
                 f"POSTGRES_USER={DB_USER}",
                 "-e",
@@ -1029,15 +934,16 @@ def start_state(*, ref, name, scenario, issuer=None):
         dev_env["LOCO_SECRETS_TRANSIT_ADDR"] = openbao
         api_log = root / "api.log"
         api_cmd = [str(worktree / "api" / "bin" / "loco-api")]
-        state["pids"].append(
+        testres(
+            "add",
+            root,
+            "process",
             spawn(
                 api_cmd,
                 worktree,
-                dict(
-                    env, **api_env(dev_env, db_port, api_port, ui_port, state["issuer"])
-                ),
+                dict(env, **api_env(dev_env, ports, state["issuer"])),
                 api_log,
-            )
+            ),
         )
         ui_log = root / "ui.log"
         ui_cmd = [
@@ -1051,7 +957,7 @@ def start_state(*, ref, name, scenario, issuer=None):
             "--api-url",
             state["api_url"],
         ]
-        state["pids"].append(spawn(ui_cmd, worktree, env, ui_log))
+        testres("add", root, "process", spawn(ui_cmd, worktree, env, ui_log))
         write_json(state_path, state)
         wait_http(f"{state['api_url']}/health", api_log)
         wait_http(state["ui_url"] + "/", ui_log)
@@ -1433,67 +1339,20 @@ def cmd_table(args):
 
 
 def stop_state(state):
-    for pid in state.get("pids", []):
-        try:
-            os.killpg(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
-    if state.get("container"):
-        subprocess.run(
-            ["docker", "rm", "-f", "-v", state["container"]], capture_output=True
-        )
-    if state.get("compose"):
-        stop_compose(state["compose"], state.get("worktree"))
-    worktree = state.get("worktree")
-    if worktree and Path(worktree).exists():
-        repo = run(
-            [
-                "git",
-                "-C",
-                worktree,
-                "rev-parse",
-                "--path-format=absolute",
-                "--git-common-dir",
-            ],
-            capture=True,
-        )
-        run(
-            [
-                "git",
-                "--git-dir",
-                repo.strip(),
-                "worktree",
-                "remove",
-                "--force",
-                worktree,
-            ]
-        )
-    shutil.rmtree(state["root"], ignore_errors=True)
+    testres("release", state["root"])
     log(f"stopped {state['id']}")
 
 
 def cmd_down(args):
     reap()
-    states = [Path(args.state)] if args.state else sorted(BASE_DIR.glob("*/state.json"))
-    for path in states:
-        if path.exists():
-            stop_state(load_state(path))
     if args.all:
-        listed = subprocess.run(
-            ["docker", "ps", "-aq", "--filter", f"label={LABEL}"],
-            capture_output=True,
-            text=True,
-        ).stdout.split()
-        for container in listed:
-            subprocess.run(["docker", "rm", "-f", "-v", container], capture_output=True)
-        projects = subprocess.run(
-            ["docker", "compose", "ls", "-a", "-q", "--filter", f"name={LABEL}"],
-            capture_output=True,
-            text=True,
-        ).stdout.split()
-        for project in projects:
-            stop_compose(project)
+        for lease in testres("list").splitlines():
+            if Path(lease).name.startswith(LABEL + "-"):
+                testres("release", lease)
+                log(f"stopped {Path(lease).name}")
         run(["git", "worktree", "prune"])
+    elif Path(args.state).exists():
+        stop_state(load_state(args.state))
 
 
 def main():
