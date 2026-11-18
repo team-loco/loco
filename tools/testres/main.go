@@ -103,10 +103,7 @@ func newLease(ctx context.Context, registry *testres.Registry, args []string) er
 	if *name == "" || flags.NArg() > 0 {
 		return errUsage
 	}
-	if err := reap(ctx, registry); err != nil {
-		slog.WarnContext(ctx, "reap leftovers of earlier runs", "error", err)
-	}
-	lease, err := registry.New(*name, owner)
+	lease, err := registry.New(ctx, *name, owner)
 	if err != nil {
 		return err
 	}

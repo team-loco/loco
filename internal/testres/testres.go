@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -112,19 +113,21 @@ type resource struct {
 	Started string `json:"started,omitempty"`
 }
 
-// New creates a lease with a unique ID that starts with name.
-func (r *Registry) New(name string, owner Owner) (*Lease, error) {
+// New releases the leases whose owner is gone, then creates a lease with a unique ID that starts
+// with name.
+func (r *Registry) New(ctx context.Context, name string, owner Owner) (*Lease, error) {
 	if owner.PID == 0 && owner.Path == "" && owner.TTL <= 0 {
 		return nil, errNoOwner
 	}
-	var lease *Lease
+	r.reapLeftovers(ctx)
+	var id string
 	err := r.locked(func() error {
 		for {
 			suffix := make([]byte, idBytes)
 			if _, err := rand.Read(suffix); err != nil {
 				return fmt.Errorf("random lease id: %w", err)
 			}
-			id := name + "-" + hex.EncodeToString(suffix)
+			id = name + "-" + hex.EncodeToString(suffix)
 			err := os.Mkdir(r.dir(id), dirMode)
 			if errors.Is(err, fs.ErrExist) {
 				continue
@@ -132,19 +135,22 @@ func (r *Registry) New(name string, owner Owner) (*Lease, error) {
 			if err != nil {
 				return fmt.Errorf("create lease: %w", err)
 			}
-			lease = &Lease{r: r, ID: id}
 			return r.create(id, owner)
 		}
 	})
-	return lease, err
+	if err != nil {
+		return nil, err
+	}
+	return &Lease{r: r, ID: id}, nil
 }
 
-// Claim returns the lease with a fixed ID, owned by owner.Path, creating it when missing. It fails
-// when another path owns the ID.
-func (r *Registry) Claim(id string, owner Owner) (*Lease, error) {
+// Claim releases the leases whose owner is gone, then returns the lease with a fixed ID, owned by
+// owner.Path, creating it when missing. It fails when another path owns the ID.
+func (r *Registry) Claim(ctx context.Context, id string, owner Owner) (*Lease, error) {
 	if owner.Path == "" {
 		return nil, errNoOwner
 	}
+	r.reapLeftovers(ctx)
 	err := r.locked(func() error {
 		rec, err := r.read(id)
 		if errors.Is(err, fs.ErrNotExist) {
@@ -165,6 +171,18 @@ func (r *Registry) Claim(id string, owner Owner) (*Lease, error) {
 		return nil, err
 	}
 	return &Lease{r: r, ID: id}, nil
+}
+
+// reapLeftovers reaps before a new run starts. A leftover that cannot be removed now stays for a
+// later reap and does not stop the new run.
+func (r *Registry) reapLeftovers(ctx context.Context) {
+	released, err := r.Reap(ctx)
+	for _, id := range released {
+		slog.InfoContext(ctx, "released the leftovers of a test run whose owner is gone", "lease", id)
+	}
+	if err != nil {
+		slog.WarnContext(ctx, "reap leftovers of earlier test runs", "error", err)
+	}
 }
 
 // Get returns the existing lease with an ID.
@@ -295,7 +313,15 @@ func (l *Lease) update(change func(*record) error) error {
 	})
 }
 
+// create writes a new lease's record into its directory, or removes the directory when it cannot.
 func (r *Registry) create(id string, owner Owner) error {
+	if err := r.writeNew(id, owner); err != nil {
+		return errors.Join(err, os.RemoveAll(r.dir(id)))
+	}
+	return nil
+}
+
+func (r *Registry) writeNew(id string, owner Owner) error {
 	rec := record{ID: id, PID: owner.PID, Path: owner.Path, TTL: int64(owner.TTL / time.Second)}
 	if rec.TTL > 0 {
 		rec.Expires = r.now().Unix() + rec.TTL

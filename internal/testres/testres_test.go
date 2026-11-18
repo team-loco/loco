@@ -26,7 +26,7 @@ func TestConcurrentLeasesNeverShareAPort(t *testing.T) {
 				t.Error(err)
 				return
 			}
-			lease, err := registry.New("run", Owner{TTL: time.Hour})
+			lease, err := registry.New(t.Context(), "run", Owner{TTL: time.Hour})
 			if err != nil {
 				t.Error(err)
 				return
@@ -53,7 +53,7 @@ func TestConcurrentLeasesNeverShareAPort(t *testing.T) {
 
 func TestPortsAreStableAndFreedOnRelease(t *testing.T) {
 	registry := open(t)
-	lease, err := registry.New("run", Owner{TTL: time.Hour})
+	lease, err := registry.New(t.Context(), "run", Owner{TTL: time.Hour})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,14 +139,14 @@ func TestReapStopsResourcesOfGoneOwnersOnly(t *testing.T) {
 func TestClaimBelongsToOnePath(t *testing.T) {
 	registry := open(t)
 	path := t.TempDir()
-	first, err := registry.Claim("run", Owner{Path: path})
+	first, err := registry.Claim(t.Context(), "run", Owner{Path: path})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = first.Add(t.Context(), Container, "run-db"); err != nil {
 		t.Fatal(err)
 	}
-	again, err := registry.Claim("run", Owner{Path: path})
+	again, err := registry.Claim(t.Context(), "run", Owner{Path: path})
 	if err != nil {
 		t.Fatalf("reclaim from the same path: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestClaimBelongsToOnePath(t *testing.T) {
 	if rec, readErr := registry.read("run"); readErr != nil || len(rec.Resources) != 1 {
 		t.Fatalf("resources after recording one twice = %v, %v", rec.Resources, readErr)
 	}
-	if _, err = registry.Claim("run", Owner{Path: t.TempDir()}); !errors.Is(err, errClaimed) {
+	if _, err = registry.Claim(t.Context(), "run", Owner{Path: t.TempDir()}); !errors.Is(err, errClaimed) {
 		t.Fatalf("claim from another path = %v, want %v", err, errClaimed)
 	}
 }
@@ -188,7 +188,7 @@ func open(t *testing.T) *Registry {
 
 func lease(t *testing.T, registry *Registry, name string, owner Owner) *Lease {
 	t.Helper()
-	lease, err := registry.New(name, owner)
+	lease, err := registry.New(t.Context(), name, owner)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -277,4 +277,22 @@ func TestReleaseRemovesARecordedWorktree(t *testing.T) {
 func isExit(err error) bool {
 	var exit *exec.ExitError
 	return errors.As(err, &exit)
+}
+
+func TestNewLeavesNothingForAnOwnerThatIsNotRunning(t *testing.T) {
+	owner := exec.CommandContext(t.Context(), "true")
+	if err := owner.Run(); err != nil {
+		t.Fatal(err)
+	}
+	registry := open(t)
+	if _, err := registry.New(t.Context(), "run", Owner{PID: owner.Process.Pid}); err == nil {
+		t.Fatal("leased to a process that is not running")
+	}
+	entries, err := os.ReadDir(filepath.Join(registry.root, leasesDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("lease directories left behind: %v", entries)
+	}
 }
