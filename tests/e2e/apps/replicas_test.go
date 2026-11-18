@@ -30,31 +30,32 @@ func TestReplicas(t *testing.T) {
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
 
-	serving := waitReplicas(
-		t,
-		w,
-		app,
-		"two ready replicas with distinct names",
-		func(replicas []*deploymentv1.Replica) error {
-			if names := readyNames(replicas); len(names) != 2 {
-				return fmt.Errorf("ready replicas %v", names)
+	serving := waitReplicas(t, w, app, "two ready replicas", func(region *resourcev1.RegionStatus) error {
+		ready := readyNames(region.GetReplicas())
+		if len(ready) != 2 {
+			return fmt.Errorf("ready replicas %v", ready)
+		}
+		for _, replica := range region.GetReplicas() {
+			if replica.GetNode() == "" || replica.GetStartedAt() == nil ||
+				replica.GetDeploymentId() != region.GetDeploymentId() {
+				return fmt.Errorf("replica %v lacks a node, start time or the region's deployment", replica)
 			}
-			return nil
-		},
-	)
-	deleted := readyNames(serving)[0]
+		}
+		return nil
+	})
+	deleted := readyNames(serving.GetReplicas())[0]
 	if _, err := p.Kubectl(t.Context(), "-n", w.Namespace, "delete", "pod", deleted, "--wait=false"); err != nil {
 		t.Fatal(err)
 	}
-	waitReplicas(t, w, app, "a new replica to replace "+deleted, func(replicas []*deploymentv1.Replica) error {
-		names := readyNames(replicas)
-		if len(names) != 2 || slices.Contains(names, deleted) {
-			return fmt.Errorf("ready replicas %v", names)
+	waitReplicas(t, w, app, "a new replica to replace "+deleted, func(region *resourcev1.RegionStatus) error {
+		ready := readyNames(region.GetReplicas())
+		if len(ready) != 2 || slices.Contains(ready, deleted) {
+			return fmt.Errorf("ready replicas %v", ready)
 		}
-		for _, replica := range replicas {
-			if replica.GetName() == deleted && !terminated(replica) {
-				return fmt.Errorf("deleted replica %s is %s", deleted, replica.GetState())
-			}
+		if !slices.ContainsFunc(region.GetReplicas(), func(replica *deploymentv1.Replica) bool {
+			return replica.GetName() == deleted && terminated(replica)
+		}) {
+			return fmt.Errorf("deleted replica %s is not listed as stopped: %v", deleted, region.GetReplicas())
 		}
 		return nil
 	})
@@ -62,29 +63,31 @@ func TestReplicas(t *testing.T) {
 	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--yes")
-	crashed := func(replicas []*deploymentv1.Replica) *deploymentv1.Replica {
-		for _, replica := range replicas {
+	// The crashing image runs `sh -c 'sleep 5; exit 1'`, which the kubelet records as Error.
+	crashed := func(region *resourcev1.RegionStatus) *deploymentv1.Replica {
+		for _, replica := range region.GetReplicas() {
 			exit := replica.GetLastExit()
-			if replica.GetRestarts() >= 1 && exit.GetExitCode() == 1 && exit.GetReason() != "" &&
+			if replica.GetDeploymentId() == region.GetDeploymentId() && replica.GetRestarts() >= 1 &&
+				exit.GetExitCode() == 1 && exit.GetReason() == kubeletExitError &&
 				exit.GetFinishedAt().AsTime().Unix() > 0 && replica.GetStartedAt() != nil {
 				return replica
 			}
 		}
 		return nil
 	}
-	replicas := waitReplicas(
+	waitReplicas(
 		t,
 		w,
 		app,
-		"a crashing replica to report its exit",
-		func(replicas []*deploymentv1.Replica) error {
-			if crashed(replicas) == nil {
-				return fmt.Errorf("no replica reports a restart and exit 1: %v", replicas)
+		"a replica of the crashing version to report its exit",
+		func(region *resourcev1.RegionStatus) error {
+			if crashed(region) == nil {
+				return fmt.Errorf("no replica of deployment %s reports a restart and exit 1: %v",
+					region.GetDeploymentId(), region.GetReplicas())
 			}
 			return nil
 		},
 	)
-	want := crashed(replicas)
 
 	var printed resourcev1.GetResourceResponse
 	out := w.MustLoco(t, dir, "resource", "status", app, "-o", "json").Stdout
@@ -94,33 +97,34 @@ func TestReplicas(t *testing.T) {
 	found := false
 	for _, environment := range printed.GetResource().GetEnvironmentStatuses() {
 		for _, region := range environment.GetRegions() {
-			found = found || slices.ContainsFunc(region.GetReplicas(), func(replica *deploymentv1.Replica) bool {
-				return replica.GetName() == want.GetName()
-			})
+			found = found || crashed(region) != nil
 		}
 	}
 	if !found {
-		t.Errorf("loco resource status -o json lists no replica %s:\n%s", want.GetName(), out)
+		t.Errorf("loco resource status -o json lists no crashed replica with its exit:\n%s", out)
 	}
 }
+
+// kubeletExitError is the reason the kubelet records for a container that exits non-zero.
+const kubeletExitError = "Error"
 
 func waitReplicas(
 	t *testing.T,
 	w *platform.Workspace,
 	app, what string,
-	check func([]*deploymentv1.Replica) error,
-) []*deploymentv1.Replica {
+	check func(*resourcev1.RegionStatus) error,
+) *resourcev1.RegionStatus {
 	t.Helper()
-	var replicas []*deploymentv1.Replica
+	var region *resourcev1.RegionStatus
 	platform.Eventually(t, statusTimeout, what, func(ctx context.Context) error {
 		current, err := statusOf(ctx, w, app)
 		if err != nil {
 			return err
 		}
-		replicas = current.region.GetReplicas()
-		return check(replicas)
+		region = current.region
+		return check(region)
 	})
-	return replicas
+	return region
 }
 
 func readyNames(replicas []*deploymentv1.Replica) []string {

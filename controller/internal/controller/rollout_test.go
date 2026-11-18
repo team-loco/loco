@@ -244,3 +244,42 @@ func TestProblemIgnoresEarlierRevisions(t *testing.T) {
 		}
 	}
 }
+
+func TestDeletedReplicaKeepsItsPreviousExit(t *testing.T) {
+	now := time.Now()
+	app := workspaceApp("deleted-previous-exit", "deleted-previous-exit")
+	app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "1"}
+	exited := metav1.NewTime(now.Add(-time.Minute))
+	pod := &corev1.Pod{
+		UID: "previous-exit-uid", Name: "previous-exit", Namespace: testEnvironmentNamespace(app),
+		Annotations: map[string]string{locov1alpha1.KeyPlacementRevision: "1"},
+		Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+			RestartCount: 1,
+			State:        corev1.ContainerState{Running: &corev1.ContainerStateRunning{}},
+			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				Reason: exitReasonError, ExitCode: 1, FinishedAt: exited,
+			}},
+		}}},
+	}
+	r := &ApplicationReconciler{
+		Client:                   fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
+		WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+	}
+	r.recordDeletedPod(client.ObjectKeyFromObject(app), pod, now)
+	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithGeneration(1).
+		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
+		WithStatus(appsv1ac.DeploymentStatus().WithObservedGeneration(1))
+	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+		t.Fatal(err)
+	}
+	got := app.Status.Rollout.Replicas
+	if len(got) != 1 || got[0].State != locov1alpha1.ReplicaStopped {
+		t.Fatalf("deleted replicas = %+v, want one stopped", got)
+	}
+	if exit := got[0].LastExit; exit == nil || exit.Reason != exitReasonError || exit.ExitCode != 1 {
+		t.Fatalf("deleted replica last exit = %+v, want its previous run's exit", exit)
+	}
+	if got[0].Detail != "" {
+		t.Fatalf("deleted replica detail = %q, want none beside its last exit", got[0].Detail)
+	}
+}
