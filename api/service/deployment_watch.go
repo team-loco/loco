@@ -107,33 +107,6 @@ func (s *DeploymentServer) WatchDeployment(
 	}
 }
 
-func (s *DeploymentServer) ListDeploymentActivity(
-	ctx context.Context,
-	req *deploymentv1.ListDeploymentActivityRequest,
-) (*deploymentv1.ListDeploymentActivityResponse, error) {
-	id := uuid.MustParse(req.GetDeploymentId())
-	if err := s.authorizeDeploymentActivity(ctx, id); err != nil {
-		return nil, err
-	}
-	rows, err := s.queries.ListDeploymentActivity(
-		ctx,
-		genDb.ListDeploymentActivityParams{
-			DeploymentID: id,
-			AfterSeq:     req.GetAfterSeq(),
-			PageSize:     normalizePageSize(req.GetPageSize()),
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("list deployment activity: %w", err)
-	}
-	activity := activityToProto(rows)
-	cursor := req.GetAfterSeq()
-	if len(activity) > 0 {
-		cursor = activity[len(activity)-1].GetSeq()
-	}
-	return &deploymentv1.ListDeploymentActivityResponse{Activity: activity, NextSeq: cursor}, nil
-}
-
 func (s *DeploymentServer) authorizeDeploymentActivity(ctx context.Context, id uuid.UUID) error {
 	resource, err := s.queries.GetDeploymentResourceID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {

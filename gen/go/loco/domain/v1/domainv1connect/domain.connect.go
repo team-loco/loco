@@ -39,9 +39,6 @@ const (
 	// DomainServiceDeleteResourceDomainProcedure is the procedure name of the DomainService's
 	// DeleteResourceDomain RPC.
 	DomainServiceDeleteResourceDomainProcedure = "/loco.domain.v1.DomainService/DeleteResourceDomain"
-	// DomainServiceListLocoOwnedDomainsProcedure is the procedure name of the DomainService's
-	// ListLocoOwnedDomains RPC.
-	DomainServiceListLocoOwnedDomainsProcedure = "/loco.domain.v1.DomainService/ListLocoOwnedDomains"
 	// DomainServiceCheckDomainAvailabilityProcedure is the procedure name of the DomainService's
 	// CheckDomainAvailability RPC.
 	DomainServiceCheckDomainAvailabilityProcedure = "/loco.domain.v1.DomainService/CheckDomainAvailability"
@@ -83,13 +80,6 @@ var (
 			Procedure:  DomainServiceDeleteResourceDomainProcedure,
 		}
 	})
-	domainServiceListLocoOwnedDomainsSpec = sync.OnceValue(func() connect.Spec {
-		return connect.Spec{
-			StreamType: connect.StreamTypeUnary,
-			Schema:     v1.File_loco_domain_v1_domain_proto.Services().ByName("DomainService").Methods().ByName("ListLocoOwnedDomains"),
-			Procedure:  DomainServiceListLocoOwnedDomainsProcedure,
-		}
-	})
 	domainServiceCheckDomainAvailabilitySpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -113,8 +103,6 @@ type DomainServiceClient interface {
 	// DeleteResourceDomain removes a domain from a resource.
 	DeleteResourceDomain(context.Context, *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error)
 	// Queries
-	// ListLocoOwnedDomains lists all domains owned by Loco with resources.
-	ListLocoOwnedDomains(context.Context, *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error)
 	// CheckDomainAvailability checks if a domain is available.
 	CheckDomainAvailability(context.Context, *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error)
 }
@@ -139,8 +127,6 @@ type DomainServiceHandler interface {
 	// DeleteResourceDomain removes a domain from a resource.
 	DeleteResourceDomain(context.Context, *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error)
 	// Queries
-	// ListLocoOwnedDomains lists all domains owned by Loco with resources.
-	ListLocoOwnedDomains(context.Context, *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error)
 	// CheckDomainAvailability checks if a domain is available.
 	CheckDomainAvailability(context.Context, *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error)
 }
@@ -155,7 +141,6 @@ func RegisterDomainServiceHandler(server *connect.Server, svc DomainServiceHandl
 		connect.Method{Spec: domainServiceUpdateResourceDomainSpec(), Handler: adapter.updateResourceDomain},
 		connect.Method{Spec: domainServiceSetPrimaryResourceDomainSpec(), Handler: adapter.setPrimaryResourceDomain},
 		connect.Method{Spec: domainServiceDeleteResourceDomainSpec(), Handler: adapter.deleteResourceDomain},
-		connect.Method{Spec: domainServiceListLocoOwnedDomainsSpec(), Handler: adapter.listLocoOwnedDomains},
 		connect.Method{Spec: domainServiceCheckDomainAvailabilitySpec(), Handler: adapter.checkDomainAvailability},
 	)
 }
@@ -181,10 +166,6 @@ func (UnimplementedDomainServiceHandler) SetPrimaryResourceDomain(context.Contex
 
 func (UnimplementedDomainServiceHandler) DeleteResourceDomain(context.Context, *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.DeleteResourceDomain is not implemented")
-}
-
-func (UnimplementedDomainServiceHandler) ListLocoOwnedDomains(context.Context, *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, "loco.domain.v1.DomainService.ListLocoOwnedDomains is not implemented")
 }
 
 func (UnimplementedDomainServiceHandler) CheckDomainAvailability(context.Context, *v1.CheckDomainAvailabilityRequest) (*v1.CheckDomainAvailabilityResponse, error) {
@@ -230,14 +211,6 @@ func (c *domainServiceClient) SetPrimaryResourceDomain(ctx context.Context, req 
 func (c *domainServiceClient) DeleteResourceDomain(ctx context.Context, req *v1.DeleteResourceDomainRequest) (*v1.DeleteResourceDomainResponse, error) {
 	var res v1.DeleteResourceDomainResponse
 	if err := c.client.CallUnary(ctx, domainServiceDeleteResourceDomainSpec(), req, &res); err != nil {
-		return nil, err
-	}
-	return &res, nil
-}
-
-func (c *domainServiceClient) ListLocoOwnedDomains(ctx context.Context, req *v1.ListLocoOwnedDomainsRequest) (*v1.ListLocoOwnedDomainsResponse, error) {
-	var res v1.ListLocoOwnedDomainsResponse
-	if err := c.client.CallUnary(ctx, domainServiceListLocoOwnedDomainsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -307,18 +280,6 @@ func (h domainServiceHandler) deleteResourceDomain(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.DeleteResourceDomain(ctx, &req)
-	if err != nil {
-		return err
-	}
-	return stream.Send(res)
-}
-
-func (h domainServiceHandler) listLocoOwnedDomains(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
-	var req v1.ListLocoOwnedDomainsRequest
-	if err := stream.Receive(&req); err != nil {
-		return err
-	}
-	res, err := h.svc.ListLocoOwnedDomains(ctx, &req)
 	if err != nil {
 		return err
 	}

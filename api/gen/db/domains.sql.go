@@ -141,53 +141,6 @@ func (q *Queries) GetResourceDomainCount(ctx context.Context, arg GetResourceDom
 	return count, err
 }
 
-const listAllLocoOwnedDomains = `-- name: ListAllLocoOwnedDomains :many
-SELECT 
-    rd.id,
-    rd.domain,
-    r.name as resource_name,
-    r.id as resource_id,
-    rd.platform_domain::text AS platform_domain
-FROM resource_domains rd
-JOIN resources r ON rd.resource_id = r.id
-WHERE rd.domain_source = 'platform_provided'
-ORDER BY rd.created_at DESC
-`
-
-type ListAllLocoOwnedDomainsRow struct {
-	ID             uuid.UUID `json:"id"`
-	Domain         string    `json:"domain"`
-	ResourceName   string    `json:"resourceName"`
-	ResourceID     uuid.UUID `json:"resourceId"`
-	PlatformDomain string    `json:"platformDomain"`
-}
-
-func (q *Queries) ListAllLocoOwnedDomains(ctx context.Context) ([]ListAllLocoOwnedDomainsRow, error) {
-	rows, err := q.db.Query(ctx, listAllLocoOwnedDomains)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListAllLocoOwnedDomainsRow
-	for rows.Next() {
-		var i ListAllLocoOwnedDomainsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Domain,
-			&i.ResourceName,
-			&i.ResourceID,
-			&i.PlatformDomain,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listEnvironmentResourceDomains = `-- name: ListEnvironmentResourceDomains :many
 SELECT
     rd.id,

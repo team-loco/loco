@@ -27,7 +27,6 @@ service DeploymentService {
   rpc ListDeployments(ListDeploymentsRequest) returns (ListDeploymentsResponse);
   // WatchDeployment streams deployment events in real-time.
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
-  rpc ListDeploymentActivity(ListDeploymentActivityRequest) returns (ListDeploymentActivityResponse);
   // DeleteDeployment deletes/inactivates a deployment.
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
   // ResolveImage returns the digest-pinned image reference.
@@ -302,20 +301,6 @@ message WatchDeploymentResponse {
   Deployment deployment = 1;
   repeated Activity activity = 2;
   bool has_more_activity = 3;
-}
-
-message ListDeploymentActivityRequest {
-  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
-  int64 after_seq = 2 [(buf.validate.field).int64.gte = 0];
-  int32 page_size = 3 [(buf.validate.field).int32 = {
-    gte: 0
-    lte: 200
-  }];
-}
-
-message ListDeploymentActivityResponse {
-  repeated Activity activity = 1;
-  int64 next_seq = 2;
 }
 
 // DeleteDeploymentRequest is the request to delete/inactivate a deployment.

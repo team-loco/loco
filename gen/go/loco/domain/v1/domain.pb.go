@@ -384,165 +384,6 @@ func (x *ListPlatformDomainsResponse) GetPlatformDomains() []*PlatformDomain {
 	return nil
 }
 
-// LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
-type LocoOwnedDomain struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Domain         string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
-	ResourceName   string                 `protobuf:"bytes,3,opt,name=resource_name,json=resourceName,proto3" json:"resource_name,omitempty"`
-	ResourceId     string                 `protobuf:"bytes,4,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	PlatformDomain string                 `protobuf:"bytes,5,opt,name=platform_domain,json=platformDomain,proto3" json:"platform_domain,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *LocoOwnedDomain) Reset() {
-	*x = LocoOwnedDomain{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LocoOwnedDomain) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LocoOwnedDomain) ProtoMessage() {}
-
-func (x *LocoOwnedDomain) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LocoOwnedDomain.ProtoReflect.Descriptor instead.
-func (*LocoOwnedDomain) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *LocoOwnedDomain) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *LocoOwnedDomain) GetDomain() string {
-	if x != nil {
-		return x.Domain
-	}
-	return ""
-}
-
-func (x *LocoOwnedDomain) GetResourceName() string {
-	if x != nil {
-		return x.ResourceName
-	}
-	return ""
-}
-
-func (x *LocoOwnedDomain) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
-func (x *LocoOwnedDomain) GetPlatformDomain() string {
-	if x != nil {
-		return x.PlatformDomain
-	}
-	return ""
-}
-
-// ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
-type ListLocoOwnedDomainsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListLocoOwnedDomainsRequest) Reset() {
-	*x = ListLocoOwnedDomainsRequest{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListLocoOwnedDomainsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListLocoOwnedDomainsRequest) ProtoMessage() {}
-
-func (x *ListLocoOwnedDomainsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListLocoOwnedDomainsRequest.ProtoReflect.Descriptor instead.
-func (*ListLocoOwnedDomainsRequest) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{6}
-}
-
-// ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
-type ListLocoOwnedDomainsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Domains       []*LocoOwnedDomain     `protobuf:"bytes,1,rep,name=domains,proto3" json:"domains,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListLocoOwnedDomainsResponse) Reset() {
-	*x = ListLocoOwnedDomainsResponse{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListLocoOwnedDomainsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListLocoOwnedDomainsResponse) ProtoMessage() {}
-
-func (x *ListLocoOwnedDomainsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListLocoOwnedDomainsResponse.ProtoReflect.Descriptor instead.
-func (*ListLocoOwnedDomainsResponse) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ListLocoOwnedDomainsResponse) GetDomains() []*LocoOwnedDomain {
-	if x != nil {
-		return x.Domains
-	}
-	return nil
-}
-
 // CreateResourceDomainRequest is the request to add a domain to a resource.
 type CreateResourceDomainRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -554,7 +395,7 @@ type CreateResourceDomainRequest struct {
 
 func (x *CreateResourceDomainRequest) Reset() {
 	*x = CreateResourceDomainRequest{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[8]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -566,7 +407,7 @@ func (x *CreateResourceDomainRequest) String() string {
 func (*CreateResourceDomainRequest) ProtoMessage() {}
 
 func (x *CreateResourceDomainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[8]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -579,7 +420,7 @@ func (x *CreateResourceDomainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResourceDomainRequest.ProtoReflect.Descriptor instead.
 func (*CreateResourceDomainRequest) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{8}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateResourceDomainRequest) GetResourceId() string {
@@ -606,7 +447,7 @@ type CreateResourceDomainResponse struct {
 
 func (x *CreateResourceDomainResponse) Reset() {
 	*x = CreateResourceDomainResponse{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[9]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -618,7 +459,7 @@ func (x *CreateResourceDomainResponse) String() string {
 func (*CreateResourceDomainResponse) ProtoMessage() {}
 
 func (x *CreateResourceDomainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[9]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -631,7 +472,7 @@ func (x *CreateResourceDomainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateResourceDomainResponse.ProtoReflect.Descriptor instead.
 func (*CreateResourceDomainResponse) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{9}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateResourceDomainResponse) GetDomainId() string {
@@ -653,7 +494,7 @@ type UpdateResourceDomainRequest struct {
 
 func (x *UpdateResourceDomainRequest) Reset() {
 	*x = UpdateResourceDomainRequest{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[10]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +506,7 @@ func (x *UpdateResourceDomainRequest) String() string {
 func (*UpdateResourceDomainRequest) ProtoMessage() {}
 
 func (x *UpdateResourceDomainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[10]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,7 +519,7 @@ func (x *UpdateResourceDomainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateResourceDomainRequest.ProtoReflect.Descriptor instead.
 func (*UpdateResourceDomainRequest) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{10}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateResourceDomainRequest) GetDomainId() string {
@@ -712,7 +553,7 @@ type UpdateResourceDomainResponse struct {
 
 func (x *UpdateResourceDomainResponse) Reset() {
 	*x = UpdateResourceDomainResponse{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[11]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -724,7 +565,7 @@ func (x *UpdateResourceDomainResponse) String() string {
 func (*UpdateResourceDomainResponse) ProtoMessage() {}
 
 func (x *UpdateResourceDomainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[11]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -737,7 +578,7 @@ func (x *UpdateResourceDomainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateResourceDomainResponse.ProtoReflect.Descriptor instead.
 func (*UpdateResourceDomainResponse) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{11}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UpdateResourceDomainResponse) GetDomainId() string {
@@ -758,7 +599,7 @@ type SetPrimaryResourceDomainRequest struct {
 
 func (x *SetPrimaryResourceDomainRequest) Reset() {
 	*x = SetPrimaryResourceDomainRequest{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[12]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -770,7 +611,7 @@ func (x *SetPrimaryResourceDomainRequest) String() string {
 func (*SetPrimaryResourceDomainRequest) ProtoMessage() {}
 
 func (x *SetPrimaryResourceDomainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[12]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -783,7 +624,7 @@ func (x *SetPrimaryResourceDomainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPrimaryResourceDomainRequest.ProtoReflect.Descriptor instead.
 func (*SetPrimaryResourceDomainRequest) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{12}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SetPrimaryResourceDomainRequest) GetResourceId() string {
@@ -811,7 +652,7 @@ type SetPrimaryResourceDomainResponse struct {
 
 func (x *SetPrimaryResourceDomainResponse) Reset() {
 	*x = SetPrimaryResourceDomainResponse{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[13]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -823,7 +664,7 @@ func (x *SetPrimaryResourceDomainResponse) String() string {
 func (*SetPrimaryResourceDomainResponse) ProtoMessage() {}
 
 func (x *SetPrimaryResourceDomainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[13]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -836,7 +677,7 @@ func (x *SetPrimaryResourceDomainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPrimaryResourceDomainResponse.ProtoReflect.Descriptor instead.
 func (*SetPrimaryResourceDomainResponse) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{13}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetPrimaryResourceDomainResponse) GetResourceId() string {
@@ -863,7 +704,7 @@ type DeleteResourceDomainRequest struct {
 
 func (x *DeleteResourceDomainRequest) Reset() {
 	*x = DeleteResourceDomainRequest{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[14]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -875,7 +716,7 @@ func (x *DeleteResourceDomainRequest) String() string {
 func (*DeleteResourceDomainRequest) ProtoMessage() {}
 
 func (x *DeleteResourceDomainRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[14]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -888,7 +729,7 @@ func (x *DeleteResourceDomainRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResourceDomainRequest.ProtoReflect.Descriptor instead.
 func (*DeleteResourceDomainRequest) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{14}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteResourceDomainRequest) GetDomainId() string {
@@ -907,7 +748,7 @@ type DeleteResourceDomainResponse struct {
 
 func (x *DeleteResourceDomainResponse) Reset() {
 	*x = DeleteResourceDomainResponse{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[15]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -919,7 +760,7 @@ func (x *DeleteResourceDomainResponse) String() string {
 func (*DeleteResourceDomainResponse) ProtoMessage() {}
 
 func (x *DeleteResourceDomainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[15]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -932,7 +773,7 @@ func (x *DeleteResourceDomainResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteResourceDomainResponse.ProtoReflect.Descriptor instead.
 func (*DeleteResourceDomainResponse) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{15}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{12}
 }
 
 // CheckDomainAvailabilityRequest is the request to check if a domain is available.
@@ -945,7 +786,7 @@ type CheckDomainAvailabilityRequest struct {
 
 func (x *CheckDomainAvailabilityRequest) Reset() {
 	*x = CheckDomainAvailabilityRequest{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[16]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +798,7 @@ func (x *CheckDomainAvailabilityRequest) String() string {
 func (*CheckDomainAvailabilityRequest) ProtoMessage() {}
 
 func (x *CheckDomainAvailabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[16]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +811,7 @@ func (x *CheckDomainAvailabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDomainAvailabilityRequest.ProtoReflect.Descriptor instead.
 func (*CheckDomainAvailabilityRequest) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{16}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CheckDomainAvailabilityRequest) GetDomain() string {
@@ -990,7 +831,7 @@ type CheckDomainAvailabilityResponse struct {
 
 func (x *CheckDomainAvailabilityResponse) Reset() {
 	*x = CheckDomainAvailabilityResponse{}
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[17]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1002,7 +843,7 @@ func (x *CheckDomainAvailabilityResponse) String() string {
 func (*CheckDomainAvailabilityResponse) ProtoMessage() {}
 
 func (x *CheckDomainAvailabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_domain_v1_domain_proto_msgTypes[17]
+	mi := &file_loco_domain_v1_domain_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1015,7 +856,7 @@ func (x *CheckDomainAvailabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckDomainAvailabilityResponse.ProtoReflect.Descriptor instead.
 func (*CheckDomainAvailabilityResponse) Descriptor() ([]byte, []int) {
-	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{17}
+	return file_loco_domain_v1_domain_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CheckDomainAvailabilityResponse) GetIsAvailable() bool {
@@ -1062,17 +903,7 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\x1aListPlatformDomainsRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"h\n" +
 	"\x1bListPlatformDomainsResponse\x12I\n" +
-	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\xa8\x01\n" +
-	"\x0fLocoOwnedDomain\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
-	"\x06domain\x18\x02 \x01(\tR\x06domain\x12#\n" +
-	"\rresource_name\x18\x03 \x01(\tR\fresourceName\x12\x1f\n" +
-	"\vresource_id\x18\x04 \x01(\tR\n" +
-	"resourceId\x12'\n" +
-	"\x0fplatform_domain\x18\x05 \x01(\tR\x0eplatformDomain\"\x1d\n" +
-	"\x1bListLocoOwnedDomainsRequest\"Y\n" +
-	"\x1cListLocoOwnedDomainsResponse\x129\n" +
-	"\adomains\x18\x01 \x03(\v2\x1f.loco.domain.v1.LocoOwnedDomainR\adomains\"\x85\x01\n" +
+	"\x10platform_domains\x18\x01 \x03(\v2\x1e.loco.domain.v1.PlatformDomainR\x0fplatformDomains\"\x85\x01\n" +
 	"\x1bCreateResourceDomainRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
 	"resourceId\x12;\n" +
@@ -1105,14 +936,13 @@ const file_loco_domain_v1_domain_proto_rawDesc = "" +
 	"\n" +
 	"DomainType\x12\x1b\n" +
 	"\x17DOMAIN_TYPE_UNSPECIFIED\x10\x00\x12!\n" +
-	"\x1dDOMAIN_TYPE_PLATFORM_PROVIDED\x10\x012\xc6\x06\n" +
+	"\x1dDOMAIN_TYPE_PLATFORM_PROVIDED\x10\x012\xd3\x05\n" +
 	"\rDomainService\x12n\n" +
 	"\x13ListPlatformDomains\x12*.loco.domain.v1.ListPlatformDomainsRequest\x1a+.loco.domain.v1.ListPlatformDomainsResponse\x12q\n" +
 	"\x14CreateResourceDomain\x12+.loco.domain.v1.CreateResourceDomainRequest\x1a,.loco.domain.v1.CreateResourceDomainResponse\x12q\n" +
 	"\x14UpdateResourceDomain\x12+.loco.domain.v1.UpdateResourceDomainRequest\x1a,.loco.domain.v1.UpdateResourceDomainResponse\x12}\n" +
 	"\x18SetPrimaryResourceDomain\x12/.loco.domain.v1.SetPrimaryResourceDomainRequest\x1a0.loco.domain.v1.SetPrimaryResourceDomainResponse\x12q\n" +
-	"\x14DeleteResourceDomain\x12+.loco.domain.v1.DeleteResourceDomainRequest\x1a,.loco.domain.v1.DeleteResourceDomainResponse\x12q\n" +
-	"\x14ListLocoOwnedDomains\x12+.loco.domain.v1.ListLocoOwnedDomainsRequest\x1a,.loco.domain.v1.ListLocoOwnedDomainsResponse\x12z\n" +
+	"\x14DeleteResourceDomain\x12+.loco.domain.v1.DeleteResourceDomainRequest\x1a,.loco.domain.v1.DeleteResourceDomainResponse\x12z\n" +
 	"\x17CheckDomainAvailability\x12..loco.domain.v1.CheckDomainAvailabilityRequest\x1a/.loco.domain.v1.CheckDomainAvailabilityResponseB:Z8github.com/team-loco/loco/gen/go/loco/domain/v1;domainv1b\x06proto3"
 
 var (
@@ -1128,7 +958,7 @@ func file_loco_domain_v1_domain_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_domain_v1_domain_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_domain_v1_domain_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_loco_domain_v1_domain_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_loco_domain_v1_domain_proto_goTypes = []any{
 	(DomainType)(0),                          // 0: loco.domain.v1.DomainType
 	(*PlatformDomain)(nil),                   // 1: loco.domain.v1.PlatformDomain
@@ -1136,50 +966,44 @@ var file_loco_domain_v1_domain_proto_goTypes = []any{
 	(*ResourceDomain)(nil),                   // 3: loco.domain.v1.ResourceDomain
 	(*ListPlatformDomainsRequest)(nil),       // 4: loco.domain.v1.ListPlatformDomainsRequest
 	(*ListPlatformDomainsResponse)(nil),      // 5: loco.domain.v1.ListPlatformDomainsResponse
-	(*LocoOwnedDomain)(nil),                  // 6: loco.domain.v1.LocoOwnedDomain
-	(*ListLocoOwnedDomainsRequest)(nil),      // 7: loco.domain.v1.ListLocoOwnedDomainsRequest
-	(*ListLocoOwnedDomainsResponse)(nil),     // 8: loco.domain.v1.ListLocoOwnedDomainsResponse
-	(*CreateResourceDomainRequest)(nil),      // 9: loco.domain.v1.CreateResourceDomainRequest
-	(*CreateResourceDomainResponse)(nil),     // 10: loco.domain.v1.CreateResourceDomainResponse
-	(*UpdateResourceDomainRequest)(nil),      // 11: loco.domain.v1.UpdateResourceDomainRequest
-	(*UpdateResourceDomainResponse)(nil),     // 12: loco.domain.v1.UpdateResourceDomainResponse
-	(*SetPrimaryResourceDomainRequest)(nil),  // 13: loco.domain.v1.SetPrimaryResourceDomainRequest
-	(*SetPrimaryResourceDomainResponse)(nil), // 14: loco.domain.v1.SetPrimaryResourceDomainResponse
-	(*DeleteResourceDomainRequest)(nil),      // 15: loco.domain.v1.DeleteResourceDomainRequest
-	(*DeleteResourceDomainResponse)(nil),     // 16: loco.domain.v1.DeleteResourceDomainResponse
-	(*CheckDomainAvailabilityRequest)(nil),   // 17: loco.domain.v1.CheckDomainAvailabilityRequest
-	(*CheckDomainAvailabilityResponse)(nil),  // 18: loco.domain.v1.CheckDomainAvailabilityResponse
-	(*timestamppb.Timestamp)(nil),            // 19: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),            // 20: google.protobuf.FieldMask
+	(*CreateResourceDomainRequest)(nil),      // 6: loco.domain.v1.CreateResourceDomainRequest
+	(*CreateResourceDomainResponse)(nil),     // 7: loco.domain.v1.CreateResourceDomainResponse
+	(*UpdateResourceDomainRequest)(nil),      // 8: loco.domain.v1.UpdateResourceDomainRequest
+	(*UpdateResourceDomainResponse)(nil),     // 9: loco.domain.v1.UpdateResourceDomainResponse
+	(*SetPrimaryResourceDomainRequest)(nil),  // 10: loco.domain.v1.SetPrimaryResourceDomainRequest
+	(*SetPrimaryResourceDomainResponse)(nil), // 11: loco.domain.v1.SetPrimaryResourceDomainResponse
+	(*DeleteResourceDomainRequest)(nil),      // 12: loco.domain.v1.DeleteResourceDomainRequest
+	(*DeleteResourceDomainResponse)(nil),     // 13: loco.domain.v1.DeleteResourceDomainResponse
+	(*CheckDomainAvailabilityRequest)(nil),   // 14: loco.domain.v1.CheckDomainAvailabilityRequest
+	(*CheckDomainAvailabilityResponse)(nil),  // 15: loco.domain.v1.CheckDomainAvailabilityResponse
+	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),            // 17: google.protobuf.FieldMask
 }
 var file_loco_domain_v1_domain_proto_depIdxs = []int32{
 	0,  // 0: loco.domain.v1.DomainInput.domain_source:type_name -> loco.domain.v1.DomainType
 	0,  // 1: loco.domain.v1.ResourceDomain.domain_source:type_name -> loco.domain.v1.DomainType
-	19, // 2: loco.domain.v1.ResourceDomain.created_at:type_name -> google.protobuf.Timestamp
-	19, // 3: loco.domain.v1.ResourceDomain.updated_at:type_name -> google.protobuf.Timestamp
+	16, // 2: loco.domain.v1.ResourceDomain.created_at:type_name -> google.protobuf.Timestamp
+	16, // 3: loco.domain.v1.ResourceDomain.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 4: loco.domain.v1.ListPlatformDomainsResponse.platform_domains:type_name -> loco.domain.v1.PlatformDomain
-	6,  // 5: loco.domain.v1.ListLocoOwnedDomainsResponse.domains:type_name -> loco.domain.v1.LocoOwnedDomain
-	2,  // 6: loco.domain.v1.CreateResourceDomainRequest.domain:type_name -> loco.domain.v1.DomainInput
-	20, // 7: loco.domain.v1.UpdateResourceDomainRequest.update_mask:type_name -> google.protobuf.FieldMask
-	4,  // 8: loco.domain.v1.DomainService.ListPlatformDomains:input_type -> loco.domain.v1.ListPlatformDomainsRequest
-	9,  // 9: loco.domain.v1.DomainService.CreateResourceDomain:input_type -> loco.domain.v1.CreateResourceDomainRequest
-	11, // 10: loco.domain.v1.DomainService.UpdateResourceDomain:input_type -> loco.domain.v1.UpdateResourceDomainRequest
-	13, // 11: loco.domain.v1.DomainService.SetPrimaryResourceDomain:input_type -> loco.domain.v1.SetPrimaryResourceDomainRequest
-	15, // 12: loco.domain.v1.DomainService.DeleteResourceDomain:input_type -> loco.domain.v1.DeleteResourceDomainRequest
-	7,  // 13: loco.domain.v1.DomainService.ListLocoOwnedDomains:input_type -> loco.domain.v1.ListLocoOwnedDomainsRequest
-	17, // 14: loco.domain.v1.DomainService.CheckDomainAvailability:input_type -> loco.domain.v1.CheckDomainAvailabilityRequest
-	5,  // 15: loco.domain.v1.DomainService.ListPlatformDomains:output_type -> loco.domain.v1.ListPlatformDomainsResponse
-	10, // 16: loco.domain.v1.DomainService.CreateResourceDomain:output_type -> loco.domain.v1.CreateResourceDomainResponse
-	12, // 17: loco.domain.v1.DomainService.UpdateResourceDomain:output_type -> loco.domain.v1.UpdateResourceDomainResponse
-	14, // 18: loco.domain.v1.DomainService.SetPrimaryResourceDomain:output_type -> loco.domain.v1.SetPrimaryResourceDomainResponse
-	16, // 19: loco.domain.v1.DomainService.DeleteResourceDomain:output_type -> loco.domain.v1.DeleteResourceDomainResponse
-	8,  // 20: loco.domain.v1.DomainService.ListLocoOwnedDomains:output_type -> loco.domain.v1.ListLocoOwnedDomainsResponse
-	18, // 21: loco.domain.v1.DomainService.CheckDomainAvailability:output_type -> loco.domain.v1.CheckDomainAvailabilityResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	2,  // 5: loco.domain.v1.CreateResourceDomainRequest.domain:type_name -> loco.domain.v1.DomainInput
+	17, // 6: loco.domain.v1.UpdateResourceDomainRequest.update_mask:type_name -> google.protobuf.FieldMask
+	4,  // 7: loco.domain.v1.DomainService.ListPlatformDomains:input_type -> loco.domain.v1.ListPlatformDomainsRequest
+	6,  // 8: loco.domain.v1.DomainService.CreateResourceDomain:input_type -> loco.domain.v1.CreateResourceDomainRequest
+	8,  // 9: loco.domain.v1.DomainService.UpdateResourceDomain:input_type -> loco.domain.v1.UpdateResourceDomainRequest
+	10, // 10: loco.domain.v1.DomainService.SetPrimaryResourceDomain:input_type -> loco.domain.v1.SetPrimaryResourceDomainRequest
+	12, // 11: loco.domain.v1.DomainService.DeleteResourceDomain:input_type -> loco.domain.v1.DeleteResourceDomainRequest
+	14, // 12: loco.domain.v1.DomainService.CheckDomainAvailability:input_type -> loco.domain.v1.CheckDomainAvailabilityRequest
+	5,  // 13: loco.domain.v1.DomainService.ListPlatformDomains:output_type -> loco.domain.v1.ListPlatformDomainsResponse
+	7,  // 14: loco.domain.v1.DomainService.CreateResourceDomain:output_type -> loco.domain.v1.CreateResourceDomainResponse
+	9,  // 15: loco.domain.v1.DomainService.UpdateResourceDomain:output_type -> loco.domain.v1.UpdateResourceDomainResponse
+	11, // 16: loco.domain.v1.DomainService.SetPrimaryResourceDomain:output_type -> loco.domain.v1.SetPrimaryResourceDomainResponse
+	13, // 17: loco.domain.v1.DomainService.DeleteResourceDomain:output_type -> loco.domain.v1.DeleteResourceDomainResponse
+	15, // 18: loco.domain.v1.DomainService.CheckDomainAvailability:output_type -> loco.domain.v1.CheckDomainAvailabilityResponse
+	13, // [13:19] is the sub-list for method output_type
+	7,  // [7:13] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_domain_v1_domain_proto_init() }
@@ -1189,14 +1013,14 @@ func file_loco_domain_v1_domain_proto_init() {
 	}
 	file_loco_domain_v1_domain_proto_msgTypes[1].OneofWrappers = []any{}
 	file_loco_domain_v1_domain_proto_msgTypes[2].OneofWrappers = []any{}
-	file_loco_domain_v1_domain_proto_msgTypes[10].OneofWrappers = []any{}
+	file_loco_domain_v1_domain_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_domain_v1_domain_proto_rawDesc), len(file_loco_domain_v1_domain_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

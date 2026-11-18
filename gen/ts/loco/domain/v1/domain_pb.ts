@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/domain/v1/domain.proto.
  */
 export const file_loco_domain_v1_domain: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2RvbWFpbi92MS9kb21haW4ucHJvdG8SDmxvY28uZG9tYWluLnYxIjEKDlBsYXRmb3JtRG9tYWluEg4KBmRvbWFpbhgBIAEoCRIPCgdyZWdpb25zGAIgAygJIpwECgtEb21haW5JbnB1dBI9Cg1kb21haW5fc291cmNlGAEgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZUIKukgHggEEEAEgABIWCglzdWJkb21haW4YAiABKAlIAIgBARIlCg9wbGF0Zm9ybV9kb21haW4YAyABKAlCB7pIBHICaAFIAYgBATrsArpI6AIapQEKJHBsYXRmb3JtX3Byb3ZpZGVkLnN1YmRvbWFpbl9yZXF1aXJlZBIzc3ViZG9tYWluIGlzIHJlcXVpcmVkIGZvciBwbGF0Zm9ybS1wcm92aWRlZCBkb21haW5zGkh0aGlzLmRvbWFpbl9zb3VyY2UgIT0gMSB8fCAoaGFzKHRoaXMuc3ViZG9tYWluKSAmJiB0aGlzLnN1YmRvbWFpbiAhPSAnJykavQEKKnBsYXRmb3JtX3Byb3ZpZGVkLnBsYXRmb3JtX2RvbWFpbl9yZXF1aXJlZBI5cGxhdGZvcm1fZG9tYWluIGlzIHJlcXVpcmVkIGZvciBwbGF0Zm9ybS1wcm92aWRlZCBkb21haW5zGlR0aGlzLmRvbWFpbl9zb3VyY2UgIT0gMSB8fCAoaGFzKHRoaXMucGxhdGZvcm1fZG9tYWluKSAmJiB0aGlzLnBsYXRmb3JtX2RvbWFpbiAhPSAnJylCDAoKX3N1YmRvbWFpbkISChBfcGxhdGZvcm1fZG9tYWluIswCCg5SZXNvdXJjZURvbWFpbhIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIOCgZkb21haW4YAyABKAkSMQoNZG9tYWluX3NvdXJjZRgEIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSHAoPc3ViZG9tYWluX2xhYmVsGAUgASgJSACIAQESHAoPcGxhdGZvcm1fZG9tYWluGAYgASgJSAGIAQESEgoKaXNfcHJpbWFyeRgHIAEoCBIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEISChBfc3ViZG9tYWluX2xhYmVsQhIKEF9wbGF0Zm9ybV9kb21haW4iPgoaTGlzdFBsYXRmb3JtRG9tYWluc1JlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBIlcKG0xpc3RQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4icgoPTG9jb093bmVkRG9tYWluEgoKAmlkGAEgASgJEg4KBmRvbWFpbhgCIAEoCRIVCg1yZXNvdXJjZV9uYW1lGAMgASgJEhMKC3Jlc291cmNlX2lkGAQgASgJEhcKD3BsYXRmb3JtX2RvbWFpbhgFIAEoCSIdChtMaXN0TG9jb093bmVkRG9tYWluc1JlcXVlc3QiUAocTGlzdExvY29Pd25lZERvbWFpbnNSZXNwb25zZRIwCgdkb21haW5zGAEgAygLMh8ubG9jby5kb21haW4udjEuTG9jb093bmVkRG9tYWluInEKG0NyZWF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESMwoGZG9tYWluGAIgASgLMhsubG9jby5kb21haW4udjEuRG9tYWluSW5wdXRCBrpIA8gBASIxChxDcmVhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEhEKCWRvbWFpbl9pZBgBIAEoCSKUAQobVXBkYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhsKCWRvbWFpbl9pZBgBIAEoCUIIukgFcgOwAQESLwoLdXBkYXRlX21hc2sYAiABKAsyGi5nb29nbGUucHJvdG9idWYuRmllbGRNYXNrEhwKBmRvbWFpbhgDIAEoCUIHukgEcgIQAUgAiAEBQgkKB19kb21haW4iMQocVXBkYXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRIRCglkb21haW5faWQYASABKAkiXQofU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESGwoJZG9tYWluX2lkGAIgASgJQgi6SAVyA7ABASJKCiBTZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXNwb25zZRITCgtyZXNvdXJjZV9pZBgBIAEoCRIRCglkb21haW5faWQYAiABKAkiOgobRGVsZXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0EhsKCWRvbWFpbl9pZBgBIAEoCUIIukgFcgOwAQEiHgocRGVsZXRlUmVzb3VyY2VEb21haW5SZXNwb25zZSI5Ch5DaGVja0RvbWFpbkF2YWlsYWJpbGl0eVJlcXVlc3QSFwoGZG9tYWluGAEgASgJQge6SARyAhABIjcKH0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2USFAoMaXNfYXZhaWxhYmxlGAEgASgIKkwKCkRvbWFpblR5cGUSGwoXRE9NQUlOX1RZUEVfVU5TUEVDSUZJRUQQABIhCh1ET01BSU5fVFlQRV9QTEFURk9STV9QUk9WSURFRBABMsYGCg1Eb21haW5TZXJ2aWNlEm4KE0xpc3RQbGF0Zm9ybURvbWFpbnMSKi5sb2NvLmRvbWFpbi52MS5MaXN0UGxhdGZvcm1Eb21haW5zUmVxdWVzdBorLmxvY28uZG9tYWluLnYxLkxpc3RQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRJxChRDcmVhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkNyZWF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkNyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2UScQoUVXBkYXRlUmVzb3VyY2VEb21haW4SKy5sb2NvLmRvbWFpbi52MS5VcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5VcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEn0KGFNldFByaW1hcnlSZXNvdXJjZURvbWFpbhIvLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlcXVlc3QaMC5sb2NvLmRvbWFpbi52MS5TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXNwb25zZRJxChREZWxldGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLkRlbGV0ZVJlc291cmNlRG9tYWluUmVzcG9uc2UScQoUTGlzdExvY29Pd25lZERvbWFpbnMSKy5sb2NvLmRvbWFpbi52MS5MaXN0TG9jb093bmVkRG9tYWluc1JlcXVlc3QaLC5sb2NvLmRvbWFpbi52MS5MaXN0TG9jb093bmVkRG9tYWluc1Jlc3BvbnNlEnoKF0NoZWNrRG9tYWluQXZhaWxhYmlsaXR5Ei4ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXF1ZXN0Gi8ubG9jby5kb21haW4udjEuQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2RvbWFpbi92MTtkb21haW52MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL2RvbWFpbi92MS9kb21haW4ucHJvdG8SDmxvY28uZG9tYWluLnYxIjEKDlBsYXRmb3JtRG9tYWluEg4KBmRvbWFpbhgBIAEoCRIPCgdyZWdpb25zGAIgAygJIpwECgtEb21haW5JbnB1dBI9Cg1kb21haW5fc291cmNlGAEgASgOMhoubG9jby5kb21haW4udjEuRG9tYWluVHlwZUIKukgHggEEEAEgABIWCglzdWJkb21haW4YAiABKAlIAIgBARIlCg9wbGF0Zm9ybV9kb21haW4YAyABKAlCB7pIBHICaAFIAYgBATrsArpI6AIapQEKJHBsYXRmb3JtX3Byb3ZpZGVkLnN1YmRvbWFpbl9yZXF1aXJlZBIzc3ViZG9tYWluIGlzIHJlcXVpcmVkIGZvciBwbGF0Zm9ybS1wcm92aWRlZCBkb21haW5zGkh0aGlzLmRvbWFpbl9zb3VyY2UgIT0gMSB8fCAoaGFzKHRoaXMuc3ViZG9tYWluKSAmJiB0aGlzLnN1YmRvbWFpbiAhPSAnJykavQEKKnBsYXRmb3JtX3Byb3ZpZGVkLnBsYXRmb3JtX2RvbWFpbl9yZXF1aXJlZBI5cGxhdGZvcm1fZG9tYWluIGlzIHJlcXVpcmVkIGZvciBwbGF0Zm9ybS1wcm92aWRlZCBkb21haW5zGlR0aGlzLmRvbWFpbl9zb3VyY2UgIT0gMSB8fCAoaGFzKHRoaXMucGxhdGZvcm1fZG9tYWluKSAmJiB0aGlzLnBsYXRmb3JtX2RvbWFpbiAhPSAnJylCDAoKX3N1YmRvbWFpbkISChBfcGxhdGZvcm1fZG9tYWluIswCCg5SZXNvdXJjZURvbWFpbhIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRIOCgZkb21haW4YAyABKAkSMQoNZG9tYWluX3NvdXJjZRgEIAEoDjIaLmxvY28uZG9tYWluLnYxLkRvbWFpblR5cGUSHAoPc3ViZG9tYWluX2xhYmVsGAUgASgJSACIAQESHAoPcGxhdGZvcm1fZG9tYWluGAYgASgJSAGIAQESEgoKaXNfcHJpbWFyeRgHIAEoCBIuCgpjcmVhdGVkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEISChBfc3ViZG9tYWluX2xhYmVsQhIKEF9wbGF0Zm9ybV9kb21haW4iPgoaTGlzdFBsYXRmb3JtRG9tYWluc1JlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBIlcKG0xpc3RQbGF0Zm9ybURvbWFpbnNSZXNwb25zZRI4ChBwbGF0Zm9ybV9kb21haW5zGAEgAygLMh4ubG9jby5kb21haW4udjEuUGxhdGZvcm1Eb21haW4icQobQ3JlYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIzCgZkb21haW4YAiABKAsyGy5sb2NvLmRvbWFpbi52MS5Eb21haW5JbnB1dEIGukgDyAEBIjEKHENyZWF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USEQoJZG9tYWluX2lkGAEgASgJIpQBChtVcGRhdGVSZXNvdXJjZURvbWFpblJlcXVlc3QSGwoJZG9tYWluX2lkGAEgASgJQgi6SAVyA7ABARIvCgt1cGRhdGVfbWFzaxgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5GaWVsZE1hc2sSHAoGZG9tYWluGAMgASgJQge6SARyAhABSACIAQFCCQoHX2RvbWFpbiIxChxVcGRhdGVSZXNvdXJjZURvbWFpblJlc3BvbnNlEhEKCWRvbWFpbl9pZBgBIAEoCSJdCh9TZXRQcmltYXJ5UmVzb3VyY2VEb21haW5SZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIbCglkb21haW5faWQYAiABKAlCCLpIBXIDsAEBIkoKIFNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEhMKC3Jlc291cmNlX2lkGAEgASgJEhEKCWRvbWFpbl9pZBgCIAEoCSI6ChtEZWxldGVSZXNvdXJjZURvbWFpblJlcXVlc3QSGwoJZG9tYWluX2lkGAEgASgJQgi6SAVyA7ABASIeChxEZWxldGVSZXNvdXJjZURvbWFpblJlc3BvbnNlIjkKHkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBIXCgZkb21haW4YASABKAlCB7pIBHICEAEiNwofQ2hlY2tEb21haW5BdmFpbGFiaWxpdHlSZXNwb25zZRIUCgxpc19hdmFpbGFibGUYASABKAgqTAoKRG9tYWluVHlwZRIbChdET01BSU5fVFlQRV9VTlNQRUNJRklFRBAAEiEKHURPTUFJTl9UWVBFX1BMQVRGT1JNX1BST1ZJREVEEAEy0wUKDURvbWFpblNlcnZpY2USbgoTTGlzdFBsYXRmb3JtRG9tYWlucxIqLmxvY28uZG9tYWluLnYxLkxpc3RQbGF0Zm9ybURvbWFpbnNSZXF1ZXN0GisubG9jby5kb21haW4udjEuTGlzdFBsYXRmb3JtRG9tYWluc1Jlc3BvbnNlEnEKFENyZWF0ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuQ3JlYXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuQ3JlYXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRJxChRVcGRhdGVSZXNvdXJjZURvbWFpbhIrLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVxdWVzdBosLmxvY28uZG9tYWluLnYxLlVwZGF0ZVJlc291cmNlRG9tYWluUmVzcG9uc2USfQoYU2V0UHJpbWFyeVJlc291cmNlRG9tYWluEi8ubG9jby5kb21haW4udjEuU2V0UHJpbWFyeVJlc291cmNlRG9tYWluUmVxdWVzdBowLmxvY28uZG9tYWluLnYxLlNldFByaW1hcnlSZXNvdXJjZURvbWFpblJlc3BvbnNlEnEKFERlbGV0ZVJlc291cmNlRG9tYWluEisubG9jby5kb21haW4udjEuRGVsZXRlUmVzb3VyY2VEb21haW5SZXF1ZXN0GiwubG9jby5kb21haW4udjEuRGVsZXRlUmVzb3VyY2VEb21haW5SZXNwb25zZRJ6ChdDaGVja0RvbWFpbkF2YWlsYWJpbGl0eRIuLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVxdWVzdBovLmxvY28uZG9tYWluLnYxLkNoZWNrRG9tYWluQXZhaWxhYmlsaXR5UmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9kb21haW4vdjE7ZG9tYWludjFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_field_mask, file_google_protobuf_timestamp]);
 
 /**
  * PlatformDomain is a domain the clusters of an environment serve, with the regions whose cluster serves it.
@@ -289,131 +289,6 @@ export const ListPlatformDomainsResponseSchema: GenMessage<ListPlatformDomainsRe
   messageDesc(file_loco_domain_v1_domain, 4);
 
 /**
- * LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
- *
- * @generated from message loco.domain.v1.LocoOwnedDomain
- */
-export type LocoOwnedDomain = Message<"loco.domain.v1.LocoOwnedDomain"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string domain = 2;
-   */
-  domain: string;
-
-  /**
-   * @generated from field: string resource_name = 3;
-   */
-  resourceName: string;
-
-  /**
-   * @generated from field: string resource_id = 4;
-   */
-  resourceId: string;
-
-  /**
-   * @generated from field: string platform_domain = 5;
-   */
-  platformDomain: string;
-};
-
-/**
- * LocoOwnedDomain represents a platform-managed domain paired with a resource deployment.
- *
- * @generated from message loco.domain.v1.LocoOwnedDomain
- */
-export type LocoOwnedDomainJson = {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id?: string;
-
-  /**
-   * @generated from field: string domain = 2;
-   */
-  domain?: string;
-
-  /**
-   * @generated from field: string resource_name = 3;
-   */
-  resourceName?: string;
-
-  /**
-   * @generated from field: string resource_id = 4;
-   */
-  resourceId?: string;
-
-  /**
-   * @generated from field: string platform_domain = 5;
-   */
-  platformDomain?: string;
-};
-
-/**
- * Describes the message loco.domain.v1.LocoOwnedDomain.
- * Use `create(LocoOwnedDomainSchema)` to create a new message.
- */
-export const LocoOwnedDomainSchema: GenMessage<LocoOwnedDomain, {jsonType: LocoOwnedDomainJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 5);
-
-/**
- * ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
- *
- * @generated from message loco.domain.v1.ListLocoOwnedDomainsRequest
- */
-export type ListLocoOwnedDomainsRequest = Message<"loco.domain.v1.ListLocoOwnedDomainsRequest"> & {
-};
-
-/**
- * ListLocoOwnedDomainsRequest is the request to list all Loco-owned domains.
- *
- * @generated from message loco.domain.v1.ListLocoOwnedDomainsRequest
- */
-export type ListLocoOwnedDomainsRequestJson = {
-};
-
-/**
- * Describes the message loco.domain.v1.ListLocoOwnedDomainsRequest.
- * Use `create(ListLocoOwnedDomainsRequestSchema)` to create a new message.
- */
-export const ListLocoOwnedDomainsRequestSchema: GenMessage<ListLocoOwnedDomainsRequest, {jsonType: ListLocoOwnedDomainsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 6);
-
-/**
- * ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
- *
- * @generated from message loco.domain.v1.ListLocoOwnedDomainsResponse
- */
-export type ListLocoOwnedDomainsResponse = Message<"loco.domain.v1.ListLocoOwnedDomainsResponse"> & {
-  /**
-   * @generated from field: repeated loco.domain.v1.LocoOwnedDomain domains = 1;
-   */
-  domains: LocoOwnedDomain[];
-};
-
-/**
- * ListLocoOwnedDomainsResponse contains the list of Loco-owned domains.
- *
- * @generated from message loco.domain.v1.ListLocoOwnedDomainsResponse
- */
-export type ListLocoOwnedDomainsResponseJson = {
-  /**
-   * @generated from field: repeated loco.domain.v1.LocoOwnedDomain domains = 1;
-   */
-  domains?: LocoOwnedDomainJson[];
-};
-
-/**
- * Describes the message loco.domain.v1.ListLocoOwnedDomainsResponse.
- * Use `create(ListLocoOwnedDomainsResponseSchema)` to create a new message.
- */
-export const ListLocoOwnedDomainsResponseSchema: GenMessage<ListLocoOwnedDomainsResponse, {jsonType: ListLocoOwnedDomainsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 7);
-
-/**
  * CreateResourceDomainRequest is the request to add a domain to a resource.
  *
  * @generated from message loco.domain.v1.CreateResourceDomainRequest
@@ -452,7 +327,7 @@ export type CreateResourceDomainRequestJson = {
  * Use `create(CreateResourceDomainRequestSchema)` to create a new message.
  */
 export const CreateResourceDomainRequestSchema: GenMessage<CreateResourceDomainRequest, {jsonType: CreateResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 8);
+  messageDesc(file_loco_domain_v1_domain, 5);
 
 /**
  * CreateResourceDomainResponse is the response containing the created resource domain ID.
@@ -483,7 +358,7 @@ export type CreateResourceDomainResponseJson = {
  * Use `create(CreateResourceDomainResponseSchema)` to create a new message.
  */
 export const CreateResourceDomainResponseSchema: GenMessage<CreateResourceDomainResponse, {jsonType: CreateResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 9);
+  messageDesc(file_loco_domain_v1_domain, 6);
 
 /**
  * UpdateResourceDomainRequest is the request to update a resource's domain.
@@ -534,7 +409,7 @@ export type UpdateResourceDomainRequestJson = {
  * Use `create(UpdateResourceDomainRequestSchema)` to create a new message.
  */
 export const UpdateResourceDomainRequestSchema: GenMessage<UpdateResourceDomainRequest, {jsonType: UpdateResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 10);
+  messageDesc(file_loco_domain_v1_domain, 7);
 
 /**
  * UpdateResourceDomainResponse is the response containing the updated resource domain ID.
@@ -565,7 +440,7 @@ export type UpdateResourceDomainResponseJson = {
  * Use `create(UpdateResourceDomainResponseSchema)` to create a new message.
  */
 export const UpdateResourceDomainResponseSchema: GenMessage<UpdateResourceDomainResponse, {jsonType: UpdateResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 11);
+  messageDesc(file_loco_domain_v1_domain, 8);
 
 /**
  * SetPrimaryResourceDomainRequest is the request to set the primary domain for a resource.
@@ -606,7 +481,7 @@ export type SetPrimaryResourceDomainRequestJson = {
  * Use `create(SetPrimaryResourceDomainRequestSchema)` to create a new message.
  */
 export const SetPrimaryResourceDomainRequestSchema: GenMessage<SetPrimaryResourceDomainRequest, {jsonType: SetPrimaryResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 12);
+  messageDesc(file_loco_domain_v1_domain, 9);
 
 /**
  * SetPrimaryResourceDomainResponse is the response containing the resource and domain IDs.
@@ -647,7 +522,7 @@ export type SetPrimaryResourceDomainResponseJson = {
  * Use `create(SetPrimaryResourceDomainResponseSchema)` to create a new message.
  */
 export const SetPrimaryResourceDomainResponseSchema: GenMessage<SetPrimaryResourceDomainResponse, {jsonType: SetPrimaryResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 13);
+  messageDesc(file_loco_domain_v1_domain, 10);
 
 /**
  * DeleteResourceDomainRequest is the request to remove a domain from a resource.
@@ -678,7 +553,7 @@ export type DeleteResourceDomainRequestJson = {
  * Use `create(DeleteResourceDomainRequestSchema)` to create a new message.
  */
 export const DeleteResourceDomainRequestSchema: GenMessage<DeleteResourceDomainRequest, {jsonType: DeleteResourceDomainRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 14);
+  messageDesc(file_loco_domain_v1_domain, 11);
 
 /**
  * DeleteResourceDomainResponse is the response after removing a domain from a resource.
@@ -701,7 +576,7 @@ export type DeleteResourceDomainResponseJson = {
  * Use `create(DeleteResourceDomainResponseSchema)` to create a new message.
  */
 export const DeleteResourceDomainResponseSchema: GenMessage<DeleteResourceDomainResponse, {jsonType: DeleteResourceDomainResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 15);
+  messageDesc(file_loco_domain_v1_domain, 12);
 
 /**
  * CheckDomainAvailabilityRequest is the request to check if a domain is available.
@@ -732,7 +607,7 @@ export type CheckDomainAvailabilityRequestJson = {
  * Use `create(CheckDomainAvailabilityRequestSchema)` to create a new message.
  */
 export const CheckDomainAvailabilityRequestSchema: GenMessage<CheckDomainAvailabilityRequest, {jsonType: CheckDomainAvailabilityRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 16);
+  messageDesc(file_loco_domain_v1_domain, 13);
 
 /**
  * CheckDomainAvailabilityResponse contains the availability check result.
@@ -763,7 +638,7 @@ export type CheckDomainAvailabilityResponseJson = {
  * Use `create(CheckDomainAvailabilityResponseSchema)` to create a new message.
  */
 export const CheckDomainAvailabilityResponseSchema: GenMessage<CheckDomainAvailabilityResponse, {jsonType: CheckDomainAvailabilityResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_domain_v1_domain, 17);
+  messageDesc(file_loco_domain_v1_domain, 14);
 
 /**
  * DomainType indicates the source of a domain.
@@ -854,16 +729,6 @@ export const DomainService: GenService<{
   },
   /**
    * Queries
-   * ListLocoOwnedDomains lists all domains owned by Loco with resources.
-   *
-   * @generated from rpc loco.domain.v1.DomainService.ListLocoOwnedDomains
-   */
-  listLocoOwnedDomains: {
-    methodKind: "unary";
-    input: typeof ListLocoOwnedDomainsRequestSchema;
-    output: typeof ListLocoOwnedDomainsResponseSchema;
-  },
-  /**
    * CheckDomainAvailability checks if a domain is available.
    *
    * @generated from rpc loco.domain.v1.DomainService.CheckDomainAvailability

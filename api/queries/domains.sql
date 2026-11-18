@@ -85,18 +85,6 @@ FROM resource_domains rd
 WHERE rd.resource_id = ANY(sqlc.arg(resource_ids)::uuid[]) AND rd.environment_id = sqlc.arg(environment_id)
 ORDER BY rd.resource_id, rd.is_primary DESC, rd.created_at ASC;
 
--- name: ListAllLocoOwnedDomains :many
-SELECT 
-    rd.id,
-    rd.domain,
-    r.name as resource_name,
-    r.id as resource_id,
-    rd.platform_domain::text AS platform_domain
-FROM resource_domains rd
-JOIN resources r ON rd.resource_id = r.id
-WHERE rd.domain_source = 'platform_provided'
-ORDER BY rd.created_at DESC;
-
 -- name: ResourceHasPrimaryDomain :one
 SELECT EXISTS(
     SELECT 1 FROM resource_domains
