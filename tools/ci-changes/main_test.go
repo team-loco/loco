@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ func TestFilterMatches(t *testing.T) {
 		{"docs/**", []string{"docs/content/a/b.md"}, []string{"docsx/a.md"}},
 		{"api/service/event*", []string{"api/service/events.go"}, []string{"api/service/events/a.go"}},
 		{"**/*compose*.yaml", []string{"dev/compose.yaml", "compose.yaml"}, []string{"dev/compose.yml"}},
-		{"go.{mod,sum}", []string{"go.mod", "go.sum"}, []string{"go.work"}},
+		{"go.{mod,sum}", []string{goModFile, "go.sum"}, []string{"go.work"}},
 		{"api/{main,config}*.go", []string{"api/config_test.go"}, []string{"api/server.go"}},
 		{"docs?.md", []string{"doc.md", "docs.md"}, []string{"docss.md"}},
 		{".github/workflows/*.yml", []string{".github/workflows/ci.yml"}, []string{".github/workflows/a/b.yml"}},
@@ -161,8 +162,7 @@ func TestAffectedE2EShards(t *testing.T) {
 		apps     = "apps"
 		appsTest = "tests/e2e/apps/a_test.go"
 	)
-	filters, err := loadFilters("../../.github/ci-paths.yml")
-	require.NoError(t, err)
+	workflows, _ := repository(t)
 	all := []string{apps, "builds", "telemetry"}
 	for _, tc := range []struct {
 		files, want []string
@@ -171,21 +171,50 @@ func TestAffectedE2EShards(t *testing.T) {
 		{[]string{appsTest, "docs/content/example.md"}, []string{apps}},
 		{[]string{"tests/e2e/telemetry/a_test.go", appsTest}, []string{apps, "telemetry"}},
 		{[]string{appsTest, "api/service/resource.go"}, all},
-		{[]string{"tests/e2e/platform/setup_test.go"}, all},
+		{[]string{"tests/e2e/platform/setup.go"}, all},
+		{[]string{"tests/e2e/platform/setup_test.go"}, nil},
 		{[]string{"tests/e2e/fixtures/example"}, all},
 	} {
-		assert.Equal(t, tc.want, affectedShards(filters["e2e"].events["pull_request"], tc.files), tc.files)
+		assert.Equal(t, tc.want, affectedShards(workflows["e2e"].matcher("pull_request"), tc.files), tc.files)
 	}
 }
 
 func TestInstallationRunnerUnitTests(t *testing.T) {
-	filters, err := loadFilters("../../.github/ci-paths.yml")
-	require.NoError(t, err)
+	workflows, _ := repository(t)
 	for _, dir := range []string{"tools/installation-e2e/", "tools/internal/devicelogin/", "tools/platform-release/"} {
 		files := []string{dir + "client_test.go", dir + "client.go"}
-		selected := selectOwn(filters, "pull_request", files[:1])
+		selected := selectOwn(workflows, "pull_request", files[:1])
 		assert.False(t, selected["e2e-installation"])
 		assert.True(t, selected["go-lint-and-test"])
-		assert.True(t, selectOwn(filters, "pull_request", files)["e2e-installation"])
+		assert.True(t, selectOwn(workflows, "pull_request", files)["e2e-installation"])
+	}
+}
+
+func TestAGoChangeRunsTheSuitesImportingIt(t *testing.T) {
+	workflows, _ := repository(t)
+	suites := strings.Fields("auth-conformance charts controller-helm-chart docker e2e e2e-installation " +
+		"go-lint-and-test obs-chart platform-release transit-conformance web")
+	const apiSuites = "auth-conformance charts docker e2e e2e-installation go-lint-and-test web"
+	for file, runs := range map[string]string{
+		"internal/envconfig/envconfig.go":      "charts docker e2e e2e-installation go-lint-and-test obs-chart web",
+		"internal/envconfig/envconfig_test.go": "go-lint-and-test",
+		"api/service/config.go":                apiSuites,
+		"api/service/account_deletion.go":      apiSuites,
+		"api/pkg/transit/token.go": "auth-conformance charts docker e2e e2e-installation go-lint-and-test " +
+			"transit-conformance web",
+		"api/migrations/00004_events.sql": apiSuites,
+		"tests/e2e/apps/main_test.go":     "e2e go-lint-and-test",
+		"tools/pullimage/main.go":         "e2e go-lint-and-test obs-chart web",
+		"k8sapi/v1alpha1/application_types.go": "auth-conformance charts controller-helm-chart docker e2e " +
+			"e2e-installation go-lint-and-test web",
+	} {
+		selected := selectOwn(workflows, "pull_request", []string{file})
+		var got []string
+		for _, suite := range suites {
+			if selected[suite] {
+				got = append(got, suite)
+			}
+		}
+		assert.Equal(t, strings.Fields(runs), got, file)
 	}
 }

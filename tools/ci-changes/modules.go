@@ -1,20 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"maps"
-	"os"
-	"path"
-	"path/filepath"
 	"slices"
-	"strings"
-
-	"golang.org/x/mod/modfile"
 )
 
 // rootModule is the directory of the repository's root Go module.
 const rootModule = "."
+
+// moduleWorkflow lints and tests the Go modules the go-modules output lists.
+const moduleWorkflow = "go-lint-and-test"
 
 var (
 	// everyModuleInputs set up, lint or select the Go jobs of every module.
@@ -22,7 +18,6 @@ var (
 		"mise.toml", "mise.lock", ".golangci.yml", "mise-tasks/lint/go",
 		".github/actions/setup-tools/**", "tools/ci-changes/**", ".github/workflows/go-lint-and-test.yml",
 	)
-	rootModuleFiles = mustFilter("go.mod", "go.sum", "internal/**", "gen/go/**", "tools/**", "schemas/**")
 	// testInputs are files outside a module that its test task reads.
 	testInputs = map[string]filter{
 		"observability-proxy": mustFilter(
@@ -39,87 +34,46 @@ var (
 	}
 )
 
-// moduleUsers maps each Go module directory in a repository to the module
-// directories whose go.mod replaces a dependency with it.
-type moduleUsers map[string][]string
+// moduleInputs maps each Go module directory to the files its lint and tests
+// read: every package of the module with its tests, what those import, and
+// for a module below the root every file in its directory.
+type moduleInputs map[string]func(file string) bool
 
-func loadModules(ctx context.Context, dir string) (moduleUsers, error) {
-	out, err := git(ctx, dir, "ls-files", "-z", "*go.mod")
-	if err != nil {
-		return nil, err
-	}
-	files := strings.FieldsFunc(string(out), func(r rune) bool { return r == 0 })
-	users := moduleUsers{}
-	for _, file := range files {
-		users[path.Dir(file)] = nil
-	}
-	for _, file := range files {
-		data, err := os.ReadFile(filepath.Join(dir, file))
+func loadModuleInputs(repo *goRepo) (moduleInputs, error) {
+	modules := moduleInputs{}
+	for module := range repo.modules {
+		in, err := repo.inputs(nil, repo.modulePackages(module))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("module %s: %w", module, err)
 		}
-		parsed, err := modfile.Parse(file, data, nil)
-		if err != nil {
-			return nil, err
-		}
-		module := path.Dir(file)
-		for _, replace := range parsed.Replace {
-			dependency := path.Join(module, replace.New.Path)
-			if _, ok := users[dependency]; ok && modfile.IsDirectoryPath(replace.New.Path) {
-				users[dependency] = append(users[dependency], module)
-			}
+		modules[module] = func(file string) bool {
+			return in.matches(file) || module != rootModule && repo.owner(file) == module ||
+				testInputs[module] != nil && testInputs[module].matches(file)
 		}
 	}
-	return users, nil
+	return modules, nil
 }
 
 // affected returns the sorted directories of the modules whose lint and tests
-// a change to files needs. A source change affects its module and every module
-// that replaces a dependency with it, a test change only its module. Nil files
-// affect every module.
-func (m moduleUsers) affected(files []string) []string {
+// a change to files needs. Nil files affect every module.
+func (m moduleInputs) affected(files []string) []string {
 	if files == nil || slices.ContainsFunc(files, everyModuleInputs.matches) {
 		return slices.Sorted(maps.Keys(m))
 	}
-	selected := map[string]bool{}
-	for _, file := range files {
-		for module, inputs := range testInputs {
-			if inputs.matches(file) {
-				selected[module] = true
-			}
-		}
-		owner, ok := m.owner(file)
-		if !ok {
-			continue
-		}
-		selected[owner] = true
-		if strings.HasSuffix(file, "_test.go") {
-			continue
-		}
-		for pending := []string{owner}; len(pending) > 0; {
-			module := pending[len(pending)-1]
-			pending = pending[:len(pending)-1]
-			for _, user := range m[module] {
-				if !selected[user] {
-					selected[user] = true
-					pending = append(pending, user)
-				}
-			}
+	modules := []string{}
+	for module, inputs := range m {
+		if slices.ContainsFunc(files, inputs) {
+			modules = append(modules, module)
 		}
 	}
-	modules := slices.AppendSeq([]string{}, maps.Keys(selected))
 	slices.Sort(modules)
 	return modules
 }
 
-// owner returns the innermost module directory holding file.
-func (m moduleUsers) owner(file string) (string, bool) {
-	for dir := path.Dir(file); dir != rootModule; dir = path.Dir(dir) {
-		if _, ok := m[dir]; ok {
-			return dir, true
-		}
-	}
-	return rootModule, rootModuleFiles.matches(file)
+// matches reports whether a change to file affects any module.
+func (m moduleInputs) matches(file string) bool {
+	return everyModuleInputs.matches(file) || slices.ContainsFunc(slices.Collect(maps.Values(m)),
+		func(inputs func(string) bool) bool { return inputs(file) })
 }
 
 func mustFilter(patterns ...string) filter {

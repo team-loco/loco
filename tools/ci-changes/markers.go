@@ -26,7 +26,7 @@ type markerLookup func(ctx context.Context, key string) (bool, error)
 
 // markerKeys returns, for each selected workflow that may reuse a pass, the
 // cache key of a pass on the checked-out tree: a hash of the workflow name and
-// the tree entries of its pull request paths, its workflow file and markerInputs.
+// the tree entries of its pull request inputs, its workflow file and markerInputs.
 func markerKeys(ctx context.Context, dir string, all filters, selected map[string]bool) (map[string]string, error) {
 	keys := map[string]string{}
 	var entries []treeEntry
@@ -40,7 +40,7 @@ func markerKeys(ctx context.Context, dir string, all filters, selected map[strin
 				return nil, err
 			}
 		}
-		keys[workflow] = markerKey(workflow, w.events["pull_request"], entries)
+		keys[workflow] = markerKey(workflow, w.matcher(pullRequestEvent), entries)
 	}
 	return keys, nil
 }
@@ -66,12 +66,12 @@ func tree(ctx context.Context, dir string) ([]treeEntry, error) {
 	return entries, nil
 }
 
-func markerKey(workflow string, inputs filter, entries []treeEntry) string {
+func markerKey(workflow string, inputs func(file string) bool, entries []treeEntry) string {
 	workflowFile := ".github/workflows/" + workflow + ".yml"
 	digest := sha256.New()
 	fmt.Fprintf(digest, "%s\n", workflow)
 	for _, entry := range entries {
-		if entry.path == workflowFile || slices.Contains(markerInputs, entry.path) || inputs.matches(entry.path) {
+		if entry.path == workflowFile || slices.Contains(markerInputs, entry.path) || inputs(entry.path) {
 			fmt.Fprintf(digest, "%s\n", entry.line)
 		}
 	}

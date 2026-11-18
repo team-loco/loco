@@ -1,7 +1,7 @@
 # Runs every check for a pull request or a push to main, and reports one
 # result, the CI Gate job, which branch protection requires. Each check is a
 # reusable workflow called only when the changes job finds a file matching its
-# list in .github/ci-paths.yml; a skipped call passes the gate. A check whose
+# inputs in .github/ci-paths.yml; a skipped call passes the gate. A check whose
 # pass marker for the same inputs a push to main saved is skipped too; on a
 # push to main, the pass-markers job saves one for each check that passed. Path
 # filters on the called workflows' own triggers would leave a required check
