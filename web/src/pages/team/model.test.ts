@@ -94,10 +94,10 @@ describe("inviteFailure", () => {
 });
 
 describe("untilLabel", () => {
-	test("counts hours under a day and days after", () => {
+	test("shortens the time left to hours or days", () => {
 		const now = 1_000 * DAY_MS;
 		expect(untilLabel(now + 5 * HOUR_MS, now)).toBe("in 5h");
-		expect(untilLabel(now + 6 * DAY_MS, now)).toBe("in 6 days");
+		expect(untilLabel(now + 6 * DAY_MS, now)).toBe("in 6d");
 		expect(untilLabel(now - 1, now)).toBe("expired");
 	});
 });

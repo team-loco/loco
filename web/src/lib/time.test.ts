@@ -32,6 +32,7 @@ import {
 	formatClock,
 	formatFullTime,
 	formatIsoDate,
+	formatMonthYear,
 	parseClockInput,
 	timeAxis,
 } from "./time";
@@ -44,6 +45,7 @@ test("formats midnight, noon, milliseconds and the timestamp zone", () => {
 	expect(formatClock(midnight + 12 * 3_600_000 + 123, true, utc12)).toBe("12:00:00.123 PM");
 	expect(formatFullTime(midnight, false, utc12)).toBe("Nov 12, 2026, 12:00:00 AM UTC");
 	expect(formatIsoDate(midnight, utc12)).toBe("2026-11-12");
+	expect(formatMonthYear(midnight, utc12)).toBe("Nov 2026");
 });
 
 test("places ticks on round boundaries within an unaligned range", () => {

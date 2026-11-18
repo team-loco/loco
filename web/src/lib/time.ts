@@ -65,6 +65,7 @@ function createDateFormats(timeZone: string) {
 	return {
 		monthDay: new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric" }),
 		monthDayYear: new Intl.DateTimeFormat("en-US", { timeZone, month: "short", day: "numeric", year: "numeric" }),
+		monthYear: new Intl.DateTimeFormat("en-US", { timeZone, month: "short", year: "numeric" }),
 		weekdayDate: new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", month: "short", day: "numeric" }),
 	};
 }
@@ -83,6 +84,10 @@ export function formatStarted(ms: number | undefined, pref: TimePreferences): st
 
 export function formatMonthDayYear(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].monthDayYear.format(ms);
+}
+
+export function formatMonthYear(ms: number, pref: TimePreferences): string {
+	return dateFormats[pref.zone].monthYear.format(ms);
 }
 
 export function timeZoneLabel(ms: number, pref: TimePreferences): string {

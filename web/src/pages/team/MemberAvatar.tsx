@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 const NAME_SEPARATORS = /[\s@._-]+/;
 
-function initialsOf(name: string, email: string): string {
+export function initialsOf(name: string, email: string): string {
 	const source = name.trim() !== "" ? name : email;
 	const parts = source.split(NAME_SEPARATORS).filter((s) => s !== "");
 	return parts

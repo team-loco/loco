@@ -3,7 +3,7 @@ import type { Invitation, OrgMember } from "@gen/loco/org/v1/org_pb";
 
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
-import { DAY_MS, tsMs } from "@/lib/time";
+import { shortDurationLabel, tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
 
 export type ScopeName = "read" | "write" | "admin";
@@ -19,7 +19,6 @@ export const VIEWS: { key: View; label: string }[] = [
 	{ key: "invitations", label: "Invitations" },
 ];
 
-const HOUR_MS = 3_600_000;
 const EMAIL_SEPARATORS = /[\s,;]+/;
 
 export interface WorkspaceAccess {
@@ -126,14 +125,7 @@ export function inviteFailure(email: string, err: unknown): InviteOutcome {
 }
 
 export function untilLabel(ms: number, now: number): string {
-	const left = ms - now;
-	if (left <= 0) return "expired";
-	if (left < DAY_MS) {
-		const hours = Math.max(1, Math.round(left / HOUR_MS));
-		return `in ${hours.toString()}h`;
-	}
-	const days = Math.round(left / DAY_MS);
-	return days === 1 ? "in 1 day" : `in ${days.toString()} days`;
+	return ms <= now ? "expired" : `in ${shortDurationLabel(ms - now)}`;
 }
 
 function displayName(m: Member): string {

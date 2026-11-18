@@ -146,7 +146,9 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         "loco.org.v1.OrgService/ListOrgMembers",
         {"orgId": org["id"]},
     )["members"]
-    expect(page.get_by_role("columnheader", name="Joined", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("columnheader", name="Joined / expires", exact=True)
+    ).to_be_visible()
     expect(
         page.get_by_role("columnheader", name="Last active", exact=True)
     ).to_be_visible()
@@ -154,7 +156,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
         joined = (
             datetime.fromisoformat(member["joinedAt"].replace("Z", "+00:00"))
             .astimezone()
-            .strftime("%b %-d, %Y")
+            .strftime("%b %Y")
         )
         row = page.get_by_role("row").filter(has_text=member["user"]["name"])
         expect(row.get_by_role("cell").nth(5)).to_have_text(joined)
