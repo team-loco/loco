@@ -820,7 +820,9 @@ def traffic(page):
         requests, errors = ("—", "—") if empty else ("1.8K", "180")
         for label, value in (("Requests", requests), ("Errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
-            expect(card).to_contain_text("vs prior 1h")
+            # The prior hour's stub equals this hour's.
+            comparison = "— vs prior 1h" if empty else "0% vs prior 1h"
+            expect(card.get_by_text(comparison, exact=True)).to_be_visible()
         page.get_by_role("region", name="Resources", exact=True).get_by_role(
             "link", name="dashboard-0", exact=True
         ).click()
