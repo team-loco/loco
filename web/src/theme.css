@@ -159,6 +159,7 @@
 		--theme-accent: var(--brand);
 		--code-bg: var(--panel);
 		--code-line-number: var(--fg3);
+		--login-art: #f5f6fa;
 		--lv-warn: #e0a100;
 		--lv-debug: var(--line2);
 		--sh-identifier: var(--fg);
@@ -204,6 +205,7 @@
 		--shell-hover: #161618;
 		--shell-active: #1c1c1f;
 		--bg: #0f0f11;
+		--login-art: #0d0e12;
 		--panel: #161618;
 		--panel2: #202023;
 		--raise: #1c1c1f;

@@ -134,7 +134,7 @@ export function Organizations() {
 	const body = renderBody();
 
 	return (
-		<Page className="max-w-[1080px]">
+		<Page>
 			<PageHeader
 				title={
 					<>

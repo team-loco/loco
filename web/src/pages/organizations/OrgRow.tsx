@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 
 import type { Organization } from "@gen/loco/org/v1/org_pb";
 
-import { Badge } from "@/components/design/Badge";
+import { formatCount } from "@/lib/format";
 import { RowMenu } from "@/components/design/RowMenu";
 import { TableCell, TableRow } from "@/components/design/Table";
 import { DropdownMenuItem, DropdownMenuSeparator } from "@/components/design/DropdownMenu";
@@ -56,24 +56,23 @@ export function OrgRow({
 			<TableCell className="w-full min-w-0 max-w-0">
 				<span className="flex min-w-0 items-center gap-2.5">
 					<Building2 className="size-4 shrink-0 text-fg3" />
-					<span className="truncate font-semibold text-foreground">{org.name}</span>
+					<span className="truncate text-foreground">{org.name}</span>
 					{active && (
-						<Badge tone="pill" className="font-mono">
+						<span
+							data-slot="chip"
+							className="inline-flex h-5 shrink-0 items-center rounded-[6px] bg-panel2 px-2 font-mono text-[11px] text-fg2"
+						>
 							current
-						</Badge>
+						</span>
 					)}
 				</span>
 			</TableCell>
-			<TableCell>
-				<Badge tone="muted" size="sm">
-					{role ?? "…"}
-				</Badge>
+			<TableCell>{role ?? "…"}</TableCell>
+			<TableCell className="hidden text-right font-mono text-[12.5px] text-fg3 min-[701px]:table-cell">
+				{org.workspaceCount === undefined ? "—" : formatCount(Number(org.workspaceCount))}
 			</TableCell>
-			<TableCell className="hidden text-right text-fg3 min-[701px]:table-cell">
-				{org.workspaceCount?.toString() ?? "—"}
-			</TableCell>
-			<TableCell className="hidden text-right text-fg3 min-[701px]:table-cell">
-				{org.memberCount?.toString() ?? "—"}
+			<TableCell className="hidden text-right font-mono text-[12.5px] text-fg3 min-[701px]:table-cell">
+				{org.memberCount === undefined ? "—" : formatCount(Number(org.memberCount))}
 			</TableCell>
 			<TableCell className="hidden whitespace-nowrap text-[12.5px] text-fg3 min-[701px]:table-cell">
 				{created}

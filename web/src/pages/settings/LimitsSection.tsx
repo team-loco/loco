@@ -131,7 +131,7 @@ export function LimitsSection({
 					<TableBody>
 						<Rows rows={limitRows} limits={limits} />
 						<TableRow data-subheader>
-							<TableCell colSpan={4} className="h-10 border-t border-line2 bg-panel2 py-0 text-[12.5px] text-fg3">
+							<TableCell colSpan={4} className="h-10 border-t border-line2 py-0 text-[12.5px] text-fg3">
 								History kept
 							</TableCell>
 						</TableRow>

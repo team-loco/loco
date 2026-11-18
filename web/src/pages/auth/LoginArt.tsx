@@ -253,7 +253,7 @@ export function LoginArt({ className }: { className?: string }) {
 			ref={start}
 			aria-hidden="true"
 			className={cn(
-				"relative m-2 min-h-[calc(100dvh-16px)] cursor-crosshair overflow-hidden rounded-2xl bg-panel text-foreground shadow-[inset_0_0_0_1px_var(--line)]",
+				"relative m-2 min-h-[calc(100dvh-16px)] cursor-crosshair overflow-hidden rounded-2xl bg-(--login-art) text-foreground shadow-[inset_0_0_0_1px_var(--line)]",
 				className,
 			)}
 		>

@@ -83,7 +83,7 @@ export function PersonalTab({
 							value={name}
 							autoComplete="name"
 							aria-invalid={shownErr !== null}
-							className="h-9 max-w-[420px] text-[13.5px]"
+							className="h-9 text-[13.5px]"
 							onChange={(e) => {
 								onDraft(e.target.value);
 							}}

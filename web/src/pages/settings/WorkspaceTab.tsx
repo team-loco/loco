@@ -164,7 +164,7 @@ export function WorkspaceTab({
 							placeholder="storefront"
 							disabled={!canWrite}
 							aria-invalid={shownErr !== null}
-							className="h-9 max-w-[420px] font-mono text-[13.5px]"
+							className="h-9 font-mono text-[13.5px]"
 							onChange={(e) => {
 								onDraft({ ...current, name: e.target.value.toLowerCase() });
 							}}
