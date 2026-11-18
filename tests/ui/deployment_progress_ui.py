@@ -1,6 +1,7 @@
 import argparse
 import json
 import re
+import time
 import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -103,7 +104,7 @@ path = f"/org/{p['org']}/wks/{workspace}/resource/{p['resource']}?env=production
 
 def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
     building = status in ("building", "canceled")
-    now = int(page.evaluate("Date.now()") // 1000)
+    now = int(time.time())
     replica = {
         "uid": "new-replica",
         "name": "progress-new-1",
@@ -221,10 +222,10 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
 
 with session(repo / "tests/ui/out/deployment-progress") as browser:
     sql(state, f"DELETE FROM deployment_activity WHERE deployment_id='{p['current']}';")
+    phase("building")
     context, page, errors = open_page(
         browser, state=state, permissions=["clipboard-read", "clipboard-write"]
     )
-    phase("building")
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Building", exact=True)
     expect(panel).to_be_visible()
@@ -371,8 +372,8 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     assert not errors, errors
     context.close()
 
-    context, page, errors = open_page(browser, "member", narrow=True, state=state)
     phase("failed")
+    context, page, errors = open_page(browser, "member", narrow=True, state=state)
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Failed", exact=True)
     expect(
@@ -383,8 +384,8 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     assert not errors, errors
     context.close()
 
-    context, page, errors = open_page(browser, state=state, reduced_motion="reduce")
     phase("deploying")
+    context, page, errors = open_page(browser, state=state, reduced_motion="reduce")
     page.goto(state["ui_url"] + path)
     panel = page.get_by_role("region", name="Deploying", exact=True)
     expect(

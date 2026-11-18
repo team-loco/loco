@@ -213,7 +213,7 @@ def shell_navigation(page):
 
 
 def activity_deployments(page):
-    now = datetime.fromtimestamp(page.evaluate("Date.now()") / 1000, UTC)
+    now = datetime.now(UTC)
 
     def deployment(id, status, minutes, **extra):
         return {
@@ -511,7 +511,7 @@ def query_suggestions(page):
 
 
 def volume(page):
-    end = int(page.evaluate("Date.now()"))
+    end = int(datetime.now(UTC).timestamp() * 1000)
     info = page.get_by_role("group", name="Log levels").get_by_role(
         "button", name=re.compile(r"^Info")
     )
