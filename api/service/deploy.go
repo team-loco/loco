@@ -261,8 +261,7 @@ func primaryHostname(
 	return hostname, nil
 }
 
-// buildApplicationSpec builds the ApplicationSpec for the loco controller.
-// This is used both for direct k8s calls and for agent command payloads.
+// buildApplicationSpec builds the ApplicationSpec a placement carries to the controller.
 func buildApplicationSpec(
 	resource genDb.Resource,
 	organizationID uuid.UUID,
@@ -275,7 +274,6 @@ func buildApplicationSpec(
 	deploymentID uuid.UUID,
 	defaults servicedefaults.Defaults,
 ) (*locoControllerV1.ApplicationSpec, error) {
-	// convert proto to controller CRD types
 	crdServiceDeploymentSpec := converter.ProtoToServiceDeploymentSpec(deploymentSpec)
 
 	appSpec := &locoControllerV1.ApplicationSpec{
@@ -311,7 +309,6 @@ func buildApplicationSpec(
 		return nil, fmt.Errorf("unknown resource type: %s", resource.Type)
 	}
 
-	// validate the ApplicationSpec before returning
 	if err := appSpec.Validate(); err != nil {
 		return nil, &invalidSpecError{err: err}
 	}
