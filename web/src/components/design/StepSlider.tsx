@@ -2,6 +2,14 @@ import { Slider as SliderPrimitive } from "@base-ui/react/slider";
 
 import "./Slider.css";
 
+export function stepLabel(options: readonly { value: string; label: string }[], value: string): string {
+	return options.find((o) => o.value === value)?.label ?? value;
+}
+
+export function SliderValue({ text }: { text: string }) {
+	return <span className="font-mono text-[12.5px] text-foreground">{text}</span>;
+}
+
 // Built on the Base UI primitive because the stock shadcn slider cannot label its thumb.
 export function StepSlider({
 	label,
@@ -22,7 +30,6 @@ export function StepSlider({
 	const current = options[index];
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="font-mono text-[13px] text-foreground">{current?.label ?? value}</span>
 			<SliderPrimitive.Root
 				min={0}
 				max={Math.max(0, options.length - 1)}

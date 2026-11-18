@@ -23,14 +23,14 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { PlatformDomainInput } from "@/components/design/PlatformDomainInput";
-import { StepSlider } from "@/components/design/StepSlider";
+import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
 import { SoonTag } from "@/components/design/SoonTag";
-import { ScalingFields } from "@/components/design/ScalingFields";
+import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -111,7 +111,7 @@ export function NewService({
 				if (!open) onClose();
 			}}
 		>
-			<DialogContent title="New resource">
+			<DialogContent title="New resource" titleClassName="text-[20px] font-normal tracking-[-0.02em]" size="form" top>
 				<ImageStep
 					orgId={orgId}
 					workspaceId={workspaceId}
@@ -203,7 +203,7 @@ function ImageStep({
 					<Input
 						autoFocus
 						value={image}
-						className="font-mono"
+						className="h-9 font-mono"
 						placeholder="ghcr.io/acme/web:1.4.2"
 						autoComplete="off"
 						spellCheck={false}
@@ -218,7 +218,7 @@ function ImageStep({
 					<Field label="Name" error={nameErr}>
 						<Input
 							value={name}
-							className="font-mono"
+							className="h-9 font-mono"
 							autoComplete="off"
 							spellCheck={false}
 							aria-invalid={nameErr !== null}
@@ -263,7 +263,7 @@ export function DraftSheet({
 				if (!next) close();
 			}}
 		>
-			<SheetContent size="wide">
+			<SheetContent size="wide" className="data-[side=right]:w-[min(560px,calc(100vw-16px))]">
 				{heldId !== null && (
 					<DraftPanel
 						key={heldId}
@@ -316,7 +316,9 @@ function DraftPanel({
 		<SheetHeader>
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<div className="flex min-w-0 items-center gap-2.5">
-					<SheetTitle className="truncate">{draft?.name ?? "Draft"}</SheetTitle>
+					<SheetTitle className="truncate text-[22px] font-normal tracking-[-0.02em]">
+						{draft?.name ?? "Draft"}
+					</SheetTitle>
 					<span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-fg2">
 						<StatusGlyph glyph="draft" />
 						Draft
@@ -654,7 +656,10 @@ function ServiceForm({
 					</div>
 				</DrawerSection>
 
-				<DrawerSection title="Scaling">
+				<DrawerSection
+					title="Scaling"
+					actions={<AutoscalingSwitch value={form} replicaRange={sizes.replicas} onChange={set} />}
+				>
 					<ScalingFields
 						value={form}
 						replicaRange={sizes.replicas}
@@ -674,7 +679,7 @@ function ServiceForm({
 					}
 				>
 					<div className="flex flex-col gap-3">
-						<Field label="CPU" error={apiError("cpu")}>
+						<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, form.cpu)} />} error={apiError("cpu")}>
 							<StepSlider
 								label="CPU"
 								options={sizes.cpu}
@@ -684,7 +689,11 @@ function ServiceForm({
 								}}
 							/>
 						</Field>
-						<Field label="Memory" error={apiError("memory")}>
+						<Field
+							label="Memory"
+							aside={<SliderValue text={stepLabel(sizes.memory, form.memory)} />}
+							error={apiError("memory")}
+						>
 							<StepSlider
 								label="Memory"
 								options={sizes.memory}
