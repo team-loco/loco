@@ -228,13 +228,3 @@ func logIn(column string, values []string, b binder) string {
 	}
 	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ","))
 }
-
-func inFilter(column string, values []string) (string, []any) {
-	placeholders := make([]string, len(values))
-	args := make([]any, len(values))
-	for i, value := range values {
-		placeholders[i] = "?"
-		args[i] = value
-	}
-	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ",")), args
-}

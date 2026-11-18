@@ -77,7 +77,7 @@ func Parse(data []byte) (*File, error) {
 	}
 	file.raw = raw
 
-	if err := Validate(&file); err != nil {
+	if err := validate(&file); err != nil {
 		return nil, err
 	}
 	return &file, nil

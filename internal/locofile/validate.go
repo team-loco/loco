@@ -17,9 +17,9 @@ const (
 
 var dnsLabelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
 
-// Validate checks the file's structure: required keys, name shapes and the merged service for
+// validate checks the file's structure: required keys, name shapes and the merged service for
 // every environment the file names. Limits on resources belong to the API.
-func Validate(file *File) error {
+func validate(file *File) error {
 	var errs []error
 	if file.Version != Version {
 		errs = append(errs, &FieldError{Path: keyVersion, Err: ErrUnsupportedVersion})

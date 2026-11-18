@@ -109,16 +109,13 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 	aggFunc := aggregationFunctions[req.GetAggregation()]
 	interval := req.GetIntervalSeconds()
 
-	whereParts, args := metricsFilters(req)
-
+	b := &positionalBinder{}
+	whereParts := metricsFilters(req, b)
 	whereParts = append(whereParts,
-		"MetricName = ?",
-		"TimeUnix >= fromUnixTimestamp64Nano(?)",
-		"TimeUnix <= fromUnixTimestamp64Nano(?)",
+		"MetricName = "+b.str(req.GetMetricName()),
+		"TimeUnix >= fromUnixTimestamp64Nano("+b.num(req.GetStartTime().AsTime().UnixNano())+")",
+		"TimeUnix <= fromUnixTimestamp64Nano("+b.num(req.GetEndTime().AsTime().UnixNano())+")",
 		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
-	start := req.GetStartTime().AsTime().UnixNano()
-	end := req.GetEndTime().AsTime().UnixNano()
-	args = append(args, req.GetMetricName(), start, end)
 
 	where := strings.Join(whereParts, " AND ")
 	source := fmt.Sprintf(
@@ -138,34 +135,24 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 			"ORDER BY %s, bucket SETTINGS max_execution_time = %d",
 		resourceColumn, interval, aggFunc, source, resourceColumn, resourceColumn, int(queryTimeout.Seconds()),
 	)
-	args = append(args, args...)
-
-	return query, args
+	// The WHERE clause appears once per table of the UNION.
+	return query, append(b.args, b.args...)
 }
 
-func metricsFilters(req *observabilityv1.QueryMetricsRequest) ([]string, []any) {
-	whereParts := []string{workspaceColumn + " = ?"}
-	args := []any{req.GetWorkspaceId()}
-
+// metricsFilters is the scope every metrics query shares, binding every value through b.
+func metricsFilters(req *observabilityv1.QueryMetricsRequest, b binder) []string {
+	whereParts := []string{workspaceColumn + " = " + b.str(req.GetWorkspaceId())}
 	if req.GetEnvironmentId() != "" {
-		whereParts = append(whereParts, environmentColumn+" = ?")
-		args = append(args, req.GetEnvironmentId())
+		whereParts = append(whereParts, environmentColumn+" = "+b.str(req.GetEnvironmentId()))
 	}
-
 	if req.GetRegion() != "" {
-		whereParts = append(whereParts, "ResourceAttributes[?] = ?")
-		args = append(args, regionAttribute, req.GetRegion())
+		whereParts = append(whereParts, "ResourceAttributes["+b.str(regionAttribute)+"] = "+b.str(req.GetRegion()))
 	}
-
 	if len(req.GetResourceIds()) > 0 {
-		clause, values := inFilter(resourceColumn, req.GetResourceIds())
-		whereParts = append(whereParts, clause)
-		args = append(args, values...)
+		whereParts = append(whereParts, logIn(resourceColumn, req.GetResourceIds(), b))
 	}
-
 	for _, key := range slices.Sorted(maps.Keys(req.GetAttributes())) {
-		whereParts = append(whereParts, "Attributes[?] = ?")
-		args = append(args, key, req.GetAttributes()[key])
+		whereParts = append(whereParts, "Attributes["+b.str(key)+"] = "+b.str(req.GetAttributes()[key]))
 	}
-	return whereParts, args
+	return whereParts
 }

@@ -190,11 +190,7 @@ func TestServesProbesWhileMigrating(t *testing.T) {
 	}
 	t.Cleanup(p.close)
 
-	var lc net.ListenConfig
-	serverLn, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("listen: %v", err)
-	}
+	serverLn := localListener(t)
 	base := "http://" + serverLn.Addr().String()
 
 	runErr := make(chan error, 1)
@@ -333,11 +329,7 @@ func TestReplicasTakeTurnsMigratingUnderTheLock(t *testing.T) {
 			t.Fatalf("newProxy(replica %d): %v", replica, err)
 		}
 		t.Cleanup(p.close)
-		var lc net.ListenConfig
-		ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
-		if err != nil {
-			t.Fatalf("listen: %v", err)
-		}
+		ln := localListener(t)
 		bases = append(bases, "http://"+ln.Addr().String())
 		go func() { runErrs <- p.run(ctx, cfg, testListeners(t, ln)) }()
 	}

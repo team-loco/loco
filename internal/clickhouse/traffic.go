@@ -30,9 +30,14 @@ func (c *Client) queryTrafficMetrics(
 	req *observabilityv1.QueryMetricsRequest,
 	histogram bool,
 ) ([]*observabilityv1.MetricSeries, error) {
-	filters, args := metricsFilters(req)
-	filters = append(filters, "MetricName = ?", fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
-	args = append(args, req.GetMetricName())
+	b := &positionalBinder{}
+	filters := metricsFilters(req, b)
+	filters = append(
+		filters,
+		"MetricName = "+b.str(req.GetMetricName()),
+		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag),
+	)
+	args := b.args
 	table, values, bounds := "otel_metrics_sum", "[Value]", "CAST([], 'Array(Float64)')"
 	if histogram {
 		table, values, bounds = "otel_metrics_histogram", "arrayMap(x -> toFloat64(x), BucketCounts)", "ExplicitBounds"

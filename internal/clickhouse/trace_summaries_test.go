@@ -126,7 +126,7 @@ func TestTraceSummarySortColumns(t *testing.T) {
 						t.Fatalf("offset %d: %v, want trace %d", offset, result, id)
 					}
 					if id == 2 && result.GetSummaries()[0].GetHttpStatusCode() != 200 {
-						t.Fatalf("legacy HTTP code: %v", result.GetSummaries()[0])
+						t.Fatalf("HTTP code: %v", result.GetSummaries()[0])
 					}
 					if id == 3 && result.GetSummaries()[0].GetHttpStatusCode() != 0 {
 						t.Fatalf("missing HTTP code: %v", result.GetSummaries()[0])

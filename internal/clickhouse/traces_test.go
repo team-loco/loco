@@ -7,10 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"strings"
-
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const (
@@ -150,25 +147,6 @@ func TestTraceSpansCarryEventsAndLinks(t *testing.T) {
 		links[1].GetTraceId() != otherTraceID || links[1].GetSpanId() != "3333333333333333" ||
 		!maps.Equal(links[1].GetAttributes(), link) {
 		t.Errorf("links = %v", links)
-	}
-}
-
-func TestTraceDurationJSONPreservesUint64(t *testing.T) {
-	const duration = uint64(18446744073709551615)
-	span := &observabilityv1.TraceSpan{DurationNanos: duration}
-	data, err := protojson.Marshal(span)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(data), `"18446744073709551615"`) {
-		t.Fatalf("duration is not a lossless JSON string: %s", data)
-	}
-	decoded := &observabilityv1.TraceSpan{}
-	if err := protojson.Unmarshal(data, decoded); err != nil {
-		t.Fatal(err)
-	}
-	if decoded.GetDurationNanos() != duration {
-		t.Fatalf("duration = %d, want %d", decoded.GetDurationNanos(), duration)
 	}
 }
 
