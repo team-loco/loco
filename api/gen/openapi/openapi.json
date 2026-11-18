@@ -3215,7 +3215,7 @@
           "loco.ingest.v1.IngestService"
         ],
         "summary": "GetRetention",
-        "description": "GetRetention returns how many days to keep each workspace's records: the workspace's own\n value capped by its organization's limit for each signal. It takes an ingest token like\n ListPlacementWindows and up to 1000 workspace IDs.",
+        "description": "GetRetention returns how many days to keep each workspace's records: the workspace's own\n value capped by its organization's limit for each signal. It takes an ingest token like\n ListPlacementWindows.",
         "operationId": "loco.ingest.v1.IngestService.GetRetention",
         "parameters": [
           {

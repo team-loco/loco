@@ -287,14 +287,6 @@ func (a *Admission) placed(workspaceID string) bool {
 	return slices.ContainsFunc(a.placements.windows, func(w window) bool { return w.workspaceID == workspaceID })
 }
 
-// workspaceRetention returns how long to keep the records of each workspace in ids.
-func (a *Admission) workspaceRetention(ctx context.Context, ids []string) (map[string]*ingestv1.Retention, error) {
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	return a.gate.retention.lookup(ctx, ids, a.gate.fetchRetention(a.token))
-}
-
 // checkRetention refuses a retention of 0 days, which ClickHouse would expire at once.
 func checkRetention(days *ingestv1.Retention) error {
 	if days.GetLogDays() <= 0 || days.GetTraceDays() <= 0 || days.GetMetricDays() <= 0 {

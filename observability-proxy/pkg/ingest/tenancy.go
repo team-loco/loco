@@ -102,7 +102,8 @@ func (f *tenancyFilter) stamp(resources []pcommon.Resource, signalDays func(*ing
 			placed = append(placed, workspace)
 		}
 	}
-	retention, err := f.admission.workspaceRetention(f.ctx, placed)
+	gate := f.admission.gate
+	retention, err := gate.retention.lookup(f.ctx, placed, gate.fetchRetention(f.admission.token))
 	if err != nil {
 		f.err = err
 		return

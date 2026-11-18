@@ -321,7 +321,7 @@ export const IngestService: GenService<{
   /**
    * GetRetention returns how many days to keep each workspace's records: the workspace's own
    * value capped by its organization's limit for each signal. It takes an ingest token like
-   * ListPlacementWindows and up to 1000 workspace IDs.
+   * ListPlacementWindows.
    *
    * @generated from rpc loco.ingest.v1.IngestService.GetRetention
    */

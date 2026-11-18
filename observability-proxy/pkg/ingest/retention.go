@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"slices"
 	"sync"
 	"time"
 
@@ -13,9 +12,6 @@ import (
 	ingestv1 "github.com/team-loco/loco/gen/go/loco/ingest/v1"
 	"github.com/team-loco/loco/internal/bearer"
 )
-
-// maxRetentionBatch is the most workspace IDs GetRetention accepts in one call.
-const maxRetentionBatch = 1000
 
 type fetchRetention func(ctx context.Context, ids []string) (map[string]*ingestv1.Retention, error)
 
@@ -116,24 +112,20 @@ func (c *retentionCache) store(ids []string, fetched *retentionFetch) {
 // fetchRetention asks the control plane for the effective retention of ids with token.
 func (g *Gate) fetchRetention(token string) fetchRetention {
 	return func(ctx context.Context, ids []string) (map[string]*ingestv1.Retention, error) {
-		days := make(map[string]*ingestv1.Retention, len(ids))
-		for batch := range slices.Chunk(ids, maxRetentionBatch) {
-			callCtx, info := connect.NewClientContext(ctx)
-			info.RequestHeader().Set("Authorization", bearer.Header(token))
-			resp, err := g.placements.GetRetention(callCtx, &ingestv1.GetRetentionRequest{WorkspaceIds: batch})
-			if err != nil && connect.CodeOf(err) == connect.CodeUnauthenticated {
-				return nil, fmt.Errorf("%w: %w", ErrUnauthenticated, err)
-			}
-			if err != nil {
-				return nil, fmt.Errorf("%w: get retention: %w", ErrAuthUnavailable, err)
-			}
-			for id, retention := range resp.GetRetention() {
-				if err = checkRetention(retention); err != nil {
-					return nil, err
-				}
-				days[id] = retention
+		callCtx, info := connect.NewClientContext(ctx)
+		info.RequestHeader().Set("Authorization", bearer.Header(token))
+		resp, err := g.placements.GetRetention(callCtx, &ingestv1.GetRetentionRequest{WorkspaceIds: ids})
+		if err != nil && connect.CodeOf(err) == connect.CodeUnauthenticated {
+			return nil, fmt.Errorf("%w: %w", ErrUnauthenticated, err)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%w: get retention: %w", ErrAuthUnavailable, err)
+		}
+		for _, retention := range resp.GetRetention() {
+			if err = checkRetention(retention); err != nil {
+				return nil, err
 			}
 		}
-		return days, nil
+		return resp.GetRetention(), nil
 	}
 }

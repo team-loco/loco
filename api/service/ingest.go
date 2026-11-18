@@ -112,23 +112,12 @@ func (s *IngestServer) ListPlacementWindows(
 	return &ingestv1.ListPlacementWindowsResponse{Windows: windows, Retention: install}, nil
 }
 
-// maxRetentionWorkspaces is the most workspace IDs one GetRetention call takes.
-const maxRetentionWorkspaces = 1000
-
-var errTooManyWorkspaces = rpcerr.NewCoded(
-	connect.CodeInvalidArgument,
-	fmt.Sprintf("workspace_ids holds more than %d IDs", maxRetentionWorkspaces),
-)
-
 func (s *IngestServer) GetRetention(
 	ctx context.Context,
 	req *ingestv1.GetRetentionRequest,
 ) (*ingestv1.GetRetentionResponse, error) {
 	if _, err := s.authenticateCluster(ctx); err != nil {
 		return nil, err
-	}
-	if len(req.GetWorkspaceIds()) > maxRetentionWorkspaces {
-		return nil, errTooManyWorkspaces
 	}
 	ids := make([]uuid.UUID, 0, len(req.GetWorkspaceIds()))
 	for _, raw := range req.GetWorkspaceIds() {
