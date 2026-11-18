@@ -26,13 +26,14 @@ var (
 	// testInputs are files outside a module that its test task reads.
 	testInputs = map[string]filter{
 		"observability-proxy": mustFilter(
-			"mise-tasks/test/counter-metrics", "mise-tasks/test/lib/ports.sh",
+			"mise-tasks/test/counter-metrics", "mise-tasks/test/lib/testres.sh",
 			"charts/loco-worker/values.yaml", "charts/loco-control-plane/values.yaml",
 			// The proxy's task also runs these root packages' tests against ClickHouse.
 			"internal/clickhouse/**",
 		),
 		"api": mustFilter(
-			"mise-tasks/test/api", "mise-tasks/test/lib/clickhouse.sh", "charts/loco-control-plane/values.yaml",
+			"mise-tasks/test/api", "mise-tasks/test/lib/clickhouse.sh", "mise-tasks/test/lib/testres.sh",
+			"charts/loco-control-plane/values.yaml",
 			"docs/content/reference/api-environment.md",
 		),
 	}

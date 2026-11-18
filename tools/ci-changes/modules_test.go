@@ -45,7 +45,7 @@ func TestModulesAChangeAffects(t *testing.T) {
 			[]string{"agent", apiModule, controllerModule, "k8sapi", "tests/e2e"}},
 		{"a Kubernetes types test selects only its module", []string{"k8sapi/v1/application_test.go"}, []string{"k8sapi"}},
 		{"the proxy's counter metrics task", []string{"mise-tasks/test/counter-metrics"}, []string{proxyModule}},
-		{"the proxy's port helper", []string{"mise-tasks/test/lib/ports.sh"}, []string{proxyModule}},
+		{"the lease helper of the test tasks", []string{"mise-tasks/test/lib/testres.sh"}, []string{apiModule, proxyModule}},
 		{"the worker chart values", []string{"charts/loco-worker/values.yaml"}, []string{proxyModule}},
 		{"a file at a module's root", []string{"controller/Makefile"}, []string{controllerModule}},
 		{"a ClickHouse query test runs in the root and proxy jobs",

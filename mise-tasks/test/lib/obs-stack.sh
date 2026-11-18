@@ -5,29 +5,22 @@ control_plane_chart=charts/loco-control-plane
 namespace=loco-system
 control_plane_namespace=loco
 control_plane_release=loco-control-plane
-run_id=loco-obs-$1-$$
-clickhouse=$run_id-clickhouse
-workdir=$(mktemp -d)
-ready_attempts=60
-ports_per_run=4
-source mise-tasks/test/lib/ports.sh
-first_port=$(first_run_port "$ports_per_run")
-ingest_port=$first_port
-ingest_grpc_port=$((first_port + 1))
-ingest_http_port=$((first_port + 2))
-control_plane_port=$((first_port + 3))
+source mise-tasks/test/lib/testres.sh "loco-obs-$1"
 proxy_pids=()
-failures=0
-containers=("$clickhouse")
-
 obs_cleanup() {
 	if [ "${#proxy_pids[@]}" -gt 0 ]; then
 		kill "${proxy_pids[@]}" >/dev/null 2>&1 || true
 	fi
-	docker rm -fv "${containers[@]}" >/dev/null 2>&1 || true
-	rm -rf "$workdir"
+	testres_release
 }
 trap obs_cleanup EXIT
+run_id=$testres_id
+clickhouse=$run_id-clickhouse
+workdir=$testres_lease
+ready_attempts=60
+ports=$(testres_ports 4)
+read -r ingest_port ingest_grpc_port ingest_http_port control_plane_port <<<"$ports"
+failures=0
 
 fail() {
 	echo "FAIL: $1"
@@ -107,6 +100,7 @@ profiles=$(yq '.spec.configuration.profiles // {} | keys | .[] | split("/") | .[
 	echo "</users></clickhouse>"
 } >"$workdir/loco_users.xml"
 
+testres_add container "$clickhouse"
 docker run -d --name "$clickhouse" -p 127.0.0.1::9000 \
 	-e CLICKHOUSE_SKIP_USER_SETUP=1 \
 	-v "$workdir/extra_config.xml:/etc/clickhouse-server/config.d/extra_config.xml:ro" \
@@ -175,7 +169,7 @@ wait_for_proxy ingest "$ingest_port"
 
 start_collector() {
 	local name=$run_id-$1 config=$2 mounts=()
-	containers+=("$name")
+	testres_add container "$name"
 	for directory in $(yq '.extensions | with_entries(select(.key | test("^file_storage"))) | .[].directory' "$config"); do
 		mounts+=("--tmpfs" "$directory")
 	done

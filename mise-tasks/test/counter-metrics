@@ -3,19 +3,13 @@
 #MISE depends=["helm:deps"]
 set -euo pipefail
 root=$(git rev-parse --show-toplevel)
-run_name=loco-counter-test-$$
-work_dir=$(mktemp -d)
+source "$root/mise-tasks/test/lib/testres.sh" loco-counter-test
+run_name=$testres_id
+work_dir=$testres_lease
 collector=$run_name-collector
 clickhouse=$run_name-clickhouse
 own_clickhouse=false
 ready_attempts=60
-ports_per_run=4
-source "$root/mise-tasks/test/lib/ports.sh"
-first_port=$(first_run_port "$ports_per_run")
-proxy_port=$first_port
-otlp_grpc_port=$((first_port + 1))
-otlp_http_port=$((first_port + 2))
-control_plane_port=$((first_port + 3))
 proxy_pid=""
 cleanup() {
     local status=$?
@@ -29,14 +23,12 @@ cleanup() {
     if [ -n "$proxy_pid" ]; then
         kill "$proxy_pid" >/dev/null 2>&1 || true
     fi
-    docker rm -fv "$collector" >/dev/null 2>&1 || true
-    if [ "$own_clickhouse" = true ]; then
-        docker rm -fv "$clickhouse" >/dev/null 2>&1 || true
-    fi
-    rm -rf "$work_dir"
+    testres_release
     return "$status"
 }
 trap cleanup EXIT
+ports=$(testres_ports 4)
+read -r proxy_port otlp_grpc_port otlp_http_port control_plane_port <<<"$ports"
 
 wait_for() {
     for _ in $(seq "$ready_attempts"); do
@@ -72,6 +64,7 @@ if [ -z "${LOCO_TEST_CLICKHOUSE_URL:-}" ]; then
     chmod a+r "$work_dir/server.xml"
     go -C "$root" run ./tools/pullimage "$image"
     own_clickhouse=true
+    testres_add container "$clickhouse"
     docker create --name "$clickhouse" --memory 2g --memory-swap 2g --cpus 2 -p 127.0.0.1::9000 \
         -e CLICKHOUSE_USER=loco_test -e CLICKHOUSE_PASSWORD=loco_test -e CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT=1 \
         -v "$work_dir/server.xml:/etc/clickhouse-server/config.d/counter-test.xml:ro" "$image" >/dev/null
@@ -119,6 +112,7 @@ for directory in $(yq '.extensions | with_entries(select(.key | test("^file_stor
 done
 collector_image=$(yq '.otel-col-deploy.image.repository + ":" + .otel-col-deploy.image.tag' "$root/charts/loco-worker/values.yaml")
 go -C "$root" run ./tools/pullimage "$collector_image"
+testres_add container "$collector"
 docker create --name "$collector" --memory 256m --memory-swap 256m --cpus 0.5 \
     --add-host host.docker.internal:host-gateway -p 127.0.0.1::4318 "${mounts[@]}" \
     -v "$work_dir/collector.yaml:/etc/collector.yaml:ro" -v "$work_dir/token:$token_directory:ro" "$collector_image" --config /etc/collector.yaml >/dev/null
