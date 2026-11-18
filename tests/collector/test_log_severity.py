@@ -1,25 +1,16 @@
 import json
-import os
-import subprocess
-import time
 import urllib.error
 import urllib.request
-import uuid
 
 import pytest
-from helpers import chart_values
-
-TIMEOUT_SECONDS = 30
-POLL_SECONDS = 0.1
+from helpers import chart_values, read_output, run_collector, wait_for
 
 
 @pytest.mark.parametrize("source", ["otlp", "file_log"])
 def test_collected_log_severity(tmp_path, source):
-    daemon = chart_values("loco-worker")["otel-col-daemon"]
-    transform = daemon["config"]["processors"]["transform/log_severity"]
-    image = daemon["image"]
-    arguments = daemon["command"]["extraArgs"]
-    name = f"loco-log-severity-{uuid.uuid4().hex}"
+    transform = chart_values("loco-worker")["otel-col-daemon"]["config"]["processors"][
+        "transform/log_severity"
+    ]
     cases = [
         ('{"level":"warning","message":"low memory"}', "WARN", 13, {}),
         ('{"severity":"error","message":"failed"}', "ERROR", 17, {}),
@@ -86,35 +77,7 @@ def test_collected_log_severity(tmp_path, source):
             }
         }
         config["service"]["pipelines"]["logs"]["receivers"] = ["file_log"]
-    config_path = tmp_path / "config.json"
-    config_path.write_text(json.dumps(config))
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "--detach",
-            "--name",
-            name,
-            "--user",
-            str(os.getuid()),
-            "--publish",
-            "127.0.0.1::4318",
-            "--volume",
-            f"{tmp_path}:/data",
-            f"{image['repository']}:{image['tag']}",
-            "--config=/data/config.json",
-            *arguments,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    try:
-        port = (
-            subprocess.check_output(["docker", "port", name, "4318/tcp"], text=True)
-            .strip()
-            .rsplit(":", 1)[1]
-        )
+    with run_collector(tmp_path, config, "otel-col-daemon") as collector:
         records = [
             {
                 "body": {"stringValue": body},
@@ -125,47 +88,31 @@ def test_collected_log_severity(tmp_path, source):
         ]
         payload = {"resourceLogs": [{"scopeLogs": [{"logRecords": records}]}]}
         request = urllib.request.Request(
-            f"http://127.0.0.1:{port}/v1/logs",
+            f"http://127.0.0.1:{collector.port}/v1/logs",
             json.dumps(payload).encode(),
             {"Content-Type": "application/json"},
         )
-        deadline = time.monotonic() + TIMEOUT_SECONDS
-        while source == "otlp":
+
+        def send():
             try:
                 with urllib.request.urlopen(request, timeout=1) as response:
-                    assert response.status == 200
-                break
+                    return response.status == 200
             except urllib.error.URLError, ConnectionError:
-                assert time.monotonic() < deadline, subprocess.check_output(
-                    ["docker", "logs", name], stderr=subprocess.STDOUT, text=True
-                )
-                time.sleep(POLL_SECONDS)
-        output = tmp_path / "output.json"
-        received = []
-        while len(received) < len(cases):
-            if output.exists():
-                try:
-                    documents = [
-                        json.loads(line) for line in output.read_text().splitlines()
-                    ]
-                    received = [
-                        record
-                        for doc in documents
-                        for resource in doc["resourceLogs"]
-                        for scope in resource["scopeLogs"]
-                        for record in scope["logRecords"]
-                    ]
-                except json.JSONDecodeError:
-                    pass
-            assert time.monotonic() < deadline, subprocess.check_output(
-                ["docker", "logs", name], stderr=subprocess.STDOUT, text=True
-            )
-            time.sleep(POLL_SECONDS)
+                return False
+
+        if source == "otlp":
+            wait_for(collector, send)
+        received = read_output(
+            collector,
+            lambda document: [
+                record
+                for resource in document["resourceLogs"]
+                for scope in resource["scopeLogs"]
+                for record in scope["logRecords"]
+            ],
+            len(cases),
+        )
         for record, (body, severity, number, _) in zip(received, cases, strict=True):
             assert record["body"]["stringValue"] == body
             assert record.get("severityText", "") == severity, record
             assert record.get("severityNumber", 0) == number, record
-    finally:
-        subprocess.run(
-            ["docker", "rm", "--force", name], check=True, capture_output=True
-        )

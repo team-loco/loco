@@ -1,23 +1,15 @@
 import copy
 import json
-import os
 import subprocess
 import sys
 import threading
-import time
 import urllib.parse
 import urllib.request
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
-from helpers import chart_values
-
-
-def docker(*args):
-    return subprocess.check_output(
-        ["docker", *args], text=True, stderr=subprocess.STDOUT
-    ).strip()
+from helpers import chart_values, docker, read_output, run_collector, wait_for
 
 
 @pytest.mark.parametrize("gateway", [False, True], ids=["dependency", "gateway"])
@@ -33,7 +25,6 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
         "loco.io/workspace-id": "workspace-a",
         "loco.io/environment-id": "environment-a",
     }
-    collector_image = chart_values("loco-worker")["otel-col-deploy"]["image"]
     curl_image = chart_values("loco-control-plane")["openbao"]["curlImage"]
     docker("network", "create", name)
     server = None
@@ -176,55 +167,43 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
         pipeline.update(receivers=["otlp"], exporters=["file"])
         config["service"] = {"pipelines": {"traces": pipeline}}
         config.pop("extensions", None)
-        (tmp_path / "config.json").write_text(json.dumps(config))
         host_gateway = (
             ["--add-host", "host.docker.internal:host-gateway"]
             if sys.platform == "linux"
             else []
         )
-        docker(
-            "run",
-            "--detach",
-            "--name",
-            name,
+        with run_collector(
+            tmp_path,
+            config,
+            "otel-col-deploy",
             "--network",
             name,
             *host_gateway,
-            "--user",
-            str(os.getuid()),
-            "--publish",
-            "127.0.0.1::4318",
             "--env",
             "KUBECONFIG=/data/kubeconfig",
-            "--volume",
-            f"{tmp_path}:/data",
-            f"{collector_image['repository']}:{collector_image['tag']}",
-            "--config=/data/config.json",
-        )
-        port = docker("port", name, "4318/tcp").rsplit(":", 1)[1]
-        attributes = [
-            {"key": key, "value": {"stringValue": value}}
-            for key, value in {
-                "k8s.namespace.name": namespace,
-                "k8s.pod.name": "forged-pod",
-                "loco.organization.id": "forged-org",
-                "loco.workspace.id": "forged-workspace",
-                "loco.resource.id": "forged-resource",
-            }.items()
-        ]
-        payload = {
-            "resourceSpans": [
-                {
-                    "resource": {"attributes": attributes},
-                    "scopeSpans": [
-                        {
-                            "spans": [
-                                {
-                                    "traceId": "0123456789abcdef0123456789abcdef",
-                                    "spanId": "0123456789abcdef",
-                                    "name": "dependency",
-                                    "attributes": (
-                                        [
+        ) as collector:
+            attributes = [
+                {"key": key, "value": {"stringValue": value}}
+                for key, value in {
+                    "k8s.namespace.name": namespace,
+                    "k8s.pod.name": "forged-pod",
+                    "loco.organization.id": "forged-org",
+                    "loco.workspace.id": "forged-workspace",
+                    "loco.resource.id": "forged-resource",
+                }.items()
+            ]
+            payload = {
+                "resourceSpans": [
+                    {
+                        "resource": {"attributes": attributes},
+                        "scopeSpans": [
+                            {
+                                "spans": [
+                                    {
+                                        "traceId": "0123456789abcdef0123456789abcdef",
+                                        "spanId": "0123456789abcdef",
+                                        "name": "dependency",
+                                        "attributes": [
                                             {
                                                 "key": "upstream_cluster",
                                                 "value": {
@@ -234,63 +213,52 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
                                                     )
                                                 },
                                             }
-                                        ]
-                                        if gateway
-                                        else []
-                                    ),
-                                    "startTimeUnixNano": "1700000000000000000",
-                                    "endTimeUnixNano": "1700000000000000001",
-                                }
-                            ]
-                        }
-                    ],
-                }
-            ]
-        }
-        deadline = time.monotonic() + 30
-        while True:
-            result = subprocess.run(
-                [
-                    "docker",
-                    "exec",
-                    "-i",
-                    sender,
-                    "curl",
-                    "--silent",
-                    "--show-error",
-                    "--fail",
-                    "-H",
-                    "Content-Type: application/json",
-                    "--data-binary",
-                    "@-",
-                    f"http://{name}:4318/v1/traces",
-                ],
-                input=json.dumps(payload),
-                text=True,
-                capture_output=True,
-            )
-            if result.returncode == 0:
-                break
-            assert time.monotonic() < deadline, docker("logs", name)
-            time.sleep(0.1)
-        request = urllib.request.Request(
-            f"http://127.0.0.1:{port}/v1/traces",
-            json.dumps(payload).encode(),
-            {"Content-Type": "application/json"},
-        )
-        with urllib.request.urlopen(request, timeout=5) as response:
-            assert response.status == 200
-        output = tmp_path / "output.json"
-        received = []
-        while len(received) < 2:
-            if output.exists():
-                received = [
-                    r
-                    for line in output.read_text().split("\n")[:-1]
-                    for r in json.loads(line)["resourceSpans"]
+                                        ],
+                                        "startTimeUnixNano": "1700000000000000000",
+                                        "endTimeUnixNano": "1700000000000000001",
+                                    }
+                                ]
+                            }
+                        ],
+                    }
                 ]
-            assert time.monotonic() < deadline, docker("logs", name)
-            time.sleep(0.1)
+            }
+            wait_for(
+                collector,
+                lambda: (
+                    subprocess.run(
+                        [
+                            "docker",
+                            "exec",
+                            "-i",
+                            sender,
+                            "curl",
+                            "--silent",
+                            "--show-error",
+                            "--fail",
+                            "-H",
+                            "Content-Type: application/json",
+                            "--data-binary",
+                            "@-",
+                            f"http://{collector.name}:4318/v1/traces",
+                        ],
+                        input=json.dumps(payload),
+                        text=True,
+                        capture_output=True,
+                    ).returncode
+                    == 0
+                ),
+            )
+            request = urllib.request.Request(
+                f"http://127.0.0.1:{collector.port}/v1/traces",
+                json.dumps(payload).encode(),
+                {"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                assert response.status == 200
+            received = read_output(
+                collector, lambda document: document["resourceSpans"], 2
+            )
         attrs = [
             {
                 a["key"]: a["value"].get("stringValue")
@@ -325,7 +293,7 @@ def test_ownership_uses_the_connected_pod_or_gateway_route_namespace(
     finally:
         try:
             subprocess.run(
-                ["docker", "rm", "--force", name, sender],
+                ["docker", "rm", "--force", sender],
                 check=False,
                 capture_output=True,
             )

@@ -3,8 +3,8 @@ import re
 
 import pytest
 from helpers import (
+    CI_VALUES,
     RELEASE_NAMESPACE,
-    TEST_REGION,
     chart_values,
     collector_relays,
     render_chart,
@@ -80,7 +80,9 @@ def test_platform_identity_is_exported(configured_relays):
                 "loco.installation.id": "test-installation",
                 "k8s.cluster.name": "test-cluster",
                 "deployment.environment.name": "test",
-                "loco.region": TEST_REGION,
+                "loco.region": chart_values("loco-worker", CI_VALUES)["global"][
+                    "region"
+                ],
                 "loco.telemetry.scope": "platform",
             }.items()
         )
