@@ -48,7 +48,11 @@ for suite in ${suites[@]+"${suites[@]}"}; do
 	fi
 done
 
-uv run --frozen --project tests pytest tests/ui
+if git grep -nE 'expect_response|wait_for_response|networkidle' -- 'tests/ui/*.py' ':!tests/ui/harness.py'; then
+	echo "Wait with harness.expect_rpc on the request body, or for the outcome on screen." >&2
+	exit 1
+fi
+uv run --frozen --project tests pytest tests/ui/test_evidence.py
 
 evidence=(uv run --frozen --project tests python tests/ui/evidence.py)
 start=$SECONDS

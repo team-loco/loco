@@ -302,7 +302,7 @@ def check_scoped_user(browser):
             with expect_rpc(
                 page,
                 "QueryMetrics",
-                lambda body: body.get("scope", body).get("environmentId") == production,
+                lambda body: body.get("environmentId") == production,
             ):
                 page.goto(origin + path)
         else:

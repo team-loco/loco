@@ -159,6 +159,7 @@ with session(out) as browser:
         )["regions"]
 
     def save_and_settle(method="UpdateResource"):
+        calls.clear()
         expected_deployments = len(deployments) + len(regions)
         with expect_rpc(
             page,
@@ -196,9 +197,8 @@ with session(out) as browser:
         assert sent["scalers"] == {"enabled": True, "cpuTarget": target}, sent
 
     failing[0] = False
-    before = len(calls)
     save_and_settle()
-    assert len(calls) - before == 1, calls
+    assert len(calls) == 1, calls
     for region in regions:
         assert stored_regions()[region]["scalers"] == {
             "enabled": True,
@@ -258,10 +258,10 @@ with session(out) as browser:
     assert all(
         call["spec"]["service"]["observability"] == expected for call in deployments
     ), deployments
-    before = len(deployments)
+    deployments.clear()
     deploy_mode[0] = "pass"
     save_and_settle("CreateDeployment")
-    assert len(deployments) - before == len(regions), deployments
+    assert len(deployments) == len(regions), deployments
     expect(sdk).not_to_be_checked()
     sdk.click()
     save_and_settle("CreateDeployment")
