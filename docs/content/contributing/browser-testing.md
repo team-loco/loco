@@ -6,7 +6,7 @@ The dashboard uses Python Playwright with headless Chromium to check interaction
 
 ## Decision and scope
 
-Use the existing Playwright dependency and [UI evidence fixture](https://github.com/team-loco/loco/tree/main/.agents/skills/ui-evidence). It builds a git ref, starts its API and PostgreSQL, seeds test identities, and serves the production dashboard on free loopback ports. No Kubernetes cluster, shared development database, identity provider or personal browser session is required.
+Use the existing Playwright dependency and [UI evidence fixture](https://github.com/team-loco/loco/blob/main/tests/ui/evidence.py). It builds a git ref, starts its API and PostgreSQL, seeds test identities, and serves the production dashboard on free loopback ports. No Kubernetes cluster, shared development database, identity provider or personal browser session is required.
 
 [Meticulous records user interactions and network responses, selects sessions and replays them against base/head builds](https://app.meticulous.ai/docs/concepts/architecture-overview). That offers broad visual coverage, with a recorder, service integration, recording/data review and visual-diff triage to maintain. It replays recorded responses; backend authorization still needs separate tests. Playwright keeps fixtures and explicit assertions in this repository and already runs in Web CI. Its costs are test maintenance, isolated API/PG startup, browser installation and CI compute. The pilot adds no hosted testing subscription.
 
@@ -24,7 +24,7 @@ mise run test:ui deployment_history_ui
 
 `mise run test:ui` with no arguments runs every suite in `tests/ui/`: each `*_ui.py` file drives Chromium and each `*_api.py` file calls the API alone. A new suite is one new file there. `--shard i/N` runs every Nth suite starting at the ith. The task builds the API and production UI of the working tree once and starts one OpenBao; each suite then starts its own API and UI processes and disposable PostgreSQL container, seeds it, runs Chromium and removes its resources on success or failure. The UI reads its API address from `/runtime-config.js`, as it does behind the chart, so one build serves every suite. Running a suite file directly builds `HEAD` in its own worktree instead. Users and hashed session tokens are inserted only in that database because creating identities requires an external provider. Organizations, workspace membership, environments and resources use the API. Historical deployment and placement rows are inserted privately to represent 221 releases and three controller reports without running builds or clusters. Each environment uses separate fixture clusters.
 
-To inspect a failed fixture locally, run the driver with `--keep`; it prints its state path. Reuse that owned fixture with `--state PATH`. This runs against the production build recorded in the state, not newly edited source. Remove it afterward with `uv run --script .agents/skills/ui-evidence/scripts/evidence.py down --state PATH`. Do not reuse a person's development stack or publish its authentication state.
+To inspect a failed fixture locally, run the driver with `--keep`; it prints its state path. Reuse that owned fixture with `--state PATH`. This runs against the production build recorded in the state, not newly edited source. Remove it afterward with `uv run --script tests/ui/evidence.py down --state PATH`. Do not reuse a person's development stack or publish its authentication state.
 
 ## Deployment-history pilot
 

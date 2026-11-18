@@ -106,6 +106,10 @@ description = "Test the loco and locoadm CLIs"
 dir = "cmd"
 run = "go test -v -coverprofile=coverage.out ./..."
 
+[tasks."test:e2e-platform"]
+description = "Run the E2E platform helper tests"
+run = "go -C tests/e2e test ./platform"
+
 [tasks."test:shared"]
 description = "Test the shared packages and dev tools in the root module; test:ci tests tools/ci-changes"
 run = "go test -v -coverprofile=coverage.out $(go list ./... | grep -v /tools/ci-changes$)"

@@ -438,7 +438,6 @@ web:
     - "gen/go/loco/{deployment,resource,environment,workspace,org,user}/**"
     - "go.{mod,sum}"
     - "dev/compose.yaml"
-    - ".agents/skills/ui-evidence/**"
     - "gen/ts/**"
     - "package.json"
     - "bun.lock"

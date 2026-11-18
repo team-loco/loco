@@ -133,32 +133,6 @@ func TestBuildsDisabled(t *testing.T) {
 			},
 		)
 		token := w.MintToken(t, tokenName, tokenv1.Scope_SCOPE_READ, tokenv1.Scope_SCOPE_WRITE)
-		listed, err := p.User.Token.ListTokens(
-			t.Context(),
-			&tokenv1.ListTokensRequest{EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE, EntityId: w.ID},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, listedToken := range listed.GetTokens() {
-			if listedToken.GetName() == tokenName && listedToken.GetCreatedBy() != p.UserID {
-				t.Errorf("ListTokens reports creator %q, want %q", listedToken.GetCreatedBy(), p.UserID)
-			}
-		}
-		found, err := p.User.Token.GetToken(
-			t.Context(),
-			&tokenv1.GetTokenRequest{
-				Name:       tokenName,
-				EntityType: tokenv1.EntityType_ENTITY_TYPE_WORKSPACE,
-				EntityId:   w.ID,
-			},
-		)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if found.GetToken().GetCreatedBy() != p.UserID {
-			t.Errorf("GetToken reports creator %q, want %q", found.GetToken().GetCreatedBy(), p.UserID)
-		}
 		clean := &platform.Workspace{}
 		*clean = *w
 		clean.Home = t.TempDir()

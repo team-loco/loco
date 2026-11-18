@@ -26,7 +26,7 @@ jobs:
           lint-cache: true
 
       # Every affected module is linted and tested even after one fails. The E2E
-      # workflow runs the tests/e2e packages against their platforms.
+      # workflow runs the cluster-backed suites separately.
       - name: Lint and test each module the changes affect
         env:
           MODULES: ${{ inputs.modules }}
@@ -34,7 +34,7 @@ jobs:
           set -uo pipefail
           status=0
           for entry in api "cmd test:cli" ". test:shared" "controller test:controller" "agent test:agent" \
-            "builder test:builder" "k8sapi test:k8sapi" "observability-proxy test:counter-metrics" tests/e2e; do
+            "builder test:builder" "k8sapi test:k8sapi" "observability-proxy test:counter-metrics" "tests/e2e test:e2e-platform"; do
             read -r module task <<<"$entry"
             jq -e --arg module "$module" 'any(.[]; . == $module)' <<<"$MODULES" >/dev/null || continue
             echo "::group::Lint $module"
