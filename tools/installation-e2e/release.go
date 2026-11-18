@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -94,35 +93,6 @@ func (f *fixture) buildLocoadm(ctx context.Context, version string) error {
 		"go", "-C", "cmd", "build", "-ldflags", "-X main.version="+version,
 		"-o", filepath.Join(f.dir, "locoadm"), "./locoadm")
 	return err
-}
-
-func (f *fixture) downloadBaselineCLI(ctx context.Context, version string) error {
-	directory := filepath.Join(f.dir, "baseline-cli")
-	if err := os.MkdirAll(directory, 0700); err != nil {
-		return err
-	}
-	asset := "locoadm-" + strings.ReplaceAll(f.platform, "/", "-")
-	if _, err := command(ctx, f.root, nil, "gh", "release", "download", version,
-		"--repo", "team-loco/loco", "--pattern", asset, "--pattern", "checksums.txt",
-		"--dir", directory, "--clobber"); err != nil {
-		return err
-	}
-	binary, err := os.ReadFile(filepath.Join(directory, asset))
-	if err != nil {
-		return err
-	}
-	checksums, err := os.ReadFile(filepath.Join(directory, "checksums.txt"))
-	if err != nil {
-		return err
-	}
-	digest := fmt.Sprintf("%x", sha256.Sum256(binary))
-	for line := range strings.SplitSeq(string(checksums), "\n") {
-		if fields := strings.Fields(line); len(fields) == 2 && fields[1] == asset && fields[0] == digest {
-			//nolint:gosec // Only the owner can execute this checksum-verified fixture CLI.
-			return os.WriteFile(filepath.Join(f.dir, "locoadm-baseline"), binary, 0700)
-		}
-	}
-	return errors.New("published locoadm checksum does not match its release manifest")
 }
 
 func (f *fixture) buildOperator(ctx context.Context, version string) (string, error) {
