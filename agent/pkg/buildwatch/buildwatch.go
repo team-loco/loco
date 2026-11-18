@@ -110,6 +110,11 @@ func buildName(buildID string) string {
 	return namePrefix + buildID
 }
 
+// ownedBuild reports whether the agent created build; e2e tests create Builds under other names.
+func ownedBuild(build *locoControllerV1.Build) bool {
+	return build.Spec.BuildID != "" && build.Name == buildName(build.Spec.BuildID)
+}
+
 func (w *Watcher) create(ctx context.Context, start *agentv1.StartBuild) error {
 	buildID := start.GetBuildId()
 	if buildID == "" {
@@ -241,7 +246,7 @@ func (w *Watcher) inventory(ctx context.Context) ([]*agentv1.InventoryBuild, err
 	entries := make([]*agentv1.InventoryBuild, 0, len(builds))
 	for i := range builds {
 		build := &builds[i]
-		if build.Spec.BuildID == "" || build.Name != buildName(build.Spec.BuildID) {
+		if !ownedBuild(build) {
 			continue
 		}
 		phase := apiPhase(build.Status.Phase)
@@ -301,7 +306,7 @@ func truncate(message string) string {
 }
 
 func statusOf(build *locoControllerV1.Build) (*agentv1.BuildStatus, bool) {
-	if build.Spec.BuildID == "" || build.Name != buildName(build.Spec.BuildID) {
+	if !ownedBuild(build) {
 		return nil, false
 	}
 	phase := apiPhase(build.Status.Phase)
@@ -346,7 +351,7 @@ func (w *Watcher) collect(ctx context.Context) error {
 	var errs []error
 	for i := range builds {
 		build := &builds[i]
-		if build.Spec.BuildID == "" || build.Name != buildName(build.Spec.BuildID) {
+		if !ownedBuild(build) {
 			continue
 		}
 		if !build.Finished() || build.Status.FinishedAt == nil {

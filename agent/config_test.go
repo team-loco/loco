@@ -60,7 +60,6 @@ func lookup(env map[string]string) func(string) string {
 
 func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	env := agentEnv()
-	env[envControllerNamespace] = "loco-operator"
 	env[envKubeconfig] = "/tmp/kubeconfig"
 	env[envJoinToken] = "loco_j_join"
 	env[envCertificate] = "wildcard"
@@ -76,7 +75,6 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 		AssertionLifetime:        90 * time.Second,
 		AgentVersion:             testAgentVersion,
 		Namespace:                "loco-system",
-		ControllerNamespace:      "loco-operator",
 		ControllerDeployment:     "loco-controller",
 		BuildNamespace:           "loco-builds",
 		Role:                     clusterv1.ClusterRole_CLUSTER_ROLE_APPS,
@@ -103,16 +101,6 @@ func TestParseAgentConfigReadsTheEnvironment(t *testing.T) {
 	}
 	if !reflect.DeepEqual(*cfg, want) {
 		t.Errorf("config = %+v, want %+v", *cfg, want)
-	}
-}
-
-func TestParseAgentConfigDefaultsTheControllerNamespaceToItsOwn(t *testing.T) {
-	cfg, err := parseAgentConfig(lookup(agentEnv()), testAgentVersion)
-	if err != nil {
-		t.Fatalf("parseAgentConfig: %v", err)
-	}
-	if cfg.ControllerNamespace != cfg.Namespace {
-		t.Errorf("controller namespace = %q, want %q", cfg.ControllerNamespace, cfg.Namespace)
 	}
 }
 

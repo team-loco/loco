@@ -24,7 +24,6 @@ const (
 	envAssertionLifetime        = "LOCO_ASSERTION_LIFETIME"
 	envKubeconfig               = "KUBECONFIG"
 	envNamespace                = "LOCO_NAMESPACE"
-	envControllerNamespace      = "LOCO_CONTROLLER_NAMESPACE"
 	envControllerDeployment     = "LOCO_CONTROLLER_DEPLOYMENT"
 	envBuildNamespace           = "LOCO_BUILD_NAMESPACE"
 	envClusterRole              = "LOCO_CLUSTER_ROLE"
@@ -81,7 +80,6 @@ type Config struct {
 	AgentVersion             string
 	Kubeconfig               string
 	Namespace                string
-	ControllerNamespace      string
 	ControllerDeployment     string
 	BuildNamespace           string
 	Role                     clusterv1.ClusterRole
@@ -183,10 +181,6 @@ func parseAgentConfig(getenv func(string) string, agentVersion string) (*Config,
 		return nil, fmt.Errorf("%s %q %w", envClusterRole, rawRole, errInvalidRole)
 	}
 	cfg.Role = role
-	cfg.ControllerNamespace = getenv(envControllerNamespace)
-	if cfg.ControllerNamespace == "" {
-		cfg.ControllerNamespace = cfg.Namespace
-	}
 
 	durations := map[string]*time.Duration{
 		envInventoryInterval:       &cfg.InventoryInterval,

@@ -13,12 +13,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/team-loco/loco/agent/pkg/applier"
+	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -84,12 +84,9 @@ func TestStatusForwardsReadyReplicaChanges(t *testing.T) {
 }
 
 func TestInventorySkipsApplicationsWithoutPlacement(t *testing.T) {
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add scheme: %v", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add core scheme: %v", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		t.Fatal(err)
 	}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 		app("resource-a", "p1", "4"),
@@ -187,12 +184,9 @@ func (c *crashBeforeSecretWrite) funcs() interceptor.Funcs {
 
 func newCrashingCluster(t *testing.T) (*applier.Applier, *Watcher) {
 	t.Helper()
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add scheme: %v", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add core scheme: %v", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		t.Fatal(err)
 	}
 	crash := &crashBeforeSecretWrite{}
 	c := fake.NewClientBuilder().WithScheme(scheme).WithInterceptorFuncs(crash.funcs()).Build()
@@ -214,9 +208,9 @@ func singleEntry(t *testing.T, watcher *Watcher) *agentv1.InventoryEntry {
 
 func TestInventoryMarksAPlacementPendingUntilItsEnvSecretIsWritten(t *testing.T) {
 	ctx := context.Background()
-	kube, watcher := newCrashingCluster(t)
+	applied, watcher := newCrashingCluster(t)
 
-	err := kube.ApplyPlacement(ctx, envSecretPlacement(t, 1))
+	err := applied.ApplyPlacement(ctx, envSecretPlacement(t, 1))
 	if !errors.Is(err, errAgentCrashed) {
 		t.Fatalf("apply = %v, want the crash between the Application and the Secret write", err)
 	}
@@ -224,7 +218,7 @@ func TestInventoryMarksAPlacementPendingUntilItsEnvSecretIsWritten(t *testing.T)
 		t.Fatalf("entry = %v, want revision 1 with the env Secret pending", entry)
 	}
 
-	if applyErr := kube.ApplyPlacement(ctx, envSecretPlacement(t, 1)); applyErr != nil {
+	if applyErr := applied.ApplyPlacement(ctx, envSecretPlacement(t, 1)); applyErr != nil {
 		t.Fatalf("resent apply: %v", applyErr)
 	}
 	if entry := singleEntry(t, watcher); entry.GetRevision() != 1 || entry.GetEnvSecretPending() {
@@ -234,9 +228,9 @@ func TestInventoryMarksAPlacementPendingUntilItsEnvSecretIsWritten(t *testing.T)
 
 func TestAPendingPlacementAheadOfARestoredDatabaseConverges(t *testing.T) {
 	ctx := context.Background()
-	kube, watcher := newCrashingCluster(t)
+	applied, watcher := newCrashingCluster(t)
 
-	err := kube.ApplyPlacement(ctx, envSecretPlacement(t, 5))
+	err := applied.ApplyPlacement(ctx, envSecretPlacement(t, 5))
 	if !errors.Is(err, errAgentCrashed) {
 		t.Fatalf("apply = %v, want the crash between the Application and the Secret write", err)
 	}
@@ -245,13 +239,13 @@ func TestAPendingPlacementAheadOfARestoredDatabaseConverges(t *testing.T) {
 		t.Fatalf("entry = %v, want revision 5 with the env Secret pending, so the API can advance past it", entry)
 	}
 
-	restored := kube.ApplyPlacement(ctx, envSecretPlacement(t, 1))
+	restored := applied.ApplyPlacement(ctx, envSecretPlacement(t, 1))
 	if !errors.Is(restored, applier.ErrStaleRevision) {
 		t.Fatalf("apply at the restored revision = %v, want ErrStaleRevision", restored)
 	}
 
 	advanced := entry.GetRevision() + 1
-	if applyErr := kube.ApplyPlacement(ctx, envSecretPlacement(t, advanced)); applyErr != nil {
+	if applyErr := applied.ApplyPlacement(ctx, envSecretPlacement(t, advanced)); applyErr != nil {
 		t.Fatalf("apply past the cluster revision: %v", applyErr)
 	}
 	if entry = singleEntry(t, watcher); entry.GetRevision() != advanced || entry.GetEnvSecretPending() {
@@ -260,12 +254,9 @@ func TestAPendingPlacementAheadOfARestoredDatabaseConverges(t *testing.T) {
 }
 
 func TestInventoryMarksAPlacementPendingWhileItsEnvSecretHasAnotherRevision(t *testing.T) {
-	scheme := runtime.NewScheme()
-	if err := locoControllerV1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add scheme: %v", err)
-	}
-	if err := corev1.AddToScheme(scheme); err != nil {
-		t.Fatalf("add core scheme: %v", err)
+	scheme, err := kube.NewScheme()
+	if err != nil {
+		t.Fatal(err)
 	}
 	referencing := app("resource-a", testPlacementID, "3")
 	ref := &locoControllerV1.EnvSecretRef{Name: locoControllerV1.EnvSecretName(testPlacementID), Revision: 3}

@@ -16,7 +16,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 const (
@@ -157,10 +156,6 @@ func ensureTagFree(tag name.Tag, options []remote.Option) error {
 	return fmt.Errorf("check %s: %w", tag, err)
 }
 
-func isImage(mediaType types.MediaType) bool {
-	return mediaType == types.OCIManifestSchema1 || mediaType == types.DockerManifestSchema2
-}
-
 func (c *Client) PushLayout(dir, ref string, imageOnly bool) (v1.Hash, error) {
 	tag, err := name.NewTag(ref, c.nameOptions()...)
 	if err != nil {
@@ -181,7 +176,7 @@ func (c *Client) PushLayout(dir, ref string, imageOnly bool) (v1.Hash, error) {
 	if err := ensureTagFree(tag, options); err != nil {
 		return v1.Hash{}, err
 	}
-	if len(manifest.Manifests) == 1 && isImage(manifest.Manifests[0].MediaType) {
+	if len(manifest.Manifests) == 1 && manifest.Manifests[0].MediaType.IsImage() {
 		img, imgErr := index.Image(manifest.Manifests[0].Digest)
 		if imgErr != nil {
 			return v1.Hash{}, fmt.Errorf("read image from %s: %w", dir, imgErr)
