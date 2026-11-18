@@ -77,14 +77,15 @@ func (l *Lock) WithLock(ctx context.Context, fn func(context.Context) error) err
 		}
 	}()
 
-	if err := l.acquire(ctx, conn); err != nil {
+	leaseEnd, err := l.acquire(ctx, conn)
+	if err != nil {
 		return err
 	}
 	runCtx, cancel := context.WithCancelCause(ctx)
 	renewed := make(chan struct{})
 	go func() {
 		defer close(renewed)
-		l.renew(runCtx, conn, cancel)
+		l.renew(runCtx, conn, leaseEnd, cancel)
 	}()
 	result := fn(runCtx)
 	cancel(nil)
@@ -96,49 +97,49 @@ func (l *Lock) WithLock(ctx context.Context, fn func(context.Context) error) err
 	return result
 }
 
-func (l *Lock) acquire(ctx context.Context, conn driver.Conn) error {
+func (l *Lock) acquire(ctx context.Context, conn driver.Conn) (time.Time, error) {
 	slog.InfoContext(ctx, "acquiring migration lock", l.logAttrs()...)
 	ticker := time.NewTicker(l.cfg.RetryPeriod)
 	defer ticker.Stop()
 	for {
-		holder, err := l.tryAcquire(ctx, conn)
+		holder, leaseEnd, err := l.tryAcquire(ctx, conn)
 		switch {
 		case err != nil && clickhouseerr.CredentialsRejected(err):
-			return fmt.Errorf("acquire %s: %w", l.table, err)
+			return time.Time{}, fmt.Errorf("acquire %s: %w", l.table, err)
 		case err != nil:
 			slog.WarnContext(ctx, "migration lock attempt failed", append(l.logAttrs(), "error", err)...)
 		case holder == l.identity:
 			slog.InfoContext(ctx, "acquired migration lock", l.logAttrs()...)
-			return nil
+			return leaseEnd, nil
 		default:
 			slog.InfoContext(ctx, "waiting for migration lock", append(l.logAttrs(), "current_holder", holder)...)
 		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("%w: %s: %w", ErrNotAcquired, l.table, context.Cause(ctx))
+			return time.Time{}, fmt.Errorf("%w: %s: %w", ErrNotAcquired, l.table, context.Cause(ctx))
 		case <-ticker.C:
 		}
 	}
 }
 
-func (l *Lock) tryAcquire(ctx context.Context, conn driver.Conn) (string, error) {
+func (l *Lock) tryAcquire(ctx context.Context, conn driver.Conn) (string, time.Time, error) {
 	if err := l.createTable(ctx, conn); err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 	strictCtx := clickhouse.Context(ctx, strictMode)
 	insert := "INSERT INTO " + l.table + " SELECT ?, ?, now64(3) + toIntervalMillisecond(?)"
 	insertErr := conn.Exec(strictCtx, insert, lockKey, l.identity, l.cfg.TTL.Milliseconds())
 	if insertErr == nil {
-		return l.identity, nil
+		return l.holder(ctx, conn)
 	}
 	steal := "ALTER TABLE " + l.table +
 		" UPDATE holder = ?, expires_at = now64(3) + toIntervalMillisecond(?) WHERE key = ? AND expires_at < now64(3)"
 	stealErr := conn.Exec(strictCtx, steal, l.identity, l.cfg.TTL.Milliseconds(), lockKey)
-	holder, err := l.holder(ctx, conn)
+	holder, leaseEnd, err := l.holder(ctx, conn)
 	if err != nil {
-		return "", errors.Join(insertErr, stealErr, err)
+		return "", time.Time{}, errors.Join(insertErr, stealErr, err)
 	}
-	return holder, nil
+	return holder, leaseEnd, nil
 }
 
 func (l *Lock) createTable(ctx context.Context, conn driver.Conn) error {
@@ -154,29 +155,32 @@ func (l *Lock) createTable(ctx context.Context, conn driver.Conn) error {
 	return nil
 }
 
-func (l *Lock) holder(ctx context.Context, conn driver.Conn) (string, error) {
-	rows, err := conn.Query(ctx, "SELECT holder FROM "+l.table+" WHERE key = ?", lockKey)
+// holder returns the current holder and the local time by which its lease has ended on the server.
+func (l *Lock) holder(ctx context.Context, conn driver.Conn) (string, time.Time, error) {
+	sentAt := time.Now()
+	rows, err := conn.Query(ctx,
+		"SELECT holder, dateDiff('millisecond', now64(3), expires_at) FROM "+l.table+" WHERE key = ?", lockKey)
 	if err != nil {
-		return "", fmt.Errorf("read %s: %w", l.table, err)
+		return "", time.Time{}, fmt.Errorf("read %s: %w", l.table, err)
 	}
 	defer rows.Close()
 	var holder string
+	var remainingMs int64
 	if rows.Next() {
-		if err := rows.Scan(&holder); err != nil {
-			return "", fmt.Errorf("scan %s: %w", l.table, err)
+		if err := rows.Scan(&holder, &remainingMs); err != nil {
+			return "", time.Time{}, fmt.Errorf("scan %s: %w", l.table, err)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return "", fmt.Errorf("read %s: %w", l.table, err)
+		return "", time.Time{}, fmt.Errorf("read %s: %w", l.table, err)
 	}
-	return holder, nil
+	return holder, sentAt.Add(time.Duration(remainingMs) * time.Millisecond), nil
 }
 
-func (l *Lock) renew(ctx context.Context, conn driver.Conn, lose context.CancelCauseFunc) {
+func (l *Lock) renew(ctx context.Context, conn driver.Conn, leaseEnd time.Time, lose context.CancelCauseFunc) {
 	ticker := time.NewTicker(l.cfg.RetryPeriod)
 	defer ticker.Stop()
-	// The lease ends TTL after the last successful renewal was sent, and the holder stops then.
-	expiry := time.AfterFunc(l.cfg.TTL, func() {
+	expiry := time.AfterFunc(time.Until(leaseEnd), func() {
 		slog.WarnContext(ctx, "migration lock expired", l.logAttrs()...)
 		lose(ErrLockLost)
 	})
@@ -187,13 +191,12 @@ func (l *Lock) renew(ctx context.Context, conn driver.Conn, lose context.CancelC
 			return
 		case <-ticker.C:
 		}
-		attemptedAt := time.Now()
-		holder, err := l.extend(ctx, conn)
+		holder, leaseEnd, err := l.extend(ctx, conn)
 		switch {
 		case ctx.Err() != nil:
 			return
 		case err == nil && holder == l.identity:
-			expiry.Reset(l.cfg.TTL - time.Since(attemptedAt))
+			expiry.Reset(time.Until(leaseEnd))
 		case err == nil:
 			slog.WarnContext(ctx, "migration lock taken over", append(l.logAttrs(), "current_holder", holder)...)
 			lose(ErrLockLost)
@@ -204,12 +207,12 @@ func (l *Lock) renew(ctx context.Context, conn driver.Conn, lose context.CancelC
 	}
 }
 
-func (l *Lock) extend(ctx context.Context, conn driver.Conn) (string, error) {
+func (l *Lock) extend(ctx context.Context, conn driver.Conn) (string, time.Time, error) {
 	strictCtx := clickhouse.Context(ctx, strictMode)
 	update := "ALTER TABLE " + l.table +
 		" UPDATE expires_at = now64(3) + toIntervalMillisecond(?) WHERE key = ? AND holder = ?"
 	if err := conn.Exec(strictCtx, update, l.cfg.TTL.Milliseconds(), lockKey, l.identity); err != nil {
-		return "", fmt.Errorf("renew %s: %w", l.table, err)
+		return "", time.Time{}, fmt.Errorf("renew %s: %w", l.table, err)
 	}
 	return l.holder(ctx, conn)
 }
