@@ -49,7 +49,7 @@ export function levelStyle(level: Level): LevelStyle {
 			return {
 				badge: "bg-transparent text-fg3",
 				body: "text-fg3",
-				dot: "bg-fg4",
+				dot: "bg-lv-debug",
 				text: "text-fg3",
 			};
 	}

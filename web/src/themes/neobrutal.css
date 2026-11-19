@@ -31,7 +31,6 @@
 	--nb-grid: #80808080;
 	--lv-info: #88aaee;
 	--lv-warn: #ffc800;
-	--lv-debug: #c3cbdb;
 	--list-zebra: #fff8fa;
 	--chart-error: #ff4d50;
 	--nb-hover: rgba(0, 0, 0, 0.05);
@@ -95,7 +94,6 @@
 	--series-2: #2fd39f;
 	--series-3: #ff9f43;
 	--lv-warn: #ffd23f;
-	--lv-debug: #555a6c;
 	--list-zebra: #2c2f3e;
 }
 

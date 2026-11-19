@@ -12,7 +12,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<typeof Bre
 
 function BreadcrumbSeparator({ className, children, ...props }: React.ComponentProps<typeof BreadcrumbSeparatorBase>) {
 	return (
-		<BreadcrumbSeparatorBase className={cn("text-fg4", className)} {...props}>
+		<BreadcrumbSeparatorBase className={cn("text-fg3", className)} {...props}>
 			{children ?? "›"}
 		</BreadcrumbSeparatorBase>
 	);
