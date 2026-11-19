@@ -145,8 +145,7 @@ func (p *Platform) LogWorkspaceRuntime(tb testing.TB, namespace string) {
 		{"-n", namespace, get, "secret", "loco-registry-pull",
 			"-o=custom-columns=NAME:.metadata.name,UID:.metadata.uid,CREATED:.metadata.creationTimestamp," +
 				"DELETING:.metadata.deletionTimestamp,TYPE:.type,RESOURCEVERSION:.metadata.resourceVersion"},
-		{get, "nodes", "-o=custom-columns=NAME:.metadata.name,TAINTS:.spec.taints[*].key," +
-			"CONDITIONS:.status.conditions[?(@.status==\"True\")].type"},
+		{"describe", "nodes"},
 	} {
 		out, err := p.Kubectl(ctx, args...)
 		tb.Logf("kubectl %s:\n%s%v", strings.Join(args, " "), out, err)

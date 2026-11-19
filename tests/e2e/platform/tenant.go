@@ -99,8 +99,21 @@ func (p *Platform) newWorkspace(t *testing.T, orgID, orgName, name string) *Work
 		if t.Failed() {
 			w.logRuntime(t)
 		}
+		w.delete(t)
 	})
 	return w
+}
+
+// delete removes the workspace and its apps.
+func (w *Workspace) delete(tb testing.TB) {
+	tb.Helper()
+	_, err := w.p.User.Workspace.DeleteWorkspace(
+		context.WithoutCancel(tb.Context()),
+		&workspacev1.DeleteWorkspaceRequest{WorkspaceId: w.ID, ConfirmDeleteApps: true},
+	)
+	if err != nil && !IsNotFound(err) {
+		tb.Errorf("delete workspace %s: %v", w.Name, err)
+	}
 }
 
 // logRuntime logs the workspace's workloads and the rollout status of its Applications, for a
