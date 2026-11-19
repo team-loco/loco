@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { columnLabel, columnValue, columnWidth, PICKABLE_COLUMNS, type ColumnKey, type ColumnWidths } from "./columns";
 import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
+import { LogRowMenu } from "./LogRowMenu";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
 const TIME_WIDTH = 128;
@@ -128,29 +129,33 @@ export function LogTable({
 					const style = levelStyle(l.level);
 					const fresh = highlightAfter !== null && l.ts > highlightAfter;
 					return (
-						<button
-							key={l.key}
-							type="button"
-							aria-pressed={open}
-							onClick={() => {
-								onSelect(l.key);
-							}}
-							className={cn(listRowClass(i, open), !open && fresh && "bg-ok-bg")}
-							style={{ gridTemplateColumns: grid }}
-						>
-							<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
-								{dated ? fmtTs(l.ts, true, timePref) : formatClock(l.ts, true, timePref)}
-							</span>
-							{columns.map((c) => (
-								<span key={c} className="min-w-0 truncate px-3">
-									<Cell row={l} column={c} />
+						<div key={l.key} className="group/row relative">
+							<button
+								type="button"
+								aria-pressed={open}
+								onClick={() => {
+									onSelect(l.key);
+								}}
+								className={cn(listRowClass(i, open), !open && fresh && "bg-ok-bg")}
+								style={{ gridTemplateColumns: grid }}
+							>
+								<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
+									{dated ? fmtTs(l.ts, true, timePref) : formatClock(l.ts, true, timePref)}
 								</span>
-							))}
-							<span className={cn("min-w-0 truncate px-3 font-mono", style.body)}>
-								{l.json !== null ? jsonPreview(l.json, words) : bodyParts(l.message, words)}
-							</span>
-							<span />
-						</button>
+								{columns.map((c) => (
+									<span key={c} className="min-w-0 truncate px-3">
+										<Cell row={l} column={c} />
+									</span>
+								))}
+								<span className={cn("min-w-0 truncate px-3 font-mono", style.body)}>
+									{l.json !== null ? jsonPreview(l.json, words) : bodyParts(l.message, words)}
+								</span>
+								<span />
+							</button>
+							<div className="absolute inset-y-0 right-0 flex w-9 items-center justify-center">
+								<LogRowMenu row={l} />
+							</div>
+						</div>
 					);
 				})}
 			</div>
