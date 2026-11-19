@@ -60,6 +60,21 @@ func TestParsePortableOpenTelemetrySampling(t *testing.T) {
 	assert.Equal(t, "0.1", file.Services["api"].Env["OTEL_TRACES_SAMPLER_ARG"])
 }
 
+func TestParseKeepsAnEmptyEnvValue(t *testing.T) {
+	input := strings.Replace(minimalFile, "    image:", `    env:
+      FEATURE_FLAGS: ""
+    environments:
+      prod:
+        env:
+          OVERRIDE_FLAG: ""
+    image:`, 1)
+	file, err := Parse([]byte(input))
+	require.NoError(t, err)
+	resolved, err := Resolve(file, "prod")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"FEATURE_FLAGS": "", "OVERRIDE_FLAG": ""}, resolved["api"].Env)
+}
+
 func TestParseTDDExample(t *testing.T) {
 	file, err := Parse([]byte(tddExample))
 	require.NoError(t, err)
