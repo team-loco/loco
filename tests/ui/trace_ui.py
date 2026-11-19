@@ -1061,8 +1061,8 @@ with session(out) as browser:
         "button", name=re.compile("^Open trace ")
     )
     expect(rows).to_have_count(7)
-    expect(rows.last).to_contain_text(re.compile(r"^\d+/\d+ \d\d:\d\d"))
-    expect(rows.first).not_to_contain_text(re.compile(r"^\d+/\d+ "))
+    expect(rows.last).to_contain_text(re.compile(r"^[A-Z][a-z]{2} \d+, \d\d:\d\d"))
+    expect(rows.first).not_to_contain_text(re.compile(r"^[A-Z][a-z]{2} \d+, "))
     for index in range(7):
         expect(rows.nth(index)).to_contain_text(re.compile(r"(OK|Error)\d"))
     names = rows.evaluate_all(
