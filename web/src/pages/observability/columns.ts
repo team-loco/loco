@@ -39,7 +39,7 @@ const REQUEST_ATTRIBUTES: Record<string, string[]> = {
 };
 
 const WIDTHS: Record<string, number> = {
-	level: 76,
+	level: 88,
 	resource: 140,
 	replica: 110,
 	region: 112,
@@ -49,7 +49,7 @@ const WIDTHS: Record<string, number> = {
 	status: 84,
 	duration: 108,
 };
-const ATTRIBUTE_WIDTH = 150;
+const ATTRIBUTE_WIDTH = 190;
 export const MIN_COLUMN_WIDTH = 56;
 const MAX_COLUMN_WIDTH = 640;
 const TRACE_PREFIX = 12;
