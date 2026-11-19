@@ -477,15 +477,8 @@ func dbScopeToProto(s genDb.Scope) tokenv1.Scope {
 	}
 }
 
-// recordTokenEvent skips personal tokens: they belong to no organization, so no audit log shows them.
+// recordTokenEvent records a token lifecycle event; user-owned tokens record none.
 func recordTokenEvent(ctx context.Context, q genDb.Querier, eventType string, target genDb.Entity, name string) error {
-	if target.Type == genDb.EntityTypeUser {
-		return nil
-	}
-	return events.Record(ctx, q, tokenEvent(eventType, target, name))
-}
-
-func tokenEvent(eventType string, target genDb.Entity, name string) events.Event {
 	ev := events.Event{
 		Type:        eventType,
 		SubjectType: events.SubjectToken,
@@ -502,7 +495,9 @@ func tokenEvent(eventType string, target genDb.Entity, name string) events.Event
 		ev.WorkspaceID = new(target.ID)
 	case genDb.EntityTypeResource:
 		ev.ResourceID = new(target.ID)
-	case genDb.EntityTypeUser, genDb.EntityTypeSystem:
+	case genDb.EntityTypeUser:
+		return nil
+	case genDb.EntityTypeSystem:
 	}
-	return ev
+	return events.Record(ctx, q, ev)
 }
