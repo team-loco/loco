@@ -304,9 +304,6 @@ const RECENT_KEY_PREFIX = "loco:recent-queries:v1";
 const RECENT_VIEWS = new Set<ObservabilityView>(["logs", "metrics", "traces"]);
 const RECENT_KEEP = 8;
 const RECENT_SHOWN = 5;
-const MINUTE_MS = 60_000;
-const HOUR_MINUTES = 60;
-const DAY_MINUTES = 1440;
 
 export interface RecentQuery {
 	q: string;
@@ -349,12 +346,4 @@ export function addRecent(list: RecentQuery[], q: string, ts: number): RecentQue
 
 export function shownRecent(list: RecentQuery[], current: string, pinned: string[]): RecentQuery[] {
 	return list.filter((r) => r.q !== current && !pinned.includes(r.q)).slice(0, RECENT_SHOWN);
-}
-
-export function agoShort(ms: number, nowMs: number): string {
-	const mins = Math.round((nowMs - ms) / MINUTE_MS);
-	if (mins < 1) return "now";
-	if (mins < HOUR_MINUTES) return `${mins.toString()}m`;
-	if (mins < DAY_MINUTES) return `${Math.round(mins / HOUR_MINUTES).toString()}h`;
-	return `${Math.round(mins / DAY_MINUTES).toString()}d`;
 }

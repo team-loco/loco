@@ -111,16 +111,41 @@ export interface ServiceShare {
 	share: number;
 }
 
-export function serviceShares(trace: TraceSummary, times = spanSelfTimes(trace)): ServiceShare[] {
-	const totals = new Map<string, bigint>();
-	for (const span of trace.spans) {
-		const key = traceResourceKey(span);
-		const time = times.get(span.spanId);
-		if (time === undefined) throw new Error("Missing span self time");
-		totals.set(key, (totals.get(key) ?? 0n) + time);
+/** Splits the trace duration among resources: each instant belongs to the latest-started span running then. */
+export function serviceShares(trace: TraceSummary): ServiceShare[] {
+	const byStart = trace.spans.toSorted((a, b) =>
+		spanStart(a) < spanStart(b) ? -1 : spanStart(a) > spanStart(b) ? 1 : 0,
+	);
+	const totals = new Map<string, bigint>(trace.spans.map((span) => [traceResourceKey(span), 0n]));
+	let active: { key: string; start: bigint; end: bigint }[] = [];
+	let at = trace.start;
+	let next = 0;
+	const credit = (until: bigint) => {
+		const owner = active.reduce<(typeof active)[number] | undefined>(
+			(best, span) => (best === undefined || span.start >= best.start ? span : best),
+			undefined,
+		);
+		if (owner !== undefined && until > at) totals.set(owner.key, (totals.get(owner.key) ?? 0n) + (until - at));
+		at = until;
+	};
+	while (next < byStart.length || active.length > 0) {
+		const upcoming = byStart[next];
+		const nextStart = upcoming === undefined ? undefined : spanStart(upcoming);
+		const nextEnd = active.reduce<bigint | undefined>(
+			(min, span) => (min === undefined || span.end < min ? span.end : min),
+			undefined,
+		);
+		if (nextStart !== undefined && (nextEnd === undefined || nextStart <= nextEnd)) {
+			credit(nextStart);
+			for (let span = byStart[next]; span !== undefined && spanStart(span) === nextStart; span = byStart[++next]) {
+				active.push({ key: traceResourceKey(span), start: nextStart, end: nextStart + span.durationNanos });
+			}
+		} else if (nextEnd !== undefined) {
+			credit(nextEnd);
+			active = active.filter((span) => span.end > nextEnd);
+		}
 	}
-	const sum = [...totals.values()].reduce((a, b) => a + b, 0n);
-	return [...totals].map(([key, nanos]) => ({ key, nanos, share: fraction(nanos, sum) }));
+	return [...totals].map(([key, nanos]) => ({ key, nanos, share: fraction(nanos, trace.duration) }));
 }
 
 export function failingSpan(trace: TraceSummary, selected: TraceSpan): TraceSpan | undefined {

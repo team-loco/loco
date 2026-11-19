@@ -13,10 +13,10 @@ const span = (id: string, parent = "", nanos = 0) =>
 	});
 
 describe("trace timing and hierarchy", () => {
-	test("labels durations like 621ms, 5.01s and 8.1ms", () => {
-		expect(durationLabel(0n)).toBe("0");
+	test("labels durations like 621ms, 5.0s and 8.1ms", () => {
+		expect(durationLabel(0n)).toBe("0ms");
 		expect(durationLabel(621_400_000n)).toBe("621ms");
-		expect(durationLabel(5_012_000_000n)).toBe("5.01s");
+		expect(durationLabel(5_012_000_000n)).toBe("5.0s");
 		expect(durationLabel(8_140_000n)).toBe("8.1ms");
 		expect(durationLabel(450_000n)).toBe("450µs");
 	});

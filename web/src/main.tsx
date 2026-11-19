@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { logCaughtError } from "@/lib/not-found";
+import { showFullTextOnTruncation } from "@/lib/truncation-title";
 import { addThemeFonts } from "@/lib/theme-stylesheet";
 import { watchForUpdates } from "@/lib/update-check";
 import App from "./App.tsx";
@@ -12,4 +13,5 @@ if (rootElement) {
 	}).render(<App />);
 }
 addThemeFonts();
+showFullTextOnTruncation();
 watchForUpdates();

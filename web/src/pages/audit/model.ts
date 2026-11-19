@@ -109,7 +109,7 @@ export function auditRow(
 		ms: tsMs(event.createdAt),
 		actor: auditActor(event, names),
 		actorKind: ACTOR_KINDS[event.actorType] ?? event.actorType,
-		label: auditLabel(event.type),
+		label: auditLabel(event.type, event.data),
 		detail: auditDetail(event, users) ?? "",
 		where: resource === "" ? workspace : `${workspace} / ${resource}`,
 		resource,

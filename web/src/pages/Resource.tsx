@@ -2,9 +2,9 @@ import { formatShortId } from "@/lib/utils";
 import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -139,6 +139,18 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const deploy = useMutation(createDeployment);
 	const del = useMutation(deleteResource);
 	const restart = useMutation(restartResource);
+
+	const [search] = useSearchParams();
+	const rawTab = search.get("tab");
+	const rawRange = search.get("range");
+	const badTab = rawTab !== null && !(VIEWS as readonly string[]).includes(rawTab);
+	const badRange = rawRange !== null && !(METRIC_RANGES as readonly string[]).includes(rawRange);
+	useEffect(() => {
+		if (badTab || badRange)
+			void setParams({ ...(badTab && { tab: "overview" }), ...(badRange && { range: "1h" }) } as const, {
+				history: "replace",
+			});
+	}, [badTab, badRange, setParams]);
 
 	const setView = (next: View) => {
 		void setParams({ tab: next }, { history: "push" });

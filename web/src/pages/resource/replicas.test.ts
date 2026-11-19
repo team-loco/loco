@@ -58,7 +58,7 @@ describe("replicaLine", () => {
 
 	test("marks the count as the last report when no region reports", () => {
 		const env = environment(region("us-east-1", ResourceStatus.UNKNOWN, 2, 2, 5));
-		expect(replicaLine(env, NOW_MS)).toBe("2 of 2 ready at last report, 5 min ago");
+		expect(replicaLine(env, NOW_MS)).toBe("2 of 2 ready at last report, 5m ago");
 	});
 
 	test("uses the oldest report across silent regions", () => {
@@ -66,7 +66,7 @@ describe("replicaLine", () => {
 			region("us-east-1", ResourceStatus.UNKNOWN, 2, 2, 5),
 			region("eu-west-1", ResourceStatus.UNKNOWN, 1, 1, 180),
 		);
-		expect(replicaLine(env, NOW_MS)).toBe("3 of 3 ready at last report, 3 hours ago · 2 regions");
+		expect(replicaLine(env, NOW_MS)).toBe("3 of 3 ready at last report, 3h ago · 2 regions");
 	});
 
 	test("does not claim a count that was never reported", () => {
@@ -79,7 +79,7 @@ describe("replicaLine", () => {
 			region("us-east-1", ResourceStatus.HEALTHY, 2, 2, 1),
 			region("eu-west-1", ResourceStatus.UNKNOWN, 1, 1, 12),
 		);
-		expect(replicaLine(env, NOW_MS)).toBe("3 of 3 ready · 2 regions · eu-west-1 last reported 12 min ago");
+		expect(replicaLine(env, NOW_MS)).toBe("3 of 3 ready · 2 regions · eu-west-1 last reported 12m ago");
 	});
 
 	test("names a silent region that never reported", () => {
