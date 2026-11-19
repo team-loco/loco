@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/environment/v1/environment.proto.
  */
 export const file_loco_environment_v1_environment: GenFile = /*@__PURE__*/
-  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIvkBCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYnkYBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIcmV2aXNpb24YCSABKANCDgoMX2Rlc2NyaXB0aW9uSgQIBRAGUgR0eXBlIpEBChhDcmVhdGVFbnZpcm9ubWVudFJlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABARIVCgRuYW1lGAIgASgJQge6SARyAhg/EiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgAiAEBQg4KDF9kZXNjcmlwdGlvbkoECAQQBVIEdHlwZSIzChlDcmVhdGVFbnZpcm9ubWVudFJlc3BvbnNlEhYKDmVudmlyb25tZW50X2lkGAEgASgJIjkKFUdldEVudmlyb25tZW50UmVxdWVzdBIgCg5lbnZpcm9ubWVudF9pZBgBIAEoCUIIukgFcgOwAQEiTwoWR2V0RW52aXJvbm1lbnRSZXNwb25zZRI1CgtlbnZpcm9ubWVudBgBIAEoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQiOQoXTGlzdEVudmlyb25tZW50c1JlcXVlc3QSHgoMd29ya3NwYWNlX2lkGAEgASgJQgi6SAVyA7ABASJSChhMaXN0RW52aXJvbm1lbnRzUmVzcG9uc2USNgoMZW52aXJvbm1lbnRzGAEgAygLMiAubG9jby5lbnZpcm9ubWVudC52MS5FbnZpcm9ubWVudCKjAQoYVXBkYXRlRW52aXJvbm1lbnRSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAEgASgJQgi6SAVyA7ABARIcCgRuYW1lGAIgASgJQgm6SAZyBBABGD9IAIgBARIiCgtkZXNjcmlwdGlvbhgDIAEoCUIIukgFcgMYgAJIAYgBAUIHCgVfbmFtZUIOCgxfZGVzY3JpcHRpb25KBAgEEAVSBHR5cGUiMwoZVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSI8ChhEZWxldGVFbnZpcm9ubWVudFJlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBIhsKGURlbGV0ZUVudmlyb25tZW50UmVzcG9uc2UyzAQKEkVudmlyb25tZW50U2VydmljZRJyChFDcmVhdGVFbnZpcm9ubWVudBItLmxvY28uZW52aXJvbm1lbnQudjEuQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0Gi4ubG9jby5lbnZpcm9ubWVudC52MS5DcmVhdGVFbnZpcm9ubWVudFJlc3BvbnNlEmkKDkdldEVudmlyb25tZW50EioubG9jby5lbnZpcm9ubWVudC52MS5HZXRFbnZpcm9ubWVudFJlcXVlc3QaKy5sb2NvLmVudmlyb25tZW50LnYxLkdldEVudmlyb25tZW50UmVzcG9uc2USbwoQTGlzdEVudmlyb25tZW50cxIsLmxvY28uZW52aXJvbm1lbnQudjEuTGlzdEVudmlyb25tZW50c1JlcXVlc3QaLS5sb2NvLmVudmlyb25tZW50LnYxLkxpc3RFbnZpcm9ubWVudHNSZXNwb25zZRJyChFVcGRhdGVFbnZpcm9ubWVudBItLmxvY28uZW52aXJvbm1lbnQudjEuVXBkYXRlRW52aXJvbm1lbnRSZXF1ZXN0Gi4ubG9jby5lbnZpcm9ubWVudC52MS5VcGRhdGVFbnZpcm9ubWVudFJlc3BvbnNlEnIKEURlbGV0ZUVudmlyb25tZW50Ei0ubG9jby5lbnZpcm9ubWVudC52MS5EZWxldGVFbnZpcm9ubWVudFJlcXVlc3QaLi5sb2NvLmVudmlyb25tZW50LnYxLkRlbGV0ZUVudmlyb25tZW50UmVzcG9uc2VCRFpCZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9lbnZpcm9ubWVudC92MTtlbnZpcm9ubWVudHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiVsb2NvL2Vudmlyb25tZW50L3YxL2Vudmlyb25tZW50LnByb3RvEhNsb2NvLmVudmlyb25tZW50LnYxIo8CCgtFbnZpcm9ubWVudBIKCgJpZBgBIAEoCRIUCgx3b3Jrc3BhY2VfaWQYAiABKAkSDAoEbmFtZRgDIAEoCRIYCgtkZXNjcmlwdGlvbhgEIAEoCUgAiAEBEhIKCmNyZWF0ZWRfYnkYBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIcmV2aXNpb24YCSABKAMSFAoMZGlzcGxheV9uYW1lGAogASgJQg4KDF9kZXNjcmlwdGlvbkoECAUQBlIEdHlwZSKRAQoYQ3JlYXRlRW52aXJvbm1lbnRSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESFQoEbmFtZRgCIAEoCUIHukgEcgIYPxIiCgtkZXNjcmlwdGlvbhgDIAEoCUIIukgFcgMYgAJIAIgBAUIOCgxfZGVzY3JpcHRpb25KBAgEEAVSBHR5cGUiMwoZQ3JlYXRlRW52aXJvbm1lbnRSZXNwb25zZRIWCg5lbnZpcm9ubWVudF9pZBgBIAEoCSI5ChVHZXRFbnZpcm9ubWVudFJlcXVlc3QSIAoOZW52aXJvbm1lbnRfaWQYASABKAlCCLpIBXIDsAEBIk8KFkdldEVudmlyb25tZW50UmVzcG9uc2USNQoLZW52aXJvbm1lbnQYASABKAsyIC5sb2NvLmVudmlyb25tZW50LnYxLkVudmlyb25tZW50IjkKF0xpc3RFbnZpcm9ubWVudHNSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQEiUgoYTGlzdEVudmlyb25tZW50c1Jlc3BvbnNlEjYKDGVudmlyb25tZW50cxgBIAMoCzIgLmxvY28uZW52aXJvbm1lbnQudjEuRW52aXJvbm1lbnQimAIKGFVwZGF0ZUVudmlyb25tZW50UmVxdWVzdBIgCg5lbnZpcm9ubWVudF9pZBgBIAEoCUIIukgFcgOwAQESiAEKDGRpc3BsYXlfbmFtZRgCIAEoCUJtukhqugFjChhlbnZpcm9ubWVudC5kaXNwbGF5X25hbWUSMmRpc3BsYXkgbmFtZSBuZWVkcyBhIGNoYXJhY3RlciB0aGF0IGlzIG5vdCBhIHNwYWNlGhN0aGlzLm1hdGNoZXMoJ1xcUycpcgIYP0gAiAEBEiIKC2Rlc2NyaXB0aW9uGAMgASgJQgi6SAVyAxiAAkgBiAEBQg8KDV9kaXNwbGF5X25hbWVCDgoMX2Rlc2NyaXB0aW9uSgQIBBAFUgR0eXBlIjMKGVVwZGF0ZUVudmlyb25tZW50UmVzcG9uc2USFgoOZW52aXJvbm1lbnRfaWQYASABKAkiPAoYRGVsZXRlRW52aXJvbm1lbnRSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAEgASgJQgi6SAVyA7ABASIbChlEZWxldGVFbnZpcm9ubWVudFJlc3BvbnNlMswEChJFbnZpcm9ubWVudFNlcnZpY2UScgoRQ3JlYXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLkNyZWF0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuQ3JlYXRlRW52aXJvbm1lbnRSZXNwb25zZRJpCg5HZXRFbnZpcm9ubWVudBIqLmxvY28uZW52aXJvbm1lbnQudjEuR2V0RW52aXJvbm1lbnRSZXF1ZXN0GisubG9jby5lbnZpcm9ubWVudC52MS5HZXRFbnZpcm9ubWVudFJlc3BvbnNlEm8KEExpc3RFbnZpcm9ubWVudHMSLC5sb2NvLmVudmlyb25tZW50LnYxLkxpc3RFbnZpcm9ubWVudHNSZXF1ZXN0Gi0ubG9jby5lbnZpcm9ubWVudC52MS5MaXN0RW52aXJvbm1lbnRzUmVzcG9uc2UScgoRVXBkYXRlRW52aXJvbm1lbnQSLS5sb2NvLmVudmlyb25tZW50LnYxLlVwZGF0ZUVudmlyb25tZW50UmVxdWVzdBouLmxvY28uZW52aXJvbm1lbnQudjEuVXBkYXRlRW52aXJvbm1lbnRSZXNwb25zZRJyChFEZWxldGVFbnZpcm9ubWVudBItLmxvY28uZW52aXJvbm1lbnQudjEuRGVsZXRlRW52aXJvbm1lbnRSZXF1ZXN0Gi4ubG9jby5lbnZpcm9ubWVudC52MS5EZWxldGVFbnZpcm9ubWVudFJlc3BvbnNlQkRaQmdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vZW52aXJvbm1lbnQvdjE7ZW52aXJvbm1lbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * Environment represents an isolation boundary within a workspace.
@@ -32,6 +32,8 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
   workspaceId: string;
 
   /**
+   * name is the environment's slug: a DNS label, unique in its workspace, that never changes.
+   *
    * @generated from field: string name = 3;
    */
   name: string;
@@ -60,6 +62,13 @@ export type Environment = Message<"loco.environment.v1.Environment"> & {
    * @generated from field: int64 revision = 9;
    */
   revision: bigint;
+
+  /**
+   * display_name is the label the dashboard shows. It starts as name; name never changes.
+   *
+   * @generated from field: string display_name = 10;
+   */
+  displayName: string;
 };
 
 /**
@@ -79,6 +88,8 @@ export type EnvironmentJson = {
   workspaceId?: string;
 
   /**
+   * name is the environment's slug: a DNS label, unique in its workspace, that never changes.
+   *
    * @generated from field: string name = 3;
    */
   name?: string;
@@ -107,6 +118,13 @@ export type EnvironmentJson = {
    * @generated from field: int64 revision = 9;
    */
   revision?: string;
+
+  /**
+   * display_name is the label the dashboard shows. It starts as name; name never changes.
+   *
+   * @generated from field: string display_name = 10;
+   */
+  displayName?: string;
 };
 
 /**
@@ -128,6 +146,8 @@ export type CreateEnvironmentRequest = Message<"loco.environment.v1.CreateEnviro
   workspaceId: string;
 
   /**
+   * A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+   *
    * @generated from field: string name = 2;
    */
   name: string;
@@ -150,6 +170,8 @@ export type CreateEnvironmentRequestJson = {
   workspaceId?: string;
 
   /**
+   * A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+   *
    * @generated from field: string name = 2;
    */
   name?: string;
@@ -334,9 +356,9 @@ export type UpdateEnvironmentRequest = Message<"loco.environment.v1.UpdateEnviro
   environmentId: string;
 
   /**
-   * @generated from field: optional string name = 2;
+   * @generated from field: optional string display_name = 2;
    */
-  name?: string | undefined;
+  displayName?: string | undefined;
 
   /**
    * @generated from field: optional string description = 3;
@@ -356,9 +378,9 @@ export type UpdateEnvironmentRequestJson = {
   environmentId?: string;
 
   /**
-   * @generated from field: optional string name = 2;
+   * @generated from field: optional string display_name = 2;
    */
-  name?: string;
+  displayName?: string;
 
   /**
    * @generated from field: optional string description = 3;
@@ -487,7 +509,7 @@ export const EnvironmentService: GenService<{
   /**
    * ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
    * but has a grant on one of its resources gets each environment with only id, workspace_id,
-   * name.
+   * name and display_name.
    *
    * @generated from rpc loco.environment.v1.EnvironmentService.ListEnvironments
    */

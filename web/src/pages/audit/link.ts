@@ -73,10 +73,10 @@ export function auditFilterViolations(error: unknown) {
 
 export const AUDIT_FILTER_FIXES = new Map<
 	string,
-	{ label: string; params: Partial<Record<"range" | "size" | "before" | "ws" | "res" | "env", null>> }
+	{ label: string; params: Partial<Record<"range" | "from" | "to" | "size" | "before" | "ws" | "res" | "env", null>> }
 >([
-	["start_time", { label: "Reset time range", params: { range: null } }],
-	["end_time", { label: "Reset time range", params: { range: null } }],
+	["start_time", { label: "Reset time range", params: { range: null, from: null, to: null } }],
+	["end_time", { label: "Reset time range", params: { range: null, from: null, to: null } }],
 	["page_size", { label: "Reset rows per page", params: { size: null } }],
 	["before_seq", { label: "Show newest events", params: { before: null } }],
 	["workspace_id", { label: "Clear workspace filter", params: { ws: null, res: null, env: null } }],

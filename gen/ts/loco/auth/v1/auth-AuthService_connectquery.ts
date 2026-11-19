@@ -20,6 +20,13 @@ export const exchangeCLICode = AuthService.method.exchangeCLICode;
 export const startDeviceLogin = AuthService.method.startDeviceLogin;
 
 /**
+ * GetDeviceLogin describes the device that started a login, for the person approving its code.
+ *
+ * @generated from rpc loco.auth.v1.AuthService.GetDeviceLogin
+ */
+export const getDeviceLogin = AuthService.method.getDeviceLogin;
+
+/**
  * @generated from rpc loco.auth.v1.AuthService.ApproveDeviceLogin
  */
 export const approveDeviceLogin = AuthService.method.approveDeviceLogin;

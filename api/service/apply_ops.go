@@ -21,7 +21,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -201,7 +200,7 @@ func (a *applier) removeFromEnvironment(ctx context.Context, qtx *genDb.Queries,
 			ResourceID:    new(res.ID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(domain.ID),
-			Data:          map[string]any{events.FieldDomain: domain.Domain},
+			Data:          domainEventData(domain.Domain, domain.DomainSource, domain.IsPrimary, nil),
 		}); err != nil {
 			return err
 		}
@@ -214,6 +213,7 @@ func (a *applier) createDomain(
 	qtx *genDb.Queries,
 	resourceID uuid.UUID,
 	domain string,
+	becomesPrimary bool,
 ) (uuid.UUID, error) {
 	platformDomain, label, err := platformdomain.Match(domain, a.platformDomains)
 	if err != nil {
@@ -241,7 +241,8 @@ func (a *applier) createDomain(
 		ResourceID:    new(resourceID),
 		SubjectType:   events.SubjectDomain,
 		SubjectID:     new(domainID),
-		Data:          map[string]any{events.FieldDomain: domain, events.FieldResourceID: resourceID.String()},
+		Data: domainEventData(domain, genDb.DomainSourcePlatformProvided, becomesPrimary,
+			map[string]any{events.FieldResourceID: resourceID.String()}),
 	})
 }
 
@@ -403,9 +404,7 @@ func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {
 }
 
 func deploymentSpecJSON(service *deploymentv1.ServiceDeploymentSpec) ([]byte, error) {
-	stored := proto.CloneOf(service)
-	stored.Env = nil
-	specJSON, err := protojson.Marshal(stored)
+	specJSON, err := protojson.Marshal(service)
 	if err != nil {
 		return nil, fmt.Errorf("marshal deployment spec: %w", err)
 	}

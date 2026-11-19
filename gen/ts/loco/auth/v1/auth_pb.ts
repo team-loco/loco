@@ -5,6 +5,8 @@
 import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb";
+import type { Timestamp, TimestampJson } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { ClaimedOrg, ClaimedOrgJson, User, UserJson } from "../../user/v1/user_pb";
 import { file_loco_user_v1_user } from "../../user/v1/user_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -13,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/auth/v1/auth.proto.
  */
 export const file_loco_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL2F1dGgvdjEvYXV0aC5wcm90bxIMbG9jby5hdXRoLnYxIkwKCUNMSVRva2VucxIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRISCgpleHBpcmVzX2luGAMgASgDIlcKFkFwcHJvdmVDTElMb2dpblJlcXVlc3QSGQoFc3RhdGUYASABKAlCCrpIB3IFEBAYgAISIgoOY29kZV9jaGFsbGVuZ2UYAiABKAlCCrpIB3IFECsYgAEiJwoXQXBwcm92ZUNMSUxvZ2luUmVzcG9uc2USDAoEY29kZRgBIAEoCSJVChZFeGNoYW5nZUNMSUNvZGVSZXF1ZXN0EhgKBGNvZGUYASABKAlCCrpIB3IFEAEYgAISIQoNY29kZV92ZXJpZmllchgCIAEoCUIKukgHcgUQKxiAASJCChdFeGNoYW5nZUNMSUNvZGVSZXNwb25zZRInCgZ0b2tlbnMYASABKAsyFy5sb2NvLmF1dGgudjEuQ0xJVG9rZW5zIhkKF1N0YXJ0RGV2aWNlTG9naW5SZXF1ZXN0IqUBChhTdGFydERldmljZUxvZ2luUmVzcG9uc2USEwoLZGV2aWNlX2NvZGUYASABKAkSEQoJdXNlcl9jb2RlGAIgASgJEhgKEHZlcmlmaWNhdGlvbl91cmkYAyABKAkSIQoZdmVyaWZpY2F0aW9uX3VyaV9jb21wbGV0ZRgEIAEoCRISCgpleHBpcmVzX2luGAUgASgDEhAKCGludGVydmFsGAYgASgDIjkKGUFwcHJvdmVEZXZpY2VMb2dpblJlcXVlc3QSHAoJdXNlcl9jb2RlGAEgASgJQgm6SAZyBBABGCAiHAoaQXBwcm92ZURldmljZUxvZ2luUmVzcG9uc2UiOQoWUG9sbERldmljZUxvZ2luUmVxdWVzdBIfCgtkZXZpY2VfY29kZRgBIAEoCUIKukgHcgUQARiAAiJCChdQb2xsRGV2aWNlTG9naW5SZXNwb25zZRInCgZ0b2tlbnMYASABKAsyFy5sb2NvLmF1dGgudjEuQ0xJVG9rZW5zIjsKFlJlZnJlc2hDTElUb2tlblJlcXVlc3QSIQoNcmVmcmVzaF90b2tlbhgBIAEoCUIKukgHcgUQARiAAiJCChdSZWZyZXNoQ0xJVG9rZW5SZXNwb25zZRInCgZ0b2tlbnMYASABKAsyFy5sb2NvLmF1dGgudjEuQ0xJVG9rZW5zIlMKFFN0YXJ0V2ViTG9naW5SZXF1ZXN0Eh0KC3JlZGlyZWN0X3RvGAEgASgJQgi6SAVyAxiAIBIcCgpsb2dpbl9oaW50GAIgASgJQgi6SAVyAxjAAiIyChVTdGFydFdlYkxvZ2luUmVzcG9uc2USGQoRYXV0aG9yaXphdGlvbl91cmwYASABKAkiPAoXQ29tcGxldGVXZWJMb2dpblJlcXVlc3QSIQoMY2FsbGJhY2tfdXJsGAEgASgJQgu6SAhyBhABGICAASKBAQoYQ29tcGxldGVXZWJMb2dpblJlc3BvbnNlEiAKBHVzZXIYASABKAsyEi5sb2NvLnVzZXIudjEuVXNlchIuCgxjbGFpbWVkX29yZ3MYAiADKAsyGC5sb2NvLnVzZXIudjEuQ2xhaW1lZE9yZxITCgtyZWRpcmVjdF90bxgDIAEoCSIaChhSZWZyZXNoV2ViU2Vzc2lvblJlcXVlc3QiGwoZUmVmcmVzaFdlYlNlc3Npb25SZXNwb25zZSIQCg5TaWduT3V0UmVxdWVzdCIRCg9TaWduT3V0UmVzcG9uc2UyxAcKC0F1dGhTZXJ2aWNlEl4KD0FwcHJvdmVDTElMb2dpbhIkLmxvY28uYXV0aC52MS5BcHByb3ZlQ0xJTG9naW5SZXF1ZXN0GiUubG9jby5hdXRoLnYxLkFwcHJvdmVDTElMb2dpblJlc3BvbnNlEl4KD0V4Y2hhbmdlQ0xJQ29kZRIkLmxvY28uYXV0aC52MS5FeGNoYW5nZUNMSUNvZGVSZXF1ZXN0GiUubG9jby5hdXRoLnYxLkV4Y2hhbmdlQ0xJQ29kZVJlc3BvbnNlEmEKEFN0YXJ0RGV2aWNlTG9naW4SJS5sb2NvLmF1dGgudjEuU3RhcnREZXZpY2VMb2dpblJlcXVlc3QaJi5sb2NvLmF1dGgudjEuU3RhcnREZXZpY2VMb2dpblJlc3BvbnNlEmcKEkFwcHJvdmVEZXZpY2VMb2dpbhInLmxvY28uYXV0aC52MS5BcHByb3ZlRGV2aWNlTG9naW5SZXF1ZXN0GigubG9jby5hdXRoLnYxLkFwcHJvdmVEZXZpY2VMb2dpblJlc3BvbnNlEl4KD1BvbGxEZXZpY2VMb2dpbhIkLmxvY28uYXV0aC52MS5Qb2xsRGV2aWNlTG9naW5SZXF1ZXN0GiUubG9jby5hdXRoLnYxLlBvbGxEZXZpY2VMb2dpblJlc3BvbnNlEl4KD1JlZnJlc2hDTElUb2tlbhIkLmxvY28uYXV0aC52MS5SZWZyZXNoQ0xJVG9rZW5SZXF1ZXN0GiUubG9jby5hdXRoLnYxLlJlZnJlc2hDTElUb2tlblJlc3BvbnNlElgKDVN0YXJ0V2ViTG9naW4SIi5sb2NvLmF1dGgudjEuU3RhcnRXZWJMb2dpblJlcXVlc3QaIy5sb2NvLmF1dGgudjEuU3RhcnRXZWJMb2dpblJlc3BvbnNlEmEKEENvbXBsZXRlV2ViTG9naW4SJS5sb2NvLmF1dGgudjEuQ29tcGxldGVXZWJMb2dpblJlcXVlc3QaJi5sb2NvLmF1dGgudjEuQ29tcGxldGVXZWJMb2dpblJlc3BvbnNlEmQKEVJlZnJlc2hXZWJTZXNzaW9uEiYubG9jby5hdXRoLnYxLlJlZnJlc2hXZWJTZXNzaW9uUmVxdWVzdBonLmxvY28uYXV0aC52MS5SZWZyZXNoV2ViU2Vzc2lvblJlc3BvbnNlEkYKB1NpZ25PdXQSHC5sb2NvLmF1dGgudjEuU2lnbk91dFJlcXVlc3QaHS5sb2NvLmF1dGgudjEuU2lnbk91dFJlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vYXV0aC92MTthdXRodjFiBnByb3RvMw", [file_buf_validate_validate, file_loco_user_v1_user]);
+  fileDesc("Chdsb2NvL2F1dGgvdjEvYXV0aC5wcm90bxIMbG9jby5hdXRoLnYxIkwKCUNMSVRva2VucxIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRISCgpleHBpcmVzX2luGAMgASgDIlcKFkFwcHJvdmVDTElMb2dpblJlcXVlc3QSGQoFc3RhdGUYASABKAlCCrpIB3IFEBAYgAISIgoOY29kZV9jaGFsbGVuZ2UYAiABKAlCCrpIB3IFECsYgAEiJwoXQXBwcm92ZUNMSUxvZ2luUmVzcG9uc2USDAoEY29kZRgBIAEoCSJVChZFeGNoYW5nZUNMSUNvZGVSZXF1ZXN0EhgKBGNvZGUYASABKAlCCrpIB3IFEAEYgAISIQoNY29kZV92ZXJpZmllchgCIAEoCUIKukgHcgUQKxiAASJCChdFeGNoYW5nZUNMSUNvZGVSZXNwb25zZRInCgZ0b2tlbnMYASABKAsyFy5sb2NvLmF1dGgudjEuQ0xJVG9rZW5zIhkKF1N0YXJ0RGV2aWNlTG9naW5SZXF1ZXN0IqUBChhTdGFydERldmljZUxvZ2luUmVzcG9uc2USEwoLZGV2aWNlX2NvZGUYASABKAkSEQoJdXNlcl9jb2RlGAIgASgJEhgKEHZlcmlmaWNhdGlvbl91cmkYAyABKAkSIQoZdmVyaWZpY2F0aW9uX3VyaV9jb21wbGV0ZRgEIAEoCRISCgpleHBpcmVzX2luGAUgASgDEhAKCGludGVydmFsGAYgASgDIjUKFUdldERldmljZUxvZ2luUmVxdWVzdBIcCgl1c2VyX2NvZGUYASABKAlCCbpIBnIEEAEYICKiAQoWR2V0RGV2aWNlTG9naW5SZXNwb25zZRISCgp1c2VyX2FnZW50GAEgASgJEhIKCmlwX2FkZHJlc3MYAiABKAkSMAoMcmVxdWVzdGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpleHBpcmVzX2F0GAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI5ChlBcHByb3ZlRGV2aWNlTG9naW5SZXF1ZXN0EhwKCXVzZXJfY29kZRgBIAEoCUIJukgGcgQQARggIhwKGkFwcHJvdmVEZXZpY2VMb2dpblJlc3BvbnNlIjkKFlBvbGxEZXZpY2VMb2dpblJlcXVlc3QSHwoLZGV2aWNlX2NvZGUYASABKAlCCrpIB3IFEAEYgAIiQgoXUG9sbERldmljZUxvZ2luUmVzcG9uc2USJwoGdG9rZW5zGAEgASgLMhcubG9jby5hdXRoLnYxLkNMSVRva2VucyI7ChZSZWZyZXNoQ0xJVG9rZW5SZXF1ZXN0EiEKDXJlZnJlc2hfdG9rZW4YASABKAlCCrpIB3IFEAEYgAIiQgoXUmVmcmVzaENMSVRva2VuUmVzcG9uc2USJwoGdG9rZW5zGAEgASgLMhcubG9jby5hdXRoLnYxLkNMSVRva2VucyJTChRTdGFydFdlYkxvZ2luUmVxdWVzdBIdCgtyZWRpcmVjdF90bxgBIAEoCUIIukgFcgMYgCASHAoKbG9naW5faGludBgCIAEoCUIIukgFcgMYwAIiMgoVU3RhcnRXZWJMb2dpblJlc3BvbnNlEhkKEWF1dGhvcml6YXRpb25fdXJsGAEgASgJIjwKF0NvbXBsZXRlV2ViTG9naW5SZXF1ZXN0EiEKDGNhbGxiYWNrX3VybBgBIAEoCUILukgIcgYQARiAgAEigQEKGENvbXBsZXRlV2ViTG9naW5SZXNwb25zZRIgCgR1c2VyGAEgASgLMhIubG9jby51c2VyLnYxLlVzZXISLgoMY2xhaW1lZF9vcmdzGAIgAygLMhgubG9jby51c2VyLnYxLkNsYWltZWRPcmcSEwoLcmVkaXJlY3RfdG8YAyABKAkiGgoYUmVmcmVzaFdlYlNlc3Npb25SZXF1ZXN0IhsKGVJlZnJlc2hXZWJTZXNzaW9uUmVzcG9uc2UiEAoOU2lnbk91dFJlcXVlc3QiEQoPU2lnbk91dFJlc3BvbnNlMqEICgtBdXRoU2VydmljZRJeCg9BcHByb3ZlQ0xJTG9naW4SJC5sb2NvLmF1dGgudjEuQXBwcm92ZUNMSUxvZ2luUmVxdWVzdBolLmxvY28uYXV0aC52MS5BcHByb3ZlQ0xJTG9naW5SZXNwb25zZRJeCg9FeGNoYW5nZUNMSUNvZGUSJC5sb2NvLmF1dGgudjEuRXhjaGFuZ2VDTElDb2RlUmVxdWVzdBolLmxvY28uYXV0aC52MS5FeGNoYW5nZUNMSUNvZGVSZXNwb25zZRJhChBTdGFydERldmljZUxvZ2luEiUubG9jby5hdXRoLnYxLlN0YXJ0RGV2aWNlTG9naW5SZXF1ZXN0GiYubG9jby5hdXRoLnYxLlN0YXJ0RGV2aWNlTG9naW5SZXNwb25zZRJbCg5HZXREZXZpY2VMb2dpbhIjLmxvY28uYXV0aC52MS5HZXREZXZpY2VMb2dpblJlcXVlc3QaJC5sb2NvLmF1dGgudjEuR2V0RGV2aWNlTG9naW5SZXNwb25zZRJnChJBcHByb3ZlRGV2aWNlTG9naW4SJy5sb2NvLmF1dGgudjEuQXBwcm92ZURldmljZUxvZ2luUmVxdWVzdBooLmxvY28uYXV0aC52MS5BcHByb3ZlRGV2aWNlTG9naW5SZXNwb25zZRJeCg9Qb2xsRGV2aWNlTG9naW4SJC5sb2NvLmF1dGgudjEuUG9sbERldmljZUxvZ2luUmVxdWVzdBolLmxvY28uYXV0aC52MS5Qb2xsRGV2aWNlTG9naW5SZXNwb25zZRJeCg9SZWZyZXNoQ0xJVG9rZW4SJC5sb2NvLmF1dGgudjEuUmVmcmVzaENMSVRva2VuUmVxdWVzdBolLmxvY28uYXV0aC52MS5SZWZyZXNoQ0xJVG9rZW5SZXNwb25zZRJYCg1TdGFydFdlYkxvZ2luEiIubG9jby5hdXRoLnYxLlN0YXJ0V2ViTG9naW5SZXF1ZXN0GiMubG9jby5hdXRoLnYxLlN0YXJ0V2ViTG9naW5SZXNwb25zZRJhChBDb21wbGV0ZVdlYkxvZ2luEiUubG9jby5hdXRoLnYxLkNvbXBsZXRlV2ViTG9naW5SZXF1ZXN0GiYubG9jby5hdXRoLnYxLkNvbXBsZXRlV2ViTG9naW5SZXNwb25zZRJkChFSZWZyZXNoV2ViU2Vzc2lvbhImLmxvY28uYXV0aC52MS5SZWZyZXNoV2ViU2Vzc2lvblJlcXVlc3QaJy5sb2NvLmF1dGgudjEuUmVmcmVzaFdlYlNlc3Npb25SZXNwb25zZRJGCgdTaWduT3V0EhwubG9jby5hdXRoLnYxLlNpZ25PdXRSZXF1ZXN0Gh0ubG9jby5hdXRoLnYxLlNpZ25PdXRSZXNwb25zZUI2WjRnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2F1dGgvdjE7YXV0aHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_loco_user_v1_user]);
 
 /**
  * @generated from message loco.auth.v1.CLITokens
@@ -287,6 +289,98 @@ export const StartDeviceLoginResponseSchema: GenMessage<StartDeviceLoginResponse
   messageDesc(file_loco_auth_v1_auth, 6);
 
 /**
+ * @generated from message loco.auth.v1.GetDeviceLoginRequest
+ */
+export type GetDeviceLoginRequest = Message<"loco.auth.v1.GetDeviceLoginRequest"> & {
+  /**
+   * @generated from field: string user_code = 1;
+   */
+  userCode: string;
+};
+
+/**
+ * @generated from message loco.auth.v1.GetDeviceLoginRequest
+ */
+export type GetDeviceLoginRequestJson = {
+  /**
+   * @generated from field: string user_code = 1;
+   */
+  userCode?: string;
+};
+
+/**
+ * Describes the message loco.auth.v1.GetDeviceLoginRequest.
+ * Use `create(GetDeviceLoginRequestSchema)` to create a new message.
+ */
+export const GetDeviceLoginRequestSchema: GenMessage<GetDeviceLoginRequest, {jsonType: GetDeviceLoginRequestJson}> = /*@__PURE__*/
+  messageDesc(file_loco_auth_v1_auth, 7);
+
+/**
+ * @generated from message loco.auth.v1.GetDeviceLoginResponse
+ */
+export type GetDeviceLoginResponse = Message<"loco.auth.v1.GetDeviceLoginResponse"> & {
+  /**
+   * The User-Agent the device sent when it started the login.
+   *
+   * @generated from field: string user_agent = 1;
+   */
+  userAgent: string;
+
+  /**
+   * The address the login started from; empty when unknown.
+   *
+   * @generated from field: string ip_address = 2;
+   */
+  ipAddress: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp requested_at = 3;
+   */
+  requestedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp expires_at = 4;
+   */
+  expiresAt?: Timestamp | undefined;
+};
+
+/**
+ * @generated from message loco.auth.v1.GetDeviceLoginResponse
+ */
+export type GetDeviceLoginResponseJson = {
+  /**
+   * The User-Agent the device sent when it started the login.
+   *
+   * @generated from field: string user_agent = 1;
+   */
+  userAgent?: string;
+
+  /**
+   * The address the login started from; empty when unknown.
+   *
+   * @generated from field: string ip_address = 2;
+   */
+  ipAddress?: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp requested_at = 3;
+   */
+  requestedAt?: TimestampJson;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp expires_at = 4;
+   */
+  expiresAt?: TimestampJson;
+};
+
+/**
+ * Describes the message loco.auth.v1.GetDeviceLoginResponse.
+ * Use `create(GetDeviceLoginResponseSchema)` to create a new message.
+ */
+export const GetDeviceLoginResponseSchema: GenMessage<GetDeviceLoginResponse, {jsonType: GetDeviceLoginResponseJson}> = /*@__PURE__*/
+  messageDesc(file_loco_auth_v1_auth, 8);
+
+/**
  * @generated from message loco.auth.v1.ApproveDeviceLoginRequest
  */
 export type ApproveDeviceLoginRequest = Message<"loco.auth.v1.ApproveDeviceLoginRequest"> & {
@@ -311,7 +405,7 @@ export type ApproveDeviceLoginRequestJson = {
  * Use `create(ApproveDeviceLoginRequestSchema)` to create a new message.
  */
 export const ApproveDeviceLoginRequestSchema: GenMessage<ApproveDeviceLoginRequest, {jsonType: ApproveDeviceLoginRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 7);
+  messageDesc(file_loco_auth_v1_auth, 9);
 
 /**
  * @generated from message loco.auth.v1.ApproveDeviceLoginResponse
@@ -330,7 +424,7 @@ export type ApproveDeviceLoginResponseJson = {
  * Use `create(ApproveDeviceLoginResponseSchema)` to create a new message.
  */
 export const ApproveDeviceLoginResponseSchema: GenMessage<ApproveDeviceLoginResponse, {jsonType: ApproveDeviceLoginResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 8);
+  messageDesc(file_loco_auth_v1_auth, 10);
 
 /**
  * @generated from message loco.auth.v1.PollDeviceLoginRequest
@@ -357,7 +451,7 @@ export type PollDeviceLoginRequestJson = {
  * Use `create(PollDeviceLoginRequestSchema)` to create a new message.
  */
 export const PollDeviceLoginRequestSchema: GenMessage<PollDeviceLoginRequest, {jsonType: PollDeviceLoginRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 9);
+  messageDesc(file_loco_auth_v1_auth, 11);
 
 /**
  * @generated from message loco.auth.v1.PollDeviceLoginResponse
@@ -384,7 +478,7 @@ export type PollDeviceLoginResponseJson = {
  * Use `create(PollDeviceLoginResponseSchema)` to create a new message.
  */
 export const PollDeviceLoginResponseSchema: GenMessage<PollDeviceLoginResponse, {jsonType: PollDeviceLoginResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 10);
+  messageDesc(file_loco_auth_v1_auth, 12);
 
 /**
  * @generated from message loco.auth.v1.RefreshCLITokenRequest
@@ -411,7 +505,7 @@ export type RefreshCLITokenRequestJson = {
  * Use `create(RefreshCLITokenRequestSchema)` to create a new message.
  */
 export const RefreshCLITokenRequestSchema: GenMessage<RefreshCLITokenRequest, {jsonType: RefreshCLITokenRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 11);
+  messageDesc(file_loco_auth_v1_auth, 13);
 
 /**
  * @generated from message loco.auth.v1.RefreshCLITokenResponse
@@ -438,7 +532,7 @@ export type RefreshCLITokenResponseJson = {
  * Use `create(RefreshCLITokenResponseSchema)` to create a new message.
  */
 export const RefreshCLITokenResponseSchema: GenMessage<RefreshCLITokenResponse, {jsonType: RefreshCLITokenResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 12);
+  messageDesc(file_loco_auth_v1_auth, 14);
 
 /**
  * @generated from message loco.auth.v1.StartWebLoginRequest
@@ -475,7 +569,7 @@ export type StartWebLoginRequestJson = {
  * Use `create(StartWebLoginRequestSchema)` to create a new message.
  */
 export const StartWebLoginRequestSchema: GenMessage<StartWebLoginRequest, {jsonType: StartWebLoginRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 13);
+  messageDesc(file_loco_auth_v1_auth, 15);
 
 /**
  * @generated from message loco.auth.v1.StartWebLoginResponse
@@ -502,7 +596,7 @@ export type StartWebLoginResponseJson = {
  * Use `create(StartWebLoginResponseSchema)` to create a new message.
  */
 export const StartWebLoginResponseSchema: GenMessage<StartWebLoginResponse, {jsonType: StartWebLoginResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 14);
+  messageDesc(file_loco_auth_v1_auth, 16);
 
 /**
  * @generated from message loco.auth.v1.CompleteWebLoginRequest
@@ -529,7 +623,7 @@ export type CompleteWebLoginRequestJson = {
  * Use `create(CompleteWebLoginRequestSchema)` to create a new message.
  */
 export const CompleteWebLoginRequestSchema: GenMessage<CompleteWebLoginRequest, {jsonType: CompleteWebLoginRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 15);
+  messageDesc(file_loco_auth_v1_auth, 17);
 
 /**
  * @generated from message loco.auth.v1.CompleteWebLoginResponse
@@ -576,7 +670,7 @@ export type CompleteWebLoginResponseJson = {
  * Use `create(CompleteWebLoginResponseSchema)` to create a new message.
  */
 export const CompleteWebLoginResponseSchema: GenMessage<CompleteWebLoginResponse, {jsonType: CompleteWebLoginResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 16);
+  messageDesc(file_loco_auth_v1_auth, 18);
 
 /**
  * @generated from message loco.auth.v1.RefreshWebSessionRequest
@@ -595,7 +689,7 @@ export type RefreshWebSessionRequestJson = {
  * Use `create(RefreshWebSessionRequestSchema)` to create a new message.
  */
 export const RefreshWebSessionRequestSchema: GenMessage<RefreshWebSessionRequest, {jsonType: RefreshWebSessionRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 17);
+  messageDesc(file_loco_auth_v1_auth, 19);
 
 /**
  * @generated from message loco.auth.v1.RefreshWebSessionResponse
@@ -614,7 +708,7 @@ export type RefreshWebSessionResponseJson = {
  * Use `create(RefreshWebSessionResponseSchema)` to create a new message.
  */
 export const RefreshWebSessionResponseSchema: GenMessage<RefreshWebSessionResponse, {jsonType: RefreshWebSessionResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 18);
+  messageDesc(file_loco_auth_v1_auth, 20);
 
 /**
  * @generated from message loco.auth.v1.SignOutRequest
@@ -633,7 +727,7 @@ export type SignOutRequestJson = {
  * Use `create(SignOutRequestSchema)` to create a new message.
  */
 export const SignOutRequestSchema: GenMessage<SignOutRequest, {jsonType: SignOutRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 19);
+  messageDesc(file_loco_auth_v1_auth, 21);
 
 /**
  * @generated from message loco.auth.v1.SignOutResponse
@@ -652,7 +746,7 @@ export type SignOutResponseJson = {
  * Use `create(SignOutResponseSchema)` to create a new message.
  */
 export const SignOutResponseSchema: GenMessage<SignOutResponse, {jsonType: SignOutResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_auth_v1_auth, 20);
+  messageDesc(file_loco_auth_v1_auth, 22);
 
 /**
  * @generated from service loco.auth.v1.AuthService
@@ -681,6 +775,16 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof StartDeviceLoginRequestSchema;
     output: typeof StartDeviceLoginResponseSchema;
+  },
+  /**
+   * GetDeviceLogin describes the device that started a login, for the person approving its code.
+   *
+   * @generated from rpc loco.auth.v1.AuthService.GetDeviceLogin
+   */
+  getDeviceLogin: {
+    methodKind: "unary";
+    input: typeof GetDeviceLoginRequestSchema;
+    output: typeof GetDeviceLoginResponseSchema;
   },
   /**
    * @generated from rpc loco.auth.v1.AuthService.ApproveDeviceLogin

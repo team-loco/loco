@@ -34,6 +34,9 @@ api:
   # @schema item: string
   systemAdmins: []
   invitationTtl: ""
+  # Proxies in front of the API that append to X-Forwarded-For (LOCO_TRUSTED_PROXY_HOPS); the gateway is one.
+  # @schema minimum: 0
+  trustedProxyHops: 1
   # @schema additionalProperties: false
   registry:
     # @schema enum: [static, token]

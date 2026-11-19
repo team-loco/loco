@@ -74,6 +74,7 @@ CREATE TABLE webhooks (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     kind webhook_kind NOT NULL,
     workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+    name TEXT NOT NULL DEFAULT '' CHECK (char_length(name) <= 100),
     url TEXT NOT NULL,
     -- The webhook's data key, wrapped by the secret key provider.
     provider TEXT NOT NULL,

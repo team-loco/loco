@@ -30,7 +30,7 @@ import { RowMenu } from "@/components/design/RowMenu";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { useTimePreferences } from "@/lib/use-time-preferences";
-import { formatMonthYear, shortAgoLabel, tsMs } from "@/lib/time";
+import { agoLabel, formatMonthYear, tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
 
 import { MemberAvatar } from "./MemberAvatar";
@@ -193,7 +193,7 @@ function MemberRow({
 				)}
 			</TableCell>
 			<TableCell className="font-mono text-[12px] text-fg2" title="Last recorded sign-in">
-				{member.member.lastLoginAt ? shortAgoLabel(tsMs(member.member.lastLoginAt), now) : <Dash />}
+				{member.member.lastLoginAt ? agoLabel(tsMs(member.member.lastLoginAt), now) : <Dash />}
 			</TableCell>
 			<TableCell className="font-mono text-[12px] text-fg3">
 				{member.member.joinedAt ? formatMonthYear(tsMs(member.member.joinedAt), pref) : <Dash />}
@@ -244,7 +244,7 @@ function MemberRow({
 
 function InvitationRow({ invitation, now, actions }: { invitation: Invitation; now: number; actions: RowActions }) {
 	const inviter = invitation.invitedBy;
-	const sent = shortAgoLabel(tsMs(invitation.createdAt), now);
+	const sent = agoLabel(tsMs(invitation.createdAt), now);
 	const expired = tsMs(invitation.expiresAt) <= now;
 	const expires = tsMs(invitation.expiresAt);
 	const manageTitle = actions.canManageInvitations ? undefined : "Only organization admins can change invitations";
@@ -276,7 +276,7 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 				<Dash />
 			</TableCell>
 			<TableCell className="font-mono text-[12px] text-fg3">
-				{expired ? `expired ${shortAgoLabel(expires, now)}` : `expires ${untilLabel(expires, now)}`}
+				{expired ? `expired ${agoLabel(expires, now)}` : `expires ${untilLabel(expires, now)}`}
 			</TableCell>
 			<TableCell className="text-right">
 				<RowMenu label={`Actions for the invitation to ${invitation.email}`} title={invitation.email}>

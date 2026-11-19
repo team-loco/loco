@@ -8,7 +8,6 @@ import (
 	"log/slog"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -110,36 +109,6 @@ func notifyRemovedPlacements(
 		)
 	}
 	return nil
-}
-
-func desiredEnv(
-	ctx context.Context,
-	q genDb.Querier,
-	resourceID, environmentID, clusterID uuid.UUID,
-) (map[string]string, error) {
-	placement, err := q.GetResourceEnvironmentPlacement(ctx, genDb.GetResourceEnvironmentPlacementParams{
-		ResourceID:    resourceID,
-		EnvironmentID: environmentID,
-		ClusterID:     clusterID,
-	})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get placement: %w", err)
-	}
-	if placement.DesiredDeleted || len(placement.DesiredSpec) == 0 {
-		return nil, nil
-	}
-
-	payload, err := decodePlacement(placement)
-	if err != nil {
-		return nil, err
-	}
-	if payload.AppSpec.ServiceSpec == nil || payload.AppSpec.ServiceSpec.Deployment == nil {
-		return nil, nil
-	}
-	return payload.AppSpec.ServiceSpec.Deployment.Env, nil
 }
 
 func decodePlacement(placement genDb.Placement) (locoControllerV1.PlacementPayload, error) {

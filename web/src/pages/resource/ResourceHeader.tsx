@@ -204,7 +204,7 @@ export function ResourceHeader({
 					)}
 				</div>
 			</div>
-			<div className="flex shrink-0 flex-wrap items-center gap-2">
+			<div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
 				<Button variant="outline" size="sm" aria-haspopup="dialog" onClick={onEvents}>
 					<BellIcon />
 					Events
@@ -224,9 +224,15 @@ export function ResourceHeader({
 					onPressedChange={onSettings}
 				>
 					<Settings2Icon />
-					Settings
+					Resource settings
 				</ToggleChip>
-				<Button variant="outline" size="sm" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={!canRedeploy}
+					title={writeHint ?? "Create a new deployment from the current one"}
+					onClick={onRedeploy}
+				>
 					<RotateCwIcon />
 					{redeploying ? "Redeploying…" : "Redeploy"}
 				</Button>
@@ -245,7 +251,11 @@ export function ResourceHeader({
 							</MenuIcon>
 							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
 						</DropdownMenuItem>
-						<DropdownMenuItem disabled={!canRedeploy || restarting} title={writeHint} onClick={onRestart}>
+						<DropdownMenuItem
+							disabled={!canRedeploy || restarting}
+							title={writeHint ?? "Restart every running replica without creating a deployment"}
+							onClick={onRestart}
+						>
 							<MenuIcon>
 								<RotateCwIcon />
 							</MenuIcon>

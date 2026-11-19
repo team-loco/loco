@@ -9,8 +9,8 @@ import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlid
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
-import { joinImage, splitImage } from "@/lib/image";
-import type { SizeOptions } from "@/lib/sizing";
+import { joinImage, parseImage, splitImage } from "@/lib/image";
+import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import type { RegionView } from "./model";
 import type { Baseline, DraftErrors, SettingsDraft } from "./settings-draft";
@@ -65,7 +65,12 @@ export function SettingsBlock({
 }
 
 export function ImageSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
-	const { repository: path, reference: version } = splitImage(draft.image ?? base.image);
+	const pinned = parseImage(base.image);
+	const { repository: path, reference: version } =
+		draft.image === undefined && pinned.tag !== ""
+			? { repository: pinned.path, reference: pinned.tag }
+			: splitImage(draft.image ?? base.image);
+	const digest = draft.image === undefined && pinned.tag !== "" ? pinned.digest : "";
 	const set = (repository: string, reference: string) => {
 		onChange({ image: joinImage(repository, reference) });
 	};
@@ -89,7 +94,10 @@ export function ImageSection({ draft, base, errors, locked, describedBy, onChang
 						}}
 					/>
 				</Field>
-				<Field label="Tag or digest">
+				<Field
+					label="Tag or digest"
+					hint={digest === "" ? undefined : <span className="break-all font-mono">Pinned to {digest}</span>}
+				>
 					<Input
 						className="font-mono"
 						value={version}
@@ -192,13 +200,15 @@ export function SizeSection({
 	onChange,
 	sizes,
 }: SectionProps & { sizes: SizeOptions }) {
+	const cpuOptions = cpuWith(sizes.cpu, draft.cpu ?? base.cpu);
+	const memoryOptions = memoryWith(sizes.memory, draft.memory ?? base.memory);
 	return (
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
 			<div className="flex max-w-[520px] flex-col gap-3.5">
-				<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, draft.cpu ?? base.cpu)} />}>
+				<Field label="CPU" aside={<SliderValue text={stepLabel(cpuOptions, draft.cpu ?? base.cpu)} />}>
 					<StepSlider
 						label="CPU"
-						options={sizes.cpu}
+						options={cpuOptions}
 						value={draft.cpu ?? base.cpu}
 						disabled={locked}
 						describedBy={describedBy}
@@ -207,10 +217,10 @@ export function SizeSection({
 						}}
 					/>
 				</Field>
-				<Field label="Memory" aside={<SliderValue text={stepLabel(sizes.memory, draft.memory ?? base.memory)} />}>
+				<Field label="Memory" aside={<SliderValue text={stepLabel(memoryOptions, draft.memory ?? base.memory)} />}>
 					<StepSlider
 						label="Memory"
-						options={sizes.memory}
+						options={memoryOptions}
 						value={draft.memory ?? base.memory}
 						disabled={locked}
 						describedBy={describedBy}

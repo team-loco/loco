@@ -5,6 +5,7 @@ import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis }
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Skeleton } from "@/components/design/Skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
 
@@ -30,19 +31,41 @@ const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: num
 	return time === undefined ? "" : formatFullTime(time, false, pref);
 };
 
-function Stat({ label, value, warn = false }: { label: string; value: string; warn?: boolean }) {
+function Stat({
+	label,
+	value,
+	warning,
+	isLoading,
+}: {
+	label: string;
+	value: string;
+	warning?: string | undefined;
+	isLoading: boolean;
+}) {
 	return (
 		<div className="flex flex-col gap-0.5">
 			<span className="text-[12px] text-fg3">{label}</span>
 			<span className="flex items-center gap-1.5 text-[22px] leading-[1.1] font-light tracking-[-0.03em] tabular-nums">
-				{value}
-				{warn && <TriangleAlertIcon aria-label="Above 85% of the limit" className="size-4 shrink-0 text-warn-fg" />}
+				{isLoading ? <Skeleton className="h-[24px] w-14" /> : value}
+				{warning !== undefined && (
+					<Tooltip>
+						<TooltipTrigger
+							render={<span role="img" aria-label={warning} />}
+							tabIndex={0}
+							className="flex rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+						>
+							<TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-warn-fg" />
+						</TooltipTrigger>
+						<TooltipContent>{warning}</TooltipContent>
+					</Tooltip>
+				)}
 			</span>
 		</div>
 	);
 }
 
 export function MetricChart({
+	name,
 	title,
 	points,
 	isLoading,
@@ -53,6 +76,7 @@ export function MetricChart({
 	limit,
 	format,
 }: {
+	name: string;
 	title: string;
 	points: BandPoint[];
 	isLoading: boolean;
@@ -73,7 +97,10 @@ export function MetricChart({
 	const top = absolute ? Math.max(limit, peak) * HEADROOM : percentAxis(peak).maximum;
 	const ticks = absolute ? [0, limit / 2, limit] : percentAxis(peak).ticks;
 	const line = absolute ? limit : FULL_REQUEST;
-	const warn = absolute && usage.highest !== undefined && usage.highest > limit * WARN_SHARE;
+	const warning =
+		absolute && usage.highest !== undefined && usage.highest > limit * WARN_SHARE
+			? `Peaked ${usage.highest > limit ? "above" : "within 15% of"} the ${name} limit (${show(limit)})`
+			: undefined;
 	const shown = markers.filter((m) => m >= from && m <= to);
 	const tooltipValue = (value: unknown) =>
 		Array.isArray(value) ? value.map((v) => show(Number(v))).join(" – ") : show(Number(value));
@@ -81,8 +108,13 @@ export function MetricChart({
 		<div className="flex min-w-0 flex-col gap-3.5">
 			<span className="text-[13.5px] font-medium">{title}</span>
 			<div className="flex gap-6">
-				<Stat label="Average" value={usage.average === undefined ? "—" : show(usage.average)} />
-				<Stat label="Highest" value={usage.highest === undefined ? "—" : show(usage.highest)} warn={warn} />
+				<Stat label="Average" value={usage.average === undefined ? "—" : show(usage.average)} isLoading={isLoading} />
+				<Stat
+					label="Highest"
+					value={usage.highest === undefined ? "—" : show(usage.highest)}
+					warning={warning}
+					isLoading={isLoading}
+				/>
 			</div>
 			{isLoading ? (
 				<Skeleton className="h-40 w-full" />

@@ -21,7 +21,8 @@ func TestAccountSessions(t *testing.T) {
 	other := api.signUp(t, "session-other")
 
 	const agent = "test dashboard browser"
-	webAccess, webRefresh, err := api.machine.IssueWebSession(ctx, owner.id, netip.Addr{}, agent)
+	const webAddress = "198.51.100.7"
+	webAccess, webRefresh, err := api.machine.IssueWebSession(ctx, owner.id, netip.MustParseAddr(webAddress), agent)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +53,9 @@ func TestAccountSessions(t *testing.T) {
 	sessions := list.GetSessions()
 	if len(sessions) != 2 || sessions[0].GetId() != webID.String() ||
 		sessions[0].GetKind() != userv1.SessionKind_SESSION_KIND_WEB || sessions[0].GetCurrent() ||
-		sessions[0].GetUserAgent() != agent || sessions[0].GetCreatedAt() == nil || sessions[0].GetLastUsedAt() == nil ||
+		sessions[0].GetUserAgent() != agent ||
+		sessions[0].GetIpAddress() != webAddress ||
+		sessions[0].GetCreatedAt() == nil || sessions[0].GetLastUsedAt() == nil ||
 		sessions[1].GetId() != cliID.String() || !sessions[1].GetCurrent() ||
 		sessions[1].GetKind() != userv1.SessionKind_SESSION_KIND_CLI {
 		t.Fatalf("unexpected sessions: %v", sessions)

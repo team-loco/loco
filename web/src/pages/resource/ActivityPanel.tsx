@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { getErrorMessage } from "@/lib/error-handler";
 import { auditPath } from "@/lib/routes";
-import { shortAgoLabel, tsMs } from "@/lib/time";
+import { agoLabel, tsMs } from "@/lib/time";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import { auditActor, auditDetail, auditLabel, type AuditUser, distinctAuditEvents } from "@/pages/settings/auditEvents";
@@ -32,11 +32,11 @@ function ActivityRow({ event, names, nowMs }: { event: Event; names: ReadonlyMap
 				</span>
 			)}
 			<span className="min-w-0 flex-1 truncate">
-				{actor.name} <span className="text-fg2">{auditLabel(event.type).toLowerCase()}</span>
+				{actor.name} <span className="text-fg2">{auditLabel(event.type, event.data).toLowerCase()}</span>
 				{target !== "" && <span className="font-mono text-[12px]"> {target}</span>}
 			</span>
 			<span className="w-16 shrink-0 text-right font-mono text-[12px] text-fg3">
-				{shortAgoLabel(tsMs(event.createdAt), nowMs)}
+				{agoLabel(tsMs(event.createdAt), nowMs)}
 			</span>
 		</li>
 	);
@@ -79,7 +79,7 @@ export function ActivityPanel({
 
 	return (
 		<Section
-			title="Activity"
+			title="Resource activity"
 			actions={
 				audit.reads(workspaceId) ? (
 					<Link
@@ -93,16 +93,15 @@ export function ActivityPanel({
 			}
 			bodyClassName="px-5 py-1.5"
 		>
-			{query.isLoading &&
+			{query.isPending &&
+				environmentId !== undefined &&
 				SKELETON_ROWS.map((i) => (
 					<div key={i} className="flex h-[42px] items-center">
 						<Skeleton className="h-3 w-full" />
 					</div>
 				))}
-			{!query.isLoading && query.error === null && events.length === 0 && (
-				<p className="m-0 py-3 text-[13px] text-fg3">No changes yet.</p>
-			)}
-			<ul aria-label="Activity" className="m-0 list-none p-0">
+			{query.isSuccess && events.length === 0 && <p className="m-0 py-3 text-[13px] text-fg3">No changes yet.</p>}
+			<ul aria-label="Resource activity" className="m-0 list-none p-0">
 				{events.map((e) => (
 					<ActivityRow key={e.id} event={e} names={names} nowMs={nowMs} />
 				))}

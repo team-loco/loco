@@ -97,8 +97,10 @@ type Querier interface {
 	DeleteWorkspace(ctx context.Context, id uuid.UUID) error
 	DeleteWorkspaceWebhook(ctx context.Context, arg DeleteWorkspaceWebhookParams) (int64, error)
 	EnrollCluster(ctx context.Context, arg EnrollClusterParams) (EnrollClusterRow, error)
+	// Locks each build's resource before the build, in resource id order.
 	ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]ExpireAwaitingUploadBuildsRow, error)
 	ExtendInvitation(ctx context.Context, arg ExtendInvitationParams) (Invitation, error)
+	// Locks each build's resource before the build, in resource id order.
 	FailClusterBuilds(ctx context.Context, arg FailClusterBuildsParams) ([]FailClusterBuildsRow, error)
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
 	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error)
@@ -128,6 +130,7 @@ type Querier interface {
 	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetPreviousPlacementRollout(ctx context.Context, arg GetPreviousPlacementRolloutParams) ([]byte, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
 	GetRegistryGrant(ctx context.Context, arg GetRegistryGrantParams) (GetRegistryGrantRow, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)
@@ -315,7 +318,6 @@ type Querier interface {
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
-	SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error
 	SetDeploymentCanceledBy(ctx context.Context, arg SetDeploymentCanceledByParams) error

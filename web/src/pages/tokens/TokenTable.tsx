@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { LEVEL_LABEL } from "@/hooks/useMyScopes";
-import { maybeTsMs, shortAgoLabel } from "@/lib/time";
+import { agoLabel, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
@@ -39,7 +39,7 @@ function CreatorCell({ token, creator, now }: { token: Token; creator: Creator |
 			<MemberAvatar name={name} email="" avatarUrl={creator?.avatarUrl ?? ""} className="size-[22px] shrink-0" />
 			<span className="flex min-w-0 flex-col gap-px">
 				<span className="truncate text-[13px] text-foreground">{name}</span>
-				{created !== undefined && <span className="font-mono text-[11px] text-fg3">{shortAgoLabel(created, now)}</span>}
+				{created !== undefined && <span className="font-mono text-[11px] text-fg3">{agoLabel(created, now)}</span>}
 			</span>
 		</span>
 	);

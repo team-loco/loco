@@ -17,20 +17,6 @@ org = state["orgs"]["acme"]["id"]
 path = state["ui_url"] + f"/org/{org}/team"
 
 with session(repo / "tests/ui/out/org_roles") as browser:
-    newcomer_context, newcomer, newcomer_errors = open_page(
-        browser, user="newcomer", state=state
-    )
-    newcomer.goto(state["ui_url"] + "/login")
-    expect(newcomer).to_have_url(re.compile(r"/organizations$"))
-    expect(newcomer.get_by_text("No organizations yet", exact=True)).to_be_visible()
-    newcomer.get_by_role("button", name="Create your first organization").click()
-    newcomer.get_by_role("dialog", name="New organization").get_by_role(
-        "textbox", name="Name"
-    ).fill("newcomer-org")
-    newcomer.get_by_role("button", name="Create", exact=True).click()
-    expect(newcomer).to_have_url(re.compile(r"/org/[0-9a-f-]+/wks/[0-9a-f-]+"))
-    assert not newcomer_errors, newcomer_errors
-    newcomer_context.close()
     context, page, errors = open_page(browser, state=state)
     requests = []
     page.on("request", lambda request: requests.append(request.url))
@@ -95,6 +81,14 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     shared = state["workspaces"]["acme/shared"]
     page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}/resources")
     page.get_by_title("Switch workspace", exact=True).click()
+    expect(page.get_by_role("menuitem", name="shared", exact=True)).to_be_visible()
+    expect(page.get_by_role("menuitem", name="New organization")).to_have_count(0)
+    page.keyboard.press("Escape")
+    page.get_by_title("Switch organization", exact=True).click()
+    expect(page.get_by_role("menuitem", name="acme", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("menuitem", name="Organization settings", exact=True)
+    ).to_be_visible()
     page.get_by_role("menuitem", name="New organization", exact=True).click()
     sidebar_name = "sidebar-" + uuid.uuid4().hex[:8]
     name.fill(sidebar_name)

@@ -34,6 +34,8 @@ type WebAuth struct {
 	Provider *auth.WebProvider
 	Resolver *auth.Resolver
 	Cookies  auth.WebCookies
+	// TrustedProxyHops is how many proxies append to X-Forwarded-For in front of the API.
+	TrustedProxyHops int
 }
 
 type webLogin struct {
@@ -156,6 +158,10 @@ func (s *AuthServer) RefreshWebSession(
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
 	access, refresh, err := s.refreshSession(ctx, token, genDb.SessionKindWeb)
+	if errors.Is(err, tvm.ErrRefreshRotated) {
+		// A concurrent refresh rotated the session; the browser already holds its cookies.
+		return &authv1.RefreshWebSessionResponse{}, nil
+	}
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -222,7 +228,7 @@ func (s *AuthServer) issueWebSession(
 			return fmt.Errorf("get dashboard identity: %w", err)
 		}
 		access, refresh, err = s.machine.WithQueries(qtx).IssueWebSession(
-			ctx, userID, clientAddress(info), info.RequestHeader().Get(userAgentHeader),
+			ctx, userID, clientAddress(info, s.web.TrustedProxyHops), info.RequestHeader().Get(userAgentHeader),
 		)
 		return err
 	})

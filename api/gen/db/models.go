@@ -772,6 +772,7 @@ type Environment struct {
 	ID          uuid.UUID `json:"id"`
 	WorkspaceID uuid.UUID `json:"workspaceId"`
 	Name        string    `json:"name"`
+	DisplayName string    `json:"displayName"`
 	Description *string   `json:"description"`
 	CreatedBy   uuid.UUID `json:"createdBy"`
 	Revision    int64     `json:"revision"`
@@ -1009,6 +1010,7 @@ type UsedSessionRefreshToken struct {
 	TokenHash string    `json:"tokenHash"`
 	SessionID uuid.UUID `json:"sessionId"`
 	ExpiresAt time.Time `json:"expiresAt"`
+	UsedAt    time.Time `json:"usedAt"`
 }
 
 type User struct {
@@ -1036,6 +1038,7 @@ type Webhook struct {
 	ID                      uuid.UUID   `json:"id"`
 	Kind                    WebhookKind `json:"kind"`
 	WorkspaceID             *uuid.UUID  `json:"workspaceId"`
+	Name                    string      `json:"name"`
 	Url                     string      `json:"url"`
 	Provider                string      `json:"provider"`
 	KekID                   string      `json:"kekId"`

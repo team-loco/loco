@@ -15,7 +15,7 @@ service EnvironmentService {
   rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
   // ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace
   // but has a grant on one of its resources gets each environment with only id, workspace_id,
-  // name.
+  // name and display_name.
   rpc ListEnvironments(ListEnvironmentsRequest) returns (ListEnvironmentsResponse);
   // UpdateEnvironment updates an environment.
   rpc UpdateEnvironment(UpdateEnvironmentRequest) returns (UpdateEnvironmentResponse);
@@ -27,6 +27,7 @@ service EnvironmentService {
 message Environment {
   string id = 1;
   string workspace_id = 2;
+  // name is the environment's slug: a DNS label, unique in its workspace, that never changes.
   string name = 3;
   optional string description = 4;
   reserved 5;
@@ -35,11 +36,14 @@ message Environment {
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp updated_at = 8;
   int64 revision = 9;
+  // display_name is the label the dashboard shows. It starts as name; name never changes.
+  string display_name = 10;
 }
 
 // CreateEnvironmentRequest is the request to create a new environment.
 message CreateEnvironmentRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  // A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
   string name = 2 [(buf.validate.field).string.max_len = 63];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
   reserved 4;
@@ -74,10 +78,14 @@ message ListEnvironmentsResponse {
 // UpdateEnvironmentRequest is the request to update an environment.
 message UpdateEnvironmentRequest {
   string environment_id = 1 [(buf.validate.field).string.uuid = true];
-  optional string name = 2 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 63
-  }];
+  optional string display_name = 2 [
+    (buf.validate.field).string.max_len = 63,
+    (buf.validate.field).cel = {
+      id: "environment.display_name"
+      message: "display name needs a character that is not a space"
+      expression: "this.matches('\\\\S')"
+    }
+  ];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
   reserved 4;
   reserved "type";

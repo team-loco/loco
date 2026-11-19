@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
@@ -36,16 +37,18 @@ const (
 	devicePollInterval = 5 * time.Second
 	userCodeAlphabet   = "BCDFGHJKLMNPQRSTVWXZ"
 	userCodeLength     = 8
-	realIPHeader       = "X-Real-IP"
 	forwardedForHeader = "X-Forwarded-For"
 )
 
 var (
-	ErrCLICodeInvalid     = errors.New("this sign-in code is invalid or has expired; run loco login again")
-	ErrDeviceCodeExpired  = errors.New("this device code has expired; run loco login --device again")
-	ErrUserCodeInvalid    = errors.New("that code is invalid or has expired")
-	ErrApproveFromWeb     = errors.New("approve CLI sign-ins from the Loco web app")
-	ErrDevicePollTooFast  = errors.New("slow down: poll less often")
+	ErrCLICodeInvalid    = errors.New("this sign-in code is invalid or has expired; run loco login again")
+	ErrDeviceCodeExpired = errors.New("this device code has expired; run loco login --device again")
+	ErrUserCodeInvalid   = errors.New("that code is invalid or has expired")
+	ErrApproveFromWeb    = errors.New("approve CLI sign-ins from the Loco web app")
+	ErrDevicePollTooFast = errors.New("slow down: poll less often")
+	ErrRefreshInFlight   = errors.New(
+		"another refresh of this session just finished; read the stored session and retry",
+	)
 	ErrAuthStoreAvailable = errors.New("sign-in is temporarily unavailable")
 )
 
@@ -84,9 +87,12 @@ type cliGrant struct {
 }
 
 type deviceGrant struct {
-	UserCode  string     `json:"userCode"`
-	UserID    *uuid.UUID `json:"userId,omitempty"`
-	ExpiresAt time.Time  `json:"expiresAt"`
+	UserCode    string     `json:"userCode"`
+	UserAgent   string     `json:"userAgent"`
+	IPAddress   string     `json:"ipAddress"`
+	RequestedAt time.Time  `json:"requestedAt"`
+	UserID      *uuid.UUID `json:"userId,omitempty"`
+	ExpiresAt   time.Time  `json:"expiresAt"`
 }
 
 func deviceKey(deviceDigest string) string {
@@ -130,16 +136,21 @@ func pkceMatches(verifier, challenge string) bool {
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
 }
 
-// the address is a best-effort, client-forgeable estimate of where a request came from, recorded
-// for display and audit only; never base an access decision on it.
-func clientAddress(info *connect.CallInfo) netip.Addr {
-	header := info.RequestHeader()
-	if addr, err := netip.ParseAddr(strings.TrimSpace(header.Get(realIPHeader))); err == nil {
-		return addr
-	}
-	for _, line := range header.Values(forwardedForHeader) {
-		for entry := range strings.SplitSeq(line, ",") {
-			if addr, err := netip.ParseAddr(strings.TrimSpace(entry)); err == nil {
+// clientAddress is where a request came from, recorded for display and audit only; never base an
+// access decision on it. Each of trustedProxyHops proxies in front of the API appends the address
+// it received the request from to X-Forwarded-For, so the entry that many places from the right is
+// the first one a client cannot choose. Without trusted proxies, or when the header is shorter or
+// unparsable, the peer address is used.
+func clientAddress(info *connect.CallInfo, trustedProxyHops int) netip.Addr {
+	if trustedProxyHops > 0 {
+		var entries []string
+		for _, line := range info.RequestHeader().Values(forwardedForHeader) {
+			for entry := range strings.SplitSeq(line, ",") {
+				entries = append(entries, strings.TrimSpace(entry))
+			}
+		}
+		if len(entries) >= trustedProxyHops {
+			if addr, err := netip.ParseAddr(entries[len(entries)-trustedProxyHops]); err == nil {
 				return addr
 			}
 		}
@@ -171,7 +182,7 @@ func (s *AuthServer) issue(
 	grant cliGrant,
 	info *connect.CallInfo,
 ) (*authv1.CLITokens, error) {
-	ip := clientAddress(info)
+	ip := clientAddress(info, s.web.TrustedProxyHops)
 	ua := info.RequestHeader().Get("User-Agent")
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -283,13 +294,23 @@ func (s *AuthServer) StartDeviceLogin(
 	ctx context.Context,
 	_ *authv1.StartDeviceLoginRequest,
 ) (*authv1.StartDeviceLoginResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	deviceCode := bearer.New("")
 	userCode, err := randomUserCode()
 	if err != nil {
 		return nil, fmt.Errorf("generate user code: %w", err)
 	}
-	expiresAt := s.now().Add(deviceCodeTTL)
-	payload, err := json.Marshal(deviceGrant{UserCode: userCode, ExpiresAt: expiresAt})
+	requestedAt := s.now()
+	grant := deviceGrant{
+		UserCode:    userCode,
+		UserAgent:   info.RequestHeader().Get("User-Agent"),
+		RequestedAt: requestedAt,
+		ExpiresAt:   requestedAt.Add(deviceCodeTTL),
+	}
+	if addr := clientAddress(info, s.web.TrustedProxyHops); addr.IsValid() {
+		grant.IPAddress = addr.String()
+	}
+	payload, err := json.Marshal(grant)
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
@@ -311,6 +332,40 @@ func (s *AuthServer) StartDeviceLogin(
 		VerificationUriComplete: s.webURL + "/cli/device?code=" + display,
 		ExpiresIn:               int64(deviceCodeTTL.Seconds()),
 		Interval:                int64(devicePollInterval.Seconds()),
+	}, nil
+}
+
+func (s *AuthServer) GetDeviceLogin(
+	ctx context.Context,
+	req *authv1.GetDeviceLoginRequest,
+) (*authv1.GetDeviceLoginResponse, error) {
+	if _, err := webGrant(ctx); err != nil {
+		return nil, err
+	}
+	userCode := normalizeUserCode(req.GetUserCode())
+	if len(userCode) != userCodeLength {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	deviceDigest, err := s.cache.Get(ctx, "cli:user-code:"+userCode)
+	if errors.Is(err, cache.ErrNotFound) {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	if err != nil {
+		return nil, authStoreUnavailable(err)
+	}
+	raw, err := s.cache.Get(ctx, deviceKey(string(deviceDigest)))
+	if err != nil {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	var device deviceGrant
+	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
+		return nil, fmt.Errorf("decode device grant: %w", decodeErr)
+	}
+	return &authv1.GetDeviceLoginResponse{
+		UserAgent:   device.UserAgent,
+		IpAddress:   device.IPAddress,
+		RequestedAt: timestamppb.New(device.RequestedAt),
+		ExpiresAt:   timestamppb.New(device.ExpiresAt),
 	}, nil
 }
 
@@ -355,6 +410,13 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
+	// A retryable failure returns the user code to the cache for the next approval attempt.
+	unavailable := func(cause error) error {
+		if restoreErr := s.cache.Set(ctx, "cli:user-code:"+userCode, deviceDigest, remaining); restoreErr != nil {
+			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
+		}
+		return authStoreUnavailable(cause)
+	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.CLILoginApproved,
@@ -365,10 +427,10 @@ func (s *AuthServer) ApproveDeviceLogin(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
-		return nil, authStoreUnavailable(err)
+		return nil, unavailable(err)
 	}
 	if setErr := s.cache.Set(ctx, key, payload, remaining); setErr != nil {
-		return nil, authStoreUnavailable(setErr)
+		return nil, unavailable(setErr)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
 	return &authv1.ApproveDeviceLoginResponse{}, nil
@@ -440,6 +502,9 @@ func (s *AuthServer) RefreshCLIToken(
 	req *authv1.RefreshCLITokenRequest,
 ) (*authv1.RefreshCLITokenResponse, error) {
 	access, newRefresh, err := s.refreshSession(ctx, req.GetRefreshToken(), genDb.SessionKindCli)
+	if errors.Is(err, tvm.ErrRefreshRotated) {
+		return nil, rpcerr.New(connect.CodeAborted, ErrRefreshInFlight)
+	}
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -460,6 +525,7 @@ func (s *AuthServer) refreshSession(
 ) (string, string, error) {
 	var access, refresh string
 	var rejected bool
+	var rotated bool
 	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		// Find the owner and lock the account before Refresh reads or mutates the session.
 		session, err := qtx.GetSessionByRefreshToken(ctx, bearer.Hash(token))
@@ -476,6 +542,10 @@ func (s *AuthServer) refreshSession(
 			return lockErr
 		}
 		access, refresh, err = s.machine.WithQueries(qtx).Refresh(ctx, token, kind)
+		if errors.Is(err, tvm.ErrRefreshRotated) {
+			rotated = true
+			return nil
+		}
 		if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 			// A replay rejects the request and commits session revocation.
 			rejected = true
@@ -488,6 +558,9 @@ func (s *AuthServer) refreshSession(
 	}
 	if rejected {
 		return "", "", tvm.ErrInvalidExpiredToken
+	}
+	if rotated {
+		return "", "", tvm.ErrRefreshRotated
 	}
 	return access, refresh, nil
 }

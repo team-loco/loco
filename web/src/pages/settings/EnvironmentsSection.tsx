@@ -1,3 +1,4 @@
+import { charCount, clampChars } from "@/lib/characters";
 import { createConnectQueryKey, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { type Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
@@ -32,6 +33,7 @@ import { resourcesPerEnvironment } from "./environments";
 import { SettingsCard, SettingsSection } from "./parts";
 
 const MAX_DESCRIPTION = 256;
+const MAX_DISPLAY_NAME = 63;
 
 export function EnvironmentsSection({
 	orgId,
@@ -73,7 +75,7 @@ export function EnvironmentsSection({
 		if (!canAdmin) return `Requires Admin on ${workspaceName}`;
 		if (resourcesQuery.isPending) return "Checking for resources";
 		const n = counts.get(env.id) ?? 0;
-		return n > 0 ? `${env.name} still runs ${pluralize(n, "resource")}` : null;
+		return n > 0 ? `${env.displayName} still runs ${pluralize(n, "resource")}` : null;
 	};
 
 	const confirmDelete = (env: Environment) => {
@@ -81,7 +83,7 @@ export function EnvironmentsSection({
 			{ environmentId: env.id },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${env.name}`);
+					toast.success(`Deleted ${env.displayName}`);
 					setDeleting(null);
 					void queryClient.invalidateQueries({ queryKey: envsKey });
 				},
@@ -139,7 +141,7 @@ export function EnvironmentsSection({
 									<Button
 										variant="ghost"
 										size="icon-sm"
-										aria-label={`Delete ${env.name}`}
+										aria-label={`Delete ${env.displayName}`}
 										disabled={blocked !== null}
 										onClick={() => {
 											setDeleting(env);
@@ -150,7 +152,10 @@ export function EnvironmentsSection({
 								);
 								return (
 									<TableRow key={env.id}>
-										<TableCell className="font-mono">{env.name}</TableCell>
+										<TableCell>
+											<div>{env.displayName}</div>
+											{env.displayName !== env.name && <div className="font-mono text-[12px] text-fg3">{env.name}</div>}
+										</TableCell>
 										<TableCell className="hidden max-w-0 truncate text-[12.5px] text-fg2 md:table-cell">
 											{(env.description ?? "") === "" ? <span className="text-fg4">—</span> : env.description}
 										</TableCell>
@@ -161,7 +166,7 @@ export function EnvironmentsSection({
 											<Button
 												variant="ghost"
 												size="icon-sm"
-												aria-label={`Edit ${env.name}`}
+												aria-label={`Edit ${env.displayName}`}
 												disabled={!canWrite}
 												title={canWrite ? undefined : `Requires Write on ${workspaceName}`}
 												onClick={() => {
@@ -215,7 +220,7 @@ export function EnvironmentsSection({
 
 			<ConfirmDialog
 				open={deleting !== null}
-				title={`Delete ${deleting?.name ?? ""}?`}
+				title={`Delete ${deleting?.displayName ?? ""}?`}
 				description={`This removes the environment from ${workspaceName}. Loco refuses while it still has deployments.`}
 				confirmLabel="Delete environment"
 				pendingLabel="Deleting…"
@@ -248,15 +253,24 @@ function EnvironmentForm({
 }) {
 	const create = useMutation(createEnvironment);
 	const update = useMutation(updateEnvironment);
-	const [raw, setRaw] = useState(env?.name ?? "");
+	const [raw, setRaw] = useState(env?.displayName ?? "");
 	const [desc, setDesc] = useState(env?.description ?? "");
 	const pending = create.isPending || update.isPending;
 
-	const name = slug(raw);
+	const name = env?.name ?? slug(raw);
+	const displayName = raw.trim();
 	const error =
-		raw.trim() !== "" && name === "" ? "Use letters or digits" : taken.includes(name) ? `${name} already exists` : null;
-	const hint = name !== "" && name !== raw ? `Saved as ${name}` : undefined;
-	const ok = name !== "" && error === null && !pending;
+		env !== undefined
+			? null
+			: raw.trim() !== "" && name === ""
+				? "Use letters or digits"
+				: taken.includes(name)
+					? `${name} already exists`
+					: null;
+	const hint = env === undefined && name !== "" && name !== raw ? `Saved as ${name}` : undefined;
+	const unchanged =
+		env === undefined ? false : displayName === env.displayName && desc.trim() === (env.description ?? "");
+	const ok = (env === undefined ? name !== "" : displayName !== "") && error === null && !unchanged && !pending;
 
 	const submit = () => {
 		if (!ok) return;
@@ -265,12 +279,12 @@ function EnvironmentForm({
 			update.mutate(
 				{
 					environmentId: env.id,
-					...(name === env.name ? {} : { name }),
+					...(displayName === env.displayName ? {} : { displayName }),
 					...(description === (env.description ?? "") ? {} : { description }),
 				},
 				{
 					onSuccess: () => {
-						toast.success(`Saved ${name}`);
+						toast.success(`Saved ${displayName}`);
 						onDone();
 					},
 					onError: (err) => {
@@ -295,7 +309,7 @@ function EnvironmentForm({
 	};
 
 	return (
-		<DialogContent title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.name}`}>
+		<DialogContent title={env === undefined ? `New environment in ${workspaceName}` : `Edit ${env.displayName}`}>
 			<form
 				className="contents"
 				onSubmit={(e) => {
@@ -304,27 +318,32 @@ function EnvironmentForm({
 				}}
 			>
 				<DialogBody>
-					<Field label="Name" error={error} hint={hint}>
+					{env !== undefined && (
+						<Field label="Name" hint="Used in loco.yaml, --env and links; it never changes">
+							<Input value={env.name} readOnly className="h-9 font-mono text-[13.5px]" />
+						</Field>
+					)}
+					<Field label={env === undefined ? "Name" : "Display name"} error={error} hint={hint}>
 						<Input
 							autoFocus
 							autoComplete="off"
 							value={raw}
+							maxLength={env === undefined ? undefined : MAX_DISPLAY_NAME}
 							placeholder="staging"
 							aria-invalid={error !== null}
-							className="h-9 font-mono text-[13.5px]"
+							className={env === undefined ? "h-9 font-mono text-[13.5px]" : "h-9 text-[13.5px]"}
 							onChange={(e) => {
 								setRaw(e.target.value);
 							}}
 						/>
 					</Field>
-					<Field label="Description">
+					<Field label="Description" hint={`${charCount(desc).toString()} / ${MAX_DESCRIPTION.toString()}`}>
 						<Textarea
 							rows={2}
-							maxLength={MAX_DESCRIPTION}
 							value={desc}
 							className="text-[13.5px]"
 							onChange={(e) => {
-								setDesc(e.target.value);
+								setDesc(clampChars(e.target.value, MAX_DESCRIPTION));
 							}}
 						/>
 					</Field>

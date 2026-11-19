@@ -92,11 +92,11 @@ JOIN users u ON u.id = st.user_id
 WHERE st.access_token_hash = $1 AND st.access_expires_at > NOW() AND u.status = 'active';
 
 -- name: GetSessionByRefreshToken :one
-SELECT st.id, st.user_id, st.kind, false AS used
+SELECT st.id, st.user_id, st.kind, false AS used, NULL::timestamptz AS used_at
 FROM session_tokens st
 WHERE st.refresh_token_hash = $1 AND st.refresh_expires_at > NOW()
 UNION ALL
-SELECT st.id, st.user_id, st.kind, true AS used
+SELECT st.id, st.user_id, st.kind, true AS used, r.used_at
 FROM used_session_refresh_tokens r
 JOIN session_tokens st ON st.id = r.session_id
 WHERE r.token_hash = $1 AND r.expires_at > NOW();
@@ -140,7 +140,7 @@ DELETE FROM used_session_refresh_tokens WHERE expires_at <= NOW();
 DELETE FROM session_tokens WHERE refresh_expires_at < NOW();
 
 -- name: ListSessionsForUser :many
-SELECT id, kind, last_used_at, user_agent, created_at
+SELECT id, kind, last_used_at, user_agent, ip_address, created_at
 FROM session_tokens
 WHERE user_id = $1 AND refresh_expires_at > NOW()
 ORDER BY last_used_at DESC, id DESC;

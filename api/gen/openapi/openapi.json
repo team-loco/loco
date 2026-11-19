@@ -664,6 +664,68 @@
         }
       }
     },
+    "/loco.auth.v1.AuthService/GetDeviceLogin": {
+      "post": {
+        "tags": [
+          "loco.auth.v1.AuthService"
+        ],
+        "summary": "GetDeviceLogin",
+        "description": "GetDeviceLogin describes the device that started a login, for the person approving its code.",
+        "operationId": "loco.auth.v1.AuthService.GetDeviceLogin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.auth.v1.GetDeviceLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.auth.v1.GetDeviceLoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.auth.v1.AuthService/PollDeviceLogin": {
       "post": {
         "tags": [
@@ -2926,7 +2988,7 @@
           "loco.environment.v1.EnvironmentService"
         ],
         "summary": "ListEnvironments",
-        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name.",
+        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name and display_name.",
         "operationId": "loco.environment.v1.EnvironmentService.ListEnvironments",
         "parameters": [
           {
@@ -7405,7 +7467,7 @@
           "loco.webhook.v1.WebhookService"
         ],
         "summary": "UpdateWebhook",
-        "description": "UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.",
+        "description": "UpdateWebhook replaces a webhook's name, URL and event types. Pending retries go to the new URL.",
         "operationId": "loco.webhook.v1.WebhookService.UpdateWebhook",
         "parameters": [
           {
@@ -9197,6 +9259,44 @@
         "title": "ExchangeCLICodeResponse",
         "additionalProperties": false
       },
+      "loco.auth.v1.GetDeviceLoginRequest": {
+        "type": "object",
+        "properties": {
+          "userCode": {
+            "type": "string",
+            "title": "user_code",
+            "maxLength": 32,
+            "minLength": 1
+          }
+        },
+        "title": "GetDeviceLoginRequest",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.GetDeviceLoginResponse": {
+        "type": "object",
+        "properties": {
+          "userAgent": {
+            "type": "string",
+            "title": "user_agent",
+            "description": "The User-Agent the device sent when it started the login."
+          },
+          "ipAddress": {
+            "type": "string",
+            "title": "ip_address",
+            "description": "The address the login started from; empty when unknown."
+          },
+          "requestedAt": {
+            "title": "requested_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "expiresAt": {
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "GetDeviceLoginResponse",
+        "additionalProperties": false
+      },
       "loco.auth.v1.PollDeviceLoginRequest": {
         "type": "object",
         "properties": {
@@ -10576,6 +10676,14 @@
             "type": "string",
             "title": "canceled_by_name",
             "description": "Who canceled the deployment; empty unless a user or token canceled it."
+          },
+          "secretNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "secret_names",
+            "description": "The stored secrets the deployment reads, sorted by name."
           }
         },
         "title": "Deployment",
@@ -11190,7 +11298,8 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "The plain environment variables the deployment runs with, exactly; empty sets none."
           },
           "port": {
             "type": [
@@ -11659,7 +11768,8 @@
           "name": {
             "type": "string",
             "title": "name",
-            "maxLength": 63
+            "maxLength": 63,
+            "description": "A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit."
           },
           "description": {
             "type": [
@@ -11718,7 +11828,8 @@
           },
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "name is the environment's slug: a DNS label, unique in its workspace, that never changes."
           },
           "description": {
             "type": [
@@ -11743,6 +11854,11 @@
             "type": "string",
             "title": "revision",
             "format": "int64"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "display_name",
+            "description": "display_name is the label the dashboard shows. It starts as name; name never changes."
           }
         },
         "title": "Environment",
@@ -11810,14 +11926,14 @@
             "title": "environment_id",
             "format": "uuid"
           },
-          "name": {
+          "displayName": {
             "type": [
               "string",
               "null"
             ],
-            "title": "name",
+            "title": "display_name",
             "maxLength": 63,
-            "minLength": 1
+            "description": "environment.display_name // display name needs a character that is not a space\n"
           },
           "description": {
             "type": [
@@ -13406,6 +13522,11 @@
             "type": "string",
             "title": "page_token",
             "description": "cursor from previous page (base64-encoded timestamp+id)"
+          },
+          "createIfMissing": {
+            "type": "boolean",
+            "title": "create_if_missing",
+            "description": "create_if_missing creates an organization and its \"default\" workspace, with the caller as admin,\n when the caller belongs to no organization. It requires user_id to be the caller."
           }
         },
         "title": "ListUserOrgsRequest",
@@ -15837,6 +15958,11 @@
           "current": {
             "type": "boolean",
             "title": "current"
+          },
+          "ipAddress": {
+            "type": "string",
+            "title": "ip_address",
+            "description": "The address that signed in; empty when unknown."
           }
         },
         "title": "Session",
@@ -16044,6 +16170,12 @@
             },
             "title": "event_types",
             "maxItems": 100
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 100,
+            "description": "An optional label shown in the webhook list."
           }
         },
         "title": "CreateWebhookRequest",
@@ -16311,6 +16443,12 @@
             "title": "event_types",
             "maxItems": 100,
             "description": "An empty list subscribes the webhook to every event."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 100,
+            "description": "An empty name clears the label."
           }
         },
         "title": "UpdateWebhookRequest",
@@ -16353,6 +16491,11 @@
             "title": "previous_secret_expires_at",
             "description": "Set while deliveries are also signed with the secret the last rotation replaced.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "An optional label; empty when none was given."
           }
         },
         "title": "Webhook",

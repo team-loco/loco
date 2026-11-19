@@ -38,7 +38,8 @@ WITH u AS (
 ), w AS (
     INSERT INTO workspaces (org_id, name, created_by) SELECT o.id, 'ws', u.id FROM o, u RETURNING id
 ), e AS (
-    INSERT INTO environments (workspace_id, name, created_by) SELECT w.id, 'prod', u.id FROM w, u RETURNING id
+    INSERT INTO environments (workspace_id, name, display_name, created_by)
+    SELECT w.id, 'prod', 'prod', u.id FROM w, u RETURNING id
 ), c AS (
     INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
     VALUES (ARRAY['linux/amd64'], 'c1', 'us-east-1', 'kind', true, true) RETURNING id

@@ -114,8 +114,7 @@ func restoreRecovery(ctx context.Context, material exportedMaterial, shares []st
 		if err != nil {
 			return err
 		}
-		upgrade := func(ctx context.Context) error { return switchRepository(ctx, "/installation/current") }
-		if err = recoveryProof(ctx, source, &source, upgrade, paths[0], paths[1]); err != nil {
+		if err = recoveryProof(ctx, source, &source, upgradeToCurrent, paths[0], paths[1]); err != nil {
 			return err
 		}
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { EnvironmentStatus } from "@gen/loco/resource/v1/resource_pb";
+import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Progress } from "@/components/design/Progress";
 import { Button } from "@/components/design/Button";
@@ -11,12 +11,12 @@ import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
-import { METRIC_RANGES, sharedLimit, type MetricRange } from "./metric";
+import { sharedLimit, type MetricRange } from "./metric";
 import { MetricChart } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
 import { ReplicaList } from "./ReplicaList";
-import { replicaLine } from "./replicas";
+import { regionReady, replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
 const ALL_REGIONS = "all";
@@ -42,8 +42,7 @@ function scaleText(regions: RegionView[]): string {
 
 function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: boolean; onPick: () => void }) {
 	const status = region.status;
-	const ready = status?.readyReplicas ?? 0;
-	const desired = status?.desiredReplicas ?? 0;
+	const { ready, desired, previous } = regionReady(region);
 	const style = resourceStatusStyle(status?.status);
 	const pct = desired === 0 ? 0 : Math.min(PERCENT, (ready / desired) * PERCENT);
 	return (
@@ -59,7 +58,13 @@ function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: b
 					{region.name}
 				</span>
 				<span className="text-[11.5px] text-fg3">
-					{status === undefined ? "Not reporting" : `${ready.toString()}/${desired.toString()} ready · ${style.label}`}
+					{status === undefined
+						? "Not reporting"
+						: [
+								`${ready.toString()}/${desired.toString()} ready`,
+								...(previous > 0 ? [`${previous.toString()} previous`] : []),
+								style.label,
+							].join(" · ")}
 				</span>
 			</button>
 			<Progress
@@ -81,7 +86,6 @@ export function ReplicasPanel({
 	selected,
 	onSelect,
 	range,
-	onRange,
 	markers,
 	metricsHref,
 	nowMs,
@@ -94,7 +98,6 @@ export function ReplicasPanel({
 	selected: string | null;
 	onSelect: (region: string | null) => void;
 	range: MetricRange;
-	onRange: (range: MetricRange) => void;
 	markers: number[];
 	metricsHref: string | undefined;
 	nowMs: number;
@@ -110,11 +113,16 @@ export function ReplicasPanel({
 	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
 	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
-	const picked = deployed.find((r) => r.name === selected)?.status;
+	const picked = deployed.find((r) => r.name === selected);
+	const pickedCount = picked === undefined ? undefined : regionReady(picked);
 	const selectedLine =
-		picked === undefined
+		pickedCount === undefined
 			? undefined
-			: `${picked.readyReplicas.toString()} of ${picked.desiredReplicas.toString()} ready in ${picked.region}`;
+			: `${pickedCount.ready.toString()} of ${pickedCount.desired.toString()} ready in ${selected ?? ""}`;
+	const countOf = (status: RegionStatus) => {
+		const view = regions.find((r) => r.name === status.region);
+		return view === undefined ? { ready: 0, desired: status.desiredReplicas } : regionReady(view);
+	};
 	const compare = selected === null && deployed.length > 1;
 	const averages = {
 		regions: deployed.map((r) => r.name),
@@ -127,7 +135,7 @@ export function ReplicasPanel({
 	return (
 		<Section
 			title="Replicas"
-			meta={`${selectedLine ?? replicaLine(environment, nowMs)} · ${scaleText(deployed)}`}
+			meta={`${selectedLine ?? replicaLine(environment, nowMs, countOf)} · ${scaleText(deployed)}`}
 			bodyClassName="flex flex-col gap-4 px-5 pt-[18px] pb-4"
 			actions={
 				<>
@@ -153,21 +161,6 @@ export function ReplicasPanel({
 							All metrics
 						</Button>
 					)}
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Time range"
-						value={[range]}
-						onValueChange={(v: string[]) => {
-							const next = METRIC_RANGES.find((r) => r === v[0]);
-							if (next !== undefined) onRange(next);
-						}}
-					>
-						{METRIC_RANGES.map((r) => (
-							<ToggleGroupItem key={r} value={r}>
-								{r}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
 				</>
 			}
 		>
@@ -210,6 +203,7 @@ export function ReplicasPanel({
 				) : (
 					<>
 						<MetricChart
+							name="CPU"
 							title={selected === null ? "CPU" : `CPU · ${selected}`}
 							points={cpu.points}
 							isLoading={cpu.isLoading}
@@ -221,6 +215,7 @@ export function ReplicasPanel({
 							format={formatCpu}
 						/>
 						<MetricChart
+							name="Memory"
 							title={selected === null ? "Memory" : `Memory · ${selected}`}
 							points={memory.points}
 							isLoading={memory.isLoading}

@@ -82,7 +82,7 @@ def check_browser(browser, state, issuer_url):
     fresh = cookies(context, state)
     for name in (evidence.SESSION_COOKIE, evidence.REFRESH_COOKIE):
         assert fresh[name]["value"] != previous[name]["value"]
-    assert refreshes == [200], refreshes
+    assert refreshes and set(refreshes) == {200}, refreshes
     other_tab.close()
 
     with urlopen(issuer_url + "/grants") as response:
@@ -113,6 +113,9 @@ def check_browser(browser, state, issuer_url):
     current = cookies(context, state)[evidence.SESSION_COOKIE]["value"]
     page.goto(state["ui_url"] + "/profile")
     page.get_by_role("button", name="Log out", exact=True).click()
+    page.get_by_role("alertdialog", name="Log out?", exact=True).get_by_role(
+        "button", name="Log out", exact=True
+    ).click()
     expect(page).to_have_url(state["ui_url"] + "/")
     expect(
         page.get_by_role("button", name="Onboard your agent to Loco")

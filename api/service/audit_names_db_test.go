@@ -9,6 +9,8 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
+const qaEnvironment = "qa-env"
+
 func TestUpdateAndDeleteEventsRecordTheNameOfTheirSubject(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
@@ -16,13 +18,13 @@ func TestUpdateAndDeleteEventsRecordTheNameOfTheirSubject(t *testing.T) {
 	environments := NewEnvironmentServer(f.pool, f.queries, limits.Defaults())
 	workspaceID := f.workspace(t, "doomed")
 	created, err := environments.CreateEnvironment(f.owner, &environmentv1.CreateEnvironmentRequest{
-		WorkspaceId: workspaceID.String(), Name: "qa-env",
+		WorkspaceId: workspaceID.String(), Name: qaEnvironment,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err = environments.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
-		EnvironmentId: created.GetEnvironmentId(), Name: new("qa-renamed"),
+		EnvironmentId: created.GetEnvironmentId(), DisplayName: new("QA renamed"),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -42,8 +44,8 @@ func TestUpdateAndDeleteEventsRecordTheNameOfTheirSubject(t *testing.T) {
 		t.Fatal(err)
 	}
 	for eventType, want := range map[string]string{
-		"environment.updated": "qa-renamed",
-		"environment.deleted": "qa-renamed",
+		"environment.updated": qaEnvironment,
+		"environment.deleted": qaEnvironment,
 		"workspace.updated":   "audit-renamed",
 		"workspace.deleted":   "audit-renamed",
 	} {

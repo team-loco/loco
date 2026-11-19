@@ -176,6 +176,13 @@ def trace_buckets(body):
             p50DurationNanos=str((index + 1) * 20000000),
             p95DurationNanos=str((index + 1) * 90000000),
         )
+    if mode[0] == "outlier":
+        buckets[-5].update(
+            traceCount="1",
+            errorCount="0",
+            p50DurationNanos="400000000000",
+            p95DurationNanos="500000000000",
+        )
     return {
         "buckets": buckets,
         "total": {
@@ -185,6 +192,14 @@ def trace_buckets(body):
             "p95DurationNanos": "360000000",
         },
     }
+
+
+UNIT_MS = {"s": 1000, "ms": 1, "µs": 0.001, "ns": 0.000001}
+
+
+def milliseconds(text):
+    match = re.fullmatch(r"([0-9.]+)(s|ms|µs|ns)", text)
+    return float(match.group(1)) * UNIT_MS[match.group(2)]
 
 
 def last_page_request():
@@ -342,6 +357,10 @@ def handle(route):
             }
             for row in others
         ]
+        if mode[0] == "dated":
+            summaries[-1]["startTime"] = time.strftime(
+                "%Y-%m-%dT%H:%M:%S.000000000Z", time.gmtime(start - 3 * 86400)
+            )
         if mode[0] == "paged":
             summaries += [
                 dict(
@@ -417,7 +436,7 @@ with session(out) as browser:
         ),
     )
     expect(page.get_by_role("button", name=re.compile(r"^All\s*7$"))).to_be_visible()
-    expect(open_trace).to_contain_text("200")
+    expect(open_trace).to_contain_text("Error")
     expect(open_trace).to_have_attribute("aria-pressed", "false")
     open_trace.click(position={"x": 20, "y": 10})
     drawer = page.get_by_role("dialog", name=root_name)
@@ -984,13 +1003,13 @@ with session(out) as browser:
     expect(page.get_by_text("360ms", exact=True)).to_be_visible()
     box = chart.bounding_box()
     chart.hover(position={"x": box["width"] - 2, "y": box["height"] / 2})
-    expect(
-        page.get_by_text(
-            re.compile(
-                r"^\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)? · 5 traces · 1 error · p50 80ms · p95 360ms$"
-            )
-        )
-    ).to_be_visible()
+    clock = r"\d\d:\d\d(:\d\d)?–\d\d:\d\d(:\d\d)?"
+    tooltips = page.get_by_role("tooltip")
+    expect(tooltips).to_have_count(2)
+    expect(tooltips.nth(0)).to_have_text(re.compile(f"^{clock} · 5 traces · 1 error$"))
+    expect(tooltips.nth(1)).to_have_text(
+        re.compile(f"^{clock} · p50 80ms · p95 360ms$")
+    )
     chart.hover(position={"x": 2, "y": 2})
     page.mouse.down()
     page.mouse.move(
@@ -1022,6 +1041,39 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name="Open trace GET /api/products", exact=True)
     ).to_be_visible()
+    context.close()
+    mode[0] = "outlier"
+    context, page, errors = open_page(browser, state=state, now=now)
+    context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
+    page.goto(state["ui_url"] + base)
+    latency = page.get_by_role("img", name=re.compile(r"^p50 and p95 trace duration"))
+    expect(latency).to_be_visible()
+    p50_line = latency.locator("polyline").first
+    expect(p50_line).to_have_attribute("points", re.compile(r"\d"))
+    p50_points = p50_line.get_attribute("points").split()
+    p50_heights = [100 - float(point.split(",")[1]) for point in p50_points]
+    assert min(p50_heights) > 10, p50_heights
+    assert not errors, errors
+    context.close()
+    mode[0] = "dated"
+    context, page, errors = open_page(browser, state=state, now=now)
+    context.route("**/loco.observability.v1.ObservabilityService/*Trace*", handle)
+    page.goto(state["ui_url"] + base)
+    rows = page.get_by_role("region", name="Trace list").get_by_role(
+        "button", name=re.compile("^Open trace ")
+    )
+    expect(rows).to_have_count(7)
+    expect(rows.last).to_contain_text(re.compile(r"^[A-Z][a-z]{2} \d+, \d\d:\d\d"))
+    expect(rows.first).not_to_contain_text(re.compile(r"^[A-Z][a-z]{2} \d+, "))
+    for index in range(7):
+        expect(rows.nth(index)).to_contain_text(re.compile(r"(OK|Error)\d"))
+    names = rows.evaluate_all(
+        "rows => rows.map(r => [r.children[1], r.children[2]].every(c => c.scrollWidth <= c.clientWidth))"
+    )
+    assert all(names), names
+    assert rows.first.evaluate(
+        "row => row.children[2].getBoundingClientRect().width > 260"
+    )
     context.close()
     mode[0] = "normal"
     environments = call(
@@ -1535,6 +1587,37 @@ with session(out) as browser:
     )
     span_list.get_by_role("button", name="Operation", exact=True).click()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    for width, height in ((1280, 600), (390, 844)):
+        page.set_viewport_size({"width": width, "height": height})
+        many_drawer.get_by_role("button", name="Waterfall", exact=True).click()
+        waterfall = many_drawer.get_by_role("region", name="Waterfall")
+        expect(waterfall.locator("[data-span]").first).to_be_visible()
+        waterfall.hover(position={"x": 150, "y": 120})
+        for _ in range(8):
+            page.mouse.wheel(0, 500)
+            page.wait_for_timeout(50)
+        for label in ("Trace view", "Waterfall"):
+            top = (
+                many_drawer.get_by_role("group", name=label)
+                if label == "Trace view"
+                else waterfall.get_by_text("Span", exact=True).first
+            )
+            top_box = top.bounding_box()
+            drawer_box = many_drawer.bounding_box()
+            assert top_box["y"] >= drawer_box["y"], (width, label, top_box)
+            assert (
+                top_box["y"] + top_box["height"]
+                <= drawer_box["y"] + drawer_box["height"]
+            )
+        header_box = many_drawer.locator("[data-slot=trace-header]").bounding_box()
+        assert header_box["y"] >= many_drawer.bounding_box()["y"]
+        span_head = waterfall.get_by_text("Span", exact=True).first.bounding_box()
+        row_box = waterfall.locator("[data-span]").first.bounding_box()
+        assert row_box["y"] < span_head["y"], (width, row_box, span_head)
+        view_tabs = many_drawer.get_by_role("group", name="Trace view")
+        assert (
+            view_tabs.bounding_box()["y"] < header_box["y"] + header_box["height"] + 80
+        )
     context.close()
     mode[0] = "normal"
     context, page, _ = open_page(browser, state=state, now=now)
@@ -1596,6 +1679,18 @@ with session(out) as browser:
         drawer = page.get_by_role("dialog", name="GET /recommendations")
         flame = drawer.get_by_role("region", name="Flame graph")
         expect(flame.get_by_role("button")).to_have_count(len(concurrent_spans))
+        ranking = drawer.get_by_role("group", name="Time spent per resource")
+        more = ranking.get_by_role("button", name=re.compile(r"^\+\d+ more$"))
+        if more.count():
+            more.click()
+        shares = ranking.get_by_role("button").filter(has_text=re.compile(r"\(.*%\)"))
+        texts = shares.all_inner_texts()
+        spent = sum(
+            milliseconds(re.search(r"([0-9.]+(?:ms|µs|ns|s)) \(", t).group(1))
+            for t in texts
+        )
+        percent = sum(int(re.search(r"\((<?)(\d+)%\)", t).group(2)) for t in texts)
+        assert spent <= 10.001 and percent <= 101, (texts, spent, percent)
         boxes = flame.get_by_role("button").evaluate_all(
             "(buttons) => buttons.map(b => {const r=b.getBoundingClientRect(); return {x:r.x,y:r.y,right:r.right,bottom:r.bottom}})"
         )

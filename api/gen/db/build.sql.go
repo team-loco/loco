@@ -220,17 +220,24 @@ func (q *Queries) CreateBuild(ctx context.Context, arg CreateBuildParams) (Build
 }
 
 const expireAwaitingUploadBuilds = `-- name: ExpireAwaitingUploadBuilds :many
-UPDATE builds
-SET status = 'failed',
-    message = $1,
-    finished_at = NOW()
-WHERE id IN (
-  SELECT e.id FROM builds e
+WITH expired AS MATERIALIZED (
+  SELECT e.id, e.resource_id FROM builds e
   WHERE e.status = 'awaiting_upload'
     AND e.created_at < $2
   ORDER BY e.created_at, e.id
   LIMIT $3
+), locked AS MATERIALIZED (
+  SELECT r.id FROM resources r
+  WHERE r.id IN (SELECT resource_id FROM expired)
+  ORDER BY r.id
+  FOR UPDATE
 )
+UPDATE builds
+SET status = 'failed',
+    message = $1,
+    finished_at = NOW()
+WHERE id IN (SELECT id FROM expired)
+  AND resource_id IN (SELECT id FROM locked)
   AND status = 'awaiting_upload'
 RETURNING id, resource_id
 `
@@ -246,6 +253,7 @@ type ExpireAwaitingUploadBuildsRow struct {
 	ResourceID uuid.UUID `json:"resourceId"`
 }
 
+// Locks each build's resource before the build, in resource id order.
 func (q *Queries) ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwaitingUploadBuildsParams) ([]ExpireAwaitingUploadBuildsRow, error) {
 	rows, err := q.db.Query(ctx, expireAwaitingUploadBuilds, arg.Message, arg.CreatedBefore, arg.MaxBuilds)
 	if err != nil {
@@ -267,13 +275,25 @@ func (q *Queries) ExpireAwaitingUploadBuilds(ctx context.Context, arg ExpireAwai
 }
 
 const failClusterBuilds = `-- name: FailClusterBuilds :many
+WITH locked AS MATERIALIZED (
+  SELECT r.id FROM resources r
+  WHERE r.id IN (
+    SELECT b.resource_id FROM builds b
+    WHERE b.cluster_id = $2
+      AND b.status = $3
+      AND NOT (b.id = ANY($4::uuid[]))
+  )
+  ORDER BY r.id
+  FOR UPDATE
+)
 UPDATE builds
 SET status = 'failed',
     message = $1,
     finished_at = NOW()
-WHERE cluster_id = $2
-  AND status = $3
-  AND NOT (id = ANY($4::uuid[]))
+WHERE builds.cluster_id = $2
+  AND builds.status = $3
+  AND NOT (builds.id = ANY($4::uuid[]))
+  AND builds.resource_id IN (SELECT id FROM locked)
 RETURNING id, source_key, resource_id
 `
 
@@ -290,6 +310,7 @@ type FailClusterBuildsRow struct {
 	ResourceID uuid.UUID `json:"resourceId"`
 }
 
+// Locks each build's resource before the build, in resource id order.
 func (q *Queries) FailClusterBuilds(ctx context.Context, arg FailClusterBuildsParams) ([]FailClusterBuildsRow, error) {
 	rows, err := q.db.Query(ctx, failClusterBuilds,
 		arg.Message,

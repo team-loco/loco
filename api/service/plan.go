@@ -454,11 +454,7 @@ func liveState(
 			state.Dockerfile = deployed.DockerfilePath
 			state.Context = deployed.Context
 		}
-		env, envErr := liveEnv(ctx, queries, deployment)
-		if envErr != nil {
-			return configplan.State{}, fmt.Errorf("deployment %s env: %w", deployment.ID, envErr)
-		}
-		state.Env = env
+		state.Env = service.GetEnv()
 		state.Secrets = deployment.SecretNames
 	}
 	if len(deployments) > 0 {

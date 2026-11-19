@@ -167,7 +167,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 function envColumn(environment: Environment): DataColumn<ListRow> {
 	return {
 		id: `${ENV_PREFIX}${environment.name}`,
-		header: environment.name.charAt(0).toUpperCase() + environment.name.slice(1),
+		header: environment.displayName,
 		size: 172,
 		accessorFn: (row) => envRank(row, environment.id),
 		sortFn: "basic",

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -31,6 +32,7 @@ const (
 )
 
 type authFixture struct {
+	pool    *pgxpool.Pool
 	server  *AuthServer
 	client  authv1connect.AuthServiceClient
 	machine *tvm.VendingMachine
@@ -58,6 +60,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 	userID := signUp(t, openResolver(t, pool), identity.Subject, identity.Email)
 
 	f := &authFixture{
+		pool:    pool,
 		machine: machine,
 		queries: queries,
 		clock:   time.Now(),
@@ -184,7 +187,7 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 			if got := codeOf(err); (tc.want == 0 && err != nil) || (tc.want != 0 && got != tc.want) {
 				t.Fatalf("approve loopback = %v, want %v", err, tc.want)
 			}
-			device, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+			device, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -205,7 +208,7 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 func TestCLIDeviceLogin(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -269,10 +272,47 @@ func (c *racingCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return value, err
 }
 
+func TestDeviceLoginDescribesTheRequestingDevice(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.server.web.TrustedProxyHops = 1
+	const agent = "loco/v1.2.3 (darwin arm64; build-box)"
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("User-Agent", agent)
+	info.RequestHeader().Set("X-Forwarded-For", "203.0.113.9")
+	started, err := f.client.StartDeviceLogin(ctx, &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if _, getErr := f.server.GetDeviceLogin(t.Context(), &authv1.GetDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	}); getErr == nil {
+		t.Fatal("device login described to a caller without a web session")
+	}
+	got, err := f.server.GetDeviceLogin(f.webCtx, &authv1.GetDeviceLoginRequest{UserCode: started.GetUserCode()})
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.GetUserAgent() != agent || got.GetIpAddress() != "203.0.113.9" ||
+		got.GetRequestedAt() == nil || !got.GetExpiresAt().AsTime().After(got.GetRequestedAt().AsTime()) {
+		t.Fatalf("device login = %+v", got)
+	}
+	if _, getErr := f.server.GetDeviceLogin(f.webCtx, &authv1.GetDeviceLoginRequest{
+		UserCode: "ZZZZ-ZZZZ",
+	}); codeOf(getErr) != connect.CodeNotFound {
+		t.Fatalf("unknown code: %v", getErr)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	}); approveErr != nil {
+		t.Fatalf("approve after describing: %v", approveErr)
+	}
+}
+
 func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -303,10 +343,50 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	f.assertWorks(t, done.GetTokens())
 }
 
+type failingSetCache struct {
+	cache.Cache
+	key   string
+	fails int
+}
+
+func (c *failingSetCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if key == c.key && c.fails > 0 {
+		c.fails--
+		return errors.New("cache unavailable")
+	}
+	return c.Cache.Set(ctx, key, value, ttl)
+}
+
+func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	f.server.cache = &failingSetCache{
+		Cache: f.server.cache, key: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
+	}
+	approve := &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); codeOf(approveErr) != connect.CodeUnavailable {
+		t.Fatalf("approve while the store fails: %v", approveErr)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); approveErr != nil {
+		t.Fatalf("retried approve: %v", approveErr)
+	}
+	f.clock = f.clock.Add(10 * time.Second)
+	poll := &authv1.PollDeviceLoginRequest{DeviceCode: started.GetDeviceCode()}
+	done, err := f.client.PollDeviceLogin(t.Context(), poll)
+	if err != nil {
+		t.Fatalf("poll after approval: %v", err)
+	}
+	f.assertWorks(t, done.GetTokens())
+}
+
 func TestCLIDeviceApprovalKeepsExpiry(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -395,7 +475,7 @@ func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
 		t.Fatalf("approval events committed when the loopback code was stored = %d, want 1", loopback.approved)
 	}
 
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -407,5 +487,34 @@ func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
 	}
 	if device.approved != 2 {
 		t.Fatalf("approval events committed when the device grant was stored = %d, want 2", device.approved)
+	}
+}
+
+func TestSessionAddressIgnoresAClientSuppliedForwardedEntry(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.server.web.TrustedProxyHops = 1
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	}); approveErr != nil {
+		t.Fatalf("approve: %v", approveErr)
+	}
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("X-Forwarded-For", "198.51.100.66, 203.0.113.9")
+	if _, pollErr := f.client.PollDeviceLogin(ctx, &authv1.PollDeviceLoginRequest{
+		DeviceCode: started.GetDeviceCode(),
+	}); pollErr != nil {
+		t.Fatalf("poll: %v", pollErr)
+	}
+	principal, _ := reqctx.PrincipalFrom(f.webCtx)
+	var address netip.Addr
+	if scanErr := f.pool.QueryRow(
+		t.Context(), "SELECT ip_address FROM session_tokens WHERE user_id = $1", principal.UserID,
+	).Scan(&address); scanErr != nil || address.String() != "203.0.113.9" {
+		t.Fatalf("session address = %v (%v), want the address the gateway appended", address, scanErr)
 	}
 }

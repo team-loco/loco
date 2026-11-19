@@ -531,7 +531,7 @@ func TestEnvironmentLifecycleEventsStayInTheirEnvironment(t *testing.T) {
 	}
 	want(events.EnvironmentCreated)
 	if _, err = server.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
-		EnvironmentId: environmentID, Name: new("renamed"),
+		EnvironmentId: environmentID, DisplayName: new("Renamed"),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -543,4 +543,22 @@ func TestEnvironmentLifecycleEventsStayInTheirEnvironment(t *testing.T) {
 		t.Fatal(err)
 	}
 	want(events.EnvironmentDeleted)
+}
+
+func TestListEventsSearchMatchesTheWhereColumn(t *testing.T) {
+	t.Parallel()
+	f := newScopedAuditFixture(t)
+	for query, want := range map[string]int{
+		"audit-service @type:" + events.DeploymentDeleted: 1,
+		"audit-primary @type:" + events.DeploymentDeleted: 2,
+		"audit-other @type:" + events.DeploymentDeleted:   0,
+	} {
+		res, err := f.events.ListEvents(f.owner, &eventv1.ListEventsRequest{OrgId: f.orgID, Query: query})
+		if err != nil {
+			t.Fatalf("ListEvents(%q): %v", query, err)
+		}
+		if got := len(res.GetEvents()); got != want {
+			t.Errorf("ListEvents(%q) found %d events, want %d", query, got, want)
+		}
+	}
 }

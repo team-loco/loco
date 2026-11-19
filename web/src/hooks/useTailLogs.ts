@@ -20,11 +20,14 @@ interface UseTailLogsOptions {
 interface TailState {
 	key: string;
 	entries: LogEntry[];
+	/** Arrival time in ms of each entry, newest first. */
+	arrivals: number[];
+	startedAt: number | null;
 	isConnected: boolean;
 	error: Error | null;
 }
 
-const NO_TAIL: Omit<TailState, "key"> = { entries: [], isConnected: false, error: null };
+const NO_TAIL: Omit<TailState, "key"> = { entries: [], arrivals: [], startedAt: null, isConnected: false, error: null };
 
 export function tailLogsRequest({
 	workspaceId,
@@ -60,15 +63,22 @@ export function useTailLogs(options: UseTailLogsOptions) {
 		const consume = async () => {
 			if (!enabled || workspaceId === "" || (!allEnvironments && environmentId === "")) return;
 			try {
+				const startedAt = Date.now();
+				setTail((previous) => (previous.key === streamKey ? { ...previous, startedAt } : previous));
 				const client = createClient(ObservabilityService, transport);
 				for await (const message of client.tailLogs(request, { signal })) {
 					if (signal.aborted) return;
+					const arrivedAt = Date.now();
 					setTail((previous) => {
-						const entries = previous.key === streamKey ? previous.entries : [];
+						const same = previous.key === streamKey;
+						const entries = same ? previous.entries : [];
+						const arrivals = same ? previous.arrivals : [];
 						return {
 							key: streamKey,
 							entries:
 								message.event.case === "entry" ? [message.event.value, ...entries].slice(0, MAX_TAIL_ENTRIES) : entries,
+							arrivals: message.event.case === "entry" ? [arrivedAt, ...arrivals].slice(0, MAX_TAIL_ENTRIES) : arrivals,
+							startedAt: same ? previous.startedAt : startedAt,
 							isConnected: true,
 							error: null,
 						};
@@ -80,6 +90,8 @@ export function useTailLogs(options: UseTailLogsOptions) {
 				setTail((previous) => ({
 					key: streamKey,
 					entries: previous.key === streamKey ? previous.entries : [],
+					arrivals: previous.key === streamKey ? previous.arrivals : [],
+					startedAt: previous.key === streamKey ? previous.startedAt : null,
 					isConnected: false,
 					error: error instanceof Error ? error : new Error(String(error)),
 				}));

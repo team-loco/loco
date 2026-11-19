@@ -8,10 +8,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"runtime"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
@@ -20,6 +25,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -33,6 +39,8 @@ const spinnerFrameDelay = 100 * time.Millisecond
 type Options struct {
 	// Command is the command line users rerun, such as "loco login", named in errors.
 	Command string
+	// Version is the CLI version the API shows beside the session.
+	Version string
 	APIHost string
 	// WebHost serves the page that approves a browser sign-in.
 	WebHost string
@@ -81,6 +89,18 @@ func Run(ctx context.Context, opts Options) error {
 	return nil
 }
 
+// userAgent names the CLI, its version, the system and the host, as `loco/v1.2.3 (darwin arm64; build-box)`:
+// the dashboard shows it beside the session and the sign-in approval.
+func userAgent(opts Options) string {
+	product, _, _ := strings.Cut(opts.Command, " ")
+	host, err := os.Hostname()
+	if err != nil {
+		host = "unknown host"
+	}
+	clean := strings.NewReplacer("(", "", ")", "", ";", "")
+	return fmt.Sprintf("%s/%s (%s %s; %s)", product, opts.Version, runtime.GOOS, runtime.GOARCH, clean.Replace(host))
+}
+
 func providerLogin(ctx context.Context, httpClient *http.Client, opts Options) error {
 	interactive := ui.IsInteractive()
 	if !opts.Device && !interactive {
@@ -88,7 +108,10 @@ func providerLogin(ctx context.Context, httpClient *http.Client, opts Options) e
 			"%w; run %s --device and approve the code on another device", errBrowserLoginNeedsTerminal, opts.Command,
 		)
 	}
-	authClient := rpc.NewHTTPClients(httpClient, opts.APIHost, "").Auth
+	transport := connecthttp.NewTransport(httpClient, opts.APIHost)
+	authClient := authv1connect.NewAuthServiceClient(
+		connect.NewClient(transport, rpc.RequestIDInterceptor, rpc.UserAgentInterceptor(userAgent(opts))),
+	)
 	var tokens *authv1.CLITokens
 	var err error
 	if opts.Device {
@@ -164,8 +187,9 @@ func resolveLoginScope(
 
 	orgs, err := paginate.All(func(token string) ([]*orgv1.Organization, string, error) {
 		resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
-			UserId:    currentUserResp.GetUser().GetId(),
-			PageToken: token,
+			UserId:          currentUserResp.GetUser().GetId(),
+			PageToken:       token,
+			CreateIfMissing: true,
 		})
 		if listErr != nil {
 			return nil, "", listErr
@@ -177,7 +201,7 @@ func resolveLoginScope(
 	}
 
 	if len(orgs) == 0 {
-		return session.SimpleOrg{}, session.SimpleWorkspace{}, nil
+		return session.SimpleOrg{}, session.SimpleWorkspace{}, errNoOrganization
 	}
 	selectedOrg := orgs[0]
 	workspaces, err := paginate.All(func(token string) ([]*workspacev1.Workspace, string, error) {
@@ -193,10 +217,13 @@ func resolveLoginScope(
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", err)
 	}
-	org := session.SimpleOrg{ID: selectedOrg.GetId(), Name: selectedOrg.GetName()}
 	if len(workspaces) == 0 {
-		return org, session.SimpleWorkspace{}, nil
+		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
+			"organization %q has no workspaces",
+			selectedOrg.GetName(),
+		)
 	}
+	org := session.SimpleOrg{ID: selectedOrg.GetId(), Name: selectedOrg.GetName()}
 	workspace := session.SimpleWorkspace{ID: workspaces[0].GetId(), Name: workspaces[0].GetName()}
 	return org, workspace, nil
 }
@@ -204,20 +231,12 @@ func resolveLoginScope(
 func printLoginSuccess(title, orgName, workspaceName string) error {
 	checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
 	heading := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render(title)
-	detail := lipgloss.NewStyle().Foreground(ui.Fg2)
-	switch {
-	case orgName == "":
-		_, err := lipgloss.Printf("%s %s\n%s\n", checkmark, heading,
-			detail.Render("  You belong to no organization yet. Create one with: loco org create <name>"))
-		return err
-	case workspaceName == "":
-		_, err := lipgloss.Printf("%s %s\n%s\n%s\n", checkmark, heading,
-			detail.Render(fmt.Sprintf("  Organization: %s", orgName)),
-			detail.Render("  This organization has no workspace yet. Create one with: loco workspace create <name>"))
-		return err
-	}
-	orgLine := detail.Render(fmt.Sprintf("  Organization: %s", orgName))
-	wsLine := detail.Render(fmt.Sprintf("  Workspace: %s", workspaceName))
+	orgLine := lipgloss.NewStyle().
+		Foreground(ui.Fg2).
+		Render(fmt.Sprintf("  Organization: %s", orgName))
+	wsLine := lipgloss.NewStyle().
+		Foreground(ui.Fg2).
+		Render(fmt.Sprintf("  Workspace: %s", workspaceName))
 	_, err := lipgloss.Printf("%s %s\n%s\n%s\n", checkmark, heading, orgLine, wsLine)
 	return err
 }

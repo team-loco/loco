@@ -3,6 +3,7 @@ package platform
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -20,6 +21,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 	"github.com/team-loco/loco/internal/locofile"
+	"github.com/team-loco/loco/k8sapi/labels"
 	"github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -93,7 +95,48 @@ func (p *Platform) newWorkspace(t *testing.T, orgID, orgName, name string) *Work
 	}
 	w.Namespace = p.EnvironmentNamespace(w.EnvironmentID)
 	w.writeCLIConfig(t)
+	t.Cleanup(func() {
+		if t.Failed() {
+			w.logRuntime(t)
+		}
+		w.delete(t)
+	})
 	return w
+}
+
+// delete removes the workspace and its apps.
+func (w *Workspace) delete(tb testing.TB) {
+	tb.Helper()
+	_, err := w.p.User.Workspace.DeleteWorkspace(
+		context.WithoutCancel(tb.Context()),
+		&workspacev1.DeleteWorkspaceRequest{WorkspaceId: w.ID, ConfirmDeleteApps: true},
+	)
+	switch {
+	case err == nil, IsNotFound(err):
+	case connect.CodeOf(err) == connect.CodePermissionDenied:
+		tb.Logf("keep workspace %s, which the application user can no longer delete: %v", w.Name, err)
+	default:
+		tb.Errorf("delete workspace %s: %v", w.Name, err)
+	}
+}
+
+// logRuntime logs the workspace's workloads and the rollout status of its Applications, for a
+// failed test.
+func (w *Workspace) logRuntime(tb testing.TB) {
+	tb.Helper()
+	w.p.LogWorkspaceRuntime(tb, w.Namespace)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(tb.Context()), workspaceRuntimeLogTimeout)
+	defer cancel()
+	var applications v1alpha1.ApplicationList
+	if err := w.p.Get(ctx, &applications, "-n", locoNamespace, "applications",
+		"-l", labels.LabelEnvironmentID+"="+w.EnvironmentID); err != nil {
+		tb.Logf("list the workspace's Applications: %v", err)
+		return
+	}
+	for _, app := range applications.Items {
+		status, err := json.Marshal(app.Status)
+		tb.Logf("Application %s %v status:\n%s%v", app.Name, app.Annotations, status, err)
+	}
 }
 
 // writeCLIConfig writes the CLI's credentials and its scope of the workspace into Home.
@@ -165,7 +208,6 @@ func (w *Workspace) MustLoco(tb testing.TB, dir string, args ...string) CLIResul
 	tb.Helper()
 	result := w.Loco(tb.Context(), dir, nil, args...)
 	if result.Err != nil {
-		w.p.LogWorkspaceRuntime(tb, w.Namespace)
 		tb.Fatalf("loco %s: %v\n%s", strings.Join(args, " "), result.Err, result.Output())
 	}
 	return result

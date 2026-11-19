@@ -55,6 +55,10 @@ export function editDraft(drafts: readonly Draft[], id: string, edits: DraftEdit
 	return drafts.map((d) => (d.id === id ? { ...d, edits: { ...d.edits, ...stored } } : d));
 }
 
+export function setDraftImage(drafts: readonly Draft[], id: string, image: string): Draft[] {
+	return drafts.map((d) => (d.id === id ? { ...d, image } : d));
+}
+
 export function removeDraft(drafts: readonly Draft[], id: string): Draft[] {
 	return drafts.filter((d) => d.id !== id);
 }

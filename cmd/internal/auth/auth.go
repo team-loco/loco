@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"connectrpc.com/connect/v2"
 	"github.com/team-loco/loco/cmd/internal/host"
 	"github.com/team-loco/loco/internal/rpc"
 
@@ -76,6 +77,13 @@ func FreshToken(ctx context.Context, apiHost string, store keychain.TokenStore) 
 	}
 	slog.Debug("attempting silent token refresh")
 	refreshed, err := refreshLocoToken(ctx, apiHost, locoToken.RefreshToken, store)
+	if connect.CodeOf(err) == connect.CodeAborted {
+		// Another process refreshed the session first and stored its tokens.
+		stored, getErr := store.Get()
+		if getErr == nil && stored.Host == apiHost && stored.RefreshToken != locoToken.RefreshToken {
+			return stored, nil
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("token expired and refresh failed. Please re-login via `loco login`: %w", err)
 	}

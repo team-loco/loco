@@ -72,6 +72,7 @@ const SHORTCUT_KEY = "k";
 export const SHORTCUT_LABEL = shortcutLabel("K");
 const PLACEHOLDER = "Search pages, resources and actions";
 const PALETTE_GROUPS = ["This page", "Actions", "Resources", "Pages", "Workspaces", "Appearance", "Help"] as const;
+const SEARCH_GROUPS = ["This page", "Actions", "Pages", "Resources", "Workspaces", "Appearance", "Help"] as const;
 const KEY_HINT = "bg-panel2 text-fg3 inset-ring-0";
 const BROWSE_LIMIT = 8;
 
@@ -124,7 +125,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				{
 					id: "page-show-map",
 					group: "This page",
-					label: "Show architecture map",
+					label: "Show Map",
 					keywords: "view diagram graph",
 					icon: <NetworkIcon />,
 					run: () => {
@@ -134,7 +135,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				{
 					id: "page-show-table",
 					group: "This page",
-					label: "Show resource table",
+					label: "Show Table",
 					keywords: "view list",
 					icon: <TableIcon />,
 					run: () => {
@@ -342,12 +343,14 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 		inputRef.current?.focus();
 	};
 	const browsing = query.trim() === "";
-	const groups = PALETTE_GROUPS.filter((group) => !browsing || group !== "Workspaces").map((group) => {
-		const inGroup = items.filter(
-			(item) => item.group === group && (item.list ?? null) === list && !(browsing && item.searchOnly === true),
-		);
-		return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
-	});
+	const groups = (browsing ? PALETTE_GROUPS : SEARCH_GROUPS)
+		.filter((group) => !browsing || group !== "Workspaces")
+		.map((group) => {
+			const inGroup = items.filter(
+				(item) => item.group === group && (item.list ?? null) === list && !(browsing && item.searchOnly === true),
+			);
+			return { group, items: browsing && group !== "Appearance" ? inGroup.slice(0, BROWSE_LIMIT) : inGroup };
+		});
 
 	return (
 		<Command
@@ -385,7 +388,10 @@ function PaletteBody({ items, onClose }: { items: readonly PaletteItem[]; onClos
 				<Kbd className={cn(KEY_HINT, "px-1.5 py-0.5 text-[11px]")}>esc</Kbd>
 			</CommandInput>
 			<CommandList label="Results">
-				<CommandEmpty>Nothing matches.</CommandEmpty>
+				<CommandEmpty>
+					<span className="block text-foreground">Nothing matches.</span>
+					<span className="block">Try a page, resource or action, such as Logs, Settings or New resource.</span>
+				</CommandEmpty>
 				{groups.map(
 					(g) =>
 						g.items.length > 0 && (

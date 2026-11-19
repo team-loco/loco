@@ -54,7 +54,8 @@ CREATE TABLE
     environments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
-        name TEXT NOT NULL,
+        name TEXT NOT NULL CHECK (name ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
+        display_name TEXT NOT NULL CHECK (char_length(display_name) <= 63 AND display_name ~ '\S'),
         description TEXT,
         created_by UUID NOT NULL,
         revision BIGINT NOT NULL DEFAULT 0,

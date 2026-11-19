@@ -128,6 +128,7 @@ const (
 	defaultAPITokenMaxLifetime        = 365 * 24 * time.Hour
 	defaultSessionAccessTokenLifetime = time.Hour
 	defaultSessionRefreshLifetime     = 7 * 24 * time.Hour
+	defaultSessionRefreshReuseGrace   = 10 * time.Second
 	defaultTokenLastUsedInterval      = 5 * time.Minute
 	defaultTokenCleanupInterval       = time.Minute
 
@@ -241,6 +242,7 @@ type APIConfig struct {
 	StreamAuth            auth.StreamConfig
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
+	TrustedProxyHops      int
 	Invitations           service.InvitationConfig
 	SchemaURL             string
 	EventsRetention       time.Duration
@@ -327,6 +329,7 @@ func newAPIConfig() *APIConfig {
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   envconfig.String("APP_ENV", ""),
+		TrustedProxyHops:      int(nonNegativeInt32Env("LOCO_TRUSTED_PROXY_HOPS", 0)),
 		Database:              database,
 		DatabaseListenConfig:  databaseListenConfig,
 		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
@@ -450,6 +453,10 @@ func newTokenConfig() tvm.Config {
 		SessionRefreshTokenDuration: envconfig.PositiveDuration(
 			"LOCO_SESSION_REFRESH_TOKEN_LIFETIME",
 			defaultSessionRefreshLifetime,
+		),
+		RefreshReuseGrace: envconfig.PositiveDuration(
+			"LOCO_SESSION_REFRESH_REUSE_GRACE",
+			defaultSessionRefreshReuseGrace,
 		),
 		LastUsedUpdateInterval: envconfig.PositiveDuration(
 			"LOCO_TOKEN_LAST_USED_INTERVAL",

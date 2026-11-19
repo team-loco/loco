@@ -52,6 +52,7 @@ export interface NewResourceForm {
 }
 
 export interface FormErrors {
+	image: string | null;
 	regions: string | null;
 	port: string | null;
 	subdomain: string | null;
@@ -114,15 +115,31 @@ export function deploymentVariables(rows: EnvRow[]) {
 	};
 }
 
-export function envError(rows: EnvRow[]): string | null {
-	const seen = new Set<string>();
-	for (const [key] of envVars(rows)) {
-		if (key === "") return "A variable has a value but no name";
-		if (!isEnvKey(key)) return `${key} isn't a valid name: use letters, digits and _, not starting with a digit`;
-		if (seen.has(key)) return `${key} is set twice`;
-		seen.add(key);
+const SECRET_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
+const KEY_RULE = "Use letters, digits and _, not starting with a digit";
+
+/** The problem with each variable row, by row id; rows without a problem are absent. */
+export function envRowErrors(rows: EnvRow[]): Map<string, string> {
+	const errors = new Map<string, string>();
+	const counts = new Map<string, number>();
+	for (const row of rows.filter((r) => !isBlank(r))) {
+		const key = row.key.trim();
+		counts.set(key, (counts.get(key) ?? 0) + 1);
 	}
-	return null;
+	for (const row of rows.filter((r) => !isBlank(r))) {
+		const key = row.key.trim();
+		if (key === "") errors.set(row.id, "Enter a name for this value");
+		else if (!isEnvKey(key)) errors.set(row.id, KEY_RULE);
+		else if (row.secret === true && !SECRET_KEY_RE.test(key)) errors.set(row.id, "Secret names use uppercase letters");
+		else if ((counts.get(key) ?? 0) > 1) errors.set(row.id, `${key} is set more than once`);
+	}
+	return errors;
+}
+
+export function envError(rows: EnvRow[]): string | null {
+	const count = envRowErrors(rows).size;
+	if (count === 0) return null;
+	return count === 1 ? "Fix the highlighted variable" : `Fix the ${count.toString()} highlighted variables`;
 }
 
 export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () => string): EnvRow[] {
@@ -157,7 +174,10 @@ function subdomainError(form: NewResourceForm, availability: DomainCheck["state"
 export function imageError(image: string): string | null {
 	const trimmed = image.trim();
 	if (trimmed === "") return "Enter an image";
-	return IMAGE_RE.test(trimmed) ? null : "Use registry/repository:tag";
+	if (/\s/.test(trimmed)) return "An image reference can't contain spaces";
+	if (IMAGE_RE.test(trimmed)) return null;
+	if (IMAGE_RE.test(trimmed.toLowerCase())) return "Use lowercase letters in the image reference";
+	return "Use registry/repository:tag";
 }
 
 export function validateForm(
@@ -166,6 +186,7 @@ export function validateForm(
 	replicaLimit: number,
 ): FormErrors {
 	return {
+		image: imageError(form.image),
 		regions: form.regions.length === 0 ? "Choose at least one region" : null,
 		port: portError(form),
 		subdomain: subdomainError(form, availability),
@@ -213,7 +234,14 @@ export function scalingSpec(form: Scaling) {
 }
 
 export function firstError(errors: FormErrors): string | null {
-	const ordered: (string | null)[] = [errors.regions, errors.port, errors.subdomain, errors.env, errors.scaling];
+	const ordered: (string | null)[] = [
+		errors.image,
+		errors.regions,
+		errors.port,
+		errors.subdomain,
+		errors.env,
+		errors.scaling,
+	];
 	return ordered.find((e) => e !== null) ?? null;
 }
 

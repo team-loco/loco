@@ -49,7 +49,10 @@ const STATUS_LABEL: Record<SecretStatus, string> = {
 };
 
 const COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]";
-const ROW = cn("grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0", COLUMNS);
+const ROW = cn(
+	"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0",
+	COLUMNS,
+);
 const MASK = "••••••••";
 const FORM_COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_auto]";
 
@@ -186,26 +189,36 @@ function PlainVariable({
 	name,
 	value,
 	managed,
+	fresh = false,
+	removed = false,
+	onValue,
 	onRemove,
 }: {
 	name: string;
 	value: string;
 	managed: boolean;
-	onRemove?: () => void;
+	fresh?: boolean;
+	removed?: boolean;
+	onValue?: ((value: string) => void) | undefined;
+	onRemove?: (() => void) | undefined;
 }) {
 	return (
 		<div className={ROW}>
-			<div className="flex min-w-0 flex-col gap-0.5">
+			<div className="col-span-2 flex min-w-0 flex-col gap-0.5 md:col-span-1">
 				<span className="flex items-center gap-2">
-					<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
-					{onRemove !== undefined && (
+					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
+						{name}
+					</span>
+					{fresh && (
 						<Badge size="sm" tone={STATUS_TONE.new}>
 							{STATUS_LABEL.new}
 						</Badge>
 					)}
 				</span>
 				<span className="text-[11.5px] text-fg3">
-					{managed ? (
+					{removed ? (
+						"Removed when you save"
+					) : managed ? (
 						<>
 							Plain · from the <code className="font-mono">env</code> map of loco.yaml
 						</>
@@ -214,11 +227,23 @@ function PlainVariable({
 					)}
 				</span>
 			</div>
-			<Input aria-label={`Value of ${name}`} className="font-mono" value={value} readOnly />
+			<Input
+				aria-label={`Value of ${name}`}
+				className={cn("font-mono", onRemove === undefined && "col-span-2 md:col-span-1")}
+				value={value}
+				readOnly={onValue === undefined}
+				disabled={removed}
+				onChange={(e) => onValue?.(e.target.value)}
+			/>
 			{onRemove !== undefined && (
 				<div className="flex items-center justify-end">
-					<Button variant="ghost" size="icon-sm" aria-label={`Remove ${name}`} onClick={onRemove}>
-						<Trash2Icon />
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						aria-label={removed ? `Keep ${name}` : `Remove ${name}`}
+						onClick={onRemove}
+					>
+						{removed ? <Undo2Icon /> : <Trash2Icon />}
 					</Button>
 				</div>
 			)}
@@ -233,6 +258,7 @@ function SecretLine({
 	bound,
 	value,
 	removed,
+	unbinds,
 	canWrite,
 	onBound,
 	onValue,
@@ -244,6 +270,7 @@ function SecretLine({
 	bound: boolean | undefined;
 	value: string;
 	removed: boolean;
+	unbinds: boolean;
 	canWrite: boolean;
 	onBound: (bound: boolean) => void;
 	onValue: (value: string) => void;
@@ -258,7 +285,7 @@ function SecretLine({
 			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt), timePref)}`;
 	return (
 		<div className={ROW}>
-			<div className="flex min-w-0 flex-col gap-0.5">
+			<div className="col-span-2 flex min-w-0 flex-col gap-0.5 md:col-span-1">
 				<span className="flex items-center gap-2">
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
 						{row.name}
@@ -271,7 +298,9 @@ function SecretLine({
 							</Badge>
 						)}
 				</span>
-				<span className="text-[11.5px] text-fg3">{removed ? "Removed when you save" : meta}</span>
+				<span className="text-[11.5px] text-fg3">
+					{removed ? (unbinds ? "Saving redeploys without it, then removes it" : "Removed when you save") : meta}
+				</span>
 				{hint !== undefined && !removed && <span className="text-[11.5px] text-warn-fg">{hint}</span>}
 				{bound !== undefined && !removed && (
 					<span className="flex items-center gap-1.5 pt-1 text-[11.5px] text-fg3">
@@ -327,6 +356,7 @@ export function VariablesSection({
 	resourceName,
 	managed,
 	deployed,
+	differingRegions,
 	workspaceId,
 	environmentId,
 	draft,
@@ -338,6 +368,7 @@ export function VariablesSection({
 	resourceName: string;
 	managed: boolean;
 	deployed: boolean;
+	differingRegions: string[];
 	workspaceId: string;
 	environmentId: string;
 	draft: SettingsDraft;
@@ -360,14 +391,18 @@ export function VariablesSection({
 
 	const staged = draft.secrets ?? {};
 	const stagedEnv = draft.env ?? {};
+	const removedEnv = new Set(draft.removedEnv ?? []);
 	const bindings = draft.bindings ?? {};
 	const bindable = !managed && deployed;
 	const declared = new Set(envQuery.data?.secretNames ?? []);
 	const removed = new Set(draft.removedSecrets ?? []);
 	const members = new Map((membersRes?.members ?? []).map((m) => [m.userId, m.userName || m.userEmail]));
 	const rows = secretRows(secretsQuery.data?.secrets ?? [], envQuery.data?.secretNames, Object.keys(staged));
-	const plain = Object.entries(envQuery.data?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));
-	const newPlain = Object.entries(stagedEnv).toSorted(([a], [b]) => a.localeCompare(b));
+	const current = envQuery.data?.env ?? {};
+	const plain = Object.entries(current).toSorted(([a], [b]) => a.localeCompare(b));
+	const newPlain = Object.entries(stagedEnv)
+		.filter(([name]) => !Object.hasOwn(current, name))
+		.toSorted(([a], [b]) => a.localeCompare(b));
 	const secretKind = newSecret || !bindable;
 	const newProblem =
 		newName === ""
@@ -447,6 +482,12 @@ export function VariablesSection({
 				)
 			}
 		>
+			{differingRegions.length > 0 && (
+				<p role="status" className="mb-2 text-[12.5px] text-warn-fg">
+					{new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(differingRegions)} run different
+					variables. This list shows one of them; saving applies it to every region.
+				</p>
+			)}
 			<div className="overflow-hidden rounded-card border border-line bg-background">
 				{secretsQuery.isLoading && (
 					<div className="flex flex-col gap-2 p-3.5">
@@ -473,6 +514,7 @@ export function VariablesSection({
 						bound={bindable && row.status !== undefined ? (bindings[row.name] ?? declared.has(row.name)) : undefined}
 						value={staged[row.name] ?? ""}
 						removed={removed.has(row.name)}
+						unbinds={bindable && declared.has(row.name)}
 						canWrite={canWrite}
 						onBound={(bound) => {
 							onChange({ bindings: bindingsWith(row.name, bound) });
@@ -487,20 +529,53 @@ export function VariablesSection({
 							onChange({
 								removedSecrets: [...next],
 								secrets: withoutKey(staged, row.name),
-								bindings: withoutKey(bindings, row.name),
+								bindings: bindingsWith(row.name, remove && bindable ? false : undefined),
 							});
 						}}
 					/>
 				))}
-				{plain.map(([name, value]) => (
-					<PlainVariable key={name} name={name} value={value} managed={managed} />
-				))}
+				{plain.map(([name, value]) => {
+					const editable = bindable && canWrite;
+					const gone = removedEnv.has(name);
+					return (
+						<PlainVariable
+							key={name}
+							name={name}
+							value={stagedEnv[name] ?? value}
+							managed={managed}
+							removed={gone}
+							onValue={
+								editable
+									? (next) => {
+											onChange({
+												env: next === value ? withoutKey(stagedEnv, name) : { ...stagedEnv, [name]: next },
+											});
+										}
+									: undefined
+							}
+							onRemove={
+								editable
+									? () => {
+											const nextRemoved = new Set(removedEnv);
+											if (gone) nextRemoved.delete(name);
+											else nextRemoved.add(name);
+											onChange({ env: withoutKey(stagedEnv, name), removedEnv: [...nextRemoved] });
+										}
+									: undefined
+							}
+						/>
+					);
+				})}
 				{newPlain.map(([name, value]) => (
 					<PlainVariable
 						key={name}
 						name={name}
 						value={value}
 						managed={managed}
+						fresh
+						onValue={(next) => {
+							onChange({ env: { ...stagedEnv, [name]: next } });
+						}}
 						onRemove={() => {
 							onChange({ env: withoutKey(stagedEnv, name) });
 						}}

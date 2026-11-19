@@ -2,9 +2,9 @@ import { formatShortId } from "@/lib/utils";
 import { TrafficSection } from "@/pages/resource/TrafficSection";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
@@ -30,7 +30,7 @@ import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { deploymentRegions, specForRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
-import { configuredRegions, isWorker } from "@/lib/resource-regions";
+import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, withEnv, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
@@ -42,7 +42,8 @@ import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
-import { METRIC_RANGES } from "@/pages/resource/metric";
+import { METRIC_RANGES, RANGE_MS } from "@/pages/resource/metric";
+import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
 	activeDeploymentPlaces,
 	buildRegions,
@@ -140,6 +141,18 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const del = useMutation(deleteResource);
 	const restart = useMutation(restartResource);
 
+	const [search] = useSearchParams();
+	const rawTab = search.get("tab");
+	const rawRange = search.get("range");
+	const badTab = rawTab !== null && !(VIEWS as readonly string[]).includes(rawTab);
+	const badRange = rawRange !== null && !(METRIC_RANGES as readonly string[]).includes(rawRange);
+	useEffect(() => {
+		if (badTab || badRange)
+			void setParams({ ...(badTab && { tab: "overview" }), ...(badRange && { range: "1h" }) } as const, {
+				history: "replace",
+			});
+	}, [badTab, badRange, setParams]);
+
 	const setView = (next: View) => {
 		void setParams({ tab: next }, { history: "push" });
 	};
@@ -193,10 +206,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
-	const obsLink = (obsView: "logs" | "metrics" | "events", region: string | null = null): string | undefined =>
+	const obsLink = (
+		obsView: "logs" | "metrics" | "events",
+		region: string | null = null,
+		rangeMs?: number,
+	): string | undefined =>
 		hasWs
 			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
 					...envParam,
+					...(rangeMs === undefined ? {} : { range: rangeMs }),
 					r: [resource.name],
 					q: region === null ? null : queryStr([{ key: "region", value: quoteValue(region), neg: false }], ""),
 				})
@@ -405,6 +423,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
+					{deployed.length > 0 && environmentId !== undefined && (
+						<RangeToggle
+							range={range}
+							onRange={(next) => {
+								void setParams({ range: next });
+							}}
+						/>
+					)}
 					{deployed.length > 0 && environmentId !== undefined ? (
 						<ReplicasPanel
 							nowMs={nowMs}
@@ -418,11 +444,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 								void setParams({ region });
 							}}
 							range={range}
-							onRange={(next) => {
-								void setParams({ range: next });
-							}}
 							markers={markers}
-							metricsHref={obsLink("metrics", selectedRegion)}
+							metricsHref={obsLink("metrics", selectedRegion, RANGE_MS[range])}
 						/>
 					) : (
 						<Section>
@@ -432,8 +455,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					{deployed.length > 0 && environmentId !== undefined && !isWorker(resource, currents) && (
+					{deployed.length > 0 && environmentId !== undefined && (
 						<TrafficSection
+							isPublic={resource.domains.length > 0}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}
@@ -469,28 +493,36 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					/>
 				</div>
 			) : (
-				<SettingsView
-					resource={resource}
-					environmentId={environmentId ?? ""}
-					regions={regions}
-					draft={draft}
-					base={base}
-					focus={view}
-					canWrite={canWrite}
-					canDelete={canDelete}
-					canReadWorkspace={canListResources}
-					onDraft={setDraft}
-					onBack={() => {
-						setView("overview");
-					}}
-					onDelete={() => {
-						setModal({ kind: "delete" });
-					}}
-					onSaved={(next) => {
-						setNotice(next);
-						void refresh();
-					}}
-				/>
+				<div className="flex flex-col gap-5">
+					<DeploymentProgress
+						regions={regions}
+						logsHref={obsLink("logs")}
+						canWrite={canWrite}
+						onRollback={openRollback}
+					/>
+					<SettingsView
+						resource={resource}
+						environmentId={environmentId ?? ""}
+						regions={regions}
+						draft={draft}
+						base={base}
+						focus={view}
+						canWrite={canWrite}
+						canDelete={canDelete}
+						canReadWorkspace={canListResources}
+						onDraft={setDraft}
+						onBack={() => {
+							setView("overview");
+						}}
+						onDelete={() => {
+							setModal({ kind: "delete" });
+						}}
+						onSaved={(next) => {
+							setNotice(next);
+							void refresh();
+						}}
+					/>
+				</div>
 			)}
 
 			<EventsDrawer

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -206,7 +207,7 @@ func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 		t.Fatalf("create deployment: %v", err)
 	}
 	build := created.GetBuild()
-	want := "index.docker.io/library/nginx@" + testDigest
+	want := "index.docker.io/library/nginx:1.27@" + testDigest
 	if build.GetType() != buildSourceTypeImage || build.GetImage() != want {
 		t.Fatalf("build = %v, want image %s", build, want)
 	}
@@ -354,9 +355,6 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	if _, ok := keys["healthCheck"]; !ok {
 		t.Errorf("stored spec has no healthCheck key, want the proto JSON name\n%s", stored)
 	}
-	if _, ok := keys["env"]; ok {
-		t.Errorf("stored spec carries env\n%s", stored)
-	}
 
 	got := &deploymentv1.ServiceDeploymentSpec{}
 	if err := protojson.Unmarshal(stored, got); err != nil {
@@ -378,8 +376,8 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 			maxReplicas,
 		)
 	}
-	if len(got.GetEnv()) != 0 {
-		t.Errorf("env = %v, want none stored", got.GetEnv())
+	if !maps.Equal(got.GetEnv(), service.GetEnv()) {
+		t.Errorf("env = %v, want %v", got.GetEnv(), service.GetEnv())
 	}
 }
 

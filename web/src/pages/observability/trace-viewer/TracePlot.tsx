@@ -57,7 +57,7 @@ export function TracePlot({
 	const offset = (f: number) => durationLabel(BigInt(Math.round(Number(trace.duration) * f)));
 	return (
 		<div className="flex min-w-0 flex-col gap-2.5">
-			<div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+			<div className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 bg-background pt-3.5 pb-1">
 				<ToggleGroup
 					variant="segmented"
 					aria-label="Trace view"

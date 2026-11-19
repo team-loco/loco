@@ -62,11 +62,19 @@ with session(out) as browser:
     )
     context, page, errors = open_page(browser, state=state)
     calls = []
+    concurrent_edit = []
 
     def record(route):
         calls.append(
             (route.request.url.rsplit("/", 1)[-1], route.request.post_data_json)
         )
+        if concurrent_edit:
+            concurrent_edit.clear()
+            # Another save lands between the page's last read and this request.
+            sql(
+                state,
+                f"UPDATE resources SET revision=revision+1 WHERE id='{resource}';",
+            )
         route.continue_()
 
     page.route("**/loco.resource.v1.ResourceService/UpdateResource", record)
@@ -152,7 +160,7 @@ with session(out) as browser:
     save()
     expect(page.get_by_text("Rolling out in us-east-1.", exact=False)).to_be_visible()
 
-    sql(state, f"UPDATE resources SET revision=revision+1 WHERE id='{resource}';")
+    concurrent_edit.append(True)
     west.click()
     expect(west).to_have_attribute("aria-pressed", "false")
     save()

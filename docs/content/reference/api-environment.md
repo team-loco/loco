@@ -16,6 +16,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `PPROF_ADDR` | empty | Address of a Go pprof server. Empty runs none. |
 | `CORS_ALLOWED_ORIGINS` | empty | Comma-separated browser origins allowed to call the API. The `WEB_URL` origin is always allowed. |
 | `WEB_URL` | empty | Dashboard origin. Required when `AUTH_ISSUERS` configures a dashboard client; invitation links point at it. |
+| `LOCO_TRUSTED_PROXY_HOPS` | `0` | How many proxies in front of the API append the address they received a request from to `X-Forwarded-For`. The API shows the entry that many places from the right as a session's address; `0` uses the connection's address. The chart sets `1` for its gateway. |
 | `LOCO_RPC_TIMEOUT` | `30s` | Deadline of each unary RPC. Streams have none. |
 | `LOCO_SHUTDOWN_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for open requests before closing their connections. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | OTLP/HTTP endpoint for the API's own traces. Tracing is off while this and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are both empty. The OpenTelemetry SDK reads its other `OTEL_*` variables too. |
@@ -46,6 +47,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_API_TOKEN_MAX_LIFETIME` | `8760h` | Longest lifetime of an API token, at least one second. See [API token lifetime](../operations/access.md#api-token-lifetime). |
 | `LOCO_SESSION_ACCESS_TOKEN_LIFETIME` | `1h` | Lifetime of a session access token. |
 | `LOCO_SESSION_REFRESH_TOKEN_LIFETIME` | `168h` | Lifetime of a session refresh token, and so of a session nobody uses. |
+| `LOCO_SESSION_REFRESH_REUSE_GRACE` | `10s` | How long after a session refresh the old refresh token still counts as a concurrent refresh, such as a second browser tab, and keeps the session. Later reuse revokes the session. |
 | `LOCO_TOKEN_LAST_USED_INTERVAL` | `5m` | Least time between two writes of a token's last-used time or a member's last sign-in. |
 | `LOCO_TOKEN_CLEANUP_INTERVAL` | `1m` | How often the API deletes expired session and API tokens. |
 | `LOCO_STREAM_AUTH_INTERVAL` | `5s` | Time between access rechecks of an open stream. See [open streams](../operations/access.md#open-streams-and-access-changes). |

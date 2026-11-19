@@ -161,6 +161,38 @@ with session(out) as browser:
     expect(rows.first).to_contain_text("Updated a resource", timeout=15000)
     page.get_by_role("button", name="Pause", exact=True).click()
     expect(page).not_to_have_url(re.compile(r"[?&]live="))
+
+    # A custom range sends its start and end; a preset applies behind a loading state.
+    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    time_range = page.get_by_role("dialog", name="Time range")
+    expect(
+        time_range.get_by_role("group", name="Presets").get_by_role("button")
+    ).to_have_count(4)
+    with expect_rpc(page, "ListEvents", lambda body: "endTime" in body) as custom:
+        time_range.get_by_role("button", name="Apply", exact=True).click()
+    assert (
+        custom.value.request.post_data_json["startTime"]
+        < custom.value.request.post_data_json["endTime"]
+    )
+    expect(page).to_have_url(re.compile(r"[?&]from=\d+&to=\d+"))
+    expect(page).not_to_have_url(re.compile(r"[?&]range="))
+    expect(page.get_by_role("button", name="Live", exact=True)).to_be_disabled()
+
+    def slow_list(route):
+        page.wait_for_timeout(1500)
+        route.continue_()
+
+    page.route("**/loco.event.v1.EventService/ListEvents", slow_list)
+    page.get_by_role("button", name=re.compile(r"–")).click()
+    time_range.get_by_role("button", name=re.compile(r"Past 30 days")).click()
+    expect(page.get_by_role("list", name="Audit events")).to_have_count(0)
+    expect(page.get_by_role("list", name="Audit events")).to_be_visible(timeout=10000)
+    page.unroute("**/loco.event.v1.EventService/ListEvents", slow_list)
+    expect(page).to_have_url(re.compile(r"[?&]range=30d"))
+    expect(page).not_to_have_url(re.compile(r"[?&](from|to)="))
+    expect(page.get_by_role("button", name="Live", exact=True)).to_be_enabled()
+    page.goto(state["ui_url"] + audit_path)
+    expect(rows).to_have_count(50)
     page.get_by_role("button", name="Event", exact=True).click()
     expect(page.get_by_text(re.compile(r"^0 of \d+$"))).to_be_visible()
     expect(
@@ -218,6 +250,14 @@ with session(out) as browser:
     ):
         search.fill("INVENTORY")
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("inventory")
+    # The search reads the Where column: the sibling workspace names events on its resources.
+    with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "sibling"):
+        search.fill("sibling")
+    expect(
+        page.get_by_role("list", name="Audit events")
+        .get_by_role("button")
+        .filter(has_text="Created a resource")
+    ).to_contain_text("sibling / inventory")
     # Typing sends only the query the typing pauses on, so a half-typed field neither reads nor fails.
     typed_from = len(list_events(calls))
     search.press("ControlOrMeta+a")
@@ -455,10 +495,14 @@ with session(out) as browser:
     page.get_by_role("link", name="Audit log", exact=True).click()
     rows = page.get_by_role("list", name="Audit events").get_by_role("button")
     expect(rows.first).to_be_visible()
-    workspace_filter = page.get_by_role(
+    workspace_buttons = page.get_by_role(
         "button", name=re.compile(r"^(shared|sibling)$")
     )
-    expect(workspace_filter).to_have_count(1)
+    workspace_filter = workspace_buttons.last
+    expect(
+        page.locator('[data-slot="top-bar"]').get_by_role("button", name="shared")
+    ).to_have_count(1)
+    expect(workspace_buttons).to_have_count(2)
     expect(
         page.get_by_role("button", name="Clear workspace filter", exact=True)
     ).to_have_count(0)
@@ -497,8 +541,10 @@ with session(out) as browser:
     page.goto(state["ui_url"] + f"/org/{org}/wks/{sibling}/settings?scope=workspace")
     page.get_by_role("link", name="Activity in audit log", exact=True).click()
     page.wait_for_url(f"**{audit_path}?range=90d&ws={sibling}")
-    expect(page.get_by_role("button", name="Past 90 days", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="sibling", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("button", name=re.compile(r"^Past 90 days"))
+    ).to_be_visible()
+    expect(page.get_by_role("button", name="sibling", exact=True).last).to_be_visible()
     with expect_rpc(
         page,
         "ListEvents",

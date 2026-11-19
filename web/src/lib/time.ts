@@ -56,9 +56,14 @@ export function formatClock(ms: number, withMs: boolean, pref: TimePreferences):
 	return clock(ms, true, withMs, pref);
 }
 
-export function formatSlashDate(ms: number, pref: TimePreferences): string {
+/** An ISO 8601 timestamp with milliseconds, written in the preferred zone. */
+export function formatIsoTimestamp(ms: number, pref: TimePreferences): string {
 	const p = parts(ms, pref);
-	return `${String(p.month + 1)}/${pad(p.day)}`;
+	const offset = pref.zone === "utc" ? 0 : -new Date(ms).getTimezoneOffset();
+	const sign = offset < 0 ? "-" : "+";
+	const zone =
+		pref.zone === "utc" ? "Z" : `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
+	return `${formatIsoDate(ms, pref)}T${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}.${pad(p.ms, 3)}${zone}`;
 }
 
 export function formatIsoDate(ms: number, pref: TimePreferences): string {
@@ -83,8 +88,13 @@ export function formatMonthDay(ms: number, pref: TimePreferences): string {
 	return dateFormats[pref.zone].monthDay.format(ms);
 }
 
+/** The absolute time shown in lists and tooltips: "Nov 18, 15:49", with seconds or milliseconds when asked. */
+export function formatDateTime(ms: number, withSeconds: boolean, withMs: boolean, pref: TimePreferences): string {
+	return `${formatMonthDay(ms, pref)}, ${clock(ms, withSeconds || withMs, withMs, pref)}`;
+}
+
 export function formatStarted(ms: number | undefined, pref: TimePreferences): string {
-	return ms === undefined || ms === 0 ? "—" : `${formatMonthDay(ms, pref)}, ${formatHourMinute(ms, pref)}`;
+	return ms === undefined || ms === 0 ? "—" : formatDateTime(ms, false, false, pref);
 }
 
 export function formatMonthDayYear(ms: number, pref: TimePreferences): string {
@@ -143,22 +153,15 @@ export function formatAxisTime(ms: number, from: number, to: number, pref: TimeP
 		: formatHourMinute(ms, pref);
 }
 
+/** A relative time: "just now", "5m ago", "3h ago", "2d ago". */
 export function agoLabel(ms: number, nowMs: number): string {
 	if (ms === 0) return "—";
 	const mins = Math.floor((nowMs - ms) / 60_000);
 	if (mins < 1) return "just now";
-	if (mins < 60) return `${mins.toString()} min ago`;
+	if (mins < 60) return `${mins.toString()}m ago`;
 	const hrs = Math.floor(mins / 60);
-	if (hrs < 24) return `${hrs.toString()} hour${hrs === 1 ? "" : "s"} ago`;
-	const days = Math.floor(hrs / 24);
-	if (days === 1) return "yesterday";
-	return `${days.toString()} days ago`;
-}
-
-/** A relative time short enough for a narrow column: "5m ago", "3h ago", "2d ago". */
-export function shortAgoLabel(ms: number, nowMs: number): string {
-	if (Math.round((nowMs - ms) / 60_000) < 1) return "now";
-	return `${shortDurationLabel(nowMs - ms)} ago`;
+	if (hrs < 24) return `${hrs.toString()}h ago`;
+	return `${Math.floor(hrs / 24).toString()}d ago`;
 }
 
 export function shortDurationLabel(ms: number): string {

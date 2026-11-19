@@ -987,27 +987,12 @@ func (q *Queries) RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (
 	return i, err
 }
 
-const setBuildingDeploymentEnv = `-- name: SetBuildingDeploymentEnv :exec
-UPDATE deployments SET spec = jsonb_set(spec, '{env}', $1::jsonb)
-WHERE id = $2
-`
-
-type SetBuildingDeploymentEnvParams struct {
-	Env []byte    `json:"env"`
-	ID  uuid.UUID `json:"id"`
-}
-
-func (q *Queries) SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error {
-	_, err := q.db.Exec(ctx, setBuildingDeploymentEnv, arg.Env, arg.ID)
-	return err
-}
-
 const setDeploymentBuildImage = `-- name: SetDeploymentBuildImage :exec
 WITH placed AS (
     UPDATE deployment_placements SET image = $1::text, updated_at = NOW()
     WHERE deployment_id = $2 AND status = 'pending'
 )
-UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb($1::text))
+UPDATE deployments SET spec = jsonb_set(spec, '{build,image}', to_jsonb($1::text))
 WHERE id = $2
 `
 

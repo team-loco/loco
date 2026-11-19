@@ -25,15 +25,18 @@ const (
 
 // Environment represents an isolation boundary within a workspace.
 type Environment struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkspaceId   string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	CreatedBy     string                 `protobuf:"bytes,6,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	Revision      int64                  `protobuf:"varint,9,opt,name=revision,proto3" json:"revision,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkspaceId string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// name is the environment's slug: a DNS label, unique in its workspace, that never changes.
+	Name        string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Description *string                `protobuf:"bytes,4,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	CreatedBy   string                 `protobuf:"bytes,6,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Revision    int64                  `protobuf:"varint,9,opt,name=revision,proto3" json:"revision,omitempty"`
+	// display_name is the label the dashboard shows. It starts as name; name never changes.
+	DisplayName   string `protobuf:"bytes,10,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -124,12 +127,20 @@ func (x *Environment) GetRevision() int64 {
 	return 0
 }
 
+func (x *Environment) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
 // CreateEnvironmentRequest is the request to create a new environment.
 type CreateEnvironmentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+	Name          string  `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description   *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -414,7 +425,7 @@ func (x *ListEnvironmentsResponse) GetEnvironments() []*Environment {
 type UpdateEnvironmentRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	DisplayName   *string                `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
 	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -457,9 +468,9 @@ func (x *UpdateEnvironmentRequest) GetEnvironmentId() string {
 	return ""
 }
 
-func (x *UpdateEnvironmentRequest) GetName() string {
-	if x != nil && x.Name != nil {
-		return *x.Name
+func (x *UpdateEnvironmentRequest) GetDisplayName() string {
+	if x != nil && x.DisplayName != nil {
+		return *x.DisplayName
 	}
 	return ""
 }
@@ -602,7 +613,7 @@ var File_loco_environment_v1_environment_proto protoreflect.FileDescriptor
 
 const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\n" +
-	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc8\x02\n" +
+	"%loco/environment/v1/environment.proto\x12\x13loco.environment.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xeb\x02\n" +
 	"\vEnvironment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -614,7 +625,9 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\t \x01(\x03R\brevisionB\x0e\n" +
+	"\brevision\x18\t \x01(\x03R\brevision\x12!\n" +
+	"\fdisplay_name\x18\n" +
+	" \x01(\tR\vdisplayNameB\x0e\n" +
 	"\f_descriptionJ\x04\b\x05\x10\x06R\x04type\"\xb1\x01\n" +
 	"\x18CreateEnvironmentRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
@@ -630,12 +643,13 @@ const file_loco_environment_v1_environment_proto_rawDesc = "" +
 	"\x17ListEnvironmentsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"`\n" +
 	"\x18ListEnvironmentsResponse\x12D\n" +
-	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\xc5\x01\n" +
+	"\fenvironments\x18\x01 \x03(\v2 .loco.environment.v1.EnvironmentR\fenvironments\"\xc1\x02\n" +
 	"\x18UpdateEnvironmentRequest\x12/\n" +
-	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\"\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\a\n" +
-	"\x05_nameB\x0e\n" +
+	"\x0eenvironment_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12\x95\x01\n" +
+	"\fdisplay_name\x18\x02 \x01(\tBm\xbaHj\xba\x01c\n" +
+	"\x18environment.display_name\x122display name needs a character that is not a space\x1a\x13this.matches('\\\\S')r\x02\x18?H\x00R\vdisplayName\x88\x01\x01\x12/\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01B\x0f\n" +
+	"\r_display_nameB\x0e\n" +
 	"\f_descriptionJ\x04\b\x04\x10\x05R\x04type\"B\n" +
 	"\x19UpdateEnvironmentResponse\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\"K\n" +

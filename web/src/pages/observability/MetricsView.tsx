@@ -15,14 +15,12 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
-import { deploymentImage } from "@/lib/deployment-utils";
 import { isUnimplemented } from "@/lib/error-handler";
-import { imageVersion } from "@/lib/image";
 import { sortParser } from "@/lib/sort-parser";
 import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, tsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { filteredResources, useObs, type ObsResource } from "./context";
 import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
@@ -159,7 +157,7 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 		for (const d of queries[i]?.data?.deployments ?? []) {
 			const t = tsMs(d.startedAt ?? d.createdAt);
 			if (t < from || t > to || d.environmentId !== environmentId) continue;
-			const tag = imageVersion(deploymentImage(d));
+			const tag = formatShortId(d.id);
 			const label = `${r.name} ${tag}`;
 			for (const p of d.placements) {
 				markers.push({
@@ -385,7 +383,7 @@ export function MetricsView() {
 						>
 							<div className="flex items-baseline gap-2">
 								<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{def.title}</h3>
-								<span className="font-mono text-[12px] text-fg3">%</span>
+								<span className="font-mono text-[12px] text-fg3">% of limit, peak per bucket</span>
 							</div>
 							{result.isLoading || environmentLoading ? (
 								<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
@@ -418,7 +416,9 @@ export function MetricsView() {
 											style={{ borderColor: s.color }}
 										/>
 										{s.name}
-										<span className="font-mono text-[11.5px] text-fg3">{formatPercent(s.points.at(-1)?.v ?? 0)}</span>
+										<span className="font-mono text-[11.5px] text-fg3">
+											latest {formatPercent(s.points.at(-1)?.v ?? 0)}
+										</span>
 									</span>
 								))}
 							</div>
@@ -435,8 +435,8 @@ export function MetricsView() {
 								{header("resource", "Resource")}
 								{header("region", "Region")}
 								{header("replicas", "Replicas")}
-								{header("cpu", "CPU", "w-[170px]")}
-								{header("mem", "Memory", "w-[170px]")}
+								{header("cpu", "CPU (latest)", "w-[170px]")}
+								{header("mem", "Memory (latest)", "w-[170px]")}
 							</tr>
 						</thead>
 						<tbody>

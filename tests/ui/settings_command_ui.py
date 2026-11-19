@@ -76,6 +76,8 @@ def stored_spec():
     )
 
 
+digest = "sha256:" + "a" * 64
+
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)
     sent = []
@@ -83,11 +85,18 @@ with session(out) as browser:
     def create_deployment(route):
         body = route.request.post_data_json
         sent.append(body["spec"]["service"])
+        build = body["spec"]["service"]["build"]
+        if "@" not in build["image"]:
+            build["image"] += "@" + digest
         # Stores the requested spec as the active snapshot; the fixture image has no registry.
         runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
         deployment = sql(
             state,
-            f"UPDATE deployments SET spec={runtime} WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;",
+            f"UPDATE deployments SET spec={runtime},status='deploying',completed_at=NULL,updated_at=NOW() WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;",
+        )
+        sql(
+            state,
+            f"UPDATE deployment_placements SET status='deploying',completed_at=NULL WHERE deployment_id='{deployment}';",
         )
         route.fulfill(json={"deploymentId": deployment})
 
@@ -112,6 +121,8 @@ with session(out) as browser:
             page.get_by_role("button", name="Save & redeploy", exact=True).click()
         assert completed.value.ok, completed.value.text()
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+        expect(page.get_by_role("region", name="Deploying", exact=True)).to_be_visible()
+        expect(section).to_be_visible()
         sql(
             state,
             f"UPDATE deployment_placements SET status='running' WHERE deployment_id IN "
@@ -157,6 +168,18 @@ with session(out) as browser:
     page.reload()
     expect(command).to_have_value("")
     expect(arguments).to_have_value("")
+
+    image = page.locator("#set-image")
+    tag = image.get_by_role("textbox", name="Tag or digest", exact=True)
+    expect(tag).to_have_value("1")
+    expect(image).to_contain_text(f"Pinned to {digest}")
+    tag.fill("2")
+    expect(image).not_to_contain_text("Pinned to")
+    save()
+    assert sent[-1]["build"]["image"] == f"registry.example.com/echo:2@{digest}", sent
+    page.reload()
+    expect(tag).to_have_value("2")
+    expect(image).to_contain_text(f"Pinned to {digest}")
     assert not errors, errors
     context.close()
 print("Settings command suite passed")

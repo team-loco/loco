@@ -1,14 +1,6 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
-import {
-	Building2Icon,
-	CheckIcon,
-	ChevronDownIcon,
-	ChevronsUpDownIcon,
-	PlusIcon,
-	Settings2Icon,
-	SettingsIcon,
-} from "lucide-react";
+import { Building2Icon, CheckIcon, ChevronDownIcon, ChevronsUpDownIcon, PlusIcon, Settings2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, matchPath, useLocation, useNavigate } from "react-router";
 
@@ -18,7 +10,6 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbSeparator } from "@/components/design/Breadcrumb";
-import { Button } from "@/components/design/Button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -32,7 +23,7 @@ import { useOrgWorkspace } from "@/context/ContextProvider";
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { settingsPath, switchWorkspacePath, WORKSPACE_ROUTE } from "@/lib/routes";
+import { orgSettingsPath, settingsPath, switchWorkspacePath, WORKSPACE_ROUTE, workspacePath } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
 import { CreateScopeDialog, type ScopeKind } from "./CreateScopeDialog";
@@ -63,112 +54,114 @@ function EnvSwitcher({ children, label }: { children: ReactNode; label: string }
 	);
 }
 
-function ScopeSwitcher({
-	org,
-	workspace,
-	onCreate,
-}: {
-	org: Organization;
-	workspace: Workspace | undefined;
-	onCreate: (kind: ScopeKind) => void;
-}) {
-	const { pathname, search } = useLocation();
+function OrgSwitcher({ org, onCreate }: { org: Organization; onCreate: () => void }) {
 	const navigate = useNavigate();
 	const transport = useTransport();
 	const { orgs, activeWorkspaceId } = useOrgWorkspace();
-	const { orgLevel } = useMyScopes();
-	const [open, setOpen] = useState(false);
 	const results = useQueries({
 		queries: orgs.map((o) => orgWorkspacesOptions(transport, o.id)),
 	});
 
-	const go = (to: string) => {
-		setOpen(false);
-		void navigate(to);
-	};
-
 	return (
 		<BreadcrumbItem className="min-w-0">
-			<DropdownMenu
-				open={open}
-				onOpenChange={(next: boolean) => {
-					setOpen(next);
-				}}
-			>
-				<DropdownMenuTrigger title="Switch workspace" className={cn(TRIGGER, "max-w-[360px]")}>
+			<DropdownMenu>
+				<DropdownMenuTrigger title="Switch organization" className={cn(TRIGGER, "max-w-[220px]")}>
 					<span className="truncate text-fg3">{org.name}</span>
-					{workspace !== undefined && (
-						<>
-							<span className="text-fg3">/</span>
-							<span className="truncate">{workspace.name}</span>
-						</>
-					)}
 					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
-					{orgs.map((o, i) => {
-						const orgWorkspaces = results[i]?.data?.workspaces ?? [];
-						const first = orgWorkspaces[0];
-						return (
-							<DropdownMenuGroup key={o.id}>
-								<DropdownMenuLabel className="flex items-center justify-between pr-1">
-									<span className="truncate">{o.name}</span>
-									{first !== undefined && (
-										<Button
-											variant="ghost"
-											size="icon-xs"
-											title="Organization settings"
-											aria-label={`${o.name} settings`}
-											className="text-fg3"
-											onClick={() => {
-												go(settingsPath(o.id, first.id, "org"));
-											}}
-										>
-											<SettingsIcon />
-										</Button>
-									)}
-								</DropdownMenuLabel>
-								{orgWorkspaces.map((w) => (
-									<DropdownMenuItem
-										key={w.id}
-										onClick={() => {
-											if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, o.id, w.id));
-										}}
-									>
-										<span className="flex-1 truncate">{w.name}</span>
-										{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
-									</DropdownMenuItem>
-								))}
-							</DropdownMenuGroup>
-						);
-					})}
+					<DropdownMenuGroup>
+						<DropdownMenuLabel>Organizations</DropdownMenuLabel>
+						{orgs.map((o, i) => {
+							const first = results[i]?.data?.workspaces[0];
+							return (
+								<DropdownMenuItem
+									key={o.id}
+									onClick={() => {
+										if (o.id === org.id) return;
+										void navigate(first === undefined ? `/org/${o.id}/team` : workspacePath(o.id, first.id));
+									}}
+								>
+									<span className="flex-1 truncate">{o.name}</span>
+									{o.id === org.id && <CheckIcon className="size-3.5" />}
+								</DropdownMenuItem>
+							);
+						})}
+					</DropdownMenuGroup>
 					<DropdownMenuSeparator />
-					{orgLevel(org.id) >= 2 && (
-						<DropdownMenuItem
-							onClick={() => {
-								onCreate("workspace");
-							}}
-						>
-							<PlusIcon className="text-fg3" />
-							New workspace
-						</DropdownMenuItem>
-					)}
 					<DropdownMenuItem
 						onClick={() => {
-							onCreate("org");
+							void navigate(orgSettingsPath(org.id, activeWorkspaceId));
 						}}
 					>
+						<Settings2Icon className="text-fg3" />
+						Organization settings
+					</DropdownMenuItem>
+					<DropdownMenuItem onClick={onCreate}>
 						<PlusIcon className="text-fg3" />
 						New organization
 					</DropdownMenuItem>
 					<DropdownMenuItem
 						onClick={() => {
-							go("/organizations");
+							void navigate("/organizations");
 						}}
 					>
 						<Building2Icon className="text-fg3" />
-						Organizations
+						All organizations
 					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</BreadcrumbItem>
+	);
+}
+
+function WorkspaceSwitcher({
+	org,
+	workspace,
+	onCreate,
+}: {
+	org: Organization;
+	workspace: Workspace;
+	onCreate: () => void;
+}) {
+	const { pathname, search } = useLocation();
+	const navigate = useNavigate();
+	const { workspaces, activeWorkspaceId } = useOrgWorkspace();
+	const { orgLevel } = useMyScopes();
+
+	return (
+		<BreadcrumbItem className="min-w-0">
+			<DropdownMenu>
+				<DropdownMenuTrigger title="Switch workspace" className={cn(TRIGGER, "max-w-[220px]")}>
+					<span className="truncate">{workspace.name}</span>
+					<ChevronsUpDownIcon className="size-3.5 shrink-0 text-fg3" />
+				</DropdownMenuTrigger>
+				<DropdownMenuContent className="w-[248px]" align="start" sideOffset={6} alignOffset={-4}>
+					<DropdownMenuGroup>
+						<DropdownMenuLabel>Workspaces</DropdownMenuLabel>
+						{workspaces
+							.filter((w) => w.orgId === org.id)
+							.map((w) => (
+								<DropdownMenuItem
+									key={w.id}
+									onClick={() => {
+										if (w.id !== activeWorkspaceId) void navigate(switchWorkspacePath(pathname, search, org.id, w.id));
+									}}
+								>
+									<span className="flex-1 truncate">{w.name}</span>
+									{w.id === activeWorkspaceId && <CheckIcon className="size-3.5" />}
+								</DropdownMenuItem>
+							))}
+					</DropdownMenuGroup>
+					{orgLevel(org.id) >= 2 && (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={onCreate}>
+								<PlusIcon className="text-fg3" />
+								New workspace
+							</DropdownMenuItem>
+						</>
+					)}
 				</DropdownMenuContent>
 			</DropdownMenu>
 		</BreadcrumbItem>
@@ -204,13 +197,26 @@ export function ShellBreadcrumb() {
 		<Breadcrumb className="min-w-0 flex-1 overflow-hidden">
 			<BreadcrumbList>
 				{org !== undefined && (
-					<ScopeSwitcher
-						org={org}
-						workspace={workspace}
-						onCreate={(kind) => {
-							setCreating(kind);
-						}}
-					/>
+					<>
+						<OrgSwitcher
+							org={org}
+							onCreate={() => {
+								setCreating("org");
+							}}
+						/>
+						{workspace !== undefined && (
+							<>
+								<Slash />
+								<WorkspaceSwitcher
+									org={org}
+									workspace={workspace}
+									onCreate={() => {
+										setCreating("workspace");
+									}}
+								/>
+							</>
+						)}
+					</>
 				)}
 
 				{org === undefined && workspace !== undefined && (
@@ -224,7 +230,7 @@ export function ShellBreadcrumb() {
 				{showEnv && env !== undefined && (
 					<>
 						{hasScopeCrumb && <Slash />}
-						<EnvSwitcher label={env.name}>
+						<EnvSwitcher label={env.displayName}>
 							{environments.map((e) => (
 								<DropdownMenuItem
 									key={e.id}
@@ -232,7 +238,7 @@ export function ShellBreadcrumb() {
 										setEnv(e);
 									}}
 								>
-									<span className="flex-1 truncate font-mono text-[12.5px]">{e.name}</span>
+									<span className="flex-1 truncate font-mono text-[12.5px]">{e.displayName}</span>
 									<CheckIcon className={cn("size-3.5", e.id !== env.id && "invisible")} />
 								</DropdownMenuItem>
 							))}

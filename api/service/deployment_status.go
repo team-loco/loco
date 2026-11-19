@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -75,21 +74,6 @@ type liveDeployment struct {
 	Region          string
 	Replicas        int32
 	PlacementStatus genDb.PlacementStatus
-}
-
-// liveEnv is the plain env a region's live deployment runs with: the placement's while it is
-// placed, the deployment's own while it waits for its build.
-func liveEnv(ctx context.Context, q genDb.Querier, live liveDeployment) (map[string]string, error) {
-	if live.PlacementStatus != genDb.PlacementStatusPending {
-		return desiredEnv(ctx, q, live.ResourceID, live.EnvironmentID, live.ClusterID)
-	}
-	var stored struct {
-		Env map[string]string `json:"env"`
-	}
-	if err := json.Unmarshal(live.Spec, &stored); err != nil {
-		return nil, fmt.Errorf("decode building deployment %s env: %w", live.ID, err)
-	}
-	return stored.Env, nil
 }
 
 func liveDeployments(rows []genDb.ListLiveDeploymentsForResourceRow) []liveDeployment {

@@ -45,9 +45,9 @@ def expect_not_found(page, path):
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_be_visible()
     logo = page.get_by_role("link", name="Loco dashboard").bounding_box()
     assert abs(logo["x"] + logo["width"] / 2 - page.viewport_size["width"] / 2) <= 1
-    expect(
-        page.get_by_text(re.compile("^" + re.escape(path) + r"(\?env=[\w-]+)?$"))
-    ).to_be_visible()
+    chip = page.get_by_text(re.compile("^" + re.escape(path) + r"(\?env=[\w-]+)?$"))
+    expect(chip).to_be_visible()
+    expect(chip).to_have_css("border-top-style", "solid")
     for name in ("Resources", "Logs", "Settings"):
         expect(page.get_by_role("link", name=name, exact=True)).to_have_count(0)
     expect(page.get_by_role("button", name="Search and run commands")).to_have_count(0)
@@ -138,8 +138,8 @@ with session(out) as browser:
         expect(results.get_by_role("group", name=group)).to_be_visible()
     expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
     for option in (
-        "Show architecture map",
-        "Show resource table",
+        "Show Map",
+        "Show Table",
         "New resource",
         "New token",
         "New webhook",

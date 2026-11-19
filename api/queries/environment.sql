@@ -1,6 +1,6 @@
 -- name: CreateEnvironment :one
-INSERT INTO environments (workspace_id, name, description, created_by)
-VALUES ($1, $2, $3, $4)
+INSERT INTO environments (workspace_id, name, display_name, description, created_by)
+VALUES ($1, $2, $2, $3, $4)
 RETURNING *;
 
 -- name: GetEnvironmentByID :one
@@ -14,7 +14,9 @@ SELECT * FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC, id A
 
 -- name: UpdateEnvironment :one
 UPDATE environments
-SET name = $2, description = $3, updated_at = NOW()
+SET display_name = COALESCE(sqlc.narg('display_name'), display_name),
+    description = COALESCE(sqlc.narg('description'), description),
+    updated_at = NOW()
 WHERE id = $1
 RETURNING *;
 

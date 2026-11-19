@@ -235,6 +235,9 @@ def check_scoped_user(browser):
                 route.continue_()
                 return
             method = url.path.rsplit("/", 1)[-1]
+            if method == "TailLogs":
+                route.continue_()
+                return
             body = route.request.post_data_json
             if method in telemetry:
                 # The proxy serves a caller without workspace read only for resources it names and reads.
@@ -344,7 +347,7 @@ with session(out) as browser:
             "owner",
             "resource-owner",
             base + "/resource/" + activity["resourceId"],
-            "Activity",
+            "Resource activity",
         ),
         ("member", "org-member", base + "/settings?scope=org", ""),
         (
@@ -357,7 +360,7 @@ with session(out) as browser:
             "resource_reader",
             "resource",
             base + "/resource/" + activity["resourceId"],
-            "Activity",
+            "Resource activity",
         ),
     ]:
         context, page, errors = open_page(browser, user, state=state, viewport=VIEWPORT)
@@ -586,7 +589,7 @@ with session(out) as browser:
             )
             page.get_by_role("list", name="Audit events").wait_for()
             expect(
-                page.get_by_role("button", name="shared", exact=True)
+                page.get_by_role("button", name="shared", exact=True).last
             ).to_be_visible()
             page.goto(origin + base + "/resource/" + activity["resourceId"])
             page.get_by_role("button", name="Events", exact=True).wait_for()

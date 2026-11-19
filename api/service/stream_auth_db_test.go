@@ -81,6 +81,7 @@ func TestIdleEventStreamsObserveCredentialAndPermissionChanges(t *testing.T) {
 		{"database unavailable", streamSession, false, streamDatabaseUnavailable, connect.CodeInternal},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			f, userID, workspaceID := newStreamCredentialFixture(t)
 			// Streams poll for events more often than they recheck access.
 			f.events.poll = time.Millisecond

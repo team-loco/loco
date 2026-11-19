@@ -20,6 +20,7 @@ type Mode = "all" | "choose";
 
 const GROUPS = webhookEventGroups();
 const NO_TYPES: string[] = [];
+const NAME_MAX = 100;
 
 export function NewWebhookDialog({
 	workspaceId,
@@ -103,6 +104,7 @@ function NewWebhookForm({
 	const create = useMutation(createWebhook);
 	const update = useMutation(updateWebhook);
 	const mutation = webhook === undefined ? create : update;
+	const [name, setName] = useState(webhook?.name ?? "");
 	const [url, setUrl] = useState(webhook?.url ?? "");
 	const [mode, setMode] = useState<Mode>((webhook?.eventTypes ?? initialTypes).length > 0 ? "choose" : "all");
 	const [types, setTypes] = useState<ReadonlySet<string>>(() => new Set(webhook?.eventTypes ?? initialTypes));
@@ -121,7 +123,7 @@ function NewWebhookForm({
 
 	const submit = () => {
 		if (!ok || mutation.isPending) return;
-		const input = { workspaceId, url: target, eventTypes: mode === "all" ? [] : [...types] };
+		const input = { workspaceId, name: name.trim(), url: target, eventTypes: mode === "all" ? [] : [...types] };
 		if (webhook !== undefined) {
 			update.mutate(
 				{ ...input, webhookId: webhook.id },
@@ -163,6 +165,18 @@ function NewWebhookForm({
 						onChange={(e) => {
 							setUrl(e.target.value);
 							mutation.reset();
+						}}
+					/>
+				</Field>
+				<Field label="Name (optional)">
+					<Input
+						autoComplete="off"
+						maxLength={NAME_MAX}
+						value={name}
+						placeholder="Billing alerts"
+						className="h-9"
+						onChange={(e) => {
+							setName(e.target.value);
 						}}
 					/>
 				</Field>

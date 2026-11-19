@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"time"
 
@@ -35,6 +36,8 @@ type rolloutSnapshot struct {
 	Problem         *agentv1.ProblemReport  `json:"problem,omitempty"`
 	DesiredReplicas int32                   `json:"desiredReplicas,omitempty"`
 	Count           int32                   `json:"count,omitempty"`
+	// Started holds each replica's restart count when its last Starting entry was written.
+	Started map[string]int32 `json:"started,omitempty"`
 }
 
 type activityEntry struct {
@@ -65,6 +68,10 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 		}
 		entries = append(entries, restartActivity(old[uid], replica, report)...)
 		if before := old[uid]; before != nil && before.GetState() == replica.GetState() {
+			continue
+		}
+		if restarts, ok := previous.Started[uid]; ok && replica.GetState() == string(loco.ReplicaStarting) &&
+			restarts == replica.GetRestarts() {
 			continue
 		}
 		message, severity := replicaActivityMessage(replica)
@@ -130,6 +137,21 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 		}
 	}
 	return limited
+}
+
+// startedReplicas records the restart count of each reported replica that is starting, and keeps
+// the earlier record of the others.
+func startedReplicas(previous map[string]int32, report *agentv1.PlacementStatus) map[string]int32 {
+	started := make(map[string]int32)
+	for _, replica := range report.GetReplicas() {
+		uid := replica.GetUid()
+		if replica.GetState() == string(loco.ReplicaStarting) {
+			started[uid] = replica.GetRestarts()
+		} else if restarts, ok := previous[uid]; ok {
+			started[uid] = restarts
+		}
+	}
+	return started
 }
 
 // restartActivity is one entry per restart the replica reports that its previous report did not.
@@ -216,6 +238,11 @@ func ingestRollout(
 	if err := json.Unmarshal(snapshot, &previous); err != nil {
 		return fmt.Errorf("decode rollout snapshot: %w", err)
 	}
+	if previous.PlacementID == "" && report.GetPlacementId() != "" {
+		if err := seedRollout(ctx, qtx, &previous, report.GetPlacementId(), revision); err != nil {
+			return err
+		}
+	}
 	entries := diffRollout(previous, report)
 	next := rolloutSnapshot{
 		PlacementID:     report.GetPlacementId(),
@@ -223,6 +250,7 @@ func ingestRollout(
 		Problem:         report.GetProblem(),
 		DesiredReplicas: report.GetDesiredReplicas(),
 		Count:           previous.Count,
+		Started:         startedReplicas(previous.Started, report),
 	}
 	if err := writeDeploymentActivity(ctx, qtx, deploymentID, scope, entries); err != nil {
 		return err
@@ -231,6 +259,7 @@ func ingestRollout(
 	if len(entries) == 0 && previous.PlacementID == next.PlacementID &&
 		previous.DesiredReplicas == next.DesiredReplicas &&
 		proto.Equal(previous.Problem, next.Problem) &&
+		maps.Equal(previous.Started, next.Started) &&
 		slices.EqualFunc(
 			previous.Replicas,
 			next.Replicas,
@@ -251,6 +280,33 @@ func ingestRollout(
 	if err := qtx.NotifyDeploymentActivity(ctx, deploymentID.String()); err != nil {
 		return fmt.Errorf("notify activity: %w", err)
 	}
+	return nil
+}
+
+// seedRollout fills a revision's empty snapshot with the replicas and replica count the placement's
+// previous revision last reported, so its first report records only what changed since.
+func seedRollout(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	snapshot *rolloutSnapshot,
+	placementID string,
+	revision int64,
+) error {
+	data, err := qtx.GetPreviousPlacementRollout(
+		ctx,
+		genDb.GetPreviousPlacementRolloutParams{PlacementID: placementID, Revision: revision},
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read previous rollout: %w", err)
+	}
+	var seed rolloutSnapshot
+	if err := json.Unmarshal(data, &seed); err != nil {
+		return fmt.Errorf("decode previous rollout snapshot: %w", err)
+	}
+	snapshot.Replicas, snapshot.DesiredReplicas, snapshot.Started = seed.Replicas, seed.DesiredReplicas, seed.Started
 	return nil
 }
 

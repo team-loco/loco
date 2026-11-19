@@ -29,7 +29,8 @@ func newLoginCmd(env Env) *cobra.Command {
 				return err
 			}
 			return login.Run(cmd.Context(), login.Options{
-				Command: "loco login", APIHost: apiHost, WebHost: webHost, Device: device, Store: store,
+				Command: "loco login", Version: cmd.Root().Version,
+				APIHost: apiHost, WebHost: webHost, Device: device, Store: store,
 			})
 		},
 	}

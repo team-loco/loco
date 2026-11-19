@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 
-import { bucketReadout, bucketSeconds, durationTick, errorRateLabel, niceTicks } from "./trace-overview";
+import {
+	bucketSeconds,
+	countReadout,
+	durationTick,
+	errorRateLabel,
+	latencyReadout,
+	logPosition,
+	logScale,
+	niceTicks,
+} from "./trace-overview";
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -36,15 +45,32 @@ describe("trace overview", () => {
 		expect(durationTick(100)).toBe("100ns");
 	});
 
-	test("readout names the bucket, its counts and percentiles", () => {
+	test("count readout names the bucket and its counts", () => {
 		const start = Date.UTC(2026, 10, 15, 13, 5);
 		const utc = { zone: "utc", clock: "24" } as const;
 		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
-		expect(bucketReadout(bucket, utc)).toBe("13:05–13:06 · 42 traces · 3 errors · p50 12ms · p95 80ms");
-		expect(bucketReadout({ ...bucket, widthSeconds: 30, traces: 0, errors: 0 }, utc)).toBe(
+		expect(countReadout(bucket, utc)).toBe("13:05–13:06 · 42 traces · 3 errors");
+		expect(countReadout({ ...bucket, widthSeconds: 30, traces: 0, errors: 0 }, utc)).toBe(
 			"13:05:00–13:05:30 · 0 traces",
 		);
-		expect(bucketReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe("13:05–13:06 · 1 trace · p50 12ms · p95 80ms");
-		expect(bucketReadout(bucket, { zone: "utc", clock: "12" })).toStartWith("1:05 PM–1:06 PM · ");
+		expect(countReadout({ ...bucket, traces: 1, errors: 0 }, utc)).toBe("13:05–13:06 · 1 trace");
+		expect(countReadout(bucket, { zone: "utc", clock: "12" })).toStartWith("1:05 PM–1:06 PM · ");
+	});
+
+	test("latency readout names the bucket and its percentiles", () => {
+		const start = Date.UTC(2026, 10, 15, 13, 5);
+		const utc = { zone: "utc", clock: "24" } as const;
+		const bucket = { start, widthSeconds: 60, traces: 42, errors: 3, p50: 12_000_000n, p95: 80_000_000n };
+		expect(latencyReadout(bucket, utc)).toBe("13:05–13:06 · p50 12ms · p95 80ms");
+		expect(latencyReadout({ ...bucket, traces: 0 }, utc)).toBe("13:05–13:06 · no traces");
+	});
+
+	test("latency axis spans decades so a 500 s outlier keeps millisecond values visible", () => {
+		const scale = logScale([12e6, 80e6, 500e9]);
+		expect(scale.min).toBe(1e6);
+		expect(scale.max).toBe(1e12);
+		expect(logPosition(12e6, scale)).toBeGreaterThan(0.15);
+		expect(logPosition(500e9, scale)).toBeLessThan(1);
+		expect(scale.ticks.length).toBeLessThanOrEqual(4);
 	});
 });
