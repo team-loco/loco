@@ -73,8 +73,8 @@ if sorted_resources is None:
 base = f"/org/{org}/wks/{workspace}"
 
 
-def stamp(delta):
-    return (datetime.now(UTC) - delta).isoformat().replace("+00:00", "Z")
+def stamp(now, delta):
+    return (now - delta).isoformat().replace("+00:00", "Z")
 
 
 telemetry_points = []
@@ -90,9 +90,10 @@ log_bucket_requests = []
 
 
 def mock_telemetry(context):
+    now = datetime.now(UTC)
     logs = [
         {
-            "timestamp": stamp(timedelta(seconds=i * 13 + 1)),
+            "timestamp": stamp(now, timedelta(seconds=i * 13 + 1)),
             "severity": ("INFO", "WARN", "ERROR", "DEBUG")[i % 4],
             "body": f"Request completed ({i + 1})",
             "resourceId": resource,
@@ -101,7 +102,7 @@ def mock_telemetry(context):
         for i in range(18)
     ]
     points = [
-        {"timestamp": stamp(timedelta(minutes=minute)), "value": value}
+        {"timestamp": stamp(now, timedelta(minutes=minute)), "value": value}
         for minute, value in ((50, 0.25), (30, 0.55), (10, 0.35))
     ]
     telemetry_points[:] = points
@@ -235,6 +236,8 @@ def shell_navigation(page):
 
 
 def activity_deployments(page):
+    now = datetime.now(UTC)
+
     def deployment(id, status, minutes, **extra):
         return {
             "id": id,
@@ -242,11 +245,11 @@ def activity_deployments(page):
             "region": "us-east-1",
             "status": status,
             "desiredReplicas": 1,
-            "createdAt": stamp(timedelta(minutes=minutes)),
+            "createdAt": stamp(now, timedelta(minutes=minutes)),
             **extra,
         }
 
-    finished = datetime.now(UTC) - timedelta(minutes=7)
+    finished = now - timedelta(minutes=7)
     deployments = [
         deployment(
             "00000000-0000-7000-8000-000000000001",
@@ -334,9 +337,10 @@ def live_focus(page):
 
 
 def log_paging(page):
+    now = datetime.now(UTC)
     many = [
         {
-            "timestamp": stamp(timedelta(seconds=i * 7 + 1)),
+            "timestamp": stamp(now, timedelta(seconds=i * 7 + 1)),
             "severity": "INFO",
             "body": f"Paged line {i + 1}",
             "resourceId": resource,
