@@ -45,7 +45,7 @@ import { readyMs, shortDurationLabel } from "@/lib/time";
 import { pageParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
-import { sortableIds } from "@/pages/resources/table";
+import { sortableIds, visibleStatusFilters } from "@/pages/resources/table";
 
 import { ArchitectureDiagram } from "./ArchitectureDiagram";
 import { DashboardRowMenu } from "./DashboardRowMenu";
@@ -57,7 +57,7 @@ import {
 	itemName,
 	itemRank,
 	itemType,
-	statusOptions,
+	itemStatusFilter,
 	TYPE_FILTERS,
 	viewAllSearch,
 	type DashboardItem,
@@ -411,7 +411,7 @@ export function ResourcesTable({
 	});
 	const visible = table.getPrePaginatedRowModel().rows.map((row) => row.original);
 
-	const statusCounts = new Map<ResourceStatus, number>();
+	const statusCounts = new Map<string, number>();
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
 	const regionNames = new Set(regions.map((r) => r.region));
@@ -419,7 +419,8 @@ export function ResourcesTable({
 	const typeBase = filterRows(items, { ...filter, type: ALL });
 	const regionBase = filterRows(items, { ...filter, region: ALL });
 	for (const item of statusBase) {
-		if (!isDraftItem(item)) statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
+		const key = itemStatusFilter(item);
+		statusCounts.set(key, (statusCounts.get(key) ?? 0) + 1);
 	}
 	for (const item of typeBase) typeCounts.set(itemType(item), (typeCounts.get(itemType(item)) ?? 0) + 1);
 	for (const item of items) for (const g of item.regions) regionNames.add(g.region);
@@ -486,8 +487,8 @@ export function ResourcesTable({
 				<ToggleGroupItem value={ALL} count={statusBase.length}>
 					All
 				</ToggleGroupItem>
-				{statusOptions(statusCounts, filter.status).map((o) => (
-					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.status) ?? 0}>
+				{visibleStatusFilters(statusCounts, filter.status).map((o) => (
+					<ToggleGroupItem key={o.value} value={o.value} count={statusCounts.get(o.value) ?? 0}>
 						{o.label}
 					</ToggleGroupItem>
 				))}
