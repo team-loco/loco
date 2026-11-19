@@ -62,6 +62,9 @@ mise exec -- uv run --script "$E" <command>
    To show data or errors the seeded API cannot produce (traces, metrics, a rejected request),
    add `"respond": [{"url": "**/Service/Method", "json": {...}, "status": 400, "headers": {...}}]`.
    Matching requests get that response; `status` defaults to 200 and `headers` is optional.
+   An optional `match` object narrows an entry to requests whose JSON body has those field
+   values, such as `{"metricName": "k8s.pod.cpu_limit_utilization"}`; other requests fall
+   through to the next entry for the same URL.
    A Connect error is a status with `{"code": "invalid_argument", "message": "...", "details": [...]}`.
    `ready_selector` is a Playwright selector for an element that shows only once the page
    holds what the shot captures, such as a loaded row rather than the page heading. The shot
