@@ -185,7 +185,7 @@ export function auditActor(event: ActorFields, names: ReadonlyMap<string, string
 	}
 }
 
-function text(data: JsonObject | undefined, key: string): string | undefined {
+export function text(data: JsonObject | undefined, key: string): string | undefined {
 	const value = data?.[key];
 	if (typeof value === "string" && value !== "") return value;
 	if (typeof value === "number" || typeof value === "boolean") return String(value);
@@ -229,7 +229,7 @@ export function auditDetail(event: DetailFields, users: ReadonlyMap<string, Audi
 			return strings(data, "names").join(", ");
 		}
 		default: {
-			return text(data, "name") ?? text(data, "domain");
+			return text(data, "name") ?? text(data, "domain") ?? text(data, "email") ?? text(data, "url");
 		}
 	}
 }

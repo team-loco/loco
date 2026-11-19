@@ -34,6 +34,7 @@ if "audit" not in state:
     resources = evidence.seed_resources(
         state,
         [
+            {"workspace": "acme/shared", "name": "retired", "service": service},
             {"workspace": "acme/shared", "name": "checkout", "service": service},
             {"workspace": "acme/sibling", "name": "inventory", "service": service},
         ],
@@ -55,6 +56,16 @@ if "audit" not in state:
         "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
         {"workspaceId": sibling, "description": "Stock levels"},
         user="workspace_admin",
+    )
+    call(
+        state,
+        "loco.resource.v1.ResourceService/DeleteResource",
+        {"resourceId": resources["acme/shared/retired"]},
+    )
+    call(
+        state,
+        "loco.org.v1.OrgService/InviteOrgMember",
+        {"orgId": org, "email": "newhire@acme.test"},
     )
     state["audit"] = {"checkout": checkout, "inventory": inventory}
     evidence.write_json(Path(args.state), state)
@@ -113,6 +124,13 @@ with session(out) as browser:
         for call in list_events(calls)
     ), list_events(calls)
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("ledger")
+    events = page.get_by_role("list", name="Audit events")
+    expect(events.get_by_role("button").filter(has_text="Invited someone")).to_contain_text(
+        "newhire@acme.test"
+    )
+    expect(
+        events.get_by_role("button").filter(has_text="Deleted a resource").first
+    ).to_contain_text("shared / retired")
 
     with expect_rpc(
         page, "ListEvents", lambda body: bool(body.get("beforeSeq"))
@@ -151,7 +169,7 @@ with session(out) as browser:
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
     page.keyboard.press("Escape")
     expect(page).to_have_url(re.compile(r"[?&]types=resource\.created"))
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(4)
     assert list_events(calls)[-1]["body"]["query"] == "(@type:resource.created)"
 
     rows.first.click()
@@ -186,7 +204,7 @@ with session(out) as browser:
         search.fill("ledger")
     expect(rows).to_have_count(1)
     page.get_by_role("button", name="Clear search", exact=True).click()
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(4)
     page.get_by_role("button", name="Clear event filter", exact=True).click()
     expect(rows).to_have_count(50)
     # The search reads the whole log: inventory's events are older than the loaded page.
@@ -287,7 +305,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Event", exact=True).click()
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
     page.keyboard.press("Escape")
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(4)
     page.get_by_role("button", name="Actor", exact=True).click()
     expect(page.get_by_role("option", name="Loco", exact=True)).to_be_visible()
     expect(page.get_by_role("option", name="Cluster agent", exact=True)).to_be_visible()
@@ -312,7 +330,7 @@ with session(out) as browser:
     page.get_by_role("button", name="Event", exact=True).click()
     page.get_by_role("option", name=re.compile(r"^Created a resource")).click()
     page.keyboard.press("Escape")
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(4)
     rows.first.click()
     with expect_rpc(
         page,
@@ -329,7 +347,7 @@ with session(out) as browser:
     expect(page.get_by_role("dialog")).not_to_be_visible()
     expect(page).to_have_url(re.compile(r"[?&]actor=" + users["owner"]["id"]))
     page.reload()
-    expect(rows).to_have_count(3)
+    expect(rows).to_have_count(4)
     assert "@actor:" + users["owner"]["id"] in list_events(calls)[-1]["body"]["query"]
 
     page.goto(
