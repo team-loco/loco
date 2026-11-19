@@ -2,7 +2,11 @@ import type { Replica, ReplicaExit, ReplicaRestart } from "@gen/loco/deployment/
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { ResourceStatus, type EnvironmentStatus, type RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
+import { readyIn } from "@/lib/activity-deploys";
+import { placementIn } from "@/lib/deployment-utils";
 import { agoLabel, maybeTsMs } from "@/lib/time";
+
+import type { RegionView } from "./model";
 
 export const POD_LABEL = "k8s.pod.name";
 /** Two collection intervals of the worker's kubeletstats receiver. */
@@ -20,11 +24,30 @@ function lastReportMs(regions: RegionStatus[]): number | undefined {
 	return reported.length === 0 ? undefined : Math.min(...reported);
 }
 
-export function replicaLine(environment: EnvironmentStatus | undefined, nowMs: number): string {
+export interface ReadyCount {
+	ready: number;
+	desired: number;
+}
+
+/** The region's ready and desired replicas of its live deployment's current revision, and the other ready ones. */
+export function regionReady(region: RegionView): ReadyCount & { previous: number } {
+	const placement = placementIn(region.current, region.name);
+	if (region.current === undefined || placement === undefined)
+		return { ready: 0, desired: region.status?.desiredReplicas ?? 0, previous: 0 };
+	const ready = readyIn(region.current, placement);
+	const previous = placement.replicas.filter((r) => r.ready).length - ready;
+	return { ready, desired: placement.desiredReplicas, previous };
+}
+
+export function replicaLine(
+	environment: EnvironmentStatus | undefined,
+	nowMs: number,
+	countOf: (region: RegionStatus) => ReadyCount,
+): string {
 	if (environment === undefined) return "Not deployed";
 	const regions = environment.regions;
-	const desired = regions.reduce((sum, r) => sum + r.desiredReplicas, 0);
-	const ready = regions.reduce((sum, r) => sum + r.readyReplicas, 0);
+	const desired = regions.reduce((sum, r) => sum + countOf(r).desired, 0);
+	const ready = regions.reduce((sum, r) => sum + countOf(r).ready, 0);
 	const counts = `${ready.toString()} of ${desired.toString()} ready`;
 	const regionSuffix = regions.length > 1 ? ` · ${regions.length.toString()} regions` : "";
 	const unreported = unreportedRegions(environment);

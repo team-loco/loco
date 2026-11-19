@@ -17,9 +17,10 @@ import {
 	type DashboardItem,
 	itemName,
 	type RowFilter,
-	statusOptions,
 	viewAllSearch,
 } from "./resourceRows";
+import { visibleStatusFilters } from "@/pages/resources/table";
+
 import { COLUMNS } from "./ResourcesTable";
 import { draft, row } from "./testRows";
 
@@ -46,6 +47,17 @@ describe("filterRows", () => {
 		expect(names(filterRows(rows, { ...everything, status: "unavailable" }))).toEqual(["worker"]);
 		expect(names(filterRows(rows, { ...everything, status: "healthy" }))).toEqual(["api"]);
 		expect(names(filterRows(rows, everything))).toEqual(["api", "billing", "worker"]);
+	});
+});
+
+describe("draft and not deployed filters", () => {
+	const never = { ...row("never"), neverDeployed: true };
+	const rows = [row("api"), never, ...draftItems([draft("web")], [])];
+
+	test("Not deployed keeps created resources without a deployment and Draft keeps browser drafts", () => {
+		expect(names(filterRows(rows, { ...everything, status: "not-deployed" }))).toEqual(["never"]);
+		expect(names(filterRows(rows, { ...everything, status: "draft" }))).toEqual(["web"]);
+		expect(names(filterRows(rows, { ...everything, status: "healthy" }))).toEqual(["api"]);
 	});
 });
 
@@ -115,18 +127,19 @@ describe("viewAllSearch", () => {
 		});
 	});
 
-	test("drops a status the Resources page has no filter for", () => {
-		expect(viewAllSearch("production", { ...everything, status: "healthy" })).toBe("?env=production");
+	test("carries every status filter, as both pages share them", () => {
+		expect(viewAllSearch("production", { ...everything, status: "healthy" })).toBe("?env=production&status=healthy");
+		expect(viewAllSearch("production", { ...everything, status: "draft" })).toBe("?env=production&status=draft");
 	});
 });
 
-describe("statusOptions", () => {
+describe("visibleStatusFilters", () => {
 	test("offers only statuses some resource has, plus the selected one", () => {
 		const counts = new Map([
-			[ResourceStatus.HEALTHY, 3],
-			[ResourceStatus.DEGRADED, 1],
+			["healthy", 3],
+			["degraded", 1],
 		]);
-		expect(statusOptions(counts, ALL).map((o) => o.value)).toEqual(["healthy", "degraded"]);
-		expect(statusOptions(counts, "unknown").map((o) => o.value)).toEqual(["healthy", "degraded", "unknown"]);
+		expect(visibleStatusFilters(counts, ALL).map((o) => o.value)).toEqual(["healthy", "degraded"]);
+		expect(visibleStatusFilters(counts, "unknown").map((o) => o.value)).toEqual(["healthy", "degraded", "unknown"]);
 	});
 });

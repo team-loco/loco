@@ -130,6 +130,7 @@ type Querier interface {
 	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
 	GetOrganizationIDByWorkspaceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	GetPreviousPlacementRollout(ctx context.Context, arg GetPreviousPlacementRolloutParams) ([]byte, error)
 	GetPrimaryResourceDomain(ctx context.Context, arg GetPrimaryResourceDomainParams) (string, error)
 	GetRegistryGrant(ctx context.Context, arg GetRegistryGrantParams) (GetRegistryGrantRow, error)
 	GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, error)

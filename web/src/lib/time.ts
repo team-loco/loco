@@ -56,6 +56,16 @@ export function formatClock(ms: number, withMs: boolean, pref: TimePreferences):
 	return clock(ms, true, withMs, pref);
 }
 
+/** An ISO 8601 timestamp with milliseconds, written in the preferred zone. */
+export function formatIsoTimestamp(ms: number, pref: TimePreferences): string {
+	const p = parts(ms, pref);
+	const offset = pref.zone === "utc" ? 0 : -new Date(ms).getTimezoneOffset();
+	const sign = offset < 0 ? "-" : "+";
+	const zone =
+		pref.zone === "utc" ? "Z" : `${sign}${pad(Math.floor(Math.abs(offset) / 60))}:${pad(Math.abs(offset) % 60)}`;
+	return `${formatIsoDate(ms, pref)}T${pad(p.hour)}:${pad(p.minute)}:${pad(p.second)}.${pad(p.ms, 3)}${zone}`;
+}
+
 export function formatIsoDate(ms: number, pref: TimePreferences): string {
 	const p = parts(ms, pref);
 	return `${String(p.year)}-${pad(p.month + 1)}-${pad(p.day)}`;

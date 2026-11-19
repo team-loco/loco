@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -295,5 +297,71 @@ func TestRolloutSnapshotNotifications(t *testing.T) {
 	}
 	if before != after {
 		t.Fatalf("equal replay rewrote snapshot: %s -> %s", before, after)
+	}
+}
+
+func TestRolloutRestartRecordsOnlyWhatChanged(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := t.Context()
+	id, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := f.placement(t, f.clusterID)
+	server := f.agentServer()
+	serving := &deploymentv1.Replica{
+		Uid: "serving-replica", Name: "pod-a", PlacementRevision: first.DesiredRevision, DeploymentId: id.String(),
+		State: string(loco.ReplicaServing), Ready: true,
+	}
+	stopped := &deploymentv1.Replica{
+		Uid: "stopped-replica", Name: "pod-old", PlacementRevision: first.DesiredRevision - 1,
+		State: string(loco.ReplicaStopped),
+	}
+	report := &agentv1.PlacementStatus{
+		PlacementId:      first.ID.String(),
+		ObservedRevision: first.DesiredRevision,
+		DesiredReplicas:  1,
+		Replicas:         []*deploymentv1.Replica{serving, stopped},
+	}
+	server.recordStatus(ctx, f.clusterID, 0, report)
+	if restartErr := restartResource(t, f, f.envID, "", genDb.ScopeWrite); restartErr != nil {
+		t.Fatal(restartErr)
+	}
+	restarted := f.placement(t, f.clusterID)
+	replacement := func(state loco.ReplicaState) *deploymentv1.Replica {
+		return &deploymentv1.Replica{
+			Uid: "replacement-replica", Name: "pod-b", PlacementRevision: restarted.DesiredRevision,
+			DeploymentId: id.String(), State: string(state), Ready: state == loco.ReplicaServing,
+		}
+	}
+	report.ObservedRevision = restarted.DesiredRevision
+	for _, replicas := range [][]*deploymentv1.Replica{
+		{serving, stopped, replacement(loco.ReplicaStarting)},
+		{serving, stopped, replacement(loco.ReplicaPulling)},
+		{serving, stopped, replacement(loco.ReplicaStarting)},
+		{stopped, replacement(loco.ReplicaServing)},
+	} {
+		report.Replicas = replicas
+		server.recordStatus(ctx, f.clusterID, 0, report)
+	}
+	rows, err := f.pool.Query(ctx, `SELECT replica_name || ' ' || message FROM deployment_activity
+ WHERE deployment_id=$1 AND revision=$2 ORDER BY seq`, id, restarted.DesiredRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"pod-b " + string(loco.ReplicaStarting),
+		"pod-b Pulling image",
+		"pod-b " + testServingMessage,
+		"pod-a Stopped · no exit code seen",
+		" Previous version gone",
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("restart activity=%q want %q", got, want)
 	}
 }

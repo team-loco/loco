@@ -1048,7 +1048,9 @@ with session(out) as browser:
     page.goto(state["ui_url"] + base)
     latency = page.get_by_role("img", name=re.compile(r"^p50 and p95 trace duration"))
     expect(latency).to_be_visible()
-    p50_points = latency.locator("polyline").first.get_attribute("points").split()
+    p50_line = latency.locator("polyline").first
+    expect(p50_line).to_have_attribute("points", re.compile(r"\d"))
+    p50_points = p50_line.get_attribute("points").split()
     p50_heights = [100 - float(point.split(",")[1]) for point in p50_points]
     assert min(p50_heights) > 10, p50_heights
     assert not errors, errors

@@ -498,16 +498,24 @@ otel-col-daemon:
           - id: drop-empty
             type: filter
             expr: 'body matches "^\\s*$"'
-          # indented lines, Java causes and Go panic and goroutine traces continue the line before them.
+          - id: multiline-source
+            type: add
+            field: attributes["loco.multiline.source"]
+            value: EXPR(attributes["log.file.path"] + " " + attributes["log.iostream"])
+          # indented lines, Java causes and Go panic and goroutine traces continue the earlier line of their stream.
           - id: multiline
             type: recombine
             combine_field: body
+            source_identifier: attributes["loco.multiline.source"]
             is_first_entry: >-
               not (body matches "^\\s" or body startsWith "Caused by: " or body matches "^goroutine [0-9]+ .*\\[.+\\]:$"
               or body startsWith "[signal " or body startsWith "created by "
               or body matches "^(panic|[^\\s(]*[./](\\(\\*?[^\\s()]+\\)\\.)?[^\\s(]*)\\([0-9a-fx{}?,. ]*\\)$")
             max_log_size: '{{ .Values.presets.logsCollection.maxRecombineLogSize }}'
             force_flush_period: 500ms
+          - id: multiline-source-remove
+            type: remove
+            field: attributes["loco.multiline.source"]
       kubeletstats:
         collection_interval: &collectionInterval 60s
         auth_type: "serviceAccount"

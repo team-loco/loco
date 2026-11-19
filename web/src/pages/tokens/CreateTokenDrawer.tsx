@@ -150,7 +150,9 @@ function CreateForm({
 }) {
 	const timePref = useTimePreferences();
 	const [ownerKey, setOwnerKey] = useState(draft.owner);
-	const [name, setName] = useState(() => sanitizeTokenName(draft.name));
+	const [typed, setTyped] = useState(draft.name);
+	const [nameTouched, setNameTouched] = useState(false);
+	const name = sanitizeTokenName(typed);
 	const options = expiryOptions(maximum);
 	const [selected, setSelected] = useState<number | typeof CUSTOM>(() => defaultExpirySeconds(maximum));
 	const [custom, setCustom] = useState<{ ms: number; text: string | null }>(() => ({
@@ -170,7 +172,9 @@ function CreateForm({
 	const nameErr =
 		nameTaken ??
 		(name === ""
-			? null
+			? nameTouched
+				? "Enter a name."
+				: null
 			: !TOKEN_NAME_RE.test(name)
 				? "Use at least 2 characters: a–z, 0–9 and dashes."
 				: data.owners[ownerKey].tokens.some((t) => t.name === name)
@@ -183,6 +187,7 @@ function CreateForm({
 	});
 	const allows = allowsFor(resolved.map((r) => ({ kind: r.node.kind, level: r.level })));
 	const submit = async () => {
+		if (name === "") setNameTouched(true);
 		if (mutation.isPending || owner.id === null || !owner.canCreate || !valid) return;
 		try {
 			const res = await mutation.mutateAsync({
@@ -211,17 +216,31 @@ function CreateForm({
 			}}
 		>
 			<SheetBody>
-				<Field label="Name" error={nameErr}>
+				<Field
+					label="Name"
+					error={nameErr}
+					hint={
+						name !== typed && name !== "" ? (
+							<>
+								Saved as <span className="font-mono">{name}</span>
+							</>
+						) : undefined
+					}
+				>
 					<Input
 						ref={nameRef}
 						autoComplete="off"
-						value={name}
+						value={typed}
 						maxLength={NAME_MAX}
 						placeholder="ci-deploy"
 						aria-invalid={nameErr !== null}
 						className="font-mono"
+						onBlur={() => {
+							setNameTouched(true);
+						}}
 						onChange={(e) => {
-							setName(sanitizeTokenName(e.target.value));
+							setTyped(e.target.value);
+							setNameTouched(true);
 							setNameTaken(null);
 						}}
 					/>
@@ -365,14 +384,18 @@ function Reveal({ name, secret, onDone }: { name: string; secret: string; onDone
 				<span className="text-[13px] text-fg2">Copy it now. You won&apos;t be able to see it again.</span>
 				<div className="flex flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Call the API with it</span>
-					<CodeBlock>{apiExample()}</CodeBlock>
+					<CodeBlock lineNumbers={false} wrap>
+						{apiExample()}
+					</CodeBlock>
 					<span className="text-[12.5px] text-fg3">
 						With the token in <span className="font-mono">LOCO_TOKEN</span>, this lists the scopes it holds.
 					</span>
 				</div>
 				<div className="flex flex-col gap-1.5">
 					<span className="text-[13px] font-medium">Use it from CI</span>
-					<CodeBlock>{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy`}</CodeBlock>
+					<CodeBlock lineNumbers={false} wrap>
+						{`LOCO_TOKEN=${secret.slice(0, SECRET_PREVIEW)}… loco deploy`}
+					</CodeBlock>
 					<span className="text-[12.5px] text-fg3">
 						Save the token as a CI secret named <code>LOCO_TOKEN</code> and set <code>LOCO_HOST</code> to the API URL.
 						Run <code>loco deploy --yes</code> with <code>--org</code>, <code>--workspace</code> (the workspace ID), and{" "}
