@@ -70,8 +70,10 @@ export interface SettingsDraft {
 	removedSecrets?: string[];
 	/** Stored or staged secrets whose deployment binding changes, by whether deployments read them. */
 	bindings?: Record<string, boolean>;
-	/** Plain variables to add to every deployment. */
+	/** Plain variables to add or change in every deployment, by name. */
 	env?: Record<string, string>;
+	/** Plain variables to remove from every deployment. */
+	removedEnv?: string[];
 	isPublic?: boolean;
 	subdomain?: string;
 	platformDomain?: string;
@@ -233,8 +235,9 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 		...Object.keys(draft.secrets ?? {}).map((n) => `Variable ${n}`),
 		...(draft.removedSecrets ?? []).map((n) => `Remove variable ${n}`),
 		...Object.keys(draft.env ?? {}).map((n) => `Variable ${n}`),
+		...(draft.removedEnv ?? []).map((n) => `Remove variable ${n}`),
 		...Object.keys(draft.bindings ?? {})
-			.filter((n) => draft.secrets?.[n] === undefined)
+			.filter((n) => draft.secrets?.[n] === undefined && draft.removedSecrets?.includes(n) !== true)
 			.map((n) => `Variable ${n}`),
 		...COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).map((k) =>
 			k === "command" ? "Start command" : "Arguments",
@@ -366,7 +369,17 @@ interface RegionDeploy {
 }
 
 export function variablesChanged(draft: SettingsDraft): boolean {
-	return Object.keys(draft.bindings ?? {}).length > 0 || Object.keys(draft.env ?? {}).length > 0;
+	return (
+		Object.keys(draft.bindings ?? {}).length > 0 ||
+		Object.keys(draft.env ?? {}).length > 0 ||
+		(draft.removedEnv ?? []).length > 0
+	);
+}
+
+/** The plain variables deployments run with after the draft's changes. */
+export function plainEnv(current: Record<string, string>, draft: SettingsDraft): Record<string, string> {
+	const removed = new Set(draft.removedEnv ?? []);
+	return Object.fromEntries(Object.entries({ ...current, ...draft.env }).filter(([name]) => !removed.has(name)));
 }
 
 /** The secret names deployments read after the draft's binding changes. */

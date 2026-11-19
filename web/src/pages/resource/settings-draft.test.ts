@@ -21,6 +21,7 @@ import {
 	baseline,
 	boundNames,
 	changeCount,
+	plainEnv,
 	planSave,
 	regionChanges,
 	regionTargets,
@@ -287,6 +288,26 @@ describe("changeCount", () => {
 	test("counts fields that differ from what runs", () => {
 		expect(changeCount({ cpu: "250m" }, base)).toBe(0);
 		expect(changeCount({ cpu: "1", scaling: { [EAST]: scaling(4) }, secrets: { API_KEY: "x" } }, base)).toBe(3);
+	});
+
+	test("counts removing a secret deployments read as one change", () => {
+		expect(changeCount({ removedSecrets: ["API_KEY"], bindings: { API_KEY: false } }, base)).toBe(1);
+	});
+
+	test("counts changed and removed plain variables", () => {
+		expect(changeCount({ env: { MODE: "debug" }, removedEnv: ["LOG_LEVEL"] }, base)).toBe(2);
+	});
+});
+
+describe("plainEnv", () => {
+	test("applies changed, added and removed plain variables to what runs", () => {
+		const current = { LOG_LEVEL: "info", MODE: "fast", OLD: "x" };
+		const draft = { env: { MODE: "", NEW: "1" }, removedEnv: ["OLD"] };
+		expect(plainEnv(current, draft)).toEqual({ LOG_LEVEL: "info", MODE: "", NEW: "1" });
+	});
+
+	test("removes every plain variable", () => {
+		expect(plainEnv({ LOG_LEVEL: "info" }, { removedEnv: ["LOG_LEVEL"] })).toEqual({});
 	});
 });
 

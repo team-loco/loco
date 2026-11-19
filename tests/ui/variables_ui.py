@@ -17,7 +17,7 @@ from harness import (
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
-    description="Choose the secrets and add the plain variables of a dashboard service"
+    description="Choose the secrets and edit the plain variables of a dashboard service"
 )
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
@@ -97,6 +97,43 @@ COMMIT;""",
 
 
 deployment = deliver({"LOG_LEVEL": "info"}, ["SESSION_KEY"])
+
+
+def regional(region, mode):
+    return {
+        "environment": "production",
+        "status": "running",
+        "spec": {
+            "observability": {"injectOtel": True},
+            "build": {"type": "image", "image": "registry.example.com/app:1"},
+            "port": 8080,
+            "env": {"MODE": mode},
+            "regions": {
+                region: {
+                    "cpu": "100m",
+                    "memory": "128Mi",
+                    "minReplicas": 1,
+                    "maxReplicas": 1,
+                }
+            },
+        },
+    }
+
+
+split_name = "split-" + uuid.uuid4().hex[:8]
+split = evidence.seed_resources(
+    state,
+    [
+        {
+            "workspace": "acme/shared",
+            "name": split_name,
+            "deployments": [
+                regional("us-east-1", "east"),
+                regional("eu-west-1", "west"),
+            ],
+        }
+    ],
+)[f"acme/shared/{split_name}"]
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 
 with session(out) as browser:
@@ -108,7 +145,7 @@ with session(out) as browser:
         deployments.append(body)
         bound = body.get("secretBindings", {}).get("names")
         if bound is not None:
-            deliver(body["spec"]["service"]["env"], bound)
+            deliver(body["spec"]["service"].get("env", {}), bound)
         route.fulfill(json={"deploymentId": deployment})
 
     context.route(
@@ -195,9 +232,42 @@ with session(out) as browser:
     expect(variables.get_by_label("Value of FEATURE_FLAGS", exact=True)).to_have_value(
         "beta"
     )
-    expect(variables.get_by_role("button", name="Remove FEATURE_FLAGS")).to_have_count(
+    expect(variables.get_by_text("new", exact=True)).to_have_count(0)
+
+    log_level.fill("debug")
+    variables.get_by_role("button", name="Remove FEATURE_FLAGS", exact=True).click()
+    expect(variables.get_by_text("Removed when you save", exact=True)).to_be_visible()
+    variables.get_by_role("button", name="Remove STRIPE_API_KEY", exact=True).click()
+    expect(
+        variables.get_by_text(
+            "Saving redeploys without it, then removes it", exact=True
+        )
+    ).to_be_visible()
+    expect(page.get_by_text("3 unsaved changes", exact=True)).to_be_visible()
+    with expect_rpc(
+        page, "DeleteSecrets", lambda body: body.get("names") == ["STRIPE_API_KEY"]
+    ) as deleted:
+        save.click()
+    assert deleted.value.ok, deleted.value.text()
+    assert len(deployments) == 2, deployments
+    sent = deployments[1]
+    assert sent["secretBindings"]["names"] == ["NEW_TOKEN", "SESSION_KEY"], sent
+    assert sent["spec"]["service"]["env"] == {"LOG_LEVEL": "debug"}, sent
+    expect(log_level).to_have_value("debug")
+    expect(variables.get_by_label("Value of FEATURE_FLAGS", exact=True)).to_have_count(
         0
     )
+    expect(
+        variables.get_by_role(
+            "switch", name="Use STRIPE_API_KEY in deployments", exact=True
+        )
+    ).to_have_count(0)
+
+    variables.get_by_role("button", name="Remove LOG_LEVEL", exact=True).click()
+    save.click()
+    expect(variables.get_by_label("Value of LOG_LEVEL", exact=True)).to_have_count(0)
+    assert len(deployments) == 3, deployments
+    assert deployments[2]["spec"]["service"].get("env", {}) == {}, deployments[2]
 
     page.goto(base + "?env=production")
     page.get_by_role("button", name="Redeploy", exact=True).click()
@@ -208,8 +278,24 @@ with session(out) as browser:
         page.locator("[data-sonner-toast]").filter(has_text=f"Redeploying {name}")
     ).to_be_visible()
     expect(page.get_by_role("status")).to_have_count(0)
-    assert len(deployments) == 2, deployments
-    assert "secretBindings" not in deployments[1], deployments[1]
+    assert len(deployments) == 4, deployments
+    assert "secretBindings" not in deployments[3], deployments[3]
+
+    page.goto(
+        state["ui_url"]
+        + f"/org/{org}/wks/{workspace}/resource/{split}?env=production&tab=settings"
+    )
+    expect(
+        page.locator("#set-env").get_by_text(
+            "eu-west-1 and us-east-1 run different variables. This list shows one of them; "
+            "saving applies it to every region.",
+            exact=True,
+        )
+    ).to_be_visible()
+    page.goto(base + "?env=production&tab=settings")
+    expect(variables.get_by_text("run different variables", exact=False)).to_have_count(
+        0
+    )
     assert not errors, errors
     context.close()
 print("PASS: variables")
