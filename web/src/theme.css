@@ -86,6 +86,7 @@
 	--color-info: var(--info);
 	--color-lv-info: var(--lv-info);
 	--color-lv-warn: var(--lv-warn);
+	--color-lv-debug: var(--lv-debug);
 
 	--color-ok-bg: color-mix(in oklch, var(--ok) 12%, transparent);
 	--color-ok-fg: color-mix(in oklab, var(--ok) 70%, var(--fg));
@@ -161,7 +162,7 @@
 		--code-line-number: var(--fg3);
 		--login-art: #f5f6fa;
 		--lv-warn: #e0a100;
-		--lv-debug: var(--line2);
+		--lv-debug: var(--fg3);
 		--sh-identifier: var(--fg);
 		--sh-sign: var(--fg3);
 		--sh-property: #2348a8;

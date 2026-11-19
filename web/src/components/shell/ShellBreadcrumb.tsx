@@ -41,7 +41,7 @@ const TRIGGER =
 	"flex h-[26px] min-w-0 items-center gap-[5px] rounded-[5px] px-1.5 -mx-0.5 font-mono text-[12.5px] whitespace-nowrap text-foreground outline-none transition-colors duration-150 ease-out hover:bg-panel focus-visible:ring-2 focus-visible:ring-ring/50 aria-expanded:bg-panel";
 
 function Slash() {
-	return <BreadcrumbSeparator className="px-0.5 text-fg4">/</BreadcrumbSeparator>;
+	return <BreadcrumbSeparator className="px-0.5 text-fg3">/</BreadcrumbSeparator>;
 }
 
 function EnvSwitcher({ children, label }: { children: ReactNode; label: string }) {
@@ -99,7 +99,7 @@ function ScopeSwitcher({
 					<span className="truncate text-fg3">{org.name}</span>
 					{workspace !== undefined && (
 						<>
-							<span className="text-fg4">/</span>
+							<span className="text-fg3">/</span>
 							<span className="truncate">{workspace.name}</span>
 						</>
 					)}
