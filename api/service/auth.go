@@ -307,7 +307,7 @@ func (s *AuthServer) StartDeviceLogin(
 		RequestedAt: requestedAt,
 		ExpiresAt:   requestedAt.Add(deviceCodeTTL),
 	}
-	if addr := clientAddress(info); addr.IsValid() {
+	if addr := clientAddress(info, s.web.TrustedProxyHops); addr.IsValid() {
 		grant.IPAddress = addr.String()
 	}
 	payload, err := json.Marshal(grant)

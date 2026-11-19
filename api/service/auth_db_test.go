@@ -275,6 +275,7 @@ func (c *racingCache) Get(ctx context.Context, key string) ([]byte, error) {
 func TestDeviceLoginDescribesTheRequestingDevice(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
+	f.server.web.TrustedProxyHops = 1
 	const agent = "loco/v1.2.3 (darwin arm64; build-box)"
 	ctx, info := connect.NewClientContext(t.Context())
 	info.RequestHeader().Set("User-Agent", agent)
@@ -359,7 +360,7 @@ func (c *failingSetCache) Set(ctx context.Context, key string, value []byte, ttl
 func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -493,7 +494,7 @@ func TestSessionAddressIgnoresAClientSuppliedForwardedEntry(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
 	f.server.web.TrustedProxyHops = 1
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
