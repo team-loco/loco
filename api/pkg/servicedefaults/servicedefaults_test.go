@@ -21,8 +21,6 @@ func validDefaults() Defaults {
 		HealthInterval:      30,
 		HealthTimeout:       5,
 		HealthFailThreshold: 3,
-		DeployAttempts:      2,
-		DeployRetryDelay:    300,
 		MaxRestarts:         5,
 		RestartWindow:       600,
 	}
@@ -59,9 +57,6 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"high fail threshold":          {func(d *Defaults) { d.HealthFailThreshold = 11 }, errInvalidHealth},
 		"long grace period":            {func(d *Defaults) { d.HealthStartupGracePeriod = 181 }, errInvalidHealth},
 		"negative grace period":        {func(d *Defaults) { d.HealthStartupGracePeriod = -1 }, errInvalidHealth},
-		"zero deploy attempts":         {func(d *Defaults) { d.DeployAttempts = 0 }, errInvalidDeploy},
-		"11 deploy attempts":           {func(d *Defaults) { d.DeployAttempts = 11 }, errInvalidDeploy},
-		"59 second retry delay":        {func(d *Defaults) { d.DeployRetryDelay = 59 }, errInvalidDeploy},
 		"21 restarts":                  {func(d *Defaults) { d.MaxRestarts = 21 }, errInvalidRestarts},
 		"59 second restart window":     {func(d *Defaults) { d.RestartWindow = 59 }, errInvalidRestarts},
 	}
@@ -100,7 +95,7 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 				PathPrefix:  d.PathPrefix,
 				IdleTimeout: d.IdleTimeout,
 			},
-			RestartPolicy: d.RestartPolicy(),
+			RestartPolicy: d.RestartPolicy(nil, nil),
 		},
 	}
 }
@@ -131,5 +126,18 @@ func TestValidateAgreesWithTheApplicationValidator(t *testing.T) {
 				t.Errorf("defaults: %v, application: %v", defaultsErr, applicationErr)
 			}
 		})
+	}
+}
+
+func TestRestartPolicyFillsWhatTheServiceLeavesOut(t *testing.T) {
+	defaults := validDefaults()
+	if got := defaults.RestartPolicy(nil, nil); got.MaxRestarts != 5 || got.WindowSeconds != 600 {
+		t.Errorf("default policy = %+v", got)
+	}
+	if got := defaults.RestartPolicy(new(int32(0)), nil); got.MaxRestarts != 0 || got.WindowSeconds != 600 {
+		t.Errorf("policy with zero restarts = %+v", got)
+	}
+	if got := defaults.RestartPolicy(nil, new(int32(120))); got.MaxRestarts != 5 || got.WindowSeconds != 120 {
+		t.Errorf("policy with a window = %+v", got)
 	}
 }

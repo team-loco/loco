@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	deployAttemptsPath   = pathDeploy + ".attempts"
-	deployRetryDelayPath = pathDeploy + ".retryDelay"
+	maxRestartsPath   = pathDeploy + ".maxRestarts"
+	restartWindowPath = pathDeploy + ".restartWindow"
 )
 
 func TestDeployPolicyChangesArePlanned(t *testing.T) {
@@ -18,21 +18,21 @@ func TestDeployPolicyChangesArePlanned(t *testing.T) {
 		want map[string]Change
 	}{
 		"set": {
-			file: &locofile.Deploy{Attempts: new(int32(4)), RetryDelay: new(int32(60))},
+			file: &locofile.Deploy{MaxRestarts: new(int32(4)), RestartWindow: new(int32(60))},
 			want: map[string]Change{
-				deployAttemptsPath:   {Path: deployAttemptsPath, After: "4"},
-				deployRetryDelayPath: {Path: deployRetryDelayPath, After: "60"},
+				maxRestartsPath:   {Path: maxRestartsPath, After: "4"},
+				restartWindowPath: {Path: restartWindowPath, After: "60"},
 			},
 		},
 		"removed": {
-			live: &locofile.Deploy{Attempts: new(int32(4))},
+			live: &locofile.Deploy{MaxRestarts: new(int32(4))},
 			want: map[string]Change{
-				deployAttemptsPath: {Path: deployAttemptsPath, Before: "4"},
+				maxRestartsPath: {Path: maxRestartsPath, Before: "4"},
 			},
 		},
 		"unchanged": {
-			file: &locofile.Deploy{Attempts: new(int32(4))},
-			live: &locofile.Deploy{Attempts: new(int32(4))},
+			file: &locofile.Deploy{MaxRestarts: new(int32(4))},
+			live: &locofile.Deploy{MaxRestarts: new(int32(4))},
 			want: map[string]Change{},
 		},
 	}

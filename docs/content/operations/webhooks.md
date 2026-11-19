@@ -39,7 +39,7 @@ The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subjec
 
 ## Failure events
 
-`deployment.failed` records a deployment entering the failed status, which happens once a region of it fails. `build.failed` records a failed build. Their `actor` is whoever created the deployment or build: `user` with the user ID, or `api_token` with the token ID. `build.succeeded` carries the same actor. Both carry these `data` fields:
+`deployment.failed` records a deployment entering the failed status, which happens once a region of it fails. `deployment.crashed` records a running deployment that Loco stopped because a replica restarted more often than its restart policy allows, once per transition; its data matches `deployment.failed`. Both carry `restarts`, the replica's restarts in the window, and `window`, the window in seconds, when Loco stopped the version for restarts. `build.failed` records a failed build. Their `actor` is whoever created the deployment or build: `user` with the user ID, or `api_token` with the token ID. `build.succeeded` carries the same actor. Both carry these `data` fields:
 
 | Field | Value |
 | --- | --- |

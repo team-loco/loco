@@ -73,9 +73,11 @@ type Health struct {
 	StartupGracePeriod *int32 `json:"startupGracePeriod,omitempty"`
 }
 
+// Deploy is the service's restart policy: the restart after MaxRestarts within RestartWindow
+// seconds stops the version.
 type Deploy struct {
-	Attempts   *int32 `json:"attempts,omitempty"`
-	RetryDelay *int32 `json:"retryDelay,omitempty"`
+	MaxRestarts   *int32 `json:"maxRestarts,omitempty"`
+	RestartWindow *int32 `json:"restartWindow,omitempty"`
 }
 
 // Routing is the service HTTP routing.

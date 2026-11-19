@@ -46,6 +46,7 @@ func TestReadyAtTheCurrentRevisionRecoversAFailedDeployment(t *testing.T) {
 		PlacementId:      p.ID.String(),
 		ObservedRevision: 1,
 		Available:        true,
+		Healthy:          true,
 		ReadyReplicas:    1,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
@@ -108,9 +109,8 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.setApplyRetryPolicy(t, 1, nil)
 	ctx := context.Background()
-	server := f.agentServer()
+	server := f.agentServerRetrying(1, testApplyRetryDelay)
 
 	if _, err := f.deploy(ctx, staticSpec); err != nil {
 		t.Fatalf("deploy: %v", err)
@@ -131,6 +131,7 @@ func TestReadyAtAnOlderRevisionDoesNotRecoverAFailedDeployment(t *testing.T) {
 		PlacementId:      p.ID.String(),
 		ObservedRevision: 1,
 		Available:        true,
+		Healthy:          true,
 		ReadyReplicas:    1,
 	})
 	if status := f.deploymentStatus(t, second); status != genDb.DeploymentStatusFailed {

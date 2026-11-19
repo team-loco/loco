@@ -6,7 +6,6 @@ import (
 
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -18,7 +17,6 @@ var (
 	errInvalidResources = errors.New("the default resources are not accepted by the controller")
 	errInvalidRoute     = errors.New("the default route is not accepted by the controller")
 	errInvalidHealth    = errors.New("the default health check is not accepted by the controller")
-	errInvalidDeploy    = errors.New("the default deploy policy is outside the loco.yaml bounds")
 	errInvalidRestarts  = errors.New("the default restart policy is not accepted by the controller")
 )
 
@@ -38,8 +36,6 @@ type Defaults struct {
 	HealthTimeout            int32
 	HealthFailThreshold      int32
 	HealthStartupGracePeriod int32
-	DeployAttempts           int32
-	DeployRetryDelay         int32
 	MaxRestarts              int32
 	RestartWindow            int32
 }
@@ -101,9 +97,16 @@ func (d Defaults) Health() locoControllerV1.HealthCheckSpec {
 	}
 }
 
-// RestartPolicy is the restart budget of every service.
-func (d Defaults) RestartPolicy() locoControllerV1.RestartPolicySpec {
-	return locoControllerV1.RestartPolicySpec{MaxRestarts: d.MaxRestarts, WindowSeconds: d.RestartWindow}
+// RestartPolicy is a service's restart budget: what the service sets, then the defaults.
+func (d Defaults) RestartPolicy(maxRestarts, windowSeconds *int32) locoControllerV1.RestartPolicySpec {
+	policy := locoControllerV1.RestartPolicySpec{MaxRestarts: d.MaxRestarts, WindowSeconds: d.RestartWindow}
+	if maxRestarts != nil {
+		policy.MaxRestarts = *maxRestarts
+	}
+	if windowSeconds != nil {
+		policy.WindowSeconds = *windowSeconds
+	}
+	return policy
 }
 
 // Validate checks the defaults with the rules the controller applies to an Application, so
@@ -134,15 +137,9 @@ func (d Defaults) Validate() error {
 	if err := locoControllerV1.ValidateRoute(d.PathPrefix, d.IdleTimeout); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidRoute, err)
 	}
-	restarts := d.RestartPolicy()
+	restarts := d.RestartPolicy(nil, nil)
 	if err := restarts.Validate(); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidRestarts, err)
-	}
-	if err := locofile.CheckDeployAttempts(d.DeployAttempts); err != nil {
-		return fmt.Errorf("%w: attempts %w", errInvalidDeploy, err)
-	}
-	if err := locofile.CheckDeployRetryDelay(d.DeployRetryDelay); err != nil {
-		return fmt.Errorf("%w: retry delay %w", errInvalidDeploy, err)
 	}
 	return nil
 }

@@ -753,9 +753,12 @@ type PlacementStatus struct {
 	// When an available placement becomes healthy if no replica restarts again.
 	HealthyAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=healthy_at,json=healthyAt,proto3" json:"healthy_at,omitempty"`
 	// Set when the controller stopped the observed revision after a replica used up its restart budget.
-	Stopped       *StoppedRevision `protobuf:"bytes,17,opt,name=stopped,proto3" json:"stopped,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Stopped *StoppedRevision `protobuf:"bytes,17,opt,name=stopped,proto3" json:"stopped,omitempty"`
+	// The observed revision's restart policy.
+	MaxRestarts          int32 `protobuf:"varint,18,opt,name=max_restarts,json=maxRestarts,proto3" json:"max_restarts,omitempty"`
+	RestartWindowSeconds int32 `protobuf:"varint,19,opt,name=restart_window_seconds,json=restartWindowSeconds,proto3" json:"restart_window_seconds,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PlacementStatus) Reset() {
@@ -870,6 +873,20 @@ func (x *PlacementStatus) GetStopped() *StoppedRevision {
 		return x.Stopped
 	}
 	return nil
+}
+
+func (x *PlacementStatus) GetMaxRestarts() int32 {
+	if x != nil {
+		return x.MaxRestarts
+	}
+	return 0
+}
+
+func (x *PlacementStatus) GetRestartWindowSeconds() int32 {
+	if x != nil {
+		return x.RestartWindowSeconds
+	}
+	return 0
 }
 
 // StoppedRevision is a placement revision the controller stopped.
@@ -1790,7 +1807,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x03R\brevision\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bretrying\x18\x04 \x01(\bR\bretrying\"\xb4\x04\n" +
+	"\bretrying\x18\x04 \x01(\bR\bretrying\"\x8d\x05\n" +
 	"\x0fPlacementStatus\x12!\n" +
 	"\fplacement_id\x18\x01 \x01(\tR\vplacementId\x12+\n" +
 	"\x11observed_revision\x18\x02 \x01(\x03R\x10observedRevision\x12%\n" +
@@ -1805,7 +1822,9 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\ahealthy\x18\x0f \x01(\bR\ahealthy\x129\n" +
 	"\n" +
 	"healthy_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\thealthyAt\x128\n" +
-	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\"\xf2\x01\n" +
+	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12!\n" +
+	"\fmax_restarts\x18\x12 \x01(\x05R\vmaxRestarts\x124\n" +
+	"\x16restart_window_seconds\x18\x13 \x01(\x05R\x14restartWindowSeconds\"\xf2\x01\n" +
 	"\x0fStoppedRevision\x12-\n" +
 	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12\x1a\n" +

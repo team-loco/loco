@@ -7,15 +7,10 @@ import (
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
-func (f *deployFixture) setApplyRetryPolicy(t *testing.T, maxAttempts int32, delaySeconds *int32) {
-	t.Helper()
-	if err := f.queries.SetResourceDeployPolicy(t.Context(), genDb.SetResourceDeployPolicyParams{
-		ID:                     f.resourceID,
-		MaxApplyAttempts:       &maxAttempts,
-		ApplyRetryDelaySeconds: delaySeconds,
-	}); err != nil {
-		t.Fatal(err)
-	}
+func (f *deployFixture) agentServerRetrying(attempts, delaySeconds int32) *AgentServer {
+	config := testAgentConfig()
+	config.ApplyAttempts, config.ApplyRetryDelay = attempts, delaySeconds
+	return NewAgentServer(f.pool, f.queries, nil, nil, nil, testHeartbeatInterval, config)
 }
 
 func (f *deployFixture) expireRetry(t *testing.T) {
@@ -32,8 +27,7 @@ func (f *deployFixture) expireRetry(t *testing.T) {
 func TestPermanentApplyFailuresWaitBeforeAnotherInventorySendsThem(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.setApplyRetryPolicy(t, 3, nil)
-	server := f.agentServer()
+	server := f.agentServerRetrying(3, testApplyRetryDelay)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatal(err)
 	}
@@ -140,8 +134,7 @@ func TestCurrentInventoryRecoversDuringApplyBackoff(t *testing.T) {
 func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.setApplyRetryPolicy(t, 2, nil)
-	server := f.agentServer()
+	server := f.agentServerRetrying(2, testApplyRetryDelay)
 	deploymentID, err := f.deploy(t.Context(), staticSpec)
 	if err != nil {
 		t.Fatal(err)
@@ -204,12 +197,11 @@ func TestPlacementFailsOnceItRunsOutOfApplyAttempts(t *testing.T) {
 	}
 }
 
-func TestResourceRetryDelayOverridesTheDefault(t *testing.T) {
+func TestApplyRetryWaitsTheConfiguredDelay(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	delaySeconds := int32(60)
-	f.setApplyRetryPolicy(t, 3, &delaySeconds)
-	server := f.agentServer()
+	server := f.agentServerRetrying(3, delaySeconds)
 	if _, err := f.deploy(t.Context(), staticSpec); err != nil {
 		t.Fatal(err)
 	}

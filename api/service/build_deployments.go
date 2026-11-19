@@ -113,7 +113,8 @@ func updateBuildingDeployments(
 				return fmt.Errorf("advance building placement: %w", err)
 			}
 		}
-		if err := recordDeploymentStatus(ctx, qtx, deployment.ID, build.Message, defaults); err != nil {
+		cause := transitionCause{message: build.Message}
+		if err := recordDeploymentStatus(ctx, qtx, deployment.ID, cause, defaults); err != nil {
 			return err
 		}
 	}

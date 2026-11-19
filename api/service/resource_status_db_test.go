@@ -114,6 +114,7 @@ func (f *resourceStatusFixture) ready(t *testing.T, clusterID uuid.UUID, replica
 	t.Helper()
 	f.report(t, f.envID, clusterID, &agentv1.PlacementStatus{
 		Available:     true,
+		Healthy:       true,
 		ReadyReplicas: replicas,
 	})
 }
@@ -286,7 +287,7 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 	f.notReady(t, f.clusterID, 0)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-		ready: 0, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+		ready: 0, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEGRADED,
 		message: "",
 	})
 }

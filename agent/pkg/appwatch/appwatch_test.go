@@ -285,6 +285,9 @@ func TestRolloutForwarding(t *testing.T) {
 	w := newWatcher(nil, nil, testNamespace)
 	application := app("rollout", testPlacementID, "5")
 	application.Spec.DeploymentID = "deployment-later"
+	application.Spec.ServiceSpec = &locoControllerV1.ServiceSpec{
+		RestartPolicy: locoControllerV1.RestartPolicySpec{MaxRestarts: 3, WindowSeconds: 120},
+	}
 	application.Status.ObservedDeploymentID = observedDeploymentID
 	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 123, time.UTC))
 	restart := locoControllerV1.ReplicaRestart{At: at, Cause: locoControllerV1.RestartHealthCheck, ExitCode: 137}
@@ -342,6 +345,8 @@ func TestRolloutForwarding(t *testing.T) {
 		PlacementId:              testPlacementID,
 		DeploymentId:             observedDeploymentID,
 		ObservedRevision:         5,
+		MaxRestarts:              3,
+		RestartWindowSeconds:     120,
 		DesiredReplicas:          2,
 		Available:                true,
 		ProgressDeadlineExceeded: true,
@@ -401,9 +406,11 @@ func TestRolloutForwarding(t *testing.T) {
 	application.Status.Rollout = nil
 	w.observe(application)
 	want = &agentv1.PlacementStatus{
-		PlacementId:      testPlacementID,
-		DeploymentId:     observedDeploymentID,
-		ObservedRevision: 5,
+		PlacementId:          testPlacementID,
+		DeploymentId:         observedDeploymentID,
+		ObservedRevision:     5,
+		MaxRestarts:          3,
+		RestartWindowSeconds: 120,
 	}
 	if len(got) != 3 || !proto.Equal(got[2], want) {
 		t.Fatalf("nil rollout=%v", got)

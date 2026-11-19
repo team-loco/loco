@@ -224,11 +224,11 @@ func flatten(state *State) map[string]string {
 		fields[pathHealth+".failThreshold"] = formatInt(state.Health.FailThreshold)
 		fields[pathHealth+".startupGracePeriod"] = formatInt(state.Health.StartupGracePeriod)
 	}
-	if state.Deploy != nil && state.Deploy.Attempts != nil {
-		fields[pathDeploy+".attempts"] = formatInt(*state.Deploy.Attempts)
+	if state.Deploy != nil && state.Deploy.MaxRestarts != nil {
+		fields[pathDeploy+".maxRestarts"] = formatInt(*state.Deploy.MaxRestarts)
 	}
-	if state.Deploy != nil && state.Deploy.RetryDelay != nil {
-		fields[pathDeploy+".retryDelay"] = formatInt(*state.Deploy.RetryDelay)
+	if state.Deploy != nil && state.Deploy.RestartWindow != nil {
+		fields[pathDeploy+".restartWindow"] = formatInt(*state.Deploy.RestartWindow)
 	}
 	if state.Image != "" {
 		fields[pathImage] = state.Image

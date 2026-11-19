@@ -139,6 +139,10 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		ObservedRevision: app.Status.ObservedPlacementRevision,
 		ReadyReplicas:    app.Status.ReadyReplicas,
 	}
+	if spec := app.Spec.ServiceSpec; spec != nil {
+		status.MaxRestarts = spec.RestartPolicy.MaxRestarts
+		status.RestartWindowSeconds = spec.RestartPolicy.WindowSeconds
+	}
 	if rollout := app.Status.Rollout; rollout != nil {
 		status.DesiredReplicas = rollout.DesiredReplicas
 		status.Available = rollout.Available

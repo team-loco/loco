@@ -32,12 +32,14 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 		t.Fatalf("deploying timestamps=%+v", got)
 	}
 	report.Available = true
+	report.Healthy = true
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	running := read()
 	if running.StartedAt == nil || running.StartedAt.Before(running.CreatedAt) {
 		t.Fatalf("running start=%v", running.StartedAt)
 	}
 	report.Available = false
+	report.Healthy = false
 	report.ProgressDeadlineExceeded = true
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	failed := read()
@@ -49,6 +51,7 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 		t.Fatal("replay changed completion time")
 	}
 	report.Available = true
+	report.Healthy = true
 	report.ProgressDeadlineExceeded = false
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := read(); got.CompletedAt != nil || !got.StartedAt.Equal(*running.StartedAt) {
@@ -69,11 +72,13 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	p = f.placement(t, f.clusterID)
 	report.ObservedRevision = p.DesiredRevision
 	report.Available = false
+	report.Healthy = false
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := read(); got.Status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("waiting restart=%s", got.Status)
 	}
 	report.Available = true
+	report.Healthy = true
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := read(); got.Status != genDb.DeploymentStatusRunning || !got.StartedAt.Equal(*running.StartedAt) {
 		t.Fatalf("restarted=%+v", got)

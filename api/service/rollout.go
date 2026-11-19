@@ -63,6 +63,7 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 		if replica.GetPlacementRevision() < report.GetObservedRevision() && !terminalReplica(replica) {
 			livePrevious = true
 		}
+		entries = append(entries, restartActivity(old[uid], replica, report)...)
 		if before := old[uid]; before != nil && before.GetState() == replica.GetState() {
 			continue
 		}
@@ -129,6 +130,31 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 		}
 	}
 	return limited
+}
+
+// restartActivity is one entry per restart the replica reports that its previous report did not.
+func restartActivity(before, replica *deploymentv1.Replica, report *agentv1.PlacementStatus) []activityEntry {
+	var seen time.Time
+	if restarts := before.GetRestartsAt(); len(restarts) > 0 {
+		seen = restarts[len(restarts)-1].AsTime()
+	}
+	last := replica.GetLastRestart()
+	restart := loco.ReplicaRestart{Cause: loco.RestartCause(last.GetCause()), ExitCode: last.GetExitCode()}
+	var entries []activityEntry
+	for i, at := range replica.GetRestartsAt() {
+		if !at.AsTime().After(seen) {
+			continue
+		}
+		entries = append(entries, activityEntry{
+			Message: fmt.Sprintf("Restarted after %s · %d of %d in %s", restart.After(), i+1,
+				report.GetMaxRestarts(), loco.RestartWindow(report.GetRestartWindowSeconds())),
+			Severity:    activityWarn,
+			ReplicaUID:  replica.GetUid(),
+			ReplicaName: replica.GetName(),
+			At:          at.AsTime(),
+		})
+	}
+	return entries
 }
 
 func terminalReplica(replica *deploymentv1.Replica) bool {

@@ -2,6 +2,9 @@ package service
 
 import (
 	"testing"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -166,4 +169,31 @@ func TestStoppedReplicaWarnsOnlyForAnUncleanExit(t *testing.T) {
 			t.Errorf("exit %d severity = %q, want %q", tt.exit, severity, tt.severity)
 		}
 	}
+}
+
+func TestDiffRolloutRecordsEachNewRestart(t *testing.T) {
+	first := timestamppb.New(time.Date(2026, 11, 18, 12, 0, 0, 0, time.UTC))
+	second := timestamppb.New(first.AsTime().Add(20 * time.Second))
+	replica := func(cause string, restarts ...*timestamppb.Timestamp) *deploymentv1.Replica {
+		return &deploymentv1.Replica{
+			Uid: activityReplicaUID, State: string(loco.ReplicaServing), RestartsAt: restarts,
+			LastRestart: &deploymentv1.ReplicaRestart{At: restarts[len(restarts)-1], Cause: cause, ExitCode: 1},
+		}
+	}
+	report := func(replica *deploymentv1.Replica) *agentv1.PlacementStatus {
+		return &agentv1.PlacementStatus{
+			MaxRestarts: 5, RestartWindowSeconds: 600, Replicas: []*deploymentv1.Replica{replica},
+		}
+	}
+	entries := diffRollout(rolloutSnapshot{}, report(replica(string(loco.RestartExit), first)))
+	assertActivityMessages(t, entries, []string{"Restarted after exit 1 · 1 of 5 in 10 min", testServingMessage})
+	if !entries[0].At.Equal(first.AsTime()) || entries[0].Severity != activityWarn {
+		t.Fatalf("restart entry = %+v", entries[0])
+	}
+	previous := rolloutSnapshot{Replicas: []*deploymentv1.Replica{replica(string(loco.RestartExit), first)}}
+	assertActivityMessages(t,
+		diffRollout(previous, report(replica(string(loco.RestartHealthCheck), first, second))),
+		[]string{"Restarted after failing its health check · 2 of 5 in 10 min"},
+	)
+	assertActivityMessages(t, diffRollout(previous, report(replica(string(loco.RestartExit), first))), nil)
 }

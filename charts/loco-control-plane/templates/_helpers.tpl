@@ -207,7 +207,7 @@ capabilities:
 {{- $_ := set $settings $env $value }}
 {{- end }}
 {{- end }}
-{{- range $key, $env := dict "cpu" "LOCO_DEFAULT_CPU" "memory" "LOCO_DEFAULT_MEMORY" "minReplicas" "LOCO_DEFAULT_MIN_REPLICAS" "maxReplicas" "LOCO_DEFAULT_MAX_REPLICAS" "cpuTarget" "LOCO_DEFAULT_CPU_TARGET" "pathPrefix" "LOCO_DEFAULT_PATH_PREFIX" "idleTimeout" "LOCO_DEFAULT_IDLE_TIMEOUT" "healthPath" "LOCO_DEFAULT_HEALTH_PATH" "healthInterval" "LOCO_DEFAULT_HEALTH_INTERVAL" "healthTimeout" "LOCO_DEFAULT_HEALTH_TIMEOUT" "healthFailThreshold" "LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD" "healthStartupGracePeriod" "LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD" "deployAttempts" "LOCO_DEFAULT_DEPLOY_ATTEMPTS" "deployRetryDelay" "LOCO_DEFAULT_DEPLOY_RETRY_DELAY" }}
+{{- range $key, $env := dict "cpu" "LOCO_DEFAULT_CPU" "memory" "LOCO_DEFAULT_MEMORY" "minReplicas" "LOCO_DEFAULT_MIN_REPLICAS" "maxReplicas" "LOCO_DEFAULT_MAX_REPLICAS" "cpuTarget" "LOCO_DEFAULT_CPU_TARGET" "pathPrefix" "LOCO_DEFAULT_PATH_PREFIX" "idleTimeout" "LOCO_DEFAULT_IDLE_TIMEOUT" "healthPath" "LOCO_DEFAULT_HEALTH_PATH" "healthInterval" "LOCO_DEFAULT_HEALTH_INTERVAL" "healthTimeout" "LOCO_DEFAULT_HEALTH_TIMEOUT" "healthFailThreshold" "LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD" "healthStartupGracePeriod" "LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD" "maxRestarts" "LOCO_DEFAULT_MAX_RESTARTS" "restartWindow" "LOCO_DEFAULT_RESTART_WINDOW" }}
 {{- $value := index $.Values.api.defaults $key }}
 {{- if and (ne (toString $value) "<nil>") (ne (toString $value) "") }}
 {{- $_ := set $settings $env $value }}

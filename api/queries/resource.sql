@@ -6,17 +6,17 @@ VALUES ($1, $2, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
 -- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -42,8 +42,8 @@ WHERE id = $1;
 
 -- name: SetResourceDeployPolicy :exec
 UPDATE resources
-SET max_apply_attempts = sqlc.narg('max_apply_attempts'),
-    apply_retry_delay_seconds = sqlc.narg('apply_retry_delay_seconds'),
+SET max_restarts = sqlc.narg('max_restarts'),
+    restart_window_seconds = sqlc.narg('restart_window_seconds'),
     updated_at = NOW()
 WHERE id = $1;
 
@@ -131,7 +131,7 @@ ORDER BY l.resource_id, e.name, l.region;
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 
 -- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC;

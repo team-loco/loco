@@ -120,17 +120,23 @@ Check the file without calling the API. `validate` parses the file and checks it
 loco infra validate
 ```
 
-## Failed applies
+## Restarts
 
-When a cluster's agent cannot apply a deployment and will not retry it itself, for example because Kubernetes rejects the Application, the API sends the deployment again after a delay. Once the cluster has failed `attempts` times, the API marks the deployment failed and stops sending it until the next deployment of the service. `deploy` sets both for one service:
+Kubernetes starts a replica's process again when it exits, runs out of memory or fails its liveness check. `deploy` sets how many restarts Loco allows a replica within a window:
 
 ```yaml
 services:
   web:
-    deploy: { attempts: 3, retryDelay: 60 }
+    deploy: { maxRestarts: 3, restartWindow: 300 }
 ```
 
-`attempts` counts every try, including the first, and must be between 1 and 10. `retryDelay` is the number of seconds between tries and must be at least 60. An omitted field uses the API default: 2 attempts, 300 seconds apart, unless the operator sets `LOCO_DEFAULT_DEPLOY_ATTEMPTS` or `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` within the same bounds. `GetConfig` reports the defaults as `deploy_attempts` and `deploy_retry_delay_seconds`. `deploy` applies to the service in every environment, so an environment override cannot set it. A change takes effect at the next failure. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
+`maxRestarts` is between 0 and 20 and `restartWindow` is between 60 and 3600 seconds. An omitted field uses the API default, 5 restarts in 600 seconds, unless the operator sets `LOCO_DEFAULT_MAX_RESTARTS` or `LOCO_DEFAULT_RESTART_WINDOW`. `GetConfig` reports the defaults as `max_restarts` and `restart_window_seconds`.
+
+The restart after the last allowed one stops the version. During a rollout, the new version's replicas stop, the previous version keeps serving with all its replicas, and the deployment fails (and rolls back when `rollbackOnFailure` is on). A version that was already running stops entirely and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again with a fresh budget. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the worker cluster's `controller.healthyAfterSeconds` (300 by default) without a restart.
+
+`deploy` applies to the service in every environment, so an environment override cannot set it. A change reaches the cluster with the service's next deployment or restart. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
+
+When a cluster's agent cannot apply a deployment and will not retry it itself, for example because Kubernetes rejects the Application, the API sends the deployment again after `LOCO_APPLY_RETRY_DELAY` seconds (300 by default) and marks it failed after `LOCO_APPLY_ATTEMPTS` tries (2 by default, at most 10).
 
 ## Environment overrides
 

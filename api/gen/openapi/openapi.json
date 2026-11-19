@@ -8680,6 +8680,17 @@
             "title": "stopped",
             "description": "Set when the controller stopped the observed revision after a replica used up its restart budget.",
             "$ref": "#/components/schemas/loco.agent.v1.StoppedRevision"
+          },
+          "maxRestarts": {
+            "type": "integer",
+            "title": "max_restarts",
+            "format": "int32",
+            "description": "The observed revision's restart policy."
+          },
+          "restartWindowSeconds": {
+            "type": "integer",
+            "title": "restart_window_seconds",
+            "format": "int32"
           }
         },
         "title": "PlacementStatus",
@@ -10116,16 +10127,6 @@
             "title": "max_replicas",
             "format": "int32"
           },
-          "deployAttempts": {
-            "type": "integer",
-            "title": "deploy_attempts",
-            "format": "int32"
-          },
-          "deployRetryDelaySeconds": {
-            "type": "integer",
-            "title": "deploy_retry_delay_seconds",
-            "format": "int32"
-          },
           "cpuTarget": {
             "type": "integer",
             "title": "cpu_target",
@@ -10139,6 +10140,17 @@
             "type": "boolean",
             "title": "rollback_on_failure",
             "description": "Restores the previous deployment on failure; off by default."
+          },
+          "maxRestarts": {
+            "type": "integer",
+            "title": "max_restarts",
+            "format": "int32",
+            "description": "Restarts a replica may have within restart_window_seconds before Loco stops the version."
+          },
+          "restartWindowSeconds": {
+            "type": "integer",
+            "title": "restart_window_seconds",
+            "format": "int32"
           }
         },
         "title": "DefaultServiceConfig",

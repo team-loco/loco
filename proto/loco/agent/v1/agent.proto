@@ -117,6 +117,9 @@ message PlacementStatus {
   google.protobuf.Timestamp healthy_at = 16;
   // Set when the controller stopped the observed revision after a replica used up its restart budget.
   StoppedRevision stopped = 17;
+  // The observed revision's restart policy.
+  int32 max_restarts = 18;
+  int32 restart_window_seconds = 19;
 }
 
 // StoppedRevision is a placement revision the controller stopped.

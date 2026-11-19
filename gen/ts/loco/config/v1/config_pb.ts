@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/config/v1/config.proto.
  */
 export const file_loco_config_v1_config: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi8QMKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMSOwoRaGlzdG9yeV9yZXRlbnRpb24YCSABKAsyIC5sb2NvLmNvbmZpZy52MS5IaXN0b3J5UmV0ZW50aW9uEj8KHG9ic2VydmFiaWxpdHlfbWF4X3RpbWVfcmFuZ2UYCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLYXBpX3ZlcnNpb24YCyABKAkSGAoQd2ViX2F1dGhfZW5hYmxlZBgMIAEoCEoECAMQBFIEYXV0aCJgChBIaXN0b3J5UmV0ZW50aW9uEiEKGWJ1aWxkX2ltYWdlc19wZXJfcmVzb3VyY2UYASABKAUSKQoGZXZlbnRzGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIr4DCgtDb3VudExpbWl0cxIVCg1vcmdzX3Blcl91c2VyGAEgASgFEhoKEndvcmtzcGFjZXNfcGVyX29yZxgCIAEoBRIXCg9tZW1iZXJzX3Blcl9vcmcYAyABKAUSGwoTaW52aXRhdGlvbnNfcGVyX29yZxgEIAEoBRIiChplbnZpcm9ubWVudHNfcGVyX3dvcmtzcGFjZRgFIAEoBRIfChdyZXNvdXJjZXNfcGVyX3dvcmtzcGFjZRgGIAEoBRIeChZ3ZWJob29rc19wZXJfd29ya3NwYWNlGAcgASgFEhkKEXRva2Vuc19wZXJfZW50aXR5GAggASgFEhwKFGRvbWFpbnNfcGVyX3Jlc291cmNlGAkgASgFEhwKFHNlY3JldHNfcGVyX3Jlc291cmNlGAogASgFEhoKEmRlcGxveW1lbnRfaGlzdG9yeRgLIAEoBRIVCg1idWlsZF9oaXN0b3J5GAwgASgFEhoKEmxvZ19yZXRlbnRpb25fZGF5cxgNIAEoBRIcChR0cmFjZV9yZXRlbnRpb25fZGF5cxgOIAEoBRIdChVtZXRyaWNfcmV0ZW50aW9uX2RheXMYDyABKAUinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkiygIKFERlZmF1bHRTZXJ2aWNlQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgBIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYAiABKAkSDgoGbWVtb3J5GAMgASgJEhQKDG1pbl9yZXBsaWNhcxgEIAEoBRIUCgxtYXhfcmVwbGljYXMYBSABKAUSFwoPZGVwbG95X2F0dGVtcHRzGAYgASgFEiIKGmRlcGxveV9yZXRyeV9kZWxheV9zZWNvbmRzGAcgASgFEhIKCmNwdV90YXJnZXQYCCABKAUSPgoNb2JzZXJ2YWJpbGl0eRgJIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEhsKE3JvbGxiYWNrX29uX2ZhaWx1cmUYCiABKAgyYQoNQ29uZmlnU2VydmljZRJQCglHZXRDb25maWcSIC5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXF1ZXN0GiEubG9jby5jb25maWcudjEuR2V0Q29uZmlnUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9jb25maWcvdjE7Y29uZmlndjFiBnByb3RvMw", [file_google_protobuf_duration, file_loco_deployment_v1_deployment]);
+  fileDesc("Chtsb2NvL2NvbmZpZy92MS9jb25maWcucHJvdG8SDmxvY28uY29uZmlnLnYxIhIKEEdldENvbmZpZ1JlcXVlc3Qi8QMKEUdldENvbmZpZ1Jlc3BvbnNlEj4KEHNlcnZpY2VfZGVmYXVsdHMYASABKAsyJC5sb2NvLmNvbmZpZy52MS5EZWZhdWx0U2VydmljZUNvbmZpZxIXCg9taW5fY2xpX3ZlcnNpb24YAiABKAkSEgoKc2NoZW1hX3VybBgEIAEoCRIqCglvcmdfbGlua3MYBSADKAsyFy5sb2NvLmNvbmZpZy52MS5PcmdMaW5rEiYKHmFwaV90b2tlbl9tYXhfbGlmZXRpbWVfc2Vjb25kcxgGIAEoAxIvCgtzaXplX2xpbWl0cxgHIAEoCzIaLmxvY28uY29uZmlnLnYxLlNpemVMaW1pdHMSMQoMY291bnRfbGltaXRzGAggASgLMhsubG9jby5jb25maWcudjEuQ291bnRMaW1pdHMSOwoRaGlzdG9yeV9yZXRlbnRpb24YCSABKAsyIC5sb2NvLmNvbmZpZy52MS5IaXN0b3J5UmV0ZW50aW9uEj8KHG9ic2VydmFiaWxpdHlfbWF4X3RpbWVfcmFuZ2UYCiABKAsyGS5nb29nbGUucHJvdG9idWYuRHVyYXRpb24SEwoLYXBpX3ZlcnNpb24YCyABKAkSGAoQd2ViX2F1dGhfZW5hYmxlZBgMIAEoCEoECAMQBFIEYXV0aCJgChBIaXN0b3J5UmV0ZW50aW9uEiEKGWJ1aWxkX2ltYWdlc19wZXJfcmVzb3VyY2UYASABKAUSKQoGZXZlbnRzGAIgASgLMhkuZ29vZ2xlLnByb3RvYnVmLkR1cmF0aW9uIr4DCgtDb3VudExpbWl0cxIVCg1vcmdzX3Blcl91c2VyGAEgASgFEhoKEndvcmtzcGFjZXNfcGVyX29yZxgCIAEoBRIXCg9tZW1iZXJzX3Blcl9vcmcYAyABKAUSGwoTaW52aXRhdGlvbnNfcGVyX29yZxgEIAEoBRIiChplbnZpcm9ubWVudHNfcGVyX3dvcmtzcGFjZRgFIAEoBRIfChdyZXNvdXJjZXNfcGVyX3dvcmtzcGFjZRgGIAEoBRIeChZ3ZWJob29rc19wZXJfd29ya3NwYWNlGAcgASgFEhkKEXRva2Vuc19wZXJfZW50aXR5GAggASgFEhwKFGRvbWFpbnNfcGVyX3Jlc291cmNlGAkgASgFEhwKFHNlY3JldHNfcGVyX3Jlc291cmNlGAogASgFEhoKEmRlcGxveW1lbnRfaGlzdG9yeRgLIAEoBRIVCg1idWlsZF9oaXN0b3J5GAwgASgFEhoKEmxvZ19yZXRlbnRpb25fZGF5cxgNIAEoBRIcChR0cmFjZV9yZXRlbnRpb25fZGF5cxgOIAEoBRIdChVtZXRyaWNfcmV0ZW50aW9uX2RheXMYDyABKAUinAEKClNpemVMaW1pdHMSFgoObWluX2NwdV9taWxsaXMYASABKAUSFgoObWF4X2NwdV9taWxsaXMYAiABKAUSGAoQbWluX21lbW9yeV9ieXRlcxgDIAEoAxIYChBtYXhfbWVtb3J5X2J5dGVzGAQgASgDEhQKDG1pbl9yZXBsaWNhcxgFIAEoBRIUCgxtYXhfcmVwbGljYXMYBiABKAUiJQoHT3JnTGluaxINCgVsYWJlbBgBIAEoCRILCgN1cmwYAiABKAkizwIKFERlZmF1bHRTZXJ2aWNlQ29uZmlnEjsKDGhlYWx0aF9jaGVjaxgBIAEoCzIlLmxvY28uZGVwbG95bWVudC52MS5IZWFsdGhDaGVja0NvbmZpZxILCgNjcHUYAiABKAkSDgoGbWVtb3J5GAMgASgJEhQKDG1pbl9yZXBsaWNhcxgEIAEoBRIUCgxtYXhfcmVwbGljYXMYBSABKAUSEgoKY3B1X3RhcmdldBgIIAEoBRI+Cg1vYnNlcnZhYmlsaXR5GAkgASgLMicubG9jby5kZXBsb3ltZW50LnYxLk9ic2VydmFiaWxpdHlDb25maWcSGwoTcm9sbGJhY2tfb25fZmFpbHVyZRgKIAEoCBIUCgxtYXhfcmVzdGFydHMYCyABKAUSHgoWcmVzdGFydF93aW5kb3dfc2Vjb25kcxgMIAEoBUoECAYQB0oECAcQCDJhCg1Db25maWdTZXJ2aWNlElAKCUdldENvbmZpZxIgLmxvY28uY29uZmlnLnYxLkdldENvbmZpZ1JlcXVlc3QaIS5sb2NvLmNvbmZpZy52MS5HZXRDb25maWdSZXNwb25zZUI6WjhnaXRodWIuY29tL3RlYW0tbG9jby9sb2NvL2dlbi9nby9sb2NvL2NvbmZpZy92MTtjb25maWd2MWIGcHJvdG8z", [file_google_protobuf_duration, file_loco_deployment_v1_deployment]);
 
 /**
  * @generated from message loco.config.v1.GetConfigRequest
@@ -587,16 +587,6 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
   maxReplicas: number;
 
   /**
-   * @generated from field: int32 deploy_attempts = 6;
-   */
-  deployAttempts: number;
-
-  /**
-   * @generated from field: int32 deploy_retry_delay_seconds = 7;
-   */
-  deployRetryDelaySeconds: number;
-
-  /**
    * @generated from field: int32 cpu_target = 8;
    */
   cpuTarget: number;
@@ -612,6 +602,18 @@ export type DefaultServiceConfig = Message<"loco.config.v1.DefaultServiceConfig"
    * @generated from field: bool rollback_on_failure = 10;
    */
   rollbackOnFailure: boolean;
+
+  /**
+   * Restarts a replica may have within restart_window_seconds before Loco stops the version.
+   *
+   * @generated from field: int32 max_restarts = 11;
+   */
+  maxRestarts: number;
+
+  /**
+   * @generated from field: int32 restart_window_seconds = 12;
+   */
+  restartWindowSeconds: number;
 };
 
 /**
@@ -655,16 +657,6 @@ export type DefaultServiceConfigJson = {
   maxReplicas?: number;
 
   /**
-   * @generated from field: int32 deploy_attempts = 6;
-   */
-  deployAttempts?: number;
-
-  /**
-   * @generated from field: int32 deploy_retry_delay_seconds = 7;
-   */
-  deployRetryDelaySeconds?: number;
-
-  /**
    * @generated from field: int32 cpu_target = 8;
    */
   cpuTarget?: number;
@@ -680,6 +672,18 @@ export type DefaultServiceConfigJson = {
    * @generated from field: bool rollback_on_failure = 10;
    */
   rollbackOnFailure?: boolean;
+
+  /**
+   * Restarts a replica may have within restart_window_seconds before Loco stops the version.
+   *
+   * @generated from field: int32 max_restarts = 11;
+   */
+  maxRestarts?: number;
+
+  /**
+   * @generated from field: int32 restart_window_seconds = 12;
+   */
+  restartWindowSeconds?: number;
 };
 
 /**

@@ -144,9 +144,9 @@ func TestSyncSendsDecryptedSecretsBesideTheApplication(t *testing.T) {
 func TestSyncReportsAMissingSecretAndSendsItAfterRestart(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.setApplyRetryPolicy(t, 1, nil)
 	provider := newTestKeyProvider(t, "k1")
 	serverConfig := testAgentConfig()
+	serverConfig.ApplyAttempts = 1
 	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
 	f.storeSecret(t, provider, databaseURL, stripeValue)
 	f.deployWithSecrets(t, []string{databaseURL, missingName})

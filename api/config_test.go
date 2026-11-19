@@ -425,8 +425,8 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_HEALTH_TIMEOUT", "2")
 	t.Setenv("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", "5")
 	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "15")
-	t.Setenv("LOCO_DEFAULT_DEPLOY_ATTEMPTS", "4")
-	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "60")
+	t.Setenv("LOCO_APPLY_ATTEMPTS", "4")
+	t.Setenv("LOCO_APPLY_RETRY_DELAY", "60")
 	t.Setenv("LOCO_DEFAULT_MAX_RESTARTS", "0")
 	t.Setenv("LOCO_DEFAULT_RESTART_WINDOW", "120")
 	ac := newAPIConfig()
@@ -444,19 +444,17 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		HealthTimeout:            2,
 		HealthFailThreshold:      5,
 		HealthStartupGracePeriod: 15,
-		DeployAttempts:           4,
-		DeployRetryDelay:         60,
 		MaxRestarts:              0,
 		RestartWindow:            120,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
 	}
-	if ac.Agent.DeployAttempts != 4 || ac.Agent.DeployRetryDelay != 60 {
+	if ac.Agent.ApplyAttempts != 4 || ac.Agent.ApplyRetryDelay != 60 {
 		t.Errorf(
-			"agent deploy policy = %d attempts, %ds apart; want 4, 60s",
-			ac.Agent.DeployAttempts,
-			ac.Agent.DeployRetryDelay,
+			"agent apply retry = %d attempts, %ds apart; want 4, 60s",
+			ac.Agent.ApplyAttempts,
+			ac.Agent.ApplyRetryDelay,
 		)
 	}
 }
@@ -822,25 +820,29 @@ func TestDatabaseListenURLDefaultsAndOverride(t *testing.T) {
 	}
 }
 
-func TestDeployAndRestartPolicyDefaultBounds(t *testing.T) {
+func TestApplyRetryAndRestartPolicyBounds(t *testing.T) {
 	clearAPIConfigEnv(t)
 	for _, tc := range []struct {
 		env      string
 		accepted []string
 		rejected []string
+		read     func()
 	}{
-		{"LOCO_DEFAULT_DEPLOY_ATTEMPTS", []string{"1", "10"}, []string{"0", "11", "-1", "5m"}},
-		{"LOCO_DEFAULT_DEPLOY_RETRY_DELAY", []string{"60"}, []string{"59", "0", "5m"}},
-		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"0", "20"}, []string{"21", "-1", "5m"}},
-		{"LOCO_DEFAULT_RESTART_WINDOW", []string{"60", "3600"}, []string{"59", "3601", "0", "10m"}},
+		{"LOCO_APPLY_ATTEMPTS", []string{"1", "10"}, []string{"0", "11", "-1", "5m"},
+			func() { newAgentConfig(servicedefaults.Defaults{}) }},
+		{"LOCO_APPLY_RETRY_DELAY", []string{"1"}, []string{"0", "5m"},
+			func() { newAgentConfig(servicedefaults.Defaults{}) }},
+		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"0", "20"}, []string{"21", "-1", "5m"}, func() { newServiceDefaults() }},
+		{"LOCO_DEFAULT_RESTART_WINDOW", []string{"60", "3600"}, []string{"59", "3601", "0", "10m"},
+			func() { newServiceDefaults() }},
 	} {
 		for _, value := range tc.accepted {
 			t.Setenv(tc.env, value)
-			newServiceDefaults()
+			tc.read()
 		}
 		for _, value := range tc.rejected {
 			t.Setenv(tc.env, value)
-			if err := panicValue(t, func() { newServiceDefaults() }); err == nil {
+			if err := panicValue(t, tc.read); err == nil {
 				t.Fatalf("%s=%s accepted", tc.env, value)
 			}
 		}

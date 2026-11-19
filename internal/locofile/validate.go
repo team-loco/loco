@@ -10,9 +10,11 @@ import (
 const (
 	MaxServiceNameLength = 63
 
-	MinDeployAttempts   = 1
-	MaxDeployAttempts   = 10
-	MinDeployRetryDelay = 60
+	// Restart policy bounds; k8sapi RestartPolicySpec holds the same, update both together.
+	MinRestarts      = 0
+	MaxRestarts      = 20
+	MinRestartWindow = 60
+	MaxRestartWindow = 3600
 )
 
 var dnsLabelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
@@ -103,31 +105,14 @@ func validateDeploy(path string, deploy *Deploy) []error {
 		return nil
 	}
 	var errs []error
-	if deploy.Attempts != nil {
-		if err := CheckDeployAttempts(*deploy.Attempts); err != nil {
-			errs = append(errs, &FieldError{Path: path + ".deploy.attempts", Err: err})
-		}
+	if deploy.MaxRestarts != nil && (*deploy.MaxRestarts < MinRestarts || *deploy.MaxRestarts > MaxRestarts) {
+		errs = append(errs, &FieldError{Path: path + ".deploy.maxRestarts", Err: ErrMaxRestarts})
 	}
-	if deploy.RetryDelay != nil {
-		if err := CheckDeployRetryDelay(*deploy.RetryDelay); err != nil {
-			errs = append(errs, &FieldError{Path: path + ".deploy.retryDelay", Err: err})
-		}
+	if deploy.RestartWindow != nil &&
+		(*deploy.RestartWindow < MinRestartWindow || *deploy.RestartWindow > MaxRestartWindow) {
+		errs = append(errs, &FieldError{Path: path + ".deploy.restartWindow", Err: ErrRestartWindow})
 	}
 	return errs
-}
-
-func CheckDeployAttempts(attempts int32) error {
-	if attempts < MinDeployAttempts || attempts > MaxDeployAttempts {
-		return ErrDeployAttempts
-	}
-	return nil
-}
-
-func CheckDeployRetryDelay(seconds int32) error {
-	if seconds < MinDeployRetryDelay {
-		return ErrDeployRetryDelay
-	}
-	return nil
 }
 
 func validateAutoscaling(path string, autoscaling *Autoscaling) []error {

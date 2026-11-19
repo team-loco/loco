@@ -503,8 +503,8 @@ func scalersFor(autoscaling *configplan.Autoscaling) *deploymentv1.Scalers {
 func setDeployPolicy(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID, deploy *locofile.Deploy) error {
 	params := genDb.SetResourceDeployPolicyParams{ID: resourceID}
 	if deploy != nil {
-		params.MaxApplyAttempts = deploy.Attempts
-		params.ApplyRetryDelaySeconds = deploy.RetryDelay
+		params.MaxRestarts = deploy.MaxRestarts
+		params.RestartWindowSeconds = deploy.RestartWindow
 	}
 	if err := qtx.SetResourceDeployPolicy(ctx, params); err != nil {
 		return fmt.Errorf("set resource deploy policy: %w", err)

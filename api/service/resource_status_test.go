@@ -86,6 +86,18 @@ func TestRegionStatus(t *testing.T) {
 			message: testStatusMessage,
 		},
 		{
+			name:    "every replica ready but one restarted within the health window",
+			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusDegraded, 2) },
+			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
+			message: testStatusMessage,
+		},
+		{
+			name:    "service stopped after too many restarts",
+			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusCrashed, 0) },
+			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
+			message: testStatusMessage,
+		},
+		{
 			name:    "running deployment that lost a replica",
 			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusRunning, 1) },
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,

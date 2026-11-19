@@ -64,7 +64,7 @@ func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
 	}
 	p := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{
-		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true,
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true, Healthy: true,
 	}
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
 	if got := f.deploymentStatus(t, deploymentID); got != genDb.DeploymentStatusCanceled {

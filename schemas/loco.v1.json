@@ -22,16 +22,17 @@
     },
     "Deploy": {
       "properties": {
-        "attempts": {
+        "maxRestarts": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 10,
-          "description": "Times a cluster tries to apply a deployment before it is marked failed."
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Restarts a replica may have within restartWindow. The next restart stops the version."
         },
-        "retryDelay": {
+        "restartWindow": {
           "type": "integer",
           "minimum": 60,
-          "description": "Seconds between attempts."
+          "maximum": 3600,
+          "description": "Seconds over which restarts are counted."
         }
       },
       "additionalProperties": false,
@@ -549,7 +550,7 @@
         },
         "deploy": {
           "$ref": "#/$defs/Deploy",
-          "description": "How often the API sends a deployment a cluster fails to apply before marking it failed. The API fills omitted fields. Applies to every environment."
+          "description": "How often a replica may restart before Loco stops the version. The API fills omitted fields. Applies to every environment."
         },
         "observability": {
           "$ref": "#/$defs/Observability",
