@@ -233,9 +233,9 @@ func TestRestartBudgetStopsTheRevision(t *testing.T) {
 	}
 }
 
-// TestRestartBudgetBringsBackThePreviousVersion deploys a version that serves long enough to
-// replace every old replica, then exits. Its stop scales the emptied old ReplicaSet back up, and
-// requests succeed again.
+// TestRestartBudgetBringsBackThePreviousVersion deploys a version that replaces every old replica,
+// then makes it exit before it proves itself. Its stop scales the emptied old ReplicaSet back up,
+// and requests succeed again.
 func TestRestartBudgetBringsBackThePreviousVersion(t *testing.T) {
 	t.Parallel()
 	s := newBudgetService(t, "e2e-restart-fallback")
@@ -246,6 +246,9 @@ func TestRestartBudgetBringsBackThePreviousVersion(t *testing.T) {
 		}
 		return nil
 	})
+	for _, pod := range s.newPods(t) {
+		p.MustKubectl(t, "-n", s.w.Namespace, "exec", pod, "--", "touch", "/dev/shm/crash")
+	}
 	s.waitStopped(t)
 	platform.Eventually(t, 2*time.Minute, "the old version to serve again", func(context.Context) error {
 		if ready := s.oldReplicaSet(t).Status.ReadyReplicas; ready != 2 {
