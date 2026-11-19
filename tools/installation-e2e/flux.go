@@ -308,9 +308,11 @@ func upgradeToCurrent(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err = kubectl(ctx, "-n", controlNamespace, "exec", strings.TrimSpace(string(pod)), "-c", "clickhouse",
-		"--", "clickhouse-client", "--user", "loco_migrator", "--password", string(password),
-		"--query", "DROP DATABASE IF EXISTS loco_obs SYNC"); err != nil {
+	// The leak audit rejects secrets in subprocess arguments, so the password goes on stdin.
+	if _, err = command(ctx, "", append(password, '\n'), "kubectl", "-n", controlNamespace, "exec", "-i",
+		strings.TrimSpace(string(pod)), "-c", "clickhouse", "--", "sh", "-c",
+		`read -r password && clickhouse-client --user loco_migrator --password "$password" `+
+			`--query "DROP DATABASE IF EXISTS loco_obs SYNC"`); err != nil {
 		return err
 	}
 	ingest := "deployment/" + controlPlaneRelease + "-obs-proxy-ingest"
