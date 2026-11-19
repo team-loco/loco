@@ -357,7 +357,18 @@ with session(out) as browser:
                         expect(page.locator("html")).not_to_have_class(
                             re.compile(r"\bdark\b")
                         )
-        page.goto(state["ui_url"] + base + "?scope=account")
+        page.goto(state["ui_url"] + base + "?scope=personal")
+        group = page.get_by_role("group", name="Settings for", exact=True)
+        expect(
+            group.get_by_role("button", name="Personal", exact=True)
+        ).to_have_attribute("aria-pressed", "true")
+        group.get_by_role("button", name="Workspace", exact=True).click()
+        expect(
+            group.get_by_role("button", name="Workspace", exact=True)
+        ).to_have_attribute("aria-pressed", "true")
+        expect(page).not_to_have_url(re.compile(r"scope=personal"))
+        group.get_by_role("button", name="Personal", exact=True).click()
+        expect(page).to_have_url(re.compile(r"scope=personal"))
         check_time_preferences(page)
         context.close()
 (out / "results.json").write_text(json.dumps(results, indent=2))

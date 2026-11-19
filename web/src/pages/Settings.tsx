@@ -134,7 +134,7 @@ export function Settings() {
 					Workspace
 					{wsDirty && <DirtyDot />}
 				</ToggleGroupItem>
-				<ToggleGroupItem value="account" className={itemClass}>
+				<ToggleGroupItem value="personal" className={itemClass}>
 					<UserIcon className="size-[13px] shrink-0 text-fg3" />
 					Personal
 					{accountDirty && <DirtyDot />}
@@ -144,7 +144,7 @@ export function Settings() {
 			{scope === "org" && orgQuery.error !== null && (
 				<ErrorState error={orgQuery.error} what="settings" rpc={getOrg} scope="role" onRetry={orgQuery.refetch} />
 			)}
-			{((scopes.isLoading && scope !== "account") || (scope === "org" && orgQuery.error === null && !org)) && (
+			{((scopes.isLoading && scope !== "personal") || (scope === "org" && orgQuery.error === null && !org)) && (
 				<SettingsSkeleton />
 			)}
 			{!scopes.isLoading && scope === "workspace" && !readsWorkspace(workspaceId) && (
@@ -165,7 +165,7 @@ export function Settings() {
 					}}
 				/>
 			)}
-			{scope === "account" && user !== null && (
+			{scope === "personal" && user !== null && (
 				<PersonalTab
 					user={user}
 					draft={drafts.account}
