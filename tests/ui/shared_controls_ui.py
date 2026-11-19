@@ -422,6 +422,34 @@ def workload_logs(page):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
+def template_logs(page):
+    template = "GetCartAsync called with userId={userId} in {region}"
+    entries = [
+        {
+            "timestamp": stamp(datetime.now(UTC), timedelta(seconds=5)),
+            "level": "LOG_LEVEL_INFO",
+            "body": template,
+            "resourceId": resource,
+            "logAttributes": {"userId": "u-42"},
+        }
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "1"}),
+    )
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    rendered = "GetCartAsync called with userId=u-42 in {region}"
+    row = page.get_by_role("region", name="Log lines").get_by_role(
+        "button", name=re.compile(re.escape(rendered) + "$")
+    )
+    row.click()
+    detail = page.get_by_role("dialog")
+    expect(detail.get_by_text(rendered, exact=True)).to_be_visible()
+    expect(detail.get_by_text(template, exact=True)).to_be_visible()
+    page.keyboard.press("Escape")
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
+
+
 def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
@@ -1440,6 +1468,7 @@ with session(out) as browser:
         activity_deployments,
         log_levels,
         workload_logs,
+        template_logs,
         log_paging,
         live_focus,
         time_presets,

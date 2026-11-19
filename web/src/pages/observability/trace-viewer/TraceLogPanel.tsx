@@ -224,7 +224,7 @@ export function TraceLogPanel({
 											<li key={row.key}>
 												<button
 													type="button"
-													aria-label={`Open log: ${row.entry.body}`}
+													aria-label={`Open log: ${row.message}`}
 													data-log-key={row.key}
 													onMouseEnter={() => {
 														onHover(row);
@@ -264,7 +264,7 @@ export function TraceLogPanel({
 														<span className="truncate">{row.resourceName}</span>
 													</span>
 													<span className="col-span-3 min-w-0 sm:col-span-1 [overflow-wrap:anywhere]">
-														{row.entry.body}
+														{row.message}
 													</span>
 												</button>
 											</li>
