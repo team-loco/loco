@@ -125,6 +125,13 @@ with session(repo / "tests/ui/out/account-deletion") as browser:
     ).to_be_visible()
     confirm = dialog.get_by_role("button", name="Delete account", exact=True)
     expect(confirm).to_be_disabled()
+    for mode in ("light", "dark"):
+        page.evaluate(
+            "mode => document.documentElement.classList.toggle('dark', mode === 'dark')",
+            mode,
+        )
+        confirm.hover(force=True)
+        expect(confirm).to_have_css("opacity", "0.45")
     dialog.get_by_role("textbox").fill(state["users"]["departing"]["email"])
     role("owner", acme, "owner", "ORG_ROLE_MEMBER")
     confirm.click()
