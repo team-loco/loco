@@ -13,7 +13,8 @@ import {
 	Trash2Icon,
 	Undo2Icon,
 } from "lucide-react";
-import { Link } from "react-router";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
@@ -26,6 +27,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/design/Command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/design/Popover";
 import { PartialBadge } from "@/components/design/PartialBadge";
 import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
@@ -46,27 +49,48 @@ interface SwitcherItem {
 	href: string;
 }
 
+const SWITCHER_FILTER_FROM = 8;
+
 function Switcher({ items, currentId, offset }: { items: SwitcherItem[]; currentId: string; offset: number }) {
+	const [open, setOpen] = useState(false);
+	const navigate = useNavigate();
+	const sorted = items.toSorted((a, b) => a.name.localeCompare(b.name));
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger
+		<Popover open={open} onOpenChange={setOpen}>
+			<PopoverTrigger
 				render={<Button variant="ghost" size="icon-sm" aria-label="Switch resource" className="text-fg3" />}
 			>
 				<ChevronsUpDownIcon />
-			</DropdownMenuTrigger>
-			<DropdownMenuContent align="start" alignOffset={-offset} className="max-h-80 w-[280px]">
-				{items.map((it) => (
-					<DropdownMenuItem key={it.id} render={<Link to={it.href} />} className="gap-2">
-						<StatusGlyph glyph={resourceStatusStyle(it.status).glyph} />
-						<span className="flex min-w-0 flex-1 flex-col gap-px">
-							<span className="truncate">{it.name}</span>
-							{it.description !== "" && <span className="truncate text-[12px] text-fg3">{it.description}</span>}
-						</span>
-						{it.id === currentId && <CheckIcon className="size-3.5 text-fg3" />}
-					</DropdownMenuItem>
-				))}
-			</DropdownMenuContent>
-		</DropdownMenu>
+			</PopoverTrigger>
+			<PopoverContent align="start" alignOffset={-offset} className="w-[280px] p-0" aria-label="Resources">
+				<Command>
+					{sorted.length > SWITCHER_FILTER_FROM && (
+						<CommandInput compact placeholder="Filter resources" aria-label="Filter resources" />
+					)}
+					<CommandList className="max-h-80 p-1">
+						<CommandEmpty>No resources match.</CommandEmpty>
+						{sorted.map((it) => (
+							<CommandItem
+								key={it.id}
+								value={`${it.name} ${it.description}`}
+								className="h-auto min-h-9 py-1.5"
+								onSelect={() => {
+									setOpen(false);
+									void navigate(it.href);
+								}}
+							>
+								<StatusGlyph glyph={resourceStatusStyle(it.status).glyph} />
+								<span className="flex min-w-0 flex-1 flex-col gap-px">
+									<span className="truncate">{it.name}</span>
+									{it.description !== "" && <span className="truncate text-[12px] text-fg3">{it.description}</span>}
+								</span>
+								{it.id === currentId && <CheckIcon aria-label="Current resource" className="size-3.5 text-fg3" />}
+							</CommandItem>
+						))}
+					</CommandList>
+				</Command>
+			</PopoverContent>
+		</Popover>
 	);
 }
 

@@ -227,12 +227,54 @@ with session(out) as browser:
     deployment_row = page.get_by_role("row").filter(has_text="current")
     expect(deployment_row.get_by_role("cell").nth(-1)).to_have_text("10 min ago")
     expect(deployment_row.get_by_role("cell").nth(-2)).to_have_text("30 min ago")
-    page.get_by_role("button", name="Switch resource", exact=True).click()
+    switcher = page.get_by_role("button", name="Switch resource", exact=True)
+    switcher.click()
+    current = page.get_by_role("option", name=re.compile(rf"^{name}"))
     expect(
-        page.get_by_role("menuitem", name=re.compile(rf"^{name}")).get_by_text(
-            "Ranks products for each shopper", exact=True
-        )
+        current.get_by_text("Ranks products for each shopper", exact=True)
     ).to_be_visible()
+    expect(current.get_by_label("Current resource", exact=True)).to_be_visible()
+    filter_box = page.get_by_placeholder("Filter resources", exact=True)
+    expect(filter_box).to_have_count(0)
+    page.keyboard.press("Escape")
+    fruit = [
+        "zzq-" + fruit
+        for fruit in ("pear", "apple", "mango", "plum", "fig", "kiwi", "lime", "date")
+    ]
+    evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": fruit_name,
+                "service": {
+                    "routing": {"port": 8080},
+                    "regions": {
+                        "us-east-1": {
+                            "enabled": True,
+                            "cpu": "100m",
+                            "memory": "128Mi",
+                            "minReplicas": 1,
+                            "maxReplicas": 1,
+                        }
+                    },
+                },
+            }
+            for fruit_name in fruit
+        ],
+    )
+    page.reload()
+    switcher.click()
+    expect(filter_box).to_be_visible()
+    names = [
+        text.split("\n")[0] for text in page.get_by_role("option").all_inner_texts()
+    ]
+    assert names == sorted(names) and len(names) > 8, names
+    filter_box.fill("zzq-ma")
+    expect(page.get_by_role("option")).to_have_count(1)
+    expect(page.get_by_role("option", name="zzq-mango")).to_be_visible()
+    filter_box.fill("zzq-none")
+    expect(page.get_by_text("No resources match.", exact=True)).to_be_visible()
     page.keyboard.press("Escape")
     more = page.get_by_role("button", name="More actions", exact=True)
     more.click()
