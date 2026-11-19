@@ -654,9 +654,6 @@ func TestRotateWebhookSecretKeepsThePreviousSecretForTheGracePeriod(t *testing.T
 		t.Fatalf("stored secrets open to %q", got)
 	}
 	expires := graced.GetWebhook().GetPreviousSecretExpiresAt().AsTime()
-	if left := time.Until(expires); left <= 0 || left > hour*time.Second {
-		t.Fatalf("previous secret expires in %s, want within an hour", left)
-	}
 
 	immediate := rotate(0)
 	if row = stored(); f.open(t, row, row.Secret)[0] != immediate.GetSecret() || row.PreviousSecret != nil ||
@@ -664,15 +661,17 @@ func TestRotateWebhookSecretKeepsThePreviousSecretForTheGracePeriod(t *testing.T
 		t.Fatalf("after rotating without a grace period = %+v", row)
 	}
 
-	all := dbtest.Events(t, f.pool)
-	var rotations int
-	for _, e := range all {
+	var rotations []genDb.Event
+	for _, e := range dbtest.Events(t, f.pool) {
 		if e.Type == events.WebhookSecretRotated && e.SubjectID != nil && e.SubjectID.String() == hookID {
-			rotations++
+			rotations = append(rotations, e)
 		}
 	}
-	if rotations != 2 {
-		t.Fatalf("%s events = %d, want 2", events.WebhookSecretRotated, rotations)
+	if len(rotations) != 2 {
+		t.Fatalf("%s events = %d, want 2", events.WebhookSecretRotated, len(rotations))
+	}
+	if grace := expires.Sub(rotations[0].CreatedAt); grace != hour*time.Second {
+		t.Fatalf("previous secret expires %s after the rotation, want an hour", grace)
 	}
 }
 

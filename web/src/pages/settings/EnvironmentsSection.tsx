@@ -1,3 +1,4 @@
+import { charCount, clampChars } from "@/lib/characters";
 import { createConnectQueryKey, useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import { type Environment } from "@gen/loco/environment/v1/environment_pb";
 import {
@@ -256,7 +257,8 @@ function EnvironmentForm({
 	const error =
 		raw.trim() !== "" && name === "" ? "Use letters or digits" : taken.includes(name) ? `${name} already exists` : null;
 	const hint = name !== "" && name !== raw ? `Saved as ${name}` : undefined;
-	const ok = name !== "" && error === null && !pending;
+	const unchanged = env === undefined ? false : name === env.name && desc.trim() === (env.description ?? "");
+	const ok = name !== "" && error === null && !unchanged && !pending;
 
 	const submit = () => {
 		if (!ok) return;
@@ -317,14 +319,13 @@ function EnvironmentForm({
 							}}
 						/>
 					</Field>
-					<Field label="Description">
+					<Field label="Description" hint={`${charCount(desc).toString()} / ${MAX_DESCRIPTION.toString()}`}>
 						<Textarea
 							rows={2}
-							maxLength={MAX_DESCRIPTION}
 							value={desc}
 							className="text-[13.5px]"
 							onChange={(e) => {
-								setDesc(e.target.value);
+								setDesc(clampChars(e.target.value, MAX_DESCRIPTION));
 							}}
 						/>
 					</Field>

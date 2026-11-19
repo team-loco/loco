@@ -179,7 +179,7 @@ test("self time subtracts the union of children clipped to the parent", () => {
 test("ranks distinct resources separately when service names match", () => {
 	const spans = [
 		span("one", "", 0, 100n, { resourceId: "resource-one", serviceName: "api" }),
-		span("two", "", 0, 200n, { resourceId: "resource-two", serviceName: "api" }),
+		span("two", "", 100, 200n, { resourceId: "resource-two", serviceName: "api" }),
 	];
 	const summary = summarizeTraces(spans)[0];
 	if (summary === undefined) throw new Error("Missing trace");
@@ -201,5 +201,16 @@ test("one trace self-time index covers thousands of sibling spans", () => {
 	expect(times.size).toBe(3001);
 	expect(times.get("1")).toBe(1n);
 	expect(times.get("root")).toBe(selfTime(summary, root));
-	expect(serviceShares(summary, times)).toEqual(serviceShares(summary));
+	expect(serviceShares(summary)).toHaveLength(1);
+});
+
+test("parallel resources share the trace duration without exceeding it", () => {
+	const summary = summaryOf([
+		span("root", "", 0, 10n, { resourceId: "gateway", serviceName: "gateway" }),
+		span("a", "root", 0, 10n, { resourceId: "a", serviceName: "a" }),
+		span("b", "root", 0, 10n, { resourceId: "b", serviceName: "b" }),
+	]);
+	const shares = serviceShares(summary);
+	expect(shares.reduce((sum, s) => sum + s.nanos, 0n)).toBe(10n);
+	expect(shares.reduce((sum, s) => sum + s.share, 0)).toBeCloseTo(1);
 });

@@ -15,14 +15,12 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent, percentAxis } from "@/lib/compute-chart";
-import { deploymentImage } from "@/lib/deployment-utils";
 import { isUnimplemented } from "@/lib/error-handler";
-import { imageVersion } from "@/lib/image";
 import { sortParser } from "@/lib/sort-parser";
 import { aroundWindow, msParser, resolveWindow, windowSpan } from "@/lib/obs-time";
 import { newResourcePath, resourcePath } from "@/lib/routes";
 import { formatHourMinute, tsMs } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { cn, formatShortId } from "@/lib/utils";
 
 import { filteredResources, useObs, type ObsResource } from "./context";
 import { MetricChart, type ChartMarker, type ChartSeries, type PinAction } from "./MetricChart";
@@ -159,7 +157,7 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 		for (const d of queries[i]?.data?.deployments ?? []) {
 			const t = tsMs(d.startedAt ?? d.createdAt);
 			if (t < from || t > to || d.environmentId !== environmentId) continue;
-			const tag = imageVersion(deploymentImage(d));
+			const tag = formatShortId(d.id);
 			const label = `${r.name} ${tag}`;
 			for (const p of d.placements) {
 				markers.push({

@@ -167,6 +167,7 @@ const (
 	FieldSubject       = "subject"
 	FieldIdentity      = "identity"
 	FieldSource        = "source"
+	FieldDomainSource  = "domainSource"
 	FieldEntityType    = "entityType"
 	FieldEntityID      = "entityId"
 	FieldReplicas      = "replicas"

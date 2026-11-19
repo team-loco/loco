@@ -22,6 +22,7 @@ func TestApprovedCLILoginCannotOutliveAccount(t *testing.T) {
 	for _, flow := range []string{"loopback", "device"} {
 		for _, change := range []string{"account removed", "suspended", "identity removed"} {
 			t.Run(flow+"/"+change, func(t *testing.T) {
+				t.Parallel()
 				f := newAuthHTTPFixture(t)
 				const verifier = "a-long-test-verifier-for-the-account-lifecycle-flow"
 				var exchange func() error

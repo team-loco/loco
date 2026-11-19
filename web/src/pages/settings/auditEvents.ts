@@ -92,9 +92,9 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"build.succeeded": { label: "Build succeeded", category: "deploys" },
 	"build.failed": { label: "Build failed", category: "deploys" },
 	"build.canceled": { label: "Canceled a build", category: "deploys" },
-	"domain.created": { label: "Added a custom domain", category: "deploys" },
-	"domain.updated": { label: "Updated a custom domain", category: "deploys" },
-	"domain.deleted": { label: "Removed a custom domain", category: "deploys" },
+	"domain.created": { label: "Added a domain", category: "deploys" },
+	"domain.updated": { label: "Updated a domain", category: "deploys" },
+	"domain.deleted": { label: "Removed a domain", category: "deploys" },
 	"token.created": { label: "Created an API token", category: "tokens" },
 	"token.revoked": { label: "Revoked an API token", category: "tokens" },
 	"webhook.created": { label: "Added a webhook", category: "workspaces" },
@@ -127,7 +127,29 @@ export function typesIn(category: AuditCategory | "all"): string[] {
 		.map(([type]) => type);
 }
 
-export function auditLabel(type: string): string {
+// A platform domain is the resource's public address; the first one makes it public and removing it makes it internal.
+const DOMAIN_LABELS: Record<string, { platform: [primary: string, other: string]; custom: string }> = {
+	"domain.created": {
+		platform: ["Made a resource public", "Added a platform domain"],
+		custom: "Added a custom domain",
+	},
+	"domain.updated": {
+		platform: ["Updated a platform domain", "Updated a platform domain"],
+		custom: "Updated a custom domain",
+	},
+	"domain.deleted": {
+		platform: ["Made a resource internal", "Removed a platform domain"],
+		custom: "Removed a custom domain",
+	},
+};
+
+export function auditLabel(type: string, data?: JsonObject): string {
+	const domain = DOMAIN_LABELS[type];
+	const source = text(data, "domainSource");
+	if (domain !== undefined && source !== undefined) {
+		if (source === "user_provided") return domain.custom;
+		return domain.platform[data?.["primary"] === true ? 0 : 1];
+	}
 	return AUDIT_TYPES[type]?.label ?? type;
 }
 

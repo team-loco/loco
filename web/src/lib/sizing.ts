@@ -45,3 +45,26 @@ export function sizeOptions(limits: SizeLimits | undefined): SizeOptions {
 function within(n: number, min: number, max: number): boolean {
 	return n >= min && n <= max;
 }
+
+function withValue(
+	options: SizeOption[],
+	value: string,
+	parse: (v: string) => number,
+	format: (n: number) => string,
+): SizeOption[] {
+	if (value === "" || options.some((o) => o.value === value)) return options;
+	const at = parse(value);
+	const next = options.findIndex((o) => parse(o.value) > at);
+	const added = { value, label: format(at) };
+	return next === -1 ? [...options, added] : [...options.slice(0, next), added, ...options.slice(next)];
+}
+
+/** The CPU options with the saved value among them, so the slider thumb sits at it. */
+export function cpuWith(options: SizeOption[], value: string): SizeOption[] {
+	return withValue(options, value, parseCpuMilli, formatCpu);
+}
+
+/** The memory options with the saved value among them, so the slider thumb sits at it. */
+export function memoryWith(options: SizeOption[], value: string): SizeOption[] {
+	return withValue(options, value, parseMemMi, formatMemory);
+}
