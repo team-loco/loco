@@ -143,9 +143,15 @@ with session(out) as browser:
     def create_deployment(route):
         body = route.request.post_data_json
         deployments.append(body)
+        service = body["spec"]["service"]
+        sql(
+            state,
+            f"UPDATE deployments SET spec={evidence.sql_literal(json.dumps(service))} "
+            f"WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}');",
+        )
         bound = body.get("secretBindings", {}).get("names")
         if bound is not None:
-            deliver(body["spec"]["service"].get("env", {}), bound)
+            deliver(service.get("env", {}), bound)
         route.fulfill(json={"deploymentId": deployment})
 
     context.route(
@@ -234,6 +240,24 @@ with session(out) as browser:
     )
     expect(variables.get_by_text("new", exact=True)).to_have_count(0)
 
+    page.reload()
+    page.locator("#set-command").get_by_role(
+        "textbox", name="Command", exact=True
+    ).fill("/serve")
+    with expect_rpc(
+        page, "CreateDeployment", lambda body: body.get("resourceId") == resource
+    ):
+        save.click()
+    expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+    assert len(deployments) == 2, deployments
+    sent = deployments[1]
+    assert sent["spec"]["service"]["command"] == ["/serve"], sent
+    assert sent["spec"]["service"]["env"] == {
+        "LOG_LEVEL": "info",
+        "FEATURE_FLAGS": "beta",
+    }, sent
+    assert "secretBindings" not in sent, sent
+
     log_level.fill("debug")
     variables.get_by_role("button", name="Remove FEATURE_FLAGS", exact=True).click()
     expect(variables.get_by_text("Removed when you save", exact=True)).to_be_visible()
@@ -249,8 +273,8 @@ with session(out) as browser:
     ) as deleted:
         save.click()
     assert deleted.value.ok, deleted.value.text()
-    assert len(deployments) == 2, deployments
-    sent = deployments[1]
+    assert len(deployments) == 3, deployments
+    sent = deployments[2]
     assert sent["secretBindings"]["names"] == ["NEW_TOKEN", "SESSION_KEY"], sent
     assert sent["spec"]["service"]["env"] == {"LOG_LEVEL": "debug"}, sent
     expect(log_level).to_have_value("debug")
@@ -266,8 +290,8 @@ with session(out) as browser:
     variables.get_by_role("button", name="Remove LOG_LEVEL", exact=True).click()
     save.click()
     expect(variables.get_by_label("Value of LOG_LEVEL", exact=True)).to_have_count(0)
-    assert len(deployments) == 3, deployments
-    assert deployments[2]["spec"]["service"].get("env", {}) == {}, deployments[2]
+    assert len(deployments) == 4, deployments
+    assert deployments[3]["spec"]["service"].get("env", {}) == {}, deployments[3]
 
     page.goto(base + "?env=production")
     page.get_by_role("button", name="Redeploy", exact=True).click()
@@ -278,8 +302,8 @@ with session(out) as browser:
         page.locator("[data-sonner-toast]").filter(has_text=f"Redeploying {name}")
     ).to_be_visible()
     expect(page.get_by_role("status")).to_have_count(0)
-    assert len(deployments) == 4, deployments
-    assert "secretBindings" not in deployments[3], deployments[3]
+    assert len(deployments) == 5, deployments
+    assert "secretBindings" not in deployments[4], deployments[4]
 
     page.goto(
         state["ui_url"]
