@@ -74,6 +74,9 @@ func main() {
 		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       setup.leaderElectionID,
+		LeaseDuration:          new(leaseDuration),
+		RenewDeadline:          new(renewDeadline),
+		RetryPeriod:            new(retryPeriod),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
