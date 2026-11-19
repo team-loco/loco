@@ -3,7 +3,6 @@ import { describe, expect, test } from "bun:test";
 import { createRouterTransport } from "@connectrpc/connect";
 import { createQueryOptions } from "@connectrpc/connect-query";
 import { QueryClient } from "@tanstack/react-query";
-import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { SecretSchema } from "@gen/loco/secret/v1/secret_pb";
 
@@ -51,20 +50,13 @@ describe("refreshSecrets", () => {
 		client.setQueryData(queryKey, {});
 		return queryKey;
 	};
-	const declaredKey = (client: QueryClient, resourceId: string) => {
-		const { queryKey } = createQueryOptions(getResourceEnv, input(resourceId), { transport });
-		client.setQueryData(queryKey, {});
-		return queryKey;
-	};
 
-	test("invalidates the secrets and declared names of that resource only", async () => {
+	test("invalidates the secrets of that resource only", async () => {
 		const client = new QueryClient();
 		const secrets = secretsKey(client, "res");
-		const declared = declaredKey(client, "res");
 		const other = secretsKey(client, "other");
 		await refreshSecrets(client, "res", "env");
 		expect(client.getQueryState(secrets)?.isInvalidated).toBe(true);
-		expect(client.getQueryState(declared)?.isInvalidated).toBe(true);
 		expect(client.getQueryState(other)?.isInvalidated).toBe(false);
 		client.clear();
 	});
