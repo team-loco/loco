@@ -39,7 +39,7 @@ The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subjec
 
 ## Failure events
 
-`deployment.failed` records a deployment entering the failed status in one region, once per transition. `build.failed` records a failed build. Their `actor` is whoever created the deployment or build: `user` with the user ID, or `api_token` with the token ID. `build.succeeded` carries the same actor. Both carry these `data` fields:
+`deployment.failed` records a deployment entering the failed status, which happens once a region of it fails. `build.failed` records a failed build. Their `actor` is whoever created the deployment or build: `user` with the user ID, or `api_token` with the token ID. `build.succeeded` carries the same actor. Both carry these `data` fields:
 
 | Field | Value |
 | --- | --- |
@@ -51,7 +51,7 @@ The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subjec
 | `creator_name` | That user's name, or an empty string when unset |
 | `creator_email` | That user's email address |
 
-The `creator_*` fields are absent when that user no longer exists, and on `deployment.failed` also when the API token no longer exists. `deployment.failed` also carries `deploymentId`, `environmentId` and `region`. `build.failed` also carries `reason`: `source_upload_expired` when the source was not uploaded before its upload URL expired, otherwise `build_failed`.
+The `creator_*` fields are absent when that user no longer exists, and on `deployment.failed` also when the API token no longer exists. `deployment.failed` also carries `deploymentId`, `environmentId` and `regions`, the regions that failed. `build.failed` also carries `reason`: `source_upload_expired` when the source was not uploaded before its upload URL expired, otherwise `build_failed`.
 
 ## User deletion
 
