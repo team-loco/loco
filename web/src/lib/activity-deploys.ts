@@ -85,14 +85,7 @@ export function withoutRunningDeploys(alerts: readonly Alert[], deployments: rea
 
 /** Deployments grouped by the rollout that created them, in order of each rollout's first deployment. */
 export function rolloutGroups(deployments: readonly Deployment[]): Deployment[][] {
-	const groups = new Map<string, Deployment[]>();
-	for (const d of deployments) {
-		const key = `${d.resourceId}/${d.rolloutId === "" ? d.id : d.rolloutId}`;
-		const group = groups.get(key);
-		if (group === undefined) groups.set(key, [d]);
-		else group.push(d);
-	}
-	return [...groups.values()];
+	return [...Map.groupBy(deployments, (d) => d.rolloutId).values()];
 }
 
 export function rolloutReadyLabel(deployments: readonly Deployment[]): string {

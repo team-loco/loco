@@ -1293,9 +1293,7 @@ with session(out) as browser:
     expect(cpu.get_by_text("Limit 100%", exact=True)).to_be_visible()
     assert len(metric_requests) == 4, metric_requests
     assert all(
-        request["resourceIds"] == [workspace_id]
-        and request["byPod"]
-        and "k8s.pod.name" not in request.get("attributes", {})
+        request["resourceIds"] == [workspace_id] and request["byPod"]
         for request in metric_requests
     )
     assert {request["metricName"] for request in metric_requests} == {

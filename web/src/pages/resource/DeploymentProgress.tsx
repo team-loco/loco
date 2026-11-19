@@ -14,7 +14,7 @@ import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
-import { rolloutGroups, rolloutReadyLabel } from "@/lib/activity-deploys";
+import { rolloutReadyLabel } from "@/lib/activity-deploys";
 import { deploymentActor, deploymentMethod, getServiceSpec, isInFlight, shortSha } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
@@ -370,26 +370,16 @@ export function DeploymentProgress({
 	const progress = progressDeployments(regions);
 	const watchOf = useDeploymentWatch(progress.map(({ deployment }) => deployment.id));
 	const nowMs = useNow(15_000).getTime();
-	const members = new Map(
-		progress.flatMap(({ region, deployment, previous }): [string, RolloutMember][] => {
-			const watched = watchOf(deployment.id);
-			const current =
-				watched.deployment !== undefined && tsMs(watched.deployment.updatedAt) >= tsMs(deployment.updatedAt)
-					? watched.deployment
-					: deployment;
-			if (!showsCard(current, nowMs)) return [];
-			const member = {
-				region,
-				deployment: current,
-				previous,
-				activity: watched.activity,
-				connectionError: watched.error,
-			};
-			return [[current.id, member]];
-		}),
-	);
-	return rolloutGroups([...members.values()].map((m) => m.deployment)).map((group) => {
-		const [first, ...rest] = group.flatMap((d) => members.get(d.id) ?? []);
+	const members = progress.flatMap(({ region, deployment, previous }): RolloutMember[] => {
+		const watched = watchOf(deployment.id);
+		const current =
+			watched.deployment !== undefined && tsMs(watched.deployment.updatedAt) >= tsMs(deployment.updatedAt)
+				? watched.deployment
+				: deployment;
+		if (!showsCard(current, nowMs)) return [];
+		return [{ region, deployment: current, previous, activity: watched.activity, connectionError: watched.error }];
+	});
+	return [...Map.groupBy(members, (m) => m.deployment.rolloutId).values()].map(([first, ...rest]) => {
 		if (first === undefined) return null;
 		return (
 			<ProgressPanel
