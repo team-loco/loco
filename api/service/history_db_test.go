@@ -52,7 +52,7 @@ func TestDeploymentHistoryKeepsActiveUnfinishedAndPlacedDeployments(t *testing.T
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.DeploymentHistory, 2)
 	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", "5 days")
-	unfinished := f.seedDeployment(t, f.otherCluster, testRegion, "building", "4 days")
+	unfinished := f.seedDeployment(t, f.otherCluster, "eu-central-1", "building", "4 days")
 	placed := f.seedDeployment(t, f.otherCluster, testRegion, "failed", "3 days")
 	running := f.seedDeployment(t, f.otherCluster, "eu-west-1", "running", "2 days")
 	if _, err := f.pool.Exec(t.Context(), `

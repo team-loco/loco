@@ -322,7 +322,7 @@ type Querier interface {
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
-	// Retires the older deployments' placements on the cluster: one that never ran is canceled,
+	// Retires the older deployments' placements in the cluster's region: one that never ran is canceled,
 	// one that ran is superseded. Without include_started only the never-started ones change. The
 	// placement the cluster still runs stays until the deployment is placed there.
 	SupersedePlacements(ctx context.Context, arg SupersedePlacementsParams) ([]uuid.UUID, error)

@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/clusterassertion"
@@ -328,5 +329,32 @@ func TestDeployToAnotherClusterMarksOldPlacementDeleted(t *testing.T) {
 	moved := f.placement(t, f.otherCluster)
 	if moved.DesiredDeleted || moved.DesiredRevision != 1 {
 		t.Fatalf("new placement = deleted %v rev %d, want live rev 1", moved.DesiredDeleted, moved.DesiredRevision)
+	}
+}
+
+func TestRunningOnAnotherClusterSupersedesTheRegionsPreviousDeployment(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	ctx := context.Background()
+	report := func(clusterID, deploymentID uuid.UUID) {
+		t.Helper()
+		p := f.placement(t, clusterID)
+		f.agentServer().recordStatus(ctx, clusterID, 0, &agentv1.PlacementStatus{
+			PlacementId: p.ID.String(), DeploymentId: deploymentID.String(),
+			ObservedRevision: p.DesiredRevision, Available: true,
+		})
+	}
+	first, err := f.deploy(ctx, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report(f.clusterID, first)
+	second, err := f.deployTo(ctx, f.otherCluster, staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report(f.otherCluster, second)
+	if got := f.deploymentStatus(t, first); got != genDb.DeploymentStatusSuperseded {
+		t.Fatalf("first = %s, want superseded once the region runs the second on another cluster", got)
 	}
 }

@@ -981,7 +981,10 @@ SET status = CASE WHEN old.started_at IS NULL THEN 'canceled' ELSE 'superseded' 
 FROM deployments current, deployments previous
 WHERE current.id = $1
   AND previous.id = old.deployment_id
-  AND old.cluster_id = $2
+  AND old.region = (
+      SELECT target.region FROM deployment_placements target
+      WHERE target.deployment_id = current.id AND target.cluster_id = $2
+  )
   AND previous.resource_id = current.resource_id
   AND previous.environment_id = current.environment_id
   AND (previous.created_at, previous.id) < (current.created_at, current.id)
@@ -1001,7 +1004,7 @@ type SupersedePlacementsParams struct {
 	IncludeStarted bool      `json:"includeStarted"`
 }
 
-// Retires the older deployments' placements on the cluster: one that never ran is canceled,
+// Retires the older deployments' placements in the cluster's region: one that never ran is canceled,
 // one that ran is superseded. Without include_started only the never-started ones change. The
 // placement the cluster still runs stays until the deployment is placed there.
 func (q *Queries) SupersedePlacements(ctx context.Context, arg SupersedePlacementsParams) ([]uuid.UUID, error) {
