@@ -53,10 +53,11 @@ func TestValidateLogFilterRejectsReservedKeysAndNumbersOnLogFields(t *testing.T)
 }
 
 func TestLevelSQLAcceptsSeverityAliases(t *testing.T) {
+	const warn = "warn"
 	for value, level := range map[string]string{
-		"warn": levelWarn, "warning": levelWarn, "Warning": levelWarn,
-		"err": levelError, "fatal": levelError, "critical": levelError,
-		"information": levelInfo, "trace": levelDebug,
+		warn: warn, "warning": warn, "Warning": warn,
+		"fatal": "error", "critical": "error",
+		"information": "info", "trace": "debug",
 	} {
 		b := &positionalBinder{}
 		levelSQL(logquery.Field{Key: LevelField, Value: value}, b)

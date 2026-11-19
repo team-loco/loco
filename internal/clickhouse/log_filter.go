@@ -15,19 +15,12 @@ type ResourceName struct {
 	Name string
 }
 
-const (
-	levelError = "error"
-	levelWarn  = "warn"
-	levelInfo  = "info"
-	levelDebug = "debug"
-)
-
 // levelSeverities lists the severity texts each @level name matches; info includes unset severities.
 var levelSeverities = map[string][]string{
-	levelError: {"ERROR", "error", "Error", "FATAL", "fatal", "Fatal", "CRITICAL", "critical", "Critical"},
-	levelWarn:  {"WARN", "warn", "Warn", "WARNING", "warning", "Warning"},
-	levelInfo:  {"", "INFO", "info", "Info", "Information", "NOTICE", "notice"},
-	levelDebug: {"DEBUG", "debug", "Debug", "TRACE", "trace", "Trace"},
+	"error": {"ERROR", "error", "Error", "FATAL", "fatal", "Fatal", "CRITICAL", "critical", "Critical"},
+	"warn":  {"WARN", "warn", "Warn", "WARNING", "warning", "Warning"},
+	"info":  {"", "INFO", "info", "Info", "Information", "NOTICE", "notice"},
+	"debug": {"DEBUG", "debug", "Debug", "TRACE", "trace", "Trace"},
 }
 
 // Fields a log query names directly; every other key is a log attribute, falling back to a
@@ -198,18 +191,11 @@ func stringMatch(column string, field logquery.Field, b binder) string {
 	return column + " = " + b.str(field.Value)
 }
 
-// levelAliases maps the leading letters of a severity name to the @level name it selects. They follow
-// levelOf in web/src/pages/observability/query.ts, which groups log rows the same way.
-var levelAliases = []struct{ prefix, level string }{
-	{"err", levelError}, {"fatal", levelError}, {"crit", levelError}, {"emerg", levelError}, {"alert", levelError},
-	{"warn", levelWarn}, {"info", levelInfo}, {"debug", levelDebug}, {"trace", levelDebug},
-}
-
-// levelName returns the @level name that a lowercase value such as "warning" spells, or value itself.
+// levelName returns the @level name whose severities include value, ignoring case, or value itself.
 func levelName(value string) string {
-	for _, alias := range levelAliases {
-		if strings.HasPrefix(value, alias.prefix) {
-			return alias.level
+	for name, severities := range levelSeverities {
+		if slices.ContainsFunc(severities, func(s string) bool { return s != "" && strings.EqualFold(s, value) }) {
+			return name
 		}
 	}
 	return value
