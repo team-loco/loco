@@ -9,7 +9,7 @@ import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlid
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/design/InputGroup";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
-import { joinImage, splitImage } from "@/lib/image";
+import { joinImage, parseImage, splitImage } from "@/lib/image";
 import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import type { RegionView } from "./model";
@@ -65,7 +65,12 @@ export function SettingsBlock({
 }
 
 export function ImageSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
-	const { repository: path, reference: version } = splitImage(draft.image ?? base.image);
+	const pinned = parseImage(base.image);
+	const { repository: path, reference: version } =
+		draft.image === undefined && pinned.tag !== ""
+			? { repository: pinned.path, reference: pinned.tag }
+			: splitImage(draft.image ?? base.image);
+	const digest = draft.image === undefined && pinned.tag !== "" ? pinned.digest : "";
 	const set = (repository: string, reference: string) => {
 		onChange({ image: joinImage(repository, reference) });
 	};
@@ -89,7 +94,10 @@ export function ImageSection({ draft, base, errors, locked, describedBy, onChang
 						}}
 					/>
 				</Field>
-				<Field label="Tag or digest">
+				<Field
+					label="Tag or digest"
+					hint={digest === "" ? undefined : <span className="break-all font-mono">Pinned to {digest}</span>}
+				>
 					<Input
 						className="font-mono"
 						value={version}
