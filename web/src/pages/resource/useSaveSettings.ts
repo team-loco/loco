@@ -220,8 +220,8 @@ export function useSaveSettings({
 		const [first] = deploys;
 		if (first !== undefined) {
 			const planned = deploys.map((d) => d.region);
-			const spec = mergedSpec(deploys, first.spec);
-			if (env !== undefined && spec.spec.case === "service") spec.spec.value.env = env;
+			const merged = mergedSpec(deploys, first.spec);
+			if (env !== undefined && merged.spec.case === "service") merged.spec.value.env = env;
 			const ok = await attempt(
 				planned.join(", "),
 				[],
@@ -229,7 +229,7 @@ export function useSaveSettings({
 					await deploy.mutateAsync({
 						resourceId,
 						regions: planned,
-						spec,
+						spec: merged,
 						environmentId,
 						commit: first.commit,
 						...(bindings === undefined ? {} : { secretBindings: { names: bindings } }),
