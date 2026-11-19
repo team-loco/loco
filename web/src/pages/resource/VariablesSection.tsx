@@ -25,7 +25,14 @@ import { limitReason, limitUsage } from "@/lib/limits";
 
 import { SECRET_NAME, type SettingsDraft } from "./settings-draft";
 import { SettingsBlock } from "./SettingsSections";
-import { secretNameProblem, secretRows, setterLabel, type SecretRow, type SecretStatus } from "./variables";
+import {
+	secretNameProblem,
+	secretRows,
+	setterLabel,
+	yamlBindingHint,
+	type SecretRow,
+	type SecretStatus,
+} from "./variables";
 
 const STATUS_TONE: Record<SecretStatus, BadgeTone> = {
 	set: "ok",
@@ -35,7 +42,7 @@ const STATUS_TONE: Record<SecretStatus, BadgeTone> = {
 };
 
 const STATUS_LABEL: Record<SecretStatus, string> = {
-	set: "set",
+	set: "in use",
 	missing: "missing",
 	unused: "not used",
 	new: "new",
@@ -43,6 +50,7 @@ const STATUS_LABEL: Record<SecretStatus, string> = {
 
 const COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]";
 const ROW = cn("grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0", COLUMNS);
+const MASK = "••••••••";
 
 function withoutKey(values: Record<string, string>, key: string): Record<string, string> {
 	return Object.fromEntries(Object.entries(values).filter(([k]) => k !== key));
@@ -173,28 +181,22 @@ function RevealButton({
 	);
 }
 
-function PlainVariable({ name, value }: { name: string; value: string }) {
-	const reveal = useTimedReveal();
+function PlainVariable({ name, value, managed }: { name: string; value: string; managed: boolean }) {
 	return (
 		<div className={ROW}>
 			<div className="flex min-w-0 flex-col gap-0.5">
 				<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
 				<span className="text-[11.5px] text-fg3">
-					Plain · from the <code className="font-mono">env</code> map of loco.yaml
+					{managed ? (
+						<>
+							Plain · from the <code className="font-mono">env</code> map of loco.yaml
+						</>
+					) : (
+						"Plain"
+					)}
 				</span>
 			</div>
-			<Input
-				type={reveal.shown ? "text" : "password"}
-				aria-label={`Value of ${name}`}
-				className="font-mono"
-				value={value}
-				readOnly
-			/>
-			<div className="flex items-center justify-end">
-				<RevealButton name={name} reveal={reveal} />
-				<span className="size-7" aria-hidden />
-				<span className="size-7" aria-hidden />
-			</div>
+			<Input aria-label={`Value of ${name}`} className="font-mono" value={value} readOnly />
 		</div>
 	);
 }
@@ -202,6 +204,7 @@ function PlainVariable({ name, value }: { name: string; value: string }) {
 function SecretLine({
 	row,
 	members,
+	hint,
 	value,
 	removed,
 	canWrite,
@@ -210,6 +213,7 @@ function SecretLine({
 }: {
 	row: SecretRow;
 	members: ReadonlyMap<string, string>;
+	hint: string | undefined;
 	value: string;
 	removed: boolean;
 	canWrite: boolean;
@@ -230,20 +234,21 @@ function SecretLine({
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
 						{row.name}
 					</span>
-					{row.status !== undefined && (
+					{row.status !== undefined && hint === undefined && (
 						<Badge size="sm" tone={STATUS_TONE[row.status]}>
 							{STATUS_LABEL[row.status]}
 						</Badge>
 					)}
 				</span>
 				<span className="text-[11.5px] text-fg3">{removed ? "Removed when you save" : meta}</span>
+				{hint !== undefined && !removed && <span className="text-[11.5px] text-warn-fg">{hint}</span>}
 			</div>
 			<Input
 				type={reveal.shown ? "text" : "password"}
 				aria-label={`New value for ${row.name}`}
 				className="font-mono"
 				autoComplete="new-password"
-				placeholder={secret === undefined ? "Enter a value" : "Hidden · type to replace"}
+				placeholder={secret === undefined ? "Enter a value" : `${MASK} · type to replace`}
 				value={value}
 				disabled={!canWrite || removed}
 				onChange={(e) => {
@@ -278,6 +283,8 @@ function SecretLine({
 
 export function VariablesSection({
 	resourceId,
+	resourceName,
+	managed,
 	workspaceId,
 	environmentId,
 	draft,
@@ -286,6 +293,8 @@ export function VariablesSection({
 	onChange,
 }: {
 	resourceId: string;
+	resourceName: string;
+	managed: boolean;
 	workspaceId: string;
 	environmentId: string;
 	draft: SettingsDraft;
@@ -334,7 +343,7 @@ export function VariablesSection({
 					<span className="font-mono text-[12.5px] font-normal text-fg3">{rows.length + plain.length}</span>
 				</>
 			}
-			hint="Values stay hidden. Revealing one shows it for 30 seconds."
+			hint="Secret values stay hidden. Revealing a value you type shows it for 30 seconds."
 			actions={
 				canWrite && (
 					<div className="flex gap-2">
@@ -385,6 +394,7 @@ export function VariablesSection({
 						key={row.name}
 						row={row}
 						members={members}
+						hint={managed && row.status === "unused" ? yamlBindingHint(resourceName, [row.name]) : undefined}
 						value={staged[row.name] ?? ""}
 						removed={removed.has(row.name)}
 						canWrite={canWrite}
@@ -400,7 +410,7 @@ export function VariablesSection({
 					/>
 				))}
 				{plain.map(([name, value]) => (
-					<PlainVariable key={name} name={name} value={value} />
+					<PlainVariable key={name} name={name} value={value} managed={managed} />
 				))}
 				{canWrite && adding && (
 					<form

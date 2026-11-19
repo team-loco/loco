@@ -301,32 +301,32 @@ with session(out) as browser:
     dialog.get_by_role("button", name="Close", exact=True).click()
     expect(more).to_be_focused()
     page.goto(base + "?tab=settings")
+    variables = page.locator("#set-env")
     expect(
-        page.get_by_text(
-            "Values stay hidden. Revealing one shows it for 30 seconds.",
+        variables.get_by_text(
+            "Secret values stay hidden. Revealing a value you type shows it for 30 seconds.",
             exact=True,
         )
     ).to_be_visible()
     mode = page.get_by_label("Value of MODE", exact=True)
     api_base = page.get_by_label("Value of API_BASE_URL", exact=True)
-    expect(mode).to_have_attribute("type", "password")
-    expect(api_base).to_have_attribute("type", "password")
+    for plain, value in ((mode, "production"), (api_base, "https://api.example.test")):
+        expect(plain).not_to_have_attribute("type", "password")
+        expect(plain).to_have_value(value)
+    expect(page.get_by_role("button", name="Show MODE for 30 seconds")).to_have_count(0)
+    replacement = page.get_by_label("New value for API_TOKEN", exact=True)
+    expect(replacement).to_have_value("")
+    expect(replacement).to_have_attribute("placeholder", "•••••••• · type to replace")
+    expect(
+        variables.get_by_text(
+            f"Saved. To use this key, add API_TOKEN to services.{name}.secrets and redeploy.",
+            exact=True,
+        )
+    ).to_be_visible()
     expect(
         page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)
     ).to_be_disabled()
-    expect(page.locator("#set-env").get_by_text("soon", exact=True)).to_be_visible()
-    page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
-    expect(mode).to_have_attribute("type", "text")
-    expect(mode).to_have_value("production")
-    expect(api_base).to_have_attribute("type", "password")
-    page.clock.fast_forward(29_000)
-    expect(mode).to_have_attribute("type", "text")
-    page.clock.fast_forward(1_000)
-    expect(mode).to_have_attribute("type", "password")
-    page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
-    page.get_by_role("button", name="Hide MODE", exact=True).click()
-    expect(mode).to_have_attribute("type", "password")
-    replacement = page.get_by_label("New value for API_TOKEN", exact=True)
+    expect(variables.get_by_text("soon", exact=True)).to_be_visible()
     replacement.fill("replacement-token")
     expect(replacement).to_have_attribute("type", "password")
     page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True).click()
@@ -335,6 +335,17 @@ with session(out) as browser:
     expect(replacement).to_have_attribute("type", "password")
     page.clock.resume()
     replacement.fill("")
+    variables.get_by_role("button", name="Add", exact=True).click()
+    page.get_by_label("New secret name", exact=True).fill("STRIPE_API_KEY")
+    page.get_by_label("New secret value", exact=True).fill("sk_test")
+    page.get_by_role("button", name="Add secret", exact=True).click()
+    with expect_rpc(
+        page, "SetSecrets", lambda body: body.get("resourceId") == resource
+    ) as saved:
+        page.get_by_role("button", name="Save", exact=True).click()
+    assert saved.value.ok, saved.value.text()
+    hint = f"Saved. To use this key, add STRIPE_API_KEY to services.{name}.secrets and redeploy."
+    expect(page.get_by_text(hint, exact=True)).to_have_count(2)
     count = page.locator("#set-env-title > span")
     expect(count).to_have_text(re.compile(r"^\d+$"))
     delete = page.get_by_role("button", name="Delete resource", exact=True)

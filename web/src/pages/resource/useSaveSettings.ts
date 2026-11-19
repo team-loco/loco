@@ -11,7 +11,7 @@ import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretServ
 
 import { getErrorMessage } from "@/lib/error-handler";
 
-import { refreshSecrets, secretUsageMessage } from "./variables";
+import { refreshSecrets, secretUsageMessage, unusedNames, yamlBindingHint } from "./variables";
 
 import type { Notice, RegionView } from "./model";
 import {
@@ -94,7 +94,17 @@ export function useSaveSettings({
 		if (Object.keys(secrets).length > 0) {
 			await attempt("Secrets", ["secrets"], async () => {
 				const response = await writeSecrets.mutateAsync({ resourceId, environmentId, values: secrets });
-				secretMessage = secretUsageMessage(resource.name, response.usedBy);
+				const unused = unusedNames(Object.keys(secrets), response.usedBy);
+				secretMessage = [
+					secretUsageMessage(resource.name, response.usedBy),
+					unused.length === 0
+						? ""
+						: resource.partial === undefined
+							? `No deployment of ${resource.name} uses ${unused.join(", ")}.`
+							: yamlBindingHint(resource.name, unused),
+				]
+					.filter(Boolean)
+					.join(" ");
 			});
 		}
 		const removed = draft.removedSecrets ?? [];

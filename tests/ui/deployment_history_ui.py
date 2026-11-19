@@ -351,6 +351,11 @@ with session(out) as browser:
     page.get_by_role("button", name="Redeploy", exact=True).click()
     redeploy_dialog = page.get_by_role("dialog", name="Redeploy history-pilot?")
     expect(redeploy_dialog.get_by_text("Now running", exact=True)).to_be_visible()
+    expect(
+        redeploy_dialog.get_by_text(
+            "with the current values of the secrets it uses", exact=False
+        )
+    ).to_be_visible()
     redeploy_dialog.get_by_role("button", name="Cancel", exact=True).click()
     page.get_by_role("button", name="More actions", exact=True).click()
     expect(

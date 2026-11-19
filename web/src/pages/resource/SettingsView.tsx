@@ -180,6 +180,8 @@ export function SettingsView({
 					<SizeSection {...props} sizes={sizes} />
 					<VariablesSection
 						resourceId={resource.id}
+						resourceName={resource.name}
+						managed={managed}
 						workspaceId={resource.workspaceId}
 						environmentId={environmentId}
 						draft={draft}
