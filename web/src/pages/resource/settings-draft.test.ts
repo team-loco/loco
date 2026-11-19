@@ -316,13 +316,20 @@ describe("validateDraft", () => {
 		expect(validateDraft({ healthTimeout: "10" }, base, regions, SERVED, 10).healthTimeout).toBe(
 			"Must be below the interval",
 		);
-		expect(validateDraft({ healthInterval: "2" }, base, regions, SERVED, 10).healthTimeout).toBe(
+		expect(validateDraft({ healthInterval: "5", healthTimeout: "5" }, base, regions, SERVED, 10).healthTimeout).toBe(
 			"Must be below the interval",
 		);
 		expect(validateDraft({ healthInterval: "0", healthTimeout: "0" }, base, regions, SERVED, 10)).toEqual({
-			healthInterval: "Whole seconds, at least 1",
-			healthTimeout: "Whole seconds, at least 1",
+			healthInterval: "Whole seconds, at least 5",
+			healthTimeout: "Whole seconds, 1 to 60",
 		});
+		expect(validateDraft({ healthInterval: "4" }, base, regions, SERVED, 10).healthInterval).toBe(
+			"Whole seconds, at least 5",
+		);
+		expect(validateDraft({ healthInterval: "5", healthTimeout: "2" }, base, regions, SERVED, 10)).toEqual({});
+		expect(validateDraft({ healthInterval: "90", healthTimeout: "61" }, base, regions, SERVED, 10).healthTimeout).toBe(
+			"Whole seconds, 1 to 60",
+		);
 	});
 
 	test("asks for a port when the field is cleared", () => {

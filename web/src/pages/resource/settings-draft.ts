@@ -34,6 +34,9 @@ export const SECRET_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
 const IMAGE_BUILD = "image";
 const WHOLE = /^\d+$/;
+// The bounds the API enforces on a health check.
+const MIN_HEALTH_INTERVAL = 5;
+const MAX_HEALTH_TIMEOUT = 60;
 
 export type ObservabilitySettings = Required<Pick<ObservabilityConfig, "injectOtel">>;
 
@@ -257,10 +260,16 @@ export function validateDraft(
 		if (portInvalid !== null) errors.port = portInvalid;
 	}
 	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
-	if (draft.healthInterval !== undefined && !positive(next.healthInterval))
-		errors.healthInterval = "Whole seconds, at least 1";
-	if (draft.healthTimeout !== undefined && !positive(next.healthTimeout))
-		errors.healthTimeout = "Whole seconds, at least 1";
+	if (
+		draft.healthInterval !== undefined &&
+		!(positive(next.healthInterval) && Number(next.healthInterval) >= MIN_HEALTH_INTERVAL)
+	)
+		errors.healthInterval = `Whole seconds, at least ${MIN_HEALTH_INTERVAL.toString()}`;
+	if (
+		draft.healthTimeout !== undefined &&
+		!(positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT)
+	)
+		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
 	if (
 		errors.healthInterval === undefined &&
 		errors.healthTimeout === undefined &&
