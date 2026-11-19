@@ -56,7 +56,7 @@ type Resources struct {
 // Fill returns the resources a deployment runs with: what the request sets, then what the
 // region target sets, then the defaults. Without a maximum, the replicas never scale below
 // the minimum.
-func (d Defaults) Fill(region *resourcev1.RegionTarget, request *deploymentv1.ServiceDeploymentSpec) Resources {
+func (d Defaults) Fill(region *resourcev1.RegionTarget, request *deploymentv1.RegionDeploymentTarget) Resources {
 	filled := Resources{
 		CPU:         FirstSet(request.GetCpu(), region.GetCpu(), d.CPU),
 		Memory:      FirstSet(request.GetMemory(), region.GetMemory(), d.Memory),
@@ -71,6 +71,17 @@ func (d Defaults) Fill(region *resourcev1.RegionTarget, request *deploymentv1.Se
 		filled.Scalers = region.GetScalers()
 	}
 	return filled
+}
+
+// Proto is the region sizing a deployment stores.
+func (r Resources) Proto() *deploymentv1.RegionDeploymentTarget {
+	return &deploymentv1.RegionDeploymentTarget{
+		Cpu:         &r.CPU,
+		Memory:      &r.Memory,
+		MinReplicas: &r.MinReplicas,
+		MaxReplicas: &r.MaxReplicas,
+		Scalers:     r.Scalers,
+	}
 }
 
 // Routing returns the path prefix and idle timeout of a route, with the defaults for the ones

@@ -269,85 +269,94 @@ func (a *applier) deploy(
 	if err != nil {
 		return err
 	}
-	resourceSpec := &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}}
-	secretNames := append([]string{}, state.Secrets...)
+	render := placementRenderer{
+		resource:        res,
+		organizationID:  a.organizationID,
+		resourceSpec:    &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}},
+		hostname:        hostname,
+		environmentID:   a.env.ID,
+		environmentName: a.env.Name,
+		defaults:        a.defaults,
+	}
 
 	clusters, err := eligibleClusters(ctx, qtx, a.silentAfter, a.defaults.TargetPlatform)
 	if err != nil {
 		return err
 	}
-	rolloutID := uuid.New()
+	targets := make([]placementTarget, 0, len(regions))
 	for _, region := range regions {
 		cluster, found := clusterForRegion(clusters, region)
 		if !found {
 			return errNoActiveCluster.Detail("%s", region)
 		}
-		service := deploymentSpecFor(state, region, build)
-		service.Platform = string(a.defaults.TargetPlatform)
-		if quantityErr := validateQuantities(service); quantityErr != nil {
-			return &invalidSpecError{err: quantityErr}
-		}
-		specJSON, marshalErr := deploymentSpecJSON(service)
-		if marshalErr != nil {
-			return marshalErr
-		}
-		deploymentSpec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}}
-		buildSpec := desiredApplicationSpec(
-			res,
-			a.organizationID,
-			resourceSpec,
-			hostname,
-			deploymentSpec,
-			region,
-			a.env.ID,
-			a.env.Name,
-			a.defaults,
-		)
-		deploymentID, deployErr := createDeploymentWithCleanup(ctx, qtx, a.counts, genDb.CreateDeploymentParams{
-			RolloutID:     rolloutID,
+		targets = append(targets, placementTarget{region: region, clusterID: cluster.ID})
+	}
+	service := deploymentSpecFor(state, regions, build)
+	service.Platform = string(a.defaults.TargetPlatform)
+	if quantityErr := validateQuantities(service); quantityErr != nil {
+		return &invalidSpecError{err: quantityErr}
+	}
+	deploymentID, err := createDeployment(ctx, qtx, &a.counts, newDeployment{
+		params: genDb.CreateDeploymentParams{
 			ResourceID:    res.ID,
-			ClusterID:     cluster.ID,
-			Region:        region,
-			Replicas:      service.GetMinReplicas(),
-			Status:        genDb.DeploymentStatusDeploying,
-			IsActive:      true,
-			Spec:          specJSON,
-			SpecVersion:   specVersion,
 			EnvironmentID: a.env.ID,
-			SecretNames:   secretNames,
+			SecretNames:   append([]string{}, state.Secrets...),
 			ActorType:     principal.ActorType,
 			ActorID:       principal.ActorID,
 			Method:        principal.Method,
 			CommitSha:     sourceCommitSHA(a.commit),
 			CommitDirty:   a.commit.GetDirty(),
-		}, buildSpec)
-		if deployErr != nil {
-			return deployErr
-		}
-		if bumpErr := bumpEnvironmentRevision(ctx, qtx, a.env.ID); bumpErr != nil {
-			return bumpErr
-		}
-		if eventErr := events.Record(ctx, qtx, events.Event{
-			Type:          events.DeploymentCreated,
-			EnvironmentID: new(a.env.ID),
-			WorkspaceID:   new(res.WorkspaceID),
-			ResourceID:    new(res.ID),
-			SubjectType:   events.SubjectDeployment,
-			SubjectID:     new(deploymentID),
-			Data: map[string]any{
-				events.FieldResourceID:    res.ID.String(),
-				events.FieldEnvironmentID: a.env.ID.String(),
-			},
-		}); eventErr != nil {
-			return eventErr
-		}
-		a.started = append(a.started, &planv1.StartedDeployment{
-			Service:      res.Name,
-			Region:       region,
-			DeploymentId: deploymentID.String(),
-		})
+			Trigger:       a.trigger(),
+		},
+		service: service,
+		targets: targets,
+		render:  render,
+	})
+	if err != nil {
+		return err
 	}
+	if bumpErr := bumpEnvironmentRevision(ctx, qtx, a.env.ID); bumpErr != nil {
+		return bumpErr
+	}
+	if eventErr := recordDeploymentCreated(ctx, qtx, res, a.env.ID, deploymentID, regions); eventErr != nil {
+		return eventErr
+	}
+	a.started = append(a.started, &planv1.StartedDeployment{
+		Service:      res.Name,
+		Regions:      regions,
+		DeploymentId: deploymentID.String(),
+	})
 	return nil
+}
+
+// trigger is what the deployments of this apply record as their cause.
+func (a *applier) trigger() genDb.DeploymentTrigger {
+	if a.regionTargets != nil {
+		return genDb.DeploymentTriggerScale
+	}
+	return genDb.DeploymentTriggerDeploy
+}
+
+func recordDeploymentCreated(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	res genDb.Resource,
+	environmentID, deploymentID uuid.UUID,
+	regions []string,
+) error {
+	return events.Record(ctx, qtx, events.Event{
+		Type:          events.DeploymentCreated,
+		EnvironmentID: new(environmentID),
+		WorkspaceID:   new(res.WorkspaceID),
+		ResourceID:    new(res.ID),
+		SubjectType:   events.SubjectDeployment,
+		SubjectID:     new(deploymentID),
+		Data: map[string]any{
+			events.FieldResourceID:    res.ID.String(),
+			events.FieldEnvironmentID: environmentID.String(),
+			events.FieldRegions:       regions,
+		},
+	})
 }
 
 func (a *applier) currentBuild(
@@ -435,10 +444,20 @@ func serviceSpecFor(state configplan.State) *resourcev1.ServiceSpec {
 
 func deploymentSpecFor(
 	state configplan.State,
-	region string,
+	regions []string,
 	build *deploymentv1.BuildSource,
 ) *deploymentv1.ServiceDeploymentSpec {
-	target := state.Regions[region]
+	targets := make(map[string]*deploymentv1.RegionDeploymentTarget, len(regions))
+	for _, region := range regions {
+		target := state.Regions[region]
+		targets[region] = &deploymentv1.RegionDeploymentTarget{
+			Cpu:         &target.CPU,
+			Memory:      &target.Memory,
+			MinReplicas: &target.MinReplicas,
+			MaxReplicas: &target.MaxReplicas,
+			Scalers:     scalersFor(target.Autoscaling),
+		}
+	}
 	return &deploymentv1.ServiceDeploymentSpec{
 		Observability: state.Observability.Proto(),
 		RunAsUser:     state.RunAsUser,
@@ -447,11 +466,7 @@ func deploymentSpecFor(
 		Command:       state.Command,
 		Args:          state.Args,
 		HealthCheck:   healthCheckFor(state.Health),
-		Cpu:           &target.CPU,
-		Memory:        &target.Memory,
-		MinReplicas:   &target.MinReplicas,
-		MaxReplicas:   &target.MaxReplicas,
-		Scalers:       scalersFor(target.Autoscaling),
+		Regions:       targets,
 		Env:           state.Env,
 		Port:          state.Port,
 		Routing:       deploymentRoutingFor(state.Routing),

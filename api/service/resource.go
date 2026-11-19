@@ -640,6 +640,8 @@ func (s *ResourceServer) ScaleResource(
 	return &resourcev1.ScaleResourceResponse{}, nil
 }
 
+// scaleCurrentDeployments creates one deployment per deployment live in the scaled regions,
+// copying it with the new sizing; regions that run the same deployment scale together.
 func (s *ResourceServer) scaleCurrentDeployments(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -648,39 +650,40 @@ func (s *ResourceServer) scaleCurrentDeployments(
 	req *resourcev1.ScaleResourceRequest,
 ) error {
 	resourceID := res.ID
-	currentByRegion, err := activeDeploymentsForRegions(ctx, qtx, resourceID, environmentID, req.GetRegion())
+	groups, err := liveDeploymentsByRegion(ctx, qtx, resourceID, environmentID, req.GetRegion())
 	if err != nil {
 		return err
 	}
 
-	plans := make([]regionRedeploy, 0, len(currentByRegion))
-	for _, current := range currentByRegion {
-		serviceDeploymentSpec, specErr := currentServiceSpec(current, res.Type)
+	plans := make([]regionRedeploy, 0, len(groups))
+	for _, group := range groups {
+		current := group[0]
+		serviceDeploymentSpec, specErr := currentServiceSpec(current.Deployment, res.Type)
 		if specErr != nil {
 			return specErr
 		}
-
-		if !scaleChangesDeployment(req, serviceDeploymentSpec, current.Replicas) {
+		targets := make(map[string]*deploymentv1.RegionDeploymentTarget, len(group))
+		changed := false
+		for _, region := range group {
+			target := serviceDeploymentSpec.GetRegions()[region.Region]
+			if target == nil {
+				return errPreviousDeploymentNoSpec
+			}
+			changed = changed || scaleChangesDeployment(req, target, region.Replicas)
+			applyScale(req, target)
+			targets[region.Region] = target
+		}
+		if !changed {
 			continue
 		}
+		serviceDeploymentSpec.Regions = targets
 
 		plainEnv, envErr := desiredEnv(ctx, qtx, resourceID, current.EnvironmentID, current.ClusterID)
 		if envErr != nil {
 			return fmt.Errorf("read scaling environment: %w", envErr)
 		}
 		serviceDeploymentSpec.Env = plainEnv
-		replicas := applyScale(req, serviceDeploymentSpec, current.Replicas)
-		plan, planErr := s.planRegionRedeploy(
-			ctx,
-			qtx,
-			current,
-			serviceDeploymentSpec,
-			replicas,
-		)
-		if planErr != nil {
-			return planErr
-		}
-		plans = append(plans, plan)
+		plans = append(plans, regionRedeploy{source: group, service: serviceDeploymentSpec})
 	}
 
 	if len(plans) == 0 {
@@ -708,7 +711,7 @@ func (s *ResourceServer) scaleCurrentDeployments(
 		SubjectID:     new(resourceID),
 		Data:          scaled,
 	}
-	if err := s.redeployRegions(ctx, qtx, res, plans, scaledEvent); err != nil {
+	if err := s.redeployRegions(ctx, qtx, res, environmentID, plans, scaledEvent); err != nil {
 		return err
 	}
 	if err := qtx.BumpResourceRevision(ctx, resourceID); err != nil {
@@ -717,10 +720,10 @@ func (s *ResourceServer) scaleCurrentDeployments(
 	return nil
 }
 
+// regionRedeploy is a copy of the deployment live in some regions with a new spec.
 type regionRedeploy struct {
-	params          genDb.CreateDeploymentParams
-	deploymentSpec  *deploymentv1.DeploymentSpec
-	environmentName string
+	source  []liveDeployment
+	service *deploymentv1.ServiceDeploymentSpec
 }
 
 var (
@@ -731,45 +734,40 @@ var (
 	errPreviousDeploymentNoSpec = rpcerr.NewCoded(connect.CodeInvalidArgument, "previous deployment has no spec")
 )
 
-func activeDeploymentsForRegions(
+// liveDeploymentsByRegion returns the regions of the environment, or the requested one, grouped
+// by the deployment live there, newest deployment first.
+func liveDeploymentsByRegion(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	resourceID uuid.UUID,
 	environmentID uuid.UUID,
 	requestedRegion string,
-) ([]genDb.Deployment, error) {
-	deploymentList, err := qtx.ListActiveDeploymentsForResource(ctx, resourceID)
+) ([][]liveDeployment, error) {
+	live, err := listLiveDeploymentsForEnvironment(ctx, qtx, resourceID, environmentID)
 	if err != nil {
-		return nil, fmt.Errorf("list active deployments: %w", err)
+		return nil, err
 	}
-
-	activeByRegion := make(map[string]genDb.Deployment, len(deploymentList))
-	for _, d := range deploymentList {
-		if d.EnvironmentID != environmentID {
+	seen := map[string]bool{}
+	var groups [][]liveDeployment
+	for _, region := range live {
+		if seen[region.Region] || requestedRegion != "" && region.Region != requestedRegion {
 			continue
 		}
-		if _, seen := activeByRegion[d.Region]; !seen {
-			activeByRegion[d.Region] = d
+		seen[region.Region] = true
+		index := slices.IndexFunc(groups, func(group []liveDeployment) bool { return group[0].ID == region.ID })
+		if index < 0 {
+			groups = append(groups, []liveDeployment{region})
+			continue
 		}
+		groups[index] = append(groups[index], region)
 	}
-
+	if len(groups) > 0 {
+		return groups, nil
+	}
 	if requestedRegion != "" {
-		d, found := activeByRegion[requestedRegion]
-		if !found {
-			return nil, errNoDeploymentInRegion.Detail("%s", requestedRegion)
-		}
-		return []genDb.Deployment{d}, nil
+		return nil, errNoDeploymentInRegion.Detail("%s", requestedRegion)
 	}
-
-	if len(activeByRegion) == 0 {
-		return nil, errNoActiveDeployment
-	}
-
-	current := make([]genDb.Deployment, 0, len(activeByRegion))
-	for _, region := range slices.Sorted(maps.Keys(activeByRegion)) {
-		current = append(current, activeByRegion[region])
-	}
-	return current, nil
+	return nil, errNoActiveDeployment
 }
 
 func currentServiceSpec(
@@ -793,118 +791,65 @@ func currentServiceSpec(
 	return serviceDeploymentSpec, nil
 }
 
-func (s *ResourceServer) planRegionRedeploy(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	current genDb.Deployment,
-	serviceDeploymentSpec *deploymentv1.ServiceDeploymentSpec,
-	replicas int32,
-) (regionRedeploy, error) {
-	principal, err := principalFrom(ctx)
-	if err != nil {
-		return regionRedeploy{}, err
-	}
-	specJSON, err := deploymentSpecJSON(serviceDeploymentSpec)
-	if err != nil {
-		return regionRedeploy{}, err
-	}
-
-	deploymentEnv, err := qtx.GetEnvironmentByID(ctx, current.EnvironmentID)
-	if err != nil {
-		return regionRedeploy{}, fmt.Errorf("get deployment environment: %w", err)
-	}
-
-	cluster, err := eligibleCluster(
-		ctx,
-		qtx,
-		current.Region,
-		s.clusterSilentAfter,
-		workloadplatform.Platform(serviceDeploymentSpec.GetPlatform()),
-	)
-	if err != nil {
-		return regionRedeploy{}, err
-	}
-
-	return regionRedeploy{
-		params: genDb.CreateDeploymentParams{
-			ResourceID:    current.ResourceID,
-			ClusterID:     cluster.ID,
-			Region:        current.Region,
-			Replicas:      replicas,
-			Status:        genDb.DeploymentStatusDeploying,
-			IsActive:      true,
-			Spec:          specJSON,
-			SpecVersion:   specVersion,
-			EnvironmentID: current.EnvironmentID,
-			SecretNames:   current.SecretNames,
-			ActorType:     principal.ActorType,
-			ActorID:       principal.ActorID,
-			Method:        principal.Method,
-			CommitSha:     current.CommitSha,
-			CommitDirty:   current.CommitDirty,
-		},
-		deploymentSpec: &deploymentv1.DeploymentSpec{
-			Spec: &deploymentv1.DeploymentSpec_Service{
-				Service: serviceDeploymentSpec,
-			},
-		},
-		environmentName: deploymentEnv.Name,
-	}, nil
-}
-
 func (s *ResourceServer) redeployRegions(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	res genDb.Resource,
+	environmentID uuid.UUID,
 	plans []regionRedeploy,
 	ev events.Event,
 ) error {
-	hostnames := make(map[uuid.UUID]string, len(plans))
-	for _, plan := range plans {
-		environmentID := plan.params.EnvironmentID
-		if _, found := hostnames[environmentID]; found {
-			continue
-		}
-		hostname, hostnameErr := primaryHostname(ctx, qtx, res.ID, environmentID)
-		if hostnameErr != nil {
-			return fmt.Errorf("get primary hostname: %w", hostnameErr)
-		}
-		hostnames[environmentID] = hostname
-	}
-
-	organizationID, counts, err := workspaceLimits(ctx, qtx, s.counts, res.WorkspaceID)
+	principal, err := principalFrom(ctx)
 	if err != nil {
 		return err
 	}
-
-	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
+	_, counts, err := workspaceLimits(ctx, qtx, s.counts, res.WorkspaceID)
 	if err != nil {
-		return fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, err)
+		return err
 	}
-
-	bumped := make(map[uuid.UUID]bool, len(plans))
-	rolloutID := uuid.New()
+	render, err := newPlacementRenderer(ctx, qtx, res, environmentID, s.defaults)
+	if err != nil {
+		return err
+	}
+	if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
+		return bumpErr
+	}
 	for _, plan := range plans {
-		plan.params.RolloutID = rolloutID
-		environmentID := plan.params.EnvironmentID
-		if !bumped[environmentID] {
-			if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
-				return bumpErr
-			}
-			bumped[environmentID] = true
-		}
-		buildSpec := desiredApplicationSpec(
-			res,
-			organizationID,
-			resourceSpec,
-			hostnames[plan.params.EnvironmentID],
-			plan.deploymentSpec,
-			plan.params.Region,
-			plan.params.EnvironmentID,
-			plan.environmentName,
-			s.defaults,
+		clusters, clusterErr := eligibleClusters(
+			ctx,
+			qtx,
+			s.clusterSilentAfter,
+			workloadplatform.Platform(plan.service.GetPlatform()),
 		)
-		if _, deployErr := createDeploymentWithCleanup(ctx, qtx, counts, plan.params, buildSpec); deployErr != nil {
+		if clusterErr != nil {
+			return clusterErr
+		}
+		targets := make([]placementTarget, 0, len(plan.source))
+		for _, region := range plan.source {
+			cluster, found := clusterForRegion(clusters, region.Region)
+			if !found {
+				return errNoActiveCluster.Detail("%s, requires %s", region.Region, plan.service.GetPlatform())
+			}
+			targets = append(targets, placementTarget{region: region.Region, clusterID: cluster.ID})
+		}
+		source := plan.source[0]
+		if _, deployErr := createDeployment(ctx, qtx, &counts, newDeployment{
+			params: genDb.CreateDeploymentParams{
+				ResourceID:         res.ID,
+				EnvironmentID:      environmentID,
+				SecretNames:        source.SecretNames,
+				ActorType:          principal.ActorType,
+				ActorID:            principal.ActorID,
+				Method:             principal.Method,
+				CommitSha:          source.CommitSha,
+				CommitDirty:        source.CommitDirty,
+				Trigger:            genDb.DeploymentTriggerScale,
+				SourceDeploymentID: &source.ID,
+			},
+			service: plan.service,
+			targets: targets,
+			render:  render,
+		}); deployErr != nil {
 			return deployErr
 		}
 	}
@@ -933,39 +878,34 @@ func validateScaleRequest(r *resourcev1.ScaleResourceRequest) error {
 
 func scaleChangesDeployment(
 	r *resourcev1.ScaleResourceRequest,
-	spec *deploymentv1.ServiceDeploymentSpec,
+	target *deploymentv1.RegionDeploymentTarget,
 	currentReplicas int32,
 ) bool {
-	if r.GetCpu() != "" && r.GetCpu() != spec.GetCpu() {
+	if r.GetCpu() != "" && r.GetCpu() != target.GetCpu() {
 		return true
 	}
 
-	if r.GetMemory() != "" && r.GetMemory() != spec.GetMemory() {
+	if r.GetMemory() != "" && r.GetMemory() != target.GetMemory() {
 		return true
 	}
 
-	return r.GetReplicas() != 0 && (r.GetReplicas() != currentReplicas || spec.GetScalers().GetEnabled())
+	return r.GetReplicas() != 0 && (r.GetReplicas() != currentReplicas || target.GetScalers().GetEnabled())
 }
 
-func applyScale(
-	r *resourcev1.ScaleResourceRequest,
-	spec *deploymentv1.ServiceDeploymentSpec,
-	currentReplicas int32,
-) int32 {
+func applyScale(r *resourcev1.ScaleResourceRequest, target *deploymentv1.RegionDeploymentTarget) {
 	if cpu := r.GetCpu(); cpu != "" {
-		spec.Cpu = &cpu
+		target.Cpu = &cpu
 	}
 	if memory := r.GetMemory(); memory != "" {
-		spec.Memory = &memory
+		target.Memory = &memory
 	}
 	replicas := r.GetReplicas()
 	if replicas == 0 {
-		return currentReplicas
+		return
 	}
-	spec.MinReplicas = &replicas
-	spec.MaxReplicas = &replicas
-	spec.Scalers = &deploymentv1.Scalers{}
-	return replicas
+	target.MinReplicas = &replicas
+	target.MaxReplicas = &replicas
+	target.Scalers = &deploymentv1.Scalers{}
 }
 
 // resourceDomainToListProto converts a slice of ResourceDomain to proto ResourceDomain list
@@ -1056,16 +996,13 @@ func (s *ResourceServer) GetResourceEnv(
 	if env.WorkspaceID != res.WorkspaceID {
 		return nil, ErrEnvironmentNotFound
 	}
-	deployments, err := s.queries.ListActiveDeploymentsForResource(ctx, res.ID)
+	deployments, err := listLiveDeploymentsForEnvironment(ctx, s.queries, res.ID, env.ID)
 	if err != nil {
-		return nil, fmt.Errorf("list active deployments: %w", err)
+		return nil, err
 	}
 	plain := map[string]string{}
 	var secretNames []string
 	for _, deployment := range deployments {
-		if deployment.EnvironmentID != env.ID {
-			continue
-		}
 		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
 		if envErr != nil {
 			return nil, fmt.Errorf("read the desired env: %w", envErr)

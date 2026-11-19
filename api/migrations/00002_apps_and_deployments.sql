@@ -4,10 +4,26 @@ CREATE TYPE deployment_status AS ENUM (
     'building',
     'deploying',
     'running',
-    'superseded',
+    'degraded',
+    'crashed',
     'failed',
-    'canceled'
+    'canceled',
+    'superseded'
 );
+
+-- One region of a deployment; pending waits for the deployment's build.
+CREATE TYPE placement_status AS ENUM (
+    'pending',
+    'deploying',
+    'running',
+    'degraded',
+    'crashed',
+    'failed',
+    'canceled',
+    'superseded'
+);
+
+CREATE TYPE deployment_trigger AS ENUM ('deploy', 'redeploy', 'rollback', 'scale', 'auto_rollback');
 
 -- Resource type enum
 CREATE TYPE resource_type AS ENUM (
@@ -202,24 +218,22 @@ CREATE TYPE deployment_actor_type AS ENUM ('user', 'api_token');
 
 CREATE TYPE deployment_method AS ENUM ('api_token', 'cli', 'web');
 
--- Deployments table (immutable, single-region)
+-- One rollout request for a resource in an environment; its placements fan it out per region.
 CREATE TABLE
     deployments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        -- Shared by the deployments one apply, deploy or scale created across regions.
-        rollout_id UUID NOT NULL DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
-        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
-        region TEXT NOT NULL,
-        replicas INT NOT NULL,
         status deployment_status NOT NULL,
-        is_active BOOLEAN NOT NULL,
         environment_id UUID NOT NULL REFERENCES environments (id),
         spec JSONB NOT NULL,
         spec_version INT NOT NULL,
+        trigger deployment_trigger NOT NULL,
+        source_deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
         actor_type deployment_actor_type NOT NULL,
         actor_id UUID NOT NULL,
         method deployment_method NOT NULL,
+        canceled_by_type deployment_actor_type,
+        canceled_by_id UUID,
         commit_sha TEXT,
         commit_dirty BOOLEAN NOT NULL DEFAULT false,
         secret_names TEXT[] NOT NULL DEFAULT '{}',
@@ -227,16 +241,9 @@ CREATE TABLE
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW ()
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        CHECK ((canceled_by_type IS NULL) = (canceled_by_id IS NULL))
     );
-
-CREATE INDEX idx_deployments_cluster_id ON deployments (cluster_id);
-
-CREATE INDEX idx_deployments_region ON deployments (region);
-
-CREATE UNIQUE INDEX uniq_deployments_resource_region_active ON deployments (resource_id, environment_id, region)
-WHERE
-    is_active = true;
 
 CREATE INDEX idx_deployments_status_created_at ON deployments (status, created_at DESC);
 
@@ -244,11 +251,59 @@ CREATE INDEX IF NOT EXISTS idx_deployments_resource_created_id_desc ON deploymen
 
 CREATE INDEX idx_deployments_environment_created_id_desc ON deployments (environment_id, created_at DESC, id DESC);
 
+CREATE INDEX idx_deployments_source_deployment_id ON deployments (source_deployment_id);
+
+-- One region of a deployment.
+CREATE TABLE
+    deployment_placements (
+        deployment_id UUID NOT NULL REFERENCES deployments (id) ON DELETE CASCADE,
+        cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
+        region TEXT NOT NULL,
+        replicas INT NOT NULL,
+        status placement_status NOT NULL,
+        -- '' while the build runs
+        image TEXT NOT NULL,
+        superseded_by UUID REFERENCES deployments (id) ON DELETE SET NULL,
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        PRIMARY KEY (deployment_id, cluster_id)
+    );
+
+CREATE INDEX idx_deployment_placements_cluster_id ON deployment_placements (cluster_id);
+
+CREATE INDEX idx_deployment_placements_superseded_by ON deployment_placements (superseded_by);
+
+-- +goose StatementBegin
+-- The aggregate status of a deployment: canceled when a user canceled it or every placement
+-- was canceled, building while every placement waits for the build, then the worst placement.
+CREATE FUNCTION deployment_status_from_placements (deployment UUID) RETURNS deployment_status LANGUAGE sql STABLE AS $$
+    SELECT CASE
+        WHEN d.canceled_by_id IS NOT NULL OR NOT EXISTS (
+            SELECT 1 FROM deployment_placements dp
+            WHERE dp.deployment_id = d.id AND dp.status <> 'canceled') THEN 'canceled'
+        WHEN bool_and(dp.status = 'pending') THEN 'building'
+        WHEN bool_or(dp.status = 'failed') THEN 'failed'
+        WHEN bool_or(dp.status = 'crashed') THEN 'crashed'
+        WHEN bool_or(dp.status IN ('pending', 'deploying')) THEN 'deploying'
+        WHEN bool_or(dp.status = 'degraded') THEN 'degraded'
+        WHEN bool_or(dp.status = 'running') THEN 'running'
+        ELSE 'superseded'
+    END::deployment_status
+    FROM deployments d
+    LEFT JOIN deployment_placements dp ON dp.deployment_id = d.id AND dp.status <> 'canceled'
+    WHERE d.id = deployment
+    GROUP BY d.id
+$$;
+-- +goose StatementEnd
+
 CREATE TABLE deployment_rollouts (
     deployment_id UUID NOT NULL REFERENCES deployments (id) ON DELETE CASCADE,
+    cluster_id UUID NOT NULL,
     revision BIGINT NOT NULL,
     snapshot JSONB NOT NULL DEFAULT '{}',
-    PRIMARY KEY (deployment_id, revision)
+    PRIMARY KEY (deployment_id, cluster_id, revision),
+    FOREIGN KEY (deployment_id, cluster_id) REFERENCES deployment_placements (deployment_id, cluster_id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX uniq_rollout_placement_revision
@@ -263,6 +318,9 @@ CREATE TABLE deployment_activity (
     replica_uid TEXT NOT NULL DEFAULT '',
     replica_name TEXT NOT NULL DEFAULT '',
     message TEXT NOT NULL,
+    -- NULL for an entry about the whole deployment, such as its build
+    cluster_id UUID,
+    region TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (deployment_id, seq)
 );
 
@@ -315,10 +373,52 @@ SELECT p.id AS placement_id, p.resource_id, p.environment_id, p.cluster_id, p.re
          ELSE '[]'::jsonb END AS replicas
 FROM placements p
 JOIN deployments reported ON reported.resource_id = p.resource_id
-    AND reported.environment_id = p.environment_id AND reported.cluster_id = p.cluster_id
-JOIN deployment_rollouts ro ON ro.deployment_id = reported.id
+    AND reported.environment_id = p.environment_id
+JOIN deployment_rollouts ro ON ro.deployment_id = reported.id AND ro.cluster_id = p.cluster_id
     AND ro.revision = p.observed_revision
     AND ro.snapshot->>'placementId' = p.id::text;
+
+-- The deployment each region of a resource's environment runs or is about to run: the
+-- placement's deployment, or a newer one still waiting for its build.
+CREATE VIEW live_deployment_placements AS
+SELECT DISTINCT ON (d.resource_id, d.environment_id, dp.cluster_id)
+       d.id AS deployment_id, d.resource_id, d.environment_id, dp.cluster_id, dp.region, dp.replicas, dp.status
+FROM deployment_placements dp
+JOIN deployments d ON d.id = dp.deployment_id
+WHERE dp.status = 'pending' OR EXISTS (
+    SELECT 1 FROM placements p
+    WHERE p.deployment_id = dp.deployment_id AND p.cluster_id = dp.cluster_id AND NOT p.desired_deleted
+)
+ORDER BY d.resource_id, d.environment_id, dp.cluster_id, d.created_at DESC, d.id DESC;
+
+-- +goose StatementBegin
+-- The placements of a deployment as the API returns them, ordered by region.
+CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGUAGE sql STABLE AS $$
+    SELECT COALESCE(jsonb_agg(jsonb_build_object(
+        'clusterId', dp.cluster_id,
+        'region', dp.region,
+        'replicas', dp.replicas,
+        'status', dp.status,
+        'image', dp.image,
+        'startedAt', dp.started_at,
+        'completedAt', dp.completed_at,
+        'live', p.id IS NOT NULL,
+        'revision', COALESCE(p.desired_revision, (
+            SELECT max(ro.revision) FROM deployment_rollouts ro
+            WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id), 0),
+        'rollout', COALESCE((
+            SELECT ro.snapshot FROM deployment_rollouts ro
+            WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id
+            ORDER BY ro.revision DESC LIMIT 1), '{}'::jsonb),
+        'observed', COALESCE((
+            SELECT o.replicas FROM observed_placement_rollouts o WHERE o.placement_id = p.id), '[]'::jsonb)
+    ) ORDER BY dp.region, dp.cluster_id), '[]'::jsonb)
+    FROM deployment_placements dp
+    LEFT JOIN placements p ON p.deployment_id = dp.deployment_id AND p.cluster_id = dp.cluster_id
+        AND NOT p.desired_deleted
+    WHERE dp.deployment_id = deployment
+$$;
+-- +goose StatementEnd
 
 CREATE INDEX idx_placements_pending ON placements (cluster_id)
 WHERE
@@ -448,17 +548,36 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER deployment_change AFTER INSERT OR UPDATE ON deployments
 FOR EACH ROW EXECUTE FUNCTION notify_deployment_change();
 
+-- +goose StatementBegin
+CREATE FUNCTION notify_deployment_placement_change() RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('deployment_activity', NEW.deployment_id::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+-- +goose StatementEnd
+
+CREATE TRIGGER deployment_placement_change AFTER INSERT OR UPDATE ON deployment_placements
+FOR EACH ROW EXECUTE FUNCTION notify_deployment_placement_change();
+
 -- +goose Down
 DROP TABLE IF EXISTS registry_credentials;
 DROP TABLE IF EXISTS builds;
+DROP FUNCTION IF EXISTS deployment_placements_json;
+DROP VIEW IF EXISTS live_deployment_placements;
 DROP VIEW IF EXISTS observed_placement_rollouts;
 DROP FUNCTION IF EXISTS resource_suspended;
 DROP TABLE IF EXISTS placement_windows;
 DROP TABLE IF EXISTS placements;
 DROP TABLE IF EXISTS deployment_activity;
 DROP TABLE IF EXISTS deployment_rollouts;
+DROP FUNCTION IF EXISTS deployment_status_from_placements;
+DROP TABLE IF EXISTS deployment_placements;
 DROP TABLE IF EXISTS deployments;
+DROP FUNCTION IF EXISTS notify_deployment_placement_change;
 DROP FUNCTION IF EXISTS notify_deployment_change;
+DROP TYPE IF EXISTS deployment_trigger;
+DROP TYPE IF EXISTS placement_status;
 DROP TYPE IF EXISTS deployment_method;
 DROP TYPE IF EXISTS deployment_actor_type;
 DROP TABLE IF EXISTS resource_domains;

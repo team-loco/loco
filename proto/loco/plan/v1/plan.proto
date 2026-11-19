@@ -79,15 +79,16 @@ message ApplyResponse {
   int64 revision = 1;
   // operations are the operations performed, in service name order.
   repeated PlanOperation operations = 2;
-  // deployments are the deployments the apply started, one per service and region.
+  // deployments are the deployments the apply started, one per service.
   repeated StartedDeployment deployments = 3;
 }
 
 // StartedDeployment is a deployment an apply created for a runtime change.
 message StartedDeployment {
+  reserved 2;
   string service = 1;
-  string region = 2;
   string deployment_id = 3;
+  repeated string regions = 4;
 }
 
 // ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.

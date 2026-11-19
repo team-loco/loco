@@ -15,7 +15,6 @@ type Querier interface {
 	AddSystemAdminEntries(ctx context.Context, emails []string) error
 	AddSystemAdminGrant(ctx context.Context, userID uuid.UUID) (int64, error)
 	AddUserScope(ctx context.Context, arg AddUserScopeParams) error
-	AdvanceDeploymentStatus(ctx context.Context, arg AdvanceDeploymentStatusParams) (int64, error)
 	AdvancePlacementPastRevision(ctx context.Context, arg AdvancePlacementPastRevisionParams) (int64, error)
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	AllocateActivitySeq(ctx context.Context, arg AllocateActivitySeqParams) (int64, error)
@@ -52,6 +51,7 @@ type Querier interface {
 	CreateCluster(ctx context.Context, arg CreateClusterParams) error
 	// Deployment queries
 	CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (uuid.UUID, error)
+	CreateDeploymentPlacement(ctx context.Context, arg CreateDeploymentPlacementParams) error
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateIdentity(ctx context.Context, arg CreateIdentityParams) (Identity, error)
 	CreateInvitation(ctx context.Context, arg CreateInvitationParams) (Invitation, error)
@@ -102,7 +102,6 @@ type Querier interface {
 	FinishBuild(ctx context.Context, arg FinishBuildParams) (FinishBuildRow, error)
 	FinishWebhookDelivery(ctx context.Context, arg FinishWebhookDeliveryParams) (int64, error)
 	GetAPIToken(ctx context.Context, tokenHash string) (GetAPITokenRow, error)
-	GetActiveDeploymentForResourceAndRegion(ctx context.Context, arg GetActiveDeploymentForResourceAndRegionParams) (Deployment, error)
 	GetBuildByID(ctx context.Context, id uuid.UUID) (Build, error)
 	GetBuildCluster(ctx context.Context, arg GetBuildClusterParams) (uuid.UUID, error)
 	// creator_* is NULL when the creating user no longer exists.
@@ -113,6 +112,7 @@ type Querier interface {
 	GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error)
 	// creator_* is NULL when the creating user, or the API token that names it, no longer exists.
 	GetDeploymentEvent(ctx context.Context, id uuid.UUID) (GetDeploymentEventRow, error)
+	GetDeploymentPlacement(ctx context.Context, arg GetDeploymentPlacementParams) (DeploymentPlacement, error)
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)
@@ -122,6 +122,7 @@ type Querier interface {
 	GetIdentityForUser(ctx context.Context, userID uuid.UUID) (Identity, error)
 	GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error)
 	GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (GetInvitationClaimDetailsRow, error)
+	GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDeploymentForRegionParams) (GetLiveDeploymentForRegionRow, error)
 	GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, error)
 	GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error)
 	GetOrganizationByID(ctx context.Context, id uuid.UUID) (GetOrganizationByIDRow, error)
@@ -161,8 +162,6 @@ type Querier interface {
 	ListAccountDeletionBlockingOrganizations(ctx context.Context, arg ListAccountDeletionBlockingOrganizationsParams) ([]ListAccountDeletionBlockingOrganizationsRow, error)
 	ListAccountDeletionTokens(ctx context.Context, arg ListAccountDeletionTokensParams) ([]ListAccountDeletionTokensRow, error)
 	ListActiveBuildSourceKeys(ctx context.Context, keys []string) ([]string, error)
-	ListActiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]Deployment, error)
-	ListActiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListAdminClusters(ctx context.Context) ([]ListAdminClustersRow, error)
 	ListBuildStatesByIDs(ctx context.Context, ids []uuid.UUID) ([]ListBuildStatesByIDsRow, error)
 	ListBuildTagStates(ctx context.Context, ids []uuid.UUID) ([]ListBuildTagStatesRow, error)
@@ -178,6 +177,7 @@ type Querier interface {
 	ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error)
 	ListDeletableBuildImages(ctx context.Context, arg ListDeletableBuildImagesParams) ([]ListDeletableBuildImagesRow, error)
 	ListDeploymentActivity(ctx context.Context, arg ListDeploymentActivityParams) ([]DeploymentActivity, error)
+	ListDeploymentPlacements(ctx context.Context, deploymentID uuid.UUID) ([]DeploymentPlacement, error)
 	ListEligibleClusters(ctx context.Context, arg ListEligibleClustersParams) ([]ListEligibleClustersRow, error)
 	ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error)
 	ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, error)
@@ -189,6 +189,8 @@ type Querier interface {
 	ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error)
 	ListLatestSucceededBuildsForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListLatestSucceededBuildsForResourcesRow, error)
 	ListLiveBuildDigests(ctx context.Context, resourceIds []uuid.UUID) ([]ListLiveBuildDigestsRow, error)
+	ListLiveDeploymentsForEnvironment(ctx context.Context, environmentID uuid.UUID) ([]ListLiveDeploymentsForEnvironmentRow, error)
+	ListLiveDeploymentsForResource(ctx context.Context, resourceID uuid.UUID) ([]ListLiveDeploymentsForResourceRow, error)
 	ListOpenInvitationsForEmail(ctx context.Context, email string) ([]Invitation, error)
 	ListOrgInvitations(ctx context.Context, arg ListOrgInvitationsParams) ([]Invitation, error)
 	ListOrgMembersWithDetails(ctx context.Context, arg ListOrgMembersWithDetailsParams) ([]ListOrgMembersWithDetailsRow, error)
@@ -272,18 +274,20 @@ type Querier interface {
 	OpenRollout(ctx context.Context, arg OpenRolloutParams) error
 	OrgAdminHasNoActiveSuccessor(ctx context.Context, arg OrgAdminHasNoActiveSuccessorParams) (bool, error)
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
-	PlacementForDeployment(ctx context.Context, deploymentID *uuid.UUID) (Placement, error)
 	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
+	// The newest deployment older than the failed one that ran, while nothing newer than the
+	// failed one exists.
 	PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error)
 	// Deletes the resource's builds past the newest keep once their source and, for a succeeded
 	// build, image are gone: the sweepers find what to delete through these rows. The image
 	// sweeper treats a failed or canceled build's tags like those of a missing row.
 	PruneBuildHistory(ctx context.Context, arg PruneBuildHistoryParams) (int64, error)
-	// Deletes the resource's deployments in the environment past the newest keep, except active
-	// and unfinished ones and those a placement still runs.
+	// Deletes the resource's deployments in the environment past the newest keep, except unfinished
+	// ones and those a region still runs or reports.
 	PruneDeploymentHistory(ctx context.Context, arg PruneDeploymentHistoryParams) (int64, error)
 	PublishEvents(ctx context.Context, arg PublishEventsParams) (int64, error)
 	QueueBuild(ctx context.Context, arg QueueBuildParams) (int64, error)
+	RecomputeDeploymentStatus(ctx context.Context, id uuid.UUID) (RecomputeDeploymentStatusRow, error)
 	RecordClusterAssertion(ctx context.Context, arg RecordClusterAssertionParams) (int64, error)
 	ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error)
 	RemoveAllScopesForUserOnEntity(ctx context.Context, arg RemoveAllScopesForUserOnEntityParams) error
@@ -297,7 +301,7 @@ type Querier interface {
 	RequeueWebhookDelivery(ctx context.Context, id uuid.UUID) error
 	ResetLockTimeout(ctx context.Context) error
 	ResourceHasPrimaryDomain(ctx context.Context, arg ResourceHasPrimaryDomainParams) (bool, error)
-	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]uuid.UUID, error)
+	RestartResourcePlacements(ctx context.Context, arg RestartResourcePlacementsParams) ([]RestartResourcePlacementsRow, error)
 	ResumeOrg(ctx context.Context, id uuid.UUID) (Organization, error)
 	ResumeOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]ResumeOrgPlacementsRow, error)
 	RetireOtherRegionPlacements(ctx context.Context, arg RetireOtherRegionPlacementsParams) ([]RetireOtherRegionPlacementsRow, error)
@@ -309,6 +313,7 @@ type Querier interface {
 	SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error
+	SetDeploymentPlacementStatus(ctx context.Context, arg SetDeploymentPlacementStatusParams) (int64, error)
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)
 	SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error
@@ -316,7 +321,9 @@ type Querier interface {
 	SetResourcePartial(ctx context.Context, arg SetResourcePartialParams) error
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
-	SupersedePreviousDeployments(ctx context.Context, id uuid.UUID) error
+	// Retires the older deployments' placements on the cluster: one that never ran is canceled,
+	// one that ran is superseded. Without include_started only the never-started ones change.
+	SupersedePlacements(ctx context.Context, arg SupersedePlacementsParams) ([]uuid.UUID, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)
 	SystemAdminClaimed(ctx context.Context, userID *uuid.UUID) (bool, error)
@@ -329,7 +336,6 @@ type Querier interface {
 	UpdateClusterAgentInfo(ctx context.Context, arg UpdateClusterAgentInfoParams) error
 	UpdateClusterHeartbeat(ctx context.Context, arg UpdateClusterHeartbeatParams) error
 	UpdateClusterLifecycle(ctx context.Context, arg UpdateClusterLifecycleParams) error
-	UpdateDeploymentStatusAndActive(ctx context.Context, arg UpdateDeploymentStatusAndActiveParams) error
 	UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error)
 	UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (Organization, error)
 	UpdatePlacementStatus(ctx context.Context, arg UpdatePlacementStatusParams) (UpdatePlacementStatusRow, error)

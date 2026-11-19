@@ -443,17 +443,14 @@ func (s *DomainServer) checkResourceDomain(
 	if err != nil {
 		return "", "", fmt.Errorf("decode resource %s spec: %w", resourceID, err)
 	}
-	deployments, err := s.queries.ListActiveDeploymentsForResource(ctx, resourceID)
+	deployments, err := listLiveDeploymentsForEnvironment(ctx, s.queries, resourceID, env.ID)
 	if err != nil {
-		return "", "", fmt.Errorf("list resource deployments: %w", err)
+		return "", "", err
 	}
 	hasDeployment, hasPort := false, false
 	for _, deployment := range deployments {
-		if deployment.EnvironmentID != env.ID {
-			continue
-		}
 		hasDeployment = true
-		current, specErr := currentServiceSpec(deployment, resource.Type)
+		current, specErr := currentServiceSpec(deployment.Deployment, resource.Type)
 		if specErr != nil {
 			return "", "", specErr
 		}

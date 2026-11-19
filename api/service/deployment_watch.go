@@ -94,8 +94,7 @@ func (s *DeploymentServer) WatchDeployment(
 		if hasMore {
 			continue
 		}
-		failed := deployment.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED
-		if isTerminalDeploymentStatus(deployment.GetStatus()) || failed && !deployment.GetIsActive() {
+		if isTerminalDeploymentStatus(deployment.GetStatus()) {
 			return nil
 		}
 		select {
@@ -175,6 +174,7 @@ func activityToProto(rows []genDb.DeploymentActivity) []*deploymentv1.Activity {
 				Severity:    row.Severity,
 				ReplicaName: row.ReplicaName,
 				Message:     row.Message,
+				Region:      row.Region,
 			},
 		)
 	}
@@ -182,11 +182,14 @@ func activityToProto(rows []genDb.DeploymentActivity) []*deploymentv1.Activity {
 }
 
 func isTerminalDeploymentStatus(status deploymentv1.DeploymentStatus) bool {
-	return status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED ||
+	return status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED ||
+		status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED ||
 		status == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED
 }
 
-func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []byte) error {
+// setPlacementRollout fills a placement's problem from its latest rollout and its replicas: the
+// cluster's latest report while the placement is live, the last snapshot otherwise.
+func setPlacementRollout(placement *deploymentv1.DeploymentPlacement, data, observed []byte) error {
 	var snapshot rolloutSnapshot
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		return fmt.Errorf("decode rollout: %w", err)
@@ -196,7 +199,7 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []
 		if !ok {
 			return fmt.Errorf("unknown stored problem reason %q", report.GetReason())
 		}
-		deployment.Problem = &deploymentv1.Problem{
+		placement.Problem = &deploymentv1.Problem{
 			Reason:      report.GetReason(),
 			Message:     message,
 			Detail:      report.GetDetail(),
@@ -204,12 +207,12 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []
 			Since:       report.GetSince(),
 		}
 	}
-	if deployment.GetIsActive() {
+	if placement.GetLive() {
 		snapshot.Replicas = nil
 		if err := json.Unmarshal(observed, &snapshot.Replicas); err != nil {
 			return fmt.Errorf("decode observed rollout: %w", err)
 		}
 	}
-	deployment.Replicas = snapshot.Replicas
+	placement.Replicas = snapshot.Replicas
 	return nil
 }

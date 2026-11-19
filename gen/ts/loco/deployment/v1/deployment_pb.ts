@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/deployment/v1/deployment.proto.
  */
 export const file_loco_deployment_v1_deployment: GenFile = /*@__PURE__*/
-  fileDesc("CiNsb2NvL2RlcGxveW1lbnQvdjEvZGVwbG95bWVudC5wcm90bxISbG9jby5kZXBsb3ltZW50LnYxIrIBChFIZWFsdGhDaGVja0NvbmZpZxIVCgRwYXRoGAEgASgJQge6SARyAhABEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIhChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFQge6SAQaAigBEiAKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIHukgEGgIoARIiChFmYWlsdXJlX3RocmVzaG9sZBgFIAEoBUIHukgEGgIoASLkAgoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEiIKCmNwdV90YXJnZXQYAiABKAVCCbpIBhoEGGQoAEgAiAEBEiUKDW1lbW9yeV90YXJnZXQYAyABKAVCCbpIBhoEGGQoAEgBiAEBOtsBukjXARrUAQoXc2NhbGVycy50YXJnZXRfcmVxdWlyZWQSQmVuYWJsZWQgYXV0b3NjYWxpbmcgbmVlZHMgYSBDUFUgb3IgbWVtb3J5IHRhcmdldCBiZXR3ZWVuIDEgYW5kIDEwMBp1IXRoaXMuZW5hYmxlZCB8fCAoaGFzKHRoaXMuY3B1X3RhcmdldCkgJiYgdGhpcy5jcHVfdGFyZ2V0ID4gMCkgfHwgKGhhcyh0aGlzLm1lbW9yeV90YXJnZXQpICYmIHRoaXMubWVtb3J5X3RhcmdldCA+IDApQg0KC19jcHVfdGFyZ2V0QhAKDl9tZW1vcnlfdGFyZ2V0IsEBCgtCdWlsZFNvdXJjZRIVCgR0eXBlGAEgASgJQge6SARyAhABEm0KBWltYWdlGAIgASgJQl66SFvYAQFyVjJUXihbYS16MC05XC0uX10rKDpbMC05XSspPygvW2EtejAtOVwtLl9dKykqKSg6W2EtejAtOVwtLl9dKyk/KEBzaGEyNTY6W2EtZjAtOV17NjR9KT8kEh8KCGJ1aWxkX2lkGAMgASgJQgi6SAVyA7ABAUgAiAEBQgsKCV9idWlsZF9pZCI/ChNPYnNlcnZhYmlsaXR5Q29uZmlnEhgKC2luamVjdF9vdGVsGAEgASgISACIAQFCDgoMX2luamVjdF9vdGVsIvAJChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSNgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2VCBrpIA8gBARJACgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARIZCgNjcHUYAyABKAlCB7pIBHICEAFIAYgBARIcCgZtZW1vcnkYBCABKAlCB7pIBHICEAFIAogBARIiCgxtaW5fcmVwbGljYXMYBSABKAVCB7pIBBoCKAFIA4gBARIiCgxtYXhfcmVwbGljYXMYBiABKAVCB7pIBBoCKAFIBIgBARIxCgdzY2FsZXJzGAcgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIBYgBARI/CgNlbnYYCCADKAsyMi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLkVudkVudHJ5Eh4KBHBvcnQYCSABKAVCC7pICBoGGP//AygBSAaIAQESOAoHcm91dGluZxgKIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlUm91dGluZ0gHiAEBEicKC3J1bl9hc191c2VyGAsgASgDQg26SAoiCBj/////ByAASAiIAQESKAoMcnVuX2FzX2dyb3VwGAwgASgDQg26SAoiCBj/////ByAASAmIAQESPgoNb2JzZXJ2YWJpbGl0eRgNIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEiAKE3JvbGxiYWNrX29uX2ZhaWx1cmUYDiABKAhICogBARIQCghwbGF0Zm9ybRgPIAEoCRIfCgdjb21tYW5kGBAgAygJQg66SAuSAQgQZCIEcgIQARIWCgRhcmdzGBEgAygJQgi6SAWSAQIQZBoqCghFbnZFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBOsECuki9AhqaAQoUcmVwbGljYXMubWluX2x0ZV9tYXgSJG1pbl9yZXBsaWNhcyBtdXN0IGJlIDw9IG1heF9yZXBsaWNhcxpcIWhhcyh0aGlzLm1pbl9yZXBsaWNhcykgfHwgIWhhcyh0aGlzLm1heF9yZXBsaWNhcykgfHwgdGhpcy5taW5fcmVwbGljYXMgPD0gdGhpcy5tYXhfcmVwbGljYXManQEKLXNlcnZpY2VfZGVwbG95bWVudC5oZWFsdGhfY2hlY2tfcmVxdWlyZXNfcG9ydBJBaGVhbHRoX2NoZWNrIG5lZWRzIGEgcG9ydDogdGhlIEhUVFAgY2hlY2sgcHJvYmVzIHRoZSBzZXJ2aWNlIHBvcnQaKWhhcyh0aGlzLnBvcnQpIHx8ICFoYXModGhpcy5oZWFsdGhfY2hlY2spQg8KDV9oZWFsdGhfY2hlY2tCBgoEX2NwdUIJCgdfbWVtb3J5Qg8KDV9taW5fcmVwbGljYXNCDwoNX21heF9yZXBsaWNhc0IKCghfc2NhbGVyc0IHCgVfcG9ydEIKCghfcm91dGluZ0IOCgxfcnVuX2FzX3VzZXJCDwoNX3J1bl9hc19ncm91cEIWChRfcm9sbGJhY2tfb25fZmFpbHVyZSI7Cg5TZXJ2aWNlUm91dGluZxITCgtwYXRoX3ByZWZpeBgBIAEoCRIUCgxpZGxlX3RpbWVvdXQYAiABKAUiVgoORGVwbG95bWVudFNwZWMSPAoHc2VydmljZRgBIAEoCzIpLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlRGVwbG95bWVudFNwZWNIAEIGCgRzcGVjIvAGCgpEZXBsb3ltZW50EgoKAmlkGAEgASgJEhMKC3Jlc291cmNlX2lkGAIgASgJEhIKCmNsdXN0ZXJfaWQYAyABKAkSDgoGcmVnaW9uGAQgASgJEhgKEGRlc2lyZWRfcmVwbGljYXMYBSABKAUSNAoGc3RhdHVzGAYgASgOMiQubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTdGF0dXMSEQoJaXNfYWN0aXZlGAcgASgIEi4KCmNyZWF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjMKCnN0YXJ0ZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSACIAQESNQoMY29tcGxldGVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgBiAEBEi4KCnVwZGF0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhQKDHNwZWNfdmVyc2lvbhgNIAEoBRIwCgRzcGVjGA4gASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjEhYKDmVudmlyb25tZW50X2lkGA8gASgJEjsKCmFjdG9yX3R5cGUYECABKA4yJy5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudEFjdG9yVHlwZRIQCghhY3Rvcl9pZBgRIAEoCRISCgphY3Rvcl9uYW1lGBIgASgJEhgKEGFjdG9yX2F2YXRhcl91cmwYEyABKAkSNAoGbWV0aG9kGBQgASgOMiQubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRNZXRob2QSMAoGY29tbWl0GBUgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBIYChBjdXJyZW50X3JldmlzaW9uGBYgASgDEiwKB3Byb2JsZW0YFyABKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuUHJvYmxlbRItCghyZXBsaWNhcxgYIAMoCzIbLmxvY28uZGVwbG95bWVudC52MS5SZXBsaWNhEhIKCnJvbGxvdXRfaWQYGSABKAlCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdCKmAgoXQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEhcKBnJlZ2lvbhgDIAEoCUIHukgEcgIQARI4CgRzcGVjGAQgASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjQga6SAPIAQESIAoOZW52aXJvbm1lbnRfaWQYBSABKAlCCLpIBXIDsAEBEkUKD3NlY3JldF9iaW5kaW5ncxgGIAEoCzIsLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U2VjcmV0QmluZGluZ3MSMAoGY29tbWl0GAcgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdCJLChhEZXBsb3ltZW50U2VjcmV0QmluZGluZ3MSLwoFbmFtZXMYASADKAlCILpIHZIBGhgBIhZyFDISXltBLVpfXVtBLVowLTlfXSokImEKGENyZWF0ZURlcGxveW1lbnRSZXNwb25zZRIVCg1kZXBsb3ltZW50X2lkGAEgASgJEi4KBWJ1aWxkGAIgASgLMh8ubG9jby5kZXBsb3ltZW50LnYxLkJ1aWxkU291cmNlIjcKFEdldERlcGxveW1lbnRSZXF1ZXN0Eh8KDWRlcGxveW1lbnRfaWQYASABKAlCCLpIBXIDsAEBIksKFUdldERlcGxveW1lbnRSZXNwb25zZRIyCgpkZXBsb3ltZW50GAEgASgLMh4ubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnQi5gQKFkxpc3REZXBsb3ltZW50c1JlcXVlc3QSIAoLcmVzb3VyY2VfaWQYASABKAlCC7pICNgBAXIDsAEBEh0KCXBhZ2Vfc2l6ZRgCIAEoBUIKukgHGgUYyAEoABISCgpwYWdlX3Rva2VuGAMgASgJEiMKDmVudmlyb25tZW50X2lkGAQgASgJQgu6SAjYAQFyA7ABARIhCgx3b3Jrc3BhY2VfaWQYBSABKAlCC7pICNgBAXIDsAEBEikKBXNpbmNlGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIpCgV1bnRpbBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXA62AK6SNQCGtsBChZsaXN0X2RlcGxveW1lbnRzLnNjb3BlEjdwcm92aWRlIHJlc291cmNlX2lkIG9yIHdvcmtzcGFjZV9pZCB3aXRoIGVudmlyb25tZW50X2lkGocBKHRoaXMucmVzb3VyY2VfaWQgIT0gJycgJiYgdGhpcy53b3Jrc3BhY2VfaWQgPT0gJycpIHx8ICh0aGlzLnJlc291cmNlX2lkID09ICcnICYmIHRoaXMud29ya3NwYWNlX2lkICE9ICcnICYmIHRoaXMuZW52aXJvbm1lbnRfaWQgIT0gJycpGnQKF2xpc3RfZGVwbG95bWVudHMud2luZG93EhhzaW5jZSBtdXN0IHByZWNlZGUgdW50aWwaPyFoYXModGhpcy5zaW5jZSkgfHwgIWhhcyh0aGlzLnVudGlsKSB8fCB0aGlzLnNpbmNlIDwgdGhpcy51bnRpbCJnChdMaXN0RGVwbG95bWVudHNSZXNwb25zZRIzCgtkZXBsb3ltZW50cxgBIAMoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50EhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSLjAwoHUmVwbGljYRILCgN1aWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRub2RlGAMgASgJEhoKEnBsYWNlbWVudF9yZXZpc2lvbhgEIAEoAxINCgVzdGF0ZRgFIAEoCRIvCgtzdGF0ZV9zaW5jZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoOc3RhdGVfZGVhZGxpbmUYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHJlc3RhcnRzGAggASgFEhgKBmRldGFpbBgKIAEoCUIIukgFcgMYgAQSFQoNZGVwbG95bWVudF9pZBgLIAEoCRINCgVyZWFkeRgMIAEoCBIuCgpzdGFydGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIyCglsYXN0X2V4aXQYDiABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYUV4aXQSLwoLcmVzdGFydHNfYXQYDyADKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjgKDGxhc3RfcmVzdGFydBgQIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5SZXBsaWNhUmVzdGFydCJaCg5SZXBsaWNhUmVzdGFydBImCgJhdBgBIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDQoFY2F1c2UYAiABKAkSEQoJZXhpdF9jb2RlGAMgASgFImEKC1JlcGxpY2FFeGl0Eg4KBnJlYXNvbhgBIAEoCRIRCglleGl0X2NvZGUYAiABKAUSLwoLZmluaXNoZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInsKB1Byb2JsZW0SDgoGcmVhc29uGAEgASgJEg8KB21lc3NhZ2UYAiABKAkSDgoGZGV0YWlsGAMgASgJEhQKDHJlcGxpY2FfbmFtZRgEIAEoCRIpCgVzaW5jZRgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiigEKCEFjdGl2aXR5EgsKA3NlcRgBIAEoAxIQCghyZXZpc2lvbhgCIAEoAxImCgJhdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIc2V2ZXJpdHkYBCABKAkSFAoMcmVwbGljYV9uYW1lGAUgASgJEg8KB21lc3NhZ2UYBiABKAkiVQoWV2F0Y2hEZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABARIaCglhZnRlcl9zZXEYAiABKANCB7pIBCICKAAimAEKF1dhdGNoRGVwbG95bWVudFJlc3BvbnNlEjIKCmRlcGxveW1lbnQYASABKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudBIuCghhY3Rpdml0eRgCIAMoCzIcLmxvY28uZGVwbG95bWVudC52MS5BY3Rpdml0eRIZChFoYXNfbW9yZV9hY3Rpdml0eRgDIAEoCCI6ChdEZWxldGVEZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASIaChhEZWxldGVEZXBsb3ltZW50UmVzcG9uc2UiTQoTUmVzb2x2ZUltYWdlUmVxdWVzdBIeCgx3b3Jrc3BhY2VfaWQYASABKAlCCLpIBXIDsAEBEhYKBWltYWdlGAIgASgJQge6SARyAhABIiUKFFJlc29sdmVJbWFnZVJlc3BvbnNlEg0KBWltYWdlGAEgASgJIlAKDFNvdXJjZUNvbW1pdBIxCgNzaGEYASABKAlCJLpIIXIfMh1eKFswLTlhLWZdezQwfXxbMC05YS1mXXs2NH0pJBINCgVkaXJ0eRgCIAEoCCr1AQoQRGVwbG95bWVudFN0YXR1cxIhCh1ERVBMT1lNRU5UX1NUQVRVU19VTlNQRUNJRklFRBAAEh4KGkRFUExPWU1FTlRfU1RBVFVTX0JVSUxESU5HEAESHwobREVQTE9ZTUVOVF9TVEFUVVNfREVQTE9ZSU5HEAISHQoZREVQTE9ZTUVOVF9TVEFUVVNfUlVOTklORxADEhwKGERFUExPWU1FTlRfU1RBVFVTX0ZBSUxFRBAEEh4KGkRFUExPWU1FTlRfU1RBVFVTX0NBTkNFTEVEEAUSIAocREVQTE9ZTUVOVF9TVEFUVVNfU1VQRVJTRURFRBAGKoEBChNEZXBsb3ltZW50QWN0b3JUeXBlEiUKIURFUExPWU1FTlRfQUNUT1JfVFlQRV9VTlNQRUNJRklFRBAAEh4KGkRFUExPWU1FTlRfQUNUT1JfVFlQRV9VU0VSEAESIwofREVQTE9ZTUVOVF9BQ1RPUl9UWVBFX0FQSV9UT0tFThACKowBChBEZXBsb3ltZW50TWV0aG9kEiEKHURFUExPWU1FTlRfTUVUSE9EX1VOU1BFQ0lGSUVEEAASHwobREVQTE9ZTUVOVF9NRVRIT0RfQVBJX1RPS0VOEAESGQoVREVQTE9ZTUVOVF9NRVRIT0RfQ0xJEAISGQoVREVQTE9ZTUVOVF9NRVRIT0RfV0VCEAMylAUKEURlcGxveW1lbnRTZXJ2aWNlEm0KEENyZWF0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEmQKDUdldERlcGxveW1lbnQSKC5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlcXVlc3QaKS5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlc3BvbnNlEmoKD0xpc3REZXBsb3ltZW50cxIqLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1Jlc3BvbnNlEmwKD1dhdGNoRGVwbG95bWVudBIqLmxvY28uZGVwbG95bWVudC52MS5XYXRjaERlcGxveW1lbnRSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLldhdGNoRGVwbG95bWVudFJlc3BvbnNlMAESbQoQRGVsZXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5EZWxldGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5EZWxldGVEZXBsb3ltZW50UmVzcG9uc2USYQoMUmVzb2x2ZUltYWdlEicubG9jby5kZXBsb3ltZW50LnYxLlJlc29sdmVJbWFnZVJlcXVlc3QaKC5sb2NvLmRlcGxveW1lbnQudjEuUmVzb2x2ZUltYWdlUmVzcG9uc2VCQlpAZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9kZXBsb3ltZW50L3YxO2RlcGxveW1lbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("CiNsb2NvL2RlcGxveW1lbnQvdjEvZGVwbG95bWVudC5wcm90bxISbG9jby5kZXBsb3ltZW50LnYxIrIBChFIZWFsdGhDaGVja0NvbmZpZxIVCgRwYXRoGAEgASgJQge6SARyAhABEh0KFWluaXRpYWxfZGVsYXlfc2Vjb25kcxgCIAEoBRIhChBpbnRlcnZhbF9zZWNvbmRzGAMgASgFQge6SAQaAigBEiAKD3RpbWVvdXRfc2Vjb25kcxgEIAEoBUIHukgEGgIoARIiChFmYWlsdXJlX3RocmVzaG9sZBgFIAEoBUIHukgEGgIoASLkAgoHU2NhbGVycxIPCgdlbmFibGVkGAEgASgIEiIKCmNwdV90YXJnZXQYAiABKAVCCbpIBhoEGGQoAEgAiAEBEiUKDW1lbW9yeV90YXJnZXQYAyABKAVCCbpIBhoEGGQoAEgBiAEBOtsBukjXARrUAQoXc2NhbGVycy50YXJnZXRfcmVxdWlyZWQSQmVuYWJsZWQgYXV0b3NjYWxpbmcgbmVlZHMgYSBDUFUgb3IgbWVtb3J5IHRhcmdldCBiZXR3ZWVuIDEgYW5kIDEwMBp1IXRoaXMuZW5hYmxlZCB8fCAoaGFzKHRoaXMuY3B1X3RhcmdldCkgJiYgdGhpcy5jcHVfdGFyZ2V0ID4gMCkgfHwgKGhhcyh0aGlzLm1lbW9yeV90YXJnZXQpICYmIHRoaXMubWVtb3J5X3RhcmdldCA+IDApQg0KC19jcHVfdGFyZ2V0QhAKDl9tZW1vcnlfdGFyZ2V0IsEBCgtCdWlsZFNvdXJjZRIVCgR0eXBlGAEgASgJQge6SARyAhABEm0KBWltYWdlGAIgASgJQl66SFvYAQFyVjJUXihbYS16MC05XC0uX10rKDpbMC05XSspPygvW2EtejAtOVwtLl9dKykqKSg6W2EtejAtOVwtLl9dKyk/KEBzaGEyNTY6W2EtZjAtOV17NjR9KT8kEh8KCGJ1aWxkX2lkGAMgASgJQgi6SAVyA7ABAUgAiAEBQgsKCV9idWlsZF9pZCI/ChNPYnNlcnZhYmlsaXR5Q29uZmlnEhgKC2luamVjdF9vdGVsGAEgASgISACIAQFCDgoMX2luamVjdF9vdGVsIoMIChVTZXJ2aWNlRGVwbG95bWVudFNwZWMSNgoFYnVpbGQYASABKAsyHy5sb2NvLmRlcGxveW1lbnQudjEuQnVpbGRTb3VyY2VCBrpIA8gBARJACgxoZWFsdGhfY2hlY2sYAiABKAsyJS5sb2NvLmRlcGxveW1lbnQudjEuSGVhbHRoQ2hlY2tDb25maWdIAIgBARI/CgNlbnYYCCADKAsyMi5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjLkVudkVudHJ5Eh4KBHBvcnQYCSABKAVCC7pICBoGGP//AygBSAGIAQESOAoHcm91dGluZxgKIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5TZXJ2aWNlUm91dGluZ0gCiAEBEicKC3J1bl9hc191c2VyGAsgASgDQg26SAoiCBj/////ByAASAOIAQESKAoMcnVuX2FzX2dyb3VwGAwgASgDQg26SAoiCBj/////ByAASASIAQESPgoNb2JzZXJ2YWJpbGl0eRgNIAEoCzInLmxvY28uZGVwbG95bWVudC52MS5PYnNlcnZhYmlsaXR5Q29uZmlnEiAKE3JvbGxiYWNrX29uX2ZhaWx1cmUYDiABKAhIBYgBARIQCghwbGF0Zm9ybRgPIAEoCRIfCgdjb21tYW5kGBAgAygJQg66SAuSAQgQZCIEcgIQARIWCgRhcmdzGBEgAygJQgi6SAWSAQIQZBJHCgdyZWdpb25zGBIgAygLMjYubG9jby5kZXBsb3ltZW50LnYxLlNlcnZpY2VEZXBsb3ltZW50U3BlYy5SZWdpb25zRW50cnkaKgoIRW52RW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ARpaCgxSZWdpb25zRW50cnkSCwoDa2V5GAEgASgJEjkKBXZhbHVlGAIgASgLMioubG9jby5kZXBsb3ltZW50LnYxLlJlZ2lvbkRlcGxveW1lbnRUYXJnZXQ6AjgBOqQBukigARqdAQotc2VydmljZV9kZXBsb3ltZW50LmhlYWx0aF9jaGVja19yZXF1aXJlc19wb3J0EkFoZWFsdGhfY2hlY2sgbmVlZHMgYSBwb3J0OiB0aGUgSFRUUCBjaGVjayBwcm9iZXMgdGhlIHNlcnZpY2UgcG9ydBopaGFzKHRoaXMucG9ydCkgfHwgIWhhcyh0aGlzLmhlYWx0aF9jaGVjaylCDwoNX2hlYWx0aF9jaGVja0IHCgVfcG9ydEIKCghfcm91dGluZ0IOCgxfcnVuX2FzX3VzZXJCDwoNX3J1bl9hc19ncm91cEIWChRfcm9sbGJhY2tfb25fZmFpbHVyZSKxAwoWUmVnaW9uRGVwbG95bWVudFRhcmdldBIZCgNjcHUYASABKAlCB7pIBHICEAFIAIgBARIcCgZtZW1vcnkYAiABKAlCB7pIBHICEAFIAYgBARIiCgxtaW5fcmVwbGljYXMYAyABKAVCB7pIBBoCKAFIAogBARIiCgxtYXhfcmVwbGljYXMYBCABKAVCB7pIBBoCKAFIA4gBARIxCgdzY2FsZXJzGAUgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlNjYWxlcnNIBIgBATqhAbpInQEamgEKFHJlcGxpY2FzLm1pbl9sdGVfbWF4EiRtaW5fcmVwbGljYXMgbXVzdCBiZSA8PSBtYXhfcmVwbGljYXMaXCFoYXModGhpcy5taW5fcmVwbGljYXMpIHx8ICFoYXModGhpcy5tYXhfcmVwbGljYXMpIHx8IHRoaXMubWluX3JlcGxpY2FzIDw9IHRoaXMubWF4X3JlcGxpY2FzQgYKBF9jcHVCCQoHX21lbW9yeUIPCg1fbWluX3JlcGxpY2FzQg8KDV9tYXhfcmVwbGljYXNCCgoIX3NjYWxlcnMiOwoOU2VydmljZVJvdXRpbmcSEwoLcGF0aF9wcmVmaXgYASABKAkSFAoMaWRsZV90aW1lb3V0GAIgASgFIlYKDkRlcGxveW1lbnRTcGVjEjwKB3NlcnZpY2UYASABKAsyKS5sb2NvLmRlcGxveW1lbnQudjEuU2VydmljZURlcGxveW1lbnRTcGVjSABCBgoEc3BlYyLXBgoKRGVwbG95bWVudBIKCgJpZBgBIAEoCRITCgtyZXNvdXJjZV9pZBgCIAEoCRI0CgZzdGF0dXMYBiABKA4yJC5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFN0YXR1cxIuCgpjcmVhdGVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIzCgpzdGFydGVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEgAiAEBEjUKDGNvbXBsZXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAYgBARIuCgp1cGRhdGVkX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIUCgxzcGVjX3ZlcnNpb24YDSABKAUSMAoEc3BlYxgOIAEoCzIiLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U3BlYxIWCg5lbnZpcm9ubWVudF9pZBgPIAEoCRI7CgphY3Rvcl90eXBlGBAgASgOMicubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRBY3RvclR5cGUSEAoIYWN0b3JfaWQYESABKAkSEgoKYWN0b3JfbmFtZRgSIAEoCRIYChBhY3Rvcl9hdmF0YXJfdXJsGBMgASgJEjQKBm1ldGhvZBgUIAEoDjIkLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50TWV0aG9kEjAKBmNvbW1pdBgVIAEoCzIgLmxvY28uZGVwbG95bWVudC52MS5Tb3VyY2VDb21taXQSOwoKcGxhY2VtZW50cxgaIAMoCzInLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50UGxhY2VtZW50EjYKB3RyaWdnZXIYGyABKA4yJS5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudFRyaWdnZXISHAoUc291cmNlX2RlcGxveW1lbnRfaWQYHCABKAlCDQoLX3N0YXJ0ZWRfYXRCDwoNX2NvbXBsZXRlZF9hdEoECAMQBEoECAQQBUoECAUQBkoECAcQCEoECBYQF0oECBcQGEoECBgQGUoECBkQGiKoAwoTRGVwbG95bWVudFBsYWNlbWVudBISCgpjbHVzdGVyX2lkGAEgASgJEg4KBnJlZ2lvbhgCIAEoCRIYChBkZXNpcmVkX3JlcGxpY2FzGAMgASgFEjMKBnN0YXR1cxgEIAEoDjIjLmxvY28uZGVwbG95bWVudC52MS5QbGFjZW1lbnRTdGF0dXMSDQoFaW1hZ2UYBSABKAkSMwoKc3RhcnRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBIAIgBARI1Cgxjb21wbGV0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wSAGIAQESGAoQY3VycmVudF9yZXZpc2lvbhgIIAEoAxIsCgdwcm9ibGVtGAkgASgLMhsubG9jby5kZXBsb3ltZW50LnYxLlByb2JsZW0SLQoIcmVwbGljYXMYCiADKAsyGy5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYRIMCgRsaXZlGAsgASgIQg0KC19zdGFydGVkX2F0Qg8KDV9jb21wbGV0ZWRfYXQipwMKF0NyZWF0ZURlcGxveW1lbnRSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIfCgdyZWdpb25zGAggAygJQg66SAuSAQgYASIEcgIQARI4CgRzcGVjGAQgASgLMiIubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRTcGVjQga6SAPIAQESIAoOZW52aXJvbm1lbnRfaWQYBSABKAlCCLpIBXIDsAEBEkUKD3NlY3JldF9iaW5kaW5ncxgGIAEoCzIsLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50U2VjcmV0QmluZGluZ3MSMAoGY29tbWl0GAcgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBJGCgd0cmlnZ2VyGAkgASgOMiUubG9jby5kZXBsb3ltZW50LnYxLkRlcGxveW1lbnRUcmlnZ2VyQg66SAuCAQgYABgBGAIYAxIpChRzb3VyY2VfZGVwbG95bWVudF9pZBgKIAEoCUILukgI2AEBcgOwAQFKBAgDEAQiSwoYRGVwbG95bWVudFNlY3JldEJpbmRpbmdzEi8KBW5hbWVzGAEgAygJQiC6SB2SARoYASIWchQyEl5bQS1aX11bQS1aMC05X10qJCJhChhDcmVhdGVEZXBsb3ltZW50UmVzcG9uc2USFQoNZGVwbG95bWVudF9pZBgBIAEoCRIuCgVidWlsZBgCIAEoCzIfLmxvY28uZGVwbG95bWVudC52MS5CdWlsZFNvdXJjZSI3ChRHZXREZXBsb3ltZW50UmVxdWVzdBIfCg1kZXBsb3ltZW50X2lkGAEgASgJQgi6SAVyA7ABASJLChVHZXREZXBsb3ltZW50UmVzcG9uc2USMgoKZGVwbG95bWVudBgBIAEoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50IuYEChZMaXN0RGVwbG95bWVudHNSZXF1ZXN0EiAKC3Jlc291cmNlX2lkGAEgASgJQgu6SAjYAQFyA7ABARIdCglwYWdlX3NpemUYAiABKAVCCrpIBxoFGMgBKAASEgoKcGFnZV90b2tlbhgDIAEoCRIjCg5lbnZpcm9ubWVudF9pZBgEIAEoCUILukgI2AEBcgOwAQESIQoMd29ya3NwYWNlX2lkGAUgASgJQgu6SAjYAQFyA7ABARIpCgVzaW5jZRgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKQoFdW50aWwYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wOtgCukjUAhrbAQoWbGlzdF9kZXBsb3ltZW50cy5zY29wZRI3cHJvdmlkZSByZXNvdXJjZV9pZCBvciB3b3Jrc3BhY2VfaWQgd2l0aCBlbnZpcm9ubWVudF9pZBqHASh0aGlzLnJlc291cmNlX2lkICE9ICcnICYmIHRoaXMud29ya3NwYWNlX2lkID09ICcnKSB8fCAodGhpcy5yZXNvdXJjZV9pZCA9PSAnJyAmJiB0aGlzLndvcmtzcGFjZV9pZCAhPSAnJyAmJiB0aGlzLmVudmlyb25tZW50X2lkICE9ICcnKRp0ChdsaXN0X2RlcGxveW1lbnRzLndpbmRvdxIYc2luY2UgbXVzdCBwcmVjZWRlIHVudGlsGj8haGFzKHRoaXMuc2luY2UpIHx8ICFoYXModGhpcy51bnRpbCkgfHwgdGhpcy5zaW5jZSA8IHRoaXMudW50aWwiZwoXTGlzdERlcGxveW1lbnRzUmVzcG9uc2USMwoLZGVwbG95bWVudHMYASADKAsyHi5sb2NvLmRlcGxveW1lbnQudjEuRGVwbG95bWVudBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAki4wMKB1JlcGxpY2ESCwoDdWlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEbm9kZRgDIAEoCRIaChJwbGFjZW1lbnRfcmV2aXNpb24YBCABKAMSDQoFc3RhdGUYBSABKAkSLwoLc3RhdGVfc2luY2UYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjIKDnN0YXRlX2RlYWRsaW5lGAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghyZXN0YXJ0cxgIIAEoBRIYCgZkZXRhaWwYCiABKAlCCLpIBXIDGIAEEhUKDWRlcGxveW1lbnRfaWQYCyABKAkSDQoFcmVhZHkYDCABKAgSLgoKc3RhcnRlZF9hdBgNIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMgoJbGFzdF9leGl0GA4gASgLMh8ubG9jby5kZXBsb3ltZW50LnYxLlJlcGxpY2FFeGl0Ei8KC3Jlc3RhcnRzX2F0GA8gAygLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI4CgxsYXN0X3Jlc3RhcnQYECABKAsyIi5sb2NvLmRlcGxveW1lbnQudjEuUmVwbGljYVJlc3RhcnQiWgoOUmVwbGljYVJlc3RhcnQSJgoCYXQYASABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg0KBWNhdXNlGAIgASgJEhEKCWV4aXRfY29kZRgDIAEoBSJhCgtSZXBsaWNhRXhpdBIOCgZyZWFzb24YASABKAkSEQoJZXhpdF9jb2RlGAIgASgFEi8KC2ZpbmlzaGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ7CgdQcm9ibGVtEg4KBnJlYXNvbhgBIAEoCRIPCgdtZXNzYWdlGAIgASgJEg4KBmRldGFpbBgDIAEoCRIUCgxyZXBsaWNhX25hbWUYBCABKAkSKQoFc2luY2UYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpoBCghBY3Rpdml0eRILCgNzZXEYASABKAMSEAoIcmV2aXNpb24YAiABKAMSJgoCYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHNldmVyaXR5GAQgASgJEhQKDHJlcGxpY2FfbmFtZRgFIAEoCRIPCgdtZXNzYWdlGAYgASgJEg4KBnJlZ2lvbhgHIAEoCSJVChZXYXRjaERlcGxveW1lbnRSZXF1ZXN0Eh8KDWRlcGxveW1lbnRfaWQYASABKAlCCLpIBXIDsAEBEhoKCWFmdGVyX3NlcRgCIAEoA0IHukgEIgIoACKYAQoXV2F0Y2hEZXBsb3ltZW50UmVzcG9uc2USMgoKZGVwbG95bWVudBgBIAEoCzIeLmxvY28uZGVwbG95bWVudC52MS5EZXBsb3ltZW50Ei4KCGFjdGl2aXR5GAIgAygLMhwubG9jby5kZXBsb3ltZW50LnYxLkFjdGl2aXR5EhkKEWhhc19tb3JlX2FjdGl2aXR5GAMgASgIIjoKF0RlbGV0ZURlcGxveW1lbnRSZXF1ZXN0Eh8KDWRlcGxveW1lbnRfaWQYASABKAlCCLpIBXIDsAEBIhoKGERlbGV0ZURlcGxveW1lbnRSZXNwb25zZSJNChNSZXNvbHZlSW1hZ2VSZXF1ZXN0Eh4KDHdvcmtzcGFjZV9pZBgBIAEoCUIIukgFcgOwAQESFgoFaW1hZ2UYAiABKAlCB7pIBHICEAEiJQoUUmVzb2x2ZUltYWdlUmVzcG9uc2USDQoFaW1hZ2UYASABKAkiUAoMU291cmNlQ29tbWl0EjEKA3NoYRgBIAEoCUIkukghch8yHV4oWzAtOWEtZl17NDB9fFswLTlhLWZdezY0fSkkEg0KBWRpcnR5GAIgASgIKrQCChBEZXBsb3ltZW50U3RhdHVzEiEKHURFUExPWU1FTlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHgoaREVQTE9ZTUVOVF9TVEFUVVNfQlVJTERJTkcQARIfChtERVBMT1lNRU5UX1NUQVRVU19ERVBMT1lJTkcQAhIdChlERVBMT1lNRU5UX1NUQVRVU19SVU5OSU5HEAMSHAoYREVQTE9ZTUVOVF9TVEFUVVNfRkFJTEVEEAQSHgoaREVQTE9ZTUVOVF9TVEFUVVNfQ0FOQ0VMRUQQBRIgChxERVBMT1lNRU5UX1NUQVRVU19TVVBFUlNFREVEEAYSHgoaREVQTE9ZTUVOVF9TVEFUVVNfREVHUkFERUQQBxIdChlERVBMT1lNRU5UX1NUQVRVU19DUkFTSEVEEAgqqQIKD1BsYWNlbWVudFN0YXR1cxIgChxQTEFDRU1FTlRfU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYUExBQ0VNRU5UX1NUQVRVU19QRU5ESU5HEAESHgoaUExBQ0VNRU5UX1NUQVRVU19ERVBMT1lJTkcQAhIcChhQTEFDRU1FTlRfU1RBVFVTX1JVTk5JTkcQAxIdChlQTEFDRU1FTlRfU1RBVFVTX0RFR1JBREVEEAQSHAoYUExBQ0VNRU5UX1NUQVRVU19DUkFTSEVEEAUSGwoXUExBQ0VNRU5UX1NUQVRVU19GQUlMRUQQBhIdChlQTEFDRU1FTlRfU1RBVFVTX0NBTkNFTEVEEAcSHwobUExBQ0VNRU5UX1NUQVRVU19TVVBFUlNFREVEEAgq3AEKEURlcGxveW1lbnRUcmlnZ2VyEiIKHkRFUExPWU1FTlRfVFJJR0dFUl9VTlNQRUNJRklFRBAAEh0KGURFUExPWU1FTlRfVFJJR0dFUl9ERVBMT1kQARIfChtERVBMT1lNRU5UX1RSSUdHRVJfUkVERVBMT1kQAhIfChtERVBMT1lNRU5UX1RSSUdHRVJfUk9MTEJBQ0sQAxIcChhERVBMT1lNRU5UX1RSSUdHRVJfU0NBTEUQBBIkCiBERVBMT1lNRU5UX1RSSUdHRVJfQVVUT19ST0xMQkFDSxAFKoEBChNEZXBsb3ltZW50QWN0b3JUeXBlEiUKIURFUExPWU1FTlRfQUNUT1JfVFlQRV9VTlNQRUNJRklFRBAAEh4KGkRFUExPWU1FTlRfQUNUT1JfVFlQRV9VU0VSEAESIwofREVQTE9ZTUVOVF9BQ1RPUl9UWVBFX0FQSV9UT0tFThACKowBChBEZXBsb3ltZW50TWV0aG9kEiEKHURFUExPWU1FTlRfTUVUSE9EX1VOU1BFQ0lGSUVEEAASHwobREVQTE9ZTUVOVF9NRVRIT0RfQVBJX1RPS0VOEAESGQoVREVQTE9ZTUVOVF9NRVRIT0RfQ0xJEAISGQoVREVQTE9ZTUVOVF9NRVRIT0RfV0VCEAMylAUKEURlcGxveW1lbnRTZXJ2aWNlEm0KEENyZWF0ZURlcGxveW1lbnQSKy5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlcXVlc3QaLC5sb2NvLmRlcGxveW1lbnQudjEuQ3JlYXRlRGVwbG95bWVudFJlc3BvbnNlEmQKDUdldERlcGxveW1lbnQSKC5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlcXVlc3QaKS5sb2NvLmRlcGxveW1lbnQudjEuR2V0RGVwbG95bWVudFJlc3BvbnNlEmoKD0xpc3REZXBsb3ltZW50cxIqLmxvY28uZGVwbG95bWVudC52MS5MaXN0RGVwbG95bWVudHNSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLkxpc3REZXBsb3ltZW50c1Jlc3BvbnNlEmwKD1dhdGNoRGVwbG95bWVudBIqLmxvY28uZGVwbG95bWVudC52MS5XYXRjaERlcGxveW1lbnRSZXF1ZXN0GisubG9jby5kZXBsb3ltZW50LnYxLldhdGNoRGVwbG95bWVudFJlc3BvbnNlMAESbQoQRGVsZXRlRGVwbG95bWVudBIrLmxvY28uZGVwbG95bWVudC52MS5EZWxldGVEZXBsb3ltZW50UmVxdWVzdBosLmxvY28uZGVwbG95bWVudC52MS5EZWxldGVEZXBsb3ltZW50UmVzcG9uc2USYQoMUmVzb2x2ZUltYWdlEicubG9jby5kZXBsb3ltZW50LnYxLlJlc29sdmVJbWFnZVJlcXVlc3QaKC5sb2NvLmRlcGxveW1lbnQudjEuUmVzb2x2ZUltYWdlUmVzcG9uc2VCQlpAZ2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9kZXBsb3ltZW50L3YxO2RlcGxveW1lbnR2MWIGcHJvdG8z", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
  * HealthCheckConfig defines health check parameters.
@@ -270,41 +270,6 @@ export type ServiceDeploymentSpec = Message<"loco.deployment.v1.ServiceDeploymen
   healthCheck?: HealthCheckConfig | undefined;
 
   /**
-   * e.g., "100m" (defaults from resource if omitted)
-   *
-   * @generated from field: optional string cpu = 3;
-   */
-  cpu?: string | undefined;
-
-  /**
-   * e.g., "256Mi" (defaults from resource if omitted)
-   *
-   * @generated from field: optional string memory = 4;
-   */
-  memory?: string | undefined;
-
-  /**
-   * defaults from resource if omitted
-   *
-   * @generated from field: optional int32 min_replicas = 5;
-   */
-  minReplicas?: number | undefined;
-
-  /**
-   * defaults from resource if omitted
-   *
-   * @generated from field: optional int32 max_replicas = 6;
-   */
-  maxReplicas?: number | undefined;
-
-  /**
-   * autoscaling config (defaults from resource if omitted)
-   *
-   * @generated from field: optional loco.deployment.v1.Scalers scalers = 7;
-   */
-  scalers?: Scalers | undefined;
-
-  /**
    * @generated from field: map<string, string> env = 8;
    */
   env: { [key: string]: string };
@@ -369,6 +334,15 @@ export type ServiceDeploymentSpec = Message<"loco.deployment.v1.ServiceDeploymen
    * @generated from field: repeated string args = 17;
    */
   args: string[];
+
+  /**
+   * The sizing of each region the deployment targets, keyed by region name. In a request,
+   * an entry overrides the resource's region target; the stored snapshot carries every
+   * target region filled in.
+   *
+   * @generated from field: map<string, loco.deployment.v1.RegionDeploymentTarget> regions = 18;
+   */
+  regions: { [key: string]: RegionDeploymentTarget };
 };
 
 /**
@@ -386,41 +360,6 @@ export type ServiceDeploymentSpecJson = {
    * @generated from field: optional loco.deployment.v1.HealthCheckConfig health_check = 2;
    */
   healthCheck?: HealthCheckConfigJson;
-
-  /**
-   * e.g., "100m" (defaults from resource if omitted)
-   *
-   * @generated from field: optional string cpu = 3;
-   */
-  cpu?: string;
-
-  /**
-   * e.g., "256Mi" (defaults from resource if omitted)
-   *
-   * @generated from field: optional string memory = 4;
-   */
-  memory?: string;
-
-  /**
-   * defaults from resource if omitted
-   *
-   * @generated from field: optional int32 min_replicas = 5;
-   */
-  minReplicas?: number;
-
-  /**
-   * defaults from resource if omitted
-   *
-   * @generated from field: optional int32 max_replicas = 6;
-   */
-  maxReplicas?: number;
-
-  /**
-   * autoscaling config (defaults from resource if omitted)
-   *
-   * @generated from field: optional loco.deployment.v1.Scalers scalers = 7;
-   */
-  scalers?: ScalersJson;
 
   /**
    * @generated from field: map<string, string> env = 8;
@@ -487,6 +426,15 @@ export type ServiceDeploymentSpecJson = {
    * @generated from field: repeated string args = 17;
    */
   args?: string[];
+
+  /**
+   * The sizing of each region the deployment targets, keyed by region name. In a request,
+   * an entry overrides the resource's region target; the stored snapshot carries every
+   * target region filled in.
+   *
+   * @generated from field: map<string, loco.deployment.v1.RegionDeploymentTarget> regions = 18;
+   */
+  regions?: { [key: string]: RegionDeploymentTargetJson };
 };
 
 /**
@@ -495,6 +443,87 @@ export type ServiceDeploymentSpecJson = {
  */
 export const ServiceDeploymentSpecSchema: GenMessage<ServiceDeploymentSpec, {jsonType: ServiceDeploymentSpecJson}> = /*@__PURE__*/
   messageDesc(file_loco_deployment_v1_deployment, 4);
+
+/**
+ * RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default
+ * from the resource's region target.
+ *
+ * @generated from message loco.deployment.v1.RegionDeploymentTarget
+ */
+export type RegionDeploymentTarget = Message<"loco.deployment.v1.RegionDeploymentTarget"> & {
+  /**
+   * e.g., "100m"
+   *
+   * @generated from field: optional string cpu = 1;
+   */
+  cpu?: string | undefined;
+
+  /**
+   * e.g., "256Mi"
+   *
+   * @generated from field: optional string memory = 2;
+   */
+  memory?: string | undefined;
+
+  /**
+   * @generated from field: optional int32 min_replicas = 3;
+   */
+  minReplicas?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 max_replicas = 4;
+   */
+  maxReplicas?: number | undefined;
+
+  /**
+   * @generated from field: optional loco.deployment.v1.Scalers scalers = 5;
+   */
+  scalers?: Scalers | undefined;
+};
+
+/**
+ * RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default
+ * from the resource's region target.
+ *
+ * @generated from message loco.deployment.v1.RegionDeploymentTarget
+ */
+export type RegionDeploymentTargetJson = {
+  /**
+   * e.g., "100m"
+   *
+   * @generated from field: optional string cpu = 1;
+   */
+  cpu?: string;
+
+  /**
+   * e.g., "256Mi"
+   *
+   * @generated from field: optional string memory = 2;
+   */
+  memory?: string;
+
+  /**
+   * @generated from field: optional int32 min_replicas = 3;
+   */
+  minReplicas?: number;
+
+  /**
+   * @generated from field: optional int32 max_replicas = 4;
+   */
+  maxReplicas?: number;
+
+  /**
+   * @generated from field: optional loco.deployment.v1.Scalers scalers = 5;
+   */
+  scalers?: ScalersJson;
+};
+
+/**
+ * Describes the message loco.deployment.v1.RegionDeploymentTarget.
+ * Use `create(RegionDeploymentTargetSchema)` to create a new message.
+ */
+export const RegionDeploymentTargetSchema: GenMessage<RegionDeploymentTarget, {jsonType: RegionDeploymentTargetJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 5);
 
 /**
  * ServiceRouting is the HTTP routing of one environment's deployment of a service.
@@ -535,7 +564,7 @@ export type ServiceRoutingJson = {
  * Use `create(ServiceRoutingSchema)` to create a new message.
  */
 export const ServiceRoutingSchema: GenMessage<ServiceRouting, {jsonType: ServiceRoutingJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 5);
+  messageDesc(file_loco_deployment_v1_deployment, 6);
 
 /**
  * DeploymentSpec is the immutable runtime snapshot for a deployment.
@@ -574,10 +603,11 @@ export type DeploymentSpecJson = {
  * Use `create(DeploymentSpecSchema)` to create a new message.
  */
 export const DeploymentSpecSchema: GenMessage<DeploymentSpec, {jsonType: DeploymentSpecJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 6);
+  messageDesc(file_loco_deployment_v1_deployment, 7);
 
 /**
- * Deployment represents a resource deployment (immutable, single-region).
+ * Deployment is one rollout request for a resource in an environment. It fans out to one
+ * placement per target region; the status aggregates the placements.
  *
  * @generated from message loco.deployment.v1.Deployment
  */
@@ -593,29 +623,9 @@ export type Deployment = Message<"loco.deployment.v1.Deployment"> & {
   resourceId: string;
 
   /**
-   * @generated from field: string cluster_id = 3;
-   */
-  clusterId: string;
-
-  /**
-   * @generated from field: string region = 4;
-   */
-  region: string;
-
-  /**
-   * @generated from field: int32 desired_replicas = 5;
-   */
-  desiredReplicas: number;
-
-  /**
    * @generated from field: loco.deployment.v1.DeploymentStatus status = 6;
    */
   status: DeploymentStatus;
-
-  /**
-   * @generated from field: bool is_active = 7;
-   */
-  isActive: boolean;
 
   /**
    * @generated from field: google.protobuf.Timestamp created_at = 9;
@@ -683,33 +693,28 @@ export type Deployment = Message<"loco.deployment.v1.Deployment"> & {
   commit?: SourceCommit | undefined;
 
   /**
-   * @generated from field: int64 current_revision = 22;
-   */
-  currentRevision: bigint;
-
-  /**
-   * @generated from field: loco.deployment.v1.Problem problem = 23;
-   */
-  problem?: Problem | undefined;
-
-  /**
-   * Active deployments expose the live placement's latest reported replicas,
-   * including previous deployment IDs. Inactive deployments retain historical replicas.
+   * One per target region, ordered by region.
    *
-   * @generated from field: repeated loco.deployment.v1.Replica replicas = 24;
+   * @generated from field: repeated loco.deployment.v1.DeploymentPlacement placements = 26;
    */
-  replicas: Replica[];
+  placements: DeploymentPlacement[];
 
   /**
-   * Shared by the deployments one apply, deploy or scale created across regions.
-   *
-   * @generated from field: string rollout_id = 25;
+   * @generated from field: loco.deployment.v1.DeploymentTrigger trigger = 27;
    */
-  rolloutId: string;
+  trigger: DeploymentTrigger;
+
+  /**
+   * The deployment a redeploy or rollback copied, if any.
+   *
+   * @generated from field: string source_deployment_id = 28;
+   */
+  sourceDeploymentId: string;
 };
 
 /**
- * Deployment represents a resource deployment (immutable, single-region).
+ * Deployment is one rollout request for a resource in an environment. It fans out to one
+ * placement per target region; the status aggregates the placements.
  *
  * @generated from message loco.deployment.v1.Deployment
  */
@@ -725,29 +730,9 @@ export type DeploymentJson = {
   resourceId?: string;
 
   /**
-   * @generated from field: string cluster_id = 3;
-   */
-  clusterId?: string;
-
-  /**
-   * @generated from field: string region = 4;
-   */
-  region?: string;
-
-  /**
-   * @generated from field: int32 desired_replicas = 5;
-   */
-  desiredReplicas?: number;
-
-  /**
    * @generated from field: loco.deployment.v1.DeploymentStatus status = 6;
    */
   status?: DeploymentStatusJson;
-
-  /**
-   * @generated from field: bool is_active = 7;
-   */
-  isActive?: boolean;
 
   /**
    * @generated from field: google.protobuf.Timestamp created_at = 9;
@@ -815,29 +800,23 @@ export type DeploymentJson = {
   commit?: SourceCommitJson;
 
   /**
-   * @generated from field: int64 current_revision = 22;
-   */
-  currentRevision?: string;
-
-  /**
-   * @generated from field: loco.deployment.v1.Problem problem = 23;
-   */
-  problem?: ProblemJson;
-
-  /**
-   * Active deployments expose the live placement's latest reported replicas,
-   * including previous deployment IDs. Inactive deployments retain historical replicas.
+   * One per target region, ordered by region.
    *
-   * @generated from field: repeated loco.deployment.v1.Replica replicas = 24;
+   * @generated from field: repeated loco.deployment.v1.DeploymentPlacement placements = 26;
    */
-  replicas?: ReplicaJson[];
+  placements?: DeploymentPlacementJson[];
 
   /**
-   * Shared by the deployments one apply, deploy or scale created across regions.
-   *
-   * @generated from field: string rollout_id = 25;
+   * @generated from field: loco.deployment.v1.DeploymentTrigger trigger = 27;
    */
-  rolloutId?: string;
+  trigger?: DeploymentTriggerJson;
+
+  /**
+   * The deployment a redeploy or rollback copied, if any.
+   *
+   * @generated from field: string source_deployment_id = 28;
+   */
+  sourceDeploymentId?: string;
 };
 
 /**
@@ -845,7 +824,152 @@ export type DeploymentJson = {
  * Use `create(DeploymentSchema)` to create a new message.
  */
 export const DeploymentSchema: GenMessage<Deployment, {jsonType: DeploymentJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 7);
+  messageDesc(file_loco_deployment_v1_deployment, 8);
+
+/**
+ * DeploymentPlacement is one region of a deployment.
+ *
+ * @generated from message loco.deployment.v1.DeploymentPlacement
+ */
+export type DeploymentPlacement = Message<"loco.deployment.v1.DeploymentPlacement"> & {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId: string;
+
+  /**
+   * @generated from field: string region = 2;
+   */
+  region: string;
+
+  /**
+   * @generated from field: int32 desired_replicas = 3;
+   */
+  desiredReplicas: number;
+
+  /**
+   * @generated from field: loco.deployment.v1.PlacementStatus status = 4;
+   */
+  status: PlacementStatus;
+
+  /**
+   * The image this region runs; empty while the build runs.
+   *
+   * @generated from field: string image = 5;
+   */
+  image: string;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp started_at = 6;
+   */
+  startedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 7;
+   */
+  completedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: int64 current_revision = 8;
+   */
+  currentRevision: bigint;
+
+  /**
+   * @generated from field: loco.deployment.v1.Problem problem = 9;
+   */
+  problem?: Problem | undefined;
+
+  /**
+   * A live placement exposes the cluster's latest reported replicas, including previous
+   * deployment IDs; a retired one keeps its last snapshot. List responses leave them empty.
+   *
+   * @generated from field: repeated loco.deployment.v1.Replica replicas = 10;
+   */
+  replicas: Replica[];
+
+  /**
+   * Whether the region's live placement runs this deployment.
+   *
+   * @generated from field: bool live = 11;
+   */
+  live: boolean;
+};
+
+/**
+ * DeploymentPlacement is one region of a deployment.
+ *
+ * @generated from message loco.deployment.v1.DeploymentPlacement
+ */
+export type DeploymentPlacementJson = {
+  /**
+   * @generated from field: string cluster_id = 1;
+   */
+  clusterId?: string;
+
+  /**
+   * @generated from field: string region = 2;
+   */
+  region?: string;
+
+  /**
+   * @generated from field: int32 desired_replicas = 3;
+   */
+  desiredReplicas?: number;
+
+  /**
+   * @generated from field: loco.deployment.v1.PlacementStatus status = 4;
+   */
+  status?: PlacementStatusJson;
+
+  /**
+   * The image this region runs; empty while the build runs.
+   *
+   * @generated from field: string image = 5;
+   */
+  image?: string;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp started_at = 6;
+   */
+  startedAt?: TimestampJson;
+
+  /**
+   * @generated from field: optional google.protobuf.Timestamp completed_at = 7;
+   */
+  completedAt?: TimestampJson;
+
+  /**
+   * @generated from field: int64 current_revision = 8;
+   */
+  currentRevision?: string;
+
+  /**
+   * @generated from field: loco.deployment.v1.Problem problem = 9;
+   */
+  problem?: ProblemJson;
+
+  /**
+   * A live placement exposes the cluster's latest reported replicas, including previous
+   * deployment IDs; a retired one keeps its last snapshot. List responses leave them empty.
+   *
+   * @generated from field: repeated loco.deployment.v1.Replica replicas = 10;
+   */
+  replicas?: ReplicaJson[];
+
+  /**
+   * Whether the region's live placement runs this deployment.
+   *
+   * @generated from field: bool live = 11;
+   */
+  live?: boolean;
+};
+
+/**
+ * Describes the message loco.deployment.v1.DeploymentPlacement.
+ * Use `create(DeploymentPlacementSchema)` to create a new message.
+ */
+export const DeploymentPlacementSchema: GenMessage<DeploymentPlacement, {jsonType: DeploymentPlacementJson}> = /*@__PURE__*/
+  messageDesc(file_loco_deployment_v1_deployment, 9);
 
 /**
  * CreateDeploymentRequest is the request to create a new deployment.
@@ -859,9 +983,11 @@ export type CreateDeploymentRequest = Message<"loco.deployment.v1.CreateDeployme
   resourceId: string;
 
   /**
-   * @generated from field: string region = 3;
+   * The regions to deploy to; empty deploys to every enabled region of the resource.
+   *
+   * @generated from field: repeated string regions = 8;
    */
-  region: string;
+  regions: string[];
 
   /**
    * @generated from field: loco.deployment.v1.DeploymentSpec spec = 4;
@@ -874,7 +1000,7 @@ export type CreateDeploymentRequest = Message<"loco.deployment.v1.CreateDeployme
   environmentId: string;
 
   /**
-   * Omit to keep the active deployment's secret bindings in the target environment and region.
+   * Omit to keep the secret bindings of the deployment live in the target regions.
    *
    * @generated from field: loco.deployment.v1.DeploymentSecretBindings secret_bindings = 6;
    */
@@ -884,6 +1010,18 @@ export type CreateDeploymentRequest = Message<"loco.deployment.v1.CreateDeployme
    * @generated from field: loco.deployment.v1.SourceCommit commit = 7;
    */
   commit?: SourceCommit | undefined;
+
+  /**
+   * Unspecified records a deploy; redeploy and rollback name the deployment they copy.
+   *
+   * @generated from field: loco.deployment.v1.DeploymentTrigger trigger = 9;
+   */
+  trigger: DeploymentTrigger;
+
+  /**
+   * @generated from field: string source_deployment_id = 10;
+   */
+  sourceDeploymentId: string;
 };
 
 /**
@@ -898,9 +1036,11 @@ export type CreateDeploymentRequestJson = {
   resourceId?: string;
 
   /**
-   * @generated from field: string region = 3;
+   * The regions to deploy to; empty deploys to every enabled region of the resource.
+   *
+   * @generated from field: repeated string regions = 8;
    */
-  region?: string;
+  regions?: string[];
 
   /**
    * @generated from field: loco.deployment.v1.DeploymentSpec spec = 4;
@@ -913,7 +1053,7 @@ export type CreateDeploymentRequestJson = {
   environmentId?: string;
 
   /**
-   * Omit to keep the active deployment's secret bindings in the target environment and region.
+   * Omit to keep the secret bindings of the deployment live in the target regions.
    *
    * @generated from field: loco.deployment.v1.DeploymentSecretBindings secret_bindings = 6;
    */
@@ -923,6 +1063,18 @@ export type CreateDeploymentRequestJson = {
    * @generated from field: loco.deployment.v1.SourceCommit commit = 7;
    */
   commit?: SourceCommitJson;
+
+  /**
+   * Unspecified records a deploy; redeploy and rollback name the deployment they copy.
+   *
+   * @generated from field: loco.deployment.v1.DeploymentTrigger trigger = 9;
+   */
+  trigger?: DeploymentTriggerJson;
+
+  /**
+   * @generated from field: string source_deployment_id = 10;
+   */
+  sourceDeploymentId?: string;
 };
 
 /**
@@ -930,7 +1082,7 @@ export type CreateDeploymentRequestJson = {
  * Use `create(CreateDeploymentRequestSchema)` to create a new message.
  */
 export const CreateDeploymentRequestSchema: GenMessage<CreateDeploymentRequest, {jsonType: CreateDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 8);
+  messageDesc(file_loco_deployment_v1_deployment, 10);
 
 /**
  * DeploymentSecretBindings selects secrets already stored for the resource in the target environment.
@@ -965,7 +1117,7 @@ export type DeploymentSecretBindingsJson = {
  * Use `create(DeploymentSecretBindingsSchema)` to create a new message.
  */
 export const DeploymentSecretBindingsSchema: GenMessage<DeploymentSecretBindings, {jsonType: DeploymentSecretBindingsJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 9);
+  messageDesc(file_loco_deployment_v1_deployment, 11);
 
 /**
  * CreateDeploymentResponse is the response containing the created deployment ID.
@@ -1006,7 +1158,7 @@ export type CreateDeploymentResponseJson = {
  * Use `create(CreateDeploymentResponseSchema)` to create a new message.
  */
 export const CreateDeploymentResponseSchema: GenMessage<CreateDeploymentResponse, {jsonType: CreateDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 10);
+  messageDesc(file_loco_deployment_v1_deployment, 12);
 
 /**
  * GetDeploymentRequest is the request to retrieve a deployment.
@@ -1037,7 +1189,7 @@ export type GetDeploymentRequestJson = {
  * Use `create(GetDeploymentRequestSchema)` to create a new message.
  */
 export const GetDeploymentRequestSchema: GenMessage<GetDeploymentRequest, {jsonType: GetDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 11);
+  messageDesc(file_loco_deployment_v1_deployment, 13);
 
 /**
  * GetDeploymentResponse is the response containing the deployment.
@@ -1068,7 +1220,7 @@ export type GetDeploymentResponseJson = {
  * Use `create(GetDeploymentResponseSchema)` to create a new message.
  */
 export const GetDeploymentResponseSchema: GenMessage<GetDeploymentResponse, {jsonType: GetDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 12);
+  messageDesc(file_loco_deployment_v1_deployment, 14);
 
 /**
  * ListDeploymentsRequest is the request to list deployments.
@@ -1171,7 +1323,7 @@ export type ListDeploymentsRequestJson = {
  * Use `create(ListDeploymentsRequestSchema)` to create a new message.
  */
 export const ListDeploymentsRequestSchema: GenMessage<ListDeploymentsRequest, {jsonType: ListDeploymentsRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 13);
+  messageDesc(file_loco_deployment_v1_deployment, 15);
 
 /**
  * ListDeploymentsResponse is the response containing deployment list.
@@ -1216,7 +1368,7 @@ export type ListDeploymentsResponseJson = {
  * Use `create(ListDeploymentsResponseSchema)` to create a new message.
  */
 export const ListDeploymentsResponseSchema: GenMessage<ListDeploymentsResponse, {jsonType: ListDeploymentsResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 14);
+  messageDesc(file_loco_deployment_v1_deployment, 16);
 
 /**
  * @generated from message loco.deployment.v1.Replica
@@ -1407,7 +1559,7 @@ export type ReplicaJson = {
  * Use `create(ReplicaSchema)` to create a new message.
  */
 export const ReplicaSchema: GenMessage<Replica, {jsonType: ReplicaJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 15);
+  messageDesc(file_loco_deployment_v1_deployment, 17);
 
 /**
  * ReplicaRestart is an exit the kubelet restarted a replica's container after.
@@ -1462,7 +1614,7 @@ export type ReplicaRestartJson = {
  * Use `create(ReplicaRestartSchema)` to create a new message.
  */
 export const ReplicaRestartSchema: GenMessage<ReplicaRestart, {jsonType: ReplicaRestartJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 16);
+  messageDesc(file_loco_deployment_v1_deployment, 18);
 
 /**
  * ReplicaExit is how a replica's container last terminated.
@@ -1517,7 +1669,7 @@ export type ReplicaExitJson = {
  * Use `create(ReplicaExitSchema)` to create a new message.
  */
 export const ReplicaExitSchema: GenMessage<ReplicaExit, {jsonType: ReplicaExitJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 17);
+  messageDesc(file_loco_deployment_v1_deployment, 19);
 
 /**
  * @generated from message loco.deployment.v1.Problem
@@ -1584,7 +1736,7 @@ export type ProblemJson = {
  * Use `create(ProblemSchema)` to create a new message.
  */
 export const ProblemSchema: GenMessage<Problem, {jsonType: ProblemJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 18);
+  messageDesc(file_loco_deployment_v1_deployment, 20);
 
 /**
  * @generated from message loco.deployment.v1.Activity
@@ -1619,6 +1771,13 @@ export type Activity = Message<"loco.deployment.v1.Activity"> & {
    * @generated from field: string message = 6;
    */
   message: string;
+
+  /**
+   * The region the entry is about; empty for the whole deployment, such as its build.
+   *
+   * @generated from field: string region = 7;
+   */
+  region: string;
 };
 
 /**
@@ -1654,6 +1813,13 @@ export type ActivityJson = {
    * @generated from field: string message = 6;
    */
   message?: string;
+
+  /**
+   * The region the entry is about; empty for the whole deployment, such as its build.
+   *
+   * @generated from field: string region = 7;
+   */
+  region?: string;
 };
 
 /**
@@ -1661,7 +1827,7 @@ export type ActivityJson = {
  * Use `create(ActivitySchema)` to create a new message.
  */
 export const ActivitySchema: GenMessage<Activity, {jsonType: ActivityJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 19);
+  messageDesc(file_loco_deployment_v1_deployment, 21);
 
 /**
  * @generated from message loco.deployment.v1.WatchDeploymentRequest
@@ -1698,7 +1864,7 @@ export type WatchDeploymentRequestJson = {
  * Use `create(WatchDeploymentRequestSchema)` to create a new message.
  */
 export const WatchDeploymentRequestSchema: GenMessage<WatchDeploymentRequest, {jsonType: WatchDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 20);
+  messageDesc(file_loco_deployment_v1_deployment, 22);
 
 /**
  * @generated from message loco.deployment.v1.WatchDeploymentResponse
@@ -1745,7 +1911,7 @@ export type WatchDeploymentResponseJson = {
  * Use `create(WatchDeploymentResponseSchema)` to create a new message.
  */
 export const WatchDeploymentResponseSchema: GenMessage<WatchDeploymentResponse, {jsonType: WatchDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 21);
+  messageDesc(file_loco_deployment_v1_deployment, 23);
 
 /**
  * DeleteDeploymentRequest is the request to delete/inactivate a deployment.
@@ -1776,7 +1942,7 @@ export type DeleteDeploymentRequestJson = {
  * Use `create(DeleteDeploymentRequestSchema)` to create a new message.
  */
 export const DeleteDeploymentRequestSchema: GenMessage<DeleteDeploymentRequest, {jsonType: DeleteDeploymentRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 22);
+  messageDesc(file_loco_deployment_v1_deployment, 24);
 
 /**
  * DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
@@ -1799,7 +1965,7 @@ export type DeleteDeploymentResponseJson = {
  * Use `create(DeleteDeploymentResponseSchema)` to create a new message.
  */
 export const DeleteDeploymentResponseSchema: GenMessage<DeleteDeploymentResponse, {jsonType: DeleteDeploymentResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 23);
+  messageDesc(file_loco_deployment_v1_deployment, 25);
 
 /**
  * @generated from message loco.deployment.v1.ResolveImageRequest
@@ -1836,7 +2002,7 @@ export type ResolveImageRequestJson = {
  * Use `create(ResolveImageRequestSchema)` to create a new message.
  */
 export const ResolveImageRequestSchema: GenMessage<ResolveImageRequest, {jsonType: ResolveImageRequestJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 24);
+  messageDesc(file_loco_deployment_v1_deployment, 26);
 
 /**
  * @generated from message loco.deployment.v1.ResolveImageResponse
@@ -1863,7 +2029,7 @@ export type ResolveImageResponseJson = {
  * Use `create(ResolveImageResponseSchema)` to create a new message.
  */
 export const ResolveImageResponseSchema: GenMessage<ResolveImageResponse, {jsonType: ResolveImageResponseJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 25);
+  messageDesc(file_loco_deployment_v1_deployment, 27);
 
 /**
  * SourceCommit is client-reported metadata, not a verified source identity.
@@ -1904,7 +2070,7 @@ export type SourceCommitJson = {
  * Use `create(SourceCommitSchema)` to create a new message.
  */
 export const SourceCommitSchema: GenMessage<SourceCommit, {jsonType: SourceCommitJson}> = /*@__PURE__*/
-  messageDesc(file_loco_deployment_v1_deployment, 26);
+  messageDesc(file_loco_deployment_v1_deployment, 28);
 
 /**
  * @generated from enum loco.deployment.v1.DeploymentStatus
@@ -1944,18 +2110,145 @@ export enum DeploymentStatus {
    * @generated from enum value: DEPLOYMENT_STATUS_SUPERSEDED = 6;
    */
   SUPERSEDED = 6,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_STATUS_DEGRADED = 7;
+   */
+  DEGRADED = 7,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_STATUS_CRASHED = 8;
+   */
+  CRASHED = 8,
 }
 
 /**
  * @generated from enum loco.deployment.v1.DeploymentStatus
  */
-export type DeploymentStatusJson = "DEPLOYMENT_STATUS_UNSPECIFIED" | "DEPLOYMENT_STATUS_BUILDING" | "DEPLOYMENT_STATUS_DEPLOYING" | "DEPLOYMENT_STATUS_RUNNING" | "DEPLOYMENT_STATUS_FAILED" | "DEPLOYMENT_STATUS_CANCELED" | "DEPLOYMENT_STATUS_SUPERSEDED";
+export type DeploymentStatusJson = "DEPLOYMENT_STATUS_UNSPECIFIED" | "DEPLOYMENT_STATUS_BUILDING" | "DEPLOYMENT_STATUS_DEPLOYING" | "DEPLOYMENT_STATUS_RUNNING" | "DEPLOYMENT_STATUS_FAILED" | "DEPLOYMENT_STATUS_CANCELED" | "DEPLOYMENT_STATUS_SUPERSEDED" | "DEPLOYMENT_STATUS_DEGRADED" | "DEPLOYMENT_STATUS_CRASHED";
 
 /**
  * Describes the enum loco.deployment.v1.DeploymentStatus.
  */
 export const DeploymentStatusSchema: GenEnum<DeploymentStatus, DeploymentStatusJson> = /*@__PURE__*/
   enumDesc(file_loco_deployment_v1_deployment, 0);
+
+/**
+ * PlacementStatus is the state of one region of a deployment.
+ *
+ * @generated from enum loco.deployment.v1.PlacementStatus
+ */
+export enum PlacementStatus {
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Waiting for the deployment's build.
+   *
+   * @generated from enum value: PLACEMENT_STATUS_PENDING = 1;
+   */
+  PENDING = 1,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_DEPLOYING = 2;
+   */
+  DEPLOYING = 2,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_RUNNING = 3;
+   */
+  RUNNING = 3,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_DEGRADED = 4;
+   */
+  DEGRADED = 4,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_CRASHED = 5;
+   */
+  CRASHED = 5,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_FAILED = 6;
+   */
+  FAILED = 6,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_CANCELED = 7;
+   */
+  CANCELED = 7,
+
+  /**
+   * @generated from enum value: PLACEMENT_STATUS_SUPERSEDED = 8;
+   */
+  SUPERSEDED = 8,
+}
+
+/**
+ * PlacementStatus is the state of one region of a deployment.
+ *
+ * @generated from enum loco.deployment.v1.PlacementStatus
+ */
+export type PlacementStatusJson = "PLACEMENT_STATUS_UNSPECIFIED" | "PLACEMENT_STATUS_PENDING" | "PLACEMENT_STATUS_DEPLOYING" | "PLACEMENT_STATUS_RUNNING" | "PLACEMENT_STATUS_DEGRADED" | "PLACEMENT_STATUS_CRASHED" | "PLACEMENT_STATUS_FAILED" | "PLACEMENT_STATUS_CANCELED" | "PLACEMENT_STATUS_SUPERSEDED";
+
+/**
+ * Describes the enum loco.deployment.v1.PlacementStatus.
+ */
+export const PlacementStatusSchema: GenEnum<PlacementStatus, PlacementStatusJson> = /*@__PURE__*/
+  enumDesc(file_loco_deployment_v1_deployment, 1);
+
+/**
+ * DeploymentTrigger is what created a deployment.
+ *
+ * @generated from enum loco.deployment.v1.DeploymentTrigger
+ */
+export enum DeploymentTrigger {
+  /**
+   * @generated from enum value: DEPLOYMENT_TRIGGER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_TRIGGER_DEPLOY = 1;
+   */
+  DEPLOY = 1,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_TRIGGER_REDEPLOY = 2;
+   */
+  REDEPLOY = 2,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_TRIGGER_ROLLBACK = 3;
+   */
+  ROLLBACK = 3,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_TRIGGER_SCALE = 4;
+   */
+  SCALE = 4,
+
+  /**
+   * @generated from enum value: DEPLOYMENT_TRIGGER_AUTO_ROLLBACK = 5;
+   */
+  AUTO_ROLLBACK = 5,
+}
+
+/**
+ * DeploymentTrigger is what created a deployment.
+ *
+ * @generated from enum loco.deployment.v1.DeploymentTrigger
+ */
+export type DeploymentTriggerJson = "DEPLOYMENT_TRIGGER_UNSPECIFIED" | "DEPLOYMENT_TRIGGER_DEPLOY" | "DEPLOYMENT_TRIGGER_REDEPLOY" | "DEPLOYMENT_TRIGGER_ROLLBACK" | "DEPLOYMENT_TRIGGER_SCALE" | "DEPLOYMENT_TRIGGER_AUTO_ROLLBACK";
+
+/**
+ * Describes the enum loco.deployment.v1.DeploymentTrigger.
+ */
+export const DeploymentTriggerSchema: GenEnum<DeploymentTrigger, DeploymentTriggerJson> = /*@__PURE__*/
+  enumDesc(file_loco_deployment_v1_deployment, 2);
 
 /**
  * @generated from enum loco.deployment.v1.DeploymentActorType
@@ -1986,7 +2279,7 @@ export type DeploymentActorTypeJson = "DEPLOYMENT_ACTOR_TYPE_UNSPECIFIED" | "DEP
  * Describes the enum loco.deployment.v1.DeploymentActorType.
  */
 export const DeploymentActorTypeSchema: GenEnum<DeploymentActorType, DeploymentActorTypeJson> = /*@__PURE__*/
-  enumDesc(file_loco_deployment_v1_deployment, 1);
+  enumDesc(file_loco_deployment_v1_deployment, 3);
 
 /**
  * @generated from enum loco.deployment.v1.DeploymentMethod
@@ -2022,7 +2315,7 @@ export type DeploymentMethodJson = "DEPLOYMENT_METHOD_UNSPECIFIED" | "DEPLOYMENT
  * Describes the enum loco.deployment.v1.DeploymentMethod.
  */
 export const DeploymentMethodSchema: GenEnum<DeploymentMethod, DeploymentMethodJson> = /*@__PURE__*/
-  enumDesc(file_loco_deployment_v1_deployment, 2);
+  enumDesc(file_loco_deployment_v1_deployment, 4);
 
 /**
  * DeploymentService manages resource deployments.

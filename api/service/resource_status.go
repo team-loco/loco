@@ -86,19 +86,19 @@ func regionStatus(
 	if row.DesiredReplicas < 1 {
 		return nil, fmt.Errorf("%w: deployment %s", errNoDesiredReplicas, row.DeploymentID)
 	}
-	if !row.Placed && row.DeploymentStatus != genDb.DeploymentStatusBuilding {
+	if !row.Placed && row.PlacementStatus != genDb.PlacementStatusPending {
 		return nil, fmt.Errorf("%w: deployment %s", errActiveDeploymentUnplaced, row.DeploymentID)
 	}
-	inFlight, err := deploymentInFlight(row.DeploymentStatus)
+	inFlight, err := placementInFlight(row.PlacementStatus)
 	if err != nil {
 		return nil, err
 	}
 	region := &resourcev1.RegionStatus{
-		Region:           row.Region,
-		ReadyReplicas:    row.ReadyReplicas,
-		DesiredReplicas:  row.DesiredReplicas,
-		DeploymentId:     row.DeploymentID.String(),
-		DeploymentStatus: parseDeploymentStatus(row.DeploymentStatus),
+		Region:          row.Region,
+		ReadyReplicas:   row.ReadyReplicas,
+		DesiredReplicas: row.DesiredReplicas,
+		DeploymentId:    row.DeploymentID.String(),
+		PlacementStatus: placementStatuses[row.PlacementStatus],
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
@@ -134,19 +134,14 @@ func regionStatus(
 	return region, nil
 }
 
-func deploymentInFlight(status genDb.DeploymentStatus) (bool, error) {
+func placementInFlight(status genDb.PlacementStatus) (bool, error) {
 	switch status {
-	case genDb.DeploymentStatusBuilding:
+	case genDb.PlacementStatusPending, genDb.PlacementStatusDeploying:
 		return true, nil
-	case genDb.DeploymentStatusDeploying:
-		return true, nil
-	case genDb.DeploymentStatusRunning:
+	case genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded, genDb.PlacementStatusCrashed,
+		genDb.PlacementStatusFailed:
 		return false, nil
-	case genDb.DeploymentStatusFailed:
-		return false, nil
-	case genDb.DeploymentStatusSuperseded:
-		return false, fmt.Errorf("%w: %s", errFinishedDeploymentActive, status)
-	case genDb.DeploymentStatusCanceled:
+	case genDb.PlacementStatusSuperseded, genDb.PlacementStatusCanceled:
 		return false, fmt.Errorf("%w: %s", errFinishedDeploymentActive, status)
 	default:
 		return false, fmt.Errorf("%w: %s", errUnknownDeploymentStatus, status)
@@ -172,7 +167,7 @@ func regionMessage(row genDb.ListRegionStatusesForResourcesRow, status resourcev
 		return nil, fmt.Errorf("decode stored rollout: %w", err)
 	}
 	if problem != nil && (status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY ||
-		row.DeploymentStatus == genDb.DeploymentStatusFailed) {
+		row.PlacementStatus == genDb.PlacementStatusFailed) {
 		return new(problemReportMessage(problem)), nil
 	}
 	return nil, nil

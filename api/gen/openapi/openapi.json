@@ -10244,6 +10244,11 @@
           "message": {
             "type": "string",
             "title": "message"
+          },
+          "region": {
+            "type": "string",
+            "title": "region",
+            "description": "The region the entry is about; empty for the whole deployment, such as its build."
           }
         },
         "title": "Activity",
@@ -10285,10 +10290,15 @@
             "title": "resource_id",
             "format": "uuid"
           },
-          "region": {
-            "type": "string",
-            "title": "region",
-            "minLength": 1
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": "regions",
+            "uniqueItems": true,
+            "description": "The regions to deploy to; empty deploys to every enabled region of the resource."
           },
           "spec": {
             "title": "spec",
@@ -10301,12 +10311,28 @@
           },
           "secretBindings": {
             "title": "secret_bindings",
-            "description": "Omit to keep the active deployment's secret bindings in the target environment and region.",
+            "description": "Omit to keep the secret bindings of the deployment live in the target regions.",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
           },
           "commit": {
             "title": "commit",
             "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
+          },
+          "trigger": {
+            "title": "trigger",
+            "enum": [
+              "DEPLOYMENT_TRIGGER_UNSPECIFIED",
+              "DEPLOYMENT_TRIGGER_DEPLOY",
+              "DEPLOYMENT_TRIGGER_REDEPLOY",
+              "DEPLOYMENT_TRIGGER_ROLLBACK"
+            ],
+            "description": "Unspecified records a deploy; redeploy and rollback name the deployment they copy.",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentTrigger"
+          },
+          "sourceDeploymentId": {
+            "type": "string",
+            "title": "source_deployment_id",
+            "format": "uuid"
           }
         },
         "title": "CreateDeploymentRequest",
@@ -10362,26 +10388,9 @@
             "type": "string",
             "title": "resource_id"
           },
-          "clusterId": {
-            "type": "string",
-            "title": "cluster_id"
-          },
-          "region": {
-            "type": "string",
-            "title": "region"
-          },
-          "desiredReplicas": {
-            "type": "integer",
-            "title": "desired_replicas",
-            "format": "int32"
-          },
           "status": {
             "title": "status",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
-          },
-          "isActive": {
-            "type": "boolean",
-            "title": "is_active"
           },
           "createdAt": {
             "title": "created_at",
@@ -10450,32 +10459,27 @@
             "title": "commit",
             "$ref": "#/components/schemas/loco.deployment.v1.SourceCommit"
           },
-          "currentRevision": {
-            "type": "string",
-            "title": "current_revision",
-            "format": "int64"
-          },
-          "problem": {
-            "title": "problem",
-            "$ref": "#/components/schemas/loco.deployment.v1.Problem"
-          },
-          "replicas": {
+          "placements": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/loco.deployment.v1.Replica"
+              "$ref": "#/components/schemas/loco.deployment.v1.DeploymentPlacement"
             },
-            "title": "replicas",
-            "description": "Active deployments expose the live placement's latest reported replicas,\n including previous deployment IDs. Inactive deployments retain historical replicas."
+            "title": "placements",
+            "description": "One per target region, ordered by region."
           },
-          "rolloutId": {
+          "trigger": {
+            "title": "trigger",
+            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentTrigger"
+          },
+          "sourceDeploymentId": {
             "type": "string",
-            "title": "rollout_id",
-            "description": "Shared by the deployments one apply, deploy or scale created across regions."
+            "title": "source_deployment_id",
+            "description": "The deployment a redeploy or rollback copied, if any."
           }
         },
         "title": "Deployment",
         "additionalProperties": false,
-        "description": "Deployment represents a resource deployment (immutable, single-region)."
+        "description": "Deployment is one rollout request for a resource in an environment. It fans out to one\n placement per target region; the status aggregates the placements."
       },
       "loco.deployment.v1.DeploymentActorType": {
         "type": "string",
@@ -10495,6 +10499,80 @@
           "DEPLOYMENT_METHOD_CLI",
           "DEPLOYMENT_METHOD_WEB"
         ]
+      },
+      "loco.deployment.v1.DeploymentPlacement": {
+        "type": "object",
+        "properties": {
+          "clusterId": {
+            "type": "string",
+            "title": "cluster_id"
+          },
+          "region": {
+            "type": "string",
+            "title": "region"
+          },
+          "desiredReplicas": {
+            "type": "integer",
+            "title": "desired_replicas",
+            "format": "int32"
+          },
+          "status": {
+            "title": "status",
+            "$ref": "#/components/schemas/loco.deployment.v1.PlacementStatus"
+          },
+          "image": {
+            "type": "string",
+            "title": "image",
+            "description": "The image this region runs; empty while the build runs."
+          },
+          "startedAt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "started_at"
+          },
+          "completedAt": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "completed_at"
+          },
+          "currentRevision": {
+            "type": "string",
+            "title": "current_revision",
+            "format": "int64"
+          },
+          "problem": {
+            "title": "problem",
+            "$ref": "#/components/schemas/loco.deployment.v1.Problem"
+          },
+          "replicas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/loco.deployment.v1.Replica"
+            },
+            "title": "replicas",
+            "description": "A live placement exposes the cluster's latest reported replicas, including previous\n deployment IDs; a retired one keeps its last snapshot. List responses leave them empty."
+          },
+          "live": {
+            "type": "boolean",
+            "title": "live",
+            "description": "Whether the region's live placement runs this deployment."
+          }
+        },
+        "title": "DeploymentPlacement",
+        "additionalProperties": false,
+        "description": "DeploymentPlacement is one region of a deployment."
       },
       "loco.deployment.v1.DeploymentSecretBindings": {
         "type": "object",
@@ -10536,8 +10614,23 @@
           "DEPLOYMENT_STATUS_RUNNING",
           "DEPLOYMENT_STATUS_FAILED",
           "DEPLOYMENT_STATUS_CANCELED",
-          "DEPLOYMENT_STATUS_SUPERSEDED"
+          "DEPLOYMENT_STATUS_SUPERSEDED",
+          "DEPLOYMENT_STATUS_DEGRADED",
+          "DEPLOYMENT_STATUS_CRASHED"
         ]
+      },
+      "loco.deployment.v1.DeploymentTrigger": {
+        "type": "string",
+        "title": "DeploymentTrigger",
+        "enum": [
+          "DEPLOYMENT_TRIGGER_UNSPECIFIED",
+          "DEPLOYMENT_TRIGGER_DEPLOY",
+          "DEPLOYMENT_TRIGGER_REDEPLOY",
+          "DEPLOYMENT_TRIGGER_ROLLBACK",
+          "DEPLOYMENT_TRIGGER_SCALE",
+          "DEPLOYMENT_TRIGGER_AUTO_ROLLBACK"
+        ],
+        "description": "DeploymentTrigger is what created a deployment."
       },
       "loco.deployment.v1.GetDeploymentRequest": {
         "type": "object",
@@ -10683,6 +10776,22 @@
         "additionalProperties": false,
         "description": "ObservabilityConfig controls automatic application SDK environment configuration.\n Omitted inject_otel defaults to true."
       },
+      "loco.deployment.v1.PlacementStatus": {
+        "type": "string",
+        "title": "PlacementStatus",
+        "enum": [
+          "PLACEMENT_STATUS_UNSPECIFIED",
+          "PLACEMENT_STATUS_PENDING",
+          "PLACEMENT_STATUS_DEPLOYING",
+          "PLACEMENT_STATUS_RUNNING",
+          "PLACEMENT_STATUS_DEGRADED",
+          "PLACEMENT_STATUS_CRASHED",
+          "PLACEMENT_STATUS_FAILED",
+          "PLACEMENT_STATUS_CANCELED",
+          "PLACEMENT_STATUS_SUPERSEDED"
+        ],
+        "description": "PlacementStatus is the state of one region of a deployment."
+      },
       "loco.deployment.v1.Problem": {
         "type": "object",
         "properties": {
@@ -10709,6 +10818,61 @@
         },
         "title": "Problem",
         "additionalProperties": false
+      },
+      "loco.deployment.v1.RegionDeploymentTarget": {
+        "type": "object",
+        "properties": {
+          "cpu": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "cpu",
+            "minLength": 1,
+            "description": "e.g., \"100m\""
+          },
+          "memory": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "memory",
+            "minLength": 1,
+            "description": "e.g., \"256Mi\""
+          },
+          "minReplicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "min_replicas",
+            "minimum": 1,
+            "format": "int32"
+          },
+          "maxReplicas": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "title": "max_replicas",
+            "minimum": 1,
+            "format": "int32"
+          },
+          "scalers": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/loco.deployment.v1.Scalers"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "scalers"
+          }
+        },
+        "title": "RegionDeploymentTarget",
+        "additionalProperties": false,
+        "description": "RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default\n from the resource's region target.\nreplicas.min_lte_max // min_replicas must be \u003c= max_replicas\n"
       },
       "loco.deployment.v1.Replica": {
         "type": "object",
@@ -10914,56 +11078,6 @@
             ],
             "title": "health_check"
           },
-          "cpu": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "cpu",
-            "minLength": 1,
-            "description": "e.g., \"100m\" (defaults from resource if omitted)"
-          },
-          "memory": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "title": "memory",
-            "minLength": 1,
-            "description": "e.g., \"256Mi\" (defaults from resource if omitted)"
-          },
-          "minReplicas": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "min_replicas",
-            "minimum": 1,
-            "format": "int32",
-            "description": "defaults from resource if omitted"
-          },
-          "maxReplicas": {
-            "type": [
-              "integer",
-              "null"
-            ],
-            "title": "max_replicas",
-            "minimum": 1,
-            "format": "int32",
-            "description": "defaults from resource if omitted"
-          },
-          "scalers": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/loco.deployment.v1.Scalers"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "scalers",
-            "description": "autoscaling config (defaults from resource if omitted)"
-          },
           "env": {
             "type": "object",
             "title": "env",
@@ -11049,6 +11163,15 @@
             "title": "args",
             "maxItems": 100,
             "description": "args replaces the image CMD; without it the image's CMD is passed to the entrypoint."
+          },
+          "regions": {
+            "type": "object",
+            "title": "regions",
+            "additionalProperties": {
+              "title": "value",
+              "$ref": "#/components/schemas/loco.deployment.v1.RegionDeploymentTarget"
+            },
+            "description": "The sizing of each region the deployment targets, keyed by region name. In a request,\n an entry overrides the resource's region target; the stored snapshot carries every\n target region filled in."
           }
         },
         "title": "ServiceDeploymentSpec",
@@ -11056,7 +11179,7 @@
           "build"
         ],
         "additionalProperties": false,
-        "description": "ServiceDeploymentSpec is the deployment specification for SERVICE type resources.\nreplicas.min_lte_max // min_replicas must be \u003c= max_replicas\nservice_deployment.health_check_requires_port // health_check needs a port: the HTTP check probes the service port\n"
+        "description": "ServiceDeploymentSpec is the deployment specification for SERVICE type resources.\nservice_deployment.health_check_requires_port // health_check needs a port: the HTTP check probes the service port\n"
       },
       "loco.deployment.v1.ServiceRouting": {
         "type": "object",
@@ -13718,7 +13841,7 @@
               "$ref": "#/components/schemas/loco.plan.v1.StartedDeployment"
             },
             "title": "deployments",
-            "description": "deployments are the deployments the apply started, one per service and region."
+            "description": "deployments are the deployments the apply started, one per service."
           }
         },
         "title": "ApplyResponse",
@@ -13872,13 +13995,16 @@
             "type": "string",
             "title": "service"
           },
-          "region": {
-            "type": "string",
-            "title": "region"
-          },
           "deploymentId": {
             "type": "string",
             "title": "deployment_id"
+          },
+          "regions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "regions"
           }
         },
         "title": "StartedDeployment",
@@ -14265,9 +14391,10 @@
             "type": "string",
             "title": "deployment_id"
           },
-          "deploymentStatus": {
-            "title": "deployment_status",
-            "$ref": "#/components/schemas/loco.deployment.v1.DeploymentStatus"
+          "placementStatus": {
+            "title": "placement_status",
+            "description": "The status of the live deployment's placement in this region.",
+            "$ref": "#/components/schemas/loco.deployment.v1.PlacementStatus"
           },
           "message": {
             "type": [

@@ -193,9 +193,11 @@ const (
 	DeploymentStatusBuilding   DeploymentStatus = "building"
 	DeploymentStatusDeploying  DeploymentStatus = "deploying"
 	DeploymentStatusRunning    DeploymentStatus = "running"
-	DeploymentStatusSuperseded DeploymentStatus = "superseded"
+	DeploymentStatusDegraded   DeploymentStatus = "degraded"
+	DeploymentStatusCrashed    DeploymentStatus = "crashed"
 	DeploymentStatusFailed     DeploymentStatus = "failed"
 	DeploymentStatusCanceled   DeploymentStatus = "canceled"
+	DeploymentStatusSuperseded DeploymentStatus = "superseded"
 )
 
 func (e *DeploymentStatus) Scan(src interface{}) error {
@@ -231,6 +233,51 @@ func (ns NullDeploymentStatus) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.DeploymentStatus), nil
+}
+
+type DeploymentTrigger string
+
+const (
+	DeploymentTriggerDeploy       DeploymentTrigger = "deploy"
+	DeploymentTriggerRedeploy     DeploymentTrigger = "redeploy"
+	DeploymentTriggerRollback     DeploymentTrigger = "rollback"
+	DeploymentTriggerScale        DeploymentTrigger = "scale"
+	DeploymentTriggerAutoRollback DeploymentTrigger = "auto_rollback"
+)
+
+func (e *DeploymentTrigger) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DeploymentTrigger(s)
+	case string:
+		*e = DeploymentTrigger(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DeploymentTrigger: %T", src)
+	}
+	return nil
+}
+
+type NullDeploymentTrigger struct {
+	DeploymentTrigger DeploymentTrigger `json:"deploymentTrigger"`
+	Valid             bool              `json:"valid"` // Valid is true if DeploymentTrigger is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDeploymentTrigger) Scan(value interface{}) error {
+	if value == nil {
+		ns.DeploymentTrigger, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DeploymentTrigger.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDeploymentTrigger) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DeploymentTrigger), nil
 }
 
 type DomainSource string
@@ -360,6 +407,54 @@ func (ns NullOrgRole) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.OrgRole), nil
+}
+
+type PlacementStatus string
+
+const (
+	PlacementStatusPending    PlacementStatus = "pending"
+	PlacementStatusDeploying  PlacementStatus = "deploying"
+	PlacementStatusRunning    PlacementStatus = "running"
+	PlacementStatusDegraded   PlacementStatus = "degraded"
+	PlacementStatusCrashed    PlacementStatus = "crashed"
+	PlacementStatusFailed     PlacementStatus = "failed"
+	PlacementStatusCanceled   PlacementStatus = "canceled"
+	PlacementStatusSuperseded PlacementStatus = "superseded"
+)
+
+func (e *PlacementStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PlacementStatus(s)
+	case string:
+		*e = PlacementStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PlacementStatus: %T", src)
+	}
+	return nil
+}
+
+type NullPlacementStatus struct {
+	PlacementStatus PlacementStatus `json:"placementStatus"`
+	Valid           bool            `json:"valid"` // Valid is true if PlacementStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlacementStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.PlacementStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PlacementStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlacementStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PlacementStatus), nil
 }
 
 type ResourceType string
@@ -617,43 +712,58 @@ type ClusterAssertion struct {
 }
 
 type Deployment struct {
-	ID            uuid.UUID           `json:"id"`
-	RolloutID     uuid.UUID           `json:"rolloutId"`
-	ResourceID    uuid.UUID           `json:"resourceId"`
-	ClusterID     uuid.UUID           `json:"clusterId"`
-	Region        string              `json:"region"`
-	Replicas      int32               `json:"replicas"`
-	Status        DeploymentStatus    `json:"status"`
-	IsActive      bool                `json:"isActive"`
-	EnvironmentID uuid.UUID           `json:"environmentId"`
-	Spec          []byte              `json:"spec"`
-	SpecVersion   int32               `json:"specVersion"`
-	ActorType     DeploymentActorType `json:"actorType"`
-	ActorID       uuid.UUID           `json:"actorId"`
-	Method        DeploymentMethod    `json:"method"`
-	CommitSha     *string             `json:"commitSha"`
-	CommitDirty   bool                `json:"commitDirty"`
-	SecretNames   []string            `json:"secretNames"`
-	ActivitySeq   int64               `json:"activitySeq"`
-	CreatedAt     time.Time           `json:"createdAt"`
-	StartedAt     *time.Time          `json:"startedAt"`
-	CompletedAt   *time.Time          `json:"completedAt"`
-	UpdatedAt     time.Time           `json:"updatedAt"`
+	ID                 uuid.UUID            `json:"id"`
+	ResourceID         uuid.UUID            `json:"resourceId"`
+	Status             DeploymentStatus     `json:"status"`
+	EnvironmentID      uuid.UUID            `json:"environmentId"`
+	Spec               []byte               `json:"spec"`
+	SpecVersion        int32                `json:"specVersion"`
+	Trigger            DeploymentTrigger    `json:"trigger"`
+	SourceDeploymentID *uuid.UUID           `json:"sourceDeploymentId"`
+	ActorType          DeploymentActorType  `json:"actorType"`
+	ActorID            uuid.UUID            `json:"actorId"`
+	Method             DeploymentMethod     `json:"method"`
+	CanceledByType     *DeploymentActorType `json:"canceledByType"`
+	CanceledByID       *uuid.UUID           `json:"canceledById"`
+	CommitSha          *string              `json:"commitSha"`
+	CommitDirty        bool                 `json:"commitDirty"`
+	SecretNames        []string             `json:"secretNames"`
+	ActivitySeq        int64                `json:"activitySeq"`
+	CreatedAt          time.Time            `json:"createdAt"`
+	StartedAt          *time.Time           `json:"startedAt"`
+	CompletedAt        *time.Time           `json:"completedAt"`
+	UpdatedAt          time.Time            `json:"updatedAt"`
 }
 
 type DeploymentActivity struct {
-	DeploymentID uuid.UUID `json:"deploymentId"`
-	Seq          int64     `json:"seq"`
-	Revision     int64     `json:"revision"`
-	At           time.Time `json:"at"`
-	Severity     string    `json:"severity"`
-	ReplicaUid   string    `json:"replicaUid"`
-	ReplicaName  string    `json:"replicaName"`
-	Message      string    `json:"message"`
+	DeploymentID uuid.UUID  `json:"deploymentId"`
+	Seq          int64      `json:"seq"`
+	Revision     int64      `json:"revision"`
+	At           time.Time  `json:"at"`
+	Severity     string     `json:"severity"`
+	ReplicaUid   string     `json:"replicaUid"`
+	ReplicaName  string     `json:"replicaName"`
+	Message      string     `json:"message"`
+	ClusterID    *uuid.UUID `json:"clusterId"`
+	Region       string     `json:"region"`
+}
+
+type DeploymentPlacement struct {
+	DeploymentID uuid.UUID       `json:"deploymentId"`
+	ClusterID    uuid.UUID       `json:"clusterId"`
+	Region       string          `json:"region"`
+	Replicas     int32           `json:"replicas"`
+	Status       PlacementStatus `json:"status"`
+	Image        string          `json:"image"`
+	SupersededBy *uuid.UUID      `json:"supersededBy"`
+	StartedAt    *time.Time      `json:"startedAt"`
+	CompletedAt  *time.Time      `json:"completedAt"`
+	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
 type DeploymentRollout struct {
 	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
 	Revision     int64     `json:"revision"`
 	Snapshot     []byte    `json:"snapshot"`
 }
@@ -725,6 +835,16 @@ type Invitation struct {
 	ClaimedBy *uuid.UUID `json:"claimedBy"`
 	ClaimedAt *time.Time `json:"claimedAt"`
 	RevokedAt *time.Time `json:"revokedAt"`
+}
+
+type LiveDeploymentPlacement struct {
+	DeploymentID  uuid.UUID       `json:"deploymentId"`
+	ResourceID    uuid.UUID       `json:"resourceId"`
+	EnvironmentID uuid.UUID       `json:"environmentId"`
+	ClusterID     uuid.UUID       `json:"clusterId"`
+	Region        string          `json:"region"`
+	Replicas      int32           `json:"replicas"`
+	Status        PlacementStatus `json:"status"`
 }
 
 type ObservedPlacementRollout struct {

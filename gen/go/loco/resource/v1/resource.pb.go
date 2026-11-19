@@ -725,15 +725,16 @@ func (x *EnvironmentStatus) GetRegions() []*RegionStatus {
 // RegionStatus is a resource's status in one region of an environment: its active deployment and
 // the replicas the cluster running it reports ready.
 type RegionStatus struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Region           string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
-	Status           ResourceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
-	ReadyReplicas    int32                  `protobuf:"varint,3,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
-	DesiredReplicas  int32                  `protobuf:"varint,4,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
-	DeploymentId     string                 `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
-	DeploymentStatus v1.DeploymentStatus    `protobuf:"varint,6,opt,name=deployment_status,json=deploymentStatus,proto3,enum=loco.deployment.v1.DeploymentStatus" json:"deployment_status,omitempty"`
-	Message          *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
-	ReportedAt       *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=reported_at,json=reportedAt,proto3,oneof" json:"reported_at,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Region          string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
+	Status          ResourceStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
+	ReadyReplicas   int32                  `protobuf:"varint,3,opt,name=ready_replicas,json=readyReplicas,proto3" json:"ready_replicas,omitempty"`
+	DesiredReplicas int32                  `protobuf:"varint,4,opt,name=desired_replicas,json=desiredReplicas,proto3" json:"desired_replicas,omitempty"`
+	DeploymentId    string                 `protobuf:"bytes,5,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	// The status of the live deployment's placement in this region.
+	PlacementStatus v1.PlacementStatus     `protobuf:"varint,10,opt,name=placement_status,json=placementStatus,proto3,enum=loco.deployment.v1.PlacementStatus" json:"placement_status,omitempty"`
+	Message         *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
+	ReportedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=reported_at,json=reportedAt,proto3,oneof" json:"reported_at,omitempty"`
 	// The replicas the cluster last reported for this region's placement. GetResource fills them;
 	// list responses leave them empty.
 	Replicas      []*v1.Replica `protobuf:"bytes,9,rep,name=replicas,proto3" json:"replicas,omitempty"`
@@ -806,11 +807,11 @@ func (x *RegionStatus) GetDeploymentId() string {
 	return ""
 }
 
-func (x *RegionStatus) GetDeploymentStatus() v1.DeploymentStatus {
+func (x *RegionStatus) GetPlacementStatus() v1.PlacementStatus {
 	if x != nil {
-		return x.DeploymentStatus
+		return x.PlacementStatus
 	}
-	return v1.DeploymentStatus(0)
+	return v1.PlacementStatus(0)
 }
 
 func (x *RegionStatus) GetMessage() string {
@@ -2168,21 +2169,22 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12)\n" +
 	"\x10environment_name\x18\x02 \x01(\tR\x0fenvironmentName\x128\n" +
 	"\x06status\x18\x03 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x128\n" +
-	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\"\xe0\x03\n" +
+	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\"\xe3\x03\n" +
 	"\fRegionStatus\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x128\n" +
 	"\x06status\x18\x02 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x12%\n" +
 	"\x0eready_replicas\x18\x03 \x01(\x05R\rreadyReplicas\x12)\n" +
 	"\x10desired_replicas\x18\x04 \x01(\x05R\x0fdesiredReplicas\x12#\n" +
-	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x12Q\n" +
-	"\x11deployment_status\x18\x06 \x01(\x0e2$.loco.deployment.v1.DeploymentStatusR\x10deploymentStatus\x12\x1d\n" +
+	"\rdeployment_id\x18\x05 \x01(\tR\fdeploymentId\x12N\n" +
+	"\x10placement_status\x18\n" +
+	" \x01(\x0e2#.loco.deployment.v1.PlacementStatusR\x0fplacementStatus\x12\x1d\n" +
 	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12@\n" +
 	"\vreported_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampH\x01R\n" +
 	"reportedAt\x88\x01\x01\x127\n" +
 	"\breplicas\x18\t \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicasB\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
-	"\f_reported_at\"\xe1\x04\n" +
+	"\f_reported_atJ\x04\b\x06\x10\a\"\xe1\x04\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12<\n" +
@@ -2376,7 +2378,7 @@ var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(*v1.ObservabilityConfig)(nil),         // 38: loco.deployment.v1.ObservabilityConfig
 	(*v11.ResourceDomain)(nil),             // 39: loco.domain.v1.ResourceDomain
 	(*timestamppb.Timestamp)(nil),          // 40: google.protobuf.Timestamp
-	(v1.DeploymentStatus)(0),               // 41: loco.deployment.v1.DeploymentStatus
+	(v1.PlacementStatus)(0),                // 41: loco.deployment.v1.PlacementStatus
 	(*v1.Replica)(nil),                     // 42: loco.deployment.v1.Replica
 	(*v11.DomainInput)(nil),                // 43: loco.domain.v1.DomainInput
 }
@@ -2396,7 +2398,7 @@ var file_loco_resource_v1_resource_proto_depIdxs = []int32{
 	1,  // 12: loco.resource.v1.EnvironmentStatus.status:type_name -> loco.resource.v1.ResourceStatus
 	9,  // 13: loco.resource.v1.EnvironmentStatus.regions:type_name -> loco.resource.v1.RegionStatus
 	1,  // 14: loco.resource.v1.RegionStatus.status:type_name -> loco.resource.v1.ResourceStatus
-	41, // 15: loco.resource.v1.RegionStatus.deployment_status:type_name -> loco.deployment.v1.DeploymentStatus
+	41, // 15: loco.resource.v1.RegionStatus.placement_status:type_name -> loco.deployment.v1.PlacementStatus
 	40, // 16: loco.resource.v1.RegionStatus.reported_at:type_name -> google.protobuf.Timestamp
 	42, // 17: loco.resource.v1.RegionStatus.replicas:type_name -> loco.deployment.v1.Replica
 	0,  // 18: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
