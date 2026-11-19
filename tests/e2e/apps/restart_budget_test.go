@@ -49,6 +49,18 @@ func newBudgetService(t *testing.T, app string) *budgetService {
 		t.Fatalf("%d ReplicaSets after the first rollout, want 1", len(sets.Items))
 	}
 	s.oldHash = sets.Items[0].Labels["pod-template-hash"]
+	// Only a proven revision is brought back once its replicas are gone.
+	platform.Eventually(t, 3*time.Minute, "the first version to prove itself", func(ctx context.Context) error {
+		current, err := p.Application(ctx, s.resourceID, s.w.EnvironmentID)
+		if err != nil {
+			return err
+		}
+		revision, _ := current.PlacementRevision()
+		if current.Status.Rollout == nil || current.Status.Rollout.ProvenRevision != revision {
+			return fmt.Errorf("revision %d not proven", revision)
+		}
+		return nil
+	})
 
 	gateway, err := p.GatewayService(t.Context())
 	if err != nil {

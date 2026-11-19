@@ -293,7 +293,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	rollout = app.Status.Rollout
 	stopped := rollout.Stopped
 	if stopped == nil || stopped.PlacementRevision != 2 || stopped.Replica != pod.Name || stopped.Restarts != 3 ||
-		stopped.LastRestart.ExitCode != 1 || !stopped.Rollout {
+		stopped.LastRestart.ExitCode != 1 {
 		t.Fatalf("stopped = %+v, want revision 2 stopped after 3 restarts", stopped)
 	}
 	if rollout.Problem == nil || rollout.Problem.Reason != loco.ProblemRestartsExhausted ||
