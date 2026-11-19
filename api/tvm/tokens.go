@@ -185,7 +185,7 @@ func (tvm *VendingMachine) Refresh(
 		return "", "", ErrInvalidExpiredToken
 	}
 	if session.Used {
-		return "", "", tvm.revokeReusedSession(ctx, session.ID)
+		return "", "", tvm.reusedRefresh(ctx, session.ID, session.UsedAt)
 	}
 
 	// rotate: generate new access + refresh pair
@@ -205,10 +205,23 @@ func (tvm *VendingMachine) Refresh(
 		return "", "", fmt.Errorf("%w: %w", ErrStoreToken, err)
 	}
 	if rotated == 0 {
+		current, getErr := tvm.queries.GetSessionByRefreshToken(ctx, hash)
+		if getErr == nil && current.Used {
+			return "", "", tvm.reusedRefresh(ctx, current.ID, current.UsedAt)
+		}
 		return "", "", tvm.revokeReusedSession(ctx, session.ID)
 	}
 
 	return newAccess, newRefresh, nil
+}
+
+// reusedRefresh rejects a consumed refresh token. Within the grace window after its rotation it
+// reports a concurrent refresh and keeps the session; later it revokes the session as a replay.
+func (tvm *VendingMachine) reusedRefresh(ctx context.Context, sessionID uuid.UUID, usedAt *time.Time) error {
+	if usedAt != nil && time.Since(*usedAt) <= tvm.Cfg.RefreshReuseGrace {
+		return ErrRefreshRotated
+	}
+	return tvm.revokeReusedSession(ctx, sessionID)
 }
 
 func (tvm *VendingMachine) revokeReusedSession(ctx context.Context, sessionID uuid.UUID) error {

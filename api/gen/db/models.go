@@ -1009,6 +1009,7 @@ type UsedSessionRefreshToken struct {
 	TokenHash string    `json:"tokenHash"`
 	SessionID uuid.UUID `json:"sessionId"`
 	ExpiresAt time.Time `json:"expiresAt"`
+	UsedAt    time.Time `json:"usedAt"`
 }
 
 type User struct {

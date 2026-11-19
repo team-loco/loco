@@ -82,7 +82,7 @@ def check_browser(browser, state, issuer_url):
     fresh = cookies(context, state)
     for name in (evidence.SESSION_COOKIE, evidence.REFRESH_COOKIE):
         assert fresh[name]["value"] != previous[name]["value"]
-    assert refreshes == [200], refreshes
+    assert refreshes and set(refreshes) == {200}, refreshes
     other_tab.close()
 
     with urlopen(issuer_url + "/grants") as response:

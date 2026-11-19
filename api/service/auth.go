@@ -41,11 +41,14 @@ const (
 )
 
 var (
-	ErrCLICodeInvalid     = errors.New("this sign-in code is invalid or has expired; run loco login again")
-	ErrDeviceCodeExpired  = errors.New("this device code has expired; run loco login --device again")
-	ErrUserCodeInvalid    = errors.New("that code is invalid or has expired")
-	ErrApproveFromWeb     = errors.New("approve CLI sign-ins from the Loco web app")
-	ErrDevicePollTooFast  = errors.New("slow down: poll less often")
+	ErrCLICodeInvalid    = errors.New("this sign-in code is invalid or has expired; run loco login again")
+	ErrDeviceCodeExpired = errors.New("this device code has expired; run loco login --device again")
+	ErrUserCodeInvalid   = errors.New("that code is invalid or has expired")
+	ErrApproveFromWeb    = errors.New("approve CLI sign-ins from the Loco web app")
+	ErrDevicePollTooFast = errors.New("slow down: poll less often")
+	ErrRefreshInFlight   = errors.New(
+		"another refresh of this session just finished; read the stored session and retry",
+	)
 	ErrAuthStoreAvailable = errors.New("sign-in is temporarily unavailable")
 )
 
@@ -440,6 +443,9 @@ func (s *AuthServer) RefreshCLIToken(
 	req *authv1.RefreshCLITokenRequest,
 ) (*authv1.RefreshCLITokenResponse, error) {
 	access, newRefresh, err := s.refreshSession(ctx, req.GetRefreshToken(), genDb.SessionKindCli)
+	if errors.Is(err, tvm.ErrRefreshRotated) {
+		return nil, rpcerr.New(connect.CodeAborted, ErrRefreshInFlight)
+	}
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
@@ -460,6 +466,7 @@ func (s *AuthServer) refreshSession(
 ) (string, string, error) {
 	var access, refresh string
 	var rejected bool
+	var rotated bool
 	txErr := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		// Find the owner and lock the account before Refresh reads or mutates the session.
 		session, err := qtx.GetSessionByRefreshToken(ctx, bearer.Hash(token))
@@ -476,6 +483,10 @@ func (s *AuthServer) refreshSession(
 			return lockErr
 		}
 		access, refresh, err = s.machine.WithQueries(qtx).Refresh(ctx, token, kind)
+		if errors.Is(err, tvm.ErrRefreshRotated) {
+			rotated = true
+			return nil
+		}
 		if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 			// A replay rejects the request and commits session revocation.
 			rejected = true
@@ -488,6 +499,9 @@ func (s *AuthServer) refreshSession(
 	}
 	if rejected {
 		return "", "", tvm.ErrInvalidExpiredToken
+	}
+	if rotated {
+		return "", "", tvm.ErrRefreshRotated
 	}
 	return access, refresh, nil
 }

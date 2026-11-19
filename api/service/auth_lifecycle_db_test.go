@@ -4,7 +4,10 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
+	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect/v2"
 	"connectrpc.com/connect/v2/connecthttp"
@@ -154,4 +157,84 @@ func newAuthHTTPFixture(t *testing.T) *authFixture {
 	transport := connecthttp.NewTransport(httpServer.Client(), httpServer.URL)
 	f.client = authv1connect.NewAuthServiceClient(connect.NewClient(transport))
 	return f
+}
+
+func TestConcurrentRefreshesOfOneTokenKeepTheSession(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.machine.Cfg.RefreshReuseGrace = time.Minute
+	principal, _ := reqctx.PrincipalFrom(f.webCtx)
+	_, refresh, err := f.machine.IssueSession(t.Context(), principal.UserID, netip.Addr{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := &authv1.RefreshCLITokenRequest{RefreshToken: refresh}
+	const racers = 2
+	results := make(chan error, racers)
+	tokens := make(chan *authv1.CLITokens, racers)
+	var start sync.WaitGroup
+	start.Add(1)
+	for range racers {
+		go func() {
+			start.Wait()
+			response, refreshErr := f.client.RefreshCLIToken(t.Context(), request)
+			results <- refreshErr
+			if refreshErr == nil {
+				tokens <- response.GetTokens()
+			}
+		}()
+	}
+	start.Done()
+	var refreshed, aborted int
+	for range racers {
+		switch refreshErr := <-results; {
+		case refreshErr == nil:
+			refreshed++
+		case codeOf(refreshErr) == connect.CodeAborted:
+			aborted++
+		default:
+			t.Fatalf("concurrent refresh: %v", refreshErr)
+		}
+	}
+	if refreshed != 1 || aborted != 1 {
+		t.Fatalf("refreshed %d, aborted %d, want one of each", refreshed, aborted)
+	}
+	issued := <-tokens
+	next, err := f.client.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
+		RefreshToken: issued.GetRefreshToken(),
+	})
+	if err != nil {
+		t.Fatalf("refresh with the rotated token after the race: %v", err)
+	}
+	f.assertWorks(t, next.GetTokens())
+}
+
+func TestRefreshTokenReplayedAfterTheGraceRevokesTheSession(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.machine.Cfg.RefreshReuseGrace = 50 * time.Millisecond
+	principal, _ := reqctx.PrincipalFrom(f.webCtx)
+	_, refresh, err := f.machine.IssueSession(t.Context(), principal.UserID, netip.Addr{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := &authv1.RefreshCLITokenRequest{RefreshToken: refresh}
+	rotated, err := f.client.RefreshCLIToken(t.Context(), request)
+	if err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if _, replayErr := f.client.RefreshCLIToken(
+		t.Context(),
+		request,
+	); codeOf(
+		replayErr,
+	) != connect.CodeUnauthenticated {
+		t.Fatalf("replay after the grace: %v", replayErr)
+	}
+	if _, revokedErr := f.client.RefreshCLIToken(t.Context(), &authv1.RefreshCLITokenRequest{
+		RefreshToken: rotated.GetTokens().GetRefreshToken(),
+	}); codeOf(revokedErr) != connect.CodeUnauthenticated {
+		t.Fatalf("refresh after the replay: %v", revokedErr)
+	}
 }

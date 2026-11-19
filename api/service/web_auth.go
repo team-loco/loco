@@ -156,6 +156,10 @@ func (s *AuthServer) RefreshWebSession(
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized)
 	}
 	access, refresh, err := s.refreshSession(ctx, token, genDb.SessionKindWeb)
+	if errors.Is(err, tvm.ErrRefreshRotated) {
+		// A concurrent refresh rotated the session; the browser already holds its cookies.
+		return &authv1.RefreshWebSessionResponse{}, nil
+	}
 	if errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		return nil, connect.NewError(connect.CodeUnauthenticated, publicUnauthorized).WithCause(err)
 	}
