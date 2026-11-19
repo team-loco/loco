@@ -149,6 +149,9 @@ message RegionStatus {
   deployment.v1.DeploymentStatus deployment_status = 6;
   optional string message = 7;
   optional google.protobuf.Timestamp reported_at = 8;
+  // The replicas the cluster last reported for this region's placement. GetResource fills them;
+  // list responses leave them empty.
+  repeated deployment.v1.Replica replicas = 9;
 }
 
 // --- CRUD ---

@@ -9,6 +9,7 @@ package agentv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/team-loco/loco/gen/go/loco/cluster/v1"
+	v11 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -854,10 +855,11 @@ type ReplicaReport struct {
 	StateSince        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=state_since,json=stateSince,proto3" json:"state_since,omitempty"`
 	StateDeadline     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=state_deadline,json=stateDeadline,proto3" json:"state_deadline,omitempty"`
 	Restarts          int32                  `protobuf:"varint,8,opt,name=restarts,proto3" json:"restarts,omitempty"`
-	ExitCode          *int32                 `protobuf:"varint,9,opt,name=exit_code,json=exitCode,proto3,oneof" json:"exit_code,omitempty"`
 	Detail            string                 `protobuf:"bytes,10,opt,name=detail,proto3" json:"detail,omitempty"`
 	DeploymentId      string                 `protobuf:"bytes,11,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
 	Ready             bool                   `protobuf:"varint,12,opt,name=ready,proto3" json:"ready,omitempty"`
+	StartedAt         *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	LastExit          *v11.ReplicaExit       `protobuf:"bytes,14,opt,name=last_exit,json=lastExit,proto3" json:"last_exit,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -948,13 +950,6 @@ func (x *ReplicaReport) GetRestarts() int32 {
 	return 0
 }
 
-func (x *ReplicaReport) GetExitCode() int32 {
-	if x != nil && x.ExitCode != nil {
-		return *x.ExitCode
-	}
-	return 0
-}
-
 func (x *ReplicaReport) GetDetail() string {
 	if x != nil {
 		return x.Detail
@@ -974,6 +969,20 @@ func (x *ReplicaReport) GetReady() bool {
 		return x.Ready
 	}
 	return false
+}
+
+func (x *ReplicaReport) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *ReplicaReport) GetLastExit() *v11.ReplicaExit {
+	if x != nil {
+		return x.LastExit
+	}
+	return nil
 }
 
 type ProblemReport struct {
@@ -1761,7 +1770,7 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\"\xcf\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\xcf\x02\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12<\n" +
@@ -1827,7 +1836,7 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\x1aprogress_deadline_exceeded\x18\v \x01(\bR\x18progressDeadlineExceeded\x128\n" +
 	"\breplicas\x18\f \x03(\v2\x1c.loco.agent.v1.ReplicaReportR\breplicas\x126\n" +
 	"\aproblem\x18\r \x01(\v2\x1c.loco.agent.v1.ProblemReportR\aproblem\x12#\n" +
-	"\rdeployment_id\x18\x0e \x01(\tR\fdeploymentId\"\xb7\x03\n" +
+	"\rdeployment_id\x18\x0e \x01(\tR\fdeploymentId\"\x80\x04\n" +
 	"\rReplicaReport\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1838,13 +1847,13 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"stateSince\x12A\n" +
 	"\x0estate_deadline\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rstateDeadline\x12\x1a\n" +
 	"\brestarts\x18\b \x01(\x05R\brestarts\x12 \n" +
-	"\texit_code\x18\t \x01(\x05H\x00R\bexitCode\x88\x01\x01\x12 \n" +
 	"\x06detail\x18\n" +
 	" \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x06detail\x12#\n" +
 	"\rdeployment_id\x18\v \x01(\tR\fdeploymentId\x12\x14\n" +
-	"\x05ready\x18\f \x01(\bR\x05readyB\f\n" +
+	"\x05ready\x18\f \x01(\bR\x05ready\x129\n" +
 	"\n" +
-	"_exit_code\"\x9e\x01\n" +
+	"started_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12<\n" +
+	"\tlast_exit\x18\x0e \x01(\v2\x1f.loco.deployment.v1.ReplicaExitR\blastExit\"\x9e\x01\n" +
 	"\rProblemReport\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12 \n" +
@@ -1967,6 +1976,7 @@ var file_loco_agent_v1_agent_proto_goTypes = []any{
 	(v1.ClusterRole)(0),           // 23: loco.cluster.v1.ClusterRole
 	(*durationpb.Duration)(nil),   // 24: google.protobuf.Duration
 	(*timestamppb.Timestamp)(nil), // 25: google.protobuf.Timestamp
+	(*v11.ReplicaExit)(nil),       // 26: loco.deployment.v1.ReplicaExit
 }
 var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	20, // 0: loco.agent.v1.RegisterRequest.capacity:type_name -> loco.agent.v1.AgentCapacity
@@ -1987,25 +1997,27 @@ var file_loco_agent_v1_agent_proto_depIdxs = []int32{
 	12, // 15: loco.agent.v1.PlacementStatus.problem:type_name -> loco.agent.v1.ProblemReport
 	25, // 16: loco.agent.v1.ReplicaReport.state_since:type_name -> google.protobuf.Timestamp
 	25, // 17: loco.agent.v1.ReplicaReport.state_deadline:type_name -> google.protobuf.Timestamp
-	25, // 18: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
-	14, // 19: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
-	16, // 20: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
-	17, // 21: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
-	18, // 22: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
-	15, // 23: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
-	22, // 24: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
-	20, // 25: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
-	21, // 26: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
-	23, // 27: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
-	1,  // 28: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
-	4,  // 29: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
-	3,  // 30: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
-	13, // 31: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
-	30, // [30:32] is the sub-list for method output_type
-	28, // [28:30] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	25, // 18: loco.agent.v1.ReplicaReport.started_at:type_name -> google.protobuf.Timestamp
+	26, // 19: loco.agent.v1.ReplicaReport.last_exit:type_name -> loco.deployment.v1.ReplicaExit
+	25, // 20: loco.agent.v1.ProblemReport.since:type_name -> google.protobuf.Timestamp
+	14, // 21: loco.agent.v1.SyncResponse.apply:type_name -> loco.agent.v1.Apply
+	16, // 22: loco.agent.v1.SyncResponse.delete:type_name -> loco.agent.v1.Delete
+	17, // 23: loco.agent.v1.SyncResponse.start_build:type_name -> loco.agent.v1.StartBuild
+	18, // 24: loco.agent.v1.SyncResponse.cancel_build:type_name -> loco.agent.v1.CancelBuild
+	15, // 25: loco.agent.v1.Apply.env_secret:type_name -> loco.agent.v1.EnvSecret
+	22, // 26: loco.agent.v1.EnvSecret.data:type_name -> loco.agent.v1.EnvSecret.DataEntry
+	20, // 27: loco.agent.v1.Heartbeat.capacity:type_name -> loco.agent.v1.AgentCapacity
+	21, // 28: loco.agent.v1.Heartbeat.health:type_name -> loco.agent.v1.AgentHealth
+	23, // 29: loco.agent.v1.Heartbeat.role:type_name -> loco.cluster.v1.ClusterRole
+	1,  // 30: loco.agent.v1.AgentService.Register:input_type -> loco.agent.v1.RegisterRequest
+	4,  // 31: loco.agent.v1.AgentService.Sync:input_type -> loco.agent.v1.SyncRequest
+	3,  // 32: loco.agent.v1.AgentService.Register:output_type -> loco.agent.v1.RegisterResponse
+	13, // 33: loco.agent.v1.AgentService.Sync:output_type -> loco.agent.v1.SyncResponse
+	32, // [32:34] is the sub-list for method output_type
+	30, // [30:32] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_loco_agent_v1_agent_proto_init() }
@@ -2020,7 +2032,6 @@ func file_loco_agent_v1_agent_proto_init() {
 		(*SyncRequest_BuildStatus)(nil),
 		(*SyncRequest_Heartbeat)(nil),
 	}
-	file_loco_agent_v1_agent_proto_msgTypes[10].OneofWrappers = []any{}
 	file_loco_agent_v1_agent_proto_msgTypes[12].OneofWrappers = []any{
 		(*SyncResponse_Apply)(nil),
 		(*SyncResponse_Delete)(nil),

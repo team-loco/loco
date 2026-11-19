@@ -48,6 +48,7 @@ func (c *Client) QueryMetrics(
 
 	type seriesKey struct {
 		resourceID  string
+		pod         string
 		metricType  string
 		temporality int32
 		monotonic   bool
@@ -57,17 +58,24 @@ func (c *Client) QueryMetrics(
 	for rows.Next() {
 		var (
 			resourceID  string
+			pod         string
 			bucket      time.Time
 			value       float64
 			metricType  string
 			temporality int32
 			monotonic   bool
 		)
-		if err := rows.Scan(&resourceID, &bucket, &value, &metricType, &temporality, &monotonic); err != nil {
+		if err := rows.Scan(&resourceID, &pod, &bucket, &value, &metricType, &temporality, &monotonic); err != nil {
 			return nil, fmt.Errorf("scan metric row: %w", err)
 		}
 
-		key := seriesKey{resourceID: resourceID, metricType: metricType, temporality: temporality, monotonic: monotonic}
+		key := seriesKey{
+			resourceID:  resourceID,
+			pod:         pod,
+			metricType:  metricType,
+			temporality: temporality,
+			monotonic:   monotonic,
+		}
 		series, ok := seriesMap[key]
 		if !ok {
 			series = &observabilityv1.MetricSeries{
@@ -80,6 +88,7 @@ func (c *Client) QueryMetrics(
 					"is_monotonic":            strconv.FormatBool(monotonic),
 				}
 			}
+			labelPod(series, req, pod)
 			seriesMap[key] = series
 		}
 		series.Points = append(series.Points, &observabilityv1.MetricPoint{
@@ -118,21 +127,22 @@ func buildMetricsQuery(req *observabilityv1.QueryMetricsRequest, queryTimeout ti
 		fmt.Sprintf("bitAnd(Flags, %d) = 0", noRecordedValueFlag))
 
 	where := strings.Join(whereParts, " AND ")
+	series := resourceColumn + ", " + podColumn(req) + " AS Pod"
 	source := fmt.Sprintf(
 		"SELECT %s, TimeUnix, Value, 'gauge' AS MetricType, toInt32(0) AS AggregationTemporality, false AS IsMonotonic "+
 			"FROM otel_metrics_gauge WHERE %s UNION ALL "+
 			"SELECT %s, TimeUnix, Value, 'sum' AS MetricType, AggregationTemporality, IsMonotonic "+
 			"FROM otel_metrics_sum WHERE %s",
-		resourceColumn,
+		series,
 		where,
-		resourceColumn,
+		series,
 		where,
 	)
 	query := fmt.Sprintf(
-		"SELECT %s, toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value, "+
+		"SELECT %s, Pod, toStartOfInterval(TimeUnix, INTERVAL %d SECOND) AS bucket, %s(Value) AS agg_value, "+
 			"MetricType, AggregationTemporality, IsMonotonic FROM (%s) "+
-			"GROUP BY %s, bucket, MetricType, AggregationTemporality, IsMonotonic "+
-			"ORDER BY %s, bucket SETTINGS max_execution_time = %d",
+			"GROUP BY %s, Pod, bucket, MetricType, AggregationTemporality, IsMonotonic "+
+			"ORDER BY %s, Pod, bucket SETTINGS max_execution_time = %d",
 		resourceColumn, interval, aggFunc, source, resourceColumn, resourceColumn, int(queryTimeout.Seconds()),
 	)
 	// The WHERE clause appears once per table of the UNION.
@@ -155,4 +165,22 @@ func metricsFilters(req *observabilityv1.QueryMetricsRequest, b binder) []string
 		whereParts = append(whereParts, "Attributes["+b.str(key)+"] = "+b.str(req.GetAttributes()[key]))
 	}
 	return whereParts
+}
+
+// podColumn is the pod a series belongs to, or one empty pod per resource without pod grouping.
+func podColumn(req *observabilityv1.QueryMetricsRequest) string {
+	if req.GetByPod() {
+		return "ResourceAttributes['" + podAttribute + "']"
+	}
+	return "''"
+}
+
+func labelPod(series *observabilityv1.MetricSeries, req *observabilityv1.QueryMetricsRequest, pod string) {
+	if !req.GetByPod() {
+		return
+	}
+	if series.Labels == nil {
+		series.Labels = map[string]string{}
+	}
+	series.Labels[podAttribute] = pod
 }

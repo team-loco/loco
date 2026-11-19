@@ -111,6 +111,8 @@ SELECT d.resource_id,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
+       COALESCE((SELECT ro.replicas FROM observed_placement_rollouts ro WHERE ro.placement_id = p.id),
+                '[]'::jsonb)::jsonb AS replicas,
        c.last_heartbeat,
        c.health_status,
        ARRAY(

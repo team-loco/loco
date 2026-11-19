@@ -392,6 +392,13 @@ func (s *ResourceServer) ListWorkspaceResources(
 	if err != nil {
 		return nil, fmt.Errorf("derive resource statuses: %w", err)
 	}
+	for _, environments := range statuses {
+		for _, environment := range environments {
+			for _, region := range environment.GetRegions() {
+				region.Replicas = nil
+			}
+		}
+	}
 
 	domainsByResource := make(map[uuid.UUID][]genDb.ResourceDomain, len(dbResources))
 	for _, domain := range allDomains {

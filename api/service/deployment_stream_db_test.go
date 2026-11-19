@@ -258,7 +258,7 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 				State:             "Stopping",
 				StateSince:        since,
 				StateDeadline:     deadline,
-				ExitCode:          new(int32(0)),
+				LastExit:          &deploymentv1.ReplicaExit{Reason: "Completed", FinishedAt: deadline},
 				Detail:            "draining",
 			},
 		},
@@ -280,7 +280,7 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 		oldReplica.GetPlacementRevision() == event.GetDeployment().GetCurrentRevision() ||
 		!proto.Equal(newReplica.GetStateSince(), since) ||
 		!proto.Equal(oldReplica.GetStateDeadline(), deadline) ||
-		oldReplica.ExitCode == nil {
+		oldReplica.GetLastExit() == nil {
 		t.Fatalf("replica conversion=%v", event.GetDeployment().GetReplicas())
 	}
 	get, err := client.GetDeployment(ctx, &deploymentv1.GetDeploymentRequest{DeploymentId: created.GetDeploymentId()})

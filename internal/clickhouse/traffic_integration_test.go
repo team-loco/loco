@@ -46,7 +46,7 @@ func TestGatewayRatesAndLatency(t *testing.T) {
 		}
 	}
 	req := metricsRequest(start, start.Add(time.Minute))
-	req.MetricName, req.Aggregation, req.IntervalSeconds = counterMetric, "rate", 60
+	req.MetricName, req.Aggregation, req.IntervalSeconds = counterMetric, rateAggregation, 60
 	series, err := f.client.QueryMetrics(t.Context(), req)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +122,7 @@ func TestGatewayRatesFilterResponseClass(t *testing.T) {
 		}
 	}
 	req := metricsRequest(f.start, f.start.Add(time.Minute))
-	req.MetricName, req.Aggregation = "cluster.upstream_rq_xx", "rate"
+	req.MetricName, req.Aggregation = "cluster.upstream_rq_xx", rateAggregation
 	req.Attributes = map[string]string{"envoy.response_code_class": "5"}
 	series, err := f.client.QueryMetrics(t.Context(), req)
 	if err != nil {

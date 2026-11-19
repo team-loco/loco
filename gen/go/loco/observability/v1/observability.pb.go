@@ -974,8 +974,10 @@ type QueryMetricsRequest struct {
 	EnvironmentId string `protobuf:"bytes,8,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	// Region to filter by, matching the loco.region attribute each cluster's collectors stamp
 	// on its telemetry. Empty means every region.
-	Region        string            `protobuf:"bytes,9,opt,name=region,proto3" json:"region,omitempty"`
-	Attributes    map[string]string `protobuf:"bytes,10,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Region     string            `protobuf:"bytes,9,opt,name=region,proto3" json:"region,omitempty"`
+	Attributes map[string]string `protobuf:"bytes,10,rep,name=attributes,proto3" json:"attributes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Returns one series per pod of a single resource, labelled with k8s.pod.name.
+	ByPod         bool `protobuf:"varint,11,opt,name=by_pod,json=byPod,proto3" json:"by_pod,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1078,6 +1080,13 @@ func (x *QueryMetricsRequest) GetAttributes() map[string]string {
 		return x.Attributes
 	}
 	return nil
+}
+
+func (x *QueryMetricsRequest) GetByPod() bool {
+	if x != nil {
+		return x.ByPod
+	}
+	return false
 }
 
 // QueryMetricsResponse contains the aggregated metric data.
@@ -2263,7 +2272,7 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\theartbeat\x18\x02 \x01(\v2 .loco.observability.v1.HeartbeatH\x00R\theartbeatB\a\n" +
 	"\x05event\"E\n" +
 	"\tHeartbeat\x128\n" +
-	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\xfe\x06\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\"\x88\b\n" +
 	"\x13QueryMetricsRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x120\n" +
 	"\fresource_ids\x18\x02 \x03(\tB\r\xbaH\n" +
@@ -2281,11 +2290,13 @@ const file_loco_observability_v1_observability_proto_rawDesc = "" +
 	"\n" +
 	"attributes\x18\n" +
 	" \x03(\v2:.loco.observability.v1.QueryMetricsRequest.AttributesEntryR\n" +
-	"attributes\x1a=\n" +
+	"attributes\x12\x15\n" +
+	"\x06by_pod\x18\v \x01(\bR\x05byPod\x1a=\n" +
 	"\x0fAttributesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:q\xbaHn\x1al\n" +
-	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\"S\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xe3\x01\xbaH\xdf\x01\x1al\n" +
+	"\x18time_range.start_lte_end\x12.start_time must be before or equal to end_time\x1a this.start_time <= this.end_time\x1ao\n" +
+	"\x19by_pod.needs_one_resource\x12$by_pod needs exactly one resource_id\x1a,!this.by_pod || size(this.resource_ids) == 1\"S\n" +
 	"\x14QueryMetricsResponse\x12;\n" +
 	"\x06series\x18\x01 \x03(\v2#.loco.observability.v1.MetricSeriesR\x06series\"\xef\x01\n" +
 	"\fMetricSeries\x12\x1f\n" +

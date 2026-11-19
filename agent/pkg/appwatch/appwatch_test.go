@@ -20,6 +20,7 @@ import (
 	"github.com/team-loco/loco/agent/pkg/applier"
 	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -341,7 +342,7 @@ func TestRolloutForwarding(t *testing.T) {
 				State:             "Serving",
 				StateSince:        timestamppb.New(at.Time),
 				Restarts:          2,
-				ExitCode:          new(int32(0)),
+				LastExit:          &deploymentv1.ReplicaExit{},
 				Detail:            "ready",
 			},
 			{

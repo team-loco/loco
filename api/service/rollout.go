@@ -148,7 +148,7 @@ func replicaActivityMessage(replica *agentv1.ReplicaReport) (string, string) {
 		message, severity = "Stopping", activityInfo
 	case loco.ReplicaStopped:
 		message, severity = "Stopped", activityOK
-		if replica.ExitCode != nil && replica.GetExitCode() != 0 {
+		if replica.GetLastExit().GetExitCode() != 0 {
 			severity = activityWarn
 		}
 	case loco.ReplicaKilled:

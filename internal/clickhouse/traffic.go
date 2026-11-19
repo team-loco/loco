@@ -14,15 +14,15 @@ import (
 )
 
 type trafficSample struct {
-	resource, stream string
-	start, end       time.Time
-	temporality      int32
-	values, bounds   []float64
+	resource, pod, stream string
+	start, end            time.Time
+	temporality           int32
+	values, bounds        []float64
 }
 
 type trafficBucket struct {
-	resource string
-	time     time.Time
+	resource, pod string
+	time          time.Time
 }
 
 func (c *Client) queryTrafficMetrics(
@@ -43,9 +43,10 @@ func (c *Client) queryTrafficMetrics(
 	where := strings.Join(filters, " AND ")
 	// The predecessor is needed even when the range starts between scrapes.
 	columns := fmt.Sprintf(
-		"ResourceId, toJSONString(tuple(mapSort(ResourceAttributes), ScopeName, ScopeVersion, "+
+		"ResourceId, %s AS Pod, toJSONString(tuple(mapSort(ResourceAttributes), ScopeName, ScopeVersion, "+
 			"mapSort(ScopeAttributes), mapSort(Attributes), AggregationTemporality)) AS stream, "+
 			"StartTimeUnix, TimeUnix, AggregationTemporality, %s, %s",
+		podColumn(req),
 		values,
 		bounds,
 	)
@@ -74,6 +75,7 @@ func (c *Client) queryTrafficMetrics(
 		var sample trafficSample
 		if err := rows.Scan(
 			&sample.resource,
+			&sample.pod,
 			&sample.stream,
 			&sample.start,
 			&sample.end,
@@ -162,7 +164,7 @@ func addTrafficSample(
 			right = clippedEnd
 		}
 		weight := right.Sub(left).Seconds() / duration
-		key := trafficBucket{resource: sample.resource, time: at}
+		key := trafficBucket{resource: sample.resource, pod: sample.pod, time: at}
 		counts := buckets[key]
 		if counts == nil {
 			counts = make(map[float64]float64)
@@ -189,6 +191,9 @@ func trafficSeries(
 		if n := strings.Compare(a.resource, b.resource); n != 0 {
 			return n
 		}
+		if n := strings.Compare(a.pod, b.pod); n != 0 {
+			return n
+		}
 		return a.time.Compare(b.time)
 	})
 	var result []*observabilityv1.MetricSeries
@@ -210,8 +215,11 @@ func trafficSeries(
 			}
 			value /= to.Sub(from).Seconds()
 		}
-		if len(result) == 0 || result[len(result)-1].GetResourceId() != key.resource {
-			result = append(result, &observabilityv1.MetricSeries{ResourceId: key.resource})
+		if len(result) == 0 || result[len(result)-1].GetResourceId() != key.resource ||
+			result[len(result)-1].GetLabels()[podAttribute] != key.pod {
+			series := &observabilityv1.MetricSeries{ResourceId: key.resource}
+			labelPod(series, req, key.pod)
+			result = append(result, series)
 		}
 		series := result[len(result)-1]
 		series.Points = append(

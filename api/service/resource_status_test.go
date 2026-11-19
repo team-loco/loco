@@ -39,6 +39,7 @@ func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatu
 		ReadyReplicas:    ready,
 		Problem:          []byte(`{"reason":"crash_loop"}`),
 		StatusUpdatedAt:  &reported,
+		Replicas:         []byte(`[]`),
 		LastHeartbeat:    &heartbeat,
 		HealthStatus:     &health,
 	}

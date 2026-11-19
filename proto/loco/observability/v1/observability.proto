@@ -223,10 +223,18 @@ message QueryMetricsRequest {
 
   map<string, string> attributes = 10;
 
+  // Returns one series per pod of a single resource, labelled with k8s.pod.name.
+  bool by_pod = 11;
+
   option (buf.validate.message).cel = {
     id: "time_range.start_lte_end"
     message: "start_time must be before or equal to end_time"
     expression: "this.start_time <= this.end_time"
+  };
+  option (buf.validate.message).cel = {
+    id: "by_pod.needs_one_resource"
+    message: "by_pod needs exactly one resource_id"
+    expression: "!this.by_pod || size(this.resource_ids) == 1"
   };
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -210,25 +211,28 @@ func setDeploymentRollout(deployment *deploymentv1.Deployment, data, observed []
 			return fmt.Errorf("decode observed rollout: %w", err)
 		}
 	}
-	for _, r := range snapshot.Replicas {
-		deployment.Replicas = append(
-			deployment.Replicas,
-			&deploymentv1.Replica{
-				Uid:               r.GetUid(),
-				Name:              r.GetName(),
-				Node:              r.GetNode(),
-				PlacementRevision: r.GetPlacementRevision(),
-				DeploymentId:      r.GetDeploymentId(),
-				Ready:             r.GetReady(),
-				State:             r.GetState(),
-				StateSince:        r.GetStateSince(),
-				StateDeadline:     r.GetStateDeadline(),
-				Restarts:          r.GetRestarts(),
-				ExitCode:          r.ExitCode,
-				Detail:            r.GetDetail(),
-			},
-		)
-	}
-
+	deployment.Replicas = replicasToProto(snapshot.Replicas)
 	return nil
+}
+
+func replicasToProto(reports []*agentv1.ReplicaReport) []*deploymentv1.Replica {
+	replicas := make([]*deploymentv1.Replica, 0, len(reports))
+	for _, r := range reports {
+		replicas = append(replicas, &deploymentv1.Replica{
+			Uid:               r.GetUid(),
+			Name:              r.GetName(),
+			Node:              r.GetNode(),
+			PlacementRevision: r.GetPlacementRevision(),
+			DeploymentId:      r.GetDeploymentId(),
+			Ready:             r.GetReady(),
+			State:             r.GetState(),
+			StateSince:        r.GetStateSince(),
+			StateDeadline:     r.GetStateDeadline(),
+			Restarts:          r.GetRestarts(),
+			StartedAt:         r.GetStartedAt(),
+			LastExit:          r.GetLastExit(),
+			Detail:            r.GetDetail(),
+		})
+	}
+	return replicas
 }
