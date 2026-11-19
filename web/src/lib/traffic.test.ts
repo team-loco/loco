@@ -86,6 +86,9 @@ describe("traffic over a range", () => {
 	it("labels the change from the prior range", () => {
 		expect(changeLabel(110, 100)).toBe("↑ 10%");
 		expect(changeLabel(95, 100)).toBe("↓ 5.0%");
+		expect(changeLabel(100, 100)).toBe("0%");
+		expect(changeLabel(100.01, 100)).toBe("0%");
+		expect(changeLabel(99.99, 100)).toBe("0%");
 		expect(changeLabel(5, 0)).toBeUndefined();
 		expect(changeLabel(undefined, 3)).toBeUndefined();
 	});
