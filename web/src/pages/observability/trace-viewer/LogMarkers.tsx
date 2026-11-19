@@ -26,8 +26,8 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 					<button
 						type="button"
 						key={row.key}
-						aria-label={`Log at ${formatClock(row.ts, true, timePref)}: ${row.entry.body}`}
-						title={`${formatClock(row.ts, true, timePref)} · ${row.entry.body}`}
+						aria-label={`Log at ${formatClock(row.ts, true, timePref)}: ${row.message}`}
+						title={`${formatClock(row.ts, true, timePref)} · ${row.message}`}
 						onMouseEnter={() => {
 							onHover(row);
 						}}

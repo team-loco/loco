@@ -145,7 +145,7 @@ export function LogTable({
 								</span>
 							))}
 							<span className={cn("min-w-0 truncate px-3 font-mono", style.body)}>
-								{l.json !== null ? jsonPreview(l.json, words) : bodyParts(l.entry.body, words)}
+								{l.json !== null ? jsonPreview(l.json, words) : bodyParts(l.message, words)}
 							</span>
 							<span />
 						</button>

@@ -69,7 +69,9 @@ function attributes(row: LogRow): Attribute[] {
 		extra.set(key, { key, value, filter: queryKeyReason(key, "logs") ?? field(key, value), column: key });
 	}
 	const trace: Attribute = { key: "trace", value: e.traceId, filter: field("trace", e.traceId), column: "trace" };
-	return [...list, ...extra.values(), trace].filter((a) => a.value !== "");
+	const template: Attribute[] =
+		row.message === e.body ? [] : [{ key: "template", value: e.body, filter: "Search the message text instead" }];
+	return [...list, ...extra.values(), ...template, trace].filter((a) => a.value !== "");
 }
 
 export function LogDetail({
@@ -118,7 +120,7 @@ export function LogDetail({
 		{
 			timestamp: new Date(row.ts).toISOString(),
 			level: row.level,
-			message: row.json ?? e.body,
+			message: row.json ?? row.message,
 			[row.workload ? "workload" : "resource"]: row.resourceName,
 			replica: row.pod,
 			region: row.region,
@@ -130,7 +132,7 @@ export function LogDetail({
 		null,
 		2,
 	);
-	const msgText = row.json !== null ? JSON.stringify(row.json, null, 2) : e.body;
+	const msgText = row.json !== null ? JSON.stringify(row.json, null, 2) : row.message;
 
 	return (
 		<>
@@ -289,7 +291,7 @@ export function LogDetail({
 							row.json !== null ? "text-foreground" : style.body,
 						)}
 					>
-						{row.json !== null ? msgText : bodyParts(e.body, words)}
+						{row.json !== null ? msgText : bodyParts(row.message, words)}
 					</div>
 				</div>
 				<div className="flex flex-col gap-2">
