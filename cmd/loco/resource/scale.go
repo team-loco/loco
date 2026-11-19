@@ -18,17 +18,20 @@ var (
 )
 
 func newScaleCmd() *cobra.Command {
+	var region string
 	cmd := &cobra.Command{
 		Use:   "scale <name>",
 		Short: "Scale a service's resources in one environment",
 		Long: `Scale a service's replicas, CPU, or memory in one environment.
 
 --env or LOCO_ENV names the environment; a workspace with a single environment uses it.
+Use --region to scale only one region; the other regions keep their deployment.
 
 Examples:
   loco resource scale myapp --env production --replicas 3
   loco resource scale myapp --env staging --cpu 0.5 --memory 512Mi
-  loco resource scale myapp --env production --replicas 2 --cpu 0.25`,
+  loco resource scale myapp --env production --replicas 2 --cpu 0.25
+  loco resource scale myapp --env production --region eu-west-1 --replicas 4`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -87,9 +90,17 @@ Examples:
 				memoryPtr = &memory
 			}
 
+			var regionPtr *string
+			where := env.GetName()
+			if region != "" {
+				regionPtr = &region
+				where += " (" + region + ")"
+			}
+
 			scaleReq := &resourcev1.ScaleResourceRequest{
 				ResourceId:    resource.GetId(),
 				EnvironmentId: env.GetId(),
+				Region:        regionPtr,
 				Replicas:      replicasPtr,
 				Cpu:           cpuPtr,
 				Memory:        memoryPtr,
@@ -103,7 +114,7 @@ Examples:
 			s := lipgloss.NewStyle().
 				Bold(true).
 				Foreground(ui.Ok).
-				Render(fmt.Sprintf("\n🎉 Scaled service %s in %s:", name, env.GetName()))
+				Render(fmt.Sprintf("\n🎉 Scaled service %s in %s:", name, where))
 			fmt.Fprintln(cmd.OutOrStdout(), s)
 
 			if replicas != -1 {
@@ -125,6 +136,7 @@ Examples:
 	cmd.Flags().Int32P("replicas", "r", -1, "Number of replicas to scale to")
 	cmd.Flags().String("cpu", "", "CPU to scale to (e.g. 100m, 0.5)")
 	cmd.Flags().String("memory", "", "Memory to scale to (e.g. 128Mi, 1Gi)")
+	cmd.Flags().StringVar(&region, "region", "", "Region to scale (defaults to all regions)")
 
 	return cmd
 }

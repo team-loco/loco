@@ -127,14 +127,28 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 }
 
 func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
-	requireArgs(ts, neg, args, 3, "fakeapi deployment <id> <running|failed|canceled|deploying>")
+	if neg || len(args) < 3 {
+		ts.Fatalf("usage: fakeapi deployment <id> <running|failed|canceled|deploying> [<region>=<placement status>...]")
+	}
 	phase, ok := deploymentv1.DeploymentStatus_value["DEPLOYMENT_STATUS_"+strings.ToUpper(args[2])]
 	if !ok {
 		ts.Fatalf("fakeapi: unknown deployment phase %q", args[2])
 	}
+	placements := make([]*deploymentv1.DeploymentPlacement, 0, len(args)-3)
+	for _, arg := range args[3:] {
+		region, status, _ := strings.Cut(arg, "=")
+		value, known := deploymentv1.PlacementStatus_value["PLACEMENT_STATUS_"+strings.ToUpper(status)]
+		if !known {
+			ts.Fatalf("fakeapi: unknown placement status %q", status)
+		}
+		placements = append(placements, &deploymentv1.DeploymentPlacement{
+			Region: region, Status: deploymentv1.PlacementStatus(value),
+		})
+	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
 	api.platform.deploymentOutcomes[args[1]] = deploymentv1.DeploymentStatus(phase)
+	api.platform.deploymentPlacements[args[1]] = placements
 }
 
 func requireArgs(ts *testscript.TestScript, neg bool, args []string, n int, usage string) {
@@ -373,8 +387,12 @@ func checkRestarted(ts *testscript.TestScript, api *fakeAPI, neg bool, args []st
 }
 
 func checkScaled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
-	if neg || len(args) != 4 {
-		ts.Fatalf("usage: fakeapi scaled <service> <environment> <replicas>")
+	if neg || len(args) < 4 || len(args) > 5 {
+		ts.Fatalf("usage: fakeapi scaled <service> <environment> <replicas> [region]")
+	}
+	region := ""
+	if len(args) == 5 {
+		region = args[4]
 	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
@@ -391,7 +409,8 @@ func checkScaled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []strin
 		ts.Fatalf("fakeapi: %v", err)
 	}
 	for _, scale := range api.platform.scales {
-		sameTarget := scale.GetResourceId() == resourceID && scale.GetEnvironmentId() == environmentID
+		sameTarget := scale.GetResourceId() == resourceID && scale.GetEnvironmentId() == environmentID &&
+			scale.GetRegion() == region
 		if sameTarget && int64(scale.GetReplicas()) == replicas {
 			return
 		}

@@ -33,6 +33,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 	}
 	f.mu.Lock()
 	outcome, ok := f.platform.deploymentOutcomes[req.GetDeploymentId()]
+	finalPlacements := f.platform.deploymentPlacements[req.GetDeploymentId()]
 	building := false
 	if len(f.platform.applies) > 0 {
 		apply := f.platform.applies[len(f.platform.applies)-1]
@@ -60,6 +61,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 			messages = messages[:1]
 		}
 		deployment.Status = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING
+		placement.Status = deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING
 		var activity []*deploymentv1.Activity
 		for i, message := range messages {
 			if seq := int64(i + 1); seq > req.GetAfterSeq() {
@@ -68,6 +70,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 		}
 		if buildOutcome == outcomeFailed {
 			deployment.Status = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED
+			placement.Status = deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED
 			placement.Problem = &deploymentv1.Problem{
 				Reason:  "build_failed",
 				Message: "The build failed.",
@@ -92,6 +95,8 @@ func (s *fakeDeploymentService) WatchDeployment(
 		}
 	}
 	if req.GetAfterSeq() < offset+1 {
+		deployment.Status = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING
+		placement.Status = deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING
 		if err := stream.Send(
 			&deploymentv1.WatchDeploymentResponse{
 				Deployment:      deployment,
@@ -111,8 +116,19 @@ func (s *fakeDeploymentService) WatchDeployment(
 		outcome = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
 	}
 	deployment.Status = outcome
+	placement.Status = deploymentv1.PlacementStatus(
+		deploymentv1.PlacementStatus_value["PLACEMENT_STATUS_"+strings.TrimPrefix(outcome.String(), "DEPLOYMENT_STATUS_")],
+	)
 	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		placement.Problem = &deploymentv1.Problem{Message: fakeFailedMessage, Detail: "exit 1"}
+	}
+	if len(finalPlacements) > 0 {
+		deployment.Placements = finalPlacements
+		for _, final := range finalPlacements {
+			if final.GetStatus() == deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED {
+				final.Problem = placement.GetProblem()
+			}
+		}
 	}
 	var activity []*deploymentv1.Activity
 	if req.GetAfterSeq() < offset+2 {

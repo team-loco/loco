@@ -103,6 +103,8 @@ type fakePlatform struct {
 	scales            []*resourcev1.ScaleResourceRequest
 	// deploymentOutcomes holds the last status WatchDeployment sends per deployment ID.
 	deploymentOutcomes map[string]deploymentv1.DeploymentStatus
+	// deploymentPlacements holds the final placements WatchDeployment sends per deployment ID.
+	deploymentPlacements map[string][]*deploymentv1.DeploymentPlacement
 	// retention holds the workspace's own days; a nil signal uses the limit.
 	retention *workspacev1.RetentionDays
 	// orgs are the organizations ListUserOrgs returns outside login.
@@ -117,14 +119,15 @@ func newFakePlatform() *fakePlatform {
 			WorkspaceId: fakeWorkspaceID,
 			Name:        fakeEnvironmentName,
 		}},
-		polls:              map[string]int{},
-		outcome:            outcomeSucceeded,
-		uploadMode:         uploadModeOK,
-		sourceLimit:        200 << 20,
-		uploads:            map[string]fakeUpload{},
-		secrets:            map[fakeSecretKey]fakeSecret{},
-		deploymentOutcomes: map[string]deploymentv1.DeploymentStatus{},
-		retention:          &workspacev1.RetentionDays{},
+		polls:                map[string]int{},
+		outcome:              outcomeSucceeded,
+		uploadMode:           uploadModeOK,
+		sourceLimit:          200 << 20,
+		uploads:              map[string]fakeUpload{},
+		secrets:              map[fakeSecretKey]fakeSecret{},
+		deploymentOutcomes:   map[string]deploymentv1.DeploymentStatus{},
+		deploymentPlacements: map[string][]*deploymentv1.DeploymentPlacement{},
+		retention:            &workspacev1.RetentionDays{},
 		workspaces: []*workspacev1.Workspace{
 			{Id: fakeWorkspaceID, OrgId: fakeOrgID, OrgName: fakeOrgName, Name: fakeWorkspaceName},
 		},
