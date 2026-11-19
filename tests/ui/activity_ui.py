@@ -97,7 +97,7 @@ def check_scoped_user(browser):
         "environmentId": production,
         "createdAt": stamp,
         "data": {
-            "reason": "crash_loop",
+            "reason": "restarting",
             "message": "Back-off restarting failed container",
             "placementId": "checkout-us-east-1",
             "region": "us-east-1",
@@ -266,7 +266,7 @@ def check_scoped_user(browser):
                 and body.get("environmentId")
                 and response.status == 200
             ):
-                # The cluster reports crash loops as runtime events; this resource never ran.
+                # The cluster reports restarts as runtime events; this resource never ran.
                 listed = response.json()
                 listed["events"] = [back_off, *listed.get("events", [])]
                 route.fulfill(response=response, json=listed)

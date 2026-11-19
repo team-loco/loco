@@ -193,7 +193,7 @@ test("rollout steps follow the deployment phase", () => {
 	expect(at(DeploymentStatus.DEPLOYING)).toEqual(["done", "active"]);
 	expect(at(DeploymentStatus.RUNNING)).toEqual(["done", "done"]);
 	expect(at(DeploymentStatus.FAILED, "build_failed")).toEqual(["failed", "pending"]);
-	expect(at(DeploymentStatus.FAILED, "crash_loop")).toEqual(["done", "failed"]);
+	expect(at(DeploymentStatus.FAILED, "restarting")).toEqual(["done", "failed"]);
 	expect(
 		rolloutSteps(create(DeploymentSchema, { status: DeploymentStatus.DEPLOYING }), false).map((s) => s.key),
 	).toEqual(["deploy"]);

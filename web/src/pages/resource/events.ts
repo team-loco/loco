@@ -5,7 +5,8 @@ import { maybeTsMs, tsMs } from "@/lib/time";
 const WARNING_WINDOW_MS = 3_600_000;
 
 const WARNING = "resource.degraded";
-const BACK_OFF = "crash_loop";
+/** Problem reasons of a replica that restarts, owned by k8sapi/v1alpha1/problems.go. */
+const RESTARTS: ReadonlySet<string> = new Set(["restarting", "restarts_exhausted"]);
 
 export function isWarning(event: Event): boolean {
 	return event.type === WARNING;
@@ -28,5 +29,5 @@ export function latestBackOff(events: Event[], region?: string): Event | undefin
 		if ((region === undefined || event.region === region) && !latest.has(event.placementId))
 			latest.set(event.placementId, event);
 	}
-	return [...latest.values()].find((event) => event.type === WARNING && event.reason === BACK_OFF);
+	return [...latest.values()].find((event) => event.type === WARNING && RESTARTS.has(event.reason));
 }
