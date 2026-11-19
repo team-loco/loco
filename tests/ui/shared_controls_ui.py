@@ -1161,7 +1161,7 @@ def traffic(page):
         for label, value in (("Public requests", requests), ("Public errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
             # The prior hour's stub equals this hour's.
-            comparison = "— vs prior 1h" if empty else "0% vs prior 1h"
+            comparison = "No prior 1h data to compare" if empty else "0% vs prior 1h"
             expect(card.get_by_text(comparison, exact=True)).to_be_visible()
         if not empty:
             card = totals.get_by_role("group", name="Public requests: 5.4K,")
