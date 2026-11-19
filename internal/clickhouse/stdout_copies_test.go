@@ -86,7 +86,7 @@ func TestLogQueriesHideStdoutCopiesOfOTLPLogs(t *testing.T) {
 				t.Fatalf("logs %q (total %d), want %q", bodies, page.GetTotalMatched(), test.want)
 			}
 			buckets, err := f.client.QueryLogBuckets(t.Context(), q, 3600,
-				observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY)
+				observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL)
 			if err != nil {
 				t.Fatal(err)
 			}

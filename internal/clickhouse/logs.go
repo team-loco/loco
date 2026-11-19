@@ -202,33 +202,28 @@ func buildLogPageQuery(q LogQuery, queryTimeout time.Duration) (string, []any, e
 }
 
 func logFilters(q LogQuery, b binder) []string {
-	whereParts := []string{workspaceColumn + " = " + b.str(q.WorkspaceID)}
-
-	if q.EnvironmentID != "" {
-		whereParts = append(whereParts, environmentColumn+" = "+b.str(q.EnvironmentID))
-	}
-
-	if len(q.ResourceIDs) > 0 {
-		whereParts = append(whereParts, resourceIn(q.ResourceIDs, b))
-	}
-
-	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
-
+	whereParts := logScope(q, b)
 	if q.Filter != nil {
 		whereParts = append(whereParts, logFilterSQL(q.Filter, q.Resources, b))
 	}
-
-	return append(whereParts, stdoutCopySQL(q, b))
+	// container stdout rows of a pod that exported OTLP log rows repeat what its SDK exported.
+	exporters := append(logScope(q, b),
+		"NOT mapContains(LogAttributes, 'log.iostream')", "ResourceAttributes['k8s.pod.uid'] != ''")
+	return append(whereParts, "NOT (LogAttributes['log.iostream'] = 'stdout' AND has((SELECT "+
+		"groupUniqArray(ResourceAttributes['k8s.pod.uid']) FROM otel_logs WHERE "+
+		strings.Join(exporters, " AND ")+"), ResourceAttributes['k8s.pod.uid']))")
 }
 
-// stdoutCopySQL hides the container stdout rows of a pod that exported OTLP log rows since the
-// query start: they repeat what its SDK exported. stderr, where runtimes print crashes, stays.
-func stdoutCopySQL(q LogQuery, b binder) string {
-	return "NOT (LogAttributes['log.iostream'] = 'stdout' AND has((" +
-		"SELECT groupUniqArray(ResourceAttributes['k8s.pod.uid']) FROM otel_logs WHERE " + workspaceColumn + " = " +
-		b.str(q.WorkspaceID) + " AND Timestamp >= fromUnixTimestamp64Nano(" + b.num(q.Start.UnixNano()) + ")" +
-		" AND NOT mapContains(LogAttributes, 'log.iostream') AND ResourceAttributes['k8s.pod.uid'] != ''" +
-		"), ResourceAttributes['k8s.pod.uid']))"
+// logScope selects the rows of q's workspace, environment and resources from q.Start onward.
+func logScope(q LogQuery, b binder) []string {
+	whereParts := []string{workspaceColumn + " = " + b.str(q.WorkspaceID)}
+	if q.EnvironmentID != "" {
+		whereParts = append(whereParts, environmentColumn+" = "+b.str(q.EnvironmentID))
+	}
+	if len(q.ResourceIDs) > 0 {
+		whereParts = append(whereParts, resourceIn(q.ResourceIDs, b))
+	}
+	return append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
 }
 
 func resourceIn(values []string, b binder) string {
