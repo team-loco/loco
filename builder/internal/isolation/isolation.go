@@ -65,7 +65,8 @@ func dial(ctx context.Context, address string) error {
 var errConnected = errors.New("connected")
 
 func isFiltered(err error) bool {
-	return errors.Is(err, context.DeadlineExceeded) ||
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout() ||
 		errors.Is(err, syscall.EHOSTUNREACH) ||
 		errors.Is(err, syscall.ENETUNREACH) ||
 		errors.Is(err, syscall.EACCES) ||
