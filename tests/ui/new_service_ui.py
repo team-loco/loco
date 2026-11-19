@@ -485,6 +485,19 @@ with session(out) as browser:
     expect(row.get_by_text("Draft", exact=True)).to_be_visible()
     expect(row.get_by_role("checkbox")).to_have_count(0)
     expect(row.get_by_role("button")).to_have_count(0)
+    listed = len(
+        call(
+            state,
+            "loco.resource.v1.ResourceService/ListWorkspaceResources",
+            {"workspaceId": workspace},
+        ).get("resources", [])
+    )
+    all_filter = page.get_by_role("group", name="Filter by status", exact=True)
+    expect(
+        all_filter.get_by_role("button", name="All", exact=False).first.locator(
+            '[data-slot="segmented-count"]'
+        )
+    ).to_have_text(str(listed))
     page.goto(base + "?env=production")
     dashboard_row = draft_row(page, name)
     expect(dashboard_row.get_by_text("Not deployed yet", exact=True)).to_be_visible()

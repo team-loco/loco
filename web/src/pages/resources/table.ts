@@ -215,15 +215,24 @@ export function filterRows<T extends ListRow>(rows: T[], filter: Filter): T[] {
 	);
 }
 
+// Counts cover resources the API lists; drafts live in the browser and stay out of them.
+function countable(rows: ListRow[], filter: Filter): ListRow[] {
+	return filterRows(rows, filter).filter((r) => !isDraftRow(r));
+}
+
 export function statusCounts(rows: ListRow[], filter: Filter): Map<string, number> {
-	const base = filterRows(rows, { ...filter, status: ALL });
+	const base = countable(rows, { ...filter, status: ALL });
 	const counts = new Map<string, number>([[ALL, base.length]]);
 	for (const f of STATUS_FILTERS) counts.set(f.value, base.filter((r) => matchesStatus(r, f.value)).length);
 	return counts;
 }
 
+export function regionTotal(rows: ListRow[], filter: Filter): number {
+	return countable(rows, { ...filter, status: ALL, region: ALL }).length;
+}
+
 export function regionCounts(rows: ListRow[], filter: Filter): { region: string; count: number }[] {
-	const base = filterRows(rows, { ...filter, status: ALL, region: ALL });
+	const base = countable(rows, { ...filter, status: ALL, region: ALL });
 	const regions = new Set(rows.flatMap((r) => [...r.cells.values()].flatMap((c) => c.regions)));
 	return [...regions].toSorted().map((region) => ({
 		region,

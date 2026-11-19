@@ -26,6 +26,7 @@ import {
 	NOT_DEPLOYED,
 	nameOrder,
 	regionCounts,
+	regionTotal,
 	replicasLabel,
 	statusCounts,
 	tableParsers,
@@ -327,6 +328,15 @@ describe("draft rows", () => {
 	);
 	const drafts = draftRows([draft("web", { cpu: "2", replicas: 3 }), draft("api")], "e-prod", sizing);
 	const rows: ListRow[] = [...resources, ...drafts];
+
+	test("stay listed but out of the status and region counts", () => {
+		expect(names(filterRows(rows, everything))).toHaveLength(5);
+		const counts = statusCounts(rows, everything);
+		expect(counts.get(ALL)).toBe(3);
+		expect(counts.get(NOT_DEPLOYED)).toBe(1);
+		expect(regionTotal(rows, everything)).toBe(3);
+		expect(regionCounts(rows, everything)).toEqual([{ region: "r", count: 2 }]);
+	});
 
 	test("take sizing from the draft's edits, then the service defaults", () => {
 		const [web, api] = drafts;
