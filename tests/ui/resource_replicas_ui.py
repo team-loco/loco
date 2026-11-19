@@ -239,6 +239,19 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(cards.first).to_contain_text(WEST)
     page.keyboard.press("Escape")
 
+    history = page.get_by_role("tabpanel", name="Deployments")
+    rollout_rows = history.get_by_role("row").filter(has_text="v2")
+    expect(rollout_rows).to_have_count(1)
+    expect(rollout_rows.first).to_contain_text(EAST)
+    expect(rollout_rows.first).to_contain_text(WEST)
+    rollout_rows.first.get_by_role("button", name="Show details", exact=False).click()
+    expect(
+        history.get_by_text(f"First deployment in {EAST}", exact=True)
+    ).to_be_visible()
+    expect(
+        history.get_by_text(f"First deployment in {WEST}", exact=True)
+    ).to_be_visible()
+
     # The evidence API counts a cluster silent after three missed two-hour heartbeats.
     heartbeat(WEST, "7 hours")
     report_replicas()
