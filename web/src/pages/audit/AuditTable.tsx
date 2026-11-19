@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 
 import { ColumnResizeHandle } from "@/components/design/ColumnResizeHandle";
 import { Skeleton } from "@/components/design/Skeleton";
+import { trackScroll } from "@/components/design/Table";
 import { agoLabel, formatClock } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
@@ -53,7 +54,7 @@ export function AuditTable({
 	const minWidth = widths.reduce((sum, width) => sum + width, 100);
 
 	return (
-		<div className="overflow-x-auto [scrollbar-width:thin]">
+		<div ref={trackScroll} data-slot="table-container" className="overflow-x-auto [scrollbar-width:thin]">
 			<div style={{ minWidth }}>
 				<div
 					style={gridStyle}
