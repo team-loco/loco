@@ -82,6 +82,7 @@ export function PersonalTab({
 						<Input
 							value={name}
 							autoComplete="name"
+							placeholder="Your name"
 							aria-invalid={shownErr !== null}
 							className="h-9 text-[13.5px]"
 							onChange={(e) => {
