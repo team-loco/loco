@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
+	"github.com/team-loco/loco/api/db/dbtest"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/buildsource"
@@ -248,6 +250,43 @@ func TestSweepExpiresAbandonedUploads(t *testing.T) {
 	if f.sourceDeleted(t, queuedID) {
 		t.Fatal("the queued build's source is marked deleted")
 	}
+}
+
+func TestSweepExpiresAnUploadAfterTheResourceLock(t *testing.T) {
+	t.Parallel()
+	f := newSweepFixture(t)
+	id := f.insertBuild(t, genDb.BuildStatusAwaitingUpload)
+	start := time.Now()
+	f.sweeper.now = func() time.Time {
+		return start.Add(buildsource.UploadURLTTL + testSourceSweep.UploadGrace + testSweepSkew)
+	}
+
+	gate, err := f.pool.Begin(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if rollbackErr := gate.Rollback(f.ctx); rollbackErr != nil && !errors.Is(rollbackErr, pgx.ErrTxClosed) {
+			t.Errorf("release gate: %v", rollbackErr)
+		}
+	})
+	if _, err = genDb.New(gate).LockResources(f.ctx, []uuid.UUID{f.resourceID}); err != nil {
+		t.Fatal(err)
+	}
+	swept := make(chan error, 1)
+	go func() {
+		_, sweepErr := f.sweeper.Sweep(f.ctx)
+		swept <- sweepErr
+	}()
+	dbtest.WaitForLockWaiters(t, f.pool, 1)
+	wantStatus(t, f.build(t, id), genDb.BuildStatusAwaitingUpload)
+	if err = gate.Rollback(f.ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-swept; err != nil {
+		t.Fatalf("sweep: %v", err)
+	}
+	wantStatus(t, f.build(t, id), genDb.BuildStatusFailed)
 }
 
 func TestSweepRetriesFailedSourceDeletes(t *testing.T) {
