@@ -32,17 +32,17 @@ import {
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
-import { tsMs } from "@/lib/time";
+import { maybeTsMs, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { isBuildFinished } from "./builds";
 import {
 	clockLabel,
 	deploymentElapsedMs,
-	groupReplicas,
 	problemLogsHref,
 	progressDeployments,
 	readyLabel,
+	rolloutActivity,
 	rolloutSteps,
 	servingDeployments,
 	showsCard,
@@ -134,7 +134,8 @@ function ProgressPanel({
 				: problem !== undefined || phase === DeploymentStatus.DEGRADED
 					? "warn"
 					: "ok";
-	const elapsed = deploymentElapsedMs(deployment, nowMs);
+	const feed = rolloutActivity(activity, region.name, placement?.currentRevision ?? 0n);
+	const elapsed = deploymentElapsedMs(deployment, nowMs, feed.restart);
 	const commit = deployment.commit?.sha ?? build?.gitCommit;
 	const { path, tag, digest } = parseImage(depImage(deployment));
 	const fields: [string, string][] = [];
@@ -158,7 +159,6 @@ function ProgressPanel({
 	if (spec?.healthCheck !== undefined)
 		fields.push(["Health check", `${spec.healthCheck.path} every ${spec.healthCheck.intervalSeconds}s`]);
 	const steps = rolloutSteps(deployment, buildId !== "");
-	const replicaGroups = groupReplicas(placement?.replicas ?? [], placement?.currentRevision ?? 0n, deployment.id);
 	const stepNote = (step: RolloutStep): string => {
 		if (step.key === "build") {
 			if (step.state === "done") return build?.imageDigest ? build.imageDigest.slice(0, 15) : "Image ready";
@@ -169,7 +169,7 @@ function ProgressPanel({
 		if (step.state === "failed") return problem?.message ?? "Rollout failed";
 		if (step.state === "stopped") return "Canceled";
 		if (multiRegion) return rolloutReadyLabel(deployment);
-		return readyLabel(replicaGroups[0]?.replicas ?? [], placement?.desiredReplicas ?? 0);
+		return readyLabel(deployment, placement);
 	};
 	return (
 		<section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-4 rounded-card bg-panel px-5 py-[18px]">
@@ -186,7 +186,11 @@ function ProgressPanel({
 						</h2>
 						{elapsed !== undefined && (
 							<span
-								title="Time since the deployment was created"
+								title={
+									feed.restart === undefined
+										? "Time since the deployment was created"
+										: "Time since the restart started"
+								}
 								className="font-mono text-[12px] text-fg3 tabular-nums"
 							>
 								{clockLabel(elapsed)}
@@ -320,8 +324,8 @@ function ProgressPanel({
 					<ReplicaGroups deployment={deployment} region={region.name} />
 				</div>
 				<ActivityFeed
-					deployment={deployment}
-					activity={activity.filter((entry) => entry.region === "" || entry.region === region.name)}
+					startMs={feed.restart === undefined ? maybeTsMs(deployment.createdAt) : feed.restart.startMs}
+					activity={feed.entries}
 				/>
 			</div>
 			{desired !== undefined && desiredLive && (

@@ -14,6 +14,7 @@ import {
 	trafficSeries,
 	trafficTotals,
 	trafficValue,
+	windowSeries,
 } from "./traffic";
 
 describe("gateway traffic", () => {
@@ -101,6 +102,9 @@ describe("traffic over a range", () => {
 	it("sums buckets across resources in time order", () => {
 		expect(trafficSeries(points, "requests")).toEqual([3, 4]);
 		expect(trafficSeries(points, "requests", "b")).toEqual([1]);
+	});
+	it("spans the whole window with zero for buckets without data", () => {
+		expect(windowSeries(points, "requests", 60_000, { startMs: 0, endMs: 5 * 60_000 })).toEqual([3, 4, 0, 0, 0]);
 	});
 	it("labels the change from the prior range", () => {
 		expect(changeLabel(110, 100)).toBe("↑ 10%");

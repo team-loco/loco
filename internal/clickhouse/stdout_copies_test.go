@@ -2,9 +2,12 @@ package clickhouse
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 )
 
@@ -105,5 +108,29 @@ func TestLogQueriesHideStdoutCopiesOfOTLPLogs(t *testing.T) {
 				t.Fatalf("tail returned %d rows, want %d", len(tail.Entries), len(test.want))
 			}
 		})
+	}
+}
+
+func TestUnfilteredLogBucketsReadNoAttributeMaps(t *testing.T) {
+	f := newQueryFixture(t)
+	f.insertPodLogs(t, f.end)
+	comment := t.Name() + strconv.FormatInt(time.Now().UnixNano(), 10)
+	ctx := clickhouse.Context(t.Context(), clickhouse.WithSettings(clickhouse.Settings{"log_comment": comment}))
+	q := LogQuery{WorkspaceID: testUnknownWorkspaceID, Start: f.start, End: f.end.Add(time.Minute)}
+	group := observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL
+	if _, err := f.client.QueryLogBuckets(ctx, q, 3600, group); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.conn.Exec(t.Context(), "SYSTEM FLUSH LOGS"); err != nil {
+		t.Fatal(err)
+	}
+	var columns []string
+	if err := f.conn.QueryRow(t.Context(), "SELECT groupUniqArrayArray(columns) FROM system.query_log "+
+		"WHERE log_comment = ? AND type = 'QueryFinish'", comment).Scan(&columns); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(columns, func(column string) bool { return strings.HasSuffix(column, ".Timestamp") }) ||
+		slices.ContainsFunc(columns, func(column string) bool { return strings.Contains(column, "Attributes") }) {
+		t.Fatalf("log buckets read columns %q, want Timestamp and no attribute map", columns)
 	}
 }

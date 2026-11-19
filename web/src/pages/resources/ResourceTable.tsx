@@ -23,7 +23,7 @@ import {
 	PAGE_SIZES,
 	regionCounts,
 	regionTotal,
-	STATUS_FILTERS,
+	visibleStatusFilters,
 	statusCounts,
 	tableParsers,
 	type ListRow,
@@ -126,7 +126,7 @@ export function ResourceTable({
 				<ToggleGroupItem value={ALL} count={counts.get(ALL)}>
 					All
 				</ToggleGroupItem>
-				{STATUS_FILTERS.map((f) => (
+				{visibleStatusFilters(counts, filter.status).map((f) => (
 					<ToggleGroupItem key={f.value} value={f.value} count={counts.get(f.value)}>
 						{f.label}
 					</ToggleGroupItem>

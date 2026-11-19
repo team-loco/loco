@@ -122,7 +122,7 @@ export function ReplicaGroups({ deployment, region }: { deployment: Deployment; 
 	);
 }
 
-export function ActivityFeed({ deployment, activity }: { deployment: Deployment; activity: readonly Activity[] }) {
+export function ActivityFeed({ startMs, activity }: { startMs: number | undefined; activity: readonly Activity[] }) {
 	return (
 		<section aria-label="Deployment activity" className="min-w-0">
 			<h3 className="m-0 mb-2 text-[12px] font-medium text-fg3">Activity</h3>
@@ -141,7 +141,10 @@ export function ActivityFeed({ deployment, activity }: { deployment: Deployment;
 							key={String(entry.seq)}
 							className="grid grid-cols-[3.5rem_0.5rem_minmax(0,1fr)] items-baseline gap-2 text-[12px]"
 						>
-							<span className="font-mono text-fg3 tabular-nums">{activityTime(entry.at, deployment.createdAt)}</span>
+							<span className="font-mono text-fg3 tabular-nums" title="Time since the rollout started">
+								{activityTime(entry.at, startMs)}
+								<span className="sr-only"> after the rollout started</span>
+							</span>
 							<span
 								className={cn(
 									"size-1.5 self-start mt-1.5 rounded-full bg-info",
