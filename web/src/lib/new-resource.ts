@@ -97,10 +97,9 @@ export function deploymentVariables(rows: EnvRow[]) {
 
 export function envError(rows: EnvRow[]): string | null {
 	const seen = new Set<string>();
-	for (const [key, value] of envVars(rows)) {
+	for (const [key] of envVars(rows)) {
 		if (key === "") return "A variable has a value but no name";
 		if (!isEnvKey(key)) return `${key} isn't a valid name: use letters, digits and _, not starting with a digit`;
-		if (value === "") return `${key} has no value`;
 		if (seen.has(key)) return `${key} is set twice`;
 		seen.add(key);
 	}

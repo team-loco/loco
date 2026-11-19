@@ -237,3 +237,12 @@ func TestServiceDeploymentSpecValidatesCommand(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateEnvAcceptsEmptyValue(t *testing.T) {
+	if err := ValidateEnv(map[string]string{"FEATURE_FLAGS": ""}); err != nil {
+		t.Fatalf("empty value rejected: %v", err)
+	}
+	if err := ValidateEnv(map[string]string{"1BAD": ""}); err == nil {
+		t.Fatal("invalid name accepted")
+	}
+}
