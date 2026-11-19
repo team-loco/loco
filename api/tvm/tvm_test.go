@@ -35,6 +35,7 @@ type TestingQueries struct {
 	byAccess  map[string]uuid.UUID
 	byRefresh map[string]uuid.UUID
 	used      map[string]uuid.UUID
+	usedAt    map[string]time.Time
 }
 
 func newTestingQueries() *TestingQueries {
@@ -43,6 +44,7 @@ func newTestingQueries() *TestingQueries {
 		byAccess:  make(map[string]uuid.UUID),
 		byRefresh: make(map[string]uuid.UUID),
 		used:      make(map[string]uuid.UUID),
+		usedAt:    make(map[string]time.Time),
 	}
 }
 
@@ -108,9 +110,12 @@ func (tq *TestingQueries) GetSessionByRefreshToken(
 	if !ok {
 		return queries.GetSessionByRefreshTokenRow{}, pgx.ErrNoRows
 	}
-	return queries.GetSessionByRefreshTokenRow{
-		ID: e.id, UserID: e.userID, Kind: e.kind, Used: !current,
-	}, nil
+	row := queries.GetSessionByRefreshTokenRow{ID: e.id, UserID: e.userID, Kind: e.kind, Used: !current}
+	if !current {
+		usedAt := tq.usedAt[refreshTokenHash]
+		row.UsedAt = &usedAt
+	}
+	return row, nil
 }
 
 func (tq *TestingQueries) RotateSessionToken(
@@ -124,6 +129,7 @@ func (tq *TestingQueries) RotateSessionToken(
 	delete(tq.byAccess, e.accessHash)
 	delete(tq.byRefresh, e.refreshHash)
 	tq.used[e.refreshHash] = e.id
+	tq.usedAt[e.refreshHash] = time.Now()
 	e.accessHash = params.AccessTokenHash
 	e.refreshHash = params.RefreshTokenHash
 	tq.byAccess[e.accessHash] = e.id
@@ -239,6 +245,26 @@ func TestRefreshRotatesTokens(t *testing.T) {
 		t.Context(), refreshToken, queries.SessionKindCli,
 	); !errors.Is(err, tvm.ErrInvalidExpiredToken) {
 		t.Fatalf("reusing a rotated refresh token: got %v, want ErrInvalidExpiredToken", err)
+	}
+}
+
+func TestRefreshWithinTheReuseGraceKeepsTheSession(t *testing.T) {
+	t.Parallel()
+	tq := newTestingQueries()
+	cfg := testConfig()
+	cfg.RefreshReuseGrace = time.Minute
+	machine := tvm.NewVendingMachine(tq, cfg)
+	_, refreshToken := session(t, machine, authztest.User1)
+	if _, _, err := machine.Refresh(t.Context(), refreshToken, queries.SessionKindCli); err != nil {
+		t.Fatalf("refresh: %v", err)
+	}
+	if _, _, err := machine.Refresh(
+		t.Context(), refreshToken, queries.SessionKindCli,
+	); !errors.Is(err, tvm.ErrRefreshRotated) {
+		t.Fatalf("refresh with a just-rotated token: got %v, want ErrRefreshRotated", err)
+	}
+	if len(tq.sessions) != 1 {
+		t.Fatalf("sessions = %d, want the session kept", len(tq.sessions))
 	}
 }
 

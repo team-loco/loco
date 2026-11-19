@@ -72,7 +72,8 @@ CREATE INDEX session_tokens_refresh_expires_idx ON session_tokens (refresh_expir
 CREATE UNLOGGED TABLE used_session_refresh_tokens (
     token_hash TEXT PRIMARY KEY,
     session_id UUID NOT NULL REFERENCES session_tokens(id) ON DELETE CASCADE,
-    expires_at TIMESTAMPTZ NOT NULL
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX used_session_refresh_tokens_session_idx ON used_session_refresh_tokens (session_id);

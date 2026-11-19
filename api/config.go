@@ -128,6 +128,7 @@ const (
 	defaultAPITokenMaxLifetime        = 365 * 24 * time.Hour
 	defaultSessionAccessTokenLifetime = time.Hour
 	defaultSessionRefreshLifetime     = 7 * 24 * time.Hour
+	defaultSessionRefreshReuseGrace   = 10 * time.Second
 	defaultTokenLastUsedInterval      = 5 * time.Minute
 	defaultTokenCleanupInterval       = time.Minute
 
@@ -450,6 +451,10 @@ func newTokenConfig() tvm.Config {
 		SessionRefreshTokenDuration: envconfig.PositiveDuration(
 			"LOCO_SESSION_REFRESH_TOKEN_LIFETIME",
 			defaultSessionRefreshLifetime,
+		),
+		RefreshReuseGrace: envconfig.PositiveDuration(
+			"LOCO_SESSION_REFRESH_REUSE_GRACE",
+			defaultSessionRefreshReuseGrace,
 		),
 		LastUsedUpdateInterval: envconfig.PositiveDuration(
 			"LOCO_TOKEN_LAST_USED_INTERVAL",

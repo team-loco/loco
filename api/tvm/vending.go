@@ -22,6 +22,8 @@ type Config struct {
 	// Session tokens
 	SessionAccessTokenDuration  time.Duration // duration of the access token issued at login
 	SessionRefreshTokenDuration time.Duration // duration of the refresh token issued at login
+	// A consumed refresh token presented again within this window is a concurrent refresh, not a replay.
+	RefreshReuseGrace time.Duration
 
 	// How often last_used_at is written to the DB (throttles writes on the hot path)
 	LastUsedUpdateInterval time.Duration
