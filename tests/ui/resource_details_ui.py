@@ -233,10 +233,26 @@ with session(out) as browser:
     more.click()
     restart = page.get_by_role("menuitem", name="Restart all replicas", exact=True)
     expect(restart).to_be_enabled()
+    restart.click()
+    confirm = page.get_by_role("alertdialog", name=f"Restart {name}?")
+    expect(confirm).to_contain_text(
+        f"every replica of {name} in the production environment"
+    )
+    confirm.get_by_role("button", name="Cancel", exact=True).click()
+    expect(confirm).to_have_count(0)
+    assert (
+        sql(
+            state,
+            f"SELECT COUNT(*) FROM events WHERE type='resource.restarted' AND resource_id='{resource}';",
+        )
+        == "0"
+    )
+    more.click()
+    restart.click()
     with expect_rpc(
         page, "RestartResource", lambda body: body.get("resourceId") == resource
     ) as restarted:
-        restart.click()
+        confirm.get_by_role("button", name="Restart all replicas", exact=True).click()
     assert restarted.value.ok, restarted.value.text()
     expect(page.get_by_text(f"Restarting {name}", exact=True)).to_be_visible()
     assert (
@@ -268,6 +284,7 @@ with session(out) as browser:
     )
     more.click()
     page.get_by_role("menuitem", name="Restart all replicas", exact=True).click()
+    confirm.get_by_role("button", name="Restart all replicas", exact=True).click()
     expect(page.get_by_text(f"Couldn’t restart {name}", exact=True)).to_be_visible()
     copy_receipt = page.get_by_title("Copy request ID", exact=True)
     expect(copy_receipt).to_contain_text(receipt)
