@@ -20,11 +20,25 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-const agentExitTimeout = 2 * time.Minute
+const (
+	agentExitTimeout = 2 * time.Minute
+	reattachTimeout  = 3 * time.Minute
+)
 
 // TestClusterAttachment enrolls, reconnects, re-enrolls, pauses, removes and restores the run's
-// cluster. It restarts the API and the agent, so it runs before the parallel tests.
+// cluster. It restarts the API and the agent, so it runs before the parallel tests, and on failure
+// it reattaches the cluster those tests deploy to.
 func TestClusterAttachment(t *testing.T) {
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), reattachTimeout)
+		defer cancel()
+		if err := reattach(ctx); err != nil {
+			t.Errorf("reattach the cluster after a failed subtest: %v", err)
+		}
+	})
 	w := p.NewTenant(t)
 	dir := t.TempDir()
 	platform.WriteLocoFile(t, dir, locofile.File{Partial: "attached", Services: map[string]locofile.Service{
@@ -108,6 +122,50 @@ func TestClusterAttachment(t *testing.T) {
 	t.Run("agent waits for a mounted join token", delayedJoinToken)
 
 	t.Run("pause, remove and restore", pauseRemoveRestore)
+}
+
+// reattach re-enrolls the run's cluster with a new agent key and waits until it accepts
+// applications, whichever state a failed subtest left it in.
+func reattach(ctx context.Context) error {
+	p.StopAgent()
+	var removed bool
+	if err := p.DB.QueryRow(ctx, "SELECT removed_at IS NOT NULL FROM clusters WHERE id = $1", p.ClusterID).
+		Scan(&removed); err != nil {
+		return err
+	}
+	if removed {
+		if _, err := p.Locoadm(ctx, "cluster", "restore", p.ClusterID); err != nil {
+			return err
+		}
+	}
+	if _, err := p.Locoadm(ctx, "cluster", "resume", p.ClusterID); err != nil {
+		return err
+	}
+	issued, err := p.Admin.ClusterAdmin.IssueJoinToken(
+		ctx,
+		&clusterv1.IssueJoinTokenRequest{ClusterId: p.ClusterID},
+	)
+	if err != nil {
+		return err
+	}
+	if err = p.DeleteAgentKey(ctx); err != nil {
+		return err
+	}
+	if err = p.StartAgent(ctx, p.APIURL, issued.GetJoinToken().GetToken()); err != nil {
+		return err
+	}
+	return platform.Poll(ctx, func(ctx context.Context) error {
+		var healthy bool
+		if err := p.DB.QueryRow(
+			ctx, "SELECT COALESCE(health_status = 'healthy', false) FROM clusters WHERE id = $1", p.ClusterID,
+		).Scan(&healthy); err != nil {
+			return err
+		}
+		if !healthy {
+			return errors.New("the cluster is not healthy")
+		}
+		return nil
+	})
 }
 
 func locoadm(t *testing.T, args ...string) string {

@@ -128,7 +128,8 @@ func (p *Platform) clickhouseDSN() string {
 }
 
 // StartAgent starts the agent against apiURL, enrolling with joinToken when it is set, and waits
-// until the cluster records a new sync generation from this agent's version.
+// until the cluster records a new sync generation from this agent's version and the agent has
+// stored the cluster ID it registered as.
 func (p *Platform) StartAgent(ctx context.Context, apiURL, joinToken string) error {
 	return p.startAgent(ctx, apiURL, joinToken, "")
 }
@@ -160,7 +161,10 @@ func (p *Platform) startAgent(ctx context.Context, apiURL, joinToken, tokenFile 
 	if err := p.startProcess(agentProcess, env, filepath.Join(p.binDir, "loco-agent")); err != nil {
 		return err
 	}
-	return p.WaitAgentRegistered(ctx, previous)
+	if err := p.WaitAgentRegistered(ctx, previous); err != nil {
+		return err
+	}
+	return p.waitAgentClusterID(ctx)
 }
 
 // WaitAgentRegistered waits until the agent records a sync generation after previous.
