@@ -15,7 +15,7 @@ import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
-import { rolloutReadyLabel } from "@/lib/activity-deploys";
+import { placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
 import {
 	deploymentActor,
 	deploymentMethod,
@@ -265,12 +265,18 @@ function ProgressPanel({
 					}}
 					className="flex-wrap"
 				>
-					{members.map((m) => (
-						<ToggleGroupItem key={m.region.name} value={m.region.name} className="font-mono">
-							<StatusGlyph glyph={deploymentPhaseStyle(regionPhase(m)).glyph} />
-							{m.region.name}
-						</ToggleGroupItem>
-					))}
+					{members.map((m) => {
+						const memberPlacement = placementIn(m.deployment, m.region.name);
+						return (
+							<ToggleGroupItem key={m.region.name} value={m.region.name} className="font-mono">
+								<StatusGlyph glyph={deploymentPhaseStyle(regionPhase(m)).glyph} />
+								{m.region.name}
+								{memberPlacement !== undefined && (
+									<span className="text-fg3 tabular-nums">{placementReadyLabel(m.deployment, memberPlacement)}</span>
+								)}
+							</ToggleGroupItem>
+						);
+					})}
 				</ToggleGroup>
 			)}
 			{connectionError !== undefined && (

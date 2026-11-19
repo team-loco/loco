@@ -10,6 +10,7 @@ import {
 	deploySteps,
 	finishedLabel,
 	reportedReadyLabel,
+	placementReadyLabel,
 	rolloutReadyLabel,
 	tookLabel,
 	withoutRunningDeploys,
@@ -191,4 +192,17 @@ describe("reportedReadyLabel", () => {
 		});
 		expect(reportedReadyLabel(d, new Map())).toBeUndefined();
 	});
+});
+
+test("placementReadyLabel counts one region's ready replicas of this deployment", () => {
+	const replica = (deploymentId: string, ready: boolean) => ({ deploymentId, ready });
+	const west = {
+		region: "eu-west-1",
+		desiredReplicas: 3,
+		replicas: [replica("d", true), replica("d", false), replica("old", true)],
+	};
+	const d = deployment("d", DeploymentStatus.DEPLOYING, 1, { placements: [west] });
+	const [placement] = d.placements;
+	if (placement === undefined) throw new Error("no placement");
+	expect(placementReadyLabel(d, placement)).toBe("1/3");
 });

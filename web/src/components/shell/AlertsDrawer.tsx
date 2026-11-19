@@ -12,6 +12,7 @@ import { Link } from "react-router";
 import { Button } from "@/components/design/Button";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { ResourceStatusBadge } from "@/components/design/StatusBadge";
+import { PlacementChips } from "@/components/design/PlacementChips";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
@@ -203,7 +204,7 @@ function DeployCard({
 				</span>
 			</div>
 			<CardName name={name} href={resourceHref} note={build?.gitCommitMessage ?? ""} onNavigate={onNavigate} />
-			<RegionChips regions={deployment.placements.map((p) => p.region)} />
+			<PlacementChips placements={deployment.placements} />
 			{running ? (
 				<div className="flex items-center gap-2.5 text-[13px]">
 					<span aria-hidden className="flex shrink-0 gap-[3px]">

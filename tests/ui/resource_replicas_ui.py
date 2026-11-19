@@ -1,5 +1,6 @@
 import argparse
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -222,6 +223,10 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
     expect(card).to_contain_text("3 of 4 ready in 2 regions")
     chips = card.get_by_role("group", name="Rollout regions", exact=True)
     expect(chips.get_by_role("button")).to_have_count(2)
+    for name in (EAST, WEST):
+        expect(chips.get_by_role("button", name=name)).to_contain_text(
+            re.compile(r"\d/2$")
+        )
     chips.get_by_role("button", name=WEST).click()
     expect(card.get_by_role("region", name="New version", exact=True)).to_contain_text(
         "replicas-ui-west-c3"
@@ -239,8 +244,8 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
         .filter(has_text="Deploying")
     )
     expect(cards).to_have_count(1)
-    expect(cards.first).to_contain_text(EAST)
-    expect(cards.first).to_contain_text(WEST)
+    for name in (EAST, WEST):
+        expect(cards.first.get_by_title(re.compile(f"^{name}: "))).to_be_visible()
     page.keyboard.press("Escape")
 
     history = page.get_by_role("tabpanel", name="Deployments")
