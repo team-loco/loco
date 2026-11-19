@@ -8,7 +8,7 @@ import { ChevronRightIcon, FileCodeIcon, HammerIcon, ScrollTextIcon, Undo2Icon }
 import { useState } from "react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link } from "react-router";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/design/Collapsible";
@@ -26,7 +26,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
-import { deploymentImage } from "@/lib/deployment-utils";
+import { rolloutGroups } from "@/lib/activity-deploys";
+import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
 import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
@@ -55,6 +56,19 @@ interface Row {
 	region: RegionView;
 	prev: Deployment | undefined;
 	isCurrent: boolean;
+}
+
+/** The deployments one apply, deploy or scale created, one per region. */
+interface RolloutRow {
+	key: string;
+	rows: [Row, ...Row[]];
+}
+
+/** The member a rollout's status shows: one still in flight, else one that failed, else the newest. */
+function leadRow(rows: readonly [Row, ...Row[]]): Row {
+	return (
+		rows.find((r) => isInFlight(r.dep.status)) ?? rows.find((r) => r.dep.status === DeploymentStatus.FAILED) ?? rows[0]
+	);
 }
 
 function timeFact(ms: number | undefined, pref: TimePreferences): string {
@@ -240,7 +254,12 @@ export function DeploymentsSection({
 			})),
 		)
 		.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
-	const deployRows = pagedRows(all, pagination, setPagination, PAGE_SIZES);
+	const rowOf = new Map(all.map((row) => [row.dep.id, row]));
+	const rollouts: RolloutRow[] = rolloutGroups(all.map((row) => row.dep)).flatMap((group) => {
+		const [first, ...rest] = group.flatMap((dep) => rowOf.get(dep.id) ?? []);
+		return first === undefined ? [] : [{ key: first.dep.id, rows: [first, ...rest] }];
+	});
+	const deployRows = pagedRows(rollouts, pagination, setPagination, PAGE_SIZES);
 	const multiRegion = regions.length > 1;
 	const columns = BASE_COLUMNS + (multiRegion ? 1 : 0);
 
@@ -264,9 +283,10 @@ export function DeploymentsSection({
 		setSelectedBuild(buildId);
 	};
 	const goDeployment = (row: Row) => {
+		const index = rollouts.findIndex((rollout) => rollout.rows.includes(row));
 		void setHist("deploys");
-		setOpen(row.dep.id);
-		setPagination({ page: pageOf(all.indexOf(row), pagination.size), size: pagination.size });
+		setOpen(rollouts[index]?.key ?? null);
+		setPagination({ page: pageOf(index, pagination.size), size: pagination.size });
 	};
 	const buildDeployment = (buildId: string) => {
 		const row = byBuild.get(buildId);
@@ -294,7 +314,7 @@ export function DeploymentsSection({
 						<TabsTrigger value="deploys">
 							Deployments{" "}
 							<TabsCount>
-								{all.length}
+								{rollouts.length}
 								{hasMore ? "+" : ""}
 							</TabsCount>
 						</TabsTrigger>
@@ -331,20 +351,22 @@ export function DeploymentsSection({
 									</TableRow>
 								)}
 							</TableBody>
-							{deployRows.rows.map((row) => {
-								const { dep, isCurrent } = row;
-								const expanded = open === dep.id;
-								const took = tookMs(dep);
-								const created = maybeTsMs(dep.createdAt);
+							{deployRows.rows.map(({ key, rows }) => {
+								const { dep } = leadRow(rows);
+								const isCurrent = rows.some((r) => r.isCurrent);
+								const expanded = open === key;
+								const tooks = rows.flatMap((r) => tookMs(r.dep) ?? []);
+								const took = tooks.length === rows.length ? Math.max(...tooks) : undefined;
+								const created = maybeTsMs(rows[0].dep.createdAt);
 								const toggle = () => {
-									setOpen(expanded ? null : dep.id);
+									setOpen(expanded ? null : key);
 								};
 								return (
 									<Collapsible
-										key={dep.id}
+										key={key}
 										open={expanded}
 										onOpenChange={(next) => {
-											setOpen(next ? dep.id : null);
+											setOpen(next ? key : null);
 										}}
 										render={<TableBody />}
 									>
@@ -352,7 +374,7 @@ export function DeploymentsSection({
 											<TableCell>
 												<CollapsibleTrigger
 													render={<Button variant="ghost" size="icon-xs" />}
-													aria-label={`${expanded ? "Hide" : "Show"} details for ${formatShortId(dep.id)}`}
+													aria-label={`${expanded ? "Hide" : "Show"} details for ${formatShortId(rows[0].dep.id)}`}
 													onClick={(e) => {
 														e.stopPropagation();
 													}}
@@ -373,7 +395,9 @@ export function DeploymentsSection({
 												<DeploymentActor deployment={dep} />
 											</TableCell>
 											{multiRegion && (
-												<TableCell className="truncate font-mono text-[12px] text-fg2">{row.region.name}</TableCell>
+												<TableCell className="truncate font-mono text-[12px] text-fg2">
+													{rows.map((r) => r.region.name).join(", ")}
+												</TableCell>
 											)}
 											<TableCell className="max-w-0 truncate text-fg2" title={deploymentMessage(dep)}>
 												{deploymentMessage(dep)}
@@ -390,13 +414,25 @@ export function DeploymentsSection({
 										</TableRow>
 										<CollapsibleContent render={<TableRow />} className="data-closed:hidden">
 											<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
-												<Detail
-													row={row}
-													logsHref={logsHref}
-													onRollback={onRollback}
-													onViewSpec={onViewSpec}
-													onOpenBuild={goBuild}
-												/>
+												{rows.map((row) => (
+													<section
+														key={row.dep.id}
+														aria-label={rows.length > 1 ? `Deployment in ${row.region.name}` : undefined}
+													>
+														{rows.length > 1 && (
+															<h3 className="m-0 pt-3 font-mono text-[12px] font-medium text-fg2 md:pl-9">
+																{row.region.name}
+															</h3>
+														)}
+														<Detail
+															row={row}
+															logsHref={logsHref}
+															onRollback={onRollback}
+															onViewSpec={onViewSpec}
+															onOpenBuild={goBuild}
+														/>
+													</section>
+												))}
 											</TableCell>
 										</CollapsibleContent>
 									</Collapsible>
