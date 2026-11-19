@@ -166,6 +166,9 @@ func quickServiceName(cmd *cobra.Command, names []string) (string, error) {
 			return "", err
 		}
 	}
+	if !locofile.IsDNSLabel(name) {
+		return "", fmt.Errorf("service name %q: %w", name, locofile.ErrInvalidName)
+	}
 	return name, nil
 }
 
