@@ -94,6 +94,9 @@ func (c *Client) queryTrafficMetrics(
 	return trafficSeries(buckets, req, histogram), nil
 }
 
+// plausibleStart precedes every real accumulation start.
+var plausibleStart = time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+
 func addTrafficSample(
 	buckets map[trafficBucket]map[float64]float64,
 	sample, previous trafficSample,
@@ -108,10 +111,12 @@ func addTrafficSample(
 	from := sample.start
 	switch sample.temporality {
 	case 1:
+		// Envoy's OTLP sink starts its first delta at its creation time, counted in microseconds.
+		if from.Before(plausibleStart) {
+			from = time.UnixMicro(from.UnixNano())
+		}
 	case 2:
-		// Envoy's affected OTLP sink writes microseconds into its nanosecond start field.
-		// Scrape intervals stay usable across resets; the first sample has no safe interval.
-		// TODO: verify a fixed gateway image with the reproduction in https://github.com/team-loco/loco/issues/1685.
+		// The interval since the previous sample spans resets; the first sample has no interval.
 		if previous.stream != sample.stream || !sample.end.After(previous.end) {
 			return
 		}

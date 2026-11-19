@@ -31,7 +31,7 @@ tests:
         template: charts/gateway-helm/templates/infra-manager-rbac.yaml
         documentSelector: {path: kind, value: ClusterRole}
 
-  - it: sends every Envoy signal to the deployment collector's OTLP gRPC Service
+  - it: sends every Envoy signal to the deployment collector's OTLP gRPC Service, metrics as deltas
     asserts:
       - equal:
           path: spec.telemetry.metrics
@@ -39,7 +39,10 @@ tests:
             prometheus: {disable: true}
             sinks:
               - type: OpenTelemetry
-                openTelemetry: {backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
+                openTelemetry:
+                  backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]
+                  reportCountersAsDeltas: true
+                  reportHistogramsAsDeltas: true
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
