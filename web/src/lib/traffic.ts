@@ -75,12 +75,28 @@ export function trafficValue(value: number | undefined, unit: string): string {
 
 export type TrafficField = "requests" | "errors" | "bytes";
 
-/** Totals a per-second rate over buckets `stepMs` wide, per resource. */
-export function trafficTotals(points: TrafficPoint[], field: TrafficField, stepMs: number): Map<string, number> {
+export interface TrafficWindow {
+	startMs: number;
+	endMs: number;
+}
+
+/**
+ * Totals a per-second rate over buckets `stepMs` wide, per resource. The server divides each
+ * bucket's count by the part of the bucket inside the query window, so each rate is
+ * integrated over that same part.
+ */
+export function trafficTotals(
+	points: TrafficPoint[],
+	field: TrafficField,
+	stepMs: number,
+	window: TrafficWindow,
+): Map<string, number> {
 	const totals = new Map<string, number>();
 	for (const point of points) {
 		const rate = point[field];
-		if (rate !== undefined) totals.set(point.resourceId, (totals.get(point.resourceId) ?? 0) + (rate * stepMs) / 1000);
+		if (rate === undefined) continue;
+		const widthMs = Math.max(0, Math.min(point.time + stepMs, window.endMs) - Math.max(point.time, window.startMs));
+		totals.set(point.resourceId, (totals.get(point.resourceId) ?? 0) + (rate * widthMs) / 1000);
 	}
 	return totals;
 }
@@ -112,8 +128,9 @@ export function changeLabel(current: number | undefined, prior: number | undefin
 const compact = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, notation: "compact" });
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 
+/** Formats a request or error count, which is whole even when it comes from integrated rates. */
 export function formatCompact(value: number): string {
-	return compact.format(value);
+	return compact.format(Math.round(value));
 }
 
 export function formatBytes(value: number): string {
