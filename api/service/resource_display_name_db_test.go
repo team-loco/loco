@@ -29,7 +29,7 @@ func setDisplayName(t *testing.T, f *deployFixture, displayName string) error {
 func TestUpdateResourceDisplayNameKeepsNameAndPlacements(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	before := f.placement(t, f.clusterID)
