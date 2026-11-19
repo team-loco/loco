@@ -186,6 +186,10 @@ function healthLine(dep: Deployment): string | null {
 	return `${hc.path} every ${hc.intervalSeconds.toString()}s`;
 }
 
+function entriesLine(entries: string[] | undefined): string | null {
+	return entries === undefined || entries.length === 0 ? null : JSON.stringify(entries);
+}
+
 export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 	const f = getServiceSpec(from);
 	const t = getServiceSpec(to);
@@ -207,6 +211,8 @@ export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 	push("memory", f?.memory ?? null, t?.memory ?? null);
 	push("port", f?.port?.toString() ?? null, t?.port?.toString() ?? null);
 	push("health", healthLine(from), healthLine(to));
+	push("command", entriesLine(f?.command), entriesLine(t?.command));
+	push("args", entriesLine(f?.args), entriesLine(t?.args));
 	const fEnv = f?.env ?? {};
 	const tEnv = t?.env ?? {};
 	const keys = [...new Set([...Object.keys(fEnv), ...Object.keys(tEnv)])].toSorted();

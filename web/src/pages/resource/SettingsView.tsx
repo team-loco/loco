@@ -29,6 +29,7 @@ import {
 	type SettingsDraft,
 } from "./settings-draft";
 import {
+	CommandSection,
 	GeneralSection,
 	HEALTH_SECTION_ID,
 	HealthSection,
@@ -50,6 +51,7 @@ const READ_ONLY_ID = "settings-read-only";
 
 const NAV = [
 	{ id: "set-image", label: "Image" },
+	{ id: "set-command", label: "Start command" },
 	{ id: "set-scaling", label: "Scaling" },
 	{ id: "set-size", label: "Size" },
 	{ id: "set-env", label: "Variables" },
@@ -171,6 +173,7 @@ export function SettingsView({
 				</nav>
 				<div className="flex min-w-0 flex-col">
 					<ImageSection {...props} />
+					<CommandSection {...props} />
 					<ScalingSection
 						{...props}
 						sizes={sizes}

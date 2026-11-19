@@ -492,6 +492,18 @@ with session(out) as browser:
     drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
     drawer.get_by_role("textbox", name="Fail after, checks").fill("6")
     expect(health).to_contain_text(f"{health_path} · every 15s")
+    start_command = drawer.get_by_role("button", name=re.compile(r"^Start command"))
+    expect(start_command).to_contain_text("Image default")
+    start_command.click()
+    drawer.get_by_role("textbox", name="Arguments", exact=True).fill(
+        "-text=hello world\n\n-listen=:8080\n"
+    )
+    expect(start_command).to_contain_text("-text=hello world -listen=:8080")
+    drawer.get_by_text("loco.yaml", exact=True).first.click()
+    expect(
+        drawer.get_by_text('args: ["-text=hello world", "-listen=:8080"]', exact=False)
+    ).to_be_visible()
+    drawer.get_by_text("loco.yaml", exact=True).first.click()
     expect(drawer.get_by_text("To production", exact=True)).to_be_visible()
     assert drawer.bounding_box()["width"] <= page.viewport_size["width"]
 
@@ -506,6 +518,7 @@ with session(out) as browser:
         "info"
     )
     expect(health).to_contain_text(f"{health_path} · every 15s")
+    expect(start_command).to_contain_text("-text=hello world -listen=:8080")
     page.keyboard.press("Escape")
     expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
     row = draft_row(page, name)
@@ -726,6 +739,8 @@ with session(out) as browser:
     assert spec["scalers"] == {}, spec
     assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec
     assert spec["env"] == {"LOG_LEVEL": "info"}, spec
+    assert spec["args"] == ["-text=hello world", "-listen=:8080"], spec
+    assert "command" not in spec, spec
     assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
     assert writes[-1] == {
         "resourceId": resource,

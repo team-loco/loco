@@ -194,6 +194,30 @@ describe("planSave", () => {
 		expect(svc?.healthCheck?.intervalSeconds).toBe(10);
 	});
 
+	test("sets and clears the command and args in every running region", () => {
+		const set = plan({ command: "/http-echo", args: "-text=hello world\n\n-listen=:8080\n" });
+		expect(set.map((d) => d.region)).toEqual([EAST, WEST]);
+		for (const d of set) {
+			const svc = getServiceSpec(create(DeploymentSchema, { spec: d.spec }));
+			expect(svc?.command).toEqual(["/http-echo"]);
+			expect(svc?.args).toEqual(["-text=hello world", "-listen=:8080"]);
+		}
+		expect(changeCount({ command: "/http-echo", args: "-text=hello world" }, base)).toBe(2);
+		expect(changeCount({ args: "\n  \n" }, base)).toBe(0);
+		expect(plan({ args: "\n" })).toEqual([]);
+
+		const withArgs = regions.map((r) => {
+			const current = deployment(r.name, r.name);
+			const svc = getServiceSpec(current);
+			if (svc !== undefined) svc.args = ["-text=hello"];
+			return region(r.name, current);
+		});
+		const argsBase = baseline("shop", "shop", "", withArgs, [EAST, WEST], true, defaults);
+		expect(argsBase.args).toBe("-text=hello");
+		const cleared = planSave(withArgs, { args: "" }, argsBase);
+		expect(cleared.map((d) => getServiceSpec(create(DeploymentSchema, { spec: d.spec }))?.args)).toEqual([[], []]);
+	});
+
 	test("redeploys every region when the resource goes private", () => {
 		expect(plan({ isPublic: false }).map((d) => d.region)).toEqual([EAST, WEST]);
 	});

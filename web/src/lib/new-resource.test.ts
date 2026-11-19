@@ -18,6 +18,9 @@ import {
 	imageError,
 	looksSecret,
 	locoYaml,
+	commandEntries,
+	commandSummary,
+	commandText,
 	mergeEnv,
 	NAME_RULE,
 	nameError,
@@ -48,6 +51,8 @@ const form: NewResourceForm = {
 		{ id: "2", key: "ON", value: "yes: really" },
 	],
 	health: { path: "/healthz", interval: "10", timeout: "3", failAfter: "5" },
+	command: "",
+	args: "-listen=:8080\n-text=hello, world\n\n",
 };
 
 const row = (key: string, value: string, id = key): EnvRow => ({ id, key, value });
@@ -191,6 +196,7 @@ test("locoYaml writes a loco.yaml that parses to the form", () => {
 		services: {
 			web: {
 				image: "ghcr.io/acme/web:1.4.2",
+				args: ["-listen=:8080", "-text=hello, world"],
 				port: 8080,
 				health: { path: "/healthz", interval: 10, timeout: 3, failThreshold: 5 },
 				domains: ["web.example.com"],
@@ -202,6 +208,27 @@ test("locoYaml writes a loco.yaml that parses to the form", () => {
 			},
 		},
 	});
+});
+
+test("commandSummary joins the entries or names the image default", () => {
+	expect(commandSummary({ command: "", args: "" })).toBe("Image default");
+	expect(commandSummary({ command: "/http-echo", args: "-text=hi\n" })).toBe("/http-echo -text=hi");
+});
+
+test("commandEntries keeps one entry per line as typed", () => {
+	expect(commandEntries("")).toEqual([]);
+	expect(commandEntries("/bin/sh\r\n-c\n\n  \nexec app --name 'a b'\n")).toEqual([
+		"/bin/sh",
+		"-c",
+		"exec app --name 'a b'",
+	]);
+	expect(commandEntries(" -v ")).toEqual([" -v "]);
+	expect(commandEntries(commandText(["-text=a, b", "$(PORT)"]))).toEqual(["-text=a, b", "$(PORT)"]);
+});
+
+test("locoYaml writes the command", () => {
+	const yaml = locoYaml({ schemaUrl: "", form: { ...form, command: "/bin/sh\n-c", args: "exec app: now" } });
+	expect(yaml).toContain('    command: [/bin/sh, -c]\n    args: ["exec app: now"]\n');
 });
 
 test("locoYaml quotes values YAML would read as numbers or booleans", () => {

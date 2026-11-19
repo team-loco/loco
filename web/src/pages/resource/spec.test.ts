@@ -51,6 +51,19 @@ describe("specChanges", () => {
 		expect(specChanges(from, to)).toEqual([{ label: "env.NEW", from: null, to: "1" }]);
 	});
 
+	test("lists a changed command and args with each entry quoted", () => {
+		const from = deployment("ghcr.io/acme/shop:1.4.0", 2, {});
+		const to = deployment("ghcr.io/acme/shop:1.4.0", 2, {});
+		const svc = to.spec?.spec.case === "service" ? to.spec.spec.value : undefined;
+		if (svc === undefined) throw new Error("no service spec");
+		svc.command = ["/http-echo"];
+		svc.args = ["-text=a, b"];
+		expect(specChanges(from, to)).toEqual([
+			{ label: "command", from: null, to: '["/http-echo"]' },
+			{ label: "args", from: null, to: '["-text=a, b"]' },
+		]);
+	});
+
 	test("is empty for the same spec", () => {
 		const dep = deployment("ghcr.io/acme/shop:1.4.0", 2, {});
 		expect(specChanges(dep, dep)).toEqual([]);

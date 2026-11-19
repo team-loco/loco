@@ -30,6 +30,7 @@ import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } 
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
+import { CommandFields, type CommandValue } from "@/components/design/CommandFields";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -43,6 +44,7 @@ import { draftIsPublic, draftRegions, draftSizing, type Draft, type DraftEdits }
 import { getErrorMessage } from "@/lib/error-handler";
 import { DRAFT_PARAM, resourcePath } from "@/lib/routes";
 import {
+	commandSummary,
 	firstError,
 	healthSummary,
 	imageError,
@@ -76,8 +78,11 @@ const API_FIELD_LABEL: Record<ApiField, string> = {
 	cpu: "CPU",
 	memory: "Memory",
 	replicas: "Replicas",
+	command: "Command",
+	args: "Arguments",
 };
 const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeout", "failAfter"]);
+const COMMAND_FIELDS: ReadonlySet<ApiField> = new Set(["command", "args"]);
 
 function useTakenNames(orgId: string, workspaceId: string): Map<string, string> {
 	const resourcesQuery = useQuery(useWorkspaceResourcesOptions(orgId, workspaceId));
@@ -302,6 +307,7 @@ function DraftPanel({
 	const navigate = useNavigate();
 	const [tried, setTried] = useState(false);
 	const [healthOpen, setHealthOpen] = useState(false);
+	const [commandOpen, setCommandOpen] = useState(false);
 	const [discarding, setDiscarding] = useState(false);
 	const [secretValues, setSecretValues] = useState<ReadonlyMap<string, string>>(() => new Map());
 	const [saveFailed, setSaveFailed] = useState(false);
@@ -375,11 +381,13 @@ function DraftPanel({
 				}
 				tried={tried}
 				healthOpen={healthOpen}
+				commandOpen={commandOpen}
 				holder={taken.get(draft.name) ?? null}
 				onTry={() => {
 					setTried(true);
 				}}
 				onHealthOpen={setHealthOpen}
+				onCommandOpen={setCommandOpen}
 				onEdit={(edits) => {
 					deployment.clearError();
 					if (!store.edit(draft.id, edits)) {
@@ -462,9 +470,11 @@ function ServiceForm({
 	resourceHref,
 	tried,
 	healthOpen,
+	commandOpen,
 	holder,
 	onTry,
 	onHealthOpen,
+	onCommandOpen,
 	onEdit,
 	onDeployed,
 	onDiscard,
@@ -480,9 +490,11 @@ function ServiceForm({
 	resourceHref: string | undefined;
 	tried: boolean;
 	healthOpen: boolean;
+	commandOpen: boolean;
 	holder: string | null;
 	onTry: () => void;
 	onHealthOpen: (open: boolean) => void;
+	onCommandOpen: (open: boolean) => void;
 	onEdit: (edits: DraftEdits) => void;
 	onDeployed: (resourceId: string) => void;
 	onDiscard: () => void;
@@ -510,6 +522,8 @@ function ServiceForm({
 		port: edits.port ?? "",
 		vars: edits.vars ?? [],
 		health: edits.health ?? defaultHealth(defaults),
+		command: edits.command ?? "",
+		args: edits.args ?? "",
 	};
 	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
@@ -538,6 +552,7 @@ function ServiceForm({
 					}
 					const field = error?.field?.field;
 					if (field !== undefined && HEALTH_FIELDS.has(field)) onHealthOpen(true);
+					if (field !== undefined && COMMAND_FIELDS.has(field)) onCommandOpen(true);
 				});
 			}}
 		>
@@ -701,6 +716,14 @@ function ServiceForm({
 					onChange={(vars) => {
 						set({ vars });
 					}}
+				/>
+
+				<CommandSection
+					value={form}
+					open={commandOpen}
+					apiError={apiError}
+					onOpenChange={onCommandOpen}
+					onChange={set}
 				/>
 
 				<HealthSection
@@ -922,6 +945,37 @@ function EnvSection({
 
 const ENV_CELL =
 	"h-[38px] min-w-0 flex-1 rounded-none border-0 bg-transparent font-mono focus-visible:bg-panel focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:ring-inset dark:bg-transparent";
+
+function CommandSection({
+	value,
+	open,
+	apiError,
+	onOpenChange,
+	onChange,
+}: {
+	value: CommandValue;
+	open: boolean;
+	apiError: (field: ApiField) => string | null;
+	onOpenChange: (open: boolean) => void;
+	onChange: (patch: Partial<CommandValue>) => void;
+}) {
+	return (
+		<Collapsible open={open} onOpenChange={onOpenChange} className="flex flex-col gap-3">
+			<CollapsibleTrigger className="flex w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none">
+				<span className="text-[14px] font-medium">Start command</span>
+				<span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg3">{commandSummary(value)}</span>
+				{open ? <ChevronDownIcon className="size-3.5 text-fg3" /> : <ChevronRightIcon className="size-3.5 text-fg3" />}
+			</CollapsibleTrigger>
+			<CollapsibleContent>
+				<CommandFields
+					value={value}
+					errors={{ command: apiError("command"), args: apiError("args") }}
+					onChange={onChange}
+				/>
+			</CollapsibleContent>
+		</Collapsible>
+	);
+}
 
 function HealthSection({
 	health,
