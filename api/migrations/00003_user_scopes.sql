@@ -117,10 +117,13 @@ CREATE INDEX api_tokens_resource_idx ON api_tokens (resource_ref) WHERE resource
 CREATE INDEX api_tokens_expires_idx ON api_tokens (expires_at);
 CREATE INDEX api_tokens_created_by_idx ON api_tokens (created_by);
 
+CREATE TYPE org_role AS ENUM ('admin', 'member');
+
 CREATE TABLE invitations (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
+    role org_role NOT NULL,
     invited_by UUID NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at TIMESTAMPTZ NOT NULL,
@@ -138,6 +141,7 @@ CREATE INDEX invitations_claimed_by_idx ON invitations (claimed_by);
 
 -- +goose Down
 DROP TABLE IF EXISTS invitations;
+DROP TYPE IF EXISTS org_role;
 DROP TABLE IF EXISTS api_tokens;
 DROP TABLE IF EXISTS used_session_refresh_tokens;
 DROP TABLE IF EXISTS session_tokens;

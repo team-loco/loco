@@ -232,3 +232,16 @@ func ApplyRoles(
 	}
 	return nil
 }
+
+// OrgRoleScopes lists the organization scopes a member holds in role.
+func OrgRoleScopes(orgID uuid.UUID, role queries.OrgRole) []queries.EntityScope {
+	scopes := []queries.Scope{queries.ScopeMember}
+	if role == queries.OrgRoleAdmin {
+		scopes = []queries.Scope{queries.ScopeRead, queries.ScopeWrite, queries.ScopeAdmin}
+	}
+	granted := make([]queries.EntityScope, len(scopes))
+	for i, scope := range scopes {
+		granted[i] = queries.EntityScope{EntityType: queries.EntityTypeOrganization, EntityID: orgID, Scope: scope}
+	}
+	return granted
+}

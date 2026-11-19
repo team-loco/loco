@@ -121,14 +121,14 @@ func TestDeleteUserKeepsHistoricalReferences(t *testing.T) {
 		},
 		{
 			name: "sent invitation",
-			insert: `INSERT INTO invitations (org_id, email, invited_by, expires_at)
-			           SELECT org_id, 'sent@example.com', $1, now() FROM workspaces WHERE id = $2`,
+			insert: `INSERT INTO invitations (org_id, email, role, invited_by, expires_at)
+			           SELECT org_id, 'sent@example.com', 'member', $1, now() FROM workspaces WHERE id = $2`,
 			reference: "invitations.invited_by",
 		},
 		{
 			name: "claimed invitation",
-			insert: `INSERT INTO invitations (org_id, email, invited_by, expires_at, claimed_by, claimed_at)
-			         SELECT org_id, 'claimed@example.com', created_by, now(), $1, now() FROM workspaces WHERE id = $2`,
+			insert: `INSERT INTO invitations (org_id, email, role, invited_by, expires_at, claimed_by, claimed_at)
+			         SELECT org_id, 'claimed@example.com', 'member', created_by, now(), $1, now() FROM workspaces WHERE id = $2`,
 			reference: "invitations.claimed_by",
 		},
 	} {

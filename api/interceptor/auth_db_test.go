@@ -253,7 +253,8 @@ func TestAuthenticatePutsClaimedOrgsInContext(t *testing.T) {
 		t.Fatalf("create org: %v", err)
 	}
 	if _, inviteErr := f.queries.CreateInvitation(t.Context(), genDb.CreateInvitationParams{
-		OrgID: org.ID, Email: "dev@example.test", InvitedBy: user.ID, ExpiresAt: time.Now().Add(time.Hour),
+		OrgID: org.ID, Email: "dev@example.test", Role: genDb.OrgRoleMember, InvitedBy: user.ID,
+		ExpiresAt: time.Now().Add(time.Hour),
 	}); inviteErr != nil {
 		t.Fatalf("invite: %v", inviteErr)
 	}

@@ -472,6 +472,7 @@ func (f *invitationFixture) invite(t *testing.T, orgID uuid.UUID, email string, 
 	invitation, err := f.q.CreateInvitation(t.Context(), genDb.CreateInvitationParams{
 		OrgID:     orgID,
 		Email:     email,
+		Role:      genDb.OrgRoleMember,
 		InvitedBy: f.inviter.ID,
 		ExpiresAt: time.Now().Add(ttl),
 	})

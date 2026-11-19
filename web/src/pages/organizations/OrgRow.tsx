@@ -28,7 +28,7 @@ export function OrgRow({
 	org: Organization;
 	active: boolean;
 	onSwitch: (orgId: string) => void;
-	role: "Owner" | "Admin" | "Member" | undefined;
+	role: "Admin" | "Member" | undefined;
 }) {
 	const navigate = useNavigate();
 	const pref = useTimePreferences();
@@ -90,7 +90,7 @@ export function OrgRow({
 						<ArrowUpRight />
 						Open
 					</DropdownMenuItem>
-					{(role === "Owner" || role === "Admin") && (
+					{role === "Admin" && (
 						<DropdownMenuItem
 							onClick={() => {
 								void navigate(settings);
@@ -108,7 +108,7 @@ export function OrgRow({
 						<Copy />
 						Copy ID
 					</DropdownMenuItem>
-					{role === "Owner" && (
+					{role === "Admin" && (
 						<>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem

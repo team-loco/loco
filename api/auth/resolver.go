@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -189,13 +190,9 @@ func claimInvitations(
 		if err != nil {
 			return nil, fmt.Errorf("claim invitation %s: %w", invitation.ID, err)
 		}
-		if scopeErr := qtx.AddUserScope(ctx, genDb.AddUserScopeParams{
-			UserID:     user.ID,
-			EntityType: genDb.EntityTypeOrganization,
-			EntityID:   claimed.OrgID,
-			Scope:      genDb.ScopeMember,
-		}); scopeErr != nil {
-			return nil, fmt.Errorf("add member scope for invitation %s: %w", claimed.ID, scopeErr)
+		roleScopes := authz.OrgRoleScopes(claimed.OrgID, claimed.Role)
+		if scopeErr := authz.ApplyRoles(ctx, qtx, user.ID, roleScopes, nil); scopeErr != nil {
+			return nil, fmt.Errorf("grant role for invitation %s: %w", claimed.ID, scopeErr)
 		}
 		if eventErr := events.Record(ctx, qtx, events.Event{
 			Type:        events.OrgMemberAdded,

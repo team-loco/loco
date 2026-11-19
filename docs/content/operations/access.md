@@ -23,7 +23,7 @@ A user holds one or more scopes on an organization:
 
 Sessions and API tokens use the same action permissions for organization, invitation, membership, role and account-status operations. Organization creation requires a real human owner, which a personal token can represent. A workspace created by a session or personal token receives the existing human creator grants; the token's stored scope ceiling still limits its access. Organization, workspace and resource tokens create no human grants.
 
-A user joins an organization only by accepting an invitation. An organization admin invites an email address with `loco org invite <email>` (`OrgService.InviteOrgMember`), and the user becomes a `member` the next time they sign in with that verified email address. `loco org invitations` lists pending invitations and `loco org revoke-invite <id>` revokes one.
+A user joins an organization only by accepting an invitation. An organization admin invites an email address with `loco org invite <email>` (`OrgService.InviteOrgMember`), and the user joins the next time they sign in with that verified email address. The invitation carries the role the invitee receives, `member` unless the inviter chooses `admin`; the dashboard's invite drawer offers both. `loco org invitations` lists pending invitations and `loco org revoke-invite <id>` revokes one.
 
 The dashboard and CLI return a sign-in link for the inviter to copy and share. Core sends no email. Installations that want invitation email consume the [`invitation.created` and `invitation.resent` webhook events](webhooks.md#invitation-events). Resending extends the invitation expiry and records a new event.
 

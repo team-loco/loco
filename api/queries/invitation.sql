@@ -1,6 +1,6 @@
 -- name: CreateInvitation :one
-INSERT INTO invitations (org_id, email, invited_by, expires_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO invitations (org_id, email, role, invited_by, expires_at)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: RevokeExpiredInvitations :many

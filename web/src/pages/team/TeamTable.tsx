@@ -34,7 +34,7 @@ import { formatMonthYear, shortAgoLabel, tsMs } from "@/lib/time";
 import { userLabel } from "@/lib/user";
 
 import { MemberAvatar } from "./MemberAvatar";
-import { levelOf, roleOf, untilLabel, type Member, type Role, type TeamRow } from "./model";
+import { levelOf, ROLE_HINT, roleLabel, roleOf, untilLabel, type Member, type Role, type TeamRow } from "./model";
 
 const SKELETON_ROWS = [0, 1, 2, 3];
 const COLUMNS = 7;
@@ -51,11 +51,6 @@ export interface RowActions {
 	onResend: (invitation: Invitation) => void;
 	onRevoke: (invitation: Invitation) => void;
 }
-
-const ROLE_HINT: Record<Role, string> = {
-	Admin: "Manage members and every workspace.",
-	Member: "Only sees the workspaces you give them.",
-};
 
 function RoleItems({ role, heading = false, onPick }: { role: Role; heading?: boolean; onPick: (role: Role) => void }) {
 	return (
@@ -136,7 +131,7 @@ function MemberRow({
 			</TableCell>
 			<TableCell>
 				<Badge size="sm" tone="muted">
-					Member
+					Active
 				</Badge>
 			</TableCell>
 			<TableCell>
@@ -275,9 +270,7 @@ function InvitationRow({ invitation, now, actions }: { invitation: Invitation; n
 					</Badge>
 				</span>
 			</TableCell>
-			<TableCell>
-				<Dash />
-			</TableCell>
+			<TableCell>{roleLabel(invitation.role)}</TableCell>
 			<TableCell />
 			<TableCell className="font-mono text-[12px]">
 				<Dash />
