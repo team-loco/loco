@@ -319,7 +319,7 @@ export function LogsView() {
 			});
 		for (const r of rows) {
 			if (key === "level") add(r.level);
-			if (key === "resource") add(r.resourceName);
+			if (key === "resource" && !r.workload) add(r.resourceName);
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
 			if (key === "build") add(r.build);

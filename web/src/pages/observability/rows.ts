@@ -11,7 +11,10 @@ export interface LogRow {
 	ts: number;
 	level: Level;
 	resourceId: string;
+	/** The Loco resource's name or, for a workload Loco did not create, its Kubernetes workload name. */
 	resourceName: string;
+	/** Whether the line comes from a Kubernetes workload that is not a Loco resource. */
+	workload: boolean;
 	color: string;
 	pod: string;
 	replica: string;
@@ -31,6 +34,25 @@ function podName(entry: LogEntry): string {
 	return entry.resourceAttributes["k8s.pod.name"] ?? "";
 }
 
+export const WORKLOAD_TITLE = "Kubernetes workload, not a Loco resource";
+
+const WORKLOAD_ATTRIBUTES = [
+	"k8s.deployment.name",
+	"k8s.statefulset.name",
+	"k8s.daemonset.name",
+	"k8s.cronjob.name",
+	"k8s.job.name",
+	"k8s.pod.name",
+];
+
+function workloadName(entry: LogEntry): string {
+	for (const key of WORKLOAD_ATTRIBUTES) {
+		const name = entry.resourceAttributes[key];
+		if (name !== undefined && name !== "") return name;
+	}
+	return "";
+}
+
 export function replicaOf(pod: string): string {
 	const parts = pod.split("-");
 	return parts.length > 1 ? (parts.at(-1) ?? pod) : pod;
@@ -46,12 +68,14 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 		const n = seen.get(base) ?? 0;
 		seen.set(base, n + 1);
 		const res = resourceById.get(entry.resourceId);
+		const workload = entry.resourceId === "";
 		rows.push({
 			key: `${base}#${String(n)}`,
 			ts,
 			level: logLevel(entry.level),
 			resourceId: entry.resourceId,
-			resourceName: res?.name ?? (entry.resourceId.slice(0, 8) || "unknown"),
+			resourceName: workload ? workloadName(entry) : (res?.name ?? entry.resourceId.slice(0, 8)),
+			workload,
 			color: res?.color ?? "var(--fg4)",
 			pod,
 			replica: replicaOf(pod),
