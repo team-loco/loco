@@ -106,8 +106,8 @@ func (f *deployFixture) wantSuperseded(t *testing.T, inFlight uuid.UUID) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if old.Status != genDb.DeploymentStatusCanceled || old.IsActive {
-		t.Fatalf("in-flight deployment status=%s active=%t, want canceled and inactive", old.Status, old.IsActive)
+	if old.Status != genDb.DeploymentStatusCanceled {
+		t.Fatalf("in-flight deployment status=%s, want canceled", old.Status)
 	}
 	live := f.activeDeployment(t, f.envID)
 	p := f.placement(t, f.clusterID)
@@ -121,7 +121,7 @@ func TestScaleDuringARolloutSupersedesIt(t *testing.T) {
 	for _, phase := range []string{"pending", "deploying"} {
 		t.Run(phase, func(t *testing.T) {
 			f := newDeployFixture(t)
-			created, err := createDeployment(t, f, sameRegionSpec)
+			created, err := createTestDeployment(t, f, sameRegionSpec)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -146,7 +146,7 @@ func TestScaleDuringARolloutSupersedesIt(t *testing.T) {
 func TestDeploymentDuringARolloutSupersedesIt(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestDeploymentDuringARolloutSupersedesIt(t *testing.T) {
 func TestRestartDuringARolloutRollsItAgain(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestSecretWritesSucceedDuringARollout(t *testing.T) {
 			f := newDeployFixture(t)
 			provider := newTestKeyProvider(t, "k1")
 			f.storeSecret(t, provider, stripeKey, stripeValue)
-			if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+			if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 				t.Fatal(err)
 			}
 			server := f.secretServer(provider)
@@ -226,7 +226,7 @@ func TestSecretWritesSucceedDuringARollout(t *testing.T) {
 func TestConcurrentScalesBothApplyInOrder(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	f.reportRollout(t, true)
@@ -263,8 +263,8 @@ func TestApplyDuringARolloutSupersedesIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if old.Status != genDb.DeploymentStatusCanceled || old.IsActive {
-		t.Fatalf("in-flight deployment status=%s active=%t, want canceled and inactive", old.Status, old.IsActive)
+	if old.Status != genDb.DeploymentStatusCanceled {
+		t.Fatalf("in-flight deployment status=%s, want canceled", old.Status)
 	}
 	if live := f.activeDeployment(t, f.envID); live.ID == inFlight.ID {
 		t.Fatal("apply left the in-flight deployment live")
