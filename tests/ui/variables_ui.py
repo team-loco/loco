@@ -204,6 +204,10 @@ with session(out) as browser:
     dialog = page.get_by_role("dialog", name=f"Redeploy {name}?")
     dialog.get_by_role("button", name="Redeploy", exact=True).click()
     expect(dialog).to_have_count(0)
+    expect(
+        page.locator("[data-sonner-toast]").filter(has_text=f"Redeploying {name}")
+    ).to_be_visible()
+    expect(page.get_by_role("status")).to_have_count(0)
     assert len(deployments) == 2, deployments
     assert "secretBindings" not in deployments[1], deployments[1]
     assert not errors, errors

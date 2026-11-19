@@ -391,6 +391,43 @@ def log_levels(page):
     wait_for_query(page, lambda query: query.get("q") == ["@level:error"])
 
 
+def log_columns(page):
+    attribute = "container.image.name"
+    entries = [
+        {
+            "timestamp": stamp(datetime.now(UTC), timedelta(seconds=i)),
+            "level": "LOG_LEVEL_WARN",
+            "body": "Slow request",
+            "resourceId": resource,
+            "logAttributes": {attribute: "registry.example/app:1"},
+        }
+        for i in range(3)
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "3"}),
+    )
+    page.goto(
+        state["ui_url"]
+        + base
+        + f"/observability?env=production&view=logs&cols=level,resource,{attribute}"
+    )
+    lines = page.get_by_role("region", name="Log lines")
+    row = lines.get_by_role("button", name=re.compile(r"Slow request$")).first
+    expect(row).to_be_visible()
+    head = page.locator(".list-head").first
+    for label in ("Time", "Level", "Resource", attribute):
+        expect(head.get_by_text(label, exact=True)).to_be_visible()
+    clipped = page.evaluate(
+        """() => [...document.querySelectorAll('.list-head span, .list-row > span')]
+            .filter(e => e.scrollWidth > e.clientWidth + 1 && e.querySelector('.truncate') === null
+                && /^(Time|Level|Warning|[\\d:.]+|container\\.image\\.name)$/.test(e.textContent.trim()))
+            .map(e => e.textContent.trim())"""
+    )
+    assert clipped == [], clipped
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
+
+
 def workload_logs(page):
     now = datetime.now(UTC)
     entries = [
@@ -1508,6 +1545,7 @@ with session(out) as browser:
         mobile_sidebar,
         activity_deployments,
         log_levels,
+        log_columns,
         workload_logs,
         template_logs,
         log_paging,

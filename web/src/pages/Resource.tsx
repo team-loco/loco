@@ -277,10 +277,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			return;
 		}
 		const tags = [...new Set(currents.map((d) => depTag(d)))].join(", ");
-		setNotice({
-			tone: "info",
-			title: `Redeploying ${resource.displayName}`,
-			message: `New deployment from ${tags} in ${currents.flatMap(currentRegions).join(", ")}.`,
+		toast.info(`Redeploying ${resource.displayName}`, {
+			description: `New deployment from ${tags} in ${currents.flatMap(currentRegions).join(", ")}.`,
 		});
 	};
 
@@ -298,10 +296,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			});
 			return;
 		}
-		setNotice({
-			tone: "info",
-			title: `Rolling back ${resource.displayName} in ${deploymentRegions(target).join(", ")}`,
-			message: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
+		toast.info(`Rolling back ${resource.displayName} in ${deploymentRegions(target).join(", ")}`, {
+			description: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
 		});
 	};
 

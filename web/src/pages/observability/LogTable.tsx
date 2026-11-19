@@ -18,7 +18,7 @@ import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
 import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
-const TIME_WIDTH = 112;
+const TIME_WIDTH = 128;
 const DATED_TIME_WIDTH = 172;
 const MESSAGE_MIN = "minmax(260px,1fr)";
 const ADD_WIDTH = 36;
@@ -62,15 +62,17 @@ export function LogTable({
 				<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
 					<span className="flex h-full items-center px-3">Time</span>
 					{columns.map((c) => (
-						<span key={c} className="group/col relative flex h-full min-w-0 items-center gap-1 px-3">
-							<span className="truncate">{columnLabel(c)}</span>
+						<span key={c} className="group/col relative flex h-full min-w-0 items-center px-3">
+							<span className="truncate" title={columnLabel(c)}>
+								{columnLabel(c)}
+							</span>
 							<button
 								type="button"
 								aria-label={`Remove column ${columnLabel(c)}`}
 								onClick={() => {
 									onColumns(columns.filter((x) => x !== c));
 								}}
-								className="flex size-[18px] items-center justify-center rounded-sm text-fg3 opacity-0 group-hover/col:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+								className="absolute top-1/2 right-3 flex size-[18px] -translate-y-1/2 items-center justify-center rounded-sm bg-panel text-fg3 opacity-0 group-hover/col:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 							>
 								<XIcon className="size-3" />
 							</button>
