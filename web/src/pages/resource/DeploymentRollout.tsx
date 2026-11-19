@@ -120,9 +120,7 @@ export function ReplicaGroups({ deployment }: { deployment: Deployment }) {
 export function ActivityFeed({ deployment, activity }: { deployment: Deployment; activity: readonly Activity[] }) {
 	return (
 		<section aria-label="Deployment activity" className="min-w-0">
-			<div className="mb-2 flex items-center justify-between gap-2">
-				<h3 className="m-0 text-[12px] font-medium text-fg3">Activity</h3>
-			</div>
+			<h3 className="m-0 mb-2 text-[12px] font-medium text-fg3">Activity</h3>
 			<div
 				ref={followActivity}
 				// oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The scroll region needs keyboard access.
