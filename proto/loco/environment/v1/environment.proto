@@ -40,6 +40,7 @@ message Environment {
 // CreateEnvironmentRequest is the request to create a new environment.
 message CreateEnvironmentRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
+  // A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
   string name = 2 [(buf.validate.field).string.max_len = 63];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
   reserved 4;
@@ -74,6 +75,7 @@ message ListEnvironmentsResponse {
 // UpdateEnvironmentRequest is the request to update an environment.
 message UpdateEnvironmentRequest {
   string environment_id = 1 [(buf.validate.field).string.uuid = true];
+  // A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
   optional string name = 2 [(buf.validate.field).string = {
     min_len: 1
     max_len: 63

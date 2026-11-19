@@ -11668,7 +11668,8 @@
           "name": {
             "type": "string",
             "title": "name",
-            "maxLength": 63
+            "maxLength": 63,
+            "description": "A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit."
           },
           "description": {
             "type": [
@@ -11826,7 +11827,8 @@
             ],
             "title": "name",
             "maxLength": 63,
-            "minLength": 1
+            "minLength": 1,
+            "description": "A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit."
           },
           "description": {
             "type": [

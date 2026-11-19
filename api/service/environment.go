@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -17,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	environmentv1 "github.com/team-loco/loco/gen/go/loco/environment/v1"
+	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -25,8 +25,12 @@ const (
 )
 
 var (
-	ErrEnvironmentNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "environment not found")
-	ErrEnvironmentNameRequired  = rpcerr.NewCoded(connect.CodeInvalidArgument, "environment name must not be blank")
+	ErrEnvironmentNotFound    = rpcerr.NewCoded(connect.CodeNotFound, "environment not found")
+	ErrInvalidEnvironmentName = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"environment name must be 1 to 63 lowercase letters, digits and hyphens, "+
+			"starting and ending with a letter or digit",
+	)
 	ErrEnvironmentNameNotUnique = rpcerr.NewCoded(
 		connect.CodeAlreadyExists,
 		"environment name already exists in this workspace",
@@ -67,6 +71,9 @@ func (s *EnvironmentServer) CreateEnvironment(
 		return nil, err
 	}
 
+	if !locofile.IsDNSLabel(req.GetName()) {
+		return nil, ErrInvalidEnvironmentName
+	}
 	desc := req.GetDescription()
 	var env genDb.Environment
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -195,8 +202,8 @@ func (s *EnvironmentServer) UpdateEnvironment(
 	fields := message.Descriptor().Fields()
 	updateName := message.Has(fields.ByName(updateNameField))
 	updateDescription := message.Has(fields.ByName(updateDescriptionField))
-	if updateName && strings.TrimSpace(req.GetName()) == "" {
-		return nil, ErrEnvironmentNameRequired
+	if updateName && !locofile.IsDNSLabel(req.GetName()) {
+		return nil, ErrInvalidEnvironmentName
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
