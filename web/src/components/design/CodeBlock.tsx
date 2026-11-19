@@ -23,6 +23,7 @@ function Code({ code, language = "plaintext", className }: CodeProps) {
 interface CodeBlockProps {
 	copyLabel?: string;
 	lineNumbers?: boolean;
+	wrap?: boolean;
 	children: string;
 	language?: LanguageName | undefined;
 	className?: string | undefined;
@@ -34,6 +35,7 @@ function CodeBlock({
 	className,
 	copyLabel = "Copy code",
 	lineNumbers = true,
+	wrap = false,
 }: CodeBlockProps) {
 	const [copiedKey, copy] = useCopy(COPIED_RESET_MS);
 	const copied = copiedKey !== null;
@@ -59,7 +61,13 @@ function CodeBlock({
 				<Code
 					code={children}
 					language={language}
-					className={lineNumbers ? "code-lines" : "code-plain block w-max min-w-full px-4 whitespace-normal"}
+					className={
+						lineNumbers
+							? "code-lines"
+							: wrap
+								? "code-plain code-wrap block px-4 whitespace-normal"
+								: "code-plain block w-max min-w-full px-4 whitespace-normal"
+					}
 				/>
 			</pre>
 			<Button
