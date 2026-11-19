@@ -1,6 +1,6 @@
 import { orgWorkspacesOptions } from "@/hooks/orgWorkspaces";
 import { useMyScopes } from "@/hooks/useMyScopes";
-import { routeKnown } from "@/lib/not-found";
+import { resourceMissing, routeKnown } from "@/lib/not-found";
 import { NotFound, NotFoundBoundary } from "@/pages/NotFound";
 import { useAuth } from "@/auth/AuthProvider";
 import { nextPathState } from "@/auth/next";
@@ -11,7 +11,7 @@ import { KeyboardShortcutsProvider } from "@/components/shell/KeyboardShortcuts"
 import { CommandPaletteProvider } from "@/components/shell/CommandMenu";
 import { AppLoading } from "@/context/AppLoader";
 import { ContextProvider, ORG_STORAGE_KEY, pickActive } from "@/context/ContextProvider";
-import { listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { getOrg, listUserOrgs } from "@gen/loco/org/v1/org-OrgService_connectquery";
 import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_connectquery";
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
@@ -53,15 +53,32 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 				scopes.workspaceLevel(orgParam, workspaceParam) >= 1,
 		},
 	);
+	// A caller whose scopes cover every organization (system) can open an ID that is not in its list.
+	const urlOrg = useQuery(
+		getOrg,
+		{ orgId: orgParam ?? "" },
+		{
+			enabled:
+				workspacesSettled &&
+				orgParam !== undefined &&
+				!orgs?.some((o) => o.id === orgParam) &&
+				scopes.orgMember(orgParam),
+		},
+	);
 	const routeNotFound =
 		workspacesSettled &&
 		!urlWorkspace.isLoading &&
+		!urlOrg.isLoading &&
 		orgParam !== undefined &&
-		!routeKnown(
-			{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
-			workspaces,
-			scopes.scopes,
-		);
+		// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
+		// only for the workspace lookup, which runs for a caller who can read the workspace.
+		(resourceMissing(urlOrg.error, false) ||
+			resourceMissing(urlWorkspace.error, true) ||
+			!routeKnown(
+				{ orgId: orgParam, workspaceId: workspaceParam, workspaceOrgId: urlWorkspace.data?.workspace?.orgId },
+				workspaces,
+				scopes.scopes,
+			));
 
 	if (signedOut) {
 		return <Navigate to="/login" replace state={nextPathState(pathname + search + hash)} />;
