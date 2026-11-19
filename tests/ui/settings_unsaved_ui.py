@@ -69,6 +69,14 @@ with session(out) as browser:
     expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
     page.reload()
     assert dialogs == ["beforeunload"], dialogs
+
+    page.locator("#set-health input").first.fill("/deleted")
+    page.get_by_role("button", name="Delete resource", exact=True).click()
+    delete = page.get_by_role("alertdialog", name=f"Delete {name}?", exact=True)
+    delete.get_by_role("textbox").fill(name)
+    delete.get_by_role("button", name=f"Delete {name}", exact=True).click()
+    expect(page).to_have_url(base.rsplit("/resource/", 1)[0] + "?env=production")
+    expect(guard).to_have_count(0)
     assert not errors, errors
     context.close()
     browser.close()

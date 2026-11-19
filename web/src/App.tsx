@@ -289,7 +289,6 @@ function AppProviders() {
 	);
 }
 
-// A data router lets a page block navigation; the routes themselves stay in AppRoutes.
 const router = createBrowserRouter([{ path: "*", Component: AppProviders }]);
 
 export default function App() {
