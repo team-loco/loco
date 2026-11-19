@@ -29,6 +29,24 @@ func (q *Queries) AllocateActivitySeq(ctx context.Context, arg AllocateActivityS
 	return activity_seq, err
 }
 
+const getPreviousPlacementRollout = `-- name: GetPreviousPlacementRollout :one
+SELECT snapshot FROM deployment_rollouts
+WHERE snapshot->>'placementId' = $1::text AND revision < $2
+ORDER BY revision DESC LIMIT 1
+`
+
+type GetPreviousPlacementRolloutParams struct {
+	PlacementID string `json:"placementId"`
+	Revision    int64  `json:"revision"`
+}
+
+func (q *Queries) GetPreviousPlacementRollout(ctx context.Context, arg GetPreviousPlacementRolloutParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getPreviousPlacementRollout, arg.PlacementID, arg.Revision)
+	var snapshot []byte
+	err := row.Scan(&snapshot)
+	return snapshot, err
+}
+
 const insertDeploymentActivity = `-- name: InsertDeploymentActivity :exec
 INSERT INTO deployment_activity(deployment_id, seq, revision, at, severity, replica_uid, replica_name, message, cluster_id, region)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
