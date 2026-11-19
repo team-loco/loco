@@ -206,20 +206,48 @@ function differs(a: string, b: string): boolean {
 	return a.trim() !== b.trim();
 }
 
-export function changeCount(draft: SettingsDraft, base: Baseline): number {
+const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
+	displayName: "Name",
+	description: "Description",
+	image: "Image",
+	cpu: "CPU",
+	memory: "Memory",
+	port: "Port",
+	healthPath: "Health check path",
+	healthInterval: "Health check interval",
+	healthTimeout: "Health check timeout",
+	healthFailures: "Health check failure threshold",
+};
+
+/** One name per pending change, in the order the sections appear. */
+export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 	const next = resolved(draft, base);
-	let count = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).length;
-	count += Object.keys(draft.scaling ?? {}).filter((r) => !sameScaling(next.scaling[r], base.scaling[r])).length;
-	count += Object.keys(next.regions).filter((r) => next.regions[r] !== base.regions[r]).length;
-	count += Object.keys(draft.secrets ?? {}).length;
-	count += (draft.removedSecrets ?? []).length;
-	count += Object.keys(draft.env ?? {}).length;
-	count += Object.keys(draft.bindings ?? {}).filter((name) => draft.secrets?.[name] === undefined).length;
-	count += COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).length;
-	if (next.isPublic !== base.isPublic) count++;
-	if (next.rollbackOnFailure !== base.rollbackOnFailure) count++;
-	if (next.observability.injectOtel !== base.observability.injectOtel) count++;
-	return count;
+	const names: string[] = SCALAR_KEYS.filter((k) => differs(next[k], base[k])).map((k) => SCALAR_LABELS[k]);
+	names.push(
+		...Object.keys(draft.scaling ?? {})
+			.filter((r) => !sameScaling(next.scaling[r], base.scaling[r]))
+			.map((r) => `Scaling in ${r}`),
+		...Object.keys(next.regions)
+			.filter((r) => next.regions[r] !== base.regions[r])
+			.map((r) => (next.regions[r] === true ? `Add region ${r}` : `Remove region ${r}`)),
+		...Object.keys(draft.secrets ?? {}).map((n) => `Variable ${n}`),
+		...(draft.removedSecrets ?? []).map((n) => `Remove variable ${n}`),
+		...Object.keys(draft.env ?? {}).map((n) => `Variable ${n}`),
+		...Object.keys(draft.bindings ?? {})
+			.filter((n) => draft.secrets?.[n] === undefined)
+			.map((n) => `Variable ${n}`),
+		...COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).map((k) =>
+			k === "command" ? "Start command" : "Arguments",
+		),
+	);
+	if (next.isPublic !== base.isPublic) names.push(next.isPublic ? "Public access" : "Internal only");
+	if (next.rollbackOnFailure !== base.rollbackOnFailure) names.push("Rollback on failure");
+	if (next.observability.injectOtel !== base.observability.injectOtel) names.push("Configure SDK environment");
+	return names;
+}
+
+export function changeCount(draft: SettingsDraft, base: Baseline): number {
+	return changeNames(draft, base).length;
 }
 
 export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "remove" | null {

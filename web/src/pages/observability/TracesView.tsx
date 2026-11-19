@@ -81,12 +81,13 @@ const TRACE_COLUMNS: {
 ];
 const TRACE_WIDTHS: Record<ColumnKey, number> = {
 	when: 150,
-	resource: 110,
+	resource: 150,
 	span: 260,
 	status: 80,
 	duration: 100,
 	spans: 70,
 };
+const FLEX_COLUMNS: Record<ColumnKey, number> = { resource: 1, span: 2 };
 const SKELETON_ROWS = 8;
 const TRACE_SORTS = {
 	duration: TraceSummarySort.DURATION,
@@ -354,6 +355,7 @@ function TraceSession({
 						loading={loading}
 						openId={openId}
 						crossesDay={crossesDay}
+						today={formatIsoDate(frozenEnd, timePref)}
 						resourceName={(t) => traceServiceLabel(t, resourceById.get(t.resourceId)?.name)}
 						onOpen={open}
 						widths={widths}
@@ -401,6 +403,7 @@ function TraceList({
 	loading,
 	openId,
 	crossesDay,
+	today,
 	resourceName,
 	onOpen,
 	widths,
@@ -412,6 +415,7 @@ function TraceList({
 	loading: boolean;
 	openId: string;
 	crossesDay: boolean;
+	today: string;
 	resourceName: (t: TraceSummary) => string;
 	onOpen: (id: string) => void;
 	widths: ColumnWidths;
@@ -421,7 +425,14 @@ function TraceList({
 }) {
 	const timePref = useTimePreferences();
 	const { live, handle } = useResizableColumns(widths, onWidths, traceColumnWidth);
-	const grid = [...TRACE_COLUMNS.map((c) => `${String(traceColumnWidth(c.key, live))}px`), "minmax(0,1fr)"].join(" ");
+	const grid = [
+		...TRACE_COLUMNS.map((c) => {
+			const px = String(traceColumnWidth(c.key, live));
+			const flex = FLEX_COLUMNS[c.key];
+			return flex === undefined || live[c.key] !== undefined ? `${px}px` : `minmax(${px}px,${String(flex)}fr)`;
+		}),
+		"0px",
+	].join(" ");
 	return (
 		<div className="w-max min-w-full">
 			<div className={LIST_HEAD_CLASS} style={{ gridTemplateColumns: grid }}>
@@ -480,12 +491,14 @@ function TraceList({
 								style={{ gridTemplateColumns: grid }}
 							>
 								<span className="truncate px-3 font-mono whitespace-nowrap text-fg3">
-									{crossesDay ? fmtTs(startMs, false, timePref) : formatClock(startMs, false, timePref)}
+									{crossesDay || formatIsoDate(startMs, timePref) !== today
+										? fmtTs(startMs, false, timePref)
+										: formatClock(startMs, false, timePref)}
 								</span>
 								<span className="truncate px-3 text-[12.5px]">{resourceName(t)}</span>
 								<span className="truncate px-3 font-mono text-foreground">{name}</span>
 								<span className={cn("truncate px-3 font-mono", failed ? "text-bad-fg" : "text-fg3")}>
-									{t.httpStatusCode || (failed ? "error" : "ok")}
+									{failed ? "Error" : "OK"}
 								</span>
 								<span className={cn("truncate px-3 text-right font-mono", failed ? "text-bad-fg" : "text-foreground")}>
 									{durationLabel(t.durationNanos)}

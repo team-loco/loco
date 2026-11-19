@@ -53,7 +53,7 @@ func NewPool(t *testing.T) *pgxpool.Pool {
 	dbName := fmt.Sprintf("%s%d_%s", testDatabasePrefix, owner.id, uuid.NewString()[:8])
 	ident := pgx.Identifier{dbName}.Sanitize()
 	adminExec(t, baseURL,
-		"CREATE DATABASE "+ident+" TEMPLATE "+pgx.Identifier{templateName}.Sanitize()+" STRATEGY FILE_COPY")
+		"CREATE DATABASE "+ident+" TEMPLATE "+pgx.Identifier{templateName}.Sanitize())
 	dbURL, err := databaseURL(baseURL, dbName)
 	if err != nil {
 		t.Fatalf("parse url: %v", err)

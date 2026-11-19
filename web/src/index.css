@@ -137,3 +137,26 @@
 			transform 0.15s ease;
 	}
 }
+
+[data-slot="table-container"]:is([data-scroll="start"], [data-scroll="middle"]) {
+	mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
+[data-slot="table-container"][data-scroll] :is(td, th):first-child {
+	position: sticky;
+	left: 0;
+	z-index: 1;
+	background: var(--panel);
+}
+
+[data-slot="table-container"]:is([data-scroll="middle"], [data-scroll="end"]) :is(td, th):first-child {
+	box-shadow: 1px 0 0 var(--line);
+}
+
+[data-slot="table-container"][data-scroll] :is(tr[data-interactive], tr:has([data-row-link])):hover > :first-child {
+	background-image: linear-gradient(var(--row-hover), var(--row-hover));
+}
+
+[data-slot="table-container"][data-scroll] tr[data-state="selected"] > :first-child {
+	background-color: var(--panel2);
+}

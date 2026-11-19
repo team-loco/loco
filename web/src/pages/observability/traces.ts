@@ -35,9 +35,9 @@ export function spanLinkSearch(search: string, traceId: string, spanId: string):
 }
 
 export function durationLabel(nanos: bigint): string {
-	if (nanos === 0n) return "0";
+	if (nanos === 0n) return "0ms";
 	const ms = Number(nanos) / Number(NANOS_PER_MS);
-	if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+	if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
 	if (ms >= 10) return `${String(Math.round(ms))}ms`;
 	if (ms >= 1) return `${ms.toFixed(1)}ms`;
 	if (nanos >= NANOS_PER_MICROSECOND) return `${String(Math.round(Number(nanos) / Number(NANOS_PER_MICROSECOND)))}µs`;

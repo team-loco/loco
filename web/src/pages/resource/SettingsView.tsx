@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { ArrowLeftIcon } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
@@ -21,7 +21,7 @@ import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import { isDeployed, type Notice as NoticeState, type RegionView } from "./model";
 import { NetworkingSection } from "./NetworkingSection";
 import {
-	changeCount,
+	changeNames,
 	domainsChange,
 	LIVE_ERROR_KEYS,
 	planSave,
@@ -69,13 +69,36 @@ const NAV = [
 ];
 
 function scrollToSection(node: HTMLElement | null) {
-	node?.scrollIntoView({ block: "start" });
+	node?.scrollIntoView({ block: "start", behavior: "instant" });
 }
 
 function scrollToHash(node: HTMLElement | null) {
 	const id = window.location.hash.slice(1);
 	if (node !== null && id !== "")
 		node.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ block: "start", behavior: "instant" });
+}
+
+const SPY_VIEWPORT_FRACTION = 0.3;
+const USER_INPUTS = ["wheel", "touchmove", "keydown", "pointerdown"] as const;
+
+// The last section whose top is within the upper part of the viewport.
+function sectionInView(): string | undefined {
+	const ids = NAV.map((n) => n.id).filter((id) => document.getElementById(id) !== null);
+	let found = ids[0];
+	for (const id of ids) {
+		const top = document.getElementById(id)?.getBoundingClientRect().top;
+		if (top !== undefined && top <= window.innerHeight * SPY_VIEWPORT_FRACTION) found = id;
+	}
+	return found;
+}
+
+// A smooth scroll moves the page under the pointer, so a click can land on a control the user did not aim at.
+function jumpToSection() {
+	const root = document.documentElement;
+	root.style.scrollBehavior = "auto";
+	setTimeout(() => {
+		root.style.scrollBehavior = "";
+	}, 0);
 }
 
 export function SettingsView({
@@ -111,6 +134,29 @@ export function SettingsView({
 		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
 		return focus === "scaling" ? "set-scaling" : (linked?.id ?? "set-image");
 	});
+	// A clicked or linked section stays highlighted until the user scrolls again.
+	const pinnedRef = useRef(focus === "scaling" || window.location.hash !== "");
+	const sectionsRef = useCallback((node: HTMLElement | null) => {
+		scrollToHash(node);
+		if (node === null) return;
+		const follow = () => {
+			if (pinnedRef.current) return;
+			const id = sectionInView();
+			if (id !== undefined) setCurrent(id);
+		};
+		const release = () => {
+			pinnedRef.current = false;
+		};
+		document.addEventListener("scroll", follow, { capture: true, passive: true });
+		for (const type of USER_INPUTS) document.addEventListener(type, release, { passive: true });
+		const resize = new ResizeObserver(follow);
+		resize.observe(node);
+		return () => {
+			resize.disconnect();
+			document.removeEventListener("scroll", follow, { capture: true });
+			for (const type of USER_INPUTS) document.removeEventListener(type, release);
+		};
+	}, []);
 	const [tried, setTried] = useState(false);
 	const [confirmingInternal, setConfirmingInternal] = useState(false);
 	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
@@ -133,7 +179,8 @@ export function SettingsView({
 	const served = servedDomains(domainsQuery.data?.platformDomains ?? [], onRegions);
 	const errors = validateDraft(draft, base, regions, served, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const errorCount = Object.keys(errors).length;
-	const count = changeCount(draft, base);
+	const changes = changeNames(draft, base);
+	const count = changes.length;
 	const redeploys = regionMapChanged(draft, base) || planSave(regions, draft, base).length > 0;
 	const { save, saving } = useSaveSettings({
 		resource,
@@ -177,6 +224,8 @@ export function SettingsView({
 							href={`#${n.id}`}
 							aria-current={current === n.id ? "true" : undefined}
 							onClick={() => {
+								jumpToSection();
+								pinnedRef.current = true;
 								setCurrent(n.id);
 							}}
 							className={cn(
@@ -187,7 +236,7 @@ export function SettingsView({
 						</a>
 					))}
 				</nav>
-				<div ref={scrollToHash} className="flex min-w-0 flex-col">
+				<div ref={sectionsRef} className="flex min-w-0 flex-col">
 					<ImageSection {...props} />
 					<CommandSection {...props} />
 					<ScalingSection
@@ -250,6 +299,7 @@ export function SettingsView({
 					{count > 0 && (
 						<SaveBar
 							count={count}
+							names={changes}
 							saveLabel={redeploys ? "Save & redeploy" : "Save"}
 							saving={saving}
 							disabledReason={

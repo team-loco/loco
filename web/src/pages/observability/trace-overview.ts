@@ -51,12 +51,50 @@ export interface BucketReadout {
 	p95: bigint;
 }
 
-/** "13:05–13:06 · 42 traces · 3 errors · p50 12ms · p95 80ms" */
-export function bucketReadout(b: BucketReadout, pref: TimePreferences): string {
+function bucketRange(b: BucketReadout, pref: TimePreferences): string {
 	const clock = (ms: number) =>
 		b.widthSeconds % SECONDS_PER_MINUTE === 0 ? formatHourMinute(ms, pref) : formatClock(ms, false, pref);
-	const parts = [`${clock(b.start)}–${clock(b.start + b.widthSeconds * 1000)}`, traceCount(b.traces, "trace")];
+	return `${clock(b.start)}–${clock(b.start + b.widthSeconds * 1000)}`;
+}
+
+/** "13:05–13:06 · 42 traces · 3 errors" */
+export function countReadout(b: BucketReadout, pref: TimePreferences): string {
+	const parts = [bucketRange(b, pref), traceCount(b.traces, "trace")];
 	if (b.errors > 0) parts.push(traceCount(b.errors, "error"));
-	if (b.traces > 0) parts.push(`p50 ${durationLabel(b.p50)}`, `p95 ${durationLabel(b.p95)}`);
 	return parts.join(" · ");
+}
+
+/** "13:05–13:06 · p50 12ms · p95 80ms" */
+export function latencyReadout(b: BucketReadout, pref: TimePreferences): string {
+	const parts = [bucketRange(b, pref)];
+	if (b.traces > 0) parts.push(`p50 ${durationLabel(b.p50)}`, `p95 ${durationLabel(b.p95)}`);
+	else parts.push("no traces");
+	return parts.join(" · ");
+}
+
+export interface LogScale {
+	min: number;
+	max: number;
+	ticks: number[];
+}
+
+const MAX_LOG_TICKS = 4;
+
+/** A logarithmic axis from a power of ten at or below the smallest value to one at or above the largest. */
+export function logScale(values: number[]): LogScale {
+	const positive = values.filter((v) => v > 0);
+	const lowest = Math.floor(Math.log10(Math.min(...positive, 1e6)));
+	const highest = Math.max(lowest + 1, Math.ceil(Math.log10(Math.max(...positive, 1e6))));
+	const stride = Math.ceil((highest - lowest) / MAX_LOG_TICKS);
+	const ticks = Array.from(
+		{ length: Math.floor((highest - lowest) / stride) + 1 },
+		(_, i) => 10 ** (highest - i * stride),
+	);
+	return { min: 10 ** lowest, max: 10 ** highest, ticks: ticks.filter((t) => t > 10 ** lowest) };
+}
+
+/** Position from the bottom, 0 to 1, of a value on a log scale; values at or below the minimum sit at 0. */
+export function logPosition(value: number, scale: LogScale): number {
+	if (value <= scale.min) return 0;
+	return Math.log10(value / scale.min) / Math.log10(scale.max / scale.min);
 }

@@ -1,3 +1,4 @@
+import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import {
 	DeploymentStatus,
 	PlacementStatus,
@@ -9,11 +10,12 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
 import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
-import { maybeTsMs, readyMs } from "@/lib/time";
+import { RUNTIME_EVENT_TYPES } from "@/lib/runtime-events";
+import { agoLabel, maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
 
 export const RECENT_MS = 30 * 60_000;
-const MAX_CARDS = 6;
+export const ACTIVITY_PAGE = 6;
 
 export type StepState = "pending" | "active" | "retry" | "done" | "skipped";
 
@@ -29,13 +31,22 @@ const ORDER: Record<DeploymentStatus, number> = {
 	[DeploymentStatus.CANCELED]: 3,
 };
 
-/** The deployments the Activity drawer shows: every one in flight and the rest from the last 30 minutes. */
+/** The deployments the Activity drawer lists: every one in flight and the rest from the last 30 minutes. */
 export function activityDeployments(deployments: readonly Deployment[], nowMs: number): Deployment[] {
 	const created = (d: Deployment) => maybeTsMs(d.createdAt) ?? 0;
 	return deployments
 		.filter((d) => isInFlight(d.status) || nowMs - created(d) < RECENT_MS)
-		.toSorted((a, b) => ORDER[a.status] - ORDER[b.status] || created(b) - created(a))
-		.slice(0, MAX_CARDS);
+		.toSorted((a, b) => ORDER[a.status] - ORDER[b.status] || created(b) - created(a));
+}
+
+/** The degraded and recovered events from the last 30 minutes, newest first. */
+export function recentHealthEvents<T extends { type: string; timestamp: Timestamp | undefined }>(
+	events: readonly T[],
+	nowMs: number,
+): T[] {
+	return events
+		.filter((e) => RUNTIME_EVENT_TYPES.includes(e.type) && nowMs - tsMs(e.timestamp) < RECENT_MS)
+		.toSorted((a, b) => tsMs(b.timestamp) - tsMs(a.timestamp));
 }
 
 export function deployPhase(d: Deployment): { label: string; glyph: Glyph } {
@@ -100,8 +111,7 @@ export function tookLabel(ms: number): string {
 export function finishedLabel(d: Deployment, nowMs: number): string {
 	const created = maybeTsMs(d.createdAt) ?? nowMs;
 	const end = readyMs(d) ?? maybeTsMs(d.completedAt) ?? created;
-	const mins = Math.floor((nowMs - end) / 60_000);
-	return `took ${tookLabel(end - created)} · ${mins < 1 ? "just now" : `${mins.toString()}m ago`}`;
+	return `took ${tookLabel(end - created)} · ${agoLabel(end, nowMs)}`;
 }
 
 /** Drops a rollout alert when a deploy card already shows that rollout. */
