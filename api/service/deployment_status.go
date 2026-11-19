@@ -21,17 +21,16 @@ var placementLiveStatuses = []genDb.PlacementStatus{
 }
 
 // nextPlacementStatus is where a report of the placement's current revision moves it. A stopped
-// revision fails a rollout and crashes a running placement; a running placement whose replica
-// restarted or stopped being ready is degraded until the controller reports it healthy again.
+// revision fails when the previous revision serves in its place and crashes otherwise; a running
+// placement whose replica restarted or stopped being ready is degraded until the controller reports
+// it healthy again.
 func nextPlacementStatus(previous genDb.PlacementStatus, report *agentv1.PlacementStatus) genDb.PlacementStatus {
 	ran := previous == genDb.PlacementStatusRunning || previous == genDb.PlacementStatusDegraded
 	switch {
-	case report.GetStopped() != nil && ran:
-		return genDb.PlacementStatusCrashed
-	case report.GetStopped() != nil && previous == genDb.PlacementStatusCrashed:
-		return previous
-	case report.GetStopped() != nil:
+	case report.GetStopped().GetRollout():
 		return genDb.PlacementStatusFailed
+	case report.GetStopped() != nil:
+		return genDb.PlacementStatusCrashed
 	case report.GetHealthy():
 		return genDb.PlacementStatusRunning
 	case report.GetProgressDeadlineExceeded():

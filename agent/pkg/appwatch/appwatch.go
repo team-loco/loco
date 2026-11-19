@@ -158,6 +158,7 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 				Restarts:          stopped.Restarts,
 				LastRestart:       replicaRestart(stopped.LastRestart),
 				At:                timestamppb.New(stopped.At.Time),
+				Rollout:           stopped.Rollout,
 			}
 		}
 		for _, replica := range rollout.Replicas {

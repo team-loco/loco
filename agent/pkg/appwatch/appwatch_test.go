@@ -304,6 +304,7 @@ func TestRolloutForwarding(t *testing.T) {
 			Restarts:          3,
 			LastRestart:       restart,
 			At:                at,
+			Rollout:           true,
 		},
 		Replicas: []locoControllerV1.ReplicaStatus{
 			{
@@ -358,6 +359,7 @@ func TestRolloutForwarding(t *testing.T) {
 			Restarts:          3,
 			LastRestart:       wantRestart,
 			At:                timestamppb.New(at.Time),
+			Rollout:           true,
 		},
 		Replicas: []*deploymentv1.Replica{
 			{

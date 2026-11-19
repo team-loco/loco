@@ -130,6 +130,8 @@ message StoppedRevision {
   int32 restarts = 3;
   loco.deployment.v1.ReplicaRestart last_restart = 4;
   google.protobuf.Timestamp at = 5;
+  // Set when the revision never proved itself, so the previous revision serves in its place.
+  bool rollout = 6;
 }
 
 message ProblemReport {

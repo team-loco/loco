@@ -10,6 +10,7 @@ import (
 
 func TestNextPlacementStatus(t *testing.T) {
 	stopped := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6}
+	unproven := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6, Rollout: true}
 	for _, tt := range []struct {
 		name           string
 		previous, want genDb.PlacementStatus
@@ -36,7 +37,9 @@ func TestNextPlacementStatus(t *testing.T) {
 		{"running past the deadline", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed,
 			&agentv1.PlacementStatus{ProgressDeadlineExceeded: true}},
 		{"stopped rollout", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
-			&agentv1.PlacementStatus{Stopped: stopped}},
+			&agentv1.PlacementStatus{Stopped: unproven}},
+		{"stopped before it proved itself", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Stopped: unproven}},
 		{"stopped while running", genDb.PlacementStatusRunning, genDb.PlacementStatusCrashed,
 			&agentv1.PlacementStatus{Stopped: stopped}},
 		{"stopped while degraded", genDb.PlacementStatusDegraded, genDb.PlacementStatusCrashed,

@@ -134,7 +134,7 @@ services:
 
 The restart after the last allowed one stops the version. During a rollout, the new version's replicas stop, the previous version keeps serving with all its replicas, and the deployment fails (and rolls back when `rollbackOnFailure` is on). A version that was already running stops entirely and its deployment becomes `crashed` until `loco resource restart`, a redeploy or a rollback starts it again with a fresh budget. A running deployment whose replica restarted is `degraded` and returns to `running` once every replica has gone the worker cluster's `controller.healthyAfterSeconds` (300 by default) without a restart.
 
-`deploy` applies to the service in every environment, so an environment override cannot set it. A change reaches the cluster with the service's next deployment or restart. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
+`deploy` applies to the service in every environment, so an environment override cannot set it. A change reaches the cluster with the service's next deployment. When `deploy` is the only change, `loco infra apply` updates the service without redeploying it; `loco deploy` still builds and redeploys the services it targets.
 
 When a cluster's agent cannot apply a deployment and will not retry it itself, for example because Kubernetes rejects the Application, the API sends the deployment again after `LOCO_APPLY_RETRY_DELAY` seconds (300 by default) and marks it failed after `LOCO_APPLY_ATTEMPTS` tries (2 by default, at most 10).
 

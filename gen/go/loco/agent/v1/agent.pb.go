@@ -895,9 +895,11 @@ type StoppedRevision struct {
 	PlacementRevision int64                  `protobuf:"varint,1,opt,name=placement_revision,json=placementRevision,proto3" json:"placement_revision,omitempty"`
 	ReplicaName       string                 `protobuf:"bytes,2,opt,name=replica_name,json=replicaName,proto3" json:"replica_name,omitempty"`
 	// Restarts of the replica within the restart window.
-	Restarts      int32                  `protobuf:"varint,3,opt,name=restarts,proto3" json:"restarts,omitempty"`
-	LastRestart   *v11.ReplicaRestart    `protobuf:"bytes,4,opt,name=last_restart,json=lastRestart,proto3" json:"last_restart,omitempty"`
-	At            *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=at,proto3" json:"at,omitempty"`
+	Restarts    int32                  `protobuf:"varint,3,opt,name=restarts,proto3" json:"restarts,omitempty"`
+	LastRestart *v11.ReplicaRestart    `protobuf:"bytes,4,opt,name=last_restart,json=lastRestart,proto3" json:"last_restart,omitempty"`
+	At          *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=at,proto3" json:"at,omitempty"`
+	// Set when the revision never proved itself, so the previous revision serves in its place.
+	Rollout       bool `protobuf:"varint,6,opt,name=rollout,proto3" json:"rollout,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -965,6 +967,13 @@ func (x *StoppedRevision) GetAt() *timestamppb.Timestamp {
 		return x.At
 	}
 	return nil
+}
+
+func (x *StoppedRevision) GetRollout() bool {
+	if x != nil {
+		return x.Rollout
+	}
+	return false
 }
 
 type ProblemReport struct {
@@ -1824,13 +1833,14 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"healthy_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\thealthyAt\x128\n" +
 	"\astopped\x18\x11 \x01(\v2\x1e.loco.agent.v1.StoppedRevisionR\astopped\x12!\n" +
 	"\fmax_restarts\x18\x12 \x01(\x05R\vmaxRestarts\x124\n" +
-	"\x16restart_window_seconds\x18\x13 \x01(\x05R\x14restartWindowSeconds\"\xf2\x01\n" +
+	"\x16restart_window_seconds\x18\x13 \x01(\x05R\x14restartWindowSeconds\"\x8c\x02\n" +
 	"\x0fStoppedRevision\x12-\n" +
 	"\x12placement_revision\x18\x01 \x01(\x03R\x11placementRevision\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12\x1a\n" +
 	"\brestarts\x18\x03 \x01(\x05R\brestarts\x12E\n" +
 	"\flast_restart\x18\x04 \x01(\v2\".loco.deployment.v1.ReplicaRestartR\vlastRestart\x12*\n" +
-	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\"\x9e\x01\n" +
+	"\x02at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x18\n" +
+	"\arollout\x18\x06 \x01(\bR\arollout\"\x9e\x01\n" +
 	"\rProblemReport\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x12!\n" +
 	"\freplica_name\x18\x02 \x01(\tR\vreplicaName\x12 \n" +

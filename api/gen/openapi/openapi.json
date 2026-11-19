@@ -8868,6 +8868,11 @@
           "at": {
             "title": "at",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "rollout": {
+            "type": "boolean",
+            "title": "rollout",
+            "description": "Set when the revision never proved itself, so the previous revision serves in its place."
           }
         },
         "title": "StoppedRevision",
