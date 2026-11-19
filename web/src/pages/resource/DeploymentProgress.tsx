@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import { Button } from "@/components/design/Button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
 import { CopyId } from "@/components/design/CopyId";
+import { MetaLine } from "@/components/design/MetaLine";
 import { deploymentPhaseStyle } from "@/components/design/StatusBadge";
 import { SoonTag } from "@/components/design/SoonTag";
 import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
@@ -155,25 +156,26 @@ function ProgressPanel({
 							</span>
 						)}
 					</div>
-					<div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-fg3">
-						<span className="font-mono text-[12px] text-fg2" title={commit ?? deployment.id}>
-							{commit ? shortSha(commit) : formatShortId(deployment.id)}
+					<MetaLine className="text-[12.5px] text-fg3">
+						<span className="inline-flex items-center gap-2">
+							<span className="font-mono text-[12px] text-fg2" title={commit ?? deployment.id}>
+								{commit ? shortSha(commit) : formatShortId(deployment.id)}
+							</span>
+							<CopyId
+								value={deployment.id}
+								title="Copy deployment ID"
+								className="-ml-1 size-5 justify-center rounded-[4px] p-0 text-fg3 hover:bg-panel2 [&_svg]:size-3"
+							>
+								<span className="sr-only">Copy deployment ID</span>
+							</CopyId>
 						</span>
-						<CopyId
-							value={deployment.id}
-							title="Copy deployment ID"
-							className="-ml-1 size-5 justify-center rounded-[4px] p-0 text-fg3 hover:bg-panel2 [&_svg]:size-3"
-						>
-							<span className="sr-only">Copy deployment ID</span>
-						</CopyId>
 						{(deployment.actorName !== "" || deployment.actorId !== "") && (
 							<span>
-								· {deploymentActor(deployment)}
+								{deploymentActor(deployment)}
 								{deploymentMethod(deployment) !== "" && ` via ${deploymentMethod(deployment)}`}
 							</span>
 						)}
 						<span>
-							·{" "}
 							{multiRegion ? (
 								`${live ? "Rolling out to" : "Rolled out to"} ${members.length.toString()} regions`
 							) : (
@@ -181,9 +183,9 @@ function ProgressPanel({
 							)}
 						</span>
 						{!commit && image !== "" && (
-							<span className="min-w-0 break-all font-mono text-[12px] text-fg2">· {image}</span>
+							<span className="min-w-0 break-all font-mono text-[12px] text-fg2">{image}</span>
 						)}
-					</div>
+					</MetaLine>
 				</div>
 				<div className="flex shrink-0 flex-wrap items-center gap-1.5">
 					{failed ? (

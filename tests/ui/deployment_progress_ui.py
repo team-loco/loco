@@ -6,7 +6,16 @@ import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from harness import call, evidence, load_state, open_page, repo, session, sql
+from harness import (
+    call,
+    evidence,
+    line_starts,
+    load_state,
+    open_page,
+    repo,
+    session,
+    sql,
+)
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
@@ -381,6 +390,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ).to_be_disabled()
     expect(panel.get_by_role("link", name="View logs", exact=True)).to_be_visible()
     assert panel.bounding_box()["width"] <= page.viewport_size["width"]
+    meta = panel.locator("[data-meta-line]")
+    assert len(line_starts(meta)) > 1, "the deployment meta line fits on one line"
+    assert "·" not in line_starts(meta), line_starts(meta)
     assert not errors, errors
     context.close()
 
