@@ -125,9 +125,9 @@ with session(out) as browser:
     ), list_events(calls)
     expect(page.get_by_role("list", name="Audit events")).to_contain_text("ledger")
     events = page.get_by_role("list", name="Audit events")
-    expect(events.get_by_role("button").filter(has_text="Invited someone")).to_contain_text(
-        "newhire@acme.test"
-    )
+    expect(
+        events.get_by_role("button").filter(has_text="Invited someone")
+    ).to_contain_text("newhire@acme.test")
     expect(
         events.get_by_role("button").filter(has_text="Deleted a resource").first
     ).to_contain_text("shared / retired")
