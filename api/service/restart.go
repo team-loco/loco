@@ -57,9 +57,6 @@ func (s *ResourceServer) RestartResource(
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, req.GetRegion()); rolloutErr != nil {
-			return rolloutErr
-		}
 		// The controller copies the placement revision into the pod template, so a new
 		// revision rolls replicas without changing the desired spec or deployment ID.
 		clusters, restartErr := qtx.RestartResourcePlacements(ctx, genDb.RestartResourcePlacementsParams{

@@ -109,11 +109,6 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 				t.Fatalf("restart event environment = %s (indexed %s), want %s",
 					eventEnvironment, indexedEnvironment, f.envID)
 			}
-			wantCode(t, restartResource(t, f, f.envID, region, genDb.ScopeWrite), connect.CodeFailedPrecondition)
-			f.finishRollouts(t)
-			if err := restartResource(t, f, f.envID, region, genDb.ScopeWrite); err != nil {
-				t.Fatalf("second restart: %v", err)
-			}
 		})
 	}
 }

@@ -93,9 +93,6 @@ func createDeploymentWithCleanup(
 		}
 	}
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
-	if isUniqueViolation(err, pgActiveDeploymentUnique) {
-		return uuid.UUID{}, errDeploymentInProgress
-	}
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
 	}

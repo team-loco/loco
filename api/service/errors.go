@@ -94,7 +94,6 @@ const (
 	pgDomainUnique            = "resource_domains_domain_key"
 	pgPlatformSubdomainUnique = "uniq_platform_subdomain"
 	pgOpenInvitationUnique    = "invitations_open_idx"
-	pgActiveDeploymentUnique  = "uniq_deployments_resource_region_active"
 	pgClusterKeyUnique        = "clusters_cluster_key_key"
 )
 

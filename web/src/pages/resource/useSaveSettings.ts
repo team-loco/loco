@@ -71,8 +71,7 @@ export function useSaveSettings({
 	const transport = useTransport();
 	const queryClient = useQueryClient();
 
-	// The API refuses a stale region map with FAILED_PRECONDITION, as it does a rollout in
-	// progress; only a moved revision means someone else saved first.
+	// The API refuses a stale region map with FAILED_PRECONDITION; only a moved revision means someone else saved first.
 	const revisionMoved = async (err: unknown) => {
 		if (!(err instanceof ConnectError) || err.code !== Code.FailedPrecondition) return false;
 		const latest = await callUnaryMethod(transport, getResource, {

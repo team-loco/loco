@@ -279,9 +279,6 @@ func (s *SecretServer) setSecretsOnce(
 		for _, region := range usage {
 			response.UsedBy = append(response.UsedBy, &secretv1.SecretUsage{Region: region.Region, Names: region.Names})
 		}
-		if rolloutErr := ensureNoRollout(ctx, qtx, target.resourceID, target.env.ID, ""); rolloutErr != nil {
-			return rolloutErr
-		}
 		return s.writeSecrets(ctx, qtx, target, revision, params, added, response)
 	})
 	if err != nil {
@@ -453,9 +450,6 @@ func (s *SecretServer) DeleteSecrets(
 				return ErrSecretNotFound.Detail("%s", names[0])
 			}
 			return lockErr
-		}
-		if rolloutErr := ensureNoRollout(ctx, qtx, target.resourceID, target.env.ID, ""); rolloutErr != nil {
-			return rolloutErr
 		}
 		declared, declaredErr := qtx.ListDeclaredSecretNames(ctx, genDb.ListDeclaredSecretNamesParams{
 			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,

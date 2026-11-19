@@ -176,12 +176,6 @@ with session(out) as browser:
         completed.value.finished()
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
         expect(page.get_by_text("Saved scaling-", exact=False)).to_be_visible()
-        # The API leaves new deployments deploying without a worker; finish them so the
-        # next save is not refused as a rollout in progress.
-        sql(
-            state,
-            f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
-        )
 
     target = defaults["cpuTarget"] - 1
     save = page.get_by_role("button", name="Save & redeploy", exact=True)

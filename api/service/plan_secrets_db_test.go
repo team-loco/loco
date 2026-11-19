@@ -279,7 +279,9 @@ func racingSecretWrites() []racingSecretWrite {
 			},
 			afterApply: func(t *testing.T, err error) {
 				t.Helper()
-				wantCode(t, err, connect.CodeFailedPrecondition)
+				if err != nil {
+					t.Fatal(err)
+				}
 			},
 		},
 		{

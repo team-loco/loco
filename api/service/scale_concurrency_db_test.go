@@ -4,8 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"connectrpc.com/connect/v2"
-
+	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
@@ -13,7 +12,7 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
+func TestScaleBuildsOnTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	initial := imageService()
@@ -21,7 +20,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	if _, err := createDeploymentWith(t, f, sameRegionSpec, initial); err != nil {
 		t.Fatal(err)
 	}
-	f.reportRollout(t, false, true)
+	f.reportRollout(t, true)
 	server := NewDeploymentServer(
 		f.pool,
 		f.queries,
@@ -75,12 +74,15 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	if replacement.err != nil {
 		t.Fatal(replacement.err)
 	}
-	wantCode(t, <-scaled, connect.CodeFailedPrecondition)
+	if err := <-scaled; err != nil {
+		t.Fatal(err)
+	}
+	f.wantSuperseded(t, uuid.MustParse(replacement.response.GetDeploymentId()))
 	desired := desiredPayload(t, f).AppSpec.ServiceSpec
 	if desired.Deployment.Image != replacement.response.GetBuild().GetImage() || desired.Resources.CPU != biggerCPU ||
 		desired.Resources.Memory != "128Mi" {
 		t.Fatalf(
-			"scaling restored stale deployment: image=%s cpu=%s memory=%s",
+			"scaling dropped the replacement: image=%s cpu=%s memory=%s",
 			desired.Deployment.Image,
 			desired.Resources.CPU,
 			desired.Resources.Memory,
@@ -89,7 +91,7 @@ func TestScaleRejectsTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	if desired.Deployment.Env["KEY"] != "new" {
 		t.Fatalf("scaled env KEY = %q, want latest new value", desired.Deployment.Env["KEY"])
 	}
-	if desired.Resources.Replicas.Min != 1 || desired.Resources.Replicas.Max != 1 {
-		t.Fatalf("scaled replicas = %+v, want the replacement 1-1", desired.Resources.Replicas)
+	if desired.Resources.Replicas.Min != 2 || desired.Resources.Replicas.Max != 2 {
+		t.Fatalf("scaled replicas = %+v, want 2-2", desired.Resources.Replicas)
 	}
 }

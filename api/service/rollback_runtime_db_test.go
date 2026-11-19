@@ -84,12 +84,6 @@ func TestAutomaticRollback(t *testing.T) {
 					t.Fatalf("deployment=%+v %v", row, err)
 				}
 			}
-			guardErr := withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
-				return ensureNoRollout(t.Context(), qtx, f.resourceID, f.envID, testRegion)
-			})
-			if !errors.Is(guardErr, errRolloutInProgress) {
-				t.Fatalf("restored rollout guard=%v", guardErr)
-			}
 			var messages []string
 			for _, id := range []uuid.UUID{failed, previous} {
 				rows, err := f.queries.ListDeploymentActivity(
