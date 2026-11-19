@@ -187,7 +187,17 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
-    expect(page.get_by_label("Above 85% of the limit")).to_have_count(1)
+    warning = page.get_by_label(
+        "Peaked within 15% of the CPU limit (0.5 vCPU)", exact=True
+    )
+    expect(warning).to_have_count(1)
+    warning.hover()
+    expect(page.locator('[data-slot="tooltip-content"]')).to_have_text(
+        "Peaked within 15% of the CPU limit (0.5 vCPU)"
+    )
+    traffic = page.get_by_role("region", name="Traffic", exact=True)
+    expect(traffic).to_contain_text("Traffic is recorded for public services.")
+    expect(traffic.get_by_role("img")).to_have_count(0)
     title = page.get_by_role("heading", name=name, exact=True)
     events = page.get_by_role("button", name=re.compile(r"^Events"))
     for viewport, below in (
@@ -208,6 +218,15 @@ with session(out) as browser:
     assert parse_qs(urlparse(metrics_href).query)["q"] == ["@region:us-east-1"], (
         metrics_href
     )
+    replicas = page.get_by_role("region", name="Replicas", exact=True)
+    expect(replicas.get_by_role("group", name="Time range")).to_have_count(0)
+    page.get_by_role("group", name="Time range").get_by_role(
+        "button", name="6h", exact=True
+    ).click()
+    metrics_href = page.get_by_role(
+        "link", name="All metrics", exact=True
+    ).get_attribute("href")
+    assert parse_qs(urlparse(metrics_href).query)["range"] == ["6h"], metrics_href
     page.get_by_role("button", name=re.compile(r"^Events")).click()
     runtime_events = page.get_by_role("dialog", name="Events", exact=True)
     expect(runtime_events.get_by_text("restarting", exact=True)).to_be_visible()

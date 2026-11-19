@@ -30,7 +30,7 @@ import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { deploymentRegions, specForRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
-import { configuredRegions, isWorker } from "@/lib/resource-regions";
+import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus } from "@/lib/resource-status";
 import { buildLogsPath, observabilityPath, resourcePath, withEnv, workspacePath } from "@/lib/routes";
 import { runtimeEvent } from "@/lib/runtime-events";
@@ -42,7 +42,8 @@ import { newestFirst, recentWarningCount } from "@/pages/resource/events";
 import { ActivityPanel } from "@/pages/resource/ActivityPanel";
 import { EventsDrawer, type EventsTab } from "@/pages/resource/EventsDrawer";
 import { IncidentCard } from "@/pages/resource/IncidentCard";
-import { METRIC_RANGES } from "@/pages/resource/metric";
+import { METRIC_RANGES, RANGE_MS } from "@/pages/resource/metric";
+import { RangeToggle } from "@/pages/resource/RangeToggle";
 import {
 	activeDeploymentPlaces,
 	buildRegions,
@@ -205,10 +206,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	const envParam: Record<string, string> = env !== null ? { env } : {};
 	const hasWs = activeOrgId !== null && activeWorkspaceId !== null;
-	const obsLink = (obsView: "logs" | "metrics" | "events", region: string | null = null): string | undefined =>
+	const obsLink = (
+		obsView: "logs" | "metrics" | "events",
+		region: string | null = null,
+		rangeMs?: number,
+	): string | undefined =>
 		hasWs
 			? observabilityPath(activeOrgId, activeWorkspaceId, obsView, {
 					...envParam,
+					...(rangeMs === undefined ? {} : { range: rangeMs }),
 					r: [resource.name],
 					q: region === null ? null : queryStr([{ key: "region", value: quoteValue(region), neg: false }], ""),
 				})
@@ -417,6 +423,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						canWrite={canWrite}
 						onRollback={openRollback}
 					/>
+					{deployed.length > 0 && environmentId !== undefined && (
+						<RangeToggle
+							range={range}
+							onRange={(next) => {
+								void setParams({ range: next });
+							}}
+						/>
+					)}
 					{deployed.length > 0 && environmentId !== undefined ? (
 						<ReplicasPanel
 							nowMs={nowMs}
@@ -430,11 +444,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 								void setParams({ region });
 							}}
 							range={range}
-							onRange={(next) => {
-								void setParams({ range: next });
-							}}
 							markers={markers}
-							metricsHref={obsLink("metrics", selectedRegion)}
+							metricsHref={obsLink("metrics", selectedRegion, RANGE_MS[range])}
 						/>
 					) : (
 						<Section>
@@ -444,8 +455,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 							</EmptyState>
 						</Section>
 					)}
-					{deployed.length > 0 && environmentId !== undefined && !isWorker(resource, currents) && (
+					{deployed.length > 0 && environmentId !== undefined && (
 						<TrafficSection
+							isPublic={resource.domains.length > 0}
 							workspaceId={resource.workspaceId}
 							environmentId={environmentId}
 							resourceId={resource.id}

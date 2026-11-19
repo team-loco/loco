@@ -11,7 +11,7 @@ import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
-import { METRIC_RANGES, sharedLimit, type MetricRange } from "./metric";
+import { sharedLimit, type MetricRange } from "./metric";
 import { MetricChart } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
@@ -86,7 +86,6 @@ export function ReplicasPanel({
 	selected,
 	onSelect,
 	range,
-	onRange,
 	markers,
 	metricsHref,
 	nowMs,
@@ -99,7 +98,6 @@ export function ReplicasPanel({
 	selected: string | null;
 	onSelect: (region: string | null) => void;
 	range: MetricRange;
-	onRange: (range: MetricRange) => void;
 	markers: number[];
 	metricsHref: string | undefined;
 	nowMs: number;
@@ -163,21 +161,6 @@ export function ReplicasPanel({
 							All metrics
 						</Button>
 					)}
-					<ToggleGroup
-						variant="segmented"
-						aria-label="Time range"
-						value={[range]}
-						onValueChange={(v: string[]) => {
-							const next = METRIC_RANGES.find((r) => r === v[0]);
-							if (next !== undefined) onRange(next);
-						}}
-					>
-						{METRIC_RANGES.map((r) => (
-							<ToggleGroupItem key={r} value={r}>
-								{r}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
 				</>
 			}
 		>
@@ -220,6 +203,7 @@ export function ReplicasPanel({
 				) : (
 					<>
 						<MetricChart
+							name="CPU"
 							title={selected === null ? "CPU" : `CPU · ${selected}`}
 							points={cpu.points}
 							isLoading={cpu.isLoading}
@@ -231,6 +215,7 @@ export function ReplicasPanel({
 							format={formatCpu}
 						/>
 						<MetricChart
+							name="Memory"
 							title={selected === null ? "Memory" : `Memory · ${selected}`}
 							points={memory.points}
 							isLoading={memory.isLoading}

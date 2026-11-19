@@ -35,7 +35,7 @@ with session(out) as browser:
 
     page.goto(base + "?env=production")
     overview = page.get_by_role("button", name="Overview", exact=True)
-    page.get_by_role("button", name="Settings", exact=True).click()
+    page.get_by_role("button", name="Resource settings", exact=True).click()
     wait_for_query(page, lambda query: query.get("tab") == ["settings"])
     expect(overview).to_be_visible()
     page.go_back()
@@ -50,7 +50,9 @@ with session(out) as browser:
     wait_for_query(page, lambda query: query.get("tab") == ["settings"])
 
     page.goto(base + "?env=staging&range=zzz&tab=nope")
-    expect(page.get_by_role("button", name="Settings", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("button", name="Resource settings", exact=True)
+    ).to_be_visible()
     wait_for_query(
         page,
         lambda query: (

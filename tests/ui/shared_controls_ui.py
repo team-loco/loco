@@ -246,9 +246,11 @@ def shell_navigation(page):
     page.emulate_media(reduced_motion="no-preference")
     page.set_viewport_size(evidence.DESKTOP)
     page.goto(state["ui_url"] + base + "?env=production")
-    activity = page.get_by_role("button", name="Activity, 0 active", exact=True)
+    activity = page.get_by_role(
+        "button", name="Workspace activity, 0 active", exact=True
+    )
     activity.click()
-    drawer = page.get_by_role("dialog", name="Activity", exact=True)
+    drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
     expect(drawer).to_contain_text("Nothing needs attention.")
     events = drawer.get_by_role("link", name="All events", exact=True)
     expect(events).to_be_visible()
@@ -358,9 +360,11 @@ def activity_deployments(page):
         "**/loco.resource.v1.ResourceService/ListWorkspaceResources", report_ready
     )
     page.goto(state["ui_url"] + base + "?env=production")
-    activity = page.get_by_role("button", name="Activity, 0 active", exact=True)
+    activity = page.get_by_role(
+        "button", name="Workspace activity, 0 active", exact=True
+    )
     activity.click()
-    drawer = page.get_by_role("dialog", name="Activity", exact=True)
+    drawer = page.get_by_role("dialog", name="Workspace activity", exact=True)
     cards = drawer.get_by_role("listitem")
     expect(cards).to_have_count(2)
     expect(cards.nth(0)).to_contain_text("Deploying")
@@ -1021,7 +1025,7 @@ def dashboard(page):
         evidence.write_json(Path(args.state), state)
     sql(
         state,
-        f"UPDATE deployment_placements SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM deployments, resources WHERE deployment_placements.deployment_id=deployments.id AND deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');",
+        f"UPDATE deployment_placements SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM deployments, resources WHERE deployment_placements.deployment_id=deployments.id AND deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); INSERT INTO resource_domains(resource_id, environment_id, domain, domain_source, subdomain_label, platform_domain, is_primary) SELECT resources.id, environments.id, 'dashboard-0.apps.example.test', 'platform_provided', 'dashboard-0', 'apps.example.test', true FROM resources, environments WHERE resources.workspace_id='{workspace}' AND resources.name='dashboard-0' AND environments.workspace_id='{workspace}' AND environments.name='production' AND NOT EXISTS (SELECT 1 FROM resource_domains WHERE resource_id=resources.id);",
     )
     for color, mode in (
         (color, mode)
