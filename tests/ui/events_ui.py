@@ -109,6 +109,18 @@ with session(out) as browser:
     target = urlparse(subscribe.get_attribute("href"))
     assert target.path == base + "/webhooks"
     assert parse_qs(target.query) == {"new": ["1"], "types": ["resource.degraded"]}
+    events_url = page.url
+    subscribe.click()
+    webhook_dialog = page.get_by_role("dialog", name=re.compile(r"^New webhook"))
+    expect(webhook_dialog).to_be_visible()
+    webhook_dialog.get_by_role("button", name="Cancel", exact=True).click()
+    expect(webhook_dialog).to_have_count(0)
+    page.wait_for_url(re.compile(r"/webhooks\?env=production$"))
+    page.go_back()
+    page.wait_for_url(events_url)
+    expect(page.get_by_role("dialog", name=re.compile(r"^New webhook"))).to_have_count(
+        0
+    )
     drawer.get_by_role("button", name="Event actions", exact=True).click()
     expect(
         page.get_by_role("menuitem", name="Logs around this event", exact=True)
