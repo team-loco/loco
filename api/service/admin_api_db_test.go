@@ -204,6 +204,13 @@ func TestPersonalAPITokenCreatesHumanOwnedOrganizations(t *testing.T) {
 		genDb.EntityScope{EntityType: genDb.EntityTypeUser, EntityID: user.id, Scope: genDb.ScopeRead},
 		genDb.EntityScope{EntityType: genDb.EntityTypeUser, EntityID: user.id, Scope: genDb.ScopeWrite},
 	)
+	first, err := client.Org.ListUserOrgs(
+		t.Context(),
+		&orgv1.ListUserOrgsRequest{UserId: user.id.String(), CreateIfMissing: true},
+	)
+	if err != nil || len(first.GetOrgs()) != 1 {
+		t.Fatalf("first organization = %v, %v", first, err)
+	}
 	created, err := client.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new("delegated organization")})
 	if err != nil {
 		t.Fatal(err)
@@ -526,6 +533,14 @@ func TestPersonalAPITokenOrganizationCreationRequiresWrite(t *testing.T) {
 		err,
 	) != connect.CodePermissionDenied {
 		t.Fatalf("read-only organization creation = %v", err)
+	}
+	if _, err := client.Org.ListUserOrgs(
+		t.Context(),
+		&orgv1.ListUserOrgsRequest{UserId: user.id.String(), CreateIfMissing: true},
+	); connect.CodeOf(
+		err,
+	) != connect.CodePermissionDenied {
+		t.Fatalf("read-only first organization = %v", err)
 	}
 	count, err := api.queries.CountOrgsCreatedBy(t.Context(), user.id)
 	if err != nil || count != 0 {
