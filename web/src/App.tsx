@@ -9,7 +9,10 @@ import { CliDevice } from "@/pages/cli/CliDevice";
 import { CliLogin } from "@/pages/cli/CliLogin";
 import { ResourceTitle } from "@/pages/resource/ResourceTitle";
 import { Splash } from "@/pages/Splash";
-import { TransportProvider } from "@connectrpc/connect-query";
+import { createConnectQueryKey, TransportProvider } from "@connectrpc/connect-query";
+import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
+import { listEnvironments } from "@gen/loco/environment/v1/environment-EnvironmentService_connectquery";
+import { getScopes } from "@gen/loco/token/v1/token-TokenService_connectquery";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import { defaultShouldDehydrateQuery, QueryClient } from "@tanstack/react-query";
 import { PersistQueryClientProvider, type AsyncStorage } from "@tanstack/react-query-persist-client";
@@ -50,6 +53,8 @@ const DashboardRedirect = lazy(async () => ({ default: (await pageImporters.Dash
 
 import { transport } from "./auth/connect-transport";
 
+// Every page mounts these; observers that mount while a page loads reuse the data fetched a moment earlier.
+const SHARED_STALE_MS = 10_000;
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
@@ -61,6 +66,13 @@ const queryClient = new QueryClient({
 		},
 	},
 });
+
+const sharedQueryKeys = [
+	createConnectQueryKey({ schema: getConfig, cardinality: undefined }),
+	createConnectQueryKey({ schema: getScopes, cardinality: undefined }),
+	createConnectQueryKey({ schema: listEnvironments, cardinality: undefined }),
+];
+for (const queryKey of sharedQueryKeys) queryClient.setQueryDefaults(queryKey, { staleTime: SHARED_STALE_MS });
 
 const asyncLocalStorage: AsyncStorage = {
 	getItem: async (key: string) => await Promise.resolve(readStorage(key)),
@@ -272,7 +284,13 @@ function AppProviders() {
 	return (
 		<NuqsAdapter defaultOptions={NUQS_DEFAULTS}>
 			<TransportProvider transport={transport}>
-				<PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+				<PersistQueryClientProvider
+					client={queryClient}
+					persistOptions={persistOptions}
+					onSuccess={() => {
+						void queryClient.invalidateQueries();
+					}}
+				>
 					<AppLoaderProvider>
 						<AuthProvider>
 							<ThemeProvider>

@@ -31,6 +31,7 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 		const client = createClient(DeploymentService, transport);
 		const watch = async (deploymentId: string) => {
 			let backoff = 1000;
+			let firstEvent = true;
 			while (!isAborted()) {
 				try {
 					let terminal = false;
@@ -52,6 +53,10 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 								error: undefined,
 							},
 						}));
+						if (firstEvent) {
+							firstEvent = false;
+							continue;
+						}
 						void queryClient.invalidateQueries({
 							queryKey: createConnectQueryKey({
 								schema: getDeployment,

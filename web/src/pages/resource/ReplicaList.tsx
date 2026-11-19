@@ -3,6 +3,7 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import { useQueries } from "@tanstack/react-query";
 
 import { Badge } from "@/components/design/Badge";
+import { Skeleton } from "@/components/design/Skeleton";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
@@ -96,8 +97,14 @@ export function ReplicaList({
 								)}
 							</span>
 							<span className="flex min-w-0 flex-wrap gap-x-3 font-mono text-fg3 tabular-nums">
-								<span>{usageLabel("CPU", cpuUsage.get(replica.name), cpuLimit)}</span>
-								<span>{usageLabel("Memory", memoryUsage.get(replica.name), memoryLimit)}</span>
+								{cpu?.isLoading === true || memory?.isLoading === true ? (
+									<Skeleton className="h-3.5 w-40" />
+								) : (
+									<>
+										<span>{usageLabel("CPU", cpuUsage.get(replica.name), cpuLimit)}</span>
+										<span>{usageLabel("Memory", memoryUsage.get(replica.name), memoryLimit)}</span>
+									</>
+								)}
 							</span>
 						</li>
 					);
