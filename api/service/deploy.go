@@ -101,26 +101,25 @@ func createDeployment(
 		}); createErr != nil {
 			return uuid.UUID{}, fmt.Errorf("create deployment placement: %w", createErr)
 		}
+		if placementStatus == genDb.PlacementStatusDeploying {
+			payload, renderErr := d.render(spec, deploymentID, target.region)
+			if renderErr != nil {
+				return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, renderErr)
+			}
+			if placeErr := placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+				ResourceID:    params.ResourceID,
+				ClusterID:     target.clusterID,
+				Region:        target.region,
+				DeploymentID:  &deploymentID,
+				DesiredSpec:   payload,
+				EnvironmentID: params.EnvironmentID,
+				SecretNames:   params.SecretNames,
+			}); placeErr != nil {
+				return uuid.UUID{}, placeErr
+			}
+		}
 		if supersedeErr := supersedePlacements(ctx, qtx, deploymentID, target.clusterID, false); supersedeErr != nil {
 			return uuid.UUID{}, supersedeErr
-		}
-		if placementStatus == genDb.PlacementStatusPending {
-			continue
-		}
-		payload, renderErr := d.render(spec, deploymentID, target.region)
-		if renderErr != nil {
-			return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, renderErr)
-		}
-		if placeErr := placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-			ResourceID:    params.ResourceID,
-			ClusterID:     target.clusterID,
-			Region:        target.region,
-			DeploymentID:  &deploymentID,
-			DesiredSpec:   payload,
-			EnvironmentID: params.EnvironmentID,
-			SecretNames:   params.SecretNames,
-		}); placeErr != nil {
-			return uuid.UUID{}, placeErr
 		}
 	}
 

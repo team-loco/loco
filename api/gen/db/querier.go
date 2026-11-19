@@ -323,7 +323,8 @@ type Querier interface {
 	SetUserStatus(ctx context.Context, arg SetUserStatusParams) (User, error)
 	StoreRollout(ctx context.Context, arg StoreRolloutParams) error
 	// Retires the older deployments' placements on the cluster: one that never ran is canceled,
-	// one that ran is superseded. Without include_started only the never-started ones change.
+	// one that ran is superseded. Without include_started only the never-started ones change. The
+	// placement the cluster still runs stays until the deployment is placed there.
 	SupersedePlacements(ctx context.Context, arg SupersedePlacementsParams) ([]uuid.UUID, error)
 	SuspendOrg(ctx context.Context, arg SuspendOrgParams) (Organization, error)
 	SuspendOrgPlacements(ctx context.Context, orgID uuid.UUID) ([]SuspendOrgPlacementsRow, error)

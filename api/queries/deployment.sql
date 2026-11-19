@@ -126,7 +126,8 @@ WHERE deployment_id = sqlc.arg(deployment_id)
 
 -- name: SupersedePlacements :many
 -- Retires the older deployments' placements on the cluster: one that never ran is canceled,
--- one that ran is superseded. Without include_started only the never-started ones change.
+-- one that ran is superseded. Without include_started only the never-started ones change. The
+-- placement the cluster still runs stays until the deployment is placed there.
 UPDATE deployment_placements old
 SET status = CASE WHEN old.started_at IS NULL THEN 'canceled' ELSE 'superseded' END::placement_status,
     superseded_by = current.id,
@@ -141,6 +142,11 @@ WHERE current.id = sqlc.arg(deployment_id)
   AND (previous.created_at, previous.id) < (current.created_at, current.id)
   AND old.status IN ('pending', 'deploying', 'running', 'degraded', 'crashed')
   AND (sqlc.arg(include_started)::bool OR old.started_at IS NULL)
+  AND NOT EXISTS (
+      SELECT 1 FROM placements p
+      WHERE p.resource_id = current.resource_id AND p.environment_id = current.environment_id
+        AND p.cluster_id = old.cluster_id AND p.deployment_id = old.deployment_id AND NOT p.desired_deleted
+  )
 RETURNING old.deployment_id;
 
 -- name: RecomputeDeploymentStatus :one

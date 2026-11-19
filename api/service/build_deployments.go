@@ -175,6 +175,9 @@ func placeBuiltDeployment(
 		if err := placeDeployment(ctx, qtx, render, deployment, target, spec); err != nil {
 			return err
 		}
+		if err := supersedePlacements(ctx, qtx, deployment.ID, placement.ClusterID, false); err != nil {
+			return err
+		}
 	}
 	return qtx.SetDeploymentBuildImage(ctx, genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image})
 }

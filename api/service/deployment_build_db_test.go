@@ -459,7 +459,31 @@ func TestABuildingDeploymentShowsTheServingReplicas(t *testing.T) {
 	}
 	region := statuses[f.resourceID][0].GetRegions()[0]
 	if region.GetDeploymentId() != building.String() ||
-		region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING {
-		t.Fatalf("region = %v, want the building deployment pending", region)
+		region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING ||
+		region.GetReadyReplicas() != 1 || len(region.GetReplicas()) != 1 ||
+		region.GetReplicas()[0].GetDeploymentId() != serving.String() {
+		t.Fatalf("region = %v, want the building deployment pending beside the serving replica", region)
+	}
+}
+
+func TestAFailedBuildLeavesTheRollingDeploymentLive(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	rolling := rollbackDeployment(t, f.deployFixture, false, nil)
+	buildID := f.queued(t)
+	deployBuild(t, f, buildID)
+	status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_FAILED)
+	if err := f.agentServer().recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.deploymentStatus(t, rolling); got != genDb.DeploymentStatusDeploying {
+		t.Fatalf("rolling deployment = %s, want deploying", got)
+	}
+	statuses, err := (&ResourceServer{queries: f.queries}).environmentStatuses(f.ctx, []uuid.UUID{f.resourceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if region := statuses[f.resourceID][0].GetRegions()[0]; region.GetDeploymentId() != rolling.String() {
+		t.Fatalf("region = %v, want the rolling deployment", region)
 	}
 }
