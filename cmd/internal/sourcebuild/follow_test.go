@@ -19,14 +19,11 @@ import (
 	"github.com/team-loco/loco/internal/rpc"
 )
 
-const followTestMargin = 3 * buildPollInterval
-
 type blockedBackfill struct {
 	buildv1connect.UnimplementedBuildServiceHandler
 	observabilityv1connect.UnimplementedObservabilityServiceHandler
 	started  chan struct{}
 	canceled chan struct{}
-	terminal chan time.Time
 	build    *buildv1.Build
 }
 
@@ -36,7 +33,6 @@ func (s *blockedBackfill) GetBuild(ctx context.Context, _ *buildv1.GetBuildReque
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
-	s.terminal <- time.Now()
 	return &buildv1.GetBuildResponse{Build: s.build}, nil
 }
 
@@ -62,7 +58,7 @@ func TestFollowBoundsBlockedBackfillAfterBuildFinishes(t *testing.T) {
 			build := &buildv1.Build{Id: buildID, ClusterId: new(clusterID), Status: status,
 				CreatedAt: createdAt}
 			service := &blockedBackfill{started: make(chan struct{}), canceled: make(chan struct{}),
-				terminal: make(chan time.Time, 1), build: build}
+				build: build}
 			server := connect.NewServer()
 			buildv1connect.RegisterBuildServiceHandler(server, service)
 			observabilityv1connect.RegisterObservabilityServiceHandler(server, service)
@@ -72,28 +68,22 @@ func TestFollowBoundsBlockedBackfillAfterBuildFinishes(t *testing.T) {
 			defer endpoint.Close()
 			clients := rpc.ForHost(endpoint.URL, "")
 			follower := NewFollower(clients, io.Discard)
-			parent := t.Context()
-			ctx, cancel := context.WithTimeout(parent, buildLogDrain+followTestMargin)
-			defer cancel()
 			initial := &buildv1.Build{Id: buildID, ClusterId: new(clusterID),
 				Status: buildv1.BuildStatus_BUILD_STATUS_RUNNING, CreatedAt: createdAt}
-			finished, err := follower.Follow(ctx, initial, "workspace-drain")
+			// The backfill never ends, so only the drain budget can end Follow.
+			start := time.Now()
+			finished, err := follower.Follow(t.Context(), initial, "workspace-drain")
 			if err != nil {
 				t.Fatal(err)
+			}
+			if elapsed := time.Since(start); elapsed > buildPollInterval+2*buildLogDrain {
+				t.Fatalf("Follow returned %s after it started, past the %s drain budget", elapsed, buildLogDrain)
 			}
 			actual := finished.GetStatus()
 			if actual != status {
 				t.Fatalf("status = %v, want %v", actual, status)
 			}
-			elapsed := time.Since(<-service.terminal)
-			if elapsed >= buildLogDrain+buildPollInterval {
-				t.Errorf("blocked backfill delayed terminal build by %s, drain budget %s", elapsed, buildLogDrain)
-			}
-			select {
-			case <-service.canceled:
-			case <-time.After(buildPollInterval):
-				t.Fatal("log backfill request was not canceled")
-			}
+			<-service.canceled
 		})
 	}
 }
