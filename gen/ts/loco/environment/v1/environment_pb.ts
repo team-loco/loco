@@ -128,6 +128,8 @@ export type CreateEnvironmentRequest = Message<"loco.environment.v1.CreateEnviro
   workspaceId: string;
 
   /**
+   * A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+   *
    * @generated from field: string name = 2;
    */
   name: string;
@@ -150,6 +152,8 @@ export type CreateEnvironmentRequestJson = {
   workspaceId?: string;
 
   /**
+   * A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+   *
    * @generated from field: string name = 2;
    */
   name?: string;
@@ -334,6 +338,8 @@ export type UpdateEnvironmentRequest = Message<"loco.environment.v1.UpdateEnviro
   environmentId: string;
 
   /**
+   * A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+   *
    * @generated from field: optional string name = 2;
    */
   name?: string | undefined;
@@ -356,6 +362,8 @@ export type UpdateEnvironmentRequestJson = {
   environmentId?: string;
 
   /**
+   * A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit.
+   *
    * @generated from field: optional string name = 2;
    */
   name?: string;
