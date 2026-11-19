@@ -61,8 +61,11 @@ export function Waterfall({
 	const width = zoom.b - zoom.a;
 	const clamp = (value: number) => Math.max(120, Math.min(480, value));
 	return (
-		<section aria-label="Waterfall" className="tv-waterfall min-w-0 overflow-auto rounded-md border border-line">
-			<div className="relative flex border-b border-line bg-panel py-2 font-mono text-[11px] text-fg3">
+		<section
+			aria-label="Waterfall"
+			className="tv-waterfall max-h-[70vh] min-w-0 min-[1100px]:max-h-[max(240px,calc(100vh-460px))] overflow-auto overscroll-contain rounded-md border border-line"
+		>
+			<div className="sticky top-0 z-20 flex border-b border-line bg-panel py-2 font-mono text-[11px] text-fg3">
 				<span className="shrink-0 px-2" style={{ width: nameWidth }}>
 					Span
 				</span>
