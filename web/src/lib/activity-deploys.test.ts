@@ -6,6 +6,7 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import {
 	activityDeployments,
+	recentHealthEvents,
 	deployPhase,
 	deploySteps,
 	finishedLabel,
@@ -55,9 +56,23 @@ describe("activityDeployments", () => {
 		]);
 	});
 
-	test("shows at most six", () => {
-		const list = Array.from({ length: 9 }, (_, i) => deployment(`d${i.toString()}`, DeploymentStatus.RUNNING, i));
-		expect(activityDeployments(list, NOW)).toHaveLength(6);
+	test("lists every deployment, however many", () => {
+		const list = Array.from({ length: 17 }, (_, i) => deployment(`d${i.toString()}`, DeploymentStatus.RUNNING, i));
+		expect(activityDeployments(list, NOW)).toHaveLength(17);
+	});
+});
+
+describe("recentHealthEvents", () => {
+	const at = (type: string, minutesAgo: number) => ({ type, timestamp: timestampFromMs(NOW - minutesAgo * MIN) });
+
+	test("keeps degraded and recovered events from the last 30 minutes, newest first", () => {
+		const events = [
+			at("resource.degraded", 20),
+			at("deployment.ready", 1),
+			at("resource.recovered", 5),
+			at("resource.degraded", 45),
+		];
+		expect(recentHealthEvents(events, NOW).map((e) => e.type)).toEqual(["resource.recovered", "resource.degraded"]);
 	});
 });
 
