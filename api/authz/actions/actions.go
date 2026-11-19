@@ -117,6 +117,11 @@ var (
 		entityType: db.EntityTypeResource,
 		scope:      db.ScopeWrite,
 	}
+	// CancelDeployment requires resource:write.
+	CancelDeployment = Action{
+		entityType: db.EntityTypeResource,
+		scope:      db.ScopeWrite,
+	}
 
 	CreateBuild = Action{
 		entityType: db.EntityTypeResource,

@@ -12,6 +12,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const buildUsedByOtherDeployments = `-- name: BuildUsedByOtherDeployments :one
+SELECT EXISTS (
+    SELECT 1 FROM deployments
+    WHERE spec->'build'->>'buildId' = $1::text
+      AND status IN ('building', 'deploying')
+      AND id <> $2
+)
+`
+
+type BuildUsedByOtherDeploymentsParams struct {
+	BuildID      string    `json:"buildId"`
+	DeploymentID uuid.UUID `json:"deploymentId"`
+}
+
+func (q *Queries) BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsedByOtherDeploymentsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, buildUsedByOtherDeployments, arg.BuildID, arg.DeploymentID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const createDeployment = `-- name: CreateDeployment :one
 
 INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id)
@@ -201,11 +222,14 @@ const getDeploymentView = `-- name: GetDeploymentView :one
 SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
-       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
+LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
 WHERE d.id = $1
 `
 
@@ -215,6 +239,7 @@ type GetDeploymentViewRow struct {
 	Placements     []byte       `json:"placements"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
+	CanceledByName string       `json:"canceledByName"`
 }
 
 func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error) {
@@ -246,6 +271,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.Placements,
 		&i.ActorName,
 		&i.ActorAvatarUrl,
+		&i.CanceledByName,
 	)
 	return i, err
 }
@@ -394,12 +420,15 @@ const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
 SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
-       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
+LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
 WHERE r.workspace_id = $1
   AND d.environment_id = $2
   AND ($3::bool
@@ -437,6 +466,7 @@ type ListEnvironmentDeploymentsRow struct {
 	Placements     []byte       `json:"placements"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
+	CanceledByName string       `json:"canceledByName"`
 }
 
 func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnvironmentDeploymentsParams) ([]ListEnvironmentDeploymentsRow, error) {
@@ -486,6 +516,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Placements,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
+			&i.CanceledByName,
 		); err != nil {
 			return nil, err
 		}
@@ -625,12 +656,15 @@ const listResourceDeployments = `-- name: ListResourceDeployments :many
 SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
-       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
+LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
 WHERE d.resource_id = $1
   AND ($2::uuid IS NULL OR d.environment_id = $2)
   AND ($3::bool
@@ -668,6 +702,7 @@ type ListResourceDeploymentsRow struct {
 	Placements     []byte       `json:"placements"`
 	ActorName      string       `json:"actorName"`
 	ActorAvatarUrl string       `json:"actorAvatarUrl"`
+	CanceledByName string       `json:"canceledByName"`
 }
 
 func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceDeploymentsParams) ([]ListResourceDeploymentsRow, error) {
@@ -717,6 +752,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Placements,
 			&i.ActorName,
 			&i.ActorAvatarUrl,
+			&i.CanceledByName,
 		); err != nil {
 			return nil, err
 		}
@@ -804,6 +840,54 @@ ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1
 // failed one exists.
 func (q *Queries) PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error) {
 	row := q.db.QueryRow(ctx, previousDeploymentForRollback, id)
+	var i Deployment
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Status,
+		&i.EnvironmentID,
+		&i.Spec,
+		&i.SpecVersion,
+		&i.Trigger,
+		&i.SourceDeploymentID,
+		&i.ActorType,
+		&i.ActorID,
+		&i.Method,
+		&i.CanceledByType,
+		&i.CanceledByID,
+		&i.CommitSha,
+		&i.CommitDirty,
+		&i.SecretNames,
+		&i.ActivitySeq,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const previousRunningDeploymentForCluster = `-- name: PreviousRunningDeploymentForCluster :one
+SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
+JOIN deployments previous ON previous.id = dp.deployment_id
+JOIN deployments current ON current.id = $1
+WHERE dp.cluster_id = $2
+  AND previous.resource_id = current.resource_id
+  AND previous.environment_id = current.environment_id
+  AND (previous.created_at, previous.id) < (current.created_at, current.id)
+  AND dp.status IN ('running', 'degraded', 'crashed')
+ORDER BY previous.created_at DESC, previous.id DESC
+LIMIT 1
+`
+
+type PreviousRunningDeploymentForClusterParams struct {
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
+}
+
+// The newest deployment older than the given one whose placement on the cluster still runs.
+func (q *Queries) PreviousRunningDeploymentForCluster(ctx context.Context, arg PreviousRunningDeploymentForClusterParams) (Deployment, error) {
+	row := q.db.QueryRow(ctx, previousRunningDeploymentForCluster, arg.DeploymentID, arg.ClusterID)
 	var i Deployment
 	err := row.Scan(
 		&i.ID,
@@ -932,6 +1016,22 @@ type SetDeploymentBuildImageParams struct {
 
 func (q *Queries) SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error {
 	_, err := q.db.Exec(ctx, setDeploymentBuildImage, arg.Image, arg.ID)
+	return err
+}
+
+const setDeploymentCanceledBy = `-- name: SetDeploymentCanceledBy :exec
+UPDATE deployments SET canceled_by_type = $1, canceled_by_id = $2
+WHERE id = $3
+`
+
+type SetDeploymentCanceledByParams struct {
+	ActorType *DeploymentActorType `json:"actorType"`
+	ActorID   *uuid.UUID           `json:"actorId"`
+	ID        uuid.UUID            `json:"id"`
+}
+
+func (q *Queries) SetDeploymentCanceledBy(ctx context.Context, arg SetDeploymentCanceledByParams) error {
+	_, err := q.db.Exec(ctx, setDeploymentCanceledBy, arg.ActorType, arg.ActorID, arg.ID)
 	return err
 }
 

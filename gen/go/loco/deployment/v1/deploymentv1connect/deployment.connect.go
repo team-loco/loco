@@ -39,6 +39,9 @@ const (
 	// DeploymentServiceDeleteDeploymentProcedure is the procedure name of the DeploymentService's
 	// DeleteDeployment RPC.
 	DeploymentServiceDeleteDeploymentProcedure = "/loco.deployment.v1.DeploymentService/DeleteDeployment"
+	// DeploymentServiceCancelDeploymentProcedure is the procedure name of the DeploymentService's
+	// CancelDeployment RPC.
+	DeploymentServiceCancelDeploymentProcedure = "/loco.deployment.v1.DeploymentService/CancelDeployment"
 	// DeploymentServiceResolveImageProcedure is the procedure name of the DeploymentService's
 	// ResolveImage RPC.
 	DeploymentServiceResolveImageProcedure = "/loco.deployment.v1.DeploymentService/ResolveImage"
@@ -80,6 +83,13 @@ var (
 			Procedure:  DeploymentServiceDeleteDeploymentProcedure,
 		}
 	})
+	deploymentServiceCancelDeploymentSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_deployment_v1_deployment_proto.Services().ByName("DeploymentService").Methods().ByName("CancelDeployment"),
+			Procedure:  DeploymentServiceCancelDeploymentProcedure,
+		}
+	})
 	deploymentServiceResolveImageSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -101,6 +111,9 @@ type DeploymentServiceClient interface {
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest) (DeploymentServiceWatchDeploymentClientStream, error)
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
+	// CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
+	// return to the deployment that served them before; regions it already runs keep it.
+	CancelDeployment(context.Context, *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error)
 	// ResolveImage returns the digest-pinned image reference.
 	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
@@ -145,6 +158,9 @@ type DeploymentServiceHandler interface {
 	WatchDeployment(context.Context, *v1.WatchDeploymentRequest, DeploymentServiceWatchDeploymentServerStream) error
 	// DeleteDeployment deletes/inactivates a deployment.
 	DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error)
+	// CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
+	// return to the deployment that served them before; regions it already runs keep it.
+	CancelDeployment(context.Context, *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error)
 	// ResolveImage returns the digest-pinned image reference.
 	ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error)
 }
@@ -159,6 +175,7 @@ func RegisterDeploymentServiceHandler(server *connect.Server, svc DeploymentServ
 		connect.Method{Spec: deploymentServiceListDeploymentsSpec(), Handler: adapter.listDeployments},
 		connect.Method{Spec: deploymentServiceWatchDeploymentSpec(), Handler: adapter.watchDeployment},
 		connect.Method{Spec: deploymentServiceDeleteDeploymentSpec(), Handler: adapter.deleteDeployment},
+		connect.Method{Spec: deploymentServiceCancelDeploymentSpec(), Handler: adapter.cancelDeployment},
 		connect.Method{Spec: deploymentServiceResolveImageSpec(), Handler: adapter.resolveImage},
 	)
 }
@@ -200,6 +217,10 @@ func (UnimplementedDeploymentServiceHandler) WatchDeployment(context.Context, *v
 
 func (UnimplementedDeploymentServiceHandler) DeleteDeployment(context.Context, *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.DeleteDeployment is not implemented")
+}
+
+func (UnimplementedDeploymentServiceHandler) CancelDeployment(context.Context, *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.deployment.v1.DeploymentService.CancelDeployment is not implemented")
 }
 
 func (UnimplementedDeploymentServiceHandler) ResolveImage(context.Context, *v1.ResolveImageRequest) (*v1.ResolveImageResponse, error) {
@@ -245,6 +266,14 @@ func (c *deploymentServiceClient) WatchDeployment(ctx context.Context, req *v1.W
 func (c *deploymentServiceClient) DeleteDeployment(ctx context.Context, req *v1.DeleteDeploymentRequest) (*v1.DeleteDeploymentResponse, error) {
 	var res v1.DeleteDeploymentResponse
 	if err := c.client.CallUnary(ctx, deploymentServiceDeleteDeploymentSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *deploymentServiceClient) CancelDeployment(ctx context.Context, req *v1.CancelDeploymentRequest) (*v1.CancelDeploymentResponse, error) {
+	var res v1.CancelDeploymentResponse
+	if err := c.client.CallUnary(ctx, deploymentServiceCancelDeploymentSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -310,6 +339,18 @@ func (h deploymentServiceHandler) deleteDeployment(ctx context.Context, _ connec
 		return err
 	}
 	res, err := h.svc.DeleteDeployment(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h deploymentServiceHandler) cancelDeployment(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.CancelDeploymentRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CancelDeployment(ctx, &req)
 	if err != nil {
 		return err
 	}

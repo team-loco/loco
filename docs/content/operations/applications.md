@@ -25,6 +25,12 @@ loco resource scale web --env staging --cpu 250m --memory 512Mi
 loco resource scale web --env production --region eu-west-1 --replicas 4
 ```
 
+## Cancel
+
+`DeploymentService.CancelDeployment` stops a deployment that is still building or rolling out. Canceling stops the build unless another deployment in flight uses it. Each region the deployment does not run yet goes back to the deployment that served it before, or loses its Application when none did. Each region where the deployment already runs keeps it. The deployment ends `canceled` and records who canceled it. A deployment that already runs everywhere, failed or was replaced cannot be canceled; roll back or redeploy it instead.
+
+A new deployment of the service replaces one in flight without a cancel: the older deployment ends `canceled`, and its card names the deployment that replaced it.
+
 ## Restart
 
 `loco resource restart` starts a rolling restart of the current replicas in one environment, preserving the deployment spec and ID. It uses the same `--env` and `LOCO_ENV` selection as scale. Without `--region`, it restarts every region in that environment. Restart requires write access. A restart during a rollout rolls the replicas again.

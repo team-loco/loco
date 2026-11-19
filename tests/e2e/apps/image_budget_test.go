@@ -69,7 +69,7 @@ func TestPublicImageSizeBudget(t *testing.T) {
 		Regions:       []string{p.Region},
 		Spec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
-				Build: &deploymentv1.BuildSource{Type: "image", Image: ref.Name()},
+				Build: &deploymentv1.BuildSource{Type: imageBuild, Image: ref.Name()},
 			}},
 		},
 	})

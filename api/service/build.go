@@ -548,39 +548,46 @@ func cancelBuild(
 ) error {
 	var source buildSource
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
-		row, cancelErr := qtx.CancelBuild(ctx, genDb.CancelBuildParams{
-			Message: "canceled",
-			ID:      buildID,
-		})
+		canceled, cancelErr := cancelBuildTx(ctx, qtx, buildID, resourceID)
 		if errors.Is(cancelErr, pgx.ErrNoRows) {
 			return errBuildNotCancelable
 		}
-		if cancelErr != nil {
-			return fmt.Errorf("cancel build: %w", cancelErr)
-		}
-		if err := FinishBuildDeployments(ctx, qtx, row.ID); err != nil {
-			return err
-		}
-		source = buildSource{id: row.ID, key: row.SourceKey}
-		if row.ClusterID != nil {
-			if notifyErr := notifyCluster(ctx, qtx, *row.ClusterID); notifyErr != nil {
-				return notifyErr
-			}
-		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:          events.BuildCanceled,
-			EnvironmentID: row.OriginEnvironmentID,
-			ResourceID:    new(resourceID),
-			SubjectType:   events.SubjectBuild,
-			SubjectID:     new(buildID),
-			Data:          map[string]any{events.FieldResourceID: resourceID.String()},
-		})
+		source = canceled
+		return cancelErr
 	})
 	if err != nil {
 		return err
 	}
 	deleteBuildSources(ctx, queries, bucket, source)
 	return nil
+}
+
+// cancelBuildTx cancels an unfinished build, settles the deployments waiting for it and tells
+// its cluster; pgx.ErrNoRows means the build already finished.
+func cancelBuildTx(ctx context.Context, qtx *genDb.Queries, buildID, resourceID uuid.UUID) (buildSource, error) {
+	row, err := qtx.CancelBuild(ctx, genDb.CancelBuildParams{Message: "canceled", ID: buildID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return buildSource{}, err
+	}
+	if err != nil {
+		return buildSource{}, fmt.Errorf("cancel build: %w", err)
+	}
+	if finishErr := FinishBuildDeployments(ctx, qtx, row.ID); finishErr != nil {
+		return buildSource{}, finishErr
+	}
+	if row.ClusterID != nil {
+		if notifyErr := notifyCluster(ctx, qtx, *row.ClusterID); notifyErr != nil {
+			return buildSource{}, notifyErr
+		}
+	}
+	return buildSource{id: row.ID, key: row.SourceKey}, events.Record(ctx, qtx, events.Event{
+		Type:          events.BuildCanceled,
+		EnvironmentID: row.OriginEnvironmentID,
+		ResourceID:    new(resourceID),
+		SubjectType:   events.SubjectBuild,
+		SubjectID:     new(buildID),
+		Data:          map[string]any{events.FieldResourceID: resourceID.String()},
+	})
 }
 
 func (s *BuildServer) getBuild(ctx context.Context, rawID string) (genDb.Build, error) {

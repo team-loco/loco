@@ -1823,6 +1823,68 @@
         }
       }
     },
+    "/loco.deployment.v1.DeploymentService/CancelDeployment": {
+      "post": {
+        "tags": [
+          "loco.deployment.v1.DeploymentService"
+        ],
+        "summary": "CancelDeployment",
+        "description": "CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet\n return to the deployment that served them before; regions it already runs keep it.",
+        "operationId": "loco.deployment.v1.DeploymentService.CancelDeployment",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.deployment.v1.CancelDeploymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.deployment.v1.CancelDeploymentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.deployment.v1.DeploymentService/CreateDeployment": {
       "post": {
         "tags": [
@@ -10282,6 +10344,23 @@
         "additionalProperties": false,
         "description": "BuildSource defines where the code comes from."
       },
+      "loco.deployment.v1.CancelDeploymentRequest": {
+        "type": "object",
+        "properties": {
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id",
+            "format": "uuid"
+          }
+        },
+        "title": "CancelDeploymentRequest",
+        "additionalProperties": false
+      },
+      "loco.deployment.v1.CancelDeploymentResponse": {
+        "type": "object",
+        "title": "CancelDeploymentResponse",
+        "additionalProperties": false
+      },
       "loco.deployment.v1.CreateDeploymentRequest": {
         "type": "object",
         "properties": {
@@ -10475,6 +10554,11 @@
             "type": "string",
             "title": "source_deployment_id",
             "description": "The deployment a redeploy or rollback copied, if any."
+          },
+          "canceledByName": {
+            "type": "string",
+            "title": "canceled_by_name",
+            "description": "Who canceled the deployment; empty unless a user or token canceled it."
           }
         },
         "title": "Deployment",
@@ -10568,6 +10652,11 @@
             "type": "boolean",
             "title": "live",
             "description": "Whether the region runs this deployment or is building it."
+          },
+          "supersededBy": {
+            "type": "string",
+            "title": "superseded_by",
+            "description": "The newer deployment that replaced this region, if any."
           }
         },
         "title": "DeploymentPlacement",
