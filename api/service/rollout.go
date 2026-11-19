@@ -24,6 +24,7 @@ const (
 	activityError        = "error"
 	rolloutActivityLimit = 500
 	activityLimitMessage = "Activity limit reached"
+	exitSIGTERM          = 143
 )
 
 type rolloutSnapshot struct {
@@ -149,7 +150,7 @@ func replicaActivityMessage(replica *deploymentv1.Replica) (string, string) {
 		message, severity = "Stopping", activityInfo
 	case loco.ReplicaStopped:
 		message, severity = "Stopped", activityOK
-		if replica.GetLastExit().GetExitCode() != 0 {
+		if code := replica.GetLastExit().GetExitCode(); code != 0 && code != exitSIGTERM {
 			severity = activityWarn
 		}
 	case loco.ReplicaKilled:

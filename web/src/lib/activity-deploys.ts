@@ -105,3 +105,17 @@ export function rolloutReadyLabel(deployments: readonly Deployment[]): string {
 	const desired = deployments.reduce((sum, d) => sum + d.desiredReplicas, 0);
 	return `${ready.toString()} of ${desired.toString()} ready in ${deployments.length.toString()} regions`;
 }
+
+/** Ready replicas per deployment, as the cluster reports them for each region's active deployment. */
+export type ReadyReplicas = ReadonlyMap<string, number>;
+
+/** The ready count for deployments listed without their replicas; nothing for deployments the cluster does not report on. */
+export function reportedReadyLabel(deployments: readonly Deployment[], ready: ReadyReplicas): string | undefined {
+	const reporting = deployments.filter((d) => ready.has(d.id));
+	if (reporting.length === 0) return undefined;
+	const count = reporting.reduce((sum, d) => sum + (ready.get(d.id) ?? 0), 0);
+	const desired = reporting.reduce((sum, d) => sum + d.desiredReplicas, 0);
+	return reporting.length === 1
+		? `${count.toString()} of ${desired.toString()} ready`
+		: `${count.toString()} of ${desired.toString()} ready in ${reporting.length.toString()} regions`;
+}

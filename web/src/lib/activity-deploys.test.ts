@@ -11,6 +11,7 @@ import {
 	finishedLabel,
 	readyLabel,
 	rolloutGroups,
+	reportedReadyLabel,
 	rolloutReadyLabel,
 	tookLabel,
 	withoutRunningDeploys,
@@ -182,5 +183,23 @@ describe("rolloutReadyLabel", () => {
 		});
 		expect(rolloutReadyLabel([east, west])).toBe("3 of 4 ready in 2 regions");
 		expect(rolloutReadyLabel([east])).toBe("1 of 2 ready");
+	});
+});
+
+describe("reportedReadyLabel", () => {
+	test("counts the ready replicas the cluster reports for each region of the rollout", () => {
+		const east = deployment("east", DeploymentStatus.RUNNING, 1, { desiredReplicas: 2 });
+		const west = deployment("west", DeploymentStatus.RUNNING, 1, { desiredReplicas: 2, region: "eu-west-1" });
+		const ready = new Map([
+			["east", 1],
+			["west", 2],
+		]);
+		expect(reportedReadyLabel([east, west], ready)).toBe("3 of 4 ready in 2 regions");
+		expect(reportedReadyLabel([east], ready)).toBe("1 of 2 ready");
+	});
+
+	test("says nothing for deployments the cluster does not report on", () => {
+		const east = deployment("east", DeploymentStatus.SUPERSEDED, 1, { desiredReplicas: 2 });
+		expect(reportedReadyLabel([east], new Map())).toBeUndefined();
 	});
 });
