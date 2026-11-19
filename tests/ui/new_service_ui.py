@@ -212,6 +212,33 @@ with session(out) as browser:
     assert not errors, errors
     context.close()
 
+    lone = seeded_draft("lone-region", "registry.example.com/acme/lone:1")
+    context, page, errors = open_page(
+        browser, "owner", storage={drafts_key: json.dumps([lone])}
+    )
+    context.route(
+        "**/loco.resource.v1.ResourceService/ListRegions",
+        lambda route: route.fulfill(
+            json={
+                "regions": [
+                    {
+                        "region": "us-east-1",
+                        "isDefault": False,
+                        "healthStatus": "healthy",
+                        "availability": "REGION_AVAILABILITY_AVAILABLE",
+                    }
+                ]
+            }
+        ),
+    )
+    page.goto(base + f"/resources?env=production&draft={lone['id']}")
+    drawer = page.get_by_role("dialog", name="lone-region", exact=True)
+    region = drawer.get_by_role("button", name=re.compile(r"^us-east-1"))
+    expect(region).to_have_attribute("aria-pressed", "true")
+    expect(drawer.get_by_text("Choose at least one region")).to_have_count(0)
+    assert not errors, errors
+    context.close()
+
     repository = f"shop-{suffix}"
     image = f"registry.example.com/acme/{repository}:1.4.2"
     name = repository

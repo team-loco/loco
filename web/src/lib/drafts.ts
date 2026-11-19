@@ -1,4 +1,4 @@
-import { ResourceStatus, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
+import { RegionAvailability, ResourceStatus, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import type { NewResourceForm } from "@/lib/new-resource";
 import { statusRank } from "@/lib/resource-status";
@@ -60,7 +60,9 @@ export function removeDraft(drafts: readonly Draft[], id: string): Draft[] {
 }
 
 export function draftRegions(draft: Draft, regions: readonly RegionInfo[]): string[] {
-	return draft.edits.regions ?? regions.filter((r) => r.isDefault).map((r) => r.region);
+	if (draft.edits.regions !== undefined) return draft.edits.regions;
+	const available = regions.filter((r) => r.availability === RegionAvailability.AVAILABLE);
+	return regions.filter((r) => r.isDefault || (available.length === 1 && r === available[0])).map((r) => r.region);
 }
 
 export function draftIsPublic(draft: Draft): boolean {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
-import { RegionInfoSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
+import { RegionAvailability, RegionInfoSchema, ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import {
 	addDraft,
@@ -69,6 +69,17 @@ describe("draft placement", () => {
 		expect(draftRegions(draft("a"), regions)).toEqual(["us-east-1"]);
 		expect(draftRegions({ ...draft("a"), edits: { regions: ["eu-west-1"] } }, regions)).toEqual(["eu-west-1"]);
 		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, regions)).toEqual([]);
+	});
+
+	test("a lone available region is selected even when it is not marked default", () => {
+		const up = (region: string, availability: RegionAvailability) =>
+			create(RegionInfoSchema, { region, isDefault: false, availability });
+		const lone = [up("us-east-1", RegionAvailability.AVAILABLE)];
+		expect(draftRegions(draft("a"), lone)).toEqual(["us-east-1"]);
+		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, lone)).toEqual([]);
+		expect(draftRegions(draft("a"), [...lone, up("eu-west-1", RegionAvailability.OFFLINE)])).toEqual(["us-east-1"]);
+		expect(draftRegions(draft("a"), [up("eu-west-1", RegionAvailability.OFFLINE)])).toEqual([]);
+		expect(draftRegions(draft("a"), [...lone, up("eu-west-1", RegionAvailability.AVAILABLE)])).toEqual([]);
 	});
 
 	test("sizing comes from the draft's edits, then the service defaults", () => {
