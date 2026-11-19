@@ -24,7 +24,7 @@ For fully unattended installs, an encrypted token committed to the worker config
 
 ## Reconcile and inspect
 
-Provision any decryption key your chosen Secret tooling requires. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token.
+Provision any decryption key your chosen Secret tooling requires. The bundle's worker entry point waits for infrastructure and cluster configuration. The agent reads the mounted token file and retries enrollment with backoff while the token is missing, empty or rejected. Its retained identity supports restarts without another join token. An agent whose key the API enrolled but whose cluster ID never reached its key Secret recovers the cluster ID by signing with that key, also without a join token.
 
 ```sh
 locoadm cluster list

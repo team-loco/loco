@@ -17,9 +17,10 @@ import (
 )
 
 var (
-	ErrInvalidAgentToken  = errors.New("invalid agent credential")
-	errAssertionReplayed  = errors.New("cluster assertion was already used")
-	errMissingBearerToken = errors.New("missing bearer token")
+	ErrInvalidAgentToken   = errors.New("invalid agent credential")
+	errAssertionReplayed   = errors.New("cluster assertion was already used")
+	errMissingBearerToken  = errors.New("missing bearer token")
+	errIssuerNotClusterKey = errors.New("cluster assertion issuer differs from the cluster key")
 )
 
 type ClusterAuthenticator struct {
@@ -31,9 +32,36 @@ func NewClusterAuthenticator(queries genDb.Querier, maxLifetime time.Duration) *
 	return &ClusterAuthenticator{queries: queries, maxLifetime: maxLifetime}
 }
 
+// Authenticate verifies an assertion issued as an enrolled cluster's ID.
 func (a *ClusterAuthenticator) Authenticate(
 	ctx context.Context,
 	authHeader string,
+) (genDb.GetEnrolledClusterRow, error) {
+	return a.authenticate(ctx, authHeader, func(issuer uuid.UUID) (genDb.GetEnrolledClusterRow, error) {
+		return a.queries.GetEnrolledCluster(ctx, issuer)
+	})
+}
+
+// AuthenticateKey verifies an assertion issued as clusterKey by the agent key enrolled for that
+// Kubernetes cluster.
+func (a *ClusterAuthenticator) AuthenticateKey(
+	ctx context.Context,
+	authHeader string,
+	clusterKey string,
+) (genDb.GetEnrolledClusterRow, error) {
+	return a.authenticate(ctx, authHeader, func(issuer uuid.UUID) (genDb.GetEnrolledClusterRow, error) {
+		if issuer.String() != clusterKey {
+			return genDb.GetEnrolledClusterRow{}, fmt.Errorf("%w: %w", ErrInvalidAgentToken, errIssuerNotClusterKey)
+		}
+		row, err := a.queries.GetEnrolledClusterByKey(ctx, &issuer)
+		return genDb.GetEnrolledClusterRow(row), err
+	})
+}
+
+func (a *ClusterAuthenticator) authenticate(
+	ctx context.Context,
+	authHeader string,
+	lookup func(issuer uuid.UUID) (genDb.GetEnrolledClusterRow, error),
 ) (genDb.GetEnrolledClusterRow, error) {
 	token, ok := bearer.Token(authHeader)
 	if !ok {
@@ -47,7 +75,7 @@ func (a *ClusterAuthenticator) Authenticate(
 	if err != nil {
 		return genDb.GetEnrolledClusterRow{}, fmt.Errorf("%w: %w", ErrInvalidAgentToken, err)
 	}
-	cluster, err := a.queries.GetEnrolledCluster(ctx, id)
+	cluster, err := lookup(id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return genDb.GetEnrolledClusterRow{}, fmt.Errorf("%w: %w", ErrInvalidAgentToken, ErrClusterNotFound)
 	}
@@ -60,7 +88,7 @@ func (a *ClusterAuthenticator) Authenticate(
 		return genDb.GetEnrolledClusterRow{}, fmt.Errorf("%w: %w", ErrInvalidAgentToken, err)
 	}
 	recorded, err := a.queries.RecordClusterAssertion(ctx, genDb.RecordClusterAssertionParams{
-		ClusterID: id,
+		ClusterID: cluster.ID,
 		Jti:       claims.ID,
 		ExpiresAt: claims.Expiry.Add(jwt.DefaultLeeway),
 	})

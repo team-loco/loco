@@ -119,6 +119,7 @@ type Querier interface {
 	GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeploymentViewRow, error)
 	GetEnrolledCluster(ctx context.Context, id uuid.UUID) (GetEnrolledClusterRow, error)
+	GetEnrolledClusterByKey(ctx context.Context, clusterKey *uuid.UUID) (GetEnrolledClusterByKeyRow, error)
 	GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentKey(ctx context.Context, environmentID uuid.UUID) (EnvironmentKey, error)
 	GetIdentity(ctx context.Context, arg GetIdentityParams) (Identity, error)

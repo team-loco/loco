@@ -31,6 +31,10 @@ message RegisterRequest {
   repeated string domains = 6 [(buf.validate.field).repeated.items.string.hostname = true];
   reserved 7;
   reserved "dns_records";
+  // Set by an agent that holds an enrolled key but lost its cluster ID: the Authorization
+  // assertion names cluster_key as its issuer, and the response returns the cluster the key
+  // is enrolled to.
+  bool recover_cluster_id = 8;
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.

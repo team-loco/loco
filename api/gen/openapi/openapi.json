@@ -8818,6 +8818,11 @@
               "format": "hostname"
             },
             "title": "domains"
+          },
+          "recoverClusterId": {
+            "type": "boolean",
+            "title": "recover_cluster_id",
+            "description": "Set by an agent that holds an enrolled key but lost its cluster ID: the Authorization\n assertion names cluster_key as its issuer, and the response returns the cluster the key\n is enrolled to."
           }
         },
         "title": "RegisterRequest",

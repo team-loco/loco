@@ -86,15 +86,19 @@ func (BuildPhase) EnumDescriptor() ([]byte, []int) {
 
 // RegisterRequest is sent by the agent on startup to announce itself.
 type RegisterRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentVersion  string                 `protobuf:"bytes,1,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
-	Capacity      *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	Role          v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
-	ClusterKey    string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
-	Enrollment    *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
-	Domains       []string               `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	AgentVersion string                 `protobuf:"bytes,1,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
+	Capacity     *AgentCapacity         `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Role         v1.ClusterRole         `protobuf:"varint,3,opt,name=role,proto3,enum=loco.cluster.v1.ClusterRole" json:"role,omitempty"`
+	ClusterKey   string                 `protobuf:"bytes,4,opt,name=cluster_key,json=clusterKey,proto3" json:"cluster_key,omitempty"`
+	Enrollment   *Enrollment            `protobuf:"bytes,5,opt,name=enrollment,proto3" json:"enrollment,omitempty"`
+	Domains      []string               `protobuf:"bytes,6,rep,name=domains,proto3" json:"domains,omitempty"`
+	// Set by an agent that holds an enrolled key but lost its cluster ID: the Authorization
+	// assertion names cluster_key as its issuer, and the response returns the cluster the key
+	// is enrolled to.
+	RecoverClusterId bool `protobuf:"varint,8,opt,name=recover_cluster_id,json=recoverClusterId,proto3" json:"recover_cluster_id,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RegisterRequest) Reset() {
@@ -167,6 +171,13 @@ func (x *RegisterRequest) GetDomains() []string {
 		return x.Domains
 	}
 	return nil
+}
+
+func (x *RegisterRequest) GetRecoverClusterId() bool {
+	if x != nil {
+		return x.RecoverClusterId
+	}
+	return false
 }
 
 // Enrollment binds the agent's public key to the cluster that issued the join token.
@@ -1761,7 +1772,7 @@ var File_loco_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\xcf\x02\n" +
+	"\x19loco/agent/v1/agent.proto\x12\rloco.agent.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dloco/cluster/v1/cluster.proto\x1a#loco/deployment/v1/deployment.proto\"\xfd\x02\n" +
 	"\x0fRegisterRequest\x12#\n" +
 	"\ragent_version\x18\x01 \x01(\tR\fagentVersion\x128\n" +
 	"\bcapacity\x18\x02 \x01(\v2\x1c.loco.agent.v1.AgentCapacityR\bcapacity\x12<\n" +
@@ -1772,7 +1783,8 @@ const file_loco_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"enrollment\x18\x05 \x01(\v2\x19.loco.agent.v1.EnrollmentR\n" +
 	"enrollment\x12&\n" +
-	"\adomains\x18\x06 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomainsJ\x04\b\a\x10\bR\vdns_records\"\\\n" +
+	"\adomains\x18\x06 \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02h\x01R\adomains\x12,\n" +
+	"\x12recover_cluster_id\x18\b \x01(\bR\x10recoverClusterIdJ\x04\b\a\x10\bR\vdns_records\"\\\n" +
 	"\n" +
 	"Enrollment\x12&\n" +
 	"\n" +

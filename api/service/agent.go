@@ -99,7 +99,14 @@ func (s *AgentServer) Register(
 	var enrolled *genDb.GetEnrolledClusterRow
 	if req.GetEnrollment() == nil {
 		info, _ := connect.CallInfoForServerContext(ctx)
-		row, authErr := s.clusters.Authenticate(ctx, info.RequestHeader().Get("Authorization"))
+		header := info.RequestHeader().Get("Authorization")
+		var row genDb.GetEnrolledClusterRow
+		var authErr error
+		if req.GetRecoverClusterId() {
+			row, authErr = s.clusters.AuthenticateKey(ctx, header, req.GetClusterKey())
+		} else {
+			row, authErr = s.clusters.Authenticate(ctx, header)
+		}
 		if authErr != nil {
 			return nil, agentAuthError(authErr)
 		}
