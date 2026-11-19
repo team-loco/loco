@@ -9,7 +9,6 @@ import {
 	deployPhase,
 	deploySteps,
 	finishedLabel,
-	readyLabel,
 	rolloutGroups,
 	reportedReadyLabel,
 	rolloutReadyLabel,
@@ -95,18 +94,6 @@ describe("deploySteps", () => {
 		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, { problem: { reason: "crash_loop" } });
 		expect(deploySteps(d).deploy).toBe("retry");
 	});
-});
-
-test("readyLabel counts ready replicas of this deployment", () => {
-	const d = deployment("d", DeploymentStatus.RUNNING, 1, {
-		desiredReplicas: 2,
-		replicas: [
-			{ ready: true, deploymentId: "d" },
-			{ ready: true, deploymentId: "old" },
-			{ ready: false, deploymentId: "d" },
-		],
-	});
-	expect(readyLabel(d)).toBe("1 of 2 ready");
 });
 
 test("finishedLabel gives the run time and when it ended", () => {

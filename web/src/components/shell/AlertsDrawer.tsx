@@ -26,7 +26,6 @@ import {
 	finishedLabel,
 	rolloutGroups,
 	reportedReadyLabel,
-	type ReadyReplicas,
 	withoutRunningDeploys,
 	type StepState,
 } from "@/lib/activity-deploys";
@@ -172,7 +171,7 @@ function DeployCard({
 	onNavigate,
 }: {
 	rollout: readonly [Deployment, ...Deployment[]];
-	ready: ReadyReplicas;
+	ready: ReadonlyMap<string, number>;
 	name: string;
 	resourceHref: string;
 	logsHref: string;
@@ -276,7 +275,7 @@ export function AlertsDrawer() {
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
 		names.has(d.resourceId),
 	);
-	const ready: ReadyReplicas = new Map(
+	const ready = new Map(
 		(resources.data?.resources ?? []).flatMap((r) =>
 			r.environmentStatuses.flatMap((e) => e.regions.map((g) => [g.deploymentId, g.readyReplicas] as const)),
 		),
