@@ -34,10 +34,12 @@ tests:
   - it: sends every Envoy signal to the deployment collector's OTLP gRPC Service
     asserts:
       - equal:
-          path: spec.telemetry.metrics.sinks
+          path: spec.telemetry.metrics
           value:
-            - type: OpenTelemetry
-              openTelemetry: {backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
+            prometheus: {disable: true}
+            sinks:
+              - type: OpenTelemetry
+                openTelemetry: {backendRefs: [{name: otel-col-deploy, namespace: loco-obs, port: 4317}]}
         template: templates/gateway.yaml
         documentSelector: {path: kind, value: EnvoyProxy}
       - equal:
