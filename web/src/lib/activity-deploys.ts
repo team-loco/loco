@@ -70,11 +70,22 @@ export function clockLabel(ms: number): string {
 	return `${Math.floor(seconds / 60).toString()}:${(seconds % 60).toString().padStart(2, "0")}`;
 }
 
+/** A duration with units, such as "59s", "4m 49s" or "1h 2m". */
+export function tookLabel(ms: number): string {
+	const total = Math.max(0, Math.floor(ms / 1000));
+	const hours = Math.floor(total / 3600);
+	const minutes = Math.floor((total % 3600) / 60);
+	const seconds = total % 60;
+	if (hours > 0) return minutes > 0 ? `${hours.toString()}h ${minutes.toString()}m` : `${hours.toString()}h`;
+	if (minutes > 0) return seconds > 0 ? `${minutes.toString()}m ${seconds.toString()}s` : `${minutes.toString()}m`;
+	return `${seconds.toString()}s`;
+}
+
 export function finishedLabel(d: Deployment, nowMs: number): string {
 	const created = maybeTsMs(d.createdAt) ?? nowMs;
 	const end = readyMs(d) ?? maybeTsMs(d.completedAt) ?? created;
 	const mins = Math.floor((nowMs - end) / 60_000);
-	return `took ${clockLabel(end - created)} · ${mins < 1 ? "just now" : `${mins.toString()}m ago`}`;
+	return `took ${tookLabel(end - created)} · ${mins < 1 ? "just now" : `${mins.toString()}m ago`}`;
 }
 
 /** Drops a rollout alert when a deploy card already shows that rollout. */

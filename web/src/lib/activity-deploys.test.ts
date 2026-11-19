@@ -12,6 +12,7 @@ import {
 	readyLabel,
 	rolloutGroups,
 	rolloutReadyLabel,
+	tookLabel,
 	withoutRunningDeploys,
 } from "./activity-deploys";
 import type { Alert } from "./alerts";
@@ -109,14 +110,25 @@ test("readyLabel counts ready replicas of this deployment", () => {
 
 test("finishedLabel gives the run time and when it ended", () => {
 	const d = deployment("d", DeploymentStatus.RUNNING, 7, { startedAt: timestampFromMs(NOW - 7 * MIN + 59_000) });
-	expect(finishedLabel(d, NOW)).toBe("took 0:59 · 6m ago");
+	expect(finishedLabel(d, NOW)).toBe("took 59s · 6m ago");
 	const now = deployment("d", DeploymentStatus.RUNNING, 1, { startedAt: timestampFromMs(NOW - 10_000) });
-	expect(finishedLabel(now, NOW)).toBe("took 0:50 · just now");
+	expect(finishedLabel(now, NOW)).toBe("took 50s · just now");
 	const superseded = deployment("d", DeploymentStatus.SUPERSEDED, 7, {
 		startedAt: timestampFromMs(NOW - 7 * MIN + 59_000),
 		completedAt: timestampFromMs(NOW - MIN),
 	});
-	expect(finishedLabel(superseded, NOW)).toBe("took 0:59 · 6m ago");
+	expect(finishedLabel(superseded, NOW)).toBe("took 59s · 6m ago");
+});
+
+test("tookLabel writes units", () => {
+	expect([0, 59_000, 60_000, 289_000, 3_600_000, 3_729_000].map(tookLabel)).toEqual([
+		"0s",
+		"59s",
+		"1m",
+		"4m 49s",
+		"1h",
+		"1h 2m",
+	]);
 });
 
 test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
