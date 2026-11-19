@@ -31,8 +31,10 @@ type Webhook struct {
 	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Set while deliveries are also signed with the secret the last rotation replaced.
 	PreviousSecretExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=previous_secret_expires_at,json=previousSecretExpiresAt,proto3" json:"previous_secret_expires_at,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// An optional label; empty when none was given.
+	Name          string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Webhook) Reset() {
@@ -98,6 +100,13 @@ func (x *Webhook) GetPreviousSecretExpiresAt() *timestamppb.Timestamp {
 		return x.PreviousSecretExpiresAt
 	}
 	return nil
+}
+
+func (x *Webhook) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 type WebhookDelivery struct {
@@ -209,10 +218,12 @@ func (x *WebhookDelivery) GetNextAttemptAt() *timestamppb.Timestamp {
 }
 
 type CreateWebhookRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
-	EventTypes    []string               `protobuf:"bytes,3,rep,name=event_types,json=eventTypes,proto3" json:"event_types,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Url         string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	EventTypes  []string               `protobuf:"bytes,3,rep,name=event_types,json=eventTypes,proto3" json:"event_types,omitempty"`
+	// An optional label shown in the webhook list.
+	Name          string `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -266,6 +277,13 @@ func (x *CreateWebhookRequest) GetEventTypes() []string {
 		return x.EventTypes
 	}
 	return nil
+}
+
+func (x *CreateWebhookRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 type CreateWebhookResponse struct {
@@ -414,7 +432,9 @@ type UpdateWebhookRequest struct {
 	WebhookId   string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	Url         string                 `protobuf:"bytes,3,opt,name=url,proto3" json:"url,omitempty"`
 	// An empty list subscribes the webhook to every event.
-	EventTypes    []string `protobuf:"bytes,4,rep,name=event_types,json=eventTypes,proto3" json:"event_types,omitempty"`
+	EventTypes []string `protobuf:"bytes,4,rep,name=event_types,json=eventTypes,proto3" json:"event_types,omitempty"`
+	// An empty name clears the label.
+	Name          string `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -475,6 +495,13 @@ func (x *UpdateWebhookRequest) GetEventTypes() []string {
 		return x.EventTypes
 	}
 	return nil
+}
+
+func (x *UpdateWebhookRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
 }
 
 type UpdateWebhookResponse struct {
@@ -1076,7 +1103,7 @@ var File_loco_webhook_v1_webhook_proto protoreflect.FileDescriptor
 
 const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\n" +
-	"\x1dloco/webhook/v1/webhook.proto\x12\x0floco.webhook.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe0\x01\n" +
+	"\x1dloco/webhook/v1/webhook.proto\x12\x0floco.webhook.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf4\x01\n" +
 	"\aWebhook\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url\x12\x1f\n" +
@@ -1084,7 +1111,8 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"eventTypes\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12W\n" +
-	"\x1aprevious_secret_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x17previousSecretExpiresAt\"\xec\x02\n" +
+	"\x1aprevious_secret_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x17previousSecretExpiresAt\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\"\xec\x02\n" +
 	"\x0fWebhookDelivery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x1d\n" +
@@ -1097,20 +1125,21 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
 	"\fdelivered_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vdeliveredAt\x12B\n" +
-	"\x0fnext_attempt_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\"\x95\x01\n" +
+	"\x0fnext_attempt_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\rnextAttemptAt\"\xb2\x01\n" +
 	"\x14CreateWebhookRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1d\n" +
 	"\x03url\x18\x02 \x01(\tB\v\xbaH\br\x06\x18\x80\x10\x88\x01\x01R\x03url\x121\n" +
 	"\vevent_types\x18\x03 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\x10d\"\x06r\x04\x10\x01\x18dR\n" +
-	"eventTypes\"c\n" +
+	"eventTypes\x12\x1b\n" +
+	"\x04name\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18dR\x04name\"c\n" +
 	"\x15CreateWebhookResponse\x122\n" +
 	"\awebhook\x18\x01 \x01(\v2\x18.loco.webhook.v1.WebhookR\awebhook\x12\x16\n" +
 	"\x06secret\x18\x02 \x01(\tR\x06secret\"B\n" +
 	"\x13ListWebhooksRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\"L\n" +
 	"\x14ListWebhooksResponse\x124\n" +
-	"\bwebhooks\x18\x01 \x03(\v2\x18.loco.webhook.v1.WebhookR\bwebhooks\"\xbe\x01\n" +
+	"\bwebhooks\x18\x01 \x03(\v2\x18.loco.webhook.v1.WebhookR\bwebhooks\"\xdb\x01\n" +
 	"\x14UpdateWebhookRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12'\n" +
 	"\n" +
@@ -1118,7 +1147,8 @@ const file_loco_webhook_v1_webhook_proto_rawDesc = "" +
 	"\x03url\x18\x03 \x01(\tB\v\xbaH\br\x06\x18\x80\x10\x88\x01\x01R\x03url\x121\n" +
 	"\vevent_types\x18\x04 \x03(\tB\x10\xbaH\r\x92\x01\n" +
 	"\x10d\"\x06r\x04\x10\x01\x18dR\n" +
-	"eventTypes\"K\n" +
+	"eventTypes\x12\x1b\n" +
+	"\x04name\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x18dR\x04name\"K\n" +
 	"\x15UpdateWebhookResponse\x122\n" +
 	"\awebhook\x18\x01 \x01(\v2\x18.loco.webhook.v1.WebhookR\awebhook\"\xb1\x01\n" +
 	"\x1aRotateWebhookSecretRequest\x12+\n" +

@@ -27,6 +27,7 @@ import (
 )
 
 const (
+	fieldWebhookName   = "name"
 	fieldWebhookURL    = "url"
 	fieldWebhookEvents = "eventTypes"
 	fieldGracePeriod   = "gracePeriodSeconds"
@@ -83,6 +84,7 @@ func webhookToProto(w genDb.Webhook) *webhookv1.Webhook {
 	}
 	return &webhookv1.Webhook{
 		Id:                      w.ID.String(),
+		Name:                    w.Name,
 		Url:                     w.Url,
 		EventTypes:              w.EventTypes,
 		CreatedAt:               timestamppb.New(w.CreatedAt),
@@ -138,6 +140,7 @@ func (s *WebhookServer) CreateWebhook(
 		created, createErr := qtx.CreateWorkspaceWebhook(ctx, genDb.CreateWorkspaceWebhookParams{
 			ID:          id,
 			WorkspaceID: workspaceID,
+			Name:        req.GetName(),
 			Url:         req.GetUrl(),
 			Provider:    key.Provider,
 			KekID:       key.KeyID,
@@ -155,7 +158,9 @@ func (s *WebhookServer) CreateWebhook(
 			WorkspaceID: new(workspaceID),
 			SubjectType: events.SubjectWebhook,
 			SubjectID:   new(row.ID),
-			Data:        map[string]any{fieldWebhookURL: row.Url, fieldWebhookEvents: row.EventTypes},
+			Data: map[string]any{
+				fieldWebhookName: row.Name, fieldWebhookURL: row.Url, fieldWebhookEvents: row.EventTypes,
+			},
 		})
 	})
 	if err != nil {
@@ -209,6 +214,7 @@ func (s *WebhookServer) UpdateWebhook(
 		updated, updateErr := qtx.UpdateWorkspaceWebhook(ctx, genDb.UpdateWorkspaceWebhookParams{
 			ID:          uuid.MustParse(req.GetWebhookId()),
 			WorkspaceID: workspaceID,
+			Name:        req.GetName(),
 			Url:         req.GetUrl(),
 			EventTypes:  types,
 		})
@@ -224,7 +230,9 @@ func (s *WebhookServer) UpdateWebhook(
 			WorkspaceID: new(workspaceID),
 			SubjectType: events.SubjectWebhook,
 			SubjectID:   new(row.ID),
-			Data:        map[string]any{fieldWebhookURL: row.Url, fieldWebhookEvents: row.EventTypes},
+			Data: map[string]any{
+				fieldWebhookName: row.Name, fieldWebhookURL: row.Url, fieldWebhookEvents: row.EventTypes,
+			},
 		})
 	})
 	if err != nil {

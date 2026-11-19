@@ -20,19 +20,23 @@ func Eventually(tb testing.TB, timeout time.Duration, what string, check func(ct
 	}
 }
 
-// Poll calls check every pollInterval until it returns nil or ctx ends, and then returns check's
-// last error.
+// Poll calls check every pollInterval until it returns nil or ctx ends, and then returns the error
+// of check's last attempt that ctx did not cut short.
 func Poll(ctx context.Context, check func(ctx context.Context) error) error {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
+	var last error
 	for {
 		err := check(ctx)
 		if err == nil {
 			return nil
 		}
+		if ctx.Err() == nil || last == nil {
+			last = err
+		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("%w (last: %w)", ctx.Err(), err)
+			return fmt.Errorf("%w (last: %w)", ctx.Err(), last)
 		case <-ticker.C:
 		}
 	}

@@ -27,3 +27,11 @@ export function completeLogResume(playback: LogPlayback, pending: LogResume, suc
 export function cancelLogResume(playback: LogPlayback): LogPlayback {
 	return playback.pending === null ? playback : { ...playback, pending: null };
 }
+
+const RATE_WINDOW_MS = 10_000;
+
+/** Lines per second that arrived in the last ten seconds, or since the tail started if that is shorter. */
+export function tailRate(arrivals: number[], startedAt: number | null, nowMs: number): number {
+	const seconds = Math.min(RATE_WINDOW_MS, Math.max(1000, nowMs - (startedAt ?? nowMs))) / 1000;
+	return arrivals.filter((at) => at > nowMs - RATE_WINDOW_MS).length / seconds;
+}
