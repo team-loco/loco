@@ -49,7 +49,7 @@ func newBudgetService(t *testing.T, app string) *budgetService {
 		t.Fatalf("%d ReplicaSets after the first rollout, want 1", len(sets.Items))
 	}
 	s.oldHash = sets.Items[0].Labels["pod-template-hash"]
-	// Only a proven revision is brought back once its replicas are gone.
+	// Waits for the first version to prove itself.
 	platform.Eventually(t, 3*time.Minute, "the first version to prove itself", func(ctx context.Context) error {
 		current, err := p.Application(ctx, s.resourceID, s.w.EnvironmentID)
 		if err != nil {
@@ -149,8 +149,8 @@ func (s *budgetService) waitStopped(t *testing.T) {
 		return nil
 	})
 	if stopped.Restarts < 2 || stopped.LastRestart.Cause != locov1alpha1.RestartExit ||
-		stopped.LastRestart.ExitCode != 1 || !stopped.Rollout {
-		t.Errorf("stopped = %+v, want a rollout stopped after at least 2 restarts after exit 1", stopped)
+		stopped.LastRestart.ExitCode != 1 {
+		t.Errorf("stopped = %+v, want a revision stopped after at least 2 restarts after exit 1", stopped)
 	}
 	var deployment appsv1.Deployment
 	p.MustGet(t, &deployment, "-n", s.w.Namespace, "deployment", locov1alpha1.WorkloadName(s.resourceID))

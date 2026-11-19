@@ -55,8 +55,7 @@ const annotationDeploymentRevision = "deployment.kubernetes.io/revision"
 
 // stoppedReplicaSets lists the Deployment's ReplicaSets of the stopped revision and the one that
 // serves in its place: the newest ReplicaSet of another revision that still has replicas, else the
-// proven revision's. It is nil when neither exists, so a revision that never proved itself is
-// never brought back.
+// proven revision's. It is nil when neither exists.
 func (r *ApplicationReconciler) stoppedReplicaSets(
 	ctx context.Context,
 	namespace, name string,

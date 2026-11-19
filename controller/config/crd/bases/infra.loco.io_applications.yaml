@@ -458,10 +458,6 @@ spec:
                           within the window.
                         format: int32
                         type: integer
-                      rollout:
-                        description: Rollout is set when the revision never proved
-                          itself, so the previous revision serves in its place.
-                        type: boolean
                     required:
                     - at
                     - lastRestart

@@ -100,8 +100,6 @@ type StoppedRevision struct {
 	Restarts    int32          `json:"restarts"`
 	LastRestart ReplicaRestart `json:"lastRestart"`
 	At          metav1.Time    `json:"at"`
-	// Rollout is set when the revision never proved itself, so the previous revision serves in its place.
-	Rollout bool `json:"rollout,omitzero"`
 }
 
 type RolloutStatus struct {

@@ -779,7 +779,6 @@ func (r *ApplicationReconciler) ensureDeployment(
 			return nil, err
 		}
 		dep.Spec.WithPaused(true)
-		stopped.Rollout = previous != nil
 		if previous == nil {
 			dep.Spec.WithReplicas(0)
 		}
