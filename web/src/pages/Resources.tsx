@@ -77,7 +77,7 @@ export function Resources() {
 	const total = data.resources.length + drafts.length;
 	const { view, [DRAFT_PARAM]: draftId } = params;
 	const setView = (next: ResourceView) => {
-		void setParams({ view: next });
+		void setParams({ view: next }, { history: "replace" });
 	};
 	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.name });
 

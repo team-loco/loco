@@ -99,7 +99,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 	const openShortcuts = useOpenShortcuts();
 	const { pathname, search } = useLocation();
 	const [env] = useQueryState("env");
-	const [, setResourceView] = useQueryState("view", resourceViewParser);
+	const [, setResourceView] = useQueryState("view", resourceViewParser.withOptions({ history: "replace" }));
 	const { mode, setMode, color, setColor } = useTheme();
 	const { active: activeEnv } = useEnvironments();
 	const { activeOrgId, activeWorkspaceId, workspaces } = useOrgWorkspace();
