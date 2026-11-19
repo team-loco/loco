@@ -78,7 +78,7 @@ function ScaleDialogContent({
 		setForm({ ...form, ...patch });
 	};
 	return (
-		<DialogContent title={`Scale ${plural(rows.length)} in ${environment.name}`}>
+		<DialogContent title={`Scale ${plural(rows.length)} in ${environment.displayName}`}>
 			<form
 				noValidate
 				className="contents"
@@ -145,7 +145,7 @@ function ScaleDialogContent({
 							}}
 						/>
 					</Field>
-					<span className="text-[12.5px] text-fg3">{scaleNote(targets.length, skipped, environment.name)}</span>
+					<span className="text-[12.5px] text-fg3">{scaleNote(targets.length, skipped, environment.displayName)}</span>
 				</DialogBody>
 				<DialogFooter>
 					<DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>

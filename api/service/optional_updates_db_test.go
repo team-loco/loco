@@ -61,13 +61,10 @@ func TestOptionalEnvironmentDescriptionAndRequiredFields(t *testing.T) {
 		t.Fatalf("clear did not preserve name and clear description: %+v", row)
 	}
 	auditBefore := optionalAuditCount(t, f)
-	for _, request := range []*environmentv1.UpdateEnvironmentRequest{
-		{EnvironmentId: f.envID.String(), Name: new(""), Description: new("rejected")},
-	} {
-		_, updateErr := server.UpdateEnvironment(ctx, request)
-		if codeOf(updateErr) != connect.CodeInvalidArgument {
-			t.Fatalf("invalid request error=%v", updateErr)
-		}
+	if _, err = server.UpdateEnvironment(ctx, &environmentv1.UpdateEnvironmentRequest{
+		EnvironmentId: f.envID.String(), DisplayName: new(""), Description: new("rejected"),
+	}); err == nil {
+		t.Fatal("empty display name accepted")
 	}
 	if got := optionalAuditCount(t, f); got != auditBefore {
 		t.Fatalf("invalid environment update recorded event: %d -> %d", auditBefore, got)
@@ -281,7 +278,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	workspace := NewWorkspaceServer(f.pool, f.queries, limits.Defaults())
 	if _, err := environment.UpdateEnvironment(
 		ctx,
-		&environmentv1.UpdateEnvironmentRequest{EnvironmentId: f.envID.String(), Name: new("renamed-env")},
+		&environmentv1.UpdateEnvironmentRequest{EnvironmentId: f.envID.String(), DisplayName: new("Renamed env")},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -327,7 +324,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if env.Name != "renamed-env" || derefString(env.Description) != optionalRetained {
+	if env.DisplayName != "Renamed env" || derefString(env.Description) != optionalRetained {
 		t.Fatalf("environment=%+v", env)
 	}
 	if res.DisplayName != "Renamed svc" || res.Description != optionalRetained {

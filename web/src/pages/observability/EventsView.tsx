@@ -141,7 +141,7 @@ export function EventsView() {
 				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="events"
-					title={environment === undefined ? "No events yet" : `No events yet in ${environment.name}`}
+					title={environment === undefined ? "No events yet" : `No events yet in ${environment.displayName}`}
 					body="Deploys, restarts, failed health checks and scaling show up here as they happen."
 					action={
 						<>

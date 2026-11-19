@@ -99,20 +99,21 @@ func updateEnvironment(t *testing.T, f *deployFixture, req *environmentv1.Update
 	}
 }
 
-func TestEnvironmentRenameBumpsTheRevision(t *testing.T) {
+func TestEnvironmentDisplayNameKeepsTheNameAndRevision(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	start := getEnvironment(t, f).GetRevision()
+	start := getEnvironment(t, f)
 
-	description := "only the description"
-	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Description: &description})
-	if rev := getEnvironment(t, f).GetRevision(); rev != start {
-		t.Fatalf("revision = %d after a description change, want %d", rev, start)
-	}
-
-	name := "live"
-	updateEnvironment(t, f, &environmentv1.UpdateEnvironmentRequest{Name: &name})
-	if rev := getEnvironment(t, f).GetRevision(); rev != start+1 {
-		t.Fatalf("revision = %d after a rename, want %d", rev, start+1)
+	description, displayName := "only the description", "Live EU"
+	updateEnvironment(
+		t,
+		f,
+		&environmentv1.UpdateEnvironmentRequest{Description: &description, DisplayName: &displayName},
+	)
+	env := getEnvironment(t, f)
+	if env.GetRevision() != start.GetRevision() || env.GetName() != start.GetName() ||
+		env.GetDisplayName() != displayName {
+		t.Fatalf("environment = %v, want name %s, revision %d, display name %s",
+			env, start.GetName(), start.GetRevision(), displayName)
 	}
 }

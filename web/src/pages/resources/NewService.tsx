@@ -607,7 +607,7 @@ function ServiceForm({
 				</div>
 				<DrawerSection title="Regions">
 					{regionNames.length === 0 ? (
-						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>
+						<span className="text-[13px] text-fg3">No cluster serves {env.displayName} yet.</span>
 					) : (
 						<RegionCards
 							aria-label="Regions"
@@ -657,7 +657,7 @@ function ServiceForm({
 					<span className="-mt-1 text-[12.5px] text-fg3">
 						{form.isPublic
 							? "Gets an HTTPS address on a platform domain."
-							: `Reachable only by other resources in ${env.name}.`}
+							: `Reachable only by other resources in ${env.displayName}.`}
 					</span>
 					<div className="grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-[minmax(0,1fr)_110px]">
 						{form.isPublic && (

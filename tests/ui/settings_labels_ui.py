@@ -151,6 +151,9 @@ def check_environments(page):
     environments = page.get_by_role("region", name="Environments", exact=True)
     environments.get_by_role("button", name="Edit production", exact=True).click()
     dialog = page.get_by_role("dialog", name="Edit production", exact=True)
+    name = dialog.get_by_role("textbox", name="Name", exact=True)
+    expect(name).to_have_value("production")
+    expect(name).not_to_be_editable()
     save = dialog.get_by_role("button", name="Save", exact=True)
     expect(save).to_be_disabled()
     description = dialog.get_by_role("textbox", name="Description", exact=True)
@@ -161,9 +164,12 @@ def check_environments(page):
     description.fill("")
     expect(save).to_be_disabled()
     description.fill("Customer traffic")
+    dialog.get_by_role("textbox", name="Display name", exact=True).fill("Production EU")
     save.click()
     expect(dialog).to_be_hidden()
     expect(environments.get_by_text("Customer traffic", exact=True)).to_be_visible()
+    expect(environments.get_by_text("Production EU", exact=True)).to_be_visible()
+    expect(environments.get_by_text("production", exact=True)).to_be_visible()
     expect(environments.get_by_text("0 resources", exact=True).first).to_be_visible()
 
 
