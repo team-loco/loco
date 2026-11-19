@@ -6,7 +6,7 @@ from harness import load_state, open_page, repo, session
 from playwright.sync_api import expect
 
 AGENT = "loco/v1.2.3 (darwin arm64; build-box)"
-ADDRESS = "203.0.113.9"
+ADDRESS = "127.0.0.1"
 
 parser = argparse.ArgumentParser(description="Check the device approval page")
 parser.add_argument("--state")
@@ -22,7 +22,6 @@ def start_device_login():
         headers={
             "Content-Type": "application/json",
             "User-Agent": AGENT,
-            "X-Forwarded-For": ADDRESS,
         },
         method="POST",
     )
