@@ -871,7 +871,7 @@ def traffic(page):
         page.goto(state["ui_url"] + base + "?env=production&range=1h")
         # 3 points × 10/s × 60 s buckets (1h range) = 1800 requests, 180 5xx.
         requests, errors = ("—", "—") if empty else ("1.8K", "180")
-        for label, value in (("Requests", requests), ("Errors", errors)):
+        for label, value in (("Public requests", requests), ("Public errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
             # The prior hour's stub equals this hour's.
             comparison = "— vs prior 1h" if empty else "0% vs prior 1h"

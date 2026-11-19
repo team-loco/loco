@@ -266,9 +266,9 @@ interface TrafficCardSpec {
 }
 
 const TRAFFIC_CARDS: TrafficCardSpec[] = [
-	{ label: "Requests", field: "requests", format: formatCompact, warnOnRise: false },
-	{ label: "Errors", field: "errors", format: formatCompact, warnOnRise: true },
-	{ label: "Bandwidth out", field: "bytes", format: formatBytes, warnOnRise: false },
+	{ label: "Public requests", field: "requests", format: formatCompact, warnOnRise: false },
+	{ label: "Public errors", field: "errors", format: formatCompact, warnOnRise: true },
+	{ label: "Public bandwidth out", field: "bytes", format: formatBytes, warnOnRise: false },
 ];
 
 function TrafficCard({
