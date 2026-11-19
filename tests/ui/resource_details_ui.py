@@ -181,6 +181,19 @@ with session(out) as browser:
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_label("Above 85% of the limit")).to_have_count(1)
+    title = page.get_by_role("heading", name=name, exact=True)
+    events = page.get_by_role("button", name=re.compile(r"^Events"))
+    for viewport, below in (
+        (evidence.NARROW, True),
+        ({"width": 430, "height": 932}, True),
+        (evidence.DESKTOP, False),
+    ):
+        page.set_viewport_size(viewport)
+        expect(events).to_be_visible()
+        heading = title.bounding_box()
+        assert (
+            events.bounding_box()["y"] >= heading["y"] + heading["height"]
+        ) == below, viewport
     page.get_by_role("button", name=re.compile(r"^us-east-1")).click()
     metrics_href = page.get_by_role(
         "link", name="All metrics", exact=True

@@ -129,8 +129,8 @@ export function ResourceHeader({
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;
 
 	return (
-		<div className="flex flex-wrap items-start justify-between gap-4 md:flex-nowrap">
-			<div className="flex min-w-0 flex-1 flex-col gap-2">
+		<div className="flex flex-wrap items-start justify-between gap-4">
+			<div className="flex min-w-0 grow basis-64 flex-col gap-2">
 				<div className="flex flex-wrap items-center gap-3">
 					<div className="flex items-center gap-1">
 						<h1 ref={measureTitle} className="m-0 text-[28px] leading-[1.15] font-normal tracking-[-0.03em] break-all">
