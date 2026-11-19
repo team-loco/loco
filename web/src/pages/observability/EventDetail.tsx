@@ -206,7 +206,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 					)}
 				</div>
 				{item.message !== "" && (
-					<CodeBlock className="shrink-0" copyLabel="Copy message" lineNumbers={false}>
+					<CodeBlock className="shrink-0" copyLabel="Copy message" lineNumbers={false} wrap>
 						{item.message}
 					</CodeBlock>
 				)}

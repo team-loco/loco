@@ -28,7 +28,7 @@ sql(
     f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' THEN '{environment}'::uuid ELSE NULL END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
 jsonb_build_object('region','us-east-1','environmentId','{environment}') || CASE
-WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'crash_loop' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app' ELSE '' END)
+WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'crash_loop' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE '' END)
 WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
 ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','message','Build failed: package installation exited with code 1.') END,NOW()-n*INTERVAL '1 minute'
 FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind);""",
@@ -98,7 +98,13 @@ with session(out) as browser:
     ).to_be_disabled()
     drawer.get_by_role("button", name="Copy message", exact=True).click()
     expect(drawer.get_by_role("button", name="Copied", exact=True)).to_be_visible()
-    assert page.evaluate("navigator.clipboard.readText()") == "Back-off restarting app"
+    assert page.evaluate("navigator.clipboard.readText()").startswith(
+        "Back-off restarting app layer-"
+    )
+    message = drawer.locator("code").first
+    assert message.evaluate(
+        "el => el.parentElement.scrollWidth <= el.parentElement.clientWidth"
+    )
     subscribe = drawer.get_by_role("link", name="Subscribe", exact=True)
     target = urlparse(subscribe.get_attribute("href"))
     assert target.path == base + "/webhooks"
