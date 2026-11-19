@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { DeploymentSchema, DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentSchema, DeploymentStatus, PlacementStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import {
@@ -10,12 +10,15 @@ import {
 	deploySteps,
 	finishedLabel,
 	reportedReadyLabel,
+	cancelable,
+	canceledNote,
 	placementReadyLabel,
 	rolloutReadyLabel,
 	tookLabel,
 	withoutRunningDeploys,
 } from "./activity-deploys";
 import type { Alert } from "./alerts";
+import { formatShortId } from "@/lib/utils";
 
 const NOW = 1_800_000_000_000;
 const MIN = 60_000;
@@ -205,4 +208,42 @@ test("placementReadyLabel counts one region's ready replicas of this deployment"
 	const [placement] = d.placements;
 	if (placement === undefined) throw new Error("no placement");
 	expect(placementReadyLabel(d, placement)).toBe("1/3");
+});
+
+describe("canceledNote", () => {
+	test("names who canceled the deployment", () => {
+		const d = deployment("d", DeploymentStatus.CANCELED, 1, { canceledByName: "Nikhil" });
+		expect(canceledNote(d)).toBe("Canceled by Nikhil");
+	});
+	test("names the deployment that replaced it", () => {
+		const newer = "0196a5c0-0000-7000-8000-00000000beef";
+		const d = deployment("d", DeploymentStatus.CANCELED, 1, {
+			placements: [{ region: "us-east-1", supersededBy: newer }],
+		});
+		expect(canceledNote(d)).toBe(`Superseded by ${formatShortId(newer)}`);
+	});
+	test("says nothing for a deployment canceled with its service", () => {
+		expect(canceledNote(deployment("d", DeploymentStatus.CANCELED, 1))).toBeUndefined();
+	});
+});
+
+describe("cancelable", () => {
+	test("a rollout with a region it never ran in can be canceled", () => {
+		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, {}, { status: PlacementStatus.DEPLOYING });
+		expect(cancelable(d)).toBe(true);
+	});
+	test("a restart of a deployment that already ran everywhere cannot", () => {
+		const d = deployment(
+			"d",
+			DeploymentStatus.DEPLOYING,
+			1,
+			{},
+			{ status: PlacementStatus.DEPLOYING, startedAt: timestampFromMs(NOW - MIN) },
+		);
+		expect(cancelable(d)).toBe(false);
+	});
+	test("a finished deployment cannot", () => {
+		const d = deployment("d", DeploymentStatus.RUNNING, 1, {}, { status: PlacementStatus.RUNNING });
+		expect(cancelable(d)).toBe(false);
+	});
 });

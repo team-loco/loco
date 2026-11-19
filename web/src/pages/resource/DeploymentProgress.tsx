@@ -1,21 +1,23 @@
-import { useQuery } from "@connectrpc/connect-query";
+import { useMutation, useQuery } from "@connectrpc/connect-query";
 import { getBuild } from "@gen/loco/build/v1/build-BuildService_connectquery";
+import { cancelDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentStatus, type Activity, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ChevronDownIcon, LogsIcon, ScrollTextIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 
 import { Button } from "@/components/design/Button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/design/Collapsible";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyId } from "@/components/design/CopyId";
 import { MetaLine } from "@/components/design/MetaLine";
 import { deploymentPhaseStyle } from "@/components/design/StatusBadge";
-import { SoonTag } from "@/components/design/SoonTag";
 import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
-import { placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
+import { cancelable, canceledNote, placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
 import {
 	deploymentActor,
 	deploymentMethod,
@@ -27,7 +29,7 @@ import {
 	regionTarget,
 	shortSha,
 } from "@/lib/deployment-utils";
-import { getErrorMessage } from "@/lib/error-handler";
+import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { tsMs } from "@/lib/time";
@@ -97,7 +99,23 @@ function ProgressPanel({
 		},
 	);
 	const [dismissed, setDismissed] = useState(false);
+	const [confirmingCancel, setConfirmingCancel] = useState(false);
+	const cancel = useMutation(cancelDeployment);
 	if (dismissed) return null;
+	const confirmCancel = () => {
+		cancel.mutate(
+			{ deploymentId: deployment.id },
+			{
+				onSuccess: () => {
+					toast.success(`Canceled ${depTag(deployment)}`);
+					setConfirmingCancel(false);
+				},
+				onError: (err) => {
+					toastConnectError(err, `Could not cancel ${depTag(deployment)}`);
+				},
+			},
+		);
+	};
 	const build = buildQuery.data?.build;
 	const desired = placement?.live === true ? deployment : region.current;
 	const desiredLive = placementIn(desired, region.name)?.live === true;
@@ -175,6 +193,9 @@ function ProgressPanel({
 							</span>
 						)}
 					</div>
+					{canceled && canceledNote(deployment) !== undefined && (
+						<p className="m-0 text-[12.5px] text-fg2">{canceledNote(deployment)}</p>
+					)}
 					<MetaLine className="text-[12.5px] text-fg3">
 						<span className="inline-flex items-center gap-2">
 							<span className="font-mono text-[12px] text-fg2" title={commit ?? deployment.id}>
@@ -238,10 +259,18 @@ function ProgressPanel({
 						)
 					)}
 					{live ? (
-						<Button variant="outline" size="sm" disabled title="Canceling a deployment is not available yet">
-							Cancel
-							<SoonTag />
-						</Button>
+						cancelable(deployment) && (
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={!canWrite}
+								onClick={() => {
+									setConfirmingCancel(true);
+								}}
+							>
+								Cancel
+							</Button>
+						)
 					) : (
 						<Button
 							variant="ghost"
@@ -352,6 +381,19 @@ function ProgressPanel({
 					</Button>
 				</div>
 			)}
+			<ConfirmDialog
+				open={confirmingCancel}
+				title={`Cancel ${depTag(deployment)}?`}
+				description="Regions that don't run it yet go back to the version that served them before. Regions that already run it keep it."
+				confirmLabel="Cancel deployment"
+				pendingLabel="Canceling…"
+				cancelLabel="Keep deploying"
+				pending={cancel.isPending}
+				onConfirm={confirmCancel}
+				onClose={() => {
+					setConfirmingCancel(false);
+				}}
+			/>
 		</section>
 	);
 }

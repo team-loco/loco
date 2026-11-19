@@ -376,8 +376,18 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         and mutations[0]["sourceDeploymentId"] == p["previous"]
     ), mutations
     phase("canceled")
+    sql(
+        state,
+        f"UPDATE deployments SET canceled_by_type='user',canceled_by_id='{owner['id']}' WHERE id='{p['current']}';",
+    )
     page.reload()
-    expect(page.get_by_role("region", name="Canceled", exact=True)).to_be_visible()
+    canceled = page.get_by_role("region", name="Canceled", exact=True)
+    expect(canceled).to_be_visible()
+    expect(canceled.get_by_text("Canceled by Olivia Owner", exact=True)).to_be_visible()
+    sql(
+        state,
+        f"UPDATE deployments SET canceled_by_type=NULL,canceled_by_id=NULL WHERE id='{p['current']}';",
+    )
     phase("running")
     page.reload()
     expect(page.get_by_role("heading", name="progress-ui", exact=True)).to_be_visible()
@@ -422,6 +432,39 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         )
         == 0
     )
+    sql(
+        state,
+        f"UPDATE deployment_placements SET started_at=NOW() WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    restarting = page.get_by_role("region", name="Deploying", exact=True)
+    expect(restarting).to_be_visible()
+    expect(restarting.get_by_role("button", name="Cancel", exact=True)).to_have_count(0)
+    sql(
+        state,
+        f"UPDATE deployment_placements SET started_at=NULL WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    panel = page.get_by_role("region", name="Deploying", exact=True)
+    cancels = []
+
+    def cancel(route):
+        cancels.append(route.request.post_data_json)
+        route.fulfill(json={})
+
+    context.route("**/loco.deployment.v1.DeploymentService/CancelDeployment", cancel)
+    panel.get_by_role("button", name="Cancel", exact=True).click()
+    dialog = page.get_by_role("alertdialog")
+    expect(dialog).to_contain_text("go back to the version that served them before")
+    dialog.get_by_role("button", name="Keep deploying", exact=True).click()
+    expect(dialog).to_be_hidden()
+    assert cancels == [], cancels
+    panel.get_by_role("button", name="Cancel", exact=True).click()
+    page.get_by_role("alertdialog").get_by_role(
+        "button", name="Cancel deployment", exact=True
+    ).click()
+    expect(page.get_by_role("alertdialog")).to_be_hidden()
+    assert cancels == [{"deploymentId": p["current"]}], cancels
     assert not errors, errors
     context.close()
     browser.close()

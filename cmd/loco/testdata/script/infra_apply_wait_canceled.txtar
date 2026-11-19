@@ -1,8 +1,8 @@
-# --wait fails the command when a deployment is canceled.
+# --wait fails the command when a user cancels a deployment.
 fakeapi plan plan.json
-fakeapi deployment dep-web canceled
+fakeapi deployment dep-web canceled canceled-by=Nikhil
 ! exec loco infra apply --yes --wait
-stderr 'deployment dep-web for web in us-east-1 was canceled'
+stderr 'deployment dep-web for web in us-east-1 was canceled by Nikhil'
 
 -- home/.loco/credentials.json --
 {"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}

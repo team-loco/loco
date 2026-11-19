@@ -1,0 +1,16 @@
+# loco resource cancel fails when no deployment of the service is in flight.
+fakeapi resource web
+fakeapi deployment dep-old running
+
+! exec loco resource cancel web
+stderr '(?i)no deployment is building or rolling out for web in production'
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"

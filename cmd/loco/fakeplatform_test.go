@@ -105,6 +105,10 @@ type fakePlatform struct {
 	deploymentOutcomes map[string]deploymentv1.DeploymentStatus
 	// deploymentPlacements holds the final placements WatchDeployment sends per deployment ID.
 	deploymentPlacements map[string][]*deploymentv1.DeploymentPlacement
+	// deploymentCanceledBy holds who canceled a deployment per deployment ID.
+	deploymentCanceledBy map[string]string
+	// canceledDeployments lists the IDs CancelDeployment accepted.
+	canceledDeployments []string
 	// retention holds the workspace's own days; a nil signal uses the limit.
 	retention *workspacev1.RetentionDays
 	// orgs are the organizations ListUserOrgs returns outside login.
@@ -127,6 +131,7 @@ func newFakePlatform() *fakePlatform {
 		secrets:              map[fakeSecretKey]fakeSecret{},
 		deploymentOutcomes:   map[string]deploymentv1.DeploymentStatus{},
 		deploymentPlacements: map[string][]*deploymentv1.DeploymentPlacement{},
+		deploymentCanceledBy: map[string]string{},
 		retention:            &workspacev1.RetentionDays{},
 		workspaces: []*workspacev1.Workspace{
 			{Id: fakeWorkspaceID, OrgId: fakeOrgID, OrgName: fakeOrgName, Name: fakeWorkspaceName},
