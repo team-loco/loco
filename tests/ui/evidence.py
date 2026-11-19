@@ -487,21 +487,37 @@ def wait_http(url, log_path):
 
 def wait_postgres(container):
     deadline = time.monotonic() + POSTGRES_READY_TIMEOUT_S
-    while (
-        subprocess.run(
-            ["docker", "exec", container, "pg_isready", "-h", HOST, "-U", DB_USER],
-            capture_output=True,
-        ).returncode
-        != 0
-    ):
-        if time.monotonic() > deadline:
-            logs = subprocess.run(
-                ["docker", "logs", "--tail", str(LOG_TAIL_LINES), container],
+    while True:
+        logs = subprocess.run(
+            ["docker", "logs", container], capture_output=True, text=True
+        )
+        initialized = "PostgreSQL init process complete" in logs.stdout + logs.stderr
+        if initialized and (
+            subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    container,
+                    "psql",
+                    "-q",
+                    "-h",
+                    HOST,
+                    "-U",
+                    DB_USER,
+                    "-d",
+                    DB_NAME,
+                    "-c",
+                    "select 1",
+                ],
                 capture_output=True,
-                text=True,
-            )
+            ).returncode
+            == 0
+        ):
+            return
+        if time.monotonic() > deadline:
+            tail = "\n".join((logs.stdout + logs.stderr).splitlines()[-LOG_TAIL_LINES:])
             raise EvidenceError(
-                f"postgres did not become ready within {POSTGRES_READY_TIMEOUT_S}s; {logs.stdout}{logs.stderr}"
+                f"postgres did not become ready within {POSTGRES_READY_TIMEOUT_S}s; {tail}"
             )
         time.sleep(0.5)
 
@@ -525,7 +541,9 @@ def psql(container, sql):
     log(f"$ {' '.join(cmd)} <<SQL")
     result = subprocess.run(cmd, input=sql, text=True, capture_output=True)
     if result.returncode != 0:
-        raise EvidenceError(f"psql failed: {result.stderr.strip()}")
+        raise EvidenceError(
+            f"psql exited {result.returncode}: {result.stderr.strip()} {result.stdout.strip()}"
+        )
     return result.stdout.strip()
 
 
