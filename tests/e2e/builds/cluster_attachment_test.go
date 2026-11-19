@@ -23,7 +23,6 @@ import (
 const (
 	agentExitTimeout = 2 * time.Minute
 	reattachTimeout  = 3 * time.Minute
-	clusterHealthy   = "SELECT COALESCE(health_status = 'healthy', false) FROM clusters WHERE id = $1"
 )
 
 // TestClusterAttachment enrolls, reconnects, re-enrolls, pauses, removes and restores the run's
@@ -31,8 +30,13 @@ const (
 // it reattaches the cluster those tests deploy to.
 func TestClusterAttachment(t *testing.T) {
 	t.Cleanup(func() {
-		if t.Failed() {
-			reattachCluster(t)
+		if !t.Failed() {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), reattachTimeout)
+		defer cancel()
+		if err := reattach(ctx); err != nil {
+			t.Errorf("reattach the cluster after a failed subtest: %v", err)
 		}
 	})
 	w := p.NewTenant(t)
@@ -120,17 +124,8 @@ func TestClusterAttachment(t *testing.T) {
 	t.Run("pause, remove and restore", pauseRemoveRestore)
 }
 
-// reattachCluster re-enrolls the run's cluster with a new agent key and waits until it accepts
+// reattach re-enrolls the run's cluster with a new agent key and waits until it accepts
 // applications, whichever state a failed subtest left it in.
-func reattachCluster(t *testing.T) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), reattachTimeout)
-	defer cancel()
-	if err := reattach(ctx); err != nil {
-		t.Errorf("reattach the cluster after a failed subtest: %v", err)
-	}
-}
-
 func reattach(ctx context.Context) error {
 	p.StopAgent()
 	var removed bool
@@ -161,7 +156,9 @@ func reattach(ctx context.Context) error {
 	}
 	return platform.Poll(ctx, func(ctx context.Context) error {
 		var healthy bool
-		if err := p.DB.QueryRow(ctx, clusterHealthy, p.ClusterID).Scan(&healthy); err != nil {
+		if err := p.DB.QueryRow(
+			ctx, "SELECT COALESCE(health_status = 'healthy', false) FROM clusters WHERE id = $1", p.ClusterID,
+		).Scan(&healthy); err != nil {
 			return err
 		}
 		if !healthy {
