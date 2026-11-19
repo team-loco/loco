@@ -1,9 +1,14 @@
-# loco resource scale scales a service in one environment: the only one, or the one --env names.
+# loco resource scale scales a service in one environment: the only one, or the one --env names,
+# and in every region or the one --region names.
 fakeapi resource web
 
 exec loco resource scale web --replicas 2
-stdout 'Scaled service web in production'
+stdout 'Scaled service web in production:'
 fakeapi scaled web production 2
+
+exec loco resource scale web --region eu-west-1 --replicas 5
+stdout 'Scaled service web in production \(eu-west-1\):'
+fakeapi scaled web production 5 eu-west-1
 
 fakeapi environment staging
 ! exec loco resource scale web --replicas 3

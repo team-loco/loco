@@ -52,6 +52,7 @@ func waitRunning(ctx context.Context, t cmdutil.Target, w io.Writer, deployments
 func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployment *planv1.StartedDeployment) error {
 	id := deployment.GetDeploymentId()
 	var cursor int64
+	states := map[string]deploymentv1.PlacementStatus{}
 	for {
 		stream, err := t.Clients.Deployment.WatchDeployment(
 			ctx,
@@ -75,6 +76,9 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 						return errors.Join(writeErr, stream.Close())
 					}
 					cursor = entry.GetSeq()
+				}
+				if writeErr := writePlacementChanges(w, states, event.GetDeployment()); writeErr != nil {
+					return errors.Join(writeErr, stream.Close())
 				}
 				if event.GetHasMoreActivity() {
 					continue
@@ -118,6 +122,29 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+// writePlacementChanges prints one line for each region whose placement status changed.
+func writePlacementChanges(
+	w io.Writer,
+	states map[string]deploymentv1.PlacementStatus,
+	deployment *deploymentv1.Deployment,
+) error {
+	for _, placement := range deployment.GetPlacements() {
+		region, status := placement.GetRegion(), placement.GetStatus()
+		if status == deploymentv1.PlacementStatus_PLACEMENT_STATUS_UNSPECIFIED || states[region] == status {
+			continue
+		}
+		states[region] = status
+		label := strings.ToLower(strings.TrimPrefix(status.String(), "PLACEMENT_STATUS_"))
+		if status == deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING {
+			label = "waiting for the build"
+		}
+		if _, err := fmt.Fprintf(w, "%s · %s\n", region, label); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func regionList(deployment *planv1.StartedDeployment) string {
