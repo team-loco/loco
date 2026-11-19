@@ -139,7 +139,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const restart = useMutation(restartResource);
 
 	const setView = (next: View) => {
-		void setParams({ tab: next });
+		void setParams({ tab: next }, { history: "push" });
 	};
 
 	if (isLoading || configQuery.isPending) return <ResourceSkeleton />;
