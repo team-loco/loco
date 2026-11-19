@@ -17,7 +17,7 @@ import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
-import { canceledNote, placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
+import { cancelable, canceledNote, placementReadyLabel, rolloutReadyLabel } from "@/lib/activity-deploys";
 import {
 	deploymentActor,
 	deploymentMethod,
@@ -259,16 +259,18 @@ function ProgressPanel({
 						)
 					)}
 					{live ? (
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={!canWrite}
-							onClick={() => {
-								setConfirmingCancel(true);
-							}}
-						>
-							Cancel
-						</Button>
+						cancelable(deployment) && (
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={!canWrite}
+								onClick={() => {
+									setConfirmingCancel(true);
+								}}
+							>
+								Cancel
+							</Button>
+						)
 					) : (
 						<Button
 							variant="ghost"

@@ -432,6 +432,20 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         )
         == 0
     )
+    sql(
+        state,
+        f"UPDATE deployment_placements SET started_at=NOW() WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    restarting = page.get_by_role("region", name="Deploying", exact=True)
+    expect(restarting).to_be_visible()
+    expect(restarting.get_by_role("button", name="Cancel", exact=True)).to_have_count(0)
+    sql(
+        state,
+        f"UPDATE deployment_placements SET started_at=NULL WHERE deployment_id='{p['current']}';",
+    )
+    page.reload()
+    panel = page.get_by_role("region", name="Deploying", exact=True)
     cancels = []
 
     def cancel(route):

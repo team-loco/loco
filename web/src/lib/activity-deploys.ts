@@ -1,4 +1,9 @@
-import { DeploymentStatus, type Deployment, type DeploymentPlacement } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentStatus,
+	PlacementStatus,
+	type Deployment,
+	type DeploymentPlacement,
+} from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
@@ -125,4 +130,15 @@ export function canceledNote(d: Deployment): string | undefined {
 	if (d.canceledByName !== "") return `Canceled by ${d.canceledByName}`;
 	const newer = d.placements.find((p) => p.supersededBy !== "")?.supersededBy;
 	return newer === undefined ? undefined : `Superseded by ${formatShortId(newer)}`;
+}
+
+/** Whether a cancel has a region to stop: one the deployment never ran in that is still on its way. */
+export function cancelable(d: Deployment): boolean {
+	return (
+		isInFlight(d.status) &&
+		d.placements.some(
+			(p) =>
+				p.startedAt === undefined && (p.status === PlacementStatus.PENDING || p.status === PlacementStatus.DEPLOYING),
+		)
+	);
 }

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { DeploymentSchema, DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentSchema, DeploymentStatus, PlacementStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import {
@@ -10,6 +10,7 @@ import {
 	deploySteps,
 	finishedLabel,
 	reportedReadyLabel,
+	cancelable,
 	canceledNote,
 	placementReadyLabel,
 	rolloutReadyLabel,
@@ -223,5 +224,26 @@ describe("canceledNote", () => {
 	});
 	test("says nothing for a deployment canceled with its service", () => {
 		expect(canceledNote(deployment("d", DeploymentStatus.CANCELED, 1))).toBeUndefined();
+	});
+});
+
+describe("cancelable", () => {
+	test("a rollout with a region it never ran in can be canceled", () => {
+		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, {}, { status: PlacementStatus.DEPLOYING });
+		expect(cancelable(d)).toBe(true);
+	});
+	test("a restart of a deployment that already ran everywhere cannot", () => {
+		const d = deployment(
+			"d",
+			DeploymentStatus.DEPLOYING,
+			1,
+			{},
+			{ status: PlacementStatus.DEPLOYING, startedAt: timestampFromMs(NOW - MIN) },
+		);
+		expect(cancelable(d)).toBe(false);
+	});
+	test("a finished deployment cannot", () => {
+		const d = deployment("d", DeploymentStatus.RUNNING, 1, {}, { status: PlacementStatus.RUNNING });
+		expect(cancelable(d)).toBe(false);
 	});
 });
