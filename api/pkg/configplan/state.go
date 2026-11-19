@@ -16,6 +16,8 @@ const (
 	pathImage      = "image"
 	pathDockerfile = "dockerfile"
 	pathContext    = "context"
+	pathCommand    = "command"
+	pathArgs       = "args"
 
 	pathPort    = "port"
 	pathHealth  = "health"
@@ -45,6 +47,8 @@ type State struct {
 	RollbackOnFailure bool
 	Observability     observabilityconfig.Config
 	Image             string
+	Command           []string
+	Args              []string
 	Dockerfile        string
 	Context           string
 	RunAsUser         *int64
@@ -102,6 +106,8 @@ func fileState(service locofile.Service, pinnedImage string, defaults servicedef
 		RunAsUser:         service.RunAsUser,
 		RunAsGroup:        service.RunAsGroup,
 		Image:             pinnedImage,
+		Command:           service.Command,
+		Args:              service.Args,
 		Port:              service.Port,
 		Domains:           CanonicalDomains(service.Domains),
 		Env:               maps.Clone(service.Env),
@@ -227,6 +233,12 @@ func flatten(state *State) map[string]string {
 	if state.Image != "" {
 		fields[pathImage] = state.Image
 	}
+	if len(state.Command) > 0 {
+		fields[pathCommand] = formatWords(state.Command)
+	}
+	if len(state.Args) > 0 {
+		fields[pathArgs] = formatWords(state.Args)
+	}
 	if state.Dockerfile != "" {
 		fields[pathDockerfile] = state.Dockerfile
 	}
@@ -281,6 +293,15 @@ func diff(before, after *State) []Change {
 
 func formatInt(value int32) string {
 	return strconv.FormatInt(int64(value), 10)
+}
+
+// formatWords quotes each command or args entry, which keeps entries holding spaces or commas apart.
+func formatWords(words []string) string {
+	quoted := make([]string, len(words))
+	for i, word := range words {
+		quoted[i] = strconv.Quote(word)
+	}
+	return formatList(quoted)
 }
 
 func formatList(values []string) string {
