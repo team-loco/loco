@@ -115,9 +115,9 @@ func (tn tenant) environment(t *testing.T, workspaceID uuid.UUID, name string) u
 
 func (tn tenant) renameEnvironment(t *testing.T, environmentID uuid.UUID, name string) {
 	t.Helper()
-	server := NewEnvironmentServer(tn.pool, tn.queries, limits.Defaults())
-	request := &environmentv1.UpdateEnvironmentRequest{EnvironmentId: environmentID.String(), Name: &name}
-	if _, err := server.UpdateEnvironment(tn.owner(t), request); err != nil {
+	if _, err := tn.pool.Exec(
+		t.Context(), `UPDATE environments SET name = $2, display_name = $2 WHERE id = $1`, environmentID, name,
+	); err != nil {
 		t.Fatalf("rename environment to %s: %v", name, err)
 	}
 }

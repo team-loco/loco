@@ -531,7 +531,7 @@ func TestEnvironmentLifecycleEventsStayInTheirEnvironment(t *testing.T) {
 	}
 	want(events.EnvironmentCreated)
 	if _, err = server.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
-		EnvironmentId: environmentID, Name: new("renamed"),
+		EnvironmentId: environmentID, DisplayName: new("Renamed"),
 	}); err != nil {
 		t.Fatal(err)
 	}

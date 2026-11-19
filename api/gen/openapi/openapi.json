@@ -2926,7 +2926,7 @@
           "loco.environment.v1.EnvironmentService"
         ],
         "summary": "ListEnvironments",
-        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name.",
+        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name and display_name.",
         "operationId": "loco.environment.v1.EnvironmentService.ListEnvironments",
         "parameters": [
           {
@@ -11728,7 +11728,8 @@
           },
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "name is the environment's slug: a DNS label, unique in its workspace, that never changes."
           },
           "description": {
             "type": [
@@ -11753,6 +11754,11 @@
             "type": "string",
             "title": "revision",
             "format": "int64"
+          },
+          "displayName": {
+            "type": "string",
+            "title": "display_name",
+            "description": "display_name is the label the dashboard shows. It starts as name; name never changes."
           }
         },
         "title": "Environment",
@@ -11820,15 +11826,14 @@
             "title": "environment_id",
             "format": "uuid"
           },
-          "name": {
+          "displayName": {
             "type": [
               "string",
               "null"
             ],
-            "title": "name",
+            "title": "display_name",
             "maxLength": 63,
-            "minLength": 1,
-            "description": "A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit."
+            "description": "environment.display_name // display name needs a character that is not a space\n"
           },
           "description": {
             "type": [

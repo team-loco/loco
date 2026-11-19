@@ -45,9 +45,9 @@ func (q *Queries) CountDeploymentsByEnvironment(ctx context.Context, environment
 }
 
 const createEnvironment = `-- name: CreateEnvironment :one
-INSERT INTO environments (workspace_id, name, description, created_by)
-VALUES ($1, $2, $3, $4)
-RETURNING id, workspace_id, name, description, created_by, revision, created_at, updated_at
+INSERT INTO environments (workspace_id, name, display_name, description, created_by)
+VALUES ($1, $2, $2, $3, $4)
+RETURNING id, workspace_id, name, display_name, description, created_by, revision, created_at, updated_at
 `
 
 type CreateEnvironmentParams struct {
@@ -69,6 +69,7 @@ func (q *Queries) CreateEnvironment(ctx context.Context, arg CreateEnvironmentPa
 		&i.ID,
 		&i.WorkspaceID,
 		&i.Name,
+		&i.DisplayName,
 		&i.Description,
 		&i.CreatedBy,
 		&i.Revision,
@@ -88,7 +89,7 @@ func (q *Queries) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
 }
 
 const getEnvironmentByID = `-- name: GetEnvironmentByID :one
-SELECT id, workspace_id, name, description, created_by, revision, created_at, updated_at FROM environments WHERE id = $1
+SELECT id, workspace_id, name, display_name, description, created_by, revision, created_at, updated_at FROM environments WHERE id = $1
 `
 
 func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environment, error) {
@@ -98,6 +99,7 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 		&i.ID,
 		&i.WorkspaceID,
 		&i.Name,
+		&i.DisplayName,
 		&i.Description,
 		&i.CreatedBy,
 		&i.Revision,
@@ -108,7 +110,7 @@ func (q *Queries) GetEnvironmentByID(ctx context.Context, id uuid.UUID) (Environ
 }
 
 const getWorkspaceDefaultEnvironment = `-- name: GetWorkspaceDefaultEnvironment :one
-SELECT id, workspace_id, name, description, created_by, revision, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC, id ASC LIMIT 1
+SELECT id, workspace_id, name, display_name, description, created_by, revision, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC, id ASC LIMIT 1
 `
 
 func (q *Queries) GetWorkspaceDefaultEnvironment(ctx context.Context, workspaceID uuid.UUID) (Environment, error) {
@@ -118,6 +120,7 @@ func (q *Queries) GetWorkspaceDefaultEnvironment(ctx context.Context, workspaceI
 		&i.ID,
 		&i.WorkspaceID,
 		&i.Name,
+		&i.DisplayName,
 		&i.Description,
 		&i.CreatedBy,
 		&i.Revision,
@@ -128,7 +131,7 @@ func (q *Queries) GetWorkspaceDefaultEnvironment(ctx context.Context, workspaceI
 }
 
 const listWorkspaceEnvironments = `-- name: ListWorkspaceEnvironments :many
-SELECT id, workspace_id, name, description, created_by, revision, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC, id ASC
+SELECT id, workspace_id, name, display_name, description, created_by, revision, created_at, updated_at FROM environments WHERE workspace_id = $1 ORDER BY created_at ASC, id ASC
 `
 
 func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uuid.UUID) ([]Environment, error) {
@@ -144,6 +147,7 @@ func (q *Queries) ListWorkspaceEnvironments(ctx context.Context, workspaceID uui
 			&i.ID,
 			&i.WorkspaceID,
 			&i.Name,
+			&i.DisplayName,
 			&i.Description,
 			&i.CreatedBy,
 			&i.Revision,
@@ -235,24 +239,27 @@ func (q *Queries) LockWorkspaceEnvironments(ctx context.Context, id uuid.UUID) (
 
 const updateEnvironment = `-- name: UpdateEnvironment :one
 UPDATE environments
-SET name = $2, description = $3, updated_at = NOW()
+SET display_name = COALESCE($2, display_name),
+    description = COALESCE($3, description),
+    updated_at = NOW()
 WHERE id = $1
-RETURNING id, workspace_id, name, description, created_by, revision, created_at, updated_at
+RETURNING id, workspace_id, name, display_name, description, created_by, revision, created_at, updated_at
 `
 
 type UpdateEnvironmentParams struct {
 	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
+	DisplayName *string   `json:"displayName"`
 	Description *string   `json:"description"`
 }
 
 func (q *Queries) UpdateEnvironment(ctx context.Context, arg UpdateEnvironmentParams) (Environment, error) {
-	row := q.db.QueryRow(ctx, updateEnvironment, arg.ID, arg.Name, arg.Description)
+	row := q.db.QueryRow(ctx, updateEnvironment, arg.ID, arg.DisplayName, arg.Description)
 	var i Environment
 	err := row.Scan(
 		&i.ID,
 		&i.WorkspaceID,
 		&i.Name,
+		&i.DisplayName,
 		&i.Description,
 		&i.CreatedBy,
 		&i.Revision,

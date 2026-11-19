@@ -30,20 +30,6 @@ func TestEnvironmentNamesAreDNSLabels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range invalid {
-		_, err = server.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
-			EnvironmentId: created.GetEnvironmentId(), Name: &name,
-		})
-		if codeOf(err) != connect.CodeInvalidArgument {
-			t.Fatalf("rename to %q: %v, want invalid argument", name, err)
-		}
-	}
-	if _, err = server.UpdateEnvironment(f.owner, &environmentv1.UpdateEnvironmentRequest{
-		EnvironmentId: created.GetEnvironmentId(), Name: new("qa"),
-	}); err != nil {
-		t.Fatal(err)
-	}
-
 	if _, err = f.pool.Exec(
 		t.Context(), `UPDATE environments SET name = 'Staging EU' WHERE id = $1`, created.GetEnvironmentId(),
 	); err == nil {

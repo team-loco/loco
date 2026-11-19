@@ -16,6 +16,8 @@ import (
 	workspacev1 "github.com/team-loco/loco/gen/go/loco/workspace/v1"
 )
 
+const displayNameField = "display_name"
+
 func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
 	t.Parallel()
 	const id = "11111111-1111-4111-8111-111111111111"
@@ -50,10 +52,10 @@ func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
 			valid:   true,
 		},
 		{
-			name:    "environment name empty",
-			body:    `{"environmentId":"` + id + `","name":""}`,
+			name:    "environment display name blank",
+			body:    `{"environmentId":"` + id + `","displayName":"  "}`,
 			message: &environmentv1.UpdateEnvironmentRequest{},
-			field:   updateNameField,
+			field:   displayNameField,
 			present: true,
 			valid:   false,
 		},
@@ -61,7 +63,7 @@ func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
 			name:    "resource display name blank",
 			body:    `{"resourceId":"` + id + `","displayName":"  "}`,
 			message: &resourcev1.UpdateResourceRequest{},
-			field:   "display_name",
+			field:   displayNameField,
 			present: true,
 			valid:   false,
 		},
@@ -69,7 +71,7 @@ func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
 			name:    "resource display name",
 			body:    `{"resourceId":"` + id + `","displayName":"QA Echo 🚀"}`,
 			message: &resourcev1.UpdateResourceRequest{},
-			field:   "display_name",
+			field:   displayNameField,
 			present: true,
 			valid:   true,
 		},

@@ -83,7 +83,7 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 			return callErr
 		}},
 		{name: "UpdateEnvironment", existing: f.envID.String(), call: func(ctx context.Context, id string) error {
-			req := &environmentv1.UpdateEnvironmentRequest{EnvironmentId: id, Name: new("renamed")}
+			req := &environmentv1.UpdateEnvironmentRequest{EnvironmentId: id, DisplayName: new("Renamed")}
 			_, callErr := environments.UpdateEnvironment(ctx, req)
 			return callErr
 		}},

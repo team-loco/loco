@@ -178,6 +178,7 @@ func (s *EnvironmentServer) ListEnvironments(
 			Id:          env.ID.String(),
 			WorkspaceId: env.WorkspaceID.String(),
 			Name:        env.Name,
+			DisplayName: env.DisplayName,
 		})
 	}
 
@@ -198,45 +199,14 @@ func (s *EnvironmentServer) UpdateEnvironment(
 		return nil, err
 	}
 
-	message := req.ProtoReflect()
-	fields := message.Descriptor().Fields()
-	updateName := message.Has(fields.ByName(updateNameField))
-	updateDescription := message.Has(fields.ByName(updateDescriptionField))
-	if updateName && !locofile.IsDNSLabel(req.GetName()) {
-		return nil, ErrInvalidEnvironmentName
-	}
-
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, existing.WorkspaceID); lockErr != nil {
-			return lockErr
-		}
-		current, loadErr := qtx.GetEnvironmentByID(ctx, envID)
-		if loadErr != nil {
-			return fmt.Errorf("get environment: %w", loadErr)
-		}
-		name := current.Name
-		if updateName {
-			name = req.GetName()
-		}
-		description := current.Description
-		if updateDescription {
-			description = new(req.GetDescription())
-		}
 		updated, updateErr := qtx.UpdateEnvironment(ctx, genDb.UpdateEnvironmentParams{
 			ID:          envID,
-			Name:        name,
-			Description: description,
+			DisplayName: req.DisplayName,
+			Description: req.Description,
 		})
-		if isUniqueViolation(updateErr, pgEnvironmentNameUnique) {
-			return ErrEnvironmentNameNotUnique
-		}
 		if updateErr != nil {
 			return fmt.Errorf("update environment: %w", updateErr)
-		}
-		if updated.Name != current.Name {
-			if bumpErr := bumpEnvironmentRevision(ctx, qtx, envID); bumpErr != nil {
-				return bumpErr
-			}
 		}
 		return events.Record(ctx, qtx, events.Event{
 			Type:          events.EnvironmentUpdated,
@@ -304,6 +274,7 @@ func dbEnvToProto(env genDb.Environment) *environmentv1.Environment {
 		Id:          env.ID.String(),
 		WorkspaceId: env.WorkspaceID.String(),
 		Name:        env.Name,
+		DisplayName: env.DisplayName,
 		Description: env.Description,
 		CreatedBy:   env.CreatedBy.String(),
 		CreatedAt:   timestamppb.New(env.CreatedAt),
