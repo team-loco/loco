@@ -29,7 +29,7 @@ import { limitReason, limitUsage } from "@/lib/limits";
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
 import { formatDay } from "../settings/parts";
-import { DELIVERY_TICKS, eventsSummary, hasPending, tickStrip, type Tick } from "./webhooks";
+import { DELIVERY_TICKS, eventsSummary, hasPending, refreshDeliveries, tickStrip, type Tick } from "./webhooks";
 
 const PENDING_REFRESH_MS = 5_000;
 
@@ -161,6 +161,7 @@ export function WebhooksPage({
 									workspaceName={workspaceName}
 									onChanged={() => {
 										void queryClient.invalidateQueries({ queryKey: listKey });
+										void refreshDeliveries(queryClient);
 									}}
 									webhook={w}
 									onOpen={() => {
