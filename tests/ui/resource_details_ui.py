@@ -314,7 +314,6 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)
     ).to_be_disabled()
-    expect(page.locator("#set-env").get_by_text("soon", exact=True)).to_be_visible()
     page.get_by_role("button", name="Show MODE for 30 seconds", exact=True).click()
     expect(mode).to_have_attribute("type", "text")
     expect(mode).to_have_value("production")

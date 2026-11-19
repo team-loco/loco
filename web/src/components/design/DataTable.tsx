@@ -35,7 +35,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { Pager } from "@/components/design/Pager";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { pageRangeLabel } from "@/lib/paging";
 import { cn } from "@/lib/utils";
@@ -43,7 +42,6 @@ import { cn } from "@/lib/utils";
 export interface DataColumnMeta {
 	headClassName?: string;
 	cellClassName?: string;
-	soon?: boolean;
 	defaultHidden?: boolean;
 }
 
@@ -114,12 +112,7 @@ function DataTableHead<T extends RowData>({
 	const { column } = header;
 	const meta = column.columnDef.meta;
 	const resizable = column.getCanResize();
-	const label = (
-		<>
-			{flexRender(column.columnDef.header, header.getContext())}
-			{meta?.soon === true && <SoonTag />}
-		</>
-	);
+	const label = flexRender(column.columnDef.header, header.getContext());
 	const Arrow = sorted === "desc" ? ArrowDownIcon : ArrowUpIcon;
 	return (
 		<TableHead
@@ -224,7 +217,6 @@ export function DataTableColumnsMenu<T extends RowData>({ table }: { table: Data
 										}}
 									>
 										<span className="flex-1">{columnLabel(column)}</span>
-										{column.columnDef.meta?.soon === true && <SoonTag />}
 									</DropdownMenuCheckboxItem>
 								))
 						}

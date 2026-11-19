@@ -833,7 +833,6 @@ def dashboard(page):
             )
             == colors
         )
-        expect(page.get_by_label("Spend: not available yet")).to_contain_text("soon")
         page.get_by_role("button").filter(has_text="Olivia Owner").click()
         next_mode = "Dark" if mode == "light" else "System"
         action = page.get_by_role("radiogroup", name="Mode").get_by_role(

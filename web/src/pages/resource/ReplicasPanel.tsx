@@ -4,7 +4,6 @@ import type { EnvironmentStatus } from "@gen/loco/resource/v1/resource_pb";
 import { Progress } from "@/components/design/Progress";
 import { Button } from "@/components/design/Button";
 import { Section } from "@/components/design/Page";
-import { SoonTag } from "@/components/design/SoonTag";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -20,7 +19,6 @@ import { ReplicaList } from "./ReplicaList";
 import { replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
-const UNSUPPORTED_RANGE = "7d";
 const ALL_REGIONS = "all";
 const PERCENT = 100;
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
@@ -167,10 +165,6 @@ export function ReplicasPanel({
 								{r}
 							</ToggleGroupItem>
 						))}
-						<ToggleGroupItem value={UNSUPPORTED_RANGE} disabled>
-							{UNSUPPORTED_RANGE}
-							<SoonTag />
-						</ToggleGroupItem>
 					</ToggleGroup>
 				</>
 			}

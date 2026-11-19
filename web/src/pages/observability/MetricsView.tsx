@@ -11,7 +11,6 @@ import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
@@ -41,7 +40,6 @@ interface MetricDef {
 const CPU: MetricDef = { key: "cpu", metric: "k8s.pod.cpu_limit_utilization", title: "CPU" };
 const MEMORY: MetricDef = { key: "mem", metric: "k8s.pod.memory_limit_utilization", title: "Memory" };
 
-const TRAFFIC = ["Requests", "5xx responses", "Latency, p95"];
 const PERCENT = 100;
 const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
@@ -300,7 +298,7 @@ export function MetricsView() {
 				<ObsHero
 					view="metrics"
 					title={coversWholeRange(range, maxMs) ? "No metrics collected" : "No metrics in this range"}
-					body="CPU and memory start as soon as a resource is up. Requests and latency come from resources with a public address."
+					body="CPU and memory start as soon as a resource is up."
 					action={
 						<>
 							<Button
@@ -427,20 +425,6 @@ export function MetricsView() {
 				</div>
 			</Section>
 
-			<Section title="Traffic" card={false}>
-				<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-					{TRAFFIC.map((title) => (
-						<div key={title} className="flex flex-col gap-2 rounded-card bg-panel px-5 py-4">
-							<span className="flex items-baseline gap-2">
-								<span className="text-[15px] font-medium tracking-[-0.01em] text-fg3">{title}</span>
-								<SoonTag />
-							</span>
-							<div className="h-12 rounded-lg border border-dashed border-line2" />
-						</div>
-					))}
-				</div>
-			</Section>
-
 			<Section title="By resource and region" card={false}>
 				<div className="overflow-x-auto rounded-card bg-panel px-5 pt-1 pb-3">
 					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
@@ -451,27 +435,12 @@ export function MetricsView() {
 								{header("replicas", "Replicas")}
 								{header("cpu", "CPU", "w-[170px]")}
 								{header("mem", "Memory", "w-[170px]")}
-								<th className="px-3 font-normal">
-									<span className="flex items-center gap-1.5">
-										Requests <SoonTag />
-									</span>
-								</th>
-								<th className="px-3 font-normal">
-									<span className="flex items-center gap-1.5">
-										5xx <SoonTag />
-									</span>
-								</th>
-								<th className="px-3 font-normal">
-									<span className="flex items-center gap-1.5">
-										p95 <SoonTag />
-									</span>
-								</th>
 							</tr>
 						</thead>
 						<tbody>
 							{rows.length === 0 && (
 								<tr>
-									<td colSpan={8} className="px-3 py-6 text-center text-fg3">
+									<td colSpan={5} className="px-3 py-6 text-center text-fg3">
 										Nothing matches these filters.
 									</td>
 								</tr>
@@ -509,19 +478,12 @@ export function MetricsView() {
 										<td className="px-3">
 											<Meter value={mem.latest.get(p.key)} />
 										</td>
-										<td className="px-3 text-fg4">—</td>
-										<td className="px-3 text-fg4">—</td>
-										<td className="px-3 text-fg4">—</td>
 									</tr>
 								);
 							})}
 						</tbody>
 					</table>
 				</div>
-				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-					Ready replicas over time
-					<SoonTag />
-				</span>
 			</Section>
 		</>
 	);
