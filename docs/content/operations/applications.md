@@ -17,7 +17,7 @@ loco resource events --help
 
 ## Scale
 
-`loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out one new deployment to every region the service runs in there, or only to the region `--region` names; the other regions keep their deployment. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. `--replicas` sets a fixed replica count and disables autoscaling; changing only CPU or memory preserves autoscaling. Configure autoscaling per region in [loco.yaml](../deployment/loco-yaml.md). The dashboard's Settings tab scales the environment selected in the breadcrumb.
+`loco resource scale` changes a service's replicas, CPU or memory in one environment and rolls out one new deployment to every region the service runs in there, or only to the region `--region` names; the other regions keep their deployment. Regions that run different deployments, such as after a scale of one region, each get a copy of their own deployment. `--env` or `LOCO_ENV` selects the environment; a workspace with a single environment uses it, and a workspace with several fails without one. Other environments keep their deployments. `--replicas` sets a fixed replica count and disables autoscaling; changing only CPU or memory preserves autoscaling. Configure autoscaling per region in [loco.yaml](../deployment/loco-yaml.md). The dashboard's Settings tab scales the environment selected in the breadcrumb.
 
 ```sh
 loco resource scale web --env production --replicas 3
@@ -34,6 +34,17 @@ A new deployment of the service replaces one in flight without a cancel: the old
 ```sh
 loco resource cancel web --env production
 ```
+
+## Deployments and regions
+
+A deployment is one request to run a version of a service in an environment: a `loco deploy`, a `loco infra apply`, a scale, a redeploy or a rollback. It rolls out to every enabled region of the service, or to the regions the request names, with one placement per region. Each placement has its own status, desired replicas and image, and the deployment's status follows them:
+
+- `building` while the build runs, then `deploying` while any region rolls out.
+- `failed` as soon as one region fails; regions that already run keep the new version unless [rollback on failure](../deployment/loco-yaml.md#rollback-on-failure) is on.
+- `running` once every region runs it, and `superseded` once newer deployments replace it in every region.
+- `canceled` when someone [cancels](#cancel) it, or when a newer deployment replaced it before it ran anywhere.
+
+A newer deployment never waits for one in flight. It cancels the older deployment's regions that have not started, and replaces the ones that run once its own replicas are ready there, so the previous version serves until then. `CreateDeployment` takes `regions` (empty means every enabled region) and, for a redeploy or rollback, `trigger` and `source_deployment_id` naming the deployment it copies.
 
 ## Restart
 
@@ -89,7 +100,7 @@ For data sent to Loco, the collector attaches workspace, environment and resourc
 
 The collector preserves application-provided service identity. It does not infer `service.name`, `service.namespace`, `service.version` or `service.instance.id` from Kubernetes labels, workload names, namespaces or container images. Kubernetes identity remains available under the `k8s.*` attributes.
 
-Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
+Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and regions. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
 
 The **Variables** section of a resource's settings shows which stored secrets the active deployment reads. For a service deployed from the dashboard, a switch on each secret selects whether deployments read it, and a secret added there is selected by default. The same section adds plain variables. Saving a change to either redeploys every region of the environment with the new `secret_bindings` and environment map. For a service deployed from `loco.yaml`, the file's `secrets` list selects the names, and each stored secret it does not list shows the `services.<name>.secrets` entry to add.
 
