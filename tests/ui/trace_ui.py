@@ -1,4 +1,5 @@
 import argparse
+import base64
 import calendar
 import json
 import re
@@ -201,9 +202,42 @@ def page_request(**fields):
     )
 
 
+def message(field, content):
+    data = content if isinstance(content, bytes) else content.encode()
+    return bytes([field << 3 | 2, len(data)]) + data
+
+
+def query_syntax_error(description):
+    violation = message(1, message(1, "query") + message(2, description))
+    info = (
+        message(1, "QUERY_SYNTAX")
+        + message(2, "loco")
+        + message(3, message(1, "position") + message(2, "1"))
+    )
+
+    def detail(kind, payload):
+        return {"type": kind, "value": base64.b64encode(payload).decode()}
+
+    return {
+        "code": "invalid_argument",
+        "message": description,
+        "details": [
+            detail("google.rpc.BadRequest", violation),
+            detail("google.rpc.ErrorInfo", info),
+        ],
+    }
+
+
 def handle(route):
     body = route.request.post_data_json
     recorded.append(body)
+    if mode[0] == "query-error" and not route.request.url.endswith("/GetTrace"):
+        route.fulfill(
+            status=400,
+            content_type="application/json",
+            body=json.dumps(query_syntax_error("unclosed (")),
+        )
+        return
     if mode[0] == "drawer-error" and route.request.url.endswith("/GetTrace"):
         route.fulfill(
             status=500,
@@ -830,8 +864,16 @@ with session(out) as browser:
     expect(
         page.get_by_text("ObservabilityService/ListTraces", exact=True)
     ).to_be_visible()
+    mode[0] = "query-error"
+    page.goto(state["ui_url"] + base + "&q=(((")
+    expect(page.get_by_role("alert")).to_contain_text("unclosed (")
+    expect(page.get_by_role("region", name="Trace list", exact=True)).to_be_visible()
+    expect(page.get_by_role("region", name="Overview", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name="Couldn\u2019t load traces")).to_have_count(
+        0
+    )
     mode[0] = "normal"
-    page.get_by_role("button", name="Retry", exact=True).click()
+    page.goto(state["ui_url"] + base)
     open_trace.wait_for()
     with expect_rpc(
         page,
