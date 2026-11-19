@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
@@ -74,9 +75,9 @@ func main() {
 		PprofBindAddress:       pprofAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       setup.leaderElectionID,
-		LeaseDuration:          new(leaseDuration),
-		RenewDeadline:          new(renewDeadline),
-		RetryPeriod:            new(retryPeriod),
+		LeaseDuration:          new(60 * time.Second),
+		RenewDeadline:          new(45 * time.Second),
+		RetryPeriod:            new(5 * time.Second),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
