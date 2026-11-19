@@ -11,9 +11,8 @@ import { cn } from "@/lib/utils";
 const FLUSH = "[&_td:first-child]:pl-5 [&_td:last-child]:pr-5 [&_th:first-child]:pl-5 [&_th:last-child]:pr-5";
 
 // Marks the scroll container with how far it has scrolled so the stylesheet can show that more columns exist.
-function trackScroll(table: HTMLTableElement | null) {
-	const container = table?.parentElement;
-	if (table == null || container == null) return;
+export function trackScroll(container: HTMLElement | null) {
+	if (container === null) return;
 	const update = () => {
 		const max = container.scrollWidth - container.clientWidth;
 		if (max <= 1) container.removeAttribute("data-scroll");
@@ -26,7 +25,7 @@ function trackScroll(table: HTMLTableElement | null) {
 	update();
 	const observer = new ResizeObserver(update);
 	observer.observe(container);
-	observer.observe(table);
+	if (container.firstElementChild !== null) observer.observe(container.firstElementChild);
 	container.addEventListener("scroll", update, { passive: true });
 	return () => {
 		observer.disconnect();
@@ -34,9 +33,11 @@ function trackScroll(table: HTMLTableElement | null) {
 	};
 }
 
+const trackTable = (table: HTMLTableElement | null) => trackScroll(table?.parentElement ?? null);
+
 /** `inset` keeps rows and their dividers 20px inside the card instead of running edge to edge. */
 function Table({ className, inset = false, ...props }: React.ComponentProps<typeof TableBase> & { inset?: boolean }) {
-	const table = <TableBase ref={trackScroll} className={cn("text-[13px]", !inset && FLUSH, className)} {...props} />;
+	const table = <TableBase ref={trackTable} className={cn("text-[13px]", !inset && FLUSH, className)} {...props} />;
 	return inset ? <div className="px-5">{table}</div> : table;
 }
 

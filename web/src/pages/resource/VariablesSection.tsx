@@ -403,10 +403,7 @@ export function VariablesSection({
 		const fresh = Object.keys(values).filter((name) => bindable && !storedNames.has(name) && !declared.has(name));
 		onChange({
 			secrets: { ...staged, ...values },
-			bindings: {
-				...bindings,
-				...Object.fromEntries(fresh.map((name) => [name, true])),
-			},
+			bindings: { ...bindings, ...Object.fromEntries(fresh.map((name) => [name, true])) },
 		});
 	};
 	const stage = (name: string, value: string) => {

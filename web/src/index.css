@@ -152,3 +152,11 @@
 [data-slot="table-container"]:is([data-scroll="middle"], [data-scroll="end"]) :is(td, th):first-child {
 	box-shadow: 1px 0 0 var(--line);
 }
+
+[data-slot="table-container"][data-scroll] :is(tr[data-interactive], tr:has([data-row-link])):hover > :first-child {
+	background-image: linear-gradient(var(--row-hover), var(--row-hover));
+}
+
+[data-slot="table-container"][data-scroll] tr[data-state="selected"] > :first-child {
+	background-color: var(--panel2);
+}

@@ -76,7 +76,14 @@ TABLES_JS = """() => [...document.querySelectorAll('[data-slot=table-container]'
   scrolls: c.scrollWidth > c.clientWidth + 1,
   overflowX: getComputedStyle(c).overflowX,
   scroll: c.getAttribute('data-scroll'),
-  pinned: getComputedStyle(c.querySelector('td, th')).position,
+  pinned: c.querySelector('td, th') ? getComputedStyle(c.querySelector('td, th')).position : null,
+  endReachable: (() => {
+    const last = c.querySelector('th:last-child, [data-slot=table-header] > :last-child');
+    c.scrollLeft = c.scrollWidth;
+    const reachable = !last || last.getBoundingClientRect().right <= c.getBoundingClientRect().right + 1;
+    c.scrollLeft = 0;
+    return reachable;
+  })(),
 }))"""
 PAGES = {
     "dashboard": base + "?env=production",
@@ -136,7 +143,8 @@ def tables_stay_inside(page, label):
         assert table["overflowX"] == "auto", (label, table)
         if table["scrolls"]:
             assert table["scroll"] == "start", (label, table)
-            assert table["pinned"] == "sticky", (label, table)
+            assert table["pinned"] in ("sticky", None), (label, table)
+            assert table["endReachable"], (label, table)
 
 
 with session(out) as browser:
@@ -146,12 +154,15 @@ with session(out) as browser:
                 context, page, errors = open_at(browser, width, height, mode)
                 page.goto(url)
                 page.locator("main, [role=main]").first.wait_for()
-                if name != "audit":
+                if name == "audit":
                     expect(
-                        page.locator("[data-slot=table-container]").first
+                        page.get_by_role("list", name="Audit events")
                     ).to_be_visible()
+                expect(
+                    page.locator("[data-slot=table-container]").first
+                ).to_be_visible()
                 tables_stay_inside(page, f"{mode} {label} {name}")
-                if label == "390" and name in ("dashboard", "resource"):
+                if label == "390" and name in ("dashboard", "resource", "audit"):
                     table = page.locator("[data-slot=table-container]").first
                     table.scroll_into_view_if_needed()
                     table.screenshot(path=out / f"{mode}-{label}-{name}-start.png")
@@ -161,6 +172,27 @@ with session(out) as browser:
                     table.evaluate("el => el.scrollTo(el.scrollWidth, 0)")
                     expect(table).to_have_attribute("data-scroll", "end")
                 context.close()
+
+    for mode, color in (("light", None), ("dark", None), ("light", "neobrutal")):
+        context, page, errors = open_at(browser, 390, 844, mode)
+        if color is not None:
+            context.add_init_script(f"localStorage.setItem('loco:color:v1', '{color}')")
+        page.goto(PAGES["dashboard"])
+        row = page.locator(
+            "[data-slot=table-container][data-scroll] tbody tr[data-interactive]"
+        ).first
+        row.scroll_into_view_if_needed()
+        cell = row.locator("td").first
+        assert cell.evaluate("el => getComputedStyle(el).backgroundImage") == "none"
+        row.hover()
+        assert cell.evaluate("el => getComputedStyle(el).backgroundImage") != "none", (
+            mode,
+            color,
+        )
+        page.locator("[data-slot=table-container][data-scroll]").first.screenshot(
+            path=out / f"{color or mode}-{mode}-390-row-hover.png"
+        )
+        context.close()
 
     context, page, errors = open_at(browser, 390, 844)
     page.goto(PAGES["resources"])
@@ -199,7 +231,9 @@ with session(out) as browser:
         mock_traffic(context)
         page.goto(PAGES["resource"])
         chart = page.locator("[data-slot=chart]").first
+        expect(chart.locator("path.recharts-curve").first).to_be_visible()
         chart.scroll_into_view_if_needed()
+        page.wait_for_timeout(500)
         box = chart.bounding_box()
         page.touchscreen.tap(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
         tooltip = page.locator(".recharts-tooltip-wrapper").first
