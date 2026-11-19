@@ -682,6 +682,10 @@ def dashboard(page):
     ):
         page.evaluate("color => localStorage.setItem('loco:color:v1', color)", color)
         page.goto(state["ui_url"] + base + "?env=production")
+        replicas = page.get_by_label(
+            "47 of 48 ready · 1 starting\nus-east-1: 47/48", exact=True
+        )
+        expect(replicas).to_be_visible()
         # The authentication init script starts every navigation in light mode.
         if mode == "dark":
             page.get_by_role("button").filter(has_text="Olivia Owner").click()
@@ -692,10 +696,6 @@ def dashboard(page):
             expect(page.locator("html")).to_have_class(re.compile(r"\bdark\b"))
         else:
             expect(page.locator("html")).not_to_have_class(re.compile(r"\bdark\b"))
-        replicas = page.get_by_label(
-            "47 of 48 ready · 1 starting\nus-east-1: 47/48", exact=True
-        )
-        expect(replicas).to_be_visible()
         expect(replicas).to_contain_text("47/48")
         full_row = (
             page.get_by_role("region", name="Resources", exact=True)
