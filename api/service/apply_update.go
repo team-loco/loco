@@ -175,19 +175,36 @@ func (a *applier) affectedRegions(resourceID uuid.UUID, changes []configplan.Cha
 	return affected
 }
 
+// syncDomains makes a resource's domains the desired list, the first primary; events record each step's primary.
 func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID, desired []string) error {
 	ids := make(map[string]uuid.UUID, len(desired))
 	primary := ""
 	for _, row := range a.live.domains[resourceID] {
 		if slices.Contains(desired, row.Domain) {
 			ids[row.Domain] = row.ID
-			if row.IsPrimary {
-				primary = row.Domain
+		}
+		if row.IsPrimary {
+			primary = row.Domain
+		}
+	}
+	if len(desired) > 0 && primary != desired[0] {
+		if _, exists := ids[desired[0]]; exists {
+			if promoteErr := a.setPrimaryDomain(ctx, qtx, resourceID, ids[desired[0]]); promoteErr != nil {
+				return promoteErr
 			}
+			primary = desired[0]
+		}
+	}
+	for _, row := range a.live.domains[resourceID] {
+		if _, kept := ids[row.Domain]; kept {
 			continue
 		}
 		if deleteErr := qtx.DeleteResourceDomain(ctx, row.ID); deleteErr != nil {
 			return fmt.Errorf("delete domain %s: %w", row.Domain, deleteErr)
+		}
+		wasPrimary := row.Domain == primary
+		if wasPrimary {
+			primary = ""
 		}
 		if eventErr := events.Record(ctx, qtx, events.Event{
 			Type:          events.DomainDeleted,
@@ -196,7 +213,7 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 			ResourceID:    new(resourceID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(row.ID),
-			Data:          domainEventData(row.Domain, row.DomainSource, row.IsPrimary, nil),
+			Data:          domainEventData(row.Domain, row.DomainSource, wasPrimary, nil),
 		}); eventErr != nil {
 			return eventErr
 		}
@@ -216,21 +233,28 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 		if _, exists := ids[domain]; exists {
 			continue
 		}
-		id, createErr := a.createDomain(ctx, qtx, resourceID, domain, domain == desired[0])
+		isPrimary := primary == "" && domain == desired[0]
+		id, createErr := a.createDomain(ctx, qtx, resourceID, domain, isPrimary)
 		if createErr != nil {
 			return createErr
+		}
+		if isPrimary {
+			primary = domain
 		}
 		ids[domain] = id
 	}
 	if len(desired) == 0 || primary == desired[0] {
 		return nil
 	}
+	return a.setPrimaryDomain(ctx, qtx, resourceID, ids[desired[0]])
+}
+
+func (a *applier) setPrimaryDomain(ctx context.Context, qtx *genDb.Queries, resourceID, domainID uuid.UUID) error {
 	clearParams := genDb.UpdateResourceDomainPrimaryParams{ResourceID: resourceID, EnvironmentID: a.env.ID}
 	if clearErr := qtx.UpdateResourceDomainPrimary(ctx, clearParams); clearErr != nil {
 		return fmt.Errorf("clear primary domain: %w", clearErr)
 	}
-	primaryID := ids[desired[0]]
-	setParams := genDb.SetResourceDomainPrimaryParams{ID: primaryID, ResourceID: resourceID, EnvironmentID: a.env.ID}
+	setParams := genDb.SetResourceDomainPrimaryParams{ID: domainID, ResourceID: resourceID, EnvironmentID: a.env.ID}
 	if _, setErr := qtx.SetResourceDomainPrimary(ctx, setParams); setErr != nil {
 		return fmt.Errorf("set primary domain: %w", setErr)
 	}
@@ -240,7 +264,7 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 		WorkspaceID:   new(a.env.WorkspaceID),
 		ResourceID:    new(resourceID),
 		SubjectType:   events.SubjectDomain,
-		SubjectID:     new(primaryID),
+		SubjectID:     new(domainID),
 		Data:          map[string]any{events.FieldPrimary: true},
 	})
 }
