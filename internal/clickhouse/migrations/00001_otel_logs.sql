@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS ${DATABASE}.otel_logs
     `EnvironmentId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.environment.id'] CODEC(ZSTD(3)),
     `ResourceId` LowCardinality(String) MATERIALIZED ResourceAttributes['loco.resource.id'] CODEC(ZSTD(3)),
     `RetentionDays` UInt32 MATERIALIZED toUInt32(ResourceAttributes['loco.retention.days']) CODEC(ZSTD(3)),
+    `PodUid` String MATERIALIZED ResourceAttributes['k8s.pod.uid'] CODEC(ZSTD(3)),
+    `LogIOStream` LowCardinality(String) MATERIALIZED LogAttributes['log.iostream'] CODEC(ZSTD(3)),
     `ResourceAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), ResourceAttributes::Array(Tuple(String, String))),
     `ScopeAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), ScopeAttributes::Array(Tuple(String, String))),
     `LogAttributeItems` Array(String) ALIAS arrayMap((arr) -> concat(arr.1, '=', arr.2), LogAttributes::Array(Tuple(String, String))),
