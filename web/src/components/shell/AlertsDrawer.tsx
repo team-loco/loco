@@ -17,10 +17,13 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
+import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
 import {
+	ACTIVITY_PAGE,
 	RECENT_MS,
 	activityDeployments,
+	recentHealthEvents,
 	clockLabel,
 	deployPhase,
 	deploySteps,
@@ -31,8 +34,9 @@ import {
 } from "@/lib/activity-deploys";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
 import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { eventTitle } from "@/pages/observability/events";
 import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
-import { agoLabel, maybeTsMs } from "@/lib/time";
+import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { problemLogsHref } from "@/pages/resource/deployment-progress";
 
@@ -160,6 +164,32 @@ function AlertCard({
 	);
 }
 
+function HealthEventCards({
+	workspaceId,
+	resourceHref,
+	nowMs,
+	onNavigate,
+}: {
+	workspaceId: string;
+	resourceHref: (resourceId: string) => string;
+	nowMs: number;
+	onNavigate: () => void;
+}) {
+	const { events } = useWorkspaceEvents(workspaceId);
+	return recentHealthEvents(events, nowMs).map((e) => (
+		<ActivityCard key={e.id}>
+			<div className="flex items-center justify-between gap-2.5">
+				<span className="inline-flex items-center gap-2 text-[12.5px] font-medium whitespace-nowrap">
+					<StatusGlyph glyph={e.type === "resource.degraded" ? "warn" : "ok"} />
+					{eventTitle(e.type, e.region)}
+				</span>
+				<span className="font-mono text-[12px] text-fg3">{agoLabel(tsMs(e.timestamp), nowMs)}</span>
+			</div>
+			<CardName name={e.resourceName} href={resourceHref(e.resourceId)} note={e.reason} onNavigate={onNavigate} />
+		</ActivityCard>
+	));
+}
+
 function DeployCard({
 	deployment,
 	ready,
@@ -252,6 +282,7 @@ function DeployCard({
 
 export function AlertsDrawer() {
 	const [open, setOpen] = useState(false);
+	const [shown, setShown] = useState(ACTIVITY_PAGE);
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
 	const { active } = useEnvironments();
@@ -281,6 +312,7 @@ export function AlertsDrawer() {
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
 		names.has(d.resourceId),
 	);
+	const finished = deployments.filter((d) => !isInFlight(d.status));
 	const ready = new Map<string, number>();
 	for (const region of (resources.data?.resources ?? []).flatMap((r) =>
 		r.environmentStatuses.flatMap((e) => e.regions),
@@ -356,24 +388,41 @@ export function AlertsDrawer() {
 						</Button>
 					</SheetHeader>
 					<SheetBody className="p-4">
-						{alerts.length === 0 && deployments.length === 0 ? (
-							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">Nothing needs attention.</p>
-						) : (
-							<ul className="flex flex-col gap-2.5">
-								{deployments.filter((d) => isInFlight(d.status)).map(deployCard)}
-								{alerts.map((a) => (
-									<AlertCard
-										key={a.key}
-										alert={a}
-										resourceHref={resourcePath(activeOrgId, activeWorkspaceId, a.resourceId)}
-										logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [a.name] })}
-										nowMs={nowMs}
-										onNavigate={close}
-									/>
-								))}
-								{deployments.filter((d) => !isInFlight(d.status)).map(deployCard)}
-							</ul>
-						)}
+						<ul className="flex flex-col gap-2.5">
+							{deployments.filter((d) => isInFlight(d.status)).map(deployCard)}
+							{alerts.map((a) => (
+								<AlertCard
+									key={a.key}
+									alert={a}
+									resourceHref={resourcePath(activeOrgId, activeWorkspaceId, a.resourceId)}
+									logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [a.name] })}
+									nowMs={nowMs}
+									onNavigate={close}
+								/>
+							))}
+							<HealthEventCards
+								workspaceId={activeWorkspaceId}
+								resourceHref={(id) => resourcePath(activeOrgId, activeWorkspaceId, id)}
+								nowMs={nowMs}
+								onNavigate={close}
+							/>
+							{finished.slice(0, shown).map(deployCard)}
+							{finished.length > shown && (
+								<li className="flex justify-center">
+									<Button
+										variant="ghost"
+										onClick={() => {
+											setShown(shown + ACTIVITY_PAGE);
+										}}
+									>
+										Show {Math.min(ACTIVITY_PAGE, finished.length - shown)} more
+									</Button>
+								</li>
+							)}
+							<li className="hidden px-2 py-12 text-center text-[13.5px] text-fg3 only:block">
+								Nothing needs attention.
+							</li>
+						</ul>
 					</SheetBody>
 					<SheetFooter>
 						<Button
