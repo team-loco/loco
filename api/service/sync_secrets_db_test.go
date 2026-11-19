@@ -295,3 +295,21 @@ func TestSyncReportsANameOnlyAnotherServiceHoldsAsMissing(t *testing.T) {
 		t.Fatalf("applied error = %v, want %s missing", placement.AppliedError, databaseURL)
 	}
 }
+
+func TestSyncSendsAnEmptySecretValue(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, testAgentConfig())
+	f.storeSecret(t, provider, "EMPTY_FLAG", "")
+	f.deployWithSecrets(t, []string{"EMPTY_FLAG"})
+
+	sent := f.sendPending(t, server)
+	if len(sent) != 1 {
+		t.Fatalf("sent %d messages, want one Apply", len(sent))
+	}
+	value, found := sent[0].GetApply().GetEnvSecret().GetData()["EMPTY_FLAG"]
+	if !found || len(value) != 0 {
+		t.Fatalf("env secret data = %v, want EMPTY_FLAG present and empty", sent[0].GetApply().GetEnvSecret().GetData())
+	}
+}

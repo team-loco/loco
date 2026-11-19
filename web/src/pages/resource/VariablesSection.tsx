@@ -399,12 +399,12 @@ export function VariablesSection({
 		});
 	};
 	const stage = (name: string, value: string) => {
-		if (value !== "") {
+		const fresh = !storedNames.has(name);
+		if (value !== "" || fresh) {
 			stageAll({ [name]: value });
 			return;
 		}
-		const fresh = !storedNames.has(name);
-		onChange({ secrets: withoutKey(staged, name), bindings: fresh ? bindingsWith(name, undefined) : bindings });
+		onChange({ secrets: withoutKey(staged, name), bindings });
 	};
 
 	return (
@@ -515,7 +515,7 @@ export function VariablesSection({
 						)}
 						onSubmit={(e) => {
 							e.preventDefault();
-							if (newName === "" || newProblem !== undefined || newValue === "") return;
+							if (newName === "" || newProblem !== undefined) return;
 							if (secretKind) stage(newName, newValue);
 							else onChange({ env: { ...stagedEnv, [newName]: newValue } });
 							setNewName("");
@@ -560,7 +560,7 @@ export function VariablesSection({
 								<Button
 									type="submit"
 									variant="outline"
-									disabled={newName === "" || newProblem !== undefined || newValue === "" || addBlocked !== null}
+									disabled={newName === "" || newProblem !== undefined || addBlocked !== null}
 								>
 									<PlusIcon />
 									{secretKind ? "Add secret" : "Add variable"}

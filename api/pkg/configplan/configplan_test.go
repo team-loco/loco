@@ -449,9 +449,6 @@ func TestInvalidDesiredValuesAreFieldErrors(t *testing.T) {
 		"relative path prefix": {func(s *locofile.Service) {
 			s.Routing = &locofile.Routing{PathPrefix: "relative"}
 		}, "routing"},
-		"empty env value": {func(s *locofile.Service) {
-			s.Env = map[string]string{logLevelKey: ""}
-		}, "env"},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -1029,3 +1029,38 @@ func TestSecretEventsStayInTheirEnvironment(t *testing.T) {
 		}
 	}
 }
+
+func TestSetSecretsStoresAnEmptyValue(t *testing.T) {
+	t.Parallel()
+	f := newSecretFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	server := f.server(t, provider)
+
+	first := f.set(t, server, map[string]string{stripeKey: ""})
+	if len(first.GetVersions()) != 1 || first.GetVersions()[0].GetVersion() != 1 {
+		t.Fatalf("empty set = %+v, want one name at version 1", first)
+	}
+	again := f.set(t, server, map[string]string{stripeKey: ""})
+	if again.GetRevision() != first.GetRevision() {
+		t.Fatalf("identical empty set revision = %d, want %d", again.GetRevision(), first.GetRevision())
+	}
+
+	rows, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
+		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey},
+	})
+	if err != nil || len(rows) != 1 {
+		t.Fatalf("ciphertexts = %v, %v, want the stored name", rows, err)
+	}
+	_, dek, err := server.environmentDEK(t.Context(), f.environmentID)
+	if err != nil {
+		t.Fatalf("environment dek: %v", err)
+	}
+	target := secretTarget{
+		env:        genDb.Environment{ID: f.environmentID, WorkspaceID: f.workspaceID},
+		resourceID: f.resourceID,
+	}
+	plaintext, err := openSecret(dek, target, rows[0])
+	if err != nil || len(plaintext) != 0 {
+		t.Fatalf("stored value = %q, %v, want empty", plaintext, err)
+	}
+}

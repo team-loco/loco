@@ -73,7 +73,7 @@ test("envError ignores blank rows and reports rows the API would reject", () => 
 	expect(envError([row("1BAD", "x")])).toBe(
 		"1BAD isn't a valid name: use letters, digits and _, not starting with a digit",
 	);
-	expect(envError([row("EMPTY", "")])).toBe("EMPTY has no value");
+	expect(envError([row("EMPTY", "")])).toBeNull();
 	expect(envError([row("A", "1", "a"), row(" A ", "2", "b")])).toBe("A is set twice");
 });
 
@@ -135,7 +135,7 @@ test("validateForm accepts an empty port only for a private service without a he
 });
 
 test("firstError reports the first blocking field in form order", () => {
-	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("KEY", "")] }, "empty", 10);
+	const errors = validateForm({ ...form, regions: [], subdomain: "Bad_Sub", vars: [row("", "x")] }, "empty", 10);
 	expect([errors.regions, errors.subdomain, errors.env].every((e) => e !== null)).toBe(true);
 	expect(firstError(errors)).toBe("Choose at least one region");
 	expect(validateForm({ ...form, platformDomain: "" }, "empty", 10).subdomain).toBe(

@@ -469,10 +469,12 @@ with session(out) as browser:
     secret_value.scroll_into_view_if_needed()
     drawer.get_by_role("button", name="Add", exact=True).click()
     expect(names.nth(2)).to_be_focused()
-    names.nth(2).fill("EXTRA")
+    names.nth(2).fill("1EXTRA")
     drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-    expect(drawer.get_by_role("alert")).to_have_text("EXTRA has no value")
-    variables.get_by_role("button", name="Remove EXTRA", exact=True).click()
+    expect(drawer.get_by_role("alert")).to_have_text(
+        "1EXTRA isn't a valid name: use letters, digits and _, not starting with a digit"
+    )
+    variables.get_by_role("button", name="Remove 1EXTRA", exact=True).click()
     expect(variables.get_by_role("listitem")).to_have_count(2)
     expect(
         drawer.get_by_role("heading", name="Environment variables 2")

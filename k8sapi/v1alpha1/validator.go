@@ -233,21 +233,18 @@ func ValidateArgs(args []string) error {
 	return nil
 }
 
-// ValidateEnv checks the names, values and count of a service's environment variables.
+// ValidateEnv checks the names and count of a service's environment variables.
 func ValidateEnv(env map[string]string) error {
 	if len(env) > maxEnvVars {
 		return fmt.Errorf("too many environment variables: %d (max %d)", len(env), maxEnvVars)
 	}
-	for name, value := range env {
+	for name := range env {
 		if !envVarNamePattern.MatchString(name) {
 			return fmt.Errorf(
 				"invalid environment variable name %q "+
 					"(must start with letter or underscore, contain only alphanumeric and underscore)",
 				name,
 			)
-		}
-		if value == "" {
-			return fmt.Errorf("environment variable %q has empty value", name)
 		}
 	}
 	return nil
