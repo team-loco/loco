@@ -316,7 +316,6 @@ type Querier interface {
 	RewrapEnvironmentKey(ctx context.Context, arg RewrapEnvironmentKeyParams) (int64, error)
 	RotateSessionToken(ctx context.Context, arg RotateSessionTokenParams) (int64, error)
 	RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWorkspaceWebhookSecretParams) (Webhook, error)
-	SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error
 	SetDeploymentCanceledBy(ctx context.Context, arg SetDeploymentCanceledByParams) error

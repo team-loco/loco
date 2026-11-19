@@ -569,7 +569,8 @@ type ServiceDeploymentSpec struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Build       *BuildSource           `protobuf:"bytes,1,opt,name=build,proto3" json:"build,omitempty"`
 	HealthCheck *HealthCheckConfig     `protobuf:"bytes,2,opt,name=health_check,json=healthCheck,proto3,oneof" json:"health_check,omitempty"`
-	Env         map[string]string      `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The plain environment variables the deployment runs with, exactly; empty sets none.
+	Env map[string]string `protobuf:"bytes,8,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// port is the port the service listens on; without it the service is a worker.
 	Port *int32 `protobuf:"varint,9,opt,name=port,proto3,oneof" json:"port,omitempty"`
 	// routing is the HTTP routing the deployment's environment uses. An empty message means the
@@ -943,8 +944,10 @@ type Deployment struct {
 	SourceDeploymentId string `protobuf:"bytes,28,opt,name=source_deployment_id,json=sourceDeploymentId,proto3" json:"source_deployment_id,omitempty"`
 	// Who canceled the deployment; empty unless a user or token canceled it.
 	CanceledByName string `protobuf:"bytes,29,opt,name=canceled_by_name,json=canceledByName,proto3" json:"canceled_by_name,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// The stored secrets the deployment reads, sorted by name.
+	SecretNames   []string `protobuf:"bytes,30,rep,name=secret_names,json=secretNames,proto3" json:"secret_names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Deployment) Reset() {
@@ -1115,6 +1118,13 @@ func (x *Deployment) GetCanceledByName() string {
 		return x.CanceledByName
 	}
 	return ""
+}
+
+func (x *Deployment) GetSecretNames() []string {
+	if x != nil {
+		return x.SecretNames
+	}
+	return nil
 }
 
 // DeploymentPlacement is one region of a deployment.
@@ -2652,7 +2662,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fidle_timeout\x18\x02 \x01(\x05R\vidleTimeout\"_\n" +
 	"\x0eDeploymentSpec\x12E\n" +
 	"\aservice\x18\x01 \x01(\v2).loco.deployment.v1.ServiceDeploymentSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xd1\b\n" +
+	"\x04spec\"\xf4\b\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
@@ -2683,7 +2693,8 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"placements\x12?\n" +
 	"\atrigger\x18\x1b \x01(\x0e2%.loco.deployment.v1.DeploymentTriggerR\atrigger\x120\n" +
 	"\x14source_deployment_id\x18\x1c \x01(\tR\x12sourceDeploymentId\x12(\n" +
-	"\x10canceled_by_name\x18\x1d \x01(\tR\x0ecanceledByNameB\r\n" +
+	"\x10canceled_by_name\x18\x1d \x01(\tR\x0ecanceledByName\x12!\n" +
+	"\fsecret_names\x18\x1e \x03(\tR\vsecretNamesB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_atJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x18\x10\x19J\x04\b\x19\x10\x1a\"\xc2\x04\n" +
 	"\x13DeploymentPlacement\x12\x1d\n" +

@@ -107,7 +107,7 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			}
 			if inherit {
 				previous := imageService()
-				previous.Env = wantEnv
+				previous.Env = map[string]string{"BUILD_LABEL": "earlier"}
 				request.Spec = &deploymentv1.DeploymentSpec{
 					Spec: &deploymentv1.DeploymentSpec_Service{Service: previous},
 				}
@@ -120,9 +120,7 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			buildID := f.queued(t)
 			service := &deploymentv1.ServiceDeploymentSpec{
 				Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
-			}
-			if !inherit {
-				service.Env = wantEnv
+				Env:   wantEnv,
 			}
 			request.Spec = &deploymentv1.DeploymentSpec{
 				Spec: &deploymentv1.DeploymentSpec_Service{Service: service},
@@ -143,8 +141,8 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := deployment.GetSpec().GetService().GetEnv(); len(got) != 0 {
-				t.Errorf("deployment spec env=%v", got)
+			if got := deployment.GetSpec().GetService().GetEnv(); !maps.Equal(got, wantEnv) {
+				t.Errorf("deployment spec env=%v, want %v", got, wantEnv)
 			}
 			status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
 			status.ImageDigest = testImageDigest
@@ -177,8 +175,8 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 				t.Fatal(err)
 			}
 			got := desiredPayload(t, f.deployFixture).AppSpec.ServiceSpec.Deployment.Env
-			if !maps.Equal(got, latest.GetEnv()) {
-				t.Errorf("rollback env=%v, want %v", got, latest.GetEnv())
+			if !maps.Equal(got, wantEnv) {
+				t.Errorf("rollback env=%v, want %v", got, wantEnv)
 			}
 		})
 	}
@@ -527,13 +525,11 @@ func TestScaleDuringABuildKeepsTheBuildingDeploymentsEnv(t *testing.T) {
 			building.GetDeploymentId(),
 		)
 	}
-	env, err := liveEnv(f.ctx, f.queries, liveDeployments([]genDb.ListLiveDeploymentsForResourceRow{
-		genDb.ListLiveDeploymentsForResourceRow(live),
-	})[0])
+	scaled, err := converter.DeserializeDeploymentSpec(live.Deployment.Spec, genDb.ResourceTypeService)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if env[buildModeKey] != "building" {
+	if env := scaled.GetService().GetEnv(); env[buildModeKey] != "building" {
 		t.Fatalf("scaled env = %v, want the building deployment's", env)
 	}
 }

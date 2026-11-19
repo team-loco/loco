@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -22,6 +24,7 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	service := platform.ImageService(p.PublicImage, host)
 	service.RollbackOnFailure = new(true)
 	service.Health = nil
+	service.Env = map[string]string{rollbackModeKey: "previous"}
 	target := platform.OneReplica()
 	target.Replicas = &locofile.Replicas{Min: new(int32(2)), Max: new(int32(2))}
 	service.Regions = map[string]locofile.Region{p.Region: target}
@@ -63,7 +66,9 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		return nil
 	})
 	shortenFailureDeadline(t, w, resourceID)
-	file.Services[app] = withImage(file.Services[app], p.CrashingImage)
+	crashing := withImage(file.Services[app], p.CrashingImage)
+	crashing.Env = map[string]string{rollbackModeKey: "crashing"}
+	file.Services[app] = crashing
 	platform.WriteLocoFile(t, dir, file)
 	result := w.Loco(t.Context(), dir, nil, "deploy", "--yes", "--wait")
 	if result.Err == nil {
@@ -102,6 +107,11 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 		return nil
 	})
 	requireServingReplicas(t, getDeployment(t, restoredID), restoredID, 2)
+	var workload appsv1.Deployment
+	p.MustGet(t, &workload, "-n", w.Namespace, "deployment", locov1alpha1.WorkloadName(resourceID))
+	if got := workloadEnv(workload, rollbackModeKey); got != "previous" {
+		t.Fatalf("%s=%q after the rollback, want the previous deployment's %q", rollbackModeKey, got, "previous")
+	}
 	logs, err := p.Kubectl(t.Context(), "-n", p.Namespace, "logs", poller)
 	if err != nil {
 		t.Fatal(err)
@@ -115,6 +125,17 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	).GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("failed deployment became %s", got)
 	}
+}
+
+const rollbackModeKey = "ROLLBACK_MODE"
+
+func workloadEnv(deployment appsv1.Deployment, name string) string {
+	for _, variable := range deployment.Spec.Template.Spec.Containers[0].Env {
+		if variable.Name == name {
+			return variable.Value
+		}
+	}
+	return ""
 }
 
 // 90s leaves the failing revision time to restart and take traffic before the rollout stalls.

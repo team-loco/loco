@@ -164,7 +164,7 @@ WHERE resource_id = $1 AND secret_names = '{"DATABASE_URL","SESSION_KEY"}'`
 	}
 }
 
-func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
+func TestRedeployAndRollbackKeepTheCurrentSecretBindings(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
@@ -207,8 +207,8 @@ WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource
 		if _, err := createDeploymentWith(t, f, sameRegionSpec, service); err != nil {
 			t.Fatal(err)
 		}
-		if env := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(env, latest) {
-			t.Fatalf("environment = %v, want current values %v", env, latest)
+		if env := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(env, service.GetEnv()) {
+			t.Fatalf("environment = %v, want the deployment's %v", env, service.GetEnv())
 		}
 		if names := f.placement(t, f.clusterID).SecretNames; !slices.Equal(names, testSecretNames) {
 			t.Fatalf("secret names = %v, want %v", names, testSecretNames)
@@ -223,35 +223,6 @@ WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource
 			string(secret.GetData()["SESSION_KEY"]) != sessionKeyValue {
 			t.Fatal("redeploy did not deliver both secret values")
 		}
-	}
-}
-
-func TestRedeployReadsEnvironmentFromThePreviousCluster(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	original := imageService()
-	original.Env = map[string]string{"MOVED_CLUSTER_ENV": "keep-across-cluster-move"}
-	if _, err := createDeploymentWith(t, f, sameRegionSpec, original); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.pool.Exec(
-		t.Context(),
-		`UPDATE clusters SET is_active = false WHERE id = $1`,
-		f.clusterID,
-	); err != nil {
-		t.Fatal(err)
-	}
-	f.finishRollouts(t)
-	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
-		t.Fatal(err)
-	}
-	old := f.placement(t, f.clusterID)
-	if !old.DesiredDeleted {
-		t.Fatal("previous cluster placement was not removed")
-	}
-	f.clusterID = f.otherCluster
-	if got := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, original.GetEnv()) {
-		t.Fatalf("replacement cluster environment = %v, want %v", got, original.GetEnv())
 	}
 }
 

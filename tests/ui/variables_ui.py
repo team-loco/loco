@@ -85,13 +85,13 @@ call(
 
 def deliver(env, secret_names):
     """Stores what the active deployment runs with, as an agent-free CreateDeployment would."""
-    desired = json.dumps({"app_spec": {"serviceSpec": {"deployment": {"env": env}}}})
     names = "{" + ",".join(secret_names) + "}"
     return sql(
         state,
         f"""BEGIN;
-UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';
-UPDATE deployments SET secret_names='{names}' WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;
+UPDATE placements SET secret_names='{names}' WHERE resource_id='{resource}';
+UPDATE deployments SET secret_names='{names}', spec=jsonb_set(spec, '{{env}}', {evidence.sql_literal(json.dumps(env))}::jsonb)
+WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;
 COMMIT;""",
     )
 

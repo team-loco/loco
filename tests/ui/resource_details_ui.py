@@ -71,6 +71,7 @@ runtime = {
     "observability": {"injectOtel": True},
     "build": {"type": "image", "image": image},
     "port": 8080,
+    "env": {"MODE": "production", "API_BASE_URL": "https://api.example.test"},
     "regions": {
         "us-east-1": {
             "cpu": "500m",
@@ -111,24 +112,6 @@ COMMIT;""",
 sql(
     state,
     f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE id='{deployment}';",
-)
-desired = json.dumps(
-    {
-        "app_spec": {
-            "serviceSpec": {
-                "deployment": {
-                    "env": {
-                        "MODE": "production",
-                        "API_BASE_URL": "https://api.example.test",
-                    }
-                }
-            }
-        }
-    }
-)
-sql(
-    state,
-    f"UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';",
 )
 call(
     state,

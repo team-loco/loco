@@ -110,6 +110,7 @@ message ObservabilityConfig {
 message ServiceDeploymentSpec {
   BuildSource build = 1 [(buf.validate.field).required = true];
   optional HealthCheckConfig health_check = 2;
+  // The plain environment variables the deployment runs with, exactly; empty sets none.
   map<string, string> env = 8;
   // port is the port the service listens on; without it the service is a worker.
   optional int32 port = 9 [(buf.validate.field).int32 = {
@@ -226,6 +227,8 @@ message Deployment {
   string source_deployment_id = 28;
   // Who canceled the deployment; empty unless a user or token canceled it.
   string canceled_by_name = 29;
+  // The stored secrets the deployment reads, sorted by name.
+  repeated string secret_names = 30;
 }
 
 // DeploymentPlacement is one region of a deployment.

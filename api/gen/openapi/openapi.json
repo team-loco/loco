@@ -10576,6 +10576,14 @@
             "type": "string",
             "title": "canceled_by_name",
             "description": "Who canceled the deployment; empty unless a user or token canceled it."
+          },
+          "secretNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "secret_names",
+            "description": "The stored secrets the deployment reads, sorted by name."
           }
         },
         "title": "Deployment",
@@ -11190,7 +11198,8 @@
             "additionalProperties": {
               "type": "string",
               "title": "value"
-            }
+            },
+            "description": "The plain environment variables the deployment runs with, exactly; empty sets none."
           },
           "port": {
             "type": [

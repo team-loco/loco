@@ -12,44 +12,31 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-// deploymentBindings returns the plain env and the secret names a deployment to regions runs
-// with: what the request sets, else what the deployment live in the first of those regions
-// runs with.
-func (s *DeploymentServer) deploymentBindings(
+// deploymentSecretNames returns the secret names a deployment to regions binds: what the
+// request sets, else what the deployment live in the first of those regions binds.
+func (s *DeploymentServer) deploymentSecretNames(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	resourceID, environmentID uuid.UUID,
 	regions []string,
 	bindings *deploymentv1.DeploymentSecretBindings,
-	requestedEnv map[string]string,
-) (map[string]string, []string, error) {
-	secretNames := []string{}
+) ([]string, error) {
 	if bindings != nil {
-		secretNames = append(secretNames, bindings.GetNames()...)
+		secretNames := append([]string{}, bindings.GetNames()...)
 		if err := s.validateSecretBindings(ctx, qtx, resourceID, environmentID, secretNames); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
+		return secretNames, nil
 	}
 	live, err := listLiveDeploymentsForEnvironment(ctx, qtx, resourceID, environmentID)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	index := slices.IndexFunc(live, func(d liveDeployment) bool { return slices.Contains(regions, d.Region) })
 	if index < 0 {
-		return requestedEnv, secretNames, nil
+		return []string{}, nil
 	}
-	current := live[index]
-	if bindings == nil {
-		secretNames = current.SecretNames
-	}
-	if len(requestedEnv) > 0 {
-		return requestedEnv, secretNames, nil
-	}
-	plain, err := liveEnv(ctx, qtx, current)
-	if err != nil {
-		return nil, nil, err
-	}
-	return plain, secretNames, nil
+	return live[index].SecretNames, nil
 }
 
 func (s *DeploymentServer) validateSecretBindings(

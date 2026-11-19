@@ -124,15 +124,6 @@ func createDeployment(
 	}
 
 	if placementStatus == genDb.PlacementStatusPending {
-		env, marshalErr := json.Marshal(d.service.GetEnv())
-		if marshalErr != nil {
-			return uuid.Nil, fmt.Errorf("encode building deployment environment: %w", marshalErr)
-		}
-		if envErr := qtx.SetBuildingDeploymentEnv(ctx, genDb.SetBuildingDeploymentEnvParams{
-			ID: deploymentID, Env: env,
-		}); envErr != nil {
-			return uuid.Nil, fmt.Errorf("store building deployment environment: %w", envErr)
-		}
 		if activityErr := writeDeploymentActivity(
 			ctx,
 			qtx,
