@@ -454,7 +454,11 @@ type ServiceDeploymentSpec struct {
 	// Overrides the service's current rollback setting; omitted inherits it, off by default.
 	RollbackOnFailure *bool `protobuf:"varint,14,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
 	// The API assigns the installation target when recording this immutable snapshot.
-	Platform      string `protobuf:"bytes,15,opt,name=platform,proto3" json:"platform,omitempty"`
+	Platform string `protobuf:"bytes,15,opt,name=platform,proto3" json:"platform,omitempty"`
+	// command replaces the image entrypoint; without it the image's ENTRYPOINT runs.
+	Command []string `protobuf:"bytes,16,rep,name=command,proto3" json:"command,omitempty"`
+	// args replaces the image CMD; without it the image's CMD is passed to the entrypoint.
+	Args          []string `protobuf:"bytes,17,rep,name=args,proto3" json:"args,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -592,6 +596,20 @@ func (x *ServiceDeploymentSpec) GetPlatform() string {
 		return x.Platform
 	}
 	return ""
+}
+
+func (x *ServiceDeploymentSpec) GetCommand() []string {
+	if x != nil {
+		return x.Command
+	}
+	return nil
+}
+
+func (x *ServiceDeploymentSpec) GetArgs() []string {
+	if x != nil {
+		return x.Args
+	}
+	return nil
 }
 
 // ServiceRouting is the HTTP routing of one environment's deployment of a service.
@@ -2105,8 +2123,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x13ObservabilityConfig\x12$\n" +
 	"\vinject_otel\x18\x01 \x01(\bH\x00R\n" +
 	"injectOtel\x88\x01\x01B\x0e\n" +
-	"\f_inject_otel\"\xde\n" +
-	"\n" +
+	"\f_inject_otel\"\xa6\v\n" +
 	"\x15ServiceDeploymentSpec\x12=\n" +
 	"\x05build\x18\x01 \x01(\v2\x1f.loco.deployment.v1.BuildSourceB\x06\xbaH\x03\xc8\x01\x01R\x05build\x12M\n" +
 	"\fhealth_check\x18\x02 \x01(\v2%.loco.deployment.v1.HealthCheckConfigH\x00R\vhealthCheck\x88\x01\x01\x12\x1e\n" +
@@ -2127,7 +2144,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\robservability\x18\r \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x123\n" +
 	"\x13rollback_on_failure\x18\x0e \x01(\bH\n" +
 	"R\x11rollbackOnFailure\x88\x01\x01\x12\x1a\n" +
-	"\bplatform\x18\x0f \x01(\tR\bplatform\x1a6\n" +
+	"\bplatform\x18\x0f \x01(\tR\bplatform\x12(\n" +
+	"\acommand\x18\x10 \x03(\tB\x0e\xbaH\v\x92\x01\b\x10d\"\x04r\x02\x10\x01R\acommand\x12\x1c\n" +
+	"\x04args\x18\x11 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10dR\x04args\x1a6\n" +
 	"\bEnvEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01:\xc1\x02\xbaH\xbd\x02\x1a\x9a\x01\n" +

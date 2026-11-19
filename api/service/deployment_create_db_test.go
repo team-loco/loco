@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -376,5 +378,54 @@ func TestCreateDeploymentWithoutAPortRunsAWorker(t *testing.T) {
 	checked := &deploymentv1.ServiceDeploymentSpec{Build: build, HealthCheck: workerHealthCheck()}
 	f.finishRollouts(t)
 	_, err := createDeploymentWith(t, f, workerRegionSpec, checked)
+	wantCode(t, err, connect.CodeInvalidArgument)
+}
+
+func TestCreateDeploymentCarriesCommandAndArgs(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	seedDeployment(t, f, sameRegionSpec)
+	for _, tc := range []struct {
+		name          string
+		command, args []string
+	}{
+		{name: "command and args", command: []string{"/http-echo"}, args: []string{"-listen=:8080", "-text=hello world"}},
+		{name: "args only", args: []string{"-text=bye"}},
+		{name: "image defaults"},
+	} {
+		f.finishRollouts(t)
+		service := imageService()
+		service.Command = tc.command
+		service.Args = tc.args
+		created, err := deployService(t, f, service)
+		if err != nil {
+			t.Fatalf("%s: create deployment: %v", tc.name, err)
+		}
+		stored, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(created.GetDeploymentId()))
+		if err != nil {
+			t.Fatalf("%s: get deployment: %v", tc.name, err)
+		}
+		spec, err := converter.DeserializeDeploymentSpec(stored.Spec, genDb.ResourceTypeService)
+		if err != nil {
+			t.Fatalf("%s: decode spec: %v", tc.name, err)
+		}
+		snapshot := spec.GetService()
+		if !slices.Equal(snapshot.GetCommand(), tc.command) || !slices.Equal(snapshot.GetArgs(), tc.args) {
+			t.Errorf("%s: snapshot command %q args %q", tc.name, snapshot.GetCommand(), snapshot.GetArgs())
+		}
+		deployment := desiredPayload(t, f).AppSpec.ServiceSpec.Deployment
+		if !slices.Equal(deployment.Command, tc.command) || !slices.Equal(deployment.Args, tc.args) {
+			t.Errorf("%s: placement command %q args %q", tc.name, deployment.Command, deployment.Args)
+		}
+	}
+}
+
+func TestCreateDeploymentRejectsAnEmptyCommandEntry(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	seedDeployment(t, f, sameRegionSpec)
+	service := imageService()
+	service.Command = []string{"/bin/sh", ""}
+	_, err := deployService(t, f, service)
 	wantCode(t, err, connect.CodeInvalidArgument)
 }

@@ -205,3 +205,35 @@ func TestValidatePortRange(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceDeploymentSpecValidatesCommand(t *testing.T) {
+	tooMany := make([]string, maxCommandItems+1)
+	for i := range tooMany {
+		tooMany[i] = "-v"
+	}
+	cases := map[string]struct {
+		command, args []string
+		valid         bool
+	}{
+		"image defaults":        {valid: true},
+		"args only":             {args: []string{"-text=hello", ""}, valid: true},
+		"command and args":      {command: []string{"/http-echo"}, args: []string{"-listen=:8080"}, valid: true},
+		"empty command entry":   {command: []string{"/bin/sh", ""}},
+		"too many command":      {command: tooMany},
+		"too many args":         {args: tooMany},
+		"most entries accepted": {command: tooMany[1:], args: tooMany[1:], valid: true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			spec := ServiceDeploymentSpec{
+				Platform: testPlatform,
+				Image:    "hashicorp/http-echo:1.0",
+				Command:  tc.command,
+				Args:     tc.args,
+			}
+			if err := validateServiceDeploymentSpec(&spec); (err == nil) != tc.valid {
+				t.Errorf("validate = %v, want valid %v", err, tc.valid)
+			}
+		})
+	}
+}

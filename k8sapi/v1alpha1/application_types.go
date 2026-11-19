@@ -134,6 +134,16 @@ type ServiceDeploymentSpec struct {
 	// +kubebuilder:validation:Maximum=2147483647
 	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
 
+	// Command replaces the image ENTRYPOINT. Without it the image's ENTRYPOINT runs.
+	// +optional
+	// +kubebuilder:validation:MaxItems=100
+	// +kubebuilder:validation:items:MinLength=1
+	Command []string `json:"command,omitempty"`
+	// Args replaces the image CMD. Without it the image's CMD is passed to the entrypoint.
+	// +optional
+	// +kubebuilder:validation:MaxItems=100
+	Args []string `json:"args,omitempty"`
+
 	HealthCheck  *HealthCheckSpec  `json:"healthCheck,omitempty"`
 	Env          map[string]string `json:"env,omitempty"`
 	EnvSecretRef *EnvSecretRef     `json:"envSecretRef,omitempty"`

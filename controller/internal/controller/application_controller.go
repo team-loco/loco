@@ -675,6 +675,8 @@ func podTemplate(
 	container := corev1ac.Container().
 		WithName(name).
 		WithImage(spec.Deployment.Image).
+		WithCommand(spec.Deployment.Command...).
+		WithArgs(spec.Deployment.Args...).
 		WithEnv(envVars...).
 		WithResources(resources).
 		WithSecurityContext(containerSecurity)

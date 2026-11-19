@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -20,6 +21,7 @@ var (
 	errDeploymentMissing      = errors.New("serviceSpec.deployment must be set")
 	ErrRuntimeID              = errors.New("runtime user and group IDs must be between 1 and 2147483647")
 	errImageMissing           = errors.New("image must be set")
+	errCommandEntryEmpty      = errors.New("command entries must not be empty")
 	errHealthPathMissing      = errors.New("healthCheck.path must be set")
 	errHealthPathNoSlash      = errors.New("healthCheck.path must start with '/'")
 	errHostnameMissing        = errors.New("routing.hostname must be set")
@@ -52,6 +54,7 @@ const (
 	minServicePort         = 1
 	maxServicePort         = 65535
 	maxEnvVars             = 100
+	maxCommandItems        = 100
 	maxStartupGracePeriod  = 180
 	minHealthInterval      = 5
 	minHealthTimeout       = 1
@@ -147,6 +150,13 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 		return err
 	}
 
+	if err := ValidateCommand(spec.Command); err != nil {
+		return err
+	}
+	if err := ValidateArgs(spec.Args); err != nil {
+		return err
+	}
+
 	if spec.Port != nil {
 		if err := ValidatePort(*spec.Port); err != nil {
 			return err
@@ -176,6 +186,25 @@ func validateServiceDeploymentSpec(spec *ServiceDeploymentSpec) error {
 func ValidatePort(port int32) error {
 	if port < minServicePort || port > maxServicePort {
 		return fmt.Errorf("port must be between %d and %d, got %d", minServicePort, maxServicePort, port)
+	}
+	return nil
+}
+
+// ValidateCommand checks the command that replaces the image ENTRYPOINT.
+func ValidateCommand(command []string) error {
+	if len(command) > maxCommandItems {
+		return fmt.Errorf("command has %d entries (max %d)", len(command), maxCommandItems)
+	}
+	if slices.Contains(command, "") {
+		return errCommandEntryEmpty
+	}
+	return nil
+}
+
+// ValidateArgs checks the args that replace the image CMD.
+func ValidateArgs(args []string) error {
+	if len(args) > maxCommandItems {
+		return fmt.Errorf("args has %d entries (max %d)", len(args), maxCommandItems)
 	}
 	return nil
 }

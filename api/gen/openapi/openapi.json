@@ -10949,6 +10949,25 @@
             "type": "string",
             "title": "platform",
             "description": "The API assigns the installation target when recording this immutable snapshot."
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": "command",
+            "maxItems": 100,
+            "description": "command replaces the image entrypoint; without it the image's ENTRYPOINT runs."
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "args",
+            "maxItems": 100,
+            "description": "args replaces the image CMD; without it the image's CMD is passed to the entrypoint."
           }
         },
         "title": "ServiceDeploymentSpec",

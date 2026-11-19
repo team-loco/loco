@@ -111,6 +111,15 @@ message ServiceDeploymentSpec {
   optional bool rollback_on_failure = 14;
   // The API assigns the installation target when recording this immutable snapshot.
   string platform = 15;
+  // command replaces the image entrypoint; without it the image's ENTRYPOINT runs.
+  repeated string command = 16 [(buf.validate.field).repeated = {
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+  // args replaces the image CMD; without it the image's CMD is passed to the entrypoint.
+  repeated string args = 17 [(buf.validate.field).repeated.max_items = 100];
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"

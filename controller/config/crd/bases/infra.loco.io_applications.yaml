@@ -62,6 +62,21 @@ spec:
                   deployment:
                     description: Deployment info (current or requested)
                     properties:
+                      args:
+                        description: Args replaces the image CMD. Without it the image's
+                          CMD is passed to the entrypoint.
+                        items:
+                          type: string
+                        maxItems: 100
+                        type: array
+                      command:
+                        description: Command replaces the image ENTRYPOINT. Without
+                          it the image's ENTRYPOINT runs.
+                        items:
+                          minLength: 1
+                          type: string
+                        maxItems: 100
+                        type: array
                       env:
                         additionalProperties:
                           type: string
