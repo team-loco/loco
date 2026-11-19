@@ -4,9 +4,9 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
-import { startTransition, useState, type MouseEvent } from "react";
+import { startTransition, useEffect, useState, type MouseEvent } from "react";
 import { useQueryStates } from "nuqs";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import { useAuth } from "@/auth/AuthProvider";
 
@@ -79,6 +79,11 @@ export function Settings() {
 	);
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
 	const scope = requested === "org" && !canReadOrg ? "workspace" : requested;
+	const [search] = useSearchParams();
+	const scopeShown = search.get("scope") === scope;
+	useEffect(() => {
+		if (!scopeShown && !scopes.isLoading) void setParams({ scope }, { history: "replace", clearOnDefault: false });
+	}, [scopeShown, scopes.isLoading, scope, setParams]);
 
 	const wsDraft = drafts.workspace?.id === workspaceId ? drafts.workspace : null;
 	const orgDraft = drafts.org?.id === orgId ? drafts.org : null;
@@ -93,7 +98,7 @@ export function Settings() {
 	// A transition keeps the current scope on screen while the Personal scope's theme stylesheets load.
 	const selectScope = (next: SettingsScope) => {
 		startTransition(() => {
-			void setParams({ scope: next, q: null, page: null, size: null });
+			void setParams({ scope: next, q: null, page: null, size: null }, { clearOnDefault: false });
 		});
 	};
 
