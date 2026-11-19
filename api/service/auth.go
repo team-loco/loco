@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/events"
@@ -86,9 +87,12 @@ type cliGrant struct {
 }
 
 type deviceGrant struct {
-	UserCode  string     `json:"userCode"`
-	UserID    *uuid.UUID `json:"userId,omitempty"`
-	ExpiresAt time.Time  `json:"expiresAt"`
+	UserCode    string     `json:"userCode"`
+	UserAgent   string     `json:"userAgent"`
+	IPAddress   string     `json:"ipAddress"`
+	RequestedAt time.Time  `json:"requestedAt"`
+	UserID      *uuid.UUID `json:"userId,omitempty"`
+	ExpiresAt   time.Time  `json:"expiresAt"`
 }
 
 func deviceKey(deviceDigest string) string {
@@ -290,13 +294,23 @@ func (s *AuthServer) StartDeviceLogin(
 	ctx context.Context,
 	_ *authv1.StartDeviceLoginRequest,
 ) (*authv1.StartDeviceLoginResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
 	deviceCode := bearer.New("")
 	userCode, err := randomUserCode()
 	if err != nil {
 		return nil, fmt.Errorf("generate user code: %w", err)
 	}
-	expiresAt := s.now().Add(deviceCodeTTL)
-	payload, err := json.Marshal(deviceGrant{UserCode: userCode, ExpiresAt: expiresAt})
+	requestedAt := s.now()
+	grant := deviceGrant{
+		UserCode:    userCode,
+		UserAgent:   info.RequestHeader().Get("User-Agent"),
+		RequestedAt: requestedAt,
+		ExpiresAt:   requestedAt.Add(deviceCodeTTL),
+	}
+	if addr := clientAddress(info, s.web.TrustedProxyHops); addr.IsValid() {
+		grant.IPAddress = addr.String()
+	}
+	payload, err := json.Marshal(grant)
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
@@ -318,6 +332,40 @@ func (s *AuthServer) StartDeviceLogin(
 		VerificationUriComplete: s.webURL + "/cli/device?code=" + display,
 		ExpiresIn:               int64(deviceCodeTTL.Seconds()),
 		Interval:                int64(devicePollInterval.Seconds()),
+	}, nil
+}
+
+func (s *AuthServer) GetDeviceLogin(
+	ctx context.Context,
+	req *authv1.GetDeviceLoginRequest,
+) (*authv1.GetDeviceLoginResponse, error) {
+	if _, err := webGrant(ctx); err != nil {
+		return nil, err
+	}
+	userCode := normalizeUserCode(req.GetUserCode())
+	if len(userCode) != userCodeLength {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	deviceDigest, err := s.cache.Get(ctx, "cli:user-code:"+userCode)
+	if errors.Is(err, cache.ErrNotFound) {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	if err != nil {
+		return nil, authStoreUnavailable(err)
+	}
+	raw, err := s.cache.Get(ctx, deviceKey(string(deviceDigest)))
+	if err != nil {
+		return nil, rpcerr.New(connect.CodeNotFound, ErrUserCodeInvalid)
+	}
+	var device deviceGrant
+	if decodeErr := json.Unmarshal(raw, &device); decodeErr != nil {
+		return nil, fmt.Errorf("decode device grant: %w", decodeErr)
+	}
+	return &authv1.GetDeviceLoginResponse{
+		UserAgent:   device.UserAgent,
+		IpAddress:   device.IPAddress,
+		RequestedAt: timestamppb.New(device.RequestedAt),
+		ExpiresAt:   timestamppb.New(device.ExpiresAt),
 	}, nil
 }
 

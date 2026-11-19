@@ -25,6 +25,7 @@ func Command() *cobra.Command {
 			}
 			return login.Run(cmd.Context(), login.Options{
 				Command: "locoadm login",
+				Version: cmd.Root().Version,
 				APIHost: api,
 				WebHost: web,
 				Device:  device,

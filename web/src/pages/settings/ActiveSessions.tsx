@@ -14,30 +14,9 @@ import { getErrorMessage } from "@/lib/error-handler";
 import { formatHourMinute, formatMonthDayYear, maybeTsMs, type TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
+import { LogoutConfirm } from "./LogoutConfirm";
 import { SettingsCard } from "./parts";
-
-const browsers = [
-	[/Edg(?:A|iOS)?\//, "Edge"],
-	[/(?:Firefox|FxiOS)\//, "Firefox"],
-	[/(?:Chrome|CriOS)\//, "Chrome"],
-	[/Safari\//, "Safari"],
-] as const;
-const devices = [
-	[/iPhone/, "iPhone"],
-	[/iPad/, "iPad"],
-	[/Android/, "Android"],
-	[/Windows/, "Windows"],
-	[/Macintosh/, "macOS"],
-	[/Linux/, "Linux"],
-] as const;
-
-function sessionLabel(session: Session): string {
-	if (session.kind === SessionKind.CLI) return "Loco CLI";
-
-	const browser = browsers.find(([pattern]) => pattern.test(session.userAgent))?.[1] ?? "Dashboard";
-	const device = devices.find(([pattern]) => pattern.test(session.userAgent))?.[1];
-	return device === undefined ? browser : `${browser} on ${device}`;
-}
+import { describeSession } from "./sessions";
 
 function SessionDate({ value, label, pref }: { value: Session["lastUsedAt"]; label: string; pref: TimePreferences }) {
 	const ms = maybeTsMs(value);
@@ -52,6 +31,11 @@ function SessionDate({ value, label, pref }: { value: Session["lastUsedAt"]; lab
 	);
 }
 
+function revokeDescription(session: Session): string {
+	const { label, ipAddress } = describeSession(session);
+	return `${label}${ipAddress === "" ? "" : ` (${ipAddress})`} will need to sign in again to access your account.`;
+}
+
 export function ActiveSessions() {
 	const pref = useTimePreferences();
 	const transport = useTransport();
@@ -62,6 +46,7 @@ export function ActiveSessions() {
 		meta: { persist: false },
 	});
 	const [selected, setSelected] = useState<Session | null>(null);
+	const [signingOut, setSigningOut] = useState(false);
 	const revoke = useMutation(revokeSession, {
 		async onSuccess(_, { sessionId }) {
 			await queryClient.cancelQueries({ queryKey: options.queryKey, exact: true });
@@ -102,7 +87,7 @@ export function ActiveSessions() {
 			) : (
 				<ul aria-labelledby="active-sessions-title" className="divide-y divide-line">
 					{rows.map((session) => {
-						const label = sessionLabel(session);
+						const { label, detail, ipAddress } = describeSession(session);
 						const Icon = session.kind === SessionKind.CLI ? TerminalIcon : MonitorIcon;
 						return (
 							<li key={session.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3.5">
@@ -116,24 +101,29 @@ export function ActiveSessions() {
 											</Badge>
 										)}
 									</div>
+									{(detail !== "" || ipAddress !== "") && (
+										<span className="text-[12.5px] text-fg3">{[detail, ipAddress].filter(Boolean).join(" · ")}</span>
+									)}
 									<div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-fg3">
 										<SessionDate value={session.lastUsedAt} label="Last active" pref={pref} />
 										<SessionDate value={session.createdAt} label="Signed in" pref={pref} />
 									</div>
 								</div>
-								{!session.current && (
-									<Button
-										variant="outline"
-										size="sm"
-										aria-label={`Sign out ${label} session`}
-										onClick={() => {
-											revoke.reset();
-											setSelected(session);
-										}}
-									>
-										Sign out
-									</Button>
-								)}
+								<Button
+									variant="outline"
+									size="sm"
+									aria-label={`Sign out ${session.current ? "this browser" : `${label} session`}`}
+									onClick={() => {
+										if (session.current) {
+											setSigningOut(true);
+											return;
+										}
+										revoke.reset();
+										setSelected(session);
+									}}
+								>
+									Sign out
+								</Button>
 							</li>
 						);
 					})}
@@ -142,9 +132,7 @@ export function ActiveSessions() {
 			<ConfirmDialog
 				open={selected !== null}
 				title="Sign out this session?"
-				description={
-					selected === null ? null : `${sessionLabel(selected)} will need to sign in again to access your account.`
-				}
+				description={selected === null ? null : revokeDescription(selected)}
 				confirmLabel="Sign out"
 				pendingLabel="Signing out…"
 				pending={revoke.isPending}
@@ -161,6 +149,12 @@ export function ActiveSessions() {
 					</p>
 				)}
 			</ConfirmDialog>
+			<LogoutConfirm
+				open={signingOut}
+				onClose={() => {
+					setSigningOut(false);
+				}}
+			/>
 		</SettingsCard>
 	);
 }

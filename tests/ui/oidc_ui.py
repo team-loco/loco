@@ -113,6 +113,9 @@ def check_browser(browser, state, issuer_url):
     current = cookies(context, state)[evidence.SESSION_COOKIE]["value"]
     page.goto(state["ui_url"] + "/profile")
     page.get_by_role("button", name="Log out", exact=True).click()
+    page.get_by_role("alertdialog", name="Log out?", exact=True).get_by_role(
+        "button", name="Log out", exact=True
+    ).click()
     expect(page).to_have_url(state["ui_url"] + "/")
     expect(
         page.get_by_role("button", name="Onboard your agent to Loco")

@@ -93,6 +93,21 @@ func NewClients(connectClient *connect.Client) *Clients {
 		Observability: observabilityv1connect.NewObservabilityServiceClient(connectClient),
 	}
 }
+
+// UserAgentInterceptor sets the User-Agent header of every request.
+func UserAgentInterceptor(agent string) connect.ClientInterceptor {
+	return func(next connect.ClientFunc) connect.ClientFunc {
+		return func(ctx context.Context, spec connect.Spec) (connect.ClientStream, error) {
+			info, ok := connect.CallInfoForClientContext(ctx)
+			if !ok {
+				ctx, info = connect.NewClientContext(ctx)
+			}
+			info.RequestHeader().Set("User-Agent", agent)
+			return next(ctx, spec)
+		}
+	}
+}
+
 func BearerInterceptor(token string) connect.ClientInterceptor {
 	return func(next connect.ClientFunc) connect.ClientFunc {
 		return func(ctx context.Context, spec connect.Spec) (connect.ClientStream, error) {

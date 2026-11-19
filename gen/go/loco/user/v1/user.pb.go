@@ -1265,13 +1265,15 @@ func (x *GetAccountDeletionImpactResponse) GetHasMoreBlockingOrganizations() boo
 
 // Session is a sign-in that can still be refreshed.
 type Session struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind          SessionKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=loco.user.v1.SessionKind" json:"kind,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	LastUsedAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
-	UserAgent     string                 `protobuf:"bytes,5,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	Current       bool                   `protobuf:"varint,6,opt,name=current,proto3" json:"current,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind       SessionKind            `protobuf:"varint,2,opt,name=kind,proto3,enum=loco.user.v1.SessionKind" json:"kind,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
+	UserAgent  string                 `protobuf:"bytes,5,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
+	Current    bool                   `protobuf:"varint,6,opt,name=current,proto3" json:"current,omitempty"`
+	// The address that signed in; empty when unknown.
+	IpAddress     string `protobuf:"bytes,7,opt,name=ip_address,json=ipAddress,proto3" json:"ip_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1346,6 +1348,13 @@ func (x *Session) GetCurrent() bool {
 		return x.Current
 	}
 	return false
+}
+
+func (x *Session) GetIpAddress() string {
+	if x != nil {
+		return x.IpAddress
+	}
+	return ""
 }
 
 type ListSessionsRequest struct {
@@ -1593,7 +1602,7 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"\fowned_tokens\x18\x02 \x03(\v2\".loco.user.v1.AccountDeletionTokenR\vownedTokens\x12&\n" +
 	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken\x12A\n" +
 	"\x1dhas_inaccessible_owned_tokens\x18\x04 \x01(\bR\x1ahasInaccessibleOwnedTokens\x12E\n" +
-	"\x1fhas_more_blocking_organizations\x18\x05 \x01(\bR\x1chasMoreBlockingOrganizations\"\xfa\x01\n" +
+	"\x1fhas_more_blocking_organizations\x18\x05 \x01(\bR\x1chasMoreBlockingOrganizations\"\x99\x02\n" +
 	"\aSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12-\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x19.loco.user.v1.SessionKindR\x04kind\x129\n" +
@@ -1603,7 +1612,9 @@ const file_loco_user_v1_user_proto_rawDesc = "" +
 	"lastUsedAt\x12\x1d\n" +
 	"\n" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12\x18\n" +
-	"\acurrent\x18\x06 \x01(\bR\acurrent\"\x15\n" +
+	"\acurrent\x18\x06 \x01(\bR\acurrent\x12\x1d\n" +
+	"\n" +
+	"ip_address\x18\a \x01(\tR\tipAddress\"\x15\n" +
 	"\x13ListSessionsRequest\"I\n" +
 	"\x14ListSessionsResponse\x121\n" +
 	"\bsessions\x18\x01 \x03(\v2\x15.loco.user.v1.SessionR\bsessions\"?\n" +

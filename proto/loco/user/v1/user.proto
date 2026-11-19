@@ -194,6 +194,8 @@ message Session {
   google.protobuf.Timestamp last_used_at = 4;
   string user_agent = 5;
   bool current = 6;
+  // The address that signed in; empty when unknown.
+  string ip_address = 7;
 }
 
 message ListSessionsRequest {}
