@@ -37,6 +37,7 @@ def file_log_pipeline(relays):
 
 
 def write_pod_log(directory, namespace, lines, pod="app", container="app"):
+    """Write lines to a container log file; a (stream, line) pair sets the line's stream, which is stdout otherwise."""
     path = (
         directory
         / "pods"
@@ -45,7 +46,10 @@ def write_pod_log(directory, namespace, lines, pod="app", container="app"):
         / "0.log"
     )
     path.parent.mkdir(parents=True)
-    path.write_text("".join(f"{TIMESTAMP} stdout F {line}\n" for line in lines))
+    entries = (line if isinstance(line, tuple) else ("stdout", line) for line in lines)
+    path.write_text(
+        "".join(f"{TIMESTAMP} {stream} F {line}\n" for stream, line in entries)
+    )
 
 
 def collected_records(collector, count):
@@ -63,6 +67,14 @@ def collected_records(collector, count):
 
 def body(record):
     return record["body"]["stringValue"]
+
+
+def stream(record):
+    return next(
+        attribute["value"]["stringValue"]
+        for attribute in record["attributes"]
+        if attribute["key"] == "log.iostream"
+    )
 
 
 def test_platform_namespace_logs_stay_on_the_node(worker_relays, tmp_path):
@@ -146,3 +158,26 @@ def test_multiline_entries_arrive_as_one_record(worker_relays, tmp_path):
     assert [
         (body(record), record.get("severityText", "")) for record in records
     ] == expected
+
+
+def test_multiline_entries_join_only_lines_of_their_stream(worker_relays, tmp_path):
+    lines = [
+        ("stderr", GO_PANIC[0]),
+        ("stderr", GO_PANIC[1]),
+        ("stdout", "GET /health 200"),
+        *(("stderr", line) for line in GO_PANIC[2:]),
+        ("stdout", "GET /ready 200"),
+    ]
+    write_pod_log(tmp_path, "loco-ws-a", lines)
+    with run_collector(
+        tmp_path, file_log_pipeline(worker_relays), "otel-col-daemon"
+    ) as collector:
+        records = collected_records(collector, 3)
+    assert sorted(
+        (stream(record), body(record), record.get("severityText", ""))
+        for record in records
+    ) == [
+        ("stderr", "\n".join(GO_PANIC), "FATAL"),
+        ("stdout", "GET /health 200", ""),
+        ("stdout", "GET /ready 200", ""),
+    ]

@@ -628,6 +628,22 @@ def log_paging(page):
     page.keyboard.press("Escape")
     expect(detail).to_have_count(0)
     wait_for_query(page, lambda query: "log" not in query)
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    row = page.get_by_role("button", name=re.compile(r"Paged line 30$"))
+    menu = row.locator("xpath=following-sibling::div").get_by_role(
+        "button", name="More for this line", exact=True
+    )
+    row.hover()
+    menu.click()
+    page.get_by_role("menuitem", name="Copy message", exact=True).click()
+    assert page.evaluate("navigator.clipboard.readText()") == "Paged line 30"
+    row.hover()
+    menu.click()
+    page.get_by_role("menuitem", name="Copy as JSON", exact=True).click()
+    copied = json.loads(page.evaluate("navigator.clipboard.readText()"))
+    assert copied["message"] == "Paged line 30"
+    assert re.search(r"(Z|[+-]\d\d:\d\d)$", copied["timestamp"]), copied
+    assert "trace_id" not in copied and "span_id" not in copied, copied
     page.get_by_role("button", name="Add a column", exact=True).click()
     page.get_by_role("menuitemcheckbox", name="Method", exact=True).click()
     page.keyboard.press("Escape")
@@ -1161,7 +1177,7 @@ def traffic(page):
         for label, value in (("Public requests", requests), ("Public errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
             # The prior hour's stub equals this hour's.
-            comparison = "— vs prior 1h" if empty else "0% vs prior 1h"
+            comparison = "No prior 1h data to compare" if empty else "0% vs prior 1h"
             expect(card.get_by_text(comparison, exact=True)).to_be_visible()
         if not empty:
             card = totals.get_by_role("group", name="Public requests: 5.4K,")

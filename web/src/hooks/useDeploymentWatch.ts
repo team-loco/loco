@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { getDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { DeploymentService, type Activity, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { getResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 
 import { getErrorMessage } from "@/lib/error-handler";
 import { deploymentEnded, mergeActivity } from "./deployment-watch";
@@ -55,6 +56,14 @@ export function useDeploymentWatch(deploymentIds: readonly string[]): (id: strin
 							queryKey: createConnectQueryKey({
 								schema: getDeployment,
 								input: { deploymentId },
+								transport,
+								cardinality: "finite",
+							}),
+						});
+						void queryClient.invalidateQueries({
+							queryKey: createConnectQueryKey({
+								schema: getResource,
+								input: { key: { case: "resourceId", value: deployment.resourceId } },
 								transport,
 								cardinality: "finite",
 							}),
