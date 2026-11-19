@@ -72,6 +72,28 @@ if sorted_resources is None:
     state["controls_resources"] = sorted_resources
     evidence.write_json(Path(args.state), state)
 base = f"/org/{org}/wks/{workspace}"
+retired = state.get("controls_retired")
+if retired is None:
+    retired = evidence.seed_resources(
+        state,
+        [
+            {
+                "workspace": "acme/shared",
+                "name": "controls-retired",
+                "service": service(),
+            }
+        ],
+    )["acme/shared/controls-retired"]
+    call(
+        state,
+        "loco.resource.v1.ResourceService/DeleteResource",
+        {"resourceId": retired},
+        user=state["orgs"]["acme"]["owner"],
+    )
+    state["controls_retired"] = retired
+    evidence.write_json(Path(args.state), state)
+# Traffic of a resource that never existed in the workspace, so no audit event names it.
+UNKNOWN_RESOURCE = "00000000-0000-4000-8000-0000000000aa"
 
 
 def stamp(now, delta):
@@ -163,7 +185,8 @@ def mock_telemetry(context):
             ]
             series = [
                 {"resourceId": rid, "points": traffic_points}
-                for rid in body.get("resourceIds") or [resource]
+                for rid in body.get("resourceIds")
+                or [resource, retired, UNKNOWN_RESOURCE]
             ]
         route.fulfill(json={"series": series})
 
@@ -869,13 +892,24 @@ def traffic(page):
     for empty in (False, True):
         traffic_empty = empty
         page.goto(state["ui_url"] + base + "?env=production&range=1h")
-        # 3 points × 10/s × 60 s buckets (1h range) = 1800 requests, 180 5xx.
-        requests, errors = ("—", "—") if empty else ("1.8K", "180")
+        # 3 resources × 3 points × 10/s × 60 s buckets (1h range) = 5400 requests, 540 5xx.
+        requests, errors = ("—", "—") if empty else ("5.4K", "540")
         for label, value in (("Public requests", requests), ("Public errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
             # The prior hour's stub equals this hour's.
             comparison = "— vs prior 1h" if empty else "0% vs prior 1h"
             expect(card.get_by_text(comparison, exact=True)).to_be_visible()
+        if not empty:
+            card = totals.get_by_role("group", name="Public requests: 5.4K,")
+            card.hover()
+            expect(
+                card.get_by_role("link", name=re.compile("^controls-pilot"))
+            ).to_be_visible()
+            for name in ("controls-retired (deleted)", "Deleted resource"):
+                expect(card.get_by_text(name, exact=True)).to_be_visible()
+                expect(
+                    card.get_by_role("link", name=re.compile(re.escape(name)))
+                ).to_have_count(0)
         page.get_by_role("region", name="Resources", exact=True).get_by_role(
             "link", name="dashboard-0", exact=True
         ).click()

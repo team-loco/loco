@@ -15,7 +15,7 @@ import { stepSeconds } from "@/lib/obs-time";
 import { RANGE_MS, METRIC_RANGES } from "@/pages/resource/metric";
 import { getErrorMessage } from "@/lib/error-handler";
 import { ChevronDownIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 
 import { SoonTag } from "@/components/design/SoonTag";
@@ -26,6 +26,8 @@ import { formatCpu, formatMemory } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
 import type { Allocation } from "./allocation";
+import { trafficResourceName } from "./trafficNames";
+import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
 const SPEND = "Spend";
 const TOP = 5;
@@ -70,19 +72,37 @@ interface BreakdownRow {
 	amount: number;
 	label: string;
 	detail?: string;
+	href: string | undefined;
 }
 
-function Breakdown({
-	rows,
-	total,
-	format,
-	hrefFor,
+const ENTRY = cn(
+	EASE,
+	"group flex translate-y-1.5 flex-col gap-1.5 py-2 text-foreground no-underline opacity-0 transition-[opacity,transform] duration-[260ms] outline-none group-focus-within/stat:translate-y-0 group-focus-within/stat:opacity-100 group-hover/stat:translate-y-0 group-hover/stat:opacity-100 hover:no-underline focus-visible:ring-2 focus-visible:ring-ring",
+);
+
+function BreakdownEntry({
+	href,
+	style,
+	children,
 }: {
-	rows: BreakdownRow[];
-	total: number;
-	format: (n: number) => string;
-	hrefFor: (id: string) => string;
+	href: string | undefined;
+	style: CSSProperties;
+	children: ReactNode;
 }) {
+	if (href === undefined)
+		return (
+			<div className={ENTRY} style={style}>
+				{children}
+			</div>
+		);
+	return (
+		<Link to={href} className={ENTRY} style={style}>
+			{children}
+		</Link>
+	);
+}
+
+function Breakdown({ rows, total, format }: { rows: BreakdownRow[]; total: number; format: (n: number) => string }) {
 	const shown = rows.length > TOP + 1 ? rows.slice(0, TOP) : rows;
 	const rest = rows.slice(shown.length);
 	const restAmount = rest.reduce((n, r) => n + r.amount, 0);
@@ -137,14 +157,7 @@ function Breakdown({
 				<ul className="m-0 flex list-none flex-col p-0">
 					{shown.map((r, i) => (
 						<li key={r.id}>
-							<Link
-								to={hrefFor(r.id)}
-								className={cn(
-									EASE,
-									"group flex translate-y-1.5 flex-col gap-1.5 py-2 text-foreground no-underline opacity-0 transition-[opacity,transform] duration-[260ms] outline-none group-focus-within/stat:translate-y-0 group-focus-within/stat:opacity-100 group-hover/stat:translate-y-0 group-hover/stat:opacity-100 hover:no-underline focus-visible:ring-2 focus-visible:ring-ring",
-								)}
-								style={{ transitionDelay: `${(60 + i * 40).toString()}ms` }}
-							>
+							<BreakdownEntry href={r.href} style={{ transitionDelay: `${(60 + i * 40).toString()}ms` }}>
 								<span className="flex items-center justify-between gap-2.5">
 									<span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-foreground" title={r.name}>
 										{r.name}
@@ -167,7 +180,7 @@ function Breakdown({
 										}}
 									/>
 								</span>
-							</Link>
+							</BreakdownEntry>
 						</li>
 					))}
 					{rest.length > 0 && (
@@ -240,10 +253,10 @@ function AllocatedCard({ value, hrefFor }: { value: Allocation; hrefFor: (id: st
 							amount: r.cpuMilli,
 							label: formatCpu(r.cpuMilli),
 							detail: formatMemory(r.memMi),
+							href: hrefFor(r.id),
 						}))}
 						total={value.cpuMilli}
 						format={formatCpu}
-						hrefFor={hrefFor}
 					/>
 				) : null
 			}
@@ -280,6 +293,7 @@ function TrafficCard({
 	range,
 	state,
 	names,
+	deleted,
 	hrefFor,
 }: {
 	spec: TrafficCardSpec;
@@ -289,7 +303,8 @@ function TrafficCard({
 	windows: { current: TrafficWindow; prior: TrafficWindow };
 	range: string;
 	state: "loading" | "error" | "ready";
-	names: Map<string, string>;
+	names: ReadonlyMap<string, string>;
+	deleted: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
 }) {
 	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
@@ -298,7 +313,10 @@ function TrafficCard({
 	const shown = state === "loading" ? "…" : state === "error" || total === undefined ? "—" : spec.format(total);
 	const rows = [...perResource.entries()]
 		.filter(([, amount]) => amount > 0)
-		.map(([id, amount]) => ({ id, name: names.get(id) ?? id, amount, label: spec.format(amount) }))
+		.map(([id, amount]) => {
+			const { name, live } = trafficResourceName(id, names, deleted);
+			return { id, name, amount, label: spec.format(amount), href: live ? hrefFor(id) : undefined };
+		})
 		.toSorted((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
 	const comparison = `${change ?? "—"} vs prior ${range}`;
 	return (
@@ -307,7 +325,7 @@ function TrafficCard({
 			ariaLabel={`${spec.label}: ${shown}, ${comparison}`}
 			breakdown={
 				state === "ready" && rows.length > 0 && total !== undefined ? (
-					<Breakdown rows={rows} total={total} format={spec.format} hrefFor={hrefFor} />
+					<Breakdown rows={rows} total={total} format={spec.format} />
 				) : null
 			}
 		>
@@ -335,13 +353,18 @@ function TrafficCard({
 const rangeParser = parseAsStringLiteral(METRIC_RANGES).withDefault("24h").withOptions({ history: "replace" });
 export function Totals({
 	value,
+	names,
 	hrefFor,
+	orgId,
 	workspaceId,
 	environmentId,
 	nowMs,
 }: {
 	value: Allocation;
+	/** Every live resource of the workspace by ID. */
+	names: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
+	orgId: string;
 	workspaceId: string;
 	environmentId: string;
 	nowMs: number;
@@ -358,7 +381,8 @@ export function Totals({
 		prior: { startMs: priorEndMs - spanMs, endMs: priorEndMs },
 	};
 	const state = traffic.isLoading ? "loading" : traffic.error !== null ? "error" : "ready";
-	const names = new Map(value.resources.map((r) => [r.id, r.name]));
+	const gone = [...traffic.points, ...prior.points].some((p) => !names.has(p.resourceId));
+	const deleted = useDeletedResourceNames(orgId, workspaceId, gone);
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-end gap-2">
@@ -393,6 +417,7 @@ export function Totals({
 						range={range}
 						state={state}
 						names={names}
+						deleted={deleted}
 						hrefFor={hrefFor}
 					/>
 				))}
