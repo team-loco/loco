@@ -108,9 +108,9 @@ test("nameError follows the API's name rules", () => {
 	expect(nameErr("Web", new Map([["web", "web"]]))).toBe("web already uses the name web");
 });
 
-test("portRangeError accepts blank and 1 through 65535 and rejects the rest", () => {
-	for (const ok of ["", "  ", "1", "8080", "65535", " 443 "]) expect(portRangeError(ok)).toBeNull();
-	for (const bad of ["0", "65536", "70000", "-1", "80.5", "http", "1e3"])
+test("portRangeError accepts 1 through 65535 and rejects the rest", () => {
+	for (const ok of ["1", "8080", "65535", " 443 "]) expect(portRangeError(ok)).toBeNull();
+	for (const bad of ["", "0", "65536", "70000", "-1", "80.5", "http", "1e3"])
 		expect(portRangeError(bad)).toBe("Use a port from 1 to 65535");
 });
 

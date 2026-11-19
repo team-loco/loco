@@ -159,18 +159,11 @@ export function validateForm(
 	};
 }
 
-// The deployment spec's `port` accepts 1 through 65535.
-const MIN_PORT = 1;
-const MAX_PORT = 65535;
-
-/** The error for a port field's text, or null when it is blank or a whole number in the API's range. */
+/** The error for a port outside the deployment spec's range, 1 through 65535. */
 export function portRangeError(port: string): string | null {
 	const text = port.trim();
-	if (text === "") return null;
 	const value = Number(text);
-	return /^\d+$/.test(text) && value >= MIN_PORT && value <= MAX_PORT
-		? null
-		: `Use a port from ${MIN_PORT.toString()} to ${MAX_PORT.toString()}`;
+	return /^\d+$/.test(text) && value >= 1 && value <= 65535 ? null : "Use a port from 1 to 65535";
 }
 
 // A service without a port is a worker, which takes no traffic and has nothing to probe.
