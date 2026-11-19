@@ -101,6 +101,7 @@ func (f *fakeAPI) called(method, authorization string) bool {
 	return false
 }
 
+// record runs with f.mu held.
 func (f *fakeAPI) record(spec connect.Spec, authorization string) error {
 	method := path.Base(spec.Procedure)
 	f.calls = append(f.calls, apiCall{method: method, authorization: authorization})
@@ -199,10 +200,11 @@ func (c *fakeConfigService) GetConfig(
 	_ context.Context,
 	_ *configv1.GetConfigRequest,
 ) (*configv1.GetConfigResponse, error) {
+	c.api.mu.Lock()
 	if err := c.api.record(connect.Spec{Procedure: configv1connect.ConfigServiceGetConfigProcedure}, ""); err != nil {
+		c.api.mu.Unlock()
 		return nil, err
 	}
-	c.api.mu.Lock()
 	webAuthEnabled := c.api.identityProvider
 	minimum := c.api.minCLIVersion
 	c.api.mu.Unlock()
