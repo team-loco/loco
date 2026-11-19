@@ -56,10 +56,20 @@ for package in "${packages[@]}"; do
 	rm -f "$binary"
 	go -C "$package" test -c -race -o "$binary" .
 	echo "Stressing ${package#"$root"/}: $cpus processes x $usage_count runs"
+	# Two tests at a time per process keep the database tests within Postgres's default 100 connections.
+	runs=1 flags=(-test.count="$usage_count" -test.parallel=2)
+	# Ginkgo refuses go test's -count and -parallel, so its suites rerun one process at a time.
+	if go -C "$package" list -f '{{join .TestImports "\n"}}{{"\n"}}{{join .XTestImports "\n"}}' . | grep -q '^github.com/onsi/ginkgo'; then
+		runs=$usage_count flags=()
+	fi
 	pids=()
 	for i in $(seq "$cpus"); do
-		# Two tests at a time per process keep the database tests within Postgres's default 100 connections.
-		(cd "$package" && exec "$binary" -test.count="$usage_count" -test.cpu=1 -test.parallel=2 -test.timeout="$((usage_count * 20))m" >"$work/$i.log" 2>&1) &
+		(
+			cd "$package"
+			for _ in $(seq "$runs"); do
+				"$binary" ${flags[@]+"${flags[@]}"} -test.cpu=1 -test.timeout="$((usage_count * 20))m" || exit
+			done
+		) >"$work/$i.log" 2>&1 &
 		pids+=($!)
 	done
 	package_failed=false
