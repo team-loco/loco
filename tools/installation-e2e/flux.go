@@ -288,6 +288,39 @@ func switchRepository(ctx context.Context, path string) error {
 	return reconcilePlatform(ctx, "./all")
 }
 
+// upgradeToCurrent installs the head bundle, then drops the ClickHouse database and restarts the
+// ingest proxy, which creates it from the head migrations.
+func upgradeToCurrent(ctx context.Context) error {
+	if err := switchRepository(ctx, "/installation/current"); err != nil {
+		return err
+	}
+	encoded, err := kubectl(ctx, "-n", controlNamespace, "get", "secret", "loco-clickhouse-migrator",
+		"-o", "jsonpath={.data.password}")
+	if err != nil {
+		return err
+	}
+	password, err := base64.StdEncoding.DecodeString(string(encoded))
+	if err != nil {
+		return err
+	}
+	pod, err := kubectl(ctx, "-n", controlNamespace, "get", "pod", "-l", "clickhouse.altinity.com/chi",
+		"-o", "name")
+	if err != nil {
+		return err
+	}
+	if _, err = kubectl(ctx, "-n", controlNamespace, "exec", strings.TrimSpace(string(pod)), "-c", "clickhouse",
+		"--", "clickhouse-client", "--user", "loco_migrator", "--password", string(password),
+		"--query", "DROP DATABASE IF EXISTS loco_obs SYNC"); err != nil {
+		return err
+	}
+	ingest := "deployment/" + controlPlaneRelease + "-obs-proxy-ingest"
+	if _, err = kubectl(ctx, "-n", controlNamespace, "rollout", "restart", ingest); err != nil {
+		return err
+	}
+	_, err = kubectl(ctx, "-n", controlNamespace, "rollout", "status", ingest, "--timeout=300s")
+	return err
+}
+
 func createFluxWorker(ctx context.Context, name string, head bool) error {
 	args := []string{
 		"cluster",
