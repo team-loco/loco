@@ -206,7 +206,7 @@ func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 		t.Fatalf("create deployment: %v", err)
 	}
 	build := created.GetBuild()
-	want := "index.docker.io/library/nginx@" + testDigest
+	want := "index.docker.io/library/nginx:1.27@" + testDigest
 	if build.GetType() != buildSourceTypeImage || build.GetImage() != want {
 		t.Fatalf("build = %v, want image %s", build, want)
 	}

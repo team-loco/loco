@@ -1,7 +1,7 @@
 -- name: CreateWorkspaceWebhook :one
-INSERT INTO webhooks (id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, event_types, created_by)
+INSERT INTO webhooks (id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, event_types, created_by)
 VALUES (
-    sqlc.arg('id'), 'workspace', sqlc.arg('workspace_id')::uuid, sqlc.arg('url'),
+    sqlc.arg('id'), 'workspace', sqlc.arg('workspace_id')::uuid, sqlc.arg('name'), sqlc.arg('url'),
     sqlc.arg('provider'), sqlc.arg('kek_id'), sqlc.arg('wrapped_dek'), sqlc.arg('secret'),
     sqlc.arg('event_types'), sqlc.narg('created_by')
 )
@@ -21,7 +21,7 @@ WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('wo
 
 -- name: UpdateWorkspaceWebhook :one
 UPDATE webhooks
-SET url = sqlc.arg('url'), event_types = sqlc.arg('event_types')
+SET name = sqlc.arg('name'), url = sqlc.arg('url'), event_types = sqlc.arg('event_types')
 WHERE id = sqlc.arg('id') AND kind = 'workspace' AND workspace_id = sqlc.arg('workspace_id')::uuid
 RETURNING *;
 

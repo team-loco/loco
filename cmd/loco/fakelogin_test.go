@@ -126,9 +126,13 @@ func (s *fakeOrgService) ListUserOrgs(
 	if req.GetPageToken() == "" {
 		return &orgv1.ListUserOrgsResponse{NextPageToken: "org-next"}, nil
 	}
-	s.api.mu.Lock()
-	defer s.api.mu.Unlock()
-	return &orgv1.ListUserOrgsResponse{Orgs: s.api.platform.orgs}, nil
+	if !req.GetCreateIfMissing() {
+		s.api.mu.Lock()
+		defer s.api.mu.Unlock()
+		return &orgv1.ListUserOrgsResponse{Orgs: s.api.platform.orgs}, nil
+	}
+	org := &orgv1.Organization{Id: fakeOrgID, Name: fakeOrgName}
+	return &orgv1.ListUserOrgsResponse{Orgs: []*orgv1.Organization{org}}, nil
 }
 
 type fakeWorkspaceService struct {

@@ -684,3 +684,42 @@ func (f *webhookFixture) open(t *testing.T, row genDb.Webhook, sealed ...[]byte)
 	}
 	return secrets
 }
+
+func TestWebhookNameIsOptionalAndUpdatable(t *testing.T) {
+	f := newWebhookFixture(t)
+	const renamed = "Paging"
+	s := NewWebhookServer(f.pool, f.queries, f.provider, false, limits.Defaults())
+	named, err := s.CreateWebhook(f.owner, &webhookv1.CreateWebhookRequest{
+		WorkspaceId: f.workspaceID, Url: receiverURL, Name: "Billing alerts",
+	})
+	if err != nil {
+		t.Fatalf("create named: %v", err)
+	}
+	unnamed, err := s.CreateWebhook(
+		f.owner,
+		&webhookv1.CreateWebhookRequest{WorkspaceId: f.workspaceID, Url: receiverURL},
+	)
+	if err != nil {
+		t.Fatalf("create unnamed: %v", err)
+	}
+	if named.GetWebhook().GetName() != "Billing alerts" || unnamed.GetWebhook().GetName() != "" {
+		t.Fatalf("names = %q, %q", named.GetWebhook().GetName(), unnamed.GetWebhook().GetName())
+	}
+	updated, err := s.UpdateWebhook(f.owner, &webhookv1.UpdateWebhookRequest{
+		WorkspaceId: f.workspaceID, WebhookId: named.GetWebhook().GetId(), Url: receiverURL, Name: renamed,
+	})
+	if err != nil || updated.GetWebhook().GetName() != renamed {
+		t.Fatalf("update name = %+v (%v)", updated, err)
+	}
+	listed, err := s.ListWebhooks(f.owner, &webhookv1.ListWebhooksRequest{WorkspaceId: f.workspaceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]string{}
+	for _, w := range listed.GetWebhooks() {
+		got[w.GetId()] = w.GetName()
+	}
+	if got[named.GetWebhook().GetId()] != renamed || got[unnamed.GetWebhook().GetId()] != "" {
+		t.Fatalf("listed names = %v", got)
+	}
+}
