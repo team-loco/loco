@@ -196,7 +196,7 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 			ResourceID:    new(resourceID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(row.ID),
-			Data:          map[string]any{events.FieldDomain: row.Domain},
+			Data:          domainEventData(row.Domain, row.DomainSource, row.IsPrimary, nil),
 		}); eventErr != nil {
 			return eventErr
 		}
@@ -216,7 +216,7 @@ func (a *applier) syncDomains(ctx context.Context, qtx *genDb.Queries, resourceI
 		if _, exists := ids[domain]; exists {
 			continue
 		}
-		id, createErr := a.createDomain(ctx, qtx, resourceID, domain)
+		id, createErr := a.createDomain(ctx, qtx, resourceID, domain, domain == desired[0])
 		if createErr != nil {
 			return createErr
 		}
