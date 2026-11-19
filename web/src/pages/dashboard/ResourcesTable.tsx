@@ -60,7 +60,6 @@ import {
 	statusOptions,
 	TYPE_FILTERS,
 	viewAllSearch,
-	withoutFilter,
 	type DashboardItem,
 	type RowFilter,
 } from "./resourceRows";
@@ -415,9 +414,9 @@ export function ResourcesTable({
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
 	const regionNames = new Set(regions.map((r) => r.region));
-	const statusBase = withoutFilter(items, filter, "status");
-	const typeBase = withoutFilter(items, filter, "type");
-	const regionBase = withoutFilter(items, filter, "region");
+	const statusBase = filterRows(items, { ...filter, status: ALL });
+	const typeBase = filterRows(items, { ...filter, type: ALL });
+	const regionBase = filterRows(items, { ...filter, region: ALL });
 	for (const item of statusBase) {
 		if (!isDraftItem(item)) statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
 	}

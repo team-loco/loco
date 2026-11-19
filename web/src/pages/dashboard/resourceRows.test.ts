@@ -19,7 +19,6 @@ import {
 	type RowFilter,
 	statusOptions,
 	viewAllSearch,
-	withoutFilter,
 } from "./resourceRows";
 import { COLUMNS } from "./ResourcesTable";
 import { draft, row } from "./testRows";
@@ -47,21 +46,6 @@ describe("filterRows", () => {
 		expect(names(filterRows(rows, { ...everything, status: "unavailable" }))).toEqual(["worker"]);
 		expect(names(filterRows(rows, { ...everything, status: "healthy" }))).toEqual(["api"]);
 		expect(names(filterRows(rows, everything))).toEqual(["api", "billing", "worker"]);
-	});
-});
-
-describe("withoutFilter", () => {
-	const rows = [
-		row("api"),
-		row("web", { regions: [{ region: "eu-west-1", desired: 1, ready: 1 }] }),
-		row("worker", { status: ResourceStatus.UNAVAILABLE }),
-	];
-
-	test("counts a filter's options under every other filter", () => {
-		const filter = { ...everything, region: "us-east-1", status: "healthy" };
-		expect(names(withoutFilter(rows, filter, "status"))).toEqual(["api", "worker"]);
-		expect(names(withoutFilter(rows, filter, "region"))).toEqual(["api", "web"]);
-		expect(names(withoutFilter(rows, { ...filter, query: "web" }, "query"))).toEqual(["api"]);
 	});
 });
 
