@@ -159,9 +159,16 @@ export function validateForm(
 	};
 }
 
+/** The error for a port outside the deployment spec's range, 1 through 65535. */
+export function portRangeError(port: string): string | null {
+	const text = port.trim();
+	const value = Number(text);
+	return /^\d+$/.test(text) && value >= 1 && value <= 65535 ? null : "Use a port from 1 to 65535";
+}
+
 // A service without a port is a worker, which takes no traffic and has nothing to probe.
 function portError(form: NewResourceForm): string | null {
-	if (form.port.trim() !== "") return null;
+	if (form.port.trim() !== "") return portRangeError(form.port);
 	if (form.isPublic) return "A public service needs a port";
 	if (form.health.path !== "") return "A health check needs a port";
 	return null;

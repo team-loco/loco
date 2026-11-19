@@ -438,8 +438,8 @@ func TestInvalidDesiredValuesAreFieldErrors(t *testing.T) {
 			region.Autoscaling = &locofile.Autoscaling{CPUTarget: &target}
 			s.Regions[testRegion] = region
 		}, testRegionPath},
-		"privileged port": {func(s *locofile.Service) {
-			port := int32(80)
+		"port zero": {func(s *locofile.Service) {
+			port := int32(0)
 			s.Port = &port
 		}, "port"},
 		"health timeout above the limit": {func(s *locofile.Service) {

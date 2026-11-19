@@ -262,9 +262,19 @@ describe("validateDraft", () => {
 	test("reports only the fields the draft touched", () => {
 		expect(validateDraft({}, base, regions, SERVED, 10)).toEqual({});
 		expect(validateDraft({ port: "http", healthPath: "ready" }, base, regions, SERVED, 10)).toEqual({
-			port: "Enter a port number",
+			port: "Use a port from 1 to 65535",
 			healthPath: "Start the path with /",
 		});
+	});
+
+	test("asks for a port when the field is cleared", () => {
+		expect(validateDraft({ port: "" }, base, regions, SERVED, 10).port).toBe("Enter a port number");
+	});
+
+	test("keeps the port within 1 through 65535", () => {
+		for (const port of ["0", "70000", "65536"])
+			expect(validateDraft({ port }, base, regions, SERVED, 10).port).toBe("Use a port from 1 to 65535");
+		for (const port of ["1", "65535"]) expect(validateDraft({ port }, base, regions, SERVED, 10).port).toBeUndefined();
 	});
 
 	test("keeps at least one region", () => {

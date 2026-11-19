@@ -141,17 +141,25 @@ func TestDesiredSpecAcceptsValidSpec(t *testing.T) {
 	}
 }
 
-func TestDesiredSpecRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
+func TestDesiredSpecAcceptsPortBelow1024(t *testing.T) {
 	t.Parallel()
 	buildSpec := testDesiredSpec(t, 80)
+	if _, err := buildSpec(uuid.New()); err != nil {
+		t.Fatalf("port 80 rejected: %v", err)
+	}
+}
+
+func TestDesiredSpecRejectsInvalidSpecAsInvalidArgument(t *testing.T) {
+	t.Parallel()
+	buildSpec := testDesiredSpec(t, 65536)
 	_, specErr := buildSpec(uuid.New())
 	if specErr == nil {
-		t.Fatal("port 80 passed validation")
+		t.Fatal("port 65536 passed validation")
 	}
 
 	joined := errors.Join(errDesiredSpec, specErr)
 	wantCode(t, joined, connect.CodeInvalidArgument)
-	want := "invalid deployment spec: invalid deployment: port must be between 1024 and 65535, got 80"
+	want := "invalid deployment spec: invalid deployment: port must be between 1 and 65535, got 65536"
 	if msg := publicError(joined).Message(); msg != want {
 		t.Fatalf("message = %q, want %q", msg, want)
 	}
