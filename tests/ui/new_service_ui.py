@@ -684,6 +684,7 @@ with session(out) as browser:
     # The drawer learns of the retained resource before it is deleted elsewhere.
     taken = f"{name}.{platform_domain} is taken"
     expect(drawer.get_by_text(taken, exact=True).first).to_be_visible()
+    expect(drawer.get_by_role("alert")).to_have_text("Couldn't store the secrets.")
     orphan = sql(state, f"SELECT id FROM resources WHERE name='{name}';")
     call(
         state, "loco.resource.v1.ResourceService/DeleteResource", {"resourceId": orphan}
@@ -708,7 +709,8 @@ with session(out) as browser:
     expect(page).to_have_url(DRAFT_URL)
     secret_value.fill("sk_test")
     drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
-    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+    with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
+        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
@@ -865,7 +867,8 @@ with session(out) as browser:
         drawer.get_by_role(
             "button", name="Decrease maximum replicas", exact=True
         ).click()
-    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+    with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
+        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
 
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
