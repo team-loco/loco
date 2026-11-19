@@ -13,6 +13,7 @@ import (
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -26,11 +27,11 @@ const (
 )
 
 type rolloutSnapshot struct {
-	PlacementID     string                   `json:"placementId,omitempty"`
-	Replicas        []*agentv1.ReplicaReport `json:"replicas,omitempty"`
-	Problem         *agentv1.ProblemReport   `json:"problem,omitempty"`
-	DesiredReplicas int32                    `json:"desiredReplicas,omitempty"`
-	Count           int32                    `json:"count,omitempty"`
+	PlacementID     string                  `json:"placementId,omitempty"`
+	Replicas        []*deploymentv1.Replica `json:"replicas,omitempty"`
+	Problem         *agentv1.ProblemReport  `json:"problem,omitempty"`
+	DesiredReplicas int32                   `json:"desiredReplicas,omitempty"`
+	Count           int32                   `json:"count,omitempty"`
 }
 
 type activityEntry struct {
@@ -42,7 +43,7 @@ type activityEntry struct {
 }
 
 func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []activityEntry {
-	old := make(map[string]*agentv1.ReplicaReport, len(previous.Replicas))
+	old := make(map[string]*deploymentv1.Replica, len(previous.Replicas))
 	hadPrevious := false
 	for _, replica := range previous.Replicas {
 		old[replica.GetUid()] = replica
@@ -127,11 +128,11 @@ func diffRollout(previous rolloutSnapshot, report *agentv1.PlacementStatus) []ac
 	return limited
 }
 
-func terminalReplica(replica *agentv1.ReplicaReport) bool {
+func terminalReplica(replica *deploymentv1.Replica) bool {
 	return replica.GetState() == string(loco.ReplicaStopped) || replica.GetState() == string(loco.ReplicaKilled)
 }
 
-func replicaActivityMessage(replica *agentv1.ReplicaReport) (string, string) {
+func replicaActivityMessage(replica *deploymentv1.Replica) (string, string) {
 	var message, severity string
 	switch loco.ReplicaState(replica.GetState()) {
 	case loco.ReplicaScheduling:
@@ -201,7 +202,7 @@ func ingestRollout(
 		slices.EqualFunc(
 			previous.Replicas,
 			next.Replicas,
-			func(a, b *agentv1.ReplicaReport) bool { return proto.Equal(a, b) },
+			func(a, b *deploymentv1.Replica) bool { return proto.Equal(a, b) },
 		) {
 		return nil
 	}

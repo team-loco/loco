@@ -2224,7 +2224,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\x17list_deployments.window\x12\x18since must precede until\x1a?!has(this.since) || !has(this.until) || this.since < this.until\"\x83\x01\n" +
 	"\x17ListDeploymentsResponse\x12@\n" +
 	"\vdeployments\x18\x01 \x03(\v2\x1e.loco.deployment.v1.DeploymentR\vdeployments\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xf0\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xfa\x03\n" +
 	"\aReplica\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -2234,9 +2234,9 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\vstate_since\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"stateSince\x12A\n" +
 	"\x0estate_deadline\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\rstateDeadline\x12\x1a\n" +
-	"\brestarts\x18\b \x01(\x05R\brestarts\x12\x16\n" +
+	"\brestarts\x18\b \x01(\x05R\brestarts\x12 \n" +
 	"\x06detail\x18\n" +
-	" \x01(\tR\x06detail\x12#\n" +
+	" \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x06detail\x12#\n" +
 	"\rdeployment_id\x18\v \x01(\tR\fdeploymentId\x12\x14\n" +
 	"\x05ready\x18\f \x01(\bR\x05ready\x129\n" +
 	"\n" +

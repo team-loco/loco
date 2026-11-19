@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -32,7 +33,7 @@ func TestServingDeploymentFollowsAcceptedObservation(t *testing.T) {
 		ObservedRevision: firstPlacement.DesiredRevision,
 		Available:        true,
 		ReadyReplicas:    1,
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{
 				Uid:               "pod-first",
 				DeploymentId:      first.String(),
@@ -55,7 +56,7 @@ func TestServingDeploymentFollowsAcceptedObservation(t *testing.T) {
 	report.DeploymentId = second.String()
 	report.ObservedRevision = secondRevision
 	report.ReadyReplicas = 2
-	report.Replicas = append(report.Replicas, &agentv1.ReplicaReport{
+	report.Replicas = append(report.Replicas, &deploymentv1.Replica{
 		Uid:               "pod-second",
 		DeploymentId:      second.String(),
 		Ready:             true,
@@ -86,7 +87,7 @@ func TestServingDeploymentFollowsAcceptedObservation(t *testing.T) {
 	report.ReadyReplicas = 1
 	report.ProgressDeadlineExceeded = true
 	report.Problem = &agentv1.ProblemReport{Reason: "crash_loop"}
-	report.Replicas = []*agentv1.ReplicaReport{
+	report.Replicas = []*deploymentv1.Replica{
 		{
 			Uid:               "pod-second",
 			DeploymentId:      second.String(),
@@ -137,7 +138,7 @@ FOR EACH ROW EXECUTE FUNCTION reject_observation();`); err != nil {
 		t.Fatal("placement identity reused")
 	}
 	assertServingDeployments(t, f, fourth)
-	report.Replicas = []*agentv1.ReplicaReport{
+	report.Replicas = []*deploymentv1.Replica{
 		{Uid: "old-pod", DeploymentId: second.String(), Ready: true, State: string(loco.ReplicaServing)},
 	}
 	server.recordStatus(ctx, f.clusterID, 0, report)
@@ -197,7 +198,7 @@ func TestServingObservationRetainsHistoryAndImage(t *testing.T) {
 			ObservedRevision:         p.DesiredRevision,
 			ProgressDeadlineExceeded: true,
 			ReadyReplicas:            1,
-			Replicas: []*agentv1.ReplicaReport{
+			Replicas: []*deploymentv1.Replica{
 				{
 					Uid:               "still-serving",
 					DeploymentId:      deployments[0].String(),
@@ -311,7 +312,7 @@ func TestZeroReadyObservedContextRetainsArtifactsForLateReadyReport(t *testing.T
 		t.Fatalf("observed context image became deletable: %+v, %v", candidates, err)
 	}
 	report.ReadyReplicas = 1
-	report.Replicas = []*agentv1.ReplicaReport{{Uid: "late-ready", DeploymentId: observed.String(), Ready: true,
+	report.Replicas = []*deploymentv1.Replica{{Uid: "late-ready", DeploymentId: observed.String(), Ready: true,
 		State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}}
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	assertServingDeployments(t, f, desired, observed)
@@ -372,7 +373,7 @@ func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
 	server.recordStatus(ctx, f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: old.ID.String(), DeploymentId: first.String(), ObservedRevision: old.DesiredRevision,
 		ReadyReplicas: 1, Available: true,
-		Replicas: []*agentv1.ReplicaReport{{Uid: "old-region-pod", DeploymentId: first.String(), Ready: true,
+		Replicas: []*deploymentv1.Replica{{Uid: "old-region-pod", DeploymentId: first.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: old.DesiredRevision}},
 	})
 	if _, err = f.pool.Exec(ctx, `UPDATE deployments SET is_active=false WHERE id=$1`, first); err != nil {
@@ -405,7 +406,7 @@ func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
 	server.recordStatus(ctx, f.otherCluster, 0, &agentv1.PlacementStatus{
 		PlacementId: current.ID.String(), DeploymentId: next.String(), ObservedRevision: current.DesiredRevision,
 		ReadyReplicas: 1, Available: true,
-		Replicas: []*agentv1.ReplicaReport{{Uid: "new-region-pod", DeploymentId: next.String(), Ready: true,
+		Replicas: []*deploymentv1.Replica{{Uid: "new-region-pod", DeploymentId: next.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: current.DesiredRevision}},
 	})
 	assertServingDeployments(t, f, next, first, next)
@@ -441,7 +442,7 @@ func TestSuspensionInvalidatesServingObservationUntilNewReport(t *testing.T) {
 	report := &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), DeploymentId: id.String(), ObservedRevision: p.DesiredRevision,
 		ReadyReplicas: 1, Available: true,
-		Replicas: []*agentv1.ReplicaReport{{Uid: "suspended-pod", DeploymentId: id.String(), Ready: true,
+		Replicas: []*deploymentv1.Replica{{Uid: "suspended-pod", DeploymentId: id.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
 	}
 	f.agentServer().recordStatus(ctx, f.clusterID, 0, report)

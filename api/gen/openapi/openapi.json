@@ -8592,7 +8592,7 @@
           "replicas": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/loco.agent.v1.ReplicaReport"
+              "$ref": "#/components/schemas/loco.deployment.v1.Replica"
             },
             "title": "replicas"
           },
@@ -8689,68 +8689,6 @@
         "title": "RegisterResponse",
         "additionalProperties": false,
         "description": "RegisterResponse contains the assigned cluster ID."
-      },
-      "loco.agent.v1.ReplicaReport": {
-        "type": "object",
-        "properties": {
-          "uid": {
-            "type": "string",
-            "title": "uid"
-          },
-          "name": {
-            "type": "string",
-            "title": "name"
-          },
-          "node": {
-            "type": "string",
-            "title": "node"
-          },
-          "placementRevision": {
-            "type": "string",
-            "title": "placement_revision",
-            "format": "int64"
-          },
-          "state": {
-            "type": "string",
-            "title": "state"
-          },
-          "stateSince": {
-            "title": "state_since",
-            "$ref": "#/components/schemas/google.protobuf.Timestamp"
-          },
-          "stateDeadline": {
-            "title": "state_deadline",
-            "$ref": "#/components/schemas/google.protobuf.Timestamp"
-          },
-          "restarts": {
-            "type": "integer",
-            "title": "restarts",
-            "format": "int32"
-          },
-          "detail": {
-            "type": "string",
-            "title": "detail",
-            "maxLength": 512
-          },
-          "deploymentId": {
-            "type": "string",
-            "title": "deployment_id"
-          },
-          "ready": {
-            "type": "boolean",
-            "title": "ready"
-          },
-          "startedAt": {
-            "title": "started_at",
-            "$ref": "#/components/schemas/google.protobuf.Timestamp"
-          },
-          "lastExit": {
-            "title": "last_exit",
-            "$ref": "#/components/schemas/loco.deployment.v1.ReplicaExit"
-          }
-        },
-        "title": "ReplicaReport",
-        "additionalProperties": false
       },
       "loco.agent.v1.StartBuild": {
         "type": "object",
@@ -10765,7 +10703,8 @@
           },
           "detail": {
             "type": "string",
-            "title": "detail"
+            "title": "detail",
+            "maxLength": 512
           },
           "deploymentId": {
             "type": "string",
