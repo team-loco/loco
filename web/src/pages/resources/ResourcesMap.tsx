@@ -67,7 +67,7 @@ export function ResourcesMap({
 				{selected !== undefined && (
 					<SheetContent>
 						<SheetHeader>
-							<SheetTitle className="truncate font-mono">{selected.resource.name}</SheetTitle>
+							<SheetTitle className="truncate font-mono">{selected.resource.displayName}</SheetTitle>
 							<ResourceStatusBadge status={selected.status} />
 						</SheetHeader>
 						<SheetBody>
@@ -103,7 +103,7 @@ export function ResourcesMap({
 								Traces
 							</Button>
 							<Button nativeButton={false} className="ml-auto" render={<Link to={hrefFor(selected)} />}>
-								Open {selected.resource.name}
+								Open {selected.resource.displayName}
 								<ArrowRightIcon />
 							</Button>
 						</SheetFooter>

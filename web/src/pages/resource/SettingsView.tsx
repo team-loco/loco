@@ -210,10 +210,10 @@ export function SettingsView({
 					/>
 					{!worker && <HealthSection {...props} />}
 					<RegionsSection {...props} errors={errors} available={regionsQuery.data?.regions ?? []} />
-					<GeneralSection {...props} />
+					<GeneralSection {...props} canWrite={canWrite} readOnlyId={READ_ONLY_ID} />
 					<SettingsBlock id="set-danger" title="Danger zone">
 						<DangerZone
-							title={`Delete ${resource.name}`}
+							title={`Delete ${resource.displayName}`}
 							description={
 								managed ? (
 									<>

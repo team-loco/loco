@@ -14,7 +14,7 @@ function deployment(id: string, cpu: string, memory: string): Deployment {
 
 function item(name: string, regions: { deploymentId: string; desiredReplicas: number }[], deployments: Deployment[]) {
 	return {
-		resource: create(ResourceSchema, { id: name, name }),
+		resource: create(ResourceSchema, { id: name, name, displayName: name }),
 		environment: create(EnvironmentStatusSchema, { regions }),
 		envDeployments: deployments,
 	};

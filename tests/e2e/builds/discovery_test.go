@@ -27,8 +27,7 @@ const (
 )
 
 // TestDiscovery deploys private HTTP and TCP services and checks how other apps reach them: by
-// logical name and port, after a runtime user change, a rename and a delete, and never across
-// workspaces.
+// logical name and port, after a runtime user change and a delete, and never across workspaces.
 func TestDiscovery(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
@@ -112,16 +111,14 @@ func TestDiscovery(t *testing.T) {
 		}
 	})
 
-	t.Run("a rename moves the alias without a build", d.rename)
-
 	t.Run("a delete removes only its alias", func(t *testing.T) {
 		if _, err := p.User.Resource.DeleteResource(
 			t.Context(),
-			&resourcev1.DeleteResourceRequest{ResourceId: w.ResourceID(t, "checkout")},
+			&resourcev1.DeleteResourceRequest{ResourceId: w.ResourceID(t, "payment")},
 		); err != nil {
 			t.Fatal(err)
 		}
-		waitAlias(t, w, "checkout", false)
+		waitAlias(t, w, "payment", false)
 		if found, err := p.Exists(t.Context(), "-n", w.Namespace, "service", cartName); err != nil || !found {
 			t.Errorf("cart lost its logical endpoint (%v)", err)
 		}
@@ -252,28 +249,6 @@ func (d *discovery) logicalNames(t *testing.T) {
 	p.MustGet(t, &service, "-n", w.Namespace, "service", "payment")
 	if protocol := service.Spec.Ports[0].Protocol; protocol != corev1.ProtocolTCP {
 		t.Errorf("payment's Service protocol %s, want TCP", protocol)
-	}
-}
-
-func (d *discovery) rename(t *testing.T) {
-	w := d.w
-	before := workspaceBuilds(t, w)
-	if _, err := p.User.Resource.UpdateResource(t.Context(), &resourcev1.UpdateResourceRequest{
-		ResourceId: w.ResourceID(t, "payment"), Name: new("checkout"),
-	}); err != nil {
-		t.Fatal(err)
-	}
-	waitAlias(t, w, "checkout", true)
-	waitAlias(t, w, "payment", false)
-	platform.Eventually(t, aliasTimeout, "the renamed TCP endpoint", func(ctx context.Context) error {
-		out, err := callTCP(ctx, w, "checkout:50051")
-		if err == nil && !strings.Contains(out, "private-tcp-ok") {
-			return fmt.Errorf("checkout:50051 answered %q", out)
-		}
-		return err
-	})
-	if after := workspaceBuilds(t, w); after != before {
-		t.Errorf("the rename started %d builds", after-before)
 	}
 }
 

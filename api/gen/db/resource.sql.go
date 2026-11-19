@@ -23,8 +23,8 @@ func (q *Queries) BumpResourceRevision(ctx context.Context, id uuid.UUID) error 
 
 const createResource = `-- name: CreateResource :one
 
-INSERT INTO resources (workspace_id, name, slug, type, description, spec, spec_version, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO resources (workspace_id, name, slug, display_name, type, description, spec, spec_version, created_by)
+VALUES ($1, $2, $3, $2, $4, $5, $6, $7, $8)
 RETURNING id
 `
 
@@ -66,7 +66,7 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -79,6 +79,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Slug,
+		&i.DisplayName,
 		&i.Type,
 		&i.Description,
 		&i.Spec,
@@ -95,7 +96,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -113,6 +114,7 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.WorkspaceID,
 		&i.Name,
 		&i.Slug,
+		&i.DisplayName,
 		&i.Type,
 		&i.Description,
 		&i.Spec,
@@ -439,7 +441,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -477,6 +479,7 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.WorkspaceID,
 			&i.Name,
 			&i.Slug,
+			&i.DisplayName,
 			&i.Type,
 			&i.Description,
 			&i.Spec,
@@ -531,7 +534,7 @@ func (q *Queries) ListWorkspaceResourceNames(ctx context.Context, workspaceID uu
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.slug, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.slug, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC
@@ -551,6 +554,7 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.WorkspaceID,
 			&i.Name,
 			&i.Slug,
+			&i.DisplayName,
 			&i.Type,
 			&i.Description,
 			&i.Spec,
@@ -637,9 +641,8 @@ func (q *Queries) SetResourcePartial(ctx context.Context, arg SetResourcePartial
 
 const updateResource = `-- name: UpdateResource :one
 UPDATE resources
-SET name = COALESCE($2, name),
-    slug = COALESCE($3, slug),
-    description = COALESCE($4, description),
+SET display_name = COALESCE($2, display_name),
+    description = COALESCE($3, description),
     updated_at = NOW()
 WHERE id = $1
 RETURNING id
@@ -647,18 +650,12 @@ RETURNING id
 
 type UpdateResourceParams struct {
 	ID          uuid.UUID `json:"id"`
-	Name        *string   `json:"name"`
-	Slug        *string   `json:"slug"`
+	DisplayName *string   `json:"displayName"`
 	Description *string   `json:"description"`
 }
 
 func (q *Queries) UpdateResource(ctx context.Context, arg UpdateResourceParams) (uuid.UUID, error) {
-	row := q.db.QueryRow(ctx, updateResource,
-		arg.ID,
-		arg.Name,
-		arg.Slug,
-		arg.Description,
-	)
+	row := q.db.QueryRow(ctx, updateResource, arg.ID, arg.DisplayName, arg.Description)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err

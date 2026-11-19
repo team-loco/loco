@@ -121,11 +121,11 @@ export function useSaveSettings({
 					(name) => bindings?.includes(name) !== true,
 				);
 				secretMessage = [
-					secretUsageMessage(resource.name, response.usedBy),
+					secretUsageMessage(resource.displayName, response.usedBy),
 					unused.length === 0
 						? ""
 						: resource.partial === undefined
-							? `No deployment of ${resource.name} uses ${unused.join(", ")}.`
+							? `No deployment of ${resource.displayName} uses ${unused.join(", ")}.`
 							: yamlBindingHint(resource.name, unused),
 				]
 					.filter(Boolean)
@@ -143,18 +143,18 @@ export function useSaveSettings({
 		if (Object.keys(secrets).length > 0 || removed.length > 0) {
 			await refreshSecrets(queryClient, resourceId, environmentId);
 		}
-		const name = draft.name?.trim();
-		const renamed = name !== undefined && name !== resource.name;
+		const displayName = draft.displayName?.trim();
+		const renamed = displayName !== undefined && displayName !== resource.displayName;
 		const description = draft.description?.trim();
 		const described = description !== undefined && description !== (resource.description ?? "");
 		if (renamed || described) {
 			await attempt(
 				"General",
-				["name", "description"],
+				["displayName", "description"],
 				async () =>
 					await update.mutateAsync({
 						resourceId,
-						...(renamed ? { name } : {}),
+						...(renamed ? { displayName } : {}),
 						...(described ? { description } : {}),
 					}),
 			);
@@ -196,7 +196,7 @@ export function useSaveSettings({
 					setSaving(false);
 					onDone(omit(next, REGION_MAP_KEYS), {
 						tone: "warn",
-						title: `${resource.name} changed since you opened it`,
+						title: `${resource.displayName} changed since you opened it`,
 						message: ["Showing its current regions and scaling. Make your region changes again.", secretMessage]
 							.filter(Boolean)
 							.join(" "),
@@ -240,7 +240,7 @@ export function useSaveSettings({
 		if (failures.length > 0) {
 			onDone(next, {
 				tone: "bad",
-				title: `Some changes to ${resource.name} were not saved`,
+				title: `Some changes to ${resource.displayName} were not saved`,
 				message: [
 					...failures,
 					...(secretMessage === "" ? [] : [secretMessage]),
@@ -255,7 +255,7 @@ export function useSaveSettings({
 		if (rolling.length > 0) parts.push(`Rolling out in ${rolling.join(", ")}.`);
 		if (stopping.length > 0) parts.push(`Stopping in ${stopping.join(", ")}.`);
 		const message = parts.length === 0 ? "No redeploy needed." : parts.join(" ");
-		onDone(next, { tone: "info", title: `Saved ${name ?? resource.name}`, message });
+		onDone(next, { tone: "info", title: `Saved ${displayName ?? resource.displayName}`, message });
 	};
 
 	return { save, saving };

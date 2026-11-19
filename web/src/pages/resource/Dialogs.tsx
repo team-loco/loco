@@ -179,10 +179,10 @@ export function DeleteResourceDialog({
 		<ConfirmDeleteDialog
 			open={open}
 			onOpenChange={onOpenChange}
-			title={`Delete ${resource.name}?`}
+			title={`Delete ${resource.displayName}?`}
 			text={`Removes the resource, ${deployCount}${placeList}, and ${domainText}. Running replicas stop immediately.`}
 			target={resource.name}
-			confirmLabel={`Delete ${resource.name}`}
+			confirmLabel={`Delete ${resource.displayName}`}
 			pending={pending}
 			onConfirm={onConfirm}
 		>

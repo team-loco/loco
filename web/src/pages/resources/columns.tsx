@@ -125,7 +125,7 @@ function RowActions({ row }: { row: ResourceRow }) {
 	const { resource, address } = row;
 	const env = linkEnvironment(row, environments, active);
 	return (
-		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.name}>
+		<ResourceRowMenu resource={resource} workspaceId={workspaceId} title={resource.displayName}>
 			{row.cells.size === 0 && (
 				<DropdownMenuItem onClick={() => void navigate(resourcePath(orgId, workspaceId, resource.id))}>
 					<RocketIcon className="text-fg3" />

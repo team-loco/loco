@@ -11,5 +11,5 @@ export function ResourceTitle() {
 		{ key: { case: "resourceId", value: resourceId } },
 		{ enabled: resourceId !== "" },
 	);
-	return <PageTitle title={data?.resource?.name ?? "Resource"} />;
+	return <PageTitle title={data?.resource?.displayName ?? "Resource"} />;
 }

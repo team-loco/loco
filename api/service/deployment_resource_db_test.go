@@ -4,61 +4,13 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/reqctx"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
-
-func TestDeploymentPreservesTheRenameThatCommitsWhileItWaits(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	if _, err := createDeploymentWith(t, f, sameRegionSpec, imageService()); err != nil {
-		t.Fatal(err)
-	}
-	f.reportRollout(t, true)
-	server := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
-	scopes := []genDb.EntityScope{
-		{EntityType: genDb.EntityTypeResource, EntityID: f.resourceID, Scope: genDb.ScopeWrite},
-	}
-	ctx := reqctx.WithPrincipal(t.Context(), reqctx.Principal{Scopes: scopes})
-	release := sync.OnceFunc(f.holdResourceLock(t))
-	t.Cleanup(release)
-	const renamed = "renamed-service"
-	updated := make(chan error, 1)
-	go func() {
-		_, err := server.UpdateResource(
-			ctx,
-			&resourcev1.UpdateResourceRequest{ResourceId: f.resourceID.String(), Name: new(renamed)},
-		)
-		updated <- err
-	}()
-	dbtest.WaitForLockWaiters(t, f.pool, 1)
-	created := make(chan error, 1)
-	go func() { _, err := deployService(t, f, imageService()); created <- err }()
-	dbtest.WaitForLockWaiters(t, f.pool, 2)
-	release()
-	if err := <-updated; err != nil {
-		t.Fatal(err)
-	}
-	if err := <-created; err != nil {
-		t.Fatal(err)
-	}
-	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	desired := desiredPayload(t, f)
-	if resource.Name != renamed || desired.AppSpec.Slug != renamed {
-		t.Fatalf("resource name=%q, application slug=%q; want %q", resource.Name, desired.AppSpec.Slug, renamed)
-	}
-}
 
 func TestDeploymentMergesTheResourceSpecThatCommitsWhileItWaits(t *testing.T) {
 	t.Parallel()

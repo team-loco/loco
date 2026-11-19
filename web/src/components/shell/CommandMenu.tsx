@@ -155,8 +155,8 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 			items.push({
 				id: `resource-${r.id}`,
 				group: "Resources",
-				label: r.name,
-				keywords: `${r.slug} ${r.description ?? ""}`,
+				label: r.displayName,
+				keywords: `${r.name} ${r.description ?? ""}`,
 				meta: r.description,
 				icon: <StatusGlyph glyph={resourceStatusStyle(environmentStatus(r, activeEnv?.id)?.status).glyph} />,
 				run: go(resourcePath(orgId, workspaceId, r.id)),
@@ -165,8 +165,8 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				items.push({
 					id: `resource-${r.id}-${v.view}`,
 					group: "Resources",
-					label: `${v.label} for ${r.name}`,
-					keywords: `${v.view} ${r.slug}`,
+					label: `${v.label} for ${r.displayName}`,
+					keywords: `${v.view} ${r.name}`,
 					icon: v.icon,
 					run: go(observabilityPath(orgId, workspaceId, v.view, { ...envParams, r: [r.name] })),
 					searchOnly: true,

@@ -125,7 +125,7 @@ export function RecentDeployments({
 												e.stopPropagation();
 											}}
 										>
-											{resource.name}
+											{resource.displayName}
 										</Link>
 									</TableCell>
 									<TableCell className="truncate font-mono text-[12px] text-fg2">{d.region}</TableCell>

@@ -436,20 +436,10 @@ func (s *ResourceServer) UpdateResource(
 		return nil, err
 	}
 
-	message := req.ProtoReflect()
-	fields := message.Descriptor().Fields()
-	rename := message.Has(fields.ByName(updateNameField))
-	updateParams := genDb.UpdateResourceParams{ID: resourceID}
-	if rename {
-		slug := resourceSlug(req.GetName())
-		if slug == "" {
-			return nil, errPrivateServiceName
-		}
-		updateParams.Name = new(req.GetName())
-		updateParams.Slug = &slug
-	}
-	if message.Has(fields.ByName(updateDescriptionField)) {
-		updateParams.Description = new(req.GetDescription())
+	updateParams := genDb.UpdateResourceParams{
+		ID:          resourceID,
+		DisplayName: req.DisplayName,
+		Description: req.Description,
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
@@ -500,28 +490,8 @@ func (s *ResourceServer) UpdateResource(
 				return fmt.Errorf("update service setting: %w", updateErr)
 			}
 		}
-		if rename {
-			slugErr := checkSlugFree(ctx, qtx, resource.WorkspaceID, *updateParams.Slug, &resourceID)
-			if slugErr != nil {
-				return slugErr
-			}
-		}
-		_, updateErr := qtx.UpdateResource(ctx, updateParams)
-		if isUniqueViolation(updateErr, pgResourceNameUnique) {
-			return ErrResourceNameNotUnique
-		}
-		if isUniqueViolation(updateErr, pgResourceSlugUnique) {
-			return errSlugInUse
-		}
-		if updateErr != nil {
+		if _, updateErr := qtx.UpdateResource(ctx, updateParams); updateErr != nil {
 			return fmt.Errorf("update resource: %w", updateErr)
-		}
-		if rename {
-			resource.Name = req.GetName()
-			resource.Slug = *updateParams.Slug
-			if renameErr := renamePlacements(ctx, qtx, resource); renameErr != nil {
-				return renameErr
-			}
 		}
 		if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 			return bumpErr
@@ -1053,6 +1023,7 @@ func dbResourceToProto(
 		WorkspaceId:         res.WorkspaceID.String(),
 		Name:                res.Name,
 		Slug:                res.Slug,
+		DisplayName:         res.DisplayName,
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
 		Domains:             resourceDomainToListProto(domains),

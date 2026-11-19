@@ -128,6 +128,8 @@ message Resource {
   string slug = 14;
   // revision increases with every change to the resource spec or its scaling.
   int64 revision = 15;
+  // display_name is the label the dashboard shows. It starts as name; name never changes.
+  string display_name = 16;
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -219,10 +221,14 @@ message ListWorkspaceResourcesResponse {
 // UpdateResourceRequest is the request to update a resource.
 message UpdateResourceRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  optional string name = 2 [(buf.validate.field).string = {
-    min_len: 1
-    max_len: 63
-  }];
+  optional string display_name = 2 [
+    (buf.validate.field).string.max_len = 63,
+    (buf.validate.field).cel = {
+      id: "resource.display_name"
+      message: "display name needs a character that is not a space"
+      expression: "this.matches('\\\\S')"
+    }
+  ];
   optional string description = 3 [(buf.validate.field).string.max_len = 256];
   // regions replaces the resource's whole region map when set; omitted regions are torn down.
   optional RegionTargets regions = 4;

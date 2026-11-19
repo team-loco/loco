@@ -511,7 +511,9 @@ type Resource struct {
 	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,13,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
 	Slug                string                 `protobuf:"bytes,14,opt,name=slug,proto3" json:"slug,omitempty"`
 	// revision increases with every change to the resource spec or its scaling.
-	Revision      int64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision int64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
+	// display_name is the label the dashboard shows. It starts as name; name never changes.
+	DisplayName   string `protobuf:"bytes,16,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -649,6 +651,13 @@ func (x *Resource) GetRevision() int64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *Resource) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
 }
 
 // EnvironmentStatus is a resource's status in one environment it has an active deployment in.
@@ -1270,7 +1279,7 @@ func (x *ListWorkspaceResourcesResponse) GetNextPageToken() string {
 type UpdateResourceRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	ResourceId  string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	Name        *string                `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	DisplayName *string                `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
 	Description *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// regions replaces the resource's whole region map when set; omitted regions are torn down.
 	Regions *RegionTargets `protobuf:"bytes,4,opt,name=regions,proto3,oneof" json:"regions,omitempty"`
@@ -1319,9 +1328,9 @@ func (x *UpdateResourceRequest) GetResourceId() string {
 	return ""
 }
 
-func (x *UpdateResourceRequest) GetName() string {
-	if x != nil && x.Name != nil {
-		return *x.Name
+func (x *UpdateResourceRequest) GetDisplayName() string {
+	if x != nil && x.DisplayName != nil {
+		return *x.DisplayName
 	}
 	return ""
 }
@@ -2136,7 +2145,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\r_health_check\"Q\n" +
 	"\fResourceSpec\x129\n" +
 	"\aservice\x18\x01 \x01(\v2\x1d.loco.resource.v1.ServiceSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xa3\x05\n" +
+	"\x04spec\"\xc6\x05\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -2156,7 +2165,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\apartial\x18\f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
 	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x12\n" +
 	"\x04slug\x18\x0e \x01(\tR\x04slug\x12\x1a\n" +
-	"\brevision\x18\x0f \x01(\x03R\brevisionB\a\n" +
+	"\brevision\x18\x0f \x01(\x03R\brevision\x12!\n" +
+	"\fdisplay_name\x18\x10 \x01(\tR\vdisplayNameB\a\n" +
 	"\x05_specB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
@@ -2213,16 +2223,17 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xe5\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xde\x03\n" +
 	"\x15UpdateResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12\"\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18?H\x00R\x04name\x88\x01\x01\x12/\n" +
+	"resourceId\x12\x92\x01\n" +
+	"\fdisplay_name\x18\x02 \x01(\tBj\xbaHg\xba\x01`\n" +
+	"\x15resource.display_name\x122display name needs a character that is not a space\x1a\x13this.matches('\\\\S')r\x02\x18?H\x00R\vdisplayName\x88\x01\x01\x12/\n" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12>\n" +
 	"\aregions\x18\x04 \x01(\v2\x1f.loco.resource.v1.RegionTargetsH\x02R\aregions\x88\x01\x01\x12\x1a\n" +
 	"\brevision\x18\x05 \x01(\x03R\brevision\x123\n" +
-	"\x13rollback_on_failure\x18\x06 \x01(\bH\x03R\x11rollbackOnFailure\x88\x01\x01B\a\n" +
-	"\x05_nameB\x0e\n" +
+	"\x13rollback_on_failure\x18\x06 \x01(\bH\x03R\x11rollbackOnFailure\x88\x01\x01B\x0f\n" +
+	"\r_display_nameB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
 	"\b_regionsB\x16\n" +

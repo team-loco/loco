@@ -64,17 +64,17 @@ export function DashboardRowMenu({
 				commit: to.commit,
 			});
 			setRollingBack(false);
-			toast.success(`Rolling back ${resource.name} to ${depTag(to)}`);
+			toast.success(`Rolling back ${resource.displayName} to ${depTag(to)}`);
 			await refresh();
 		} catch (err) {
-			toastConnectError(err, `Failed to roll back ${resource.name}`);
+			toastConnectError(err, `Failed to roll back ${resource.displayName}`);
 		}
 	};
 
 	const doRestart = async (environmentId: string) => {
 		try {
 			await restart.mutateAsync({ resourceId: resource.id, environmentId });
-			toast.success(`Restarting ${resource.name}`);
+			toast.success(`Restarting ${resource.displayName}`);
 			await refresh();
 		} catch (err) {
 			toastConnectError(err, "Failed to restart replicas");
@@ -138,7 +138,7 @@ export function DashboardRowMenu({
 			>
 				{rollingBack && target !== undefined && (
 					<RollbackDialogContent
-						resourceName={resource.name}
+						resourceName={resource.displayName}
 						target={target}
 						current={focus?.current}
 						pending={deploy.isPending}

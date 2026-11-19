@@ -37,7 +37,7 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 }
 
 export interface SettingsDraft {
-	name?: string;
+	displayName?: string;
 	description?: string;
 	image?: string;
 	rollbackOnFailure?: boolean;
@@ -64,6 +64,7 @@ export interface SettingsDraft {
 
 export interface Baseline {
 	name: string;
+	displayName: string;
 	description: string;
 	image: string;
 	rollbackOnFailure: boolean;
@@ -90,6 +91,7 @@ function templateRegion(regions: RegionView[]): RegionView | undefined {
 
 export function baseline(
 	name: string,
+	displayName: string,
 	description: string,
 	regions: RegionView[],
 	configured: string[],
@@ -103,6 +105,7 @@ export function baseline(
 	const deployed = deployedRegions(regions);
 	return {
 		name,
+		displayName,
 		description,
 		image: svc?.build?.image ?? "",
 		rollbackOnFailure: rollbackOnFailure ?? defaults.rollbackOnFailure,
@@ -136,7 +139,8 @@ export function baseline(
 
 export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 	return {
-		name: draft.name ?? base.name,
+		name: base.name,
+		displayName: draft.displayName ?? base.displayName,
 		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
 		rollbackOnFailure: draft.rollbackOnFailure ?? base.rollbackOnFailure,
@@ -155,7 +159,7 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 }
 
 const SCALAR_KEYS = [
-	"name",
+	"displayName",
 	"description",
 	"image",
 	"cpu",
@@ -211,7 +215,7 @@ export function validateDraft(
 		const error = scalingError(scaling, replicaLimit);
 		if (error !== null) errors[`scaling.${region}`] = error;
 	}
-	if (draft.name !== undefined && next.name.trim() === "") errors.name = "Enter a name";
+	if (draft.displayName !== undefined && next.displayName.trim() === "") errors.displayName = "Enter a display name";
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";
 	if (draft.port !== undefined) {
 		const portInvalid = next.port.trim() === "" ? "Enter a port number" : portRangeError(next.port);

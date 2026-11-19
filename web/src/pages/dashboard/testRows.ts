@@ -16,7 +16,13 @@ export function row(
 	const regions = patch.regions ?? [{ region: "us-east-1", desired: 1, ready: 1 }];
 	const domains = patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }];
 	return {
-		resource: create(ResourceSchema, { id: name, name, description: patch.description ?? "", domains }),
+		resource: create(ResourceSchema, {
+			id: name,
+			name,
+			displayName: name,
+			description: patch.description ?? "",
+			domains,
+		}),
 		environment: undefined,
 		status: patch.status ?? ResourceStatus.HEALTHY,
 		envDeployments: [],

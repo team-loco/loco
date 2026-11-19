@@ -28,7 +28,7 @@ const cell: EnvCell = {
 
 function row(id: string, envIds: string[]): ResourceRow {
 	return {
-		resource: create(ResourceSchema, { id, name: id }),
+		resource: create(ResourceSchema, { id, name: id, displayName: id }),
 		cells: new Map(envIds.map((e) => [e, cell])),
 		cpuMilli: 0,
 		memMi: 0,
