@@ -1,4 +1,5 @@
-# loco resource status lists each region's replicas with their state, restarts, last exit and age.
+# loco resource status lists each region's replicas with their state, restarts, last exit and age;
+# a replica that restarted shows its restarts in the window against the budget.
 fakeapi replicas web
 env NO_COLOR=1
 
@@ -6,7 +7,7 @@ exec loco resource status web
 stdout 'us-east-1 replicas'
 stdout 'REPLICA\s+STATE\s+RESTARTS\s+LAST EXIT\s+AGE\s+NODE'
 stdout 'web-7d9f-a1\s+Serving\s+0\s+—\s+3h\s+node-1'
-stdout 'web-7d9f-b2\s+Failing\s+4\s+OOMKilled \(137\) 5m ago\s+20m\s+node-2'
+stdout 'web-7d9f-b2\s+Restarting \(2/5\)\s+4\s+OOMKilled \(137\) 5m ago\s+20m\s+node-2'
 ! stdout 'last reported'
 
 exec loco resource status web -o json

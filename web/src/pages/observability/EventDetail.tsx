@@ -32,7 +32,7 @@ import { agoLabel, formatFullTime } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
 import { useObs } from "./context";
-import { eventDataLabel, eventReasonLabel, eventJson, eventValue, severityStyle, type EventItem } from "./events";
+import { eventDataLabel, eventJson, eventValue, severityStyle, type EventItem } from "./events";
 import { quoteValue, withToken } from "./query";
 
 export function EventIcon({ item }: { item: EventItem }) {
@@ -221,9 +221,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 								<dt className="truncate font-mono text-[12px] text-fg3" title={field.key}>
 									{field.key}
 								</dt>
-								<dd className="m-0 break-words font-mono text-[12px]">
-									{field.key === "reason" ? eventReasonLabel(field.value) : field.value}
-								</dd>
+								<dd className="m-0 break-words font-mono text-[12px]">{field.value}</dd>
 								<span className="flex opacity-60 group-hover/attr:opacity-100 group-focus-within/attr:opacity-100">
 									{field.filter && (
 										<>

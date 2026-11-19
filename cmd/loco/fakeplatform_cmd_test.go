@@ -503,7 +503,7 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 	now := time.Now()
 	region := &resourcev1.RegionStatus{
 		Region: fakeDefaultRegion, Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
-		ReadyReplicas: 1, DesiredReplicas: 2, ReportedAt: timestamppb.New(now),
+		ReadyReplicas: 1, DesiredReplicas: 2, ReportedAt: timestamppb.New(now), MaxRestarts: 5,
 		Replicas: []*deploymentv1.Replica{
 			{
 				Name: service + "-7d9f-a1", Node: "node-1", State: "Serving", Ready: true,
@@ -512,6 +512,9 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 			{
 				Name: service + "-7d9f-b2", Node: "node-2", State: "Failing", Restarts: 4,
 				StartedAt: timestamppb.New(now.Add(-20 * time.Minute)),
+				RestartsAt: []*timestamppb.Timestamp{
+					timestamppb.New(now.Add(-8 * time.Minute)), timestamppb.New(now.Add(-5 * time.Minute)),
+				},
 				LastExit: &deploymentv1.ReplicaExit{
 					Reason: "OOMKilled", ExitCode: 137, FinishedAt: timestamppb.New(now.Add(-5 * time.Minute)),
 				},

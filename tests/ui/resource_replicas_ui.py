@@ -110,10 +110,19 @@ def report_replicas():
                     "exit_code": 137,
                     "finished_at": {"seconds": now - 5 * 60},
                 },
+                last_restart={
+                    "at": {"seconds": now - 5 * 60},
+                    "cause": "out_of_memory",
+                    "exit_code": 137,
+                },
             ),
         ],
         WEST: [
-            replica("replicas-ui-west-c3", deployment),
+            replica(
+                "replicas-ui-west-c3",
+                deployment,
+                last_exit={"reason": "Completed", "exit_code": 0},
+            ),
             replica("replicas-ui-west-d4", deployment),
         ],
     }
@@ -202,8 +211,11 @@ with session(repo / "tests/ui/out/resource-replicas") as browser:
 
     crashed = east.get_by_role("listitem").filter(has_text="replicas-ui-east-b2")
     expect(crashed).to_contain_text("Failing")
-    expect(crashed).to_contain_text("4 restarts")
-    expect(crashed).to_contain_text("OOMKilled · exit 137 · 5m ago")
+    expect(crashed).to_contain_text("4 restarts · last 5m ago · out of memory")
+    expect(crashed).not_to_contain_text("OOMKilled")
+    exited = west.get_by_role("listitem").filter(has_text="replicas-ui-west-c3")
+    expect(exited).to_contain_text("0 restarts")
+    expect(exited).to_contain_text("Completed · exit 0")
     expect(crashed).to_contain_text("Up 20m")
     expect(crashed).to_contain_text("CPU 90% of 0.5 vCPU")
 

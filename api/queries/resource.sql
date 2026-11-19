@@ -118,8 +118,10 @@ SELECT l.resource_id,
              AND rd.domain_source = 'platform_provided'
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
-       )::text[] AS unserved_domains
+       )::text[] AS unserved_domains,
+       COALESCE(r.max_restarts, sqlc.arg(default_max_restarts)::int)::int AS max_restarts
 FROM live_deployment_placements l
+JOIN resources r ON r.id = l.resource_id
 JOIN environments e ON e.id = l.environment_id
 JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id

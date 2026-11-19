@@ -154,3 +154,29 @@ func TestARolloutStoppedForRestartsFails(t *testing.T) {
 		t.Fatalf("a stopped rollout recorded deployment.crashed: %v", crashed)
 	}
 }
+
+func TestRegionStatusReportsTheRestartBudget(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
+	server := &ResourceServer{queries: f.queries, defaults: testServiceDefaults()}
+	budget := func() int32 {
+		t.Helper()
+		statuses, err := server.environmentStatuses(t.Context(), []uuid.UUID{f.resourceID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return statuses[f.resourceID][0].GetRegions()[0].GetMaxRestarts()
+	}
+	if got := budget(); got != testServiceDefaults().MaxRestarts {
+		t.Fatalf("budget = %d, want the default %d", got, testServiceDefaults().MaxRestarts)
+	}
+	if err := f.queries.SetResourceDeployPolicy(t.Context(), genDb.SetResourceDeployPolicyParams{
+		ID: f.resourceID, MaxRestarts: new(int32(2)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := budget(); got != 2 {
+		t.Fatalf("budget = %d, want the service's 2", got)
+	}
+}

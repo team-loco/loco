@@ -4,7 +4,6 @@ import { runtimeEvent } from "@/lib/runtime-events";
 import { expect, test } from "bun:test";
 import {
 	eventDataLabel,
-	eventReasonLabel,
 	eventItem,
 	eventJson,
 	eventSummary,
@@ -79,14 +78,13 @@ test("retains event context for filters and raw JSON", () => {
 	expect(eventSummary({ ...scaled, message: "Scaled by operator" })).toBe("Scaled by operator");
 });
 
-test("labels degraded reasons while keeping filter values raw", () => {
+test("shows a degraded event's message, or its raw reason without one", () => {
 	const event = eventItem({
 		...runtimeEvent(create(EventSchema, { type: "resource.degraded", data: { reason: "restarting" } })),
 		resourceId: "resource",
 		resourceName: "web",
 	});
-	expect(eventSummary(event)).toBe("Restarting");
-	expect(eventReasonLabel("out_of_memory")).toBe("Out of memory");
+	expect(eventSummary(event)).toBe("restarting");
 	expect(eventValue(event, "reason")).toBe("restarting");
 	expect(eventSummary({ ...event, message: "Restart backoff" })).toBe("Restart backoff");
 	expect(eventDataLabel("deploymentId")).toBe("deployment_id");

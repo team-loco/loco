@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 import { replicaState } from "./deployment-progress";
 import type { RegionView } from "./model";
-import { exitLabel, podUsage } from "./replicas";
+import { exitLabel, podUsage, restartLabel } from "./replicas";
 
 const USAGE_SPAN_MS = 5 * 60_000;
 const USAGE_METRICS = ["k8s.pod.cpu_limit_utilization", "k8s.pod.memory.working_set_limit_utilization"] as const;
@@ -87,11 +87,9 @@ export function ReplicaList({
 								</Badge>
 							</span>
 							<span className="flex min-w-0 flex-wrap gap-x-2 text-fg2">
-								<span>
-									{replica.restarts.toString()} {replica.restarts === 1 ? "restart" : "restarts"}
-								</span>
+								<span>{restartLabel(replica, nowMs)}</span>
 								{startedMs !== undefined && <span>Up {shortDurationLabel(nowMs - startedMs)}</span>}
-								{replica.lastExit !== undefined && (
+								{replica.lastExit !== undefined && replica.lastRestart === undefined && (
 									<span className="font-mono text-warn-fg [overflow-wrap:anywhere]">
 										{exitLabel(replica.lastExit, nowMs)}
 									</span>

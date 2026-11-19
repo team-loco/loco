@@ -30,7 +30,7 @@ export const ENVIRONMENT_EVENT_TYPES = [
 	"build.canceled",
 ];
 
-export const ROLLOUT_EVENT_TYPES = ["deployment.ready", "deployment.failed"];
+export const ROLLOUT_EVENT_TYPES = ["deployment.ready", "deployment.failed", "deployment.crashed"];
 
 export function runtimeEvent(event: Event): RuntimeEvent {
 	const field = (key: string): string => {

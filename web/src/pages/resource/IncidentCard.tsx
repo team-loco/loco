@@ -12,7 +12,7 @@ import { cn, formatShortId } from "@/lib/utils";
 
 import { logLevel } from "@/pages/observability/query";
 
-import { latestBackOff } from "./events";
+import { latestRestartWarning } from "./events";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 
 import { depTag, startedMs, type RegionProblem, type RegionView } from "./model";
@@ -116,7 +116,7 @@ export function IncidentCard({
 	const status = region.status;
 	const current = region.current;
 	const reportedMs = maybeTsMs(status?.reportedAt);
-	const backOff = latestBackOff(events, region.name);
+	const restarts = latestRestartWarning(events, region.name);
 	const changes = current !== undefined && lastGood !== undefined ? specChanges(lastGood, current) : [];
 	const goodMs = lastGood === undefined ? undefined : startedMs(lastGood);
 
@@ -174,7 +174,7 @@ export function IncidentCard({
 						</Fact>
 					)}
 					{problem.message !== "" && <Fact label="Status">{problem.message}</Fact>}
-					{backOff !== undefined && <Fact label="Last warning">{backOff.message}</Fact>}
+					{restarts !== undefined && <Fact label="Last warning">{restarts.message}</Fact>}
 					<Fact label="Last good">
 						{lastGood === undefined ? (
 							"No earlier healthy deployment in this region"
@@ -198,7 +198,7 @@ export function IncidentCard({
 						</Fact>
 					)}
 				</dl>
-				{backOff !== undefined ? (
+				{restarts !== undefined ? (
 					<RegionLogs
 						workspaceId={workspaceId}
 						environmentId={environmentId}
@@ -206,7 +206,7 @@ export function IncidentCard({
 						region={region.name}
 					/>
 				) : (
-					<span className="text-[12.5px] text-fg3">No active crash-loop event in this environment.</span>
+					<span className="text-[12.5px] text-fg3">No replica restarting in this region.</span>
 				)}
 			</div>
 		</section>

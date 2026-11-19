@@ -6,23 +6,6 @@ import { formatShortId } from "@/lib/utils";
 
 export type Severity = "error" | "warning" | "normal";
 
-// Public reason strings are owned by k8sapi/v1alpha1/problems.go.
-const REASON_TITLES: Record<string, string> = {
-	restarting: "Restarting",
-	restarts_exhausted: "Stopped after restarts",
-	out_of_memory: "Out of memory",
-	image_pull_failed: "Image pull failed",
-	image_user: "Image runs as root",
-	config_error: "Couldn't start service",
-	unschedulable: "Couldn't schedule service",
-	health_check_failing: "Health check failing",
-	unclean_shutdown: "Replica killed at shutdown",
-};
-
-export function eventReasonLabel(reason: string): string {
-	return REASON_TITLES[reason] ?? reason.replaceAll("_", " ");
-}
-
 export function eventDataLabel(key: string): string {
 	return key.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
 }
@@ -35,6 +18,7 @@ const TYPE_TITLES: Record<string, string> = {
 	"deployment.created": "Deploy created",
 	"deployment.ready": "Deploy ready",
 	"deployment.failed": "Deploy failed",
+	"deployment.crashed": "Deploy crashed",
 	"build.created": "Build queued",
 	"build.started": "Build started",
 	"build.succeeded": "Build succeeded",
@@ -47,6 +31,7 @@ const REGIONAL_TITLES = new Set([
 	"resource.restarted",
 	"deployment.ready",
 	"deployment.failed",
+	"deployment.crashed",
 ]);
 
 export function eventTitle(type: string, region = ""): string {
@@ -55,7 +40,7 @@ export function eventTitle(type: string, region = ""): string {
 
 export function eventSummary(e: WorkspaceEventWithResource): string {
 	if (e.message !== "") return e.message;
-	if (e.type === "resource.degraded") return eventReasonLabel(e.reason);
+	if (e.type === "resource.degraded") return e.reason;
 	if (e.type === "resource.scaled")
 		return [
 			["replicas", e.replicas],
@@ -77,7 +62,7 @@ export function eventSummary(e: WorkspaceEventWithResource): string {
 }
 
 export function severityOf(type: string): Severity {
-	if (type === "build.failed" || type === "deployment.failed") return "error";
+	if (type === "build.failed" || type === "deployment.failed" || type === "deployment.crashed") return "error";
 	return type === "resource.degraded" ? "warning" : "normal";
 }
 

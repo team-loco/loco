@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { EventSchema } from "@gen/loco/event/v1/event_pb";
 import { runtimeEvent } from "@/lib/runtime-events";
 import { msToTimestamp } from "@/lib/time";
-import { latestBackOff, recentWarningCount } from "./events";
+import { latestRestartWarning, recentWarningCount } from "./events";
 
 const NOW_MS = Date.UTC(2026, 10, 8, 12);
 function event(reason: string, type: string, minutesAgo: number, placementId = "p1") {
@@ -31,12 +31,12 @@ describe("runtime events", () => {
 			),
 		).toBe(2);
 	});
-	test("recovery and a changed problem clear the crash card per placement", () => {
+	test("recovery and a changed problem clear the restarts card per placement", () => {
 		const crash = event("restarting", "resource.degraded", 30);
-		expect(latestBackOff([crash, event("", "resource.recovered", 2)])).toBeUndefined();
-		expect(latestBackOff([crash, event("image_pull_failed", "resource.degraded", 2)])).toBeUndefined();
-		expect(latestBackOff([crash, event("", "resource.recovered", 2, "p2")])).toBe(crash);
+		expect(latestRestartWarning([crash, event("", "resource.recovered", 2)])).toBeUndefined();
+		expect(latestRestartWarning([crash, event("image_pull_failed", "resource.degraded", 2)])).toBeUndefined();
+		expect(latestRestartWarning([crash, event("", "resource.recovered", 2, "p2")])).toBe(crash);
 		const stopped = event("restarts_exhausted", "resource.degraded", 1);
-		expect(latestBackOff([crash, stopped])).toBe(stopped);
+		expect(latestRestartWarning([crash, stopped])).toBe(stopped);
 	});
 });
