@@ -173,7 +173,7 @@ runs:
           distSpecVersion: "1.1.1",
           storage: {rootDirectory: $root, gc: false, dedupe: false},
           http: {address: "0.0.0.0", port: "5555", compat: ["docker2s2"]},
-          log: {level: "info"}
+          log: {level: "warn"}
         } + if $sync then {extensions: {sync: {enable: true, registries: [
           {urls: ["https://registry-1.docker.io"], onDemand: true, content: [{prefix: "**"}]}
         ]}}} else {} end' > "$RUNNER_TEMP/zot.json"
