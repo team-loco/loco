@@ -151,11 +151,12 @@ export function previousDeployment(region: RegionView, dep: Deployment): Deploym
 	return index === -1 ? undefined : region.history[index + 1];
 }
 
+/** Time from creation until the deployment turned ready, or until it failed or was canceled. */
 export function tookMs(dep: Deployment): number | undefined {
-	const started = maybeTsMs(dep.startedAt);
-	const completed = maybeTsMs(dep.completedAt);
-	if (started === undefined || completed === undefined) return undefined;
-	return Math.max(0, completed - started);
+	const created = maybeTsMs(dep.createdAt);
+	const end = maybeTsMs(dep.startedAt) ?? maybeTsMs(dep.completedAt);
+	if (created === undefined || end === undefined) return undefined;
+	return Math.max(0, end - created);
 }
 
 export function activeDeploymentPlaces(resource: Resource): string[] {

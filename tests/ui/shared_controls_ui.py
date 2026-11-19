@@ -300,8 +300,10 @@ def activity_deployments(page):
             createdAt=(finished - timedelta(minutes=1))
             .isoformat()
             .replace("+00:00", "Z"),
+            startedAt=(finished - timedelta(minutes=1, seconds=-16))
+            .isoformat()
+            .replace("+00:00", "Z"),
             completedAt=finished.isoformat().replace("+00:00", "Z"),
-            replicas=[{"ready": True}],
         ),
         deployment(
             "00000000-0000-7000-8000-000000000002", "DEPLOYMENT_STATUS_DEPLOYING", 1
@@ -310,6 +312,37 @@ def activity_deployments(page):
     page.route(
         "**/loco.deployment.v1.DeploymentService/ListDeployments",
         lambda route: route.fulfill(json={"deployments": deployments}),
+    )
+    production = sql(
+        state,
+        f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production'",
+    )
+
+    def report_ready(route):
+        response = route.fetch()
+        body = response.json()
+        for listed in body["resources"]:
+            if listed["id"] == resource:
+                listed["environmentStatuses"] = [
+                    {
+                        "environmentId": production,
+                        "environmentName": "production",
+                        "status": "RESOURCE_STATUS_HEALTHY",
+                        "regions": [
+                            {
+                                "region": "us-east-1",
+                                "status": "RESOURCE_STATUS_HEALTHY",
+                                "readyReplicas": 1,
+                                "desiredReplicas": 1,
+                                "deploymentId": deployments[0]["id"],
+                            }
+                        ],
+                    }
+                ]
+        route.fulfill(response=response, json=body)
+
+    page.route(
+        "**/loco.resource.v1.ResourceService/ListWorkspaceResources", report_ready
     )
     page.goto(state["ui_url"] + base + "?env=production")
     activity = page.get_by_role("button", name="Activity, 0 active", exact=True)
@@ -321,12 +354,13 @@ def activity_deployments(page):
     expect(cards.nth(0)).to_contain_text("Deploy replicas")
     expect(cards.nth(1)).to_contain_text("Deployed")
     expect(cards.nth(1)).to_contain_text("1 of 1 ready")
-    expect(cards.nth(1)).to_contain_text(re.compile(r"took 1m · 7m ago"))
+    expect(cards.nth(1)).to_contain_text(re.compile(r"took 16s · 7m ago"))
     expect(
         cards.nth(0).get_by_role("link", name="Open controls-pilot", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
     page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
+    page.unroute("**/loco.resource.v1.ResourceService/ListWorkspaceResources")
 
 
 def log_levels(page):

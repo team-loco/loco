@@ -164,13 +164,25 @@ describe("focusRegion", () => {
 });
 
 describe("tookMs", () => {
-	test("measures from start to completion", () => {
-		const dep = create(DeploymentSchema, { startedAt: msToTimestamp(1_000), completedAt: msToTimestamp(91_000) });
+	const at = (ms: number) => msToTimestamp(ms);
+
+	test("a running deployment took until it turned ready", () => {
+		const dep = create(DeploymentSchema, { createdAt: at(1_000), startedAt: at(17_000) });
+		expect(tookMs(dep)).toBe(16_000);
+	});
+
+	test("a superseded deployment keeps the time it took to turn ready", () => {
+		const dep = create(DeploymentSchema, { createdAt: at(1_000), startedAt: at(17_000), completedAt: at(241_000) });
+		expect(tookMs(dep)).toBe(16_000);
+	});
+
+	test("a deployment that never turned ready took until it ended", () => {
+		const dep = create(DeploymentSchema, { createdAt: at(1_000), completedAt: at(91_000) });
 		expect(tookMs(dep)).toBe(90_000);
 	});
 
-	test("is unknown until the deployment completes", () => {
-		expect(tookMs(create(DeploymentSchema, { startedAt: msToTimestamp(1_000) }))).toBeUndefined();
+	test("is unknown while the deployment is still starting", () => {
+		expect(tookMs(create(DeploymentSchema, { createdAt: at(1_000) }))).toBeUndefined();
 	});
 });
 

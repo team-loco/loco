@@ -25,7 +25,7 @@ import {
 	deploySteps,
 	finishedLabel,
 	rolloutGroups,
-	rolloutReadyLabel,
+	reportedReadyLabel,
 	withoutRunningDeploys,
 	type StepState,
 } from "@/lib/activity-deploys";
@@ -163,6 +163,7 @@ function AlertCard({
 
 function DeployCard({
 	rollout,
+	ready,
 	name,
 	resourceHref,
 	logsHref,
@@ -170,6 +171,7 @@ function DeployCard({
 	onNavigate,
 }: {
 	rollout: readonly [Deployment, ...Deployment[]];
+	ready: ReadonlyMap<string, number>;
 	name: string;
 	resourceHref: string;
 	logsHref: string;
@@ -228,7 +230,7 @@ function DeployCard({
 			) : (
 				deployment.status !== DeploymentStatus.FAILED &&
 				deployment.status !== DeploymentStatus.CANCELED && (
-					<span className="text-[12.5px] text-fg2">{rolloutReadyLabel(rollout)}</span>
+					<span className="text-[12.5px] text-fg2">{reportedReadyLabel(rollout, ready)}</span>
 				)
 			)}
 			<CardActions
@@ -273,6 +275,11 @@ export function AlertsDrawer() {
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
 		names.has(d.resourceId),
 	);
+	const ready = new Map(
+		(resources.data?.resources ?? []).flatMap((r) =>
+			r.environmentStatuses.flatMap((e) => e.regions.map((g) => [g.deploymentId, g.readyReplicas] as const)),
+		),
+	);
 	const alerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), deployments);
 	const count = alertedResourceCount(alerts);
 	const envParams = { env: active.name };
@@ -287,6 +294,7 @@ export function AlertsDrawer() {
 			<DeployCard
 				key={d.id}
 				rollout={[d, ...rest]}
+				ready={ready}
 				name={name}
 				resourceHref={resourcePath(activeOrgId, activeWorkspaceId, d.resourceId)}
 				logsHref={observabilityPath(activeOrgId, activeWorkspaceId, "logs", { ...envParams, r: [name] })}

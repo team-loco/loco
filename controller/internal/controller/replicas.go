@@ -183,11 +183,10 @@ func shutdownOutcome(pod *corev1.Pod, now time.Time, result loco.ReplicaStatus) 
 				continue
 			}
 			result.StateSince = exit.FinishedAt.DeepCopy()
-			result.Detail = fmt.Sprintf(
-				"exit %d · %.0f s after the drain",
-				exit.ExitCode,
-				exit.FinishedAt.Sub(drainEnd).Seconds(),
-			)
+			result.Detail = fmt.Sprintf("exit %d · during the drain", exit.ExitCode)
+			if after := exit.FinishedAt.Sub(drainEnd); after >= 0 {
+				result.Detail = fmt.Sprintf("exit %d · %.0f s after the drain", exit.ExitCode, after.Seconds())
+			}
 			if exit.Reason == reasonOOMKilled {
 				result.Detail = reasonOOMKilled
 			}

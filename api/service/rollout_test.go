@@ -147,3 +147,23 @@ func TestReplicaActivityMessages(t *testing.T) {
 		})
 	}
 }
+
+func TestStoppedReplicaWarnsOnlyForAnUncleanExit(t *testing.T) {
+	for _, tt := range []struct {
+		exit     int32
+		severity string
+	}{
+		{0, activityOK},
+		{exitSIGTERM, activityOK},
+		{1, activityWarn},
+		{2, activityWarn},
+	} {
+		replica := &deploymentv1.Replica{
+			State:    string(loco.ReplicaStopped),
+			LastExit: &deploymentv1.ReplicaExit{ExitCode: tt.exit},
+		}
+		if _, severity := replicaActivityMessage(replica); severity != tt.severity {
+			t.Errorf("exit %d severity = %q, want %q", tt.exit, severity, tt.severity)
+		}
+	}
+}

@@ -377,3 +377,37 @@ func TestReplicaStartedAt(t *testing.T) {
 		t.Fatalf("started pod started at %v, want %v", got, started)
 	}
 }
+
+func TestShutdownDetailNamesTheExitRelativeToTheDrain(t *testing.T) {
+	now := time.Now()
+	for _, tt := range []struct {
+		name   string
+		offset time.Duration
+		want   string
+	}{
+		{"before the drain ends", -10 * time.Second, "exit 2 · during the drain"},
+		{"after the drain ends", 3 * time.Second, "exit 2 · 3 s after the drain"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &corev1.Pod{}
+			deadline := metav1.NewTime(now.Add(5 * time.Second))
+			p.DeletionTimestamp = &deadline
+			p.DeletionGracePeriodSeconds = new(int64(35))
+			p.Spec.Containers = []corev1.Container{{
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.LifecycleHandler{Sleep: &corev1.SleepAction{Seconds: 30}},
+				},
+			}}
+			p.Status.ContainerStatuses = []corev1.ContainerStatus{{
+				State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+					ExitCode:   2,
+					FinishedAt: metav1.NewTime(now.Add(tt.offset)),
+				}},
+			}}
+			got := replicaState(p, nil, now)
+			if got.State != loco.ReplicaStopped || got.Detail != tt.want {
+				t.Fatalf("state=%s detail=%q, want Stopped %q", got.State, got.Detail, tt.want)
+			}
+		})
+	}
+}

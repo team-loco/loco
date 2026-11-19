@@ -61,10 +61,6 @@ function readyCount(d: Deployment): number {
 	return d.replicas.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
 }
 
-export function readyLabel(d: Deployment): string {
-	return `${readyCount(d).toString()} of ${d.desiredReplicas.toString()} ready`;
-}
-
 export function clockLabel(ms: number): string {
 	const seconds = Math.max(0, Math.floor(ms / 1000));
 	return `${Math.floor(seconds / 60).toString()}:${(seconds % 60).toString().padStart(2, "0")}`;
@@ -99,9 +95,19 @@ export function rolloutGroups(deployments: readonly Deployment[]): Deployment[][
 	return [...Map.groupBy(deployments, (d) => d.rolloutId).values()];
 }
 
-export function rolloutReadyLabel(deployments: readonly Deployment[]): string {
-	if (deployments.length === 1 && deployments[0] !== undefined) return readyLabel(deployments[0]);
-	const ready = deployments.reduce((sum, d) => sum + readyCount(d), 0);
+export function rolloutReadyLabel(deployments: readonly Deployment[], ready = readyCount): string {
+	const count = deployments.reduce((sum, d) => sum + ready(d), 0);
 	const desired = deployments.reduce((sum, d) => sum + d.desiredReplicas, 0);
-	return `${ready.toString()} of ${desired.toString()} ready in ${deployments.length.toString()} regions`;
+	const label = `${count.toString()} of ${desired.toString()} ready`;
+	return deployments.length === 1 ? label : `${label} in ${deployments.length.toString()} regions`;
+}
+
+/** The ready count the cluster reports for each region's active deployment; nothing for deployments it does not report on. */
+export function reportedReadyLabel(
+	deployments: readonly Deployment[],
+	ready: ReadonlyMap<string, number>,
+): string | undefined {
+	const reporting = deployments.filter((d) => ready.has(d.id));
+	if (reporting.length === 0) return undefined;
+	return rolloutReadyLabel(reporting, (d) => ready.get(d.id) ?? 0);
 }
