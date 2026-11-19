@@ -1,5 +1,6 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { callUnaryMethod, useMutation, useTransport } from "@connectrpc/connect-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { createResourceDomain, deleteResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
@@ -10,7 +11,7 @@ import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretServ
 
 import { getErrorMessage } from "@/lib/error-handler";
 
-import { secretUsageMessage } from "./variables";
+import { refreshSecrets, secretUsageMessage } from "./variables";
 
 import type { Notice, RegionView } from "./model";
 import {
@@ -60,6 +61,7 @@ export function useSaveSettings({
 	const removeDomain = useMutation(deleteResourceDomain);
 	const deploy = useMutation(createDeployment);
 	const transport = useTransport();
+	const queryClient = useQueryClient();
 
 	// The API refuses a stale region map with FAILED_PRECONDITION, as it does a rollout in
 	// progress; only a moved revision means someone else saved first.
@@ -102,6 +104,9 @@ export function useSaveSettings({
 				["removedSecrets"],
 				async () => await removeSecrets.mutateAsync({ resourceId, environmentId, names: removed }),
 			);
+		}
+		if (Object.keys(secrets).length > 0 || removed.length > 0) {
+			await refreshSecrets(queryClient, resourceId, environmentId);
 		}
 		const name = draft.name?.trim();
 		const renamed = name !== undefined && name !== resource.name;
