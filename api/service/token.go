@@ -163,7 +163,7 @@ func (s *TokenServer) CreateToken(
 		if issueErr != nil {
 			return issueErr
 		}
-		return events.Record(lockedCtx, qtx, tokenEvent(events.TokenCreated, targetEntity, req.GetName()))
+		return recordTokenEvent(lockedCtx, qtx, events.TokenCreated, targetEntity, req.GetName())
 	})
 	if err != nil {
 		if accessDenied(err) {
@@ -315,7 +315,7 @@ func (s *TokenServer) RevokeToken(
 		}); deleteErr != nil {
 			return fmt.Errorf("delete token: %w", deleteErr)
 		}
-		return events.Record(ctx, qtx, tokenEvent(events.TokenRevoked, targetEntity, req.GetName()))
+		return recordTokenEvent(ctx, qtx, events.TokenRevoked, targetEntity, req.GetName())
 	}); err != nil {
 		return nil, err
 	}
@@ -477,6 +477,14 @@ func dbScopeToProto(s genDb.Scope) tokenv1.Scope {
 	}
 }
 
+// recordTokenEvent skips personal tokens: they belong to no organization, so no audit log shows them.
+func recordTokenEvent(ctx context.Context, q genDb.Querier, eventType string, target genDb.Entity, name string) error {
+	if target.Type == genDb.EntityTypeUser {
+		return nil
+	}
+	return events.Record(ctx, q, tokenEvent(eventType, target, name))
+}
+
 func tokenEvent(eventType string, target genDb.Entity, name string) events.Event {
 	ev := events.Event{
 		Type:        eventType,
@@ -494,8 +502,7 @@ func tokenEvent(eventType string, target genDb.Entity, name string) events.Event
 		ev.WorkspaceID = new(target.ID)
 	case genDb.EntityTypeResource:
 		ev.ResourceID = new(target.ID)
-	case genDb.EntityTypeUser:
-	case genDb.EntityTypeSystem:
+	case genDb.EntityTypeUser, genDb.EntityTypeSystem:
 	}
 	return ev
 }
