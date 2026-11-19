@@ -491,6 +491,25 @@ otel-col-daemon:
           - /var/log/pods/kube-system_*/*/*.log
           - /var/log/pods/flux-system_*/*/*.log
           - /var/log/pods/cert-manager_*/*/*.log
+        operators:
+          - id: container-parser
+            type: container
+            max_log_size: '{{ .Values.presets.logsCollection.maxRecombineLogSize }}'
+          - id: drop-empty
+            type: filter
+            expr: 'body matches "^\\s*$"'
+          # indented lines, Java causes and Go panic and goroutine traces continue the line before them.
+          - id: multiline
+            type: recombine
+            combine_field: body
+            combine_with: "\n"
+            source_identifier: attributes["log.file.path"]
+            is_first_entry: >-
+              not (body matches "^\\s" or body startsWith "Caused by: " or body matches "^goroutine [0-9]+ .*\\[.+\\]:$"
+              or body startsWith "[signal " or body startsWith "created by "
+              or body matches "^(panic|[^\\s(]*[./][^\\s(]*)\\(.*\\)$")
+            max_log_size: '{{ .Values.presets.logsCollection.maxRecombineLogSize }}'
+            force_flush_period: 500ms
       kubeletstats:
         collection_interval: &collectionInterval 60s
         auth_type: "serviceAccount"
@@ -592,7 +611,7 @@ otel-col-daemon:
               - set(cache["level"], cache["record"]["level"]) where IsMap(cache["record"])
               - set(cache["level"], cache["record"]["severity"]) where cache["level"] == nil and IsMap(cache["record"])
               - set(cache["level"], cache["record"]["severityText"]) where cache["level"] == nil and IsMap(cache["record"])
-              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:[0-9]{4}-[0-9T:.+Z/ -]+\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
+              - merge_maps(cache, ExtractPatterns(cache["message"], "(?i)^(?:[0-9]{4}-[0-9T:.+Z/ -]+\\s+)?(?:level=|\\[)?(?P<level>TRACE|DEBUG|INFO|NOTICE|WARN(?:ING)?|ERROR|FATAL|CRITICAL|PANIC)(?:\\]|[\\s:=]|$)"), "upsert") where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
               - set(cache["fields"], ParseKeyValue(cache["message"])) where cache["level"] == nil and IsString(body) and not IsMatch(cache["message"], "^\\s*\\{")
               - set(cache["level"], cache["fields"]["level"]) where cache["level"] == nil and IsMap(cache["fields"])
               - set(cache["level"], ToUpperCase(cache["level"])) where IsString(cache["level"])
