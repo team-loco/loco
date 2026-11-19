@@ -498,7 +498,7 @@ sed 's/8080/9090/g' /etc/nginx/conf.d/default.conf > /tmp/e2e-server.conf
 exec nginx -c /tmp/e2e-nginx.conf -g 'daemon off;'`,
 		},
 		p.CrashingImage:     {"sh", "-c", "sleep 5; exit 1"},
-		p.LateCrashingImage: {"sh", "-c", `nginx -g 'daemon off;' & sleep 45; exit 1`},
+		p.LateCrashingImage: {"sh", "-c", `nginx -g 'daemon off;' & while [ ! -e /dev/shm/crash ]; do sleep 1; done; exit 1`},
 		p.WorkerImage:       {"sh", "-c", `trap "exit 0" TERM; while :; do sleep 1; done`},
 	} {
 		if err = mirrorImage(ctx, source, destination, target, cmd); err != nil {
