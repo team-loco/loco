@@ -42,6 +42,7 @@ READY_TIMEOUT_S = 120
 POSTGRES_READY_TIMEOUT_S = 300
 STEP_TIMEOUT_MS = 15000
 SETTLE_TIMEOUT_MS = 10000
+APP_LOADER = '[data-slot="app-loader"]'
 LOG_TAIL_LINES = 40
 DISCOVERY_PATH = "/dex/.well-known/openid-configuration"
 USER_SCOPES = ("read", "write", "admin")
@@ -1121,6 +1122,12 @@ SETTLE_SCRIPT = """async ({timeout, excluded}) => {
 
 
 def settle(page, *, exclude_animations=()):
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+    try:
+        page.locator(APP_LOADER).wait_for(state="detached", timeout=STEP_TIMEOUT_MS)
+    except PlaywrightTimeout:
+        raise EvidenceError("the loading screen did not leave") from None
     if not page.evaluate(
         SETTLE_SCRIPT, {"timeout": SETTLE_TIMEOUT_MS, "excluded": exclude_animations}
     ):

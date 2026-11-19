@@ -195,6 +195,20 @@ def test_settle_excludes_only_named_targets():
         browser.close()
 
 
+def test_settle_waits_for_the_loading_screen_to_leave():
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content('<div data-slot="app-loader"></div><main>Ready</main>')
+        page.evaluate("""() => setTimeout(
+          () => document.querySelector('[data-slot="app-loader"]').remove(), 300)""")
+        evidence.settle(page)
+        assert page.locator('[data-slot="app-loader"]').count() == 0
+        browser.close()
+
+
 def test_down_all_stops_every_evidence_lease(leases, monkeypatch):
     monkeypatch.setattr(
         evidence, "run", lambda cmd, **kwargs: leases.append(tuple(cmd))
