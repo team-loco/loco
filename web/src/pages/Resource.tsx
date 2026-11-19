@@ -16,6 +16,7 @@ import {
 } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { Dialog } from "@/components/design/Dialog";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
@@ -246,6 +247,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				duration: Infinity,
 			});
 		}
+		setModal(null);
 	};
 
 	const handleRedeploy = async () => {
@@ -325,7 +327,9 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				isSettings={view !== "overview"}
 				redeploying={redeploying}
 				restarting={restart.isPending}
-				onRestart={() => void handleRestart()}
+				onRestart={() => {
+					setModal({ kind: "restart" });
+				}}
 				canWrite={canWrite}
 				canDelete={canDelete}
 				rollbackTarget={rollbackTarget}
@@ -489,7 +493,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			/>
 
 			<Dialog
-				open={modal !== null && modal.kind !== "delete"}
+				open={modal !== null && modal.kind !== "delete" && modal.kind !== "restart"}
 				onOpenChange={(open: boolean) => {
 					if (!open) setModal(null);
 				}}
@@ -523,6 +527,23 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					/>
 				)}
 			</Dialog>
+			<ConfirmDialog
+				open={modal?.kind === "restart"}
+				title={`Restart ${resource.name}?`}
+				description={
+					<>
+						Restarts every replica of <span className="font-mono text-foreground">{resource.name}</span> in the{" "}
+						<span className="font-mono text-foreground">{environment?.environmentName ?? ""}</span> environment.
+					</>
+				}
+				confirmLabel="Restart all replicas"
+				pendingLabel="Restarting…"
+				pending={restart.isPending}
+				onConfirm={() => void handleRestart()}
+				onClose={() => {
+					setModal(null);
+				}}
+			/>
 			<DeleteResourceDialog
 				open={modal?.kind === "delete"}
 				onOpenChange={(open) => {
