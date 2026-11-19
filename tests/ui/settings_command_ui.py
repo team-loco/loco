@@ -80,8 +80,7 @@ with session(out) as browser:
     def create_deployment(route):
         body = route.request.post_data_json
         sent.append(body["spec"]["service"])
-        # The fixture image has no registry. Store the requested snapshot so the
-        # normal read path shows the saved state without resolving that image.
+        # Stores the requested spec as the active snapshot; the fixture image has no registry.
         runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
         deployment = sql(
             state,
