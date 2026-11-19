@@ -11,7 +11,7 @@ const files = [
 ];
 const css = files.map((f) => readFileSync(join(root, f), "utf8")).join("\n");
 
-const SURFACES = ["bg", "panel"];
+const SURFACES = ["bg", "panel", "shell"];
 
 // Collects custom properties declared in the block for a theme and mode, base theme first.
 function tokens(theme: string, dark: boolean): Record<string, string> {
@@ -41,7 +41,7 @@ const themes = ["loco", "paper", "neobrutal", "catppuccin", "solarized", "rose-p
 
 for (const theme of themes) {
 	for (const dark of [false, true]) {
-		test(`the debug level colour reads at 3:1 on the page and panel: ${theme} ${dark ? "dark" : "light"}`, () => {
+		test(`the debug level colour reads at 3:1 on the page, panel and shell: ${theme} ${dark ? "dark" : "light"}`, () => {
 			const t = tokens(theme, dark);
 			const base = tokens("loco", dark);
 			const get = (name: string) => t[name] ?? base[name]!;
@@ -49,6 +49,15 @@ for (const theme of themes) {
 			const debug = ref ? get(ref[1]!) : get("--lv-debug");
 			for (const surface of SURFACES) {
 				expect(ratio(debug, get(`--${surface}`))).toBeGreaterThanOrEqual(3);
+			}
+		});
+
+		test(`the breadcrumb separator colour reads at 3:1 on the page, panel and shell: ${theme} ${dark ? "dark" : "light"}`, () => {
+			const t = tokens(theme, dark);
+			const base = tokens("loco", dark);
+			const get = (name: string) => t[name] ?? base[name]!;
+			for (const surface of SURFACES) {
+				expect(ratio(get("--fg3"), get(`--${surface}`))).toBeGreaterThanOrEqual(3);
 			}
 		});
 	}
