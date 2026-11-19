@@ -98,7 +98,7 @@ The OpenTelemetry collectors store nothing: every pipeline exports over OTLP/HTT
 | Collector | Collects |
 | --- | --- |
 | `otel-col-deploy` (StatefulSet) | OTLP from applications and Envoy |
-| `otel-col-daemon` (DaemonSet) | Container logs and kubelet metrics |
+| `otel-col-daemon` (DaemonSet) | Container logs, except from `kube-system`, `flux-system` and `cert-manager`, and kubelet metrics |
 | `otel-col-cluster` (StatefulSet) | Kubernetes cluster metrics and events |
 
 ```yaml

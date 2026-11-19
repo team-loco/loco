@@ -480,6 +480,13 @@ otel-col-daemon:
       storeCheckpoints: true
   config:
     receivers:
+      file_log:
+        # the collector's own logs and Kubernetes, Flux and cert-manager logs stay on the node.
+        exclude:
+          - '/var/log/pods/{{ include "opentelemetry-collector.namespace" . }}_{{ include "opentelemetry-collector.fullname" . }}*_*/{{ include "opentelemetry-collector.lowercase_chartname" . }}/*.log'
+          - /var/log/pods/kube-system_*/*/*.log
+          - /var/log/pods/flux-system_*/*/*.log
+          - /var/log/pods/cert-manager_*/*/*.log
       kubeletstats:
         collection_interval: &collectionInterval 60s
         auth_type: "serviceAccount"
