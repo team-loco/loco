@@ -1,3 +1,4 @@
+import { charCount, clampChars } from "@/lib/characters";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation, useQuery, useTransport } from "@connectrpc/connect-query";
 import type { User } from "@gen/loco/org/v1/org_pb";
@@ -171,16 +172,15 @@ export function WorkspaceTab({
 							}}
 						/>
 					</Field>
-					<Field label="Description" hint={`${current.desc.length.toString()} / ${MAX_DESCRIPTION.toString()}`}>
+					<Field label="Description" hint={`${charCount(current.desc).toString()} / ${MAX_DESCRIPTION.toString()}`}>
 						<Textarea
 							rows={2}
-							maxLength={MAX_DESCRIPTION}
 							value={current.desc}
 							placeholder="What runs in this workspace"
 							disabled={!canWrite}
 							className="text-[13.5px]"
 							onChange={(e) => {
-								onDraft({ ...current, desc: e.target.value });
+								onDraft({ ...current, desc: clampChars(e.target.value, MAX_DESCRIPTION) });
 							}}
 						/>
 					</Field>

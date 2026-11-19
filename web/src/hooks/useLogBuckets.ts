@@ -12,9 +12,10 @@ export function useLogBuckets(options: {
 	start: number;
 	end: number;
 	intervalSeconds: number;
+	groupBy?: LogBucketGroup;
 	enabled: boolean;
 }) {
-	const { start, end, enabled, allEnvironments, environmentId, ...filters } = options;
+	const { start, end, enabled, allEnvironments, environmentId, groupBy = LogBucketGroup.LEVEL, ...filters } = options;
 	return useQuery(
 		queryLogBuckets,
 		{
@@ -22,7 +23,7 @@ export function useLogBuckets(options: {
 			environmentId: allEnvironments ? "" : environmentId,
 			startTime: msToTimestamp(start),
 			endTime: msToTimestamp(end),
-			groupBy: LogBucketGroup.LEVEL,
+			groupBy,
 		},
 		{
 			enabled: enabled && filters.workspaceId !== "" && (allEnvironments || environmentId !== ""),

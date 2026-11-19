@@ -1,0 +1,243 @@
+{
+  "users": {
+    "owner": {
+      "email": "owner@acme.test",
+      "name": "Olivia Owner"
+    }
+  },
+  "orgs": [
+    {
+      "name": "acme",
+      "owner": "owner",
+      "workspaces": [
+        "shared"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "workspace": "acme/shared",
+      "name": "svc-1",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-2",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-3",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-4",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-5",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-6",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-7",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "workspace": "acme/shared",
+      "name": "svc-8",
+      "deployments": [
+        {
+          "environment": "production",
+          "status": "running",
+          "spec": {
+            "observability": {
+              "injectOtel": true
+            },
+            "build": {
+              "type": "image",
+              "image": "example.invalid/evidence:fixture"
+            },
+            "port": 8080,
+            "regions": {
+              "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

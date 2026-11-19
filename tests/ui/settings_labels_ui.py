@@ -151,10 +151,17 @@ def check_environments(page):
     environments = page.get_by_role("region", name="Environments", exact=True)
     environments.get_by_role("button", name="Edit production", exact=True).click()
     dialog = page.get_by_role("dialog", name="Edit production", exact=True)
-    dialog.get_by_role("textbox", name="Description", exact=True).fill(
-        "Customer traffic"
-    )
-    dialog.get_by_role("button", name="Save", exact=True).click()
+    save = dialog.get_by_role("button", name="Save", exact=True)
+    expect(save).to_be_disabled()
+    description = dialog.get_by_role("textbox", name="Description", exact=True)
+    description.fill("😀")
+    expect(dialog.get_by_text("1 / 256", exact=True)).to_be_visible()
+    description.fill("Customer traffic")
+    expect(save).to_be_enabled()
+    description.fill("")
+    expect(save).to_be_disabled()
+    description.fill("Customer traffic")
+    save.click()
     expect(dialog).to_be_hidden()
     expect(environments.get_by_text("Customer traffic", exact=True)).to_be_visible()
     expect(environments.get_by_text("0 resources", exact=True).first).to_be_visible()
@@ -276,6 +283,12 @@ with session(out) as browser:
                     and description.evaluate("node => node.labels.length") == 1
                 )
                 assert "256" in " ".join(descriptions(description))
+                if user != "member":
+                    original_description = description.input_value()
+                    description.fill("😀😀")
+                    expect(page.get_by_text("2 / 256", exact=True)).to_be_visible()
+                    page.get_by_role("button", name="Discard", exact=True).click()
+                    assert description.input_value() == original_description
                 assert description.get_attribute("id") != name.get_attribute("id")
                 if user == "member":
                     assert description.is_disabled()

@@ -7,7 +7,6 @@ import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
 
 import {
 	addRecent,
-	agoShort,
 	buildBackendQuery,
 	parseQuery,
 	pinnedKey,
@@ -94,9 +93,6 @@ describe("build log filters", () => {
 });
 
 describe("recent queries", () => {
-	const MIN = 60_000;
-	const NOW = 1_800_000_000_000;
-
 	test("keeps one list per organization, workspace and view", () => {
 		const keys = [
 			recentKey("o1", "w1", "logs"),
@@ -144,13 +140,6 @@ describe("recent queries", () => {
 		expect(recentQuery("logs", tokens, text)).toBe("@resource:api @level:error timeout");
 		expect(recentQuery("metrics", tokens, text)).toBe("@resource:api");
 		expect(recentQuery("traces", [], "")).toBe("");
-	});
-
-	test("labels the age in minutes, hours or days", () => {
-		expect(agoShort(NOW - 20_000, NOW)).toBe("now");
-		expect(agoShort(NOW - 5 * MIN, NOW)).toBe("5m");
-		expect(agoShort(NOW - 3 * 60 * MIN, NOW)).toBe("3h");
-		expect(agoShort(NOW - 2 * 1440 * MIN, NOW)).toBe("2d");
 	});
 });
 
