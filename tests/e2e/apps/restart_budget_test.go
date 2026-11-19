@@ -11,6 +11,8 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"github.com/team-loco/loco/tests/e2e/platform"
@@ -106,31 +108,53 @@ func (s *budgetService) count(t *testing.T, result string) int {
 	return n
 }
 
-// deploy rolls out image with a restart budget of one, set on the Application: the API's default
-// budget takes minutes of kubelet back-off to use up.
-func (s *budgetService) deploy(t *testing.T, image string) {
+// deploy rolls out image with a budget of one restart.
+func (s *budgetService) deploy(t *testing.T, image string) string {
 	t.Helper()
-	s.file.Services[s.app] = withImage(s.file.Services[s.app], image)
+	service := withImage(s.file.Services[s.app], image)
+	service.Deploy = &locofile.Deploy{MaxRestarts: new(int32(1))}
+	s.file.Services[s.app] = service
 	platform.WriteLocoFile(t, s.dir, s.file)
 	s.w.MustLoco(t, s.dir, "deploy", "--yes")
-	var application *locov1alpha1.Application
-	platform.Eventually(t, 2*time.Minute, "the agent to apply "+image, func(ctx context.Context) error {
-		current, err := p.Application(ctx, s.resourceID, s.w.EnvironmentID)
-		if err != nil {
-			return err
-		}
-		if current.Spec.DeploymentID == s.deployment {
-			return fmt.Errorf("application still runs deployment %s", s.deployment)
-		}
-		application = current
-		return nil
-	})
-	p.MustKubectl(t, "-n", application.Namespace, "patch", "applications", application.Name, "--type=merge",
-		"-p", `{"spec":{"serviceSpec":{"restartPolicy":{"maxRestarts":1}}}}`)
+	deployment := regionStatus(t, s.w, s.app).GetDeploymentId()
+	if deployment == s.deployment {
+		t.Fatalf("the deploy of %s started no deployment", image)
+	}
+	return deployment
 }
 
-// waitStopped waits for the controller to stop the new revision and checks what it recorded.
-func (s *budgetService) waitStopped(t *testing.T) {
+// waitDeploymentStatus waits for the API to report the deployment in status, with one event of
+// eventType that counts the restarts.
+func (s *budgetService) waitDeploymentStatus(
+	t *testing.T,
+	deployment string,
+	status deploymentv1.DeploymentStatus,
+	eventType string,
+) {
+	t.Helper()
+	platform.Eventually(t, 2*time.Minute, "deployment "+status.String(), func(context.Context) error {
+		if got := getDeployment(t, deployment).GetStatus(); got != status {
+			return fmt.Errorf("deployment %s is %s", deployment, got)
+		}
+		return nil
+	})
+	var recorded []*eventv1.Event
+	for _, event := range resourceEvents(t.Context(), t, s.w, s.resourceID, eventType) {
+		if event.GetSubjectId() == deployment {
+			recorded = append(recorded, event)
+		}
+	}
+	if len(recorded) != 1 {
+		t.Fatalf("%d %s events for deployment %s, want 1", len(recorded), eventType, deployment)
+	}
+	fields := recorded[0].GetData().GetFields()
+	if restarts := fields["restarts"].GetNumberValue(); restarts < 2 || fields["window"].GetNumberValue() != 600 {
+		t.Errorf("%s data = %v, want at least 2 restarts in a 600 s window", eventType, fields)
+	}
+}
+
+// waitStopped waits for the controller to stop the current revision and checks what it recorded.
+func (s *budgetService) waitStopped(t *testing.T, rollout bool, exitCode int32) {
 	t.Helper()
 	var stopped *locov1alpha1.StoppedRevision
 	platform.Eventually(t, 6*time.Minute, "the controller to stop the new revision", func(ctx context.Context) error {
@@ -149,8 +173,9 @@ func (s *budgetService) waitStopped(t *testing.T) {
 		return nil
 	})
 	if stopped.Restarts < 2 || stopped.LastRestart.Cause != locov1alpha1.RestartExit ||
-		stopped.LastRestart.ExitCode != 1 {
-		t.Errorf("stopped = %+v, want a revision stopped after at least 2 restarts after exit 1", stopped)
+		stopped.LastRestart.ExitCode != exitCode || stopped.Rollout != rollout {
+		t.Errorf("stopped = %+v, want rollout %t after at least 2 restarts, the last after exit %d",
+			stopped, rollout, exitCode)
 	}
 	var deployment appsv1.Deployment
 	p.MustGet(t, &deployment, "-n", s.w.Namespace, "deployment", locov1alpha1.WorkloadName(s.resourceID))
@@ -220,8 +245,9 @@ func (s *budgetService) holdsPreviousVersion(t *testing.T) {
 func TestRestartBudgetStopsTheRevision(t *testing.T) {
 	t.Parallel()
 	s := newBudgetService(t, "e2e-restart-budget")
-	s.deploy(t, p.CrashingImage)
-	s.waitStopped(t)
+	deployment := s.deploy(t, p.CrashingImage)
+	s.waitStopped(t, true, 1)
+	s.waitDeploymentStatus(t, deployment, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, "deployment.failed")
 	servedBefore := s.count(t, "ok")
 	s.holdsPreviousVersion(t)
 	if served := s.count(t, "ok"); served <= servedBefore {
@@ -239,7 +265,7 @@ func TestRestartBudgetStopsTheRevision(t *testing.T) {
 func TestRestartBudgetBringsBackThePreviousVersion(t *testing.T) {
 	t.Parallel()
 	s := newBudgetService(t, "e2e-restart-fallback")
-	s.deploy(t, p.LateCrashingImage)
+	deployment := s.deploy(t, p.LateCrashingImage)
 	platform.Eventually(t, 2*time.Minute, "the new version to replace every old replica", func(context.Context) error {
 		if replicas := s.oldReplicaSet(t).Spec.Replicas; replicas == nil || *replicas != 0 {
 			return errors.New("the old ReplicaSet still has replicas")
@@ -249,7 +275,8 @@ func TestRestartBudgetBringsBackThePreviousVersion(t *testing.T) {
 	for _, pod := range s.newPods(t) {
 		p.MustKubectl(t, "-n", s.w.Namespace, "exec", pod, "--", "touch", "/dev/shm/crash")
 	}
-	s.waitStopped(t)
+	s.waitStopped(t, true, 1)
+	s.waitDeploymentStatus(t, deployment, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, "deployment.failed")
 	platform.Eventually(t, 2*time.Minute, "the old version to serve again", func(context.Context) error {
 		if ready := s.oldReplicaSet(t).Status.ReadyReplicas; ready != 2 {
 			return fmt.Errorf("the old ReplicaSet has %d ready replicas, want 2", ready)
@@ -260,5 +287,110 @@ func TestRestartBudgetBringsBackThePreviousVersion(t *testing.T) {
 	const recent = 50
 	if results := s.results(t); len(results) < recent || slices.Contains(results[len(results)-recent:], "fail") {
 		t.Errorf("the last %d requests did not all succeed once the old version served again", recent)
+	}
+}
+
+// TestRestartBudgetStopsAProvenService stops a service whose only version served for the health
+// window and then restarted past its budget, reports it crashed, and starts it again on restart.
+func TestRestartBudgetStopsAProvenService(t *testing.T) {
+	t.Parallel()
+	w := p.NewTenant(t)
+	const app = "e2e-restart-crash"
+	dir := t.TempDir()
+	service := platform.ImageService(p.PublicImage)
+	service.Health = nil
+	service.Deploy = &locofile.Deploy{MaxRestarts: new(int32(1))}
+	platform.WriteLocoFile(t, dir, locofile.File{Partial: app, Services: map[string]locofile.Service{app: service}})
+	w.MustLoco(t, dir, "deploy", "--yes", "--wait")
+	s := &budgetService{w: w, app: app, dir: dir, resourceID: w.ResourceID(t, app)}
+	s.selector = "app=" + locov1alpha1.WorkloadName(s.resourceID)
+	deployment := regionStatus(t, w, app).GetDeploymentId()
+	platform.Eventually(t, 3*time.Minute, "the revision to prove itself", func(ctx context.Context) error {
+		current, err := p.Application(ctx, s.resourceID, w.EnvironmentID)
+		if err != nil {
+			return err
+		}
+		revision, _ := current.PlacementRevision()
+		if current.Status.Rollout == nil || current.Status.Rollout.ProvenRevision != revision {
+			return fmt.Errorf("revision %d not proven", revision)
+		}
+		return nil
+	})
+	stop := func() {
+		t.Helper()
+		pods := appPods(t, w, s.selector)
+		if len(pods) != 1 {
+			t.Fatalf("%d pods, want 1", len(pods))
+		}
+		p.MustKubectl(t, "-n", w.Namespace, "exec", pods[0].Name, "--", "nginx", "-s", "stop")
+	}
+	stop()
+	platform.Eventually(t, 2*time.Minute, "the replica to run again after a restart", func(context.Context) error {
+		for _, pod := range appPods(t, w, s.selector) {
+			if statuses := pod.Status.ContainerStatuses; len(statuses) == 1 &&
+				statuses[0].RestartCount == 1 && statuses[0].State.Running != nil {
+				return nil
+			}
+		}
+		return errors.New("not restarted")
+	})
+	stop()
+	s.waitStopped(t, false, 0)
+	s.waitDeploymentStatus(t, deployment, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED, "deployment.crashed")
+	var stopped appsv1.Deployment
+	p.MustGet(t, &stopped, "-n", w.Namespace, "deployment", locov1alpha1.WorkloadName(s.resourceID))
+	if stopped.Spec.Replicas == nil || *stopped.Spec.Replicas != 0 {
+		t.Errorf("the stopped Deployment wants %v replicas, want 0", stopped.Spec.Replicas)
+	}
+
+	w.MustLoco(t, dir, "resource", "restart", app, "--env", platform.Production)
+	platform.Eventually(t, 3*time.Minute, "the restarted service to run", func(context.Context) error {
+		if got := getDeployment(
+			t,
+			deployment,
+		).GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
+			return fmt.Errorf("deployment is %s", got)
+		}
+		return nil
+	})
+}
+
+// TestLivenessKillIsNotACrash records a replica that fails its liveness check as restarted after
+// failing its health check.
+func TestLivenessKillIsNotACrash(t *testing.T) {
+	t.Parallel()
+	w := p.NewTenant(t)
+	const app = "e2e-restart-liveness"
+	dir := t.TempDir()
+	service := platform.ImageService(p.PublicImage)
+	service.Health = &locofile.Health{
+		Path: "/missing-health-check", Interval: new(int32(5)), Timeout: new(int32(1)), FailThreshold: new(int32(1)),
+	}
+	platform.WriteLocoFile(t, dir, locofile.File{Partial: app, Services: map[string]locofile.Service{app: service}})
+	w.MustLoco(t, dir, "deploy", "--yes")
+	deployment := regionStatus(t, w, app).GetDeploymentId()
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Minute)
+	defer cancel()
+	const want = "Restarted after failing its health check"
+	var seen []string
+	stream, err := p.User.Deployment.WatchDeployment(
+		ctx,
+		&deploymentv1.WatchDeploymentRequest{DeploymentId: deployment},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	for {
+		response, err := stream.Receive()
+		if err != nil {
+			t.Fatalf("no %q activity before the stream ended (%v); activity: %q", want, err, seen)
+		}
+		for _, entry := range response.GetActivity() {
+			seen = append(seen, entry.GetMessage())
+			if strings.HasPrefix(entry.GetMessage(), want) {
+				return
+			}
+		}
 	}
 }
