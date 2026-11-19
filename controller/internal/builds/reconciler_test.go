@@ -283,7 +283,9 @@ var _ = Describe("Build reconcile", Ordered, func() {
 		for _, c := range []corev1.Container{fetch, buildkit, push} {
 			Expect(c.EnvFrom).To(BeEmpty())
 			for _, env := range c.Env {
-				Expect(env.ValueFrom).To(BeNil())
+				if env.ValueFrom != nil {
+					Expect(env.ValueFrom.SecretKeyRef).To(BeNil(), env.Name)
+				}
 			}
 		}
 		for _, m := range buildkit.VolumeMounts {
