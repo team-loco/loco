@@ -415,7 +415,7 @@ with session(out) as browser:
     hint = f"Saved. To use this key, add STRIPE_API_KEY to services.{name}.secrets and redeploy."
     expect(page.get_by_text(hint, exact=True)).to_have_count(2)
     variables.get_by_role("button", name="Add", exact=True).click()
-    page.get_by_label("New secret name", exact=True).fill("EMPTY_FLAG")
+    page.get_by_label("New variable name", exact=True).fill("EMPTY_FLAG")
     add_secret = page.get_by_role("button", name="Add secret", exact=True)
     expect(add_secret).to_be_enabled()
     add_secret.click()
