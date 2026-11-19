@@ -589,7 +589,7 @@ with session(out) as browser:
             )
             page.get_by_role("list", name="Audit events").wait_for()
             expect(
-                page.get_by_role("button", name="shared", exact=True)
+                page.get_by_role("button", name="shared", exact=True).last
             ).to_be_visible()
             page.goto(origin + base + "/resource/" + activity["resourceId"])
             page.get_by_role("button", name="Events", exact=True).wait_for()

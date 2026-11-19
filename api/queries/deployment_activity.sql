@@ -6,6 +6,11 @@ VALUES ($1, $2, $3) ON CONFLICT DO NOTHING;
 SELECT snapshot FROM deployment_rollouts
 WHERE deployment_id = $1 AND cluster_id = $2 AND revision = $3 FOR UPDATE;
 
+-- name: GetPreviousPlacementRollout :one
+SELECT snapshot FROM deployment_rollouts
+WHERE snapshot->>'placementId' = sqlc.arg(placement_id)::text AND revision < sqlc.arg(revision)
+ORDER BY revision DESC LIMIT 1;
+
 -- name: AllocateActivitySeq :one
 UPDATE deployments SET activity_seq = activity_seq + sqlc.arg(count)::bigint
 WHERE id = sqlc.arg(deployment_id) RETURNING activity_seq;
