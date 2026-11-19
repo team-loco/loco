@@ -9,6 +9,11 @@ export function maybeTsMs(ts: Timestamp | undefined): number | undefined {
 	return Number(ts.seconds) * 1000 + Math.floor(ts.nanos / 1_000_000);
 }
 
+/** When a deployment became ready; undefined until it does. */
+export function readyMs(dep: { startedAt?: Timestamp | undefined }): number | undefined {
+	return maybeTsMs(dep.startedAt);
+}
+
 export function tsMs(ts: Timestamp | undefined): number {
 	return maybeTsMs(ts) ?? 0;
 }

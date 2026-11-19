@@ -12,7 +12,7 @@ import { configuredRegions } from "@/lib/resource-regions";
 import { environmentStatus, primaryDomain, statusRank } from "@/lib/resource-status";
 import { pageParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
-import { tsMs } from "@/lib/time";
+import { readyMs, tsMs } from "@/lib/time";
 
 export const ALL = "all";
 export const NOT_DEPLOYED = "not-deployed";
@@ -89,7 +89,7 @@ function envCell(resource: Resource, environment: Environment, deployments: Depl
 		desired: status.regions.reduce((n, r) => n + r.desiredReplicas, 0),
 		regions: status.regions.map((r) => r.region),
 		note: status.regions.find((r) => (r.message ?? "") !== "")?.message ?? "",
-		deployedMs: tsMs(active?.createdAt),
+		deployedMs: active === undefined ? 0 : (readyMs(active) ?? 0),
 		spec: active === undefined ? undefined : getServiceSpec(active),
 	};
 }

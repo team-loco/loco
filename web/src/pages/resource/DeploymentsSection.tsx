@@ -30,7 +30,7 @@ import { rolloutGroups } from "@/lib/activity-deploys";
 import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
-import { agoLabel, maybeTsMs, tsMs } from "@/lib/time";
+import { agoLabel, maybeTsMs, readyMs, tsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 import { deploymentState } from "@/pages/dashboard/deploymentRows";
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -44,7 +44,7 @@ import { canRollBackTo, depTag, PAGE_SIZES, previousDeployment, tookMs, type Reg
 import { ABSENT, specChanges } from "./spec";
 import { useResourceBuilds } from "./useBuilds";
 
-const BASE_COLUMNS = 7;
+const BASE_COLUMNS = 8;
 const DEFAULT_PAGE_SIZE = 10;
 const BUILD_PAGE_SIZE = 5;
 const BUILD_PAGE_SIZES = [BUILD_PAGE_SIZE];
@@ -117,10 +117,10 @@ function Detail({
 				<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
 					<dt className="text-fg3">Image</dt>
 					<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>
-					<dt className="text-fg3">Created</dt>
-					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt), timePref)}</dd>
 					<dt className="text-fg3">Started</dt>
-					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.startedAt), timePref)}</dd>
+					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.createdAt), timePref)}</dd>
+					<dt className="text-fg3">Deployed</dt>
+					<dd className="m-0 font-mono">{timeFact(readyMs(dep), timePref)}</dd>
 					<dt className="text-fg3">Completed</dt>
 					<dd className="m-0 font-mono">{timeFact(maybeTsMs(dep.completedAt), timePref)}</dd>
 					<dt className="text-fg3">Took</dt>
@@ -334,12 +334,13 @@ export function DeploymentsSection({
 								<TableRow>
 									<TableHead className="w-7" />
 									<TableHead className="w-[130px]">Status</TableHead>
-									<TableHead className="w-[180px]">Version</TableHead>
-									<TableHead className="w-[200px]">Deployed by</TableHead>
+									<TableHead className="w-[150px]">Version</TableHead>
+									<TableHead className="w-[170px]">Deployed by</TableHead>
 									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
 									<TableHead>Message</TableHead>
 									<TableHead className="w-[72px] text-right">Took</TableHead>
-									<TableHead className="w-[100px] text-right">Time</TableHead>
+									<TableHead className="w-[100px] text-right">Started</TableHead>
+									<TableHead className="w-[100px] text-right">Deployed</TableHead>
 								</TableRow>
 							</TableHeader>
 							<TableBody>
@@ -358,6 +359,7 @@ export function DeploymentsSection({
 								const tooks = rows.flatMap((r) => tookMs(r.dep) ?? []);
 								const took = tooks.length === rows.length ? Math.max(...tooks) : undefined;
 								const created = maybeTsMs(rows[0].dep.createdAt);
+								const deployed = readyMs(rows[0].dep);
 								const toggle = () => {
 									setOpen(expanded ? null : key);
 								};
@@ -414,6 +416,12 @@ export function DeploymentsSection({
 												title={created === undefined ? undefined : formatFullTime(created, false, timePref)}
 											>
 												{created === undefined ? "—" : agoLabel(created, nowMs)}
+											</TableCell>
+											<TableCell
+												className="text-right font-mono text-[12px] text-fg2"
+												title={deployed === undefined ? undefined : formatFullTime(deployed, false, timePref)}
+											>
+												{deployed === undefined ? "—" : agoLabel(deployed, nowMs)}
 											</TableCell>
 										</TableRow>
 										<CollapsibleContent render={<TableRow />} className="data-closed:hidden">

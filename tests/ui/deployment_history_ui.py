@@ -308,10 +308,12 @@ with session(out) as browser:
     expect(
         section.get_by_role("columnheader", name="Deployed by", exact=True)
     ).to_be_visible()
+    deployments = section.get_by_role("tabpanel", name=re.compile(r"^Deployments"))
     expect(
-        section.get_by_role("tabpanel", name=re.compile(r"^Deployments")).get_by_role(
-            "columnheader", name="Time", exact=True
-        )
+        deployments.get_by_role("columnheader", name="Started", exact=True)
+    ).to_be_visible()
+    expect(
+        deployments.get_by_role("columnheader", name="Deployed", exact=True)
     ).to_be_visible()
     expect(section.get_by_text("loco deploy · CLI", exact=True).first).to_be_visible()
     section.get_by_role(

@@ -115,6 +115,7 @@ function deployment(id: string, env: string, image: string, createdMs: number): 
 		id,
 		environmentId: env,
 		createdAt: timestampFromMs(createdMs),
+		startedAt: timestampFromMs(createdMs + 500),
 		spec: { spec: { case: "service", value: { build: { image } } } },
 	});
 }
@@ -150,7 +151,7 @@ describe("buildRows", () => {
 		const cell = row?.cells.get("e-prod");
 		if (cell === undefined) throw new Error("no production cell");
 		expect(cell.tag).toBe("v2");
-		expect(cell.deployedMs).toBe(2000);
+		expect(cell.deployedMs).toBe(2500);
 		expect(cell.note).toBe("Back-off restarting");
 		expect(cellSummary(cell)).toBe("2/3 · us-east-1 +1");
 		expect(row?.cells.has("e-stg")).toBe(false);

@@ -108,10 +108,15 @@ test("readyLabel counts ready replicas of this deployment", () => {
 });
 
 test("finishedLabel gives the run time and when it ended", () => {
-	const d = deployment("d", DeploymentStatus.RUNNING, 7, { completedAt: timestampFromMs(NOW - 7 * MIN + 59_000) });
+	const d = deployment("d", DeploymentStatus.RUNNING, 7, { startedAt: timestampFromMs(NOW - 7 * MIN + 59_000) });
 	expect(finishedLabel(d, NOW)).toBe("took 0:59 · 6m ago");
-	const now = deployment("d", DeploymentStatus.RUNNING, 1, { completedAt: timestampFromMs(NOW - 10_000) });
+	const now = deployment("d", DeploymentStatus.RUNNING, 1, { startedAt: timestampFromMs(NOW - 10_000) });
 	expect(finishedLabel(now, NOW)).toBe("took 0:50 · just now");
+	const superseded = deployment("d", DeploymentStatus.SUPERSEDED, 7, {
+		startedAt: timestampFromMs(NOW - 7 * MIN + 59_000),
+		completedAt: timestampFromMs(NOW - MIN),
+	});
+	expect(finishedLabel(superseded, NOW)).toBe("took 0:59 · 6m ago");
 });
 
 test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {

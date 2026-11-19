@@ -31,12 +31,12 @@ import { ResourceStatusBadge, resourceStatusStyle } from "@/components/design/St
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { deploymentActor } from "@/lib/deployment-utils";
-import { agoLabel } from "@/lib/time";
+import { agoLabel, readyMs } from "@/lib/time";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
 import { useWidth } from "@/hooks/useWidth";
 
-import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./model";
+import { depImage, depTag, isDeployed, type RegionView } from "./model";
 
 interface SwitcherItem {
 	id: string;
@@ -123,7 +123,7 @@ export function ResourceHeader({
 	const deployed = regions.filter(isDeployed);
 	const primary = deployed[0]?.current;
 	const image = depImage(primary);
-	const since = primary === undefined ? undefined : startedMs(primary);
+	const since = primary === undefined ? undefined : readyMs(primary);
 	const domain = resource.domains.find((d) => d.isPrimary) ?? resource.domains[0];
 	const canRedeploy = canWrite && deployed.length > 0 && !redeploying;
 	const writeHint = canWrite ? undefined : NEEDS_WRITE;

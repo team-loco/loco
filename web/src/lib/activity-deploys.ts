@@ -4,7 +4,7 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
 import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
-import { maybeTsMs } from "@/lib/time";
+import { maybeTsMs, readyMs } from "@/lib/time";
 
 export const RECENT_MS = 30 * 60_000;
 const MAX_CARDS = 6;
@@ -72,7 +72,7 @@ export function clockLabel(ms: number): string {
 
 export function finishedLabel(d: Deployment, nowMs: number): string {
 	const created = maybeTsMs(d.createdAt) ?? nowMs;
-	const end = maybeTsMs(d.completedAt) ?? maybeTsMs(d.startedAt) ?? created;
+	const end = readyMs(d) ?? maybeTsMs(d.completedAt) ?? created;
 	const mins = Math.floor((nowMs - end) / 60_000);
 	return `took ${clockLabel(end - created)} · ${mins < 1 ? "just now" : `${mins.toString()}m ago`}`;
 }
