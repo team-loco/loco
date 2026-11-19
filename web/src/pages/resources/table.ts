@@ -18,20 +18,26 @@ export const ALL = "all";
 export const NOT_DEPLOYED = "not-deployed";
 export const PAGE_SIZES = [25, 50, 100] as const;
 
+export const DRAFT = "draft";
+
 export const STATUS_FILTERS: {
 	value: string;
 	label: string;
 	status?: ResourceStatus;
 }[] = [
-	{ value: "degraded", label: "Degraded", status: ResourceStatus.DEGRADED },
-	{
-		value: "unavailable",
-		label: "Unavailable",
-		status: ResourceStatus.UNAVAILABLE,
-	},
+	{ value: "healthy", label: "Healthy", status: ResourceStatus.HEALTHY },
 	{ value: "deploying", label: "Deploying", status: ResourceStatus.DEPLOYING },
+	{ value: "degraded", label: "Degraded", status: ResourceStatus.DEGRADED },
+	{ value: "unavailable", label: "Unavailable", status: ResourceStatus.UNAVAILABLE },
+	{ value: "unknown", label: "Unknown", status: ResourceStatus.UNKNOWN },
 	{ value: NOT_DEPLOYED, label: "Not deployed" },
+	{ value: DRAFT, label: "Draft" },
 ];
+
+/** The status filters that match something, plus the selected one. */
+export function visibleStatusFilters(counts: ReadonlyMap<string, number>, selected: string): typeof STATUS_FILTERS {
+	return STATUS_FILTERS.filter((f) => (counts.get(f.value) ?? 0) > 0 || f.value === selected);
+}
 
 export interface EnvCell {
 	status: ResourceStatus;
@@ -205,7 +211,8 @@ function matchesRegion(row: ListRow, region: string): boolean {
 
 function matchesStatus(row: ListRow, status: string): boolean {
 	if (status === ALL) return true;
-	if (status === NOT_DEPLOYED) return row.cells.size === 0;
+	if (status === DRAFT) return isDraftRow(row);
+	if (status === NOT_DEPLOYED) return !isDraftRow(row) && row.cells.size === 0;
 	const want = STATUS_FILTERS.find((f) => f.value === status)?.status;
 	return [...row.cells.values()].some((c) => c.status === want);
 }
@@ -225,6 +232,7 @@ export function statusCounts(rows: ListRow[], filter: Filter): Map<string, numbe
 	const base = countable(rows, { ...filter, status: ALL });
 	const counts = new Map<string, number>([[ALL, base.length]]);
 	for (const f of STATUS_FILTERS) counts.set(f.value, base.filter((r) => matchesStatus(r, f.value)).length);
+	counts.set(DRAFT, filterRows(rows, { ...filter, status: ALL }).filter(isDraftRow).length);
 	return counts;
 }
 

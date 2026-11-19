@@ -207,11 +207,9 @@ func logFilters(q LogQuery, b binder) []string {
 		whereParts = append(whereParts, logFilterSQL(q.Filter, q.Resources, b))
 	}
 	// container stdout rows of a pod that exported OTLP log rows repeat what its SDK exported.
-	exporters := append(logScope(q, b),
-		"NOT mapContains(LogAttributes, 'log.iostream')", "ResourceAttributes['k8s.pod.uid'] != ''")
-	return append(whereParts, "NOT (LogAttributes['log.iostream'] = 'stdout' AND has((SELECT "+
-		"groupUniqArray(ResourceAttributes['k8s.pod.uid']) FROM otel_logs WHERE "+
-		strings.Join(exporters, " AND ")+"), ResourceAttributes['k8s.pod.uid']))")
+	exporters := append(logScope(q, b), "LogIOStream = ''", "PodUid != ''")
+	return append(whereParts, "NOT (LogIOStream = 'stdout' AND has((SELECT groupUniqArray(PodUid) "+
+		"FROM otel_logs WHERE "+strings.Join(exporters, " AND ")+"), PodUid))")
 }
 
 // logScope selects the rows of q's workspace, environment and resources from q.Start onward.
