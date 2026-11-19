@@ -5,7 +5,7 @@ from harness import evidence
 REGION = "us-east-1"
 
 
-def seed_settings_resource(state, prefix):
+def seed_settings_resource(state, prefix, cpu="100m", memory="128Mi"):
     """Seeds a running service with a health check; returns its name, id and settings URL."""
     workspace = state["workspaces"]["acme/shared"]
     org = state["orgs"]["acme"]["id"]
@@ -15,8 +15,8 @@ def seed_settings_resource(state, prefix):
         "build": {"type": "image", "image": "registry.example.com/app:1"},
         "regions": {
             REGION: {
-                "cpu": "100m",
-                "memory": "128Mi",
+                "cpu": cpu,
+                "memory": memory,
                 "minReplicas": 1,
                 "maxReplicas": 1,
             }

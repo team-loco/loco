@@ -4,7 +4,7 @@ const BYTES_PER_MI = 1_048_576;
 const DECIMAL_KILO = 1e3;
 const DECIMAL_MEGA = 1e6;
 const DECIMAL_GIGA = 1e9;
-const CPU_DECIMALS = 2;
+const CPU_DECIMALS = 3;
 const GI_DECIMALS = 1;
 
 export function parseCpuMilli(cpu: string): number {

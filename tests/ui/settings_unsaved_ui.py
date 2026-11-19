@@ -38,6 +38,13 @@ with session(out) as browser:
 
     path.fill("/ready")
     expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+    expect(page.get_by_text("Health check path", exact=True)).to_be_visible()
+    page.locator("#set-health input").nth(1).fill("45")
+    expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
+    expect(
+        page.get_by_text("Health check path, Health check interval", exact=True)
+    ).to_be_visible()
+    page.locator("#set-health input").nth(1).fill("30")
     page.get_by_role("link", name="Dashboard", exact=True).click()
     expect(guard).to_be_visible()
     guard.get_by_role("button", name="Keep editing", exact=True).click()
