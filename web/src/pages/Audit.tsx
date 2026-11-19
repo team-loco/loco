@@ -1,16 +1,7 @@
 import { useQuery, useTransport } from "@connectrpc/connect-query";
 import { listEvents } from "@gen/loco/event/v1/event-EventService_connectquery";
-import { keepPreviousData, useQuery as useTanstackQuery } from "@tanstack/react-query";
-import {
-	BoxIcon,
-	ChevronDownIcon,
-	ClockIcon,
-	GitBranchIcon,
-	HistoryIcon,
-	LayersIcon,
-	PlayIcon,
-	PauseIcon,
-} from "lucide-react";
+import { useQuery as useTanstackQuery } from "@tanstack/react-query";
+import { BoxIcon, GitBranchIcon, HistoryIcon, LayersIcon, PlayIcon, PauseIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
 	parseAsArrayOf,
@@ -23,13 +14,6 @@ import {
 import { useLocation, useSearchParams, useParams } from "react-router";
 
 import { Button } from "@/components/design/Button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuRadioGroup,
-	DropdownMenuRadioItem,
-	DropdownMenuTrigger,
-} from "@/components/design/DropdownMenu";
 import { EmptyState } from "@/components/design/EmptyState";
 import { ErrorState } from "@/components/design/ErrorState";
 import { PickFilter } from "@/components/design/FilterPopover";
@@ -41,7 +25,9 @@ import { orgMembersOptions } from "@/hooks/completeMembers";
 import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { useNow } from "@/hooks/useNow";
+import { msParser, type TimeWindow } from "@/lib/obs-time";
 import { agoLabel, msToTimestamp } from "@/lib/time";
+import { TimeRangePicker } from "./observability/Toolbar";
 import { AuditQueryError } from "./audit/AuditQueryError";
 import { auditSearchError, insertAuditField } from "./audit/queryError";
 
@@ -62,6 +48,8 @@ const AUDIT_PARAMS = {
 	before: parseAsArrayOf(sequenceParser).withDefault([]),
 	live: parseAsInteger.withDefault(0),
 	range: parseAsStringLiteral(RANGES.map((r) => r.value)).withDefault(DEFAULT_RANGE.value),
+	from: msParser,
+	to: msParser,
 	types: parseAsArrayOf(parseAsStringLiteral(AUDIT_EVENT_TYPES)).withDefault([]),
 	q: parseAsString.withDefault(""),
 	actor: parseAsString.withDefault(""),
@@ -85,6 +73,8 @@ export function Audit() {
 
 	const { types, q: search, actor, size, ws: wsParam } = params;
 	const range = RANGES.find((r) => r.value === params.range) ?? DEFAULT_RANGE;
+	const { from, to } = params;
+	const custom = from !== null && to !== null && to > from;
 	const sent = auditQuery(types, actor, search);
 	const choices = access.org ? workspaces.filter((w) => w.orgId === orgId) : access.workspaces;
 	// ListEvents reads one workspace per call, so a workspace admin always reads exactly one.
@@ -130,9 +120,20 @@ export function Audit() {
 	const resourceId = workspaceId === "" ? "" : (cleaned.get("res") ?? "");
 	const environmentId = workspaceId === "" ? "" : (cleaned.get("env") ?? "");
 
-	const filterKey = JSON.stringify([orgId, range.value, types, workspaceId, resourceId, environmentId, size, sent]);
+	const filterKey = JSON.stringify([
+		orgId,
+		range.value,
+		from,
+		to,
+		types,
+		workspaceId,
+		resourceId,
+		environmentId,
+		size,
+		sent,
+	]);
 	const stack = params.before;
-	const live = params.live === 1 && stack.length === 0;
+	const live = params.live === 1 && stack.length === 0 && !custom;
 	// The search box shows draft while a typed search waits to commit to the q parameter.
 	const [draft, setDraft] = useState<string | null>(null);
 	const pendingSearchRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -160,11 +161,11 @@ export function Audit() {
 			query: sent,
 			pageSize: size,
 			beforeSeq: stack.at(-1) ?? 0n,
-			startTime: msToTimestamp(openedAt - range.ms),
+			startTime: msToTimestamp(custom ? from : openedAt - range.ms),
+			...(custom ? { endTime: msToTimestamp(to) } : {}),
 		},
 		{
 			enabled: orgId !== "" && !access.isLoading && (!(params.res || params.env) || !selectedDetails.isLoading),
-			placeholderData: keepPreviousData,
 			refetchInterval: live ? 5000 : false,
 		},
 	);
@@ -174,7 +175,7 @@ export function Audit() {
 	});
 
 	const [baseline, setBaseline] = useState<{ key: string; seq: bigint } | null>(null);
-	if (query.data !== undefined && !query.isPlaceholderData && baseline?.key !== filterKey) {
+	if (query.data !== undefined && baseline?.key !== filterKey) {
 		setBaseline({ key: filterKey, seq: query.data.events[0]?.seq ?? 0n });
 	}
 	const events = query.data?.events ?? [];
@@ -232,6 +233,13 @@ export function Audit() {
 	const rejected = query.error === null ? null : auditSearchError(query.error, types, actor, search);
 	const searchRejected = rejected !== null && (draft === null || draft === search);
 	const filterRejected = auditFilterViolations(query.error).length > 0;
+	const timeWindow: TimeWindow = custom ? { kind: "absolute", from, to } : { kind: "relative", spanMs: range.ms };
+	const setWindow = (next: TimeWindow) => {
+		const preset = next.kind === "relative" ? RANGES.find((r) => r.ms === next.spanMs) : undefined;
+		if (next.kind === "absolute") setFilters({ range: null, from: next.from, to: next.to });
+		else if (preset !== undefined) setFilters({ range: preset.value, from: null, to: null });
+		else setFilters({ range: null, from: Date.now() - next.spanMs, to: Date.now() });
+	};
 	const fixFilter = (field: string) => {
 		const fix = AUDIT_FILTER_FIXES.get(field);
 		if (fix === undefined) return;
@@ -245,33 +253,17 @@ export function Audit() {
 				title="Audit log"
 				actions={
 					<>
-						<DropdownMenu>
-							<DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
-								<ClockIcon className="text-fg3" />
-								{range.label}
-								<ChevronDownIcon className="size-3 text-fg3" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end" className="w-[200px]">
-								<DropdownMenuRadioGroup
-									value={range.value}
-									onValueChange={(v: string) => {
-										setFilters({
-											range: RANGES.find((r) => r.value === v)?.value ?? null,
-										});
-									}}
-								>
-									{RANGES.map((r) => (
-										<DropdownMenuRadioItem key={r.value} value={r.value}>
-											{r.label}
-										</DropdownMenuRadioItem>
-									))}
-								</DropdownMenuRadioGroup>
-							</DropdownMenuContent>
-						</DropdownMenu>
+						<TimeRangePicker
+							range={timeWindow}
+							setRange={setWindow}
+							maxMs={RANGES.at(-1)?.ms ?? DEFAULT_RANGE.ms}
+							presets={RANGES.map((r) => r.ms)}
+						/>
 						<Button
 							variant="outline"
 							size="sm"
 							aria-pressed={live}
+							disabled={custom}
 							onClick={() => {
 								void setParams({ live: live ? null : 1, before: null });
 							}}
@@ -405,7 +397,11 @@ export function Audit() {
 						<EmptyState
 							icon={<HistoryIcon />}
 							title={
-								anyFilter ? "No events match these filters" : `Nothing happened in the ${range.label.toLowerCase()}`
+								anyFilter
+									? "No events match these filters"
+									: custom
+										? "Nothing happened in this time range"
+										: `Nothing happened in the ${range.label.toLowerCase()}`
 							}
 							action={
 								anyFilter ? (
