@@ -836,7 +836,10 @@ def renew(state):
 
 def reap():
     """Stops runs whose lease expired, and every other harness's leftovers whose owner is gone."""
-    testres("reap")
+    try:
+        testres("reap")
+    except EvidenceError as err:
+        log(f"skipped leftovers that could not be stopped: {err}")
 
 
 def start_state(*, ref, name, scenario, issuer=None):
