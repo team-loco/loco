@@ -159,7 +159,7 @@ func metricsFilters(req *observabilityv1.QueryMetricsRequest, b binder) []string
 		whereParts = append(whereParts, "ResourceAttributes["+b.str(regionAttribute)+"] = "+b.str(req.GetRegion()))
 	}
 	if len(req.GetResourceIds()) > 0 {
-		whereParts = append(whereParts, logIn(resourceColumn, req.GetResourceIds(), b))
+		whereParts = append(whereParts, resourceIn(req.GetResourceIds(), b))
 	}
 	for _, key := range slices.Sorted(maps.Keys(req.GetAttributes())) {
 		whereParts = append(whereParts, "Attributes["+b.str(key)+"] = "+b.str(req.GetAttributes()[key]))

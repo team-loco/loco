@@ -842,7 +842,7 @@ func (o *observed) appLogs(t *testing.T) {
 
 func (o *observed) logBuckets(t *testing.T) {
 	for _, group := range []observabilityv1.LogBucketGroup{
-		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL,
 		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_RESOURCE,
 	} {
 		platform.Eventually(t, telemetryTimeout, "log buckets for the fixture trace", func(ctx context.Context) error {

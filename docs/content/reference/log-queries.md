@@ -20,7 +20,7 @@ A word, such as `timeout`, matches lines whose message contains it. A quoted phr
 
 | Field | Matches |
 | --- | --- |
-| `@level` | The severity: `error`, `warn`, `info` or `debug` match their usual spellings, such as `ERROR`, `FATAL` and `Warning`, and `info` also matches lines without a severity. Any other value matches the severity text exactly. |
+| `@level` | The level: `error`, `warn`, `info` or `debug`. A line's OpenTelemetry severity number sets its level (1–8 debug, 9–12 info, 13–16 warn, 17–24 error); a line without one takes it from its severity text, ignoring case, such as `Warning`, `ERR` or `fatal`, and is info otherwise. Those texts work as values too, so `@level:warning` matches warn lines. Any other value is an error. |
 | `@resource` | The resource with this name, ignoring case. |
 | `@trace` | The OpenTelemetry trace ID, ignoring case. |
 | `@replica` | The pod name, such as `web-7c41e9-x2kd9`. |

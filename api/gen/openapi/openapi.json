@@ -12001,9 +12001,9 @@
             "title": "count",
             "format": "int64"
           },
-          "severity": {
-            "type": "string",
-            "title": "severity"
+          "level": {
+            "title": "level",
+            "$ref": "#/components/schemas/loco.observability.v1.LogLevel"
           },
           "resourceId": {
             "type": "string",
@@ -12018,7 +12018,7 @@
         "title": "LogBucketGroup",
         "enum": [
           "LOG_BUCKET_GROUP_UNSPECIFIED",
-          "LOG_BUCKET_GROUP_SEVERITY",
+          "LOG_BUCKET_GROUP_LEVEL",
           "LOG_BUCKET_GROUP_RESOURCE"
         ]
       },
@@ -12030,10 +12030,9 @@
             "description": "Timestamp when the log was emitted.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
           },
-          "severity": {
-            "type": "string",
-            "title": "severity",
-            "description": "Severity level (e.g., \"INFO\", \"ERROR\", \"WARN\", \"DEBUG\")."
+          "level": {
+            "title": "level",
+            "$ref": "#/components/schemas/loco.observability.v1.LogLevel"
           },
           "body": {
             "type": "string",
@@ -12077,6 +12076,18 @@
         "title": "LogEntry",
         "additionalProperties": false,
         "description": "LogEntry represents a single log record."
+      },
+      "loco.observability.v1.LogLevel": {
+        "type": "string",
+        "title": "LogLevel",
+        "enum": [
+          "LOG_LEVEL_UNSPECIFIED",
+          "LOG_LEVEL_DEBUG",
+          "LOG_LEVEL_INFO",
+          "LOG_LEVEL_WARN",
+          "LOG_LEVEL_ERROR"
+        ],
+        "description": "LogLevel is a log's level: its OpenTelemetry severity number when set (1-8 debug, 9-12 info,\n 13-16 warn, 17-24 error), else its severity text, else info."
       },
       "loco.observability.v1.LogOrder": {
         "type": "string",

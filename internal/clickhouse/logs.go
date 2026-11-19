@@ -81,7 +81,7 @@ func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []an
 	for rows.Next() {
 		var (
 			ts            time.Time
-			severity      string
+			level         uint8
 			body          string
 			resourceID    string
 			traceID       string
@@ -95,7 +95,7 @@ func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []an
 
 		if err := rows.Scan(
 			&ts,
-			&severity,
+			&level,
 			&body,
 			&resourceID,
 			&traceID,
@@ -115,7 +115,7 @@ func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []an
 		)
 		entries = append(entries, &observabilityv1.LogEntry{
 			Timestamp:          timestamppb.New(ts),
-			Severity:           severity,
+			Level:              observabilityv1.LogLevel(level),
 			Body:               body,
 			ResourceId:         resourceID,
 			TraceId:            traceID,
@@ -137,7 +137,7 @@ func queryLogPage(ctx context.Context, conn driver.Conn, query string, args []an
 	return page, nil
 }
 
-const logSelect = "SELECT Timestamp, SeverityText, Body, " + resourceColumn + ", TraceId, SpanId, " +
+var logSelect = "SELECT Timestamp, " + levelColumn + ", Body, " + resourceColumn + ", TraceId, SpanId, " +
 	"ResourceAttributes, LogAttributes, _block_number, _block_offset, _partition_id FROM otel_logs"
 
 type binder interface {
@@ -209,7 +209,7 @@ func logFilters(q LogQuery, b binder) []string {
 	}
 
 	if len(q.ResourceIDs) > 0 {
-		whereParts = append(whereParts, logIn(resourceColumn, q.ResourceIDs, b))
+		whereParts = append(whereParts, resourceIn(q.ResourceIDs, b))
 	}
 
 	whereParts = append(whereParts, "Timestamp >= fromUnixTimestamp64Nano("+b.num(q.Start.UnixNano())+")")
@@ -221,10 +221,10 @@ func logFilters(q LogQuery, b binder) []string {
 	return whereParts
 }
 
-func logIn(column string, values []string, b binder) string {
+func resourceIn(values []string, b binder) string {
 	placeholders := make([]string, len(values))
 	for i, value := range values {
 		placeholders[i] = b.str(value)
 	}
-	return fmt.Sprintf("%s IN (%s)", column, strings.Join(placeholders, ","))
+	return resourceColumn + " IN (" + strings.Join(placeholders, ",") + ")"
 }

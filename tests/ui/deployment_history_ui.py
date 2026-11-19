@@ -29,8 +29,8 @@ workspace_id = state["workspaces"]["acme/shared"]
 BUILD_DIGEST = "sha256:" + "7c41e9b2" * 8
 PLATFORM_DOMAIN = "apps.e2e.test"
 BUILD_LOG = [
-    ("INFO", "#1 [internal] load build definition from Dockerfile"),
-    ("ERROR", "Pilot build step failed"),
+    ("LOG_LEVEL_INFO", "#1 [internal] load build definition from Dockerfile"),
+    ("LOG_LEVEL_ERROR", "Pilot build step failed"),
 ]
 
 
@@ -269,10 +269,10 @@ with session(out) as browser:
         entries = [
             {
                 "timestamp": f"2026-01-01T00:00:0{index}Z",
-                "severity": severity,
+                "level": level,
                 "body": text,
             }
-            for index, (severity, text) in enumerate(BUILD_LOG)
+            for index, (level, text) in enumerate(BUILD_LOG)
         ]
         route.fulfill(json={"entries": entries})
 

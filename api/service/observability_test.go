@@ -276,7 +276,7 @@ func TestLogBucketValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			req := &observabilityv1.QueryLogBucketsRequest{WorkspaceId: observabilityTestWorkspace,
 				StartTime: timestamppb.New(time.Now().Add(-2 * time.Minute)), EndTime: timestamppb.Now(),
-				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY}
+				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL}
 			tc.change(req)
 			_, err := client.QueryLogBuckets(callerContext(t, observabilityTestCaller), req)
 			if connect.CodeOf(err) != connect.CodeInvalidArgument {

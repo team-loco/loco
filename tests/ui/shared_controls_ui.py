@@ -110,6 +110,7 @@ TRAFFIC_RATES = {
 }
 traffic_empty = False
 log_bucket_requests = []
+LEVELS = ("LOG_LEVEL_INFO", "LOG_LEVEL_WARN", "LOG_LEVEL_ERROR", "LOG_LEVEL_DEBUG")
 
 
 def mock_telemetry(context):
@@ -117,7 +118,7 @@ def mock_telemetry(context):
     logs = [
         {
             "timestamp": stamp(now, timedelta(seconds=i * 13 + 1)),
-            "severity": ("INFO", "WARN", "ERROR", "DEBUG")[i % 4],
+            "level": LEVELS[i % 4],
             "body": f"Request completed ({i + 1})",
             "resourceId": resource,
             "resourceAttributes": {"cloud.region": "us-east-1"},
@@ -149,13 +150,8 @@ def mock_telemetry(context):
         route.fulfill(
             json={
                 "buckets": [
-                    {"startTime": start, "severity": severity, "count": str(count)}
-                    for severity, count in [
-                        ("INFO", 10005),
-                        ("WARN", 2),
-                        ("ERROR", 3),
-                        ("DEBUG", 4),
-                    ]
+                    {"startTime": start, "level": level, "count": str(count)}
+                    for level, count in zip(LEVELS, (10005, 2, 3, 4), strict=True)
                 ]
             }
         )
@@ -342,6 +338,10 @@ def log_levels(page):
     )
     levels = page.get_by_role("group", name="Log levels")
     warn = levels.get_by_role("button", name=re.compile(r"^Warn"))
+    expect(warn).to_contain_text("2")
+    page.get_by_role("button", name=re.compile(r"Request completed \(2\)$")).click()
+    expect(page.get_by_role("dialog")).to_contain_text("Warning")
+    page.keyboard.press("Escape")
     error = levels.get_by_role("button", name=re.compile(r"^Error"))
     expect(warn).to_have_attribute("aria-pressed", "true")
     error.click()
@@ -387,7 +387,7 @@ def log_paging(page):
     many = [
         {
             "timestamp": stamp(now, timedelta(seconds=i * 7 + 1)),
-            "severity": "INFO",
+            "level": "LOG_LEVEL_INFO",
             "body": f"Paged line {i + 1}",
             "resourceId": resource,
             "resourceAttributes": {"cloud.region": "us-east-1"},
@@ -610,7 +610,7 @@ def volume(page):
         with expect_rpc(
             page,
             "QueryLogBuckets",
-            lambda body: body.get("groupBy") == "LOG_BUCKET_GROUP_SEVERITY",
+            lambda body: body.get("groupBy") == "LOG_BUCKET_GROUP_LEVEL",
         ):
             page.goto(
                 state["ui_url"]
@@ -669,7 +669,7 @@ def volume(page):
     point = {"x": box["width"] * (target + 0.5) / count, "y": box["height"] / 2}
     area.hover(position=point)
     expect(area).to_have_attribute("title", re.compile(r"lines"))
-    assert log_bucket_requests[-1]["groupBy"] == "LOG_BUCKET_GROUP_SEVERITY"
+    assert log_bucket_requests[-1]["groupBy"] == "LOG_BUCKET_GROUP_LEVEL"
     area.click(position=point)
     expect(page).not_to_have_url(re.compile(f"from={end - 3_600_000}"))
     clicked = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)["from"][0]

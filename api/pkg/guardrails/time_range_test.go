@@ -25,7 +25,7 @@ func TestHistoryQueriesValidateTimestampPresenceAndPrecision(t *testing.T) {
 				StartTime:       start,
 				EndTime:         end,
 				IntervalSeconds: 60,
-				GroupBy:         observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+				GroupBy:         observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL,
 			}
 			return validated(req, func() error { return ValidateLogBucketsRequest(req, cfg) })
 		}},

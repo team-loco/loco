@@ -14,7 +14,7 @@ import (
 func traceScope(scope *observabilityv1.TraceScope, b binder) []string {
 	where := []string{workspaceColumn + " = " + b.str(scope.GetWorkspaceId())}
 	if len(scope.GetResourceIds()) > 0 {
-		where = append(where, logIn(resourceColumn, scope.GetResourceIds(), b))
+		where = append(where, resourceIn(scope.GetResourceIds(), b))
 	}
 	if scope.GetEnvironmentId() != "" {
 		where = append(where, environmentColumn+" = "+b.str(scope.GetEnvironmentId()))

@@ -13,6 +13,7 @@ import {
 	pinnedKey,
 	queryError,
 	queryKeyReason,
+	queryLevel,
 	withToken,
 	queryStr,
 	searchWords,
@@ -49,10 +50,11 @@ describe("regional telemetry filters", () => {
 	});
 });
 
-describe("log severity filters", () => {
-	test("reads records without a severity as info", () => {
-		const row = toRows([create(LogEntrySchema, { body: "unstructured stdout", severity: "" })], new Map())[0];
-		expect(row?.level).toBe("info");
+describe("@level chips", () => {
+	test("colour every error spelling the API accepts as error", () => {
+		for (const value of ["error", "err", "fatal", "critical", "panic", "emergency", "alert"]) {
+			expect(queryLevel(value)).toBe("error");
+		}
 	});
 });
 

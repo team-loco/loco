@@ -42,13 +42,13 @@ def check_scoped_user(browser):
     stamp = (now - datetime.timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     telemetry = {
         "QueryLogBuckets": {
-            "buckets": [{"startTime": stamp, "severity": "INFO", "count": "1"}]
+            "buckets": [{"startTime": stamp, "level": "LOG_LEVEL_INFO", "count": "1"}]
         },
         "QueryLogs": {
             "entries": [
                 {
                     "timestamp": stamp,
-                    "severity": "INFO",
+                    "level": "LOG_LEVEL_INFO",
                     "body": "checkout order placed",
                     "resourceId": rid,
                     "resourceAttributes": {

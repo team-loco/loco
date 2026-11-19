@@ -22,7 +22,7 @@ export function useLogBuckets(options: {
 			environmentId: allEnvironments ? "" : environmentId,
 			startTime: msToTimestamp(start),
 			endTime: msToTimestamp(end),
-			groupBy: LogBucketGroup.SEVERITY,
+			groupBy: LogBucketGroup.LEVEL,
 		},
 		{
 			enabled: enabled && filters.workspaceId !== "" && (allEnvironments || environmentId !== ""),

@@ -1,6 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createParser, parseAsArrayOf, parseAsString } from "nuqs";
 import { BadRequestSchema, ErrorInfoSchema } from "@gen/google/rpc/error_details_pb";
+import { LogLevel } from "@gen/loco/observability/v1/observability_pb";
 
 import type { ObservabilityView } from "@/lib/routes";
 
@@ -8,13 +9,27 @@ export type Level = "error" | "warn" | "info" | "debug";
 
 export const LEVELS: Level[] = ["error", "warn", "info", "debug"];
 
-export function levelOf(severity: string): Level {
-	const s = severity.toLowerCase();
+const LOG_LEVELS: Record<LogLevel, Level> = {
+	[LogLevel.UNSPECIFIED]: "info",
+	[LogLevel.DEBUG]: "debug",
+	[LogLevel.INFO]: "info",
+	[LogLevel.WARN]: "warn",
+	[LogLevel.ERROR]: "error",
+};
+
+export function logLevel(level: LogLevel): Level {
+	return LOG_LEVELS[level];
+}
+
+/** The level a @level query value names. */
+export function queryLevel(value: string): Level {
+	const s = value.toLowerCase();
 	if (
 		s.startsWith("err") ||
 		s.startsWith("fatal") ||
 		s.startsWith("crit") ||
 		s.startsWith("emerg") ||
+		s.startsWith("panic") ||
 		s.startsWith("alert")
 	) {
 		return "error";

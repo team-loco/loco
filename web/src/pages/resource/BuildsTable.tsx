@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
-import { levelOf } from "@/pages/observability/query";
+import { logLevel } from "@/pages/observability/query";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 import {
@@ -79,7 +79,7 @@ function BuildLog({ build, workspaceId }: { build: Build; workspaceId: string })
 			>
 				<span className="block">
 					{log.entries.map((entry, i) => {
-						const level = levelOf(entry.severity);
+						const level = logLevel(entry.level);
 						return (
 							<span
 								key={`${String(entry.timestamp?.seconds ?? "")}:${String(entry.timestamp?.nanos ?? "")}:${i.toString()}`}
