@@ -1,7 +1,7 @@
 import { useListNavigation } from "@/hooks/useListNavigation";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TimeAxis } from "@/components/design/TimeAxis";
-import { createParser, parseAsString, useQueryStates } from "nuqs";
+import { createParser, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { queryLogBuckets, queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { LogBucketGroup, LogOrder } from "@gen/loco/observability/v1/observability_pb";
@@ -31,7 +31,7 @@ import { columnsParser, widthsParser, type ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { fmtTs, LEVEL_LABEL } from "./format";
 import { LogDetail } from "./LogDetail";
-import { cancelLogResume, completeLogResume, logPlaybackForKey, type LogPlayback } from "./log-playback";
+import { cancelLogResume, completeLogResume, logPlaybackForKey, tailRate, type LogPlayback } from "./log-playback";
 import { LogTable } from "./LogTable";
 import { coversWholeRange, CopyCommand, NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import {
@@ -68,11 +68,11 @@ const LOGS_PARAMS = {
 	cols: columnsParser,
 	widths: widthsParser,
 	at: msParser,
+	live: parseAsStringLiteral(["0"]),
 };
 const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set(["region", "replica", "build", "trace"]);
 const TAIL_TICK_MS = 1000;
 const IDLE_TICK_MS = 15_000;
-const RATE_WINDOW_MS = 10_000;
 const FRESH_MS = 1800;
 
 const LEVEL_COLOR: Record<Level, string> = {
@@ -101,7 +101,7 @@ export function LogsView() {
 	const [params, setParams] = useQueryStates(LOGS_PARAMS, { history: "replace" });
 	const { active: environment, isLoading: environmentLoading } = useEnvironments();
 	const environmentId = environment?.id ?? "";
-	const { size, page, log: selectedKey, cols: columns, widths, at: anchor } = params;
+	const { size, page, log: selectedKey, cols: columns, widths, at: anchor, live } = params;
 	const [history, setHistory] = useState(createLogHistory);
 	const [focusActive, setFocusActive] = useState(anchor !== null);
 	const [windowEnd, setWindowEnd] = useState(Date.now);
@@ -120,7 +120,12 @@ export function LogsView() {
 	const [prevKey, setPrevKey] = useState(queryKey);
 	const cursor = history.current.cursor;
 	const playbackKey = JSON.stringify([queryKey, cursor, history.current.order]);
-	const [playback, setPlayback] = useState<LogPlayback>({ key: playbackKey, on: false, pending: null, paused: null });
+	const [playback, setPlayback] = useState<LogPlayback>({
+		key: playbackKey,
+		on: live === null,
+		pending: null,
+		paused: null,
+	});
 	useEffect(() => {
 		const cancel = () => {
 			setPlayback(cancelLogResume);
@@ -141,7 +146,7 @@ export function LogsView() {
 		setHistory(createLogHistory());
 		setWindowEnd(Math.max(windowEnd, nowMs));
 		setFocusActive(anchor !== null);
-		if (!canTail) setPlayback({ ...currentPlayback, on: false, pending: null, paused: null });
+		if (!canTail) setPlayback({ ...currentPlayback, pending: null, paused: null });
 	}
 	const historyFrom =
 		range.kind === "absolute" ? range.from : anchor === null ? windowEnd - spanMs : anchor - spanMs / 2;
@@ -181,15 +186,19 @@ export function LogsView() {
 	const tailRows = frozen ? allTail.filter((r) => r.ts <= freezeTs) : allTail;
 	const held = frozen ? allTail.length - tailRows.length : 0;
 	const rows = visibleLogRows(batchRows, tailRows, playback.paused?.rows ?? null);
-	const rate = allTail.filter((r) => r.ts > nowMs - RATE_WINDOW_MS).length / (RATE_WINDOW_MS / 1000);
+	const rate = tailRate(tailState.arrivals, tailState.startedAt, nowMs);
 	// The page and selected line live in the URL so a reload or shared link reopens them.
 	const setView = (nextPage: number | "last", key: string | null) => {
 		void setParams({ page: nextPage, log: key });
 	};
+	const pauseLive = () => {
+		setPlayback({ ...playback, on: false, pending: null, paused: null });
+		void setParams({ live: "0" });
+	};
 	const handleToggleTail = () => {
 		setFreezeTs(null);
 		if (tail) {
-			setView(0, selectedKey);
+			void setParams({ page: 0, log: selectedKey, live: "0" });
 			setPlayback({
 				...playback,
 				on: false,
@@ -219,6 +228,7 @@ export function LogsView() {
 		void latest.result.then(
 			() => {
 				setPlayback((current) => completeLogResume(current, pending, true));
+				void setParams({ live: null });
 			},
 			() => {
 				setPlayback((current) => completeLogResume(current, pending, false));
@@ -306,12 +316,12 @@ export function LogsView() {
 	const shownKey = useHeldWhileClosed(selRow?.key ?? null, selRow !== undefined);
 	const shownRow = shownKey === null ? undefined : rows.find((r) => r.key === shownKey);
 	const toOlderBatch = () => {
-		setPlayback({ ...playback, on: false, pending: null, paused: null });
+		pauseLive();
 		setHistory(moveLogHistory(history, "older", cutoffCursor ?? ""));
 		setView(0, null);
 	};
 	const toNewerBatch = () => {
-		setPlayback({ ...playback, on: false, pending: null, paused: null });
+		pauseLive();
 		setHistory(moveLogHistory(history, "newer", newerCursor ?? ""));
 		setView("last", null);
 	};
@@ -421,7 +431,7 @@ export function LogsView() {
 		);
 	}
 
-	const firstRun = !isLoading && error === null && rows.length === 0 && !tail && query === "";
+	const firstRun = !isLoading && error === null && rows.length === 0 && query === "";
 
 	return (
 		<>
@@ -578,7 +588,7 @@ export function LogsView() {
 									? null
 									: () => {
 											setFocusActive(false);
-											setPlayback({ ...playback, on: false, pending: null, paused: null });
+											pauseLive();
 											if (anchor === null) setHistory(createLogHistory());
 											setView(0, null);
 										}
@@ -606,7 +616,7 @@ export function LogsView() {
 									? null
 									: () => {
 											setFocusActive(false);
-											setPlayback({ ...playback, on: false, pending: null, paused: null });
+											pauseLive();
 											// Lines past this batch are reachable only through cursors, so jump to the oldest batch.
 											if (cutoffCursor !== null || history.older.length > 0) setHistory(oldestLogHistory());
 											setView("last", null);

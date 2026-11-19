@@ -269,11 +269,33 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     expect(
         creation.get_by_role("button", name="Create webhook", exact=True)
     ).to_be_disabled()
-    creation.get_by_role("button", name="Cancel", exact=True).click()
+    endpoint.fill("https://hooks.invalid/named")
+    creation.get_by_role("textbox", name="Name (optional)", exact=True).fill(
+        "Billing alerts"
+    )
+    creation.get_by_role("button", name="Create webhook", exact=True).click()
+    page.get_by_role("dialog", name="Signing secret", exact=True).get_by_role(
+        "button", name="Done", exact=True
+    ).click()
+    named = page.get_by_role(
+        "button", name="Deliveries for https://hooks.invalid/named", exact=True
+    )
+    expect(named).to_contain_text("Billing alerts")
+    expect(named).to_contain_text("hooks.invalid/named")
+    expect(
+        page.get_by_role("button", name="Deliveries for https://hooks.invalid/updated")
+    ).to_contain_text("hooks.invalid")
+    page.get_by_role("textbox", name="Search webhooks", exact=True).fill("billing")
+    expect(named).to_be_visible()
+    expect(page.get_by_role("row")).to_have_count(2)
+    named.click()
+    expect(
+        page.get_by_role("dialog", name="Billing alerts", exact=True)
+    ).to_be_visible()
     assert not errors, errors
     context.close()
     browser.close()
 print(
-    "PASS: webhook edit, rotation, test, redelivery, server status filters and paging",
+    "PASS: webhook names, edit, rotation, test, redelivery, server status filters and paging",
     flush=True,
 )

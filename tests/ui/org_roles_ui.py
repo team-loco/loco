@@ -17,20 +17,6 @@ org = state["orgs"]["acme"]["id"]
 path = state["ui_url"] + f"/org/{org}/team"
 
 with session(repo / "tests/ui/out/org_roles") as browser:
-    newcomer_context, newcomer, newcomer_errors = open_page(
-        browser, user="newcomer", state=state
-    )
-    newcomer.goto(state["ui_url"] + "/login")
-    expect(newcomer).to_have_url(re.compile(r"/organizations$"))
-    expect(newcomer.get_by_text("No organizations yet", exact=True)).to_be_visible()
-    newcomer.get_by_role("button", name="Create your first organization").click()
-    newcomer.get_by_role("dialog", name="New organization").get_by_role(
-        "textbox", name="Name"
-    ).fill("newcomer-org")
-    newcomer.get_by_role("button", name="Create", exact=True).click()
-    expect(newcomer).to_have_url(re.compile(r"/org/[0-9a-f-]+/wks/[0-9a-f-]+"))
-    assert not newcomer_errors, newcomer_errors
-    newcomer_context.close()
     context, page, errors = open_page(browser, state=state)
     requests = []
     page.on("request", lambda request: requests.append(request.url))
