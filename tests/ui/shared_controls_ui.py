@@ -1415,7 +1415,7 @@ def metrics(page):
     )
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
-    expect(chart.get_by_text("controls-pilot 1.27").first).to_be_visible()
+    expect(chart.get_by_text("controls-pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
@@ -1439,7 +1439,7 @@ def metrics(page):
     menu = page.get_by_role("menu", name=re.compile(r"^Around"))
     expect(menu).to_be_visible()
     expect(
-        menu.get_by_role("menuitem", name=re.compile(r"^Deploy 1\.27")).first
+        menu.get_by_role("menuitem", name=re.compile(r"^Deploy 000de90")).first
     ).to_be_visible()
     first, second = (
         menu.get_by_role("menuitem").nth(0),

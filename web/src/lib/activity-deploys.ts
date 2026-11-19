@@ -9,7 +9,7 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
 import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
-import { maybeTsMs, readyMs } from "@/lib/time";
+import { agoLabel, maybeTsMs, readyMs } from "@/lib/time";
 import { formatShortId } from "@/lib/utils";
 
 export const RECENT_MS = 30 * 60_000;
@@ -100,8 +100,7 @@ export function tookLabel(ms: number): string {
 export function finishedLabel(d: Deployment, nowMs: number): string {
 	const created = maybeTsMs(d.createdAt) ?? nowMs;
 	const end = readyMs(d) ?? maybeTsMs(d.completedAt) ?? created;
-	const mins = Math.floor((nowMs - end) / 60_000);
-	return `took ${tookLabel(end - created)} · ${mins < 1 ? "just now" : `${mins.toString()}m ago`}`;
+	return `took ${tookLabel(end - created)} · ${agoLabel(end, nowMs)}`;
 }
 
 /** Drops a rollout alert when a deploy card already shows that rollout. */
