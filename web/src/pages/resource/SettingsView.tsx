@@ -7,6 +7,7 @@ import { listRegions } from "@gen/loco/resource/v1/resource-ResourceService_conn
 import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { Button } from "@/components/design/Button";
+import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { DangerZone } from "@/components/design/DangerZone";
 import { Notice } from "@/components/design/Notice";
 import { SaveBar } from "@/components/design/SaveBar";
@@ -21,6 +22,7 @@ import { isDeployed, type Notice as NoticeState, type RegionView } from "./model
 import { NetworkingSection } from "./NetworkingSection";
 import {
 	changeCount,
+	domainsChange,
 	LIVE_ERROR_KEYS,
 	planSave,
 	regionMapChanged,
@@ -110,6 +112,7 @@ export function SettingsView({
 		return focus === "scaling" ? "set-scaling" : (linked?.id ?? "set-image");
 	});
 	const [tried, setTried] = useState(false);
+	const [confirmingInternal, setConfirmingInternal] = useState(false);
 	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
 	const domainsQuery = useQuery(
 		listPlatformDomains,
@@ -260,10 +263,31 @@ export function SettingsView({
 							}}
 							onSave={() => {
 								setTried(true);
-								if (errorCount === 0) void save(draft);
+								if (errorCount > 0) return;
+								if (domainsChange(draft, base) === "remove") setConfirmingInternal(true);
+								else void save(draft);
 							}}
 						/>
 					)}
+					<ConfirmDialog
+						open={confirmingInternal}
+						title={`Make ${resource.name} internal?`}
+						description="Saving removes every domain below and redeploys, so the resource only answers inside the workspace."
+						confirmLabel="Remove domains and save"
+						onConfirm={() => {
+							setConfirmingInternal(false);
+							void save(draft);
+						}}
+						onClose={() => {
+							setConfirmingInternal(false);
+						}}
+					>
+						<ul className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-[13px]">
+							{resource.domains.map((d) => (
+								<li key={d.domain}>{d.domain}</li>
+							))}
+						</ul>
+					</ConfirmDialog>
 				</div>
 			</div>
 		</div>
