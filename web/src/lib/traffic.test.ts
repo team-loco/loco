@@ -139,7 +139,7 @@ describe("traffic values", () => {
 
 describe("traffic axis", () => {
 	it("never repeats a label", () => {
-		for (const max of [0, 0.003, 0.03, 0.0301, 0.07, 1, 7.5, 123, 4_500, 2_600_000]) {
+		for (const max of [0, 1e-6, 0.0001, 0.003, 0.03, 0.0301, 0.07, 1, 7.5, 123, 4_500, 2_600_000]) {
 			const { ticks, format } = trafficAxis(max, "/s");
 			const labels = ticks.map(format);
 			expect(new Set(labels).size).toBe(labels.length);

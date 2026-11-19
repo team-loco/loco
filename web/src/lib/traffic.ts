@@ -70,6 +70,7 @@ export function errorShare(point: TrafficPoint | undefined): number | undefined 
 const SMALLEST_SHOWN = 0.01;
 const MS_PER_SECOND = 1000;
 const AXIS_INTERVALS = 4;
+const MIN_AXIS_TOP = 3 * SMALLEST_SHOWN;
 const NICE_STEPS = [1, 2, 2.5, 5, 10];
 const MAX_AXIS_DIGITS = 6;
 
@@ -104,9 +105,10 @@ function fractionDigits(step: number): number {
 
 /** Evenly spaced y ticks from zero to `max` in `unit`, each labelled with enough digits to differ from its neighbours. */
 export function trafficAxis(
-	max: number,
+	peak: number,
 	unit: string,
 ): { ticks: number[]; top: number; format: (value: number) => string } {
+	const max = peak > 0 ? Math.max(peak, MIN_AXIS_TOP) : 0;
 	const scale = unit.trim() === "ms" && max >= MS_PER_SECOND ? MS_PER_SECOND : 1;
 	const shownUnit = scale === 1 ? unit : " s";
 	const step = niceStep(max > 0 ? max / scale / AXIS_INTERVALS : 1);
