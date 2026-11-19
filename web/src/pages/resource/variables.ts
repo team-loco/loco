@@ -1,3 +1,6 @@
+import { createConnectQueryKey } from "@connectrpc/connect-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import type { Secret, SecretUsage } from "@gen/loco/secret/v1/secret_pb";
 
 import { SECRET_NAME } from "./settings-draft";
@@ -53,4 +56,15 @@ export function secretUsageMessage(service: string, usedBy: Pick<SecretUsage, "r
 		usedBy.map((usage) => usage.region),
 	);
 	return `${service} uses ${names.join(", ")} in ${regions}. The new value applies on the next deploy or restart.`;
+}
+
+/** Refetches the variables list of one resource in one environment. */
+export async function refreshSecrets(client: QueryClient, resourceId: string, environmentId: string): Promise<void> {
+	await client.invalidateQueries({
+		queryKey: createConnectQueryKey({
+			schema: listSecrets,
+			input: { resourceId, environmentId },
+			cardinality: "finite",
+		}),
+	});
 }

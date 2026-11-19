@@ -1,8 +1,12 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, test } from "bun:test";
+import { createRouterTransport } from "@connectrpc/connect";
+import { createQueryOptions } from "@connectrpc/connect-query";
+import { QueryClient } from "@tanstack/react-query";
+import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { SecretSchema } from "@gen/loco/secret/v1/secret_pb";
 
-import { secretRows, secretUsageMessage } from "./variables";
+import { refreshSecrets, secretRows, secretUsageMessage } from "./variables";
 
 describe("secretRows", () => {
 	test("merges stored, declared and staged names with their status", () => {
@@ -35,5 +39,25 @@ describe("secretUsageMessage", () => {
 	});
 	test("omits the message when no region uses a saved name", () => {
 		expect(secretUsageMessage("web", [])).toBe("");
+	});
+});
+
+describe("refreshSecrets", () => {
+	const transport = createRouterTransport(() => {});
+	const input = (resourceId: string) => ({ resourceId, environmentId: "env" });
+	const secretsKey = (client: QueryClient, resourceId: string) => {
+		const { queryKey } = createQueryOptions(listSecrets, input(resourceId), { transport });
+		client.setQueryData(queryKey, {});
+		return queryKey;
+	};
+
+	test("invalidates the secrets of that resource only", async () => {
+		const client = new QueryClient();
+		const secrets = secretsKey(client, "res");
+		const other = secretsKey(client, "other");
+		await refreshSecrets(client, "res", "env");
+		expect(client.getQueryState(secrets)?.isInvalidated).toBe(true);
+		expect(client.getQueryState(other)?.isInvalidated).toBe(false);
+		client.clear();
 	});
 });
