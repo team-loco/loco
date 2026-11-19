@@ -217,3 +217,54 @@ func TestAnImageDeploySupersedesABuildingDeployment(t *testing.T) {
 		t.Fatalf("supersededBy = %s, want %s", supersededBy, replacement.GetDeploymentId())
 	}
 }
+
+func TestCancelLeavesARestartedRegionRunning(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first, err := createTestDeployment(t, f, sameRegionSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	if err = restartResource(t, f, f.envID, "", genDb.ScopeWrite); err != nil {
+		t.Fatal(err)
+	}
+	wantCode(t, f.cancelDeployment(t, first.GetDeploymentId()), connect.CodeFailedPrecondition)
+	second, err := deployService(t, f, imageService())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.cancelDeployment(t, second.GetDeploymentId()); err != nil {
+		t.Fatal(err)
+	}
+	p := f.placement(t, f.clusterID)
+	if p.DesiredDeleted || p.DeploymentID == nil || p.DeploymentID.String() != first.GetDeploymentId() {
+		t.Fatalf("placement deployment=%v deleted=%t, want %s",
+			p.DeploymentID, p.DesiredDeleted, first.GetDeploymentId())
+	}
+}
+
+func TestCancelKeepsABuildAnotherDeploymentWaitsFor(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	buildID := f.queued(t)
+	first := deployBuild(t, f, buildID)
+	second, err := deployService(t, f.deployFixture, &deploymentv1.ServiceDeploymentSpec{
+		Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := f.deploymentStatus(t, first); got != genDb.DeploymentStatusCanceled {
+		t.Fatalf("superseded deployment status = %s, want canceled", got)
+	}
+	if got := f.row(t, buildID).Status; got != genDb.BuildStatusQueued {
+		t.Fatalf("build status after supersede = %s, want queued", got)
+	}
+	if err := f.cancelDeployment(t, second.GetDeploymentId()); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.row(t, buildID).Status; got != genDb.BuildStatusCanceled {
+		t.Fatalf("build status after cancel = %s, want canceled", got)
+	}
+}

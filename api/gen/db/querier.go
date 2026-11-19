@@ -280,7 +280,8 @@ type Querier interface {
 	// The newest deployment older than the failed one that ran, while nothing newer than the
 	// failed one exists.
 	PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error)
-	// The newest deployment older than the given one whose placement on the cluster still runs.
+	// The newest deployment older than the given one whose placement on the cluster ran and still
+	// serves, including one a restart rolls again.
 	PreviousRunningDeploymentForCluster(ctx context.Context, arg PreviousRunningDeploymentForClusterParams) (Deployment, error)
 	// Deletes the resource's builds past the newest keep once their source and, for a succeeded
 	// build, image are gone: the sweepers find what to delete through these rows. The image

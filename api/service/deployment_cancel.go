@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ import (
 
 var errDeploymentFinished = rpcerr.NewCoded(
 	connect.CodeFailedPrecondition,
-	"the deployment has finished; roll back or redeploy instead",
+	"the deployment finished or already runs in every region; roll back or redeploy instead",
 )
 
 // CancelDeployment stops a building or rolling-out deployment and records who canceled it.
@@ -84,10 +85,13 @@ func (s *DeploymentServer) cancelDeployment(
 	}
 	reverted, kept := []string{}, []string{}
 	for _, placement := range placements {
-		if placement.Status != genDb.PlacementStatusPending && placement.Status != genDb.PlacementStatusDeploying {
-			if placement.Status != genDb.PlacementStatusCanceled {
+		if placement.StartedAt != nil {
+			if slices.Contains(placementLiveStatuses, placement.Status) {
 				kept = append(kept, placement.Region)
 			}
+			continue
+		}
+		if placement.Status != genDb.PlacementStatusPending && placement.Status != genDb.PlacementStatusDeploying {
 			continue
 		}
 		if _, setErr := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
@@ -104,6 +108,9 @@ func (s *DeploymentServer) cancelDeployment(
 			}
 		}
 		reverted = append(reverted, placement.Region)
+	}
+	if len(reverted) == 0 {
+		return errDeploymentFinished
 	}
 	if setErr := qtx.SetDeploymentCanceledBy(ctx, genDb.SetDeploymentCanceledByParams{
 		ID: deploymentID, ActorType: &principal.ActorType, ActorID: &principal.ActorID,
@@ -130,7 +137,6 @@ func (s *DeploymentServer) cancelDeployment(
 			events.FieldDeploymentID: deploymentID.String(),
 			events.FieldReverted:     reverted,
 			events.FieldKept:         kept,
-			events.FieldSupersededBy: "",
 		},
 	})
 }

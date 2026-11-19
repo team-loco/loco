@@ -259,7 +259,8 @@ SELECT * FROM deployment_placements WHERE deployment_id = $1 AND cluster_id = $2
 SELECT id FROM deployments WHERE id = $1 FOR UPDATE;
 
 -- name: PreviousRunningDeploymentForCluster :one
--- The newest deployment older than the given one whose placement on the cluster still runs.
+-- The newest deployment older than the given one whose placement on the cluster ran and still
+-- serves, including one a restart rolls again.
 SELECT previous.* FROM deployment_placements dp
 JOIN deployments previous ON previous.id = dp.deployment_id
 JOIN deployments current ON current.id = sqlc.arg(deployment_id)
@@ -267,7 +268,8 @@ WHERE dp.cluster_id = sqlc.arg(cluster_id)
   AND previous.resource_id = current.resource_id
   AND previous.environment_id = current.environment_id
   AND (previous.created_at, previous.id) < (current.created_at, current.id)
-  AND dp.status IN ('running', 'degraded', 'crashed')
+  AND dp.started_at IS NOT NULL
+  AND dp.status IN ('deploying', 'running', 'degraded', 'crashed')
 ORDER BY previous.created_at DESC, previous.id DESC
 LIMIT 1;
 
