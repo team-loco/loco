@@ -70,7 +70,8 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
 		!urlWorkspace.isLoading &&
 		!urlOrg.isLoading &&
 		orgParam !== undefined &&
-		// The lookups run only for callers who can read the workspace or organization, so a denial means it is absent.
+		// not_found and invalid_argument mean the organization or workspace is absent. A denial counts as absent
+		// only for the workspace lookup, which runs for a caller who can read the workspace.
 		(resourceMissing(urlOrg.error, false) ||
 			resourceMissing(urlWorkspace.error, true) ||
 			!routeKnown(

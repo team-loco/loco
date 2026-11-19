@@ -12,6 +12,7 @@ from harness import (
     open_page as new_page,
     repo,
     session,
+    sql,
 )
 from playwright.sync_api import expect
 
@@ -403,6 +404,29 @@ with session(out) as browser:
     expect(page).to_have_url(ui + "/")
     assert not errors, errors
     cases.append("member")
+    context.close()
+
+    # A system admin's scopes cover every organization, so the client's route check passes
+    # for any ID and only the API's answer shows the organization is absent.
+    sql(
+        state,
+        "INSERT INTO user_scopes (user_id, scope, entity_type, entity_id) VALUES "
+        f"('{state['users']['resource_reader']['id']}', 'admin', 'system', "
+        f"'{uuid.UUID(int=0)}');",
+    )
+    context, page, errors = open_page(browser, "resource_reader")
+    for path in (
+        f"/org/{uuid.UUID(int=0)}/team",
+        f"/org/{uuid.uuid4()}/wks/{uuid.uuid4()}",
+        f"/org/{org}/wks/{uuid.UUID(int=0)}",
+    ):
+        page.goto(ui + path)
+        expect_not_found(page, path)
+    page.goto(ui + f"/org/{org}/team")
+    expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
+    expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+    assert not errors, errors
+    cases.append("system-admin")
     context.close()
 
     context, page, errors = open_page(browser, None)
