@@ -19,8 +19,3 @@ func Slug(name string) string {
 	}
 	return strings.Trim(b.String(), "-")
 }
-
-// IsServiceName reports whether name can name a service: a DNS label of at most 63 characters.
-func IsServiceName(name string) bool {
-	return isDNSLabel(name)
-}

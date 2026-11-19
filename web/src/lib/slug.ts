@@ -1,4 +1,4 @@
-export const MAX_SLUG_LENGTH = 63;
+const MAX_SLUG_LENGTH = 63;
 
 // mirrors Slug in internal/locofile/name.go; update both together.
 export function slug(name: string): string {

@@ -24,18 +24,18 @@ func TestSlug(t *testing.T) {
 		got := Slug(test.name)
 		assert.Equal(t, test.want, got, test.name)
 		if got != "" {
-			assert.True(t, isDNSLabel(got), test.name)
+			assert.True(t, IsDNSLabel(got), test.name)
 		}
 	}
 }
 
-func TestIsServiceName(t *testing.T) {
+func TestIsDNSLabel(t *testing.T) {
 	for _, name := range []string{"web", "123cart", "qa-echo", strings.Repeat("a", MaxServiceNameLength)} {
-		assert.True(t, IsServiceName(name), name)
+		assert.True(t, IsDNSLabel(name), name)
 	}
 	for _, name := range []string{
 		"", "!!!", "--", "-bad-", "Checkout API", "Café", "🚀rocket", strings.Repeat("a", MaxServiceNameLength+1),
 	} {
-		assert.False(t, IsServiceName(name), name)
+		assert.False(t, IsDNSLabel(name), name)
 	}
 }

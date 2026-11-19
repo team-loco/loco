@@ -27,7 +27,7 @@ func validate(file *File) error {
 	switch {
 	case file.Partial == "":
 		errs = append(errs, &FieldError{Path: keyPartial, Err: ErrPartialRequired})
-	case !isDNSLabel(file.Partial):
+	case !IsDNSLabel(file.Partial):
 		errs = append(errs, &FieldError{Path: keyPartial, Err: ErrInvalidName})
 	}
 	if file.Services == nil {
@@ -36,7 +36,7 @@ func validate(file *File) error {
 
 	for _, name := range sortedKeys(file.Services) {
 		service := file.Services[name]
-		if !IsServiceName(name) {
+		if !IsDNSLabel(name) {
 			errs = append(errs, &FieldError{Path: servicePath(name), Err: ErrInvalidName})
 		}
 		errs = append(errs, validateService(servicePath(name), service)...)
@@ -140,7 +140,8 @@ func validateAutoscaling(path string, autoscaling *Autoscaling) []error {
 	return nil
 }
 
-func isDNSLabel(name string) bool {
+// IsDNSLabel reports whether name can name a partial or a service.
+func IsDNSLabel(name string) bool {
 	return len(name) <= MaxServiceNameLength && dnsLabelPattern.MatchString(name)
 }
 
