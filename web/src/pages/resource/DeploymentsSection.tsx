@@ -395,8 +395,12 @@ export function DeploymentsSection({
 												<DeploymentActor deployment={dep} />
 											</TableCell>
 											{multiRegion && (
-												<TableCell className="truncate font-mono text-[12px] text-fg2">
-													{rows.map((r) => r.region.name).join(", ")}
+												<TableCell className="font-mono text-[12px] text-fg2">
+													{rows.map((r) => (
+														<span key={r.region.name} className="block truncate">
+															{r.region.name}
+														</span>
+													))}
 												</TableCell>
 											)}
 											<TableCell className="max-w-0 truncate text-fg2" title={deploymentMessage(dep)}>
