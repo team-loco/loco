@@ -127,14 +127,21 @@ func (t *Client) logIn(ctx context.Context) (tokenLease, error) {
 	if t.kubernetes != nil {
 		refresh = t.login
 	}
+	var refused error
 	for {
 		lease, err := refresh(ctx)
 		if err == nil {
 			t.setTokenLease(lease)
 			return lease, nil
 		}
+		if ctx.Err() != nil && refused != nil {
+			return tokenLease{}, fmt.Errorf("%w: %w", ErrUnavailable, refused)
+		}
 		if !t.retriesLogin(err) {
 			return tokenLease{}, err
+		}
+		if errors.Is(err, ErrPermissionDenied) {
+			refused = err
 		}
 		slog.WarnContext(ctx, "transit is unavailable; logging in again", "error", err, "in", t.renewRetry)
 		if !sleepContext(ctx, t.renewRetry) {
