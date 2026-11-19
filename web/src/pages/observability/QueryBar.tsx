@@ -27,7 +27,7 @@ import {
 	COMPLETED_TOKEN_RE,
 	fieldDef,
 	hasBoolean,
-	levelOf,
+	queryLevel,
 	parseQuery,
 	pinnedKey,
 	quoteValue,
@@ -179,7 +179,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 		const res = resourceByName.get(v);
 		const icon =
 			key === "level" ? (
-				<span className={cn("size-2 rounded-full", levelStyle(levelOf(v)).dot)} />
+				<span className={cn("size-2 rounded-full", levelStyle(queryLevel(v)).dot)} />
 			) : key === "resource" && res !== undefined ? (
 				<Dot size={8} color={res.color} />
 			) : undefined;
@@ -533,7 +533,7 @@ function TokenChip({
 	onRemove: () => void;
 }) {
 	const neg = token.neg;
-	const levelDot = token.key === "level" ? levelStyle(levelOf(token.value)).dot : null;
+	const levelDot = token.key === "level" ? levelStyle(queryLevel(token.value)).dot : null;
 	const label = `${neg ? "Excluding" : "Only"} ${token.key} ${token.value}`;
 	return (
 		<span

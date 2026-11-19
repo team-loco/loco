@@ -49,13 +49,6 @@ describe("regional telemetry filters", () => {
 	});
 });
 
-describe("log severity filters", () => {
-	test("reads records without a severity as info", () => {
-		const row = toRows([create(LogEntrySchema, { body: "unstructured stdout", severity: "" })], new Map())[0];
-		expect(row?.level).toBe("info");
-	});
-});
-
 describe("omnibar tokens per view", () => {
 	test("marks keys a view can't filter on and keeps the ones it can", () => {
 		const { tokens } = parseQuery("@resource:web @level:error -@replica:web-1 @trace:abc -@trace:def");

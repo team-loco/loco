@@ -4,7 +4,7 @@ import { tsMs } from "@/lib/time";
 
 import type { ObsResource } from "./context";
 import { parseJsonMsg, type JsonObject } from "./format";
-import { BUILD_ID_LABEL, levelOf, type Level } from "./query";
+import { BUILD_ID_LABEL, logLevel, type Level } from "./query";
 
 export interface LogRow {
 	key: string;
@@ -49,7 +49,7 @@ export function toRows(entries: LogEntry[], resourceById: Map<string, ObsResourc
 		rows.push({
 			key: `${base}#${String(n)}`,
 			ts,
-			level: levelOf(entry.severity),
+			level: logLevel(entry.level),
 			resourceId: entry.resourceId,
 			resourceName: res?.name ?? (entry.resourceId.slice(0, 8) || "unknown"),
 			color: res?.color ?? "var(--fg4)",

@@ -28,8 +28,18 @@ service ObservabilityService {
 
 enum LogBucketGroup {
   LOG_BUCKET_GROUP_UNSPECIFIED = 0;
-  LOG_BUCKET_GROUP_SEVERITY = 1;
+  LOG_BUCKET_GROUP_LEVEL = 1;
   LOG_BUCKET_GROUP_RESOURCE = 2;
+}
+
+// LogLevel is a log's level: its OpenTelemetry severity number when set (1-8 debug, 9-12 info,
+// 13-16 warn, 17-24 error), else its severity text, else info.
+enum LogLevel {
+  LOG_LEVEL_UNSPECIFIED = 0;
+  LOG_LEVEL_DEBUG = 1;
+  LOG_LEVEL_INFO = 2;
+  LOG_LEVEL_WARN = 3;
+  LOG_LEVEL_ERROR = 4;
 }
 
 message QueryLogBucketsRequest {
@@ -63,7 +73,7 @@ message QueryLogBucketsResponse {
 message LogBucket {
   google.protobuf.Timestamp start_time = 1;
   uint64 count = 2;
-  string severity = 3;
+  LogLevel level = 3;
   string resource_id = 4;
 }
 
@@ -132,8 +142,7 @@ message QueryLogsResponse {
 message LogEntry {
   // Timestamp when the log was emitted.
   google.protobuf.Timestamp timestamp = 1;
-  // Severity level (e.g., "INFO", "ERROR", "WARN", "DEBUG").
-  string severity = 2;
+  LogLevel level = 2;
   // Log message body.
   string body = 3;
   // ID of the resource (e.g., deployment) that emitted this log.

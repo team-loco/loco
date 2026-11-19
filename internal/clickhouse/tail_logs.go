@@ -15,14 +15,15 @@ import (
 const (
 	tailBlockKey  = "concat(_partition_id, '/', toString(_block_number))"
 	tailSeenParam = "tail_seen"
-	tailSelect    = "WITH JSONExtractKeysAndValues({" + tailSeenParam + ":String}, 'UInt64') " +
-		"AS tail_positions " + logSelect
-	tailJoin = "LEFT JOIN (SELECT position.1 AS tail_block, position.2 AS tail_offset, 1 AS tail_found " +
+	tailJoin      = "LEFT JOIN (SELECT position.1 AS tail_block, position.2 AS tail_offset, 1 AS tail_found " +
 		"FROM (SELECT arrayJoin(tail_positions) AS position) AS block_rows) AS delivered ON " +
 		tailBlockKey + " = tail_block"
 	tailNotDelivered = "(coalesce(tail_found, 0) = 0 OR _block_offset > tail_offset)"
 	tailOrder        = "ORDER BY _partition_id ASC, _block_number ASC, _block_offset ASC"
 )
+
+var tailSelect = "WITH JSONExtractKeysAndValues({" + tailSeenParam + ":String}, 'UInt64') AS tail_positions " +
+	logSelect
 
 type TailLogCursor map[string]uint64
 

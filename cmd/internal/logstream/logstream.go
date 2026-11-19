@@ -211,7 +211,7 @@ func entryKey(entry *observabilityv1.LogEntry) string {
 	attributes := entry.GetResourceAttributes()
 	stamp := ts.Format(time.RFC3339Nano)
 	parts := make([]string, 0, len(attributes)+entryKeyFields)
-	parts = append(parts, stamp, entry.GetResourceId(), entry.GetSeverity())
+	parts = append(parts, stamp, entry.GetResourceId(), entry.GetLevel().String())
 	for _, name := range slices.Sorted(maps.Keys(attributes)) {
 		parts = append(parts, name+"="+attributes[name])
 	}

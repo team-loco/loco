@@ -40,7 +40,7 @@ func TestLogBuckets(t *testing.T) {
 		t.Fatalf("page: %v, %v", page, err)
 	}
 	for _, group := range []observabilityv1.LogBucketGroup{
-		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL,
 		observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_RESOURCE,
 	} {
 		result, queryErr := f.client.QueryLogBuckets(t.Context(), q, 60, group)
@@ -55,9 +55,10 @@ func TestLogBuckets(t *testing.T) {
 			!buckets[1].GetStartTime().AsTime().Equal(start.Add(time.Minute)) {
 			t.Fatalf("group %v: %v", group, result)
 		}
-		if group == observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY {
-			if buckets[0].GetSeverity() != testSeverity || buckets[1].GetSeverity() != bucketErrorSeverity {
-				t.Fatalf("severities: %v", result)
+		if group == observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL {
+			if buckets[0].GetLevel() != observabilityv1.LogLevel_LOG_LEVEL_INFO ||
+				buckets[1].GetLevel() != observabilityv1.LogLevel_LOG_LEVEL_ERROR {
+				t.Fatalf("levels: %v", result)
 			}
 		} else if buckets[0].GetResourceId() != testResourceID || buckets[1].GetResourceId() != testWorkerResourceID {
 			t.Fatalf("resources: %v", result)
@@ -74,7 +75,7 @@ func TestLogBuckets(t *testing.T) {
 		t.Fatalf("resource scope: %v, %v", result, err)
 	}
 	q.Filter = mustParse(t, "missing-marker")
-	result, err = f.client.QueryLogBuckets(t.Context(), q, 60, observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY)
+	result, err = f.client.QueryLogBuckets(t.Context(), q, 60, observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL)
 	if err != nil || len(result.GetBuckets()) != 0 {
 		t.Fatalf("empty range: %v, %v", result, err)
 	}

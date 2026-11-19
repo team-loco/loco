@@ -2,10 +2,11 @@ package clickhouse
 
 import (
 	"fmt"
-	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
+	observabilityv1 "github.com/team-loco/loco/gen/go/loco/observability/v1"
 	"github.com/team-loco/loco/internal/logquery"
 )
 
@@ -15,13 +16,33 @@ type ResourceName struct {
 	Name string
 }
 
-// levelSeverities lists the severity texts each @level name matches; info includes unset severities.
-var levelSeverities = map[string][]string{
-	"error": {"ERROR", "error", "Error", "FATAL", "fatal", "Fatal", "CRITICAL", "critical", "Critical"},
-	"warn":  {"WARN", "warn", "Warn", "WARNING", "warning", "Warning"},
-	"info":  {"", "INFO", "info", "Info", "Information", "NOTICE", "notice"},
-	"debug": {"DEBUG", "debug", "Debug", "TRACE", "trace", "Trace"},
+// logLevels maps each level to the OpenTelemetry severity numbers it covers and to the lowercase
+// severity texts that name it; a record without a severity number reads its level from the text.
+var logLevels = []struct {
+	level    observabilityv1.LogLevel
+	low, top uint8
+	texts    []string
+}{
+	{observabilityv1.LogLevel_LOG_LEVEL_DEBUG, 1, 8, []string{"debug", "trace"}},
+	{observabilityv1.LogLevel_LOG_LEVEL_INFO, 9, 12, []string{"info", "information", "notice"}},
+	{observabilityv1.LogLevel_LOG_LEVEL_WARN, 13, 16, []string{"warn", "warning"}},
+	{observabilityv1.LogLevel_LOG_LEVEL_ERROR, 17, 24, []string{
+		"error", "err", "fatal", "critical", "panic", "emergency", "alert",
+	}},
 }
+
+// levelColumn is the LogLevel number of a log row; unset or unrecognized severities are info.
+var levelColumn = func() string {
+	numbers := make([]string, 0, len(logLevels))
+	texts := make([]string, 0, len(logLevels))
+	for _, l := range logLevels {
+		level := strconv.Itoa(int(l.level))
+		numbers = append(numbers, fmt.Sprintf("SeverityNumber BETWEEN %d AND %d, %s", l.low, l.top, level))
+		texts = append(texts, "lowerUTF8(SeverityText) IN ('"+strings.Join(l.texts, "', '")+"'), "+level)
+	}
+	return "multiIf(" + strings.Join(numbers, ", ") + ", " + strings.Join(texts, ", ") + ", " +
+		strconv.Itoa(int(observabilityv1.LogLevel_LOG_LEVEL_INFO)) + ")"
+}()
 
 // Fields a log query names directly; every other key is a log attribute, falling back to a
 // resource attribute. The web's query bar keeps a copy in web/src/pages/observability/query.ts.
@@ -48,14 +69,20 @@ const (
 )
 
 // ValidateLogFilter rejects fields a log query cannot use: the loco. attributes Loco sets, apart
-// from loco.io/ labels, and number comparisons on the log fields.
+// from loco.io/ labels, number comparisons on the log fields and @level values that name no level.
 func ValidateLogFilter(expr logquery.Expr) error {
 	return logquery.CheckFields(expr, func(field logquery.Field) error {
 		if err := rejectReserved(field, "use @resource or @region"); err != nil {
 			return err
 		}
-		if logFields[field.Key] {
-			return rejectNumbers(field)
+		if !logFields[field.Key] {
+			return nil
+		}
+		if err := rejectNumbers(field); err != nil {
+			return err
+		}
+		if field.Key == LevelField && len(levelsMatching(field)) == 0 {
+			return fieldError(field, "@level is error, warn, info or debug")
 		}
 		return nil
 	})
@@ -123,7 +150,7 @@ func joinFilters(
 func fieldSQL(field logquery.Field, resources []ResourceName, b binder) string {
 	switch field.Key {
 	case LevelField:
-		return levelSQL(field, b)
+		return levelSQL(field)
 	case ResourceField:
 		return resourceSQL(field, resources, b)
 	case TraceField:
@@ -191,30 +218,23 @@ func stringMatch(column string, field logquery.Field, b binder) string {
 	return column + " = " + b.str(field.Value)
 }
 
-// levelName returns the @level name whose severities include value, ignoring case, or value itself.
-func levelName(value string) string {
-	for name, severities := range levelSeverities {
-		if slices.ContainsFunc(severities, func(s string) bool { return s != "" && strings.EqualFold(s, value) }) {
-			return name
+// levelsMatching returns the levels a @level value names: a level whose severity texts include the
+// value, ignoring case, or start with it for a prefix match.
+func levelsMatching(field logquery.Field) []string {
+	value := strings.ToLower(field.Value)
+	var levels []string
+	for _, l := range logLevels {
+		if slices.ContainsFunc(l.texts, func(text string) bool {
+			return text == value || (field.Match == logquery.Prefix && strings.HasPrefix(text, value))
+		}) {
+			levels = append(levels, strconv.Itoa(int(l.level)))
 		}
 	}
-	return value
+	return levels
 }
 
-// levelSQL matches the severities of the level names the value selects, or the severity text itself
-// when it names no level.
-func levelSQL(field logquery.Field, b binder) string {
-	value := levelName(strings.ToLower(field.Value))
-	var severities []string
-	for _, name := range slices.Sorted(maps.Keys(levelSeverities)) {
-		if name == value || (field.Match == logquery.Prefix && strings.HasPrefix(name, value)) {
-			severities = append(severities, levelSeverities[name]...)
-		}
-	}
-	if len(severities) == 0 {
-		return stringMatch("SeverityText", field, b)
-	}
-	return logIn("SeverityText", severities, b)
+func levelSQL(field logquery.Field) string {
+	return levelColumn + " IN (" + strings.Join(levelsMatching(field), ",") + ")"
 }
 
 // resourceSQL matches the resources whose name equals the value or starts with it, ignoring case.
@@ -230,5 +250,5 @@ func resourceSQL(field logquery.Field, resources []ResourceName, b binder) strin
 	if len(ids) == 0 {
 		return "0"
 	}
-	return logIn(resourceColumn, ids, b)
+	return resourceIn(ids, b)
 }

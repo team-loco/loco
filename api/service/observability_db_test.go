@@ -113,7 +113,7 @@ func readCalls() map[string]readCall {
 			start, end := window()
 			_, err := client.QueryLogBuckets(ctx, &observabilityv1.QueryLogBucketsRequest{
 				WorkspaceId: workspace, ResourceIds: resources, StartTime: start, EndTime: end,
-				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_SEVERITY,
+				IntervalSeconds: 60, GroupBy: observabilityv1.LogBucketGroup_LOG_BUCKET_GROUP_LEVEL,
 			})
 			return err
 		},

@@ -10,6 +10,8 @@ import { HOUR_MS } from "@/lib/obs-time";
 import { agoLabel, formatClock, maybeTsMs } from "@/lib/time";
 import { cn, formatShortId } from "@/lib/utils";
 
+import { logLevel } from "@/pages/observability/query";
+
 import { latestBackOff } from "./events";
 import { NEEDS_WRITE } from "@/hooks/useMyScopes";
 
@@ -17,7 +19,6 @@ import { depTag, startedMs, type RegionProblem, type RegionView } from "./model"
 import { ABSENT, specChanges } from "./spec";
 
 const LOG_LINES = 6;
-const ERROR_LEVEL = "ERROR";
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
 	return (
@@ -71,11 +72,11 @@ function RegionLogs({
 							key={`${String(ms)}-${i.toString()}`}
 							className={cn(
 								"grid grid-cols-[62px_44px_minmax(0,1fr)] gap-2.5 px-3 py-0.5",
-								l.severity.toUpperCase() === ERROR_LEVEL && "bg-bad-bg",
+								logLevel(l.level) === "error" && "bg-bad-bg",
 							)}
 						>
 							<span className="text-fg3">{ms === undefined ? "" : formatClock(ms, false, timePref)}</span>
-							<span className="text-fg3">{l.severity}</span>
+							<span className="text-fg3">{logLevel(l.level).toUpperCase()}</span>
 							<span className="truncate" title={l.body}>
 								{l.body}
 							</span>

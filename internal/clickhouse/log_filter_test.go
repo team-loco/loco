@@ -1,7 +1,6 @@
 package clickhouse
 
 import (
-	"slices"
 	"strings"
 	"testing"
 
@@ -23,7 +22,7 @@ func FuzzLogFilterSQLBindsEveryValue(f *testing.F) {
 			return
 		}
 		b := &positionalBinder{}
-		sql := logFilterSQL(expr, resources, b)
+		sql := strings.ReplaceAll(logFilterSQL(expr, resources, b), levelColumn, "level")
 		if placeholders := strings.Count(sql, "?"); placeholders != len(b.args) {
 			t.Fatalf("%q compiled to %d placeholders for %d arguments: %s", query, placeholders, len(b.args), sql)
 		}
@@ -39,6 +38,8 @@ func TestValidateLogFilterRejectsReservedKeysAndNumbersOnLogFields(t *testing.T)
 		"@level:error @loco.io/build-id:b @status:>=500": "",
 		"a (@loco.workspace.id:w)":                       reservedWorkspace + " at position 4",
 		"-@level:>1":                                     "@level does not compare numbers at position 2",
+		"@level:custom":                                  "@level is error, warn, info or debug at position 1",
+		"@level:warn* @level:Warning @level:FATAL":       "",
 		"@region:1..2":                                   "@region does not compare numbers at position 1",
 	} {
 		expr, err := logquery.Parse(query)
@@ -49,26 +50,5 @@ func TestValidateLogFilterRejectsReservedKeysAndNumbersOnLogFields(t *testing.T)
 		if (want == "" && err != nil) || (want != "" && (err == nil || err.Error() != want)) {
 			t.Errorf("ValidateLogFilter(%q) = %v, want %q", query, err, want)
 		}
-	}
-}
-
-func TestLevelSQLAcceptsSeverityAliases(t *testing.T) {
-	const warn = "warn"
-	for value, level := range map[string]string{
-		warn: warn, "warning": warn, "Warning": warn,
-		"fatal": "error", "critical": "error",
-		"information": "info", "trace": "debug",
-	} {
-		b := &positionalBinder{}
-		levelSQL(logquery.Field{Key: LevelField, Value: value}, b)
-		for _, severity := range levelSeverities[level] {
-			if !slices.Contains(b.args, any(severity)) {
-				t.Errorf("@level:%s binds %v, want it to include %q", value, b.args, severity)
-			}
-		}
-	}
-	b := &positionalBinder{}
-	if sql := levelSQL(logquery.Field{Key: LevelField, Value: "custom"}, b); sql != "SeverityText = ?" {
-		t.Errorf("@level:custom compiled to %s", sql)
 	}
 }

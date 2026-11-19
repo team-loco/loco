@@ -1092,7 +1092,7 @@ with session(out) as browser:
     log_entries = [
         {
             "timestamp": stamp(0.000456),
-            "severity": "INFO",
+            "level": "LOG_LEVEL_INFO",
             "body": "Trace started",
             "resourceId": workspace_id,
             "traceId": trace,
@@ -1100,7 +1100,7 @@ with session(out) as browser:
         },
         {
             "timestamp": stamp(172),
-            "severity": "ERROR",
+            "level": "LOG_LEVEL_ERROR",
             "body": "Payment request failed",
             "resourceId": workspace_id,
             "traceId": trace,
@@ -1108,7 +1108,7 @@ with session(out) as browser:
         },
         {
             "timestamp": stamp(35),
-            "severity": "INFO",
+            "level": "LOG_LEVEL_INFO",
             "body": "Product lookup complete",
             "resourceId": workspace_id,
             "traceId": trace,
