@@ -1100,6 +1100,22 @@ def resources(page):
             first_click_sorts_descending(table, "Created", "controls-zeta")
 
 
+def resource_view_history(page):
+    dashboard_url = state["ui_url"] + base + "?env=production"
+    page.goto(dashboard_url)
+    page.goto(state["ui_url"] + base + "/resources?env=production")
+    page.get_by_role("button", name="Map", exact=True).click()
+    expect(page).to_have_url(re.compile(r"[?&]view=map"))
+    page.go_back()
+    expect(page).to_have_url(dashboard_url)
+    page.go_forward()
+    expect(page).to_have_url(re.compile(r"/resources\?env=production&view=map"))
+    page.get_by_role("button", name="Table", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/resources\?env=production$"))
+    page.go_back()
+    expect(page).to_have_url(dashboard_url)
+
+
 def metrics(page):
     environments = call(
         state,
@@ -1275,6 +1291,7 @@ with session(out) as browser:
         volume_axis,
         access_picker,
         resources,
+        resource_view_history,
         token_empty,
         limit_display,
         dashboard,
