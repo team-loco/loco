@@ -19,8 +19,7 @@ func (ss *syncSession) recordUsage(ctx context.Context, report *agentv1.UsageRep
 		slog.ErrorContext(ctx, "rejected an invalid usage report", "cluster_id", ss.clusterID, "error", err)
 		return nil
 	}
-	now := time.Now()
-	if err := ss.server.recordUsageReport(ctx, ss.clusterID, report, now); err != nil {
+	if err := ss.server.recordUsageReport(ctx, ss.clusterID, report); err != nil {
 		slog.ErrorContext(ctx, "failed to record usage report", "cluster_id", ss.clusterID, "error", err)
 		return nil
 	}
@@ -33,14 +32,8 @@ func (ss *syncSession) recordUsage(ctx context.Context, report *agentv1.UsageRep
 	return nil
 }
 
-func (s *AgentServer) recordUsageReport(
-	ctx context.Context,
-	clusterID uuid.UUID,
-	report *agentv1.UsageReport,
-	now time.Time,
-) error {
-	observedAt := report.GetObservedAt().AsTime()
-	reportedAt := earliest(observedAt, now)
+func (s *AgentServer) recordUsageReport(ctx context.Context, clusterID uuid.UUID, report *agentv1.UsageReport) error {
+	reportedAt := earliest(report.GetObservedAt().AsTime(), time.Now())
 	params := workloadRunParams(clusterID, reportedAt, report.GetRuns())
 	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		if err := qtx.UpsertWorkloadRuns(ctx, params); err != nil {

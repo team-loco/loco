@@ -64,7 +64,7 @@ func usageReport(observedAt time.Time, runs ...*agentv1.PodRun) *agentv1.UsageRe
 
 func (f *usageFixture) report(t *testing.T, clusterID uuid.UUID, report *agentv1.UsageReport) {
 	t.Helper()
-	if err := f.agent.recordUsageReport(t.Context(), clusterID, report, time.Now()); err != nil {
+	if err := f.agent.recordUsageReport(t.Context(), clusterID, report); err != nil {
 		t.Fatalf("record usage report: %v", err)
 	}
 }

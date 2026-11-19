@@ -86,7 +86,7 @@ func appPod(uid string, phase corev1.PodPhase, states ...corev1.ContainerState) 
 func TestRunReportsTheSummedRequestsAndOwnerOfARunningPod(t *testing.T) {
 	later := testStart.Add(time.Second)
 	pod := appPod(testPodUID, corev1.PodRunning, running(later), running(testStart))
-	run, ok := Run(pod, testNow)
+	run, ok := podRun(pod, testNow)
 	if !ok {
 		t.Fatal("a running application pod was not reported")
 	}
@@ -116,7 +116,7 @@ func TestRunReportsTheSummedRequestsAndOwnerOfARunningPod(t *testing.T) {
 func TestRunSkipsAPodThatNeverRan(t *testing.T) {
 	waiting := corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "ContainerCreating"}}
 	pod := appPod(testPodUID, corev1.PodPending, waiting, waiting)
-	if run, ok := Run(pod, testNow); ok {
+	if run, ok := podRun(pod, testNow); ok {
 		t.Fatalf("a pending pod was reported as %v", run)
 	}
 }
@@ -126,7 +126,7 @@ func TestRunSkipsAPodWithoutItsOwnerLabels(t *testing.T) {
 		t.Run(label, func(t *testing.T) {
 			pod := appPod(testPodUID, corev1.PodRunning, running(testStart), running(testStart))
 			delete(pod.Labels, label)
-			if run, ok := Run(pod, testNow); ok {
+			if run, ok := podRun(pod, testNow); ok {
 				t.Fatalf("a pod without %s was reported as %v", label, run)
 			}
 		})
@@ -137,7 +137,7 @@ func TestRunKeepsTheStartOfAContainerThatRestarted(t *testing.T) {
 	restarted := testStart.Add(30 * time.Minute)
 	pod := appPod(testPodUID, corev1.PodRunning, running(restarted))
 	pod.Status.ContainerStatuses[0].LastTerminationState = terminated(testStart, restarted)
-	run, ok := Run(pod, testNow)
+	run, ok := podRun(pod, testNow)
 	if !ok || !run.GetStartedAt().AsTime().Equal(testStart) {
 		t.Fatalf("run = %v, want it to start at the first run %s", run, testStart)
 	}
@@ -147,23 +147,22 @@ func TestRunEndsATerminalPodWhenItsLastContainerFinished(t *testing.T) {
 	first := testStart.Add(10 * time.Minute)
 	last := testStart.Add(20 * time.Minute)
 	pod := appPod(testPodUID, corev1.PodFailed, terminated(testStart, last), terminated(testStart, first))
-	run, ok := Run(pod, testNow)
+	run, ok := podRun(pod, testNow)
 	if !ok || run.GetEndedAt() == nil || !run.GetEndedAt().AsTime().Equal(last) {
 		t.Fatalf("run = %v, want it to end at %s", run, last)
 	}
 }
 
-func TestEndedEndsADeletedPodWhenItWasLastKnownToRun(t *testing.T) {
+func TestForgetEndsADeletedPodWhenItWasLastKnownToRun(t *testing.T) {
+	m, _ := newTestMeter(t)
 	finished := testStart.Add(10 * time.Minute)
-	stopped := appPod(testPodUID, corev1.PodRunning, terminated(testStart, finished), terminated(testStart, finished))
-	run, ok := Ended(stopped, testNow)
-	if !ok || !run.GetEndedAt().AsTime().Equal(finished) {
+	m.Forget(appPod(testPodUID, corev1.PodRunning, terminated(testStart, finished), terminated(testStart, finished)))
+	m.Forget(appPod(testOtherPodUID, corev1.PodRunning, running(testStart), running(testStart)))
+	runs, _ := reportedRuns(t, m)
+	if run := runs[testPodUID]; !run.GetEndedAt().AsTime().Equal(finished) {
 		t.Fatalf("run = %v, want it to end when its containers finished at %s", run, finished)
 	}
-
-	lost := appPod(testPodUID, corev1.PodRunning, running(testStart), running(testStart))
-	run, ok = Ended(lost, testNow)
-	if !ok || !run.GetEndedAt().AsTime().Equal(testNow) {
+	if run := runs[testOtherPodUID]; !run.GetEndedAt().AsTime().Equal(testNow) {
 		t.Fatalf("run = %v, want a pod deleted while running to end when the agent saw it go, %s", run, testNow)
 	}
 }

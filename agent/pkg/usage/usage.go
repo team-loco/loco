@@ -31,6 +31,11 @@ var ownerLabels = []string{
 	locolabels.LabelEnvironmentID,
 }
 
+var applicationPods = labels.SelectorFromSet(labels.Set{
+	locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
+	locolabels.LabelComponent: locolabels.ComponentApplication,
+})
+
 type endedRun struct {
 	run        *agentv1.PodRun
 	reportedIn time.Time
@@ -45,23 +50,15 @@ type Meter struct {
 	wake  chan struct{}
 }
 
-func ApplicationPods() labels.Selector {
-	return labels.SelectorFromSet(labels.Set{
-		locolabels.LabelManagedBy: locolabels.ControllerManagedBy,
-		locolabels.LabelComponent: locolabels.ComponentApplication,
-	})
-}
-
 func Start(ctx context.Context, cfg *rest.Config) (*Meter, error) {
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
 	}
-	selector := ApplicationPods()
 	c, err := cache.New(cfg, cache.Options{
 		Scheme: scheme,
 		ByObject: map[client.Object]cache.ByObject{
-			&corev1.Pod{}: {Label: selector},
+			&corev1.Pod{}: {Label: applicationPods},
 		},
 	})
 	if err != nil {
@@ -124,10 +121,11 @@ func (m *Meter) Forget(obj any) {
 
 func (m *Meter) end(pod *corev1.Pod) {
 	now := m.now()
-	run, ok := Ended(pod, now)
+	run, ok := podRun(pod, now)
 	if !ok {
 		return
 	}
+	run.EndedAt = timestamppb.New(finishedAt(pod, now))
 	m.mu.Lock()
 	if _, buffered := m.ended[pod.UID]; !buffered {
 		m.ended[pod.UID] = &endedRun{run: run}
@@ -141,14 +139,13 @@ func (m *Meter) end(pod *corev1.Pod) {
 
 func (m *Meter) Report(ctx context.Context) (*agentv1.UsageReport, error) {
 	var pods corev1.PodList
-	selector := ApplicationPods()
-	if err := m.reader.List(ctx, &pods, client.MatchingLabelsSelector{Selector: selector}); err != nil {
+	if err := m.reader.List(ctx, &pods, client.MatchingLabelsSelector{Selector: applicationPods}); err != nil {
 		return nil, fmt.Errorf("failed to list application pods: %w", err)
 	}
 	now := m.now().Round(0)
 	runs := make(map[types.UID]*agentv1.PodRun, len(pods.Items))
 	for i := range pods.Items {
-		run, ok := Run(&pods.Items[i], now)
+		run, ok := podRun(&pods.Items[i], now)
 		if ok {
 			runs[pods.Items[i].UID] = run
 		}
@@ -179,7 +176,7 @@ func (m *Meter) Recorded(observedAt time.Time) {
 	}
 }
 
-func Run(pod *corev1.Pod, now time.Time) (*agentv1.PodRun, bool) {
+func podRun(pod *corev1.Pod, now time.Time) (*agentv1.PodRun, bool) {
 	for _, label := range ownerLabels {
 		if pod.Labels[label] == "" {
 			return nil, false
@@ -203,20 +200,7 @@ func Run(pod *corev1.Pod, now time.Time) (*agentv1.PodRun, bool) {
 		run.MemoryBytes += requests.Memory().Value()
 	}
 	if terminal(pod) {
-		finished := finishedAt(pod, now)
-		run.EndedAt = timestamppb.New(finished)
-	}
-	return run, true
-}
-
-func Ended(pod *corev1.Pod, now time.Time) (*agentv1.PodRun, bool) {
-	run, ok := Run(pod, now)
-	if !ok {
-		return nil, false
-	}
-	if run.GetEndedAt() == nil {
-		finished := finishedAt(pod, now)
-		run.EndedAt = timestamppb.New(finished)
+		run.EndedAt = timestamppb.New(finishedAt(pod, now))
 	}
 	return run, true
 }
