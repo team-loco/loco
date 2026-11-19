@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -173,7 +174,8 @@ func (s *DomainServer) CreateResourceDomain(
 			ResourceID:    new(resourceID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(resourceDomain),
-			Data:          map[string]any{events.FieldDomain: fullDomain, events.FieldResourceID: resourceID.String()},
+			Data: domainEventData(fullDomain, genDb.DomainSourcePlatformProvided, !hasPrimary,
+				map[string]any{events.FieldResourceID: resourceID.String()}),
 		})
 	})
 	if err != nil {
@@ -254,7 +256,7 @@ func (s *DomainServer) UpdateResourceDomain(
 			ResourceID:    new(domainRow.ResourceID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(domainID),
-			Data:          map[string]any{events.FieldDomain: req.GetDomain()},
+			Data:          domainEventData(req.GetDomain(), domainRow.DomainSource, domainRow.IsPrimary, nil),
 		})
 	})
 	if err != nil {
@@ -396,7 +398,7 @@ func (s *DomainServer) DeleteResourceDomain(
 			ResourceID:    new(current.ResourceID),
 			SubjectType:   events.SubjectDomain,
 			SubjectID:     new(domainID),
-			Data:          map[string]any{events.FieldDomain: current.Domain},
+			Data:          domainEventData(current.Domain, current.DomainSource, current.IsPrimary, nil),
 		})
 	})
 	if err != nil {
@@ -588,4 +590,15 @@ func (s *DomainServer) refreshDomainRouting(
 		}
 	}
 	return nil
+}
+
+// domainEventData is the audit data of a domain event: its hostname, its source and whether it is primary.
+func domainEventData(domain string, source genDb.DomainSource, primary bool, extra map[string]any) map[string]any {
+	data := map[string]any{
+		events.FieldDomain:       domain,
+		events.FieldDomainSource: string(source),
+		events.FieldPrimary:      primary,
+	}
+	maps.Copy(data, extra)
+	return data
 }

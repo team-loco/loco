@@ -22,6 +22,7 @@ import {
 	shiftWindow,
 	spanLabel,
 	toLocalInput,
+	type TimeWindow,
 	windowLabel,
 } from "@/lib/obs-time";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,21 @@ import { useObs } from "./context";
 
 export function TimePicker() {
 	const { range, setRange, maxMs } = useObs();
+	return <TimeRangePicker range={range} setRange={setRange} maxMs={maxMs} />;
+}
+
+/** The time range popover: presets, a typed span and a custom range; `presets` overrides the spans within `maxMs`. */
+export function TimeRangePicker({
+	range,
+	setRange,
+	maxMs,
+	presets,
+}: {
+	range: TimeWindow;
+	setRange: (window: TimeWindow) => void;
+	maxMs: number;
+	presets?: readonly number[] | undefined;
+}) {
 	const pref = useTimePreferences();
 	const [openedAt] = useState(Date.now);
 	const [open, setOpen] = useState(false);
@@ -128,7 +144,7 @@ export function TimePicker() {
 						}}
 						className="grid grid-cols-2 gap-0.5"
 					>
-						{presetsWithin(maxMs).map((ms) => (
+						{(presets ?? presetsWithin(maxMs)).map((ms) => (
 							<ToggleGroupItem
 								key={ms}
 								value={String(ms)}
