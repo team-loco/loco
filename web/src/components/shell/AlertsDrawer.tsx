@@ -346,7 +346,7 @@ export function AlertsDrawer() {
 		<>
 			<Button
 				variant="outline"
-				aria-label={`Activity, ${count.toString()} active`}
+				aria-label={`Workspace activity, ${count.toString()} active`}
 				aria-haspopup="dialog"
 				aria-expanded={open}
 				onClick={() => {
@@ -369,13 +369,13 @@ export function AlertsDrawer() {
 						<path className="act-pulse" pathLength="100" d={PULSE} />
 					</svg>
 				</span>
-				<span className="hidden md:inline">Activity</span>
+				<span className="hidden md:inline">Workspace activity</span>
 				{count > 0 && <span className="act-n font-mono">{count}</span>}
 			</Button>
 			<Sheet open={open} onOpenChange={setOpen}>
 				<SheetContent showCloseButton={false}>
 					<SheetHeader>
-						<SheetTitle className="font-medium">Activity</SheetTitle>
+						<SheetTitle className="font-medium">Workspace activity</SheetTitle>
 						{count > 0 && <span className="act-n act-heading-count font-mono">{count}</span>}
 						<Button
 							variant="ghost"

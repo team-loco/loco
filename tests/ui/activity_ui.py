@@ -344,7 +344,7 @@ with session(out) as browser:
             "owner",
             "resource-owner",
             base + "/resource/" + activity["resourceId"],
-            "Activity",
+            "Resource activity",
         ),
         ("member", "org-member", base + "/settings?scope=org", ""),
         (
@@ -357,7 +357,7 @@ with session(out) as browser:
             "resource_reader",
             "resource",
             base + "/resource/" + activity["resourceId"],
-            "Activity",
+            "Resource activity",
         ),
     ]:
         context, page, errors = open_page(browser, user, state=state, viewport=VIEWPORT)

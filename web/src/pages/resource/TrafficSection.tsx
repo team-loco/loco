@@ -23,6 +23,33 @@ export function TrafficSection({
 	resourceId,
 	region,
 	range,
+	isPublic,
+}: {
+	workspaceId: string;
+	environmentId: string;
+	resourceId: string;
+	region: string;
+	range: MetricRange;
+	isPublic: boolean;
+}) {
+	if (!isPublic) {
+		return (
+			<Section title="Traffic">
+				<p className="m-0 px-5 py-4 text-[13px] text-fg3">
+					Traffic is recorded for public services. This service is internal only.
+				</p>
+			</Section>
+		);
+	}
+	return <PublicTraffic {...{ workspaceId, environmentId, resourceId, region, range }} />;
+}
+
+function PublicTraffic({
+	workspaceId,
+	environmentId,
+	resourceId,
+	region,
+	range,
 }: {
 	workspaceId: string;
 	environmentId: string;
@@ -39,8 +66,8 @@ export function TrafficSection({
 		spanMs: RANGE_MS[range],
 	});
 	const points = traffic.points.map((point) => ({ ...point, share: errorShare(point) }));
-	const from = points[0]?.time ?? 0;
-	const to = points.at(-1)?.time ?? from;
+	const to = traffic.endMs;
+	const from = to - RANGE_MS[range];
 	const latest = latestTraffic(traffic.points, resourceId);
 	return (
 		<Section title="Traffic">

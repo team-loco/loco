@@ -25,7 +25,7 @@ with session(out) as browser:
     page.on("dialog", lambda dialog: (dialogs.append(dialog.type), dialog.accept()))
     page.goto(base.rsplit("/resource/", 1)[0] + "/resources")
     page.get_by_role("link", name=name, exact=True).first.click()
-    page.get_by_role("button", name="Settings", exact=True).click()
+    page.get_by_role("button", name="Resource settings", exact=True).click()
     wait_for_query(page, lambda query: query.get("tab") == ["settings"])
     path = page.locator("#set-health input").first
     guard = page.get_by_role("alertdialog", name="Discard unsaved changes?")
@@ -60,7 +60,7 @@ with session(out) as browser:
     page.go_back()
     expect(guard).to_be_visible()
     guard.get_by_role("button", name="Keep editing", exact=True).click()
-    page.get_by_role("button", name="Settings", exact=True).click()
+    page.get_by_role("button", name="Resource settings", exact=True).click()
     expect(path).to_have_value("/ready")
 
     page.get_by_role("link", name="Dashboard", exact=True).click()
@@ -68,7 +68,7 @@ with session(out) as browser:
     expect(page.get_by_role("button", name="Overview", exact=True)).to_have_count(0)
     page.get_by_role("link", name="Resources", exact=True).click()
     page.get_by_role("link", name=name, exact=True).first.click()
-    page.get_by_role("button", name="Settings", exact=True).click()
+    page.get_by_role("button", name="Resource settings", exact=True).click()
     expect(page.locator("#set-health input").first).to_have_value("/health")
     expect(page.get_by_text("unsaved change")).to_have_count(0)
 

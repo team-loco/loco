@@ -224,9 +224,15 @@ export function ResourceHeader({
 					onPressedChange={onSettings}
 				>
 					<Settings2Icon />
-					Settings
+					Resource settings
 				</ToggleChip>
-				<Button variant="outline" size="sm" disabled={!canRedeploy} title={writeHint} onClick={onRedeploy}>
+				<Button
+					variant="outline"
+					size="sm"
+					disabled={!canRedeploy}
+					title={writeHint ?? "Create a new deployment from the current one"}
+					onClick={onRedeploy}
+				>
 					<RotateCwIcon />
 					{redeploying ? "Redeploying…" : "Redeploy"}
 				</Button>
@@ -245,7 +251,11 @@ export function ResourceHeader({
 							</MenuIcon>
 							{rollbackTarget === undefined ? "Roll back" : `Roll back to ${depTag(rollbackTarget)}`}
 						</DropdownMenuItem>
-						<DropdownMenuItem disabled={!canRedeploy || restarting} title={writeHint} onClick={onRestart}>
+						<DropdownMenuItem
+							disabled={!canRedeploy || restarting}
+							title={writeHint ?? "Restart every running replica without creating a deployment"}
+							onClick={onRestart}
+						>
 							<MenuIcon>
 								<RotateCwIcon />
 							</MenuIcon>

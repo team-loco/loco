@@ -79,7 +79,7 @@ export function ActivityPanel({
 
 	return (
 		<Section
-			title="Activity"
+			title="Resource activity"
 			actions={
 				audit.reads(workspaceId) ? (
 					<Link
@@ -102,7 +102,7 @@ export function ActivityPanel({
 			{!query.isLoading && query.error === null && events.length === 0 && (
 				<p className="m-0 py-3 text-[13px] text-fg3">No changes yet.</p>
 			)}
-			<ul aria-label="Activity" className="m-0 list-none p-0">
+			<ul aria-label="Resource activity" className="m-0 list-none p-0">
 				{events.map((e) => (
 					<ActivityRow key={e.id} event={e} names={names} nowMs={nowMs} />
 				))}
