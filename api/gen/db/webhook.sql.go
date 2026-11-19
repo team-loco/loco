@@ -97,18 +97,19 @@ func (q *Queries) CountWorkspaceWebhooks(ctx context.Context, workspaceID uuid.U
 }
 
 const createWorkspaceWebhook = `-- name: CreateWorkspaceWebhook :one
-INSERT INTO webhooks (id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, event_types, created_by)
+INSERT INTO webhooks (id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, event_types, created_by)
 VALUES (
-    $1, 'workspace', $2::uuid, $3,
-    $4, $5, $6, $7,
-    $8, $9
+    $1, 'workspace', $2::uuid, $3, $4,
+    $5, $6, $7, $8,
+    $9, $10
 )
-RETURNING id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
+RETURNING id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
 `
 
 type CreateWorkspaceWebhookParams struct {
 	ID          uuid.UUID  `json:"id"`
 	WorkspaceID uuid.UUID  `json:"workspaceId"`
+	Name        string     `json:"name"`
 	Url         string     `json:"url"`
 	Provider    string     `json:"provider"`
 	KekID       string     `json:"kekId"`
@@ -122,6 +123,7 @@ func (q *Queries) CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspac
 	row := q.db.QueryRow(ctx, createWorkspaceWebhook,
 		arg.ID,
 		arg.WorkspaceID,
+		arg.Name,
 		arg.Url,
 		arg.Provider,
 		arg.KekID,
@@ -135,6 +137,7 @@ func (q *Queries) CreateWorkspaceWebhook(ctx context.Context, arg CreateWorkspac
 		&i.ID,
 		&i.Kind,
 		&i.WorkspaceID,
+		&i.Name,
 		&i.Url,
 		&i.Provider,
 		&i.KekID,
@@ -286,7 +289,7 @@ func (q *Queries) GetWebhookDeliveryPayload(ctx context.Context, id uuid.UUID) (
 }
 
 const getWorkspaceWebhook = `-- name: GetWorkspaceWebhook :one
-SELECT id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
+SELECT id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
 WHERE id = $1 AND kind = 'workspace' AND workspace_id = $2::uuid
 `
 
@@ -302,6 +305,7 @@ func (q *Queries) GetWorkspaceWebhook(ctx context.Context, arg GetWorkspaceWebho
 		&i.ID,
 		&i.Kind,
 		&i.WorkspaceID,
+		&i.Name,
 		&i.Url,
 		&i.Provider,
 		&i.KekID,
@@ -421,7 +425,7 @@ func (q *Queries) ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeli
 }
 
 const listWorkspaceWebhooks = `-- name: ListWorkspaceWebhooks :many
-SELECT id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
+SELECT id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at FROM webhooks
 WHERE kind = 'workspace' AND workspace_id = $1::uuid
 ORDER BY created_at
 `
@@ -439,6 +443,7 @@ func (q *Queries) ListWorkspaceWebhooks(ctx context.Context, workspaceID uuid.UU
 			&i.ID,
 			&i.Kind,
 			&i.WorkspaceID,
+			&i.Name,
 			&i.Url,
 			&i.Provider,
 			&i.KekID,
@@ -534,7 +539,7 @@ SET previous_secret = CASE WHEN $1::int > 0 THEN secret END,
     END,
     secret = $2
 WHERE id = $3 AND kind = 'workspace' AND workspace_id = $4::uuid
-RETURNING id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
+RETURNING id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
 `
 
 type RotateWorkspaceWebhookSecretParams struct {
@@ -556,6 +561,7 @@ func (q *Queries) RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWo
 		&i.ID,
 		&i.Kind,
 		&i.WorkspaceID,
+		&i.Name,
 		&i.Url,
 		&i.Provider,
 		&i.KekID,
@@ -572,12 +578,13 @@ func (q *Queries) RotateWorkspaceWebhookSecret(ctx context.Context, arg RotateWo
 
 const updateWorkspaceWebhook = `-- name: UpdateWorkspaceWebhook :one
 UPDATE webhooks
-SET url = $1, event_types = $2
-WHERE id = $3 AND kind = 'workspace' AND workspace_id = $4::uuid
-RETURNING id, kind, workspace_id, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
+SET name = $1, url = $2, event_types = $3
+WHERE id = $4 AND kind = 'workspace' AND workspace_id = $5::uuid
+RETURNING id, kind, workspace_id, name, url, provider, kek_id, wrapped_dek, secret, previous_secret, previous_secret_expires_at, event_types, created_by, created_at
 `
 
 type UpdateWorkspaceWebhookParams struct {
+	Name        string    `json:"name"`
 	Url         string    `json:"url"`
 	EventTypes  []string  `json:"eventTypes"`
 	ID          uuid.UUID `json:"id"`
@@ -586,6 +593,7 @@ type UpdateWorkspaceWebhookParams struct {
 
 func (q *Queries) UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspaceWebhookParams) (Webhook, error) {
 	row := q.db.QueryRow(ctx, updateWorkspaceWebhook,
+		arg.Name,
 		arg.Url,
 		arg.EventTypes,
 		arg.ID,
@@ -596,6 +604,7 @@ func (q *Queries) UpdateWorkspaceWebhook(ctx context.Context, arg UpdateWorkspac
 		&i.ID,
 		&i.Kind,
 		&i.WorkspaceID,
+		&i.Name,
 		&i.Url,
 		&i.Provider,
 		&i.KekID,

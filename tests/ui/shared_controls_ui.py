@@ -542,7 +542,22 @@ def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
     live = page.get_by_role("button", name=re.compile(r"^(Live|Starting…)"))
+    expect(live).to_have_attribute("aria-pressed", "true")
+    expect(page).not_to_have_url(re.compile(r"live="))
+    live.focus()
+    page.keyboard.press("Enter")
     expect(live).to_have_attribute("aria-pressed", "false")
+    wait_for_query(page, lambda query: query.get("live") == ["0"])
+    page.reload()
+    expect(live).to_have_attribute("aria-pressed", "false")
+    # Resuming keeps the volume chart while its request is in flight.
+    slider = page.get_by_role("slider", name=re.compile(r"^Log volume"))
+    expect(slider).to_be_visible()
+    buckets = []
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogBuckets",
+        lambda route: buckets.append(route),
+    )
     # Hold the latest-logs request so the button stays in its pending state.
     held = []
     page.route(
@@ -563,6 +578,12 @@ def live_focus(page):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
     expect(live).to_have_attribute("aria-pressed", "true")
     expect(live).to_be_focused()
+    assert buckets
+    expect(slider).to_be_visible()
+    for route in buckets:
+        route.fulfill(json={"buckets": []})
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogBuckets")
+    wait_for_query(page, lambda query: "live" not in query)
     page.keyboard.press("Enter")
     expect(live).to_have_attribute("aria-pressed", "false")
 
@@ -585,7 +606,9 @@ def log_paging(page):
         lambda route: route.fulfill(json={"entries": many, "totalMatched": "0"}),
     )
     page.goto(
-        state["ui_url"] + base + "/observability?env=production&view=logs&size=25"
+        state["ui_url"]
+        + base
+        + "/observability?env=production&view=logs&live=0&size=25"
     )
     pager_label = page.get_by_text(re.compile(r"of 120 loaded$"))
     expect(pager_label).to_have_text("1–25 of 120 loaded")
@@ -606,7 +629,7 @@ def log_paging(page):
     page.goto(
         state["ui_url"]
         + base
-        + "/observability?env=production&view=logs&size=25&page=2"
+        + "/observability?env=production&view=logs&live=0&size=25&page=2"
     )
     expect(pager_label).to_have_text("26–50 of 120 loaded")
     page.get_by_role("button", name=re.compile(r"Paged line 30$")).click()
@@ -1483,14 +1506,17 @@ def metrics(page):
     )
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
+    cpu_card = page.get_by_role("region", name="CPU", exact=True)
+    expect(cpu_card.get_by_text("% of limit, peak per bucket")).to_be_visible()
+    expect(cpu_card.get_by_text(re.compile(r"^latest \d")).first).to_be_visible()
     expect(chart.get_by_text("controls-pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
     by_region = page.get_by_role("region", name="By resource and region")
-    expect(by_region.get_by_role("columnheader", name="CPU ↓")).to_have_attribute(
-        "aria-sort", "descending"
-    )
+    expect(
+        by_region.get_by_role("columnheader", name="CPU (latest) ↓")
+    ).to_have_attribute("aria-sort", "descending")
     by_region.get_by_role("button", name="Resource", exact=True).click()
     expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute(
         "aria-sort", "ascending"
