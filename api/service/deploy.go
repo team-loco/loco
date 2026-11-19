@@ -198,11 +198,42 @@ func supersedePlacements(
 		return fmt.Errorf("supersede placements: %w", err)
 	}
 	for _, id := range retired {
-		if _, recomputeErr := recomputeDeploymentStatus(ctx, qtx, id); recomputeErr != nil {
+		status, recomputeErr := recomputeDeploymentStatus(ctx, qtx, id)
+		if recomputeErr != nil {
 			return fmt.Errorf("recompute superseded deployment %s: %w", id, recomputeErr)
+		}
+		if status.Status != genDb.DeploymentStatusCanceled || status.PreviousStatus == status.Status {
+			continue
+		}
+		if canceledErr := recordSupersededCancel(ctx, qtx, id, deploymentID); canceledErr != nil {
+			return canceledErr
 		}
 	}
 	return nil
+}
+
+// recordSupersededCancel cancels the build a superseded deployment waited for, unless another
+// deployment uses it, and records the deployment's cancellation.
+func recordSupersededCancel(ctx context.Context, qtx *genDb.Queries, id, supersededBy uuid.UUID) error {
+	canceled, err := qtx.GetDeploymentByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("read superseded deployment %s: %w", id, err)
+	}
+	if cancelErr := cancelUnusedBuild(ctx, qtx, canceled); cancelErr != nil {
+		return cancelErr
+	}
+	return events.Record(ctx, qtx, events.Event{
+		Type:          events.DeploymentCanceled,
+		ActorType:     events.ActorSystem,
+		ResourceID:    new(canceled.ResourceID),
+		EnvironmentID: new(canceled.EnvironmentID),
+		SubjectType:   events.SubjectDeployment,
+		SubjectID:     new(id),
+		Data: map[string]any{
+			events.FieldDeploymentID: id.String(),
+			events.FieldSupersededBy: supersededBy.String(),
+		},
+	})
 }
 
 func pruneDeploymentHistory(

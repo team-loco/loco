@@ -405,6 +405,7 @@ CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGU
         'image', dp.image,
         'startedAt', dp.started_at,
         'completedAt', dp.completed_at,
+        'supersededBy', dp.superseded_by,
         'live', l.live,
         'revision', CASE WHEN p.deployment_id = dp.deployment_id THEN p.desired_revision ELSE COALESCE((
             SELECT max(ro.revision) FROM deployment_rollouts ro

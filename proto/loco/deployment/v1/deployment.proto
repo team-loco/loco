@@ -55,6 +55,9 @@ service DeploymentService {
   rpc WatchDeployment(WatchDeploymentRequest) returns (stream WatchDeploymentResponse);
   // DeleteDeployment deletes/inactivates a deployment.
   rpc DeleteDeployment(DeleteDeploymentRequest) returns (DeleteDeploymentResponse);
+  // CancelDeployment stops a building or rolling-out deployment. Regions it does not run yet
+  // return to the deployment that served them before; regions it already runs keep it.
+  rpc CancelDeployment(CancelDeploymentRequest) returns (CancelDeploymentResponse);
   // ResolveImage returns the digest-pinned image reference.
   rpc ResolveImage(ResolveImageRequest) returns (ResolveImageResponse);
 }
@@ -221,6 +224,8 @@ message Deployment {
   DeploymentTrigger trigger = 27;
   // The deployment a redeploy or rollback copied, if any.
   string source_deployment_id = 28;
+  // Who canceled the deployment; empty unless a user or token canceled it.
+  string canceled_by_name = 29;
 }
 
 // DeploymentPlacement is one region of a deployment.
@@ -240,6 +245,8 @@ message DeploymentPlacement {
   repeated Replica replicas = 10;
   // Whether the region runs this deployment or is building it.
   bool live = 11;
+  // The newer deployment that replaced this region, if any.
+  string superseded_by = 12;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
@@ -417,6 +424,12 @@ message DeleteDeploymentRequest {
 
 // DeleteDeploymentResponse is the response after deleting/inactivating a deployment.
 message DeleteDeploymentResponse {}
+
+message CancelDeploymentRequest {
+  string deployment_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+message CancelDeploymentResponse {}
 
 message ResolveImageRequest {
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];

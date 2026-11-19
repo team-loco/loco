@@ -19,12 +19,15 @@ SELECT * FROM deployment_placements WHERE deployment_id = $1 ORDER BY region, cl
 SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
-       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
+LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
 WHERE d.resource_id = sqlc.arg('resource_id')
   AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id'))
   AND (sqlc.arg('system_read')::bool
@@ -45,12 +48,15 @@ LIMIT sqlc.arg('page_size');
 SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
-       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 JOIN workspaces w ON w.id = r.workspace_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
+LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
 WHERE r.workspace_id = sqlc.arg('workspace_id')
   AND d.environment_id = sqlc.arg('environment_id')
   AND (sqlc.arg('system_read')::bool
@@ -71,11 +77,14 @@ LIMIT sqlc.arg('page_size');
 SELECT sqlc.embed(d), r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
-       COALESCE(u.avatar_url, '')::text AS actor_avatar_url
+       COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
+       COALESCE(cu.name, ct.name, '')::text AS canceled_by_name
 FROM deployments d
 JOIN resources r ON r.id = d.resource_id
 LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
+LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
 WHERE d.id = $1;
 
 -- name: GetDeploymentResourceID :one
@@ -248,3 +257,30 @@ SELECT * FROM deployment_placements WHERE deployment_id = $1 AND cluster_id = $2
 
 -- name: LockDeployment :exec
 SELECT id FROM deployments WHERE id = $1 FOR UPDATE;
+
+-- name: PreviousRunningDeploymentForCluster :one
+-- The newest deployment older than the given one whose placement on the cluster ran and still
+-- serves, including one a restart rolls again.
+SELECT previous.* FROM deployment_placements dp
+JOIN deployments previous ON previous.id = dp.deployment_id
+JOIN deployments current ON current.id = sqlc.arg(deployment_id)
+WHERE dp.cluster_id = sqlc.arg(cluster_id)
+  AND previous.resource_id = current.resource_id
+  AND previous.environment_id = current.environment_id
+  AND (previous.created_at, previous.id) < (current.created_at, current.id)
+  AND dp.started_at IS NOT NULL
+  AND dp.status IN ('deploying', 'running', 'degraded', 'crashed')
+ORDER BY previous.created_at DESC, previous.id DESC
+LIMIT 1;
+
+-- name: SetDeploymentCanceledBy :exec
+UPDATE deployments SET canceled_by_type = sqlc.arg(actor_type), canceled_by_id = sqlc.arg(actor_id)
+WHERE id = sqlc.arg(id);
+
+-- name: BuildUsedByOtherDeployments :one
+SELECT EXISTS (
+    SELECT 1 FROM deployments
+    WHERE spec->'build'->>'buildId' = sqlc.arg(build_id)::text
+      AND status IN ('building', 'deploying')
+      AND id <> sqlc.arg(deployment_id)
+);

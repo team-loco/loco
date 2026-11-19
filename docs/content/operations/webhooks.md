@@ -53,6 +53,10 @@ The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subjec
 
 The `creator_*` fields are absent when that user no longer exists, and on `deployment.failed` also when the API token no longer exists. `deployment.failed` also carries `deploymentId`, `environmentId` and `regions`, the regions that failed. `build.failed` also carries `reason`: `source_upload_expired` when the source was not uploaded before its upload URL expired, otherwise `build_failed`.
 
+## Cancellation events
+
+`deployment.canceled` records a deployment that ended `canceled`, once. Its `subject.id` is the deployment ID and `data.deploymentId` repeats it. When a user or API token canceled it, `actor` is that caller, and `data.regionsReverted` and `data.regionsKept` list the regions that went back to the previous deployment and the regions that kept this one. When a newer deployment replaced it, `actor.type` is `system` and `data.supersededBy` is the newer deployment's ID.
+
 ## User deletion
 
 `user.deleted` records a deleted Loco user. Its `subject.id` is the user ID, and its `data.identity` is the sign-in identity removed with the user, with the `issuer` and `subject` that the identity provider put in its tokens. Loco erases that identity when the user is deleted, so a consumer that removes the matching account at an identity provider takes it from this object. A retried delivery carries the same object.

@@ -19,6 +19,7 @@ type Querier interface {
 	AdvisoryUnlock(ctx context.Context, lockKey int64) (bool, error)
 	AllocateActivitySeq(ctx context.Context, arg AllocateActivitySeqParams) (int64, error)
 	BeginClusterSync(ctx context.Context, id uuid.UUID) (int64, error)
+	BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsedByOtherDeploymentsParams) (bool, error)
 	BumpEnvironmentRevision(ctx context.Context, id uuid.UUID) error
 	BumpResourceEnvironmentRevisions(ctx context.Context, id uuid.UUID) error
 	BumpResourceRevision(ctx context.Context, id uuid.UUID) error
@@ -279,6 +280,9 @@ type Querier interface {
 	// The newest deployment older than the failed one that ran, while nothing newer than the
 	// failed one exists.
 	PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error)
+	// The newest deployment older than the given one whose placement on the cluster ran and still
+	// serves, including one a restart rolls again.
+	PreviousRunningDeploymentForCluster(ctx context.Context, arg PreviousRunningDeploymentForClusterParams) (Deployment, error)
 	// Deletes the resource's builds past the newest keep once their source and, for a succeeded
 	// build, image are gone: the sweepers find what to delete through these rows. The image
 	// sweeper treats a failed or canceled build's tags like those of a missing row.
@@ -314,6 +318,7 @@ type Querier interface {
 	SetBuildingDeploymentEnv(ctx context.Context, arg SetBuildingDeploymentEnvParams) error
 	SetClusterJoinToken(ctx context.Context, arg SetClusterJoinTokenParams) (uuid.UUID, error)
 	SetDeploymentBuildImage(ctx context.Context, arg SetDeploymentBuildImageParams) error
+	SetDeploymentCanceledBy(ctx context.Context, arg SetDeploymentCanceledByParams) error
 	SetDeploymentPlacementStatus(ctx context.Context, arg SetDeploymentPlacementStatusParams) (int64, error)
 	SetLockTimeout(ctx context.Context, timeout string) error
 	SetPlacementApplyError(ctx context.Context, arg SetPlacementApplyErrorParams) (SetPlacementApplyErrorRow, error)

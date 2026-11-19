@@ -28,6 +28,7 @@ const (
 	statusTimeout    = 3 * time.Minute
 	revisionTimeout  = time.Minute
 	suspensionReason = "e2e suspension"
+	imageBuild       = "image"
 )
 
 // TestResourceStatus follows what the API reports about a resource: healthy after a deploy and a
@@ -65,6 +66,8 @@ func TestResourceStatus(t *testing.T) {
 	})
 
 	t.Run("a rollout accepts runtime mutations", s.rolloutAcceptsMutations)
+
+	t.Run("a canceled rollout keeps the previous version serving", s.cancelKeepsPreviousServing)
 
 	t.Run("suspension stops pods and resume restores them", s.suspension)
 
@@ -722,7 +725,7 @@ func (s *status) rolloutAcceptsMutations(t *testing.T) {
 		Regions:       []string{p.Region},
 		Spec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
-				Build: &deploymentv1.BuildSource{Type: "image", Image: p.PublicImage},
+				Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.PublicImage},
 				Port:  new(int32(8080)),
 				Env:   map[string]string{"ROLLOUT_TEST": "changed"},
 			}},
@@ -759,6 +762,62 @@ func (s *status) rolloutAcceptsMutations(t *testing.T) {
 	if !slices.Equal(got, want) || last != replacement.GetDeploymentId() {
 		t.Errorf("deployments after the rollout = %v ending with %s, want %v ending with %s",
 			got, last, want, replacement.GetDeploymentId())
+	}
+}
+
+func (s *status) cancelKeepsPreviousServing(t *testing.T) {
+	const app = statusApp
+	w, id := s.w, s.id
+	waitRolloutFinished(t, w, app)
+	previous := regionStatus(t, w, app).GetDeploymentId()
+	created, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
+		ResourceId:    id,
+		EnvironmentId: w.EnvironmentID,
+		Regions:       []string{p.Region},
+		Spec: &deploymentv1.DeploymentSpec{
+			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
+				Build: &deploymentv1.BuildSource{Type: imageBuild, Image: p.WorkerImage},
+				Port:  new(int32(8080)),
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = p.User.Deployment.CancelDeployment(t.Context(), &deploymentv1.CancelDeploymentRequest{
+		DeploymentId: created.GetDeploymentId(),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := p.User.Deployment.GetDeployment(t.Context(), &deploymentv1.GetDeploymentRequest{
+		DeploymentId: created.GetDeploymentId(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED ||
+		got.GetDeployment().GetCanceledByName() == "" {
+		t.Errorf("the canceled deployment reads %v canceled by %q, want canceled by the user",
+			got.GetDeployment().GetStatus(), got.GetDeployment().GetCanceledByName())
+	}
+	runsPrevious := func(ctx context.Context) error {
+		out, kubectlErr := p.Kubectl(
+			ctx,
+			"-n", p.Namespace, "get", "applications", "-l", "loco.io/resource-id="+id,
+			"-o", "jsonpath={.items[0].spec.deploymentId}",
+		)
+		if kubectlErr != nil {
+			return kubectlErr
+		}
+		if strings.TrimSpace(out) != previous {
+			return fmt.Errorf("deployment %q, want %s", out, previous)
+		}
+		return nil
+	}
+	platform.Eventually(t, statusTimeout, "the Application to run the previous deployment", runsPrevious)
+	waitRolloutFinished(t, w, app)
+	if current := regionStatus(t, w, app).GetDeploymentId(); current != previous {
+		t.Errorf("the region runs %s after the cancel, want %s", current, previous)
 	}
 }
 

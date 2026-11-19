@@ -87,17 +87,18 @@ var deploymentTriggersFromProto = map[deploymentv1.DeploymentTrigger]genDb.Deplo
 
 // placementView is one element of the placements JSON the deployment queries return.
 type placementView struct {
-	ClusterID   uuid.UUID             `json:"clusterId"`
-	Region      string                `json:"region"`
-	Replicas    int32                 `json:"replicas"`
-	Status      genDb.PlacementStatus `json:"status"`
-	Image       string                `json:"image"`
-	StartedAt   *time.Time            `json:"startedAt"`
-	CompletedAt *time.Time            `json:"completedAt"`
-	Live        bool                  `json:"live"`
-	Revision    int64                 `json:"revision"`
-	Rollout     json.RawMessage       `json:"rollout"`
-	Observed    json.RawMessage       `json:"observed"`
+	ClusterID    uuid.UUID             `json:"clusterId"`
+	Region       string                `json:"region"`
+	Replicas     int32                 `json:"replicas"`
+	Status       genDb.PlacementStatus `json:"status"`
+	Image        string                `json:"image"`
+	StartedAt    *time.Time            `json:"startedAt"`
+	CompletedAt  *time.Time            `json:"completedAt"`
+	SupersededBy *uuid.UUID            `json:"supersededBy"`
+	Live         bool                  `json:"live"`
+	Revision     int64                 `json:"revision"`
+	Rollout      json.RawMessage       `json:"rollout"`
+	Observed     json.RawMessage       `json:"observed"`
 }
 
 func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment, error) {
@@ -128,6 +129,9 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 			CurrentRevision: view.Revision,
 			Live:            view.Live,
 		}
+		if view.SupersededBy != nil {
+			placement.SupersededBy = view.SupersededBy.String()
+		}
 		if err := setPlacementRollout(placement, view.Rollout, view.Observed); err != nil {
 			return nil, err
 		}
@@ -157,6 +161,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		Placements:         placements,
 		Trigger:            deploymentTriggers[d.Trigger],
 		SourceDeploymentId: source,
+		CanceledByName:     row.CanceledByName,
 	}, nil
 }
 
