@@ -92,7 +92,7 @@ export function AppSidebar() {
 	const openPalette = useOpenPalette();
 	const { isMobile, setOpenMobile } = useSidebar();
 	const { pathname } = useLocation();
-	// The router is the external system: the mobile sheet closes whenever it navigates, however the navigation started.
+	// The mobile sheet closes on every navigation, however it started.
 	useEffect(() => {
 		setOpenMobile(false);
 	}, [pathname, setOpenMobile]);
