@@ -1,6 +1,6 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { GlobeIcon, ShieldCheckIcon } from "lucide-react";
-import { useCallback, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { listPlatformDomains } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 
@@ -11,6 +11,7 @@ import { pluralize } from "@/lib/format";
 import { servedDomains } from "@/lib/new-resource";
 import { primaryDomain } from "@/lib/resource-status";
 import { cn } from "@/lib/utils";
+import { useWidth } from "@/hooks/useWidth";
 
 import {
 	MAP_LABEL_H,
@@ -127,21 +128,6 @@ function ResourceNode({
 	);
 }
 
-function useWidth(): [(el: HTMLDivElement | null) => (() => void) | undefined, number] {
-	const [width, setWidth] = useState(0);
-	const measure = useCallback((el: HTMLDivElement | null) => {
-		if (el === null) return undefined;
-		const observer = new ResizeObserver(([entry]) => {
-			if (entry !== undefined) setWidth(entry.contentRect.width);
-		});
-		observer.observe(el);
-		return () => {
-			observer.disconnect();
-		};
-	}, []);
-	return [measure, width];
-}
-
 export function ArchitectureDiagram({
 	rows,
 	regionOrder,
@@ -159,7 +145,7 @@ export function ArchitectureDiagram({
 }) {
 	const { data: domainsRes } = useQuery(listPlatformDomains, { environmentId });
 	const platformDomains = domainsRes?.platformDomains ?? [];
-	const [measure, available] = useWidth();
+	const [available, measure] = useWidth();
 	const layout = mapLayout(rows, regionOrder, available);
 	const more = (n: number, p: MapPoint) => (
 		<div
