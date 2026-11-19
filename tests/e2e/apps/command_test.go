@@ -7,8 +7,7 @@ import (
 	"github.com/team-loco/loco/tests/e2e/platform"
 )
 
-// serveArgScript serves its first argument at /<argument> from a copy of the fixture's nginx
-// configuration rooted in /tmp.
+// serveArgScript runs the fixture's nginx from /tmp and serves its first argument at /<argument>.
 const serveArgScript = `mkdir -p /tmp/www
 printf ok > /tmp/www/index.html
 printf %s "$1" > "/tmp/www/$1"
@@ -16,8 +15,7 @@ sed 's@/etc/nginx/conf.d/\*.conf@/tmp/e2e-server.conf@' /etc/nginx/nginx.conf > 
 sed 's@/usr/share/nginx/html@/tmp/www@' /etc/nginx/conf.d/default.conf > /tmp/e2e-server.conf
 exec nginx -c /tmp/e2e-nginx.conf -g 'daemon off;'`
 
-// TestCommandAndArgs deploys a service whose command and args replace the image's entrypoint and
-// CMD, then changes the args, and checks each rollout serves what its args name.
+// TestCommandAndArgs checks each rollout of a service serves the marker its args name.
 func TestCommandAndArgs(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)

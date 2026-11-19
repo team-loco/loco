@@ -295,7 +295,7 @@ func formatInt(value int32) string {
 	return strconv.FormatInt(int64(value), 10)
 }
 
-// formatWords quotes each command or args entry, which keeps entries holding spaces or commas apart.
+// formatWords formats command or args entries as a list of quoted strings.
 func formatWords(words []string) string {
 	quoted := make([]string, len(words))
 	for i, word := range words {
