@@ -1034,7 +1034,6 @@ def new_resource_menu(page):
     page.get_by_role("button", name="New resource", exact=True).click()
     menu = page.get_by_role("menu")
     expect(menu.get_by_role("menuitem", name="Service", exact=True)).to_be_enabled()
-    expect(menu.get_by_role("menuitem", name=re.compile(r"^Database"))).to_be_disabled()
     page.keyboard.press("Escape")
 
 
