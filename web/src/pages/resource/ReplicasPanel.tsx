@@ -24,7 +24,7 @@ const UNSUPPORTED_RANGE = "7d";
 const ALL_REGIONS = "all";
 const PERCENT = 100;
 const CPU_METRIC = "k8s.pod.cpu_request_utilization";
-const MEMORY_METRIC = "k8s.pod.memory_request_utilization";
+const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
 
 function scaleText(regions: RegionView[]): string {
 	const pairs = regions.flatMap((r) => {

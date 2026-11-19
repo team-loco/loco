@@ -134,7 +134,7 @@ usage = {
         "replicas-ui-east-b2": 0.9,
         "replicas-ui-west-c3": 0.1,
     },
-    "k8s.pod.memory_limit_utilization": {
+    "k8s.pod.memory.working_set_limit_utilization": {
         "replicas-ui-east-a1": 0.6,
         "replicas-ui-east-b2": 0.99,
         "replicas-ui-west-c3": 0.25,

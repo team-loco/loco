@@ -14,7 +14,7 @@ import type { RegionView } from "./model";
 import { exitLabel, podUsage } from "./replicas";
 
 const USAGE_SPAN_MS = 5 * 60_000;
-const USAGE_METRICS = ["k8s.pod.cpu_limit_utilization", "k8s.pod.memory_limit_utilization"] as const;
+const USAGE_METRICS = ["k8s.pod.cpu_limit_utilization", "k8s.pod.memory.working_set_limit_utilization"] as const;
 const PERCENT = 100;
 
 function usageLabel(name: string, ratio: number | undefined, limit: string): string {

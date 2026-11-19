@@ -529,6 +529,23 @@ otel-col-daemon:
         check_interval: 1s
         limit_mib: 384
         spike_limit_mib: 96
+      # Pod memory limit in bytes, then the working set as a share of it; a processor's rules read only its input metrics.
+      metricsgeneration/memory_limit:
+        rules:
+          - name: k8s.pod.memory.limit
+            unit: By
+            type: calculate
+            metric1: k8s.pod.memory.usage
+            metric2: k8s.pod.memory_limit_utilization
+            operation: divide
+      metricsgeneration/working_set_utilization:
+        rules:
+          - name: k8s.pod.memory.working_set_limit_utilization
+            unit: "1"
+            type: calculate
+            metric1: k8s.pod.memory.working_set
+            metric2: k8s.pod.memory.limit
+            operation: divide
       resource/region: &region
         attributes:
           - key: loco.region
@@ -668,7 +685,12 @@ otel-col-daemon:
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region]
         metrics:
           receivers: [kubeletstats]
-          processors: [memory_limiter, k8s_attributes/pod_uid, resource/region]
+          processors:
+            - memory_limiter
+            - metricsgeneration/memory_limit
+            - metricsgeneration/working_set_utilization
+            - k8s_attributes/pod_uid
+            - resource/region
         traces:
           receivers: [otlp, jaeger, zipkin]
           processors: [memory_limiter, resource/strip_tenancy, k8s_attributes/connection, resource/region]

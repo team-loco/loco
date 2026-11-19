@@ -1183,7 +1183,7 @@ func (o *observed) counterMetrics(t *testing.T) {
 
 func (o *observed) clusterMetrics(t *testing.T) {
 	own := o.own
-	for _, metric := range []string{"k8s.pod.phase", "k8s.pod.memory.usage"} {
+	for _, metric := range []string{"k8s.pod.phase", "k8s.pod.memory.working_set_limit_utilization"} {
 		platform.Eventually(t, telemetryTimeout, metric+" points of the fixture", func(ctx context.Context) error {
 			series, err := own.Observability.QueryMetrics(ctx, o.metricsRequest(metric))
 			if err != nil {

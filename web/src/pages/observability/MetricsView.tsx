@@ -39,7 +39,7 @@ interface MetricDef {
 }
 
 const CPU: MetricDef = { key: "cpu", metric: "k8s.pod.cpu_limit_utilization", title: "CPU" };
-const MEMORY: MetricDef = { key: "mem", metric: "k8s.pod.memory_limit_utilization", title: "Memory" };
+const MEMORY: MetricDef = { key: "mem", metric: "k8s.pod.memory.working_set_limit_utilization", title: "Memory" };
 
 const TRAFFIC = ["Requests", "5xx responses", "Latency, p95"];
 const PERCENT = 100;

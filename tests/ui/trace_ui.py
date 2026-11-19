@@ -1147,7 +1147,7 @@ with session(out) as browser:
             [0.3, 0.92, 0.45]
             if body["metricName"] == "k8s.pod.cpu_limit_utilization"
             else [0.4, 0.6, 0.5]
-            if body["metricName"] == "k8s.pod.memory_limit_utilization"
+            if body["metricName"] == "k8s.pod.memory.working_set_limit_utilization"
             else [1024, 2048, 512]
             if body["attributes"].get("direction") == "receive"
             else [512, 1024, 256]
@@ -1302,7 +1302,7 @@ with session(out) as browser:
     )
     assert {request["metricName"] for request in metric_requests} == {
         "k8s.pod.cpu_limit_utilization",
-        "k8s.pod.memory_limit_utilization",
+        "k8s.pod.memory.working_set_limit_utilization",
         "k8s.pod.network.io",
     }
     network_requests = [
