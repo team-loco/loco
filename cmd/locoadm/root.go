@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/team-loco/loco/cmd/internal/groupcmd"
 	"github.com/team-loco/loco/cmd/locoadm/admin"
 	"github.com/team-loco/loco/cmd/locoadm/cluster"
 	"github.com/team-loco/loco/cmd/locoadm/initialize"
@@ -26,5 +27,6 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(user.BuildUserCmd())
 	root.AddCommand(org.BuildOrgCmd())
 	root.AddCommand(recovery.Command(), verify.Command())
+	groupcmd.RejectUnknown(root)
 	return root
 }

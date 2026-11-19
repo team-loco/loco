@@ -1,0 +1,9 @@
+! exec loco resource lsit
+stderr '(?i)unknown command "lsit" for "loco resource"'
+! stdout .
+
+! exec loco org nope
+stderr '(?i)unknown command "nope" for "loco org"'
+
+exec loco resource
+stdout 'COMMANDS'

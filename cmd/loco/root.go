@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/team-loco/loco/cmd/internal/groupcmd"
 	"github.com/team-loco/loco/cmd/internal/keychain"
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/loco/config"
@@ -68,6 +69,7 @@ func NewRootCmd(env Env) *cobra.Command {
 	root.AddCommand(workspace.BuildWorkspaceCmd())
 	root.AddCommand(token.BuildTokenCmd())
 	root.AddCommand(infra.BuildInfraCmd())
+	groupcmd.RejectUnknown(root)
 	return root
 }
 
