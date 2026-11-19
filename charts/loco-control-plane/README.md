@@ -49,7 +49,7 @@ Open log tails, deployment watches and event streams periodically recheck access
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `LOCO_STREAM_AUTH_INTERVAL` | `5s` | Positive duration between credential and permission checks, including idle streams. |
-| `LOCO_STREAM_AUTH_TIMEOUT` | `2s` | Positive timeout for each check and the write grace before aborting a blocked HTTP stream. |
+| `LOCO_STREAM_AUTH_TIMEOUT` | `2s` | Positive timeout for each check and the write grace before aborting a blocked HTTP stream; at most `LOCO_STREAM_AUTH_INTERVAL`. |
 
 See [open streams and access changes](../../docs/content/operations/access.md#open-streams-and-access-changes) for revocation timing.
 

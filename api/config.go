@@ -32,6 +32,7 @@ import (
 
 var (
 	errAPITokenLifetime        = errors.New("LOCO_API_TOKEN_MAX_LIFETIME must be at least one second")
+	errStreamAuthTimeout       = errors.New("LOCO_STREAM_AUTH_TIMEOUT must not exceed LOCO_STREAM_AUTH_INTERVAL")
 	errDatabaseURLMissing      = errors.New("DATABASE_URL is required")
 	errDatabasePoolSize        = errors.New("DATABASE_MIN_CONNS must not exceed DATABASE_MAX_CONNS")
 	errCacheAddrMissing        = errors.New("CACHE_ADDR required when CACHE_TYPE=valkey")
@@ -289,6 +290,10 @@ func newAPIConfig() *APIConfig {
 	streamAuth := auth.StreamConfig{
 		Interval: envconfig.PositiveDuration("LOCO_STREAM_AUTH_INTERVAL", defaultStreamAuthInterval),
 		Timeout:  envconfig.PositiveDuration("LOCO_STREAM_AUTH_TIMEOUT", defaultStreamAuthTimeout),
+	}
+	// A stale recheck in flight is followed by one more, so stale access lasts at most interval plus timeout.
+	if streamAuth.Timeout > streamAuth.Interval {
+		panic(fmt.Errorf("%w: timeout %s, interval %s", errStreamAuthTimeout, streamAuth.Timeout, streamAuth.Interval))
 	}
 	signupPolicy := newSignupPolicy()
 	minCLIVersion := newMinCLIVersion()
