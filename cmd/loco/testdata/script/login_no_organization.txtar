@@ -1,0 +1,9 @@
+# login succeeds for an account that belongs to no organization and says how to create one.
+fakeapi identity-provider
+fakeapi device-login approved
+exec loco login --device
+stdout 'Authentication successful!'
+stdout 'You belong to no organization yet'
+stdout 'loco org create'
+! stderr .
+fakeapi called ListUserOrgs 'Bearer test-token'

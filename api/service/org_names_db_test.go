@@ -19,10 +19,10 @@ func TestOrgsAndWorkspacesCanShareNames(t *testing.T) {
 		}
 		for range 2 {
 			_, err = user.clients.Workspace.CreateWorkspace(ctx, &workspacev1.CreateWorkspaceRequest{
-				OrgId: org.GetOrgId(), Name: firstWorkspaceName,
+				OrgId: org.GetOrgId(), Name: "default",
 			})
 			if err != nil {
-				t.Fatalf("%s creates workspace %s: %v", subject, firstWorkspaceName, err)
+				t.Fatalf("%s creates workspace default: %v", subject, err)
 			}
 		}
 		other, err := user.clients.Workspace.CreateWorkspace(ctx, &workspacev1.CreateWorkspaceRequest{
@@ -32,10 +32,10 @@ func TestOrgsAndWorkspacesCanShareNames(t *testing.T) {
 			t.Fatalf("create workspace: %v", err)
 		}
 		_, err = user.clients.Workspace.UpdateWorkspace(ctx, &workspacev1.UpdateWorkspaceRequest{
-			WorkspaceId: other.GetWorkspaceId(), Name: new(firstWorkspaceName),
+			WorkspaceId: other.GetWorkspaceId(), Name: new("default"),
 		})
 		if err != nil {
-			t.Fatalf("rename workspace to %s: %v", firstWorkspaceName, err)
+			t.Fatalf("rename workspace to default: %v", err)
 		}
 	}
 

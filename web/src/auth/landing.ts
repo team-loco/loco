@@ -23,7 +23,7 @@ export async function landingPath(
 	});
 	if (user === undefined) throw new Error("Your account could not be loaded");
 
-	const orgs = await callUnaryMethod(transport, listUserOrgs, { userId: user.id, createIfMissing: true });
+	const orgs = await callUnaryMethod(transport, listUserOrgs, { userId: user.id });
 	queryClient.setQueryData(
 		createConnectQueryKey({ schema: listUserOrgs, input: { userId: user.id }, transport, cardinality: "finite" }),
 		orgs,

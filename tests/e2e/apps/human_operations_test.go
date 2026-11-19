@@ -18,7 +18,7 @@ const operationsEmail = "human-operations@test.local"
 func TestOrganizationAdministrationUsesTokenPermissions(t *testing.T) {
 	t.Parallel()
 	u := signInLifecycleUser(t, operationsEmail)
-	if !t.Run("personal tokens provision organizations", func(t *testing.T) { tokenOrganizationProvisioning(t, u) }) {
+	if !t.Run("personal tokens create organizations", func(t *testing.T) { tokenOrganizationCreation(t, u) }) {
 		return
 	}
 	w := p.NewTenant(t)
@@ -81,11 +81,11 @@ func TestOrganizationAdministrationUsesTokenPermissions(t *testing.T) {
 	}
 	if _, err = automation.Org.ListUserOrgs(
 		t.Context(),
-		&orgv1.ListUserOrgsRequest{UserId: issuerID, CreateIfMissing: true},
+		&orgv1.ListUserOrgsRequest{UserId: issuerID},
 	); connect.CodeOf(
 		err,
 	) != connect.CodePermissionDenied {
-		t.Fatalf("organization token provisioning for its historical issuer = %v, want PermissionDenied", err)
+		t.Fatalf("organization token listing its historical issuer's organizations = %v, want PermissionDenied", err)
 	}
 	u = inviteLifecycleUser(t, automation, w.OrgID, operationsEmail)
 	setLifecycleRole(t, automation, w.OrgID, u.id, orgv1.OrgRole_ORG_ROLE_ADMIN)
@@ -134,7 +134,7 @@ func TestOrganizationAdministrationUsesTokenPermissions(t *testing.T) {
 	}
 }
 
-func tokenOrganizationProvisioning(t *testing.T, u lifecycleUser) {
+func tokenOrganizationCreation(t *testing.T, u lifecycleUser) {
 	t.Helper()
 	read := &tokenv1.EntityScope{
 		EntityType: tokenv1.EntityType_ENTITY_TYPE_USER,
@@ -149,32 +149,9 @@ func tokenOrganizationProvisioning(t *testing.T, u lifecycleUser) {
 	readOnly := p.Clients(
 		platform.CreateToken(t, u.session, "self-reader", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, read),
 	)
-	if _, err := readOnly.Org.ListUserOrgs(
-		t.Context(),
-		&orgv1.ListUserOrgsRequest{UserId: u.id, CreateIfMissing: true},
-	); connect.CodeOf(
-		err,
-	) != connect.CodePermissionDenied {
-		t.Fatalf("read-only personal token provisioning an organization = %v, want PermissionDenied", err)
-	}
 	client := p.Clients(
 		platform.CreateToken(t, u.session, "self-writer", tokenv1.EntityType_ENTITY_TYPE_USER, u.id, read, writer),
 	)
-	request := &orgv1.ListUserOrgsRequest{UserId: u.id, CreateIfMissing: true}
-	first, err := client.Org.ListUserOrgs(t.Context(), request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(first.GetOrgs()) != 1 || first.GetOrgs()[0].GetWorkspaceCount() != 1 {
-		t.Fatalf("first organization provisioning = %v, want one organization with its default workspace", first)
-	}
-	again, err := client.Org.ListUserOrgs(t.Context(), request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(again.GetOrgs()) != 1 || again.GetOrgs()[0].GetId() != first.GetOrgs()[0].GetId() {
-		t.Fatal("repeated provisioning created another organization")
-	}
 	created, err := client.Org.CreateOrg(t.Context(), &orgv1.CreateOrgRequest{Name: new("personal-token-organization")})
 	if err != nil {
 		t.Fatal(err)
