@@ -1,6 +1,7 @@
 package service
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -91,6 +92,35 @@ func TestDiffRolloutPreviousGone(t *testing.T) {
 		if len(entries) != 2 || entries[1].Message != "Previous version gone" {
 			t.Fatalf("entries=%+v", entries)
 		}
+	}
+}
+
+func TestDiffRolloutStartsEachReplicaOncePerRestart(t *testing.T) {
+	previous := rolloutSnapshot{}
+	var got []string
+	for _, step := range []struct {
+		state    loco.ReplicaState
+		restarts int32
+	}{
+		{loco.ReplicaStarting, 0},
+		{loco.ReplicaPulling, 0},
+		{loco.ReplicaStarting, 0},
+		{loco.ReplicaFailing, 1},
+		{loco.ReplicaStarting, 1},
+	} {
+		report := &agentv1.PlacementStatus{Replicas: []*deploymentv1.Replica{
+			{Uid: activityReplicaUID, State: string(step.state), Restarts: step.restarts},
+		}}
+		for _, entry := range diffRollout(previous, report) {
+			got = append(got, entry.Message)
+		}
+		previous.Replicas = report.GetReplicas()
+		previous.Started = startedReplicas(previous.Started, report)
+	}
+	starting := string(loco.ReplicaStarting)
+	want := []string{starting, "Pulling image", "Failing", starting}
+	if !slices.Equal(got, want) {
+		t.Fatalf("messages=%q want %q", got, want)
 	}
 }
 
