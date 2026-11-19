@@ -49,7 +49,10 @@ const STATUS_LABEL: Record<SecretStatus, string> = {
 };
 
 const COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]";
-const ROW = cn("grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0", COLUMNS);
+const ROW = cn(
+	"grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0",
+	COLUMNS,
+);
 const MASK = "••••••••";
 const FORM_COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_auto]";
 
@@ -195,7 +198,7 @@ function PlainVariable({
 }) {
 	return (
 		<div className={ROW}>
-			<div className="flex min-w-0 flex-col gap-0.5">
+			<div className="col-span-2 flex min-w-0 flex-col gap-0.5 md:col-span-1">
 				<span className="flex items-center gap-2">
 					<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
 					{onRemove !== undefined && (
@@ -214,7 +217,12 @@ function PlainVariable({
 					)}
 				</span>
 			</div>
-			<Input aria-label={`Value of ${name}`} className="font-mono" value={value} readOnly />
+			<Input
+				aria-label={`Value of ${name}`}
+				className={cn("font-mono", onRemove === undefined && "col-span-2 md:col-span-1")}
+				value={value}
+				readOnly
+			/>
 			{onRemove !== undefined && (
 				<div className="flex items-center justify-end">
 					<Button variant="ghost" size="icon-sm" aria-label={`Remove ${name}`} onClick={onRemove}>
@@ -258,7 +266,7 @@ function SecretLine({
 			: `v${secret.version.toString()} · set by ${setterLabel(secret, members)} · ${formatStarted(tsMs(secret.updatedAt), timePref)}`;
 	return (
 		<div className={ROW}>
-			<div className="flex min-w-0 flex-col gap-0.5">
+			<div className="col-span-2 flex min-w-0 flex-col gap-0.5 md:col-span-1">
 				<span className="flex items-center gap-2">
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
 						{row.name}
@@ -395,7 +403,10 @@ export function VariablesSection({
 		const fresh = Object.keys(values).filter((name) => bindable && !storedNames.has(name) && !declared.has(name));
 		onChange({
 			secrets: { ...staged, ...values },
-			bindings: { ...bindings, ...Object.fromEntries(fresh.map((name) => [name, true])) },
+			bindings: {
+				...bindings,
+				...Object.fromEntries(fresh.map((name) => [name, true])),
+			},
 		});
 	};
 	const stage = (name: string, value: string) => {

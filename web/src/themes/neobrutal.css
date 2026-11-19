@@ -105,7 +105,14 @@
 		font-weight: 700;
 		letter-spacing: -0.025em;
 	}
-	& :is(.rounded-card, .rounded-overlay, [data-slot="sidebar-inset"], [data-slot="sheet-content"]) {
+	&
+		:is(
+			.rounded-card,
+			.rounded-overlay,
+			[data-slot="sidebar-inset"],
+			[data-slot="sheet-content"],
+			[data-slot="tooltip-content"]
+		) {
 		border: 2px solid var(--ink);
 	}
 	& [data-slot="sidebar-inset"] {
