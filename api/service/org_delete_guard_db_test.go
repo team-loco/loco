@@ -137,7 +137,7 @@ func TestOrgDeleteWaitsForEnvironmentWriterBeforeCascading(t *testing.T) {
 	principal, _ := reqctx.PrincipalFrom(f.owner)
 	_, createErr := qtx.CreateResource(t.Context(), genDb.CreateResourceParams{
 		CreatedBy:   principal.UserID,
-		WorkspaceID: uuid.MustParse(f.workspaceID), Name: testNewResource, Slug: testNewResource,
+		WorkspaceID: uuid.MustParse(f.workspaceID), Name: testNewResource,
 		Type: genDb.ResourceTypeService, Spec: []byte(sameRegionSpec), SpecVersion: 1,
 	})
 	if createErr != nil {

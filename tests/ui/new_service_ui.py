@@ -810,6 +810,12 @@ with session(out) as browser:
     expect(
         ask.get_by_text(f"{repository} already exists in this workspace", exact=True)
     ).to_be_visible()
+    rule = "Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit"
+    for invalid in ["QA Echo", "-bad-", "🚀rocket", "a" * 64]:
+        name_input.fill(invalid)
+        expect(ask.get_by_text(rule, exact=True)).to_be_visible()
+    name_input.fill("localhost")
+    expect(ask.get_by_text("localhost is reserved", exact=True)).to_be_visible()
     name_input.fill(name)
     ask.get_by_role("button", name="Continue", exact=True).click()
 

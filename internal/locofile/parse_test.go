@@ -179,8 +179,14 @@ func TestParseRejects(t *testing.T) {
 		{
 			name: "service name without a letter or digit",
 			yaml: strings.Replace(minimalFile, "  api:", "  \"--\":", 1),
-			err:  ErrInvalidServiceName,
+			err:  ErrInvalidName,
 			path: "services.--",
+		},
+		{
+			name: "service name with spaces and capitals",
+			yaml: strings.Replace(minimalFile, "  api:", "  QA Echo:", 1),
+			err:  ErrInvalidName,
+			path: "services.QA Echo",
 		},
 		{
 			name: "dockerfile and image",

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -24,7 +25,7 @@ func TestCreateResourceReturnsTheCredentialActor(t *testing.T) {
 		}
 		principal, _ := reqctx.PrincipalFrom(ctx)
 		created, err := server.CreateResource(ctx, &resourcev1.CreateResourceRequest{
-			WorkspaceId: f.workspaceID.String(), Name: string(credential),
+			WorkspaceId: f.workspaceID.String(), Name: strings.ReplaceAll(string(credential), "_", "-"),
 			Type: resourcev1.ResourceType_RESOURCE_TYPE_SERVICE, Spec: testResourceSpec(),
 		})
 		if err != nil {

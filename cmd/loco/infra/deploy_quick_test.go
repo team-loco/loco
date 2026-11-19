@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/team-loco/loco/internal/locofile"
@@ -62,15 +63,19 @@ func TestDomainSuffix(t *testing.T) {
 func TestInitRejectsInvalidServiceName(t *testing.T) {
 	t.Chdir(t.TempDir())
 	cmd := buildInitCmd()
-	cmd.SetArgs([]string{"--name", "!!!"})
-
-	if err := cmd.Execute(); !errors.Is(err, locofile.ErrInvalidServiceName) {
-		t.Fatalf("init --name %q error = %v, want %v", "!!!", err, locofile.ErrInvalidServiceName)
+	for _, name := range []string{"!!!", "My App"} {
+		cmd.SetArgs([]string{"--name", name})
+		if err := cmd.Execute(); !errors.Is(err, locofile.ErrInvalidName) {
+			t.Fatalf("init --name %q error = %v, want %v", name, err, locofile.ErrInvalidName)
+		}
 	}
 }
 
-func TestDomainBaseUsesTheNameSlug(t *testing.T) {
-	if got := domainBase("Checkout API"); got != "checkout-api-" {
+func TestDomainBaseLeavesRoomForTheSuffix(t *testing.T) {
+	if got := domainBase("checkout-api"); got != "checkout-api-" {
 		t.Fatalf("domainBase() = %q, want checkout-api-", got)
+	}
+	if got := domainBase(strings.Repeat("a", 52) + "-b"); len(got)+domainSuffixLength > locofile.MaxServiceNameLength {
+		t.Fatalf("domainBase() = %q leaves no room for the suffix", got)
 	}
 }

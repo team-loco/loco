@@ -1,0 +1,17 @@
+# a quick deploy refuses a service name that is not a DNS label before it calls the API.
+mkdir app
+cd app
+! exec loco deploy 'My App' --port 8080 --yes
+stderr 'Service name "My App": must be 1 to 63 lowercase letters, digits and hyphens'
+! fakeapi called GetConfig
+! fakeapi called Plan
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"

@@ -114,6 +114,7 @@ message ResourceSpec {
 message Resource {
   string id = 1;
   string workspace_id = 2;
+  // name is the resource's slug: a DNS label, unique in its workspace, that never changes.
   string name = 3;
   ResourceType type = 4;
   repeated domain.v1.ResourceDomain domains = 5;
@@ -125,7 +126,6 @@ message Resource {
   google.protobuf.Timestamp updated_at = 11;
   optional string partial = 12;
   repeated EnvironmentStatus environment_statuses = 13;
-  string slug = 14;
   // revision increases with every change to the resource spec or its scaling.
   int64 revision = 15;
   // display_name is the label the dashboard shows. It starts as name; name never changes.
@@ -167,7 +167,8 @@ message CreateResourceRequest {
   };
 
   string workspace_id = 1 [(buf.validate.field).string.uuid = true];
-  string name = 2 [(buf.validate.field).string.max_len = 63];
+  // A DNS label other than localhost and resource-<UUID>.
+  string name = 2;
   ResourceType type = 3 [(buf.validate.field).enum = {
     in: [1]
   }];

@@ -13,10 +13,7 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-const (
-	testReservedServiceName = "resource-01234567-89ab-cdef-0123-456789abcdef"
-	testDisplaySlug         = "shopping-cart"
-)
+const testReservedServiceName = "resource-01234567-89ab-cdef-0123-456789abcdef"
 
 func createNamedResource(t *testing.T, f *deployFixture, name string) (*resourcev1.CreateResourceResponse, error) {
 	t.Helper()
@@ -34,44 +31,41 @@ func createNamedResource(t *testing.T, f *deployFixture, name string) (*resource
 	})
 }
 
-func TestCreateResourceRequiresAHostnameSlug(t *testing.T) {
+func TestCreateResourceRequiresADNSLabelName(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	for _, name := range []string{"", "!!!", "localhost", "Localhost!", testReservedServiceName} {
+	for _, name := range []string{
+		"", "QA Echo", "qa echo", "Cart", "🚀rocket", "<script>x</script>", "-bad-", "bad-", "a_b",
+		strings.Repeat("a", 64), "localhost", testReservedServiceName,
+	} {
 		_, err := createNamedResource(t, f, name)
 		wantCode(t, err, connect.CodeInvalidArgument)
+		if err != nil && !strings.Contains(err.Error(), errInvalidResourceName.Error()) {
+			t.Fatalf("%q: error %q", name, err)
+		}
 	}
-	if _, err := createNamedResource(t, f, "123cart"); err != nil {
-		t.Fatalf("numeric DNS label: %v", err)
-	}
-}
-
-func TestCreateResourceStoresTheNameSlug(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	created, err := createNamedResource(t, f, testDisplayName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	resource, err := f.queries.GetResourceByID(context.Background(), uuid.MustParse(created.GetResourceId()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resource.Name != testDisplayName || resource.Slug != testDisplaySlug {
-		t.Fatalf("name, slug = %q, %q", resource.Name, resource.Slug)
+	for _, name := range []string{"123cart", "qa-echo", strings.Repeat("a", 63)} {
+		created, err := createNamedResource(t, f, name)
+		if err != nil {
+			t.Fatalf("%q: %v", name, err)
+		}
+		resource, err := f.queries.GetResourceByID(t.Context(), uuid.MustParse(created.GetResourceId()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resource.Name != name || resource.DisplayName != name {
+			t.Fatalf("name, display name = %q, %q, want %q", resource.Name, resource.DisplayName, name)
+		}
 	}
 }
 
-func TestCreateResourceRejectsATakenSlug(t *testing.T) {
+func TestCreateResourceRejectsATakenName(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createNamedResource(t, f, testDisplayName); err != nil {
-		t.Fatal(err)
-	}
-	_, err := createNamedResource(t, f, "shopping cart!")
+	_, err := createNamedResource(t, f, planSvc)
 	wantCode(t, err, connect.CodeAlreadyExists)
-	if !strings.Contains(err.Error(), testDisplayName) {
-		t.Fatalf("error %q does not name %q", err, testDisplayName)
+	if err != nil && !strings.Contains(err.Error(), ErrResourceNameNotUnique.Error()+": "+planSvc) {
+		t.Fatalf("error %q does not name %q", err, planSvc)
 	}
 }
 
@@ -87,27 +81,7 @@ func TestPlanRejectsNewReservedServiceNames(t *testing.T) {
 	if len(response.GetErrors()) != 1 || len(response.GetOperations()) != 0 {
 		t.Fatalf("reserved create plan = %v", response)
 	}
-	if response.GetErrors()[0].GetMessage() != errPrivateServiceName.Error() {
+	if response.GetErrors()[0].GetMessage() != errInvalidResourceName.Error() {
 		t.Fatalf("error = %v", response.GetErrors()[0])
-	}
-}
-
-func TestPlanRejectsCreatesWithATakenSlug(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	f.markClustersHealthy(t)
-	file := planFileHeader + strings.Replace(planFileNew, "  new:", "  SVC:", 1) +
-		planFileNew + strings.Replace(planFileNew, "  new:", "  New!:", 1)
-	response, err := plan(t, f, file, f.workspaceReadScopes(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(response.GetErrors()) != 2 || len(response.GetOperations()) != 0 {
-		t.Fatalf("taken slug plan = %v", response)
-	}
-	for _, planErr := range response.GetErrors() {
-		if !strings.Contains(planErr.GetMessage(), errSlugInUse.Error()) {
-			t.Fatalf("error = %v", planErr)
-		}
 	}
 }

@@ -6,14 +6,15 @@ import (
 )
 
 var (
-	ErrRuntimeID              = errors.New("must be a numeric ID between 1 and 2147483647")
-	ErrServiceNotFound        = errors.New("service is not in the file")
-	ErrNotSupportedYet        = errors.New("not supported yet")
-	ErrUnsupportedVersion     = errors.New("version must be 1")
-	ErrPartialRequired        = errors.New("partial is required")
-	ErrNoServices             = errors.New("services is required; services: {} removes every service of the partial")
-	ErrInvalidName            = errors.New("must be a DNS label of 1 to 63 lowercase letters, digits and hyphens")
-	ErrInvalidServiceName     = errors.New("must be at most 63 characters and contain a letter or digit")
+	ErrRuntimeID          = errors.New("must be a numeric ID between 1 and 2147483647")
+	ErrServiceNotFound    = errors.New("service is not in the file")
+	ErrNotSupportedYet    = errors.New("not supported yet")
+	ErrUnsupportedVersion = errors.New("version must be 1")
+	ErrPartialRequired    = errors.New("partial is required")
+	ErrNoServices         = errors.New("services is required; services: {} removes every service of the partial")
+	ErrInvalidName        = errors.New(
+		"must be 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit",
+	)
 	ErrImageWithBuild         = errors.New("image cannot be combined with dockerfile or context")
 	ErrPortRequired           = errors.New("needs port; a service without port is a worker and receives no traffic")
 	ErrNoRegions              = errors.New("at least one region is required")

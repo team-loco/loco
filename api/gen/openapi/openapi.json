@@ -13932,7 +13932,7 @@
           "name": {
             "type": "string",
             "title": "name",
-            "maxLength": 63
+            "description": "A DNS label other than localhost and resource-\u003cUUID\u003e."
           },
           "type": {
             "title": "type",
@@ -14373,7 +14373,8 @@
           },
           "name": {
             "type": "string",
-            "title": "name"
+            "title": "name",
+            "description": "name is the resource's slug: a DNS label, unique in its workspace, that never changes."
           },
           "type": {
             "title": "type",
@@ -14434,10 +14435,6 @@
               "$ref": "#/components/schemas/loco.resource.v1.EnvironmentStatus"
             },
             "title": "environment_statuses"
-          },
-          "slug": {
-            "type": "string",
-            "title": "slug"
           },
           "revision": {
             "type": "string",

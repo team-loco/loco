@@ -40,8 +40,8 @@ func TestUpdateResourceDisplayNameKeepsNameAndPlacements(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resource.DisplayName != testDisplayName || resource.Name != planSvc || resource.Slug != planSvc {
-		t.Fatalf("display name, name, slug = %q, %q, %q", resource.DisplayName, resource.Name, resource.Slug)
+	if resource.DisplayName != testDisplayName || resource.Name != planSvc {
+		t.Fatalf("display name, name = %q, %q", resource.DisplayName, resource.Name)
 	}
 	after := f.placement(t, f.clusterID)
 	if after.DesiredRevision != before.DesiredRevision || !bytes.Equal(after.DesiredSpec, before.DesiredSpec) {

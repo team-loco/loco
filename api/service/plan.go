@@ -171,7 +171,7 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		return nil, fmt.Errorf("compute plan: %w", err)
 	}
-	plan.Errors = append(plan.Errors, slugErrors(plan.Operations, live.resources)...)
+	plan.Errors = append(plan.Errors, nameErrors(plan.Operations)...)
 	if len(plan.Errors) > 0 {
 		plan.Operations = nil
 		plan.Desired = nil
@@ -186,28 +186,13 @@ func (s *PlanServer) loadPlan(
 	}, nil
 }
 
-// slugErrors reports each service the plan creates whose slug is empty, reserved, or held by
-// another workspace resource or another create in the plan.
-func slugErrors(operations []configplan.Operation, resources map[string]genDb.Resource) []configplan.Error {
-	holders := make(map[string]string, len(resources))
-	for name, resource := range resources {
-		holders[resource.Slug] = name
-	}
+// nameErrors reports each service the plan creates whose name is reserved.
+func nameErrors(operations []configplan.Operation) []configplan.Error {
 	var errs []configplan.Error
 	for _, op := range operations {
-		if op.Kind != configplan.KindCreate {
-			continue
+		if op.Kind == configplan.KindCreate && !validResourceName(op.Service) {
+			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errInvalidResourceName})
 		}
-		slug := resourceSlug(op.Service)
-		if slug == "" {
-			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errPrivateServiceName})
-			continue
-		}
-		if other, taken := holders[slug]; taken {
-			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: slugTakenError(slug, other)})
-			continue
-		}
-		holders[slug] = op.Service
 	}
 	return errs
 }

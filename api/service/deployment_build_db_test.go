@@ -372,7 +372,7 @@ func TestBuildDeploymentUsesStoredSpecAndCurrentResource(t *testing.T) {
 	f := newBuildFixture(t)
 	buildID := f.queued(t)
 	deployBuild(t, f, buildID)
-	if _, err := f.pool.Exec(f.ctx, `UPDATE resources SET slug='renamed-service',
+	if _, err := f.pool.Exec(f.ctx, `UPDATE resources SET
  spec=jsonb_set(spec,'{regions,us-east-1,cpu}','"900m"') WHERE id=$1`, f.resourceID); err != nil {
 		t.Fatal(err)
 	}
@@ -382,9 +382,6 @@ func TestBuildDeploymentUsesStoredSpecAndCurrentResource(t *testing.T) {
 		t.Fatal(err)
 	}
 	payload := desiredPayload(t, f.deployFixture)
-	if payload.AppSpec.Slug != "renamed-service" {
-		t.Fatalf("slug=%s", payload.AppSpec.Slug)
-	}
 	if got := payload.AppSpec.ServiceSpec.Resources.CPU; got != testRegionCPU {
 		t.Fatalf("cpu=%s", got)
 	}

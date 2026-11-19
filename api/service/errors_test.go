@@ -108,7 +108,7 @@ func TestUniqueViolationMatchesOnlyItsConstraint(t *testing.T) {
 	if !isUniqueViolation(violation(pgResourceNameUnique), pgResourceNameUnique) {
 		t.Fatal("the named constraint was not matched")
 	}
-	if isUniqueViolation(violation(pgResourceSlugUnique), pgResourceNameUnique) {
+	if isUniqueViolation(violation(pgDomainUnique), pgResourceNameUnique) {
 		t.Fatal("a violation of another constraint matched")
 	}
 	if !isDomainTaken(violation(pgPlatformSubdomainUnique)) {

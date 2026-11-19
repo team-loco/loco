@@ -701,7 +701,7 @@ def seed_deployments(state, resource_id, deployments, user="owner"):
     target = json.loads(
         psql(
             state["container"],
-            "SELECT json_build_object('org', w.org_id, 'workspace', w.id, 'slug', r.slug, 'environments', "
+            "SELECT json_build_object('org', w.org_id, 'workspace', w.id, 'slug', r.name, 'environments', "
             "(SELECT json_object_agg(e.name, e.id) FROM environments e WHERE e.workspace_id=w.id)) "
             f"FROM resources r JOIN workspaces w ON w.id=r.workspace_id WHERE r.id={q(resource_id)};",
         )

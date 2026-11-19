@@ -10,7 +10,6 @@ import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFie
 import { Switch } from "@/components/design/Switch";
 import { joinImage, splitImage } from "@/lib/image";
 import type { SizeOptions } from "@/lib/sizing";
-import { slug } from "@/lib/slug";
 
 import type { RegionView } from "./model";
 import type { Baseline, DraftErrors, SettingsDraft } from "./settings-draft";
@@ -463,10 +462,7 @@ export function GeneralSection({
 						}}
 					/>
 				</Field>
-				<Field
-					label="Name"
-					hint={`Used by loco.yaml, the CLI and filters, and can't be changed. Private hostname: ${slug(base.name) || "none"}`}
-				>
+				<Field label="Name" hint="Its private hostname, used by loco.yaml, the CLI and filters. It can't be changed.">
 					<Input value={base.name} readOnly className="font-mono" />
 				</Field>
 				<Field label="Description" hint="Shown under the name in lists and the resource switcher">

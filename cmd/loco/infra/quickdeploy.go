@@ -166,6 +166,9 @@ func quickServiceName(cmd *cobra.Command, names []string) (string, error) {
 			return "", err
 		}
 	}
+	if !locofile.IsDNSLabel(name) {
+		return "", fmt.Errorf("service name %q: %w", name, locofile.ErrInvalidName)
+	}
 	return name, nil
 }
 
@@ -252,11 +255,10 @@ func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, 
 }
 
 func domainBase(name string) string {
-	prefix := locofile.Slug(name)
-	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
-		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
+	if len(name) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
+		name = strings.TrimSuffix(name[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
 	}
-	return prefix + "-"
+	return name + "-"
 }
 
 func domainSuffix(workspaceID, name string) string {
