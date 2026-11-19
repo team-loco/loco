@@ -14,7 +14,7 @@ import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { formatStarted, shortDurationLabel, tsMs } from "@/lib/time";
+import { formatStarted, readyMs, shortDurationLabel } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -111,7 +111,7 @@ export function RecentDeployments({
 						)}
 						{rows.map(({ deployment: d, resource }) => {
 							const href = resourcePath(orgId, workspaceId, resource.id, { env: envName });
-							const createdMs = tsMs(d.createdAt);
+							const ready = readyMs(d);
 							return (
 								<TableRow key={d.id} onClick={() => void navigate(href)}>
 									<TableCell>
@@ -140,10 +140,10 @@ export function RecentDeployments({
 									</TableCell>
 									<TableCell
 										className="text-right font-mono text-[12px] whitespace-nowrap text-fg3"
-										title={formatStarted(createdMs, timePref)}
+										title={ready === undefined ? undefined : formatStarted(ready, timePref)}
 									>
 										<span className="inline-flex items-center gap-1.5">
-											{shortDurationLabel(nowMs - createdMs)}
+											{ready === undefined ? "—" : shortDurationLabel(nowMs - ready)}
 											<ArrowRightIcon
 												aria-hidden
 												className="size-3.5 -translate-x-[3px] text-foreground opacity-0 transition-[opacity,translate] duration-120 group-hover/row:translate-x-0 group-hover/row:opacity-100"

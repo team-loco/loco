@@ -105,6 +105,10 @@ VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','ag
 INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"crash_loop","detail":"The pod restarted"}}}}');
 COMMIT;""",
 )
+sql(
+    state,
+    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes', started_at = NOW() - INTERVAL '10 minutes' WHERE id='{deployment}';",
+)
 desired = json.dumps(
     {
         "app_spec": {
@@ -218,6 +222,11 @@ with session(out) as browser:
     expect(
         page.get_by_text(re.compile(r"^deployed .+ by Olivia Owner$"))
     ).to_be_visible()
+    # Every "deployed N ago" counts from when the deployment became ready.
+    expect(page.get_by_text("deployed 10 min ago by Olivia Owner")).to_be_visible()
+    deployment_row = page.get_by_role("row").filter(has_text="current")
+    expect(deployment_row.get_by_role("cell").nth(-1)).to_have_text("10 min ago")
+    expect(deployment_row.get_by_role("cell").nth(-2)).to_have_text("30 min ago")
     page.get_by_role("button", name="Switch resource", exact=True).click()
     expect(
         page.get_by_role("menuitem", name=re.compile(rf"^{name}")).get_by_text(
