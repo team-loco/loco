@@ -516,6 +516,27 @@ def calendar(page):
     expect(date_trigger).not_to_have_text(before)
 
 
+def custom_range_future_end(page):
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    page.get_by_role("button", name=re.compile(r"^Past ")).click()
+    time_range = page.get_by_role("dialog", name="Time range")
+    end_date = time_range.get_by_role("button", name="To date")
+    end_date.click()
+    popup = page.get_by_role("dialog", name="To calendar")
+    popup.get_by_role("grid").get_by_role(
+        "button", name=re.compile(r"selected", re.I)
+    ).focus()
+    page.keyboard.press("ArrowRight")
+    page.keyboard.press("ArrowRight")
+    page.keyboard.press("Enter")
+    expect(popup).not_to_be_visible()
+    time_range.get_by_role("button", name="Apply", exact=True).click()
+    expect(time_range.get_by_role("alert")).to_have_text(
+        "The end can't be in the future."
+    )
+    expect(page).not_to_have_url(re.compile(r"[?&]to="))
+
+
 def query_enter(page):
     page.goto(
         state["ui_url"]
@@ -1234,6 +1255,7 @@ with session(out) as browser:
         live_focus,
         time_presets,
         calendar,
+        custom_range_future_end,
         metrics,
         query_enter,
         query_suggestions,
