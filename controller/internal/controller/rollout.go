@@ -148,7 +148,10 @@ func (r *ApplicationReconciler) observeReplicas(
 	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
 	rollout.ProvenRevision = previous.ProvenRevision
 	if rollout.Stopped == nil {
-		rollout.Stopped = exhaustedRevision(current, revision, rollout.ProvenRevision, policy, now)
+		rollout.Stopped = exhaustedRevision(current, revision, policy, now)
+	}
+	if rollout.Stopped != nil && rollout.Stopped.PlacementRevision == rollout.ProvenRevision {
+		rollout.ProvenRevision = 0
 	}
 	r.observeHealth(rollout, current, revision, now)
 	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)

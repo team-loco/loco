@@ -27,7 +27,7 @@ func stoppedRevision(app *loco.Application) *loco.StoppedRevision {
 // exhaustedRevision stops the revision when one of its replicas restarted past the budget.
 func exhaustedRevision(
 	current []observedReplica,
-	revision, proven int64,
+	revision int64,
 	policy loco.RestartPolicySpec,
 	now time.Time,
 ) *loco.StoppedRevision {
@@ -46,7 +46,6 @@ func exhaustedRevision(
 			Restarts:          int32(len(status.RestartsAt)),
 			LastRestart:       last,
 			At:                metav1.NewTime(now),
-			Rollout:           proven != revision,
 		}
 	}
 	return nil
@@ -54,12 +53,14 @@ func exhaustedRevision(
 
 const annotationDeploymentRevision = "deployment.kubernetes.io/revision"
 
-// stoppedReplicaSets lists the Deployment's ReplicaSets of the stopped revision and the newest
-// ReplicaSet of an earlier revision, nil when there is none.
+// stoppedReplicaSets lists the Deployment's ReplicaSets of the stopped revision and the one that
+// serves in its place: the newest ReplicaSet of another revision that still has replicas, else the
+// proven revision's. It is nil when neither exists.
 func (r *ApplicationReconciler) stoppedReplicaSets(
 	ctx context.Context,
 	namespace, name string,
 	stopped *loco.StoppedRevision,
+	proven int64,
 ) ([]appsv1.ReplicaSet, *appsv1.ReplicaSet, error) {
 	var sets appsv1.ReplicaSetList
 	if err := r.APIReader.List(ctx, &sets, client.InNamespace(namespace),
@@ -68,16 +69,23 @@ func (r *ApplicationReconciler) stoppedReplicaSets(
 	}
 	revision := strconv.FormatInt(stopped.PlacementRevision, 10)
 	var current []appsv1.ReplicaSet
-	var previous *appsv1.ReplicaSet
+	var serving, provenSet *appsv1.ReplicaSet
 	for i := range sets.Items {
 		set := &sets.Items[i]
-		if set.Spec.Template.Annotations[loco.KeyPlacementRevision] == revision {
+		switch setRevision := set.Spec.Template.Annotations[loco.KeyPlacementRevision]; {
+		case setRevision == revision:
 			current = append(current, *set)
-		} else if previous == nil || deploymentRevision(set) > deploymentRevision(previous) {
-			previous = set
+		case ptr.Deref(set.Spec.Replicas, 0) > 0 &&
+			(serving == nil || deploymentRevision(set) > deploymentRevision(serving)):
+			serving = set
+		case proven != 0 && setRevision == strconv.FormatInt(proven, 10):
+			provenSet = set
 		}
 	}
-	return current, previous, nil
+	if serving != nil {
+		return current, serving, nil
+	}
+	return current, provenSet, nil
 }
 
 func deploymentRevision(set *appsv1.ReplicaSet) int64 {

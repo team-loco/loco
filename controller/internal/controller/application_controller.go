@@ -773,14 +773,15 @@ func (r *ApplicationReconciler) ensureDeployment(
 	var previous *appsv1.ReplicaSet
 	if stopped := stoppedRevision(app); stopped != nil {
 		var err error
-		stoppedSets, previous, err = r.stoppedReplicaSets(ctx, namespace, name, stopped)
+		proven := app.Status.Rollout.ProvenRevision
+		stoppedSets, previous, err = r.stoppedReplicaSets(ctx, namespace, name, stopped, proven)
 		if err != nil {
 			return nil, err
 		}
 		dep.Spec.WithPaused(true)
-		if !stopped.Rollout || previous == nil {
+		stopped.Rollout = previous != nil
+		if previous == nil {
 			dep.Spec.WithReplicas(0)
-			previous = nil
 		}
 	}
 

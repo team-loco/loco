@@ -459,8 +459,8 @@ spec:
                         format: int32
                         type: integer
                       rollout:
-                        description: Rollout is set when the revision never proved
-                          itself, so the previous revision serves in its place.
+                        description: Rollout is set when a previous version took the
+                          stopped revision's place.
                         type: boolean
                     required:
                     - at

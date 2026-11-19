@@ -69,7 +69,7 @@ type Platform struct {
 	S3Endpoint      string
 	// PublicImage runs a web server on 8080; AlternatePortImage runs it on 9090.
 	// CrashingImage exits a few seconds after it starts without listening; WorkerImage never listens.
-	// LateCrashingImage serves on 8080 for a minute, then exits.
+	// LateCrashingImage serves on 8080 for 45 seconds, then exits.
 	PublicImage        string
 	AlternatePortImage string
 	CrashingImage      string

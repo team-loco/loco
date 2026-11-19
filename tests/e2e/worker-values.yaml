@@ -13,6 +13,7 @@ envoyProxy:
   tracing:
     samplingRate: 100
 controller:
+  healthyAfterSeconds: 60
   image:
     pullPolicy: Never
 registry:
