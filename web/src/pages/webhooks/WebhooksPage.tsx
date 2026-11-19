@@ -29,7 +29,9 @@ import { limitReason, limitUsage } from "@/lib/limits";
 import { NewWebhookDialog } from "./NewWebhookDialog";
 import { WebhookDrawer } from "./WebhookDrawer";
 import { formatDay } from "../settings/parts";
-import { DELIVERY_TICKS, eventsSummary, tickStrip, type Tick } from "./webhooks";
+import { DELIVERY_TICKS, eventsSummary, hasPending, tickStrip, type Tick } from "./webhooks";
+
+const PENDING_REFRESH_MS = 5_000;
 
 const TICK_CLASS: Record<Tick, string> = {
 	ok: "bg-ok-glyph opacity-75",
@@ -282,7 +284,11 @@ function WebhookRow({
 }
 
 function DeliveryTicks({ workspaceId, webhookId }: { workspaceId: string; webhookId: string }) {
-	const query = useQuery(listWebhookDeliveries, { workspaceId, webhookId });
+	const query = useQuery(
+		listWebhookDeliveries,
+		{ workspaceId, webhookId },
+		{ refetchInterval: (q) => (hasPending(q.state.data?.deliveries) ? PENDING_REFRESH_MS : false) },
+	);
 	if (query.isPending) return <Skeleton className="h-4 w-36" />;
 	if (query.error !== null) {
 		return <span className="text-[12px] text-bad-fg">{getErrorMessage(query.error, "Failed to load deliveries")}</span>;

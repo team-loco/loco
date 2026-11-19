@@ -1,6 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 import { expect, test } from "bun:test";
-import { Code, ConnectError } from "@connectrpc/connect";
+import { Code, ConnectError, createRouterTransport } from "@connectrpc/connect";
+import { createQueryOptions } from "@connectrpc/connect-query";
+import { listWebhookDeliveries } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
+import { QueryClient } from "@tanstack/react-query";
 import { WebhookDeliverySchema } from "@gen/loco/webhook/v1/webhook_pb";
 
 import { msToTimestamp } from "@/lib/time";
@@ -13,9 +16,11 @@ import {
 	deliveryWhen,
 	eventsSummary,
 	groupCountLabel,
+	hasPending,
 	isHttpsUrl,
 	isPrivateAddress,
 	isUrlRejection,
+	refreshDeliveries,
 	tickStrip,
 	webhookEventGroups,
 } from "./webhooks";
@@ -153,4 +158,23 @@ test("maps fresh pending deliveries to the neutral glyph", () => {
 	expect(deliveryTick(delivery("retry", "pending", "timeout"))).toBe("warn");
 	expect(deliveryTick(delivery("failed", "failed"))).toBe("err");
 	expect(deliveryTick(delivery("sent", "succeeded"))).toBe("ok");
+});
+
+test("refreshing deliveries invalidates the table row and drawer lists of every webhook", async () => {
+	const transport = createRouterTransport(() => {});
+	const client = new QueryClient();
+	const row = createQueryOptions(listWebhookDeliveries, { workspaceId: "ws", webhookId: "a" }, { transport });
+	const other = createQueryOptions(listWebhookDeliveries, { workspaceId: "ws", webhookId: "b" }, { transport });
+	client.setQueryData(row.queryKey, {});
+	client.setQueryData(other.queryKey, {});
+	await refreshDeliveries(client);
+	expect(client.getQueryState(row.queryKey)?.isInvalidated).toBe(true);
+	expect(client.getQueryState(other.queryKey)?.isInvalidated).toBe(true);
+	client.clear();
+});
+
+test("polls only while a delivery is pending", () => {
+	expect(hasPending(undefined)).toBe(false);
+	expect(hasPending([delivery("a", "succeeded"), delivery("b", "failed")])).toBe(false);
+	expect(hasPending([delivery("a", "succeeded"), delivery("b", "pending")])).toBe(true);
 });

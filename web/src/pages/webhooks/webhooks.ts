@@ -1,5 +1,8 @@
 import { Code, ConnectError } from "@connectrpc/connect";
+import { createConnectQueryKey } from "@connectrpc/connect-query";
+import { listWebhookDeliveries } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
 import type { WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
+import type { QueryClient } from "@tanstack/react-query";
 
 import { pluralize } from "@/lib/format";
 import { maybeTsMs, shortAgoLabel, shortDurationLabel, tsMs } from "@/lib/time";
@@ -25,6 +28,18 @@ export function deliveryLabel(d: WebhookDelivery): string {
 	if (d.status === STATUS_FAILED) return "Failed";
 	if (d.status === STATUS_PENDING) return d.lastError === "" ? "Pending" : "Retrying";
 	return d.status;
+}
+
+/** Every cached delivery list, in the table's rows and in the drawer. */
+export async function refreshDeliveries(client: QueryClient): Promise<void> {
+	await client.invalidateQueries({
+		queryKey: createConnectQueryKey({ schema: listWebhookDeliveries, cardinality: undefined }),
+	});
+}
+
+/** A pending delivery is still waiting for its first attempt or a retry, so its list changes without a user action. */
+export function hasPending(deliveries: readonly WebhookDelivery[] | undefined): boolean {
+	return deliveries?.some((d) => d.status === STATUS_PENDING) ?? false;
 }
 
 export interface TickMark {

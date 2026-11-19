@@ -1,6 +1,7 @@
 import { useMutation } from "@connectrpc/connect-query";
 import type { Webhook } from "@gen/loco/webhook/v1/webhook_pb";
 import { rotateWebhookSecret, sendTestEvent } from "@gen/loco/webhook/v1/webhook-WebhookService_connectquery";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCopy } from "@/hooks/useCopy";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,6 +16,7 @@ import { CopyIcon, PencilIcon, RotateCwIcon, SendIcon, Trash2Icon } from "lucide
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 
 import { NewWebhookDialog, SigningSecret } from "./NewWebhookDialog";
+import { refreshDeliveries } from "./webhooks";
 
 export function WebhookActions({
 	workspaceId,
@@ -31,6 +33,7 @@ export function WebhookActions({
 	webhook: Webhook;
 	onChanged: () => void;
 }) {
+	const queryClient = useQueryClient();
 	const [, copy] = useCopy();
 	const [dialog, setDialog] = useState<"edit" | "rotate" | null>(null);
 	const close = () => {
@@ -39,6 +42,7 @@ export function WebhookActions({
 	const test = useMutation(sendTestEvent, {
 		onSuccess: () => {
 			toast.success("Sent a test event");
+			void refreshDeliveries(queryClient);
 			onChanged();
 		},
 		onError: (error) => {

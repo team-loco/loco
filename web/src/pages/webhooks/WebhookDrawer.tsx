@@ -26,7 +26,15 @@ import { formatClock, tsMs } from "@/lib/time";
 
 import { WebhookActions } from "./WebhookActions";
 import { formatDay } from "../settings/parts";
-import { deliveryDetail, deliveryLabel, deliveryTick, deliveryWhen, STATUS_FAILED, STATUS_SUCCEEDED } from "./webhooks";
+import {
+	deliveryDetail,
+	deliveryLabel,
+	deliveryTick,
+	deliveryWhen,
+	refreshDeliveries,
+	STATUS_FAILED,
+	STATUS_SUCCEEDED,
+} from "./webhooks";
 
 const PAGE_SIZES = [25, 50, 100] as const;
 const FIRST_PAGE: Paging = { page: 0, size: PAGE_SIZES[0] };
@@ -118,9 +126,7 @@ function WebhookDetail({
 		setPaging,
 	);
 	const refresh = () => {
-		void queryClient.invalidateQueries({
-			queryKey: createConnectQueryKey({ schema: listWebhookDeliveries, cardinality: undefined }),
-		});
+		void refreshDeliveries(queryClient);
 		void queryClient.invalidateQueries({
 			queryKey: createConnectQueryKey({ schema: listWebhooks, cardinality: "finite" }),
 		});
