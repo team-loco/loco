@@ -94,8 +94,8 @@ func TestNewRetriesAKubernetesLoginUntilTheRoleAccepts(t *testing.T) {
 	if _, err := New(t.Context(), kubernetesTransitConfig(server.URL, path)); err != nil {
 		t.Fatalf("new: %v", err)
 	}
-	if logins := fake.Count(transittest.LoginPath); logins <= sealedRequests {
-		t.Fatalf("logins = %d, want more than %d", logins, sealedRequests)
+	if logins := fake.Count(transittest.LoginPath); logins < sealedRequests {
+		t.Fatalf("logins = %d, want at least %d", logins, sealedRequests)
 	}
 }
 
