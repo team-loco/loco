@@ -33,8 +33,6 @@ import (
 )
 
 const (
-	dexIssuerURL   = "http://localhost:25556/dex"
-	dexTokenURL    = dexIssuerURL + "/token"
 	dexClientToken = "loco-conformance"
 
 	journeyOrgName = "Acme"
@@ -77,7 +75,7 @@ func newJourneyAPI(t *testing.T, mode string) *journeyAPI {
 		LastUsedUpdateInterval:      time.Hour,
 	})
 
-	issuers, err := auth.ParseIssuers(`[{"issuer":"` + dexIssuerURL + `","audience":"` + conformanceClientID + `"}]`)
+	issuers, err := auth.ParseIssuers(`[{"issuer":"` + dexURL + `","audience":"` + conformanceClientID + `"}]`)
 	if err != nil {
 		t.Fatalf("AUTH_ISSUERS: %v", err)
 	}
@@ -141,7 +139,7 @@ func (a *journeyAPI) existingAccount(t *testing.T, email, password string) {
 	if err != nil {
 		t.Fatalf("policy: %v", err)
 	}
-	id, err := a.verifier.Verify(t.Context(), passwordGrant(dexTokenURL, dexClientToken, email, password)(t))
+	id, err := a.verifier.Verify(t.Context(), passwordGrant(dexURL+"/token", dexClientToken, email, password)(t))
 	if err != nil {
 		t.Fatalf("verify the Dex token for %s: %v", email, err)
 	}
@@ -153,7 +151,7 @@ func (a *journeyAPI) existingAccount(t *testing.T, email, password string) {
 
 func (a *journeyAPI) dexClients(t *testing.T, email, password string) *rpc.Clients {
 	t.Helper()
-	token := passwordGrant(dexTokenURL, dexClientToken, email, password)(t)
+	token := passwordGrant(dexURL+"/token", dexClientToken, email, password)(t)
 	return rpc.NewHTTPClients(http.DefaultClient, a.url, token)
 }
 

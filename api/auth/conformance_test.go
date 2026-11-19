@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,11 @@ const (
 	grantAuthorizationCode = "authorization_code"
 	paramScope             = "scope"
 	oidcScopes             = "openid email profile"
+)
+
+var (
+	keycloakURL = os.Getenv("LOCO_CONFORMANCE_KEYCLOAK_URL")
+	dexURL      = os.Getenv("LOCO_CONFORMANCE_DEX_URL")
 )
 
 type tokenFunc func(t *testing.T) string
@@ -113,23 +119,23 @@ func providers() []conformanceProvider {
 		{name: "supabase", setup: supabaseProvider},
 		{
 			name:    "keycloak",
-			issuers: `[{"issuer":"http://localhost:25080/realms/loco","audience":"loco"}]`,
+			issuers: `[{"issuer":"` + keycloakURL + `/realms/loco","audience":"loco"}]`,
 			accounts: []account{
 				{accountVerified, "alice@keycloak.test", true, passwordGrant(
-					"http://localhost:25080/realms/loco/protocol/openid-connect/token", "", "alice", "alicepw",
+					keycloakURL+"/realms/loco/protocol/openid-connect/token", "", "alice", "alicepw",
 				)},
 				{accountUnverified, "bob@keycloak.test", false, passwordGrant(
-					"http://localhost:25080/realms/loco/protocol/openid-connect/token", "", "bob", "bobpw",
+					keycloakURL+"/realms/loco/protocol/openid-connect/token", "", "bob", "bobpw",
 				)},
 			},
 		},
 		{name: "zitadel", setup: zitadelProvider},
 		{
 			name:    "dex",
-			issuers: `[{"issuer":"http://localhost:25556/dex","audience":"loco"}]`,
+			issuers: `[{"issuer":"` + dexURL + `","audience":"loco"}]`,
 			accounts: []account{
 				{"static password", "carol@dex.test", true, passwordGrant(
-					"http://localhost:25556/dex/token", "loco-conformance", "carol@dex.test", "carolpw",
+					dexURL+"/token", "loco-conformance", "carol@dex.test", "carolpw",
 				)},
 			},
 		},

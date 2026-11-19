@@ -31,6 +31,10 @@ auth-conformance:
     - "tests/conformance/auth/**"
     - "mise-tasks/test/auth-conformance"
     - "mise-tasks/test/auth-invitations"
+    - "mise-tasks/test/lib/auth-stack.sh"
+    - "mise-tasks/test/lib/testres.sh"
+    - "internal/testres/**"
+    - "tools/testres/**"
     - ".github/workflows/auth-conformance.yml"
     - ".github/actions/setup-tools/**"
     - "mise.toml"
@@ -258,7 +262,7 @@ e2e-installation:
 go-lint-and-test:
   pull_request: &go-lint-and-test
     - "mise-tasks/test/counter-metrics"
-    - "mise-tasks/test/lib/ports.sh"
+    - "mise-tasks/test/lib/testres.sh"
     - "mise-tasks/test/api"
     - "mise-tasks/test/lib/clickhouse.sh"
     - "charts/loco-control-plane/values.yaml"

@@ -2,44 +2,12 @@
 #MISE description="Run the auth contract against Supabase Auth, Keycloak, Zitadel and Dex"
 set -euo pipefail
 
-root=$(git rev-parse --show-toplevel)
-cd "$root"
-compose=(docker compose -f "$root/tests/conformance/auth/compose.yaml")
-keys=$(go run ./tools/authkeys)
-set -a
-eval "$keys"
-set +a
-if [ "${KEEP:-}" = "" ]; then
-	zitadel_bootstrap=$(mktemp -d "${TMPDIR:-/tmp}/loco-auth-conformance-zitadel.XXXXXX")
-else
-	zitadel_bootstrap="${TMPDIR:-/tmp}/loco-auth-conformance-zitadel"
-	mkdir -p "$zitadel_bootstrap"
-fi
-chmod 777 "$zitadel_bootstrap"
-export CONFORMANCE_ZITADEL_BOOTSTRAP="$zitadel_bootstrap"
-cleanup() {
-	status=$?
-	if [ "$status" -ne 0 ]; then
-		"${compose[@]}" ps -a
-		"${compose[@]}" logs --no-color --tail=80
-	fi
-	if [ "${KEEP:-}" = "" ]; then
-		"${compose[@]}" down -v >/dev/null 2>&1
-		rm -f "$zitadel_bootstrap/admin.pat" "$zitadel_bootstrap/login-client.pat"
-		rmdir "$zitadel_bootstrap"
-	fi
-}
-trap cleanup EXIT
-"${compose[@]}" up -d --wait
-for _ in $(seq 1 60); do
-	curl -sf -o /dev/null http://localhost:25556/dex/.well-known/openid-configuration && break
-	sleep 1
-done
+source "$(git rev-parse --show-toplevel)/mise-tasks/test/lib/auth-stack.sh"
+auth_stack_up
 for _ in $(seq 1 120); do
-	[ -s "$zitadel_bootstrap/admin.pat" ] && [ -s "$zitadel_bootstrap/login-client.pat" ] && break
+	[ -s "$CONFORMANCE_ZITADEL_BOOTSTRAP/admin.pat" ] && [ -s "$CONFORMANCE_ZITADEL_BOOTSTRAP/login-client.pat" ] && break
 	sleep 1
 done
 cd api
-LOCO_CONFORMANCE_ZITADEL_BOOTSTRAP="$zitadel_bootstrap" \
-	LOCO_TEST_DATABASE_URL="postgres://loco_test:loco_test@localhost:25440/loco_test?sslmode=disable" \
+LOCO_CONFORMANCE_ZITADEL_BOOTSTRAP="$CONFORMANCE_ZITADEL_BOOTSTRAP" \
 	go test -tags conformance -count=1 -run TestProviderConformance -v ./auth/ "$@"
