@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useState } from "react";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { createParser, parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { listTokens } from "@gen/loco/token/v1/token-TokenService_connectquery";
@@ -43,8 +43,14 @@ const NOW_TICK_MS = 60_000;
 const NEW_PARAM = "new";
 const TOKEN_DOCS = `${DOCS_URL}/operations/access/#deploy-from-ci-with-an-api-token`;
 
+// The long name `organization` reads as `org`.
+const ownerParser = createParser<OwnerKey>({
+	parse: (value) => OWNER_KEYS.find((k) => k === (value === "organization" ? "org" : value)) ?? null,
+	serialize: (value) => value,
+});
+
 const TOKENS_PARAMS = {
-	owner: parseAsStringLiteral(OWNER_KEYS).withDefault("workspace"),
+	owner: ownerParser.withDefault("workspace"),
 	[NEW_PARAM]: parseAsStringLiteral(["1"]),
 	q: parseAsString.withDefault(""),
 };
