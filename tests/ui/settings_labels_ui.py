@@ -191,7 +191,8 @@ def check_create_dialogs(page):
     drawer = page.get_by_role("dialog", name="New token", exact=True)
     name = drawer.get_by_role("textbox", name="Name", exact=True)
     name.fill("CI Deploy")
-    expect(name).to_have_value("ci-deploy")
+    expect(name).to_have_value("CI Deploy")
+    expect(drawer.get_by_text("Saved as ci-deploy")).to_be_visible()
     expect(
         drawer.get_by_role("button", name="Create token", exact=True)
     ).to_be_disabled()
@@ -370,6 +371,10 @@ with session(out) as browser:
                         expect(page.locator("html")).not_to_have_class(
                             re.compile(r"\bdark\b")
                         )
+        page.goto(state["ui_url"] + base)
+        page.wait_for_url(
+            lambda url: parse_qs(urlparse(url).query).get("scope") == ["workspace"]
+        )
         page.goto(state["ui_url"] + base + "?scope=personal")
         group = page.get_by_role("group", name="Settings for", exact=True)
         expect(
@@ -384,5 +389,14 @@ with session(out) as browser:
         expect(page).to_have_url(re.compile(r"scope=personal"))
         check_time_preferences(page)
         context.close()
+with session(out) as browser:
+    context, page, errors = open_page(browser, "nameless", state=state)
+    page.goto(state["ui_url"] + "/profile")
+    name = page.get_by_role("textbox", name="Name", exact=True)
+    expect(name).to_have_attribute("placeholder", "Your name")
+    expect(name).to_have_value("")
+    expect(page.get_by_text("Unsaved changes")).to_have_count(0)
+    context.close()
+    browser.close()
 (out / "results.json").write_text(json.dumps(results, indent=2))
 print(f"PASS: {len(results)} settings field-label cases", flush=True)

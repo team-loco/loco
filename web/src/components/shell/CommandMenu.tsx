@@ -125,7 +125,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				{
 					id: "page-show-map",
 					group: "This page",
-					label: "Show architecture map",
+					label: "Show Map",
 					keywords: "view diagram graph",
 					icon: <NetworkIcon />,
 					run: () => {
@@ -135,7 +135,7 @@ function usePaletteItems(open: boolean): PaletteItem[] {
 				{
 					id: "page-show-table",
 					group: "This page",
-					label: "Show resource table",
+					label: "Show Table",
 					keywords: "view list",
 					icon: <TableIcon />,
 					run: () => {

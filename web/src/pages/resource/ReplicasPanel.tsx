@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { EnvironmentStatus } from "@gen/loco/resource/v1/resource_pb";
+import type { EnvironmentStatus, RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import { Progress } from "@/components/design/Progress";
 import { Button } from "@/components/design/Button";
@@ -16,7 +16,7 @@ import { MetricChart } from "./MetricChart";
 import { RegionAverages } from "./RegionAverages";
 import { isDeployed, type RegionView } from "./model";
 import { ReplicaList } from "./ReplicaList";
-import { replicaLine } from "./replicas";
+import { regionReady, replicaLine } from "./replicas";
 import { useMetricBand } from "./useMetricBand";
 
 const ALL_REGIONS = "all";
@@ -42,8 +42,7 @@ function scaleText(regions: RegionView[]): string {
 
 function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: boolean; onPick: () => void }) {
 	const status = region.status;
-	const ready = status?.readyReplicas ?? 0;
-	const desired = status?.desiredReplicas ?? 0;
+	const { ready, desired, previous } = regionReady(region);
 	const style = resourceStatusStyle(status?.status);
 	const pct = desired === 0 ? 0 : Math.min(PERCENT, (ready / desired) * PERCENT);
 	return (
@@ -59,7 +58,13 @@ function RegionRow({ region, pressed, onPick }: { region: RegionView; pressed: b
 					{region.name}
 				</span>
 				<span className="text-[11.5px] text-fg3">
-					{status === undefined ? "Not reporting" : `${ready.toString()}/${desired.toString()} ready · ${style.label}`}
+					{status === undefined
+						? "Not reporting"
+						: [
+								`${ready.toString()}/${desired.toString()} ready`,
+								...(previous > 0 ? [`${previous.toString()} previous`] : []),
+								style.label,
+							].join(" · ")}
 				</span>
 			</button>
 			<Progress
@@ -110,11 +115,16 @@ export function ReplicasPanel({
 	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
 	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
-	const picked = deployed.find((r) => r.name === selected)?.status;
+	const picked = deployed.find((r) => r.name === selected);
+	const pickedCount = picked === undefined ? undefined : regionReady(picked);
 	const selectedLine =
-		picked === undefined
+		pickedCount === undefined
 			? undefined
-			: `${picked.readyReplicas.toString()} of ${picked.desiredReplicas.toString()} ready in ${picked.region}`;
+			: `${pickedCount.ready.toString()} of ${pickedCount.desired.toString()} ready in ${selected ?? ""}`;
+	const countOf = (status: RegionStatus) => {
+		const view = regions.find((r) => r.name === status.region);
+		return view === undefined ? { ready: 0, desired: status.desiredReplicas } : regionReady(view);
+	};
 	const compare = selected === null && deployed.length > 1;
 	const averages = {
 		regions: deployed.map((r) => r.name),
@@ -127,7 +137,7 @@ export function ReplicasPanel({
 	return (
 		<Section
 			title="Replicas"
-			meta={`${selectedLine ?? replicaLine(environment, nowMs)} · ${scaleText(deployed)}`}
+			meta={`${selectedLine ?? replicaLine(environment, nowMs, countOf)} · ${scaleText(deployed)}`}
 			bodyClassName="flex flex-col gap-4 px-5 pt-[18px] pb-4"
 			actions={
 				<>

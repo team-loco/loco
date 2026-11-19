@@ -19,6 +19,7 @@ import {
 	buildRows,
 	FILTER_URL_KEYS,
 	cellSummary,
+	DRAFT,
 	draftRows,
 	filterRows,
 	isDraftRow,
@@ -232,6 +233,14 @@ describe("filters", () => {
 		expect(names(filterRows(rows, { ...everything, status: NOT_DEPLOYED }))).toEqual(["draft"]);
 	});
 
+	test("Draft keeps browser drafts and leaves them out of Not deployed", () => {
+		const withDraft = buildRows([resource("api"), resource("worker")], [[], []], envs, undefined);
+		const mixed = [...withDraft, ...draftRows([draft("web")], "e-prod", undefined)];
+		expect(names(filterRows(mixed, { ...everything, status: DRAFT }))).toEqual(["web"]);
+		expect(names(filterRows(mixed, { ...everything, status: NOT_DEPLOYED }))).toEqual(["api", "worker"]);
+		expect(statusCounts(mixed, everything).get(DRAFT)).toBe(1);
+	});
+
 	test("search covers the name, description, address and regions", () => {
 		expect(names(filterRows(rows, { ...everything, query: "QUEUE" }))).toEqual(["worker"]);
 		expect(names(filterRows(rows, { ...everything, query: "example.dev" }))).toEqual(["api"]);
@@ -373,10 +382,11 @@ describe("draft rows", () => {
 		]);
 	});
 
-	test("match their name and image in a search and count as not deployed", () => {
+	test("match their name and image in a search and form the Draft filter", () => {
 		expect(names(filterRows(rows, { ...everything, query: "acme/web" }))).toEqual(["web"]);
 		expect(names(filterRows(rows, { ...everything, query: "not deployed" }))).toEqual([]);
-		expect(names(filterRows(rows, { ...everything, status: NOT_DEPLOYED }))).toEqual(["missing", "web", "api"]);
+		expect(names(filterRows(rows, { ...everything, status: NOT_DEPLOYED }))).toEqual(["missing"]);
+		expect(names(filterRows(rows, { ...everything, status: DRAFT }))).toEqual(["web", "api"]);
 	});
 });
 

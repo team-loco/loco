@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { create } from "@bufbuild/protobuf";
-import { LogEntrySchema } from "@gen/loco/observability/v1/observability_pb";
+import { LogEntrySchema, type LogEntry } from "@gen/loco/observability/v1/observability_pb";
 
-import { toRows, visibleLogRows } from "./rows";
+import { logJson, toRows, visibleLogRows } from "./rows";
 
 const rows = toRows(
 	[1, 2, 3].map((seconds) =>
@@ -38,5 +38,26 @@ describe("paused log history", () => {
 		const entry = create(LogEntrySchema, { resourceId: "recommendation", body: "repeated" });
 		const duplicates = toRows([entry, entry], new Map());
 		expect(visibleLogRows(duplicates, duplicates)).toHaveLength(2);
+	});
+});
+
+describe("log JSON", () => {
+	const utc = { zone: "utc", clock: "24" } as const;
+	const parse = (entry: LogEntry) => {
+		const [row] = toRows([entry], new Map());
+		return JSON.parse(logJson(row!, utc)) as Record<string, unknown>;
+	};
+	test("writes the timestamp in the preferred zone", () => {
+		const json = parse(create(LogEntrySchema, { timestamp: { seconds: 1n }, body: "hello" }));
+		expect(json["timestamp"]).toBe("1970-01-01T00:00:01.000Z");
+	});
+	test("leaves out ids the line does not carry", () => {
+		const json = parse(create(LogEntrySchema, { body: "hello" }));
+		expect("trace_id" in json).toBe(false);
+		expect("span_id" in json).toBe(false);
+		expect(parse(create(LogEntrySchema, { body: "x", traceId: "t1", spanId: "s1" }))).toMatchObject({
+			trace_id: "t1",
+			span_id: "s1",
+		});
 	});
 });
