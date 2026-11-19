@@ -252,10 +252,6 @@ func (s *DeploymentServer) CreateDeployment(
 		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
 			return lockErr
 		}
-		building := genDb.DeploymentStatusBuilding
-		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, environmentID, region, building); rolloutErr != nil {
-			return rolloutErr
-		}
 		if lockErr := lockPinnedBuildImage(ctx, qtx, pinnedBuild); lockErr != nil {
 			return lockErr
 		}

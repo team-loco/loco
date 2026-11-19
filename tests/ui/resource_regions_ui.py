@@ -121,12 +121,6 @@ with session(out) as browser:
         )
         == "1"
     )
-    # The API leaves new deployments deploying without a worker; finish them so later
-    # saves are not refused as a rollout in progress.
-    sql(
-        state,
-        f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
-    )
     expect(west).to_have_attribute("aria-pressed", "true")
 
     sql(

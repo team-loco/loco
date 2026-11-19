@@ -28,12 +28,11 @@ const (
 	statusTimeout    = 3 * time.Minute
 	revisionTimeout  = time.Minute
 	suspensionReason = "e2e suspension"
-	rolloutRejection = "a deployment is rolling out; wait for it to finish before changing this service"
 )
 
 // TestResourceStatus follows what the API reports about a resource: healthy after a deploy and a
 // restart, unavailable while its pods cannot run, unknown while its cluster is silent, mutations
-// refused during a rollout, stopped while its organization is suspended, one crash-loop event
+// accepted during a rollout, stopped while its organization is suspended, one crash-loop event
 // across an agent reconnect, a failed rollout that keeps the old version serving, and a worker
 // without a port. It cordons the node and stops the agent, so it runs before the parallel tests.
 func TestResourceStatus(t *testing.T) {
@@ -65,7 +64,7 @@ func TestResourceStatus(t *testing.T) {
 		waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY)
 	})
 
-	t.Run("a rollout rejects runtime mutations", s.rolloutRejectsMutations)
+	t.Run("a rollout accepts runtime mutations", s.rolloutAcceptsMutations)
 
 	t.Run("suspension stops pods and resume restores them", s.suspension)
 
@@ -503,17 +502,6 @@ func deploymentCount(t *testing.T, resourceID string) int {
 	return count
 }
 
-func requireRolloutRejection(t *testing.T, result platform.CLIResult, what string) {
-	t.Helper()
-	if result.Err == nil {
-		t.Errorf("%s during a rollout was accepted:\n%s", what, result.Output())
-		return
-	}
-	if !strings.Contains(strings.Join(strings.Fields(result.Output()), " "), rolloutRejection) {
-		t.Errorf("%s during a rollout was refused without %q:\n%s", what, rolloutRejection, result.Output())
-	}
-}
-
 func crashEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resourceID string) []*eventv1.Event {
 	t.Helper()
 	var crashes []*eventv1.Event
@@ -706,7 +694,7 @@ func (s *status) unavailable(t *testing.T) {
 	waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY)
 }
 
-func (s *status) rolloutRejectsMutations(t *testing.T) {
+func (s *status) rolloutAcceptsMutations(t *testing.T) {
 	const app = statusApp
 	w, dir, id := s.w, s.dir, s.id
 	if err := p.SignalAgent(syscall.SIGSTOP); err != nil {
@@ -722,25 +710,11 @@ func (s *status) rolloutRejectsMutations(t *testing.T) {
 		}
 	}
 	defer resume()
+	before := deploymentCount(t, id)
 	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "125m")
-	requireRolloutRejection(t, w.Loco(t.Context(), dir, nil, "resource", "scale", app, "--cpu", "150m"), "scaling")
-	requireRolloutRejection(
-		t,
-		w.Loco(
-			t.Context(),
-			dir,
-			nil,
-			"env",
-			"set",
-			"--service",
-			app,
-			"--env",
-			platform.Production,
-			"ROLLOUT_TEST=changed",
-		),
-		"a secret edit",
-	)
-	_, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
+	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "150m")
+	w.MustLoco(t, dir, "env", "set", "--service", app, "--env", platform.Production, "ROLLOUT_TEST=changed")
+	replacement, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    id,
 		EnvironmentId: w.EnvironmentID,
 		Region:        p.Region,
@@ -752,13 +726,38 @@ func (s *status) rolloutRejectsMutations(t *testing.T) {
 			}},
 		},
 	})
-	if err == nil || !strings.Contains(strings.Join(strings.Fields(err.Error()), " "), rolloutRejection) {
-		t.Errorf("a replacement deployment during a rollout: %v, want %q", err, rolloutRejection)
+	if err != nil {
+		t.Fatalf("a replacement deployment during a rollout: %v", err)
 	}
 	resume()
 	waitRolloutFinished(t, w, app)
-	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "150m")
-	waitRolloutFinished(t, w, app)
+	rows, err := p.DB.Query(
+		t.Context(),
+		`SELECT id::text, status::text FROM deployments WHERE resource_id = $1 ORDER BY created_at, id OFFSET $2`,
+		id,
+		before,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var got []string
+	var last string
+	for rows.Next() {
+		var deploymentID, status string
+		if scanErr := rows.Scan(&deploymentID, &status); scanErr != nil {
+			t.Fatal(scanErr)
+		}
+		got, last = append(got, status), deploymentID
+	}
+	if rows.Err() != nil {
+		t.Fatal(rows.Err())
+	}
+	want := []string{"canceled", "canceled", "running"}
+	if !slices.Equal(got, want) || last != replacement.GetDeploymentId() {
+		t.Errorf("deployments after the rollout = %v ending with %s, want %v ending with %s",
+			got, last, want, replacement.GetDeploymentId())
+	}
 }
 
 func (s *status) suspension(t *testing.T) {

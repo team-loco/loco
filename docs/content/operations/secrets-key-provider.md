@@ -24,7 +24,7 @@ Plaintext values exist in the API's memory while it sends a placement, in the tw
 
 ### When values reach pods
 
-Saving or deleting a secret starts no rollout. The API decrypts values each time it sends a placement, so the next deploy or `loco resource restart` delivers the current values. While a deployment of the service is building or rolling out in the environment, the API rejects secret changes with `failed_precondition`. `DeleteSecrets` rejects a name the service's active deployment declares.
+Saving or deleting a secret starts no rollout. The API decrypts values each time it sends a placement, so the next deploy or `loco resource restart` delivers the current values. `DeleteSecrets` rejects a name the service's active deployment declares.
 
 ## OpenBao in the control-plane chart
 

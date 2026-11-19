@@ -30,9 +30,9 @@ The same `loco.yaml` serves every environment. A service's `environments` block 
 
 Source builds started by `loco deploy` record the selected environment. The dashboard shows those builds and their activity in that environment. A build's image remains reusable in other environments; a deployment can still open its source build and logs there. Builds created through the API without an origin appear only in unfiltered build history, including `loco builds list`.
 
-While a deployment is pending or rolling out, Loco rejects scaling, replacement deployments, runtime configuration changes and secret changes for the affected service and environment with `failed_precondition`. A regional scaling or deployment request checks only its target regions. Other services and environments remain available for changes.
+A service accepts changes at any time, including while a deployment is building or rolling out. A change that creates a deployment, such as scaling, a deploy or a configuration change, replaces the deployment in flight in the same region: that deployment ends `canceled` and the version that was serving before it keeps serving until the new one is ready. A restart during a rollout rolls the replicas again.
 
-Saving secrets starts no rollout; new values take effect on the next restart or deploy. Changes become available again when the current rollout becomes ready or fails. Setting a secret to its existing value remains a no-op, and deleting or disabling a service remains available during a rollout.
+Saving secrets starts no rollout; new values take effect on the next restart or deploy. Setting a secret to its existing value is a no-op.
 
 ## Promote the dashboard and documentation
 

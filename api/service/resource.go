@@ -52,11 +52,6 @@ var (
 	ErrClusterNotFound     = errors.New("cluster not found")
 	ErrInvalidResourceType = errors.New("invalid resource type")
 
-	errDeploymentInProgress = rpcerr.NewCoded(
-		connect.CodeAborted,
-		"another deployment for this resource and region is in progress",
-	)
-
 	errDomainInUse          = rpcerr.NewCoded(connect.CodeAlreadyExists, "domain already in use")
 	errOnlyServiceResources = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
@@ -677,9 +672,6 @@ func (s *ResourceServer) ScaleResource(
 		currentResource, getErr := qtx.GetResourceByID(ctx, resourceID)
 		if getErr != nil {
 			return fmt.Errorf("read resource before scaling: %w", getErr)
-		}
-		if rolloutErr := ensureNoRollout(ctx, qtx, resourceID, env.ID, req.GetRegion()); rolloutErr != nil {
-			return rolloutErr
 		}
 		return s.scaleCurrentDeployments(ctx, qtx, currentResource, env.ID, req)
 	})
