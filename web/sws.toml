@@ -20,7 +20,7 @@ directory-listing = false
 source = "**"
 [advanced.headers.headers]
 X-Content-Type-Options = "nosniff"
-X-Frame-Options = "SAMEORIGIN"
+X-Frame-Options = "DENY"
 Referrer-Policy = "strict-origin-when-cross-origin"
 X-XSS-Protection = "1; mode=block"
 Vary = "Accept-Encoding"

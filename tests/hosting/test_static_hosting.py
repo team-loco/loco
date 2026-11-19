@@ -278,6 +278,15 @@ def test_docs_share_the_ui_content_security_policy(url, ui, host, prefix):
     assert headers["Content-Security-Policy"] == ui[2]["Content-Security-Policy"]
 
 
+@pytest.mark.parametrize(
+    "host,path", [(UI_HOST, "/"), (UI_HOST, "/dashboard"), (DOCS_HOST, "/")]
+)
+def test_pages_refuse_framing(url, host, path):
+    headers = response(url + path, host)[2]
+    assert headers["X-Frame-Options"] == "DENY"
+    assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
+
+
 @DOCS_BASES
 def test_docs_allow_only_hashed_inline_scripts(url, host, prefix):
     policy = response(url + prefix + "/", host)[2]["Content-Security-Policy"]
