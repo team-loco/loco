@@ -51,7 +51,7 @@ The enclosing event includes `orgId`, `subject.type` (`invitation`), and `subjec
 | `creator_name` | That user's name, or an empty string when unset |
 | `creator_email` | That user's email address |
 
-The `creator_*` fields are absent when that user no longer exists, and on `deployment.failed` also when the API token no longer exists. `deployment.failed` also carries `deploymentId`, `environmentId` and `regions`, the regions that failed. `build.failed` also carries `reason`: `source_upload_expired` when the source was not uploaded before its upload URL expired, otherwise `build_failed`.
+The `creator_*` fields are absent when that user no longer exists, and on `deployment.failed` also when the API token no longer exists. `deployment.failed` also carries `deploymentId`, `environmentId` and `regions`, the regions that failed. `deployment.ready` carries the same fields, with every region the deployment runs in, and `deployment.created` carries `regions`, the regions it targets. `build.failed` also carries `reason`: `source_upload_expired` when the source was not uploaded before its upload URL expired, otherwise `build_failed`.
 
 ## Cancellation events
 
