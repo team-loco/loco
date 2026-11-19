@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
@@ -148,6 +149,65 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 			region.GetMessage(),
 		})
 	}
+	if err := printTable(stdout, []string{"REGION", "STATUS", "READY", "DEPLOYMENT", "MESSAGE"}, rows); err != nil {
+		return err
+	}
+	now := time.Now()
+	for _, region := range environment.GetRegions() {
+		if err := renderReplicas(stdout, region, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// renderReplicas prints the replicas the cluster last reported for a region.
+func renderReplicas(stdout io.Writer, region *resourcev1.RegionStatus, now time.Time) error {
+	if len(region.GetReplicas()) == 0 {
+		return nil
+	}
+	heading := lipgloss.NewStyle().Foreground(ui.Fg3).Render(region.GetRegion() + " replicas")
+	if _, err := lipgloss.Fprintln(stdout, sectionStyle.Render(heading)); err != nil {
+		return err
+	}
+	rows := make([][]string, 0, len(region.GetReplicas()))
+	for _, replica := range region.GetReplicas() {
+		lastExit := "—"
+		if exit := replica.GetLastExit(); exit != nil {
+			lastExit = fmt.Sprintf("%s (%d)", exit.GetReason(), exit.GetExitCode())
+			if exit.GetFinishedAt() != nil {
+				lastExit += " " + age(now.Sub(exit.GetFinishedAt().AsTime())) + " ago"
+			}
+		}
+		started := "—"
+		if replica.GetStartedAt() != nil {
+			started = age(now.Sub(replica.GetStartedAt().AsTime()))
+		}
+		rows = append(rows, []string{
+			replica.GetName(),
+			replica.GetState(),
+			strconv.Itoa(int(replica.GetRestarts())),
+			lastExit,
+			started,
+			replica.GetNode(),
+		})
+	}
+	if err := printTable(
+		stdout,
+		[]string{"REPLICA", "STATE", "RESTARTS", "LAST EXIT", "AGE", "NODE"},
+		rows,
+	); err != nil {
+		return err
+	}
+	if region.GetStatus() != resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN || region.GetReportedAt() == nil {
+		return nil
+	}
+	stale := "last reported " + age(now.Sub(region.GetReportedAt().AsTime())) + " ago"
+	_, err := lipgloss.Fprintln(stdout, tableMargin.Render(lipgloss.NewStyle().Foreground(ui.Fg3).Render(stale)))
+	return err
+}
+
+func printTable(stdout io.Writer, headers []string, rows [][]string) error {
 	cellStyle := lipgloss.NewStyle().Padding(0, 1)
 	headerStyle := cellStyle.Foreground(ui.Fg3)
 	t := table.New().
@@ -158,7 +218,7 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 		BorderLeft(false).
 		BorderRight(false).
 		BorderColumn(false).
-		Headers("REGION", "STATUS", "READY", "DEPLOYMENT", "MESSAGE").
+		Headers(headers...).
 		Rows(rows...).
 		StyleFunc(func(row, _ int) lipgloss.Style {
 			if row == table.HeaderRow {
@@ -171,6 +231,20 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 	}
 	_, err := lipgloss.Fprintln(stdout, tableMargin.Render(t.String()))
 	return err
+}
+
+// age is a duration in its largest whole unit, such as 45s, 12m, 3h or 2d.
+func age(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return strconv.Itoa(int(max(d, 0).Seconds())) + "s"
+	case d < time.Hour:
+		return strconv.Itoa(int(d.Minutes())) + "m"
+	case d < 24*time.Hour:
+		return strconv.Itoa(int(d.Hours())) + "h"
+	default:
+		return strconv.Itoa(int(d.Hours()/24)) + "d"
+	}
 }
 
 func statusLabel(status resourcev1.ResourceStatus) string {

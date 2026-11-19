@@ -440,3 +440,42 @@ func checkImageOverride(ts *testscript.TestScript, api *fakeAPI, neg bool, args 
 		ts.Fatalf("overridden service = %+v", service)
 	}
 }
+
+// setFakeReplicas reports one region of the service running a serving replica and one that was
+// OOM-killed, as a silent cluster last reported them ten minutes ago when silent is set.
+func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
+	now := time.Now()
+	region := &resourcev1.RegionStatus{
+		Region: fakeDefaultRegion, Status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
+		ReadyReplicas: 1, DesiredReplicas: 2, ReportedAt: timestamppb.New(now),
+		Replicas: []*deploymentv1.Replica{
+			{
+				Name: service + "-7d9f-a1", Node: "node-1", State: "Serving", Ready: true,
+				StartedAt: timestamppb.New(now.Add(-3 * time.Hour)),
+			},
+			{
+				Name: service + "-7d9f-b2", Node: "node-2", State: "Failing", Restarts: 4,
+				StartedAt: timestamppb.New(now.Add(-20 * time.Minute)),
+				LastExit: &deploymentv1.ReplicaExit{
+					Reason: "OOMKilled", ExitCode: 137, FinishedAt: timestamppb.New(now.Add(-5 * time.Minute)),
+				},
+			},
+		},
+	}
+	if silent {
+		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN
+		region.ReportedAt = timestamppb.New(now.Add(-10 * time.Minute))
+		region.Message = new("the cluster running this region has stopped reporting")
+	}
+	for _, res := range platform.resources {
+		if res.GetName() == service {
+			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
+				{
+					EnvironmentName: fakeEnvironmentName,
+					Status:          region.GetStatus(),
+					Regions:         []*resourcev1.RegionStatus{region},
+				},
+			}
+		}
+	}
+}
