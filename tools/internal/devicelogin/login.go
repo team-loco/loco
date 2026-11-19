@@ -125,11 +125,28 @@ func (identity Identity) Token(ctx context.Context) (string, error) {
 	return tokens.IDToken, nil
 }
 
-// Approve calls the same API as the dashboard's device-approval page.
+const approveAttempts = 5
+
+var approveRetry = 2 * time.Second
+
+// Approve calls the same API as the dashboard's device-approval page, retrying while the API
+// reports itself unavailable.
 func Approve(ctx context.Context, host, idToken, code string) error {
-	_, err := rpc.ForHost(host, idToken).Auth.ApproveDeviceLogin(ctx, &authv1.ApproveDeviceLoginRequest{UserCode: code})
-	if err != nil {
-		return fmt.Errorf("%w (RPC %s)", errDeviceApproval, connect.CodeOf(err))
+	client := rpc.ForHost(host, idToken).Auth
+	var err error
+	for attempt := 1; ; attempt++ {
+		_, err = client.ApproveDeviceLogin(ctx, &authv1.ApproveDeviceLoginRequest{UserCode: code})
+		if err == nil {
+			return nil
+		}
+		if connect.CodeOf(err) != connect.CodeUnavailable || attempt == approveAttempts {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("%w (RPC %s): %w", errDeviceApproval, connect.CodeOf(err), ctx.Err())
+		case <-time.After(approveRetry):
+		}
 	}
-	return nil
+	return fmt.Errorf("%w (RPC %s)", errDeviceApproval, connect.CodeOf(err))
 }

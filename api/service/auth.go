@@ -358,6 +358,13 @@ func (s *AuthServer) ApproveDeviceLogin(
 	if err != nil {
 		return nil, fmt.Errorf("encode device grant: %w", err)
 	}
+	// A retryable failure returns the user code to the cache for the next approval attempt.
+	unavailable := func(cause error) error {
+		if restoreErr := s.cache.Set(ctx, "cli:user-code:"+userCode, deviceDigest, remaining); restoreErr != nil {
+			slog.ErrorContext(ctx, "failed to restore device user code", "error", restoreErr)
+		}
+		return authStoreUnavailable(cause)
+	}
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
 		return events.Record(ctx, qtx, events.Event{
 			Type:        events.CLILoginApproved,
@@ -368,10 +375,10 @@ func (s *AuthServer) ApproveDeviceLogin(
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to approve device login", "error", err)
-		return nil, authStoreUnavailable(err)
+		return nil, unavailable(err)
 	}
 	if setErr := s.cache.Set(ctx, key, payload, remaining); setErr != nil {
-		return nil, authStoreUnavailable(setErr)
+		return nil, unavailable(setErr)
 	}
 	slog.InfoContext(ctx, "approved device login", "userId", grant.UserID)
 	return &authv1.ApproveDeviceLoginResponse{}, nil

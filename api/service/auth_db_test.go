@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -296,6 +297,46 @@ func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	}
 
 	f.clock = f.clock.Add(10 * time.Second)
+	done, err := f.client.PollDeviceLogin(t.Context(), poll)
+	if err != nil {
+		t.Fatalf("poll after approval: %v", err)
+	}
+	f.assertWorks(t, done.GetTokens())
+}
+
+type failingSetCache struct {
+	cache.Cache
+	key   string
+	fails int
+}
+
+func (c *failingSetCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if key == c.key && c.fails > 0 {
+		c.fails--
+		return errors.New("cache unavailable")
+	}
+	return c.Cache.Set(ctx, key, value, ttl)
+}
+
+func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	f.server.cache = &failingSetCache{
+		Cache: f.server.cache, key: deviceKey(bearer.Hash(started.GetDeviceCode())), fails: 1,
+	}
+	approve := &authv1.ApproveDeviceLoginRequest{UserCode: started.GetUserCode()}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); codeOf(approveErr) != connect.CodeUnavailable {
+		t.Fatalf("approve while the store fails: %v", approveErr)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, approve); approveErr != nil {
+		t.Fatalf("retried approve: %v", approveErr)
+	}
+	f.clock = f.clock.Add(10 * time.Second)
+	poll := &authv1.PollDeviceLoginRequest{DeviceCode: started.GetDeviceCode()}
 	done, err := f.client.PollDeviceLogin(t.Context(), poll)
 	if err != nil {
 		t.Fatalf("poll after approval: %v", err)
