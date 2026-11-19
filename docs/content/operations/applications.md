@@ -80,6 +80,8 @@ The collector preserves application-provided service identity. It does not infer
 
 Dashboard redeploy and rollback keep the current plain environment values and declared secret names for the target environment and region. In `CreateDeployment`, a nonempty environment map replaces the plain values. Omit `secret_bindings` to keep the current secret names. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings. To remove plain values, edit `loco.yaml` and apply it.
 
+The **Variables** section of a resource's settings shows which stored secrets the active deployment reads. For a service deployed from the dashboard, a switch on each secret selects whether deployments read it, and a secret added there is selected by default. The same section adds plain variables. Saving a change to either redeploys every region of the environment with the new `secret_bindings` and environment map. For a service deployed from `loco.yaml`, the file's `secrets` list selects the names, and each stored secret it does not list shows the `services.<name>.secrets` entry to add.
+
 ### Trace sampling
 
 Loco leaves application trace sampling to the SDK. Set the standard OpenTelemetry variables under the service's `env` map to sample 10% of new root traces while respecting a parent's sampling decision:

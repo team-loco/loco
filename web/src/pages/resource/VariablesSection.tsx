@@ -12,6 +12,7 @@ import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/
 import { Input } from "@/components/design/Input";
 import { SoonTag } from "@/components/design/SoonTag";
 import { Skeleton } from "@/components/design/Skeleton";
+import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
 import { parseDotEnv } from "@/lib/dotenv";
@@ -26,9 +27,9 @@ import { limitReason, limitUsage } from "@/lib/limits";
 import { SECRET_NAME, type SettingsDraft } from "./settings-draft";
 import { SettingsBlock } from "./SettingsSections";
 import {
-	secretNameProblem,
 	secretRows,
 	setterLabel,
+	variableNameProblem,
 	yamlBindingHint,
 	type SecretRow,
 	type SecretStatus,
@@ -51,8 +52,9 @@ const STATUS_LABEL: Record<SecretStatus, string> = {
 const COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_128px]";
 const ROW = cn("grid grid-cols-1 items-center gap-2 border-b border-line px-3.5 py-2.5 last:border-b-0", COLUMNS);
 const MASK = "••••••••";
+const FORM_COLUMNS = "md:grid-cols-[minmax(160px,0.8fr)_minmax(0,1.4fr)_auto]";
 
-function withoutKey(values: Record<string, string>, key: string): Record<string, string> {
+function withoutKey<T>(values: Record<string, T>, key: string): Record<string, T> {
 	return Object.fromEntries(Object.entries(values).filter(([k]) => k !== key));
 }
 
@@ -181,11 +183,28 @@ function RevealButton({
 	);
 }
 
-function PlainVariable({ name, value, managed }: { name: string; value: string; managed: boolean }) {
+function PlainVariable({
+	name,
+	value,
+	managed,
+	onRemove,
+}: {
+	name: string;
+	value: string;
+	managed: boolean;
+	onRemove?: () => void;
+}) {
 	return (
 		<div className={ROW}>
 			<div className="flex min-w-0 flex-col gap-0.5">
-				<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
+				<span className="flex items-center gap-2">
+					<span className="font-mono text-[12.5px] font-medium break-all">{name}</span>
+					{onRemove !== undefined && (
+						<Badge size="sm" tone={STATUS_TONE.new}>
+							{STATUS_LABEL.new}
+						</Badge>
+					)}
+				</span>
 				<span className="text-[11.5px] text-fg3">
 					{managed ? (
 						<>
@@ -197,6 +216,13 @@ function PlainVariable({ name, value, managed }: { name: string; value: string; 
 				</span>
 			</div>
 			<Input aria-label={`Value of ${name}`} className="font-mono" value={value} readOnly />
+			{onRemove !== undefined && (
+				<div className="flex items-center justify-end">
+					<Button variant="ghost" size="icon-sm" aria-label={`Remove ${name}`} onClick={onRemove}>
+						<Trash2Icon />
+					</Button>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -205,18 +231,22 @@ function SecretLine({
 	row,
 	members,
 	hint,
+	bound,
 	value,
 	removed,
 	canWrite,
+	onBound,
 	onValue,
 	onRemove,
 }: {
 	row: SecretRow;
 	members: ReadonlyMap<string, string>;
 	hint: string | undefined;
+	bound: boolean | undefined;
 	value: string;
 	removed: boolean;
 	canWrite: boolean;
+	onBound: (bound: boolean) => void;
 	onValue: (value: string) => void;
 	onRemove: (removed: boolean) => void;
 }) {
@@ -234,14 +264,27 @@ function SecretLine({
 					<span className={cn("font-mono text-[12.5px] font-medium break-all", removed && "text-fg3 line-through")}>
 						{row.name}
 					</span>
-					{row.status !== undefined && hint === undefined && (
-						<Badge size="sm" tone={STATUS_TONE[row.status]}>
-							{STATUS_LABEL[row.status]}
-						</Badge>
-					)}
+					{row.status !== undefined &&
+						hint === undefined &&
+						(bound === undefined || row.status === "missing" || row.status === "new") && (
+							<Badge size="sm" tone={STATUS_TONE[row.status]}>
+								{STATUS_LABEL[row.status]}
+							</Badge>
+						)}
 				</span>
 				<span className="text-[11.5px] text-fg3">{removed ? "Removed when you save" : meta}</span>
 				{hint !== undefined && !removed && <span className="text-[11.5px] text-warn-fg">{hint}</span>}
+				{bound !== undefined && !removed && (
+					<span className="flex items-center gap-1.5 pt-1 text-[11.5px] text-fg3">
+						<Switch
+							aria-label={`Use ${row.name} in deployments`}
+							checked={bound}
+							disabled={!canWrite}
+							onCheckedChange={onBound}
+						/>
+						{bound ? "Deployments read it" : "Deployments don't read it"}
+					</span>
+				)}
 			</div>
 			<Input
 				type={reveal.shown ? "text" : "password"}
@@ -285,6 +328,7 @@ export function VariablesSection({
 	resourceId,
 	resourceName,
 	managed,
+	deployed,
 	workspaceId,
 	environmentId,
 	draft,
@@ -295,6 +339,7 @@ export function VariablesSection({
 	resourceId: string;
 	resourceName: string;
 	managed: boolean;
+	deployed: boolean;
 	workspaceId: string;
 	environmentId: string;
 	draft: SettingsDraft;
@@ -313,13 +358,26 @@ export function VariablesSection({
 	const [adding, setAdding] = useState(false);
 	const [newName, setNewName] = useState("");
 	const [newValue, setNewValue] = useState("");
+	const [newSecret, setNewSecret] = useState(true);
 
 	const staged = draft.secrets ?? {};
+	const stagedEnv = draft.env ?? {};
+	const bindings = draft.bindings ?? {};
+	const bindable = !managed && deployed;
+	const declared = new Set(envQuery.data?.secretNames ?? []);
 	const removed = new Set(draft.removedSecrets ?? []);
 	const members = new Map((membersRes?.members ?? []).map((m) => [m.userId, m.userName || m.userEmail]));
 	const rows = secretRows(secretsQuery.data?.secrets ?? [], envQuery.data?.secretNames, Object.keys(staged));
 	const plain = Object.entries(envQuery.data?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));
-	const newProblem = newName === "" ? undefined : secretNameProblem(newName);
+	const newPlain = Object.entries(stagedEnv).toSorted(([a], [b]) => a.localeCompare(b));
+	const secretKind = newSecret || !bindable;
+	const newProblem =
+		newName === ""
+			? undefined
+			: variableNameProblem(newName, secretKind, {
+					secrets: new Set(rows.map((row) => row.name)),
+					plain: new Set([...plain.map(([name]) => name), ...Object.keys(stagedEnv)]),
+				});
 	const { activeOrgId } = useOrgWorkspace();
 	const limits = useOrgLimits(activeOrgId ?? "");
 	const kept = new Set([...(secretsQuery.data?.secrets ?? []).map((sec) => sec.name), ...Object.keys(staged)]);
@@ -328,10 +386,27 @@ export function VariablesSection({
 		secretsQuery.isLoading || secretsQuery.error !== null
 			? null
 			: limitUsage(kept.size, limits?.secretsPerResource, "secrets", "service");
-	const addBlocked = kept.has(newName) ? null : limitReason(secretUsage);
+	const addBlocked = !secretKind || kept.has(newName) ? null : limitReason(secretUsage);
+	const storedNames = new Set((secretsQuery.data?.secrets ?? []).map((sec) => sec.name));
 
+	const bindingsWith = (name: string, bound: boolean | undefined) => {
+		const next = withoutKey(bindings, name);
+		return bound === undefined || bound === declared.has(name) ? next : { ...next, [name]: bound };
+	};
+	const stageAll = (values: Record<string, string>) => {
+		const fresh = Object.keys(values).filter((name) => bindable && !storedNames.has(name) && !declared.has(name));
+		onChange({
+			secrets: { ...staged, ...values },
+			bindings: { ...bindings, ...Object.fromEntries(fresh.map((name) => [name, true])) },
+		});
+	};
 	const stage = (name: string, value: string) => {
-		onChange({ secrets: value === "" ? withoutKey(staged, name) : { ...staged, [name]: value } });
+		if (value !== "") {
+			stageAll({ [name]: value });
+			return;
+		}
+		const fresh = !storedNames.has(name);
+		onChange({ secrets: withoutKey(staged, name), bindings: fresh ? bindingsWith(name, undefined) : bindings });
 	};
 
 	return (
@@ -340,7 +415,9 @@ export function VariablesSection({
 			title={
 				<>
 					Variables
-					<span className="font-mono text-[12.5px] font-normal text-fg3">{rows.length + plain.length}</span>
+					<span className="font-mono text-[12.5px] font-normal text-fg3">
+						{rows.length + plain.length + newPlain.length}
+					</span>
 				</>
 			}
 			hint="Secret values stay hidden. Revealing a value you type shows it for 30 seconds."
@@ -384,7 +461,7 @@ export function VariablesSection({
 						{getErrorMessage(secretsQuery.error, "Failed to load secrets")}
 					</div>
 				)}
-				{!secretsQuery.isLoading && rows.length === 0 && plain.length === 0 && !adding && (
+				{!secretsQuery.isLoading && rows.length === 0 && plain.length === 0 && newPlain.length === 0 && !adding && (
 					<div className="px-3.5 py-4 text-fg3">
 						No variables. Add secrets here or with <code className="font-mono">loco env set</code>.
 					</div>
@@ -395,9 +472,13 @@ export function VariablesSection({
 						row={row}
 						members={members}
 						hint={managed && row.status === "unused" ? yamlBindingHint(resourceName, [row.name]) : undefined}
+						bound={bindable && row.status !== undefined ? (bindings[row.name] ?? declared.has(row.name)) : undefined}
 						value={staged[row.name] ?? ""}
 						removed={removed.has(row.name)}
 						canWrite={canWrite}
+						onBound={(bound) => {
+							onChange({ bindings: bindingsWith(row.name, bound) });
+						}}
 						onValue={(value) => {
 							stage(row.name, value);
 						}}
@@ -405,21 +486,40 @@ export function VariablesSection({
 							const next = new Set(removed);
 							if (remove) next.add(row.name);
 							else next.delete(row.name);
-							onChange({ removedSecrets: [...next], secrets: withoutKey(staged, row.name) });
+							onChange({
+								removedSecrets: [...next],
+								secrets: withoutKey(staged, row.name),
+								bindings: withoutKey(bindings, row.name),
+							});
 						}}
 					/>
 				))}
 				{plain.map(([name, value]) => (
 					<PlainVariable key={name} name={name} value={value} managed={managed} />
 				))}
+				{newPlain.map(([name, value]) => (
+					<PlainVariable
+						key={name}
+						name={name}
+						value={value}
+						managed={managed}
+						onRemove={() => {
+							onChange({ env: withoutKey(stagedEnv, name) });
+						}}
+					/>
+				))}
 				{canWrite && adding && (
 					<form
 						noValidate
-						className={cn("grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5", COLUMNS)}
+						className={cn(
+							"grid grid-cols-1 items-start gap-2 border-t border-line bg-panel px-3.5 py-2.5",
+							FORM_COLUMNS,
+						)}
 						onSubmit={(e) => {
 							e.preventDefault();
-							if (secretNameProblem(newName) !== undefined || newValue === "") return;
-							stage(newName, newValue);
+							if (newName === "" || newProblem !== undefined || newValue === "") return;
+							if (secretKind) stage(newName, newValue);
+							else onChange({ env: { ...stagedEnv, [newName]: newValue } });
 							setNewName("");
 							setNewValue("");
 						}}
@@ -427,7 +527,7 @@ export function VariablesSection({
 						<div className="flex flex-col gap-1">
 							<Input
 								autoFocus
-								aria-label="New secret name"
+								aria-label="New variable name"
 								className="font-mono"
 								placeholder="STRIPE_API_KEY"
 								autoComplete="off"
@@ -441,26 +541,34 @@ export function VariablesSection({
 							{newProblem !== undefined && <span className="text-[12px] text-bad-fg">{newProblem}</span>}
 						</div>
 						<Input
-							type="password"
-							aria-label="New secret value"
+							type={secretKind ? "password" : "text"}
+							aria-label="New variable value"
 							className="font-mono"
-							autoComplete="new-password"
+							autoComplete={secretKind ? "new-password" : "off"}
 							placeholder="value"
 							value={newValue}
 							onChange={(e) => {
 								setNewValue(e.target.value);
 							}}
 						/>
-						<LimitedAction reason={addBlocked}>
-							<Button
-								type="submit"
-								variant="outline"
-								disabled={newName === "" || newProblem !== undefined || newValue === "" || addBlocked !== null}
-							>
-								<PlusIcon />
-								Add secret
-							</Button>
-						</LimitedAction>
+						<div className="flex items-center gap-3">
+							{bindable && (
+								<span className="flex items-center gap-2">
+									<Switch aria-label="Store as secret" checked={newSecret} onCheckedChange={setNewSecret} />
+									<span className="text-[11.5px] text-fg3">Secret</span>
+								</span>
+							)}
+							<LimitedAction reason={addBlocked}>
+								<Button
+									type="submit"
+									variant="outline"
+									disabled={newName === "" || newProblem !== undefined || newValue === "" || addBlocked !== null}
+								>
+									<PlusIcon />
+									{secretKind ? "Add secret" : "Add variable"}
+								</Button>
+							</LimitedAction>
+						</div>
 					</form>
 				)}
 			</div>
@@ -468,7 +576,7 @@ export function VariablesSection({
 				open={importing}
 				onOpenChange={setImporting}
 				onImport={(pairs) => {
-					onChange({ secrets: { ...staged, ...Object.fromEntries(pairs) } });
+					stageAll(Object.fromEntries(pairs));
 				}}
 			/>
 		</SettingsBlock>

@@ -182,6 +182,7 @@ export function SettingsView({
 						resourceId={resource.id}
 						resourceName={resource.name}
 						managed={managed}
+						deployed={regions.some(isDeployed)}
 						workspaceId={resource.workspaceId}
 						environmentId={environmentId}
 						draft={draft}

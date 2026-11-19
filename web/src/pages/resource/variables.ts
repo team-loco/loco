@@ -1,7 +1,10 @@
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 import type { QueryClient } from "@tanstack/react-query";
+import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import type { Secret, SecretUsage } from "@gen/loco/secret/v1/secret_pb";
+
+import { isEnvKey } from "@/lib/dotenv";
 
 import { SECRET_NAME } from "./settings-draft";
 
@@ -49,6 +52,22 @@ export function secretNameProblem(name: string): string | undefined {
 	return undefined;
 }
 
+/** Why name cannot be added as a new secret or plain variable, given the names already in use. */
+export function variableNameProblem(
+	name: string,
+	secret: boolean,
+	taken: { secrets: ReadonlySet<string>; plain: ReadonlySet<string> },
+): string | undefined {
+	if (secret) {
+		if (taken.plain.has(name)) return `${name} is already a plain variable.`;
+		return secretNameProblem(name);
+	}
+	if (name === "") return "Enter a name.";
+	if (!isEnvKey(name)) return "Use letters, digits and underscores, not starting with a digit.";
+	if (taken.secrets.has(name) || taken.plain.has(name)) return `${name} is already a variable.`;
+	return undefined;
+}
+
 export function secretUsageMessage(service: string, usedBy: Pick<SecretUsage, "region" | "names">[]): string {
 	if (usedBy.length === 0) return "";
 	const names = [...new Set(usedBy.flatMap((usage) => usage.names))].toSorted();
@@ -75,6 +94,17 @@ export async function refreshSecrets(client: QueryClient, resourceId: string, en
 	await client.invalidateQueries({
 		queryKey: createConnectQueryKey({
 			schema: listSecrets,
+			input: { resourceId, environmentId },
+			cardinality: "finite",
+		}),
+	});
+}
+
+/** Refetches the plain variables and secret bindings of one resource in one environment. */
+export async function refreshVariables(client: QueryClient, resourceId: string, environmentId: string): Promise<void> {
+	await client.invalidateQueries({
+		queryKey: createConnectQueryKey({
+			schema: getResourceEnv,
 			input: { resourceId, environmentId },
 			cardinality: "finite",
 		}),
