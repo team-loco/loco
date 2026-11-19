@@ -891,6 +891,57 @@ def traffic(page):
     traffic_empty = False
 
 
+def traffic_small_values(page):
+    # Values by minute from the start of the window; the latest bucket is the readout.
+    small = {
+        "cluster.upstream_rq_completed": {10: 0.03, 30: 0.02, 50: 0.004},
+        "cluster.upstream_rq_xx": {10: 0.0, 30: 0.0, 50: 0.0},
+        "cluster.upstream_cx_rx_bytes_total": {10: 0.03, 30: 0.02, 50: 0.004},
+        "cluster.upstream_rq_time": {10: 2400, 30: 1200, 50: 800},
+    }
+
+    def metrics(route):
+        body = route.request.post_data_json
+        values = small.get(body["metricName"])
+        if values is None:
+            route.fallback()
+            return
+        start = datetime.fromisoformat(body["startTime"].replace("Z", "+00:00"))
+        start = start.replace(second=0, microsecond=0)
+        points = [
+            {"timestamp": stamp(start, timedelta(minutes=-minute)), "value": value}
+            for minute, value in values.items()
+        ]
+        route.fulfill(
+            json={
+                "series": [
+                    {"resourceId": rid, "points": points}
+                    for rid in body.get("resourceIds") or [resource]
+                ]
+            }
+        )
+
+    page.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+    page.goto(state["ui_url"] + base + "?env=production")
+    page.get_by_role("region", name="Resources", exact=True).get_by_role(
+        "link", name="dashboard-0", exact=True
+    ).click()
+    section = page.get_by_role("region", name="Traffic", exact=True)
+    expect(section.get_by_text("<0.01/s", exact=True)).to_have_count(1)
+    expect(section.get_by_text("<0.01 B/s", exact=True)).to_have_count(1)
+    expect(section.get_by_text("800 ms", exact=True)).to_have_count(1)
+    ticks = section.locator(
+        ".recharts-yAxis-tick-labels .recharts-cartesian-axis-tick-value"
+    )
+    expect(ticks).not_to_have_count(0)
+    labels = ticks.all_text_contents()
+    requests = [t for t in labels if t.endswith("/s") and not t.endswith("B/s")]
+    assert requests == ["0/s", "0.01/s", "0.02/s", "0.03/s"], labels
+    latency = [t for t in labels if t.endswith(" s") and not t.endswith("B/s")]
+    assert latency == ["0 s", "1 s", "2 s", "3 s"], labels
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+
+
 def token_empty(page):
     page.goto(state["ui_url"] + "/tokens?owner=personal")
     expect(
@@ -1245,6 +1296,7 @@ with session(out) as browser:
         limit_display,
         dashboard,
         traffic,
+        traffic_small_values,
     ):
         check(page)
     assert not errors, errors
