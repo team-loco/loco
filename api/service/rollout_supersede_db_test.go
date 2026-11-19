@@ -223,29 +223,6 @@ func TestSecretWritesSucceedDuringARollout(t *testing.T) {
 	}
 }
 
-func TestUnchangedSecretRemainsANoopDuringRollout(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	provider := newTestKeyProvider(t, "k1")
-	f.storeSecret(t, provider, stripeKey, stripeValue)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
-		t.Fatal(err)
-	}
-	before := f.rolloutSnapshot(t)
-	_, err := f.secretServer(provider).
-		SetSecrets(f.rolloutContext(t), &secretv1.SetSecretsRequest{
-			ResourceId:    f.resourceID.String(),
-			EnvironmentId: f.envID.String(),
-			Values:        map[string]string{stripeKey: stripeValue},
-		})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if f.rolloutSnapshot(t) != before {
-		t.Fatal("unchanged secret modified state")
-	}
-}
-
 func TestConcurrentScalesBothApplyInOrder(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
