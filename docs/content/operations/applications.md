@@ -105,7 +105,7 @@ Container stdout and stderr records keep their original message. When a record h
 
 The collector drops empty lines and joins a multi-line entry into one record: lines that start with whitespace, Java `Caused by:` lines and the lines of a Go panic or goroutine trace continue the line before them. A Go panic therefore arrives as one `FATAL` record that holds its whole stack trace.
 
-Malformed JSON, unknown levels and messages without a recognized level remain unclassified and appear as INFO in the dashboard. A word such as “warning” inside an ordinary message does not set its severity. Structured OTLP logs retain the severity supplied by the application SDK.
+Malformed JSON, unknown levels and messages without a recognized level remain unclassified and appear as INFO in the dashboard. A word such as “warning” inside an ordinary message does not set its severity. Structured OTLP logs retain the severity supplied by the application SDK. When a replica exports logs over OTLP, the logs view shows those records and hides the replica's stdout lines, which repeat them; its stderr lines, where crashes are printed, stay visible.
 
 ## Public, private and worker applications
 
