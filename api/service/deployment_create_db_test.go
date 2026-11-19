@@ -283,6 +283,26 @@ func TestCreateDeploymentRejectsSpecsTheControllerRejects(t *testing.T) {
 	}
 }
 
+func TestCreateDeploymentRejectsAHealthTimeoutAtOrAboveTheInterval(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	service := imageService()
+	service.HealthCheck = &deploymentv1.HealthCheckConfig{
+		Path:             "/ready",
+		IntervalSeconds:  10,
+		TimeoutSeconds:   10,
+		FailureThreshold: 3,
+	}
+	_, err := createDeploymentWith(t, f, unboundedRegionSpec, service)
+	wantCode(t, err, connect.CodeInvalidArgument)
+	if err == nil || !strings.Contains(err.Error(), "healthCheck.timeout must be less than healthCheck.interval") {
+		t.Fatalf("error = %v, want the timeout and interval named", err)
+	}
+	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
+		t.Fatalf("%d deployments after a rejected deploy, want 0", n)
+	}
+}
+
 func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

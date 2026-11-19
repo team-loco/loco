@@ -311,6 +311,20 @@ describe("validateDraft", () => {
 		});
 	});
 
+	test("keeps the health timeout below the interval", () => {
+		expect(validateDraft({ healthTimeout: "9" }, base, regions, SERVED, 10).healthTimeout).toBeUndefined();
+		expect(validateDraft({ healthTimeout: "10" }, base, regions, SERVED, 10).healthTimeout).toBe(
+			"Must be below the interval",
+		);
+		expect(validateDraft({ healthInterval: "2" }, base, regions, SERVED, 10).healthTimeout).toBe(
+			"Must be below the interval",
+		);
+		expect(validateDraft({ healthInterval: "0", healthTimeout: "0" }, base, regions, SERVED, 10)).toEqual({
+			healthInterval: "Whole seconds, at least 1",
+			healthTimeout: "Whole seconds, at least 1",
+		});
+	});
+
 	test("asks for a port when the field is cleared", () => {
 		expect(validateDraft({ port: "" }, base, regions, SERVED, 10).port).toBe("Enter a port number");
 	});

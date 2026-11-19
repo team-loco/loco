@@ -242,7 +242,7 @@ function SecondsInput({
 	onChange: (value: string) => void;
 }) {
 	return (
-		<Field label={label} error={error}>
+		<Field label={label} error={error} reserve>
 			<InputGroup>
 				<InputGroupInput
 					className="font-mono"
@@ -270,7 +270,7 @@ export function HealthSection({ draft, base, errors, locked, describedBy, onChan
 	return (
 		<SettingsBlock id={HEALTH_SECTION_ID} title="Health check">
 			<div className={grid2}>
-				<Field label="Path" error={errors.healthPath}>
+				<Field label="Path" error={errors.healthPath} reserve>
 					<Input
 						className="font-mono"
 						value={draft.healthPath ?? base.healthPath}

@@ -225,6 +225,9 @@ export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "re
 
 export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, string>>;
 
+/** Fields whose errors show while the user types, before the first save attempt. */
+export const LIVE_ERROR_KEYS = ["healthPath", "healthInterval", "healthTimeout", "healthFailures"] as const;
+
 function positive(value: string): boolean {
 	return WHOLE.test(value.trim()) && Number(value.trim()) > 0;
 }
@@ -258,6 +261,13 @@ export function validateDraft(
 		errors.healthInterval = "Whole seconds, at least 1";
 	if (draft.healthTimeout !== undefined && !positive(next.healthTimeout))
 		errors.healthTimeout = "Whole seconds, at least 1";
+	if (
+		errors.healthInterval === undefined &&
+		errors.healthTimeout === undefined &&
+		(draft.healthInterval !== undefined || draft.healthTimeout !== undefined) &&
+		Number(next.healthTimeout.trim()) >= Number(next.healthInterval.trim())
+	)
+		errors.healthTimeout = "Must be below the interval";
 	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
 		errors.healthFailures = "A whole number, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";

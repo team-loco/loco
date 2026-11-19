@@ -333,6 +333,14 @@ func (spec *HealthCheckSpec) Validate() error {
 		)
 	}
 
+	if spec.Timeout >= spec.Interval {
+		return fmt.Errorf(
+			"healthCheck.timeout must be less than healthCheck.interval, got timeout %d and interval %d seconds",
+			spec.Timeout,
+			spec.Interval,
+		)
+	}
+
 	if spec.FailThreshold < minHealthFailThreshold || spec.FailThreshold > maxHealthFailThreshold {
 		return fmt.Errorf(
 			"healthCheck.failThreshold must be between %d and %d, got %d",
