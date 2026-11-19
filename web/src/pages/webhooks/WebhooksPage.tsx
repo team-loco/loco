@@ -59,7 +59,7 @@ export function WebhooksPage({
 	});
 	const [search, setSearch] = useState("");
 	const setCreating = (open: boolean) => {
-		void setParams({ new: open ? "1" : null, types: open ? types : null });
+		void setParams({ new: open ? "1" : null, types: open ? types : null }, { history: "replace" });
 	};
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState<Webhook | null>(null);
