@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"context"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -10,6 +12,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
@@ -73,6 +76,25 @@ func restartTo(r *ApplicationReconciler, app *locov1alpha1.Application, pod *cor
 	}
 }
 
+// staleApplications serves the Application as a lagging informer cache would: the copy it holds.
+type staleApplications struct {
+	client.Client
+	app *locov1alpha1.Application
+}
+
+func (c staleApplications) Get(
+	ctx context.Context,
+	key client.ObjectKey,
+	obj client.Object,
+	opts ...client.GetOption,
+) error {
+	if app, ok := obj.(*locov1alpha1.Application); ok && key == client.ObjectKeyFromObject(c.app) {
+		c.app.DeepCopyInto(app)
+		return nil
+	}
+	return c.Client.Get(ctx, key, obj, opts...)
+}
+
 var _ = Describe("Application whose replica used up its restart budget", func() {
 	var r *ApplicationReconciler
 
@@ -125,6 +147,41 @@ var _ = Describe("Application whose replica used up its restart budget", func() 
 		reconcileStuckApp(r, app)
 		Expect(replicaSetReplicas(current)).To(BeZero())
 		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+	})
+
+	It("keeps the stop when a reconcile starts from a cached Application older than the stop", func() {
+		app := isolationTestApplication(stopWorkspace, "stop-stale")
+		app.Spec.ServiceSpec.Routing = nil
+		app.Spec.ServiceSpec.Resources.Replicas = locov1alpha1.ReplicasSpec{Min: 2, Max: 2}
+		app.Annotations = map[string]string{locov1alpha1.KeyPlacementRevision: "2"}
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		reconcileStuckApp(r, app)
+		createReplicaSet(app, "stop-stale-previous", "1", 2)
+		current := createReplicaSet(app, "stop-stale-current", "2", 1)
+		pod := createReplica(app, "stop-stale-replica", testImage)
+		restartTo(r, app, pod, testRestartPolicy.MaxRestarts)
+		stale := app.DeepCopy()
+		setRestarted(pod, testRestartPolicy.MaxRestarts+1)
+		reconcileStuckApp(r, app)
+		Expect(app.Status.Rollout.Stopped).NotTo(BeNil())
+		Expect(appDeployment(app).Spec.Paused).To(BeTrue())
+
+		By("reconciling once the stopped revision's pod is gone, from a cache that predates the stop")
+		Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+		lagging := &ApplicationReconciler{
+			Gateway:                  testGateway,
+			WorkspaceNamespacePrefix: testWorkspaceNamespacePrefix,
+			Client:                   staleApplications{Client: k8sClient, app: stale},
+			APIReader:                k8sClient,
+			Scheme:                   k8sClient.Scheme(),
+			LocoNamespace:            testNamespace,
+			Telemetry:                testTelemetry(),
+			HealthyAfter:             testHealthyAfter,
+		}
+		_, err := lagging.Reconcile(ctx, reconcile.Request{NamespacedName: client.ObjectKeyFromObject(app)})
+		Expect(err).NotTo(HaveOccurred())
+		Expect(appDeployment(app).Spec.Paused).To(BeTrue())
+		Expect(replicaSetReplicas(current)).To(BeZero())
 	})
 
 	It("brings the previous revision back when a new one fails after its rollout finished", func() {
