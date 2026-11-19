@@ -879,6 +879,7 @@ type Invitation struct {
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	Link          string                 `protobuf:"bytes,7,opt,name=link,proto3" json:"link,omitempty"`
+	Role          OrgRole                `protobuf:"varint,8,opt,name=role,proto3,enum=loco.org.v1.OrgRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -962,11 +963,20 @@ func (x *Invitation) GetLink() string {
 	return ""
 }
 
+func (x *Invitation) GetRole() OrgRole {
+	if x != nil {
+		return x.Role
+	}
+	return OrgRole_ORG_ROLE_UNSPECIFIED
+}
+
 // InviteOrgMemberRequest identifies the organization and email address to invite.
 type InviteOrgMemberRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	OrgId         string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	OrgId string                 `protobuf:"bytes,1,opt,name=org_id,json=orgId,proto3" json:"org_id,omitempty"`
+	Email string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	// role is the access the invitee receives on accepting; unspecified means member.
+	Role          OrgRole `protobuf:"varint,3,opt,name=role,proto3,enum=loco.org.v1.OrgRole" json:"role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1013,6 +1023,13 @@ func (x *InviteOrgMemberRequest) GetEmail() string {
 		return x.Email
 	}
 	return ""
+}
+
+func (x *InviteOrgMemberRequest) GetRole() OrgRole {
+	if x != nil {
+		return x.Role
+	}
+	return OrgRole_ORG_ROLE_UNSPECIFIED
 }
 
 // InviteOrgMemberResponse contains the created invitation.
@@ -2129,7 +2146,7 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x06userId\x124\n" +
 	"\x04role\x18\x03 \x01(\x0e2\x14.loco.org.v1.OrgRoleB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\"\x1a\n" +
-	"\x18SetOrgMemberRoleResponse\"\x85\x02\n" +
+	"\x18SetOrgMemberRoleResponse\"\xaf\x02\n" +
 	"\n" +
 	"Invitation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
@@ -2141,10 +2158,12 @@ const file_loco_org_v1_org_proto_rawDesc = "" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x12\n" +
-	"\x04link\x18\a \x01(\tR\x04link\"X\n" +
+	"\x04link\x18\a \x01(\tR\x04link\x12(\n" +
+	"\x04role\x18\b \x01(\x0e2\x14.loco.org.v1.OrgRoleR\x04role\"\x8c\x01\n" +
 	"\x16InviteOrgMemberRequest\x12\x1f\n" +
 	"\x06org_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\x05orgId\x12\x1d\n" +
-	"\x05email\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05email\"R\n" +
+	"\x05email\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05email\x122\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x14.loco.org.v1.OrgRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"R\n" +
 	"\x17InviteOrgMemberResponse\x127\n" +
 	"\n" +
 	"invitation\x18\x01 \x01(\v2\x17.loco.org.v1.InvitationR\n" +
@@ -2311,54 +2330,56 @@ var file_loco_org_v1_org_proto_depIdxs = []int32{
 	24, // 10: loco.org.v1.Invitation.invited_by:type_name -> loco.org.v1.User
 	38, // 11: loco.org.v1.Invitation.created_at:type_name -> google.protobuf.Timestamp
 	38, // 12: loco.org.v1.Invitation.expires_at:type_name -> google.protobuf.Timestamp
-	15, // 13: loco.org.v1.InviteOrgMemberResponse.invitation:type_name -> loco.org.v1.Invitation
-	15, // 14: loco.org.v1.ListInvitationsResponse.invitations:type_name -> loco.org.v1.Invitation
-	15, // 15: loco.org.v1.ResendInvitationResponse.invitation:type_name -> loco.org.v1.Invitation
-	1,  // 16: loco.org.v1.SuspendOrgResponse.organization:type_name -> loco.org.v1.Organization
-	1,  // 17: loco.org.v1.ResumeOrgResponse.organization:type_name -> loco.org.v1.Organization
-	39, // 18: loco.org.v1.OrgLimits.limits:type_name -> loco.config.v1.CountLimits
-	38, // 19: loco.org.v1.OrgLimits.updated_at:type_name -> google.protobuf.Timestamp
-	33, // 20: loco.org.v1.GetOrgLimitsResponse.limits:type_name -> loco.org.v1.OrgLimits
-	39, // 21: loco.org.v1.SetOrgLimitsRequest.limits:type_name -> loco.config.v1.CountLimits
-	40, // 22: loco.org.v1.SetOrgLimitsRequest.update_mask:type_name -> google.protobuf.FieldMask
-	33, // 23: loco.org.v1.SetOrgLimitsResponse.limits:type_name -> loco.org.v1.OrgLimits
-	2,  // 24: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
-	4,  // 25: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
-	25, // 26: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
-	27, // 27: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
-	6,  // 28: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
-	8,  // 29: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
-	13, // 30: loco.org.v1.OrgService.SetOrgMemberRole:input_type -> loco.org.v1.SetOrgMemberRoleRequest
-	11, // 31: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
-	29, // 32: loco.org.v1.OrgService.SuspendOrg:input_type -> loco.org.v1.SuspendOrgRequest
-	31, // 33: loco.org.v1.OrgService.ResumeOrg:input_type -> loco.org.v1.ResumeOrgRequest
-	34, // 34: loco.org.v1.OrgService.GetOrgLimits:input_type -> loco.org.v1.GetOrgLimitsRequest
-	36, // 35: loco.org.v1.OrgService.SetOrgLimits:input_type -> loco.org.v1.SetOrgLimitsRequest
-	16, // 36: loco.org.v1.OrgService.InviteOrgMember:input_type -> loco.org.v1.InviteOrgMemberRequest
-	18, // 37: loco.org.v1.OrgService.ListInvitations:input_type -> loco.org.v1.ListInvitationsRequest
-	20, // 38: loco.org.v1.OrgService.RevokeInvitation:input_type -> loco.org.v1.RevokeInvitationRequest
-	22, // 39: loco.org.v1.OrgService.ResendInvitation:input_type -> loco.org.v1.ResendInvitationRequest
-	3,  // 40: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
-	5,  // 41: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
-	26, // 42: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
-	28, // 43: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
-	7,  // 44: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
-	9,  // 45: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
-	14, // 46: loco.org.v1.OrgService.SetOrgMemberRole:output_type -> loco.org.v1.SetOrgMemberRoleResponse
-	12, // 47: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
-	30, // 48: loco.org.v1.OrgService.SuspendOrg:output_type -> loco.org.v1.SuspendOrgResponse
-	32, // 49: loco.org.v1.OrgService.ResumeOrg:output_type -> loco.org.v1.ResumeOrgResponse
-	35, // 50: loco.org.v1.OrgService.GetOrgLimits:output_type -> loco.org.v1.GetOrgLimitsResponse
-	37, // 51: loco.org.v1.OrgService.SetOrgLimits:output_type -> loco.org.v1.SetOrgLimitsResponse
-	17, // 52: loco.org.v1.OrgService.InviteOrgMember:output_type -> loco.org.v1.InviteOrgMemberResponse
-	19, // 53: loco.org.v1.OrgService.ListInvitations:output_type -> loco.org.v1.ListInvitationsResponse
-	21, // 54: loco.org.v1.OrgService.RevokeInvitation:output_type -> loco.org.v1.RevokeInvitationResponse
-	23, // 55: loco.org.v1.OrgService.ResendInvitation:output_type -> loco.org.v1.ResendInvitationResponse
-	40, // [40:56] is the sub-list for method output_type
-	24, // [24:40] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	0,  // 13: loco.org.v1.Invitation.role:type_name -> loco.org.v1.OrgRole
+	0,  // 14: loco.org.v1.InviteOrgMemberRequest.role:type_name -> loco.org.v1.OrgRole
+	15, // 15: loco.org.v1.InviteOrgMemberResponse.invitation:type_name -> loco.org.v1.Invitation
+	15, // 16: loco.org.v1.ListInvitationsResponse.invitations:type_name -> loco.org.v1.Invitation
+	15, // 17: loco.org.v1.ResendInvitationResponse.invitation:type_name -> loco.org.v1.Invitation
+	1,  // 18: loco.org.v1.SuspendOrgResponse.organization:type_name -> loco.org.v1.Organization
+	1,  // 19: loco.org.v1.ResumeOrgResponse.organization:type_name -> loco.org.v1.Organization
+	39, // 20: loco.org.v1.OrgLimits.limits:type_name -> loco.config.v1.CountLimits
+	38, // 21: loco.org.v1.OrgLimits.updated_at:type_name -> google.protobuf.Timestamp
+	33, // 22: loco.org.v1.GetOrgLimitsResponse.limits:type_name -> loco.org.v1.OrgLimits
+	39, // 23: loco.org.v1.SetOrgLimitsRequest.limits:type_name -> loco.config.v1.CountLimits
+	40, // 24: loco.org.v1.SetOrgLimitsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	33, // 25: loco.org.v1.SetOrgLimitsResponse.limits:type_name -> loco.org.v1.OrgLimits
+	2,  // 26: loco.org.v1.OrgService.CreateOrg:input_type -> loco.org.v1.CreateOrgRequest
+	4,  // 27: loco.org.v1.OrgService.GetOrg:input_type -> loco.org.v1.GetOrgRequest
+	25, // 28: loco.org.v1.OrgService.UpdateOrg:input_type -> loco.org.v1.UpdateOrgRequest
+	27, // 29: loco.org.v1.OrgService.DeleteOrg:input_type -> loco.org.v1.DeleteOrgRequest
+	6,  // 30: loco.org.v1.OrgService.ListUserOrgs:input_type -> loco.org.v1.ListUserOrgsRequest
+	8,  // 31: loco.org.v1.OrgService.ListOrgMembers:input_type -> loco.org.v1.ListOrgMembersRequest
+	13, // 32: loco.org.v1.OrgService.SetOrgMemberRole:input_type -> loco.org.v1.SetOrgMemberRoleRequest
+	11, // 33: loco.org.v1.OrgService.RemoveOrgMember:input_type -> loco.org.v1.RemoveOrgMemberRequest
+	29, // 34: loco.org.v1.OrgService.SuspendOrg:input_type -> loco.org.v1.SuspendOrgRequest
+	31, // 35: loco.org.v1.OrgService.ResumeOrg:input_type -> loco.org.v1.ResumeOrgRequest
+	34, // 36: loco.org.v1.OrgService.GetOrgLimits:input_type -> loco.org.v1.GetOrgLimitsRequest
+	36, // 37: loco.org.v1.OrgService.SetOrgLimits:input_type -> loco.org.v1.SetOrgLimitsRequest
+	16, // 38: loco.org.v1.OrgService.InviteOrgMember:input_type -> loco.org.v1.InviteOrgMemberRequest
+	18, // 39: loco.org.v1.OrgService.ListInvitations:input_type -> loco.org.v1.ListInvitationsRequest
+	20, // 40: loco.org.v1.OrgService.RevokeInvitation:input_type -> loco.org.v1.RevokeInvitationRequest
+	22, // 41: loco.org.v1.OrgService.ResendInvitation:input_type -> loco.org.v1.ResendInvitationRequest
+	3,  // 42: loco.org.v1.OrgService.CreateOrg:output_type -> loco.org.v1.CreateOrgResponse
+	5,  // 43: loco.org.v1.OrgService.GetOrg:output_type -> loco.org.v1.GetOrgResponse
+	26, // 44: loco.org.v1.OrgService.UpdateOrg:output_type -> loco.org.v1.UpdateOrgResponse
+	28, // 45: loco.org.v1.OrgService.DeleteOrg:output_type -> loco.org.v1.DeleteOrgResponse
+	7,  // 46: loco.org.v1.OrgService.ListUserOrgs:output_type -> loco.org.v1.ListUserOrgsResponse
+	9,  // 47: loco.org.v1.OrgService.ListOrgMembers:output_type -> loco.org.v1.ListOrgMembersResponse
+	14, // 48: loco.org.v1.OrgService.SetOrgMemberRole:output_type -> loco.org.v1.SetOrgMemberRoleResponse
+	12, // 49: loco.org.v1.OrgService.RemoveOrgMember:output_type -> loco.org.v1.RemoveOrgMemberResponse
+	30, // 50: loco.org.v1.OrgService.SuspendOrg:output_type -> loco.org.v1.SuspendOrgResponse
+	32, // 51: loco.org.v1.OrgService.ResumeOrg:output_type -> loco.org.v1.ResumeOrgResponse
+	35, // 52: loco.org.v1.OrgService.GetOrgLimits:output_type -> loco.org.v1.GetOrgLimitsResponse
+	37, // 53: loco.org.v1.OrgService.SetOrgLimits:output_type -> loco.org.v1.SetOrgLimitsResponse
+	17, // 54: loco.org.v1.OrgService.InviteOrgMember:output_type -> loco.org.v1.InviteOrgMemberResponse
+	19, // 55: loco.org.v1.OrgService.ListInvitations:output_type -> loco.org.v1.ListInvitationsResponse
+	21, // 56: loco.org.v1.OrgService.RevokeInvitation:output_type -> loco.org.v1.RevokeInvitationResponse
+	23, // 57: loco.org.v1.OrgService.ResendInvitation:output_type -> loco.org.v1.ResendInvitationResponse
+	42, // [42:58] is the sub-list for method output_type
+	26, // [26:42] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_loco_org_v1_org_proto_init() }

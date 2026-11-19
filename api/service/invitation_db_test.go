@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/team-loco/loco/api/events"
+	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/webhooksig"
 	"github.com/team-loco/loco/api/webhooks"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
@@ -408,5 +409,60 @@ func TestInvitationSurvivesDeletedInviter(t *testing.T) {
 	}
 	if fields[events.FieldInviterName] != invitationUnavailableName || fields[events.FieldInviterEmail] != "" {
 		t.Fatalf("resent inviter fields = %v", fields)
+	}
+}
+
+func TestInvitedRoleSetsTheAccessTheInviteeReceives(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name    string
+		role    orgv1.OrgRole
+		want    orgv1.OrgRole
+		isAdmin bool
+	}{
+		{"unspecified", orgv1.OrgRole_ORG_ROLE_UNSPECIFIED, orgv1.OrgRole_ORG_ROLE_MEMBER, false},
+		{"member", orgv1.OrgRole_ORG_ROLE_MEMBER, orgv1.OrgRole_ORG_ROLE_MEMBER, false},
+		{"admin", orgv1.OrgRole_ORG_ROLE_ADMIN, orgv1.OrgRole_ORG_ROLE_ADMIN, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			o := newInvitationOrg(t)
+			resp, err := o.owner.clients.Org.InviteOrgMember(t.Context(), &orgv1.InviteOrgMemberRequest{
+				OrgId: o.orgID, Email: membershipEmail("invitee"), Role: test.role,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := resp.GetInvitation().GetRole(); got != test.want {
+				t.Fatalf("invitation role = %v, want %v", got, test.want)
+			}
+			listed, err := o.owner.clients.Org.ListInvitations(
+				t.Context(), &orgv1.ListInvitationsRequest{OrgId: o.orgID},
+			)
+			if err != nil || len(listed.GetInvitations()) != 1 || listed.GetInvitations()[0].GetRole() != test.want {
+				t.Fatalf("listed invitations = %v, %v", listed.GetInvitations(), err)
+			}
+			invitee := o.api.signUp(t, "invitee")
+			assertOrgScopes(t, o.api, invitee, o.orgID, test.isAdmin)
+		})
+	}
+}
+
+func assertOrgScopes(t *testing.T, api *membershipAPI, user membershipUser, orgID string, admin bool) {
+	t.Helper()
+	scopes, err := api.queries.GetUserScopesOnOrganization(t.Context(), genDb.GetUserScopesOnOrganizationParams{
+		ID: uuid.MustParse(orgID), UserID: user.id,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var held bool
+	for _, scope := range scopes {
+		if scope.EntityType == genDb.EntityTypeOrganization && scope.Scope == genDb.ScopeAdmin {
+			held = true
+		}
+	}
+	if held != admin {
+		t.Fatalf("organization admin = %t, want %t (scopes %v)", held, admin, scopes)
 	}
 }

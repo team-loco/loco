@@ -113,15 +113,7 @@ export function Organizations() {
 								org={org}
 								active={org.id === activeOrgId}
 								onSwitch={setActiveOrg}
-								role={
-									org.createdBy === user?.id
-										? "Owner"
-										: scopes.isLoading
-											? undefined
-											: scopes.orgLevel(org.id) >= 3
-												? "Admin"
-												: "Member"
-								}
+								role={scopes.isLoading ? undefined : scopes.orgLevel(org.id) >= 3 ? "Admin" : "Member"}
 							/>
 						))}
 					</TableBody>

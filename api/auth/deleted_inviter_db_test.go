@@ -30,6 +30,7 @@ func TestInvitationCanBeClaimedAfterInviterDeletion(t *testing.T) {
 		genDb.CreateInvitationParams{
 			OrgID:     org.ID,
 			Email:     "invitee@deleted.test",
+			Role:      genDb.OrgRoleMember,
 			InvitedBy: inviter.ID,
 			ExpiresAt: time.Now().Add(time.Hour),
 		},

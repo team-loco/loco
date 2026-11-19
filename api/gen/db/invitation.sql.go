@@ -19,7 +19,7 @@ WHERE id = $2
   AND claimed_at IS NULL
   AND revoked_at IS NULL
   AND expires_at > NOW()
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+RETURNING id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type ClaimInvitationParams struct {
@@ -34,6 +34,7 @@ func (q *Queries) ClaimInvitation(ctx context.Context, arg ClaimInvitationParams
 		&i.ID,
 		&i.OrgID,
 		&i.Email,
+		&i.Role,
 		&i.InvitedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -45,14 +46,15 @@ func (q *Queries) ClaimInvitation(ctx context.Context, arg ClaimInvitationParams
 }
 
 const createInvitation = `-- name: CreateInvitation :one
-INSERT INTO invitations (org_id, email, invited_by, expires_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+INSERT INTO invitations (org_id, email, role, invited_by, expires_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type CreateInvitationParams struct {
 	OrgID     uuid.UUID `json:"orgId"`
 	Email     string    `json:"email"`
+	Role      OrgRole   `json:"role"`
 	InvitedBy uuid.UUID `json:"invitedBy"`
 	ExpiresAt time.Time `json:"expiresAt"`
 }
@@ -61,6 +63,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 	row := q.db.QueryRow(ctx, createInvitation,
 		arg.OrgID,
 		arg.Email,
+		arg.Role,
 		arg.InvitedBy,
 		arg.ExpiresAt,
 	)
@@ -69,6 +72,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 		&i.ID,
 		&i.OrgID,
 		&i.Email,
+		&i.Role,
 		&i.InvitedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -83,7 +87,7 @@ const extendInvitation = `-- name: ExtendInvitation :one
 UPDATE invitations
 SET expires_at = $2
 WHERE id = $1 AND claimed_at IS NULL AND revoked_at IS NULL
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+RETURNING id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type ExtendInvitationParams struct {
@@ -98,6 +102,7 @@ func (q *Queries) ExtendInvitation(ctx context.Context, arg ExtendInvitationPara
 		&i.ID,
 		&i.OrgID,
 		&i.Email,
+		&i.Role,
 		&i.InvitedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -109,7 +114,7 @@ func (q *Queries) ExtendInvitation(ctx context.Context, arg ExtendInvitationPara
 }
 
 const getInvitation = `-- name: GetInvitation :one
-SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at FROM invitations WHERE id = $1
+SELECT id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at FROM invitations WHERE id = $1
 `
 
 func (q *Queries) GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, error) {
@@ -119,6 +124,7 @@ func (q *Queries) GetInvitation(ctx context.Context, id uuid.UUID) (Invitation, 
 		&i.ID,
 		&i.OrgID,
 		&i.Email,
+		&i.Role,
 		&i.InvitedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,
@@ -150,7 +156,7 @@ func (q *Queries) GetInvitationClaimDetails(ctx context.Context, id uuid.UUID) (
 }
 
 const listOpenInvitationsForEmail = `-- name: ListOpenInvitationsForEmail :many
-SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+SELECT id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 FROM invitations
 WHERE lower(email) = lower($1)
   AND claimed_at IS NULL
@@ -172,6 +178,7 @@ func (q *Queries) ListOpenInvitationsForEmail(ctx context.Context, email string)
 			&i.ID,
 			&i.OrgID,
 			&i.Email,
+			&i.Role,
 			&i.InvitedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
@@ -190,7 +197,7 @@ func (q *Queries) ListOpenInvitationsForEmail(ctx context.Context, email string)
 }
 
 const listOrgInvitations = `-- name: ListOrgInvitations :many
-SELECT id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+SELECT id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 FROM invitations
 WHERE org_id = $1
   AND claimed_at IS NULL
@@ -229,6 +236,7 @@ func (q *Queries) ListOrgInvitations(ctx context.Context, arg ListOrgInvitations
 			&i.ID,
 			&i.OrgID,
 			&i.Email,
+			&i.Role,
 			&i.InvitedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
@@ -254,7 +262,7 @@ WHERE org_id = $1
   AND claimed_at IS NULL
   AND revoked_at IS NULL
   AND expires_at <= NOW()
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+RETURNING id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 type RevokeExpiredInvitationsParams struct {
@@ -275,6 +283,7 @@ func (q *Queries) RevokeExpiredInvitations(ctx context.Context, arg RevokeExpire
 			&i.ID,
 			&i.OrgID,
 			&i.Email,
+			&i.Role,
 			&i.InvitedBy,
 			&i.CreatedAt,
 			&i.ExpiresAt,
@@ -296,7 +305,7 @@ const revokeInvitation = `-- name: RevokeInvitation :one
 UPDATE invitations
 SET revoked_at = NOW()
 WHERE id = $1 AND claimed_at IS NULL AND revoked_at IS NULL
-RETURNING id, org_id, email, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
+RETURNING id, org_id, email, role, invited_by, created_at, expires_at, claimed_by, claimed_at, revoked_at
 `
 
 func (q *Queries) RevokeInvitation(ctx context.Context, id uuid.UUID) (Invitation, error) {
@@ -306,6 +315,7 @@ func (q *Queries) RevokeInvitation(ctx context.Context, id uuid.UUID) (Invitatio
 		&i.ID,
 		&i.OrgID,
 		&i.Email,
+		&i.Role,
 		&i.InvitedBy,
 		&i.CreatedAt,
 		&i.ExpiresAt,

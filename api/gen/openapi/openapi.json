@@ -12910,6 +12910,10 @@
           "link": {
             "type": "string",
             "title": "link"
+          },
+          "role": {
+            "title": "role",
+            "$ref": "#/components/schemas/loco.org.v1.OrgRole"
           }
         },
         "title": "Invitation",
@@ -12928,6 +12932,11 @@
             "type": "string",
             "title": "email",
             "minLength": 1
+          },
+          "role": {
+            "title": "role",
+            "description": "role is the access the invitee receives on accepting; unspecified means member.",
+            "$ref": "#/components/schemas/loco.org.v1.OrgRole"
           }
         },
         "title": "InviteOrgMemberRequest",

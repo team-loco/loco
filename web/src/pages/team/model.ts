@@ -1,5 +1,5 @@
 import { Code, ConnectError } from "@connectrpc/connect";
-import type { Invitation, OrgMember } from "@gen/loco/org/v1/org_pb";
+import { OrgRole, type Invitation, type OrgMember } from "@gen/loco/org/v1/org_pb";
 
 import type { AccessLevel } from "@/hooks/useMyScopes";
 import { getErrorMessage } from "@/lib/error-handler";
@@ -45,6 +45,15 @@ export function parseScopeName(raw: string): ScopeName | null {
 		default:
 			return null;
 	}
+}
+
+export const ROLE_HINT: Record<Role, string> = {
+	Admin: "Manage members and every workspace.",
+	Member: "Only sees the workspaces you give them.",
+};
+
+export function roleLabel(role: OrgRole): Role {
+	return role === OrgRole.ADMIN ? "Admin" : "Member";
 }
 
 export function roleOf(orgScopes: readonly string[]): Role {

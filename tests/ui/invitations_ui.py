@@ -21,6 +21,11 @@ with session(repo / "tests/ui/out/invitations") as browser:
     page.goto(path + "?invite=1")
     email = "invite@acme.test"
     page.get_by_role("textbox", name="Emails").fill(email)
+    role = page.get_by_role("group", name="Role", exact=True)
+    expect(role.get_by_role("button", name="Member", exact=True)).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    role.get_by_role("button", name="Admin", exact=True).click()
     page.get_by_role("button", name="Send invite", exact=True).click()
     expect(page.get_by_role("button", name="Copy link", exact=True)).to_be_visible()
     page.get_by_role("button", name="Copy link", exact=True).click()
@@ -29,8 +34,10 @@ with session(repo / "tests/ui/out/invitations") as browser:
     ][0]
     assert page.evaluate("navigator.clipboard.readText()") == invitation["link"]
     page.get_by_role("button", name="Done", exact=True).click()
+    assert invitation["role"] == "ORG_ROLE_ADMIN", invitation
     row = page.get_by_role("row").filter(has_text=email)
     expect(row.get_by_text("Invited", exact=True)).to_be_visible()
+    expect(row.get_by_role("cell", name="Admin", exact=True)).to_be_visible()
     sql(
         state,
         f"UPDATE invitations SET expires_at = NOW() - INTERVAL '1 hour' WHERE id = {evidence.sql_literal(invitation['id'])};",

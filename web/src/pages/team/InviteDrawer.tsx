@@ -1,18 +1,25 @@
 import { useMutation } from "@connectrpc/connect-query";
 import { inviteOrgMember } from "@gen/loco/org/v1/org-OrgService_connectquery";
+import { OrgRole } from "@gen/loco/org/v1/org_pb";
 import { useState } from "react";
 
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyButton } from "@/components/design/CopyButton";
 import { Field } from "@/components/design/Field";
+import { SegmentedChoice } from "@/components/design/SegmentedChoice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Textarea } from "@/components/design/Textarea";
 import { pluralize } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import { inviteFailure, parseEmails, type InviteOutcome } from "./model";
+import { inviteFailure, parseEmails, ROLE_HINT, type InviteOutcome, type Role } from "./model";
+
+const ROLE_OPTIONS = [
+	{ value: "Member", label: "Member" },
+	{ value: "Admin", label: "Admin" },
+] as const;
 
 const TEXTAREA_ROWS = 3;
 
@@ -58,6 +65,7 @@ function InviteForm({
 	onInvited: () => void;
 }) {
 	const [text, setText] = useState("");
+	const [role, setRole] = useState<Role>("Member");
 	const [results, setResults] = useState<InviteOutcome[] | null>(null);
 	const mutation = useMutation(inviteOrgMember);
 	const [sending, setSending] = useState(false);
@@ -71,7 +79,11 @@ function InviteForm({
 		const outcomes = await Promise.all(
 			chips.map(async ({ value }): Promise<InviteOutcome> => {
 				try {
-					const res = await mutation.mutateAsync({ orgId, email: value });
+					const res = await mutation.mutateAsync({
+						orgId,
+						email: value,
+						role: role === "Admin" ? OrgRole.ADMIN : OrgRole.MEMBER,
+					});
 					if (res.invitation === undefined) return inviteFailure(value, null);
 					return { kind: "invited", email: value, invitation: res.invitation };
 				} catch (err) {
@@ -104,7 +116,7 @@ function InviteForm({
 	const hint =
 		invalid > 0
 			? `${pluralize(invalid, "address")} ${invalid === 1 ? "isn't" : "aren't"} valid`
-			: `Separate several with commas, spaces or new lines. They join ${orgName} as members when they first sign in.`;
+			: `Separate several with commas, spaces or new lines. They join ${orgName} with the role below when they first sign in.`;
 
 	return (
 		<form
@@ -125,6 +137,16 @@ function InviteForm({
 						className="font-mono"
 						onChange={(e) => {
 							setText(e.target.value);
+						}}
+					/>
+				</Field>
+				<Field label="Role" hint={ROLE_HINT[role]}>
+					<SegmentedChoice
+						label="Role"
+						options={ROLE_OPTIONS}
+						value={role}
+						onChange={(next) => {
+							setRole(next === "Admin" ? "Admin" : "Member");
 						}}
 					/>
 				</Field>

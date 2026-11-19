@@ -25,7 +25,7 @@ with session(repo / "tests/ui/out/org_roles") as browser:
     expect(
         organizations.get_by_role("columnheader", name="Workspaces", exact=True)
     ).to_be_visible()
-    expect(organizations.get_by_text("Owner", exact=True)).to_be_visible()
+    expect(organizations.get_by_text("Admin", exact=True)).to_be_visible()
     row = organizations.get_by_role("link", name="Open acme", exact=True)
     expect(row.get_by_role("cell").nth(2)).to_have_text("2")
     expect(row.get_by_role("cell").nth(3)).to_have_text("3")

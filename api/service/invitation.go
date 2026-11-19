@@ -69,6 +69,10 @@ func (s *OrgServer) InviteOrgMember(
 		return nil, ErrInvalidInviteEmail
 	}
 	email := strings.ToLower(address.Address)
+	role := genDb.OrgRoleMember
+	if req.GetRole() == orgv1.OrgRole_ORG_ROLE_ADMIN {
+		role = genDb.OrgRoleAdmin
+	}
 	inviterID := p.UserID
 	if inviterID == uuid.Nil {
 		inviterID = p.ActorID
@@ -99,6 +103,7 @@ func (s *OrgServer) InviteOrgMember(
 		created, createErr := qtx.CreateInvitation(lockedCtx, genDb.CreateInvitationParams{
 			OrgID:     orgID,
 			Email:     email,
+			Role:      role,
 			InvitedBy: inviterID,
 			ExpiresAt: time.Now().Add(s.invitations.TTL),
 		})
@@ -336,7 +341,12 @@ func invitationInviter(ctx context.Context, q genDb.Querier, id uuid.UUID) (genD
 }
 
 func (s *OrgServer) invitationProto(invitation genDb.Invitation, inviter genDb.User) *orgv1.Invitation {
+	role := orgv1.OrgRole_ORG_ROLE_MEMBER
+	if invitation.Role == genDb.OrgRoleAdmin {
+		role = orgv1.OrgRole_ORG_ROLE_ADMIN
+	}
 	return &orgv1.Invitation{
+		Role:  role,
 		Id:    invitation.ID.String(),
 		OrgId: invitation.OrgID.String(),
 		Email: invitation.Email,

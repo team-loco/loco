@@ -173,12 +173,15 @@ message Invitation {
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp expires_at = 6;
   string link = 7;
+  OrgRole role = 8;
 }
 
 // InviteOrgMemberRequest identifies the organization and email address to invite.
 message InviteOrgMemberRequest {
   string org_id = 1 [(buf.validate.field).string.uuid = true];
   string email = 2 [(buf.validate.field).string.min_len = 1];
+  // role is the access the invitee receives on accepting; unspecified means member.
+  OrgRole role = 3 [(buf.validate.field).enum.defined_only = true];
 }
 
 // InviteOrgMemberResponse contains the created invitation.
