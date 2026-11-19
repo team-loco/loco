@@ -24,7 +24,7 @@ import {
 	resourceViewParser,
 	type ResourceView,
 } from "@/lib/routes";
-import { NewResourceMenu } from "@/pages/resources/NewResourceMenu";
+import { NewServiceButton } from "@/pages/resources/NewServiceButton";
 import { DraftSheet, NewService } from "@/pages/resources/NewService";
 import { ResourcesEmpty } from "@/pages/resources/ResourcesEmpty";
 import { ResourcesMap } from "@/pages/resources/ResourcesMap";
@@ -139,7 +139,7 @@ export function Resources() {
 					<div className="flex items-center gap-2.5">
 						{!loading && total > 0 && <ViewToggle view={view} onView={setView} />}
 						<LimitedAction reason={createBlocked}>
-							<NewResourceMenu serviceHref={serviceHref} disabled={createBlocked !== null} />
+							<NewServiceButton serviceHref={serviceHref} disabled={createBlocked !== null} />
 						</LimitedAction>
 					</div>
 				}

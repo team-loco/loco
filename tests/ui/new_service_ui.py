@@ -272,8 +272,7 @@ with session(out) as browser:
         create_deployment,
     )
     page.goto(base + "/resources?env=production")
-    page.get_by_role("button", name="New resource", exact=True).click()
-    page.get_by_role("menuitem", name="Service", exact=True).click()
+    page.get_by_role("link", name="New service", exact=True).click()
     expect(page).to_have_url(re.compile(r"/resources\?env=production&new=1$"))
     ask = page.get_by_role("dialog", name="New resource")
     image_input = ask.get_by_role("textbox", name="Container image")
@@ -762,8 +761,7 @@ with session(out) as browser:
     expect(draft_row(page, repository)).to_have_count(0)
     assert stored_drafts(page) == [], stored_drafts(page)
 
-    page.get_by_role("button", name="New resource", exact=True).click()
-    page.get_by_role("menuitem", name="Service", exact=True).click()
+    page.get_by_role("link", name="New service", exact=True).click()
     ask = page.get_by_role("dialog", name="New resource")
     ask.get_by_role("textbox", name="Container image").fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
