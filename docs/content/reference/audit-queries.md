@@ -16,6 +16,7 @@ A word or a quoted phrase matches events where any of these contains it, ignorin
 
 - the actor's name or email
 - the target: the ID of the event's subject, the name, domain or secret names in its data, and the name or email of the user it is about
+- the names of the resource, workspace and environment the event happened in
 - the event type, such as `secret.set`
 
 Text also matches events whose request ID equals it exactly, such as the request ID an error message shows. `%`, `_` and `\` match themselves.
@@ -26,7 +27,7 @@ Text also matches events whose request ID equals it exactly, such as the request
 | --- | --- |
 | `@actor` | The actor's user ID or token ID, or the name or email of the user who acted, ignoring case. |
 | `@actor_type` | How the actor signed in: `user`, `organization`, `workspace` or `resource` for a token, `system` for Loco, `agent` for a cluster agent. |
-| `@target` | The ID of the event's subject, or the name, domain or secret name in its data, or the name or email of the user it is about, ignoring case. |
+| `@target` | The ID of the event's subject, or the name, domain or secret name in its data, the name or email of the user it is about, or the name of the resource, workspace or environment it happened in, ignoring case. |
 | `@type` | The event type, such as `deployment.created`. |
 | `@request` | The request ID. |
 

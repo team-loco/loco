@@ -5,9 +5,14 @@ import { scorePaletteItem } from "./command-palette";
 const score = (search: string, ...keywords: string[]) => scorePaletteItem("item-id", search, keywords);
 
 describe("scorePaletteItem", () => {
-	test("matches a substring of the label or keywords, ignoring case", () => {
+	test("matches the start of a word of the label or keywords, ignoring case", () => {
 		expect(score("PAYMENTS", "billing-api", "payments service")).toBeGreaterThan(0);
 		expect(score("store", "Switch to storefront")).toBeGreaterThan(0);
+		expect(score("cat", "product-catalog")).toBeGreaterThan(0);
+	});
+
+	test("does not match the middle of a word", () => {
+		expect(score("log", "product-catalog", "catalog")).toBe(0);
 	});
 
 	test("does not match letters scattered across words", () => {

@@ -39,6 +39,9 @@ const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 LEFT JOIN users s ON e.subject_type = 'user' AND s.id = e.subject_id
+LEFT JOIN resources r ON r.id = e.resource_id
+LEFT JOIN workspaces w ON w.id = e.workspace_id
+LEFT JOIN environments n ON n.id = e.environment_id
 WHERE e.org_id = $1`
 
 // ListAudit reads the events q selects.

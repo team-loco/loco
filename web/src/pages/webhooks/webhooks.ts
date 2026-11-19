@@ -5,7 +5,7 @@ import type { WebhookDelivery } from "@gen/loco/webhook/v1/webhook_pb";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { pluralize } from "@/lib/format";
-import { maybeTsMs, shortAgoLabel, shortDurationLabel, tsMs } from "@/lib/time";
+import { agoLabel, maybeTsMs, shortDurationLabel, tsMs } from "@/lib/time";
 
 import { AUDIT_EVENT_TYPES } from "../settings/auditEvents";
 
@@ -60,7 +60,7 @@ export function deliveryWhen(d: WebhookDelivery, nowMs: number): string {
 	if (d.status === STATUS_PENDING && nextMs !== undefined && nextMs > nowMs) {
 		return `retry in ${shortDurationLabel(nextMs - nowMs)}`;
 	}
-	return shortAgoLabel(maybeTsMs(d.deliveredAt) ?? tsMs(d.createdAt), nowMs);
+	return agoLabel(maybeTsMs(d.deliveredAt) ?? tsMs(d.createdAt), nowMs);
 }
 
 export function isPrivateAddress(value: string): boolean {

@@ -9,7 +9,15 @@ import { tsMs } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { cn } from "@/lib/utils";
 
-import { bucketReadout, durationTick, errorRateLabel, niceTicks } from "./trace-overview";
+import {
+	countReadout,
+	durationTick,
+	errorRateLabel,
+	latencyReadout,
+	logPosition,
+	logScale,
+	niceTicks,
+} from "./trace-overview";
 import { durationLabel } from "./traces";
 
 interface Brush {
@@ -27,8 +35,6 @@ interface Bucket {
 
 const MIN_BRUSH = 0.01;
 const Y_TICKS = 3;
-const LATENCY_HEADROOM = 1.15;
-const LATENCY_FLOOR_NANOS = 1e6;
 const DASH = "4 3";
 
 function fraction(event: PointerEvent<HTMLDivElement>): number {
@@ -76,13 +82,13 @@ export function TraceOverview({
 
 	const countMax = Math.max(1, ...buckets.map((b) => b.traces));
 	const countTicks = niceTicks(countMax, Y_TICKS).filter((v) => Number.isInteger(v));
-	const latencyMax =
-		Math.max(LATENCY_FLOOR_NANOS, ...buckets.filter((b) => b.traces > 0).map((b) => Number(b.p95))) * LATENCY_HEADROOM;
-	const latencyTicks = niceTicks(latencyMax, Y_TICKS);
+	const scale = logScale(buckets.flatMap((b) => (b.traces > 0 ? [Number(b.p50), Number(b.p95)] : [])));
 	const line = (key: "p50" | "p95") =>
 		buckets
 			.flatMap((b, i) =>
-				b.traces > 0 ? [`${String(((i + 0.5) / n) * 100)},${String(100 - (Number(b[key]) / latencyMax) * 100)}`] : [],
+				b.traces > 0
+					? [`${String(((i + 0.5) / n) * 100)},${String(100 - logPosition(Number(b[key]), scale) * 100)}`]
+					: [],
 			)
 			.join(" ");
 
@@ -115,7 +121,7 @@ export function TraceOverview({
 			setHover(null);
 		},
 	};
-	const overlay = (
+	const overlay = (readout: (b: Bucket) => string) => (
 		<>
 			{hover !== null && (
 				<span
@@ -123,6 +129,18 @@ export function TraceOverview({
 					className="pointer-events-none absolute inset-y-0 border-l border-fg3"
 					style={{ left: pct((hover + 0.5) / n) }}
 				/>
+			)}
+			{hovered !== undefined && brush === null && (
+				<span
+					role="tooltip"
+					className={cn(
+						"pointer-events-none absolute top-1 z-10 rounded-[5px] bg-foreground px-2 py-[3px] font-mono text-[11.5px] whitespace-nowrap text-background",
+						(hover ?? 0) / n < 0.5 ? "translate-x-2" : "-translate-x-[calc(100%+8px)]",
+					)}
+					style={{ left: pct(((hover ?? 0) + 0.5) / n) }}
+				>
+					{readout(hovered)}
+				</span>
 			)}
 			{brush !== null && (
 				<span
@@ -190,7 +208,7 @@ export function TraceOverview({
 						/>
 					</span>
 				))}
-				{overlay}
+				{overlay((b) => countReadout({ ...b, widthSeconds }, timePref))}
 			</OverviewCard>
 			<OverviewCard
 				title="Latency"
@@ -202,7 +220,7 @@ export function TraceOverview({
 						<Swatch className="h-0 w-3 border-t-2 border-dashed border-warn">p95</Swatch>
 					</>
 				}
-				ticks={latencyTicks.map((v) => ({ y: 1 - v / latencyMax, label: durationTick(v) }))}
+				ticks={scale.ticks.map((v) => ({ y: 1 - logPosition(v, scale), label: durationTick(v) }))}
 				label={`p50 and p95 trace duration per ${width}. Drag across the chart to zoom into a time range.`}
 				loading={loading}
 				pointer={pointer}
@@ -232,17 +250,8 @@ export function TraceOverview({
 						className="stroke-warn"
 					/>
 				</svg>
-				{overlay}
+				{overlay((b) => latencyReadout({ ...b, widthSeconds }, timePref))}
 			</OverviewCard>
-			<span
-				aria-live="polite"
-				className={cn(
-					"pointer-events-none absolute -top-[30px] left-1/2 -translate-x-1/2 rounded-[5px] bg-foreground px-2 py-[3px] font-mono text-[11.5px] whitespace-nowrap text-background opacity-0 transition-opacity duration-100",
-					hovered !== undefined && "opacity-100",
-				)}
-			>
-				{hovered !== undefined && bucketReadout({ ...hovered, widthSeconds }, timePref)}
-			</span>
 		</div>
 	);
 }

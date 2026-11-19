@@ -3,7 +3,7 @@ import type { EntityScope, Token } from "@gen/loco/token/v1/token_pb";
 
 import { scopeLevel } from "@/hooks/useMyScopes";
 import { pluralize } from "@/lib/format";
-import { DAY_MS, maybeTsMs, shortAgoLabel, shortDurationLabel } from "@/lib/time";
+import { agoLabel, DAY_MS, maybeTsMs, shortDurationLabel } from "@/lib/time";
 
 export type NodeKind = "org" | "ws" | "res" | "user" | "system";
 export type Level = 1 | 2 | 3;
@@ -280,7 +280,7 @@ export function tokenStatus(token: Token, now: number): TokenStatus {
 
 export function expiresLabel(token: Token, now: number): string {
 	const exp = maybeTsMs(token.expiresAt) ?? now;
-	return exp < now ? `expired ${shortAgoLabel(exp, now)}` : `in ${shortDurationLabel(exp - now)}`;
+	return exp < now ? `expired ${agoLabel(exp, now)}` : `in ${shortDurationLabel(exp - now)}`;
 }
 
 export function relAgo(ms: number, now: number): string {
@@ -293,7 +293,7 @@ export function relAgo(ms: number, now: number): string {
 
 export function lastUsedLabel(token: Token, now: number): string {
 	const used = maybeTsMs(token.lastUsedAt);
-	return used === undefined ? "never" : shortAgoLabel(used, now);
+	return used === undefined ? "never" : agoLabel(used, now);
 }
 
 export function matchesQuery(tree: EntityTree, token: Token, q: string, creator = ""): boolean {

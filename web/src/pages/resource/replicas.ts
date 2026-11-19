@@ -2,7 +2,7 @@ import type { Replica, ReplicaExit, ReplicaRestart } from "@gen/loco/deployment/
 import type { MetricSeries } from "@gen/loco/observability/v1/observability_pb";
 import { ResourceStatus, type EnvironmentStatus, type RegionStatus } from "@gen/loco/resource/v1/resource_pb";
 
-import { agoLabel, maybeTsMs, shortAgoLabel } from "@/lib/time";
+import { agoLabel, maybeTsMs } from "@/lib/time";
 
 export const POD_LABEL = "k8s.pod.name";
 /** Two collection intervals of the worker's kubeletstats receiver. */
@@ -60,7 +60,7 @@ export function podUsage(series: readonly MetricSeries[], nowMs: number): Map<st
 export function exitLabel(exit: ReplicaExit, nowMs: number): string {
 	const label = `${exit.reason} · exit ${exit.exitCode.toString()}`;
 	const at = maybeTsMs(exit.finishedAt);
-	return at === undefined ? label : `${label} · ${shortAgoLabel(at, nowMs)}`;
+	return at === undefined ? label : `${label} · ${agoLabel(at, nowMs)}`;
 }
 
 /** What a replica restarted after, in the controller's cause vocabulary (k8sapi RestartCause). */
@@ -75,6 +75,6 @@ export function restartLabel(replica: Replica, nowMs: number): string {
 	const restart = replica.lastRestart;
 	if (restart === undefined) return count;
 	const at = maybeTsMs(restart.at);
-	const when = at === undefined ? [] : [`last ${shortAgoLabel(at, nowMs)}`];
+	const when = at === undefined ? [] : [`last ${agoLabel(at, nowMs)}`];
 	return [count, ...when, restartCause(restart)].join(" · ");
 }

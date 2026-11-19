@@ -16,7 +16,7 @@ import { useWorkspaceEvents } from "@/hooks/useWorkspaceEvents";
 import { formatCount } from "@/lib/format";
 import { pagedRows, pagingParsers, type Paging } from "@/lib/paging";
 import { newResourcePath } from "@/lib/routes";
-import { shortAgoLabel, tsMs } from "@/lib/time";
+import { agoLabel, tsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
@@ -250,7 +250,7 @@ export function EventsView() {
 												</td>
 												<td className="px-3 text-fg2">{e.resourceName}</td>
 												<td className="pr-5 pl-3 text-right font-mono text-[12px] whitespace-nowrap text-fg3">
-													{shortAgoLabel(e.ts, nowMs)}
+													{agoLabel(e.ts, nowMs)}
 												</td>
 											</tr>
 										);

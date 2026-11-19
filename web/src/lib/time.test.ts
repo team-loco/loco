@@ -1,13 +1,23 @@
 import { expect, test } from "bun:test";
 
-import { shortAgoLabel, shortDurationLabel } from "./time";
+import { agoLabel, formatDateTime, shortDurationLabel } from "./time";
 
-test("shortAgoLabel fits minutes, hours and days in a few characters", () => {
+test("agoLabel gives just now, then minutes, hours and days", () => {
 	const now = Date.UTC(2026, 0, 10);
-	expect(shortAgoLabel(now - 10_000, now)).toBe("now");
-	expect(shortAgoLabel(now - 5 * 60_000, now)).toBe("5m ago");
-	expect(shortAgoLabel(now - 3 * 3_600_000, now)).toBe("3h ago");
-	expect(shortAgoLabel(now - 2 * 86_400_000, now)).toBe("2d ago");
+	expect(agoLabel(now - 10_000, now)).toBe("just now");
+	expect(agoLabel(now - 5 * 60_000, now)).toBe("5m ago");
+	expect(agoLabel(now - 3 * 3_600_000, now)).toBe("3h ago");
+	expect(agoLabel(now - 2 * 86_400_000, now)).toBe("2d ago");
+	expect(agoLabel(now - 26 * 3_600_000, now)).toBe("1d ago");
+	expect(agoLabel(now - 14.9 * 60_000, now)).toBe("14m ago");
+});
+
+test("formatDateTime joins the month, day and clock, with seconds on request", () => {
+	const utc = { zone: "utc", clock: "24" } as const;
+	const at = Date.UTC(2026, 10, 18, 15, 49, 7, 123);
+	expect(formatDateTime(at, false, false, utc)).toBe("Nov 18, 15:49");
+	expect(formatDateTime(at, true, false, utc)).toBe("Nov 18, 15:49:07");
+	expect(formatDateTime(at, false, true, utc)).toBe("Nov 18, 15:49:07.123");
 });
 
 test("formats short durations with rounded seconds, minutes, hours and days", () => {

@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
-import { formatClock, formatSlashDate, type TimePreferences } from "@/lib/time";
+import { formatDateTime, type TimePreferences } from "@/lib/time";
 
 import type { Level } from "./query";
 
 export function fmtTs(ms: number, withMs: boolean, pref: TimePreferences): string {
-	return `${formatSlashDate(ms, pref)} ${formatClock(ms, withMs, pref)}`;
+	return formatDateTime(ms, true, withMs, pref);
 }
 
 export const LEVEL_LABEL: Record<Level, string> = {

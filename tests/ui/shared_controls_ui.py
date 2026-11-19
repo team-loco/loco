@@ -139,7 +139,6 @@ def mock_telemetry(context):
 
     def log_buckets(route):
         body = route.request.post_data_json
-        log_bucket_requests.append(body)
         width = body["intervalSeconds"]
         at = datetime.fromisoformat(body["endTime"].replace("Z", "+00:00")).timestamp()
         start = (
@@ -147,6 +146,16 @@ def mock_telemetry(context):
             .isoformat()
             .replace("+00:00", "Z")
         )
+        if body["groupBy"] == "LOG_BUCKET_GROUP_RESOURCE":
+            route.fulfill(
+                json={
+                    "buckets": [
+                        {"startTime": start, "resourceId": resource, "count": "647"}
+                    ]
+                }
+            )
+            return
+        log_bucket_requests.append(body)
         route.fulfill(
             json={
                 "buckets": [
@@ -632,6 +641,32 @@ def log_paging(page):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
+def log_cap(page):
+    now = datetime.now(UTC)
+    rows = [
+        {
+            "timestamp": stamp(now, timedelta(seconds=i * 7 + 1)),
+            "level": "LOG_LEVEL_INFO",
+            "body": f"Capped line {i + 1}",
+            "resourceId": resource,
+        }
+        for i in range(30)
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(
+            json={"entries": rows, "totalMatched": "0", "nextCursor": "more"}
+        ),
+    )
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=logs&size=25"
+    )
+    expect(page.get_by_text(re.compile(r"^1–25 of 30\+ loaded"))).to_contain_text(
+        "10,014 lines in range, 1,000 per load, Older loads more"
+    )
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
+
+
 def time_presets(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     page.get_by_role("button", name=re.compile(r"^Past ")).click()
@@ -766,6 +801,19 @@ def query_suggestions(page):
     search.fill("@level:warn")
     search.press("Tab")
     expect(search).to_have_value("")
+    search.fill("@resource:")
+    resource_option = page.get_by_role(
+        "option", name=re.compile(r"^@resource:controls-pilot")
+    )
+    expect(resource_option).to_contain_text("647")
+    expect(
+        page.get_by_role("option", name=re.compile(r"^@resource:controls-alpha"))
+    ).to_be_visible()
+    expect(page.get_by_text("@resource values", exact=True)).to_be_visible()
+    search.fill("@region:us")
+    expect(
+        page.get_by_text("@region values · counts from loaded lines")
+    ).to_be_visible()
     search.fill("@zz")
     expect(page.get_by_text("No matches", exact=True)).to_be_visible()
     search.press("Escape")
@@ -1415,7 +1463,7 @@ def metrics(page):
     )
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
-    expect(chart.get_by_text("controls-pilot 1.27").first).to_be_visible()
+    expect(chart.get_by_text("controls-pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
@@ -1439,7 +1487,7 @@ def metrics(page):
     menu = page.get_by_role("menu", name=re.compile(r"^Around"))
     expect(menu).to_be_visible()
     expect(
-        menu.get_by_role("menuitem", name=re.compile(r"^Deploy 1\.27")).first
+        menu.get_by_role("menuitem", name=re.compile(r"^Deploy 000de90")).first
     ).to_be_visible()
     first, second = (
         menu.get_by_role("menuitem").nth(0),
@@ -1549,6 +1597,7 @@ with session(out) as browser:
         workload_logs,
         template_logs,
         log_paging,
+        log_cap,
         live_focus,
         time_presets,
         calendar,
