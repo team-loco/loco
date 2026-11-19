@@ -143,6 +143,19 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		status.DesiredReplicas = rollout.DesiredReplicas
 		status.Available = rollout.Available
 		status.ProgressDeadlineExceeded = rollout.ProgressDeadlineExceeded
+		status.Healthy = rollout.Healthy
+		if rollout.HealthyAt != nil {
+			status.HealthyAt = timestamppb.New(rollout.HealthyAt.Time)
+		}
+		if stopped := rollout.Stopped; stopped != nil {
+			status.Stopped = &agentv1.StoppedRevision{
+				PlacementRevision: stopped.PlacementRevision,
+				ReplicaName:       stopped.Replica,
+				Restarts:          stopped.Restarts,
+				LastRestart:       replicaRestart(stopped.LastRestart),
+				At:                timestamppb.New(stopped.At.Time),
+			}
+		}
 		for _, replica := range rollout.Replicas {
 			report := &deploymentv1.Replica{
 				Uid:               replica.UID,
@@ -170,6 +183,12 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 			if replica.StateDeadline != nil {
 				report.StateDeadline = timestamppb.New(replica.StateDeadline.Time)
 			}
+			for _, at := range replica.RestartsAt {
+				report.RestartsAt = append(report.RestartsAt, timestamppb.New(at.Time))
+			}
+			if replica.LastRestart != nil {
+				report.LastRestart = replicaRestart(*replica.LastRestart)
+			}
 			status.Replicas = append(status.Replicas, report)
 		}
 		if problem := rollout.Problem; problem != nil {
@@ -184,6 +203,14 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		}
 	}
 	w.feed.Publish(placementID, status)
+}
+
+func replicaRestart(restart locoControllerV1.ReplicaRestart) *deploymentv1.ReplicaRestart {
+	return &deploymentv1.ReplicaRestart{
+		At:       timestamppb.New(restart.At.Time),
+		Cause:    string(restart.Cause),
+		ExitCode: restart.ExitCode,
+	}
 }
 
 func (w *Watcher) forget(app *locoControllerV1.Application) {

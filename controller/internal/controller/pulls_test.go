@@ -32,8 +32,8 @@ func TestPullEvents(t *testing.T) {
 	}
 	now := time.Now().Truncate(time.Microsecond)
 	e := &eventsv1.Event{Namespace: pod.Namespace, Reason: pullReasonPulling, EventTime: metav1.NewMicroTime(now),
-		Regarding: corev1.ObjectReference{Kind: "Pod", Name: pod.Name, Namespace: pod.Namespace, UID: pod.UID}}
-	if got := r.applicationForPullEvent(
+		Regarding: corev1.ObjectReference{Kind: podKind, Name: pod.Name, Namespace: pod.Namespace, UID: pod.UID}}
+	if got := r.applicationForPodEvent(
 		t.Context(),
 		e,
 	); len(got) != 1 ||
@@ -42,16 +42,16 @@ func TestPullEvents(t *testing.T) {
 	}
 	e.EventTime = metav1.NewMicroTime(now.Add(-time.Second))
 	e.Reason = pullReasonFailed
-	r.applicationForPullEvent(t.Context(), e)
-	if got := r.pullEvents[pod.UID]; got.reason != pullReasonPulling {
+	r.applicationForPodEvent(t.Context(), e)
+	if got := r.podEvents[pod.UID]; got.pull != pullReasonPulling {
 		t.Fatalf("older replaced newest: %+v", got)
 	}
 	e.Reason = pullReasonPulled
 	e.Note = "Successfully pulled image in 2s. Image size: 42 bytes."
 	e.Series = &eventsv1.EventSeries{LastObservedTime: metav1.NewMicroTime(now.Add(time.Second)), Count: 2}
-	r.applicationForPullEvent(t.Context(), e)
-	if got := r.pullEvents[pod.UID]; got.reason != pullReasonPulled ||
-		!got.at.Time.Equal(e.Series.LastObservedTime.Time) {
+	r.applicationForPodEvent(t.Context(), e)
+	if got := r.podEvents[pod.UID]; got.pull != pullReasonPulled ||
+		!got.pulledAt.Time.Equal(e.Series.LastObservedTime.Time) {
 		t.Fatalf("series update = %+v", got)
 	}
 	for _, change := range []func(*eventsv1.Event){
@@ -62,12 +62,12 @@ func TestPullEvents(t *testing.T) {
 	} {
 		ignored := e.DeepCopy()
 		change(ignored)
-		if got := r.applicationForPullEvent(t.Context(), ignored); len(got) != 0 {
+		if got := r.applicationForPodEvent(t.Context(), ignored); len(got) != 0 {
 			t.Fatalf("accepted event: %+v", ignored)
 		}
 	}
 	e.Regarding.Name, e.Regarding.UID = other.Name, other.UID
-	r.applicationForPullEvent(t.Context(), e)
+	r.applicationForPodEvent(t.Context(), e)
 	dep := appsv1ac.Deployment(testAppName(app), pod.Namespace).WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1))
 	if err := r.Delete(t.Context(), pod); err != nil {
 		t.Fatal(err)
@@ -75,17 +75,17 @@ func TestPullEvents(t *testing.T) {
 	if err := r.observeReplicas(t.Context(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := r.pullEvents[pod.UID]; ok {
+	if _, ok := r.podEvents[pod.UID]; ok {
 		t.Fatal("unlisted pod retained")
 	}
-	if _, ok := r.pullEvents[other.UID]; !ok {
+	if _, ok := r.podEvents[other.UID]; !ok {
 		t.Fatal("other application's event removed")
 	}
 	q := workqueue.NewTypedRateLimitingQueue(workqueue.DefaultTypedControllerRateLimiter[reconcile.Request]())
 	defer q.ShutDown()
 	h := r.podHandler(handler.EnqueueRequestsFromMapFunc(applicationForObject))
 	h.Delete(t.Context(), event.DeleteEvent{Object: other, DeleteStateUnknown: true}, q)
-	if len(r.pullEvents) != 0 {
+	if len(r.podEvents) != 0 {
 		t.Fatal("deleted pod retained")
 	}
 }
@@ -103,7 +103,7 @@ func TestPullEventTime(t *testing.T) {
 		{eventsv1.Event{DeprecatedLastTimestamp: metav1.NewTime(now)}, now},
 		{eventsv1.Event{CreationTimestamp: metav1.NewTime(now)}, now},
 	} {
-		if got := pullEventTime(&tt.event); !got.Time.Equal(tt.want) {
+		if got := eventTime(&tt.event); !got.Time.Equal(tt.want) {
 			t.Fatalf("time = %v, want %v", got, tt.want)
 		}
 	}

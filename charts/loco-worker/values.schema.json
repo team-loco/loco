@@ -403,6 +403,11 @@
         "env": {
           "type": "array"
         },
+        "healthyAfterSeconds": {
+          "type": "integer",
+          "maximum": 2147483647,
+          "minimum": 0
+        },
         "image": {
           "type": "object",
           "required": [

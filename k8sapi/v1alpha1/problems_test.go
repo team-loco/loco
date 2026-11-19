@@ -6,7 +6,7 @@ func TestProblemMessages(t *testing.T) {
 	reasons := []ProblemReason{
 		ProblemBuildFailed, ProblemApplyFailed, ProblemUnschedulable,
 		ProblemImagePullFailed, ProblemImageUser, ProblemConfigError,
-		ProblemCrashLoop, ProblemOutOfMemory, ProblemHealthCheckFailing,
+		ProblemRestarting, ProblemRestartsExhausted, ProblemOutOfMemory, ProblemHealthCheckFailing,
 		ProblemRolloutTimeout, ProblemUncleanShutdown,
 	}
 	counts := make(map[ProblemReason]int)
@@ -34,7 +34,8 @@ func TestProblemMessages(t *testing.T) {
 func TestProblemHigherPriority(t *testing.T) {
 	for _, pair := range [][2]ProblemReason{
 		{ProblemBuildFailed, ProblemApplyFailed},
-		{ProblemOutOfMemory, ProblemCrashLoop},
+		{ProblemOutOfMemory, ProblemRestarting},
+		{ProblemRestartsExhausted, ProblemOutOfMemory},
 		{ProblemRolloutTimeout, ProblemUncleanShutdown},
 	} {
 		if !ProblemHigherPriority(pair[0], pair[1]) {
@@ -47,7 +48,7 @@ func TestProblemHigherPriority(t *testing.T) {
 			t.Errorf("%q should not outrank itself", pair[0])
 		}
 	}
-	if ProblemHigherPriority("unknown", ProblemCrashLoop) || ProblemHigherPriority(ProblemCrashLoop, "unknown") {
+	if ProblemHigherPriority("unknown", ProblemRestarting) || ProblemHigherPriority(ProblemRestarting, "unknown") {
 		t.Error("compared an unknown reason")
 	}
 }

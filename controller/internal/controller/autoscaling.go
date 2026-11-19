@@ -11,6 +11,7 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	autoscalingv2ac "k8s.io/client-go/applyconfigurations/autoscaling/v2"
 	metav1ac "k8s.io/client-go/applyconfigurations/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/team-loco/loco/controller/internal/managed"
 	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -24,7 +25,8 @@ func (r *ApplicationReconciler) ensureAutoscaler(
 	name := *deployment.Name
 	namespace := *deployment.Namespace
 	resources := app.Spec.ServiceSpec.Resources
-	if !resources.Scalers.Enabled {
+	stopsService := ptr.Deref(deployment.Spec.Paused, false) && ptr.Deref(deployment.Spec.Replicas, 0) == 0
+	if !resources.Scalers.Enabled || stopsService {
 		hpa := &autoscalingv2.HorizontalPodAutoscaler{Name: name, Namespace: namespace}
 		if err := r.Delete(ctx, hpa); err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("delete autoscaler %s/%s: %w", namespace, name, err)

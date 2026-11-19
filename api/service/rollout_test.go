@@ -50,8 +50,8 @@ func assertActivityMessages(t *testing.T, got []activityEntry, want []string) {
 }
 
 func TestDiffRolloutProblemAndScale(t *testing.T) {
-	problem := &agentv1.ProblemReport{Reason: string(loco.ProblemCrashLoop)}
-	message, _ := loco.ProblemMessage(loco.ProblemCrashLoop)
+	problem := &agentv1.ProblemReport{Reason: string(loco.ProblemRestarting)}
+	message, _ := loco.ProblemMessage(loco.ProblemRestarting)
 	for _, tt := range []struct {
 		name     string
 		previous rolloutSnapshot
@@ -91,7 +91,7 @@ func TestDiffRolloutPreviousGone(t *testing.T) {
 	}
 }
 
-func TestDiffRolloutCrashLoop(t *testing.T) {
+func TestDiffRolloutRepeatedRestarts(t *testing.T) {
 	previous := rolloutSnapshot{}
 	rows, markers := 0, 0
 	for i := range rolloutActivityLimit + 10 {
@@ -120,7 +120,7 @@ func TestDiffRolloutCrashLoop(t *testing.T) {
 		previous.Replicas = report.GetReplicas()
 	}
 	if rows != rolloutActivityLimit || markers != 1 {
-		t.Fatalf("crash rows=%d markers=%d", rows, markers)
+		t.Fatalf("restart rows=%d markers=%d", rows, markers)
 	}
 }
 

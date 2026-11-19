@@ -21,8 +21,8 @@ const (
 	reasonPodInitializing     = "PodInitializing"
 )
 
-func replicaState(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaStatus {
-	result := classifyReplica(pod, pull, now)
+func replicaState(pod *corev1.Pod, events *podEvent, now time.Time) loco.ReplicaStatus {
+	result := classifyReplica(pod, events, now)
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == corev1.PodReady {
 			result.Ready = condition.Status == corev1.ConditionTrue && pod.DeletionTimestamp == nil
@@ -40,6 +40,11 @@ func replicaState(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaS
 		result.StartedAt = pod.Status.StartTime.DeepCopy()
 	}
 	result.LastExit = lastExit(pod)
+	var livenessKill metav1.Time
+	if events != nil {
+		livenessKill = events.livenessKill
+	}
+	result.LastRestart = lastRestart(pod, livenessKill)
 	result.Detail = clip.Bytes(result.Detail, replicaDetailBytes)
 	return result
 }
@@ -60,7 +65,7 @@ func lastExit(pod *corev1.Pod) *loco.ReplicaExit {
 	return newest
 }
 
-func classifyReplica(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.ReplicaStatus {
+func classifyReplica(pod *corev1.Pod, events *podEvent, now time.Time) loco.ReplicaStatus {
 	result := loco.ReplicaStatus{State: loco.ReplicaUnknown, StateSince: pod.CreationTimestamp.DeepCopy()}
 	for _, status := range pod.Status.ContainerStatuses {
 		result.Restarts += status.RestartCount
@@ -78,8 +83,7 @@ func classifyReplica(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.Repli
 				return result
 			}
 		}
-		if status.State.Terminated != nil && status.RestartCount > 0 ||
-			status.LastTerminationState.Terminated != nil && replicaRecoveringAt(*pod, status, now) {
+		if status.State.Terminated != nil || waiting != nil && waiting.Reason == reasonCrashLoopBackOff {
 			result.State = loco.ReplicaFailing
 			result.Detail = fmt.Sprintf("restarting · %d restarts", result.Restarts)
 			return result
@@ -105,10 +109,10 @@ func classifyReplica(pod *corev1.Pod, pull *pullEvent, now time.Time) loco.Repli
 			if status.State.Waiting != nil {
 				result.Detail = status.State.Waiting.Message
 				reason := status.State.Waiting.Reason
-				if (reason == reasonContainerCreating || reason == reasonPodInitializing) && pull != nil &&
-					pull.reason == pullReasonPulling {
+				if (reason == reasonContainerCreating || reason == reasonPodInitializing) && events != nil &&
+					events.pull == pullReasonPulling {
 					result.State = loco.ReplicaPulling
-					result.StateSince = pull.at.DeepCopy()
+					result.StateSince = events.pulledAt.DeepCopy()
 				}
 			} else {
 				result.StateSince = status.State.Running.StartedAt.DeepCopy()

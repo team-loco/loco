@@ -253,7 +253,7 @@ var _ = Describe("Application with replicas that cannot start", func() {
 			reason string
 			want   locov1alpha1.ProblemReason
 		}{
-			{reasonCrashLoopBackOff, locov1alpha1.ProblemCrashLoop},
+			{reasonCrashLoopBackOff, locov1alpha1.ProblemRestarting},
 			{reasonImagePullBackOff, locov1alpha1.ProblemImagePullFailed},
 		} {
 			setWaiting(pod, tc.reason, "private replica diagnostics")

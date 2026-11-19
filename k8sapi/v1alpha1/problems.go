@@ -2,7 +2,7 @@ package v1alpha1
 
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-// +kubebuilder:validation:Enum=build_failed;apply_failed;unschedulable;image_pull_failed;image_user;config_error;crash_loop;out_of_memory;health_check_failing;rollout_timeout;unclean_shutdown
+// +kubebuilder:validation:Enum=build_failed;apply_failed;unschedulable;image_pull_failed;image_user;config_error;restarting;restarts_exhausted;out_of_memory;health_check_failing;rollout_timeout;unclean_shutdown
 type ProblemReason string
 
 const (
@@ -12,7 +12,8 @@ const (
 	ProblemImagePullFailed    ProblemReason = "image_pull_failed"
 	ProblemImageUser          ProblemReason = "image_user"
 	ProblemConfigError        ProblemReason = "config_error"
-	ProblemCrashLoop          ProblemReason = "crash_loop"
+	ProblemRestarting         ProblemReason = "restarting"
+	ProblemRestartsExhausted  ProblemReason = "restarts_exhausted"
 	ProblemOutOfMemory        ProblemReason = "out_of_memory"
 	ProblemHealthCheckFailing ProblemReason = "health_check_failing"
 	ProblemRolloutTimeout     ProblemReason = "rollout_timeout"
@@ -26,11 +27,13 @@ var problems = []struct {
 }{
 	{ProblemBuildFailed, "The build failed."},
 	{ProblemApplyFailed, "Loco could not apply the deployment to the cluster."},
+	{ProblemRestartsExhausted, "The service was stopped after restarting more often than its restart policy allows. " +
+		"Check its logs, then restart or redeploy it."},
 	{ProblemImageUser, "The image must run as a numeric, non-root USER, such as USER 1000."},
 	{ProblemConfigError, "The service could not start with this image and its settings."},
 	{ProblemImagePullFailed, "Loco could not pull the image. Check the image name and registry access."},
 	{ProblemOutOfMemory, "The service ran out of memory. Increase its memory limit or reduce memory usage."},
-	{ProblemCrashLoop, "The service keeps exiting soon after it starts. Check its logs for the error."},
+	{ProblemRestarting, "A replica keeps restarting. Check its logs."},
 	{ProblemUnschedulable, "The service cannot be scheduled. " +
 		"Check the region's capacity and the service's resource requests."},
 	{ProblemHealthCheckFailing, "The service is failing its health check, " +

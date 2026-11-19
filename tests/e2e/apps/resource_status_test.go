@@ -32,7 +32,7 @@ const (
 
 // TestResourceStatus follows what the API reports about a resource: healthy after a deploy and a
 // restart, unavailable while its pods cannot run, unknown while its cluster is silent, mutations
-// accepted during a rollout, stopped while its organization is suspended, one crash-loop event
+// accepted during a rollout, stopped while its organization is suspended, one restarting event
 // across an agent reconnect, a failed rollout that keeps the old version serving, and a worker
 // without a port. It cordons the node and stops the agent, so it runs before the parallel tests.
 func TestResourceStatus(t *testing.T) {
@@ -68,7 +68,7 @@ func TestResourceStatus(t *testing.T) {
 
 	t.Run("suspension stops pods and resume restores them", s.suspension)
 
-	t.Run("a crash loop records one event across a reconnect", s.crashLoopEvent)
+	t.Run("a restarting replica records one event across a reconnect", s.restartingEvent)
 
 	t.Run("a failed rollout keeps the old version serving", s.failedRolloutKeepsServing)
 
@@ -502,11 +502,11 @@ func deploymentCount(t *testing.T, resourceID string) int {
 	return count
 }
 
-func crashEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resourceID string) []*eventv1.Event {
+func restartingEvents(ctx context.Context, t *testing.T, w *platform.Workspace, resourceID string) []*eventv1.Event {
 	t.Helper()
 	var crashes []*eventv1.Event
 	for _, event := range resourceEvents(ctx, t, w, resourceID, "resource.degraded") {
-		if event.GetData().GetFields()["reason"].GetStringValue() == "crash_loop" {
+		if event.GetData().GetFields()["reason"].GetStringValue() == "restarting" {
 			crashes = append(crashes, event)
 		}
 	}
@@ -819,7 +819,7 @@ func (s *status) suspension(t *testing.T) {
 	waitRolloutFinished(t, w, app)
 }
 
-func (s *status) crashLoopEvent(t *testing.T) {
+func (s *status) restartingEvent(t *testing.T) {
 	w := s.w
 	const crashing = "e2e-runtime-crash"
 	crashDir := t.TempDir()
@@ -846,10 +846,10 @@ func (s *status) crashLoopEvent(t *testing.T) {
 	platform.Eventually(
 		t,
 		statusTimeout,
-		"one crash-loop event through ListEvents",
+		"one restarting event through ListEvents",
 		func(ctx context.Context) error {
-			if events := crashEvents(ctx, t, w, crashID); len(events) != 1 {
-				return fmt.Errorf("%d crash-loop events", len(events))
+			if events := restartingEvents(ctx, t, w, crashID); len(events) != 1 {
+				return fmt.Errorf("%d restarting events", len(events))
 			}
 			return nil
 		},
@@ -884,7 +884,7 @@ func (s *status) crashLoopEvent(t *testing.T) {
 	if after := eventIDs(t, w, crashID); !slices.Equal(after, before) {
 		t.Errorf("the replay changed the resource's degradation events from %v to %v", before, after)
 	}
-	if events := crashEvents(t.Context(), t, w, crashID); len(events) != 1 {
-		t.Errorf("%d crash-loop events after the replay, want 1", len(events))
+	if events := restartingEvents(t.Context(), t, w, crashID); len(events) != 1 {
+		t.Errorf("%d restarting events after the replay, want 1", len(events))
 	}
 }

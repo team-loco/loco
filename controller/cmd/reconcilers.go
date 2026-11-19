@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -23,6 +24,7 @@ var (
 	errWorkspacePrefixMissing  = errors.New("the application reconciler requires " + envWorkspacePrefix)
 	errMinReadySecondsMissing  = errors.New("the application reconciler requires " + envMinReadySeconds)
 	errDrainSecondsMissing     = errors.New("the application reconciler requires " + envDrainSeconds)
+	errHealthyAfterMissing     = errors.New("the application reconciler requires " + envHealthyAfterSeconds)
 	errNoLocoNamespace         = errors.New("registry secrets require " + envLocoNamespace)
 	errNoPushSecret            = errors.New("builds require a registry push secret outside registry token mode")
 	errStaticSecretInTokenMode = errors.New(
@@ -69,6 +71,9 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 	if operator.DrainSeconds == nil {
 		return reconcilerSetup{}, errDrainSecondsMissing
 	}
+	if operator.HealthyAfterSeconds == nil {
+		return reconcilerSetup{}, errHealthyAfterMissing
+	}
 	if operator.RegistryTokenMode && operator.PullSecretName != "" {
 		return reconcilerSetup{}, errStaticSecretInTokenMode
 	}
@@ -93,6 +98,7 @@ func applicationSetup(operator operatorConfig) (reconcilerSetup, error) {
 			Telemetry:                operator.Telemetry,
 			MinReadySeconds:          *operator.MinReadySeconds,
 			DrainSeconds:             *operator.DrainSeconds,
+			HealthyAfter:             time.Duration(*operator.HealthyAfterSeconds) * time.Second,
 		}
 		return reconciler.SetupWithManager(mgr)
 	}

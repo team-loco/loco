@@ -86,7 +86,7 @@ func TestServingDeploymentFollowsAcceptedObservation(t *testing.T) {
 	report.Available = false
 	report.ReadyReplicas = 1
 	report.ProgressDeadlineExceeded = true
-	report.Problem = &agentv1.ProblemReport{Reason: "crash_loop"}
+	report.Problem = &agentv1.ProblemReport{Reason: "restarting"}
 	report.Replicas = []*deploymentv1.Replica{
 		{
 			Uid:               "pod-second",

@@ -10,6 +10,8 @@ The agent reads `agent.joinToken.existingSecret` (key `agent.joinToken.secretKey
 
 The delay lets routing remove the retiring endpoint while the process accepts traffic. Increase it when endpoint withdrawal takes longer in the cluster; it does not guarantee convergence while the control plane or routing is stalled. The Pod's total termination grace is the drain delay plus Kubernetes' default 30-second process shutdown budget. Workers without ports stop without the delay. Changing the drain setting rolls serving Pod templates, and each Pod gets the hook when it is replaced.
 
+`controller.healthyAfterSeconds`, 300 by default, is how long every replica of a rollout must run without a restart before the rollout counts as healthy. The chart supplies it as `LOCO_HEALTHY_AFTER_SECONDS`.
+
 ## Resource metrics
 
 The chart installs metrics-server for application autoscaling; set `metrics-server.enabled: false` when the cluster already serves `metrics.k8s.io`.

@@ -86,6 +86,8 @@ const (
 	defaultHealthGracePeriod  = 0
 	defaultDeployAttempts     = 2
 	defaultDeployRetryDelay   = int32(5 * time.Minute / time.Second)
+	defaultMaxRestarts        = 5
+	defaultRestartWindow      = int32(10 * time.Minute / time.Second)
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
 
 	defaultRegistryScheme            = "https://"
@@ -609,6 +611,8 @@ func newServiceDefaults() servicedefaults.Defaults {
 		HealthStartupGracePeriod: envconfig.Int32("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
 		DeployAttempts:           positiveInt32Env("LOCO_DEFAULT_DEPLOY_ATTEMPTS", defaultDeployAttempts),
 		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
+		MaxRestarts:              nonNegativeInt32Env("LOCO_DEFAULT_MAX_RESTARTS", defaultMaxRestarts),
+		RestartWindow:            positiveInt32Env("LOCO_DEFAULT_RESTART_WINDOW", defaultRestartWindow),
 	}
 	if err := defaults.Validate(); err != nil {
 		panic(fmt.Errorf("%w: %w", errInvalidServiceDefault, err))

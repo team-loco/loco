@@ -9,7 +9,7 @@ import (
 	appsv1ac "k8s.io/client-go/applyconfigurations/apps/v1"
 	"k8s.io/utils/ptr"
 
-	locov1alpha1 "github.com/team-loco/loco/k8sapi/v1alpha1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
@@ -24,50 +24,50 @@ const (
 	kubeletNonNumericUser            = "non-numeric user"
 )
 
-func replicaProblemReason(pod corev1.Pod, now time.Time) locov1alpha1.ProblemReason {
-	var best locov1alpha1.ProblemReason
-	found := func(reason locov1alpha1.ProblemReason) {
-		if best == "" || locov1alpha1.ProblemHigherPriority(reason, best) {
+func replicaProblemReason(
+	pod corev1.Pod,
+	replica loco.ReplicaStatus,
+	healthyAfter time.Duration,
+	now time.Time,
+) loco.ProblemReason {
+	var best loco.ProblemReason
+	found := func(reason loco.ProblemReason) {
+		if best == "" || loco.ProblemHigherPriority(reason, best) {
 			best = reason
 		}
 	}
 	for _, c := range pod.Status.Conditions {
 		if c.Type == corev1.PodScheduled && c.Status == corev1.ConditionFalse &&
 			c.Reason == corev1.PodReasonUnschedulable {
-			found(locov1alpha1.ProblemUnschedulable)
+			found(loco.ProblemUnschedulable)
+		}
+	}
+	if restartedWithin(replica, healthyAfter, now) {
+		found(loco.ProblemRestarting)
+		if replica.LastRestart.Cause == loco.RestartOutOfMemory {
+			found(loco.ProblemOutOfMemory)
 		}
 	}
 	for _, status := range pod.Status.ContainerStatuses {
-		running := status.State.Running
-		recovering := replicaRecoveringAt(pod, status, now)
-		waiting := status.State.Waiting
-		if waiting != nil {
+		if waiting := status.State.Waiting; waiting != nil {
 			if reason := waitingProblemReason(waiting.Reason, waiting.Message); reason != "" {
 				found(reason)
 			}
-		}
-		backoff := waiting != nil && waiting.Reason == reasonCrashLoopBackOff
-		lastExit := status.LastTerminationState.Terminated
-		activeExit := status.State.Terminated
-		if lastExit != nil && (backoff || recovering) {
-			found(locov1alpha1.ProblemCrashLoop)
-			if lastExit.Reason == reasonOOMKilled {
-				found(locov1alpha1.ProblemOutOfMemory)
+			if waiting.Reason == reasonCrashLoopBackOff {
+				found(loco.ProblemRestarting)
 			}
 		}
-		if activeExit != nil {
-			if status.RestartCount > 0 {
-				found(locov1alpha1.ProblemCrashLoop)
-			}
-			if activeExit.Reason == reasonOOMKilled {
-				found(locov1alpha1.ProblemOutOfMemory)
+		if exit := status.State.Terminated; exit != nil {
+			found(loco.ProblemRestarting)
+			if exit.Reason == reasonOOMKilled {
+				found(loco.ProblemOutOfMemory)
 			}
 		}
 		if status.Ready {
 			continue
 		}
 
-		if running != nil && ptr.Deref(status.Started, false) {
+		if status.State.Running != nil && ptr.Deref(status.Started, false) {
 			for _, container := range pod.Spec.Containers {
 				probe := container.ReadinessProbe
 				if container.Name != status.Name || probe == nil {
@@ -78,7 +78,7 @@ func replicaProblemReason(pod corev1.Pod, now time.Time) locov1alpha1.ProblemRea
 					time.Duration(probe.PeriodSeconds)*time.Duration(probe.FailureThreshold)*time.Second
 				startedAt := status.State.Running.StartedAt
 				if !startedAt.IsZero() && now.Sub(startedAt.Time) >= grace {
-					found(locov1alpha1.ProblemHealthCheckFailing)
+					found(loco.ProblemHealthCheckFailing)
 				}
 			}
 		}
@@ -86,48 +86,22 @@ func replicaProblemReason(pod corev1.Pod, now time.Time) locov1alpha1.ProblemRea
 	return best
 }
 
-// A restarted replica counts as recovered once it has stayed ready this long.
-const runtimeRecoveryWindow = time.Minute
-
-// A retry stays unhealthy until it sustains readiness.
-func replicaRecoveringAt(pod corev1.Pod, status corev1.ContainerStatus, now time.Time) bool {
-	running := status.State.Running
-	if running == nil {
-		return false
-	}
-	if running.StartedAt.IsZero() || now.Sub(running.StartedAt.Time) < runtimeRecoveryWindow {
-		return true
-	}
-	if status.Ready {
-		return false
-	}
-	for _, condition := range pod.Status.Conditions {
-		if condition.Type == corev1.ContainersReady && condition.Status == corev1.ConditionFalse &&
-			!condition.LastTransitionTime.IsZero() && !condition.LastTransitionTime.After(running.StartedAt.Time) {
-			return true
-		}
-	}
-	return false
-}
-
-func waitingProblemReason(reason, detail string) locov1alpha1.ProblemReason {
+func waitingProblemReason(reason, detail string) loco.ProblemReason {
 	switch reason {
 	case reasonCreateContainerConfigError:
 		return configErrorReason(detail)
 	case reasonImagePullBackOff, reasonErrImagePull, reasonInvalidImageName:
-		return locov1alpha1.ProblemImagePullFailed
-	case reasonCrashLoopBackOff:
-		return locov1alpha1.ProblemCrashLoop
+		return loco.ProblemImagePullFailed
 	default:
 		return ""
 	}
 }
 
-func configErrorReason(detail string) locov1alpha1.ProblemReason {
+func configErrorReason(detail string) loco.ProblemReason {
 	if strings.Contains(detail, kubeletRootImage) || strings.Contains(detail, kubeletNonNumericUser) {
-		return locov1alpha1.ProblemImageUser
+		return loco.ProblemImageUser
 	}
-	return locov1alpha1.ProblemConfigError
+	return loco.ProblemConfigError
 }
 
 func deploymentFailure(dep *appsv1ac.DeploymentApplyConfiguration) (string, bool) {

@@ -111,6 +111,22 @@ message PlacementStatus {
   repeated loco.deployment.v1.Replica replicas = 12;
   ProblemReport problem = 13;
   string deployment_id = 14;
+  // Available with no current replica restarted within the controller's health window.
+  bool healthy = 15;
+  // When an available placement becomes healthy if no replica restarts again.
+  google.protobuf.Timestamp healthy_at = 16;
+  // Set when the controller stopped the observed revision after a replica used up its restart budget.
+  StoppedRevision stopped = 17;
+}
+
+// StoppedRevision is a placement revision the controller stopped.
+message StoppedRevision {
+  int64 placement_revision = 1;
+  string replica_name = 2;
+  // Restarts of the replica within the restart window.
+  int32 restarts = 3;
+  loco.deployment.v1.ReplicaRestart last_restart = 4;
+  google.protobuf.Timestamp at = 5;
 }
 
 message ProblemReport {

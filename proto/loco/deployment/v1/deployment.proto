@@ -287,6 +287,18 @@ message Replica {
   google.protobuf.Timestamp started_at = 13;
   // The most recent container exit the kubelet recorded for the Pod.
   ReplicaExit last_exit = 14;
+  // The replica's restarts within its restart window, oldest first.
+  repeated google.protobuf.Timestamp restarts_at = 15;
+  // The exit the replica most recently restarted after.
+  ReplicaRestart last_restart = 16;
+}
+
+// ReplicaRestart is an exit the kubelet restarted a replica's container after.
+message ReplicaRestart {
+  google.protobuf.Timestamp at = 1;
+  // exit, health_check or out_of_memory.
+  string cause = 2;
+  int32 exit_code = 3;
 }
 
 // ReplicaExit is how a replica's container last terminated.

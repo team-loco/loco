@@ -33,13 +33,24 @@ func TestRolloutProblemPriority(t *testing.T) {
 	oom := crash.DeepCopy()
 	oom.Name = "oom"
 	oom.Status.ContainerStatuses[0].LastTerminationState.Terminated = &corev1.ContainerStateTerminated{
-		Reason: reasonOOMKilled,
+		Reason: reasonOOMKilled, FinishedAt: metav1.NewTime(now),
 	}
-	got := replicaProblem([]corev1.Pod{crash, *oom}, now)
+	got := replicaProblem(observed(now, crash, *oom), testRestartPolicy, testHealthyAfter, now)
 	if got == nil || got.Reason != locov1alpha1.ProblemOutOfMemory {
 		t.Fatalf("problem = %+v", got)
 	}
 }
+func observed(now time.Time, pods ...corev1.Pod) []observedReplica {
+	replicas := make([]observedReplica, 0, len(pods))
+	for _, pod := range pods {
+		status := replicaState(&pod, nil, now)
+		status.Name = pod.Name
+		trackRestarts(&status, nil, testRestartPolicy, now)
+		replicas = append(replicas, observedReplica{pod: pod, status: status})
+	}
+	return replicas
+}
+
 func TestDeletedReplicaExpiry(t *testing.T) {
 	r := &ApplicationReconciler{}
 	now := time.Now()
@@ -196,15 +207,23 @@ func TestReplicaProblemDetail(t *testing.T) {
 				Reason: reasonOOMKilled, ExitCode: 137,
 			}},
 		}}}}, "OOMKilled · exit 137 · 3 restarts"},
-		{"waiting crash", corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
-			RestartCount: 4,
+		{"between restarts", corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
+			RestartCount: 2,
 			State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{
 				Reason: reasonCrashLoopBackOff, Message: "back-off retry",
 			}},
-		}}}}, "CrashLoopBackOff: back-off retry · 4 restarts"},
+			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
+				ExitCode: 1, FinishedAt: metav1.NewTime(now.Add(-time.Second)),
+			}},
+		}}}}, "exit 1 · 2 of 2 restarts in 10 min"},
+		{"exited before its first restart", corev1.Pod{Status: corev1.PodStatus{
+			ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
+				Terminated: &corev1.ContainerStateTerminated{ExitCode: 3},
+			}}},
+		}}, "exit 3 · 0 of 2 restarts in 10 min"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := replicaProblem([]corev1.Pod{tt.pod}, now)
+			got := replicaProblem(observed(now, tt.pod), testRestartPolicy, testHealthyAfter, now)
 			if got == nil || got.Detail != tt.want {
 				t.Fatalf("detail = %+v", got)
 			}

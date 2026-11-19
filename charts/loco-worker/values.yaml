@@ -229,6 +229,10 @@ controller:
   # @schema type: integer; minimum: 1; maximum: 2147483647
   drainSeconds: 5
 
+  # Seconds every replica of a rollout must go without a restart before the rollout counts as healthy.
+  # @schema type: integer; minimum: 0; maximum: 2147483647
+  healthyAfterSeconds: 300
+
   env: []
 
   # @schema skipProperties

@@ -183,14 +183,14 @@ func TestReplicaRecoveryStates(t *testing.T) {
 		{"active retry", corev1.ContainerStatus{RestartCount: 1,
 			State: corev1.ContainerState{
 				Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}}}, loco.ReplicaFailing},
-		{"recovering", corev1.ContainerStatus{Ready: true,
+		{"waiting to restart", corev1.ContainerStatus{RestartCount: 1,
 			State: corev1.ContainerState{
-				Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(now.Add(-10 * time.Second))}},
+				Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff}},
 			LastTerminationState: corev1.ContainerState{
 				Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}}}, loco.ReplicaFailing},
-		{"recovered", corev1.ContainerStatus{Ready: true,
+		{"ready after a restart", corev1.ContainerStatus{Ready: true, RestartCount: 1,
 			State: corev1.ContainerState{
-				Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(now.Add(-2 * time.Minute))}},
+				Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(now.Add(-10 * time.Second))}},
 			LastTerminationState: corev1.ContainerState{
 				Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}}}, loco.ReplicaServing},
 		{"running unready", corev1.ContainerStatus{State: corev1.ContainerState{
@@ -248,20 +248,21 @@ func TestReplicaPullState(t *testing.T) {
 	for _, tt := range []struct {
 		name    string
 		waiting string
-		event   *pullEvent
+		event   *podEvent
 		want    loco.ReplicaState
 		detail  string
 	}{
-		{"pulling", reasonContainerCreating, &pullEvent{reason: pullReasonPulling, at: at}, loco.ReplicaPulling, ""},
-		{"initializing", reasonPodInitializing, &pullEvent{reason: pullReasonPulling, at: at}, loco.ReplicaPulling, ""},
+		{"pulling", reasonContainerCreating, &podEvent{pull: pullReasonPulling, pulledAt: at}, loco.ReplicaPulling, ""},
+		{"initializing", reasonPodInitializing, &podEvent{pull: pullReasonPulling, pulledAt: at}, loco.ReplicaPulling, ""},
 		{"missing", reasonContainerCreating, nil, loco.ReplicaStarting, ""},
-		{"pulled", reasonContainerCreating, &pullEvent{reason: pullReasonPulled, at: at}, loco.ReplicaStarting, ""},
-		{"failed ignored", reasonContainerCreating, &pullEvent{reason: pullReasonFailed, at: at}, loco.ReplicaStarting, ""},
+		{"pulled", reasonContainerCreating, &podEvent{pull: pullReasonPulled, pulledAt: at}, loco.ReplicaStarting, ""},
+		{"failed ignored", reasonContainerCreating,
+			&podEvent{pull: pullReasonFailed, pulledAt: at}, loco.ReplicaStarting, ""},
 		{"failed container", reasonErrImagePull,
-			&pullEvent{reason: pullReasonFailed, at: at},
+			&podEvent{pull: pullReasonFailed, pulledAt: at},
 			loco.ReplicaFailing, "ErrImagePull: "},
 		{"pull cannot hide failure", reasonImagePullBackOff,
-			&pullEvent{reason: pullReasonPulling, at: at},
+			&podEvent{pull: pullReasonPulling, pulledAt: at},
 			loco.ReplicaFailing, "ImagePullBackOff: "},
 	} {
 		t.Run(tt.name, func(t *testing.T) {

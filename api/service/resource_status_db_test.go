@@ -132,7 +132,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, environmentID, clusterID uu
 		environmentID,
 		clusterID,
 		&agentv1.PlacementStatus{
-			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemCrashLoop)},
+			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemRestarting)},
 			ProgressDeadlineExceeded: true,
 			ReadyReplicas:            replicas,
 		},

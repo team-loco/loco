@@ -300,6 +300,7 @@ func buildApplicationSpec(
 				hostname,
 				defaults,
 			),
+			RestartPolicy: defaults.RestartPolicy(),
 		}
 
 	default:
