@@ -67,10 +67,63 @@ export function errorShare(point: TrafficPoint | undefined): number | undefined 
 	return point.errors === undefined ? undefined : (point.errors / point.requests) * 100;
 }
 
+const SMALLEST_SHOWN = 0.01;
+const MS_PER_SECOND = 1000;
+const AXIS_INTERVALS = 4;
+const MIN_AXIS_TOP = 3 * SMALLEST_SHOWN;
+const NICE_STEPS = [1, 2, 2.5, 5, 10];
+const MAX_AXIS_DIGITS = 6;
+
+/** Milliseconds from one second up read as seconds. */
+function inSeconds(value: number, unit: string): { value: number; unit: string } {
+	return unit.trim() === "ms" && Math.abs(value) >= MS_PER_SECOND
+		? { value: value / MS_PER_SECOND, unit: " s" }
+		: { value, unit };
+}
+
 export function trafficValue(value: number | undefined, unit: string): string {
-	return value === undefined
-		? "—"
-		: `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, notation: "compact" }).format(value)}${unit}`;
+	if (value === undefined) return "—";
+	const shown = inSeconds(value, unit);
+	if (shown.value > 0 && shown.value < SMALLEST_SHOWN) return `<${String(SMALLEST_SHOWN)}${shown.unit}`;
+	const number = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2, notation: "compact" }).format(
+		shown.value,
+	);
+	return `${number}${shown.unit}`;
+}
+
+function niceStep(raw: number): number {
+	const magnitude = 10 ** Math.floor(Math.log10(raw));
+	return (NICE_STEPS.find((step) => step * magnitude >= raw) ?? 10) * magnitude;
+}
+
+function fractionDigits(step: number): number {
+	for (let digits = 0; digits < MAX_AXIS_DIGITS; digits++) {
+		if (Math.abs(Number(step.toFixed(digits)) - step) < step * 1e-9) return digits;
+	}
+	return MAX_AXIS_DIGITS;
+}
+
+/** Evenly spaced y ticks from zero to `max` in `unit`, each labelled with enough digits to differ from its neighbours. */
+export function trafficAxis(
+	peak: number,
+	unit: string,
+): { ticks: number[]; top: number; format: (value: number) => string } {
+	const max = peak > 0 ? Math.max(peak, MIN_AXIS_TOP) : 0;
+	const scale = unit.trim() === "ms" && max >= MS_PER_SECOND ? MS_PER_SECOND : 1;
+	const shownUnit = scale === 1 ? unit : " s";
+	const step = niceStep(max > 0 ? max / scale / AXIS_INTERVALS : 1);
+	const count = max > 0 ? Math.ceil(max / scale / step) : 1;
+	const ticks = Array.from({ length: count + 1 }, (_, i) => Number((i * step * scale).toPrecision(12)));
+	const digits = fractionDigits(step);
+	const format = new Intl.NumberFormat(undefined, {
+		maximumFractionDigits: step >= MS_PER_SECOND ? 1 : digits,
+		notation: step >= MS_PER_SECOND ? "compact" : "standard",
+	});
+	return {
+		ticks,
+		top: count * step * scale,
+		format: (value) => `${format.format(value / scale)}${shownUnit}`,
+	};
 }
 
 export type TrafficField = "requests" | "errors" | "bytes";

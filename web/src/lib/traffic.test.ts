@@ -9,9 +9,11 @@ import {
 	formatCompact,
 	latestTraffic,
 	sumTotals,
+	trafficAxis,
 	trafficPoints,
 	trafficSeries,
 	trafficTotals,
+	trafficValue,
 } from "./traffic";
 
 describe("gateway traffic", () => {
@@ -115,6 +117,51 @@ describe("traffic over a range", () => {
 			"512 B",
 			"1.5 MB",
 			"412 GB",
+		]);
+	});
+});
+
+describe("traffic values", () => {
+	it("shows small non-zero values as below the smallest shown", () => {
+		expect(trafficValue(0, "/s")).toBe("0/s");
+		expect(trafficValue(0.004, "/s")).toBe("<0.01/s");
+		expect(trafficValue(0.004, " B/s")).toBe("<0.01 B/s");
+		expect(trafficValue(0.03, "/s")).toBe("0.03/s");
+		expect(trafficValue(undefined, "/s")).toBe("—");
+	});
+
+	it("reads a latency from one second up in seconds", () => {
+		expect(trafficValue(950, " ms")).toBe("950 ms");
+		expect(trafficValue(1200, " ms")).toBe("1.2 s");
+		expect(trafficValue(0.004, " ms")).toBe("<0.01 ms");
+	});
+});
+
+describe("traffic axis", () => {
+	it("never repeats a label", () => {
+		for (const max of [0, 1e-6, 0.0001, 0.003, 0.03, 0.0301, 0.07, 1, 7.5, 123, 4_500, 2_600_000]) {
+			const { ticks, format } = trafficAxis(max, "/s");
+			const labels = ticks.map(format);
+			expect(new Set(labels).size).toBe(labels.length);
+			expect(ticks[0]).toBe(0);
+			expect(ticks.at(-1) ?? 0).toBeGreaterThanOrEqual(max);
+		}
+	});
+
+	it("spaces ticks evenly with decimals where the step needs them", () => {
+		const { ticks, format } = trafficAxis(0.03, "/s");
+		expect(ticks.map(format)).toEqual(["0/s", "0.01/s", "0.02/s", "0.03/s"]);
+	});
+
+	it("labels latency over one second in seconds", () => {
+		const { ticks, format } = trafficAxis(2400, " ms");
+		expect(ticks.map(format)).toEqual(["0 s", "1 s", "2 s", "3 s"]);
+		expect(trafficAxis(800, " ms").ticks.map(trafficAxis(800, " ms").format)).toEqual([
+			"0 ms",
+			"200 ms",
+			"400 ms",
+			"600 ms",
+			"800 ms",
 		]);
 	});
 });
