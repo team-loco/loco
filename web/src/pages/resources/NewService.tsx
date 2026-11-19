@@ -750,7 +750,7 @@ function ServiceForm({
 					<span>
 						To <span className="font-mono text-fg2">{env.name}</span>
 					</span>
-					<FooterError tried={tried} blocker={blocker} deployError={deployError} />
+					<FooterError blocker={resourceId === undefined && tried ? blocker : null} deployError={deployError} />
 				</span>
 				<Button type="button" variant="destructive-outline" disabled={isPending} onClick={onDiscard}>
 					Discard draft
@@ -766,23 +766,13 @@ function ServiceForm({
 	);
 }
 
-function FooterError({
-	tried,
-	blocker,
-	deployError,
-}: {
-	tried: boolean;
-	blocker: string | null;
-	deployError: DeployError | null;
-}) {
-	const message =
-		tried && blocker !== null
-			? blocker
-			: deployError === null
-				? null
-				: deployError.field === null
-					? deployError.message
-					: `${API_FIELD_LABEL[deployError.field.field]}: ${deployError.field.message}`;
+function deployErrorText(error: DeployError | null): string | null {
+	if (error === null) return null;
+	return error.field === null ? error.message : `${API_FIELD_LABEL[error.field.field]}: ${error.field.message}`;
+}
+
+function FooterError({ blocker, deployError }: { blocker: string | null; deployError: DeployError | null }) {
+	const message = blocker ?? deployErrorText(deployError);
 	if (message === null) return null;
 	return (
 		<span role="alert" className="text-bad-fg">
