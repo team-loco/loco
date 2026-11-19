@@ -117,7 +117,7 @@ export function WebhooksPage({
 				search={
 					<SearchInput
 						aria-label="Search webhooks"
-						placeholder="Search by URL or event type"
+						placeholder="Search by name, URL or event type"
 						value={search}
 						onClear={() => {
 							setSearch("");
