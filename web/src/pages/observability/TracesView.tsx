@@ -277,16 +277,7 @@ function TraceSession({
 		);
 	}
 	const rejected = browse.error === null ? null : queryError(browse.error, query);
-	if (rejected !== null) {
-		return (
-			<>
-				{header}
-				<QueryBar valueCounts={valueCounts} />
-				<QueryErrorLine error={rejected} />
-			</>
-		);
-	}
-	if (!loading && browse.error !== null) {
+	if (!loading && browse.error !== null && rejected === null) {
 		return (
 			<>
 				{header}
@@ -316,6 +307,7 @@ function TraceSession({
 		<>
 			{header}
 			<QueryBar valueCounts={valueCounts} />
+			{rejected !== null && <QueryErrorLine error={rejected} />}
 			<Section
 				title="Overview"
 				card={false}
@@ -331,7 +323,7 @@ function TraceSession({
 				<TraceOverview
 					data={scopeReady ? overview.data : undefined}
 					loading={scopeReady && overview.isLoading}
-					error={overview.error}
+					error={rejected === null ? overview.error : null}
 					widthSeconds={widthSeconds}
 					from={bounds.from}
 					to={bounds.to}
@@ -371,7 +363,7 @@ function TraceSession({
 						sortDir={sortDir}
 						onSort={sortBy}
 					/>
-					{!loading && traces.length === 0 && <NoMatches title="No requests match." />}
+					{!loading && traces.length === 0 && rejected === null && <NoMatches title="No requests match." />}
 				</div>
 				<Pager
 					label={traces.length > 0 ? pageRangeLabel(paging.page, paging.size, total) : "0"}
