@@ -36,7 +36,6 @@ const (
 	devicePollInterval = 5 * time.Second
 	userCodeAlphabet   = "BCDFGHJKLMNPQRSTVWXZ"
 	userCodeLength     = 8
-	realIPHeader       = "X-Real-IP"
 	forwardedForHeader = "X-Forwarded-For"
 )
 
@@ -133,16 +132,21 @@ func pkceMatches(verifier, challenge string) bool {
 	return subtle.ConstantTimeCompare([]byte(computed), []byte(challenge)) == 1
 }
 
-// the address is a best-effort, client-forgeable estimate of where a request came from, recorded
-// for display and audit only; never base an access decision on it.
-func clientAddress(info *connect.CallInfo) netip.Addr {
-	header := info.RequestHeader()
-	if addr, err := netip.ParseAddr(strings.TrimSpace(header.Get(realIPHeader))); err == nil {
-		return addr
-	}
-	for _, line := range header.Values(forwardedForHeader) {
-		for entry := range strings.SplitSeq(line, ",") {
-			if addr, err := netip.ParseAddr(strings.TrimSpace(entry)); err == nil {
+// clientAddress is where a request came from, recorded for display and audit only; never base an
+// access decision on it. Each of trustedProxyHops proxies in front of the API appends the address
+// it received the request from to X-Forwarded-For, so the entry that many places from the right is
+// the first one a client cannot choose. Without trusted proxies, or when the header is shorter or
+// unparsable, the peer address is used.
+func clientAddress(info *connect.CallInfo, trustedProxyHops int) netip.Addr {
+	if trustedProxyHops > 0 {
+		var entries []string
+		for _, line := range info.RequestHeader().Values(forwardedForHeader) {
+			for entry := range strings.SplitSeq(line, ",") {
+				entries = append(entries, strings.TrimSpace(entry))
+			}
+		}
+		if len(entries) >= trustedProxyHops {
+			if addr, err := netip.ParseAddr(entries[len(entries)-trustedProxyHops]); err == nil {
 				return addr
 			}
 		}
@@ -174,7 +178,7 @@ func (s *AuthServer) issue(
 	grant cliGrant,
 	info *connect.CallInfo,
 ) (*authv1.CLITokens, error) {
-	ip := clientAddress(info)
+	ip := clientAddress(info, s.web.TrustedProxyHops)
 	ua := info.RequestHeader().Get("User-Agent")
 	var access, refresh string
 	err := withTx(ctx, s.db, func(qtx *genDb.Queries) error {
