@@ -246,7 +246,7 @@ services:
 
 Changing the setting rolls out nothing; it applies the next time a deployment of the service fails.
 
-When the newest deployment in an environment fails in a region, by missing its rollout deadline or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration, takes the service's current environment variables, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
+When the newest deployment in an environment fails in a region, by missing its rollout deadline or running out of apply retries, Loco creates a rollback deployment from the newest earlier deployment that ran. The rollback covers every region the failed deployment runs in that the earlier deployment sized, keeps the earlier deployment's configuration and plain environment variables, binds the secrets it bound, and records `trigger: auto_rollback` with the earlier deployment as its source. It shows `deploying` until it is available, then `running`. The failed deployment stays `failed`. A rollback that fails does not roll back again. The activity of both deployments records the rollback.
 
 Nothing is rolled back, and the failed deployment stays active, when the setting is off, the build failed, no earlier deployment ran, or the earlier deployment's cluster or build image is no longer available. A restored deployment that fails is not rolled back again.
 

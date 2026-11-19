@@ -677,12 +677,6 @@ func (s *ResourceServer) scaleCurrentDeployments(
 			continue
 		}
 		serviceDeploymentSpec.Regions = targets
-
-		plainEnv, envErr := liveEnv(ctx, qtx, current)
-		if envErr != nil {
-			return fmt.Errorf("read scaling environment: %w", envErr)
-		}
-		serviceDeploymentSpec.Env = plainEnv
 		plans = append(plans, regionRedeploy{source: group, service: serviceDeploymentSpec})
 	}
 
@@ -965,9 +959,8 @@ func dbResourceToProto(
 	}, nil
 }
 
-// GetResourceEnv returns the plain env variables of the service's active deployment in the
-// environment, read from its placement's desired spec, and the secret names the deployment
-// declares. Secret values never appear there.
+// GetResourceEnv returns the plain env variables and the secret names of the service's live
+// deployment in the environment. Secret values never appear there.
 func (s *ResourceServer) GetResourceEnv(
 	ctx context.Context,
 	req *resourcev1.GetResourceEnvRequest,
@@ -1004,11 +997,11 @@ func (s *ResourceServer) GetResourceEnv(
 	var secretNames []string
 	if len(deployments) > 0 {
 		deployment := deployments[0]
-		vars, envErr := liveEnv(ctx, s.queries, deployment)
-		if envErr != nil {
-			return nil, fmt.Errorf("read the desired env: %w", envErr)
+		spec, specErr := converter.DeserializeDeploymentSpec(deployment.Spec, res.Type)
+		if specErr != nil {
+			return nil, fmt.Errorf("decode spec of deployment %s: %w", deployment.ID, specErr)
 		}
-		maps.Copy(plain, vars)
+		maps.Copy(plain, spec.GetService().GetEnv())
 		secretNames = slices.Clone(deployment.SecretNames)
 		slices.Sort(secretNames)
 	}

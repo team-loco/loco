@@ -21,7 +21,6 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/locofile"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -403,9 +402,7 @@ func (a *applier) deployBuilds(ctx context.Context, qtx *genDb.Queries) error {
 }
 
 func deploymentSpecJSON(service *deploymentv1.ServiceDeploymentSpec) ([]byte, error) {
-	stored := proto.CloneOf(service)
-	stored.Env = nil
-	specJSON, err := protojson.Marshal(stored)
+	specJSON, err := protojson.Marshal(service)
 	if err != nil {
 		return nil, fmt.Errorf("marshal deployment spec: %w", err)
 	}

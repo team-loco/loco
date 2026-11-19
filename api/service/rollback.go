@@ -84,10 +84,6 @@ func rollbackDeploymentIfEnabled(
 	if targetErr != nil {
 		return targetErr
 	}
-	service.Env, err = desiredEnv(ctx, qtx, failed.ResourceID, failed.EnvironmentID, targets[0].clusterID)
-	if err != nil {
-		return err
-	}
 	regions := make(map[string]*deploymentv1.RegionDeploymentTarget, len(targets))
 	for _, target := range targets {
 		regions[target.region] = service.GetRegions()[target.region]

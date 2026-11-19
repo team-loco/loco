@@ -175,10 +175,6 @@ func revertPlacement(
 	if err != nil {
 		return fmt.Errorf("%w: decode deployment %s: %w", errDesiredSpec, previous.ID, err)
 	}
-	spec.GetService().Env, err = desiredEnv(ctx, qtx, canceled.ResourceID, canceled.EnvironmentID, placement.ClusterID)
-	if err != nil {
-		return err
-	}
 	target := placementTarget{region: placement.Region, clusterID: placement.ClusterID}
 	if placeErr := placeDeployment(ctx, qtx, render, previous, target, spec); placeErr != nil {
 		return fmt.Errorf("%w: %w", errDesiredSpec, placeErr)

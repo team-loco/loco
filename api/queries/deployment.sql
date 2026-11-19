@@ -229,11 +229,7 @@ WITH placed AS (
     UPDATE deployment_placements SET image = sqlc.arg(image)::text, updated_at = NOW()
     WHERE deployment_id = sqlc.arg(id) AND status = 'pending'
 )
-UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb(sqlc.arg(image)::text))
-WHERE id = sqlc.arg(id);
-
--- name: SetBuildingDeploymentEnv :exec
-UPDATE deployments SET spec = jsonb_set(spec, '{env}', sqlc.arg(env)::jsonb)
+UPDATE deployments SET spec = jsonb_set(spec, '{build,image}', to_jsonb(sqlc.arg(image)::text))
 WHERE id = sqlc.arg(id);
 
 -- name: PreviousDeploymentForRollback :one

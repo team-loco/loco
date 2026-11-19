@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -107,7 +108,6 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 	if err != nil {
 		return nil, fmt.Errorf("decode spec of deployment %s: %w", d.ID, err)
 	}
-	spec.GetService().Env = nil
 	var commit *deploymentv1.SourceCommit
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
@@ -162,6 +162,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		Trigger:            deploymentTriggers[d.Trigger],
 		SourceDeploymentId: source,
 		CanceledByName:     row.CanceledByName,
+		SecretNames:        slices.Sorted(slices.Values(d.SecretNames)),
 	}, nil
 }
 
@@ -351,19 +352,12 @@ func (s *DeploymentServer) CreateDeployment(
 			return mergeErr
 		}
 
-		plainEnv, secretNames, bindingsErr := s.deploymentBindings(
-			ctx,
-			qtx,
-			resourceID,
-			environmentID,
-			regions,
-			req.GetSecretBindings(),
-			mergedServiceSpec.GetEnv(),
+		secretNames, bindingsErr := s.deploymentSecretNames(
+			ctx, qtx, resourceID, environmentID, regions, req.GetSecretBindings(),
 		)
 		if bindingsErr != nil {
 			return bindingsErr
 		}
-		mergedServiceSpec.Env = plainEnv
 
 		var txErr error
 		deploymentID, txErr = createDeployment(ctx, qtx, &counts, newDeployment{
