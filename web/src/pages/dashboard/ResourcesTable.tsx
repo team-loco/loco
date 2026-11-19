@@ -415,20 +415,25 @@ export function ResourcesTable({
 	const typeCounts = new Map<ResourceType, number>();
 	const regionCounts = new Map<string, number>();
 	const regionNames = new Set(regions.map((r) => r.region));
-	for (const item of items) {
+	const statusBase = filterRows(items, { ...filter, status: ALL });
+	const typeBase = filterRows(items, { ...filter, type: ALL });
+	const regionBase = filterRows(items, { ...filter, region: ALL });
+	for (const item of statusBase) {
 		if (!isDraftItem(item)) statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
-		typeCounts.set(itemType(item), (typeCounts.get(itemType(item)) ?? 0) + 1);
+	}
+	for (const item of typeBase) typeCounts.set(itemType(item), (typeCounts.get(itemType(item)) ?? 0) + 1);
+	for (const item of items) for (const g of item.regions) regionNames.add(g.region);
+	for (const item of regionBase) {
 		for (const name of new Set(item.regions.map((g) => g.region))) {
-			regionNames.add(name);
 			regionCounts.set(name, (regionCounts.get(name) ?? 0) + 1);
 		}
 	}
 	const typeOptions = [
-		{ value: ALL, label: "All types", count: items.length },
+		{ value: ALL, label: "All types", count: typeBase.length },
 		...TYPE_FILTERS.map((o) => ({ value: o.value, label: o.label, count: typeCounts.get(o.type) ?? 0 })),
 	];
 	const regionOptions = [
-		{ value: ALL, label: "All regions", count: items.length },
+		{ value: ALL, label: "All regions", count: regionBase.length },
 		...[...regionNames].map((name) => ({ value: name, label: name, count: regionCounts.get(name) ?? 0 })),
 	];
 
@@ -478,7 +483,7 @@ export function ResourcesTable({
 					if (v[0] !== undefined) update({ status: v[0] });
 				}}
 			>
-				<ToggleGroupItem value={ALL} count={items.length}>
+				<ToggleGroupItem value={ALL} count={statusBase.length}>
 					All
 				</ToggleGroupItem>
 				{statusOptions(statusCounts, filter.status).map((o) => (
@@ -541,7 +546,7 @@ export function ResourcesTable({
 		isDraftItem(item) ? draftSearch(locationSearch, item.draft.id) : hrefFor(item.resource.id);
 
 	return (
-		<Section title="Resources" count={items.length} actions={actions} filters={filters} search={search}>
+		<Section title="Resources" count={data.length} actions={actions} filters={filters} search={search}>
 			{isMap ? (
 				visible.length === 0 ? (
 					<div className="border-t border-line2">{empty}</div>
