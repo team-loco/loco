@@ -4,7 +4,7 @@ import { TimeAxis } from "@/components/design/TimeAxis";
 import { createParser, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { queryLogBuckets, queryLogs } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
-import { LogOrder } from "@gen/loco/observability/v1/observability_pb";
+import { LogBucketGroup, LogOrder } from "@gen/loco/observability/v1/observability_pb";
 import { ArrowUpIcon } from "lucide-react";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
@@ -69,6 +69,7 @@ const LOGS_PARAMS = {
 	widths: widthsParser,
 	at: msParser,
 };
+const SAMPLED_KEYS: ReadonlySet<FieldKey> = new Set(["region", "replica", "build", "trace"]);
 const TAIL_TICK_MS = 1000;
 const IDLE_TICK_MS = 15_000;
 const RATE_WINDOW_MS = 10_000;
@@ -245,8 +246,21 @@ export function LogsView() {
 		intervalSeconds,
 		enabled: !backend.impossible,
 	});
+	const resourceVolume = useLogBuckets({
+		workspaceId,
+		environmentId,
+		allEnvironments: backend.allEnvironments,
+		resourceIds: backend.resourceIds,
+		query: backend.query,
+		start: volumeStart,
+		end: volumeEnd,
+		intervalSeconds: Math.max(1, Math.ceil((volumeEnd - volumeStart) / 1000)),
+		groupBy: LogBucketGroup.RESOURCE,
+		enabled: !backend.impossible,
+	});
 	const bw = intervalSeconds * 1000;
 	const { points, totals } = logVolume(volume.data?.buckets ?? [], volumeStart, volumeEnd, bw);
+	const inRange = [...totals.values()].reduce((a, n) => a + n, 0);
 	const chartStart = points[0]?.start ?? volumeStart;
 	const chartEnd = chartStart + points.length * bw;
 	const buckets: VolumeBucket[] = points.map((point) => {
@@ -311,15 +325,19 @@ export function LogsView() {
 		};
 		if (key === "level")
 			LEVELS.forEach((l) => {
-				add(l, 0);
+				add(l, totals.get(l) ?? 0);
 			});
-		if (key === "resource")
+		if (key === "resource") {
 			resources.forEach((r) => {
 				add(r.name, 0);
 			});
+			for (const b of resourceVolume.data?.buckets ?? []) {
+				const name = resourceById.get(b.resourceId)?.name;
+				if (name !== undefined) add(name, Number(b.count));
+			}
+		}
+		if (key === "level" || key === "resource") return [...m.entries()].toSorted((a, b) => b[1] - a[1]);
 		for (const r of rows) {
-			if (key === "level") add(r.level);
-			if (key === "resource" && !r.workload) add(r.resourceName);
 			if (key === "region") add(r.region);
 			if (key === "replica") add(r.pod);
 			if (key === "build") add(r.build);
@@ -387,7 +405,7 @@ export function LogsView() {
 		return (
 			<>
 				{header}
-				<QueryBar valueCounts={valueCounts} />
+				<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} />
 				<QueryErrorLine error={rejected} />
 			</>
 		);
@@ -397,7 +415,7 @@ export function LogsView() {
 		return (
 			<>
 				{header}
-				<QueryBar valueCounts={valueCounts} />
+				<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} />
 				<ErrorState error={logs.error} what="logs" rpc={queryLogs} onRetry={logs.refetch} />
 			</>
 		);
@@ -428,7 +446,7 @@ export function LogsView() {
 				/>
 			) : (
 				<>
-					<QueryBar valueCounts={valueCounts} />
+					<QueryBar valueCounts={valueCounts} sampledKeys={SAMPLED_KEYS} />
 					<section aria-label="Log volume" className="flex flex-col gap-2.5 rounded-card bg-panel px-5 pt-4 pb-3.5">
 						<ToggleGroup
 							multiple
@@ -531,9 +549,16 @@ export function LogsView() {
 						</div>
 						<Pager
 							label={
-								rows.length > 0
-									? `${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`
-									: "0"
+								rows.length > 0 ? (
+									<>
+										{`${formatCount(curPage * size + 1)}–${formatCount(Math.min(rows.length, (curPage + 1) * size))} of ${formatCount(rows.length)}${truncated ? "+" : ""} loaded`}
+										{truncated && volume.data !== undefined && inRange > rows.length && (
+											<span className="text-fg3">{` · ${formatCount(inRange)} lines in range, ${formatCount(BATCH)} per load, Older loads more`}</span>
+										)}
+									</>
+								) : (
+									"0"
+								)
 							}
 							page={curPage}
 							pages={pages}

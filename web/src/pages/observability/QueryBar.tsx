@@ -95,7 +95,14 @@ function searchLabel(view: string, text: string): string {
 	}
 }
 
-export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
+export function QueryBar({
+	valueCounts,
+	sampledKeys,
+}: {
+	valueCounts: ValueCounts;
+	/** Fields whose counts come from the loaded lines, not the whole range. */
+	sampledKeys?: ReadonlySet<FieldKey>;
+}) {
 	const { orgId, workspaceId, view, tokens, text: applied, setQuery, resourceByName } = useObs();
 	const [text, setText] = useState(applied);
 	const [synced, setSynced] = useState(applied);
@@ -213,7 +220,10 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 			part !== "" && !vals.some(([v]) => v.toLowerCase() === pref) ? [[part, 0, part]] : [];
 		const entries = [...typed, ...vals.map(([v, c]): [string, number, string] => [v, c, quoteValue(v)])];
 		const items = entries.map(([v, c, written]) => valueItem(vmDef.key, v, c, neg, written));
-		groups.push({ title: `@${vmDef.key} values`, items });
+		groups.push({
+			title: `@${vmDef.key} values${sampledKeys?.has(vmDef.key) ? " · counts from loaded lines" : ""}`,
+			items,
+		});
 	} else if (km) {
 		const neg = km[1] === "-";
 		const ks = fields.filter((f) => f.key.startsWith((km[2] ?? "").toLowerCase()));
