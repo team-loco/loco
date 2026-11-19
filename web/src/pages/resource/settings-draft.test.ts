@@ -83,7 +83,7 @@ const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.
 });
 
 const regions = [region(EAST, deployment("east", EAST)), region(WEST, deployment("west", WEST, 3))];
-const base = baseline("shop", "", regions, [EAST, WEST], true, defaults);
+const base = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults);
 const SPARE = "ap-south-1";
 
 function target(cpu: string, replicas: number, enabled = true): RegionTarget {
@@ -112,17 +112,17 @@ describe("planSave", () => {
 		expect(base.rollbackOnFailure).toBe(false);
 		expect(changeCount({ rollbackOnFailure: true }, base)).toBe(1);
 		expect(plan({ rollbackOnFailure: true })).toEqual([]);
-		const enabledBase = baseline("shop", "", regions, [EAST, WEST], true, defaults, true);
+		const enabledBase = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, true);
 		expect(enabledBase.rollbackOnFailure).toBe(true);
 		expect(planSave(regions, { rollbackOnFailure: false }, enabledBase)).toEqual([]);
-		expect(baseline("shop", "", [], [EAST], true, defaults).rollbackOnFailure).toBe(false);
+		expect(baseline("shop", "shop", "", [], [EAST], true, defaults).rollbackOnFailure).toBe(false);
 	});
 
 	test("the switch reads the service setting while preserving deployment overrides", () => {
 		const current = deployment("overridden", EAST);
 		getServiceSpec(current)!.rollbackOnFailure = true;
 		const running = [region(EAST, current)];
-		const serviceBase = baseline("shop", "", running, [EAST], true, defaults, false);
+		const serviceBase = baseline("shop", "shop", "", running, [EAST], true, defaults, false);
 		expect(serviceBase.rollbackOnFailure).toBe(false);
 		expect(planSave(running, { rollbackOnFailure: true }, serviceBase)).toEqual([]);
 		const changed = planSave(running, { port: "9090" }, serviceBase);
@@ -148,7 +148,7 @@ describe("planSave", () => {
 			...defaults,
 			observability: create(ObservabilityConfigSchema, { injectOtel: false }),
 		});
-		expect(baseline("shop", "", [], [EAST], true, configured).observability.injectOtel).toBe(false);
+		expect(baseline("shop", "shop", "", [], [EAST], true, configured).observability.injectOtel).toBe(false);
 	});
 
 	test("changing one region's image clears its own source commit", () => {
@@ -156,7 +156,7 @@ describe("planSave", () => {
 		const second = deployment("two", WEST);
 		getServiceSpec(second)!.build!.image = "example.test/other:release";
 		const mixed = [region(EAST, first), region(WEST, second)];
-		const result = planSave(mixed, { image: IMAGE }, baseline("shop", "", mixed, [], true, defaults));
+		const result = planSave(mixed, { image: IMAGE }, baseline("shop", "shop", "", mixed, [], true, defaults));
 		expect(result.map((d) => [d.region, d.commit])).toEqual([[WEST, undefined]]);
 	});
 
@@ -238,7 +238,7 @@ describe("regionTargets", () => {
 	});
 
 	test("needs a running region to size the map from", () => {
-		const idle = baseline("shop", "", [region(EAST, undefined)], [EAST], true, defaults);
+		const idle = baseline("shop", "shop", "", [region(EAST, undefined)], [EAST], true, defaults);
 		expect(regionTargets(stored, { regions: { [WEST]: true } }, idle)).toBeUndefined();
 	});
 });
@@ -254,11 +254,11 @@ test("regionChanges names the regions a region map save rolls out and stops", ()
 
 test("the baseline shows a configured region that does not run here as on", () => {
 	const views = [region(EAST, deployment("east", EAST)), region(WEST, undefined)];
-	expect(baseline("shop", "", views, [EAST, WEST], true, defaults).regions).toEqual({
+	expect(baseline("shop", "shop", "", views, [EAST, WEST], true, defaults).regions).toEqual({
 		[EAST]: true,
 		[WEST]: true,
 	});
-	expect(baseline("shop", "", views, [EAST], true, defaults).regions).toEqual({
+	expect(baseline("shop", "shop", "", views, [EAST], true, defaults).regions).toEqual({
 		[EAST]: true,
 		[WEST]: false,
 	});
@@ -272,6 +272,13 @@ describe("changeCount", () => {
 });
 
 describe("validateDraft", () => {
+	test("limits the display name to 63 characters, counting an emoji as one", () => {
+		expect(validateDraft({ displayName: "  " }, base, regions, SERVED, 10).displayName).toBe("Enter a display name");
+		expect(validateDraft({ displayName: "🚀".repeat(63) }, base, regions, SERVED, 10).displayName).toBeUndefined();
+		expect(validateDraft({ displayName: "a".repeat(64) }, base, regions, SERVED, 10).displayName).toBe(
+			"Use at most 63 characters",
+		);
+	});
 	test("reports only the fields the draft touched", () => {
 		expect(validateDraft({}, base, regions, SERVED, 10)).toEqual({});
 		expect(validateDraft({ port: "http", healthPath: "ready" }, base, regions, SERVED, 10)).toEqual({
@@ -304,7 +311,7 @@ describe("validateDraft", () => {
 	});
 
 	test("needs a served platform domain and a valid subdomain to go public", () => {
-		const privateBase = baseline("shop", "", regions, [], false, defaults);
+		const privateBase = baseline("shop", "shop", "", regions, [], false, defaults);
 		expect(
 			validateDraft(
 				{ isPublic: true, subdomain: "Shop!", platformDomain: "other.dev" },
@@ -339,7 +346,7 @@ test("settings baseline follows configured bounds while the HPA changes the live
 	svc.minReplicas = 1;
 	svc.maxReplicas = 5;
 	svc.scalers = create(ScalersSchema, { enabled: true, cpuTarget: 80 });
-	const initial = baseline("shop", "", [region(EAST, current)], [EAST], true, defaults);
+	const initial = baseline("shop", "shop", "", [region(EAST, current)], [EAST], true, defaults);
 	expect(initial.scaling[EAST]).toEqual(scaling(1, 5, 80));
 	expect(changeCount({}, initial)).toBe(0);
 });

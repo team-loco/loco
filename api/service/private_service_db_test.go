@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -12,12 +11,10 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
-	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
 	testReservedServiceName = "resource-01234567-89ab-cdef-0123-456789abcdef"
-	testDisplayName         = "Shopping Cart"
 	testDisplaySlug         = "shopping-cart"
 )
 
@@ -72,63 +69,6 @@ func TestCreateResourceRejectsATakenSlug(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := createNamedResource(t, f, "shopping cart!")
-	wantCode(t, err, connect.CodeAlreadyExists)
-	if !strings.Contains(err.Error(), testDisplayName) {
-		t.Fatalf("error %q does not name %q", err, testDisplayName)
-	}
-}
-
-func TestRenameResourceRejectsUnsafeNames(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	for _, name := range []string{"!!!", "localhost", testReservedServiceName} {
-		err := renameResource(t, f, name)
-		wantCode(t, err, connect.CodeInvalidArgument)
-	}
-	resource, err := f.queries.GetResourceByID(context.Background(), f.resourceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resource.Name != planSvc {
-		t.Fatalf("name = %q after rejected renames", resource.Name)
-	}
-}
-
-func TestRenameResourceMovesTheSlug(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
-		t.Fatal(err)
-	}
-	if err := renameResource(t, f, testDisplayName); err != nil {
-		t.Fatal(err)
-	}
-	resource, err := f.queries.GetResourceByID(context.Background(), f.resourceID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resource.Name != testDisplayName || resource.Slug != testDisplaySlug {
-		t.Fatalf("name, slug = %q, %q", resource.Name, resource.Slug)
-	}
-	var payload locoControllerV1.PlacementPayload
-	if err := json.Unmarshal(f.placement(t, f.clusterID).DesiredSpec, &payload); err != nil {
-		t.Fatal(err)
-	}
-	if payload.AppSpec.Slug != testDisplaySlug {
-		t.Fatalf("placement slug = %q", payload.AppSpec.Slug)
-	}
-	if _, err := createNamedResource(t, f, planSvc); err != nil {
-		t.Fatalf("old slug still held after rename: %v", err)
-	}
-}
-
-func TestRenameResourceRejectsATakenSlug(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	if _, err := createNamedResource(t, f, testDisplayName); err != nil {
-		t.Fatal(err)
-	}
-	err := renameResource(t, f, "SHOPPING-CART")
 	wantCode(t, err, connect.CodeAlreadyExists)
 	if !strings.Contains(err.Error(), testDisplayName) {
 		t.Fatalf("error %q does not name %q", err, testDisplayName)

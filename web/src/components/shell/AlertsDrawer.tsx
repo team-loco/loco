@@ -271,7 +271,7 @@ export function AlertsDrawer() {
 
 	if (activeOrgId === null || activeWorkspaceId === null || active === undefined) return null;
 
-	const names = new Map((resources.data?.resources ?? []).map((r) => [r.id, r.name]));
+	const names = new Map((resources.data?.resources ?? []).map((r) => [r.id, r.displayName]));
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
 		names.has(d.resourceId),
 	);

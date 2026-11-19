@@ -169,7 +169,7 @@ export function TraceHeader({
 												background: color(trace.root),
 											}}
 										/>
-										{resource.name}
+										{resource.raw.displayName}
 									</Link>
 								))}
 							{rootPod !== "" && <span className="font-mono">{replicaOf(rootPod)}</span>}
@@ -308,7 +308,7 @@ export function TraceHeader({
 						{resource !== undefined && (
 							<DropdownMenuItem render={<Link to={resourcePath(orgId, workspaceId, resource.id)} />}>
 								<BoxIcon />
-								Open {resource.name}
+								Open {resource.raw.displayName}
 							</DropdownMenuItem>
 						)}
 						<DropdownMenuItem

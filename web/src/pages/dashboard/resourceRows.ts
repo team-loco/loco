@@ -31,7 +31,7 @@ export function itemKey(item: DashboardItem): string {
 }
 
 export function itemName(item: DashboardItem): string {
-	return isDraftItem(item) ? item.draft.name : item.resource.name;
+	return isDraftItem(item) ? item.draft.name : item.resource.displayName;
 }
 
 export function itemRank(item: DashboardItem): number {
@@ -81,7 +81,12 @@ function matchesQuery(item: DashboardItem, query: string): boolean {
 	if (q === "") return true;
 	const own = isDraftItem(item)
 		? [item.draft.name, item.draft.image]
-		: [item.resource.name, item.resource.description ?? "", primaryDomain(item.resource) ?? ""];
+		: [
+				item.resource.displayName,
+				item.resource.name,
+				item.resource.description ?? "",
+				primaryDomain(item.resource) ?? "",
+			];
 	const fields = [...own, ...item.regions.map((g) => g.region)];
 	return fields.some((f) => f.toLowerCase().includes(q));
 }

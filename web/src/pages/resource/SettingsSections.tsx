@@ -435,21 +435,39 @@ export function RegionsSection({
 	);
 }
 
-export function GeneralSection({ draft, base, errors, locked, describedBy, onChange }: SectionProps) {
-	const name = draft.name ?? base.name;
+export function GeneralSection({
+	draft,
+	base,
+	errors,
+	locked,
+	describedBy,
+	onChange,
+	canWrite,
+	readOnlyId,
+}: SectionProps & { canWrite: boolean; readOnlyId: string }) {
 	return (
 		<SettingsBlock id="set-general" title="General">
 			<div className={grid2}>
-				<Field label="Name" error={errors.name} hint={`Private hostname: ${slug(name) || "none"}`}>
+				<Field
+					label="Display name"
+					error={errors.displayName}
+					hint="Shown in the dashboard. loco.yaml does not set it."
+				>
 					<Input
-						value={name}
-						disabled={locked}
-						aria-describedby={describedBy}
-						aria-invalid={errors.name !== undefined}
+						value={draft.displayName ?? base.displayName}
+						disabled={!canWrite}
+						aria-describedby={canWrite ? undefined : readOnlyId}
+						aria-invalid={errors.displayName !== undefined}
 						onChange={(e) => {
-							onChange({ name: e.target.value });
+							onChange({ displayName: e.target.value });
 						}}
 					/>
+				</Field>
+				<Field
+					label="Name"
+					hint={`Used by loco.yaml, the CLI and filters, and can't be changed. Private hostname: ${slug(base.name) || "none"}`}
+				>
+					<Input value={base.name} readOnly className="font-mono" />
 				</Field>
 				<Field label="Description" hint="Shown under the name in lists and the resource switcher">
 					<Input

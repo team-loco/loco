@@ -416,10 +416,31 @@ with session(out) as browser:
     expect(page.get_by_text(hint, exact=True)).to_have_count(2)
     count = page.locator("#set-env-title > span")
     expect(count).to_have_text(re.compile(r"^\d+$"))
+    general = page.locator("#set-general")
+    expect(general.get_by_role("textbox", name="Name", exact=True)).to_have_value(name)
+    expect(general.get_by_role("textbox", name="Name", exact=True)).not_to_be_editable()
+    display = general.get_by_role("textbox", name="Display name", exact=True)
+    expect(display).to_have_value(name)
+    save = page.get_by_role("button", name="Save", exact=True)
+    display.fill("   ")
+    save.click()
+    page.get_by_text("Enter a display name", exact=True).wait_for()
+    display_name = "QA Echo 🚀"
+    display.fill(display_name)
+    save.click()
+    expect(page.get_by_text(f"Saved {display_name}", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", level=1)).to_have_text(display_name)
+    expect(page.get_by_label(f"Name {name}", exact=True)).to_have_text(name)
+    stored = sql(
+        state,
+        f"SELECT name || '|' || display_name FROM resources WHERE id='{resource}';",
+    )
+    assert stored == f"{name}|{display_name}", stored
     delete = page.get_by_role("button", name="Delete resource", exact=True)
     expect(delete).to_be_enabled()
     delete.click()
-    dialog = page.get_by_role("alertdialog", name=f"Delete {name}?", exact=True)
+    dialog = page.get_by_role("alertdialog", name=f"Delete {display_name}?", exact=True)
+    expect(dialog.get_by_text(f"Type {name} to confirm", exact=True)).to_be_visible()
     expect(
         dialog.get_by_text("Deleting here causes drift", exact=False)
     ).to_be_visible()
@@ -430,15 +451,15 @@ with session(out) as browser:
     ).to_be_visible()
     expect(dialog.get_by_role("textbox")).to_be_focused()
     expect(
-        dialog.get_by_role("button", name=f"Delete {name}", exact=True)
+        dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     ).to_be_disabled()
     dialog.get_by_role("textbox").fill(name.upper())
     expect(
-        dialog.get_by_role("button", name=f"Delete {name}", exact=True)
+        dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     ).to_be_disabled()
     dialog.get_by_role("textbox").fill(f" {name} ")
     expect(
-        dialog.get_by_role("button", name=f"Delete {name}", exact=True)
+        dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     ).to_be_enabled()
     page.keyboard.press("Escape")
     expect(delete).to_be_focused()
@@ -447,7 +468,7 @@ with session(out) as browser:
     held_delete = []
     delete_rpc = "**/loco.resource.v1.ResourceService/DeleteResource"
     context.route(delete_rpc, lambda route: held_delete.append(route))
-    confirm = dialog.get_by_role("button", name=f"Delete {name}", exact=True)
+    confirm = dialog.get_by_role("button", name=f"Delete {display_name}", exact=True)
     with page.expect_request(delete_rpc):
         confirm.click()
     expect(dialog.get_by_role("textbox")).to_be_disabled()

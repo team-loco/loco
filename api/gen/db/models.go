@@ -818,6 +818,7 @@ type Resource struct {
 	WorkspaceID            uuid.UUID    `json:"workspaceId"`
 	Name                   string       `json:"name"`
 	Slug                   string       `json:"slug"`
+	DisplayName            string       `json:"displayName"`
 	Type                   ResourceType `json:"type"`
 	Description            string       `json:"description"`
 	Spec                   []byte       `json:"spec"`

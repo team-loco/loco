@@ -14444,6 +14444,11 @@
             "title": "revision",
             "format": "int64",
             "description": "revision increases with every change to the resource spec or its scaling."
+          },
+          "displayName": {
+            "type": "string",
+            "title": "display_name",
+            "description": "display_name is the label the dashboard shows. It starts as name; name never changes."
           }
         },
         "title": "Resource",
@@ -14684,14 +14689,14 @@
             "title": "resource_id",
             "format": "uuid"
           },
-          "name": {
+          "displayName": {
             "type": [
               "string",
               "null"
             ],
-            "title": "name",
+            "title": "display_name",
             "maxLength": 63,
-            "minLength": 1
+            "description": "resource.display_name // display name needs a character that is not a space\n"
           },
           "description": {
             "type": [

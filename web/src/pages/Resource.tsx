@@ -171,6 +171,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
 	const base = baseline(
 		resource.name,
+		resource.displayName,
 		resource.description ?? "",
 		regions,
 		configuredRegions(resource),
@@ -196,7 +197,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const switcher = hasWs
 		? (resourcesQuery.data?.resources ?? []).map((r) => ({
 				id: r.id,
-				name: r.name,
+				name: r.displayName,
 				description: r.description ?? "",
 				status: environmentStatus(r, environmentId)?.status,
 				href: resourcePath(activeOrgId, activeWorkspaceId, r.id, { env }),
@@ -240,10 +241,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		if (environmentId === undefined) return;
 		try {
 			await restart.mutateAsync({ resourceId, environmentId });
-			toast.success(`Restarting ${resource.name}`);
+			toast.success(`Restarting ${resource.displayName}`);
 			void refresh();
 		} catch (err) {
-			toastConnectError(err, `Couldn’t restart ${resource.name}`, {
+			toastConnectError(err, `Couldn’t restart ${resource.displayName}`, {
 				duration: Infinity,
 			});
 		}
@@ -258,7 +259,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		if (failures.length > 0) {
 			setNotice({
 				tone: "bad",
-				title: `Redeploying ${resource.name} failed`,
+				title: `Redeploying ${resource.displayName} failed`,
 				message: failures.join(" · "),
 			});
 			return;
@@ -266,7 +267,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		const tags = [...new Set(currents.map((d) => depTag(d)))].join(", ");
 		setNotice({
 			tone: "info",
-			title: `Redeploying ${resource.name}`,
+			title: `Redeploying ${resource.displayName}`,
 			message: `New deployment from ${tags} in ${currents.map((d) => d.region).join(", ")}.`,
 		});
 	};
@@ -277,14 +278,14 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		if (failures.length > 0) {
 			setNotice({
 				tone: "bad",
-				title: `Rolling back ${resource.name} failed`,
+				title: `Rolling back ${resource.displayName} failed`,
 				message: failures.join(" · "),
 			});
 			return;
 		}
 		setNotice({
 			tone: "info",
-			title: `Rolling back ${resource.name} in ${target.region}`,
+			title: `Rolling back ${resource.displayName} in ${target.region}`,
 			message: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
 		});
 	};
@@ -294,7 +295,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			{ resourceId },
 			{
 				onSuccess: () => {
-					toast.success(`Deleted ${resource.name}`);
+					toast.success(`Deleted ${resource.displayName}`);
 					setModal(null);
 					if (hasWs) {
 						const home = workspacePath(activeOrgId, activeWorkspaceId);
@@ -414,7 +415,8 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					) : (
 						<Section>
 							<EmptyState title="Not deployed yet">
-								Run <code className="font-mono">loco deploy</code> to create the first deployment of {resource.name}.
+								Run <code className="font-mono">loco deploy</code> to create the first deployment of{" "}
+								{resource.displayName}.
 							</EmptyState>
 						</Section>
 					)}
@@ -485,7 +487,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				onOpenChange={setEventsOpen}
 				tab={eventsTab}
 				onTab={setEventsTab}
-				resourceName={resource.name}
+				resourceName={resource.displayName}
 				events={events}
 				isLoading={eventsQuery.isLoading}
 				error={eventsQuery.error}
@@ -500,7 +502,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			>
 				{modal?.kind === "spec" && (
 					<SpecDialogContent
-						resourceName={resource.name}
+						resourceName={resource.displayName}
 						deployments={specDeployments}
 						deploymentId={modal.deploymentId}
 						compareId={modal.compareId}
@@ -511,7 +513,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				)}
 				{modal?.kind === "rollback" && (
 					<RollbackDialogContent
-						resourceName={resource.name}
+						resourceName={resource.displayName}
 						target={modal.target}
 						current={modal.current}
 						pending={deploy.isPending}
@@ -520,7 +522,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 				)}
 				{modal?.kind === "redeploy" && (
 					<RedeployDialogContent
-						resourceName={resource.name}
+						resourceName={resource.displayName}
 						running={currents}
 						pending={redeploying}
 						onConfirm={() => void handleRedeploy()}
@@ -529,10 +531,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			</Dialog>
 			<ConfirmDialog
 				open={modal?.kind === "restart"}
-				title={`Restart ${resource.name}?`}
+				title={`Restart ${resource.displayName}?`}
 				description={
 					<>
-						Restarts every replica of <span className="font-mono text-foreground">{resource.name}</span> in the{" "}
+						Restarts every replica of <span className="text-foreground">{resource.displayName}</span> in the{" "}
 						<span className="font-mono text-foreground">{environment?.environmentName ?? ""}</span> environment.
 					</>
 				}

@@ -43,7 +43,7 @@ export function buildAlerts(resources: Resource[], environmentId: string): Alert
 			.map((r) => ({
 				key: `${resource.id}/${r.region}`,
 				resourceId: resource.id,
-				name: resource.name,
+				name: resource.displayName,
 				description: resource.description ?? "",
 				region: r.region,
 				status: r.status,

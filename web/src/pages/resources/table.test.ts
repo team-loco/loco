@@ -77,6 +77,7 @@ function resource(
 	return create(ResourceSchema, {
 		id: name,
 		name,
+		displayName: name,
 		description: patch.description ?? "",
 		domains: patch.domain === undefined ? [] : [{ domain: patch.domain, isPrimary: true }],
 		createdAt: timestampFromMs(patch.createdMs ?? 0),

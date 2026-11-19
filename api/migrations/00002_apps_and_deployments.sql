@@ -120,6 +120,7 @@ CREATE TABLE
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         slug TEXT NOT NULL CHECK (slug ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
+        display_name TEXT NOT NULL CHECK (char_length(display_name) <= 63 AND display_name ~ '\S'),
         type resource_type NOT NULL,
         description TEXT NOT NULL,
         spec JSONB NOT NULL,

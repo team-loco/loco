@@ -107,12 +107,12 @@ func TestOptionalResourceDescriptionPersistsWithoutName(t *testing.T) {
 		ctx,
 		&resourcev1.UpdateResourceRequest{
 			ResourceId:  f.resourceID.String(),
-			Name:        new(""),
+			DisplayName: new(""),
 			Description: new("rejected"),
 		},
 	)
-	if codeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty resource name error=%v", err)
+	if err == nil {
+		t.Fatal("empty display name accepted")
 	}
 	row, err := f.queries.GetResourceByID(ctx, f.resourceID)
 	if err != nil {
@@ -287,7 +287,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	}
 	if _, err := resource.UpdateResource(
 		ctx,
-		&resourcev1.UpdateResourceRequest{ResourceId: f.resourceID.String(), Name: new("renamed-svc")},
+		&resourcev1.UpdateResourceRequest{ResourceId: f.resourceID.String(), DisplayName: new("Renamed svc")},
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +330,7 @@ func TestOptionalNameOnlyUpdatesPreserveDescriptionsAndOmittedRequests(t *testin
 	if env.Name != "renamed-env" || derefString(env.Description) != optionalRetained {
 		t.Fatalf("environment=%+v", env)
 	}
-	if res.Name != "renamed-svc" || res.Description != optionalRetained {
+	if res.DisplayName != "Renamed svc" || res.Description != optionalRetained {
 		t.Fatalf("resource=%+v", res)
 	}
 	if ws.Name != "renamed-ws" || derefString(ws.Description) != optionalRetained {

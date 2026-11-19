@@ -228,7 +228,7 @@ func TestUpdateResourceMetadataDoesNotNeedSpecRevision(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if err := renameResource(t, f, testRenamedResource); err != nil {
+	if err := setDisplayName(t, f, testDisplayName); err != nil {
 		t.Fatal(err)
 	}
 }

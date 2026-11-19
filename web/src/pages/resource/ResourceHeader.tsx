@@ -158,7 +158,7 @@ export function ResourceHeader({
 				<div className="flex flex-wrap items-center gap-3">
 					<div className="flex items-center gap-1">
 						<h1 ref={measureTitle} className="m-0 text-[28px] leading-[1.15] font-normal tracking-[-0.03em] break-all">
-							{resource.name}
+							{resource.displayName}
 						</h1>
 						<Switcher items={switcher} currentId={resource.id} offset={titleWidth + 4} />
 					</div>
@@ -166,6 +166,9 @@ export function ResourceHeader({
 					{resource.partial !== undefined && <PartialBadge />}
 				</div>
 				<div className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-1 text-[12.5px] text-fg3">
+					<span aria-label={`Name ${resource.name}`} className="font-mono text-[12px] text-fg2">
+						{resource.name}
+					</span>
 					{since !== undefined && primary !== undefined && (
 						<span>
 							deployed {agoLabel(since, nowMs)} by {deploymentActor(primary)}

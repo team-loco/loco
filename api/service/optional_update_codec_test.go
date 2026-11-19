@@ -58,12 +58,20 @@ func TestOptionalUpdateJSONPresenceAndValidation(t *testing.T) {
 			valid:   false,
 		},
 		{
-			name:    "resource name empty",
-			body:    `{"resourceId":"` + id + `","name":""}`,
+			name:    "resource display name blank",
+			body:    `{"resourceId":"` + id + `","displayName":"  "}`,
 			message: &resourcev1.UpdateResourceRequest{},
-			field:   updateNameField,
+			field:   "display_name",
 			present: true,
 			valid:   false,
+		},
+		{
+			name:    "resource display name",
+			body:    `{"resourceId":"` + id + `","displayName":"QA Echo 🚀"}`,
+			message: &resourcev1.UpdateResourceRequest{},
+			field:   "display_name",
+			present: true,
+			valid:   true,
 		},
 		{
 			name:    "workspace omitted",

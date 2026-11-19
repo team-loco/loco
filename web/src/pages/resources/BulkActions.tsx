@@ -45,7 +45,7 @@ function plural(n: number): string {
 
 function report(verb: string, failVerb: string, result: FanOutResult<ResourceRow>) {
 	for (const { item, error } of result.failed) {
-		toast.error(`Couldn't ${failVerb} ${item.resource.name}`, {
+		toast.error(`Couldn't ${failVerb} ${item.resource.displayName}`, {
 			description: getErrorMessage(error, `Failed to ${failVerb} resource`),
 		});
 	}
@@ -185,7 +185,7 @@ export function BulkActions({
 		rows.every((r) => resourceLevel(orgId, workspaceId, r.resource.id) >= scopeLevel(scope));
 	const canScale = allowed(Scope.WRITE) && environment !== undefined;
 	const canDelete = allowed(Scope.ADMIN) && workspaceName !== "";
-	const names = rows.map((r) => r.resource.name);
+	const names = rows.map((r) => r.resource.displayName);
 	const listed = listedNames(names);
 
 	const finish = async (result: FanOutResult<ResourceRow>, verb: string, failVerb: string) => {

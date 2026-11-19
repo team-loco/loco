@@ -13,6 +13,7 @@ const REPORTED_MS = 1_700_000_000_000;
 const api = create(ResourceSchema, {
 	id: "r-api",
 	name: "api",
+	displayName: "api",
 	description: "Public API",
 	environmentStatuses: [
 		{
@@ -42,6 +43,7 @@ const api = create(ResourceSchema, {
 const worker = create(ResourceSchema, {
 	id: "r-worker",
 	name: "worker",
+	displayName: "worker",
 	environmentStatuses: [
 		{
 			environmentId: PROD,
