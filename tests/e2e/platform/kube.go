@@ -137,12 +137,16 @@ func (p *Platform) LogWorkspaceRuntime(tb testing.TB, namespace string) {
 	for _, args := range [][]string{
 		{"-n", namespace, get, "pods",
 			"-o=custom-columns=NAME:.metadata.name,IP:.status.podIP,NODE:.spec.nodeName,PHASE:.status.phase," +
-				"REASON:.status.containerStatuses[*].state.waiting.reason," +
+				"REVISION:.metadata.annotations.loco\\.io/placement-revision,READY:.status.containerStatuses[*].ready," +
+				"DELETING:.metadata.deletionTimestamp,REASON:.status.containerStatuses[*].state.waiting.reason," +
 				"MESSAGE:.status.containerStatuses[*].state.waiting.message"},
+		{"-n", namespace, get, "deployments,replicasets", "-o", "wide"},
 		{"-n", namespace, get, "events", "--sort-by=.metadata.creationTimestamp"},
 		{"-n", namespace, get, "secret", "loco-registry-pull",
 			"-o=custom-columns=NAME:.metadata.name,UID:.metadata.uid,CREATED:.metadata.creationTimestamp," +
 				"DELETING:.metadata.deletionTimestamp,TYPE:.type,RESOURCEVERSION:.metadata.resourceVersion"},
+		{get, "nodes", "-o=custom-columns=NAME:.metadata.name,TAINTS:.spec.taints[*].key," +
+			"CONDITIONS:.status.conditions[?(@.status==\"True\")].type"},
 	} {
 		out, err := p.Kubectl(ctx, args...)
 		tb.Logf("kubectl %s:\n%s%v", strings.Join(args, " "), out, err)
