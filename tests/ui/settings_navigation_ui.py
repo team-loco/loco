@@ -50,7 +50,9 @@ with session(out) as browser:
     wait_for_query(page, lambda query: query.get("tab") == ["settings"])
 
     page.goto(base + "?env=staging&range=zzz&tab=nope")
-    expect(page.get_by_role("button", name="Settings", exact=True)).to_be_visible()
+    expect(
+        page.get_by_role("button", name="Resource settings", exact=True)
+    ).to_be_visible()
     wait_for_query(
         page,
         lambda query: (

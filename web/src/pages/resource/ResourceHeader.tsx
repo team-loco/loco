@@ -204,7 +204,7 @@ export function ResourceHeader({
 					)}
 				</div>
 			</div>
-			<div className="flex shrink-0 flex-wrap items-center gap-2">
+			<div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
 				<Button variant="outline" size="sm" aria-haspopup="dialog" onClick={onEvents}>
 					<BellIcon />
 					Events
