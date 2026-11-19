@@ -522,7 +522,7 @@ otel-col-daemon:
         check_interval: 1s
         limit_mib: 384
         spike_limit_mib: 96
-      # kubeletstats rates usage, which counts page cache, against the limit; the OOM killer counts the working set.
+      # Pod memory limit in bytes, then the working set as a share of it; a processor's rules read only its input metrics.
       metricsgeneration/memory_limit:
         rules:
           - name: k8s.pod.memory.limit
