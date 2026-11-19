@@ -149,11 +149,19 @@ def mock_telemetry(context):
         elif traffic_empty:
             series = []
         else:
+            # Buckets sit inside the requested window, as the server's do: the same
+            # three offsets from the start of the run, moved back whole windows for
+            # the prior-period query.
+            end = datetime.fromisoformat(body["endTime"].replace("Z", "+00:00"))
+            start = datetime.fromisoformat(body["startTime"].replace("Z", "+00:00"))
+            window = end - start
+            anchor = now - round((now - end) / window) * window
+            traffic_points = [
+                {"timestamp": stamp(anchor, timedelta(minutes=minute)), "value": rate}
+                for minute in (50, 30, 10)
+            ]
             series = [
-                {
-                    "resourceId": rid,
-                    "points": [{**point, "value": rate} for point in points],
-                }
+                {"resourceId": rid, "points": traffic_points}
                 for rid in body.get("resourceIds") or [resource]
             ]
         route.fulfill(json={"series": series})
