@@ -340,6 +340,10 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			WorkspaceID: new(wsID),
 			SubjectType: events.SubjectWorkspace,
 			SubjectID:   new(wsID),
+			Data:        map[string]any{events.FieldName: row.Name},
+		}
+		if rename {
+			event.Data[events.FieldName] = req.GetName()
 		}
 		before := ownRetention(row.LogRetentionDays, row.TraceRetentionDays, row.MetricRetentionDays)
 		after := before
@@ -351,10 +355,8 @@ func (s *WorkspaceServer) UpdateWorkspace(
 			if after, limitsErr = updateRetention(req, counts, before); limitsErr != nil {
 				return limitsErr
 			}
-			event.Data = map[string]any{
-				events.FieldOld: retentionData(before),
-				events.FieldNew: retentionData(after),
-			}
+			event.Data[events.FieldOld] = retentionData(before)
+			event.Data[events.FieldNew] = retentionData(after)
 		}
 		params.LogRetentionDays = after.LogDays
 		params.TraceRetentionDays = after.TraceDays
@@ -387,7 +389,8 @@ func (s *WorkspaceServer) DeleteWorkspace(
 	}
 
 	err = withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		deletedOrgID, orgErr := qtx.LockWorkspaceForDeletion(ctx, wsID)
+		deleted, orgErr := qtx.LockWorkspaceForDeletion(ctx, wsID)
+		deletedOrgID := deleted.OrgID
 		if errors.Is(orgErr, pgx.ErrNoRows) {
 			return ErrWorkspaceNotFound
 		}
@@ -429,6 +432,7 @@ func (s *WorkspaceServer) DeleteWorkspace(
 			WorkspaceID: new(wsID),
 			SubjectType: events.SubjectWorkspace,
 			SubjectID:   new(wsID),
+			Data:        map[string]any{events.FieldName: deleted.Name},
 		})
 	})
 	if err != nil {

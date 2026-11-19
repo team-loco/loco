@@ -55,5 +55,21 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 	});
 	const gone = create(EventSchema, { type: "resource.deleted", workspaceId: "w1", resourceId: "0199aaaa-bbbb" });
 	expect(auditRow(gone, new Map(), names).where).toBe("storefront / 0199aaaa");
+	const named = create(EventSchema, {
+		type: "resource.deleted",
+		workspaceId: "w1",
+		resourceId: "0199aaaa-bbbb",
+		subjectId: "0199aaaa-bbbb",
+		data: { name: "web-old" },
+	});
+	expect(auditRow(named, new Map(), names).where).toBe("storefront / web-old");
+	const invited = create(EventSchema, { type: "invitation.created", data: { email: "ana@example.com" } });
+	expect(auditRow(invited, new Map(), names).detail).toBe("ana@example.com");
+	const removedHook = create(EventSchema, {
+		type: "webhook.deleted",
+		workspaceId: "w1",
+		data: { url: "https://x.test/h" },
+	});
+	expect(auditRow(removedHook, new Map(), names).detail).toBe("https://x.test/h");
 	expect(auditRow(create(EventSchema, { type: "org.updated" }), new Map(), names).where).toBe("Organization");
 });

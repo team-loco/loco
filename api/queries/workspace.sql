@@ -81,7 +81,7 @@ WHERE id = $1;
 DELETE FROM workspaces WHERE id = $1;
 
 -- name: LockWorkspaceForDeletion :one
-SELECT org_id FROM workspaces WHERE id = $1 FOR UPDATE;
+SELECT org_id, name FROM workspaces WHERE id = $1 FOR UPDATE;
 
 -- name: ListWorkspaceResourcesForDeletion :many
 SELECT id, name FROM resources WHERE workspace_id = $1 ORDER BY id FOR UPDATE;
@@ -110,7 +110,7 @@ ORDER BY ms.joined_at DESC, ms.user_id DESC
 LIMIT $2;
 
 -- name: LockWorkspaceRetention :one
-SELECT org_id, log_retention_days, trace_retention_days, metric_retention_days
+SELECT org_id, name, log_retention_days, trace_retention_days, metric_retention_days
 FROM workspaces WHERE id = $1 FOR UPDATE;
 
 -- name: ListWorkspaceRetention :many

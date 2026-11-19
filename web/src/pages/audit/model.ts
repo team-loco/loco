@@ -8,6 +8,7 @@ import {
 	auditActor,
 	auditDetail,
 	auditLabel,
+	text as dataText,
 	type AuditActor,
 	type AuditUser,
 	typesIn,
@@ -98,7 +99,9 @@ export function auditRow(
 	users: ReadonlyMap<string, AuditUser>,
 	names: ReadonlyMap<string, string>,
 ): AuditRow {
-	const name = (id: string) => names.get(id) ?? id.slice(0, 8);
+	// A deleted resource has no live name; an event about it records the name it had.
+	const name = (id: string) =>
+		names.get(id) ?? (event.subjectId === id ? dataText(event.data, "name") : undefined) ?? id.slice(0, 8);
 	const workspace = event.workspaceId === "" ? "Organization" : name(event.workspaceId);
 	const resource = event.resourceId === "" ? "" : name(event.resourceId);
 	return {

@@ -237,6 +237,7 @@ func (s *EnvironmentServer) UpdateEnvironment(
 			WorkspaceID:   new(existing.WorkspaceID),
 			SubjectType:   events.SubjectEnvironment,
 			SubjectID:     new(envID),
+			Data:          map[string]any{events.FieldName: updated.Name},
 		})
 	})
 	if err != nil {
@@ -280,6 +281,7 @@ func (s *EnvironmentServer) DeleteEnvironment(
 			WorkspaceID:   new(existing.WorkspaceID),
 			SubjectType:   events.SubjectEnvironment,
 			SubjectID:     new(envID),
+			Data:          map[string]any{events.FieldName: existing.Name},
 		})
 	})
 	if err != nil {
