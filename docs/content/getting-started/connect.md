@@ -10,7 +10,7 @@ loco login
 
 The default API host is `https://api.loco.build`; the default dashboard is `https://loco.build`. Follow the sign-in instructions printed by the installed CLI. For noninteractive deployments, configure a [scoped API token in CI](../operations/access.md#deploy-from-ci-with-an-api-token).
 
-An account that belongs to no organization signs in anyway. Create an organization with `loco org create` or in the dashboard, or accept an invitation to one.
+An account can sign in before it belongs to any organization. Create an organization with `loco org create` or in the dashboard, or accept an invitation to one.
 
 An account signs in through the identity that created it: the same identity-provider account each time. If sign-in fails, check that you selected the correct identity-provider account and verified its email address, or contact the instance administrator.
 
