@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 )
 
 func TestFinishingABuildWaitsForTheResourceLockOfANewDeployment(t *testing.T) {
@@ -17,6 +18,11 @@ func TestFinishingABuildWaitsForTheResourceLockOfANewDeployment(t *testing.T) {
 		"canceled": func(f *buildFixture, build genDb.Build) error {
 			_, err := f.cancel(build.ID.String())
 			return err
+		},
+		"succeeded": func(f *buildFixture, build genDb.Build) error {
+			status := buildStatus(build.ID.String(), agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
+			status.ImageDigest = testImageDigest
+			return f.agentServer().recordBuildStatus(f.ctx, *build.ClusterID, build.ID, status)
 		},
 		"lost by its cluster": func(f *buildFixture, build genDb.Build) error {
 			return f.agentServer().failClusterBuilds(f.ctx, genDb.FailClusterBuildsParams{
