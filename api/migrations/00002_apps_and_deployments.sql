@@ -207,6 +207,8 @@ CREATE TYPE deployment_method AS ENUM ('api_token', 'cli', 'web');
 CREATE TABLE
     deployments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
+        -- Shared by the deployments one apply, deploy or scale created across regions.
+        rollout_id UUID NOT NULL DEFAULT uuidv7 (),
         resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
         cluster_id UUID NOT NULL REFERENCES clusters (id) ON DELETE RESTRICT,
         region TEXT NOT NULL,

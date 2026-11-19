@@ -68,6 +68,7 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 	}
 	deployment := &deploymentv1.Deployment{
 		Id:              d.ID.String(),
+		RolloutId:       d.RolloutID.String(),
 		ResourceId:      d.ResourceID.String(),
 		EnvironmentId:   d.EnvironmentID.String(),
 		ClusterId:       d.ClusterID.String(),
@@ -318,6 +319,7 @@ func (s *DeploymentServer) CreateDeployment(
 
 		var txErr error
 		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, counts, genDb.CreateDeploymentParams{
+			RolloutID:     uuid.New(),
 			ResourceID:    resourceID,
 			ClusterID:     cluster.ID,
 			Region:        region,

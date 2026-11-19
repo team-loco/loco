@@ -178,6 +178,8 @@ message Deployment {
   // Active deployments expose the live placement's latest reported replicas,
   // including previous deployment IDs. Inactive deployments retain historical replicas.
   repeated Replica replicas = 24;
+  // Shared by the deployments one apply, deploy or scale created across regions.
+  string rollout_id = 25;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.

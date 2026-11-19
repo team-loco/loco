@@ -10482,6 +10482,11 @@
             },
             "title": "replicas",
             "description": "Active deployments expose the live placement's latest reported replicas,\n including previous deployment IDs. Inactive deployments retain historical replicas."
+          },
+          "rolloutId": {
+            "type": "string",
+            "title": "rollout_id",
+            "description": "Shared by the deployments one apply, deploy or scale created across regions."
           }
         },
         "title": "Deployment",
