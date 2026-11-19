@@ -203,6 +203,59 @@ func TestApplyUpdateReplacesDomainsAndReroutes(t *testing.T) {
 	wantCleanPlan(t, f, planFileHeader+onlyAPI)
 }
 
+func TestApplyRecordsWhetherEachDomainEventMakesTheResourcePublic(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	names := map[uuid.UUID]string{}
+	seen := 0
+	for _, step := range []struct {
+		domains string
+		want    []string
+	}{
+		{"[worker.loco.test]", []string{"domain.created worker.loco.test primary"}},
+		{"[api.loco.test, worker.loco.test]", []string{
+			"domain.created api.loco.test", "domain.updated api.loco.test primary",
+		}},
+		{"[worker.loco.test, web.loco.test]", []string{
+			"domain.updated worker.loco.test primary", "domain.deleted api.loco.test",
+			"domain.created web.loco.test",
+		}},
+		{"[]", []string{"domain.deleted worker.loco.test primary", "domain.deleted web.loco.test"}},
+		{"[api.loco.test]", []string{"domain.created api.loco.test primary"}},
+	} {
+		f.finishRollouts(t)
+		applyOK(t, f, planFileHeader+strings.Replace(applyFileWorker, "[worker.loco.test]", step.domains, 1),
+			applyOptions{confirmDestructive: true})
+		all := dbtest.Events(t, f.pool)
+		var got []string
+		for _, event := range all[seen:] {
+			if !strings.HasPrefix(event.Type, "domain.") {
+				continue
+			}
+			var data struct {
+				Domain  string `json:"domain"`
+				Primary bool   `json:"primary"`
+			}
+			if err := json.Unmarshal(event.Data, &data); err != nil {
+				t.Fatal(err)
+			}
+			if data.Domain != "" {
+				names[*event.SubjectID] = data.Domain
+			}
+			entry := event.Type + " " + names[*event.SubjectID]
+			if data.Primary {
+				entry += " primary"
+			}
+			got = append(got, entry)
+		}
+		seen = len(all)
+		if !slices.Equal(got, step.want) {
+			t.Fatalf("domains %s: events = %q, want %q", step.domains, got, step.want)
+		}
+	}
+}
+
 func TestApplyUpdateAddsAndRemovesRegions(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

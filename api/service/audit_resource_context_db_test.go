@@ -105,9 +105,11 @@ func TestApplyChildAuditEventsRetainResource(t *testing.T) {
 	seeded := f.lastEventSeq(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
 	f.finishRollouts(t)
-	changed := strings.Replace(applyFileWorkerDebug, applyWorkerDomain, applyAPIDomain, 1)
-	applyOK(t, f, planFileHeader+changed, applyOptions{})
-	f.finishRollouts(t)
+	for _, domains := range []string{applyAPIDomain + ", " + applyWorkerDomain, applyAPIDomain} {
+		file := strings.Replace(applyFileWorkerDebug, applyWorkerDomain, domains, 1)
+		applyOK(t, f, planFileHeader+file, applyOptions{})
+		f.finishRollouts(t)
+	}
 	resource, found := f.resourceByName(t, applyWorker)
 	if !found {
 		t.Fatal("worker resource missing")

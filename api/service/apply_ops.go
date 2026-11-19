@@ -213,7 +213,7 @@ func (a *applier) createDomain(
 	qtx *genDb.Queries,
 	resourceID uuid.UUID,
 	domain string,
-	becomesPrimary bool,
+	isPrimary bool,
 ) (uuid.UUID, error) {
 	platformDomain, label, err := platformdomain.Match(domain, a.platformDomains)
 	if err != nil {
@@ -226,7 +226,7 @@ func (a *applier) createDomain(
 		DomainSource:   genDb.DomainSourcePlatformProvided,
 		SubdomainLabel: &label,
 		PlatformDomain: &platformDomain,
-		IsPrimary:      false,
+		IsPrimary:      isPrimary,
 	})
 	if isDomainTaken(err) {
 		return uuid.UUID{}, errDomainInUse
@@ -241,7 +241,7 @@ func (a *applier) createDomain(
 		ResourceID:    new(resourceID),
 		SubjectType:   events.SubjectDomain,
 		SubjectID:     new(domainID),
-		Data: domainEventData(domain, genDb.DomainSourcePlatformProvided, becomesPrimary,
+		Data: domainEventData(domain, genDb.DomainSourcePlatformProvided, isPrimary,
 			map[string]any{events.FieldResourceID: resourceID.String()}),
 	})
 }
