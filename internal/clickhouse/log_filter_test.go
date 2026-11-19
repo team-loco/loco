@@ -1,6 +1,7 @@
 package clickhouse
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -48,5 +49,26 @@ func TestValidateLogFilterRejectsReservedKeysAndNumbersOnLogFields(t *testing.T)
 		if (want == "" && err != nil) || (want != "" && (err == nil || err.Error() != want)) {
 			t.Errorf("ValidateLogFilter(%q) = %v, want %q", query, err, want)
 		}
+	}
+}
+
+func TestLevelSQLAcceptsSeverityAliases(t *testing.T) {
+	const warn = "warn"
+	for value, level := range map[string]string{
+		warn: warn, "warning": warn, "Warning": warn,
+		"fatal": "error", "critical": "error",
+		"information": "info", "trace": "debug",
+	} {
+		b := &positionalBinder{}
+		levelSQL(logquery.Field{Key: LevelField, Value: value}, b)
+		for _, severity := range levelSeverities[level] {
+			if !slices.Contains(b.args, any(severity)) {
+				t.Errorf("@level:%s binds %v, want it to include %q", value, b.args, severity)
+			}
+		}
+	}
+	b := &positionalBinder{}
+	if sql := levelSQL(logquery.Field{Key: LevelField, Value: "custom"}, b); sql != "SeverityText = ?" {
+		t.Errorf("@level:custom compiled to %s", sql)
 	}
 }

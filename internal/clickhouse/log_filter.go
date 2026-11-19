@@ -191,10 +191,20 @@ func stringMatch(column string, field logquery.Field, b binder) string {
 	return column + " = " + b.str(field.Value)
 }
 
+// levelName returns the @level name whose severities include value, ignoring case, or value itself.
+func levelName(value string) string {
+	for name, severities := range levelSeverities {
+		if slices.ContainsFunc(severities, func(s string) bool { return s != "" && strings.EqualFold(s, value) }) {
+			return name
+		}
+	}
+	return value
+}
+
 // levelSQL matches the severities of the level names the value selects, or the severity text itself
 // when it names no level.
 func levelSQL(field logquery.Field, b binder) string {
-	value := strings.ToLower(field.Value)
+	value := levelName(strings.ToLower(field.Value))
 	var severities []string
 	for _, name := range slices.Sorted(maps.Keys(levelSeverities)) {
 		if name == value || (field.Match == logquery.Prefix && strings.HasPrefix(name, value)) {
