@@ -404,7 +404,7 @@ CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGU
         'image', dp.image,
         'startedAt', dp.started_at,
         'completedAt', dp.completed_at,
-        'live', l.deployment_id IS NOT NULL,
+        'live', l.live,
         'revision', CASE WHEN p.deployment_id = dp.deployment_id THEN p.desired_revision ELSE COALESCE((
             SELECT max(ro.revision) FROM deployment_rollouts ro
             WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id), 0) END,
@@ -412,7 +412,7 @@ CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGU
             SELECT ro.snapshot FROM deployment_rollouts ro
             WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id
             ORDER BY ro.revision DESC LIMIT 1), '{}'::jsonb),
-        'observed', CASE WHEN l.deployment_id IS NULL THEN '[]'::jsonb ELSE COALESCE((
+        'observed', CASE WHEN NOT l.live THEN '[]'::jsonb ELSE COALESCE((
             SELECT jsonb_path_query_array(jsonb_agg(o.replicas ORDER BY o.placement_id), '$[*][*]')
             FROM observed_placement_rollouts o
             WHERE o.resource_id = d.resource_id AND o.environment_id = d.environment_id
@@ -420,10 +420,12 @@ CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGU
     ) ORDER BY dp.region, dp.cluster_id), '[]'::jsonb)
     FROM deployment_placements dp
     JOIN deployments d ON d.id = dp.deployment_id
-    LEFT JOIN live_deployment_placements l ON l.deployment_id = dp.deployment_id AND l.cluster_id = dp.cluster_id
-        AND l.resource_id = d.resource_id AND l.environment_id = d.environment_id
     LEFT JOIN placements p ON p.resource_id = d.resource_id AND p.environment_id = d.environment_id
         AND p.cluster_id = dp.cluster_id AND NOT p.desired_deleted
+    CROSS JOIN LATERAL (SELECT EXISTS (
+        SELECT 1 FROM live_deployment_placements l
+        WHERE l.resource_id = d.resource_id AND l.environment_id = d.environment_id
+          AND l.cluster_id = dp.cluster_id AND l.deployment_id = dp.deployment_id) AS live) l
     WHERE dp.deployment_id = deployment
 $$;
 -- +goose StatementEnd
