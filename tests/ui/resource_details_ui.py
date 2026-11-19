@@ -70,11 +70,15 @@ runtime = {
     "platform": "linux/amd64",
     "observability": {"injectOtel": True},
     "build": {"type": "image", "image": image},
-    "cpu": "500m",
-    "memory": "512Mi",
-    "minReplicas": 1,
-    "maxReplicas": 1,
     "port": 8080,
+    "regions": {
+        "us-east-1": {
+            "cpu": "500m",
+            "memory": "512Mi",
+            "minReplicas": 1,
+            "maxReplicas": 1,
+        }
+    },
     "healthCheck": {
         "path": "/health",
         "initialDelaySeconds": 5,
@@ -90,9 +94,8 @@ evidence.seed_deployments(
         {
             "id": deployment,
             "environment": "production",
-            "region": "us-east-1",
             "spec": runtime,
-            "ready_replicas": 0,
+            "placements": {"us-east-1": {"ready_replicas": 0}},
         }
     ],
 )
@@ -102,7 +105,7 @@ sql(
 UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
 VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','restarting','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
-INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"restarting","detail":"The pod restarted"}}}}');
+INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) VALUES('{deployment}',(SELECT cluster_id FROM deployment_placements WHERE deployment_id='{deployment}'),1,'{{"problem":{{"reason":"restarting","detail":"The pod restarted"}}}}');
 COMMIT;""",
 )
 sql(
@@ -207,7 +210,7 @@ with session(out) as browser:
     )
     page.get_by_role("button", name=re.compile(r"^Events")).click()
     runtime_events = page.get_by_role("dialog", name="Events", exact=True)
-    expect(runtime_events.get_by_text("restarting", exact=True)).to_be_visible()
+    expect(runtime_events.get_by_text("crash loop", exact=True)).to_be_visible()
     expect(
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
@@ -346,7 +349,10 @@ with session(out) as browser:
     page.clock.fast_forward(8000)
     expect(copy_receipt).to_be_visible()
     context.unroute(failed_restart)
-    sql(state, f"UPDATE deployments SET status='running' WHERE id='{deployment}';")
+    sql(
+        state,
+        f"UPDATE deployment_placements SET status='running' WHERE deployment_id='{deployment}'; UPDATE deployments SET status='running' WHERE id='{deployment}';",
+    )
     more.click()
     page.get_by_role("menuitem", name="View spec", exact=True).click()
     dialog = page.get_by_role("dialog")

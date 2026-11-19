@@ -290,11 +290,17 @@ func (f *imageSweepFixture) activeDeployment(t *testing.T, image string) uuid.UU
 	spec := fmt.Sprintf(`{"build":{"type":"dockerfile","image":"%s/%s@%s"}}`, testRegistryHost, f.repoPath, image)
 	var id uuid.UUID
 	err := f.pool.QueryRow(f.ctx, `
-INSERT INTO deployments (actor_type, actor_id, method, resource_id, cluster_id, region, replicas, status,
-                         is_active, spec, spec_version, environment_id, started_at)
-VALUES ('user', (SELECT created_by FROM environments WHERE id = $4), 'cli',
-        $1, $2, 'us-east-1', 1, 'running', true, $3, 1, $4, NOW())
-RETURNING id`, f.resourceID, f.clusterID, []byte(spec), f.envID).Scan(&id)
+WITH d AS (
+    INSERT INTO deployments (actor_type, actor_id, method, resource_id, status, trigger, spec, spec_version,
+                             environment_id)
+    VALUES ('user', (SELECT created_by FROM environments WHERE id = $4), 'cli',
+            $1, 'building', 'deploy', $3, 1, $4)
+    RETURNING id
+), dp AS (
+    INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image)
+    SELECT id, $2, 'us-east-1', 1, 'pending', '' FROM d
+)
+SELECT id FROM d`, f.resourceID, f.clusterID, []byte(spec), f.envID).Scan(&id)
 	if err != nil {
 		t.Fatalf("insert deployment: %v", err)
 	}
@@ -362,7 +368,9 @@ func TestImageSweepKeepsImagesInUse(t *testing.T) {
 	newest := f.succeeded(t)
 
 	inactive := f.activeDeployment(t, history.image)
-	if _, err := f.pool.Exec(f.ctx, `UPDATE deployments SET is_active = false WHERE id = $1`, inactive); err != nil {
+	if _, err := f.pool.Exec(
+		f.ctx, `UPDATE deployment_placements SET status = 'canceled' WHERE deployment_id = $1`, inactive,
+	); err != nil {
 		t.Fatalf("deactivate deployment: %v", err)
 	}
 	active := f.activeDeployment(t, deployed.image)
@@ -374,7 +382,9 @@ func TestImageSweepKeepsImagesInUse(t *testing.T) {
 	f.wantDeleted(t, history)
 	f.wantKept(t, deployed, placed, newest)
 
-	if _, err := f.pool.Exec(f.ctx, `UPDATE deployments SET is_active = false WHERE id = $1`, active); err != nil {
+	if _, err := f.pool.Exec(
+		f.ctx, `UPDATE deployment_placements SET status = 'canceled' WHERE deployment_id = $1`, active,
+	); err != nil {
 		t.Fatalf("deactivate deployment: %v", err)
 	}
 	if _, err := f.pool.Exec(

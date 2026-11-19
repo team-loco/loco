@@ -392,7 +392,9 @@ WHERE dp.status = 'pending' OR EXISTS (
 ORDER BY d.resource_id, d.environment_id, dp.cluster_id, d.created_at DESC, d.id DESC;
 
 -- +goose StatementBegin
--- The placements of a deployment as the API returns them, ordered by region.
+-- The placements of a deployment as the API returns them, ordered by region. A live placement is
+-- one the region runs or is building, and reports the replicas the region's clusters last
+-- reported, which include the previous version's while it rolls out.
 CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGUAGE sql STABLE AS $$
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
         'clusterId', dp.cluster_id,
@@ -402,20 +404,26 @@ CREATE FUNCTION deployment_placements_json (deployment UUID) RETURNS JSONB LANGU
         'image', dp.image,
         'startedAt', dp.started_at,
         'completedAt', dp.completed_at,
-        'live', p.id IS NOT NULL,
-        'revision', COALESCE(p.desired_revision, (
+        'live', l.deployment_id IS NOT NULL,
+        'revision', CASE WHEN p.deployment_id = dp.deployment_id THEN p.desired_revision ELSE COALESCE((
             SELECT max(ro.revision) FROM deployment_rollouts ro
-            WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id), 0),
+            WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id), 0) END,
         'rollout', COALESCE((
             SELECT ro.snapshot FROM deployment_rollouts ro
             WHERE ro.deployment_id = dp.deployment_id AND ro.cluster_id = dp.cluster_id
             ORDER BY ro.revision DESC LIMIT 1), '{}'::jsonb),
-        'observed', COALESCE((
-            SELECT o.replicas FROM observed_placement_rollouts o WHERE o.placement_id = p.id), '[]'::jsonb)
+        'observed', CASE WHEN l.deployment_id IS NULL THEN '[]'::jsonb ELSE COALESCE((
+            SELECT jsonb_path_query_array(jsonb_agg(o.replicas ORDER BY o.placement_id), '$[*][*]')
+            FROM observed_placement_rollouts o
+            WHERE o.resource_id = d.resource_id AND o.environment_id = d.environment_id
+              AND o.region = dp.region), '[]'::jsonb) END
     ) ORDER BY dp.region, dp.cluster_id), '[]'::jsonb)
     FROM deployment_placements dp
-    LEFT JOIN placements p ON p.deployment_id = dp.deployment_id AND p.cluster_id = dp.cluster_id
-        AND NOT p.desired_deleted
+    JOIN deployments d ON d.id = dp.deployment_id
+    LEFT JOIN live_deployment_placements l ON l.deployment_id = dp.deployment_id AND l.cluster_id = dp.cluster_id
+        AND l.resource_id = d.resource_id AND l.environment_id = d.environment_id
+    LEFT JOIN placements p ON p.resource_id = d.resource_id AND p.environment_id = d.environment_id
+        AND p.cluster_id = dp.cluster_id AND NOT p.desired_deleted
     WHERE dp.deployment_id = deployment
 $$;
 -- +goose StatementEnd

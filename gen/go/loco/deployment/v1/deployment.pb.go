@@ -1124,7 +1124,7 @@ type DeploymentPlacement struct {
 	// A live placement exposes the cluster's latest reported replicas, including previous
 	// deployment IDs; a retired one keeps its last snapshot. List responses leave them empty.
 	Replicas []*Replica `protobuf:"bytes,10,rep,name=replicas,proto3" json:"replicas,omitempty"`
-	// Whether the region's live placement runs this deployment.
+	// Whether the region runs this deployment or is building it.
 	Live          bool `protobuf:"varint,11,opt,name=live,proto3" json:"live,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

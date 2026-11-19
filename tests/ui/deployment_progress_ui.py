@@ -49,11 +49,15 @@ if "progress" not in state:
         "platform": "linux/amd64",
         "observability": {"injectOtel": True},
         "build": {"type": "image", "image": old_image},
-        "cpu": "100m",
-        "memory": "128Mi",
-        "minReplicas": 2,
-        "maxReplicas": 2,
         "port": 8080,
+        "regions": {
+            "us-east-1": {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 2,
+                "maxReplicas": 2,
+            }
+        },
     }
     spec = {
         **old_spec,
@@ -66,7 +70,10 @@ if "progress" not in state:
         },
     }
     cluster = evidence.seed_cluster(state, "us-east-1", name="progress-ui")
-    target = {"cluster": cluster, "environment": "production", "region": "us-east-1"}
+    target = {
+        "environment": "production",
+        "placements": {"us-east-1": {"cluster": cluster}},
+    }
     resource = evidence.seed_resources(
         state,
         [
@@ -80,7 +87,7 @@ if "progress" not in state:
                         "id": current,
                         "spec": spec,
                         "status": "building",
-                        "active": False,
+                        "live": False,
                         "age": "45 seconds",
                     },
                 ],
@@ -207,24 +214,26 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         ("error" if reason else "info", replica["name"], f"Deployment {status}"),
     ]
     activity = ",".join(
-        f"('{p['current']}',{last_seq + index},2,NOW()-INTERVAL '{len(entries) - index} seconds',{evidence.sql_literal(severity)},{evidence.sql_literal(name)},{evidence.sql_literal(message)})"
+        f"('{p['current']}',{last_seq + index},2,NOW()-INTERVAL '{len(entries) - index} seconds',{evidence.sql_literal(severity)},{evidence.sql_literal(name)},{evidence.sql_literal(message)},"
+        + (f"'{p['cluster']}','us-east-1')" if name else "NULL,'')")
         for index, (severity, name, message) in enumerate(entries, 1)
     )
+    completed = "NULL" if status in ("building", "deploying", "running") else "NOW()"
     sql(
         state,
         f"""BEGIN;
     UPDATE clusters SET last_heartbeat=NOW() WHERE id='{p["cluster"]}';
-    UPDATE deployments SET is_active=false WHERE resource_id='{p["resource"]}';
-    UPDATE deployments SET is_active=true WHERE id='{p["previous"] if status == "canceled" else p["current"]}';
-    UPDATE deployments SET status='{status}',updated_at=NOW(),completed_at={"NULL" if status in ("building", "deploying", "running") else "NOW()"} WHERE id='{p["current"]}';
+    UPDATE deployments SET status='{status}',updated_at=NOW(),completed_at={completed} WHERE id='{p["current"]}';
+    UPDATE deployment_placements SET status='{"pending" if status == "building" else status}',image={"''" if status == "building" else "spec->'build'->>'image'"},started_at={"NOW()" if status == "running" else "NULL"},completed_at={completed},updated_at=NOW()
+    FROM deployments WHERE deployments.id=deployment_placements.deployment_id AND deployment_id='{p["current"]}';
     UPDATE placements SET deployment_id='{p["previous"] if building else p["current"]}',desired_revision={1 if building else 2},observed_revision={1 if building else 2},ready_replicas={ready_count},status_updated_at=NOW() WHERE resource_id='{p["resource"]}';
-    INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
-    VALUES('{p["previous"]}',1,{evidence.sql_literal(json.dumps(old_snapshot))})
-    ON CONFLICT(deployment_id,revision) DO NOTHING;
-    INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
-    VALUES('{p["current"]}',2,{evidence.sql_literal(json.dumps(snapshot))})
-    ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;
-    INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message) VALUES {activity};
+    INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot)
+    VALUES('{p["previous"]}','{p["cluster"]}',1,{evidence.sql_literal(json.dumps(old_snapshot))})
+    ON CONFLICT(deployment_id,cluster_id,revision) DO NOTHING;
+    INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot)
+    VALUES('{p["current"]}','{p["cluster"]}',2,{evidence.sql_literal(json.dumps(snapshot))})
+    ON CONFLICT(deployment_id,cluster_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;
+    INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message,cluster_id,region) VALUES {activity};
     COMMIT;""",
     )
 
@@ -362,7 +371,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     ), mutations
     assert (
         mutations[0]["environmentId"] == p["environment"]
-        and mutations[0]["region"] == "us-east-1"
+        and mutations[0]["regions"] == ["us-east-1"]
+        and mutations[0]["trigger"] == "DEPLOYMENT_TRIGGER_ROLLBACK"
+        and mutations[0]["sourceDeploymentId"] == p["previous"]
     ), mutations
     phase("canceled")
     page.reload()

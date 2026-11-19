@@ -38,19 +38,22 @@ resources = evidence.seed_resources(
             "name": name,
             "deployments": [
                 {
-                    "cluster": cluster,
                     "environment": "production",
-                    "region": "us-east-1",
+                    "placements": {"us-east-1": {"cluster": cluster}},
                     "spec": {
                         "build": {
                             "type": "image",
                             "image": f"registry.example.com/{name}:1",
                         },
                         "port": 8080,
-                        "cpu": cpu,
-                        "memory": memory,
-                        "minReplicas": replicas,
-                        "maxReplicas": replicas,
+                        "regions": {
+                            "us-east-1": {
+                                "cpu": cpu,
+                                "memory": memory,
+                                "minReplicas": replicas,
+                                "maxReplicas": replicas,
+                            }
+                        },
                     },
                 }
             ],

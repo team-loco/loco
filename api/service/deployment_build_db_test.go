@@ -12,6 +12,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -415,5 +416,50 @@ func TestBuildFailureProblemSurvivesBuildHistoryPruning(t *testing.T) {
 		problem.GetDetail() != status.GetMessage() ||
 		problem.GetSince() == nil {
 		t.Fatalf("problem=%v", problem)
+	}
+}
+
+func TestABuildingDeploymentShowsTheServingReplicas(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	serving := rollbackDeployment(t, f.deployFixture, false, nil)
+	p := f.placement(t, f.clusterID)
+	f.agentServer().recordStatus(f.ctx, f.clusterID, 0, &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), DeploymentId: serving.String(), ObservedRevision: p.DesiredRevision,
+		ReadyReplicas: 1, Available: true,
+		Replicas: []*deploymentv1.Replica{{Uid: "serving-pod", DeploymentId: serving.String(), Ready: true,
+			State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
+	})
+	building := deployBuild(t, f, f.queued(t))
+
+	view := func(id uuid.UUID) *deploymentv1.DeploymentPlacement {
+		t.Helper()
+		row, err := f.queries.GetDeploymentView(f.ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		deployment, err := deploymentToProto(row)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return deployment.GetPlacements()[0]
+	}
+	desired := view(building)
+	if !desired.GetLive() || desired.GetStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING ||
+		len(desired.GetReplicas()) != 1 || desired.GetReplicas()[0].GetDeploymentId() != serving.String() {
+		t.Fatalf("building placement = %v, want live and pending with the serving replica", desired)
+	}
+	if previous := view(serving); previous.GetLive() ||
+		previous.GetStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+		t.Fatalf("serving placement = %v, want running and no longer the region's desired deployment", previous)
+	}
+	statuses, err := (&ResourceServer{queries: f.queries}).environmentStatuses(f.ctx, []uuid.UUID{f.resourceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	region := statuses[f.resourceID][0].GetRegions()[0]
+	if region.GetDeploymentId() != building.String() ||
+		region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING {
+		t.Fatalf("region = %v, want the building deployment pending", region)
 	}
 }

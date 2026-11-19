@@ -10567,7 +10567,7 @@
           "live": {
             "type": "boolean",
             "title": "live",
-            "description": "Whether the region's live placement runs this deployment."
+            "description": "Whether the region runs this deployment or is building it."
           }
         },
         "title": "DeploymentPlacement",

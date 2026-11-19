@@ -888,7 +888,7 @@ export type DeploymentPlacement = Message<"loco.deployment.v1.DeploymentPlacemen
   replicas: Replica[];
 
   /**
-   * Whether the region's live placement runs this deployment.
+   * Whether the region runs this deployment or is building it.
    *
    * @generated from field: bool live = 11;
    */
@@ -957,7 +957,7 @@ export type DeploymentPlacementJson = {
   replicas?: ReplicaJson[];
 
   /**
-   * Whether the region's live placement runs this deployment.
+   * Whether the region runs this deployment or is building it.
    *
    * @generated from field: bool live = 11;
    */

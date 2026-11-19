@@ -31,11 +31,15 @@ func (f *deployFixture) addStagingEnvironment(t *testing.T) uuid.UUID {
 
 func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID) []liveDeployment {
 	t.Helper()
-	deployments, err := listLiveDeploymentsForEnvironment(context.Background(), f.queries, f.resourceID, environmentID)
+	rows, err := f.queries.ListLiveDeploymentsForEnvironment(context.Background(), environmentID)
 	if err != nil {
 		t.Fatalf("list deployments: %v", err)
 	}
-	return deployments
+	converted := make([]genDb.ListLiveDeploymentsForResourceRow, 0, len(rows))
+	for _, row := range rows {
+		converted = append(converted, genDb.ListLiveDeploymentsForResourceRow(row))
+	}
+	return liveDeployments(converted)
 }
 
 func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
