@@ -1021,11 +1021,23 @@ func (o *observed) attributeLogs(t *testing.T) {
 	)
 }
 
-// gatewayMetrics sends the fixture successful and 5xx requests, and the gateway requests for the app
-// with no ready replica, until QueryMetrics reports both resources' traffic.
+// gatewayMetrics sends one request to the app with no ready replica and the fixture successful and 5xx
+// requests until QueryMetrics reports both resources' traffic.
 func (o *observed) gatewayMetrics(t *testing.T) {
 	unreadyHost := o.w.Host(unreadyApp)
 	unreadyID := o.w.ResourceID(t, unreadyApp)
+	platform.Eventually(
+		t,
+		routeTimeout,
+		"the gateway to answer "+unreadyHost+" with 503",
+		func(ctx context.Context) error {
+			status, err := gatewayStatus(ctx, unreadyHost, "/", "")
+			if err != nil || status != http.StatusServiceUnavailable {
+				return fmt.Errorf("HTTP %d (%w)", status, err)
+			}
+			return nil
+		},
+	)
 	var app, unready gatewayTraffic
 	platform.Eventually(
 		t,
@@ -1038,7 +1050,6 @@ func (o *observed) gatewayMetrics(t *testing.T) {
 			}{
 				{o.host, "/status/200", http.StatusOK},
 				{o.host, "/status/503", http.StatusServiceUnavailable},
-				{unreadyHost, "/", http.StatusServiceUnavailable},
 			} {
 				if status, err := gatewayStatus(ctx, request.host, request.path, ""); err != nil ||
 					status != request.status {

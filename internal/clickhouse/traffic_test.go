@@ -117,3 +117,17 @@ func TestTrafficCumulativeRatesIgnoreImplausibleStartTimes(t *testing.T) {
 		})
 	}
 }
+
+func TestTrafficCountsFirstEnvoyDelta(t *testing.T) {
+	start := time.Date(2026, time.November, 11, 0, 0, 0, 0, time.UTC)
+	req := metricsRequest(start, start.Add(time.Minute))
+	buckets := make(map[trafficBucket]map[float64]float64)
+	addTrafficSample(buckets, trafficSample{
+		resource: testResourceID, stream: "a", start: time.Unix(0, start.UnixMicro()), end: start.Add(time.Minute),
+		temporality: 1, values: []float64{6},
+	}, trafficSample{}, req, false)
+	series := trafficSeries(buckets, req, false)
+	if len(series) != 1 || math.Abs(series[0].GetPoints()[0].GetValue()-.1) > 1e-9 {
+		t.Fatalf("first delta rate = %v, want 6 requests over the minute since the sink started", series)
+	}
+}
