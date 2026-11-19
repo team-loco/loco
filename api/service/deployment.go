@@ -335,28 +335,15 @@ func (s *DeploymentServer) CreateDeployment(
 		if len(regions) == 0 {
 			regions = enabledRegions(render.resourceSpec.GetService().GetRegions())
 		}
-		targets := make([]placementTarget, 0, len(regions))
-		for _, region := range regions {
-			cluster, found := clusterForRegion(clusters, region)
-			if !found {
-				return errNoActiveCluster.Detail("%s, requires %s", region, s.defaults.TargetPlatform)
-			}
-			targets = append(targets, placementTarget{region: region, clusterID: cluster.ID})
+		targets, targetErr := placementTargets(clusters, regions, string(s.defaults.TargetPlatform))
+		if targetErr != nil {
+			return targetErr
 		}
 
 		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
-		mergedSpec, mergeErr := converter.MergeDeploymentSpec(render.resourceSpec, requestSpec, regions, s.defaults)
-		if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) ||
-			errors.Is(mergeErr, converter.ErrRegionNotTargeted) {
-			return &invalidInputError{public: publicInvalidRequest, err: mergeErr}
-		}
+		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
 		if mergeErr != nil {
-			return fmt.Errorf("%w: merge deployment spec: %w", errDesiredSpec, mergeErr)
-		}
-
-		mergedServiceSpec := mergedSpec.GetService()
-		if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
-			return &invalidInputError{public: publicInvalidRequest, err: quantityErr}
+			return mergeErr
 		}
 
 		plainEnv, secretNames, bindingsErr := s.deploymentBindings(
@@ -407,6 +394,27 @@ func (s *DeploymentServer) CreateDeployment(
 		DeploymentId: deploymentID.String(),
 		Build:        pinnedBuild,
 	}, nil
+}
+
+// mergeRequestSpec fills a request's service spec for the target regions and checks its sizes.
+func mergeRequestSpec(
+	resourceSpec *resourcev1.ResourceSpec,
+	requestSpec *deploymentv1.DeploymentSpec,
+	regions []string,
+	defaults servicedefaults.Defaults,
+) (*deploymentv1.ServiceDeploymentSpec, error) {
+	merged, err := converter.MergeDeploymentSpec(resourceSpec, requestSpec, regions, defaults)
+	if errors.Is(err, converter.ErrRegionNotFound) || errors.Is(err, converter.ErrRegionDisabled) ||
+		errors.Is(err, converter.ErrRegionNotTargeted) {
+		return nil, &invalidInputError{public: publicInvalidRequest, err: err}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: merge deployment spec: %w", errDesiredSpec, err)
+	}
+	if quantityErr := validateQuantities(merged.GetService()); quantityErr != nil {
+		return nil, &invalidInputError{public: publicInvalidRequest, err: quantityErr}
+	}
+	return merged.GetService(), nil
 }
 
 // sourceDeployment is the deployment a redeploy or rollback copies, which must belong to the

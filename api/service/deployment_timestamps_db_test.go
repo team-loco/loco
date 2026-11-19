@@ -60,6 +60,9 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := recomputeDeploymentStatus(ctx, f.queries, id); err != nil {
+		t.Fatal(err)
+	}
 	if got := read(); got.Status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("restart=%s", got.Status)
 	}

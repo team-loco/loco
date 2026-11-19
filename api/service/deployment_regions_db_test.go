@@ -31,16 +31,14 @@ func (f *deployFixture) getDeployment(t *testing.T, id string) *deploymentv1.Dep
 	return resp.GetDeployment()
 }
 
-func (f *deployFixture) addOtherRegionCluster(t *testing.T) uuid.UUID {
+func (f *deployFixture) addOtherRegionCluster(t *testing.T) {
 	t.Helper()
-	var id uuid.UUID
 	addCluster := `
 INSERT INTO clusters (platforms, name, region, provider, is_active, is_default, health_status, last_heartbeat)
-VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) RETURNING id`
-	if err := f.pool.QueryRow(context.Background(), addCluster, otherRegion).Scan(&id); err != nil {
+VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW())`
+	if _, err := f.pool.Exec(context.Background(), addCluster, otherRegion); err != nil {
 		t.Fatalf("add cluster: %v", err)
 	}
-	return id
 }
 
 // placementRegions lists the regions of a deployment and their statuses.
@@ -92,7 +90,8 @@ func TestApplyAndScaleCreateOneDeploymentAcrossRegions(t *testing.T) {
 		t.Fatalf("started = %v, want one new deployment", second)
 	}
 	f.finishRollouts(t)
-	if got := f.getDeployment(t, first.GetId()).GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED {
+	if got := f.getDeployment(t, first.GetId()).
+		GetStatus(); got != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED {
 		t.Fatalf("first deployment = %s, want superseded once the second runs everywhere", got)
 	}
 
@@ -141,7 +140,8 @@ func TestRegionScopedScaleLeavesTheOtherRegionLive(t *testing.T) {
 		got[otherRegion] != deploymentv1.PlacementStatus_PLACEMENT_STATUS_SUPERSEDED {
 		t.Fatalf("original placements = %v, want %s running and %s superseded", got, testRegion, otherRegion)
 	}
-	if status := f.getDeployment(t, original).GetStatus(); status != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
+	if status := f.getDeployment(t, original).
+		GetStatus(); status != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
 		t.Fatalf("original = %s, want running while one region serves it", status)
 	}
 

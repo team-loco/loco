@@ -56,12 +56,12 @@ func TestRecomputeDeploymentStatusAggregatesPlacements(t *testing.T) {
 				{ClusterID: f.otherCluster, Region: otherRegion},
 			} {
 				cluster.DeploymentID, cluster.Replicas, cluster.Status = id, 1, tt.placements[i]
-				if err := f.queries.CreateDeploymentPlacement(t.Context(), cluster); err != nil {
+				if err = f.queries.CreateDeploymentPlacement(t.Context(), cluster); err != nil {
 					t.Fatal(err)
 				}
 			}
 			if tt.canceledBy {
-				if _, err := f.pool.Exec(t.Context(),
+				if _, err = f.pool.Exec(t.Context(),
 					`UPDATE deployments SET canceled_by_type='user', canceled_by_id=$2 WHERE id=$1`,
 					id, f.userID); err != nil {
 					t.Fatal(err)

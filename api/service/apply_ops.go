@@ -283,13 +283,9 @@ func (a *applier) deploy(
 	if err != nil {
 		return err
 	}
-	targets := make([]placementTarget, 0, len(regions))
-	for _, region := range regions {
-		cluster, found := clusterForRegion(clusters, region)
-		if !found {
-			return errNoActiveCluster.Detail("%s", region)
-		}
-		targets = append(targets, placementTarget{region: region, clusterID: cluster.ID})
+	targets, err := placementTargets(clusters, regions, string(a.defaults.TargetPlatform))
+	if err != nil {
+		return err
 	}
 	service := deploymentSpecFor(state, regions, build)
 	service.Platform = string(a.defaults.TargetPlatform)

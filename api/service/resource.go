@@ -824,13 +824,13 @@ func (s *ResourceServer) redeployRegions(
 		if clusterErr != nil {
 			return clusterErr
 		}
-		targets := make([]placementTarget, 0, len(plan.source))
+		regions := make([]string, 0, len(plan.source))
 		for _, region := range plan.source {
-			cluster, found := clusterForRegion(clusters, region.Region)
-			if !found {
-				return errNoActiveCluster.Detail("%s, requires %s", region.Region, plan.service.GetPlatform())
-			}
-			targets = append(targets, placementTarget{region: region.Region, clusterID: cluster.ID})
+			regions = append(regions, region.Region)
+		}
+		targets, targetErr := placementTargets(clusters, regions, plan.service.GetPlatform())
+		if targetErr != nil {
+			return targetErr
 		}
 		source := plan.source[0]
 		if _, deployErr := createDeployment(ctx, qtx, &counts, newDeployment{
@@ -1002,7 +1002,8 @@ func (s *ResourceServer) GetResourceEnv(
 	}
 	plain := map[string]string{}
 	var secretNames []string
-	for _, deployment := range deployments {
+	if len(deployments) > 0 {
+		deployment := deployments[0]
 		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
 		if envErr != nil {
 			return nil, fmt.Errorf("read the desired env: %w", envErr)
@@ -1010,7 +1011,6 @@ func (s *ResourceServer) GetResourceEnv(
 		maps.Copy(plain, vars)
 		secretNames = slices.Clone(deployment.SecretNames)
 		slices.Sort(secretNames)
-		break
 	}
 	return &resourcev1.GetResourceEnvResponse{Env: plain, SecretNames: secretNames}, nil
 }

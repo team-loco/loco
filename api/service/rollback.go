@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -116,7 +117,20 @@ func rollbackDeploymentIfEnabled(
 	if err != nil {
 		return err
 	}
-	if err = recordDeploymentCreated(ctx, qtx, resource, failed.EnvironmentID, restored, targetRegions(targets)); err != nil {
+	if err = events.Record(ctx, qtx, events.Event{
+		Type:          events.DeploymentCreated,
+		ActorType:     events.ActorSystem,
+		EnvironmentID: new(failed.EnvironmentID),
+		WorkspaceID:   new(resource.WorkspaceID),
+		ResourceID:    new(resource.ID),
+		SubjectType:   events.SubjectDeployment,
+		SubjectID:     new(restored),
+		Data: map[string]any{
+			events.FieldResourceID:    resource.ID.String(),
+			events.FieldEnvironmentID: failed.EnvironmentID.String(),
+			events.FieldRegions:       targetRegions(targets),
+		},
+	}); err != nil {
 		return err
 	}
 	if err = writeDeploymentActivity(ctx, qtx, failed.ID, activityScope{}, []activityEntry{

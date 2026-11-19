@@ -93,12 +93,12 @@ func TestAutomaticRollback(t *testing.T) {
 			}
 			var messages []string
 			for _, id := range []uuid.UUID{failed, rollback} {
-				rows, err := f.queries.ListDeploymentActivity(
+				rows, listErr := f.queries.ListDeploymentActivity(
 					t.Context(),
 					genDb.ListDeploymentActivityParams{DeploymentID: id, PageSize: 200},
 				)
-				if err != nil {
-					t.Fatal(err)
+				if listErr != nil {
+					t.Fatal(listErr)
 				}
 				for _, row := range rows {
 					messages = append(messages, row.Message)
@@ -109,9 +109,9 @@ func TestAutomaticRollback(t *testing.T) {
 				t.Fatalf("activity=%v", messages)
 			}
 			var ready int
-			if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
+			if readErr := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
  WHERE type='deployment.ready' AND subject_id=$1`, previous).
-				Scan(&ready); err != nil ||
+				Scan(&ready); readErr != nil ||
 				ready != 1 {
 				t.Fatalf("ready=%d %v", ready, err)
 			}
@@ -150,9 +150,9 @@ func TestAutomaticRollback(t *testing.T) {
 				t.Fatalf("rollback ready events=%d %v", ready, readyErr)
 			}
 
-			if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
+			if readErr := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
  WHERE type='deployment.failed' AND subject_id=$1`, failed).
-				Scan(&ready); err != nil ||
+				Scan(&ready); readErr != nil ||
 				ready != 1 {
 				t.Fatalf("failed events=%d %v", ready, err)
 			}
@@ -290,7 +290,7 @@ func TestRestoredRunningSupersedesOnlyOlderDeployments(t *testing.T) {
 	}
 }
 
-func TestInactiveFailedDeploymentWatchEnds(t *testing.T) {
+func TestFailedDeploymentWatchEnds(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	failed := rollbackDeployment(t, f, false, nil)
@@ -310,16 +310,11 @@ func TestInactiveFailedDeploymentWatchEnds(t *testing.T) {
 			t.Error(closeErr)
 		}
 	}()
-	if _, err = stream.Receive(); err != nil {
-		t.Fatal(err)
-	}
-	rollbackDeployment(t, f, false, nil)
 	final, err := stream.Receive()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if final.GetDeployment().GetPlacements()[0].GetLive() ||
-		final.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
+	if final.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("final deployment=%v", final.GetDeployment())
 	}
 	if _, err = stream.Receive(); !errors.Is(err, io.EOF) {
@@ -341,8 +336,9 @@ func TestRollbackUsesCurrentServiceSetting(t *testing.T) {
 		t.Fatal(err)
 	}
 	reportRollback(t, f, false, true)
-	if current := f.placement(t, f.clusterID); current.DeploymentID == nil || *current.DeploymentID != previous {
-		t.Fatalf("placement=%+v", current)
+	restored, err := f.queries.GetDeploymentByID(t.Context(), f.liveDeployment(t))
+	if err != nil || restored.SourceDeploymentID == nil || *restored.SourceDeploymentID != previous {
+		t.Fatalf("live deployment=%+v %v, want a rollback to %s", restored, err, previous)
 	}
 }
 

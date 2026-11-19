@@ -134,7 +134,10 @@ func storeBuildProblem(
 	if err != nil {
 		return fmt.Errorf("encode build problem: %w", err)
 	}
-	if err := qtx.OpenRollout(ctx, genDb.OpenRolloutParams{DeploymentID: deploymentID, ClusterID: clusterID}); err != nil {
+	if err := qtx.OpenRollout(
+		ctx,
+		genDb.OpenRolloutParams{DeploymentID: deploymentID, ClusterID: clusterID},
+	); err != nil {
 		return fmt.Errorf("open build rollout: %w", err)
 	}
 	return qtx.StoreRollout(ctx, genDb.StoreRolloutParams{

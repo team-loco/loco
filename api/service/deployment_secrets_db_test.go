@@ -142,7 +142,8 @@ func TestScaleKeepsTheSecretNamesOfTheDeployment(t *testing.T) {
 	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
-	setNames := `UPDATE deployments SET secret_names = $2 WHERE resource_id = $1 AND is_active`
+	setNames := `UPDATE deployments SET secret_names = $2
+WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1)`
 	if _, err := f.pool.Exec(ctx, setNames, f.resourceID, testSecretNames); err != nil {
 		t.Fatalf("set secret names: %v", err)
 	}
@@ -183,7 +184,8 @@ func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 	if err := protojson.Unmarshal(storedSpec, rollback); err != nil {
 		t.Fatal(err)
 	}
-	setNames := `UPDATE deployments SET secret_names = $2 WHERE resource_id = $1 AND is_active`
+	setNames := `UPDATE deployments SET secret_names = $2
+WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1)`
 	if _, err := f.pool.Exec(t.Context(), setNames, f.resourceID, testSecretNames); err != nil {
 		t.Fatal(err)
 	}

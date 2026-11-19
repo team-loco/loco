@@ -127,7 +127,7 @@ func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, staticSpec); err != nil {
+			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, serviceSpecPayload); err != nil {
 				t.Fatal(err)
 			}
 			params.EnvironmentID = f.addEnvironment(t, "domain-port-isolation")
@@ -135,7 +135,7 @@ func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
 			if tc.runtimePort {
 				params.Spec = []byte(`{"platform":"linux/amd64"}`)
 			}
-			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, staticSpec); err != nil {
+			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, serviceSpecPayload); err != nil {
 				t.Fatal(err)
 			}
 			err = client.add("runtime." + testDomainPlatform)
@@ -466,4 +466,8 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 	if got := f.placement(t, f.clusterID).DesiredRevision; got != 1 {
 		t.Fatalf("revision = %d, want 1", got)
 	}
+}
+
+func serviceSpecPayload(_ uuid.UUID) ([]byte, error) {
+	return []byte(`{"app_spec":{"serviceSpec":{"deployment":{}}}}`), nil
 }

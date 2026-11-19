@@ -8,7 +8,13 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-const testRegion = "us-east-1"
+const (
+	testRegion = "us-east-1"
+	testCPU    = "100m"
+	testMemory = "256Mi"
+	westRegion = "eu-west"
+	eastRegion = "us-east"
+)
 
 func mergeReplicas(t *testing.T, request, region [2]int32, defaults [2]int32) (int32, int32) {
 	t.Helper()
@@ -30,8 +36,8 @@ func mergeReplicas(t *testing.T, request, region [2]int32, defaults [2]int32) (i
 	requestSpec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: requestService}}
 
 	serviceDefaults := servicedefaults.Defaults{
-		CPU:         "100m",
-		Memory:      "256Mi",
+		CPU:         testCPU,
+		Memory:      testMemory,
 		MinReplicas: defaults[0],
 		MaxReplicas: defaults[1],
 	}
@@ -67,10 +73,10 @@ func TestMergeDeploymentSpecResolvesReplicas(t *testing.T) {
 
 func TestMergeDeploymentSpecSizesEveryTargetRegion(t *testing.T) {
 	regions := map[string]*resourcev1.RegionTarget{
-		"eu-west": {Enabled: true, Cpu: "250m", MinReplicas: 2},
-		"us-east": {Enabled: true, Memory: "1Gi", MinReplicas: 3},
-		"ap-east": {Enabled: true},
-		"off":     {Enabled: false},
+		westRegion: {Enabled: true, Cpu: "250m", MinReplicas: 2},
+		eastRegion: {Enabled: true, Memory: "1Gi", MinReplicas: 3},
+		"ap-east":  {Enabled: true},
+		"off":      {Enabled: false},
 	}
 	resource := &resourcev1.ResourceSpec{
 		Spec: &resourcev1.ResourceSpec_Service{Service: &resourcev1.ServiceSpec{Regions: regions}},
@@ -78,11 +84,11 @@ func TestMergeDeploymentSpecSizesEveryTargetRegion(t *testing.T) {
 	override := &deploymentv1.RegionDeploymentTarget{MinReplicas: new(int32(5))}
 	request := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{
 		Service: &deploymentv1.ServiceDeploymentSpec{
-			Regions: map[string]*deploymentv1.RegionDeploymentTarget{"us-east": override},
+			Regions: map[string]*deploymentv1.RegionDeploymentTarget{eastRegion: override},
 		},
 	}}
-	defaults := servicedefaults.Defaults{CPU: "100m", Memory: "256Mi", MinReplicas: 1, MaxReplicas: 1}
-	merged, err := MergeDeploymentSpec(resource, request, []string{"eu-west", "us-east"}, defaults)
+	defaults := servicedefaults.Defaults{CPU: testCPU, Memory: testMemory, MinReplicas: 1, MaxReplicas: 1}
+	merged, err := MergeDeploymentSpec(resource, request, []string{westRegion, eastRegion}, defaults)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,17 +96,17 @@ func TestMergeDeploymentSpecSizesEveryTargetRegion(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("regions = %v, want eu-west and us-east only", got)
 	}
-	if eu := got["eu-west"]; eu.GetCpu() != "250m" || eu.GetMemory() != "256Mi" || eu.GetMinReplicas() != 2 {
+	if eu := got[westRegion]; eu.GetCpu() != "250m" || eu.GetMemory() != testMemory || eu.GetMinReplicas() != 2 {
 		t.Errorf("eu-west = %v, want the region target over the defaults", eu)
 	}
-	if us := got["us-east"]; us.GetCpu() != "100m" || us.GetMemory() != "1Gi" || us.GetMinReplicas() != 5 {
+	if us := got[eastRegion]; us.GetCpu() != testCPU || us.GetMemory() != "1Gi" || us.GetMinReplicas() != 5 {
 		t.Errorf("us-east = %v, want the request override over the region target", us)
 	}
 
 	for name, targets := range map[string][]string{
 		"disabled region": {"off"},
 		"unknown region":  {"mars"},
-		"untargeted size": {"eu-west"},
+		"untargeted size": {westRegion},
 	} {
 		if _, err := MergeDeploymentSpec(resource, request, targets, defaults); err == nil {
 			t.Errorf("%s: merge succeeded", name)

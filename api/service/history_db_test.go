@@ -13,16 +13,25 @@ func (f *deployFixture) seedDeployment(
 	t *testing.T,
 	clusterID uuid.UUID,
 	region, status string,
-	active bool,
 	age string,
 ) uuid.UUID {
 	t.Helper()
 	var id uuid.UUID
+	placement := status
+	if status == string(genDb.DeploymentStatusBuilding) {
+		placement = string(genDb.PlacementStatusPending)
+	}
 	if err := f.pool.QueryRow(t.Context(), `
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, environment_id,
-                         spec, spec_version, actor_type, actor_id, method, started_at, created_at)
-VALUES ($1, $2, $3, 1, $4, $5, $6, '{}', 1, 'user', $1, 'cli', NOW(), NOW() - $7::interval)
-RETURNING id`, f.resourceID, clusterID, region, status, active, f.envID, age).Scan(&id); err != nil {
+WITH d AS (
+    INSERT INTO deployments (resource_id, status, environment_id, spec, spec_version, trigger,
+                             actor_type, actor_id, method, started_at, created_at)
+    VALUES ($1, $4, $6, '{}', 1, 'deploy', 'user', $1, 'cli', NOW(), NOW() - $7::interval)
+    RETURNING id
+), dp AS (
+    INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image)
+    SELECT id, $2, $3, 1, $5, '' FROM d
+)
+SELECT id FROM d`, f.resourceID, clusterID, region, status, placement, f.envID, age).Scan(&id); err != nil {
 		t.Fatalf("seed deployment: %v", err)
 	}
 	return id
@@ -42,10 +51,10 @@ func TestDeploymentHistoryKeepsActiveUnfinishedAndPlacedDeployments(t *testing.T
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.setLimit(t, limits.DeploymentHistory, 2)
-	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", false, "5 days")
-	unfinished := f.seedDeployment(t, f.clusterID, testRegion, "building", false, "4 days")
-	placed := f.seedDeployment(t, f.otherCluster, testRegion, "failed", false, "3 days")
-	active := f.seedDeployment(t, f.otherCluster, "eu-west-1", "running", true, "2 days")
+	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", "5 days")
+	unfinished := f.seedDeployment(t, f.otherCluster, testRegion, "building", "4 days")
+	placed := f.seedDeployment(t, f.otherCluster, testRegion, "failed", "3 days")
+	running := f.seedDeployment(t, f.otherCluster, "eu-west-1", "running", "2 days")
 	if _, err := f.pool.Exec(t.Context(), `
 INSERT INTO placements (resource_id, cluster_id, region, deployment_id, environment_id, desired_spec)
 VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, placed, f.envID); err != nil {
@@ -61,7 +70,7 @@ VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, pl
 	if f.deploymentExists(t, finished) {
 		t.Error("the finished deployment past the history limit survived")
 	}
-	for name, id := range map[string]uuid.UUID{"unfinished": unfinished, "placed": placed, "active": active} {
+	for name, id := range map[string]uuid.UUID{"unfinished": unfinished, "placed": placed, "live": running} {
 		if !f.deploymentExists(t, id) {
 			t.Errorf("the %s deployment past the history limit was deleted", name)
 		}
@@ -71,7 +80,7 @@ VALUES ($1, $2, $3, $4, $5, '{}')`, f.resourceID, f.otherCluster, testRegion, pl
 func TestDeployWithoutLoadedLimitsDeletesNoHistory(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", false, "5 days")
+	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", "5 days")
 
 	err := withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
 		_, err := recordTestDeployment(

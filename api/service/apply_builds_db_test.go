@@ -395,7 +395,9 @@ func TestApplyReusedSourceBuildMustMatchTarget(t *testing.T) {
 				if specErr != nil {
 					t.Fatal(specErr)
 				}
-				a.live.deployments = map[uuid.UUID][]liveDeployment{res.ID: {{Deployment: genDb.Deployment{Spec: spec}}}}
+				a.live.deployments = map[uuid.UUID][]liveDeployment{
+					res.ID: {{Spec: spec}},
+				}
 			case "latest successful build":
 				a.live.builds = map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{res.ID: {ID: id}}
 			}

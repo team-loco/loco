@@ -214,7 +214,7 @@ VALUES(ARRAY['linux/amd64'], 'extra',$1,'kind',true,false,'unhealthy',NOW())`
 	if err := updateResourceRegions(t, f, targets, revision); err != nil {
 		t.Fatal(err)
 	}
-	if after := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id=$1 AND is_active`); after != 4 {
+	if after := f.count(t, `SELECT count(*) FROM live_deployment_placements WHERE resource_id=$1`); after != 4 {
 		t.Fatalf("active deployments = %d", after)
 	}
 }
@@ -278,8 +278,8 @@ func TestRegionUpdateUsesActiveRuntimeAndPreservesItsCommit(t *testing.T) {
 	}
 	sha := strings.Repeat("a", 40)
 	retire := `UPDATE deployments SET spec = jsonb_set(spec, '{build,image}', '"stale.example.com/retired:old"')
-WHERE resource_id = $1 AND region = $2`
-	if _, err = f.pool.Exec(t.Context(), retire, f.resourceID, otherRegion); err != nil {
+WHERE resource_id = $1 AND id NOT IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1)`
+	if _, err = f.pool.Exec(t.Context(), retire, f.resourceID); err != nil {
 		t.Fatal(err)
 	}
 	commit := `UPDATE deployments SET commit_sha = $2, commit_dirty = true WHERE id = $1`

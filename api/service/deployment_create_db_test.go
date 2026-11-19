@@ -217,13 +217,10 @@ const unboundedRegionSpec = `{"routing":{"port":8080},` +
 
 // testTarget is the request's sizing of testRegion, added when missing.
 func testTarget(service *deploymentv1.ServiceDeploymentSpec) *deploymentv1.RegionDeploymentTarget {
-	if service.Regions == nil {
-		service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{}
+	if service.GetRegions()[testRegion] == nil {
+		service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{testRegion: {}}
 	}
-	if service.Regions[testRegion] == nil {
-		service.Regions[testRegion] = &deploymentv1.RegionDeploymentTarget{}
-	}
-	return service.Regions[testRegion]
+	return service.GetRegions()[testRegion]
 }
 
 func imageService() *deploymentv1.ServiceDeploymentSpec {
@@ -373,7 +370,13 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 		t.Errorf("scalers = %v, want %v", region.GetScalers(), testTarget(service).GetScalers())
 	}
 	if region.GetMinReplicas() != minReplicas || region.GetMaxReplicas() != maxReplicas {
-		t.Errorf("replicas = %d-%d, want %d-%d", region.GetMinReplicas(), region.GetMaxReplicas(), minReplicas, maxReplicas)
+		t.Errorf(
+			"replicas = %d-%d, want %d-%d",
+			region.GetMinReplicas(),
+			region.GetMaxReplicas(),
+			minReplicas,
+			maxReplicas,
+		)
 	}
 	if len(got.GetEnv()) != 0 {
 		t.Errorf("env = %v, want none stored", got.GetEnv())

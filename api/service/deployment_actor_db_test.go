@@ -91,7 +91,15 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertDeploymentActor(t, clients, f.resourceID.String(), active.Deployment.ID.String(), method, actorID, commit)
+			assertDeploymentActor(
+				t,
+				clients,
+				f.resourceID.String(),
+				active.Deployment.ID.String(),
+				method,
+				actorID,
+				commit,
+			)
 
 			file := []byte(planFileHeader + applyFileWorker)
 			planned, err := clients.Plan.Plan(

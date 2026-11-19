@@ -211,12 +211,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
 	}
-	live, err := f.queries.GetLiveDeploymentForRegion(context.Background(), genDb.GetLiveDeploymentForRegionParams{
-		ResourceID: res.ID, EnvironmentID: f.envID, Region: testRegion,
-	})
-	if err != nil || live.Deployment.ID != deployment.ID || live.Replicas != 1 || deployment.EnvironmentID != f.envID {
-		t.Fatalf("live deployment = %+v (%v), want %s live in the environment with one replica", live, err, deploymentID)
-	}
+	requireLiveWithOneReplica(t, f, res.ID, deployment)
 	placementKey := genDb.GetResourceEnvironmentPlacementParams{
 		EnvironmentID: f.envID,
 		ResourceID:    res.ID,
@@ -458,5 +453,16 @@ func TestApplyRunsAServiceWithoutAPortAsAWorker(t *testing.T) {
 			service.Deployment.Port,
 			service.Routing,
 		)
+	}
+}
+
+func requireLiveWithOneReplica(t *testing.T, f *deployFixture, resourceID uuid.UUID, deployment genDb.Deployment) {
+	t.Helper()
+	live, err := f.queries.GetLiveDeploymentForRegion(t.Context(), genDb.GetLiveDeploymentForRegionParams{
+		ResourceID: resourceID, EnvironmentID: f.envID, Region: testRegion,
+	})
+	if err != nil || live.Deployment.ID != deployment.ID || live.Replicas != 1 || deployment.EnvironmentID != f.envID {
+		t.Fatalf("live deployment = %+v (%v), want %s live in the environment with one replica",
+			live, err, deployment.ID)
 	}
 }

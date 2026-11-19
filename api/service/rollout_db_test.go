@@ -211,8 +211,9 @@ func TestRolloutActivityLimit(t *testing.T) {
 	}
 	if _, err := f.pool.Exec(
 		ctx,
-		`INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES ($1,$2,'{"count":499}')`,
+		`INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) VALUES ($1,$2,$3,'{"count":499}')`,
 		id,
+		f.clusterID,
 		p.DesiredRevision,
 	); err != nil {
 		t.Fatal(err)

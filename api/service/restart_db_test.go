@@ -40,8 +40,12 @@ func TestRestartResourcePreservesSpecsAndTargetsOnlyTheRequestedPlacements(t *te
 			f.finishRollouts(t)
 			seedDeployment(t, f, domainsTwoRegionSpec)
 			_, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
-				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Regions: []string{statusSecondRegion},
-				Spec: &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()}},
+				ResourceId:    f.resourceID.String(),
+				EnvironmentId: f.envID.String(),
+				Regions:       []string{statusSecondRegion},
+				Spec: &deploymentv1.DeploymentSpec{
+					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
+				},
 			})
 			if err != nil {
 				t.Fatal(err)

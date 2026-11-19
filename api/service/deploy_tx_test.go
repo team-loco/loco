@@ -121,19 +121,17 @@ type testDeploymentParams struct {
 
 func (f *deployFixture) paramsFor(clusterID uuid.UUID) testDeploymentParams {
 	return testDeploymentParams{
-		CreateDeploymentParams: genDb.CreateDeploymentParams{
-			ActorType:     genDb.DeploymentActorTypeUser,
-			Method:        genDb.DeploymentMethodCli,
-			ResourceID:    f.resourceID,
-			Spec:          []byte(`{"platform":"linux/amd64"}`),
-			EnvironmentID: f.envID,
-			SecretNames:   []string{},
-			Trigger:       genDb.DeploymentTriggerDeploy,
-			Status:        genDb.DeploymentStatusDeploying,
-		},
-		ClusterID: clusterID,
-		Region:    "us-east-1",
-		Replicas:  1,
+		ActorType:     genDb.DeploymentActorTypeUser,
+		Method:        genDb.DeploymentMethodCli,
+		ResourceID:    f.resourceID,
+		Spec:          []byte(`{"platform":"linux/amd64"}`),
+		EnvironmentID: f.envID,
+		SecretNames:   []string{},
+		Trigger:       genDb.DeploymentTriggerDeploy,
+		Status:        genDb.DeploymentStatusDeploying,
+		ClusterID:     clusterID,
+		Region:        testRegion,
+		Replicas:      1,
 	}
 }
 
@@ -150,13 +148,9 @@ func recordTestDeployment(
 	if err := protojson.Unmarshal(params.Spec, &service); err != nil {
 		return uuid.Nil, err
 	}
-	if service.Regions == nil {
-		service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{}
+	service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{
+		params.Region: {MinReplicas: &params.Replicas},
 	}
-	if service.Regions[params.Region] == nil {
-		service.Regions[params.Region] = &deploymentv1.RegionDeploymentTarget{}
-	}
-	service.Regions[params.Region].MinReplicas = &params.Replicas
 	return createDeployment(ctx, qtx, &counts, newDeployment{
 		params:  params.CreateDeploymentParams,
 		service: &service,

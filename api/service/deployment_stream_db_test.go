@@ -113,7 +113,7 @@ func TestDeploymentStreamHistoryResumeAndNotifications(t *testing.T) {
 	started := time.Now()
 	if _, err = f.pool.Exec(
 		t.Context(),
-		`UPDATE deployments SET status='failed' WHERE id=$1`,
+		`UPDATE deployments SET status='crashed' WHERE id=$1`,
 		id,
 	); err != nil {
 		t.Fatal(err)
@@ -125,16 +125,16 @@ func TestDeploymentStreamHistoryResumeAndNotifications(t *testing.T) {
 	if time.Since(started) >= time.Second {
 		t.Fatal("notification took over one second")
 	}
-	if event.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED ||
+	if event.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED ||
 		len(event.GetActivity()) != 0 {
-		t.Fatalf("failed report=%v", event)
+		t.Fatalf("crashed report=%v", event)
 	}
 	if _, err = f.pool.Exec(t.Context(), `UPDATE deployments SET status='running' WHERE id=$1`, id); err != nil {
 		t.Fatal(err)
 	}
 	event, err = stream.Receive()
 	if err != nil || event.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
-		t.Fatalf("failed stream closed: %v %v", event, err)
+		t.Fatalf("crashed stream closed: %v %v", event, err)
 	}
 	resumed, err := client.WatchDeployment(
 		ctx,
@@ -151,8 +151,8 @@ func TestDeploymentStreamHistoryResumeAndNotifications(t *testing.T) {
 }
 
 func TestDeploymentStreamTerminalStatuses(t *testing.T) {
-	for _, status := range []string{"canceled", "superseded"} {
-		t.Run(status, func(t *testing.T) {
+	for _, status := range []genDb.DeploymentStatus{genDb.DeploymentStatusCanceled, genDb.DeploymentStatusSuperseded} {
+		t.Run(string(status), func(t *testing.T) {
 			f := newDeployFixture(t)
 			created, err := createTestDeployment(t, f, sameRegionSpec)
 			if err != nil {
@@ -275,9 +275,10 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 	if len(event.GetActivity()) != 3 || len(event.GetDeployment().GetPlacements()[0].GetReplicas()) != 2 {
 		t.Fatalf("activity snapshot=%v", event)
 	}
-	newReplica, oldReplica := event.GetDeployment().GetPlacements()[0].GetReplicas()[0], event.GetDeployment().GetPlacements()[0].GetReplicas()[1]
-	if newReplica.GetPlacementRevision() != event.GetDeployment().GetPlacements()[0].GetCurrentRevision() ||
-		oldReplica.GetPlacementRevision() == event.GetDeployment().GetPlacements()[0].GetCurrentRevision() ||
+	watched := event.GetDeployment().GetPlacements()[0]
+	newReplica, oldReplica := watched.GetReplicas()[0], watched.GetReplicas()[1]
+	if newReplica.GetPlacementRevision() != watched.GetCurrentRevision() ||
+		oldReplica.GetPlacementRevision() == watched.GetCurrentRevision() ||
 		!proto.Equal(newReplica.GetStateSince(), since) ||
 		!proto.Equal(oldReplica.GetStateDeadline(), deadline) ||
 		oldReplica.GetLastExit() == nil {
@@ -380,8 +381,14 @@ func TestDeploymentProblemComesFromLatestSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(list.GetDeployments()) != 1 ||
-		!proto.Equal(get.GetDeployment().GetPlacements()[0].GetProblem(), event.GetDeployment().GetPlacements()[0].GetProblem()) ||
-		!proto.Equal(list.GetDeployments()[0].GetPlacements()[0].GetProblem(), event.GetDeployment().GetPlacements()[0].GetProblem()) {
+		!proto.Equal(
+			get.GetDeployment().GetPlacements()[0].GetProblem(),
+			event.GetDeployment().GetPlacements()[0].GetProblem(),
+		) ||
+		!proto.Equal(
+			list.GetDeployments()[0].GetPlacements()[0].GetProblem(),
+			event.GetDeployment().GetPlacements()[0].GetProblem(),
+		) {
 		t.Fatal("get/list problem differs from watch")
 	}
 	if _, err = f.queries.RestartResourcePlacements(
@@ -412,7 +419,8 @@ func TestDeploymentProblemComesFromLatestSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if get.GetDeployment().GetPlacements()[0].GetProblem() != nil || list.GetDeployments()[0].GetPlacements()[0].GetProblem() != nil {
+	if get.GetDeployment().GetPlacements()[0].GetProblem() != nil ||
+		list.GetDeployments()[0].GetPlacements()[0].GetProblem() != nil {
 		t.Fatal("cleared problem remains in get/list")
 	}
 }

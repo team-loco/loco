@@ -159,6 +159,23 @@ func createDeployment(
 	return deploymentID, nil
 }
 
+// placementTargets picks the cluster each region deploys to from eligibleClusters' listing.
+func placementTargets(
+	clusters []genDb.ListEligibleClustersRow,
+	regions []string,
+	platform string,
+) ([]placementTarget, error) {
+	targets := make([]placementTarget, 0, len(regions))
+	for _, region := range regions {
+		cluster, found := clusterForRegion(clusters, region)
+		if !found {
+			return nil, errNoActiveCluster.Detail("%s, requires %s", region, platform)
+		}
+		targets = append(targets, placementTarget{region: region, clusterID: cluster.ID})
+	}
+	return targets, nil
+}
+
 func targetRegions(targets []placementTarget) []string {
 	regions := make([]string, 0, len(targets))
 	for _, target := range targets {
