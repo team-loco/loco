@@ -225,6 +225,27 @@ func (p *Platform) AgentKeyStored(ctx context.Context) error {
 	return err
 }
 
+// waitAgentClusterID waits until the agent's key Secret holds a cluster ID, which the agent
+// writes after the API answers its registration.
+func (p *Platform) waitAgentClusterID(ctx context.Context) error {
+	return waitFor(ctx, readyTimeout, "agent cluster ID", func(ctx context.Context) error {
+		id, err := p.Kubectl(
+			ctx,
+			"-n",
+			locoNamespace,
+			"get",
+			"secret",
+			p.agentVariable("LOCO_AGENT_KEY_SECRET"),
+			"-o",
+			"jsonpath={.data.cluster-id}",
+		)
+		if err == nil && strings.TrimSpace(id) == "" {
+			return errNotYet
+		}
+		return err
+	})
+}
+
 // Locoadm runs locoadm as the system admin.
 func (p *Platform) Locoadm(ctx context.Context, args ...string) (string, error) {
 	cmd := append(
