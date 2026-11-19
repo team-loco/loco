@@ -191,7 +191,8 @@ def check_create_dialogs(page):
     drawer = page.get_by_role("dialog", name="New token", exact=True)
     name = drawer.get_by_role("textbox", name="Name", exact=True)
     name.fill("CI Deploy")
-    expect(name).to_have_value("ci-deploy")
+    expect(name).to_have_value("CI Deploy")
+    expect(drawer.get_by_text("Saved as ci-deploy")).to_be_visible()
     expect(
         drawer.get_by_role("button", name="Create token", exact=True)
     ).to_be_disabled()
