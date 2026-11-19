@@ -40,19 +40,22 @@ resource = evidence.seed_resources(
             "name": name,
             "deployments": [
                 {
-                    "cluster": cluster,
                     "environment": "production",
-                    "region": region,
+                    "placements": {region: {"cluster": cluster}},
                     "spec": {
                         "platform": "linux/amd64",
                         "build": {
                             "type": "image",
                             "image": "registry.example.com/echo:1",
                         },
-                        "cpu": "100m",
-                        "memory": "128Mi",
-                        "minReplicas": 1,
-                        "maxReplicas": 1,
+                        "regions": {
+                            region: {
+                                "cpu": "100m",
+                                "memory": "128Mi",
+                                "minReplicas": 1,
+                                "maxReplicas": 1,
+                            }
+                        },
                         "port": 8080,
                         "args": ["-text=old"],
                         "observability": defaults["observability"],
@@ -68,7 +71,7 @@ def stored_spec():
     return json.loads(
         sql(
             state,
-            f"SELECT spec FROM deployments WHERE resource_id='{resource}' AND is_active;",
+            f"SELECT spec FROM deployments WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}');",
         )
     )
 
@@ -84,7 +87,7 @@ with session(out) as browser:
         runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
         deployment = sql(
             state,
-            f"UPDATE deployments SET spec={runtime} WHERE resource_id='{resource}' AND is_active RETURNING id;",
+            f"UPDATE deployments SET spec={runtime} WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;",
         )
         route.fulfill(json={"deploymentId": deployment})
 
@@ -111,7 +114,9 @@ with session(out) as browser:
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
         sql(
             state,
-            f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
+            f"UPDATE deployment_placements SET status='running' WHERE deployment_id IN "
+            f"(SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}'); "
+            f"UPDATE deployments SET status='running' WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}');",
         )
 
     command.fill("/http-echo")
