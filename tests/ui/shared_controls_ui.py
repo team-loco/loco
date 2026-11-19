@@ -244,6 +244,20 @@ def shell_navigation(page):
     page.emulate_media(reduced_motion="no-preference")
 
 
+def mobile_sidebar(page):
+    page.set_viewport_size(evidence.NARROW)
+    page.goto(state["ui_url"] + base + "?env=production")
+    sheet = page.get_by_role("dialog", name="Sidebar", exact=True)
+    page.locator('[data-slot="top-bar"]').get_by_role(
+        "button", name="Open sidebar"
+    ).click()
+    expect(sheet).to_be_visible()
+    sheet.get_by_role("link", name="Resources", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/resources"))
+    expect(sheet).to_have_count(0)
+    page.set_viewport_size(evidence.DESKTOP)
+
+
 def activity_deployments(page):
     now = datetime.now(UTC)
 
@@ -1213,6 +1227,7 @@ with session(out) as browser:
     assert 0 <= box["y"] and box["y"] + box["height"] <= page.viewport_size["height"]
     for check in (
         shell_navigation,
+        mobile_sidebar,
         activity_deployments,
         log_levels,
         log_paging,

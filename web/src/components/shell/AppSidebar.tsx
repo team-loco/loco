@@ -12,8 +12,8 @@ import {
 	ArrowUpRightIcon,
 	UserIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { useEffect, type ReactNode } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 
 import { useAuth } from "@/auth/AuthProvider";
@@ -91,6 +91,11 @@ export function AppSidebar() {
 	const openShortcuts = useOpenShortcuts();
 	const openPalette = useOpenPalette();
 	const { isMobile, setOpenMobile } = useSidebar();
+	const { pathname } = useLocation();
+	// The mobile sheet closes on every navigation, however it started.
+	useEffect(() => {
+		setOpenMobile(false);
+	}, [pathname, setOpenMobile]);
 	const dark = theme === "dark";
 	const colorName = colorThemes.find((t) => t.id === color)?.name ?? "";
 	const { activeOrgId, activeWorkspaceId } = useOrgWorkspace();
