@@ -26,7 +26,7 @@ func TestApplyPreservesOptionalHealth(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			state := configplan.State{Health: tc.health, Regions: map[string]configplan.Region{region: {}}}
 			resource := serviceSpecFor(state)
-			deployment := deploymentSpecFor(state, region, nil)
+			deployment := deploymentSpecFor(state, []string{region}, nil)
 			if (resource.GetHealthCheck() == nil) != (tc.health == nil) ||
 				!proto.Equal(resource.GetHealthCheck(), deployment.GetHealthCheck()) {
 				t.Fatalf("resource health %v, deployment health %v, want optional health %v",

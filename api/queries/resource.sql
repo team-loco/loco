@@ -94,15 +94,16 @@ FROM (
 ORDER BY available DESC, (health_status = 'healthy') DESC, region;
 
 -- name: ListRegionStatusesForResources :many
-SELECT d.resource_id,
-       d.environment_id,
+SELECT l.resource_id,
+       l.environment_id,
        e.name AS environment_name,
-       d.region,
-       d.id AS deployment_id,
-       d.status AS deployment_status,
-       d.replicas AS desired_replicas,
+       l.region,
+       l.deployment_id,
+       l.status AS placement_status,
+       l.replicas AS desired_replicas,
        COALESCE((SELECT ro.snapshot->'problem' FROM deployment_rollouts ro
-                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
+                 WHERE ro.deployment_id = l.deployment_id AND ro.cluster_id = l.cluster_id
+                 ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
@@ -112,18 +113,19 @@ SELECT d.resource_id,
        c.health_status,
        ARRAY(
            SELECT rd.domain FROM resource_domains rd
-           WHERE rd.resource_id = d.resource_id
-             AND rd.environment_id = d.environment_id
+           WHERE rd.resource_id = l.resource_id
+             AND rd.environment_id = l.environment_id
              AND rd.domain_source = 'platform_provided'
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
        )::text[] AS unserved_domains
-FROM deployments d
-JOIN environments e ON e.id = d.environment_id
-JOIN clusters c ON c.id = d.cluster_id
-LEFT JOIN placements p ON p.deployment_id = d.id AND NOT p.desired_deleted
-WHERE d.resource_id = ANY(sqlc.arg(resource_ids)::uuid[]) AND d.is_active = true
-ORDER BY d.resource_id, e.name, d.region;
+FROM live_deployment_placements l
+JOIN environments e ON e.id = l.environment_id
+JOIN clusters c ON c.id = l.cluster_id
+LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
+    AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
+WHERE l.resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+ORDER BY l.resource_id, e.name, l.region;
 
 -- name: GetWorkspaceOrganizationIDByResourceID :one
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
@@ -144,9 +146,9 @@ SELECT EXISTS (
 UPDATE resources SET revision = revision + 1 WHERE id = $1;
 
 -- name: ListLatestResourceDeployments :many
-SELECT DISTINCT ON (environment_id, region) * FROM deployments
+SELECT DISTINCT ON (environment_id) * FROM deployments
 WHERE resource_id = $1
-ORDER BY environment_id, region, is_active DESC, created_at DESC, id DESC;
+ORDER BY environment_id, created_at DESC, id DESC;
 
 -- name: ListWorkspaceResourceNames :many
 SELECT r.id, r.name

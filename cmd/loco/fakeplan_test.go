@@ -235,7 +235,11 @@ func (f *fakeAPI) provision(
 }
 
 func fakeStartedDeployment(service string) *planv1.StartedDeployment {
-	return &planv1.StartedDeployment{Service: service, Region: fakeDefaultRegion, DeploymentId: "dep-" + service}
+	return &planv1.StartedDeployment{
+		Service:      service,
+		Regions:      []string{fakeDefaultRegion},
+		DeploymentId: "dep-" + service,
+	}
 }
 
 func fakeApplyRefused(refusal *planv1.ApplyRefusal) error {

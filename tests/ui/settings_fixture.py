@@ -13,10 +13,14 @@ def seed_settings_resource(state, prefix):
     spec = {
         "platform": "linux/amd64",
         "build": {"type": "image", "image": "registry.example.com/app:1"},
-        "cpu": "100m",
-        "memory": "128Mi",
-        "minReplicas": 1,
-        "maxReplicas": 1,
+        "regions": {
+            REGION: {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1,
+            }
+        },
         "port": 8080,
         "observability": {"injectOtel": True},
         "healthCheck": {
@@ -35,9 +39,10 @@ def seed_settings_resource(state, prefix):
                 "name": name,
                 "deployments": [
                     {
-                        "cluster": evidence.seed_cluster(state, REGION),
                         "environment": "production",
-                        "region": REGION,
+                        "placements": {
+                            REGION: {"cluster": evidence.seed_cluster(state, REGION)}
+                        },
                         "spec": spec,
                     }
                 ],

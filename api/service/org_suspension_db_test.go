@@ -282,13 +282,13 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 func TestDeploymentsAreRejectedWhileSuspended(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 	f.finishRollouts(t)
 	f.mustSuspend(t)
 
-	_, err := createDeployment(t, f, sameRegionSpec)
+	_, err := createTestDeployment(t, f, sameRegionSpec)
 	wantSuspendedError(t, err)
 	wantSuspendedError(t, scaleResource(t, f, 2))
 	wantSuspendedError(t, restartResource(t, f, f.envID, "", genDb.ScopeWrite))
@@ -338,7 +338,7 @@ func TestDeployCommittedWhileSuspendWaitsIsStopped(t *testing.T) {
 	if err := lockOrganization(ctx, qtx, f.workspaceID(t)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := createDeploymentWithCleanup(
+	if _, err := recordTestDeployment(
 		ctx,
 		qtx,
 		limits.Install(limits.Defaults()),

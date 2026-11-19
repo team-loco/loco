@@ -602,15 +602,8 @@ func (s *AgentServer) recordApplyError(
 		if !row.ApplyFailed || row.DesiredDeleted || row.Suspended || row.DeploymentID == nil {
 			return nil
 		}
-		return advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
-			Status: genDb.DeploymentStatusFailed,
-			ID:     *row.DeploymentID,
-			FromStatuses: deploymentStatusNames(
-				genDb.DeploymentStatusBuilding,
-				genDb.DeploymentStatusDeploying,
-				genDb.DeploymentStatusRunning,
-			),
-		}, errMessage, s.config.ServiceDefaults)
+		return advancePlacementStatus(ctx, qtx, *row.DeploymentID, clusterID, genDb.PlacementStatusFailed,
+			placementStatusNames(placementLiveStatuses...), errMessage, s.config.ServiceDefaults)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record apply error", "placement_id", placementID, "error", err)
@@ -712,29 +705,27 @@ func (s *AgentServer) recordStatus(
 			return captureErr
 		}
 		if row.DeploymentID == nil || deployment.ID != *row.DeploymentID ||
-			status.GetObservedRevision() != row.DesiredRevision || !deployment.IsActive {
+			status.GetObservedRevision() != row.DesiredRevision {
 			return nil
 		}
-		next := nextDeploymentStatus(deployment.Status, status)
-		if next != deployment.Status {
-			if transitionErr := advanceDeploymentStatus(
-				ctx,
-				qtx,
-				genDb.AdvanceDeploymentStatusParams{
-					ID:           deployment.ID,
-					Status:       next,
-					FromStatuses: deploymentStatusNames(deployment.Status),
-				}, problemReportMessage(status.GetProblem()), s.config.ServiceDefaults,
+		placement, getErr := qtx.GetDeploymentPlacement(ctx, genDb.GetDeploymentPlacementParams{
+			DeploymentID: deployment.ID, ClusterID: clusterID,
+		})
+		if getErr != nil {
+			return fmt.Errorf("read deployment placement: %w", getErr)
+		}
+		next := nextPlacementStatus(placement.Status, status)
+		if next != placement.Status {
+			if transitionErr := advancePlacementStatus(
+				ctx, qtx, deployment.ID, clusterID, next, placementStatusNames(placement.Status),
+				problemReportMessage(status.GetProblem()), s.config.ServiceDefaults,
 			); transitionErr != nil {
 				return transitionErr
 			}
 		}
-		if next == genDb.DeploymentStatusRunning {
-			if supersedeErr := qtx.SupersedePreviousDeployments(ctx, deployment.ID); supersedeErr != nil {
-				return fmt.Errorf("supersede deployments: %w", supersedeErr)
-			}
+		if next == genDb.PlacementStatusRunning {
+			return supersedePlacements(ctx, qtx, deployment.ID, clusterID, true)
 		}
-
 		return nil
 	})
 	if err != nil {
@@ -742,35 +733,73 @@ func (s *AgentServer) recordStatus(
 	}
 }
 
-// advanceDeploymentStatus records rollout events with their status transition.
-func advanceDeploymentStatus(
+// advancePlacementStatus moves one region of a deployment to status and records the
+// deployment's aggregate transition.
+func advancePlacementStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	params genDb.AdvanceDeploymentStatusParams,
+	deploymentID, clusterID uuid.UUID,
+	status genDb.PlacementStatus,
+	from []string,
 	message string,
 	defaults servicedefaults.Defaults,
 ) error {
-	changed, err := qtx.AdvanceDeploymentStatus(ctx, params)
+	changed, err := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
+		Status: status, DeploymentID: deploymentID, ClusterID: clusterID, FromStatuses: from,
+	})
 	if err != nil {
-		return fmt.Errorf("advance deployment status: %w", err)
+		return fmt.Errorf("advance placement status: %w", err)
 	}
-	if changed == 0 ||
-		(params.Status != genDb.DeploymentStatusFailed && params.Status != genDb.DeploymentStatusRunning) {
+	if changed == 0 {
 		return nil
 	}
-	d, err := qtx.GetDeploymentEvent(ctx, params.ID)
+	return recordDeploymentStatus(ctx, qtx, deploymentID, message, defaults)
+}
+
+// recordDeploymentStatus recomputes a deployment's aggregate status from its placements and
+// records deployment.ready or deployment.failed on that transition; a failed deployment rolls
+// back when its service asks for it.
+func recordDeploymentStatus(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	id uuid.UUID,
+	message string,
+	defaults servicedefaults.Defaults,
+) error {
+	status, err := recomputeDeploymentStatus(ctx, qtx, id)
+	if err != nil {
+		return fmt.Errorf("recompute deployment status: %w", err)
+	}
+	if status.PreviousStatus == status.Status ||
+		(status.Status != genDb.DeploymentStatusFailed && status.Status != genDb.DeploymentStatusRunning) {
+		return nil
+	}
+	d, err := qtx.GetDeploymentEvent(ctx, id)
 	if err != nil {
 		return fmt.Errorf("get deployment event context: %w", err)
 	}
 	spec, err := converter.DeserializeDeploymentSpec(d.Spec, d.ResourceType)
 	if err != nil {
-		return fmt.Errorf("decode spec of deployment %s: %w", params.ID, err)
+		return fmt.Errorf("decode spec of deployment %s: %w", id, err)
+	}
+	placements, err := qtx.ListDeploymentPlacements(ctx, id)
+	if err != nil {
+		return fmt.Errorf("list deployment placements: %w", err)
+	}
+	failed := status.Status == genDb.DeploymentStatusFailed
+	regions := []string{}
+	for _, placement := range placements {
+		if placement.Status == genDb.PlacementStatusCanceled ||
+			failed && placement.Status != genDb.PlacementStatusFailed {
+			continue
+		}
+		regions = append(regions, placement.Region)
 	}
 	data := map[string]any{
-		events.FieldDeploymentID:  params.ID.String(),
+		events.FieldDeploymentID:  id.String(),
 		events.FieldResourceID:    d.ResourceID.String(),
 		events.FieldEnvironmentID: d.EnvironmentID.String(),
-		events.FieldRegion:        d.Region,
+		events.FieldRegions:       regions,
 		events.FieldMessage:       message,
 		events.FieldResourceName:  d.ResourceName,
 	}
@@ -778,9 +807,9 @@ func advanceDeploymentStatus(
 		data[events.FieldBuildID] = buildID
 	}
 	events.AddCreator(data, d.CreatorID, d.CreatorEmail, d.CreatorName)
-	kind := events.DeploymentFailed
-	if params.Status == genDb.DeploymentStatusRunning {
-		kind = events.DeploymentReady
+	kind := events.DeploymentReady
+	if failed {
+		kind = events.DeploymentFailed
 	}
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:          kind,
@@ -789,21 +818,13 @@ func advanceDeploymentStatus(
 		ResourceID:    &d.ResourceID,
 		EnvironmentID: &d.EnvironmentID,
 		SubjectType:   events.SubjectDeployment,
-		SubjectID:     &params.ID,
+		SubjectID:     &id,
 		Data:          data,
 	}); err != nil {
 		return err
 	}
-	if params.Status == genDb.DeploymentStatusFailed {
-		return rollbackDeploymentIfEnabled(ctx, qtx, params.ID, defaults)
+	if failed {
+		return rollbackDeploymentIfEnabled(ctx, qtx, id, defaults)
 	}
 	return nil
-}
-
-func deploymentStatusNames(statuses ...genDb.DeploymentStatus) []string {
-	names := make([]string, 0, len(statuses))
-	for _, status := range statuses {
-		names = append(names, string(status))
-	}
-	return names
 }

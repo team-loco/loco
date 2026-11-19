@@ -37,6 +37,8 @@ export function runtimeEvent(event: Event): RuntimeEvent {
 		const value = event.data?.[key];
 		return typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
 	};
+	const regions = event.data?.["regions"];
+	const regionList = Array.isArray(regions) ? regions.filter((r) => typeof r === "string").join(", ") : "";
 	return {
 		id: event.id,
 		event,
@@ -44,7 +46,7 @@ export function runtimeEvent(event: Event): RuntimeEvent {
 		reason: field("reason"),
 		message: field("message"),
 		placementId: field("placementId"),
-		region: field("region"),
+		region: field("region") || regionList,
 		environmentId: event.environmentId || field("environmentId"),
 		replicas: field("replicas"),
 		cpu: field("cpu"),

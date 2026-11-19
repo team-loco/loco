@@ -74,7 +74,7 @@ func (f *deployFixture) deployWithSecrets(t *testing.T, names []string) {
 	params := f.paramsFor(f.clusterID)
 	params.SecretNames = names
 	err := withTx(context.Background(), f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(
+		_, deployErr := recordTestDeployment(
 			context.Background(),
 			qtx,
 			limits.Install(limits.Defaults()),

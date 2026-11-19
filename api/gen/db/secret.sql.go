@@ -402,17 +402,17 @@ func (q *Queries) ListSecretSizes(ctx context.Context, arg ListSecretSizesParams
 }
 
 const listSecretUsage = `-- name: ListSecretUsage :many
-SELECT d.region, ARRAY(
+SELECT l.region, ARRAY(
     SELECT name FROM unnest(d.secret_names) AS name
     WHERE name = ANY($1::text[])
     ORDER BY name
 )::text[] AS names
-FROM deployments d
-WHERE d.resource_id = $2
-  AND d.environment_id = $3
-  AND d.is_active
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+WHERE l.resource_id = $2
+  AND l.environment_id = $3
   AND d.secret_names && $1::text[]
-ORDER BY d.region
+ORDER BY l.region
 `
 
 type ListSecretUsageParams struct {

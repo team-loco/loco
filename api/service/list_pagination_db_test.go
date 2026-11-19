@@ -49,8 +49,7 @@ func TestDeploymentPagingSurvivesDeletingTheCursorRow(t *testing.T) {
 	var newestFirst []string
 	for range 3 {
 		params := f.paramsFor(f.clusterID)
-		params.IsActive = false
-		id, err := f.queries.CreateDeployment(ctx, params)
+		id, err := f.queries.CreateDeployment(ctx, params.CreateDeploymentParams)
 		if err != nil {
 			t.Fatal(err)
 		}

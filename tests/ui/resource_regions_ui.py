@@ -32,9 +32,8 @@ with session(out) as browser:
                 "name": name,
                 "deployments": [
                     {
-                        "cluster": east_cluster,
                         "environment": "production",
-                        "region": "us-east-1",
+                        "placements": {"us-east-1": {"cluster": east_cluster}},
                         "spec": {
                             "platform": "linux/amd64",
                             "observability": {"injectOtel": True},
@@ -42,11 +41,15 @@ with session(out) as browser:
                                 "type": "image",
                                 "image": "registry.example.com/shop:latest",
                             },
-                            "cpu": "500m",
-                            "memory": "512Mi",
-                            "minReplicas": 2,
-                            "maxReplicas": 2,
                             "port": 8080,
+                            "regions": {
+                                "us-east-1": {
+                                    "cpu": "500m",
+                                    "memory": "512Mi",
+                                    "minReplicas": 2,
+                                    "maxReplicas": 2,
+                                }
+                            },
                         },
                     }
                 ],
@@ -117,7 +120,7 @@ with session(out) as browser:
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='eu-west-1';",
         )
         == "1"
     )
@@ -138,7 +141,7 @@ with session(out) as browser:
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='us-east-1' AND is_active;",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='us-east-1';",
         )
         == "0"
     )
@@ -148,10 +151,6 @@ with session(out) as browser:
     east.click()
     save()
     expect(page.get_by_text("Rolling out in us-east-1.", exact=False)).to_be_visible()
-    sql(
-        state,
-        f"UPDATE deployments SET status='running' WHERE resource_id='{resource}' AND is_active;",
-    )
 
     sql(state, f"UPDATE resources SET revision=revision+1 WHERE id='{resource}';")
     west.click()
@@ -168,7 +167,7 @@ with session(out) as browser:
     assert (
         sql(
             state,
-            f"SELECT count(*) FROM deployments WHERE resource_id='{resource}' AND region='eu-west-1' AND is_active;",
+            f"SELECT count(*) FROM live_deployment_placements WHERE resource_id='{resource}' AND region='eu-west-1';",
         )
         == "0"
     )
@@ -195,7 +194,7 @@ with session(out) as browser:
     expect(west).to_be_disabled()
     sql(
         state,
-        f"UPDATE resources SET partial=NULL WHERE id='{resource}'; UPDATE deployments SET is_active=false WHERE resource_id='{resource}';",
+        f"UPDATE resources SET partial=NULL WHERE id='{resource}'; DELETE FROM placements WHERE resource_id='{resource}';",
     )
     page.reload()
     expect(

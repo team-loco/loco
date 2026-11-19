@@ -115,28 +115,28 @@ func TestDomainUsesTheDefaultEnvironmentsDeploymentPorts(t *testing.T) {
 			if tc.runtimePort {
 				params.Spec = []byte(`{"platform":"linux/amd64","port":9090}`)
 			}
-			_, err := f.queries.CreateDeployment(t.Context(), params)
+			counts, err := f.counts(t.Context(), f.queries)
 			if err != nil {
 				t.Fatal(err)
 			}
-			secondRegion := params
-			secondRegion.Region = otherRegion
-			secondRegion.Spec = []byte(`{"platform":"linux/amd64"}`)
 			if !tc.runtimePort {
-				// A retired web region must not make the current worker accept domains.
-				secondRegion.Spec = []byte(`{"platform":"linux/amd64","port":8080}`)
-				secondRegion.IsActive = false
+				// A retired web deployment must not make the current worker accept domains.
+				retired := params
+				retired.Spec = []byte(`{"platform":"linux/amd64","port":8080}`)
+				if _, err = f.queries.CreateDeployment(t.Context(), retired.CreateDeploymentParams); err != nil {
+					t.Fatal(err)
+				}
 			}
-			if _, createErr := f.queries.CreateDeployment(t.Context(), secondRegion); createErr != nil {
-				t.Fatal(createErr)
+			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, serviceSpecPayload); err != nil {
+				t.Fatal(err)
 			}
 			params.EnvironmentID = f.addEnvironment(t, "domain-port-isolation")
 			params.Spec = []byte(`{"platform":"linux/amd64","port":8080}`)
 			if tc.runtimePort {
 				params.Spec = []byte(`{"platform":"linux/amd64"}`)
 			}
-			if _, createErr := f.queries.CreateDeployment(t.Context(), params); createErr != nil {
-				t.Fatal(createErr)
+			if _, err = recordTestDeployment(t.Context(), f.queries, counts, params, serviceSpecPayload); err != nil {
+				t.Fatal(err)
 			}
 			err = client.add("runtime." + testDomainPlatform)
 			if tc.runtimePort && err != nil {
@@ -210,7 +210,7 @@ func TestRemovingTheOnlyDomainMakesTheRunningDeploymentPrivate(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 	if routing := desiredPayload(t, f).AppSpec.ServiceSpec.Routing; routing == nil {
@@ -321,7 +321,7 @@ func TestPrimaryDomainChangesUpdateRunningPlacement(t *testing.T) {
 	f := newDeployFixture(t)
 	f.addDomain(t, testPrimaryDomain, true)
 	f.addDomain(t, testSecondDomain, false)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	client := newDomainClient(t, f)
@@ -353,7 +353,7 @@ func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T)
 	if err := client.add(testPrimaryDomain); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	before := desiredPayload(t, f)
@@ -400,7 +400,7 @@ func TestDomainRenameNotifiesTheAgentAndPreservesPlacementSettings(t *testing.T)
 func TestAddingTheFirstDomainUpdatesAPrivatePlacement(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	client := newDomainClient(t, f)
@@ -446,7 +446,7 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 	if err := client.add(testPrimaryDomain); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.pool.Exec(
@@ -466,4 +466,8 @@ func TestDomainChangeRollsBackWhenPlacementCannotBeUpdated(t *testing.T) {
 	if got := f.placement(t, f.clusterID).DesiredRevision; got != 1 {
 		t.Fatalf("revision = %d, want 1", got)
 	}
+}
+
+func serviceSpecPayload(_ uuid.UUID) ([]byte, error) {
+	return []byte(`{"app_spec":{"serviceSpec":{"deployment":{}}}}`), nil
 }

@@ -24,13 +24,12 @@ import {
 	deployPhase,
 	deploySteps,
 	finishedLabel,
-	rolloutGroups,
 	reportedReadyLabel,
 	withoutRunningDeploys,
 	type StepState,
 } from "@/lib/activity-deploys";
 import { type Alert, alertedResourceCount, buildAlerts } from "@/lib/alerts";
-import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -162,7 +161,7 @@ function AlertCard({
 }
 
 function DeployCard({
-	rollout,
+	deployment,
 	ready,
 	name,
 	resourceHref,
@@ -170,7 +169,7 @@ function DeployCard({
 	buildLogsHref,
 	onNavigate,
 }: {
-	rollout: readonly [Deployment, ...Deployment[]];
+	deployment: Deployment;
 	ready: ReadonlyMap<string, number>;
 	name: string;
 	resourceHref: string;
@@ -178,13 +177,12 @@ function DeployCard({
 	buildLogsHref: string | undefined;
 	onNavigate: () => void;
 }) {
-	const deployment = rollout.find((d) => d.problem !== undefined) ?? rollout[0];
 	const running = isInFlight(deployment.status);
 	const nowMs = useNow(running ? 1000 : CLOCK_TICK_MS).getTime();
 	const buildId = getServiceSpec(deployment)?.build?.buildId ?? "";
 	const build = useConnectQuery(getBuild, { buildId }, { enabled: buildId !== "" }).data?.build;
 	const phase = deployPhase(deployment);
-	const problem = deployment.problem;
+	const problem = deploymentProblem(deployment);
 	const steps = deploySteps(deployment);
 	const created = maybeTsMs(deployment.createdAt) ?? nowMs;
 	const buildLogs =
@@ -205,7 +203,7 @@ function DeployCard({
 				</span>
 			</div>
 			<CardName name={name} href={resourceHref} note={build?.gitCommitMessage ?? ""} onNavigate={onNavigate} />
-			<RegionChips regions={rollout.map((d) => d.region)} />
+			<RegionChips regions={deployment.placements.map((p) => p.region)} />
 			{running ? (
 				<div className="flex items-center gap-2.5 text-[13px]">
 					<span aria-hidden className="flex shrink-0 gap-[3px]">
@@ -222,15 +220,23 @@ function DeployCard({
 				</div>
 			) : problem !== undefined ? (
 				<div className="flex flex-col gap-px text-[13px]">
-					<b className={cn("font-medium", deployment.status === DeploymentStatus.FAILED ? "text-err" : "text-warn")}>
+					<b
+						className={cn(
+							"font-medium",
+							deployment.status === DeploymentStatus.FAILED || deployment.status === DeploymentStatus.CRASHED
+								? "text-err"
+								: "text-warn",
+						)}
+					>
 						{eventReasonLabel(problem.reason)}
 					</b>
 					{problem.message !== "" && <span className="text-fg2">{problem.message}</span>}
 				</div>
 			) : (
 				deployment.status !== DeploymentStatus.FAILED &&
+				deployment.status !== DeploymentStatus.CRASHED &&
 				deployment.status !== DeploymentStatus.CANCELED && (
-					<span className="text-[12.5px] text-fg2">{reportedReadyLabel(rollout, ready)}</span>
+					<span className="text-[12.5px] text-fg2">{reportedReadyLabel(deployment, ready)}</span>
 				)
 			)}
 			<CardActions
@@ -275,25 +281,25 @@ export function AlertsDrawer() {
 	const deployments = activityDeployments(deploymentsQuery.data?.deployments ?? [], nowMs).filter((d) =>
 		names.has(d.resourceId),
 	);
-	const ready = new Map(
-		(resources.data?.resources ?? []).flatMap((r) =>
-			r.environmentStatuses.flatMap((e) => e.regions.map((g) => [g.deploymentId, g.readyReplicas] as const)),
-		),
-	);
+	const ready = new Map<string, number>();
+	for (const region of (resources.data?.resources ?? []).flatMap((r) =>
+		r.environmentStatuses.flatMap((e) => e.regions),
+	)) {
+		ready.set(region.deploymentId, (ready.get(region.deploymentId) ?? 0) + region.readyReplicas);
+	}
 	const alerts = withoutRunningDeploys(buildAlerts(resources.data?.resources ?? [], active.id), deployments);
 	const count = alertedResourceCount(alerts);
 	const envParams = { env: active.name };
 	const close = () => {
 		setOpen(false);
 	};
-	const deployCard = ([d, ...rest]: Deployment[]) => {
-		if (d === undefined) return null;
+	const deployCard = (d: Deployment) => {
 		const name = names.get(d.resourceId) ?? "";
 		const buildId = getServiceSpec(d)?.build?.buildId ?? "";
 		return (
 			<DeployCard
 				key={d.id}
-				rollout={[d, ...rest]}
+				deployment={d}
 				ready={ready}
 				name={name}
 				resourceHref={resourcePath(activeOrgId, activeWorkspaceId, d.resourceId)}
@@ -354,7 +360,7 @@ export function AlertsDrawer() {
 							<p className="px-2 py-12 text-center text-[13.5px] text-fg3">Nothing needs attention.</p>
 						) : (
 							<ul className="flex flex-col gap-2.5">
-								{rolloutGroups(deployments.filter((d) => isInFlight(d.status))).map(deployCard)}
+								{deployments.filter((d) => isInFlight(d.status)).map(deployCard)}
 								{alerts.map((a) => (
 									<AlertCard
 										key={a.key}
@@ -365,7 +371,7 @@ export function AlertsDrawer() {
 										onNavigate={close}
 									/>
 								))}
-								{rolloutGroups(deployments.filter((d) => !isInFlight(d.status))).map(deployCard)}
+								{deployments.filter((d) => !isInFlight(d.status)).map(deployCard)}
 							</ul>
 						)}
 					</SheetBody>

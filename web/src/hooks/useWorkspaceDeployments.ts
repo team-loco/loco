@@ -6,14 +6,14 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { workspaceDeploymentsOptions } from "@/hooks/workspaceDeployments";
 import { useWorkspaceResourcesOptions } from "@/hooks/workspaceResources";
-import { isInFlight } from "@/lib/deployment-utils";
+import { isInFlight, isLive, placementPhase } from "@/lib/deployment-utils";
 
 const POLL_MS = 5000;
 const IDLE_POLL_MS = 15_000;
 const DEPLOYMENT_PAGE_SIZE = 50;
 
 function rollingOut(resource: Resource): boolean {
-	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(r.deploymentStatus)));
+	return resource.environmentStatuses.some((e) => e.regions.some((r) => isInFlight(placementPhase(r.placementStatus))));
 }
 
 function usePollingWorkspaceResources(orgId: string | null, workspaceId: string | null) {
@@ -37,7 +37,7 @@ export function useWorkspaceDeployments(orgId: string | null, workspaceId: strin
 			...createQueryOptions(listDeployments, { resourceId: r.id, pageSize: DEPLOYMENT_PAGE_SIZE }, { transport }),
 			refetchInterval: (q: { state: { data?: { deployments: Deployment[] } | undefined } }) => {
 				const list = q.state.data?.deployments ?? [];
-				return list.some((d) => d.isActive && isInFlight(d.status)) ? POLL_MS : false;
+				return list.some((d) => isLive(d) && isInFlight(d.status)) ? POLL_MS : false;
 			},
 		})),
 	});
@@ -62,7 +62,7 @@ export function useWorkspaceEnvironmentDeployments(
 		...workspaceDeploymentsOptions(transport, workspaceId ?? "", environmentId),
 		refetchInterval: (q) => {
 			const list = q.state.data?.deployments ?? [];
-			return list.some((d) => d.isActive && isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS;
+			return list.some((d) => isLive(d) && isInFlight(d.status)) ? POLL_MS : IDLE_POLL_MS;
 		},
 	});
 	return {

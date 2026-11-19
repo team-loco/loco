@@ -2,7 +2,7 @@ import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { DeploymentStatus, type Deployment, type Replica } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { BadgeTone } from "@/components/design/Badge";
-import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
 import { lastGoodDeployment, type RegionView } from "./model";
@@ -90,13 +90,14 @@ export function activityTime(at: Timestamp | undefined, startedAt: Timestamp | u
 }
 
 export function problemLogsHref(logsHref: string | undefined, deployment: Deployment): string | undefined {
-	if (logsHref === undefined || deployment.problem === undefined) return undefined;
+	const problem = deploymentProblem(deployment);
+	if (logsHref === undefined || problem === undefined) return undefined;
 	const buildId = getServiceSpec(deployment)?.build?.buildId;
 	const query =
-		deployment.problem.reason === "build_failed" && buildId
+		problem.reason === "build_failed" && buildId
 			? `@build:${buildId}`
-			: deployment.problem.replicaName !== ""
-				? `@replica:${deployment.problem.replicaName}`
+			: problem.replicaName !== ""
+				? `@replica:${problem.replicaName}`
 				: undefined;
 	if (query === undefined) return undefined;
 	const [path, search] = logsHref.split("?");
@@ -132,7 +133,7 @@ export interface RolloutStep {
 }
 
 export function rolloutSteps(deployment: Deployment, built: boolean): RolloutStep[] {
-	const buildFailed = deployment.problem?.reason === "build_failed";
+	const buildFailed = deploymentProblem(deployment)?.reason === "build_failed";
 	const [build, deploy]: [StepState, StepState] = (() => {
 		switch (deployment.status) {
 			case DeploymentStatus.BUILDING:
@@ -140,10 +141,12 @@ export function rolloutSteps(deployment: Deployment, built: boolean): RolloutSte
 			case DeploymentStatus.DEPLOYING:
 				return ["done", "active"];
 			case DeploymentStatus.FAILED:
+			case DeploymentStatus.CRASHED:
 				return buildFailed ? ["failed", "pending"] : ["done", "failed"];
 			case DeploymentStatus.CANCELED:
 				return built && deployment.startedAt === undefined ? ["stopped", "pending"] : ["done", "stopped"];
 			case DeploymentStatus.RUNNING:
+			case DeploymentStatus.DEGRADED:
 			case DeploymentStatus.SUPERSEDED:
 				return ["done", "done"];
 			case DeploymentStatus.UNSPECIFIED:

@@ -22,6 +22,7 @@ import {
 	REGION_MAP_KEYS,
 	boundNames,
 	domainsChange,
+	mergedSpec,
 	planSave,
 	regionChanges,
 	regionTargets,
@@ -216,22 +217,25 @@ export function useSaveSettings({
 
 		const deploys = planSave(regions, effective, base);
 		const savedRegions: string[] = [];
-		for (const d of deploys) {
-			if (env !== undefined && d.spec.spec.case === "service") d.spec.spec.value.env = env;
+		const [first] = deploys;
+		if (first !== undefined) {
+			const planned = deploys.map((d) => d.region);
+			const merged = mergedSpec(deploys, first.spec);
+			if (env !== undefined && merged.spec.case === "service") merged.spec.value.env = env;
 			const ok = await attempt(
-				d.region,
+				planned.join(", "),
 				[],
 				async () =>
 					await deploy.mutateAsync({
 						resourceId,
-						region: d.region,
-						spec: d.spec,
+						regions: planned,
+						spec: merged,
 						environmentId,
-						commit: d.commit,
+						commit: first.commit,
 						...(bindings === undefined ? {} : { secretBindings: { names: bindings } }),
 					}),
 			);
-			if (ok) savedRegions.push(d.region);
+			if (ok) savedRegions.push(...planned);
 		}
 		if (savedRegions.length === deploys.length) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);

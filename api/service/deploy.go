@@ -11,7 +11,6 @@ import (
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -24,87 +23,113 @@ import (
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
-// createDeploymentWithCleanup records the deployment, prepares placement and prunes history.
-func createDeploymentWithCleanup(
+// placementTarget is one region a deployment rolls out to and the cluster that runs it there.
+type placementTarget struct {
+	region    string
+	clusterID uuid.UUID
+}
+
+// newDeployment is one deployment to record: its row, its merged service spec with the plain
+// env, and the regions it targets.
+type newDeployment struct {
+	params  genDb.CreateDeploymentParams
+	service *deploymentv1.ServiceDeploymentSpec
+	targets []placementTarget
+	render  func(spec *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, region string) ([]byte, error)
+}
+
+// createDeployment records one deployment with a placement per target region, places each
+// region (or waits for the build), cancels older placements that never ran there, and prunes
+// history when counts are given.
+func createDeployment(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	counts limits.Effective,
-	params genDb.CreateDeploymentParams,
-	buildSpec desiredSpecFunc,
+	counts *limits.Effective,
+	d newDeployment,
 ) (uuid.UUID, error) {
+	params := d.params
 	if err := ensureOrganizationActive(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
 	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
-	var service deploymentv1.ServiceDeploymentSpec
-	if err := protojson.Unmarshal(params.Spec, &service); err != nil {
-		return uuid.UUID{}, fmt.Errorf("read deployment target: %w", err)
-	}
-	if assignErr := lockAssignableCluster(
-		ctx,
-		qtx,
-		params.ClusterID,
-		false,
-		service.GetPlatform(),
-	); assignErr != nil {
-		return uuid.UUID{}, assignErr
-	}
-
-	activeDeployment, err := qtx.GetActiveDeploymentForResourceAndRegion(
-		ctx,
-		genDb.GetActiveDeploymentForResourceAndRegionParams{
-			ResourceID:    params.ResourceID,
-			EnvironmentID: params.EnvironmentID,
-			Region:        params.Region,
-		},
-	)
-	hadPreviousDeployment := err == nil
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		return uuid.UUID{}, fmt.Errorf("failed to get active deployment: %w", err)
-	}
-
-	if hadPreviousDeployment {
-		newStatus := activeDeployment.Status
-		if activeDeployment.StartedAt == nil {
-			newStatus = genDb.DeploymentStatusCanceled
-		}
-
-		if updateErr := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-			ID:       activeDeployment.ID,
-			Status:   newStatus,
-			IsActive: false,
-		}); updateErr != nil {
-			return uuid.UUID{}, fmt.Errorf("failed to finalize deployment %v: %w", activeDeployment.ID, updateErr)
+	for _, target := range d.targets {
+		if err := lockAssignableCluster(ctx, qtx, target.clusterID, false, d.service.GetPlatform()); err != nil {
+			return uuid.UUID{}, err
 		}
 	}
 
+	params.Status = genDb.DeploymentStatusDeploying
+	placementStatus := genDb.PlacementStatusDeploying
 	var pendingBuild genDb.Build
-	if rawBuildID := service.GetBuild().GetBuildId(); rawBuildID != "" {
-		buildID := uuid.MustParse(rawBuildID)
-		build, getErr := qtx.GetBuildByID(ctx, buildID)
-		if getErr != nil {
-			return uuid.Nil, getErr
+	if rawBuildID := d.service.GetBuild().GetBuildId(); rawBuildID != "" {
+		build, err := qtx.GetBuildByID(ctx, uuid.MustParse(rawBuildID))
+		if err != nil {
+			return uuid.Nil, err
 		}
 		pendingBuild = build
 		if !buildStatusFinished(build.Status) {
 			params.Status = genDb.DeploymentStatusBuilding
+			placementStatus = genDb.PlacementStatusPending
 		}
 	}
+	specJSON, err := deploymentSpecJSON(d.service)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+	params.Spec = specJSON
+	params.SpecVersion = specVersion
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	spec, err := buildSpec(deploymentID)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, err)
+	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: d.service}}
+	image := ""
+	if placementStatus == genDb.PlacementStatusDeploying {
+		image = d.service.GetBuild().GetImage()
+	}
+	for _, target := range d.targets {
+		if createErr := qtx.CreateDeploymentPlacement(ctx, genDb.CreateDeploymentPlacementParams{
+			DeploymentID: deploymentID,
+			ClusterID:    target.clusterID,
+			Region:       target.region,
+			Replicas:     d.service.GetRegions()[target.region].GetMinReplicas(),
+			Status:       placementStatus,
+			Image:        image,
+		}); createErr != nil {
+			return uuid.UUID{}, fmt.Errorf("create deployment placement: %w", createErr)
+		}
+		if placementStatus == genDb.PlacementStatusDeploying {
+			payload, renderErr := d.render(spec, deploymentID, target.region)
+			if renderErr != nil {
+				return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, renderErr)
+			}
+			if placeErr := placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
+				ResourceID:    params.ResourceID,
+				ClusterID:     target.clusterID,
+				Region:        target.region,
+				DeploymentID:  &deploymentID,
+				DesiredSpec:   payload,
+				EnvironmentID: params.EnvironmentID,
+				SecretNames:   params.SecretNames,
+			}); placeErr != nil {
+				return uuid.UUID{}, placeErr
+			}
+		}
+		if supersedeErr := supersedePlacements(ctx, qtx, deploymentID, target.clusterID, false); supersedeErr != nil {
+			return uuid.UUID{}, supersedeErr
+		}
 	}
 
-	if params.Status == genDb.DeploymentStatusBuilding {
+	if placementStatus == genDb.PlacementStatusPending {
+		env, marshalErr := json.Marshal(d.service.GetEnv())
+		if marshalErr != nil {
+			return uuid.Nil, fmt.Errorf("encode building deployment environment: %w", marshalErr)
+		}
 		if envErr := qtx.SetBuildingDeploymentEnv(ctx, genDb.SetBuildingDeploymentEnvParams{
-			ID: deploymentID, DesiredSpec: spec,
+			ID: deploymentID, Env: env,
 		}); envErr != nil {
 			return uuid.Nil, fmt.Errorf("store building deployment environment: %w", envErr)
 		}
@@ -112,38 +137,72 @@ func createDeploymentWithCleanup(
 			ctx,
 			qtx,
 			deploymentID,
-			0,
+			activityScope{},
 			buildActivity(genDb.Build{}, pendingBuild, time.Time{}),
 		); activityErr != nil {
 			return uuid.Nil, activityErr
 		}
-	} else {
-		err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-			ResourceID:    params.ResourceID,
-			ClusterID:     params.ClusterID,
-			Region:        params.Region,
-			DeploymentID:  &deploymentID,
-			DesiredSpec:   spec,
-			EnvironmentID: params.EnvironmentID,
-			SecretNames:   params.SecretNames,
-		})
-		if err != nil {
-			return uuid.UUID{}, err
-		}
 	}
 
-	if pruneErr := pruneDeploymentHistory(ctx, qtx, counts, params); pruneErr != nil {
-		return uuid.UUID{}, pruneErr
+	if counts != nil {
+		if pruneErr := pruneDeploymentHistory(ctx, qtx, *counts, params); pruneErr != nil {
+			return uuid.UUID{}, pruneErr
+		}
 	}
 
 	slog.InfoContext(ctx, "deployment created",
 		"deployment_id", deploymentID,
-		"cluster_id", params.ClusterID,
 		"resourceId", params.ResourceID,
-		"region", params.Region,
-		"hadPreviousDeployment", hadPreviousDeployment)
+		"regions", targetRegions(d.targets))
 
 	return deploymentID, nil
+}
+
+// placementTargets picks the cluster each region deploys to from eligibleClusters' listing.
+func placementTargets(
+	clusters []genDb.ListEligibleClustersRow,
+	regions []string,
+	platform string,
+) ([]placementTarget, error) {
+	targets := make([]placementTarget, 0, len(regions))
+	for _, region := range regions {
+		cluster, found := clusterForRegion(clusters, region)
+		if !found {
+			return nil, errNoActiveCluster.Detail("%s, requires %s", region, platform)
+		}
+		targets = append(targets, placementTarget{region: region, clusterID: cluster.ID})
+	}
+	return targets, nil
+}
+
+func targetRegions(targets []placementTarget) []string {
+	regions := make([]string, 0, len(targets))
+	for _, target := range targets {
+		regions = append(regions, target.region)
+	}
+	return regions
+}
+
+// supersedePlacements retires the older placements on the cluster that the deployment replaces
+// and recomputes their deployments' status.
+func supersedePlacements(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	deploymentID, clusterID uuid.UUID,
+	includeStarted bool,
+) error {
+	retired, err := qtx.SupersedePlacements(ctx, genDb.SupersedePlacementsParams{
+		DeploymentID: deploymentID, ClusterID: clusterID, IncludeStarted: includeStarted,
+	})
+	if err != nil {
+		return fmt.Errorf("supersede placements: %w", err)
+	}
+	for _, id := range retired {
+		if _, recomputeErr := recomputeDeploymentStatus(ctx, qtx, id); recomputeErr != nil {
+			return fmt.Errorf("recompute superseded deployment %s: %w", id, recomputeErr)
+		}
+	}
+	return nil
 }
 
 func pruneDeploymentHistory(
@@ -170,76 +229,112 @@ func pruneDeploymentHistory(
 	return nil
 }
 
-func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, deployment genDb.Deployment) error {
-	// Only the active deployment owns the placement.
-	if deployment.IsActive {
-		if err := removePlacement(ctx, qtx, res.ID, deployment.EnvironmentID, deployment.ClusterID); err != nil {
-			return err
-		}
+// retireDeployment takes one region of a deployment out of service: its placement is removed
+// and canceled. A deployment left with no region records deployment.deleted.
+func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resource, live liveDeployment) error {
+	if err := removePlacement(ctx, qtx, res.ID, live.EnvironmentID, live.ClusterID); err != nil {
+		return err
 	}
-	status := deployment.Status
-	switch status {
-	case genDb.DeploymentStatusBuilding, genDb.DeploymentStatusDeploying, genDb.DeploymentStatusRunning:
-		status = genDb.DeploymentStatusCanceled
+	if _, err := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
+		Status:       genDb.PlacementStatusCanceled,
+		DeploymentID: live.ID,
+		ClusterID:    live.ClusterID,
+		FromStatuses: placementStatusNames(placementLiveStatuses...),
+	}); err != nil {
+		return fmt.Errorf("cancel placement of deployment %s: %w", live.ID, err)
 	}
-	err := qtx.UpdateDeploymentStatusAndActive(ctx, genDb.UpdateDeploymentStatusAndActiveParams{
-		ID:       deployment.ID,
-		Status:   status,
-		IsActive: false,
-	})
+	status, err := recomputeDeploymentStatus(ctx, qtx, live.ID)
 	if err != nil {
-		return fmt.Errorf("finalize deployment %s: %w", deployment.ID, err)
+		return fmt.Errorf("recompute retired deployment %s: %w", live.ID, err)
+	}
+	if status.Status != genDb.DeploymentStatusCanceled || status.PreviousStatus == status.Status {
+		return nil
 	}
 	return events.Record(ctx, qtx, events.Event{
 		Type:          events.DeploymentDeleted,
-		EnvironmentID: new(deployment.EnvironmentID),
+		EnvironmentID: new(live.EnvironmentID),
 		WorkspaceID:   new(res.WorkspaceID),
 		ResourceID:    new(res.ID),
 		SubjectType:   events.SubjectDeployment,
-		SubjectID:     new(deployment.ID),
+		SubjectID:     new(live.ID),
 		Data:          map[string]any{events.FieldResourceID: res.ID.String()},
 	})
 }
 
-func desiredApplicationSpec(
-	res genDb.Resource,
-	organizationID uuid.UUID,
-	resourceSpec *resourcev1.ResourceSpec,
-	hostname string,
-	deploymentSpec *deploymentv1.DeploymentSpec,
-	region string,
-	environmentID uuid.UUID,
-	environmentName string,
-	defaults servicedefaults.Defaults,
-) desiredSpecFunc {
-	return func(deploymentID uuid.UUID) ([]byte, error) {
-		appSpec, err := buildApplicationSpec(
-			res,
-			organizationID,
-			resourceSpec,
-			hostname,
-			deploymentSpec,
-			region,
-			environmentID,
-			environmentName,
-			deploymentID,
-			defaults,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build application spec: %w", err)
-		}
+// placementRenderer renders the Application a deployment's placement carries in one region.
+type placementRenderer struct {
+	resource        genDb.Resource
+	organizationID  uuid.UUID
+	resourceSpec    *resourcev1.ResourceSpec
+	hostname        string
+	environmentID   uuid.UUID
+	environmentName string
+	defaults        servicedefaults.Defaults
+}
 
-		payload, err := json.Marshal(locoControllerV1.PlacementPayload{AppSpec: appSpec})
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal application payload: %w", err)
-		}
-		return payload, nil
+// newPlacementRenderer reads what rendering a resource's placements in an environment needs.
+func newPlacementRenderer(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	resource genDb.Resource,
+	environmentID uuid.UUID,
+	defaults servicedefaults.Defaults,
+) (placementRenderer, error) {
+	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
+	if err != nil {
+		return placementRenderer{}, fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, err)
 	}
+	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
+	if err != nil {
+		return placementRenderer{}, err
+	}
+	env, err := qtx.GetEnvironmentByID(ctx, environmentID)
+	if err != nil {
+		return placementRenderer{}, err
+	}
+	hostname, err := primaryHostname(ctx, qtx, resource.ID, env.ID)
+	if err != nil {
+		return placementRenderer{}, err
+	}
+	return placementRenderer{
+		resource:        resource,
+		organizationID:  owner.OrgID,
+		resourceSpec:    resourceSpec,
+		hostname:        hostname,
+		environmentID:   env.ID,
+		environmentName: env.Name,
+		defaults:        defaults,
+	}, nil
+}
+
+func (r placementRenderer) payload(
+	spec *deploymentv1.DeploymentSpec,
+	deploymentID uuid.UUID,
+	region string,
+) ([]byte, error) {
+	appSpec, err := buildApplicationSpec(
+		r.resource,
+		r.organizationID,
+		r.resourceSpec,
+		r.hostname,
+		spec,
+		region,
+		r.environmentID,
+		r.environmentName,
+		deploymentID,
+		r.defaults,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build application spec: %w", err)
+	}
+	payload, err := json.Marshal(locoControllerV1.PlacementPayload{AppSpec: appSpec})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal application payload: %w", err)
+	}
+	return payload, nil
 }
 
 var errDesiredSpec = errors.New("build desired spec")
-
-type desiredSpecFunc func(deploymentID uuid.UUID) ([]byte, error)
 
 func primaryHostname(
 	ctx context.Context,
@@ -292,9 +387,13 @@ func buildApplicationSpec(
 			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in service spec", region)}
 		}
 		deploymentService := deploymentSpec.GetService()
+		target, ok := deploymentService.GetRegions()[region]
+		if !ok {
+			return nil, &invalidSpecError{err: fmt.Errorf("target region %s not found in deployment spec", region)}
+		}
 		appSpec.ServiceSpec = &locoControllerV1.ServiceSpec{
 			Deployment: crdServiceDeploymentSpec,
-			Resources:  converter.ProtoToResourcesSpec(deploymentService),
+			Resources:  converter.ProtoToResourcesSpec(target),
 			Routing: converter.ProtoToRoutingSpec(
 				deploymentRouting(resourceService, deploymentService),
 				hostname,
@@ -328,47 +427,23 @@ func (e *invalidSpecError) Unwrap() []error {
 	return []error{rpcerr.NewCoded(connect.CodeInvalidArgument, e.Error()), e.err}
 }
 
+// placeDeployment points the region's placement at an existing deployment, with the given
+// spec, which carries the plain env.
 func placeDeployment(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	resource genDb.Resource,
+	render placementRenderer,
 	deployment genDb.Deployment,
+	target placementTarget,
 	spec *deploymentv1.DeploymentSpec,
-	defaults servicedefaults.Defaults,
 ) error {
-	resourceSpec, err := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-	if err != nil {
-		return err
-	}
-	owner, err := qtx.GetWorkspaceOrganizationIDByResourceID(ctx, resource.ID)
-	if err != nil {
-		return err
-	}
-	env, err := qtx.GetEnvironmentByID(ctx, deployment.EnvironmentID)
-	if err != nil {
-		return err
-	}
-	hostname, err := primaryHostname(ctx, qtx, resource.ID, env.ID)
-	if err != nil {
-		return err
-	}
-	desired := desiredApplicationSpec(
-		resource,
-		owner.OrgID,
-		resourceSpec,
-		hostname,
-		spec,
-		deployment.Region,
-		env.ID,
-		env.Name,
-		defaults,
-	)
-	payload, err := desired(deployment.ID)
+	payload, err := render.payload(spec, deployment.ID, target.region)
 	if err != nil {
 		return err
 	}
 	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
-		ResourceID: resource.ID, EnvironmentID: env.ID, Region: deployment.Region, ClusterID: deployment.ClusterID,
-		DeploymentID: &deployment.ID, SecretNames: deployment.SecretNames, DesiredSpec: payload,
+		ResourceID: deployment.ResourceID, EnvironmentID: deployment.EnvironmentID, Region: target.region,
+		ClusterID: target.clusterID, DeploymentID: &deployment.ID, SecretNames: deployment.SecretNames,
+		DesiredSpec: payload,
 	})
 }

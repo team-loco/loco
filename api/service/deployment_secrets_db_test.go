@@ -49,7 +49,7 @@ func TestCreateDeploymentBindsSelectedSecrets(t *testing.T) {
 			resp, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
-				Region:        step.region,
+				Regions:       []string{step.region},
 				Spec: &deploymentv1.DeploymentSpec{
 					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
 				},
@@ -88,7 +88,7 @@ func TestCreateDeploymentRejectsUnavailableOrOversizedSecrets(t *testing.T) {
 			_, err := deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
-				Region:        testRegion,
+				Regions:       []string{testRegion},
 				Spec: &deploymentv1.DeploymentSpec{
 					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
 				},
@@ -112,7 +112,7 @@ func TestDeploymentRecordsSecretNamesAndEnvironmentOnThePlacement(t *testing.T) 
 	var id uuid.UUID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
 		var deployErr error
-		id, deployErr = createDeploymentWithCleanup(ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
+		id, deployErr = recordTestDeployment(ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
 		return deployErr
 	})
 	if err != nil {
@@ -139,10 +139,11 @@ func TestScaleKeepsTheSecretNamesOfTheDeployment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	ctx := context.Background()
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
-	setNames := `UPDATE deployments SET secret_names = $2 WHERE resource_id = $1 AND is_active`
+	setNames := `UPDATE deployments SET secret_names = $2
+WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1)`
 	if _, err := f.pool.Exec(ctx, setNames, f.resourceID, testSecretNames); err != nil {
 		t.Fatalf("set secret names: %v", err)
 	}
@@ -183,7 +184,8 @@ func TestRedeployAndRollbackKeepTheCurrentEnvironmentValues(t *testing.T) {
 	if err := protojson.Unmarshal(storedSpec, rollback); err != nil {
 		t.Fatal(err)
 	}
-	setNames := `UPDATE deployments SET secret_names = $2 WHERE resource_id = $1 AND is_active`
+	setNames := `UPDATE deployments SET secret_names = $2
+WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1)`
 	if _, err := f.pool.Exec(t.Context(), setNames, f.resourceID, testSecretNames); err != nil {
 		t.Fatal(err)
 	}

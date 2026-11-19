@@ -35,6 +35,10 @@ export function deploymentPhaseStyle(phase: DeploymentStatus | undefined): Statu
 			return { label: "Deploying", glyph: "spin" };
 		case DeploymentStatus.RUNNING:
 			return { label: "Running", glyph: "ok" };
+		case DeploymentStatus.DEGRADED:
+			return { label: "Degraded", glyph: "warn" };
+		case DeploymentStatus.CRASHED:
+			return { label: "Crashed", glyph: "err" };
 		case DeploymentStatus.SUPERSEDED:
 			return { label: "Superseded", glyph: "off" };
 		case DeploymentStatus.FAILED:

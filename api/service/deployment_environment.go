@@ -2,51 +2,50 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
+// deploymentBindings returns the plain env and the secret names a deployment to regions runs
+// with: what the request sets, else what the deployment live in the first of those regions
+// runs with.
 func (s *DeploymentServer) deploymentBindings(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	resourceID, environmentID uuid.UUID,
-	req *deploymentv1.CreateDeploymentRequest,
+	regions []string,
+	bindings *deploymentv1.DeploymentSecretBindings,
 	requestedEnv map[string]string,
 ) (map[string]string, []string, error) {
 	secretNames := []string{}
-	bindings := req.GetSecretBindings()
 	if bindings != nil {
 		secretNames = append(secretNames, bindings.GetNames()...)
 		if err := s.validateSecretBindings(ctx, qtx, resourceID, environmentID, secretNames); err != nil {
 			return nil, nil, err
 		}
 	}
-	params := genDb.GetActiveDeploymentForResourceAndRegionParams{
-		ResourceID:    resourceID,
-		EnvironmentID: environmentID,
-		Region:        req.GetRegion(),
+	live, err := listLiveDeploymentsForEnvironment(ctx, qtx, resourceID, environmentID)
+	if err != nil {
+		return nil, nil, err
 	}
-	current, err := qtx.GetActiveDeploymentForResourceAndRegion(ctx, params)
-	if errors.Is(err, pgx.ErrNoRows) {
+	index := slices.IndexFunc(live, func(d liveDeployment) bool { return slices.Contains(regions, d.Region) })
+	if index < 0 {
 		return requestedEnv, secretNames, nil
 	}
-	if err != nil {
-		return nil, nil, fmt.Errorf("get current deployment environment: %w", err)
-	}
+	current := live[index]
 	if bindings == nil {
 		secretNames = current.SecretNames
 	}
 	if len(requestedEnv) > 0 {
 		return requestedEnv, secretNames, nil
 	}
-	plain, err := desiredEnv(ctx, qtx, resourceID, current.EnvironmentID, current.ClusterID)
+	plain, err := liveEnv(ctx, qtx, current)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -7,11 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"buf.build/go/protovalidate"
+
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -99,7 +102,7 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			wantEnv := map[string]string{"BUILD_MODE": "release", "BUILD_LABEL": "queued-build"}
 			bindings := &deploymentv1.DeploymentSecretBindings{Names: testSecretNames}
 			request := &deploymentv1.CreateDeploymentRequest{
-				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Region: testRegion,
+				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Regions: []string{testRegion},
 				SecretBindings: bindings,
 			}
 			if inherit {
@@ -207,7 +210,7 @@ func TestDeploymentBuildOutcomes(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if problem := deployment.GetProblem(); problem.GetReason() != "build_failed" ||
+				if problem := deployment.GetPlacements()[0].GetProblem(); problem.GetReason() != "build_failed" ||
 					problem.GetDetail() != status.GetMessage() {
 					t.Fatalf("problem=%v", problem)
 				}
@@ -411,9 +414,145 @@ func TestBuildFailureProblemSurvivesBuildHistoryPruning(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if problem := deployment.GetProblem(); problem.GetReason() != "build_failed" ||
+	if problem := deployment.GetPlacements()[0].GetProblem(); problem.GetReason() != "build_failed" ||
 		problem.GetDetail() != status.GetMessage() ||
 		problem.GetSince() == nil {
 		t.Fatalf("problem=%v", problem)
+	}
+}
+
+func TestABuildingDeploymentShowsTheServingReplicas(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	serving := rollbackDeployment(t, f.deployFixture, false, nil)
+	p := f.placement(t, f.clusterID)
+	f.agentServer().recordStatus(f.ctx, f.clusterID, 0, &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), DeploymentId: serving.String(), ObservedRevision: p.DesiredRevision,
+		ReadyReplicas: 1, Available: true,
+		Replicas: []*deploymentv1.Replica{{Uid: "serving-pod", DeploymentId: serving.String(), Ready: true,
+			State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision}},
+	})
+	building := deployBuild(t, f, f.queued(t))
+
+	view := func(id uuid.UUID) *deploymentv1.DeploymentPlacement {
+		t.Helper()
+		row, err := f.queries.GetDeploymentView(f.ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		deployment, err := deploymentToProto(row)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return deployment.GetPlacements()[0]
+	}
+	desired := view(building)
+	if !desired.GetLive() || desired.GetStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING ||
+		len(desired.GetReplicas()) != 1 || desired.GetReplicas()[0].GetDeploymentId() != serving.String() {
+		t.Fatalf("building placement = %v, want live and pending with the serving replica", desired)
+	}
+	if previous := view(serving); previous.GetLive() ||
+		previous.GetStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+		t.Fatalf("serving placement = %v, want running and no longer the region's desired deployment", previous)
+	}
+	statuses, err := (&ResourceServer{queries: f.queries}).environmentStatuses(f.ctx, []uuid.UUID{f.resourceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	region := statuses[f.resourceID][0].GetRegions()[0]
+	if region.GetDeploymentId() != building.String() ||
+		region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING ||
+		region.GetReadyReplicas() != 1 || len(region.GetReplicas()) != 1 ||
+		region.GetReplicas()[0].GetDeploymentId() != serving.String() {
+		t.Fatalf("region = %v, want the building deployment pending beside the serving replica", region)
+	}
+}
+
+func TestAFailedBuildLeavesTheRollingDeploymentLive(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	rolling := rollbackDeployment(t, f.deployFixture, false, nil)
+	buildID := f.queued(t)
+	deployBuild(t, f, buildID)
+	status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_FAILED)
+	if err := f.agentServer().recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.deploymentStatus(t, rolling); got != genDb.DeploymentStatusDeploying {
+		t.Fatalf("rolling deployment = %s, want deploying", got)
+	}
+	statuses, err := (&ResourceServer{queries: f.queries}).environmentStatuses(f.ctx, []uuid.UUID{f.resourceID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if region := statuses[f.resourceID][0].GetRegions()[0]; region.GetDeploymentId() != rolling.String() {
+		t.Fatalf("region = %v, want the rolling deployment", region)
+	}
+}
+
+const buildModeKey = "MODE"
+
+func TestScaleDuringABuildKeepsTheBuildingDeploymentsEnv(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	serving := imageService()
+	serving.Env = map[string]string{buildModeKey: "serving"}
+	if _, err := createDeploymentWith(t, f.deployFixture, sameRegionSpec, serving); err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	buildID := f.queued(t)
+	building, err := deployService(t, f.deployFixture, &deploymentv1.ServiceDeploymentSpec{
+		Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
+		Env:   map[string]string{buildModeKey: "building"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = scaleResource(t, f.deployFixture, 2); err != nil {
+		t.Fatal(err)
+	}
+	live, err := f.queries.GetLiveDeploymentForRegion(f.ctx, genDb.GetLiveDeploymentForRegionParams{
+		ResourceID: f.resourceID, EnvironmentID: f.envID, Region: testRegion,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := live.Deployment.SourceDeploymentID
+	if live.Deployment.ID.String() == building.GetDeploymentId() ||
+		source == nil || source.String() != building.GetDeploymentId() {
+		t.Fatalf(
+			"live deployment = %+v, want a scale copying the building %s",
+			live.Deployment,
+			building.GetDeploymentId(),
+		)
+	}
+	env, err := liveEnv(f.ctx, f.queries, liveDeployments([]genDb.ListLiveDeploymentsForResourceRow{
+		genDb.ListLiveDeploymentsForResourceRow(live),
+	})[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env[buildModeKey] != "building" {
+		t.Fatalf("scaled env = %v, want the building deployment's", env)
+	}
+}
+
+func TestCreateDeploymentRejectsARepeatedRegion(t *testing.T) {
+	t.Parallel()
+	req := &deploymentv1.CreateDeploymentRequest{
+		ResourceId:    uuid.NewString(),
+		EnvironmentId: uuid.NewString(),
+		Regions:       []string{testRegion, testRegion},
+		Spec: &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{
+			Service: &deploymentv1.ServiceDeploymentSpec{Build: &deploymentv1.BuildSource{Type: buildSourceTypeImage}},
+		}},
+	}
+	if err := protovalidate.Validate(req); err == nil {
+		t.Fatal("a request naming a region twice passed validation")
+	}
+	req.Regions = []string{testRegion}
+	if err := protovalidate.Validate(req); err != nil {
+		t.Fatalf("a request naming each region once failed validation: %v", err)
 	}
 }

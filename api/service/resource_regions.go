@@ -44,12 +44,16 @@ func (s *ResourceServer) updateRegions(
 	if res.Type != genDb.ResourceTypeService {
 		return errOnlyServiceResources
 	}
-	deployments, err := qtx.ListLatestResourceDeployments(ctx, res.ID)
+	latest, err := qtx.ListLatestResourceDeployments(ctx, res.ID)
 	if err != nil {
 		return fmt.Errorf("list resource deployments: %w", err)
 	}
-	if len(deployments) == 0 {
+	if len(latest) == 0 {
 		return errRegionTemplateMissing
+	}
+	live, err := listLiveDeploymentsForResource(ctx, qtx, res.ID)
+	if err != nil {
+		return err
 	}
 	domains, err := qtx.ListResourceDomains(ctx, res.ID)
 	if err != nil {
@@ -64,28 +68,32 @@ func (s *ResourceServer) updateRegions(
 		return fmt.Errorf("list environments: %w", err)
 	}
 	for _, env := range environments {
-		var history, active []genDb.Deployment
-		for _, deployment := range deployments {
-			if deployment.EnvironmentID != env.ID {
-				continue
-			}
-			history = append(history, deployment)
-			if deployment.IsActive {
+		index := slices.IndexFunc(latest, func(d genDb.Deployment) bool { return d.EnvironmentID == env.ID })
+		if index < 0 {
+			continue
+		}
+		var active []liveDeployment
+		for _, deployment := range live {
+			if deployment.EnvironmentID == env.ID {
 				active = append(active, deployment)
 			}
 		}
-		if len(history) == 0 {
-			continue
-		}
 		// liveState reads the image, env and commit from its first deployment, which must be
-		// what runs now; a retired region's last deployment can carry an older build.
+		// what runs now; with no region live, the newest deployment.
 		runtime := active
 		if len(runtime) == 0 {
-			runtime = []genDb.Deployment{slices.MaxFunc(history, func(a, b genDb.Deployment) int {
-				return a.CreatedAt.Compare(b.CreatedAt)
-			})}
+			placements, placementsErr := qtx.ListDeploymentPlacements(ctx, latest[index].ID)
+			if placementsErr != nil {
+				return fmt.Errorf("list deployment placements: %w", placementsErr)
+			}
+			runtime = []liveDeployment{{
+				Deployment: latest[index],
+				ClusterID:  placements[0].ClusterID,
+				Region:     placements[0].Region,
+				Replicas:   placements[0].Replicas,
+			}}
 		}
-		template, templateErr := currentServiceSpec(runtime[0], res.Type)
+		template, templateErr := currentServiceSpec(runtime[0].Deployment, res.Type)
 		if templateErr != nil {
 			return templateErr
 		}
@@ -148,7 +156,7 @@ func (s *ResourceServer) updateRegions(
 		a := newApplier(env, organizationID, counts, defaults, s.clusterSilentAfter)
 		a.live = liveEnvironment{
 			resources:   map[string]genDb.Resource{res.Name: res},
-			deployments: map[uuid.UUID][]genDb.Deployment{res.ID: active},
+			deployments: map[uuid.UUID][]liveDeployment{res.ID: active},
 			domains:     map[uuid.UUID][]genDb.ResourceDomain{res.ID: envDomains},
 		}
 		a.builds = builds

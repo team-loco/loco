@@ -9,7 +9,6 @@ import {
 	deployPhase,
 	deploySteps,
 	finishedLabel,
-	rolloutGroups,
 	reportedReadyLabel,
 	rolloutReadyLabel,
 	tookLabel,
@@ -20,11 +19,11 @@ import type { Alert } from "./alerts";
 const NOW = 1_800_000_000_000;
 const MIN = 60_000;
 
-function deployment(id: string, status: DeploymentStatus, agoMin: number, extra: object = {}) {
+function deployment(id: string, status: DeploymentStatus, agoMin: number, extra: object = {}, placement: object = {}) {
 	return create(DeploymentSchema, {
 		id,
 		resourceId: `r-${id}`,
-		region: "us-east-1",
+		placements: [{ region: "us-east-1", ...placement }],
 		status,
 		createdAt: timestampFromMs(NOW - agoMin * MIN),
 		...extra,
@@ -68,7 +67,7 @@ describe("deployPhase", () => {
 		[DeploymentStatus.CANCELED, false, "Canceled"],
 		[DeploymentStatus.UNSPECIFIED, false, "Queued"],
 	])("%i with problem %p reads %s", (status, problem, label) => {
-		const d = deployment("d", status, 1, problem ? { problem: { reason: "restarting", message: "x" } } : {});
+		const d = deployment("d", status, 1, {}, problem ? { problem: { reason: "restarting", message: "x" } } : {});
 		expect(deployPhase(d).label).toBe(label);
 	});
 });
@@ -91,9 +90,27 @@ describe("deploySteps", () => {
 	});
 
 	test("a problem marks the active step as retrying", () => {
-		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, { problem: { reason: "restarting" } });
+		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, {}, { problem: { reason: "restarting" } });
 		expect(deploySteps(d).deploy).toBe("retry");
 	});
+});
+
+test("rolloutReadyLabel counts ready replicas of this deployment", () => {
+	const d = deployment(
+		"d",
+		DeploymentStatus.RUNNING,
+		1,
+		{},
+		{
+			desiredReplicas: 2,
+			replicas: [
+				{ ready: true, deploymentId: "d" },
+				{ ready: true, deploymentId: "old" },
+				{ ready: false, deploymentId: "d" },
+			],
+		},
+	);
+	expect(rolloutReadyLabel(d)).toBe("1 of 2 ready");
 });
 
 test("finishedLabel gives the run time and when it ended", () => {
@@ -142,51 +159,36 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 	]);
 });
 
-describe("rolloutGroups", () => {
-	test("groups the regions of one rollout of a resource and keeps the order of first appearance", () => {
-		const east = deployment("east", DeploymentStatus.DEPLOYING, 1, { resourceId: "r", rolloutId: "a" });
-		const other = deployment("other", DeploymentStatus.RUNNING, 2, { resourceId: "s", rolloutId: "b" });
-		const west = deployment("west", DeploymentStatus.DEPLOYING, 1, {
-			resourceId: "r",
-			rolloutId: "a",
-			region: "eu-west-1",
-		});
-		const groups = rolloutGroups([east, other, west]);
-		expect(groups.map((group) => group.map((d) => d.id))).toEqual([["east", "west"], ["other"]]);
-	});
-});
-
 describe("rolloutReadyLabel", () => {
-	test("counts the ready replicas of every region of the rollout", () => {
+	test("counts the ready replicas of every region of the deployment", () => {
 		const replica = (deploymentId: string, ready: boolean) => ({ deploymentId, ready });
-		const east = deployment("east", DeploymentStatus.DEPLOYING, 1, {
-			desiredReplicas: 2,
-			replicas: [replica("east", true), replica("east", false)],
-		});
-		const west = deployment("west", DeploymentStatus.DEPLOYING, 1, {
-			desiredReplicas: 2,
+		const east = { region: "us-east-1", desiredReplicas: 2, replicas: [replica("d", true), replica("d", false)] };
+		const west = {
 			region: "eu-west-1",
-			replicas: [replica("west", true), replica("west", true), replica("old", true)],
-		});
-		expect(rolloutReadyLabel([east, west])).toBe("3 of 4 ready in 2 regions");
-		expect(rolloutReadyLabel([east])).toBe("1 of 2 ready");
+			desiredReplicas: 2,
+			replicas: [replica("d", true), replica("d", true), replica("old", true)],
+		};
+		const both = deployment("d", DeploymentStatus.DEPLOYING, 1, { placements: [east, west] });
+		expect(rolloutReadyLabel(both)).toBe("3 of 4 ready in 2 regions");
+		const one = deployment("d", DeploymentStatus.DEPLOYING, 1, { placements: [east] });
+		expect(rolloutReadyLabel(one)).toBe("1 of 2 ready");
 	});
 });
 
 describe("reportedReadyLabel", () => {
-	test("counts the ready replicas the cluster reports for each region of the rollout", () => {
-		const east = deployment("east", DeploymentStatus.RUNNING, 1, { desiredReplicas: 2 });
-		const west = deployment("west", DeploymentStatus.RUNNING, 1, { desiredReplicas: 2, region: "eu-west-1" });
-		const ready = new Map([
-			["east", 1],
-			["west", 2],
-		]);
-		expect(reportedReadyLabel([east, west], ready)).toBe("3 of 4 ready in 2 regions");
-		expect(reportedReadyLabel([east], ready)).toBe("1 of 2 ready");
+	test("counts the ready replicas the clusters report for the deployment's regions", () => {
+		const east = { region: "us-east-1", desiredReplicas: 2 };
+		const west = { region: "eu-west-1", desiredReplicas: 2 };
+		const both = deployment("d", DeploymentStatus.RUNNING, 1, { placements: [east, west] });
+		expect(reportedReadyLabel(both, new Map([["d", 3]]))).toBe("3 of 4 ready in 2 regions");
+		const one = deployment("d", DeploymentStatus.RUNNING, 1, { placements: [east] });
+		expect(reportedReadyLabel(one, new Map([["d", 1]]))).toBe("1 of 2 ready");
 	});
 
 	test("says nothing for deployments the cluster does not report on", () => {
-		const east = deployment("east", DeploymentStatus.SUPERSEDED, 1, { desiredReplicas: 2 });
-		expect(reportedReadyLabel([east], new Map())).toBeUndefined();
+		const d = deployment("d", DeploymentStatus.SUPERSEDED, 1, {
+			placements: [{ region: "us-east-1", desiredReplicas: 2 }],
+		});
+		expect(reportedReadyLabel(d, new Map())).toBeUndefined();
 	});
 });

@@ -249,7 +249,7 @@ func writeApplied(w io.Writer, applied *planv1.ApplyResponse) error {
 	fmt.Fprintf(&b, "\n%s Environment revision is now %d.\n", done, applied.GetRevision())
 	for _, deployment := range applied.GetDeployments() {
 		fmt.Fprintf(&b, "Started deployment %s for %s in %s.\n",
-			deployment.GetDeploymentId(), deployment.GetService(), deployment.GetRegion())
+			deployment.GetDeploymentId(), deployment.GetService(), strings.Join(deployment.GetRegions(), ", "))
 	}
 	_, err := lipgloss.Fprint(w, b.String())
 	return err

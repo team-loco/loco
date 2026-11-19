@@ -280,13 +280,19 @@ def mobile_sidebar(page):
 def activity_deployments(page):
     now = datetime.now(UTC)
 
-    def deployment(id, status, minutes, **extra):
+    def deployment(id, status, minutes, replicas=(), **extra):
         return {
             "id": id,
             "resourceId": resource,
-            "region": "us-east-1",
-            "status": status,
-            "desiredReplicas": 1,
+            "status": f"DEPLOYMENT_STATUS_{status}",
+            "placements": [
+                {
+                    "region": "us-east-1",
+                    "status": f"PLACEMENT_STATUS_{status}",
+                    "desiredReplicas": 1,
+                    "replicas": list(replicas),
+                }
+            ],
             "createdAt": stamp(now, timedelta(minutes=minutes)),
             **extra,
         }
@@ -295,7 +301,7 @@ def activity_deployments(page):
     deployments = [
         deployment(
             "00000000-0000-7000-8000-000000000001",
-            "DEPLOYMENT_STATUS_RUNNING",
+            "RUNNING",
             8,
             createdAt=(finished - timedelta(minutes=1))
             .isoformat()
@@ -305,9 +311,7 @@ def activity_deployments(page):
             .replace("+00:00", "Z"),
             completedAt=finished.isoformat().replace("+00:00", "Z"),
         ),
-        deployment(
-            "00000000-0000-7000-8000-000000000002", "DEPLOYMENT_STATUS_DEPLOYING", 1
-        ),
+        deployment("00000000-0000-7000-8000-000000000002", "DEPLOYING", 1),
     ]
     page.route(
         "**/loco.deployment.v1.DeploymentService/ListDeployments",
@@ -863,9 +867,8 @@ def dashboard(page):
                     "service": service(),
                     "deployments": [
                         {
-                            "cluster": cluster,
                             "environment": "production",
-                            "region": "us-east-1",
+                            "placements": {"us-east-1": {"cluster": cluster}},
                             "method": "cli",
                             "spec": {
                                 "platform": "linux/amd64",
@@ -873,11 +876,15 @@ def dashboard(page):
                                     "type": "image",
                                     "image": "example.invalid/dashboard:1",
                                 },
-                                "cpu": f"{(index + 1) * 100}m",
-                                "memory": "128Mi",
-                                "minReplicas": 1,
-                                "maxReplicas": 1,
                                 "port": 8080,
+                                "regions": {
+                                    "us-east-1": {
+                                        "cpu": f"{(index + 1) * 100}m",
+                                        "memory": "128Mi",
+                                        "minReplicas": 1,
+                                        "maxReplicas": 1,
+                                    }
+                                },
                                 "observability": {"injectOtel": True},
                             },
                         }
@@ -890,7 +897,7 @@ def dashboard(page):
         evidence.write_json(Path(args.state), state)
     sql(
         state,
-        f"UPDATE deployments SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM resources WHERE deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');",
+        f"UPDATE deployment_placements SET replicas=CASE WHEN resources.name='dashboard-0' THEN 48 ELSE 12 END FROM deployments, resources WHERE deployment_placements.deployment_id=deployments.id AND deployments.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1'); UPDATE placements SET ready_replicas=CASE WHEN resources.name='dashboard-0' THEN 47 ELSE 12 END FROM resources WHERE placements.resource_id=resources.id AND resources.workspace_id='{workspace}' AND resources.name IN ('dashboard-0','dashboard-1');",
     )
     for color, mode in (
         (color, mode)
@@ -1349,7 +1356,7 @@ def metrics(page):
         {
             "id": f"01a1c8b3-0000-7000-8000-0000000de90{i}",
             "resourceId": resource,
-            "region": "us-east-1",
+            "placements": [{"region": "us-east-1"}],
             "environmentId": production,
             "createdAt": point["timestamp"],
             "spec": {"service": {"build": {"image": "ghcr.io/acme/pilot:1.27"}}},

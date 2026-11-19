@@ -131,14 +131,14 @@ WHERE s.environment_id = sqlc.arg(environment_id)
   AND s.name = v.name;
 
 -- name: ListSecretUsage :many
-SELECT d.region, ARRAY(
+SELECT l.region, ARRAY(
     SELECT name FROM unnest(d.secret_names) AS name
     WHERE name = ANY(sqlc.arg(names)::text[])
     ORDER BY name
 )::text[] AS names
-FROM deployments d
-WHERE d.resource_id = sqlc.arg(resource_id)
-  AND d.environment_id = sqlc.arg(environment_id)
-  AND d.is_active
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+WHERE l.resource_id = sqlc.arg(resource_id)
+  AND l.environment_id = sqlc.arg(environment_id)
   AND d.secret_names && sqlc.arg(names)::text[]
-ORDER BY d.region;
+ORDER BY l.region;

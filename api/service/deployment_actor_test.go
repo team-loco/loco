@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"connectrpc.com/connect/v2"
+	"github.com/google/uuid"
+	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -20,7 +22,7 @@ func TestDeploymentCreationRequiresAPrincipal(t *testing.T) {
 		wantCode(t, err, connect.CodeUnauthenticated)
 	})
 	t.Run("scale", func(t *testing.T) {
-		_, err := (&ResourceServer{}).planRegionRedeploy(t.Context(), nil, genDb.Deployment{}, nil, 1)
+		err := (&ResourceServer{}).redeployRegions(t.Context(), nil, genDb.Resource{}, uuid.Nil, nil, events.Event{})
 		wantCode(t, err, connect.CodeUnauthenticated)
 	})
 }

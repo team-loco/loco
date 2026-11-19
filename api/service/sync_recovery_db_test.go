@@ -96,9 +96,9 @@ func TestFailedStatusReachesTheDeploymentTheDashboardReads(t *testing.T) {
 	if err != nil {
 		t.Fatalf("deployment to proto: %v", err)
 	}
-	if deployment.GetProblem().GetReason() != string(loco.ProblemImageUser) ||
-		deployment.GetProblem().GetDetail() != detail {
-		t.Fatalf("deployment problem=%v", deployment.GetProblem())
+	if deployment.GetPlacements()[0].GetProblem().GetReason() != string(loco.ProblemImageUser) ||
+		deployment.GetPlacements()[0].GetProblem().GetDetail() != detail {
+		t.Fatalf("deployment problem=%v", deployment.GetPlacements()[0].GetProblem())
 	}
 	if deployment.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("deployment phase = %s, want failed", deployment.GetStatus())

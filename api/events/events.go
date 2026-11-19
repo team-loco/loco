@@ -140,6 +140,7 @@ const (
 	FieldReason        = "reason"
 	FieldPlacementID   = "placementId"
 	FieldRegion        = "region"
+	FieldRegions       = "regions"
 	FieldEmail         = "email"
 	FieldOrgName       = "org_name"
 	FieldInviterName   = "inviter_name"

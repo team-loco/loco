@@ -30,19 +30,21 @@ func (q *Queries) AllocateActivitySeq(ctx context.Context, arg AllocateActivityS
 }
 
 const insertDeploymentActivity = `-- name: InsertDeploymentActivity :exec
-INSERT INTO deployment_activity(deployment_id, seq, revision, at, severity, replica_uid, replica_name, message)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+INSERT INTO deployment_activity(deployment_id, seq, revision, at, severity, replica_uid, replica_name, message, cluster_id, region)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type InsertDeploymentActivityParams struct {
-	DeploymentID uuid.UUID `json:"deploymentId"`
-	Seq          int64     `json:"seq"`
-	Revision     int64     `json:"revision"`
-	At           time.Time `json:"at"`
-	Severity     string    `json:"severity"`
-	ReplicaUid   string    `json:"replicaUid"`
-	ReplicaName  string    `json:"replicaName"`
-	Message      string    `json:"message"`
+	DeploymentID uuid.UUID  `json:"deploymentId"`
+	Seq          int64      `json:"seq"`
+	Revision     int64      `json:"revision"`
+	At           time.Time  `json:"at"`
+	Severity     string     `json:"severity"`
+	ReplicaUid   string     `json:"replicaUid"`
+	ReplicaName  string     `json:"replicaName"`
+	Message      string     `json:"message"`
+	ClusterID    *uuid.UUID `json:"clusterId"`
+	Region       string     `json:"region"`
 }
 
 func (q *Queries) InsertDeploymentActivity(ctx context.Context, arg InsertDeploymentActivityParams) error {
@@ -55,12 +57,14 @@ func (q *Queries) InsertDeploymentActivity(ctx context.Context, arg InsertDeploy
 		arg.ReplicaUid,
 		arg.ReplicaName,
 		arg.Message,
+		arg.ClusterID,
+		arg.Region,
 	)
 	return err
 }
 
 const listDeploymentActivity = `-- name: ListDeploymentActivity :many
-SELECT deployment_id, seq, revision, at, severity, replica_uid, replica_name, message FROM deployment_activity WHERE deployment_id = $1 AND seq > $2
+SELECT deployment_id, seq, revision, at, severity, replica_uid, replica_name, message, cluster_id, region FROM deployment_activity WHERE deployment_id = $1 AND seq > $2
 ORDER BY seq LIMIT $3
 `
 
@@ -88,6 +92,8 @@ func (q *Queries) ListDeploymentActivity(ctx context.Context, arg ListDeployment
 			&i.ReplicaUid,
 			&i.ReplicaName,
 			&i.Message,
+			&i.ClusterID,
+			&i.Region,
 		); err != nil {
 			return nil, err
 		}
@@ -100,16 +106,18 @@ func (q *Queries) ListDeploymentActivity(ctx context.Context, arg ListDeployment
 }
 
 const lockRollout = `-- name: LockRollout :one
-SELECT snapshot FROM deployment_rollouts WHERE deployment_id = $1 AND revision = $2 FOR UPDATE
+SELECT snapshot FROM deployment_rollouts
+WHERE deployment_id = $1 AND cluster_id = $2 AND revision = $3 FOR UPDATE
 `
 
 type LockRolloutParams struct {
 	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
 	Revision     int64     `json:"revision"`
 }
 
 func (q *Queries) LockRollout(ctx context.Context, arg LockRolloutParams) ([]byte, error) {
-	row := q.db.QueryRow(ctx, lockRollout, arg.DeploymentID, arg.Revision)
+	row := q.db.QueryRow(ctx, lockRollout, arg.DeploymentID, arg.ClusterID, arg.Revision)
 	var snapshot []byte
 	err := row.Scan(&snapshot)
 	return snapshot, err
@@ -125,31 +133,38 @@ func (q *Queries) NotifyDeploymentActivity(ctx context.Context, deploymentID str
 }
 
 const openRollout = `-- name: OpenRollout :exec
-INSERT INTO deployment_rollouts(deployment_id, revision)
-VALUES ($1, $2) ON CONFLICT DO NOTHING
+INSERT INTO deployment_rollouts(deployment_id, cluster_id, revision)
+VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
 `
 
 type OpenRolloutParams struct {
 	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
 	Revision     int64     `json:"revision"`
 }
 
 func (q *Queries) OpenRollout(ctx context.Context, arg OpenRolloutParams) error {
-	_, err := q.db.Exec(ctx, openRollout, arg.DeploymentID, arg.Revision)
+	_, err := q.db.Exec(ctx, openRollout, arg.DeploymentID, arg.ClusterID, arg.Revision)
 	return err
 }
 
 const storeRollout = `-- name: StoreRollout :exec
-UPDATE deployment_rollouts SET snapshot = $3 WHERE deployment_id = $1 AND revision = $2
+UPDATE deployment_rollouts SET snapshot = $4 WHERE deployment_id = $1 AND cluster_id = $2 AND revision = $3
 `
 
 type StoreRolloutParams struct {
 	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
 	Revision     int64     `json:"revision"`
 	Snapshot     []byte    `json:"snapshot"`
 }
 
 func (q *Queries) StoreRollout(ctx context.Context, arg StoreRolloutParams) error {
-	_, err := q.db.Exec(ctx, storeRollout, arg.DeploymentID, arg.Revision, arg.Snapshot)
+	_, err := q.db.Exec(ctx, storeRollout,
+		arg.DeploymentID,
+		arg.ClusterID,
+		arg.Revision,
+		arg.Snapshot,
+	)
 	return err
 }

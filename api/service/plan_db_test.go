@@ -228,14 +228,22 @@ RETURNING id`
 
 func (f *deployFixture) runBuild(t *testing.T, resourceName string, buildID uuid.UUID) {
 	t.Helper()
-	spec := fmt.Sprintf(`{"build":{"type":"dockerfile","image":"%s/%s@%s","buildId":"%s"},`+
-		`"port":8080,"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}`,
-		testRegistryHost, resourceName, testDigest, buildID)
+	spec := fmt.Sprintf(`{"build":{"type":"dockerfile","image":"%s/%s@%s","buildId":"%s"},"port":8080,`+
+		`"regions":{"%s":{"cpu":"100m","memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`,
+		testRegistryHost, resourceName, testDigest, buildID, testRegion)
 	insert := `
-INSERT INTO deployments (actor_type, actor_id, method, resource_id, cluster_id, region, replicas, status, is_active,
-                         spec, spec_version, environment_id, started_at)
-SELECT 'user', (SELECT created_by FROM environments WHERE id = $5), 'cli', id, $3, $2, 1, 'running', true,
-       $4, 1, $5, NOW() FROM resources WHERE name = $1`
+WITH d AS (
+    INSERT INTO deployments (actor_type, actor_id, method, resource_id, status, trigger,
+                             spec, spec_version, environment_id, started_at)
+    SELECT 'user', (SELECT created_by FROM environments WHERE id = $5), 'cli', id, 'running', 'deploy',
+           $4, 1, $5, NOW() FROM resources WHERE name = $1
+    RETURNING id, resource_id
+), dp AS (
+    INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image, started_at)
+    SELECT id, $3, $2, 1, 'running', '', NOW() FROM d
+)
+INSERT INTO placements (resource_id, cluster_id, region, deployment_id, environment_id, desired_spec)
+SELECT resource_id, $3, $2, id, $5, '{"app_spec":{}}' FROM d`
 	args := []any{resourceName, testRegion, f.clusterID, spec, f.envID}
 	if _, err := f.pool.Exec(context.Background(), insert, args...); err != nil {
 		t.Fatalf("run build for %s: %v", resourceName, err)

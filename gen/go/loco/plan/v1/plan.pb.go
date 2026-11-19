@@ -216,7 +216,7 @@ type ApplyResponse struct {
 	Revision int64 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
 	// operations are the operations performed, in service name order.
 	Operations []*PlanOperation `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
-	// deployments are the deployments the apply started, one per service and region.
+	// deployments are the deployments the apply started, one per service.
 	Deployments   []*StartedDeployment `protobuf:"bytes,3,rep,name=deployments,proto3" json:"deployments,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -277,8 +277,8 @@ func (x *ApplyResponse) GetDeployments() []*StartedDeployment {
 type StartedDeployment struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Service       string                 `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
-	Region        string                 `protobuf:"bytes,2,opt,name=region,proto3" json:"region,omitempty"`
 	DeploymentId  string                 `protobuf:"bytes,3,opt,name=deployment_id,json=deploymentId,proto3" json:"deployment_id,omitempty"`
+	Regions       []string               `protobuf:"bytes,4,rep,name=regions,proto3" json:"regions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -320,18 +320,18 @@ func (x *StartedDeployment) GetService() string {
 	return ""
 }
 
-func (x *StartedDeployment) GetRegion() string {
-	if x != nil {
-		return x.Region
-	}
-	return ""
-}
-
 func (x *StartedDeployment) GetDeploymentId() string {
 	if x != nil {
 		return x.DeploymentId
 	}
 	return ""
+}
+
+func (x *StartedDeployment) GetRegions() []string {
+	if x != nil {
+		return x.Regions
+	}
+	return nil
 }
 
 // ApplyRefusal is the detail of a FAILED_PRECONDITION error from Apply.
@@ -762,11 +762,11 @@ const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\n" +
 	"operations\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\n" +
 	"operations\x12A\n" +
-	"\vdeployments\x18\x03 \x03(\v2\x1f.loco.plan.v1.StartedDeploymentR\vdeployments\"j\n" +
+	"\vdeployments\x18\x03 \x03(\v2\x1f.loco.plan.v1.StartedDeploymentR\vdeployments\"r\n" +
 	"\x11StartedDeployment\x12\x18\n" +
-	"\aservice\x18\x01 \x01(\tR\aservice\x12\x16\n" +
-	"\x06region\x18\x02 \x01(\tR\x06region\x12#\n" +
-	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\"\x95\x02\n" +
+	"\aservice\x18\x01 \x01(\tR\aservice\x12#\n" +
+	"\rdeployment_id\x18\x03 \x01(\tR\fdeploymentId\x12\x18\n" +
+	"\aregions\x18\x04 \x03(\tR\aregionsJ\x04\b\x02\x10\x03\"\x95\x02\n" +
 	"\fApplyRefusal\x12/\n" +
 	"\x06errors\x18\x01 \x03(\v2\x17.loco.plan.v1.PlanErrorR\x06errors\x12=\n" +
 	"\vunconfirmed\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\vunconfirmed\x12\x1a\n" +

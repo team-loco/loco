@@ -1,21 +1,23 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, rollout_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 RETURNING id;
+
+-- name: CreateDeploymentPlacement :exec
+INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image)
+VALUES ($1, $2, $3, $4, $5, $6);
 
 -- name: GetDeploymentByID :one
 SELECT * FROM deployments WHERE id = $1;
 
+-- name: ListDeploymentPlacements :many
+SELECT * FROM deployment_placements WHERE deployment_id = $1 ORDER BY region, cluster_id;
+
 -- name: ListResourceDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
- COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
-   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
-     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
- COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
- (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
+       deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -41,12 +43,7 @@ LIMIT sqlc.arg('page_size');
 
 -- name: ListEnvironmentDeployments :many
 SELECT sqlc.embed(d), r.type AS resource_type,
- COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
-   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
-     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
- COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
- (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
+       deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -70,73 +67,9 @@ WHERE r.workspace_id = sqlc.arg('workspace_id')
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT sqlc.arg('page_size');
 
--- name: GetActiveDeploymentForResourceAndRegion :one
-SELECT * FROM deployments
-WHERE resource_id = $1 AND environment_id = $2 AND region = $3 AND is_active = true
-ORDER BY created_at DESC
-LIMIT 1;
-
--- name: UpdateDeploymentStatusAndActive :exec
-UPDATE deployments
-SET status = $2, is_active = $3,
- completed_at = CASE WHEN $2::deployment_status IN ('failed','canceled','superseded') THEN COALESCE(completed_at,NOW()) ELSE NULL END,
- updated_at = NOW()
-WHERE id = $1;
-
--- name: GetDeploymentResourceID :one
-SELECT resource_id FROM deployments WHERE id = $1;
-
--- name: ListActiveDeploymentsForResource :many
-SELECT * FROM deployments
-WHERE resource_id = $1 AND is_active = true
-ORDER BY created_at DESC;
-
--- name: AdvanceDeploymentStatus :execrows
-UPDATE deployments
-SET status = sqlc.arg(status),
-    started_at = CASE
-        WHEN sqlc.arg(status)::deployment_status = 'running' THEN COALESCE(started_at, NOW())
-        ELSE started_at
-    END,
-    completed_at = CASE
-        WHEN sqlc.arg(status)::deployment_status IN ('superseded', 'failed', 'canceled') THEN NOW()
-        ELSE NULL
-    END,
-    updated_at = NOW()
-WHERE id = sqlc.arg(id)
-  AND is_active = true
-  AND status::text = ANY(sqlc.arg(from_statuses)::text[]);
-
--- name: ListResourcesRunningOutsideEnvironment :many
-SELECT DISTINCT resource_id FROM deployments
-WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
-  AND environment_id <> sqlc.arg(environment_id)
-  AND is_active = true;
-
--- name: ListActiveDeploymentsForEnvironment :many
-SELECT * FROM deployments
-WHERE environment_id = $1 AND is_active = true
-ORDER BY resource_id, created_at DESC;
-
--- name: GetDeploymentEvent :one
--- creator_* is NULL when the creating user, or the API token that names it, no longer exists.
-SELECT d.resource_id, d.environment_id, d.region, d.spec, d.actor_type, d.actor_id,
-       r.name AS resource_name, r.type AS resource_type,
-       u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
-FROM deployments d
-JOIN resources r ON r.id = d.resource_id
-LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
-LEFT JOIN users u ON u.id = CASE WHEN d.actor_type = 'user' THEN d.actor_id ELSE t.created_by END
-WHERE d.id = $1;
-
 -- name: GetDeploymentView :one
 SELECT sqlc.embed(d), r.type AS resource_type,
- COALESCE((SELECT snapshot FROM deployment_rollouts ro WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), '{}'::jsonb)::jsonb AS rollout_snapshot,
- COALESCE((SELECT jsonb_path_query_array(jsonb_agg(ro.replicas ORDER BY ro.placement_id), '$[*][*]')
-   FROM observed_placement_rollouts ro WHERE ro.resource_id = d.resource_id
-     AND ro.environment_id = d.environment_id AND ro.region = d.region), '[]'::jsonb)::jsonb AS observed_replicas,
- COALESCE((SELECT p.desired_revision FROM placements p WHERE p.deployment_id = d.id AND NOT p.desired_deleted LIMIT 1),
- (SELECT max(revision) FROM deployment_rollouts ro WHERE ro.deployment_id = d.id),0)::bigint AS current_revision,
+       deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url
 FROM deployments d
@@ -145,9 +78,115 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 WHERE d.id = $1;
 
+-- name: GetDeploymentResourceID :one
+SELECT resource_id FROM deployments WHERE id = $1;
+
+-- name: ListLiveDeploymentsForResource :many
+SELECT sqlc.embed(d), l.cluster_id, l.region, l.replicas, l.status AS placement_status
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+WHERE l.resource_id = $1
+ORDER BY l.environment_id, d.created_at DESC, d.id DESC, l.region, l.cluster_id;
+
+-- name: ListLiveDeploymentsForEnvironment :many
+SELECT sqlc.embed(d), l.cluster_id, l.region, l.replicas, l.status AS placement_status
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+WHERE l.environment_id = $1
+ORDER BY l.resource_id, d.created_at DESC, d.id DESC, l.region, l.cluster_id;
+
+-- name: GetLiveDeploymentForRegion :one
+SELECT sqlc.embed(d), l.cluster_id, l.region, l.replicas, l.status AS placement_status
+FROM live_deployment_placements l
+JOIN deployments d ON d.id = l.deployment_id
+WHERE l.resource_id = $1 AND l.environment_id = $2 AND l.region = $3
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT 1;
+
+-- name: ListResourcesRunningOutsideEnvironment :many
+SELECT DISTINCT resource_id FROM live_deployment_placements
+WHERE resource_id = ANY(sqlc.arg(resource_ids)::uuid[])
+  AND environment_id <> sqlc.arg(environment_id);
+
+-- name: SetDeploymentPlacementStatus :execrows
+UPDATE deployment_placements
+SET status = sqlc.arg(status),
+    started_at = CASE
+        WHEN sqlc.arg(status)::placement_status IN ('running', 'degraded') THEN COALESCE(started_at, NOW())
+        ELSE started_at
+    END,
+    completed_at = CASE
+        WHEN sqlc.arg(status)::placement_status IN ('failed', 'canceled', 'superseded') THEN COALESCE(completed_at, NOW())
+        ELSE NULL
+    END,
+    updated_at = NOW()
+WHERE deployment_id = sqlc.arg(deployment_id)
+  AND cluster_id = sqlc.arg(cluster_id)
+  AND status::text = ANY(sqlc.arg(from_statuses)::text[]);
+
+-- name: SupersedePlacements :many
+-- Retires the older deployments' placements in the cluster's region: one that never ran is canceled,
+-- one that ran is superseded. Without include_started only the never-started ones change. The
+-- placement the cluster still runs stays until the deployment is placed there.
+UPDATE deployment_placements old
+SET status = CASE WHEN old.started_at IS NULL THEN 'canceled' ELSE 'superseded' END::placement_status,
+    superseded_by = current.id,
+    completed_at = NOW(),
+    updated_at = NOW()
+FROM deployments current, deployments previous
+WHERE current.id = sqlc.arg(deployment_id)
+  AND previous.id = old.deployment_id
+  AND old.region = (
+      SELECT target.region FROM deployment_placements target
+      WHERE target.deployment_id = current.id AND target.cluster_id = sqlc.arg(cluster_id)
+  )
+  AND previous.resource_id = current.resource_id
+  AND previous.environment_id = current.environment_id
+  AND (previous.created_at, previous.id) < (current.created_at, current.id)
+  AND old.status IN ('pending', 'deploying', 'running', 'degraded', 'crashed')
+  AND (sqlc.arg(include_started)::bool OR old.started_at IS NULL)
+  AND NOT EXISTS (
+      SELECT 1 FROM placements p
+      WHERE p.resource_id = current.resource_id AND p.environment_id = current.environment_id
+        AND p.cluster_id = old.cluster_id AND p.deployment_id = old.deployment_id AND NOT p.desired_deleted
+  )
+RETURNING old.deployment_id;
+
+-- name: RecomputeDeploymentStatus :one
+WITH previous AS (
+    SELECT locked.id, locked.status FROM deployments locked WHERE locked.id = $1 FOR UPDATE
+), next AS (
+    SELECT deployment_status_from_placements($1) AS status
+)
+UPDATE deployments d
+SET status = next.status,
+    started_at = CASE
+        WHEN next.status IN ('running', 'degraded') THEN COALESCE(d.started_at, NOW())
+        ELSE d.started_at
+    END,
+    completed_at = CASE
+        WHEN next.status IN ('failed', 'canceled', 'superseded') THEN COALESCE(d.completed_at, NOW())
+        ELSE NULL
+    END,
+    updated_at = CASE WHEN next.status <> previous.status THEN NOW() ELSE d.updated_at END
+FROM previous, next
+WHERE d.id = previous.id
+RETURNING previous.status AS previous_status, d.status;
+
+-- name: GetDeploymentEvent :one
+-- creator_* is NULL when the creating user, or the API token that names it, no longer exists.
+SELECT d.resource_id, d.environment_id, d.spec, d.actor_type, d.actor_id,
+       r.name AS resource_name, r.type AS resource_type,
+       u.id AS creator_id, u.email AS creator_email, u.name AS creator_name
+FROM deployments d
+JOIN resources r ON r.id = d.resource_id
+LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
+LEFT JOIN users u ON u.id = CASE WHEN d.actor_type = 'user' THEN d.actor_id ELSE t.created_by END
+WHERE d.id = $1;
+
 -- name: PruneDeploymentHistory :execrows
--- Deletes the resource's deployments in the environment past the newest keep, except active
--- and unfinished ones and those a placement still runs.
+-- Deletes the resource's deployments in the environment past the newest keep, except unfinished
+-- ones and those a region still runs or reports.
 DELETE FROM deployments d
 WHERE d.id IN (
     SELECT old.id FROM deployments old
@@ -155,27 +194,16 @@ WHERE d.id IN (
     ORDER BY old.created_at DESC, old.id DESC
     OFFSET sqlc.arg(keep)::int
 )
-  AND NOT d.is_active
   AND d.status IN ('superseded', 'failed', 'canceled')
   AND NOT EXISTS (SELECT 1 FROM placements p WHERE p.deployment_id = d.id)
   AND NOT EXISTS (
       SELECT 1 FROM observed_placement_rollouts ro
       WHERE ro.resource_id = d.resource_id AND ro.environment_id = d.environment_id
-        AND ro.cluster_id = d.cluster_id
         AND (ro.reported_deployment_id = d.id OR EXISTS (
             SELECT 1 FROM jsonb_array_elements(COALESCE(ro.snapshot->'replicas', '[]'::jsonb)) replica
             WHERE replica->>'deployment_id' = d.id::text AND replica->>'state' NOT IN ('Stopped', 'Killed')
         ))
   );
-
--- name: SupersedePreviousDeployments :exec
-UPDATE deployments old SET status = 'superseded', completed_at = NOW(), updated_at = NOW()
-FROM deployments current
-WHERE current.id = $1 AND old.resource_id = current.resource_id
- AND old.environment_id = current.environment_id AND old.region = current.region
- AND NOT old.is_active AND old.started_at IS NOT NULL
- AND old.status IN ('running','deploying','failed')
- AND (old.created_at, old.id) < (current.created_at, current.id);
 
 -- name: LockPlacementResource :one
 SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
@@ -184,32 +212,39 @@ WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r;
 -- name: ListBuildingDeployments :many
 SELECT * FROM deployments
 WHERE spec->'build'->>'buildId' = sqlc.arg(build_id)::text
- AND status = 'building' AND is_active
+ AND status = 'building'
 ORDER BY id FOR UPDATE;
 
 -- name: SetDeploymentBuildImage :exec
+WITH placed AS (
+    UPDATE deployment_placements SET image = sqlc.arg(image)::text, updated_at = NOW()
+    WHERE deployment_id = sqlc.arg(id) AND status = 'pending'
+)
 UPDATE deployments SET spec = jsonb_set(spec - 'env', '{build,image}', to_jsonb(sqlc.arg(image)::text))
 WHERE id = sqlc.arg(id);
 
 -- name: SetBuildingDeploymentEnv :exec
-UPDATE deployments
-SET spec = jsonb_set(spec, '{env}', COALESCE(sqlc.arg(desired_spec)::jsonb #> '{app_spec,serviceSpec,deployment,env}', '{}'::jsonb))
+UPDATE deployments SET spec = jsonb_set(spec, '{env}', sqlc.arg(env)::jsonb)
 WHERE id = sqlc.arg(id);
 
 -- name: PreviousDeploymentForRollback :one
+-- The newest deployment older than the failed one that ran, while nothing newer than the
+-- failed one exists.
 SELECT previous.* FROM deployments previous JOIN deployments failed ON failed.id = $1
 WHERE previous.resource_id = failed.resource_id
- AND previous.environment_id = failed.environment_id AND previous.region = failed.region
+ AND previous.environment_id = failed.environment_id
  AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
  AND previous.started_at IS NOT NULL
- AND NOT previous.is_active
  AND NOT EXISTS (
  SELECT 1 FROM deployments newer
  WHERE newer.resource_id = failed.resource_id
- AND newer.environment_id = failed.environment_id AND newer.region = failed.region
+ AND newer.environment_id = failed.environment_id
  AND (newer.created_at, newer.id) > (failed.created_at, failed.id)
  )
-ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1 FOR UPDATE OF previous;
+ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1;
 
--- name: PlacementForDeployment :one
-SELECT * FROM placements WHERE deployment_id = $1 AND NOT desired_deleted;
+-- name: GetDeploymentPlacement :one
+SELECT * FROM deployment_placements WHERE deployment_id = $1 AND cluster_id = $2;
+
+-- name: LockDeployment :exec
+SELECT id FROM deployments WHERE id = $1 FOR UPDATE;

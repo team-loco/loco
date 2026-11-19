@@ -156,7 +156,7 @@ func assertServingDeployments(t *testing.T, f *deployFixture, desired uuid.UUID,
 		t.Fatal(err)
 	}
 	var got []uuid.UUID
-	for _, replica := range deployment.GetReplicas() {
+	for _, replica := range deployment.GetPlacements()[0].GetReplicas() {
 		if replica.GetReady() && replica.GetDeploymentId() != "" {
 			got = append(got, uuid.MustParse(replica.GetDeploymentId()))
 		}
@@ -339,11 +339,15 @@ func TestObservationDeploymentMustBelongToPlacement(t *testing.T) {
 	foreignResource := f.otherResource(t, "foreign")
 	var foreign uuid.UUID
 	err := f.pool.QueryRow(t.Context(), `
-INSERT INTO deployments(resource_id,cluster_id,region,replicas,status,is_active,
- environment_id,spec,spec_version,actor_type,actor_id,method)
-SELECT $2,d.cluster_id,d.region,d.replicas,d.status,true,d.environment_id,d.spec,
- d.spec_version,d.actor_type,d.actor_id,d.method
-FROM deployments d WHERE d.resource_id=$1 RETURNING id`, f.resourceID, foreignResource).Scan(&foreign)
+WITH d AS (
+    INSERT INTO deployments(resource_id,status,trigger,environment_id,spec,spec_version,actor_type,actor_id,method)
+    SELECT $2,d.status,d.trigger,d.environment_id,d.spec,d.spec_version,d.actor_type,d.actor_id,d.method
+    FROM deployments d WHERE d.resource_id=$1 RETURNING id
+), dp AS (
+    INSERT INTO deployment_placements(deployment_id,cluster_id,region,replicas,status,image)
+    SELECT d.id,$3,$4,1,'deploying','' FROM d
+)
+SELECT id FROM d`, f.resourceID, foreignResource, f.clusterID, testRegion).Scan(&foreign)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,13 +380,16 @@ func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
 		Replicas: []*deploymentv1.Replica{{Uid: "old-region-pod", DeploymentId: first.String(), Ready: true,
 			State: string(loco.ReplicaServing), PlacementRevision: old.DesiredRevision}},
 	})
-	if _, err = f.pool.Exec(ctx, `UPDATE deployments SET is_active=false WHERE id=$1`, first); err != nil {
-		t.Fatal(err)
-	}
 	params := f.paramsFor(f.otherCluster)
 	params.Status = genDb.DeploymentStatusBuilding
-	building, err := f.queries.CreateDeployment(ctx, params)
+	building, err := f.queries.CreateDeployment(ctx, params.CreateDeploymentParams)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.queries.CreateDeploymentPlacement(ctx, genDb.CreateDeploymentPlacementParams{
+		DeploymentID: building, ClusterID: f.otherCluster, Region: testRegion, Replicas: 1,
+		Status: genDb.PlacementStatusPending,
+	}); err != nil {
 		t.Fatal(err)
 	}
 	assertServingDeployments(t, f, building, first)

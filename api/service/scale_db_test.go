@@ -40,7 +40,7 @@ func scaleResourceIn(t *testing.T, f *deployFixture, environmentID uuid.UUID, re
 func TestScaleResourceRejectsReplicasTheControllerRejects(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestScaleResourceRejectsReplicasTheControllerRejects(t *testing.T) {
 func TestScaleResourceWithAnUnreadableStoredSpecIsAServerFailure(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 	f.finishRollouts(t)
@@ -75,7 +75,7 @@ func TestScaleResourceWithAnUnreadableStoredSpecIsAServerFailure(t *testing.T) {
 func TestScaleResourceWritesTheReplicasIntoTheDesiredSpec(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 
@@ -105,7 +105,7 @@ func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
 			if tc.domain != "" {
 				f.addDomain(t, tc.domain, true)
 			}
-			if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+			if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 				t.Fatalf("create deployment: %v", err)
 			}
 			f.finishRollouts(t)
@@ -128,7 +128,7 @@ func TestScaleResourceKeepsTheRouteOfTheDeployment(t *testing.T) {
 func TestScaleResourceKeepsTheWorkspaceOrganization(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 
@@ -147,7 +147,7 @@ func (f *deployFixture) deployToProductionAndStaging(t *testing.T) uuid.UUID {
 	t.Helper()
 	stagingID := f.addStagingEnvironment(t)
 
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("deploy production: %v", err)
 	}
 	if _, err := deployServiceIn(t, f, imageService(), stagingID); err != nil {
@@ -156,7 +156,7 @@ func (f *deployFixture) deployToProductionAndStaging(t *testing.T) uuid.UUID {
 	return stagingID
 }
 
-func (f *deployFixture) activeDeployment(t *testing.T, environmentID uuid.UUID) genDb.Deployment {
+func (f *deployFixture) activeDeployment(t *testing.T, environmentID uuid.UUID) liveDeployment {
 	t.Helper()
 	deployments := f.activeDeployments(t, environmentID)
 	if len(deployments) != 1 {
@@ -207,7 +207,7 @@ func TestScaleResourceRefusesAnEnvironmentWithoutADeployment(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	stagingID := f.addStagingEnvironment(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("deploy production: %v", err)
 	}
 	production := f.activeDeployment(t, f.envID)
@@ -222,7 +222,7 @@ func TestScaleResourceRefusesAnEnvironmentWithoutADeployment(t *testing.T) {
 func TestScaleResourceRefusesAnEnvironmentOfAnotherWorkspace(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("deploy production: %v", err)
 	}
 	foreignID := f.tenant.defaultEnvironment(t, f.tenant.workspace(t, "other"))

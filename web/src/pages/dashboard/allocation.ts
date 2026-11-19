@@ -1,4 +1,4 @@
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
 
 import type { EnvResource } from "./useDashboardData";
@@ -23,7 +23,7 @@ function resourceAllocation(
 	let memMi = 0;
 	for (const region of item.environment?.regions ?? []) {
 		const deployment = item.envDeployments.find((d) => d.id === region.deploymentId);
-		const spec = deployment === undefined ? undefined : getServiceSpec(deployment);
+		const spec = regionTarget(deployment === undefined ? undefined : getServiceSpec(deployment), region.region);
 		cpuMilli += parseCpuMilli(spec?.cpu ?? "") * region.desiredReplicas;
 		memMi += parseMemMi(spec?.memory ?? "") * region.desiredReplicas;
 	}

@@ -24,17 +24,22 @@ if "replicas" not in state:
         "platform": "linux/amd64",
         "observability": {"injectOtel": True},
         "build": {"type": "image", "image": "registry.example.test/replicas:v2"},
-        "cpu": "500m",
-        "memory": "256Mi",
-        "minReplicas": 2,
-        "maxReplicas": 2,
         "port": 8080,
+        "regions": {
+            region: {
+                "cpu": "500m",
+                "memory": "256Mi",
+                "minReplicas": 2,
+                "maxReplicas": 2,
+            }
+            for region in (EAST, WEST)
+        },
     }
     clusters = {
         region: evidence.seed_cluster(state, region, name=f"replicas-{region}")
         for region in (EAST, WEST)
     }
-    deployments = {region: str(uuid.uuid4()) for region in (EAST, WEST)}
+    deployment = str(uuid.uuid4())
     resource = evidence.seed_resources(
         state,
         [
@@ -43,30 +48,28 @@ if "replicas" not in state:
                 "name": "replicas-ui",
                 "deployments": [
                     {
-                        "cluster": clusters[region],
                         "environment": "production",
-                        "region": region,
-                        "id": deployments[region],
+                        "id": deployment,
                         "spec": spec,
                         "status": "deploying",
                         "age": "40 seconds",
-                        "ready_replicas": 1 if region == EAST else 2,
+                        "placements": {
+                            region: {
+                                "cluster": clusters[region],
+                                "ready_replicas": 1 if region == EAST else 2,
+                            }
+                            for region in (EAST, WEST)
+                        },
                     }
-                    for region in (EAST, WEST)
                 ],
             }
         ],
     )["acme/shared/replicas-ui"]
-    rollout = str(uuid.uuid4())
-    sql(
-        state,
-        f"UPDATE deployments SET rollout_id='{rollout}' WHERE resource_id='{resource}';",
-    )
     state["replicas"] = {
         "org": state["orgs"]["acme"]["id"],
         "resource": resource,
         "clusters": clusters,
-        "deployments": deployments,
+        "deployment": deployment,
     }
     evidence.write_json(Path(args.state), state)
 
@@ -77,7 +80,7 @@ path = f"/org/{r['org']}/wks/{workspace}/resource/{r['resource']}?env=production
 def report_replicas():
     """Writes each region's rollout report with times relative to now."""
     now = int(time.time())
-    deployments = r["deployments"]
+    deployment = r["deployment"]
 
     def replica(name, deployment, *, ready=True, **fields):
         return {
@@ -94,10 +97,10 @@ def report_replicas():
 
     snapshots = {
         EAST: [
-            replica("replicas-ui-east-a1", deployments[EAST]),
+            replica("replicas-ui-east-a1", deployment),
             replica(
                 "replicas-ui-east-b2",
-                deployments[EAST],
+                deployment,
                 ready=False,
                 restarts=4,
                 started_at={"seconds": now - 20 * 60},
@@ -109,21 +112,22 @@ def report_replicas():
             ),
         ],
         WEST: [
-            replica("replicas-ui-west-c3", deployments[WEST]),
-            replica("replicas-ui-west-d4", deployments[WEST]),
+            replica("replicas-ui-west-c3", deployment),
+            replica("replicas-ui-west-d4", deployment),
         ],
     }
     statements = []
     for region in (EAST, WEST):
+        cluster = r["clusters"][region]
         placement = sql(
             state,
-            f"SELECT id FROM placements WHERE deployment_id='{deployments[region]}';",
+            f"SELECT id FROM placements WHERE deployment_id='{deployment}' AND cluster_id='{cluster}';",
         )
         snapshot = {"placementId": placement, "replicas": snapshots[region]}
         statements.append(
-            "INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) "
-            f"VALUES('{deployments[region]}',1,{evidence.sql_literal(json.dumps(snapshot))}) "
-            "ON CONFLICT(deployment_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;"
+            "INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) "
+            f"VALUES('{deployment}','{cluster}',1,{evidence.sql_literal(json.dumps(snapshot))}) "
+            "ON CONFLICT(deployment_id,cluster_id,revision) DO UPDATE SET snapshot=EXCLUDED.snapshot;"
         )
     sql(state, "BEGIN;\n" + "\n".join(statements) + "\nCOMMIT;")
 

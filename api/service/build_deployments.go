@@ -61,6 +61,8 @@ func finishedBuildActivity(build genDb.Build) activityEntry {
 	return entry
 }
 
+// updateBuildingDeployments moves the deployments waiting for a finished build on: each pending
+// placement is placed with the built image, or fails or is canceled with the build.
 func updateBuildingDeployments(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -73,36 +75,57 @@ func updateBuildingDeployments(
 		return fmt.Errorf("list building deployments: %w", err)
 	}
 	for _, deployment := range deployments {
-		status := deployment.Status
-		switch build.Status {
-		case genDb.BuildStatusSucceeded:
-			if err := placeBuiltDeployment(ctx, qtx, deployment, build, defaults); err != nil {
-				return err
-			}
-			status = genDb.DeploymentStatusDeploying
-		case genDb.BuildStatusFailed:
-			if err := storeBuildProblem(ctx, qtx, deployment.ID, build); err != nil {
-				return err
-			}
-			status = genDb.DeploymentStatusFailed
-		case genDb.BuildStatusCanceled:
-			status = genDb.DeploymentStatusCanceled
+		if err := writeDeploymentActivity(ctx, qtx, deployment.ID, activityScope{}, entries); err != nil {
+			return err
 		}
-		if status != deployment.Status {
-			if err := advanceDeploymentStatus(ctx, qtx, genDb.AdvanceDeploymentStatusParams{
-				ID: deployment.ID, Status: status, FromStatuses: []string{string(genDb.DeploymentStatusBuilding)},
-			}, build.Message, defaults); err != nil {
+		if !buildStatusFinished(build.Status) {
+			continue
+		}
+		placements, err := qtx.ListDeploymentPlacements(ctx, deployment.ID)
+		if err != nil {
+			return fmt.Errorf("list building placements: %w", err)
+		}
+		status := map[genDb.BuildStatus]genDb.PlacementStatus{
+			genDb.BuildStatusSucceeded: genDb.PlacementStatusDeploying,
+			genDb.BuildStatusFailed:    genDb.PlacementStatusFailed,
+			genDb.BuildStatusCanceled:  genDb.PlacementStatusCanceled,
+		}[build.Status]
+		if build.Status == genDb.BuildStatusSucceeded {
+			if err := placeBuiltDeployment(ctx, qtx, deployment, placements, build, defaults); err != nil {
 				return err
 			}
 		}
-		if err := writeDeploymentActivity(ctx, qtx, deployment.ID, 0, entries); err != nil {
+		for _, placement := range placements {
+			if placement.Status != genDb.PlacementStatusPending {
+				continue
+			}
+			if build.Status == genDb.BuildStatusFailed {
+				if err := storeBuildProblem(ctx, qtx, deployment.ID, placement.ClusterID, build); err != nil {
+					return err
+				}
+			}
+			if _, err := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
+				Status:       status,
+				DeploymentID: deployment.ID,
+				ClusterID:    placement.ClusterID,
+				FromStatuses: placementStatusNames(genDb.PlacementStatusPending),
+			}); err != nil {
+				return fmt.Errorf("advance building placement: %w", err)
+			}
+		}
+		if err := recordDeploymentStatus(ctx, qtx, deployment.ID, build.Message, defaults); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func storeBuildProblem(ctx context.Context, qtx *genDb.Queries, deploymentID uuid.UUID, build genDb.Build) error {
+func storeBuildProblem(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	deploymentID, clusterID uuid.UUID,
+	build genDb.Build,
+) error {
 	snapshot, err := json.Marshal(rolloutSnapshot{Problem: &agentv1.ProblemReport{
 		Reason: string(loco.ProblemBuildFailed),
 		Detail: build.Message,
@@ -111,16 +134,22 @@ func storeBuildProblem(ctx context.Context, qtx *genDb.Queries, deploymentID uui
 	if err != nil {
 		return fmt.Errorf("encode build problem: %w", err)
 	}
-	if err := qtx.OpenRollout(ctx, genDb.OpenRolloutParams{DeploymentID: deploymentID}); err != nil {
+	if err := qtx.OpenRollout(
+		ctx,
+		genDb.OpenRolloutParams{DeploymentID: deploymentID, ClusterID: clusterID},
+	); err != nil {
 		return fmt.Errorf("open build rollout: %w", err)
 	}
-	return qtx.StoreRollout(ctx, genDb.StoreRolloutParams{DeploymentID: deploymentID, Snapshot: snapshot})
+	return qtx.StoreRollout(ctx, genDb.StoreRolloutParams{
+		DeploymentID: deploymentID, ClusterID: clusterID, Snapshot: snapshot,
+	})
 }
 
 func placeBuiltDeployment(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	deployment genDb.Deployment,
+	placements []genDb.DeploymentPlacement,
 	build genDb.Build,
 	defaults servicedefaults.Defaults,
 ) error {
@@ -132,10 +161,23 @@ func placeBuiltDeployment(
 	if err != nil {
 		return err
 	}
+	render, err := newPlacementRenderer(ctx, qtx, resource, deployment.EnvironmentID, defaults)
+	if err != nil {
+		return err
+	}
 	image := buildImage(build)
 	spec.GetService().GetBuild().Image = image
-	if err := placeDeployment(ctx, qtx, resource, deployment, spec, defaults); err != nil {
-		return err
+	for _, placement := range placements {
+		if placement.Status != genDb.PlacementStatusPending {
+			continue
+		}
+		target := placementTarget{region: placement.Region, clusterID: placement.ClusterID}
+		if err := placeDeployment(ctx, qtx, render, deployment, target, spec); err != nil {
+			return err
+		}
+		if err := supersedePlacements(ctx, qtx, deployment.ID, placement.ClusterID, false); err != nil {
+			return err
+		}
 	}
 	return qtx.SetDeploymentBuildImage(ctx, genDb.SetDeploymentBuildImageParams{ID: deployment.ID, Image: image})
 }

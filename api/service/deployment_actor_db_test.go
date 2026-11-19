@@ -52,7 +52,7 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 			created, err := clients.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
-				Region:        testRegion,
+				Regions:       []string{testRegion},
 				Spec: &deploymentv1.DeploymentSpec{
 					Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
 				},
@@ -82,16 +82,24 @@ func TestDeploymentAttributionFromCredentials(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			active, err := f.queries.GetActiveDeploymentForResourceAndRegion(
+			active, err := f.queries.GetLiveDeploymentForRegion(
 				t.Context(),
-				genDb.GetActiveDeploymentForResourceAndRegionParams{
+				genDb.GetLiveDeploymentForRegionParams{
 					ResourceID: f.resourceID, EnvironmentID: f.envID, Region: testRegion,
 				},
 			)
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertDeploymentActor(t, clients, f.resourceID.String(), active.ID.String(), method, actorID, commit)
+			assertDeploymentActor(
+				t,
+				clients,
+				f.resourceID.String(),
+				active.Deployment.ID.String(),
+				method,
+				actorID,
+				commit,
+			)
 
 			file := []byte(planFileHeader + applyFileWorker)
 			planned, err := clients.Plan.Plan(

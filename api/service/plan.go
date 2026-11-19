@@ -84,7 +84,7 @@ type liveEnvironment struct {
 	services    []configplan.Service
 	resources   map[string]genDb.Resource
 	domains     map[uuid.UUID][]genDb.ResourceDomain
-	deployments map[uuid.UUID][]genDb.Deployment
+	deployments map[uuid.UUID][]liveDeployment
 	builds      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow
 	elsewhere   map[uuid.UUID]bool
 }
@@ -261,9 +261,13 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list domains: %w", err)
 	}
-	deployments, err := s.queries.ListActiveDeploymentsForEnvironment(ctx, env.ID)
+	rows, err := s.queries.ListLiveDeploymentsForEnvironment(ctx, env.ID)
 	if err != nil {
 		return liveEnvironment{}, fmt.Errorf("list deployments: %w", err)
+	}
+	deployments := make([]genDb.ListLiveDeploymentsForResourceRow, 0, len(rows))
+	for _, row := range rows {
+		deployments = append(deployments, genDb.ListLiveDeploymentsForResourceRow(row))
 	}
 	latestBuilds, err := s.queries.ListLatestSucceededBuildsForResources(ctx, ids)
 	if err != nil {
@@ -281,7 +285,7 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 		services:    make([]configplan.Service, 0, len(resources)),
 		resources:   make(map[string]genDb.Resource, len(resources)),
 		domains:     map[uuid.UUID][]genDb.ResourceDomain{},
-		deployments: map[uuid.UUID][]genDb.Deployment{},
+		deployments: map[uuid.UUID][]liveDeployment{},
 		builds:      map[uuid.UUID]genDb.ListLatestSucceededBuildsForResourcesRow{},
 		elsewhere:   make(map[uuid.UUID]bool, len(runningElsewhere)),
 	}
@@ -291,7 +295,7 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	for _, domain := range domains {
 		live.domains[domain.ResourceID] = append(live.domains[domain.ResourceID], domain)
 	}
-	for _, deployment := range deployments {
+	for _, deployment := range liveDeployments(deployments) {
 		live.deployments[deployment.ResourceID] = append(live.deployments[deployment.ResourceID], deployment)
 	}
 	for _, build := range latestBuilds {
@@ -342,7 +346,7 @@ func (s *PlanServer) serviceSecrets(
 	return secrets, nil
 }
 
-func deploymentRegions(deployments []genDb.Deployment) []string {
+func deploymentRegions(deployments []liveDeployment) []string {
 	regions := make([]string, 0, len(deployments))
 	for _, deployment := range deployments {
 		regions = append(regions, deployment.Region)
@@ -357,7 +361,7 @@ func liveState(
 	defaults servicedefaults.Defaults,
 	res genDb.Resource,
 	domains []genDb.ResourceDomain,
-	deployments []genDb.Deployment,
+	deployments []liveDeployment,
 ) (configplan.State, error) {
 	resourceSpec, err := converter.DeserializeResourceSpec(res.Spec, res.Type)
 	if err != nil {
@@ -417,7 +421,7 @@ func liveState(
 		if !target.GetEnabled() {
 			target = nil
 		}
-		resources := defaults.Fill(target, service)
+		resources := defaults.Fill(target, service.GetRegions()[deployment.Region])
 		state.Regions[deployment.Region] = configplan.Region{
 			CPU:         resources.CPU,
 			Memory:      resources.Memory,
@@ -450,7 +454,7 @@ func liveState(
 			state.Dockerfile = deployed.DockerfilePath
 			state.Context = deployed.Context
 		}
-		env, envErr := desiredEnv(ctx, queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
+		env, envErr := liveEnv(ctx, queries, deployment)
 		if envErr != nil {
 			return configplan.State{}, fmt.Errorf("deployment %s env: %w", deployment.ID, envErr)
 		}

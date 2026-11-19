@@ -5,17 +5,19 @@ import { EnvironmentStatusSchema, ResourceSchema } from "@gen/loco/resource/v1/r
 
 import { allocation } from "./allocation";
 
+const REGION = "us-east-1";
+
 function deployment(id: string, cpu: string, memory: string): Deployment {
 	return create(DeploymentSchema, {
 		id,
-		spec: { spec: { case: "service", value: { cpu, memory } } },
+		spec: { spec: { case: "service", value: { regions: { [REGION]: { cpu, memory } } } } },
 	});
 }
 
 function item(name: string, regions: { deploymentId: string; desiredReplicas: number }[], deployments: Deployment[]) {
 	return {
 		resource: create(ResourceSchema, { id: name, name, displayName: name }),
-		environment: create(EnvironmentStatusSchema, { regions }),
+		environment: create(EnvironmentStatusSchema, { regions: regions.map((r) => ({ region: REGION, ...r })) }),
 		envDeployments: deployments,
 	};
 }

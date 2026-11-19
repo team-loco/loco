@@ -12,7 +12,7 @@ import {
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import {
 	IMAGE_RE,
 	commandEntries,
@@ -116,8 +116,10 @@ export function baseline(
 	defaults: DefaultServiceConfig,
 	rollbackOnFailure?: boolean,
 ): Baseline {
-	const template = templateRegion(regions)?.current;
+	const templateView = templateRegion(regions);
+	const template = templateView?.current;
 	const svc = template === undefined ? undefined : getServiceSpec(template);
+	const size = regionTarget(svc, templateView?.name);
 	const health = svc?.healthCheck ?? defaults.healthCheck;
 	const deployed = deployedRegions(regions);
 	return {
@@ -127,8 +129,8 @@ export function baseline(
 		image: svc?.build?.image ?? "",
 		rollbackOnFailure: rollbackOnFailure ?? defaults.rollbackOnFailure,
 		observability: observabilitySettings(svc === undefined ? defaults.observability : svc.observability),
-		cpu: svc?.cpu ?? "",
-		memory: svc?.memory ?? "",
+		cpu: size?.cpu ?? "",
+		memory: size?.memory ?? "",
 		port: svc?.port?.toString() ?? "",
 		healthPath: health?.path ?? "",
 		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
@@ -138,7 +140,7 @@ export function baseline(
 		args: commandText(svc?.args ?? []),
 		scaling: Object.fromEntries(
 			deployed.map((r) => {
-				const spec = r.current === undefined ? undefined : getServiceSpec(r.current);
+				const spec = regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name);
 				const replicas = spec?.minReplicas ?? defaults.minReplicas;
 				const cpuTarget = spec?.scalers?.cpuTarget;
 				return [
@@ -367,6 +369,19 @@ export function planSave(regions: RegionView[], draft: SettingsDraft, base: Base
 		});
 	}
 	return deploys;
+}
+
+/** The spec of one deployment to every planned region, each region keeping its own sizing. */
+export function mergedSpec(deploys: readonly RegionDeploy[], spec: DeploymentSpec): DeploymentSpec {
+	const next = clone(DeploymentSpecSchema, spec);
+	if (next.spec.case !== "service") return next;
+	next.spec.value.regions = Object.fromEntries(
+		deploys.flatMap((d) => {
+			const size = d.spec.spec.case === "service" ? d.spec.spec.value.regions[d.region] : undefined;
+			return size === undefined ? [] : [[d.region, size]];
+		}),
+	);
+	return next;
 }
 
 export function regionMapChanged(draft: SettingsDraft, base: Baseline): boolean {

@@ -668,14 +668,9 @@ def seed_resources(state, resources):
             first = resource["deployments"][0]["spec"]
             service = {
                 "regions": {
-                    deployment["region"]: {
-                        "enabled": True,
-                        **{
-                            key: deployment["spec"][key]
-                            for key in ("cpu", "memory", "minReplicas", "maxReplicas")
-                        },
-                    }
+                    region: {"enabled": True, **target}
                     for deployment in resource["deployments"]
+                    for region, target in deployment["spec"]["regions"].items()
                 }
             }
             if "port" in first:
@@ -697,6 +692,7 @@ def seed_resources(state, resources):
 
 
 def seed_deployments(state, resource_id, deployments, user="owner"):
+    """Inserts each deployment with a placement per spec region; a `live` one (the default) runs in them."""
     q = sql_literal
     target = json.loads(
         psql(
@@ -711,54 +707,64 @@ def seed_deployments(state, resource_id, deployments, user="owner"):
     for deployment in deployments:
         deployment_id = deployment.get("id") or str(uuid.uuid4())
         ids.append(deployment_id)
-        region = deployment["region"]
-        cluster = deployment.get("cluster") or seed_cluster(state, region)
         environment = target["environments"][deployment["environment"]]
         runtime = deployment["spec"]
-        replicas = runtime["minReplicas"]
-        active = deployment.get("active", True)
+        status = deployment.get("status", "running")
+        live = deployment.get("live", True)
         created = f"NOW()-{q(deployment.get('age', '0 seconds'))}::interval"
         rows.append(
-            "INSERT INTO deployments(id,resource_id,cluster_id,region,replicas,status,is_active,environment_id,spec,"
-            "spec_version,actor_type,actor_id,method,created_at,started_at) "
-            f"VALUES({q(deployment_id)},{q(resource_id)},{q(cluster)},{q(region)},{replicas},"
-            f"{q(deployment.get('status', 'running'))},{str(active).lower()},{q(environment)},{q(json.dumps(runtime))},"
-            f"1,'user',{q(actor)},{q(deployment.get('method', 'web'))},{created},{created});"
+            "INSERT INTO deployments(id,resource_id,status,environment_id,spec,spec_version,trigger,"
+            "actor_type,actor_id,method,created_at,started_at) "
+            f"VALUES({q(deployment_id)},{q(resource_id)},{q(status)},{q(environment)},{q(json.dumps(runtime))},"
+            f"1,{q(deployment.get('trigger', 'deploy'))},'user',{q(actor)},{q(deployment.get('method', 'web'))},"
+            f"{created},{created});"
         )
-        if not active:
-            continue
-        app = {
-            "type": "SERVICE",
-            "resourceId": resource_id,
-            "slug": target["slug"],
-            "workspaceId": target["workspace"],
-            "organizationId": target["org"],
-            "environmentId": environment,
-            "environmentName": deployment["environment"],
-            "deploymentId": deployment_id,
-            "region": region,
-            "serviceSpec": {
-                "deployment": {
-                    "image": runtime["build"]["image"],
-                    "observability": runtime.get("observability", {}),
-                    **({"port": runtime["port"]} if "port" in runtime else {}),
-                },
-                "resources": {
-                    "cpu": runtime["cpu"],
-                    "memory": runtime["memory"],
-                    "replicas": {
-                        "min": runtime["minReplicas"],
-                        "max": runtime["maxReplicas"],
+        for region, sizing in runtime["regions"].items():
+            placement = deployment.get("placements", {}).get(region, {})
+            cluster = placement.get("cluster") or seed_cluster(state, region)
+            placement_status = placement.get(
+                "status", "pending" if status == "building" else status
+            )
+            image = "" if placement_status == "pending" else runtime["build"]["image"]
+            rows.append(
+                "INSERT INTO deployment_placements(deployment_id,cluster_id,region,replicas,status,image,started_at) "
+                f"VALUES({q(deployment_id)},{q(cluster)},{q(region)},{sizing['minReplicas']},"
+                f"{q(placement_status)},{q(image)},{created});"
+            )
+            if not live:
+                continue
+            app = {
+                "type": "SERVICE",
+                "resourceId": resource_id,
+                "slug": target["slug"],
+                "workspaceId": target["workspace"],
+                "organizationId": target["org"],
+                "environmentId": environment,
+                "environmentName": deployment["environment"],
+                "deploymentId": deployment_id,
+                "region": region,
+                "serviceSpec": {
+                    "deployment": {
+                        "image": runtime["build"]["image"],
+                        "observability": runtime.get("observability", {}),
+                        **({"port": runtime["port"]} if "port" in runtime else {}),
+                    },
+                    "resources": {
+                        "cpu": sizing["cpu"],
+                        "memory": sizing["memory"],
+                        "replicas": {
+                            "min": sizing["minReplicas"],
+                            "max": sizing["maxReplicas"],
+                        },
                     },
                 },
-            },
-        }
-        rows.append(
-            "INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,"
-            "applied_revision,observed_revision,ready_replicas,status_updated_at) "
-            f"VALUES({q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
-            f"{q(json.dumps({'app_spec': app}))},1,1,{deployment.get('ready_replicas', replicas)},NOW());"
-        )
+            }
+            rows.append(
+                "INSERT INTO placements(resource_id,cluster_id,region,deployment_id,environment_id,desired_spec,"
+                "applied_revision,observed_revision,ready_replicas,status_updated_at) "
+                f"VALUES({q(resource_id)},{q(cluster)},{q(region)},{q(deployment_id)},{q(environment)},"
+                f"{q(json.dumps({'app_spec': app}))},1,1,{placement.get('ready_replicas', sizing['minReplicas'])},NOW());"
+            )
     if rows:
         psql(state["container"], "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
     return ids

@@ -123,7 +123,7 @@ func TestClusterRemovalRefusesWorkloadsAndForceReportsThem(t *testing.T) {
 		t.Fatalf("deploy while removed: %v", err)
 	}
 	var rows int
-	if err := f.pool.QueryRow(ctx, "SELECT count(*) FROM deployments WHERE cluster_id = $1", f.clusterID).
+	if err := f.pool.QueryRow(ctx, "SELECT count(*) FROM deployment_placements WHERE cluster_id = $1", f.clusterID).
 		Scan(&rows); err != nil {
 		t.Fatal(err)
 	}

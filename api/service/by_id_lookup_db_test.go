@@ -27,7 +27,7 @@ type byIDLookup struct {
 func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestByIDLookupsAnswerACallerWithoutAccessTheSameForExistingAndMissingIDs(t 
 	lookups := []byIDLookup{
 		{name: "CreateDeployment", existing: f.resourceID.String(), call: func(ctx context.Context, id string) error {
 			_, callErr := deployments.CreateDeployment(ctx, &deploymentv1.CreateDeploymentRequest{
-				ResourceId: id, EnvironmentId: f.envID.String(), Region: testRegion, Spec: spec,
+				ResourceId: id, EnvironmentId: f.envID.String(), Regions: []string{testRegion}, Spec: spec,
 			})
 			return callErr
 		}},

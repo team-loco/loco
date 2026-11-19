@@ -166,7 +166,8 @@ func TestRolloutConcurrentSequences(t *testing.T) {
 					DesiredReplicas:  1,
 					Replicas:         []*deploymentv1.Replica{{Uid: uuid.NewString(), State: "Serving", PlacementRevision: revision}},
 				}
-				return ingestRollout(t.Context(), qtx, id, revision, report)
+				scope := activityScope{clusterID: &f.clusterID, region: testRegion, revision: revision}
+				return ingestRollout(t.Context(), qtx, id, scope, report)
 			})
 		})
 	}
@@ -210,8 +211,9 @@ func TestRolloutActivityLimit(t *testing.T) {
 	}
 	if _, err := f.pool.Exec(
 		ctx,
-		`INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES ($1,$2,'{"count":499}')`,
+		`INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) VALUES ($1,$2,$3,'{"count":499}')`,
 		id,
+		f.clusterID,
 		p.DesiredRevision,
 	); err != nil {
 		t.Fatal(err)

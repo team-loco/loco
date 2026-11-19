@@ -168,7 +168,7 @@ func TestApplyInTwoEnvironmentsDoNotDeadlock(t *testing.T) {
 					t.Fatalf("Apply = %v, want success or a stale-revision refusal", err)
 				}
 			}
-			active, err := f.queries.ListActiveDeploymentsForResource(context.Background(), worker.ID)
+			active, err := listLiveDeploymentsForResource(context.Background(), f.queries, worker.ID)
 			if err != nil {
 				t.Fatalf("list deployments: %v", err)
 			}

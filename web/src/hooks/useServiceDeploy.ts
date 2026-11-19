@@ -91,43 +91,38 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 					secretsError = error;
 				}
 			}
-			const regions = await Promise.all(
-				form.regions.map(async (region): Promise<{ region: string; error: string | null; cause: unknown }> => {
-					if (secretsError !== undefined) {
-						const error = getErrorMessage(secretsError, "Couldn't store the secrets");
-						return { region, error, cause: secretsError };
-					}
-					try {
-						await deployments.createDeployment({
-							resourceId,
-							region,
-							environmentId: env.id,
-							secretBindings: { names: secretNames },
+			const result = await (async (): Promise<{ error: string | null; cause: unknown }> => {
+				if (secretsError !== undefined) {
+					const error = getErrorMessage(secretsError, "Couldn't store the secrets");
+					return { error, cause: secretsError };
+				}
+				try {
+					await deployments.createDeployment({
+						resourceId,
+						regions: form.regions,
+						environmentId: env.id,
+						secretBindings: { names: secretNames },
+						spec: {
 							spec: {
-								spec: {
-									case: "service",
-									value: {
-										build: { type: "image", image },
-										...replicas,
-										env: envMap,
-										port,
-										command: commandEntries(form.command),
-										args: commandEntries(form.args),
-										...health,
-									},
+								case: "service",
+								value: {
+									build: { type: "image", image },
+									regions: Object.fromEntries(form.regions.map((r) => [r, replicas])),
+									env: envMap,
+									port,
+									command: commandEntries(form.command),
+									args: commandEntries(form.args),
+									...health,
 								},
 							},
-						});
-						return { region, error: null, cause: null };
-					} catch (err) {
-						return {
-							region,
-							error: getErrorMessage(err, "Couldn't start the deployment"),
-							cause: err,
-						};
-					}
-				}),
-			);
+						},
+					});
+					return { error: null, cause: null };
+				} catch (err) {
+					return { error: getErrorMessage(err, "Couldn't start the deployment"), cause: err };
+				}
+			})();
+			const regions = form.regions.map((region) => ({ region, ...result }));
 			const failures = regions.filter((r) => r.error !== null);
 			const first = failures[0];
 			if (

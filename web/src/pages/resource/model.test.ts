@@ -58,7 +58,7 @@ describe("buildRegions", () => {
 		const history = [3, 1, 2].map((day) =>
 			create(DeploymentSchema, {
 				id: `release-${day.toString()}`,
-				region: "us-east-1",
+				placements: [{ region: "us-east-1" }],
 				status: DeploymentStatus.SUPERSEDED,
 				createdAt: msToTimestamp(day * 86_400_000),
 				spec: create(DeploymentSpecSchema),
@@ -74,14 +74,13 @@ describe("buildRegions", () => {
 	test("keeps a long-lived current deployment outside the history page", () => {
 		const current = create(DeploymentSchema, {
 			id: "current-europe",
-			region: "eu-west-1",
-			isActive: true,
+			placements: [{ region: "eu-west-1", live: true }],
 			spec: { spec: { case: "service", value: { port: 9090 } } },
 		});
 		const history = Array.from({ length: 200 }, (_, i) =>
 			create(DeploymentSchema, {
 				id: `release-${i.toString()}`,
-				region: "us-east-1",
+				placements: [{ region: "us-east-1" }],
 			}),
 		);
 		const environment = create(EnvironmentStatusSchema, {
@@ -102,7 +101,7 @@ describe("buildRegions", () => {
 	});
 
 	test("does not substitute an old release for the current deployment", () => {
-		const old = create(DeploymentSchema, { id: "old", region: "eu-west-1", isActive: true });
+		const old = create(DeploymentSchema, { id: "old", placements: [{ region: "eu-west-1", live: true }] });
 		const environment = create(EnvironmentStatusSchema, {
 			regions: [create(RegionStatusSchema, { region: "eu-west-1", deploymentId: "current" })],
 		});
@@ -152,8 +151,18 @@ describe("lastGoodDeployment", () => {
 describe("focusRegion", () => {
 	test("picks the healthy region that has a release to roll back to", () => {
 		const spec = create(DeploymentSpecSchema);
-		const europe = create(DeploymentSchema, { id: "europe", isActive: true, status: DeploymentStatus.RUNNING, spec });
-		const current = create(DeploymentSchema, { id: "current", isActive: true, status: DeploymentStatus.RUNNING, spec });
+		const europe = create(DeploymentSchema, {
+			id: "europe",
+			placements: [{ region: "eu-west-1", live: true }],
+			status: DeploymentStatus.RUNNING,
+			spec,
+		});
+		const current = create(DeploymentSchema, {
+			id: "current",
+			placements: [{ region: "us-east-1", live: true }],
+			status: DeploymentStatus.RUNNING,
+			spec,
+		});
 		const previous = create(DeploymentSchema, { id: "previous", status: DeploymentStatus.SUPERSEDED, spec });
 		const regions: RegionView[] = [
 			{ name: "eu-west-1", status: undefined, history: [europe], current: europe },

@@ -4,6 +4,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/uuid"
+
 	genDb "github.com/team-loco/loco/api/gen/db"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
@@ -30,23 +32,40 @@ func TestSavingSecretsReportsBoundRegionsAndRestartSendsCurrentValues(t *testing
 	}
 	if _, err := f.pool.Exec(
 		ctx,
-		`UPDATE deployments SET secret_names = $2 WHERE resource_id = $1 AND NOT is_active`,
+		`UPDATE deployments SET secret_names = $2 WHERE resource_id = $1
+  AND id NOT IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1)`,
 		f.resourceID,
 		[]string{databaseURL},
 	); err != nil {
 		t.Fatal(err)
 	}
 	worker := f.otherResource(t, workerService)
-	if _, err := f.pool.Exec(ctx, `
-INSERT INTO deployments (resource_id, cluster_id, region, replicas, status, is_active,
-                         environment_id, spec, spec_version, actor_type, actor_id, method, secret_names)
-SELECT target.resource_id, d.cluster_id, target.region, d.replicas, d.status, true,
-       d.environment_id, d.spec, d.spec_version, d.actor_type, d.actor_id, d.method, target.names
-FROM deployments d CROSS JOIN
-     (VALUES ($2::uuid, 'unbound', '{}'::text[]), ($2::uuid, 'eu-west-1', $4::text[]),
-             ($3::uuid, 'worker', $4::text[])) target(resource_id, region, names)
-WHERE d.id = $1`, *bound.DeploymentID, f.resourceID, worker, []string{databaseURL}); err != nil {
-		t.Fatal(err)
+	for _, target := range []struct {
+		resource uuid.UUID
+		region   string
+		names    []string
+	}{
+		{f.resourceID, "unbound", []string{}},
+		{f.resourceID, otherRegion, []string{databaseURL}},
+		{worker, applyWorker, []string{databaseURL}},
+	} {
+		if _, err := f.pool.Exec(ctx, `
+WITH c AS (
+    INSERT INTO clusters (platforms, name, region, provider, is_active, is_default)
+    VALUES (ARRAY['linux/amd64'], 'secret-' || $3, $3, 'kind', true, false) RETURNING id
+), d AS (
+    INSERT INTO deployments (resource_id, status, trigger, environment_id, spec, spec_version,
+                             actor_type, actor_id, method, secret_names)
+    SELECT $2, 'building', 'deploy', d.environment_id, d.spec, d.spec_version,
+           d.actor_type, d.actor_id, d.method, $4
+    FROM deployments d WHERE d.id = $1
+    RETURNING id
+)
+INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image)
+SELECT d.id, c.id, $3, 1, 'pending', '' FROM d, c`,
+			*bound.DeploymentID, target.resource, target.region, target.names); err != nil {
+			t.Fatal(err)
+		}
 	}
 	set := func(value string) *secretv1.SetSecretsResponse {
 		t.Helper()

@@ -72,16 +72,21 @@ def fixture():
         for name in ("awaiting", "running", "deployed", "failed", "canceled", "older")
     }
 
-    def runtime(image, replicas=1, build=None):
+    def runtime(image, regions, replicas=1, build=None):
         return {
             "platform": "linux/amd64",
             "observability": {"injectOtel": True},
             "build": build or {"type": "image", "image": image},
-            "cpu": "100m",
-            "memory": "128Mi",
-            "minReplicas": replicas,
-            "maxReplicas": replicas,
             "port": 8080,
+            "regions": {
+                region: {
+                    "cpu": "100m",
+                    "memory": "128Mi",
+                    "minReplicas": replicas,
+                    "maxReplicas": replicas,
+                }
+                for region in regions
+            },
         }
 
     releases = []
@@ -99,24 +104,28 @@ def fixture():
         releases.append(
             {
                 "id": deployment,
-                "cluster": clusters[1] if region == "eu-west-1" else clusters[0],
+                "placements": {
+                    region: {
+                        "cluster": clusters[1] if region == "eu-west-1" else clusters[0]
+                    }
+                },
                 "environment": "production",
-                "region": region,
                 "status": "running" if active else "superseded",
-                "active": active,
+                "live": active,
                 "method": "cli",
                 "age": f"{index} minutes",
-                "spec": runtime(image, build=build),
+                "spec": runtime(image, [region], build=build),
             }
         )
     releases.append(
         {
             "id": staging_release,
-            "cluster": clusters[2],
+            "placements": {"us-east-1": {"cluster": clusters[2]}},
             "environment": "staging",
-            "region": "us-east-1",
             "method": "cli",
-            "spec": runtime("example.invalid/browser-pilot:staging-current", 2),
+            "spec": runtime(
+                "example.invalid/browser-pilot:staging-current", ["us-east-1"], 2
+            ),
         }
     )
     service = {
@@ -147,16 +156,17 @@ def fixture():
                 "service": service,
                 "deployments": [
                     {
-                        "cluster": cluster,
+                        "placements": {
+                            "us-east-1": {"cluster": clusters[0]},
+                            "eu-west-1": {"cluster": clusters[1]},
+                        },
                         "environment": "production",
-                        "region": region,
                         "method": "cli",
-                        "spec": runtime("example.invalid/edge-pilot:1.0.0"),
+                        "spec": runtime(
+                            "example.invalid/edge-pilot:1.0.0",
+                            ("us-east-1", "eu-west-1"),
+                        ),
                     }
-                    for cluster, region in (
-                        (clusters[0], "us-east-1"),
-                        (clusters[1], "eu-west-1"),
-                    )
                 ],
             },
         ],
@@ -243,7 +253,7 @@ results = []
 with session(out) as browser:
     sql(
         state,
-        f"UPDATE clusters SET last_heartbeat=NOW() WHERE id IN (SELECT cluster_id FROM deployments WHERE resource_id='{data['resource']}');",
+        f"UPDATE clusters SET last_heartbeat=NOW() WHERE id IN (SELECT dp.cluster_id FROM deployment_placements dp JOIN deployments d ON d.id=dp.deployment_id WHERE d.resource_id='{data['resource']}');",
     )
     sql(
         state,

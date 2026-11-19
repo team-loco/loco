@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/proto"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
@@ -168,16 +170,19 @@ func ingestRollout(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	deploymentID uuid.UUID,
-	revision int64,
+	scope activityScope,
 	report *agentv1.PlacementStatus,
 ) error {
+	clusterID, revision := *scope.clusterID, scope.revision
 	if err := qtx.OpenRollout(
 		ctx,
-		genDb.OpenRolloutParams{DeploymentID: deploymentID, Revision: revision},
+		genDb.OpenRolloutParams{DeploymentID: deploymentID, ClusterID: clusterID, Revision: revision},
 	); err != nil {
 		return fmt.Errorf("open rollout: %w", err)
 	}
-	snapshot, loadErr := qtx.LockRollout(ctx, genDb.LockRolloutParams{DeploymentID: deploymentID, Revision: revision})
+	snapshot, loadErr := qtx.LockRollout(ctx, genDb.LockRolloutParams{
+		DeploymentID: deploymentID, ClusterID: clusterID, Revision: revision,
+	})
 	if loadErr != nil {
 		return fmt.Errorf("lock rollout: %w", loadErr)
 	}
@@ -193,7 +198,7 @@ func ingestRollout(
 		DesiredReplicas: report.GetDesiredReplicas(),
 		Count:           previous.Count,
 	}
-	if err := writeDeploymentActivity(ctx, qtx, deploymentID, revision, entries); err != nil {
+	if err := writeDeploymentActivity(ctx, qtx, deploymentID, scope, entries); err != nil {
 		return err
 	}
 	next.Count += int32(len(entries))
@@ -213,7 +218,7 @@ func ingestRollout(
 	}
 	if err := qtx.StoreRollout(
 		ctx,
-		genDb.StoreRolloutParams{DeploymentID: deploymentID, Revision: revision, Snapshot: data},
+		genDb.StoreRolloutParams{DeploymentID: deploymentID, ClusterID: clusterID, Revision: revision, Snapshot: data},
 	); err != nil {
 		return fmt.Errorf("store rollout: %w", err)
 	}
@@ -244,15 +249,19 @@ func capturePlacementRollout(
 	if err != nil {
 		return genDb.Deployment{}, fmt.Errorf("read reported deployment: %w", err)
 	}
-	if deployment.ResourceID != placement.ResourceID || deployment.EnvironmentID != placement.EnvironmentID ||
-		deployment.ClusterID != clusterID {
-		return genDb.Deployment{}, fmt.Errorf(
-			"reported deployment %s does not belong to placement %s",
-			id,
-			report.GetPlacementId(),
-		)
+	notOwned := fmt.Errorf("reported deployment %s does not belong to placement %s", id, report.GetPlacementId())
+	if deployment.ResourceID != placement.ResourceID || deployment.EnvironmentID != placement.EnvironmentID {
+		return genDb.Deployment{}, notOwned
 	}
-	if err := ingestRollout(ctx, qtx, id, report.GetObservedRevision(), report); err != nil {
+	if _, err := qtx.GetDeploymentPlacement(ctx, genDb.GetDeploymentPlacementParams{
+		DeploymentID: id, ClusterID: clusterID,
+	}); errors.Is(err, pgx.ErrNoRows) {
+		return genDb.Deployment{}, notOwned
+	} else if err != nil {
+		return genDb.Deployment{}, fmt.Errorf("read reported deployment placement: %w", err)
+	}
+	scope := activityScope{clusterID: &clusterID, region: placement.Region, revision: report.GetObservedRevision()}
+	if err := ingestRollout(ctx, qtx, id, scope, report); err != nil {
 		return genDb.Deployment{}, err
 	}
 	return deployment, nil
@@ -286,11 +295,19 @@ func validRolloutReport(ctx context.Context, report *agentv1.PlacementStatus) bo
 	return true
 }
 
+// activityScope is what activity entries are about: one region's placement revision, or the
+// whole deployment when clusterID is nil.
+type activityScope struct {
+	clusterID *uuid.UUID
+	region    string
+	revision  int64
+}
+
 func writeDeploymentActivity(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	deploymentID uuid.UUID,
-	revision int64,
+	scope activityScope,
 	entries []activityEntry,
 ) error {
 	if len(entries) == 0 {
@@ -315,12 +332,14 @@ func writeDeploymentActivity(
 			genDb.InsertDeploymentActivityParams{
 				DeploymentID: deploymentID,
 				Seq:          seq,
-				Revision:     revision,
+				Revision:     scope.revision,
 				At:           at,
 				Severity:     entry.Severity,
 				ReplicaUid:   entry.ReplicaUID,
 				ReplicaName:  entry.ReplicaName,
 				Message:      entry.Message,
+				ClusterID:    scope.clusterID,
+				Region:       scope.region,
 			},
 		); err != nil {
 			return fmt.Errorf("insert activity: %w", err)

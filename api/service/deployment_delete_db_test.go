@@ -41,7 +41,7 @@ func (f *deployFixture) deploymentWriter(t *testing.T) (*DeploymentServer, conte
 func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestDeletingRunningDeploymentFinalizesItsStatus(t *testing.T) {
 func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	original, err := createDeployment(t, f, sameRegionSpec)
+	original, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestDeletingSupersededDeploymentPreservesConcurrentReplacement(t *testing.T
 			&deploymentv1.CreateDeploymentRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
-				Region:        testRegion,
+				Regions:       []string{testRegion},
 				Spec: &deploymentv1.DeploymentSpec{
 					Spec: &deploymentv1.DeploymentSpec_Service{Service: service},
 				},

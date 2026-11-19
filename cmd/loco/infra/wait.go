@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -41,7 +42,7 @@ func waitRunning(ctx context.Context, t cmdutil.Target, w io.Writer, deployments
 			return err
 		}
 		if _, err := fmt.Fprintf(w, "Deployment %s for %s in %s is running.\n",
-			deployment.GetDeploymentId(), deployment.GetService(), deployment.GetRegion()); err != nil {
+			deployment.GetDeploymentId(), deployment.GetService(), regionList(deployment)); err != nil {
 			return err
 		}
 	}
@@ -64,11 +65,13 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 					break
 				}
 				for _, entry := range event.GetActivity() {
-					prefix := entry.GetReplicaName()
-					if prefix != "" {
-						prefix += " · "
+					var prefix strings.Builder
+					for _, part := range []string{entry.GetRegion(), entry.GetReplicaName()} {
+						if part != "" {
+							prefix.WriteString(part + " · ")
+						}
 					}
-					if _, writeErr := fmt.Fprintf(w, "%s%s\n", prefix, entry.GetMessage()); writeErr != nil {
+					if _, writeErr := fmt.Fprintf(w, "%s%s\n", prefix.String(), entry.GetMessage()); writeErr != nil {
 						return errors.Join(writeErr, stream.Close())
 					}
 					cursor = entry.GetSeq()
@@ -87,20 +90,15 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 					if current.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED {
 						outcome = "was canceled"
 					}
-					problem := current.GetProblem()
-					message := problem.GetMessage()
-					if problem.GetDetail() != "" {
-						message += " · " + problem.GetDetail()
-					}
 					return errors.Join(
 						fmt.Errorf(
-							"%w: deployment %s for %s in %s %s: %s",
+							"%w: deployment %s for %s in %s %s%s",
 							errDeploymentNotRunning,
 							id,
 							deployment.GetService(),
-							deployment.GetRegion(),
+							regionList(deployment),
 							outcome,
-							message,
+							placementProblems(current),
 						),
 						stream.Close(),
 					)
@@ -120,4 +118,32 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 		case <-time.After(time.Second):
 		}
 	}
+}
+
+func regionList(deployment *planv1.StartedDeployment) string {
+	return strings.Join(deployment.GetRegions(), ", ")
+}
+
+// placementProblems lists the problem of each region that reports one, naming the region when
+// the deployment has several.
+func placementProblems(deployment *deploymentv1.Deployment) string {
+	var problems []string
+	for _, placement := range deployment.GetPlacements() {
+		problem := placement.GetProblem()
+		if problem == nil {
+			continue
+		}
+		message := problem.GetMessage()
+		if len(deployment.GetPlacements()) > 1 {
+			message = placement.GetRegion() + ": " + message
+		}
+		if problem.GetDetail() != "" {
+			message += " · " + problem.GetDetail()
+		}
+		problems = append(problems, message)
+	}
+	if len(problems) == 0 {
+		return ""
+	}
+	return ": " + strings.Join(problems, "; ")
 }

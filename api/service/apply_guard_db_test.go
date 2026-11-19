@@ -180,7 +180,7 @@ func TestApplyDeleteInOneEnvironmentKeepsTheOther(t *testing.T) {
 		if deployErr != nil {
 			return deployErr
 		}
-		_, deployErr = createDeploymentWithCleanup(ctx, qtx, counts, staging, staticSpec)
+		_, deployErr = recordTestDeployment(ctx, qtx, counts, staging, staticSpec)
 		return deployErr
 	})
 	if err != nil {

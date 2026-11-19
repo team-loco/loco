@@ -283,9 +283,9 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 }
 
 const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
-SELECT DISTINCT ON (environment_id, region) id, rollout_id, resource_id, cluster_id, region, replicas, status, is_active, environment_id, spec, spec_version, actor_type, actor_id, method, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT DISTINCT ON (environment_id) id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
-ORDER BY environment_id, region, is_active DESC, created_at DESC, id DESC
+ORDER BY environment_id, created_at DESC, id DESC
 `
 
 func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID uuid.UUID) ([]Deployment, error) {
@@ -299,19 +299,18 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 		var i Deployment
 		if err := rows.Scan(
 			&i.ID,
-			&i.RolloutID,
 			&i.ResourceID,
-			&i.ClusterID,
-			&i.Region,
-			&i.Replicas,
 			&i.Status,
-			&i.IsActive,
 			&i.EnvironmentID,
 			&i.Spec,
 			&i.SpecVersion,
+			&i.Trigger,
+			&i.SourceDeploymentID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.Method,
+			&i.CanceledByType,
+			&i.CanceledByID,
 			&i.CommitSha,
 			&i.CommitDirty,
 			&i.SecretNames,
@@ -332,15 +331,16 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 }
 
 const listRegionStatusesForResources = `-- name: ListRegionStatusesForResources :many
-SELECT d.resource_id,
-       d.environment_id,
+SELECT l.resource_id,
+       l.environment_id,
        e.name AS environment_name,
-       d.region,
-       d.id AS deployment_id,
-       d.status AS deployment_status,
-       d.replicas AS desired_replicas,
+       l.region,
+       l.deployment_id,
+       l.status AS placement_status,
+       l.replicas AS desired_replicas,
        COALESCE((SELECT ro.snapshot->'problem' FROM deployment_rollouts ro
-                 WHERE ro.deployment_id = d.id ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
+                 WHERE ro.deployment_id = l.deployment_id AND ro.cluster_id = l.cluster_id
+                 ORDER BY revision DESC LIMIT 1), 'null'::jsonb)::jsonb AS problem,
        (p.id IS NOT NULL)::boolean AS placed,
        COALESCE(p.ready_replicas, 0)::int AS ready_replicas,
        p.status_updated_at,
@@ -350,36 +350,37 @@ SELECT d.resource_id,
        c.health_status,
        ARRAY(
            SELECT rd.domain FROM resource_domains rd
-           WHERE rd.resource_id = d.resource_id
-             AND rd.environment_id = d.environment_id
+           WHERE rd.resource_id = l.resource_id
+             AND rd.environment_id = l.environment_id
              AND rd.domain_source = 'platform_provided'
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
        )::text[] AS unserved_domains
-FROM deployments d
-JOIN environments e ON e.id = d.environment_id
-JOIN clusters c ON c.id = d.cluster_id
-LEFT JOIN placements p ON p.deployment_id = d.id AND NOT p.desired_deleted
-WHERE d.resource_id = ANY($1::uuid[]) AND d.is_active = true
-ORDER BY d.resource_id, e.name, d.region
+FROM live_deployment_placements l
+JOIN environments e ON e.id = l.environment_id
+JOIN clusters c ON c.id = l.cluster_id
+LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
+    AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
+WHERE l.resource_id = ANY($1::uuid[])
+ORDER BY l.resource_id, e.name, l.region
 `
 
 type ListRegionStatusesForResourcesRow struct {
-	ResourceID       uuid.UUID        `json:"resourceId"`
-	EnvironmentID    uuid.UUID        `json:"environmentId"`
-	EnvironmentName  string           `json:"environmentName"`
-	Region           string           `json:"region"`
-	DeploymentID     uuid.UUID        `json:"deploymentId"`
-	DeploymentStatus DeploymentStatus `json:"deploymentStatus"`
-	DesiredReplicas  int32            `json:"desiredReplicas"`
-	Problem          []byte           `json:"problem"`
-	Placed           bool             `json:"placed"`
-	ReadyReplicas    int32            `json:"readyReplicas"`
-	StatusUpdatedAt  *time.Time       `json:"statusUpdatedAt"`
-	Replicas         []byte           `json:"replicas"`
-	LastHeartbeat    *time.Time       `json:"lastHeartbeat"`
-	HealthStatus     *string          `json:"healthStatus"`
-	UnservedDomains  []string         `json:"unservedDomains"`
+	ResourceID      uuid.UUID       `json:"resourceId"`
+	EnvironmentID   uuid.UUID       `json:"environmentId"`
+	EnvironmentName string          `json:"environmentName"`
+	Region          string          `json:"region"`
+	DeploymentID    uuid.UUID       `json:"deploymentId"`
+	PlacementStatus PlacementStatus `json:"placementStatus"`
+	DesiredReplicas int32           `json:"desiredReplicas"`
+	Problem         []byte          `json:"problem"`
+	Placed          bool            `json:"placed"`
+	ReadyReplicas   int32           `json:"readyReplicas"`
+	StatusUpdatedAt *time.Time      `json:"statusUpdatedAt"`
+	Replicas        []byte          `json:"replicas"`
+	LastHeartbeat   *time.Time      `json:"lastHeartbeat"`
+	HealthStatus    *string         `json:"healthStatus"`
+	UnservedDomains []string        `json:"unservedDomains"`
 }
 
 func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
@@ -397,7 +398,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.EnvironmentName,
 			&i.Region,
 			&i.DeploymentID,
-			&i.DeploymentStatus,
+			&i.PlacementStatus,
 			&i.DesiredReplicas,
 			&i.Problem,
 			&i.Placed,

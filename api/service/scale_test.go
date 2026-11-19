@@ -9,10 +9,10 @@ import (
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 )
 
-func scaledSpec(minReplicas, maxReplicas int32) *deploymentv1.ServiceDeploymentSpec {
+func scaledSpec(minReplicas, maxReplicas int32) *deploymentv1.RegionDeploymentTarget {
 	cpu := "100m"
 	memory := testRegionMemory
-	return &deploymentv1.ServiceDeploymentSpec{
+	return &deploymentv1.RegionDeploymentTarget{
 		Cpu:         &cpu,
 		Memory:      &memory,
 		MinReplicas: &minReplicas,
@@ -24,17 +24,14 @@ func TestApplyScaleSetsTheReplicasTheControllerReads(t *testing.T) {
 	t.Parallel()
 	replicas := int32(3)
 	spec := scaledSpec(1, 2)
-	got := applyScale(&resourcev1.ScaleResourceRequest{Replicas: &replicas}, spec, 1)
-	if got != replicas {
-		t.Errorf("replicas = %d, want %d", got, replicas)
-	}
+	applyScale(&resourcev1.ScaleResourceRequest{Replicas: &replicas}, spec)
 	if spec.GetMinReplicas() != replicas || spec.GetMaxReplicas() != replicas {
 		t.Errorf("spec replicas %d-%d, want %d-%d", spec.GetMinReplicas(), spec.GetMaxReplicas(), replicas, replicas)
 	}
 
 	lower := int32(2)
 	spec = scaledSpec(1, 5)
-	applyScale(&resourcev1.ScaleResourceRequest{Replicas: &lower}, spec, 1)
+	applyScale(&resourcev1.ScaleResourceRequest{Replicas: &lower}, spec)
 	if spec.GetMinReplicas() != lower || spec.GetMaxReplicas() != lower {
 		t.Errorf("spec replicas %d-%d, want %d-%d", spec.GetMinReplicas(), spec.GetMaxReplicas(), lower, lower)
 	}
@@ -44,9 +41,9 @@ func TestApplyScaleKeepsUnrequestedValues(t *testing.T) {
 	t.Parallel()
 	cpu := "500m"
 	spec := scaledSpec(2, 2)
-	got := applyScale(&resourcev1.ScaleResourceRequest{Cpu: &cpu}, spec, 2)
-	if got != 2 || spec.GetMinReplicas() != 2 {
-		t.Errorf("replicas %d, spec min %d, want 2 and 2", got, spec.GetMinReplicas())
+	applyScale(&resourcev1.ScaleResourceRequest{Cpu: &cpu}, spec)
+	if spec.GetMinReplicas() != 2 || spec.GetMaxReplicas() != 2 {
+		t.Errorf("spec replicas %d-%d, want 2-2", spec.GetMinReplicas(), spec.GetMaxReplicas())
 	}
 	if spec.GetCpu() != cpu || spec.GetMemory() != testRegionMemory {
 		t.Errorf("cpu %q, memory %q, want %q and 64Mi", spec.GetCpu(), spec.GetMemory(), cpu)
@@ -88,7 +85,7 @@ func TestManualScaleDisablesAutoscaling(t *testing.T) {
 	spec := scaledSpec(1, 5)
 	spec.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
 	cpu := "500m"
-	applyScale(&resourcev1.ScaleResourceRequest{Cpu: &cpu}, spec, 3)
+	applyScale(&resourcev1.ScaleResourceRequest{Cpu: &cpu}, spec)
 	if !spec.GetScalers().GetEnabled() {
 		t.Fatal("CPU-only change disabled autoscaling")
 	}
@@ -96,7 +93,7 @@ func TestManualScaleDisablesAutoscaling(t *testing.T) {
 	if !scaleChangesDeployment(request, spec, 3) {
 		t.Fatal("fixed scale at the live count must disable autoscaling")
 	}
-	applyScale(request, spec, 3)
+	applyScale(request, spec)
 	if spec.GetScalers().GetEnabled() || spec.GetMinReplicas() != 3 || spec.GetMaxReplicas() != 3 {
 		t.Fatalf("fixed scale = %v", spec)
 	}

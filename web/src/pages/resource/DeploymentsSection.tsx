@@ -25,7 +25,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { workspaceMembersOptions } from "@/hooks/completeMembers";
-import { rolloutGroups } from "@/lib/activity-deploys";
 import { deploymentImage, isInFlight } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { nextPage, pagedRows, type Paging } from "@/lib/paging";
@@ -57,7 +56,7 @@ interface Row {
 	isCurrent: boolean;
 }
 
-/** The deployments one apply, deploy or scale created, one per region. */
+/** The regions of one deployment, one row per region. */
 interface RolloutRow {
 	key: string;
 	rows: [Row, ...Row[]];
@@ -66,7 +65,9 @@ interface RolloutRow {
 /** The member a rollout's status shows: one still in flight, else one that failed, else the newest. */
 function leadRow(rows: readonly [Row, ...Row[]]): Row {
 	return (
-		rows.find((r) => isInFlight(r.dep.status)) ?? rows.find((r) => r.dep.status === DeploymentStatus.FAILED) ?? rows[0]
+		rows.find((r) => isInFlight(r.dep.status)) ??
+		rows.find((r) => r.dep.status === DeploymentStatus.FAILED || r.dep.status === DeploymentStatus.CRASHED) ??
+		rows[0]
 	);
 }
 
@@ -250,11 +251,9 @@ export function DeploymentsSection({
 			})),
 		)
 		.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));
-	const rowOf = new Map(all.map((row) => [row.dep.id, row]));
-	const rollouts: RolloutRow[] = rolloutGroups(all.map((row) => row.dep)).flatMap((group) => {
-		const [first, ...rest] = group.flatMap((dep) => rowOf.get(dep.id) ?? []);
-		return first === undefined ? [] : [{ key: first.dep.id, rows: [first, ...rest] }];
-	});
+	const rollouts: RolloutRow[] = [...Map.groupBy(all, (row) => row.dep.id).values()].flatMap(([first, ...rest]) =>
+		first === undefined ? [] : [{ key: first.dep.id, rows: [first, ...rest] }],
+	);
 	const deployRows = pagedRows(rollouts, pagination, setPagination, PAGE_SIZES);
 	const multiRegion = regions.length > 1;
 	const columns = BASE_COLUMNS + (multiRegion ? 1 : 0);
@@ -424,7 +423,7 @@ export function DeploymentsSection({
 											<TableCell colSpan={columns} className="h-auto p-0 whitespace-normal">
 												{rows.map((row) => (
 													<section
-														key={row.dep.id}
+														key={row.region.name}
 														aria-label={rows.length > 1 ? `Deployment in ${row.region.name}` : undefined}
 													>
 														{rows.length > 1 && (

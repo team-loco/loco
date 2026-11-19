@@ -100,43 +100,49 @@ def seed_deployment(body, status, replica_state, detail, problem=None):
         [
             {
                 "environment": "production",
-                "region": body["region"],
                 "status": status,
                 "spec": spec,
-                "ready_replicas": 0,
+                "placements": {
+                    region: {"ready_replicas": 0} for region in body["regions"]
+                },
             }
         ],
     )
-    placement = sql(
-        state, f"SELECT id FROM placements WHERE deployment_id='{deployment}';"
+    rows = [
+        f"INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message) VALUES('{deployment}',1,1,NOW(),'info','','Deployment requested.');"
+    ]
+    placements = json.loads(
+        sql(
+            state,
+            f"SELECT json_agg(json_build_object('id',id,'cluster',cluster_id,'region',region)) FROM placements WHERE deployment_id='{deployment}';",
+        )
     )
-    replica = {
-        "uid": f"replica-{deployment}",
-        "name": "service-new-1",
-        "node": "worker-east-1",
-        "placement_revision": 1,
-        "deployment_id": deployment,
-        "ready": False,
-        "state": replica_state,
-        "detail": detail,
-    }
-    snapshot = {"placementId": placement, "replicas": [replica]}
-    if problem is not None:
-        snapshot["problem"] = {
-            "reason": problem,
+    for seq, placement in enumerate(placements, 2):
+        replica = {
+            "uid": f"replica-{deployment}-{placement['region']}",
+            "name": "service-new-1",
+            "node": "worker-east-1",
+            "placement_revision": 1,
+            "deployment_id": deployment,
+            "ready": False,
+            "state": replica_state,
             "detail": detail,
-            "replica_name": replica["name"],
         }
-    sql(
-        state,
-        f"""BEGIN;
-INSERT INTO deployment_rollouts(deployment_id,revision,snapshot)
-VALUES('{deployment}',1,{evidence.sql_literal(json.dumps(snapshot))});
-INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message)
-VALUES('{deployment}',1,1,NOW(),'info','','Deployment requested.'),
-('{deployment}',2,1,NOW(),'{"error" if problem else "info"}','{replica["name"]}',{evidence.sql_literal(detail)});
-COMMIT;""",
-    )
+        snapshot = {"placementId": placement["id"], "replicas": [replica]}
+        if problem is not None:
+            snapshot["problem"] = {
+                "reason": problem,
+                "detail": detail,
+                "replica_name": replica["name"],
+            }
+        rows += [
+            "INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot) "
+            f"VALUES('{deployment}','{placement['cluster']}',1,{evidence.sql_literal(json.dumps(snapshot))});",
+            "INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message,cluster_id,region) "
+            f"VALUES('{deployment}',{seq},1,NOW(),'{'error' if problem else 'info'}','{replica['name']}',"
+            f"{evidence.sql_literal(detail)},'{placement['cluster']}','{placement['region']}');",
+        ]
+    sql(state, "BEGIN;\n" + "\n".join(rows) + "\nCOMMIT;")
     return deployment
 
 
@@ -729,15 +735,16 @@ with session(out) as browser:
         sql(state, f"SELECT description FROM resources WHERE id='{resource}';")
         == "Takes checkout payments"
     )
-    assert [(d["resourceId"], d["region"]) for d in deployments] == [
-        (resource, "us-east-1")
+    assert [(d["resourceId"], d["regions"]) for d in deployments] == [
+        (resource, ["us-east-1"])
     ], deployments
     spec = deployments[0]["spec"]["service"]
     assert spec["build"]["image"] == pinned_image, spec
     assert spec["port"] == 8080, spec
-    assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 2, spec
-    assert spec["scalers"] == {}, spec
-    assert spec["cpu"] == "500m" and spec["memory"] == "1Gi", spec
+    sizing = spec["regions"]["us-east-1"]
+    assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 2, spec
+    assert sizing["scalers"] == {}, spec
+    assert sizing["cpu"] == "500m" and sizing["memory"] == "1Gi", spec
     assert spec["env"] == {"LOG_LEVEL": "info"}, spec
     assert spec["args"] == ["-text=hello world", "-listen=:8080"], spec
     assert "command" not in spec, spec
@@ -876,92 +883,74 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(panel.get_by_role("link", name="View logs", exact=True)).to_have_count(1)
-    spec = deployments[0]["spec"]["service"]
-    assert spec["minReplicas"] == 2 and spec["maxReplicas"] == 3, spec
-    assert spec["scalers"] == {"enabled": True, "cpuTarget": 70}, spec
+    sizing = deployments[0]["spec"]["service"]["regions"]["us-east-1"]
+    assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 3, sizing
+    assert sizing["scalers"] == {"enabled": True, "cpuTarget": 70}, sizing
     assert not errors, errors
     context.close()
-    # Regional failures keep the form open; successful regions remain deployed.
-    for partial_failure in (True, False):
-        name = f"{repository}-multi-{int(partial_failure)}"
-        draft = seeded_draft(name, image)
-        draft["edits"].update(
-            {
-                "regions": ["us-east-1", "eu-west-1"],
-                "isPublic": False,
-                "port": "8080",
+    # A service in two regions is one deployment that rolls out to both.
+    name = f"{repository}-multi"
+    draft = seeded_draft(name, image)
+    draft["edits"].update(
+        {
+            "regions": ["us-east-1", "eu-west-1"],
+            "isPublic": False,
+            "port": "8080",
+        }
+    )
+    context, page, errors = open_page(
+        browser, "owner", storage={drafts_key: json.dumps([draft])}
+    )
+    regional_requests = []
+    context.route(
+        "**/loco.deployment.v1.DeploymentService/ResolveImage",
+        lambda route: route.fulfill(json={"image": pinned_image}),
+    )
+
+    def regional_deployment(route):
+        body = route.request.post_data_json
+        regional_requests.append(body)
+        route.fulfill(
+            json={
+                "deploymentId": seed_deployment(
+                    body,
+                    "deploying",
+                    "Starting",
+                    "Starting application; waiting for readiness.",
+                )
             }
         )
-        context, page, errors = open_page(
-            browser, "owner", storage={drafts_key: json.dumps([draft])}
-        )
-        regional_requests = []
-        context.route(
-            "**/loco.deployment.v1.DeploymentService/ResolveImage",
-            lambda route: route.fulfill(json={"image": pinned_image}),
-        )
 
-        def regional_deployment(
-            route,
-            *,
-            regional_requests=regional_requests,
-            partial_failure=partial_failure,
-        ):
-            body = route.request.post_data_json
-            regional_requests.append(body)
-            if partial_failure and body["region"] == "eu-west-1":
-                route.fulfill(
-                    status=503,
-                    json={"code": "unavailable", "message": "Region unavailable"},
-                )
-            else:
-                route.fulfill(
-                    json={
-                        "deploymentId": seed_deployment(
-                            body,
-                            "deploying",
-                            "Starting",
-                            "Starting application; waiting for readiness.",
-                        )
-                    }
-                )
-
-        context.route(
-            "**/loco.deployment.v1.DeploymentService/CreateDeployment",
-            regional_deployment,
-        )
-        page.goto(base + "/resources?env=production")
-        draft_row(page, name).get_by_role("link", name=name, exact=True).click()
-        drawer = page.get_by_role("dialog", name=name, exact=True)
-        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-        if partial_failure:
-            expect(drawer.get_by_role("alert")).to_have_text(
-                "eu-west-1: Region unavailable."
-            )
-            expect(page).to_have_url(DRAFT_URL)
-            expect(
-                drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
-            ).to_be_disabled()
-            assert stored_drafts(page) == [name], stored_drafts(page)
-            drawer.get_by_role("link", name="Open resource", exact=True).click()
-        expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
-        expect(drawer).to_have_count(0)
-        panels = page.get_by_role("region", name="Deploying", exact=True)
-        expect(panels).to_have_count(1 if partial_failure else 2)
-        expect(panels.filter(has_text="us-east-1")).to_be_visible()
-        if not partial_failure:
-            expect(panels.filter(has_text="eu-west-1")).to_be_visible()
-        assert sorted(body["region"] for body in regional_requests) == [
-            "eu-west-1",
-            "us-east-1",
-        ]
-        assert all(body["environmentId"] == production for body in regional_requests)
-        resource = urlparse(page.url).path.rsplit("/", 1)[-1]
-        assert sql(
-            state, f"SELECT count(*) FROM deployments WHERE resource_id='{resource}';"
-        ) == ("1" if partial_failure else "2")
-        assert not errors, errors
-        context.close()
+    context.route(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+        regional_deployment,
+    )
+    page.goto(base + "/resources?env=production")
+    draft_row(page, name).get_by_role("link", name=name, exact=True).click()
+    drawer = page.get_by_role("dialog", name=name, exact=True)
+    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+    expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
+    expect(drawer).to_have_count(0)
+    panel = page.get_by_role("region", name="Deploying", exact=True)
+    expect(panel).to_have_count(1)
+    expect(panel).to_contain_text("Rolling out to 2 regions")
+    chips = panel.get_by_role("group", name="Rollout regions", exact=True)
+    expect(chips.get_by_role("button", name="us-east-1")).to_be_visible()
+    expect(chips.get_by_role("button", name="eu-west-1")).to_be_visible()
+    assert len(regional_requests) == 1, regional_requests
+    assert sorted(regional_requests[0]["regions"]) == ["eu-west-1", "us-east-1"]
+    assert sorted(regional_requests[0]["spec"]["service"]["regions"]) == [
+        "eu-west-1",
+        "us-east-1",
+    ]
+    assert regional_requests[0]["environmentId"] == production
+    resource = urlparse(page.url).path.rsplit("/", 1)[-1]
+    assert (
+        sql(state, f"SELECT count(*) FROM deployments WHERE resource_id='{resource}';")
+        == "1"
+    )
+    assert not errors, errors
+    context.close()
 print(
-    "PASS: new resource drafts for the read-only member and owner creation, rollout, and regional failure cases"
+    "PASS: new resource drafts for the read-only member and owner creation, rollout, and multi-region rollout"
 )

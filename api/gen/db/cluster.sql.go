@@ -252,8 +252,8 @@ const listClusterWorkloads = `-- name: ListClusterWorkloads :many
 SELECT p.id, 'placement'::text AS kind FROM placements p
 WHERE p.cluster_id = $1
 UNION ALL
-SELECT d.id, 'deployment'::text AS kind FROM deployments d
-WHERE d.cluster_id = $1 AND d.is_active = true
+SELECT l.deployment_id, 'deployment'::text AS kind FROM live_deployment_placements l
+WHERE l.cluster_id = $1
 UNION ALL
 SELECT b.id, 'build'::text AS kind FROM builds b
 WHERE b.cluster_id = $1 AND b.status IN ('queued', 'running')

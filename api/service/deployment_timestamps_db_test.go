@@ -60,6 +60,9 @@ func TestDeploymentTimestampsFollowClusterReports(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := recomputeDeploymentStatus(ctx, f.queries, id); err != nil {
+		t.Fatal(err)
+	}
 	if got := read(); got.Status != genDb.DeploymentStatusDeploying {
 		t.Fatalf("restart=%s", got.Status)
 	}
@@ -101,13 +104,23 @@ func TestReplacingDeploymentsFinalizesTimestamps(t *testing.T) {
 			if status == genDb.DeploymentStatusFailed {
 				completed = &prior
 			}
+			placementStatus := map[genDb.DeploymentStatus]genDb.PlacementStatus{
+				genDb.DeploymentStatusBuilding:  genDb.PlacementStatusPending,
+				genDb.DeploymentStatusDeploying: genDb.PlacementStatusDeploying,
+				genDb.DeploymentStatusRunning:   genDb.PlacementStatusRunning,
+				genDb.DeploymentStatusFailed:    genDb.PlacementStatusFailed,
+			}[status]
 			if _, err = f.pool.Exec(
 				ctx,
 				"UPDATE deployments SET status=$2, started_at=$3, completed_at=$4 WHERE id=$1",
-				previous,
-				status,
-				started,
-				completed,
+				previous, status, started, completed,
+			); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = f.pool.Exec(
+				ctx,
+				"UPDATE deployment_placements SET status=$2, started_at=$3, completed_at=$4 WHERE deployment_id=$1",
+				previous, placementStatus, started, completed,
 			); err != nil {
 				t.Fatal(err)
 			}
@@ -135,8 +148,8 @@ func TestReplacingDeploymentsFinalizesTimestamps(t *testing.T) {
 			if status == genDb.DeploymentStatusFailed {
 				want = status
 			}
-			if old.Status != want || old.IsActive || old.CompletedAt == nil {
-				t.Fatalf("finalized deployment = %+v, want inactive %s with completion time", old, want)
+			if old.Status != want || old.CompletedAt == nil {
+				t.Fatalf("finalized deployment = %+v, want %s with completion time", old, want)
 			}
 			if completed != nil && !old.CompletedAt.Equal(*completed) {
 				t.Fatalf("completion = %v, want preserved %v", old.CompletedAt, completed)

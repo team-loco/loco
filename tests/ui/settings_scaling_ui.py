@@ -40,12 +40,17 @@ def resource_fixture():
     runtime = {
         "platform": "linux/amd64",
         "build": {"type": "image", "image": "registry.example.com/app:1"},
-        "cpu": "100m",
-        "memory": "128Mi",
-        "minReplicas": 1,
-        "maxReplicas": 1,
         "port": 8080,
         "observability": defaults["observability"],
+        "regions": {
+            region: {
+                "cpu": "100m",
+                "memory": "128Mi",
+                "minReplicas": 1,
+                "maxReplicas": 1,
+            }
+            for region in regions
+        },
     }
     resource = evidence.seed_resources(
         state,
@@ -55,12 +60,13 @@ def resource_fixture():
                 "name": name,
                 "deployments": [
                     {
-                        "cluster": cluster,
                         "environment": "production",
-                        "region": region,
                         "spec": runtime,
+                        "placements": {
+                            region: {"cluster": cluster}
+                            for region, cluster in clusters.items()
+                        },
                     }
-                    for region, cluster in clusters.items()
                 ],
             }
         ],
@@ -74,6 +80,7 @@ def resource_fixture():
 
 with session(out) as browser:
     resource = resource_fixture()
+    live = f"SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}'"
     context, page, errors = open_page(browser, state=state)
     calls = []
     failing = [True]
@@ -111,7 +118,7 @@ with session(out) as browser:
             runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
             deployment = sql(
                 state,
-                f"UPDATE deployments SET spec={runtime} WHERE resource_id='{resource}' AND region='{body['region']}' AND is_active RETURNING id;",
+                f"UPDATE deployments SET spec={runtime} WHERE id IN ({live}) RETURNING id;",
             )
             route.fulfill(json={"deploymentId": deployment})
 
@@ -160,7 +167,7 @@ with session(out) as browser:
 
     def save_and_settle(method="UpdateResource"):
         calls.clear()
-        expected_deployments = len(deployments) + len(regions)
+        expected_deployments = len(deployments) + 1
         with expect_rpc(
             page,
             method,
@@ -201,7 +208,7 @@ with session(out) as browser:
         assert_edits(region, target)
     commits = sql(
         state,
-        f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE resource_id='{resource}' AND is_active;",
+        f"SELECT DISTINCT commit_sha || ':' || commit_dirty FROM deployments WHERE id IN ({live});",
     )
     assert commits == f"{source_commit['sha']}:true", commits
 
@@ -247,7 +254,8 @@ with session(out) as browser:
     ).to_be_visible()
     expect(sdk).not_to_be_checked()
     expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
-    assert len(deployments) == len(regions), deployments
+    assert len(deployments) == 1, deployments
+    assert sorted(deployments[0]["regions"]) == sorted(regions), deployments
     expected = {"injectOtel": False}
     assert all(
         call["spec"]["service"]["observability"] == expected for call in deployments
@@ -255,7 +263,8 @@ with session(out) as browser:
     deployments.clear()
     deploy_mode[0] = "pass"
     save_and_settle("CreateDeployment")
-    assert len(deployments) == len(regions), deployments
+    assert len(deployments) == 1, deployments
+    assert sorted(deployments[0]["regions"]) == sorted(regions), deployments
     expect(sdk).not_to_be_checked()
     sdk.click()
     save_and_settle("CreateDeployment")
@@ -263,7 +272,7 @@ with session(out) as browser:
     runtime = json.loads(
         sql(
             state,
-            f"SELECT json_agg(spec) FROM deployments WHERE resource_id='{resource}' AND is_active;",
+            f"SELECT json_agg(spec) FROM deployments WHERE id IN ({live});",
         )
     )
     assert all(spec["observability"] == {"injectOtel": True} for spec in runtime), (

@@ -15,6 +15,32 @@ enum DeploymentStatus {
   DEPLOYMENT_STATUS_FAILED = 4;
   DEPLOYMENT_STATUS_CANCELED = 5;
   DEPLOYMENT_STATUS_SUPERSEDED = 6;
+  DEPLOYMENT_STATUS_DEGRADED = 7;
+  DEPLOYMENT_STATUS_CRASHED = 8;
+}
+
+// PlacementStatus is the state of one region of a deployment.
+enum PlacementStatus {
+  PLACEMENT_STATUS_UNSPECIFIED = 0;
+  // Waiting for the deployment's build.
+  PLACEMENT_STATUS_PENDING = 1;
+  PLACEMENT_STATUS_DEPLOYING = 2;
+  PLACEMENT_STATUS_RUNNING = 3;
+  PLACEMENT_STATUS_DEGRADED = 4;
+  PLACEMENT_STATUS_CRASHED = 5;
+  PLACEMENT_STATUS_FAILED = 6;
+  PLACEMENT_STATUS_CANCELED = 7;
+  PLACEMENT_STATUS_SUPERSEDED = 8;
+}
+
+// DeploymentTrigger is what created a deployment.
+enum DeploymentTrigger {
+  DEPLOYMENT_TRIGGER_UNSPECIFIED = 0;
+  DEPLOYMENT_TRIGGER_DEPLOY = 1;
+  DEPLOYMENT_TRIGGER_REDEPLOY = 2;
+  DEPLOYMENT_TRIGGER_ROLLBACK = 3;
+  DEPLOYMENT_TRIGGER_SCALE = 4;
+  DEPLOYMENT_TRIGGER_AUTO_ROLLBACK = 5;
 }
 
 // DeploymentService manages resource deployments.
@@ -81,11 +107,6 @@ message ObservabilityConfig {
 message ServiceDeploymentSpec {
   BuildSource build = 1 [(buf.validate.field).required = true];
   optional HealthCheckConfig health_check = 2;
-  optional string cpu = 3 [(buf.validate.field).string.min_len = 1]; // e.g., "100m" (defaults from resource if omitted)
-  optional string memory = 4 [(buf.validate.field).string.min_len = 1]; // e.g., "256Mi" (defaults from resource if omitted)
-  optional int32 min_replicas = 5 [(buf.validate.field).int32.gte = 1]; // defaults from resource if omitted
-  optional int32 max_replicas = 6 [(buf.validate.field).int32.gte = 1]; // defaults from resource if omitted
-  optional Scalers scalers = 7; // autoscaling config (defaults from resource if omitted)
   map<string, string> env = 8;
   // port is the port the service listens on; without it the service is a worker.
   optional int32 port = 9 [(buf.validate.field).int32 = {
@@ -120,16 +141,31 @@ message ServiceDeploymentSpec {
   }];
   // args replaces the image CMD; without it the image's CMD is passed to the entrypoint.
   repeated string args = 17 [(buf.validate.field).repeated.max_items = 100];
+  // The sizing of each region the deployment targets, keyed by region name. In a request,
+  // an entry overrides the resource's region target; the stored snapshot carries every
+  // target region filled in.
+  map<string, RegionDeploymentTarget> regions = 18;
+
+  option (buf.validate.message).cel = {
+    id: "service_deployment.health_check_requires_port"
+    message: "health_check needs a port: the HTTP check probes the service port"
+    expression: "has(this.port) || !has(this.health_check)"
+  };
+}
+
+// RegionDeploymentTarget is the sizing of one region of a deployment. Omitted fields default
+// from the resource's region target.
+message RegionDeploymentTarget {
+  optional string cpu = 1 [(buf.validate.field).string.min_len = 1]; // e.g., "100m"
+  optional string memory = 2 [(buf.validate.field).string.min_len = 1]; // e.g., "256Mi"
+  optional int32 min_replicas = 3 [(buf.validate.field).int32.gte = 1];
+  optional int32 max_replicas = 4 [(buf.validate.field).int32.gte = 1];
+  optional Scalers scalers = 5;
 
   option (buf.validate.message).cel = {
     id: "replicas.min_lte_max"
     message: "min_replicas must be <= max_replicas"
     expression: "!has(this.min_replicas) || !has(this.max_replicas) || this.min_replicas <= this.max_replicas"
-  };
-  option (buf.validate.message).cel = {
-    id: "service_deployment.health_check_requires_port"
-    message: "health_check needs a port: the HTTP check probes the service port"
-    expression: "has(this.port) || !has(this.health_check)"
   };
 }
 
@@ -160,15 +196,13 @@ enum DeploymentMethod {
   DEPLOYMENT_METHOD_WEB = 3;
 }
 
-// Deployment represents a resource deployment (immutable, single-region).
+// Deployment is one rollout request for a resource in an environment. It fans out to one
+// placement per target region; the status aggregates the placements.
 message Deployment {
+  reserved 3, 4, 5, 7, 22, 23, 24, 25;
   string id = 1;
   string resource_id = 2;
-  string cluster_id = 3;
-  string region = 4;
-  int32 desired_replicas = 5;
   DeploymentStatus status = 6;
-  bool is_active = 7;
   google.protobuf.Timestamp created_at = 9;
   optional google.protobuf.Timestamp started_at = 10;
   optional google.protobuf.Timestamp completed_at = 11;
@@ -182,24 +216,61 @@ message Deployment {
   string actor_avatar_url = 19;
   DeploymentMethod method = 20;
   SourceCommit commit = 21;
-  int64 current_revision = 22;
-  Problem problem = 23;
-  // Active deployments expose the live placement's latest reported replicas,
-  // including previous deployment IDs. Inactive deployments retain historical replicas.
-  repeated Replica replicas = 24;
-  // Shared by the deployments one apply, deploy or scale created across regions.
-  string rollout_id = 25;
+  // One per target region, ordered by region.
+  repeated DeploymentPlacement placements = 26;
+  DeploymentTrigger trigger = 27;
+  // The deployment a redeploy or rollback copied, if any.
+  string source_deployment_id = 28;
+}
+
+// DeploymentPlacement is one region of a deployment.
+message DeploymentPlacement {
+  string cluster_id = 1;
+  string region = 2;
+  int32 desired_replicas = 3;
+  PlacementStatus status = 4;
+  // The image this region runs; empty while the build runs.
+  string image = 5;
+  optional google.protobuf.Timestamp started_at = 6;
+  optional google.protobuf.Timestamp completed_at = 7;
+  int64 current_revision = 8;
+  Problem problem = 9;
+  // A live placement exposes the cluster's latest reported replicas, including previous
+  // deployment IDs; a retired one keeps its last snapshot. List responses leave them empty.
+  repeated Replica replicas = 10;
+  // Whether the region runs this deployment or is building it.
+  bool live = 11;
 }
 
 // CreateDeploymentRequest is the request to create a new deployment.
 message CreateDeploymentRequest {
+  reserved 3;
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
-  string region = 3 [(buf.validate.field).string.min_len = 1];
+  // The regions to deploy to; empty deploys to every enabled region of the resource.
+  repeated string regions = 8 [(buf.validate.field).repeated = {
+    unique: true
+    items: {
+      string: {min_len: 1}
+    }
+  }];
   DeploymentSpec spec = 4 [(buf.validate.field).required = true];
   string environment_id = 5 [(buf.validate.field).string.uuid = true];
-  // Omit to keep the active deployment's secret bindings in the target environment and region.
+  // Omit to keep the secret bindings of the deployment live in the target regions.
   DeploymentSecretBindings secret_bindings = 6;
   SourceCommit commit = 7;
+  // Unspecified records a deploy; redeploy and rollback name the deployment they copy.
+  DeploymentTrigger trigger = 9 [(buf.validate.field).enum = {
+    in: [
+      0,
+      1,
+      2,
+      3
+    ]
+  }];
+  string source_deployment_id = 10 [
+    (buf.validate.field).ignore = IGNORE_IF_ZERO_VALUE,
+    (buf.validate.field).string.uuid = true
+  ];
 }
 
 // DeploymentSecretBindings selects secrets already stored for the resource in the target environment.
@@ -324,6 +395,8 @@ message Activity {
   string severity = 4;
   string replica_name = 5;
   string message = 6;
+  // The region the entry is about; empty for the whole deployment, such as its build.
+  string region = 7;
 }
 
 message WatchDeploymentRequest {

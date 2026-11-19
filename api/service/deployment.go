@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/team-loco/loco/api/authz"
 	"github.com/team-loco/loco/api/authz/actions"
-	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -44,6 +44,10 @@ func parseDeploymentStatus(status genDb.DeploymentStatus) deploymentv1.Deploymen
 		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING
 	case genDb.DeploymentStatusRunning:
 		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
+	case genDb.DeploymentStatusDegraded:
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED
+	case genDb.DeploymentStatusCrashed:
+		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED
 	case genDb.DeploymentStatusSuperseded:
 		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED
 	case genDb.DeploymentStatusFailed:
@@ -53,6 +57,47 @@ func parseDeploymentStatus(status genDb.DeploymentStatus) deploymentv1.Deploymen
 	default:
 		return deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_UNSPECIFIED
 	}
+}
+
+var placementStatuses = map[genDb.PlacementStatus]deploymentv1.PlacementStatus{
+	genDb.PlacementStatusPending:    deploymentv1.PlacementStatus_PLACEMENT_STATUS_PENDING,
+	genDb.PlacementStatusDeploying:  deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
+	genDb.PlacementStatusRunning:    deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
+	genDb.PlacementStatusDegraded:   deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEGRADED,
+	genDb.PlacementStatusCrashed:    deploymentv1.PlacementStatus_PLACEMENT_STATUS_CRASHED,
+	genDb.PlacementStatusFailed:     deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
+	genDb.PlacementStatusCanceled:   deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED,
+	genDb.PlacementStatusSuperseded: deploymentv1.PlacementStatus_PLACEMENT_STATUS_SUPERSEDED,
+}
+
+var deploymentTriggers = map[genDb.DeploymentTrigger]deploymentv1.DeploymentTrigger{
+	genDb.DeploymentTriggerDeploy:       deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY,
+	genDb.DeploymentTriggerRedeploy:     deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY,
+	genDb.DeploymentTriggerRollback:     deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK,
+	genDb.DeploymentTriggerScale:        deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_SCALE,
+	genDb.DeploymentTriggerAutoRollback: deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_AUTO_ROLLBACK,
+}
+
+var deploymentTriggersFromProto = map[deploymentv1.DeploymentTrigger]genDb.DeploymentTrigger{
+	deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_UNSPECIFIED: genDb.DeploymentTriggerDeploy,
+	deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY:      genDb.DeploymentTriggerDeploy,
+	deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_REDEPLOY:    genDb.DeploymentTriggerRedeploy,
+	deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK:    genDb.DeploymentTriggerRollback,
+}
+
+// placementView is one element of the placements JSON the deployment queries return.
+type placementView struct {
+	ClusterID   uuid.UUID             `json:"clusterId"`
+	Region      string                `json:"region"`
+	Replicas    int32                 `json:"replicas"`
+	Status      genDb.PlacementStatus `json:"status"`
+	Image       string                `json:"image"`
+	StartedAt   *time.Time            `json:"startedAt"`
+	CompletedAt *time.Time            `json:"completedAt"`
+	Live        bool                  `json:"live"`
+	Revision    int64                 `json:"revision"`
+	Rollout     json.RawMessage       `json:"rollout"`
+	Observed    json.RawMessage       `json:"observed"`
 }
 
 func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment, error) {
@@ -66,34 +111,53 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 	if d.CommitSha != nil {
 		commit = &deploymentv1.SourceCommit{Sha: *d.CommitSha, Dirty: d.CommitDirty}
 	}
-	deployment := &deploymentv1.Deployment{
-		Id:              d.ID.String(),
-		RolloutId:       d.RolloutID.String(),
-		ResourceId:      d.ResourceID.String(),
-		EnvironmentId:   d.EnvironmentID.String(),
-		ClusterId:       d.ClusterID.String(),
-		Region:          d.Region,
-		DesiredReplicas: d.Replicas,
-		Status:          parseDeploymentStatus(d.Status),
-		IsActive:        d.IsActive,
-		CreatedAt:       timestamppb.New(d.CreatedAt),
-		UpdatedAt:       timestamppb.New(d.UpdatedAt),
-		StartedAt:       optionalTimestamp(d.StartedAt),
-		CompletedAt:     optionalTimestamp(d.CompletedAt),
-		SpecVersion:     d.SpecVersion,
-		Spec:            spec,
-		ActorType:       parseDeploymentActorType(d.ActorType),
-		ActorId:         d.ActorID.String(),
-		ActorName:       row.ActorName,
-		ActorAvatarUrl:  row.ActorAvatarUrl,
-		Method:          parseDeploymentMethod(d.Method),
-		Commit:          commit,
-		CurrentRevision: row.CurrentRevision,
+	var views []placementView
+	if err := json.Unmarshal(row.Placements, &views); err != nil {
+		return nil, fmt.Errorf("decode placements of deployment %s: %w", d.ID, err)
 	}
-	if err := setDeploymentRollout(deployment, row.RolloutSnapshot, row.ObservedReplicas); err != nil {
-		return nil, err
+	placements := make([]*deploymentv1.DeploymentPlacement, 0, len(views))
+	for _, view := range views {
+		placement := &deploymentv1.DeploymentPlacement{
+			ClusterId:       view.ClusterID.String(),
+			Region:          view.Region,
+			DesiredReplicas: view.Replicas,
+			Status:          placementStatuses[view.Status],
+			Image:           view.Image,
+			StartedAt:       optionalTimestamp(view.StartedAt),
+			CompletedAt:     optionalTimestamp(view.CompletedAt),
+			CurrentRevision: view.Revision,
+			Live:            view.Live,
+		}
+		if err := setPlacementRollout(placement, view.Rollout, view.Observed); err != nil {
+			return nil, err
+		}
+		placements = append(placements, placement)
 	}
-	return deployment, nil
+	source := ""
+	if d.SourceDeploymentID != nil {
+		source = d.SourceDeploymentID.String()
+	}
+	return &deploymentv1.Deployment{
+		Id:                 d.ID.String(),
+		ResourceId:         d.ResourceID.String(),
+		EnvironmentId:      d.EnvironmentID.String(),
+		Status:             parseDeploymentStatus(d.Status),
+		CreatedAt:          timestamppb.New(d.CreatedAt),
+		UpdatedAt:          timestamppb.New(d.UpdatedAt),
+		StartedAt:          optionalTimestamp(d.StartedAt),
+		CompletedAt:        optionalTimestamp(d.CompletedAt),
+		SpecVersion:        d.SpecVersion,
+		Spec:               spec,
+		ActorType:          parseDeploymentActorType(d.ActorType),
+		ActorId:            d.ActorID.String(),
+		ActorName:          row.ActorName,
+		ActorAvatarUrl:     row.ActorAvatarUrl,
+		Method:             parseDeploymentMethod(d.Method),
+		Commit:             commit,
+		Placements:         placements,
+		Trigger:            deploymentTriggers[d.Trigger],
+		SourceDeploymentId: source,
+	}, nil
 }
 
 // DeploymentServer implements the DeploymentService gRPC server
@@ -161,7 +225,13 @@ func (s *DeploymentServer) ResolveImage(
 	return &deploymentv1.ResolveImageResponse{Image: pinned.GetImage()}, nil
 }
 
-// CreateDeployment creates a new deployment
+var errSourceDeployment = rpcerr.NewCoded(
+	connect.CodeInvalidArgument,
+	"a redeploy or rollback names the deployment it copies, of the same resource and environment",
+)
+
+// CreateDeployment creates one deployment of the resource in the environment, placed in every
+// requested region, or in every enabled region when the request names none.
 func (s *DeploymentServer) CreateDeployment(
 	ctx context.Context,
 	req *deploymentv1.CreateDeploymentRequest,
@@ -194,7 +264,6 @@ func (s *DeploymentServer) CreateDeployment(
 		return nil, errOnlyServiceResources
 	}
 
-	region := req.GetRegion()
 	environmentID := uuid.MustParse(req.GetEnvironmentId())
 
 	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
@@ -207,16 +276,15 @@ func (s *DeploymentServer) CreateDeployment(
 	if env.WorkspaceID != resource.WorkspaceID {
 		return nil, ErrEnvironmentNotFound
 	}
-
-	cluster, err := eligibleCluster(
-		ctx,
-		s.queries,
-		region,
-		s.silentAfter,
-		s.defaults.TargetPlatform,
-	)
+	trigger := deploymentTriggersFromProto[req.GetTrigger()]
+	source, err := s.sourceDeployment(ctx, req, resourceID, environmentID, trigger)
 	if err != nil {
-		return nil, fmt.Errorf("get active cluster: %w", err)
+		return nil, err
+	}
+
+	clusters, err := eligibleClusters(ctx, s.queries, s.silentAfter, s.defaults.TargetPlatform)
+	if err != nil {
+		return nil, fmt.Errorf("get active clusters: %w", err)
 	}
 
 	requestedBuild := serviceSpec.GetBuild()
@@ -236,7 +304,7 @@ func (s *DeploymentServer) CreateDeployment(
 	requestSpec := proto.CloneOf(originalSpec)
 	requestSpec.GetService().Build = pinnedBuild
 
-	organizationID, counts, err := workspaceLimits(ctx, s.queries, s.counts, resource.WorkspaceID)
+	_, counts, err := workspaceLimits(ctx, s.queries, s.counts, resource.WorkspaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -259,34 +327,23 @@ func (s *DeploymentServer) CreateDeployment(
 		if getErr != nil {
 			return fmt.Errorf("read resource before deployment: %w", getErr)
 		}
-		hostname, hostnameErr := primaryHostname(ctx, qtx, resourceID, environmentID)
-		if hostnameErr != nil {
-			return hostnameErr
+		render, renderErr := newPlacementRenderer(ctx, qtx, resource, environmentID, s.defaults)
+		if renderErr != nil {
+			return renderErr
 		}
-
-		resourceSpec, deserializeErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-		if deserializeErr != nil {
-			return fmt.Errorf("%w: decode resource spec: %w", errDesiredSpec, deserializeErr)
+		regions := req.GetRegions()
+		if len(regions) == 0 {
+			regions = enabledRegions(render.resourceSpec.GetService().GetRegions())
+		}
+		targets, targetErr := placementTargets(clusters, regions, string(s.defaults.TargetPlatform))
+		if targetErr != nil {
+			return targetErr
 		}
 
 		requestSpec.GetService().Platform = string(s.defaults.TargetPlatform)
-		mergedSpec, mergeErr := converter.MergeDeploymentSpec(resourceSpec, requestSpec, region, s.defaults)
-		if errors.Is(mergeErr, converter.ErrRegionNotFound) || errors.Is(mergeErr, converter.ErrRegionDisabled) {
-			return &invalidInputError{public: publicInvalidRequest, err: mergeErr}
-		}
+		mergedServiceSpec, mergeErr := mergeRequestSpec(render.resourceSpec, requestSpec, regions, s.defaults)
 		if mergeErr != nil {
-			return fmt.Errorf("%w: merge deployment spec: %w", errDesiredSpec, mergeErr)
-		}
-
-		mergedServiceSpec := mergedSpec.GetService()
-		if quantityErr := validateQuantities(mergedServiceSpec); quantityErr != nil {
-			return &invalidInputError{public: publicInvalidRequest, err: quantityErr}
-		}
-		replicas := mergedServiceSpec.GetMinReplicas()
-
-		specJSON, marshalErr := deploymentSpecJSON(mergedServiceSpec)
-		if marshalErr != nil {
-			return marshalErr
+			return mergeErr
 		}
 
 		plainEnv, secretNames, bindingsErr := s.deploymentBindings(
@@ -294,62 +351,40 @@ func (s *DeploymentServer) CreateDeployment(
 			qtx,
 			resourceID,
 			environmentID,
-			req,
+			regions,
+			req.GetSecretBindings(),
 			mergedServiceSpec.GetEnv(),
 		)
 		if bindingsErr != nil {
 			return bindingsErr
 		}
 		mergedServiceSpec.Env = plainEnv
-		buildSpec := desiredApplicationSpec(
-			resource,
-			organizationID,
-			resourceSpec,
-			hostname,
-			mergedSpec,
-			region,
-			environmentID,
-			env.Name,
-			s.defaults,
-		)
 
 		var txErr error
-		deploymentID, txErr = createDeploymentWithCleanup(ctx, qtx, counts, genDb.CreateDeploymentParams{
-			RolloutID:     uuid.New(),
-			ResourceID:    resourceID,
-			ClusterID:     cluster.ID,
-			Region:        region,
-			Replicas:      replicas,
-			Status:        genDb.DeploymentStatusDeploying,
-			IsActive:      true,
-			Spec:          specJSON,
-			SpecVersion:   specVersion,
-			EnvironmentID: environmentID,
-			SecretNames:   secretNames,
-			ActorType:     principal.ActorType,
-			ActorID:       principal.ActorID,
-			Method:        principal.Method,
-			CommitSha:     sourceCommitSHA(req.GetCommit()),
-			CommitDirty:   req.GetCommit().GetDirty(),
-		}, buildSpec)
+		deploymentID, txErr = createDeployment(ctx, qtx, &counts, newDeployment{
+			params: genDb.CreateDeploymentParams{
+				ResourceID:         resourceID,
+				EnvironmentID:      environmentID,
+				SecretNames:        secretNames,
+				ActorType:          principal.ActorType,
+				ActorID:            principal.ActorID,
+				Method:             principal.Method,
+				CommitSha:          sourceCommitSHA(req.GetCommit()),
+				CommitDirty:        req.GetCommit().GetDirty(),
+				Trigger:            trigger,
+				SourceDeploymentID: source,
+			},
+			service: mergedServiceSpec,
+			targets: targets,
+			render:  render.payload,
+		})
 		if txErr != nil {
 			return txErr
 		}
 		if bumpErr := bumpEnvironmentRevision(ctx, qtx, environmentID); bumpErr != nil {
 			return bumpErr
 		}
-		return events.Record(ctx, qtx, events.Event{
-			Type:          events.DeploymentCreated,
-			EnvironmentID: new(environmentID),
-			WorkspaceID:   new(resource.WorkspaceID),
-			ResourceID:    new(resource.ID),
-			SubjectType:   events.SubjectDeployment,
-			SubjectID:     new(deploymentID),
-			Data: map[string]any{
-				events.FieldResourceID:    resourceID.String(),
-				events.FieldEnvironmentID: environmentID.String(),
-			},
-		})
+		return recordDeploymentCreated(ctx, qtx, resource, environmentID, deploymentID, regions)
 	})
 	if err != nil {
 		return nil, err
@@ -359,6 +394,55 @@ func (s *DeploymentServer) CreateDeployment(
 		DeploymentId: deploymentID.String(),
 		Build:        pinnedBuild,
 	}, nil
+}
+
+// mergeRequestSpec fills a request's service spec for the target regions and checks its sizes.
+func mergeRequestSpec(
+	resourceSpec *resourcev1.ResourceSpec,
+	requestSpec *deploymentv1.DeploymentSpec,
+	regions []string,
+	defaults servicedefaults.Defaults,
+) (*deploymentv1.ServiceDeploymentSpec, error) {
+	merged, err := converter.MergeDeploymentSpec(resourceSpec, requestSpec, regions, defaults)
+	if errors.Is(err, converter.ErrRegionNotFound) || errors.Is(err, converter.ErrRegionDisabled) ||
+		errors.Is(err, converter.ErrRegionNotTargeted) {
+		return nil, &invalidInputError{public: publicInvalidRequest, err: err}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("%w: merge deployment spec: %w", errDesiredSpec, err)
+	}
+	if quantityErr := validateQuantities(merged.GetService()); quantityErr != nil {
+		return nil, &invalidInputError{public: publicInvalidRequest, err: quantityErr}
+	}
+	return merged.GetService(), nil
+}
+
+// sourceDeployment is the deployment a redeploy or rollback copies, which must belong to the
+// same resource and environment; a deploy names none.
+func (s *DeploymentServer) sourceDeployment(
+	ctx context.Context,
+	req *deploymentv1.CreateDeploymentRequest,
+	resourceID, environmentID uuid.UUID,
+	trigger genDb.DeploymentTrigger,
+) (*uuid.UUID, error) {
+	if trigger == genDb.DeploymentTriggerDeploy {
+		if req.GetSourceDeploymentId() != "" {
+			return nil, errSourceDeployment
+		}
+		return nil, nil
+	}
+	if req.GetSourceDeploymentId() == "" {
+		return nil, errSourceDeployment
+	}
+	source, err := s.queries.GetDeploymentByID(ctx, uuid.MustParse(req.GetSourceDeploymentId()))
+	if errors.Is(err, pgx.ErrNoRows) || err == nil &&
+		(source.ResourceID != resourceID || source.EnvironmentID != environmentID) {
+		return nil, errSourceDeployment
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get source deployment: %w", err)
+	}
+	return &source.ID, nil
 }
 
 // GetDeployment retrieves a deployment by ID
@@ -466,7 +550,9 @@ func (s *DeploymentServer) ListDeployments(
 		if err != nil {
 			return nil, err
 		}
-		deployment.Replicas = nil
+		for _, placement := range deployment.GetPlacements() {
+			placement.Replicas = nil
+		}
 		deployments = append(deployments, deployment)
 	}
 	token := nextPageToken(rows, pageSize, func(row genDb.ListEnvironmentDeploymentsRow) (uuid.UUID, time.Time) {
@@ -507,12 +593,17 @@ func (s *DeploymentServer) DeleteDeployment(
 		if lockErr := lockResource(ctx, qtx, resource.ID); lockErr != nil {
 			return lockErr
 		}
-		current, getErr := qtx.GetDeploymentByID(ctx, deploymentID)
-		if getErr != nil {
-			return fmt.Errorf("read deployment before deletion: %w", getErr)
+		live, listErr := listLiveDeploymentsForEnvironment(ctx, qtx, resource.ID, deployment.EnvironmentID)
+		if listErr != nil {
+			return listErr
 		}
-		if retireErr := retireDeployment(ctx, qtx, resource, current); retireErr != nil {
-			return retireErr
+		for _, region := range live {
+			if region.ID != deploymentID {
+				continue
+			}
+			if retireErr := retireDeployment(ctx, qtx, resource, region); retireErr != nil {
+				return retireErr
+			}
 		}
 		return bumpEnvironmentRevision(ctx, qtx, deployment.EnvironmentID)
 	})
@@ -558,11 +649,13 @@ func deploymentRouting(
 }
 
 func validateQuantities(service *deploymentv1.ServiceDeploymentSpec) error {
-	if _, err := servicedefaults.ParseCPU(service.GetCpu()); err != nil {
-		return err
-	}
-	if _, err := servicedefaults.ParseMemory(service.GetMemory()); err != nil {
-		return err
+	for _, target := range service.GetRegions() {
+		if _, err := servicedefaults.ParseCPU(target.GetCpu()); err != nil {
+			return err
+		}
+		if _, err := servicedefaults.ParseMemory(target.GetMemory()); err != nil {
+			return err
+		}
 	}
 	return nil
 }

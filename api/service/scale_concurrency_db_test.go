@@ -49,15 +49,15 @@ func TestScaleBuildsOnTheReplacementThatCommitsWhileItWaits(t *testing.T) {
 	created := make(chan createResult, 1)
 	go func() {
 		service := imageService()
-		service.Cpu = new(biggerCPU)
-		service.Memory = new("128Mi")
+		testTarget(service).Cpu = new(biggerCPU)
+		testTarget(service).Memory = new("128Mi")
 		service.Env = map[string]string{"KEY": "new"}
 		response, err := server.CreateDeployment(
 			ctx,
 			&deploymentv1.CreateDeploymentRequest{
 				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.envID.String(),
-				Region:        testRegion,
+				Regions:       []string{testRegion},
 				Spec: &deploymentv1.DeploymentSpec{
 					Spec: &deploymentv1.DeploymentSpec_Service{Service: service},
 				},

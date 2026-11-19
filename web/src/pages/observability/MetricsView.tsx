@@ -161,16 +161,18 @@ function useDeployMarkers(visible: ObsResource[], environmentId: string, from: n
 			if (t < from || t > to || d.environmentId !== environmentId) continue;
 			const tag = imageVersion(deploymentImage(d));
 			const label = `${r.name} ${tag}`;
-			markers.push({
-				t,
-				label,
-				title: `Deployed ${label} in ${d.region}`,
-				color: r.color,
-				tag,
-				resourceId: r.id,
-				resourceName: r.name,
-				region: d.region,
-			});
+			for (const p of d.placements) {
+				markers.push({
+					t,
+					label,
+					title: `Deployed ${label} in ${p.region}`,
+					color: r.color,
+					tag,
+					resourceId: r.id,
+					resourceName: r.name,
+					region: p.region,
+				});
+			}
 		}
 	});
 	return markers;

@@ -2,7 +2,7 @@ package service
 
 import (
 	"encoding/json"
-	"maps"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -88,7 +88,7 @@ func (f *deployFixture) deployAs(
 			`{"platform":"linux/amd64","build":{"type":"dockerfile","image":"registry.test/svc@sha256:0","buildId":"` +
 				failedDeployBuild + `"}}`,
 		)
-		id, err = createDeploymentWithCleanup(t.Context(), qtx, counts, params, staticSpec)
+		id, err = recordTestDeployment(t.Context(), qtx, counts, params, staticSpec)
 		return err
 	})
 	if err != nil {
@@ -127,14 +127,14 @@ func wantDeploymentFailedData(t *testing.T, f *deployFixture, got map[string]any
 		events.FieldResourceID:    f.resourceID.String(),
 		events.FieldEnvironmentID: f.envID.String(),
 		events.FieldBuildID:       failedDeployBuild,
-		events.FieldRegion:        f.paramsFor(f.clusterID).Region,
+		events.FieldRegions:       []any{f.paramsFor(f.clusterID).Region},
 		events.FieldMessage:       message,
 		events.FieldResourceName:  planSvc,
 		events.FieldCreatorID:     f.userID.String(),
 		events.FieldCreatorEmail:  deployFixtureEmail,
 		events.FieldCreatorName:   failedDeployUser,
 	}
-	if !maps.Equal(got, want) {
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("deployment.failed data = %v, want %v", got, want)
 	}
 }

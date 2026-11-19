@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	notDeployedMessage    = "Not deployed to any environment."
-	deploymentPhasePrefix = "DEPLOYMENT_STATUS_"
+	notDeployedMessage   = "Not deployed to any environment."
+	placementPhasePrefix = "PLACEMENT_STATUS_"
 )
 
 var (
@@ -145,7 +145,7 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 			region.GetRegion(),
 			statusLabel(region.GetStatus()),
 			ready,
-			deploymentLabel(region.GetDeploymentStatus()),
+			placementLabel(region.GetPlacementStatus()),
 			region.GetMessage(),
 		})
 	}
@@ -285,8 +285,8 @@ func statusColor(status resourcev1.ResourceStatus) ui.Color {
 	}
 }
 
-func deploymentLabel(phase deploymentv1.DeploymentStatus) string {
-	name := strings.TrimPrefix(phase.String(), deploymentPhasePrefix)
+func placementLabel(phase deploymentv1.PlacementStatus) string {
+	name := strings.TrimPrefix(phase.String(), placementPhasePrefix)
 	return strings.ToLower(name)
 }
 

@@ -8,24 +8,23 @@ import (
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-func TestNextDeploymentStatus(t *testing.T) {
+func TestNextPlacementStatus(t *testing.T) {
 	for _, tt := range []struct {
 		name                string
-		previous, want      genDb.DeploymentStatus
+		previous, want      genDb.PlacementStatus
 		available, deadline bool
 	}{
-		{"deploying waits", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusDeploying, false, false},
-		{"available", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusRunning, true, false},
-		{"deadline", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusFailed, false, true},
-		{"failed retries", genDb.DeploymentStatusFailed, genDb.DeploymentStatusFailed, false, false},
-		{"failed recovers", genDb.DeploymentStatusFailed, genDb.DeploymentStatusRunning, true, false},
-		{"availability wins", genDb.DeploymentStatusFailed, genDb.DeploymentStatusRunning, true, true},
-		{"running unhealthy", genDb.DeploymentStatusRunning, genDb.DeploymentStatusRunning, false, false},
-		{"restart waits", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusDeploying, false, false},
-		{"restart ready", genDb.DeploymentStatusDeploying, genDb.DeploymentStatusRunning, true, false},
+		{"deploying waits", genDb.PlacementStatusDeploying, genDb.PlacementStatusDeploying, false, false},
+		{"available", genDb.PlacementStatusDeploying, genDb.PlacementStatusRunning, true, false},
+		{"deadline", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed, false, true},
+		{"failed retries", genDb.PlacementStatusFailed, genDb.PlacementStatusFailed, false, false},
+		{"failed recovers", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning, true, false},
+		{"availability wins", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning, true, true},
+		{"running unhealthy", genDb.PlacementStatusRunning, genDb.PlacementStatusRunning, false, false},
+		{"running past the deadline", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed, false, true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := nextDeploymentStatus(
+			got := nextPlacementStatus(
 				tt.previous,
 				&agentv1.PlacementStatus{Available: tt.available, ProgressDeadlineExceeded: tt.deadline},
 			)
@@ -45,7 +44,9 @@ func TestDeploymentStatusMapping(t *testing.T) {
 		{genDb.DeploymentStatusBuilding, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_BUILDING, false},
 		{genDb.DeploymentStatusDeploying, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING, false},
 		{genDb.DeploymentStatusRunning, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING, false},
-		{genDb.DeploymentStatusFailed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, false},
+		{genDb.DeploymentStatusDegraded, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEGRADED, false},
+		{genDb.DeploymentStatusCrashed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CRASHED, false},
+		{genDb.DeploymentStatusFailed, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED, true},
 		{genDb.DeploymentStatusCanceled, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED, true},
 		{genDb.DeploymentStatusSuperseded, deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED, true},
 	} {

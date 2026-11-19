@@ -71,9 +71,15 @@ func (s *ResourceServer) RestartResource(
 			}
 			return errNoActiveDeployment
 		}
-		for _, clusterID := range clusters {
-			if notifyErr := notifyCluster(ctx, qtx, clusterID); notifyErr != nil {
+		for _, restarted := range clusters {
+			if notifyErr := notifyCluster(ctx, qtx, restarted.ClusterID); notifyErr != nil {
 				return notifyErr
+			}
+			if restarted.DeploymentID == nil {
+				continue
+			}
+			if _, recomputeErr := recomputeDeploymentStatus(ctx, qtx, *restarted.DeploymentID); recomputeErr != nil {
+				return fmt.Errorf("recompute restarted deployment: %w", recomputeErr)
 			}
 		}
 		data := map[string]any{events.FieldEnvironmentID: environmentID.String()}

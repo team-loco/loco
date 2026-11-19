@@ -160,8 +160,8 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 				t,
 				w,
 				app,
-			); region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
-				return fmt.Errorf("deployment %v", region.GetDeploymentStatus())
+			); region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+				return fmt.Errorf("deployment %v", region.GetPlacementStatus())
 			}
 			return nil
 		},
@@ -277,23 +277,24 @@ func (s *status) failedRolloutKeepsServing(t *testing.T) {
 	}
 	desired := getDeployment(t, newDeployment)
 	requireServingReplicas(t, desired, oldDeployment, 2)
-	if !slices.ContainsFunc(desired.GetReplicas(), func(replica *deploymentv1.Replica) bool {
+	if !slices.ContainsFunc(desired.GetPlacements()[0].GetReplicas(), func(replica *deploymentv1.Replica) bool {
 		return replica.GetDeploymentId() == newDeployment
 	}) {
 		t.Error("the failed desired deployment has no identified unready replica")
 	}
-	if getDeployment(t, oldDeployment).GetIsActive() {
+	if getDeployment(t, oldDeployment).GetPlacements()[0].GetLive() {
 		t.Error("the serving deployment is reported active")
 	}
 }
 
 func requireServingReplicas(t *testing.T, observed *deploymentv1.Deployment, deploymentID string, want int) {
 	t.Helper()
-	if !observed.GetIsActive() {
-		t.Fatal("the observed desired deployment is not active")
+	placement := observed.GetPlacements()[0]
+	if !placement.GetLive() {
+		t.Fatal("the observed desired deployment is not live")
 	}
 	ready := 0
-	for _, replica := range observed.GetReplicas() {
+	for _, replica := range placement.GetReplicas() {
 		if !replica.GetReady() {
 			continue
 		}
@@ -319,8 +320,9 @@ func checkDeploymentFailedEvent(t *testing.T, w *platform.Workspace, resourceID,
 		t.Fatalf("%d deployment.failed events name deployment %s, want one", len(failedEvents), deploymentID)
 	}
 	data := failedEvents[0].GetData().GetFields()
-	if region := data["region"].GetStringValue(); region != p.Region {
-		t.Errorf("the deployment.failed event names region %q, want %q", region, p.Region)
+	regions := data["regions"].GetListValue().GetValues()
+	if len(regions) != 1 || regions[0].GetStringValue() != p.Region {
+		t.Errorf("the deployment.failed event names regions %v, want %q", regions, p.Region)
 	}
 	if name := data["resource_name"].GetStringValue(); name != app {
 		t.Errorf("the deployment.failed event names resource %q, want %q", name, app)
@@ -474,9 +476,9 @@ func waitRolloutFinished(t *testing.T, w *platform.Workspace, app string) {
 		if err != nil {
 			return err
 		}
-		if current.region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING ||
+		if current.region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING ||
 			current.status != resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY {
-			return fmt.Errorf("deployment %v, status %v", current.region.GetDeploymentStatus(), current.status)
+			return fmt.Errorf("deployment %v, status %v", current.region.GetPlacementStatus(), current.status)
 		}
 		return nil
 	})
@@ -685,8 +687,8 @@ func (s *status) unavailable(t *testing.T) {
 	waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE)
 	region := regionStatus(t, w, app)
 	p.MustKubectl(t, "uncordon", p.Node())
-	if region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
-		t.Errorf("the deployment reads %v while its pods cannot run, want running", region.GetDeploymentStatus())
+	if region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+		t.Errorf("the deployment reads %v while its pods cannot run, want running", region.GetPlacementStatus())
 	}
 	if region.GetReadyReplicas() != 0 {
 		t.Errorf("the region reports %d ready replicas, want none", region.GetReadyReplicas())
@@ -717,7 +719,7 @@ func (s *status) rolloutAcceptsMutations(t *testing.T) {
 	replacement, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    id,
 		EnvironmentId: w.EnvironmentID,
-		Region:        p.Region,
+		Regions:       []string{p.Region},
 		Spec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
 				Build: &deploymentv1.BuildSource{Type: "image", Image: p.PublicImage},

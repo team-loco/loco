@@ -1,7 +1,7 @@
 import { toJson, type JsonObject, type JsonValue } from "@bufbuild/protobuf";
 import { DeploymentSpecSchema, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { desiredReplicas, getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { shortImageRef } from "@/lib/image";
 
 function isObject(v: JsonValue | undefined): v is JsonObject {
@@ -32,8 +32,8 @@ function specObject(dep: Deployment): JsonObject {
 	const base = isObject(json) ? json : {};
 	const normalized = normalize({
 		...base,
-		region: dep.region,
-		replicas: dep.desiredReplicas,
+		region: dep.placements[0]?.region ?? "",
+		replicas: desiredReplicas(dep),
 	});
 	return isObject(normalized) ? normalized : {};
 }
@@ -206,9 +206,9 @@ export function specChanges(from: Deployment, to: Deployment): SpecChange[] {
 			to: shortImageRef(toImage) || null,
 		});
 	}
-	push("replicas", from.desiredReplicas.toString(), to.desiredReplicas.toString());
-	push("cpu", f?.cpu ?? null, t?.cpu ?? null);
-	push("memory", f?.memory ?? null, t?.memory ?? null);
+	push("replicas", desiredReplicas(from).toString(), desiredReplicas(to).toString());
+	push("cpu", regionTarget(f)?.cpu ?? null, regionTarget(t)?.cpu ?? null);
+	push("memory", regionTarget(f)?.memory ?? null, regionTarget(t)?.memory ?? null);
 	push("port", f?.port?.toString() ?? null, t?.port?.toString() ?? null);
 	push("health", healthLine(from), healthLine(to));
 	push("command", entriesLine(f?.command), entriesLine(t?.command));

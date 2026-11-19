@@ -272,7 +272,8 @@ func requireDeploymentOrigin(t *testing.T, w *platform.Workspace, repo, name str
 	}
 	var count int
 	if err := p.DB.QueryRow(t.Context(), `SELECT count(*) FROM deployments d JOIN resources r ON r.id = d.resource_id
-		WHERE r.workspace_id = $1 AND r.name = $2 AND d.is_active AND d.actor_type = 'user' AND d.actor_id = $3
+		WHERE r.workspace_id = $1 AND r.name = $2 AND d.actor_type = 'user' AND d.actor_id = $3
+		  AND d.id IN (SELECT deployment_id FROM live_deployment_placements)
 		  AND d.method = 'cli' AND d.commit_sha = $4 AND d.commit_dirty = $5`,
 		w.ID, name, p.UserID, strings.TrimSpace(head), dirty).Scan(&count); err != nil {
 		t.Fatal(err)

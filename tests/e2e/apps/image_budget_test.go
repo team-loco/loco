@@ -66,7 +66,7 @@ func TestPublicImageSizeBudget(t *testing.T) {
 	_, err = p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    created.GetResourceId(),
 		EnvironmentId: w.EnvironmentID,
-		Region:        p.Region,
+		Regions:       []string{p.Region},
 		Spec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{
 				Build: &deploymentv1.BuildSource{Type: "image", Image: ref.Name()},

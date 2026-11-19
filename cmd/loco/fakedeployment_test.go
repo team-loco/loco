@@ -43,9 +43,11 @@ func (s *fakeDeploymentService) WatchDeployment(
 	if !ok {
 		outcome = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
 	}
+	placement := &deploymentv1.DeploymentPlacement{Region: fakeDefaultRegion}
 	deployment := &deploymentv1.Deployment{
-		Id:     req.GetDeploymentId(),
-		Status: outcome,
+		Id:         req.GetDeploymentId(),
+		Status:     outcome,
+		Placements: []*deploymentv1.DeploymentPlacement{placement},
 	}
 	offset := int64(0)
 	if building {
@@ -66,7 +68,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 		}
 		if buildOutcome == outcomeFailed {
 			deployment.Status = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED
-			deployment.Problem = &deploymentv1.Problem{
+			placement.Problem = &deploymentv1.Problem{
 				Reason:  "build_failed",
 				Message: "The build failed.",
 				Detail:  "RUN go build exited with code 1",
@@ -110,7 +112,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 	}
 	deployment.Status = outcome
 	if outcome == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
-		deployment.Problem = &deploymentv1.Problem{Message: fakeFailedMessage, Detail: "exit 1"}
+		placement.Problem = &deploymentv1.Problem{Message: fakeFailedMessage, Detail: "exit 1"}
 	}
 	var activity []*deploymentv1.Activity
 	if req.GetAfterSeq() < offset+2 {

@@ -256,12 +256,12 @@ WITH restarted AS (
       AND NOT desired_deleted
     RETURNING cluster_id, deployment_id
 ), deploying AS (
-    UPDATE deployments
+    UPDATE deployment_placements dp
     SET status = 'deploying', completed_at = NULL, updated_at = NOW()
     FROM restarted
-    WHERE deployments.id = restarted.deployment_id AND deployments.is_active
+    WHERE dp.deployment_id = restarted.deployment_id AND dp.cluster_id = restarted.cluster_id
 )
-SELECT cluster_id FROM restarted;
+SELECT cluster_id, deployment_id FROM restarted;
 
 -- name: RetireOtherRegionPlacements :many
 UPDATE placements SET desired_deleted = true, desired_spec = NULL,

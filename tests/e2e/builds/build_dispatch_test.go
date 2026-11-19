@@ -292,7 +292,7 @@ func createDeployment(
 	t.Helper()
 	request := &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    resourceID,
-		Region:        p.Region,
+		Regions:       []string{p.Region},
 		EnvironmentId: w.EnvironmentID,
 		Spec: &deploymentv1.DeploymentSpec{
 			Spec: &deploymentv1.DeploymentSpec_Service{Service: &deploymentv1.ServiceDeploymentSpec{

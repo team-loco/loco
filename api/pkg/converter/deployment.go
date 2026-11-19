@@ -3,6 +3,7 @@ package converter
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
@@ -16,6 +17,7 @@ import (
 var (
 	ErrRegionNotFound           = errors.New("region not found in resource spec")
 	ErrRegionDisabled           = errors.New("region is not enabled")
+	ErrRegionNotTargeted        = errors.New("the deployment sizes a region it does not target")
 	errResourceSpecNotService   = errors.New("resourceSpec must contain a service spec")
 	errDeploymentSpecNotService = errors.New("deployment spec must contain a service spec")
 	errEmptySpecBytes           = errors.New("spec bytes cannot be empty")
@@ -66,12 +68,13 @@ func DeserializeDeploymentSpec(
 	}
 }
 
-// MergeDeploymentSpec merges a request DeploymentSpec with the resource's region target and the
-// API's configured defaults. The request takes precedence, then the region target, then the defaults.
+// MergeDeploymentSpec merges a request DeploymentSpec with the resource's region targets and the
+// API's configured defaults for every target region. The request takes precedence, then the
+// region target, then the defaults. The merged spec sizes exactly the target regions.
 func MergeDeploymentSpec(
 	resourceSpec *resourcev1.ResourceSpec,
 	requestSpec *deploymentv1.DeploymentSpec,
-	region string,
+	regions []string,
 	defaults servicedefaults.Defaults,
 ) (*deploymentv1.DeploymentSpec, error) {
 	resourceServiceSpec := resourceSpec.GetService()
@@ -84,15 +87,23 @@ func MergeDeploymentSpec(
 		return nil, errDeploymentSpecNotService
 	}
 
-	regionTarget, ok := resourceServiceSpec.GetRegions()[region]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrRegionNotFound, region)
+	for region := range requestServiceSpec.GetRegions() {
+		if !slices.Contains(regions, region) {
+			return nil, fmt.Errorf("%w: %s", ErrRegionNotTargeted, region)
+		}
 	}
-	if !regionTarget.GetEnabled() {
-		return nil, fmt.Errorf("%w: %s", ErrRegionDisabled, region)
+	targets := make(map[string]*deploymentv1.RegionDeploymentTarget, len(regions))
+	for _, region := range regions {
+		regionTarget, ok := resourceServiceSpec.GetRegions()[region]
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrRegionNotFound, region)
+		}
+		if !regionTarget.GetEnabled() {
+			return nil, fmt.Errorf("%w: %s", ErrRegionDisabled, region)
+		}
+		targets[region] = defaults.Fill(regionTarget, requestServiceSpec.GetRegions()[region]).Proto()
 	}
 
-	resources := defaults.Fill(regionTarget, requestServiceSpec)
 	healthCheck := requestServiceSpec.GetHealthCheck()
 	if healthCheck == nil {
 		healthCheck = resourceServiceSpec.GetHealthCheck()
@@ -112,11 +123,7 @@ func MergeDeploymentSpec(
 		Args:              requestServiceSpec.GetArgs(),
 		Port:              requestServiceSpec.Port,
 		Env:               requestServiceSpec.GetEnv(),
-		Cpu:               &resources.CPU,
-		Memory:            &resources.Memory,
-		MinReplicas:       &resources.MinReplicas,
-		MaxReplicas:       &resources.MaxReplicas,
-		Scalers:           resources.Scalers,
+		Regions:           targets,
 		HealthCheck:       healthCheck,
 	}
 
@@ -182,12 +189,12 @@ func ProtoToRoutingSpec(
 	}
 }
 
-func ProtoToResourcesSpec(service *deploymentv1.ServiceDeploymentSpec) *locoControllerV1.ResourcesSpec {
-	scalers := service.GetScalers()
+func ProtoToResourcesSpec(target *deploymentv1.RegionDeploymentTarget) *locoControllerV1.ResourcesSpec {
+	scalers := target.GetScalers()
 	return &locoControllerV1.ResourcesSpec{
-		CPU:      service.GetCpu(),
-		Memory:   service.GetMemory(),
-		Replicas: locoControllerV1.ReplicasSpec{Min: service.GetMinReplicas(), Max: service.GetMaxReplicas()},
+		CPU:      target.GetCpu(),
+		Memory:   target.GetMemory(),
+		Replicas: locoControllerV1.ReplicasSpec{Min: target.GetMinReplicas(), Max: target.GetMaxReplicas()},
 		Scalers: locoControllerV1.ScalersSpec{
 			Enabled:      scalers.GetEnabled(),
 			CPUTarget:    scalers.GetCpuTarget(),
