@@ -107,7 +107,7 @@ COMMIT;""",
 )
 sql(
     state,
-    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes', started_at = NOW() - INTERVAL '10 minutes' WHERE id='{deployment}';",
+    f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE id='{deployment}';",
 )
 desired = json.dumps(
     {

@@ -41,7 +41,7 @@ import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
 import { draftSearch, RESOURCE_VIEWS, resourcesPath, resourceViewParser } from "@/lib/routes";
-import { readyMs, shortDurationLabel, tsMs } from "@/lib/time";
+import { readyMs, shortDurationLabel } from "@/lib/time";
 import { pageParser } from "@/lib/paging";
 import { sortParser } from "@/lib/sort-parser";
 import { cn } from "@/lib/utils";
@@ -73,7 +73,7 @@ function replicaTotal(item: DashboardItem): number {
 }
 
 function lastDeployMs(item: DashboardItem): number {
-	return isDraftItem(item) || item.last === undefined ? 0 : (readyMs(item.last) ?? tsMs(item.last.createdAt));
+	return isDraftItem(item) || item.last === undefined ? 0 : (readyMs(item.last) ?? 0);
 }
 
 function regionNote(item: EnvResource): string {
