@@ -34,7 +34,6 @@ import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-
 import { buildLogsPath, observabilityPath, resourcePath } from "@/lib/routes";
 import { agoLabel, maybeTsMs } from "@/lib/time";
 import { cn } from "@/lib/utils";
-import { eventReasonLabel } from "@/pages/observability/events";
 import { problemLogsHref } from "@/pages/resource/deployment-progress";
 
 const CLOCK_TICK_MS = 60_000;
@@ -229,9 +228,9 @@ function DeployCard({
 								: "text-warn",
 						)}
 					>
-						{eventReasonLabel(problem.reason)}
+						{problem.message}
 					</b>
-					{problem.message !== "" && <span className="text-fg2">{problem.message}</span>}
+					{problem.detail !== "" && <span className="text-fg2">{problem.detail}</span>}
 				</div>
 			) : (
 				deployment.status !== DeploymentStatus.FAILED &&

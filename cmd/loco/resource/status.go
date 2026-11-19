@@ -161,6 +161,19 @@ func renderEnvironmentStatus(stdout io.Writer, environment *resourcev1.Environme
 	return nil
 }
 
+// replicaStateLabel is the replica's state, or Restarting with its restarts in the window against
+// the budget while a replica that restarted has not stopped.
+func replicaStateLabel(replica *deploymentv1.Replica, maxRestarts int32) string {
+	restarts := len(replica.GetRestartsAt())
+	// Replica states are owned by k8sapi/v1alpha1/replicas.go.
+	switch state := replica.GetState(); {
+	case restarts == 0, state == "Serving", state == "Stopped", state == "Killed":
+		return state
+	default:
+		return fmt.Sprintf("Restarting (%d/%d)", restarts, maxRestarts)
+	}
+}
+
 // renderReplicas prints the replicas the cluster last reported for a region.
 func renderReplicas(stdout io.Writer, region *resourcev1.RegionStatus, now time.Time) error {
 	if len(region.GetReplicas()) == 0 {
@@ -185,7 +198,7 @@ func renderReplicas(stdout io.Writer, region *resourcev1.RegionStatus, now time.
 		}
 		rows = append(rows, []string{
 			replica.GetName(),
-			replica.GetState(),
+			replicaStateLabel(replica, region.GetMaxRestarts()),
 			strconv.Itoa(int(replica.GetRestarts())),
 			lastExit,
 			started,

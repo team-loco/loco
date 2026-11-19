@@ -14527,6 +14527,12 @@
             },
             "title": "replicas",
             "description": "The replicas the cluster last reported for this region's placement. GetResource fills them;\n list responses leave them empty."
+          },
+          "maxRestarts": {
+            "type": "integer",
+            "title": "max_restarts",
+            "format": "int32",
+            "description": "Restarts a replica may have within the service's restart window before Loco stops the version."
           }
         },
         "title": "RegionStatus",

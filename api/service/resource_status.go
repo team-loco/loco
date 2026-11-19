@@ -42,7 +42,9 @@ func (s *ResourceServer) environmentStatuses(
 	ctx context.Context,
 	resourceIDs []uuid.UUID,
 ) (map[uuid.UUID][]*resourcev1.EnvironmentStatus, error) {
-	rows, err := s.queries.ListRegionStatusesForResources(ctx, resourceIDs)
+	rows, err := s.queries.ListRegionStatusesForResources(ctx, genDb.ListRegionStatusesForResourcesParams{
+		ResourceIds: resourceIDs, DefaultMaxRestarts: s.defaults.MaxRestarts,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list region statuses: %w", err)
 	}
@@ -99,6 +101,7 @@ func regionStatus(
 		DesiredReplicas: row.DesiredReplicas,
 		DeploymentId:    row.DeploymentID.String(),
 		PlacementStatus: placementStatuses[row.PlacementStatus],
+		MaxRestarts:     row.MaxRestarts,
 	}
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)

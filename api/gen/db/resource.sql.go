@@ -355,15 +355,22 @@ SELECT l.resource_id,
              AND rd.domain_source = 'platform_provided'
              AND NOT (rd.platform_domain = ANY(c.domains))
            ORDER BY rd.domain
-       )::text[] AS unserved_domains
+       )::text[] AS unserved_domains,
+       COALESCE(r.max_restarts, $1::int)::int AS max_restarts
 FROM live_deployment_placements l
+JOIN resources r ON r.id = l.resource_id
 JOIN environments e ON e.id = l.environment_id
 JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
     AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
-WHERE l.resource_id = ANY($1::uuid[])
+WHERE l.resource_id = ANY($2::uuid[])
 ORDER BY l.resource_id, e.name, l.region
 `
+
+type ListRegionStatusesForResourcesParams struct {
+	DefaultMaxRestarts int32       `json:"defaultMaxRestarts"`
+	ResourceIds        []uuid.UUID `json:"resourceIds"`
+}
 
 type ListRegionStatusesForResourcesRow struct {
 	ResourceID      uuid.UUID       `json:"resourceId"`
@@ -381,10 +388,11 @@ type ListRegionStatusesForResourcesRow struct {
 	LastHeartbeat   *time.Time      `json:"lastHeartbeat"`
 	HealthStatus    *string         `json:"healthStatus"`
 	UnservedDomains []string        `json:"unservedDomains"`
+	MaxRestarts     int32           `json:"maxRestarts"`
 }
 
-func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceIds []uuid.UUID) ([]ListRegionStatusesForResourcesRow, error) {
-	rows, err := q.db.Query(ctx, listRegionStatusesForResources, resourceIds)
+func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRegionStatusesForResourcesParams) ([]ListRegionStatusesForResourcesRow, error) {
+	rows, err := q.db.Query(ctx, listRegionStatusesForResources, arg.DefaultMaxRestarts, arg.ResourceIds)
 	if err != nil {
 		return nil, err
 	}
@@ -408,6 +416,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 			&i.LastHeartbeat,
 			&i.HealthStatus,
 			&i.UnservedDomains,
+			&i.MaxRestarts,
 		); err != nil {
 			return nil, err
 		}

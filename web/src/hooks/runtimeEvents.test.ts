@@ -42,7 +42,7 @@ test("build, deployment and scaling history requests use the selected environmen
 				"production",
 				"(@type:resource.degraded OR @type:resource.recovered OR @type:resource.restarted OR @type:deployment.created OR @type:resource.scaled OR @type:build.created OR @type:build.started OR @type:build.succeeded OR @type:build.failed OR @type:build.canceled)",
 			],
-			["", "(@type:deployment.ready OR @type:deployment.failed)"],
+			["", "(@type:deployment.ready OR @type:deployment.failed OR @type:deployment.crashed)"],
 		]);
 	} finally {
 		client.clear();

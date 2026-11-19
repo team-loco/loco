@@ -156,6 +156,8 @@ message RegionStatus {
   // The replicas the cluster last reported for this region's placement. GetResource fills them;
   // list responses leave them empty.
   repeated deployment.v1.Replica replicas = 9;
+  // Restarts a replica may have within the service's restart window before Loco stops the version.
+  int32 max_restarts = 11;
 }
 
 // --- CRUD ---

@@ -28,7 +28,7 @@ sql(
     f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id,subject_type,request_id,data,created_at)
 SELECT kind,'{org}','{workspace}','{resource}',CASE WHEN kind='resource.degraded' THEN '{environment}'::uuid ELSE NULL END,'user','{owner}',split_part(kind,'.',1),'req-events-ui',
 jsonb_build_object('region','us-east-1','environmentId','{environment}') || CASE
-WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'restarting' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE '' END)
+WHEN kind='resource.degraded' THEN jsonb_build_object('reason',CASE WHEN n=1 THEN 'restarting' ELSE 'out_of_memory' END,'message',CASE WHEN n=1 THEN 'Back-off restarting app ' || repeat('layer-', 40) || repeat('0123456789abcdef', 12) ELSE 'The service ran out of memory. Increase its memory limit or reduce memory usage.' END)
 WHEN kind LIKE 'deployment.%' THEN jsonb_build_object('deploymentId','7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a')
 ELSE jsonb_build_object('buildId','32c7419e-0000-4000-8000-000000000001','message','Build failed: package installation exited with code 1.') END,NOW()-n*INTERVAL '1 minute'
 FROM (VALUES(1,'resource.degraded'),(2,'resource.degraded'),(3,'deployment.ready'),(4,'deployment.failed'),(5,'build.failed')) AS records(n,kind);""",
@@ -53,7 +53,12 @@ with session(out) as browser:
     expect(
         events.get_by_role("button", name="Deploy failed in us-east-1", exact=True)
     ).to_be_visible()
-    expect(events.get_by_text("Out of memory", exact=True)).to_be_visible()
+    expect(
+        events.get_by_text(
+            "The service ran out of memory. Increase its memory limit or reduce memory usage.",
+            exact=True,
+        )
+    ).to_be_visible()
     expect(events.get_by_text("deployment 8d7c6b5a", exact=True)).to_have_count(2)
     events.get_by_role("button", name=re.compile(r"^Warnings")).click()
     wait_for_query(page, lambda query: query.get("q") == ["@severity:warning"])
@@ -70,7 +75,7 @@ with session(out) as browser:
     )
     attributes = drawer.get_by_role("region", name="Attributes")
     expect(attributes).to_contain_text("production")
-    expect(attributes).to_contain_text("Restarting")
+    expect(attributes).to_contain_text("restarting")
     expect(attributes.get_by_text("environmentId", exact=True)).to_have_count(0)
     expect(attributes.get_by_text("environment_id", exact=True)).to_have_count(0)
     expect(

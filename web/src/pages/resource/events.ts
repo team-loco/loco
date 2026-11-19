@@ -23,7 +23,7 @@ export function recentWarningCount(events: Event[], nowMs: number): number {
 	}).length;
 }
 
-export function latestBackOff(events: Event[], region?: string): Event | undefined {
+export function latestRestartWarning(events: Event[], region?: string): Event | undefined {
 	const latest = new Map<string, Event>();
 	for (const event of newestFirst(events)) {
 		if ((region === undefined || event.region === region) && !latest.has(event.placementId))

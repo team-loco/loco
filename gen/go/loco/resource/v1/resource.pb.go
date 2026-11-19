@@ -737,7 +737,9 @@ type RegionStatus struct {
 	ReportedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=reported_at,json=reportedAt,proto3,oneof" json:"reported_at,omitempty"`
 	// The replicas the cluster last reported for this region's placement. GetResource fills them;
 	// list responses leave them empty.
-	Replicas      []*v1.Replica `protobuf:"bytes,9,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	Replicas []*v1.Replica `protobuf:"bytes,9,rep,name=replicas,proto3" json:"replicas,omitempty"`
+	// Restarts a replica may have within the service's restart window before Loco stops the version.
+	MaxRestarts   int32 `protobuf:"varint,11,opt,name=max_restarts,json=maxRestarts,proto3" json:"max_restarts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -833,6 +835,13 @@ func (x *RegionStatus) GetReplicas() []*v1.Replica {
 		return x.Replicas
 	}
 	return nil
+}
+
+func (x *RegionStatus) GetMaxRestarts() int32 {
+	if x != nil {
+		return x.MaxRestarts
+	}
+	return 0
 }
 
 // CreateResourceRequest is the request to create a new resource.
@@ -2169,7 +2178,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12)\n" +
 	"\x10environment_name\x18\x02 \x01(\tR\x0fenvironmentName\x128\n" +
 	"\x06status\x18\x03 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x128\n" +
-	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\"\xe3\x03\n" +
+	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\"\x86\x04\n" +
 	"\fRegionStatus\x12\x16\n" +
 	"\x06region\x18\x01 \x01(\tR\x06region\x128\n" +
 	"\x06status\x18\x02 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x12%\n" +
@@ -2181,7 +2190,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\amessage\x18\a \x01(\tH\x00R\amessage\x88\x01\x01\x12@\n" +
 	"\vreported_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampH\x01R\n" +
 	"reportedAt\x88\x01\x01\x127\n" +
-	"\breplicas\x18\t \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicasB\n" +
+	"\breplicas\x18\t \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicas\x12!\n" +
+	"\fmax_restarts\x18\v \x01(\x05R\vmaxRestartsB\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
 	"\f_reported_atJ\x04\b\x06\x10\a\"\xe1\x04\n" +
