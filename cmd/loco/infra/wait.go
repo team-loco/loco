@@ -35,14 +35,11 @@ func readWait(cmd *cobra.Command) (bool, error) {
 	return wait, nil
 }
 
-// waitRunning returns once every deployment runs, and on the first one that fails or is canceled.
+// waitRunning returns once every deployment runs or a newer one replaced it, and on the first one
+// that fails or a user cancels.
 func waitRunning(ctx context.Context, t cmdutil.Target, w io.Writer, deployments []*planv1.StartedDeployment) error {
 	for _, deployment := range deployments {
 		if err := waitDeployment(ctx, t, w, deployment); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, "Deployment %s for %s in %s is running.\n",
-			deployment.GetDeploymentId(), deployment.GetService(), regionList(deployment)); err != nil {
 			return err
 		}
 	}
@@ -87,12 +84,21 @@ func waitDeployment(ctx context.Context, t cmdutil.Target, w io.Writer, deployme
 				switch current.GetStatus() {
 				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
 					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_SUPERSEDED:
-					return stream.Close()
+					_, writeErr := fmt.Fprintf(w, "Deployment %s for %s in %s is running.\n",
+						id, deployment.GetService(), regionList(deployment))
+					return errors.Join(writeErr, stream.Close())
 				case deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
 					deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED:
 					outcome := "failed"
 					if current.GetStatus() == deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_CANCELED {
 						outcome = "was canceled"
+						if by := current.GetCanceledByName(); by != "" {
+							outcome += " by " + by
+						} else if newer := supersededBy(current); newer != "" {
+							_, writeErr := fmt.Fprintf(w, "Deployment %s for %s in %s was superseded by %s.\n",
+								id, deployment.GetService(), regionList(deployment), newer)
+							return errors.Join(writeErr, stream.Close())
+						}
 					}
 					return errors.Join(
 						fmt.Errorf(
@@ -145,6 +151,16 @@ func writePlacementChanges(
 		}
 	}
 	return nil
+}
+
+// supersededBy is the newer deployment that replaced one of the deployment's regions, if any.
+func supersededBy(deployment *deploymentv1.Deployment) string {
+	for _, placement := range deployment.GetPlacements() {
+		if placement.GetSupersededBy() != "" {
+			return placement.GetSupersededBy()
+		}
+	}
+	return ""
 }
 
 func regionList(deployment *planv1.StartedDeployment) string {

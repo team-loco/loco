@@ -73,10 +73,8 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Unlock()
 	case "deployment":
 		setDeploymentOutcome(ts, api, neg, args)
-	case "restarted":
-		checkRestarted(ts, api, neg, args)
-	case "scaled":
-		checkScaled(ts, api, neg, args)
+	case "restarted", "scaled", "canceled":
+		checkRecorded(ts, api, neg, args)
 	case "built":
 		checkBuilt(ts, api, neg, args)
 	case "uploaded":
@@ -128,15 +126,25 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 
 func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
 	if neg || len(args) < 3 {
-		ts.Fatalf("usage: fakeapi deployment <id> <running|failed|canceled|deploying> [<region>=<placement status>...]")
+		ts.Fatalf("usage: fakeapi deployment <id> <running|failed|canceled|deploying> " +
+			"[<region>=<placement status>...] [canceled-by=<name>] [superseded-by=<id>]")
 	}
 	phase, ok := deploymentv1.DeploymentStatus_value["DEPLOYMENT_STATUS_"+strings.ToUpper(args[2])]
 	if !ok {
 		ts.Fatalf("fakeapi: unknown deployment phase %q", args[2])
 	}
 	placements := make([]*deploymentv1.DeploymentPlacement, 0, len(args)-3)
+	canceledBy, supersededBy := "", ""
 	for _, arg := range args[3:] {
 		region, status, _ := strings.Cut(arg, "=")
+		switch region {
+		case "canceled-by":
+			canceledBy = status
+			continue
+		case "superseded-by":
+			supersededBy = status
+			continue
+		}
 		value, known := deploymentv1.PlacementStatus_value["PLACEMENT_STATUS_"+strings.ToUpper(status)]
 		if !known {
 			ts.Fatalf("fakeapi: unknown placement status %q", status)
@@ -145,10 +153,39 @@ func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, arg
 			Region: region, Status: deploymentv1.PlacementStatus(value),
 		})
 	}
+	if supersededBy != "" {
+		placements = append(placements, &deploymentv1.DeploymentPlacement{
+			Region:       fakeDefaultRegion,
+			Status:       deploymentv1.PlacementStatus_PLACEMENT_STATUS_CANCELED,
+			SupersededBy: supersededBy,
+		})
+	}
 	api.mu.Lock()
 	defer api.mu.Unlock()
 	api.platform.deploymentOutcomes[args[1]] = deploymentv1.DeploymentStatus(phase)
 	api.platform.deploymentPlacements[args[1]] = placements
+	api.platform.deploymentCanceledBy[args[1]] = canceledBy
+}
+
+// checkRecorded checks that the fake recorded the restart, scale or cancel the arguments name.
+func checkRecorded(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	switch args[0] {
+	case "restarted":
+		checkRestarted(ts, api, neg, args)
+	case "scaled":
+		checkScaled(ts, api, neg, args)
+	default:
+		checkCanceled(ts, api, neg, args)
+	}
+}
+
+func checkCanceled(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	requireArgs(ts, neg, args, 2, "fakeapi canceled <deployment id>")
+	api.mu.Lock()
+	defer api.mu.Unlock()
+	if !slices.Contains(api.platform.canceledDeployments, args[1]) {
+		ts.Fatalf("fakeapi: %s was not canceled; canceled: %v", args[1], api.platform.canceledDeployments)
+	}
 }
 
 func requireArgs(ts *testscript.TestScript, neg bool, args []string, n int, usage string) {

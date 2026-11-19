@@ -5,6 +5,7 @@ import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
 import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, readyMs } from "@/lib/time";
+import { formatShortId } from "@/lib/utils";
 
 export const RECENT_MS = 30 * 60_000;
 const MAX_CARDS = 6;
@@ -117,4 +118,11 @@ export function rolloutReadyLabel(d: Deployment, count = readyCount(d)): string 
 export function reportedReadyLabel(d: Deployment, ready: ReadonlyMap<string, number>): string | undefined {
 	const count = ready.get(d.id);
 	return count === undefined ? undefined : rolloutReadyLabel(d, count);
+}
+
+/** Who canceled a canceled deployment, or the deployment that replaced it. */
+export function canceledNote(d: Deployment): string | undefined {
+	if (d.canceledByName !== "") return `Canceled by ${d.canceledByName}`;
+	const newer = d.placements.find((p) => p.supersededBy !== "")?.supersededBy;
+	return newer === undefined ? undefined : `Superseded by ${formatShortId(newer)}`;
 }

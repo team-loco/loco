@@ -11,7 +11,7 @@ loco resource logs --help
 loco resource events --help
 ```
 
-`loco resource` also includes `scale`, `restart`, and `destroy`; `loco env` manages secrets. Inspect an operation's help before changing resources or removing an application.
+`loco resource` also includes `scale`, `restart`, `cancel`, and `destroy`; `loco env` manages secrets. Inspect an operation's help before changing resources or removing an application.
 
 `loco resource logs --query` prints only the lines that match a [log query](../reference/log-queries.md), such as `loco resource logs api --query '@level:error -@path:/healthz'`.
 
@@ -27,9 +27,13 @@ loco resource scale web --env production --region eu-west-1 --replicas 4
 
 ## Cancel
 
-`DeploymentService.CancelDeployment` stops a deployment that is still building or rolling out. Canceling stops the build unless another deployment in flight uses it. Each region the deployment does not run yet goes back to the deployment that served it before, or loses its Application when none did. Each region where the deployment already runs keeps it. The deployment ends `canceled` and records who canceled it. A deployment that already runs everywhere, failed or was replaced cannot be canceled; roll back or redeploy it instead.
+`loco resource cancel` stops the newest deployment of a service that is still building or rolling out in one environment; the **Cancel** button on a deployment card in the dashboard does the same for that deployment, and both call `DeploymentService.CancelDeployment`. Canceling stops the build unless another deployment in flight uses it. Each region the deployment does not run yet goes back to the deployment that served it before, or loses its Application when none did. Each region where the deployment already runs keeps it. The deployment ends `canceled` and records who canceled it. A deployment that already runs everywhere, failed or was replaced cannot be canceled; roll back or redeploy it instead.
 
-A new deployment of the service replaces one in flight without a cancel: the older deployment ends `canceled`, and its card names the deployment that replaced it.
+A new deployment of the service replaces one in flight without a cancel: the older deployment ends `canceled`, and its card names the deployment that replaced it. `--wait` exits with an error naming who canceled a deployment, and succeeds with a note when a newer deployment replaced it.
+
+```sh
+loco resource cancel web --env production
+```
 
 ## Restart
 

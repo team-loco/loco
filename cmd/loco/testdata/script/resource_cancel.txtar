@@ -1,0 +1,18 @@
+# loco resource cancel cancels the service's deployment that is still building or rolling out.
+fakeapi resource web
+fakeapi deployment dep-old running
+fakeapi deployment dep-new deploying
+
+exec loco resource cancel web
+stdout 'Canceled deployment dep-new of web in production'
+fakeapi canceled dep-new
+
+-- home/.loco/credentials.json --
+{"Host":"${LOCO_HOST}","ExpiresAt":"2099-01-01T00:00:00Z","Token":"test-token","RefreshToken":""}
+-- home/.loco/config.yaml --
+organization:
+  name: acme
+  id: "1"
+workspace:
+  name: production
+  id: "2"

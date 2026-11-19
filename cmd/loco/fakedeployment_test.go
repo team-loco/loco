@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"maps"
+	"slices"
 	"strings"
 
 	"connectrpc.com/connect/v2"
@@ -34,6 +36,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 	f.mu.Lock()
 	outcome, ok := f.platform.deploymentOutcomes[req.GetDeploymentId()]
 	finalPlacements := f.platform.deploymentPlacements[req.GetDeploymentId()]
+	canceledBy := f.platform.deploymentCanceledBy[req.GetDeploymentId()]
 	building := false
 	if len(f.platform.applies) > 0 {
 		apply := f.platform.applies[len(f.platform.applies)-1]
@@ -116,6 +119,7 @@ func (s *fakeDeploymentService) WatchDeployment(
 		outcome = deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING
 	}
 	deployment.Status = outcome
+	deployment.CanceledByName = canceledBy
 	placement.Status = deploymentv1.PlacementStatus(
 		deploymentv1.PlacementStatus_value["PLACEMENT_STATUS_"+strings.TrimPrefix(outcome.String(), "DEPLOYMENT_STATUS_")],
 	)
@@ -140,4 +144,45 @@ func (s *fakeDeploymentService) WatchDeployment(
 		activity = append(activity, &deploymentv1.Activity{Seq: offset + 3, Message: "Scaled to 3 replicas"})
 	}
 	return stream.Send(&deploymentv1.WatchDeploymentResponse{Deployment: deployment, Activity: activity})
+}
+
+func (s *fakeDeploymentService) ListDeployments(
+	ctx context.Context,
+	_ *deploymentv1.ListDeploymentsRequest,
+) (*deploymentv1.ListDeploymentsResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	f := s.api
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: deploymentv1connect.DeploymentServiceListDeploymentsProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	response := &deploymentv1.ListDeploymentsResponse{}
+	for _, id := range slices.Sorted(maps.Keys(f.platform.deploymentOutcomes)) {
+		response.Deployments = append(response.Deployments, &deploymentv1.Deployment{
+			Id: id, Status: f.platform.deploymentOutcomes[id],
+		})
+	}
+	return response, nil
+}
+
+func (s *fakeDeploymentService) CancelDeployment(
+	ctx context.Context,
+	req *deploymentv1.CancelDeploymentRequest,
+) (*deploymentv1.CancelDeploymentResponse, error) {
+	info, _ := connect.CallInfoForServerContext(ctx)
+	f := s.api
+	if _, _, err := f.authenticate(
+		connect.Spec{Procedure: deploymentv1connect.DeploymentServiceCancelDeploymentProcedure},
+		info.RequestHeader(),
+	); err != nil {
+		return nil, err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.platform.canceledDeployments = append(f.platform.canceledDeployments, req.GetDeploymentId())
+	return &deploymentv1.CancelDeploymentResponse{}, nil
 }

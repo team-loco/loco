@@ -85,6 +85,7 @@ const AUDIT_TYPES: Record<string, AuditType> = {
 	"secret.set": { label: "Set secrets", category: "deploys" },
 	"secret.deleted": { label: "Removed secrets", category: "deploys" },
 	"deployment.created": { label: "Deployed", category: "deploys" },
+	"deployment.canceled": { label: "Canceled a deployment", category: "deploys" },
 	"deployment.deleted": { label: "Deleted a deployment", category: "deploys" },
 	"build.created": { label: "Created a build", category: "deploys" },
 	"build.started": { label: "Started a build", category: "deploys" },
