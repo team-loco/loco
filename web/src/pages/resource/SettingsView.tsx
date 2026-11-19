@@ -70,6 +70,12 @@ function scrollToSection(node: HTMLElement | null) {
 	node?.scrollIntoView({ block: "start" });
 }
 
+function scrollToHash(node: HTMLElement | null) {
+	const id = window.location.hash.slice(1);
+	if (node !== null && id !== "")
+		node.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ block: "start", behavior: "instant" });
+}
+
 export function SettingsView({
 	resource,
 	environmentId,
@@ -175,7 +181,7 @@ export function SettingsView({
 						</a>
 					))}
 				</nav>
-				<div className="flex min-w-0 flex-col">
+				<div ref={scrollToHash} className="flex min-w-0 flex-col">
 					<ImageSection {...props} />
 					<CommandSection {...props} />
 					<ScalingSection
