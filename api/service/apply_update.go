@@ -46,7 +46,7 @@ func (a *applier) update(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if updateErr := qtx.UpdateResourceSpec(ctx, specParams); updateErr != nil {
 		return fmt.Errorf("update resource spec: %w", updateErr)
 	}
-	if deployErr := setDeployPolicy(ctx, qtx, res.ID, op.Desired.Deploy); deployErr != nil {
+	if deployErr := setDeployPolicy(ctx, qtx, &res, op.Desired.Deploy); deployErr != nil {
 		return deployErr
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, res.ID); bumpErr != nil {

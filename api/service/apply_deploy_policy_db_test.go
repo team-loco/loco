@@ -182,3 +182,21 @@ func TestChangingTheRestartPolicyDoesNotRedeploy(t *testing.T) {
 	}
 	wantCleanPlan(t, f, removed)
 }
+
+func TestARestartPolicyChangeReachesTheDeploymentTheSameApplyStarts(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	applyOK(t, f, workerFileWith(applyFileDeploy), applyOptions{})
+	f.finishRollouts(t)
+
+	changed := workerFileWith("    deploy: { maxRestarts: 1 }\n")
+	changed = strings.Replace(changed, "LOG_LEVEL: info", "LOG_LEVEL: debug", 1)
+	if started := applyOK(t, f, changed, applyOptions{}).GetDeployments(); len(started) != 1 {
+		t.Fatalf("an env change started deployments %v, want one", started)
+	}
+	want := locoControllerV1.RestartPolicySpec{MaxRestarts: 1, WindowSeconds: testServiceDefaults().RestartWindow}
+	if got := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.RestartPolicy; got != want {
+		t.Fatalf("deployed restart policy = %+v, want %+v", got, want)
+	}
+}
