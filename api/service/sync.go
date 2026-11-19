@@ -774,11 +774,24 @@ func advancePlacementStatus(
 	return recordDeploymentStatus(ctx, qtx, deploymentID, cause, defaults)
 }
 
-// deploymentStatusEvents are the aggregate transitions recordDeploymentStatus records an event for.
-var deploymentStatusEvents = map[genDb.DeploymentStatus]string{
-	genDb.DeploymentStatusRunning: events.DeploymentReady,
-	genDb.DeploymentStatusFailed:  events.DeploymentFailed,
-	genDb.DeploymentStatusCrashed: events.DeploymentCrashed,
+// deploymentStatusEvent is the event a deployment's aggregate transition records, if any. A
+// deployment is ready once it serves, whether every replica is healthy yet or not.
+func deploymentStatusEvent(previous, status genDb.DeploymentStatus) (string, bool) {
+	serving := func(s genDb.DeploymentStatus) bool {
+		return s == genDb.DeploymentStatusRunning || s == genDb.DeploymentStatusDegraded
+	}
+	switch {
+	case serving(status) && !serving(previous):
+		return events.DeploymentReady, true
+	case status == previous:
+		return "", false
+	case status == genDb.DeploymentStatusFailed:
+		return events.DeploymentFailed, true
+	case status == genDb.DeploymentStatusCrashed:
+		return events.DeploymentCrashed, true
+	default:
+		return "", false
+	}
 }
 
 // recordDeploymentStatus recomputes a deployment's aggregate status from its placements and
@@ -795,8 +808,8 @@ func recordDeploymentStatus(
 	if err != nil {
 		return fmt.Errorf("recompute deployment status: %w", err)
 	}
-	kind, recorded := deploymentStatusEvents[status.Status]
-	if status.PreviousStatus == status.Status || !recorded {
+	kind, recorded := deploymentStatusEvent(status.PreviousStatus, status.Status)
+	if !recorded {
 		return nil
 	}
 	d, err := qtx.GetDeploymentEvent(ctx, id)

@@ -89,6 +89,14 @@ func TestARunningServiceStoppedForRestartsCrashesOnceAndRestartsAgain(t *testing
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusDegraded {
 		t.Fatalf("deployment after a restart = %s, want degraded", got)
 	}
+	f.reportPlacement(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusRunning {
+		t.Fatalf("deployment after a quiet window = %s, want running", got)
+	}
+	if ready := f.eventsOf(t, events.DeploymentReady, id); len(ready) != 1 {
+		t.Fatalf("deployment.ready events = %d, want 1 across a recovery", len(ready))
+	}
+	f.reportPlacement(t, &agentv1.PlacementStatus{Available: true})
 	for range 3 {
 		f.reportPlacement(t, stoppedReport())
 	}
@@ -131,7 +139,10 @@ func TestARolloutStoppedForRestartsFails(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	id := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
-	f.reportPlacement(t, stoppedReport())
+	f.reportPlacement(t, &agentv1.PlacementStatus{Available: true, Healthy: true})
+	report := stoppedReport()
+	report.Stopped.Rollout = true
+	f.reportPlacement(t, report)
 	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusFailed {
 		t.Fatalf("deployment = %s, want failed", got)
 	}
