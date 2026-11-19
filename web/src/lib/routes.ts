@@ -19,7 +19,7 @@ export function switchWorkspacePath(pathname: string, search: string, orgId: str
 	return `${workspacePath(orgId, workspaceId, rest)}${serializeEnv(search, { env: null })}`;
 }
 
-export const SETTINGS_SCOPES = ["org", "workspace", "account"] as const;
+export const SETTINGS_SCOPES = ["org", "workspace", "personal"] as const;
 export type SettingsScope = (typeof SETTINGS_SCOPES)[number];
 
 const serializeScope = createSerializer({ scope: parseAsStringLiteral(SETTINGS_SCOPES) });
@@ -44,7 +44,7 @@ export function webhooksPath(orgId: string, workspaceId: string, types?: string)
 export const PROFILE_PATH = "/profile";
 
 export function accountSettingsPath(orgId: string | null, workspaceId: string | null): string {
-	return orgId !== null && workspaceId !== null ? settingsPath(orgId, workspaceId, "account") : PROFILE_PATH;
+	return orgId !== null && workspaceId !== null ? settingsPath(orgId, workspaceId, "personal") : PROFILE_PATH;
 }
 
 const serializeResourceLink = createSerializer({ tab: parseAsString, env: parseAsString });
