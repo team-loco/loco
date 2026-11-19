@@ -21,6 +21,7 @@ import {
 	mergeEnv,
 	nameError,
 	nameFromImage,
+	portRangeError,
 	servedDomains,
 	validateForm,
 	type EnvRow,
@@ -107,8 +108,20 @@ test("nameError follows the API's name rules", () => {
 	expect(nameErr("Web", new Map([["web", "web"]]))).toBe("web already uses the name web");
 });
 
-test("validateForm leaves port and health check numbers to the API", () => {
-	const loose = { ...form, port: "0", health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
+test("portRangeError accepts blank and 1 through 65535 and rejects the rest", () => {
+	for (const ok of ["", "  ", "1", "8080", "65535", " 443 "]) expect(portRangeError(ok)).toBeNull();
+	for (const bad of ["0", "65536", "70000", "-1", "80.5", "http", "1e3"])
+		expect(portRangeError(bad)).toBe("Use a port from 1 to 65535");
+});
+
+test("validateForm rejects a port outside 1 through 65535", () => {
+	expect(validateForm({ ...form, port: "70000" }, "available", 10).port).toBe("Use a port from 1 to 65535");
+	expect(validateForm({ ...form, port: "0" }, "available", 10).port).toBe("Use a port from 1 to 65535");
+	expect(firstError(validateForm({ ...form, port: "0" }, "available", 10))).toBe("Use a port from 1 to 65535");
+});
+
+test("validateForm leaves health check numbers to the API", () => {
+	const loose = { ...form, health: { path: "healthz", interval: "", timeout: "0", failAfter: "" } };
 	expect(firstError(validateForm(loose, "available", 10))).toBeNull();
 });
 

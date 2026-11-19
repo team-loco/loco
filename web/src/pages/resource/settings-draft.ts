@@ -13,7 +13,7 @@ import {
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
-import { IMAGE_RE, scalingError, scalingSpec, type Scaling } from "@/lib/new-resource";
+import { IMAGE_RE, portRangeError, scalingError, scalingSpec, type Scaling } from "@/lib/new-resource";
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
 
 import { isDeployed, type RegionView } from "./model";
@@ -207,7 +207,10 @@ export function validateDraft(
 	}
 	if (draft.name !== undefined && next.name.trim() === "") errors.name = "Enter a name";
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";
-	if (draft.port !== undefined && !positive(next.port)) errors.port = "Enter a port number";
+	if (draft.port !== undefined) {
+		const portInvalid = next.port.trim() === "" ? "Enter a port number" : portRangeError(next.port);
+		if (portInvalid !== null) errors.port = portInvalid;
+	}
 	if (draft.healthPath !== undefined && !next.healthPath.startsWith("/")) errors.healthPath = "Start the path with /";
 	if (draft.healthInterval !== undefined && !positive(next.healthInterval))
 		errors.healthInterval = "Whole seconds, at least 1";

@@ -159,9 +159,23 @@ export function validateForm(
 	};
 }
 
+// The deployment spec's `port` accepts 1 through 65535.
+const MIN_PORT = 1;
+const MAX_PORT = 65535;
+
+/** The error for a port field's text, or null when it is blank or a whole number in the API's range. */
+export function portRangeError(port: string): string | null {
+	const text = port.trim();
+	if (text === "") return null;
+	const value = Number(text);
+	return /^\d+$/.test(text) && value >= MIN_PORT && value <= MAX_PORT
+		? null
+		: `Use a port from ${MIN_PORT.toString()} to ${MAX_PORT.toString()}`;
+}
+
 // A service without a port is a worker, which takes no traffic and has nothing to probe.
 function portError(form: NewResourceForm): string | null {
-	if (form.port.trim() !== "") return null;
+	if (form.port.trim() !== "") return portRangeError(form.port);
 	if (form.isPublic) return "A public service needs a port";
 	if (form.health.path !== "") return "A health check needs a port";
 	return null;
