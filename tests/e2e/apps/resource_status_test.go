@@ -690,8 +690,8 @@ func (s *status) unavailable(t *testing.T) {
 	waitStatus(t, w, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE)
 	region := regionStatus(t, w, app)
 	p.MustKubectl(t, "uncordon", p.Node())
-	if region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
-		t.Errorf("the deployment reads %v while its pods cannot run, want running", region.GetPlacementStatus())
+	if region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEGRADED {
+		t.Errorf("the deployment reads %v while its pods cannot run, want degraded", region.GetPlacementStatus())
 	}
 	if region.GetReadyReplicas() != 0 {
 		t.Errorf("the region reports %d ready replicas, want none", region.GetReadyReplicas())
