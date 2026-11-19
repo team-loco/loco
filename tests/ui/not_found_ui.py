@@ -310,9 +310,13 @@ with session(out) as browser:
         f"/org/{other_org}/wks/{shared}",
         f"/org/{org}/wks/{shared}/resource/not-a-uuid",
         f"/org/{uuid.uuid4()}/team",
+        f"/org/{org}/wks/{uuid.UUID(int=0)}",
+        f"/org/{org}/wks/not-a-uuid",
     ):
         page.goto(ui + path)
         expect_not_found(page, path)
+    page.goto(ui + "/team")
+    expect(page).to_have_url(re.compile(r"/org/[0-9a-f-]+/team$"))
     page.goto(ui + f"/org/{org}/team")
     expect(page.get_by_role("button", name="Search and run commands")).to_be_visible()
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)

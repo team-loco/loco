@@ -92,9 +92,9 @@ function OrgRedirect({ to }: { to: "team" | "settings" }) {
 	const { orgId } = useParams();
 	const { activeOrgId, workspaces, workspacesSettled } = useOrgWorkspace();
 	const org = orgId ?? activeOrgId;
+	if (!workspacesSettled) return <AppLoading />;
 	if (org === null) return <Navigate to="/organizations" replace />;
 	if (to === "team") return <Navigate to={`/org/${org}/team`} replace />;
-	if (!workspacesSettled) return <AppLoading />;
 	const ws = workspaces.find((w) => w.orgId === org)?.id;
 	if (ws === undefined) return <Navigate to="/organizations" replace />;
 	return <Navigate to={`${settingsPath(org, ws, "org")}${hash}`} replace />;
