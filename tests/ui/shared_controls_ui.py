@@ -1063,12 +1063,11 @@ def first_click_sorts_descending(table, label, first):
     expect(table.get_by_role("row").nth(1)).to_contain_text(first)
 
 
-def new_resource_menu(page):
+def new_service_button(page):
     page.goto(state["ui_url"] + base + "/resources?env=production")
-    page.get_by_role("button", name="New resource", exact=True).click()
-    menu = page.get_by_role("menu")
-    expect(menu.get_by_role("menuitem", name="Service", exact=True)).to_be_enabled()
-    page.keyboard.press("Escape")
+    new_service = page.get_by_role("link", name="New service", exact=True)
+    expect(new_service).to_be_enabled()
+    expect(new_service).to_have_attribute("href", re.compile(r"[?&]new=1"))
 
 
 def resources(page):
@@ -1204,7 +1203,7 @@ with session(out) as browser:
     mock_telemetry(context)
     time_preferences(browser)
     page.goto(state["ui_url"] + base + "/resource/" + resource + "?env=production")
-    new_resource_menu(page)
+    new_service_button(page)
     page.goto(state["ui_url"] + base + "/settings?scope=workspace")
     group = page.get_by_role("group", name="Settings for", exact=True)
     workspace_button = group.get_by_role("button", name="Workspace", exact=True)
