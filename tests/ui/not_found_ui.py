@@ -433,6 +433,11 @@ with session(out) as browser:
     page.goto(ui + "/")
     expect(page).to_have_url(ui + "/")
     expect(page.get_by_role("heading", name=TITLE, exact=True)).to_have_count(0)
+    account = (
+        page.get_by_role("contentinfo").get_by_text("Account", exact=True).locator("..")
+    )
+    expect(account.get_by_role("button", name="Sign in", exact=True)).to_be_visible()
+    expect(account.get_by_role("link", name="Dashboard", exact=True)).to_have_count(0)
     context.grant_permissions(["clipboard-read", "clipboard-write"], origin=ui)
     prompt = "Deploy my app to Loco: https://loco.build/skills.md"
     assert prompt in (repo / "docs/content/reference/ai.md").read_text()

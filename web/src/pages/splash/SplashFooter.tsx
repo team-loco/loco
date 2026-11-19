@@ -1,6 +1,5 @@
 import { ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link } from "react-router";
 
 import { LocoLogo } from "@/components/design/LocoLogo";
 
@@ -53,9 +52,6 @@ export function SplashFooter({ onSignIn, redirecting }: { onSignIn: () => void; 
 					<button type="button" onClick={onSignIn} disabled={redirecting} className={LINK_CLASS}>
 						Sign in
 					</button>
-					<Link to="/dashboard" className={LINK_CLASS}>
-						Dashboard
-					</Link>
 				</Column>
 			</div>
 		</footer>
