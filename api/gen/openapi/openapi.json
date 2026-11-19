@@ -7405,7 +7405,7 @@
           "loco.webhook.v1.WebhookService"
         ],
         "summary": "UpdateWebhook",
-        "description": "UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.",
+        "description": "UpdateWebhook replaces a webhook's name, URL and event types. Pending retries go to the new URL.",
         "operationId": "loco.webhook.v1.WebhookService.UpdateWebhook",
         "parameters": [
           {
@@ -16049,6 +16049,12 @@
             },
             "title": "event_types",
             "maxItems": 100
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 100,
+            "description": "An optional label shown in the webhook list."
           }
         },
         "title": "CreateWebhookRequest",
@@ -16316,6 +16322,12 @@
             "title": "event_types",
             "maxItems": 100,
             "description": "An empty list subscribes the webhook to every event."
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "maxLength": 100,
+            "description": "An empty name clears the label."
           }
         },
         "title": "UpdateWebhookRequest",
@@ -16358,6 +16370,11 @@
             "title": "previous_secret_expires_at",
             "description": "Set while deliveries are also signed with the secret the last rotation replaced.",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "name": {
+            "type": "string",
+            "title": "name",
+            "description": "An optional label; empty when none was given."
           }
         },
         "title": "Webhook",

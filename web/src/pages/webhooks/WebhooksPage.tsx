@@ -66,7 +66,7 @@ export function WebhooksPage({
 
 	const webhooks = query.data?.webhooks ?? [];
 	const filtered = webhooks.filter((w) =>
-		`${w.url} ${w.eventTypes.join(" ")}`.toLowerCase().includes(search.toLowerCase()),
+		`${w.name} ${w.url} ${w.eventTypes.join(" ")}`.toLowerCase().includes(search.toLowerCase()),
 	);
 	const opened = webhooks.find((w) => w.id === openId) ?? null;
 	const listKey = createConnectQueryKey({ schema: listWebhooks, input: { workspaceId }, cardinality: "finite" });
@@ -117,7 +117,7 @@ export function WebhooksPage({
 				search={
 					<SearchInput
 						aria-label="Search webhooks"
-						placeholder="Search by URL or event type"
+						placeholder="Search by name, URL or event type"
 						value={search}
 						onClear={() => {
 							setSearch("");
@@ -250,8 +250,11 @@ function WebhookRow({
 					title={webhook.url}
 					className="block w-full text-left font-mono"
 				>
-					<span className="block truncate text-[13px]">{url.host}</span>
+					<span className={cn("block truncate text-[13px]", webhook.name !== "" && "font-sans")}>
+						{webhook.name === "" ? url.host : webhook.name}
+					</span>
 					<span className="block truncate text-[11.5px] text-fg3">
+						{webhook.name === "" ? "" : url.host}
 						{url.pathname}
 						{url.search}
 					</span>
