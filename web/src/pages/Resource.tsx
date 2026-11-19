@@ -61,7 +61,8 @@ import { ResourceHeader } from "@/pages/resource/ResourceHeader";
 import { ResourceSkeleton } from "@/pages/resource/ResourceSkeleton";
 import { DeploymentProgress } from "@/pages/resource/DeploymentProgress";
 import { queryStr, quoteValue } from "@/pages/observability/query";
-import { baseline, type SettingsDraft } from "@/pages/resource/settings-draft";
+import { LeaveGuard } from "@/pages/resource/LeaveGuard";
+import { baseline, changeCount, type SettingsDraft } from "@/pages/resource/settings-draft";
 import { SETTINGS_FOCUSES, SettingsView } from "@/pages/resource/SettingsView";
 import { SpecDialogContent } from "@/pages/resource/SpecDialog";
 
@@ -318,6 +319,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	return (
 		<Page className="gap-5">
+			<LeaveGuard dirty={!del.isPending && changeCount(draft, base) > 0} resourceName={resource.name} />
 			<ResourceHeader
 				nowMs={nowMs}
 				resource={resource}
