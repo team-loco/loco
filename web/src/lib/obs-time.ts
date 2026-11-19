@@ -119,12 +119,13 @@ export function aroundWindow(ts: number, now: number): TimeWindow {
 	return { kind: "absolute", from: ts - AROUND_MS, to: Math.min(now, ts + AROUND_MS) };
 }
 
-export type CustomRangeError = "invalid" | "order" | "future" | "too-long";
+export type CustomRangeError = "invalid" | "order" | "future" | "future-end" | "too-long";
 
 export function checkCustomRange(from: number, to: number, now: number, maxMs: number): CustomRangeError | null {
 	if (!Number.isFinite(from) || !Number.isFinite(to)) return "invalid";
 	if (from >= to) return "order";
 	if (from >= now) return "future";
+	if (to > now) return "future-end";
 	if (to - from > maxMs) return "too-long";
 	return null;
 }
@@ -137,6 +138,8 @@ export function customRangeMessage(error: CustomRangeError, maxMs: number): stri
 			return "The start has to be before the end.";
 		case "future":
 			return "The start has to be in the past.";
+		case "future-end":
+			return "The end can't be in the future.";
 		case "too-long":
 			return `Pick a range of ${formatSpan(maxMs)} or less.`;
 	}

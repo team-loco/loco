@@ -94,6 +94,7 @@ describe("time range limits", () => {
 		expect(checkCustomRange(NOW - HOUR_MS, NOW, NOW, DAY_MS)).toBeNull();
 		expect(checkCustomRange(NOW, NOW - HOUR_MS, NOW, DAY_MS)).toBe("order");
 		expect(checkCustomRange(NOW + HOUR_MS, NOW + 2 * HOUR_MS, NOW, DAY_MS)).toBe("future");
+		expect(checkCustomRange(NOW - HOUR_MS, NOW + HOUR_MS, NOW, DAY_MS)).toBe("future-end");
 		expect(checkCustomRange(NOW - 2 * DAY_MS, NOW, NOW, DAY_MS)).toBe("too-long");
 		expect(checkCustomRange(Number.NaN, NOW, NOW, DAY_MS)).toBe("invalid");
 	});

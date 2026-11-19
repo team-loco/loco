@@ -74,7 +74,7 @@ export function TimePicker() {
 			setError(customRangeMessage(problem, maxMs));
 			return;
 		}
-		setRange(end >= now ? { kind: "relative", spanMs: now - start } : { kind: "absolute", from: start, to: end });
+		setRange({ kind: "absolute", from: start, to: end });
 		setOpen(false);
 	};
 
