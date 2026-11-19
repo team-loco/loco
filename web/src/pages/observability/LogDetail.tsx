@@ -36,7 +36,7 @@ import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { bodyParts, LEVEL_LABEL, levelStyle } from "./format";
 import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
-import { WORKLOAD_TITLE, type LogRow } from "./rows";
+import { logJson, logMessageText, WORKLOAD_TITLE, type LogRow } from "./rows";
 import { CopyButton, PanelNav } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
@@ -116,23 +116,8 @@ export function LogDetail({
 		}
 		setQuery(withToken(tokens, t), text);
 	};
-	const json = JSON.stringify(
-		{
-			timestamp: new Date(row.ts).toISOString(),
-			level: row.level,
-			message: row.json ?? row.message,
-			[row.workload ? "workload" : "resource"]: row.resourceName,
-			replica: row.pod,
-			region: row.region,
-			trace_id: e.traceId,
-			span_id: e.spanId,
-			resource_attributes: e.resourceAttributes,
-			log_attributes: e.logAttributes,
-		},
-		null,
-		2,
-	);
-	const msgText = row.json !== null ? JSON.stringify(row.json, null, 2) : row.message;
+	const json = logJson(row, timePref);
+	const msgText = logMessageText(row);
 
 	return (
 		<>
