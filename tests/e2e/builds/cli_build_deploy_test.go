@@ -241,8 +241,8 @@ func waitPodSecret(t *testing.T, w *platform.Workspace, app, want string) {
 			for _, environment := range resource.GetEnvironmentStatuses() {
 				for _, region := range environment.GetRegions() {
 					if environment.GetEnvironmentName() == platform.Production &&
-						region.GetDeploymentStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
-						return fmt.Errorf("deployment %v", region.GetDeploymentStatus())
+						region.GetPlacementStatus() != deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING {
+						return fmt.Errorf("deployment %v", region.GetPlacementStatus())
 					}
 				}
 			}

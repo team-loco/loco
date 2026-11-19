@@ -76,25 +76,32 @@ func TestFailedDeploymentRollsBack(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(response.GetDeployments()) != 2 {
-		t.Fatalf("deployments=%v", response.GetDeployments())
+	deployments := response.GetDeployments()
+	if len(deployments) != 3 {
+		t.Fatalf("deployments=%v, want the rollback, the failed deployment and the previous one", deployments)
 	}
-	failed := response.GetDeployments()[0]
+	restoredID, failed := deployments[0].GetId(), deployments[1]
 	if failed.GetId() == previous || failed.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED ||
-		failed.GetIsActive() {
+		failed.GetPlacements()[0].GetLive() {
 		t.Fatalf("failed deployment=%v", failed)
 	}
-	platform.Eventually(t, statusTimeout, "previous deployment to run after rollback", func(context.Context) error {
-		restored := getDeployment(t, previous)
-		if !restored.GetIsActive() || restored.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
+	rollback := deployments[0]
+	if rollback.GetTrigger() != deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_AUTO_ROLLBACK ||
+		rollback.GetSourceDeploymentId() != previous {
+		t.Fatalf("rollback deployment=%v, want an automatic rollback copying %s", rollback, previous)
+	}
+	platform.Eventually(t, statusTimeout, "the rollback to run", func(context.Context) error {
+		restored := getDeployment(t, restoredID)
+		if !restored.GetPlacements()[0].GetLive() ||
+			restored.GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING {
 			return fmt.Errorf("restored deployment=%v", restored)
 		}
-		if regionStatus(t, w, app).GetDeploymentId() != previous {
-			return errors.New("resource has not restored its previous deployment")
+		if regionStatus(t, w, app).GetDeploymentId() != restoredID {
+			return errors.New("resource does not run the rollback")
 		}
 		return nil
 	})
-	requireServingReplicas(t, getDeployment(t, previous), previous, 2)
+	requireServingReplicas(t, getDeployment(t, restoredID), restoredID, 2)
 	logs, err := p.Kubectl(t.Context(), "-n", p.Namespace, "logs", poller)
 	if err != nil {
 		t.Fatal(err)
