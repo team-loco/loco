@@ -127,3 +127,29 @@ def sql(state, query):
 
 def wait_for_query(page, check):
     page.wait_for_url(lambda url: check(parse_qs(urlparse(url).query)))
+
+
+LINE_STARTS_JS = """node => {
+  const lines = [];
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+  const range = document.createRange();
+  while (walker.nextNode()) {
+    const text = walker.currentNode;
+    for (let i = 0; i < text.length; i++) {
+      if (/\\s/.test(text.data[i])) continue;
+      range.setStart(text, i);
+      range.setEnd(text, i + 1);
+      const box = range.getBoundingClientRect();
+      const middle = box.top + box.height / 2;
+      const line = lines.find(l => Math.abs(l.middle - middle) < 6);
+      if (line === undefined) lines.push({ middle, left: box.left, char: text.data[i] });
+      else if (box.left < line.left) Object.assign(line, { left: box.left, char: text.data[i] });
+    }
+  }
+  return lines.map(line => line.char);
+}"""
+
+
+def line_starts(locator):
+    """The first visible character of every rendered line of the element."""
+    return locator.evaluate(LINE_STARTS_JS)

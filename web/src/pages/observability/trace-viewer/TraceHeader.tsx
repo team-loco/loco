@@ -14,6 +14,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
+import { MetaLine } from "@/components/design/MetaLine";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -148,17 +149,11 @@ export function TraceHeader({
 						</span>
 					</Button>
 				</div>
-				<SheetDescription
-					className={
-						trace === undefined
-							? "sr-only"
-							: "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-fg3 [&>*+*]:before:mr-2 [&>*+*]:before:content-['·'_/_'']"
-					}
-				>
+				<SheetDescription className={trace === undefined ? "sr-only" : "text-[12px] text-fg3"}>
 					{trace === undefined ? (
 						"Trace details"
 					) : (
-						<>
+						<MetaLine>
 							<span className="font-mono text-[13px] font-medium text-foreground">{durationLabel(trace.duration)}</span>
 							{shares.length === 1 &&
 								(resource === undefined ? (
@@ -186,19 +181,19 @@ export function TraceHeader({
 							<span>
 								{trace.spans.length} {trace.spans.length === 1 ? "span" : "spans"}
 							</span>
-						</>
-					)}
-					{pinned !== null && (
-						<Button
-							variant="plain-link"
-							size="sm"
-							className="h-auto p-0 text-[12px]"
-							onClick={() => {
-								onPin(null);
-							}}
-						>
-							Show all resources
-						</Button>
+							{pinned !== null && (
+								<Button
+									variant="plain-link"
+									size="sm"
+									className="h-auto p-0 text-[12px]"
+									onClick={() => {
+										onPin(null);
+									}}
+								>
+									Show all resources
+								</Button>
+							)}
+						</MetaLine>
 					)}
 				</SheetDescription>
 			</div>

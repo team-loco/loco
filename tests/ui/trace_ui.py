@@ -9,6 +9,7 @@ from pathlib import Path
 from harness import (
     call,
     expect_rpc,
+    line_starts,
     load_state,
     open_page,
     repo,
@@ -1043,6 +1044,9 @@ with session(out) as browser:
         "region", name="Span attributes"
     ).get_by_text(raw_service, exact=True).first.wait_for()
     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+    meta = page.get_by_role("dialog", name=root_name).locator("[data-meta-line]")
+    assert len(line_starts(meta)) > 1, "the trace meta line fits on one line"
+    assert "·" not in line_starts(meta), line_starts(meta)
     context.close()
     mode[0] = "normal"
     context, page, _ = open_page(browser, state=state, now=now)
