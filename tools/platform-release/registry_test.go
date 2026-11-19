@@ -121,7 +121,7 @@ const (
 )
 
 func testClient(server *httptest.Server) *registry {
-	return &registry{host: strings.TrimPrefix(server.URL, "http://"), transport: http.DefaultTransport}
+	return &registry{host: strings.TrimPrefix(server.URL, "http://"), transport: server.Client().Transport}
 }
 
 func TestRegistryPublishAndEnsureContent(t *testing.T) {
