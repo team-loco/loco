@@ -6,7 +6,14 @@ import { QueryClient } from "@tanstack/react-query";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { SecretSchema } from "@gen/loco/secret/v1/secret_pb";
 
-import { refreshSecrets, secretRows, secretUsageMessage, unusedNames, yamlBindingHint } from "./variables";
+import {
+	refreshSecrets,
+	secretRows,
+	secretUsageMessage,
+	unusedNames,
+	variableNameProblem,
+	yamlBindingHint,
+} from "./variables";
 
 describe("secretRows", () => {
 	test("merges stored, declared and staged names with their status", () => {
@@ -55,6 +62,25 @@ describe("yamlBindingHint", () => {
 		);
 		expect(yamlBindingHint("web", ["A", "B"])).toBe(
 			"Saved. To use these keys, add A, B to services.web.secrets and redeploy.",
+		);
+	});
+});
+
+describe("variableNameProblem", () => {
+	const taken = { secrets: new Set(["API_KEY"]), plain: new Set(["LOG_LEVEL"]) };
+	test("lets a secret replace a stored secret but not shadow a plain variable", () => {
+		expect(variableNameProblem("API_KEY", true, taken)).toBeUndefined();
+		expect(variableNameProblem("LOG_LEVEL", true, taken)).toBe("LOG_LEVEL is already a plain variable.");
+		expect(variableNameProblem("lower", true, taken)).toBe(
+			"Use capital letters, digits and underscores, not starting with a digit.",
+		);
+	});
+	test("accepts any environment name for a plain variable that is not taken", () => {
+		expect(variableNameProblem("featureFlags", false, taken)).toBeUndefined();
+		expect(variableNameProblem("API_KEY", false, taken)).toBe("API_KEY is already a variable.");
+		expect(variableNameProblem("LOG_LEVEL", false, taken)).toBe("LOG_LEVEL is already a variable.");
+		expect(variableNameProblem("1X", false, taken)).toBe(
+			"Use letters, digits and underscores, not starting with a digit.",
 		);
 	});
 });

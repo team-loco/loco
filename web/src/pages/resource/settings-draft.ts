@@ -53,6 +53,10 @@ export interface SettingsDraft {
 	regions?: Record<string, boolean>;
 	secrets?: Record<string, string>;
 	removedSecrets?: string[];
+	/** Stored or staged secrets whose deployment binding changes, by whether deployments read them. */
+	bindings?: Record<string, boolean>;
+	/** Plain variables to add to every deployment. */
+	env?: Record<string, string>;
 	isPublic?: boolean;
 	subdomain?: string;
 	platformDomain?: string;
@@ -174,6 +178,8 @@ export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	count += Object.keys(next.regions).filter((r) => next.regions[r] !== base.regions[r]).length;
 	count += Object.keys(draft.secrets ?? {}).length;
 	count += (draft.removedSecrets ?? []).length;
+	count += Object.keys(draft.env ?? {}).length;
+	count += Object.keys(draft.bindings ?? {}).filter((name) => draft.secrets?.[name] === undefined).length;
 	if (next.isPublic !== base.isPublic) count++;
 	if (next.rollbackOnFailure !== base.rollbackOnFailure) count++;
 	if (next.observability.injectOtel !== base.observability.injectOtel) count++;
@@ -272,8 +278,22 @@ interface RegionDeploy {
 	spec: DeploymentSpec;
 }
 
+export function variablesChanged(draft: SettingsDraft): boolean {
+	return Object.keys(draft.bindings ?? {}).length > 0 || Object.keys(draft.env ?? {}).length > 0;
+}
+
+/** The secret names deployments read after the draft's binding changes. */
+export function boundNames(current: string[], draft: SettingsDraft): string[] {
+	const names = new Set(current);
+	for (const [name, bound] of Object.entries(draft.bindings ?? {})) {
+		if (bound) names.add(name);
+		else names.delete(name);
+	}
+	return [...names].toSorted();
+}
+
 export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): RegionDeploy[] {
-	const redeployAll = domainsChange(draft, base) !== null;
+	const redeployAll = domainsChange(draft, base) !== null || variablesChanged(draft);
 	const deploys: RegionDeploy[] = [];
 	for (const region of deployedRegions(regions)) {
 		const current = region.current;

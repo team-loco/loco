@@ -336,8 +336,9 @@ with session(out) as browser:
     page.clock.resume()
     replacement.fill("")
     variables.get_by_role("button", name="Add", exact=True).click()
-    page.get_by_label("New secret name", exact=True).fill("STRIPE_API_KEY")
-    page.get_by_label("New secret value", exact=True).fill("sk_test")
+    page.get_by_label("New variable name", exact=True).fill("STRIPE_API_KEY")
+    page.get_by_label("New variable value", exact=True).fill("sk_test")
+    expect(variables.get_by_role("switch", name="Store as secret")).to_have_count(0)
     page.get_by_role("button", name="Add secret", exact=True).click()
     with expect_rpc(
         page, "SetSecrets", lambda body: body.get("resourceId") == resource

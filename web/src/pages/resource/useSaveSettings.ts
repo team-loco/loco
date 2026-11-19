@@ -5,23 +5,29 @@ import { useState } from "react";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { createResourceDomain, deleteResourceDomain } from "@gen/loco/domain/v1/domain-DomainService_connectquery";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
-import { getResource, updateResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
-import type { Resource } from "@gen/loco/resource/v1/resource_pb";
+import {
+	getResource,
+	getResourceEnv,
+	updateResource,
+} from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
+import type { GetResourceEnvResponse, Resource } from "@gen/loco/resource/v1/resource_pb";
 import { deleteSecrets, setSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 
 import { getErrorMessage } from "@/lib/error-handler";
 
-import { refreshSecrets, secretUsageMessage, unusedNames, yamlBindingHint } from "./variables";
+import { refreshSecrets, refreshVariables, secretUsageMessage, unusedNames, yamlBindingHint } from "./variables";
 
 import type { Notice, RegionView } from "./model";
 import {
 	REGION_MAP_KEYS,
+	boundNames,
 	domainsChange,
 	planSave,
 	regionChanges,
 	regionTargets,
 	type Baseline,
 	type SettingsDraft,
+	variablesChanged,
 } from "./settings-draft";
 
 const SPEC_KEYS = [
@@ -35,6 +41,8 @@ const SPEC_KEYS = [
 ] as const;
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
+
+const VARIABLE_KEYS = ["bindings", "env"] as const;
 
 function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): SettingsDraft {
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));
@@ -90,11 +98,29 @@ export function useSaveSettings({
 			}
 		};
 
+		let current: GetResourceEnvResponse | undefined;
+		if (variablesChanged(draft)) {
+			try {
+				current = await callUnaryMethod(transport, getResourceEnv, { resourceId, environmentId });
+			} catch (err) {
+				setSaving(false);
+				onDone(draft, {
+					tone: "bad",
+					title: `Couldn't save ${resource.name}`,
+					message: getErrorMessage(err, "Failed to load its variables"),
+				});
+				return;
+			}
+		}
+		const bindings = current === undefined ? undefined : boundNames(current.secretNames, draft);
+		const env = current === undefined ? undefined : { ...current.env, ...draft.env };
 		const secrets = draft.secrets ?? {};
 		if (Object.keys(secrets).length > 0) {
 			await attempt("Secrets", ["secrets"], async () => {
 				const response = await writeSecrets.mutateAsync({ resourceId, environmentId, values: secrets });
-				const unused = unusedNames(Object.keys(secrets), response.usedBy);
+				const unused = unusedNames(Object.keys(secrets), response.usedBy).filter(
+					(name) => bindings?.includes(name) !== true,
+				);
 				secretMessage = [
 					secretUsageMessage(resource.name, response.usedBy),
 					unused.length === 0
@@ -192,6 +218,7 @@ export function useSaveSettings({
 		const deploys = planSave(regions, effective, base);
 		const savedRegions: string[] = [];
 		for (const d of deploys) {
+			if (env !== undefined && d.spec.spec.case === "service") d.spec.spec.value.env = env;
 			const ok = await attempt(
 				d.region,
 				[],
@@ -202,11 +229,13 @@ export function useSaveSettings({
 						spec: d.spec,
 						environmentId,
 						commit: d.commit,
+						...(bindings === undefined ? {} : { secretBindings: { names: bindings } }),
 					}),
 			);
 			if (ok) savedRegions.push(d.region);
 		}
-		if (savedRegions.length === deploys.length) next = omit(next, SPEC_KEYS);
+		if (savedRegions.length === deploys.length) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
+		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		setSaving(false);
 		if (failures.length > 0) {
