@@ -126,3 +126,14 @@ test("12-hour axes leave room for wider clock labels", () => {
 	expect(wide.length).toBeLessThan(regular.length);
 	expect(wide).toEqual(Array.from({ length: 5 }, (_, i) => midnight + i * 3 * 3_600_000));
 });
+
+test("narrow axes space ticks by the allowed number of steps", () => {
+	const from = midnight + 14 * 3_600_000 + 5 * 60_000 + 30_000;
+	const to = from + 15 * 60_000;
+	const pref = { zone: "utc", clock: "24" } as const;
+	expect(timeAxis(from, to, pref).length).toBe(8);
+	const narrow = timeAxis(from, to, pref, 3);
+	expect(narrow.length).toBeGreaterThanOrEqual(2);
+	for (let i = 1; i < narrow.length; i++)
+		expect((narrow[i] ?? 0) - (narrow[i - 1] ?? 0)).toBeGreaterThanOrEqual((to - from) / 3);
+});

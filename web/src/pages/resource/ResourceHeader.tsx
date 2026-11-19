@@ -13,7 +13,6 @@ import {
 	Trash2Icon,
 	Undo2Icon,
 } from "lucide-react";
-import { useCallback, useState } from "react";
 import { Link } from "react-router";
 import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type EnvironmentStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
@@ -35,6 +34,7 @@ import { deploymentActor } from "@/lib/deployment-utils";
 import { agoLabel } from "@/lib/time";
 
 import { NEEDS_ADMIN, NEEDS_WRITE } from "@/hooks/useMyScopes";
+import { useWidth } from "@/hooks/useWidth";
 
 import { depImage, depTag, isDeployed, startedMs, type RegionView } from "./model";
 
@@ -68,21 +68,6 @@ function Switcher({ items, currentId, offset }: { items: SwitcherItem[]; current
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);
-}
-
-function useWidth(): [number, (el: HTMLElement | null) => (() => void) | undefined] {
-	const [width, setWidth] = useState(0);
-	const measure = useCallback((el: HTMLElement | null) => {
-		if (el === null) return undefined;
-		const observer = new ResizeObserver(([entry]) => {
-			if (entry !== undefined) setWidth(entry.borderBoxSize[0]?.inlineSize ?? entry.contentRect.width);
-		});
-		observer.observe(el);
-		return () => {
-			observer.disconnect();
-		};
-	}, []);
-	return [width, measure];
 }
 
 function MenuIcon({ children }: { children: React.ReactNode }) {

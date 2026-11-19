@@ -1,4 +1,5 @@
 import argparse
+import itertools
 import json
 import math
 import re
@@ -626,6 +627,32 @@ def volume(page):
     )
 
 
+def volume_axis(page):
+    end = int(datetime.now(UTC).timestamp() * 1000)
+    chart = page.get_by_role("region", name="Log volume")
+    labels = chart.get_by_text(re.compile(r"^\d{1,2}:\d{2}$")).filter(visible=True)
+    for viewport in (evidence.NARROW, evidence.DESKTOP):
+        page.set_viewport_size(viewport)
+        page.goto(
+            state["ui_url"]
+            + base
+            + f"/observability?env=production&view=logs&from={end - 900_000}&to={end}"
+        )
+        expect(
+            page.get_by_role("slider", name=re.compile(r"^Log volume"))
+        ).to_be_visible()
+        expect(labels.first).to_be_visible()
+        boxes = sorted(
+            (box["x"], box["x"] + box["width"])
+            for box in (label.bounding_box() for label in labels.all())
+        )
+        assert len(boxes) >= 2, viewport
+        assert all(left[1] < right[0] for left, right in itertools.pairwise(boxes)), (
+            viewport,
+            labels.all_inner_texts(),
+        )
+
+
 def dashboard(page):
     page.set_viewport_size(evidence.DESKTOP)
     if not state.get("dashboard_resources"):
@@ -1188,6 +1215,7 @@ with session(out) as browser:
         query_enter,
         query_suggestions,
         volume,
+        volume_axis,
         access_picker,
         resources,
         token_empty,

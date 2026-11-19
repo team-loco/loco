@@ -102,9 +102,10 @@ export function formatFullTime(ms: number, withMs: boolean, pref: TimePreference
 const TWELVE_HOUR_TICK_TARGET = 5;
 const AXIS_MINUTES = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880, 10080];
 
-export function timeAxis(from: number, to: number, pref: TimePreferences): number[] {
+/** Round tick times across [from, to], at most `maxSteps` intervals apart end to end. */
+export function timeAxis(from: number, to: number, pref: TimePreferences, maxSteps = Infinity): number[] {
 	if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return [];
-	const target = pref.clock === "12" ? TWELVE_HOUR_TICK_TARGET : 8;
+	const target = Math.min(pref.clock === "12" ? TWELVE_HOUR_TICK_TARGET : 8, maxSteps);
 	const step = AXIS_MINUTES.find((m) => (to - from) / (m * 60_000) <= target) ?? 10080;
 	const ticks: number[] = [];
 	if (step < 1440) {
