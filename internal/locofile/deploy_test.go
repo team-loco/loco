@@ -16,7 +16,7 @@ partial: web
 services:
   web:
     image: example.com/web:v1
-    deploy: {attempts: 4, retryDelay: 120}
+    deploy: {maxRestarts: 4, restartWindow: 120}
     regions:
       us-east-1: {cpu: 100m, memory: 64Mi, replicas: {min: 1, max: 1}}
     environments:
@@ -35,7 +35,7 @@ func TestDeployAppliesToEveryEnvironment(t *testing.T) {
 			t.Fatal(err)
 		}
 		deploy := services["web"].Deploy
-		if deploy == nil || *deploy.Attempts != 4 || *deploy.RetryDelay != 120 {
+		if deploy == nil || *deploy.MaxRestarts != 4 || *deploy.RestartWindow != 120 {
 			t.Errorf("%s deploy = %+v", environment, deploy)
 		}
 	}
@@ -43,16 +43,17 @@ func TestDeployAppliesToEveryEnvironment(t *testing.T) {
 
 func TestDeployBounds(t *testing.T) {
 	for deploy, want := range map[string]error{
-		"{attempts: 0}":     ErrDeployAttempts,
-		"{attempts: 1}":     nil,
-		"{attempts: 10}":    nil,
-		"{attempts: 11}":    ErrDeployAttempts,
-		"{retryDelay: 59}":  ErrDeployRetryDelay,
-		"{retryDelay: 60}":  nil,
-		"{retryDelay: -60}": ErrDeployRetryDelay,
+		"{maxRestarts: -1}":     ErrMaxRestarts,
+		"{maxRestarts: 0}":      nil,
+		"{maxRestarts: 20}":     nil,
+		"{maxRestarts: 21}":     ErrMaxRestarts,
+		"{restartWindow: 59}":   ErrRestartWindow,
+		"{restartWindow: 60}":   nil,
+		"{restartWindow: 3600}": nil,
+		"{restartWindow: 3601}": ErrRestartWindow,
 	} {
 		t.Run(deploy, func(t *testing.T) {
-			file := strings.Replace(deployFile, "{attempts: 4, retryDelay: 120}", deploy, 1)
+			file := strings.Replace(deployFile, "{maxRestarts: 4, restartWindow: 120}", deploy, 1)
 			if _, err := Parse([]byte(file)); !errors.Is(err, want) || (want == nil && err != nil) {
 				t.Fatalf("Parse = %v, want %v", err, want)
 			}
@@ -61,7 +62,7 @@ func TestDeployBounds(t *testing.T) {
 }
 
 func TestDeployCannotBeOverriddenPerEnvironment(t *testing.T) {
-	file := strings.Replace(deployFile, "        port: 8080", "        deploy: {attempts: 1}", 1)
+	file := strings.Replace(deployFile, "        port: 8080", "        deploy: {maxRestarts: 1}", 1)
 	if _, err := Parse([]byte(file)); !errors.Is(err, errUnknownKey) {
 		t.Fatalf("Parse = %v, want %v", err, errUnknownKey)
 	}

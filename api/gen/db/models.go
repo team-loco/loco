@@ -934,21 +934,21 @@ type RegistryCredential struct {
 }
 
 type Resource struct {
-	ID                     uuid.UUID    `json:"id"`
-	WorkspaceID            uuid.UUID    `json:"workspaceId"`
-	Name                   string       `json:"name"`
-	DisplayName            string       `json:"displayName"`
-	Type                   ResourceType `json:"type"`
-	Description            string       `json:"description"`
-	Spec                   []byte       `json:"spec"`
-	SpecVersion            int32        `json:"specVersion"`
-	Revision               int64        `json:"revision"`
-	Partial                *string      `json:"partial"`
-	MaxApplyAttempts       *int32       `json:"maxApplyAttempts"`
-	ApplyRetryDelaySeconds *int32       `json:"applyRetryDelaySeconds"`
-	CreatedBy              uuid.UUID    `json:"createdBy"`
-	CreatedAt              time.Time    `json:"createdAt"`
-	UpdatedAt              time.Time    `json:"updatedAt"`
+	ID                   uuid.UUID    `json:"id"`
+	WorkspaceID          uuid.UUID    `json:"workspaceId"`
+	Name                 string       `json:"name"`
+	DisplayName          string       `json:"displayName"`
+	Type                 ResourceType `json:"type"`
+	Description          string       `json:"description"`
+	Spec                 []byte       `json:"spec"`
+	SpecVersion          int32        `json:"specVersion"`
+	Revision             int64        `json:"revision"`
+	Partial              *string      `json:"partial"`
+	MaxRestarts          *int32       `json:"maxRestarts"`
+	RestartWindowSeconds *int32       `json:"restartWindowSeconds"`
+	CreatedBy            uuid.UUID    `json:"createdBy"`
+	CreatedAt            time.Time    `json:"createdAt"`
+	UpdatedAt            time.Time    `json:"updatedAt"`
 }
 
 type ResourceDomain struct {

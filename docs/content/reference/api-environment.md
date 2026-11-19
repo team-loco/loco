@@ -60,6 +60,8 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `LOCO_AGENT_ASSERTION_MAX_LIFETIME` | `5m` | Longest lifetime the API accepts on an agent's signed cluster assertion. |
 | `LOCO_CLUSTER_JOIN_TOKEN_TTL` | `1h` | Default lifetime of a cluster join token. See [cluster enrollment](cluster-attachment.md). |
 | `LOCO_CLUSTER_JOIN_TOKEN_MAX_TTL` | `168h` | Longest lifetime a join token may request. Must be at least `LOCO_CLUSTER_JOIN_TOKEN_TTL`. |
+| `LOCO_APPLY_ATTEMPTS` | `2` | Times the API sends a deployment a cluster fails to apply before it marks the deployment failed, 1 to 10. |
+| `LOCO_APPLY_RETRY_DELAY` | `300` | Seconds between those sends. |
 
 ## Builds and images
 
@@ -185,8 +187,6 @@ The API fills these into a service that leaves the field out. See [loco.yaml](..
 | `LOCO_DEFAULT_HEALTH_TIMEOUT` | `5` (seconds) |
 | `LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD` | `3` |
 | `LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD` | `0` (seconds) |
-| `LOCO_DEFAULT_DEPLOY_ATTEMPTS` | `2` |
-| `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` | `300` (seconds) |
 | `LOCO_DEFAULT_MAX_RESTARTS` | `5` (0 to 20) |
 | `LOCO_DEFAULT_RESTART_WINDOW` | `600` (seconds, 60 to 3600) |
 

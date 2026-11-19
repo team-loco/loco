@@ -20,7 +20,9 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 		t.Fatalf("created=%s", got)
 	}
 	p := f.placement(t, f.clusterID)
-	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true}
+	report := &agentv1.PlacementStatus{
+		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision, Available: true, Healthy: true,
+	}
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	second, err := f.deploy(ctx, staticSpec)
 	if err != nil {
@@ -33,6 +35,7 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 	server.markApplied(ctx, f.clusterID, p.ID, p.DesiredRevision)
 	report.ObservedRevision = p.DesiredRevision
 	report.Available = false
+	report.Healthy = false
 	report.ProgressDeadlineExceeded = true
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := f.deploymentStatus(t, second); got != genDb.DeploymentStatusFailed {
@@ -54,6 +57,7 @@ func TestDeploymentRolloutLifecycle(t *testing.T) {
 		t.Fatalf("failed rollout queued cluster changes: %v", pending)
 	}
 	report.Available = true
+	report.Healthy = true
 	report.ProgressDeadlineExceeded = false
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	if got := f.deploymentStatus(t, second); got != genDb.DeploymentStatusRunning {
@@ -95,6 +99,7 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 		t.Fatalf("problem detail=%q %v", detail, err)
 	}
 	report.Available = true
+	report.Healthy = true
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	report.Problem = nil
@@ -116,6 +121,7 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 		}
 	}
 	report.Available = false
+	report.Healthy = false
 	report.ProgressDeadlineExceeded = true
 	server.recordStatus(ctx, f.clusterID, 1, report)
 	report.ObservedRevision--

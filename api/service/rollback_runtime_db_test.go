@@ -47,6 +47,7 @@ func reportRollback(t *testing.T, f *deployFixture, available, failed bool) {
 		PlacementId:              p.ID.String(),
 		ObservedRevision:         p.DesiredRevision,
 		Available:                available,
+		Healthy:                  available,
 		ProgressDeadlineExceeded: failed,
 	})
 }
@@ -61,19 +62,14 @@ func TestAutomaticRollback(t *testing.T) {
 			failed := rollbackDeployment(t, f, true, nil)
 			placement := f.placement(t, f.clusterID)
 			if applyFailure {
-				if _, err := f.pool.Exec(
-					t.Context(),
-					`UPDATE resources SET max_apply_attempts=1 WHERE id=$1`,
-					f.resourceID,
-				); err != nil {
-					t.Fatal(err)
+				for range testApplyAttempts {
+					f.agentServer().
+						recordApplied(t.Context(), f.clusterID, &agentv1.Applied{
+							PlacementId: placement.ID.String(),
+							Revision:    placement.DesiredRevision,
+							Error:       testApplyFailure,
+						})
 				}
-				f.agentServer().
-					recordApplied(t.Context(), f.clusterID, &agentv1.Applied{
-						PlacementId: placement.ID.String(),
-						Revision:    placement.DesiredRevision,
-						Error:       testApplyFailure,
-					})
 			} else {
 				reportRollback(t, f, false, true)
 			}

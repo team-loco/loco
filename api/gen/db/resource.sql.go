@@ -64,7 +64,7 @@ func (q *Queries) DeleteResource(ctx context.Context, id uuid.UUID) error {
 }
 
 const getResourceByID = `-- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1
 `
@@ -83,8 +83,8 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 		&i.SpecVersion,
 		&i.Revision,
 		&i.Partial,
-		&i.MaxApplyAttempts,
-		&i.ApplyRetryDelaySeconds,
+		&i.MaxRestarts,
+		&i.RestartWindowSeconds,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -93,7 +93,7 @@ func (q *Queries) GetResourceByID(ctx context.Context, id uuid.UUID) (Resource, 
 }
 
 const getResourceByNameAndWorkspace = `-- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.name = $2
 `
@@ -117,8 +117,8 @@ func (q *Queries) GetResourceByNameAndWorkspace(ctx context.Context, arg GetReso
 		&i.SpecVersion,
 		&i.Revision,
 		&i.Partial,
-		&i.MaxApplyAttempts,
-		&i.ApplyRetryDelaySeconds,
+		&i.MaxRestarts,
+		&i.RestartWindowSeconds,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -420,7 +420,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, resourceId
 }
 
 const listResourcesForWorkspace = `-- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND ($3::text IS NULL
@@ -464,8 +464,8 @@ func (q *Queries) ListResourcesForWorkspace(ctx context.Context, arg ListResourc
 			&i.SpecVersion,
 			&i.Revision,
 			&i.Partial,
-			&i.MaxApplyAttempts,
-			&i.ApplyRetryDelaySeconds,
+			&i.MaxRestarts,
+			&i.RestartWindowSeconds,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -512,7 +512,7 @@ func (q *Queries) ListWorkspaceResourceNames(ctx context.Context, workspaceID uu
 }
 
 const listWorkspaceServiceResources = `-- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_apply_attempts, r.apply_retry_delay_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
 ORDER BY r.name ASC
@@ -538,8 +538,8 @@ func (q *Queries) ListWorkspaceServiceResources(ctx context.Context, workspaceID
 			&i.SpecVersion,
 			&i.Revision,
 			&i.Partial,
-			&i.MaxApplyAttempts,
-			&i.ApplyRetryDelaySeconds,
+			&i.MaxRestarts,
+			&i.RestartWindowSeconds,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -583,20 +583,20 @@ func (q *Queries) LockResources(ctx context.Context, ids []uuid.UUID) ([]uuid.UU
 
 const setResourceDeployPolicy = `-- name: SetResourceDeployPolicy :exec
 UPDATE resources
-SET max_apply_attempts = $2,
-    apply_retry_delay_seconds = $3,
+SET max_restarts = $2,
+    restart_window_seconds = $3,
     updated_at = NOW()
 WHERE id = $1
 `
 
 type SetResourceDeployPolicyParams struct {
-	ID                     uuid.UUID `json:"id"`
-	MaxApplyAttempts       *int32    `json:"maxApplyAttempts"`
-	ApplyRetryDelaySeconds *int32    `json:"applyRetryDelaySeconds"`
+	ID                   uuid.UUID `json:"id"`
+	MaxRestarts          *int32    `json:"maxRestarts"`
+	RestartWindowSeconds *int32    `json:"restartWindowSeconds"`
 }
 
 func (q *Queries) SetResourceDeployPolicy(ctx context.Context, arg SetResourceDeployPolicyParams) error {
-	_, err := q.db.Exec(ctx, setResourceDeployPolicy, arg.ID, arg.MaxApplyAttempts, arg.ApplyRetryDelaySeconds)
+	_, err := q.db.Exec(ctx, setResourceDeployPolicy, arg.ID, arg.MaxRestarts, arg.RestartWindowSeconds)
 	return err
 }
 

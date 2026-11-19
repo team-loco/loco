@@ -219,6 +219,7 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 		PlacementId:      running.ID.String(),
 		ObservedRevision: 1,
 		Available:        true,
+		Healthy:          true,
 		ReadyReplicas:    1,
 	})
 	if status := f.deploymentStatus(t, deploymentID); status != genDb.DeploymentStatusRunning {
@@ -249,6 +250,7 @@ func TestSuspensionStopsThePlacementAndResumeRestoresIt(t *testing.T) {
 		PlacementId:      running.ID.String(),
 		ObservedRevision: 1,
 		Available:        true,
+		Healthy:          true,
 		ReadyReplicas:    1,
 	})
 	if got := f.placement(t, f.clusterID); got.ReadyReplicas != 0 {

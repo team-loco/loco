@@ -38,9 +38,10 @@ type AgentConfig struct {
 	AssertionMaxLifetime time.Duration
 	JoinTokenTTL         time.Duration
 	JoinTokenMaxTTL      time.Duration
-	DeployAttempts       int32
-	DeployRetryDelay     int32
-	RegistryTokenMode    bool
+	// ApplyAttempts and ApplyRetryDelay (seconds) bound how often the API resends a placement a cluster fails to apply.
+	ApplyAttempts     int32
+	ApplyRetryDelay   int32
+	RegistryTokenMode bool
 }
 
 // AgentServer implements the AgentService for agent communication.

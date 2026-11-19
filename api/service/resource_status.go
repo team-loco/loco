@@ -114,7 +114,7 @@ func regionStatus(
 	}
 
 	switch {
-	case row.ReadyReplicas >= row.DesiredReplicas:
+	case row.ReadyReplicas >= row.DesiredReplicas && row.PlacementStatus != genDb.PlacementStatusDegraded:
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY
 	case row.ReadyReplicas > 0:
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED

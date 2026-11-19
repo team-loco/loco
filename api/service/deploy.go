@@ -430,7 +430,7 @@ func buildApplicationSpec(
 				hostname,
 				defaults,
 			),
-			RestartPolicy: defaults.RestartPolicy(),
+			RestartPolicy: defaults.RestartPolicy(resource.MaxRestarts, resource.RestartWindowSeconds),
 		}
 
 	default:

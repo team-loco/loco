@@ -9,26 +9,46 @@ import (
 )
 
 func TestNextPlacementStatus(t *testing.T) {
+	stopped := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6}
+	unproven := &agentv1.StoppedRevision{PlacementRevision: 2, Restarts: 6, Rollout: true}
 	for _, tt := range []struct {
-		name                string
-		previous, want      genDb.PlacementStatus
-		available, deadline bool
+		name           string
+		previous, want genDb.PlacementStatus
+		report         *agentv1.PlacementStatus
 	}{
-		{"deploying waits", genDb.PlacementStatusDeploying, genDb.PlacementStatusDeploying, false, false},
-		{"available", genDb.PlacementStatusDeploying, genDb.PlacementStatusRunning, true, false},
-		{"deadline", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed, false, true},
-		{"failed retries", genDb.PlacementStatusFailed, genDb.PlacementStatusFailed, false, false},
-		{"failed recovers", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning, true, false},
-		{"availability wins", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning, true, true},
-		{"running unhealthy", genDb.PlacementStatusRunning, genDb.PlacementStatusRunning, false, false},
-		{"running past the deadline", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed, false, true},
+		{"deploying waits", genDb.PlacementStatusDeploying, genDb.PlacementStatusDeploying,
+			&agentv1.PlacementStatus{}},
+		{"available but restarted waits", genDb.PlacementStatusDeploying, genDb.PlacementStatusDeploying,
+			&agentv1.PlacementStatus{Available: true}},
+		{"healthy", genDb.PlacementStatusDeploying, genDb.PlacementStatusRunning,
+			&agentv1.PlacementStatus{Available: true, Healthy: true}},
+		{"deadline", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{ProgressDeadlineExceeded: true}},
+		{"failed retries", genDb.PlacementStatusFailed, genDb.PlacementStatusFailed, &agentv1.PlacementStatus{}},
+		{"failed recovers", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning,
+			&agentv1.PlacementStatus{Available: true, Healthy: true}},
+		{"health wins over the deadline", genDb.PlacementStatusFailed, genDb.PlacementStatusRunning,
+			&agentv1.PlacementStatus{Available: true, Healthy: true, ProgressDeadlineExceeded: true}},
+		{"running restarted", genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded,
+			&agentv1.PlacementStatus{Available: true}},
+		{"running unready", genDb.PlacementStatusRunning, genDb.PlacementStatusDegraded, &agentv1.PlacementStatus{}},
+		{"degraded recovers", genDb.PlacementStatusDegraded, genDb.PlacementStatusRunning,
+			&agentv1.PlacementStatus{Available: true, Healthy: true}},
+		{"running past the deadline", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{ProgressDeadlineExceeded: true}},
+		{"stopped rollout", genDb.PlacementStatusDeploying, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Stopped: unproven}},
+		{"stopped before it proved itself", genDb.PlacementStatusRunning, genDb.PlacementStatusFailed,
+			&agentv1.PlacementStatus{Stopped: unproven}},
+		{"stopped while running", genDb.PlacementStatusRunning, genDb.PlacementStatusCrashed,
+			&agentv1.PlacementStatus{Stopped: stopped}},
+		{"stopped while degraded", genDb.PlacementStatusDegraded, genDb.PlacementStatusCrashed,
+			&agentv1.PlacementStatus{Stopped: stopped}},
+		{"crashed stays", genDb.PlacementStatusCrashed, genDb.PlacementStatusCrashed,
+			&agentv1.PlacementStatus{Stopped: stopped}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			got := nextPlacementStatus(
-				tt.previous,
-				&agentv1.PlacementStatus{Available: tt.available, ProgressDeadlineExceeded: tt.deadline},
-			)
-			if got != tt.want {
+			if got := nextPlacementStatus(tt.previous, tt.report); got != tt.want {
 				t.Fatalf("status=%s want %s", got, tt.want)
 			}
 		})

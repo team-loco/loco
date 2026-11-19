@@ -35,7 +35,9 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	report := &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
+		Available:        true,
+		Healthy:          true,
+		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
 	}
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
 	if err != nil {
@@ -153,7 +155,9 @@ func TestListRuntimeEventTimeBoundariesAtEveryScope(t *testing.T) {
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemOutOfMemory)},
+		Available:        true,
+		Healthy:          true,
+		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemOutOfMemory)},
 	})
 	parents, err := f.queries.GetWorkspaceOrganizationIDByResourceID(t.Context(), f.resourceID)
 	if err != nil {
@@ -200,7 +204,9 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	placement := f.placement(t, f.clusterID)
 	oldServer, newServer := f.agentServer(), f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
-		Available: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
+		Available: true,
+		Healthy:   true,
+		Problem:   &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
 	// The old handler passed its preflight before the new stream connected.
 	if err := oldServer.checkSyncGeneration(t.Context(), f.clusterID, 0); err != nil {
@@ -275,6 +281,7 @@ func TestProblemEventsAcrossPlacementRevisions(t *testing.T) {
 		PlacementId:      strings.ToUpper(p.ID.String()),
 		ObservedRevision: p.DesiredRevision,
 		Available:        true,
+		Healthy:          true,
 		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
 	}
 	server := f.agentServer()

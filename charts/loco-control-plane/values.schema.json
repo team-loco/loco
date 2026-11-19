@@ -41,22 +41,6 @@
               "maximum": 100,
               "minimum": 1
             },
-            "deployAttempts": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "maximum": 10,
-              "minimum": 1
-            },
-            "deployRetryDelay": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "maximum": 2147483647,
-              "minimum": 60
-            },
             "healthFailThreshold": {
               "type": [
                 "integer",
@@ -109,6 +93,14 @@
               "maximum": 10,
               "minimum": 1
             },
+            "maxRestarts": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 20,
+              "minimum": 0
+            },
             "memory": {
               "type": "string",
               "pattern": "^$|^[+]?([0-9]*[1-9][0-9]*([.][0-9]*)?|[0-9]*[.][0-9]*[1-9][0-9]*)(Ki|Mi|Gi|Ti|Pi|Ei|n|u|m|k|K|M|G|T|P|E|[eE][-+]?[0-9]+)?$"
@@ -124,6 +116,14 @@
             "pathPrefix": {
               "type": "string",
               "pattern": "^$|^/"
+            },
+            "restartWindow": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "maximum": 3600,
+              "minimum": 60
             }
           },
           "additionalProperties": false

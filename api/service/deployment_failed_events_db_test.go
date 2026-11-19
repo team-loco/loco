@@ -187,10 +187,6 @@ func TestDeploymentFailedFromApplyErrorNamesTheTokenAndItsCreator(t *testing.T) 
 	f := newDeployFixture(t)
 	f.nameUser(t)
 	tokenID := f.apiToken(t)
-	if _, err := f.pool.Exec(t.Context(),
-		`UPDATE resources SET max_apply_attempts = 1 WHERE id = $1`, f.resourceID); err != nil {
-		t.Fatal(err)
-	}
 	id := f.deployAs(t, genDb.DeploymentActorTypeApiToken, tokenID)
 	placement := f.placement(t, f.clusterID)
 	server := f.agentServer()
@@ -222,6 +218,7 @@ func TestDeploymentFailedNotRecordedForOtherOutcomes(t *testing.T) {
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
 		Available:        true,
+		Healthy:          true,
 	})
 	canceled := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
 	latest := f.deployAs(t, genDb.DeploymentActorTypeUser, f.userID)
@@ -260,6 +257,7 @@ func TestDeploymentReadyRecordedOnceAcrossConcurrentReports(t *testing.T) {
 					PlacementId:      placement.ID.String(),
 					ObservedRevision: placement.DesiredRevision,
 					Available:        true,
+					Healthy:          true,
 				}
 				var wg sync.WaitGroup
 				for range 8 {

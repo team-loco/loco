@@ -90,10 +90,9 @@ WHERE id = $1 AND cluster_id = $2 AND desired_revision = $3 AND NOT desired_dele
 WITH policy AS (
     SELECT p.id,
            p.apply_attempts + CASE WHEN sqlc.arg(retrying)::boolean THEN 0 ELSE 1 END AS attempts,
-           COALESCE(r.max_apply_attempts, sqlc.arg(default_max_attempts)::int) AS max_attempts,
-           COALESCE(r.apply_retry_delay_seconds, sqlc.arg(default_retry_delay_seconds)::int) * INTERVAL '1 second' AS retry_delay
+           sqlc.arg(max_attempts)::int AS max_attempts,
+           sqlc.arg(retry_delay_seconds)::int * INTERVAL '1 second' AS retry_delay
     FROM placements p
-    LEFT JOIN resources r ON r.id = p.resource_id
     WHERE p.id = sqlc.arg(id) AND p.cluster_id = sqlc.arg(cluster_id) AND p.desired_revision = sqlc.arg(desired_revision)
 )
 UPDATE placements

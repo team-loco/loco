@@ -111,8 +111,8 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 	if partialErr := qtx.SetResourcePartial(ctx, partialParams); partialErr != nil {
 		return fmt.Errorf("set resource partial: %w", partialErr)
 	}
-	if deployErr := setDeployPolicy(ctx, qtx, resourceID, op.Desired.Deploy); deployErr != nil {
-		return deployErr
+	if deployErr := qtx.SetResourceDeployPolicy(ctx, deployPolicy(resourceID, op.Desired.Deploy)); deployErr != nil {
+		return fmt.Errorf("set resource deploy policy: %w", deployErr)
 	}
 	if bumpErr := bumpResourceEnvironmentRevisions(ctx, qtx, resourceID); bumpErr != nil {
 		return bumpErr
@@ -500,14 +500,22 @@ func scalersFor(autoscaling *configplan.Autoscaling) *deploymentv1.Scalers {
 	}
 }
 
-func setDeployPolicy(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID, deploy *locofile.Deploy) error {
+func deployPolicy(resourceID uuid.UUID, deploy *locofile.Deploy) genDb.SetResourceDeployPolicyParams {
 	params := genDb.SetResourceDeployPolicyParams{ID: resourceID}
 	if deploy != nil {
-		params.MaxApplyAttempts = deploy.Attempts
-		params.ApplyRetryDelaySeconds = deploy.RetryDelay
+		params.MaxRestarts = deploy.MaxRestarts
+		params.RestartWindowSeconds = deploy.RestartWindow
 	}
+	return params
+}
+
+// setDeployPolicy stores the service's restart policy and updates res, which the deployments
+// the same apply starts render from.
+func setDeployPolicy(ctx context.Context, qtx *genDb.Queries, res *genDb.Resource, deploy *locofile.Deploy) error {
+	params := deployPolicy(res.ID, deploy)
 	if err := qtx.SetResourceDeployPolicy(ctx, params); err != nil {
 		return fmt.Errorf("set resource deploy policy: %w", err)
 	}
+	res.MaxRestarts, res.RestartWindowSeconds = params.MaxRestarts, params.RestartWindowSeconds
 	return nil
 }

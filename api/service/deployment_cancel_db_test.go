@@ -63,6 +63,7 @@ func (f *deployFixture) reportPlacement(t *testing.T, p genDb.Placement, ready b
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
 		Available:        ready,
+		Healthy:          ready,
 		ReadyReplicas:    1,
 	})
 }

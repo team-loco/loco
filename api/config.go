@@ -84,8 +84,9 @@ const (
 	defaultHealthTimeout      = 5
 	defaultHealthFailThresh   = 3
 	defaultHealthGracePeriod  = 0
-	defaultDeployAttempts     = 2
-	defaultDeployRetryDelay   = int32(5 * time.Minute / time.Second)
+	defaultApplyAttempts      = 2
+	maxApplyAttempts          = 10
+	defaultApplyRetryDelay    = int32(5 * time.Minute / time.Second)
 	defaultMaxRestarts        = 5
 	defaultRestartWindow      = int32(10 * time.Minute / time.Second)
 	defaultSchemaURL          = "https://loco.build/schemas/loco.v1.json"
@@ -595,6 +596,14 @@ func newSourceBucketConfig() sourcebucket.Config {
 	return cfg
 }
 
+func applyAttemptsEnv() int32 {
+	attempts := positiveInt32Env("LOCO_APPLY_ATTEMPTS", defaultApplyAttempts)
+	if attempts > maxApplyAttempts {
+		panic(fmt.Errorf("LOCO_APPLY_ATTEMPTS %d exceeds %d", attempts, maxApplyAttempts))
+	}
+	return attempts
+}
+
 func newServiceDefaults() servicedefaults.Defaults {
 	defaults := servicedefaults.Defaults{
 		CPU:                      envconfig.String("LOCO_DEFAULT_CPU", defaultServiceCPU),
@@ -609,8 +618,6 @@ func newServiceDefaults() servicedefaults.Defaults {
 		HealthTimeout:            envconfig.Int32("LOCO_DEFAULT_HEALTH_TIMEOUT", defaultHealthTimeout),
 		HealthFailThreshold:      envconfig.Int32("LOCO_DEFAULT_HEALTH_FAIL_THRESHOLD", defaultHealthFailThresh),
 		HealthStartupGracePeriod: envconfig.Int32("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", defaultHealthGracePeriod),
-		DeployAttempts:           positiveInt32Env("LOCO_DEFAULT_DEPLOY_ATTEMPTS", defaultDeployAttempts),
-		DeployRetryDelay:         positiveInt32Env("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", defaultDeployRetryDelay),
 		MaxRestarts:              nonNegativeInt32Env("LOCO_DEFAULT_MAX_RESTARTS", defaultMaxRestarts),
 		RestartWindow:            positiveInt32Env("LOCO_DEFAULT_RESTART_WINDOW", defaultRestartWindow),
 	}
@@ -799,7 +806,7 @@ func newAgentConfig(defaults servicedefaults.Defaults) service.AgentConfig {
 		ServiceDefaults:      defaults,
 		AssertionMaxLifetime: assertionLifetime,
 		JoinTokenTTL:         joinTokenTTL,
-		DeployAttempts:       defaults.DeployAttempts,
-		DeployRetryDelay:     defaults.DeployRetryDelay,
+		ApplyAttempts:        applyAttemptsEnv(),
+		ApplyRetryDelay:      positiveInt32Env("LOCO_APPLY_RETRY_DELAY", defaultApplyRetryDelay),
 	}
 }

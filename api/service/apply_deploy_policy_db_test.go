@@ -8,10 +8,11 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
 const (
-	applyFileDeploy  = "    deploy: { attempts: 3, retryDelay: 60 }\n"
+	applyFileDeploy  = "    deploy: { maxRestarts: 3, restartWindow: 120 }\n"
 	testApplyFailure = "invalid application"
 )
 
@@ -30,11 +31,11 @@ func (f *deployFixture) workerResource(t *testing.T) genDb.Resource {
 
 func storedDeployPolicy(res genDb.Resource) [2]int32 {
 	var policy [2]int32
-	if res.MaxApplyAttempts != nil {
-		policy[0] = *res.MaxApplyAttempts
+	if res.MaxRestarts != nil {
+		policy[0] = *res.MaxRestarts
 	}
-	if res.ApplyRetryDelaySeconds != nil {
-		policy[1] = *res.ApplyRetryDelaySeconds
+	if res.RestartWindowSeconds != nil {
+		policy[1] = *res.RestartWindowSeconds
 	}
 	return policy
 }
@@ -118,52 +119,84 @@ func failApplyUntilFailed(t *testing.T, f *deployFixture, attempts, delay int32)
 	wantResends(t, session, &sent, int(attempts))
 }
 
-func TestApplyStoresTheDeployPolicyAndApplyRetriesFollowIt(t *testing.T) {
+func TestApplyStoresTheRestartPolicyAndDeploysWithIt(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	file := workerFileWith(applyFileDeploy)
 	applyOK(t, f, file, applyOptions{})
 
-	if got := storedDeployPolicy(f.workerResource(t)); got != [2]int32{3, 60} {
-		t.Fatalf("stored attempts and retry delay = %v, want [3 60]", got)
+	if got := storedDeployPolicy(f.workerResource(t)); got != [2]int32{3, 120} {
+		t.Fatalf("stored restarts and window = %v, want [3 120]", got)
+	}
+	want := locoControllerV1.RestartPolicySpec{MaxRestarts: 3, WindowSeconds: 120}
+	if got := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.RestartPolicy; got != want {
+		t.Fatalf("deployed restart policy = %+v, want %+v", got, want)
 	}
 	wantCleanPlan(t, f, file)
-	failApplyUntilFailed(t, f, 3, 60)
 }
 
-func TestApplyWithoutADeployPolicyUsesTheAPIDefaults(t *testing.T) {
+func TestApplyWithoutARestartPolicyDeploysTheAPIDefaults(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, planFileHeader+applyFileWorker, applyOptions{})
 
 	if got := storedDeployPolicy(f.workerResource(t)); got != [2]int32{} {
-		t.Fatalf("stored attempts and retry delay = %v, want none", got)
+		t.Fatalf("stored restarts and window = %v, want none", got)
 	}
-	failApplyUntilFailed(t, f, testDeployAttempts, testDeployRetryDelay)
+	want := testServiceDefaults().RestartPolicy(nil, nil)
+	if got := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.RestartPolicy; got != want {
+		t.Fatalf("deployed restart policy = %+v, want %+v", got, want)
+	}
 }
 
-func TestChangingTheDeployPolicyDoesNotRedeploy(t *testing.T) {
+func TestApplyRetriesFollowTheAPIConfig(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	applyOK(t, f, workerFileWith(applyFileDeploy), applyOptions{})
+	failApplyUntilFailed(t, f, testApplyAttempts, testApplyRetryDelay)
+}
+
+func TestChangingTheRestartPolicyDoesNotRedeploy(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	applyOK(t, f, workerFileWith(applyFileDeploy), applyOptions{})
 
-	changed := workerFileWith("    deploy: { attempts: 5 }\n")
+	changed := workerFileWith("    deploy: { maxRestarts: 5 }\n")
 	resp := applyOK(t, f, changed, applyOptions{})
 	if started := resp.GetDeployments(); len(started) != 0 {
-		t.Fatalf("a deploy policy change started deployments %v", started)
+		t.Fatalf("a restart policy change started deployments %v", started)
 	}
 	if got := storedDeployPolicy(f.workerResource(t)); got != [2]int32{5, 0} {
-		t.Fatalf("stored attempts and retry delay = %v, want [5 0]", got)
+		t.Fatalf("stored restarts and window = %v, want [5 0]", got)
 	}
 	wantCleanPlan(t, f, changed)
 
 	removed := planFileHeader + applyFileWorker
 	applyOK(t, f, removed, applyOptions{})
 	if got := storedDeployPolicy(f.workerResource(t)); got != [2]int32{} {
-		t.Fatalf("stored attempts and retry delay = %v, want none", got)
+		t.Fatalf("stored restarts and window = %v, want none", got)
 	}
 	wantCleanPlan(t, f, removed)
+}
+
+func TestARestartPolicyChangeReachesTheDeploymentTheSameApplyStarts(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	applyOK(t, f, workerFileWith(applyFileDeploy), applyOptions{})
+	f.finishRollouts(t)
+
+	changed := workerFileWith("    deploy: { maxRestarts: 1 }\n")
+	changed = strings.Replace(changed, "LOG_LEVEL: info", "LOG_LEVEL: debug", 1)
+	if started := applyOK(t, f, changed, applyOptions{}).GetDeployments(); len(started) != 1 {
+		t.Fatalf("an env change started deployments %v, want one", started)
+	}
+	want := locoControllerV1.RestartPolicySpec{MaxRestarts: 1, WindowSeconds: testServiceDefaults().RestartWindow}
+	if got := f.workerPayload(t, f.clusterID).AppSpec.ServiceSpec.RestartPolicy; got != want {
+		t.Fatalf("deployed restart policy = %+v, want %+v", got, want)
+	}
 }

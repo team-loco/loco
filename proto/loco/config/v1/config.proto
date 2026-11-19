@@ -98,10 +98,12 @@ message DefaultServiceConfig {
   string memory = 3; // e.g., "256Mi"
   int32 min_replicas = 4;
   int32 max_replicas = 5;
-  int32 deploy_attempts = 6;
-  int32 deploy_retry_delay_seconds = 7;
+  reserved 6, 7;
   int32 cpu_target = 8;
   deployment.v1.ObservabilityConfig observability = 9;
   // Restores the previous deployment on failure; off by default.
   bool rollback_on_failure = 10;
+  // Restarts a replica may have within restart_window_seconds before Loco stops the version.
+  int32 max_restarts = 11;
+  int32 restart_window_seconds = 12;
 }

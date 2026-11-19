@@ -48,7 +48,7 @@ func (f *resourceStatusFixture) reportReplicas(
 	}
 	f.agentServer().recordStatus(context.Background(), clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-		ReadyReplicas: ready, Available: ready > 0, Replicas: replicas,
+		ReadyReplicas: ready, Available: ready > 0, Healthy: ready > 0, Replicas: replicas,
 	})
 	return want
 }

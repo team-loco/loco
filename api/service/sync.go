@@ -585,13 +585,13 @@ func (s *AgentServer) recordApplyError(
 		}
 
 		row, setErr := qtx.SetPlacementApplyError(ctx, genDb.SetPlacementApplyErrorParams{
-			ID:                       placementID,
-			ClusterID:                clusterID,
-			DesiredRevision:          revision,
-			AppliedError:             &errMessage,
-			Retrying:                 applied.GetRetrying(),
-			DefaultMaxAttempts:       s.config.DeployAttempts,
-			DefaultRetryDelaySeconds: s.config.DeployRetryDelay,
+			ID:                placementID,
+			ClusterID:         clusterID,
+			DesiredRevision:   revision,
+			AppliedError:      &errMessage,
+			Retrying:          applied.GetRetrying(),
+			MaxAttempts:       s.config.ApplyAttempts,
+			RetryDelaySeconds: s.config.ApplyRetryDelay,
 		})
 		if errors.Is(setErr, pgx.ErrNoRows) {
 			return nil
@@ -602,8 +602,10 @@ func (s *AgentServer) recordApplyError(
 		if !row.ApplyFailed || row.DesiredDeleted || row.Suspended || row.DeploymentID == nil {
 			return nil
 		}
+		live := placementStatusNames(placementLiveStatuses...)
+		cause := transitionCause{message: errMessage}
 		return advancePlacementStatus(ctx, qtx, *row.DeploymentID, clusterID, genDb.PlacementStatusFailed,
-			placementStatusNames(placementLiveStatuses...), errMessage, s.config.ServiceDefaults)
+			live, cause, s.config.ServiceDefaults)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record apply error", "placement_id", placementID, "error", err)
@@ -718,7 +720,7 @@ func (s *AgentServer) recordStatus(
 		if next != placement.Status {
 			if transitionErr := advancePlacementStatus(
 				ctx, qtx, deployment.ID, clusterID, next, placementStatusNames(placement.Status),
-				problemReportMessage(status.GetProblem()), s.config.ServiceDefaults,
+				reportCause(status), s.config.ServiceDefaults,
 			); transitionErr != nil {
 				return transitionErr
 			}
@@ -733,6 +735,22 @@ func (s *AgentServer) recordStatus(
 	}
 }
 
+// transitionCause is why a placement moved: the message events carry and, when the controller
+// stopped the revision, the stop with the restart window it counted in.
+type transitionCause struct {
+	message       string
+	stopped       *agentv1.StoppedRevision
+	windowSeconds int32
+}
+
+func reportCause(report *agentv1.PlacementStatus) transitionCause {
+	return transitionCause{
+		message:       problemReportMessage(report.GetProblem()),
+		stopped:       report.GetStopped(),
+		windowSeconds: report.GetRestartWindowSeconds(),
+	}
+}
+
 // advancePlacementStatus moves one region of a deployment to status and records the
 // deployment's aggregate transition.
 func advancePlacementStatus(
@@ -741,7 +759,7 @@ func advancePlacementStatus(
 	deploymentID, clusterID uuid.UUID,
 	status genDb.PlacementStatus,
 	from []string,
-	message string,
+	cause transitionCause,
 	defaults servicedefaults.Defaults,
 ) error {
 	changed, err := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
@@ -753,25 +771,45 @@ func advancePlacementStatus(
 	if changed == 0 {
 		return nil
 	}
-	return recordDeploymentStatus(ctx, qtx, deploymentID, message, defaults)
+	return recordDeploymentStatus(ctx, qtx, deploymentID, cause, defaults)
+}
+
+// deploymentStatusEvent is the event a deployment's aggregate transition records, if any. A
+// deployment is ready once it serves, whether every replica is healthy yet or not.
+func deploymentStatusEvent(previous, status genDb.DeploymentStatus) (string, bool) {
+	serving := func(s genDb.DeploymentStatus) bool {
+		return s == genDb.DeploymentStatusRunning || s == genDb.DeploymentStatusDegraded
+	}
+	switch {
+	case serving(status) && !serving(previous):
+		return events.DeploymentReady, true
+	case status == previous:
+		return "", false
+	case status == genDb.DeploymentStatusFailed:
+		return events.DeploymentFailed, true
+	case status == genDb.DeploymentStatusCrashed:
+		return events.DeploymentCrashed, true
+	default:
+		return "", false
+	}
 }
 
 // recordDeploymentStatus recomputes a deployment's aggregate status from its placements and
-// records deployment.ready or deployment.failed on that transition; a failed deployment rolls
-// back when its service asks for it.
+// records deployment.ready, deployment.failed or deployment.crashed on that transition; a failed
+// deployment rolls back when its service asks for it.
 func recordDeploymentStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	id uuid.UUID,
-	message string,
+	cause transitionCause,
 	defaults servicedefaults.Defaults,
 ) error {
 	status, err := recomputeDeploymentStatus(ctx, qtx, id)
 	if err != nil {
 		return fmt.Errorf("recompute deployment status: %w", err)
 	}
-	if status.PreviousStatus == status.Status ||
-		(status.Status != genDb.DeploymentStatusFailed && status.Status != genDb.DeploymentStatusRunning) {
+	kind, recorded := deploymentStatusEvent(status.PreviousStatus, status.Status)
+	if !recorded {
 		return nil
 	}
 	d, err := qtx.GetDeploymentEvent(ctx, id)
@@ -787,10 +825,12 @@ func recordDeploymentStatus(
 		return fmt.Errorf("list deployment placements: %w", err)
 	}
 	failed := status.Status == genDb.DeploymentStatusFailed
+	crashed := status.Status == genDb.DeploymentStatusCrashed
 	regions := []string{}
 	for _, placement := range placements {
 		if placement.Status == genDb.PlacementStatusCanceled ||
-			failed && placement.Status != genDb.PlacementStatusFailed {
+			failed && placement.Status != genDb.PlacementStatusFailed ||
+			crashed && placement.Status != genDb.PlacementStatusCrashed {
 			continue
 		}
 		regions = append(regions, placement.Region)
@@ -800,17 +840,17 @@ func recordDeploymentStatus(
 		events.FieldResourceID:    d.ResourceID.String(),
 		events.FieldEnvironmentID: d.EnvironmentID.String(),
 		events.FieldRegions:       regions,
-		events.FieldMessage:       message,
+		events.FieldMessage:       cause.message,
 		events.FieldResourceName:  d.ResourceName,
+	}
+	if stopped := cause.stopped; stopped != nil {
+		data[events.FieldRestarts] = stopped.GetRestarts()
+		data[events.FieldWindow] = cause.windowSeconds
 	}
 	if buildID := spec.GetService().GetBuild().GetBuildId(); buildID != "" {
 		data[events.FieldBuildID] = buildID
 	}
 	events.AddCreator(data, d.CreatorID, d.CreatorEmail, d.CreatorName)
-	kind := events.DeploymentReady
-	if failed {
-		kind = events.DeploymentFailed
-	}
 	if err := events.Record(ctx, qtx, events.Event{
 		Type:          kind,
 		ActorType:     string(d.ActorType),

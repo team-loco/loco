@@ -59,6 +59,7 @@ const (
 	DeploymentCreated    = "deployment.created"
 	DeploymentReady      = "deployment.ready"
 	DeploymentFailed     = "deployment.failed"
+	DeploymentCrashed    = "deployment.crashed"
 	DeploymentDeleted    = "deployment.deleted"
 	DeploymentCanceled   = "deployment.canceled"
 	BuildCreated         = "build.created"
@@ -173,6 +174,8 @@ const (
 	FieldMemory        = "memory"
 	FieldOld           = "old"
 	FieldNew           = "new"
+	FieldRestarts      = "restarts"
+	FieldWindow        = "window"
 )
 
 type Event struct {

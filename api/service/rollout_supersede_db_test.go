@@ -43,6 +43,7 @@ func (f *deployFixture) reportRollout(t *testing.T, ready bool) {
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
 		Available:        ready,
+		Healthy:          ready,
 		ReadyReplicas:    1,
 	})
 }
@@ -94,6 +95,7 @@ func (f *deployFixture) finishRollouts(t *testing.T) {
 				PlacementId:      r.placementID.String(),
 				ObservedRevision: r.revision,
 				Available:        true,
+				Healthy:          true,
 				ReadyReplicas:    1,
 			})
 	}

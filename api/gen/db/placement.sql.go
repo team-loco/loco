@@ -742,10 +742,9 @@ const setPlacementApplyError = `-- name: SetPlacementApplyError :one
 WITH policy AS (
     SELECT p.id,
            p.apply_attempts + CASE WHEN $2::boolean THEN 0 ELSE 1 END AS attempts,
-           COALESCE(r.max_apply_attempts, $3::int) AS max_attempts,
-           COALESCE(r.apply_retry_delay_seconds, $4::int) * INTERVAL '1 second' AS retry_delay
+           $3::int AS max_attempts,
+           $4::int * INTERVAL '1 second' AS retry_delay
     FROM placements p
-    LEFT JOIN resources r ON r.id = p.resource_id
     WHERE p.id = $5 AND p.cluster_id = $6 AND p.desired_revision = $7
 )
 UPDATE placements
@@ -762,13 +761,13 @@ RETURNING placements.deployment_id, placements.desired_deleted, placements.apply
 `
 
 type SetPlacementApplyErrorParams struct {
-	AppliedError             *string   `json:"appliedError"`
-	Retrying                 bool      `json:"retrying"`
-	DefaultMaxAttempts       int32     `json:"defaultMaxAttempts"`
-	DefaultRetryDelaySeconds int32     `json:"defaultRetryDelaySeconds"`
-	ID                       uuid.UUID `json:"id"`
-	ClusterID                uuid.UUID `json:"clusterId"`
-	DesiredRevision          int64     `json:"desiredRevision"`
+	AppliedError      *string   `json:"appliedError"`
+	Retrying          bool      `json:"retrying"`
+	MaxAttempts       int32     `json:"maxAttempts"`
+	RetryDelaySeconds int32     `json:"retryDelaySeconds"`
+	ID                uuid.UUID `json:"id"`
+	ClusterID         uuid.UUID `json:"clusterId"`
+	DesiredRevision   int64     `json:"desiredRevision"`
 }
 
 type SetPlacementApplyErrorRow struct {
@@ -782,8 +781,8 @@ func (q *Queries) SetPlacementApplyError(ctx context.Context, arg SetPlacementAp
 	row := q.db.QueryRow(ctx, setPlacementApplyError,
 		arg.AppliedError,
 		arg.Retrying,
-		arg.DefaultMaxAttempts,
-		arg.DefaultRetryDelaySeconds,
+		arg.MaxAttempts,
+		arg.RetryDelaySeconds,
 		arg.ID,
 		arg.ClusterID,
 		arg.DesiredRevision,
