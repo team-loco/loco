@@ -22,7 +22,7 @@ export function TraceColors({ trace, children }: { trace: TraceSummary | undefin
 		const shares =
 			trace === undefined
 				? []
-				: serviceShares(trace, times).toSorted((a, b) =>
+				: serviceShares(trace).toSorted((a, b) =>
 						a.nanos === b.nanos ? a.key.localeCompare(b.key) : a.nanos > b.nanos ? -1 : 1,
 					);
 		const colors = traceColors(shares.map((share) => share.key));
