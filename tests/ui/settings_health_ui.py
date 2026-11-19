@@ -1,9 +1,9 @@
 import argparse
+import uuid
 from pathlib import Path
 
-from harness import load_state, open_page, repo, session
+from harness import evidence, load_state, open_page, repo, session
 from playwright.sync_api import expect
-from settings_fixture import seed_settings_resource
 
 parser = argparse.ArgumentParser(
     description="Check health check validation while typing in resource settings"
@@ -17,7 +17,47 @@ state = load_state(
 )
 out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
-_, resource, base = seed_settings_resource(state, "health")
+region = "us-east-1"
+name = f"health-{uuid.uuid4().hex[:8]}"
+resource = evidence.seed_resources(
+    state,
+    [
+        {
+            "workspace": "acme/shared",
+            "name": name,
+            "deployments": [
+                {
+                    "cluster": evidence.seed_cluster(state, region),
+                    "environment": "production",
+                    "region": region,
+                    "spec": {
+                        "platform": "linux/amd64",
+                        "build": {
+                            "type": "image",
+                            "image": "registry.example.com/app:1",
+                        },
+                        "cpu": "100m",
+                        "memory": "128Mi",
+                        "minReplicas": 1,
+                        "maxReplicas": 1,
+                        "port": 8080,
+                        "observability": {"injectOtel": True},
+                        "healthCheck": {
+                            "path": "/health",
+                            "initialDelaySeconds": 5,
+                            "intervalSeconds": 30,
+                            "timeoutSeconds": 5,
+                            "failureThreshold": 3,
+                        },
+                    },
+                }
+            ],
+        }
+    ],
+)[f"acme/shared/{name}"]
+workspace = state["workspaces"]["acme/shared"]
+org = state["orgs"]["acme"]["id"]
+base = f"{state['ui_url']}/org/{org}/wks/{workspace}/resource/{resource}"
 
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)

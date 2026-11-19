@@ -139,7 +139,7 @@ export function SettingsView({
 	};
 	const shownErrors: DraftErrors = tried
 		? errors
-		: Object.fromEntries(LIVE_ERROR_KEYS.flatMap((key) => (errors[key] === undefined ? [] : [[key, errors[key]]])));
+		: Object.fromEntries(LIVE_ERROR_KEYS.map((key) => [key, errors[key]]));
 	const props = { draft, base, errors: shownErrors, locked, describedBy, onChange: change };
 
 	return (
