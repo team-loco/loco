@@ -1,5 +1,6 @@
 # device login without a terminal prints the code as plain lines and saves the approved token.
 fakeapi identity-provider
+fakeapi org 1 acme
 fakeapi device-login approved
 exec loco login --device
 stdout '^Open https://loco\.test/device and enter the code ABCD-EFGH$'

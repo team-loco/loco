@@ -164,9 +164,8 @@ func resolveLoginScope(
 
 	orgs, err := paginate.All(func(token string) ([]*orgv1.Organization, string, error) {
 		resp, listErr := orgClient.ListUserOrgs(ctx, &orgv1.ListUserOrgsRequest{
-			UserId:          currentUserResp.GetUser().GetId(),
-			PageToken:       token,
-			CreateIfMissing: true,
+			UserId:    currentUserResp.GetUser().GetId(),
+			PageToken: token,
 		})
 		if listErr != nil {
 			return nil, "", listErr
@@ -178,7 +177,7 @@ func resolveLoginScope(
 	}
 
 	if len(orgs) == 0 {
-		return session.SimpleOrg{}, session.SimpleWorkspace{}, errNoOrganization
+		return session.SimpleOrg{}, session.SimpleWorkspace{}, nil
 	}
 	selectedOrg := orgs[0]
 	workspaces, err := paginate.All(func(token string) ([]*workspacev1.Workspace, string, error) {
@@ -194,13 +193,10 @@ func resolveLoginScope(
 	if err != nil {
 		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf("failed to list workspaces: %w", err)
 	}
-	if len(workspaces) == 0 {
-		return session.SimpleOrg{}, session.SimpleWorkspace{}, fmt.Errorf(
-			"organization %q has no workspaces",
-			selectedOrg.GetName(),
-		)
-	}
 	org := session.SimpleOrg{ID: selectedOrg.GetId(), Name: selectedOrg.GetName()}
+	if len(workspaces) == 0 {
+		return org, session.SimpleWorkspace{}, nil
+	}
 	workspace := session.SimpleWorkspace{ID: workspaces[0].GetId(), Name: workspaces[0].GetName()}
 	return org, workspace, nil
 }
@@ -208,12 +204,20 @@ func resolveLoginScope(
 func printLoginSuccess(title, orgName, workspaceName string) error {
 	checkmark := lipgloss.NewStyle().Foreground(ui.Ok).Render("✔")
 	heading := lipgloss.NewStyle().Bold(true).Foreground(ui.Accent).Render(title)
-	orgLine := lipgloss.NewStyle().
-		Foreground(ui.Fg2).
-		Render(fmt.Sprintf("  Organization: %s", orgName))
-	wsLine := lipgloss.NewStyle().
-		Foreground(ui.Fg2).
-		Render(fmt.Sprintf("  Workspace: %s", workspaceName))
+	detail := lipgloss.NewStyle().Foreground(ui.Fg2)
+	switch {
+	case orgName == "":
+		_, err := lipgloss.Printf("%s %s\n%s\n", checkmark, heading,
+			detail.Render("  You belong to no organization yet. Create one with: loco org create <name>"))
+		return err
+	case workspaceName == "":
+		_, err := lipgloss.Printf("%s %s\n%s\n%s\n", checkmark, heading,
+			detail.Render(fmt.Sprintf("  Organization: %s", orgName)),
+			detail.Render("  This organization has no workspace yet. Create one with: loco workspace create <name>"))
+		return err
+	}
+	orgLine := detail.Render(fmt.Sprintf("  Organization: %s", orgName))
+	wsLine := detail.Render(fmt.Sprintf("  Workspace: %s", workspaceName))
 	_, err := lipgloss.Printf("%s %s\n%s\n%s\n", checkmark, heading, orgLine, wsLine)
 	return err
 }

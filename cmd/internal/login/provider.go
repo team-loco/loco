@@ -33,7 +33,6 @@ var (
 	errDeviceLoginExpired        = errors.New("the device code expired before sign-in was approved")
 
 	errNoIdentityProvider = errors.New("this Loco server has no identity provider configured")
-	errNoOrganization     = errors.New("the server returned no organization for this account")
 	errUnexpectedListener = errors.New("unexpected listener address")
 	errUnexpectedModel    = errors.New("unexpected model type")
 )

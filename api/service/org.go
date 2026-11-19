@@ -18,7 +18,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
-	"github.com/team-loco/loco/api/reqctx"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -43,14 +42,8 @@ var (
 		connect.CodeFailedPrecondition,
 		"organization must keep at least one active admin",
 	)
-	errInvalidOrgRole              = rpcerr.NewCoded(connect.CodeInvalidArgument, "role must be Admin or Member")
-	errCreateIfMissingForOtherUser = rpcerr.NewCoded(
-		connect.CodeInvalidArgument,
-		"create_if_missing requires user_id to be the caller",
-	)
+	errInvalidOrgRole = rpcerr.NewCoded(connect.CodeInvalidArgument, "role must be Admin or Member")
 )
-
-const firstWorkspaceName = "default"
 
 // OrgServer implements the OrgService gRPC server
 type OrgServer struct {
@@ -225,12 +218,6 @@ func (s *OrgServer) ListUserOrgs(
 		return nil, connect.NewError(connect.CodeInvalidArgument, publicInvalidPageToken).WithCause(cursorErr)
 	}
 
-	if req.GetCreateIfMissing() {
-		if err = s.createFirstOrg(ctx, p, userID); err != nil {
-			return nil, err
-		}
-	}
-
 	orgs, err := s.queries.ListOrgsForUser(ctx, genDb.ListOrgsForUserParams{
 		UserID:        userID,
 		Limit:         pageSize,
@@ -261,51 +248,6 @@ func (s *OrgServer) ListUserOrgs(
 		Orgs:          orgResponses,
 		NextPageToken: token,
 	}, nil
-}
-
-func (s *OrgServer) createFirstOrg(ctx context.Context, p reqctx.Principal, userID uuid.UUID) error {
-	if p.UserID != userID {
-		return errCreateIfMissingForOtherUser
-	}
-	return withTx(ctx, s.db, func(qtx *genDb.Queries) error {
-		lockedCtx, lockErr := lockUserMutation(ctx, qtx, userID)
-		if lockErr != nil {
-			return lockErr
-		}
-		fresh, principalErr := principalFrom(lockedCtx)
-		if principalErr != nil {
-			return principalErr
-		}
-		existing, err := qtx.ListOrgsForUser(lockedCtx, genDb.ListOrgsForUserParams{UserID: userID, Limit: 1})
-		if err != nil {
-			return fmt.Errorf("list organizations: %w", err)
-		}
-		if len(existing) > 0 {
-			return nil
-		}
-		if authzErr := check(
-			lockedCtx,
-			authz.New(qtx),
-			fresh,
-			actions.New(actions.CreateOrg, userID),
-		); authzErr != nil {
-			return authzErr
-		}
-		user, err := qtx.GetUserByID(lockedCtx, userID)
-		if err != nil {
-			return fmt.Errorf("get user: %w", err)
-		}
-		org, err := createOrgInTx(lockedCtx, qtx, s.counts, userID, defaultOrgName(user))
-		if err != nil {
-			return err
-		}
-		_, err = createWorkspaceInTx(lockedCtx, qtx, s.counts, genDb.CreateWorkspaceParams{
-			OrgID:     org.ID,
-			Name:      firstWorkspaceName,
-			CreatedBy: userID,
-		})
-		return err
-	})
 }
 
 func defaultOrgName(user genDb.User) string {
