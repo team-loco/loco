@@ -29,7 +29,7 @@ func TestTrackRestartsCountsTheKubeletDeltaAcrossObservations(t *testing.T) {
 	exited := metav1.NewTime(now.Add(-time.Second))
 	replica := loco.ReplicaStatus{Restarts: 3, LastRestart: &loco.ReplicaRestart{At: exited}}
 	trackRestarts(&replica, previous, policy, now)
-	want := []metav1.Time{first, exited, exited}
+	want := []metav1.Time{first, exited}
 	if len(replica.RestartsAt) != len(want) {
 		t.Fatalf("restarts = %v, want %v", replica.RestartsAt, want)
 	}
@@ -40,7 +40,7 @@ func TestTrackRestartsCountsTheKubeletDeltaAcrossObservations(t *testing.T) {
 	}
 	unchanged := loco.ReplicaStatus{Restarts: 3, LastRestart: replica.LastRestart}
 	trackRestarts(&unchanged, &replica, policy, now)
-	if len(unchanged.RestartsAt) != 3 {
+	if len(unchanged.RestartsAt) != 2 {
 		t.Fatalf("repeated observation counted again: %v", unchanged.RestartsAt)
 	}
 }
@@ -62,29 +62,52 @@ func TestTrackRestartsForgetsRestartsOutsideTheWindow(t *testing.T) {
 	}
 }
 
+func TestRestartsMissedBetweenObservationsCountOnceInTheWindow(t *testing.T) {
+	policy := loco.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
+	exited := metav1.NewTime(replicaTestNow.Add(-time.Minute))
+	replica := loco.ReplicaStatus{Restarts: 40, LastRestart: &loco.ReplicaRestart{At: exited}}
+	trackRestarts(&replica, &loco.ReplicaStatus{Restarts: 34}, policy, replicaTestNow)
+	if len(replica.RestartsAt) != 1 || !replica.RestartsAt[0].Equal(&exited) {
+		t.Fatalf("restarts in the window = %v, want only the last exit", replica.RestartsAt)
+	}
+	if restartsExhausted(replica, policy) {
+		t.Fatal("restarts without a known time used up the budget")
+	}
+}
+
 func TestTrackRestartsKeepsOneRestartPastTheBudget(t *testing.T) {
 	policy := loco.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
-	replica := loco.ReplicaStatus{Restarts: 40}
-	trackRestarts(&replica, nil, policy, replicaTestNow)
+	replica := loco.ReplicaStatus{}
+	for restarts := range int32(10) {
+		next := loco.ReplicaStatus{Restarts: restarts + 1}
+		trackRestarts(&next, &replica, policy, replicaTestNow.Add(time.Duration(restarts)*time.Second))
+		replica = next
+	}
 	if len(replica.RestartsAt) != 3 {
 		t.Fatalf("restarts = %d entries, want 3", len(replica.RestartsAt))
 	}
 }
 
+// restartTimes observes a replica restarting once a second.
+func restartTimes(restarts int32, policy loco.RestartPolicySpec) loco.ReplicaStatus {
+	replica := loco.ReplicaStatus{}
+	for restart := range restarts {
+		next := loco.ReplicaStatus{Restarts: restart + 1}
+		trackRestarts(&next, &replica, policy, replicaTestNow.Add(time.Duration(restart)*time.Second))
+		replica = next
+	}
+	return replica
+}
+
 func TestRestartBudgetAllowsMaxRestartsAndStopsOnTheNext(t *testing.T) {
 	policy := loco.RestartPolicySpec{MaxRestarts: 2, WindowSeconds: 600}
-	now := replicaTestNow
 	for restarts, want := range map[int32]bool{0: false, 1: false, 2: false, 3: true} {
-		replica := loco.ReplicaStatus{Restarts: restarts}
-		trackRestarts(&replica, nil, policy, now)
-		if got := restartsExhausted(replica, policy); got != want {
+		if got := restartsExhausted(restartTimes(restarts, policy), policy); got != want {
 			t.Errorf("%d restarts exhausted = %v, want %v", restarts, got, want)
 		}
 	}
 	zero := loco.RestartPolicySpec{MaxRestarts: 0, WindowSeconds: 600}
-	replica := loco.ReplicaStatus{Restarts: 1}
-	trackRestarts(&replica, nil, zero, now)
-	if !restartsExhausted(replica, zero) {
+	if !restartsExhausted(restartTimes(1, zero), zero) {
 		t.Error("a budget of zero restarts allowed one")
 	}
 }
@@ -149,28 +172,57 @@ func TestHealthWaitsForQuietReplicas(t *testing.T) {
 	quiet := observedReplica{status: loco.ReplicaStatus{}}
 
 	rollout := &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{quiet}, now)
+	r.observeHealth(rollout, []observedReplica{quiet}, 2, now)
 	if !rollout.Healthy || rollout.HealthyAt != nil {
 		t.Fatalf("rollout without restarts = %+v, want healthy at once", rollout)
 	}
 
 	rollout = &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{quiet, restarted}, now)
+	r.observeHealth(rollout, []observedReplica{quiet, restarted}, 2, now)
 	wantAt := restartedAt.Add(testHealthyAfter)
 	if rollout.Healthy || rollout.HealthyAt == nil || !rollout.HealthyAt.Time.Equal(wantAt) {
 		t.Fatalf("rollout after a restart = %+v, want healthy at %s", rollout, wantAt)
 	}
 
 	rollout = &loco.RolloutStatus{Available: true}
-	r.observeHealth(rollout, []observedReplica{restarted}, wantAt)
+	r.observeHealth(rollout, []observedReplica{restarted}, 2, wantAt)
 	if !rollout.Healthy {
 		t.Fatalf("rollout at %s = %+v, want healthy", wantAt, rollout)
 	}
 
 	rollout = &loco.RolloutStatus{Available: false}
-	r.observeHealth(rollout, []observedReplica{quiet}, now)
+	r.observeHealth(rollout, []observedReplica{quiet}, 2, now)
 	if rollout.Healthy || rollout.HealthyAt != nil {
 		t.Fatalf("unavailable rollout = %+v, want not healthy", rollout)
+	}
+}
+
+func TestRevisionIsProvenOnceEveryReplicaServedForTheHealthWindow(t *testing.T) {
+	r := &ApplicationReconciler{HealthyAfter: testHealthyAfter}
+	now := replicaTestNow
+	serving := func(since time.Duration) observedReplica {
+		at := metav1.NewTime(now.Add(-since))
+		return observedReplica{status: loco.ReplicaStatus{State: loco.ReplicaServing, StateSince: &at}}
+	}
+	for _, tt := range []struct {
+		name     string
+		replicas []observedReplica
+		want     int64
+	}{
+		{"every replica served the window", []observedReplica{serving(testHealthyAfter), serving(time.Hour)}, 2},
+		{"a replica became ready recently", []observedReplica{serving(time.Hour), serving(time.Minute)}, 1},
+		{"a replica is starting", []observedReplica{serving(time.Hour), {status: loco.ReplicaStatus{
+			State: loco.ReplicaStarting, StateSince: new(metav1.NewTime(now.Add(-time.Hour))),
+		}}}, 1},
+		{"no replica", nil, 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			rollout := &loco.RolloutStatus{Available: true, ProvenRevision: 1}
+			r.observeHealth(rollout, tt.replicas, 2, now)
+			if rollout.ProvenRevision != tt.want {
+				t.Fatalf("proven revision = %d, want %d", rollout.ProvenRevision, tt.want)
+			}
+		})
 	}
 }
 
@@ -200,7 +252,7 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 	app.Annotations = map[string]string{loco.KeyPlacementRevision: "2"}
 	app.Status.ObservedPlacementRevision = 2
 	exited := metav1.NewTime(now.Add(-time.Second))
-	pod := restartedPod(testRestartPolicy.MaxRestarts, corev1.ContainerStateTerminated{ExitCode: 1, FinishedAt: exited})
+	pod := restartedPod(1, corev1.ContainerStateTerminated{ExitCode: 1, FinishedAt: exited})
 	pod.UID, pod.Name, pod.Namespace = "budget-uid", "budget-replica", testEnvironmentNamespace(app)
 	pod.Labels = map[string]string{labelApp: testAppName(app)}
 	pod.Annotations = map[string]string{loco.KeyPlacementRevision: "2"}
@@ -212,9 +264,20 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 		WithSpec(appsv1ac.DeploymentSpec().WithReplicas(1)).
 		WithStatus(appsv1ac.DeploymentStatus().WithObservedGeneration(1).
 			WithReplicas(1).WithUpdatedReplicas(1).WithAvailableReplicas(1))
+	restart := func() {
+		t.Helper()
+		pod.Status.ContainerStatuses[0].RestartCount++
+		if err := client.Status().Update(context.Background(), pod); err != nil {
+			t.Fatal(err)
+		}
+		if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
 		t.Fatal(err)
 	}
+	restart()
 	rollout := app.Status.Rollout
 	if rollout.Stopped != nil || rollout.Problem == nil || rollout.Problem.Reason != loco.ProblemRestarting {
 		t.Fatalf("within budget = %+v, want restarting and not stopped", rollout)
@@ -226,17 +289,11 @@ func TestObserveReplicasStopsTheRevisionPastTheBudget(t *testing.T) {
 		t.Fatalf("restarted rollout = %+v, want available but not healthy", rollout)
 	}
 
-	pod.Status.ContainerStatuses[0].RestartCount++
-	if err := client.Status().Update(context.Background(), pod); err != nil {
-		t.Fatal(err)
-	}
-	if err := r.observeReplicas(context.Background(), app, dep, now); err != nil {
-		t.Fatal(err)
-	}
+	restart()
 	rollout = app.Status.Rollout
 	stopped := rollout.Stopped
 	if stopped == nil || stopped.PlacementRevision != 2 || stopped.Replica != pod.Name || stopped.Restarts != 3 ||
-		stopped.LastRestart.ExitCode != 1 {
+		stopped.LastRestart.ExitCode != 1 || !stopped.Rollout {
 		t.Fatalf("stopped = %+v, want revision 2 stopped after 3 restarts", stopped)
 	}
 	if rollout.Problem == nil || rollout.Problem.Reason != loco.ProblemRestartsExhausted ||

@@ -100,6 +100,8 @@ type StoppedRevision struct {
 	Restarts    int32          `json:"restarts"`
 	LastRestart ReplicaRestart `json:"lastRestart"`
 	At          metav1.Time    `json:"at"`
+	// Rollout is set when the revision never proved itself, so the previous revision serves in its place.
+	Rollout bool `json:"rollout,omitzero"`
 }
 
 type RolloutStatus struct {
@@ -111,6 +113,9 @@ type RolloutStatus struct {
 	// HealthyAt is when an available rollout becomes healthy if no replica restarts again.
 	HealthyAt *metav1.Time     `json:"healthyAt,omitempty"`
 	Stopped   *StoppedRevision `json:"stopped,omitempty"`
+	// ProvenRevision is the newest placement revision whose replicas all served for the health window
+	// without a restart.
+	ProvenRevision int64 `json:"provenRevision,omitzero"`
 	// +listType=map
 	// +listMapKey=uid
 	Replicas []ReplicaStatus `json:"replicas,omitempty"`

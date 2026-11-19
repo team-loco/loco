@@ -27,7 +27,7 @@ func stoppedRevision(app *loco.Application) *loco.StoppedRevision {
 // exhaustedRevision stops the revision when one of its replicas restarted past the budget.
 func exhaustedRevision(
 	current []observedReplica,
-	revision int64,
+	revision, proven int64,
 	policy loco.RestartPolicySpec,
 	now time.Time,
 ) *loco.StoppedRevision {
@@ -46,48 +46,61 @@ func exhaustedRevision(
 			Restarts:          int32(len(status.RestartsAt)),
 			LastRestart:       last,
 			At:                metav1.NewTime(now),
+			Rollout:           proven != revision,
 		}
 	}
 	return nil
 }
 
-// stoppedReplicaSets lists the Deployment's ReplicaSets of the stopped revision and reports
-// whether a ReplicaSet of another revision still has replicas to keep serving.
+const annotationDeploymentRevision = "deployment.kubernetes.io/revision"
+
+// stoppedReplicaSets lists the Deployment's ReplicaSets of the stopped revision and the newest
+// ReplicaSet of an earlier revision, nil when there is none.
 func (r *ApplicationReconciler) stoppedReplicaSets(
 	ctx context.Context,
 	namespace, name string,
 	stopped *loco.StoppedRevision,
-) ([]appsv1.ReplicaSet, bool, error) {
+) ([]appsv1.ReplicaSet, *appsv1.ReplicaSet, error) {
 	var sets appsv1.ReplicaSetList
 	if err := r.APIReader.List(ctx, &sets, client.InNamespace(namespace),
 		client.MatchingLabels{labelApp: name}); err != nil {
-		return nil, false, fmt.Errorf("list replica sets of %s/%s: %w", namespace, name, err)
+		return nil, nil, fmt.Errorf("list replica sets of %s/%s: %w", namespace, name, err)
 	}
 	revision := strconv.FormatInt(stopped.PlacementRevision, 10)
 	var current []appsv1.ReplicaSet
-	previousServes := false
-	for _, set := range sets.Items {
+	var previous *appsv1.ReplicaSet
+	for i := range sets.Items {
+		set := &sets.Items[i]
 		if set.Spec.Template.Annotations[loco.KeyPlacementRevision] == revision {
-			current = append(current, set)
-		} else if ptr.Deref(set.Spec.Replicas, 0) > 0 {
-			previousServes = true
+			current = append(current, *set)
+		} else if previous == nil || deploymentRevision(set) > deploymentRevision(previous) {
+			previous = set
 		}
 	}
-	return current, previousServes, nil
+	return current, previous, nil
 }
 
-// scaleDown empties the stopped revision's ReplicaSets. The paused Deployment then scales its one
-// active ReplicaSet, the previous revision's, to the full count and leaves the empty ones alone.
-func (r *ApplicationReconciler) scaleDown(ctx context.Context, sets []appsv1.ReplicaSet) error {
+func deploymentRevision(set *appsv1.ReplicaSet) int64 {
+	revision, err := strconv.ParseInt(set.Annotations[annotationDeploymentRevision], 10, 64)
+	if err != nil {
+		return 0
+	}
+	return revision
+}
+
+// scale sets each ReplicaSet's desired replicas. With the stopped revision's ReplicaSets empty and
+// the previous one scaled up, the paused Deployment has one active ReplicaSet, keeps it at the
+// full count and leaves the empty ones alone.
+func (r *ApplicationReconciler) scale(ctx context.Context, sets []appsv1.ReplicaSet, replicas int32) error {
 	for i := range sets {
 		set := &sets[i]
-		if ptr.Deref(set.Spec.Replicas, 0) == 0 {
+		if ptr.Deref(set.Spec.Replicas, 0) == replicas {
 			continue
 		}
 		patch := client.MergeFrom(set.DeepCopy())
-		set.Spec.Replicas = new(int32(0))
+		set.Spec.Replicas = new(replicas)
 		if err := r.Patch(ctx, set, patch); err != nil {
-			return fmt.Errorf("scale down replica set %s/%s: %w", set.Namespace, set.Name, err)
+			return fmt.Errorf("scale replica set %s/%s: %w", set.Namespace, set.Name, err)
 		}
 	}
 	return nil

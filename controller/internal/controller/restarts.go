@@ -51,8 +51,9 @@ func restartCause(pod *corev1.Pod, exit *corev1.ContainerStateTerminated, livene
 	return loco.RestartExit
 }
 
-// trackRestarts carries the replica's restarts from its previous report, adds the restarts the kubelet
-// counted since, and keeps those within the window, at most one past the budget.
+// trackRestarts carries the replica's restarts from its previous report and keeps those within the
+// window, at most one past the budget. Restarts the kubelet counted since add one restart at the
+// last exit; the others have no known time and count only in the replica's total.
 func trackRestarts(replica, previous *loco.ReplicaStatus, policy loco.RestartPolicySpec, now time.Time) {
 	var seen int32
 	var restarts []metav1.Time
@@ -65,7 +66,7 @@ func trackRestarts(replica, previous *loco.ReplicaStatus, policy loco.RestartPol
 	if replica.LastRestart != nil && !replica.LastRestart.At.IsZero() {
 		at = replica.LastRestart.At
 	}
-	for range min(int(replica.Restarts-seen), limit) {
+	if replica.Restarts > seen {
 		restarts = append(restarts, at)
 	}
 	window := time.Duration(policy.WindowSeconds) * time.Second

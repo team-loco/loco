@@ -250,7 +250,9 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
-	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil {
+	revision, _ := app.PlacementRevision()
+	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil ||
+		app.Status.Rollout.ProvenRevision != revision {
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 	return ctrl.Result{}, nil
@@ -768,16 +770,17 @@ func (r *ApplicationReconciler) ensureDeployment(
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
 	var stoppedSets []appsv1.ReplicaSet
+	var previous *appsv1.ReplicaSet
 	if stopped := stoppedRevision(app); stopped != nil {
-		sets, previousServes, err := r.stoppedReplicaSets(ctx, namespace, name, stopped)
+		var err error
+		stoppedSets, previous, err = r.stoppedReplicaSets(ctx, namespace, name, stopped)
 		if err != nil {
 			return nil, err
 		}
 		dep.Spec.WithPaused(true)
-		if previousServes {
-			stoppedSets = sets
-		} else {
+		if !stopped.Rollout || previous == nil {
 			dep.Spec.WithReplicas(0)
+			previous = nil
 		}
 	}
 
@@ -785,7 +788,13 @@ func (r *ApplicationReconciler) ensureDeployment(
 	if err := r.Apply(ctx, dep, opts...); err != nil {
 		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
 	}
-	return dep, r.scaleDown(ctx, stoppedSets)
+	if previous == nil {
+		return dep, r.scale(ctx, stoppedSets, 0)
+	}
+	if err := r.scale(ctx, stoppedSets, 0); err != nil {
+		return nil, err
+	}
+	return dep, r.scale(ctx, []appsv1.ReplicaSet{*previous}, ptr.Deref(dep.Spec.Replicas, 0))
 }
 
 func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32) bool {

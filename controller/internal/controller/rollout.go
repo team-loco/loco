@@ -127,6 +127,9 @@ func (r *ApplicationReconciler) observeReplicas(
 	}
 	if rollout.Stopped != nil && rollout.DesiredReplicas == 0 {
 		rollout.DesiredReplicas = previous.DesiredReplicas
+		if resources := app.Spec.ServiceSpec.Resources; !resources.Scalers.Enabled {
+			rollout.DesiredReplicas = resources.Replicas.Min
+		}
 	}
 	var current []observedReplica
 	revision, placed := app.PlacementRevision()
@@ -143,10 +146,11 @@ func (r *ApplicationReconciler) observeReplicas(
 	}
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
 	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
+	rollout.ProvenRevision = previous.ProvenRevision
 	if rollout.Stopped == nil {
-		rollout.Stopped = exhaustedRevision(current, revision, policy, now)
+		rollout.Stopped = exhaustedRevision(current, revision, rollout.ProvenRevision, policy, now)
 	}
-	r.observeHealth(rollout, current, now)
+	r.observeHealth(rollout, current, revision, now)
 	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
 	if stopped := rollout.Stopped; stopped != nil {
 		rollout.Problem = &locov1alpha1.Problem{
@@ -226,10 +230,12 @@ func observeReplica(
 	return replica, nil
 }
 
-// observeHealth marks an available rollout healthy once no current replica restarted within HealthyAfter.
+// observeHealth marks an available rollout healthy once no current replica restarted within
+// HealthyAfter, and its revision proven once every current replica has also served that long.
 func (r *ApplicationReconciler) observeHealth(
 	rollout *locov1alpha1.RolloutStatus,
 	current []observedReplica,
+	revision int64,
 	now time.Time,
 ) {
 	if rollout.Stopped != nil {
@@ -248,6 +254,16 @@ func (r *ApplicationReconciler) observeHealth(
 	rollout.Healthy = newest.IsZero()
 	if !rollout.Healthy {
 		rollout.HealthyAt = new(metav1.NewTime(newest.Add(r.HealthyAfter)))
+		return
+	}
+	for _, replica := range current {
+		since := replica.status.StateSince
+		if replica.status.State != locov1alpha1.ReplicaServing || since == nil || now.Sub(since.Time) < r.HealthyAfter {
+			return
+		}
+	}
+	if len(current) > 0 {
+		rollout.ProvenRevision = revision
 	}
 }
 

@@ -317,6 +317,12 @@ spec:
                     type: object
                   progressDeadlineExceeded:
                     type: boolean
+                  provenRevision:
+                    description: |-
+                      ProvenRevision is the newest placement revision whose replicas all served for the health window
+                      without a restart.
+                    format: int64
+                    type: integer
                   replicas:
                     items:
                       properties:
@@ -452,6 +458,10 @@ spec:
                           within the window.
                         format: int32
                         type: integer
+                      rollout:
+                        description: Rollout is set when the revision never proved
+                          itself, so the previous revision serves in its place.
+                        type: boolean
                     required:
                     - at
                     - lastRestart

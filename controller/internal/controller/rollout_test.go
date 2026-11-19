@@ -215,7 +215,7 @@ func TestReplicaProblemDetail(t *testing.T) {
 			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{
 				ExitCode: 1, FinishedAt: metav1.NewTime(now.Add(-time.Second)),
 			}},
-		}}}}, "exit 1 · 2 of 2 restarts in 10 min"},
+		}}}}, "exit 1 · 1 of 2 restarts in 10 min"},
 		{"exited before its first restart", corev1.Pod{Status: corev1.PodStatus{
 			ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
 				Terminated: &corev1.ContainerStateTerminated{ExitCode: 3},

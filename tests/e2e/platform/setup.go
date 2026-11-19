@@ -488,6 +488,7 @@ func (p *Platform) setupPublicImages(ctx context.Context) error {
 	p.PublicImage = host + "/public-image:e2e"
 	p.AlternatePortImage = host + "/public-image:e2e-port-9090"
 	p.CrashingImage = host + "/public-image:e2e-crashing"
+	p.LateCrashingImage = host + "/public-image:e2e-late-crashing"
 	p.WorkerImage = host + "/public-image:e2e-worker"
 	for destination, cmd := range map[string][]string{
 		p.PublicImage: nil,
@@ -496,8 +497,9 @@ func (p *Platform) setupPublicImages(ctx context.Context) error {
 sed 's/8080/9090/g' /etc/nginx/conf.d/default.conf > /tmp/e2e-server.conf
 exec nginx -c /tmp/e2e-nginx.conf -g 'daemon off;'`,
 		},
-		p.CrashingImage: {"sh", "-c", "sleep 5; exit 1"},
-		p.WorkerImage:   {"sh", "-c", `trap "exit 0" TERM; while :; do sleep 1; done`},
+		p.CrashingImage:     {"sh", "-c", "sleep 5; exit 1"},
+		p.LateCrashingImage: {"sh", "-c", `nginx -g 'daemon off;' & sleep 60; exit 1`},
+		p.WorkerImage:       {"sh", "-c", `trap "exit 0" TERM; while :; do sleep 1; done`},
 	} {
 		if err = mirrorImage(ctx, source, destination, target, cmd); err != nil {
 			return err
