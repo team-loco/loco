@@ -45,7 +45,7 @@ func (s *DeploymentServer) deploymentBindings(
 	if len(requestedEnv) > 0 {
 		return requestedEnv, secretNames, nil
 	}
-	plain, err := desiredEnv(ctx, qtx, resourceID, current.EnvironmentID, current.ClusterID)
+	plain, err := liveEnv(ctx, qtx, current)
 	if err != nil {
 		return nil, nil, err
 	}

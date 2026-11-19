@@ -238,7 +238,8 @@ CREATE TABLE
         commit_dirty BOOLEAN NOT NULL DEFAULT false,
         secret_names TEXT[] NOT NULL DEFAULT '{}',
         activity_seq BIGINT NOT NULL DEFAULT 0,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
+        -- insert time, which orders the deployments of a resource
+        created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp (),
         started_at TIMESTAMPTZ,
         completed_at TIMESTAMPTZ,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),

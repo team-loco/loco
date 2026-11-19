@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"buf.build/go/protovalidate"
+
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
@@ -485,5 +487,72 @@ func TestAFailedBuildLeavesTheRollingDeploymentLive(t *testing.T) {
 	}
 	if region := statuses[f.resourceID][0].GetRegions()[0]; region.GetDeploymentId() != rolling.String() {
 		t.Fatalf("region = %v, want the rolling deployment", region)
+	}
+}
+
+const buildModeKey = "MODE"
+
+func TestScaleDuringABuildKeepsTheBuildingDeploymentsEnv(t *testing.T) {
+	t.Parallel()
+	f := newBuildFixture(t)
+	serving := imageService()
+	serving.Env = map[string]string{buildModeKey: "serving"}
+	if _, err := createDeploymentWith(t, f.deployFixture, sameRegionSpec, serving); err != nil {
+		t.Fatal(err)
+	}
+	f.finishRollouts(t)
+	buildID := f.queued(t)
+	building, err := deployService(t, f.deployFixture, &deploymentv1.ServiceDeploymentSpec{
+		Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
+		Env:   map[string]string{buildModeKey: "building"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = scaleResource(t, f.deployFixture, 2); err != nil {
+		t.Fatal(err)
+	}
+	live, err := f.queries.GetLiveDeploymentForRegion(f.ctx, genDb.GetLiveDeploymentForRegionParams{
+		ResourceID: f.resourceID, EnvironmentID: f.envID, Region: testRegion,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := live.Deployment.SourceDeploymentID
+	if live.Deployment.ID.String() == building.GetDeploymentId() ||
+		source == nil || source.String() != building.GetDeploymentId() {
+		t.Fatalf(
+			"live deployment = %+v, want a scale copying the building %s",
+			live.Deployment,
+			building.GetDeploymentId(),
+		)
+	}
+	env, err := liveEnv(f.ctx, f.queries, liveDeployments([]genDb.ListLiveDeploymentsForResourceRow{
+		genDb.ListLiveDeploymentsForResourceRow(live),
+	})[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env[buildModeKey] != "building" {
+		t.Fatalf("scaled env = %v, want the building deployment's", env)
+	}
+}
+
+func TestCreateDeploymentRejectsARepeatedRegion(t *testing.T) {
+	t.Parallel()
+	req := &deploymentv1.CreateDeploymentRequest{
+		ResourceId:    uuid.NewString(),
+		EnvironmentId: uuid.NewString(),
+		Regions:       []string{testRegion, testRegion},
+		Spec: &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{
+			Service: &deploymentv1.ServiceDeploymentSpec{Build: &deploymentv1.BuildSource{Type: buildSourceTypeImage}},
+		}},
+	}
+	if err := protovalidate.Validate(req); err == nil {
+		t.Fatal("a request naming a region twice passed validation")
+	}
+	req.Regions = []string{testRegion}
+	if err := protovalidate.Validate(req); err != nil {
+		t.Fatalf("a request naming each region once failed validation: %v", err)
 	}
 }

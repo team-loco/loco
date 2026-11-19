@@ -678,7 +678,7 @@ func (s *ResourceServer) scaleCurrentDeployments(
 		}
 		serviceDeploymentSpec.Regions = targets
 
-		plainEnv, envErr := desiredEnv(ctx, qtx, resourceID, current.EnvironmentID, current.ClusterID)
+		plainEnv, envErr := liveEnv(ctx, qtx, current)
 		if envErr != nil {
 			return fmt.Errorf("read scaling environment: %w", envErr)
 		}
@@ -1004,7 +1004,7 @@ func (s *ResourceServer) GetResourceEnv(
 	var secretNames []string
 	if len(deployments) > 0 {
 		deployment := deployments[0]
-		vars, envErr := desiredEnv(ctx, s.queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
+		vars, envErr := liveEnv(ctx, s.queries, deployment)
 		if envErr != nil {
 			return nil, fmt.Errorf("read the desired env: %w", envErr)
 		}

@@ -454,7 +454,7 @@ func liveState(
 			state.Dockerfile = deployed.DockerfilePath
 			state.Context = deployed.Context
 		}
-		env, envErr := desiredEnv(ctx, queries, res.ID, deployment.EnvironmentID, deployment.ClusterID)
+		env, envErr := liveEnv(ctx, queries, deployment)
 		if envErr != nil {
 			return configplan.State{}, fmt.Errorf("deployment %s env: %w", deployment.ID, envErr)
 		}
