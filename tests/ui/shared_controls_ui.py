@@ -862,6 +862,27 @@ def dashboard(page):
     )
 
 
+def dashboard_counts(page):
+    page.goto(state["ui_url"] + base + "?env=production")
+    section = page.get_by_role("region", name="Resources", exact=True)
+    count = section.locator("h2 + span")
+    everything = (
+        page.get_by_label("Filter resources by status", exact=True)
+        .get_by_role("button")
+        .first
+    )
+    expect(section.get_by_role("link", name="dashboard-0", exact=True)).to_be_visible()
+    total = int(count.inner_text())
+    assert total >= 7, total
+    expect(everything).to_have_text(re.compile(rf"^All\s*{total}$"))
+    section.get_by_role("textbox", name="Search resources", exact=True).fill(
+        "dashboard-1"
+    )
+    expect(count).to_have_text("1")
+    expect(everything).to_have_text(re.compile(r"^All\s*1$"))
+    expect(section.get_by_role("link", name="dashboard-1", exact=True)).to_be_visible()
+
+
 def traffic(page):
     global traffic_empty
     totals = page.get_by_role("region", name="Totals", exact=True)
@@ -1244,6 +1265,7 @@ with session(out) as browser:
         token_empty,
         limit_display,
         dashboard,
+        dashboard_counts,
         traffic,
     ):
         check(page)

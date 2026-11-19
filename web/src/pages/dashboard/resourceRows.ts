@@ -110,6 +110,11 @@ export function filterRows<T extends DashboardItem>(items: T[], filter: RowFilte
 		.toSorted((a, b) => itemName(a).localeCompare(itemName(b)));
 }
 
+/** The items matching every filter except `key`, which is how the options of that filter are counted. */
+export function withoutFilter<T extends DashboardItem>(items: T[], filter: RowFilter, key: keyof RowFilter): T[] {
+	return filterRows(items, { ...filter, [key]: key === "query" ? "" : ALL });
+}
+
 const serializeFilter = createSerializer(FILTER_PARSERS, { urlKeys: FILTER_URL_KEYS });
 
 export function viewAllSearch(envName: string, filter: RowFilter): string {
