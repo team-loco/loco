@@ -79,17 +79,36 @@ func TestNewFailsAtOnceForARejectedToken(t *testing.T) {
 	}
 }
 
-func TestNewFailsAtOnceForARejectedKubernetesLogin(t *testing.T) {
+func TestNewRetriesAKubernetesLoginUntilTheRoleAccepts(t *testing.T) {
 	fake := transittest.New(t)
 	path := filepath.Join(t.TempDir(), jwtFileName)
 	writeJWT(t, path, fakeServiceAccountJWT)
 	fake.AcceptJWT(rotatedJWT)
 	server := fake.Server()
-	_, err := New(t.Context(), kubernetesTransitConfig(server.URL, path))
-	if !errors.Is(err, ErrPermissionDenied) {
-		t.Fatalf("new: err = %v, want ErrPermissionDenied", err)
+	go func() {
+		for fake.Count(transittest.LoginPath) < sealedRequests {
+			time.Sleep(time.Millisecond)
+		}
+		fake.AcceptJWT(fakeServiceAccountJWT)
+	}()
+	if _, err := New(t.Context(), kubernetesTransitConfig(server.URL, path)); err != nil {
+		t.Fatalf("new: %v", err)
 	}
-	if logins := fake.Count(transittest.LoginPath); logins != 1 {
-		t.Fatalf("logins = %d, want 1", logins)
+	if logins := fake.Count(transittest.LoginPath); logins <= sealedRequests {
+		t.Fatalf("logins = %d, want more than %d", logins, sealedRequests)
+	}
+}
+
+func TestNewStopsRetryingARefusedKubernetesLoginWhenTheContextEnds(t *testing.T) {
+	fake := transittest.New(t)
+	path := filepath.Join(t.TempDir(), jwtFileName)
+	writeJWT(t, path, fakeServiceAccountJWT)
+	fake.AcceptJWT(rotatedJWT)
+	server := fake.Server()
+	ctx, cancel := context.WithTimeout(t.Context(), shortTransitTimeout)
+	defer cancel()
+	_, err := New(ctx, kubernetesTransitConfig(server.URL, path))
+	if !errors.Is(err, ErrUnavailable) || !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("new: err = %v, want ErrUnavailable wrapping ErrPermissionDenied", err)
 	}
 }
