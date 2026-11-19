@@ -68,7 +68,7 @@ describe("deployPhase", () => {
 		[DeploymentStatus.CANCELED, false, "Canceled"],
 		[DeploymentStatus.UNSPECIFIED, false, "Queued"],
 	])("%i with problem %p reads %s", (status, problem, label) => {
-		const d = deployment("d", status, 1, problem ? { problem: { reason: "crash_loop", message: "x" } } : {});
+		const d = deployment("d", status, 1, problem ? { problem: { reason: "restarting", message: "x" } } : {});
 		expect(deployPhase(d).label).toBe(label);
 	});
 });
@@ -91,7 +91,7 @@ describe("deploySteps", () => {
 	});
 
 	test("a problem marks the active step as retrying", () => {
-		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, { problem: { reason: "crash_loop" } });
+		const d = deployment("d", DeploymentStatus.DEPLOYING, 1, { problem: { reason: "restarting" } });
 		expect(deploySteps(d).deploy).toBe("retry");
 	});
 });

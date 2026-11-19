@@ -35,6 +35,7 @@ func testApplicationConfig() operatorConfig {
 		Telemetry:                testTelemetry(),
 		MinReadySeconds:          new(int32(10)),
 		DrainSeconds:             new(int32(7)),
+		HealthyAfterSeconds:      new(int32(300)),
 	}
 }
 
@@ -146,6 +147,11 @@ func TestApplicationReconcilerRequiresItsSettings(t *testing.T) {
 	withoutDrain.DrainSeconds = nil
 	if _, err := selectReconciler(reconcilerApplication, withoutDrain); !errors.Is(err, errDrainSecondsMissing) {
 		t.Errorf("without drain seconds: err = %v, want %v", err, errDrainSecondsMissing)
+	}
+	withoutHealthyAfter := testApplicationConfig()
+	withoutHealthyAfter.HealthyAfterSeconds = nil
+	if _, err := selectReconciler(reconcilerApplication, withoutHealthyAfter); !errors.Is(err, errHealthyAfterMissing) {
+		t.Errorf("without healthy after seconds: err = %v, want %v", err, errHealthyAfterMissing)
 	}
 	withoutMinReady := testApplicationConfig()
 	withoutMinReady.MinReadySeconds = nil

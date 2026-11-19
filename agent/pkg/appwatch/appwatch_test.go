@@ -287,10 +287,21 @@ func TestRolloutForwarding(t *testing.T) {
 	application.Spec.DeploymentID = "deployment-later"
 	application.Status.ObservedDeploymentID = observedDeploymentID
 	at := metav1.NewTime(time.Date(2026, 11, 16, 12, 0, 0, 123, time.UTC))
+	restart := locoControllerV1.ReplicaRestart{At: at, Cause: locoControllerV1.RestartHealthCheck, ExitCode: 137}
+	wantRestart := &deploymentv1.ReplicaRestart{At: timestamppb.New(at.Time), Cause: "health_check", ExitCode: 137}
 	application.Status.Rollout = &locoControllerV1.RolloutStatus{
 		DesiredReplicas:          2,
 		Available:                true,
 		ProgressDeadlineExceeded: true,
+		Healthy:                  true,
+		HealthyAt:                &at,
+		Stopped: &locoControllerV1.StoppedRevision{
+			PlacementRevision: 5,
+			Replica:           currentReplicaName,
+			Restarts:          3,
+			LastRestart:       restart,
+			At:                at,
+		},
 		Replicas: []locoControllerV1.ReplicaStatus{
 			{
 				UID:               "current",
@@ -304,6 +315,8 @@ func TestRolloutForwarding(t *testing.T) {
 				Restarts:          2,
 				StartedAt:         &at,
 				LastExit:          &locoControllerV1.ReplicaExit{Reason: "OOMKilled", ExitCode: 137, FinishedAt: at},
+				RestartsAt:        []metav1.Time{at, at},
+				LastRestart:       &restart,
 				Detail:            "ready",
 			},
 			{
@@ -316,7 +329,7 @@ func TestRolloutForwarding(t *testing.T) {
 			},
 		},
 		Problem: &locoControllerV1.Problem{
-			Reason:  locoControllerV1.ProblemCrashLoop,
+			Reason:  locoControllerV1.ProblemRestarting,
 			Replica: currentReplicaName,
 			Detail:  "exit 1",
 			Since:   &at,
@@ -332,6 +345,15 @@ func TestRolloutForwarding(t *testing.T) {
 		DesiredReplicas:          2,
 		Available:                true,
 		ProgressDeadlineExceeded: true,
+		Healthy:                  true,
+		HealthyAt:                timestamppb.New(at.Time),
+		Stopped: &agentv1.StoppedRevision{
+			PlacementRevision: 5,
+			ReplicaName:       currentReplicaName,
+			Restarts:          3,
+			LastRestart:       wantRestart,
+			At:                timestamppb.New(at.Time),
+		},
 		Replicas: []*deploymentv1.Replica{
 			{
 				Uid:               "current",
@@ -347,7 +369,9 @@ func TestRolloutForwarding(t *testing.T) {
 				LastExit: &deploymentv1.ReplicaExit{
 					Reason: "OOMKilled", ExitCode: 137, FinishedAt: timestamppb.New(at.Time),
 				},
-				Detail: "ready",
+				RestartsAt:  []*timestamppb.Timestamp{timestamppb.New(at.Time), timestamppb.New(at.Time)},
+				LastRestart: wantRestart,
+				Detail:      "ready",
 			},
 			{
 				Uid:               "previous",
@@ -359,7 +383,7 @@ func TestRolloutForwarding(t *testing.T) {
 			},
 		},
 		Problem: &agentv1.ProblemReport{
-			Reason:      "crash_loop",
+			Reason:      "restarting",
 			ReplicaName: currentReplicaName,
 			Detail:      "exit 1",
 			Since:       timestamppb.New(at.Time),

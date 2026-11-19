@@ -85,7 +85,7 @@ func TestDeploymentProblemLifecycle(t *testing.T) {
 	}
 	p := f.placement(t, f.clusterID)
 	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-		Problem: &agentv1.ProblemReport{Reason: "crash_loop", Detail: "exit 1"}}
+		Problem: &agentv1.ProblemReport{Reason: "restarting", Detail: "exit 1"}}
 	server.recordStatus(ctx, f.clusterID, 0, report)
 	var detail string
 	if err := f.pool.QueryRow(ctx, `SELECT snapshot->'problem'->>'detail' FROM deployment_rollouts

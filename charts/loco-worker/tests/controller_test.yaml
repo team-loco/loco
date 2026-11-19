@@ -104,6 +104,15 @@ tests:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_DRAIN_SECONDS, value: "7"}
 
+  - it: passes the health window to the Application controller
+    set:
+      controller.healthyAfterSeconds: 120
+    template: templates/controller/deployment.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content: {name: LOCO_HEALTHY_AFTER_SECONDS, value: "120"}
+
   - it: refuses a zero endpoint drain window
     set:
       controller.drainSeconds: 0

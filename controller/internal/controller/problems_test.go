@@ -10,44 +10,48 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-const runtimePrivateDetail = "private detail"
+const (
+	runtimePrivateDetail = "private detail"
+	testHealthyAfter     = 5 * time.Minute
+)
 
 func TestReplicaProblemReason(t *testing.T) {
+	now := time.Now()
+	recent := &locov1alpha1.ReplicaRestart{At: metav1.NewTime(now.Add(-time.Minute)), Cause: locov1alpha1.RestartExit}
 	tests := []struct {
-		name   string
-		status corev1.PodStatus
-		want   locov1alpha1.ProblemReason
+		name    string
+		status  corev1.PodStatus
+		replica locov1alpha1.ReplicaStatus
+		want    locov1alpha1.ProblemReason
 	}{
 		{
-			"crash",
-			corev1.PodStatus{
-				ContainerStatuses: []corev1.ContainerStatus{
-					{
-						State: corev1.ContainerState{
-							Waiting: &corev1.ContainerStateWaiting{
-								Reason:  "CrashLoopBackOff",
-								Message: runtimePrivateDetail,
-							},
-						},
-					},
-				},
-			},
-			"crash_loop",
+			"backing off before a restart",
+			corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
+				Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff, Message: runtimePrivateDetail},
+			}}}},
+			locov1alpha1.ReplicaStatus{},
+			locov1alpha1.ProblemRestarting,
+		},
+		{
+			"exited",
+			corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{State: corev1.ContainerState{
+				Terminated: &corev1.ContainerStateTerminated{ExitCode: 1},
+			}}}},
+			locov1alpha1.ReplicaStatus{},
+			locov1alpha1.ProblemRestarting,
+		},
+		{
+			"running after a recent restart",
+			corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{Ready: true}}},
+			locov1alpha1.ReplicaStatus{LastRestart: recent},
+			locov1alpha1.ProblemRestarting,
 		},
 		{
 			"memory takes precedence",
-			corev1.PodStatus{
-				ContainerStatuses: []corev1.ContainerStatus{
-					{
-						State: corev1.ContainerState{
-							Waiting: &corev1.ContainerStateWaiting{Reason: "CrashLoopBackOff"},
-						},
-						LastTerminationState: corev1.ContainerState{
-							Terminated: &corev1.ContainerStateTerminated{Reason: reasonOOMKilled},
-						},
-					},
-				},
-			},
+			corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{Ready: true}}},
+			locov1alpha1.ReplicaStatus{LastRestart: &locov1alpha1.ReplicaRestart{
+				At: recent.At, Cause: locov1alpha1.RestartOutOfMemory, ExitCode: 137,
+			}},
 			"out_of_memory",
 		},
 		{
@@ -57,6 +61,7 @@ func TestReplicaProblemReason(t *testing.T) {
 					{State: corev1.ContainerState{Waiting: &corev1.ContainerStateWaiting{Reason: "ErrImagePull"}}},
 				},
 			},
+			locov1alpha1.ReplicaStatus{},
 			"image_pull_failed",
 		},
 		{
@@ -71,26 +76,21 @@ func TestReplicaProblemReason(t *testing.T) {
 					},
 				},
 			},
+			locov1alpha1.ReplicaStatus{},
 			"unschedulable",
 		},
 		{
-			"healthy ignores old oom",
-			corev1.PodStatus{
-				ContainerStatuses: []corev1.ContainerStatus{
-					{
-						Ready: true,
-						LastTerminationState: corev1.ContainerState{
-							Terminated: &corev1.ContainerStateTerminated{Reason: reasonOOMKilled},
-						},
-					},
-				},
-			},
+			"quiet after the health window",
+			corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{Ready: true}}},
+			locov1alpha1.ReplicaStatus{LastRestart: &locov1alpha1.ReplicaRestart{
+				At: metav1.NewTime(now.Add(-testHealthyAfter)), Cause: locov1alpha1.RestartOutOfMemory,
+			}},
 			"",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			reason := replicaProblemReason(corev1.Pod{Status: tt.status}, time.Now())
+			reason := replicaProblemReason(corev1.Pod{Status: tt.status}, tt.replica, testHealthyAfter, now)
 			if reason != tt.want {
 				t.Fatalf("reason = %q, want %q", reason, tt.want)
 			}
@@ -129,111 +129,13 @@ func TestRuntimeReadinessAllowsTheConfiguredStartupWindow(t *testing.T) {
 			State:   corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()}},
 		},
 	}}}
-	reason := replicaProblemReason(pod, time.Now())
+	reason := replicaProblemReason(pod, locov1alpha1.ReplicaStatus{}, testHealthyAfter, time.Now())
 	if reason != "" {
 		t.Fatalf("startup reported %q", reason)
 	}
 	pod.Status.ContainerStatuses[0].State.Running.StartedAt = metav1.NewTime(time.Now().Add(-time.Hour))
-	reason = replicaProblemReason(pod, time.Now())
+	reason = replicaProblemReason(pod, locov1alpha1.ReplicaStatus{}, testHealthyAfter, time.Now())
 	if reason != locov1alpha1.ProblemHealthCheckFailing {
 		t.Fatalf("unready after grace reported %q", reason)
-	}
-}
-
-func TestRuntimeCrashPersistsWhileAnUnreadyReplicaRestarts(t *testing.T) {
-	pod := corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{
-		{
-			RestartCount:         4,
-			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
-		},
-	}}}
-	for _, state := range []corev1.ContainerState{
-		{Waiting: &corev1.ContainerStateWaiting{Reason: reasonCrashLoopBackOff}},
-		{Running: &corev1.ContainerStateRunning{}},
-		{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
-	} {
-		pod.Status.ContainerStatuses[0].State = state
-		reason := replicaProblemReason(pod, time.Now())
-		if reason != locov1alpha1.ProblemCrashLoop {
-			t.Fatalf("restart state %+v cleared the crash: %q", state, reason)
-		}
-	}
-}
-
-func TestRuntimeProcessOnlyCrashRequiresASustainedRunToRecover(t *testing.T) {
-	pod := corev1.Pod{Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{{
-		Ready: true, RestartCount: 5,
-		State:                corev1.ContainerState{Running: &corev1.ContainerStateRunning{StartedAt: metav1.Now()}},
-		LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
-	}}}}
-	reason := replicaProblemReason(pod, time.Now())
-	if reason != locov1alpha1.ProblemCrashLoop {
-		t.Fatalf("brief ready run cleared crash: %q", reason)
-	}
-	pod.Status.ContainerStatuses[0].State.Running.StartedAt = metav1.NewTime(time.Now().Add(-time.Hour))
-	reason = replicaProblemReason(pod, time.Now())
-	if reason != "" {
-		t.Fatalf("sustained recovery reported %q", reason)
-	}
-}
-
-func TestRuntimeRecoveredExitDoesNotOverrideALaterHealthFailure(t *testing.T) {
-	started := true
-	pod := corev1.Pod{Spec: corev1.PodSpec{Containers: []corev1.Container{{
-		Name: "recovered-service", ReadinessProbe: &corev1.Probe{PeriodSeconds: 10, FailureThreshold: 3},
-	}}}, Status: corev1.PodStatus{ContainerStatuses: []corev1.ContainerStatus{
-		{
-			Name:         "recovered-service",
-			Started:      &started,
-			RestartCount: 4,
-			State: corev1.ContainerState{
-				Running: &corev1.ContainerStateRunning{StartedAt: metav1.NewTime(time.Now().Add(-time.Hour))},
-			},
-			LastTerminationState: corev1.ContainerState{
-				Terminated: &corev1.ContainerStateTerminated{Reason: reasonOOMKilled, ExitCode: 137},
-			},
-		},
-	}}}
-	reason := replicaProblemReason(pod, time.Now())
-	if reason != locov1alpha1.ProblemHealthCheckFailing {
-		t.Fatalf("historical exit overrode health failure: %q", reason)
-	}
-}
-
-func TestUnreadyCrashDoesNotRecoverBetweenSlowLivenessRestarts(t *testing.T) {
-	startedAt := time.Now().Add(-70 * time.Second)
-	pod := corev1.Pod{Status: corev1.PodStatus{
-		Conditions: []corev1.PodCondition{{
-			Type: corev1.ContainersReady, Status: corev1.ConditionFalse,
-			LastTransitionTime: metav1.NewTime(startedAt.Add(-time.Minute)),
-		}},
-		ContainerStatuses: []corev1.ContainerStatus{{
-			RestartCount: 1,
-			State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{
-				StartedAt: metav1.NewTime(startedAt),
-			}},
-			LastTerminationState: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 1}},
-		}},
-	}}
-	reason := replicaProblemReason(pod, time.Now())
-	if reason != locov1alpha1.ProblemCrashLoop {
-		t.Fatalf("unready retry cleared the crash after the recovery window: %q", reason)
-	}
-	pod.Status.ContainerStatuses[0].Ready = true
-	reason = replicaProblemReason(pod, time.Now())
-	if reason != "" {
-		t.Fatalf("sustained ready run retained crash: %q", reason)
-	}
-	// A new failure after it became Ready has a transition newer than its run.
-	pod.Status.ContainerStatuses[0].Ready = false
-	pod.Status.Conditions[0].LastTransitionTime = metav1.NewTime(startedAt.Add(time.Minute))
-	reason = replicaProblemReason(pod, time.Now())
-	if reason != "" {
-		t.Fatalf("later unreadiness revived historical crash: %q", reason)
-	}
-	pod.Status.Conditions[0].LastTransitionTime = metav1.Time{}
-	reason = replicaProblemReason(pod, time.Now())
-	if reason != "" {
-		t.Fatalf("missing readiness history revived historical crash: %q", reason)
 	}
 }

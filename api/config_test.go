@@ -427,6 +427,8 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	t.Setenv("LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD", "15")
 	t.Setenv("LOCO_DEFAULT_DEPLOY_ATTEMPTS", "4")
 	t.Setenv("LOCO_DEFAULT_DEPLOY_RETRY_DELAY", "60")
+	t.Setenv("LOCO_DEFAULT_MAX_RESTARTS", "0")
+	t.Setenv("LOCO_DEFAULT_RESTART_WINDOW", "120")
 	ac := newAPIConfig()
 	want := servicedefaults.Defaults{
 		TargetPlatform:           workloadplatform.AMD64,
@@ -444,6 +446,8 @@ func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 		HealthStartupGracePeriod: 15,
 		DeployAttempts:           4,
 		DeployRetryDelay:         60,
+		MaxRestarts:              0,
+		RestartWindow:            120,
 	}
 	if ac.ServiceDefaults != want {
 		t.Errorf("service defaults = %+v, want %+v", ac.ServiceDefaults, want)
@@ -818,7 +822,7 @@ func TestDatabaseListenURLDefaultsAndOverride(t *testing.T) {
 	}
 }
 
-func TestDeployPolicyDefaultBounds(t *testing.T) {
+func TestDeployAndRestartPolicyDefaultBounds(t *testing.T) {
 	clearAPIConfigEnv(t)
 	for _, tc := range []struct {
 		env      string
@@ -827,6 +831,8 @@ func TestDeployPolicyDefaultBounds(t *testing.T) {
 	}{
 		{"LOCO_DEFAULT_DEPLOY_ATTEMPTS", []string{"1", "10"}, []string{"0", "11", "-1", "5m"}},
 		{"LOCO_DEFAULT_DEPLOY_RETRY_DELAY", []string{"60"}, []string{"59", "0", "5m"}},
+		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"0", "20"}, []string{"21", "-1", "5m"}},
+		{"LOCO_DEFAULT_RESTART_WINDOW", []string{"60", "3600"}, []string{"59", "3601", "0", "10m"}},
 	} {
 		for _, value := range tc.accepted {
 			t.Setenv(tc.env, value)

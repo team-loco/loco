@@ -60,27 +60,34 @@ func (r *ApplicationReconciler) deletedReplicas(key types.NamespacedName, now ti
 	}
 	return pods
 }
-func replicaProblem(pods []corev1.Pod, now time.Time) *locov1alpha1.Problem {
+
+// observedReplica pairs a pod with the replica status observed from it.
+type observedReplica struct {
+	pod    corev1.Pod
+	status locov1alpha1.ReplicaStatus
+}
+
+func replicaProblem(
+	replicas []observedReplica,
+	policy locov1alpha1.RestartPolicySpec,
+	healthyAfter time.Duration,
+	now time.Time,
+) *locov1alpha1.Problem {
 	var best *locov1alpha1.Problem
-	consider := func(reason locov1alpha1.ProblemReason, pod corev1.Pod, detail string) {
+	for _, replica := range replicas {
+		reason := replicaProblemReason(replica.pod, replica.status, healthyAfter, now)
+		if reason == "" {
+			continue
+		}
 		if best == nil || locov1alpha1.ProblemHigherPriority(reason, best.Reason) ||
-			reason == best.Reason && pod.Name < best.Replica {
+			reason == best.Reason && replica.pod.Name < best.Replica {
 			at := metav1.NewTime(now)
 			best = &locov1alpha1.Problem{
 				Reason:  reason,
-				Replica: pod.Name,
-				Detail:  clip.Bytes(detail, 1024),
+				Replica: replica.pod.Name,
+				Detail:  clip.Bytes(replicaProblemDetail(replica, reason, policy), 1024),
 				Since:   &at,
 			}
-		}
-	}
-	for _, pod := range pods {
-		if pod.DeletionTimestamp != nil {
-			continue
-		}
-		reason := replicaProblemReason(pod, now)
-		if reason != "" {
-			consider(reason, pod, replicaProblemDetail(pod, reason))
 		}
 	}
 	return best
@@ -92,7 +99,7 @@ func (r *ApplicationReconciler) observeReplicas(
 	dep *appsv1ac.DeploymentApplyConfiguration,
 	now time.Time,
 ) error {
-	listed, pulls, err := r.listRolloutPods(ctx, app)
+	listed, events, err := r.listRolloutPods(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -108,49 +115,51 @@ func (r *ApplicationReconciler) observeReplicas(
 		delete(deleted, pod.UID)
 		pods[pod.UID] = pod
 	}
+	policy := app.Spec.ServiceSpec.RestartPolicy
+	previous := app.Status.Rollout
+	if previous == nil {
+		previous = &locov1alpha1.RolloutStatus{}
+	}
 	rollout := &locov1alpha1.RolloutStatus{
 		DesiredReplicas: ptr.Deref(dep.Spec.Replicas, 0),
 		Available:       rolloutAvailable(dep, app),
+		Stopped:         stoppedRevision(app),
 	}
-	var current []corev1.Pod
+	if rollout.Stopped != nil && rollout.DesiredReplicas == 0 {
+		rollout.DesiredReplicas = previous.DesiredReplicas
+		if resources := app.Spec.ServiceSpec.Resources; !resources.Scalers.Enabled {
+			rollout.DesiredReplicas = resources.Replicas.Min
+		}
+	}
+	var current []observedReplica
 	revision, placed := app.PlacementRevision()
 	for _, pod := range pods {
-		pull := pulls[pod.UID]
-		replica := replicaState(&pod, &pull, now)
-		if deleted[pod.UID] && replica.State != locov1alpha1.ReplicaKilled &&
-			replica.State != locov1alpha1.ReplicaStopped {
-			replica.State = locov1alpha1.ReplicaStopped
-			replica.StateDeadline = nil
-			replica.Detail = ""
-			if replica.LastExit == nil {
-				replica.Detail = "no exit code seen"
-			}
+		podEvents := events[pod.UID]
+		replica, err := observeReplica(&pod, &podEvents, deleted[pod.UID], previous, policy, now)
+		if err != nil {
+			return err
 		}
-		if raw := pod.Annotations[locov1alpha1.KeyPlacementRevision]; raw != "" {
-			podRevision, err := strconv.ParseInt(raw, 10, 64)
-			if err != nil {
-				return fmt.Errorf("pod %s placement revision: %w", pod.Name, err)
-			}
-			replica.PlacementRevision = podRevision
-		}
-		replica.UID = string(pod.UID)
-		replica.Name = pod.Name
-		replica.Node = pod.Spec.NodeName
-		if placed && replica.PlacementRevision == revision {
-			current = append(current, pod)
-		}
-		if app.Status.Rollout != nil {
-			for _, old := range app.Status.Rollout.Replicas {
-				if old.UID == replica.UID && old.State == replica.State &&
-					replica.State != locov1alpha1.ReplicaPulling {
-					replica.StateSince = old.StateSince
-				}
-			}
+		if placed && replica.PlacementRevision == revision && pod.DeletionTimestamp == nil {
+			current = append(current, observedReplica{pod: pod, status: replica})
 		}
 		rollout.Replicas = append(rollout.Replicas, replica)
 	}
 	sort.Slice(rollout.Replicas, func(i, j int) bool { return rollout.Replicas[i].Name < rollout.Replicas[j].Name })
-	rollout.Problem = replicaProblem(current, now)
+	sort.Slice(current, func(i, j int) bool { return current[i].pod.Name < current[j].pod.Name })
+	rollout.ProvenRevision = previous.ProvenRevision
+	if rollout.Stopped == nil {
+		rollout.Stopped = exhaustedRevision(current, revision, rollout.ProvenRevision, policy, now)
+	}
+	r.observeHealth(rollout, current, revision, now)
+	rollout.Problem = replicaProblem(current, policy, r.HealthyAfter, now)
+	if stopped := rollout.Stopped; stopped != nil {
+		rollout.Problem = &locov1alpha1.Problem{
+			Reason:  locov1alpha1.ProblemRestartsExhausted,
+			Replica: stopped.Replica,
+			Detail:  stoppedDetail(stopped, policy),
+			Since:   stopped.At.DeepCopy(),
+		}
+	}
 	failure, expired := deploymentFailure(dep)
 	rollout.ProgressDeadlineExceeded = expired
 	if rollout.Problem == nil && expired {
@@ -174,15 +183,107 @@ func (r *ApplicationReconciler) observeReplicas(
 			}
 		}
 	}
-	if rollout.Problem != nil && app.Status.Rollout != nil && app.Status.Rollout.Problem != nil &&
-		app.Status.Rollout.Problem.Reason == rollout.Problem.Reason {
-		rollout.Problem.Since = app.Status.Rollout.Problem.Since
+	if rollout.Problem != nil && previous.Problem != nil && previous.Problem.Reason == rollout.Problem.Reason {
+		rollout.Problem.Since = previous.Problem.Since
 	}
 	app.Status.Rollout = rollout
 	return nil
 }
 
-func replicaProblemDetail(pod corev1.Pod, reason locov1alpha1.ProblemReason) string {
+func observeReplica(
+	pod *corev1.Pod,
+	events *podEvent,
+	deleted bool,
+	previous *locov1alpha1.RolloutStatus,
+	policy locov1alpha1.RestartPolicySpec,
+	now time.Time,
+) (locov1alpha1.ReplicaStatus, error) {
+	replica := replicaState(pod, events, now)
+	if deleted && replica.State != locov1alpha1.ReplicaKilled && replica.State != locov1alpha1.ReplicaStopped {
+		replica.State = locov1alpha1.ReplicaStopped
+		replica.StateDeadline = nil
+		replica.Detail = ""
+		if replica.LastExit == nil {
+			replica.Detail = "no exit code seen"
+		}
+	}
+	if raw := pod.Annotations[locov1alpha1.KeyPlacementRevision]; raw != "" {
+		podRevision, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil {
+			return replica, fmt.Errorf("pod %s placement revision: %w", pod.Name, err)
+		}
+		replica.PlacementRevision = podRevision
+	}
+	replica.UID = string(pod.UID)
+	replica.Name = pod.Name
+	replica.Node = pod.Spec.NodeName
+	var old *locov1alpha1.ReplicaStatus
+	for i := range previous.Replicas {
+		if previous.Replicas[i].UID == replica.UID {
+			old = &previous.Replicas[i]
+		}
+	}
+	if old != nil && old.State == replica.State && replica.State != locov1alpha1.ReplicaPulling {
+		replica.StateSince = old.StateSince
+	}
+	trackRestarts(&replica, old, policy, now)
+	return replica, nil
+}
+
+// observeHealth marks an available rollout healthy once no current replica restarted within
+// HealthyAfter, and its revision proven once every current replica has also served that long.
+func (r *ApplicationReconciler) observeHealth(
+	rollout *locov1alpha1.RolloutStatus,
+	current []observedReplica,
+	revision int64,
+	now time.Time,
+) {
+	if rollout.Stopped != nil {
+		rollout.Available = false
+		return
+	}
+	if !rollout.Available {
+		return
+	}
+	var newest time.Time
+	for _, replica := range current {
+		if restartedWithin(replica.status, r.HealthyAfter, now) && replica.status.LastRestart.At.After(newest) {
+			newest = replica.status.LastRestart.At.Time
+		}
+	}
+	rollout.Healthy = newest.IsZero()
+	if !rollout.Healthy {
+		rollout.HealthyAt = new(metav1.NewTime(newest.Add(r.HealthyAfter)))
+		return
+	}
+	for _, replica := range current {
+		since := replica.status.StateSince
+		if replica.status.State != locov1alpha1.ReplicaServing || since == nil || now.Sub(since.Time) < r.HealthyAfter {
+			return
+		}
+	}
+	if len(current) > 0 {
+		rollout.ProvenRevision = revision
+	}
+}
+
+func replicaProblemDetail(
+	replica observedReplica,
+	reason locov1alpha1.ProblemReason,
+	policy locov1alpha1.RestartPolicySpec,
+) string {
+	pod := replica.pod
+	if reason == locov1alpha1.ProblemRestarting {
+		restart := replica.status.LastRestart
+		for _, status := range pod.Status.ContainerStatuses {
+			if exit := status.State.Terminated; exit != nil {
+				restart = &locov1alpha1.ReplicaRestart{Cause: locov1alpha1.RestartExit, ExitCode: exit.ExitCode}
+			}
+		}
+		if restart != nil {
+			return restartingDetail(restart, len(replica.status.RestartsAt), policy)
+		}
+	}
 	if reason == locov1alpha1.ProblemHealthCheckFailing {
 		for _, condition := range pod.Status.Conditions {
 			if condition.Type == corev1.PodReady && condition.Message != "" {

@@ -8,7 +8,8 @@ export type Severity = "error" | "warning" | "normal";
 
 // Public reason strings are owned by k8sapi/v1alpha1/problems.go.
 const REASON_TITLES: Record<string, string> = {
-	crash_loop: "Restarting after crash",
+	restarting: "Restarting",
+	restarts_exhausted: "Stopped after restarts",
 	out_of_memory: "Out of memory",
 	image_pull_failed: "Image pull failed",
 	image_user: "Image runs as root",

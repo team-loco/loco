@@ -206,6 +206,25 @@ spec:
                     - memory
                     - replicas
                     type: object
+                  restartPolicy:
+                    description: |-
+                      RestartPolicySpec bounds how often a replica may restart: the restart past MaxRestarts within
+                      WindowSeconds stops the revision.
+                    properties:
+                      maxRestarts:
+                        format: int32
+                        maximum: 20
+                        minimum: 0
+                        type: integer
+                      windowSeconds:
+                        format: int32
+                        maximum: 3600
+                        minimum: 60
+                        type: integer
+                    required:
+                    - maxRestarts
+                    - windowSeconds
+                    type: object
                   routing:
                     description: Routing exposes the service to the internet. Without
                       it the service gets no HTTPRoute and no gateway ingress.
@@ -228,6 +247,7 @@ spec:
                 required:
                 - deployment
                 - resources
+                - restartPolicy
                 type: object
               slug:
                 type: string
@@ -258,6 +278,15 @@ spec:
                   desiredReplicas:
                     format: int32
                     type: integer
+                  healthy:
+                    description: Healthy is Available with no current replica restarted
+                      within the controller's health window.
+                    type: boolean
+                  healthyAt:
+                    description: HealthyAt is when an available rollout becomes healthy
+                      if no replica restarts again.
+                    format: date-time
+                    type: string
                   problem:
                     properties:
                       detail:
@@ -271,7 +300,8 @@ spec:
                         - image_pull_failed
                         - image_user
                         - config_error
-                        - crash_loop
+                        - restarting
+                        - restarts_exhausted
                         - out_of_memory
                         - health_check_failing
                         - rollout_timeout
@@ -287,6 +317,12 @@ spec:
                     type: object
                   progressDeadlineExceeded:
                     type: boolean
+                  provenRevision:
+                    description: |-
+                      ProvenRevision is the newest placement revision whose replicas all served for the health window
+                      without a restart.
+                    format: int64
+                    type: integer
                   replicas:
                     items:
                       properties:
@@ -310,6 +346,27 @@ spec:
                           required:
                           - exitCode
                           type: object
+                        lastRestart:
+                          description: LastRestart is the exit the kubelet most recently
+                            restarted the replica after.
+                          properties:
+                            at:
+                              format: date-time
+                              type: string
+                            cause:
+                              enum:
+                              - exit
+                              - health_check
+                              - out_of_memory
+                              type: string
+                            exitCode:
+                              format: int32
+                              type: integer
+                          required:
+                          - at
+                          - cause
+                          - exitCode
+                          type: object
                         name:
                           type: string
                         node:
@@ -322,6 +379,14 @@ spec:
                         restarts:
                           format: int32
                           type: integer
+                        restartsAt:
+                          description: RestartsAt lists the replica's restarts within
+                            its restart window, oldest first.
+                          items:
+                            format: date-time
+                            type: string
+                          maxItems: 21
+                          type: array
                         startedAt:
                           description: StartedAt is when the kubelet started the pod,
                             or its creation time before that.
@@ -357,6 +422,53 @@ spec:
                     x-kubernetes-list-map-keys:
                     - uid
                     x-kubernetes-list-type: map
+                  stopped:
+                    description: StoppedRevision is a placement revision Loco stopped
+                      because a replica used up its restart budget.
+                    properties:
+                      at:
+                        format: date-time
+                        type: string
+                      lastRestart:
+                        properties:
+                          at:
+                            format: date-time
+                            type: string
+                          cause:
+                            enum:
+                            - exit
+                            - health_check
+                            - out_of_memory
+                            type: string
+                          exitCode:
+                            format: int32
+                            type: integer
+                        required:
+                        - at
+                        - cause
+                        - exitCode
+                        type: object
+                      placementRevision:
+                        format: int64
+                        type: integer
+                      replica:
+                        type: string
+                      restarts:
+                        description: Restarts is how many times the replica restarted
+                          within the window.
+                        format: int32
+                        type: integer
+                      rollout:
+                        description: Rollout is set when the revision never proved
+                          itself, so the previous revision serves in its place.
+                        type: boolean
+                    required:
+                    - at
+                    - lastRestart
+                    - placementRevision
+                    - replica
+                    - restarts
+                    type: object
                 type: object
             type: object
         required:

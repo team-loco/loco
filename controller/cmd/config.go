@@ -23,6 +23,7 @@ const (
 	envWorkspacePrefix        = "LOCO_WORKSPACE_NAMESPACE_PREFIX"
 	envMinReadySeconds        = "LOCO_MIN_READY_SECONDS"
 	envDrainSeconds           = "LOCO_DRAIN_SECONDS"
+	envHealthyAfterSeconds    = "LOCO_HEALTHY_AFTER_SECONDS"
 	decimalBase               = 10
 	portBits                  = 16
 	int31Bits                 = 31
@@ -41,8 +42,9 @@ type operatorConfig struct {
 	RawBuildConfig           string
 	Telemetry                controller.TelemetryConfig
 	// Rollout timings are nil when unset; only the application reconciler requires them.
-	MinReadySeconds *int32
-	DrainSeconds    *int32
+	MinReadySeconds     *int32
+	DrainSeconds        *int32
+	HealthyAfterSeconds *int32
 }
 
 func newOperatorConfig() operatorConfig {
@@ -66,6 +68,7 @@ func newOperatorConfig() operatorConfig {
 		Telemetry:                telemetry,
 		MinReadySeconds:          secondsEnv(envMinReadySeconds),
 		DrainSeconds:             drainSeconds,
+		HealthyAfterSeconds:      secondsEnv(envHealthyAfterSeconds),
 	}
 }
 

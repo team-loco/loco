@@ -20,7 +20,7 @@ import (
 
 const (
 	statusSecondRegion  = "eu-west-1"
-	statusCrashMsg      = "The service keeps exiting soon after it starts. Check its logs for the error."
+	statusCrashMsg      = "A replica keeps restarting. Check its logs."
 	statusTwoReplicas   = 2
 	statusProduction    = "prod"
 	statusClusterSilent = 5 * time.Minute
@@ -132,7 +132,7 @@ func (f *resourceStatusFixture) failed(t *testing.T, environmentID, clusterID uu
 		environmentID,
 		clusterID,
 		&agentv1.PlacementStatus{
-			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemCrashLoop)},
+			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemRestarting)},
 			ProgressDeadlineExceeded: true,
 			ReadyReplicas:            replicas,
 		},

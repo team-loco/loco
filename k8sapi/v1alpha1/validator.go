@@ -63,6 +63,14 @@ const (
 	maxHealthFailThreshold = 10
 )
 
+// Bounds of a RestartPolicySpec.
+const (
+	MinRestarts             = 0
+	MaxRestarts             = 20
+	MinRestartWindowSeconds = 60
+	MaxRestartWindowSeconds = 3600
+)
+
 var (
 	dockerImagePattern = regexp.MustCompile(
 		`^([a-z0-9\-._]+(:[0-9]+)?(/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$`,
@@ -123,6 +131,22 @@ func validateServiceSpec(spec *ServiceSpec) error {
 		}
 	}
 
+	return spec.RestartPolicy.Validate()
+}
+
+// Validate checks the restart policy against its bounds.
+func (spec *RestartPolicySpec) Validate() error {
+	if spec.MaxRestarts < MinRestarts || spec.MaxRestarts > MaxRestarts {
+		return fmt.Errorf(
+			"restartPolicy.maxRestarts must be between %d and %d, got %d", MinRestarts, MaxRestarts, spec.MaxRestarts,
+		)
+	}
+	if spec.WindowSeconds < MinRestartWindowSeconds || spec.WindowSeconds > MaxRestartWindowSeconds {
+		return fmt.Errorf(
+			"restartPolicy.windowSeconds must be between %d and %d, got %d",
+			MinRestartWindowSeconds, MaxRestartWindowSeconds, spec.WindowSeconds,
+		)
+	}
 	return nil
 }
 

@@ -17,7 +17,7 @@ const (
 	testFreshHeartbeat     = 10 * time.Second
 	testStaleHeartbeat     = 2 * time.Minute
 	testDesiredReplicas    = 2
-	testStatusMessage      = "The service keeps exiting soon after it starts. Check its logs for the error."
+	testStatusMessage      = "A replica keeps restarting. Check its logs."
 	testFailureMessage     = "container exited with code 1"
 )
 
@@ -37,7 +37,7 @@ func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatu
 		DesiredReplicas:  testDesiredReplicas,
 		Placed:           true,
 		ReadyReplicas:    ready,
-		Problem:          []byte(`{"reason":"crash_loop"}`),
+		Problem:          []byte(`{"reason":"restarting"}`),
 		StatusUpdatedAt:  &reported,
 		Replicas:         []byte(`[]`),
 		LastHeartbeat:    &heartbeat,

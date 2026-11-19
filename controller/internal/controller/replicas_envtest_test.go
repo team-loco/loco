@@ -131,7 +131,7 @@ var _ = Describe("Pull event watch", func() {
 			ReportingInstance:   "node",
 			EventTime:           metav1.NewMicroTime(at),
 			Regarding: corev1.ObjectReference{
-				Kind:       "Pod",
+				Kind:       podKind,
 				APIVersion: "v1",
 				Name:       pod.Name,
 				Namespace:  pod.Namespace,
@@ -168,9 +168,9 @@ var _ = Describe("Pull event watch", func() {
 		outsideEvent.Regarding.Namespace, outsideEvent.Regarding.UID = outside.Name, outsidePod.UID
 		Expect(k8sClient.Create(ctx, outsideEvent)).To(Succeed())
 		Consistently(func() bool {
-			r.pullMu.Lock()
-			defer r.pullMu.Unlock()
-			_, found := r.pullEvents[outsidePod.UID]
+			r.podEventsMu.Lock()
+			defer r.podEventsMu.Unlock()
+			_, found := r.podEvents[outsidePod.UID]
 			return found
 		}, 200*time.Millisecond, routeManagerPoll).Should(BeFalse())
 		observed.expectScoped(pod.Namespace, outside.Name)
@@ -182,9 +182,9 @@ var _ = Describe("Pull event watch", func() {
 			routeManagerPoll,
 		).Should(Equal(0))
 		Eventually(func() bool {
-			r.pullMu.Lock()
-			defer r.pullMu.Unlock()
-			_, found := r.pullEvents[pod.UID]
+			r.podEventsMu.Lock()
+			defer r.podEventsMu.Unlock()
+			_, found := r.podEvents[pod.UID]
 			return found
 		}, routeManagerWait, routeManagerPoll).Should(BeFalse())
 		Expect(k8sClient.Delete(ctx, app)).To(Succeed())

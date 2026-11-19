@@ -48,6 +48,8 @@ spec:
                       value: {{ .Values.controller.minReadySeconds | quote }}
                     - name: LOCO_DRAIN_SECONDS
                       value: {{ .Values.controller.drainSeconds | quote }}
+                    - name: LOCO_HEALTHY_AFTER_SECONDS
+                      value: {{ .Values.controller.healthyAfterSeconds | quote }}
                     - name: LOCO_REGISTRY_AUTH
                       value: {{ include "loco-worker.registryAuth" . | quote }}
                     {{- with .Values.registry.pullSecretName }}

@@ -19,6 +19,7 @@ var (
 	errInvalidRoute     = errors.New("the default route is not accepted by the controller")
 	errInvalidHealth    = errors.New("the default health check is not accepted by the controller")
 	errInvalidDeploy    = errors.New("the default deploy policy is outside the loco.yaml bounds")
+	errInvalidRestarts  = errors.New("the default restart policy is not accepted by the controller")
 )
 
 // Defaults carries installation service policy and the values the API fills when a request omits them.
@@ -39,6 +40,8 @@ type Defaults struct {
 	HealthStartupGracePeriod int32
 	DeployAttempts           int32
 	DeployRetryDelay         int32
+	MaxRestarts              int32
+	RestartWindow            int32
 }
 
 // Resources is what a deployment runs with in one region.
@@ -87,6 +90,11 @@ func (d Defaults) Health() locoControllerV1.HealthCheckSpec {
 	}
 }
 
+// RestartPolicy is the restart budget of every service.
+func (d Defaults) RestartPolicy() locoControllerV1.RestartPolicySpec {
+	return locoControllerV1.RestartPolicySpec{MaxRestarts: d.MaxRestarts, WindowSeconds: d.RestartWindow}
+}
+
 // Validate checks the defaults with the rules the controller applies to an Application, so
 // the API cannot start with defaults that no deployment could use.
 func (d Defaults) Validate() error {
@@ -114,6 +122,10 @@ func (d Defaults) Validate() error {
 	}
 	if err := locoControllerV1.ValidateRoute(d.PathPrefix, d.IdleTimeout); err != nil {
 		return fmt.Errorf("%w: %w", errInvalidRoute, err)
+	}
+	restarts := d.RestartPolicy()
+	if err := restarts.Validate(); err != nil {
+		return fmt.Errorf("%w: %w", errInvalidRestarts, err)
 	}
 	if err := locofile.CheckDeployAttempts(d.DeployAttempts); err != nil {
 		return fmt.Errorf("%w: attempts %w", errInvalidDeploy, err)

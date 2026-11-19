@@ -23,6 +23,8 @@ func validDefaults() Defaults {
 		HealthFailThreshold: 3,
 		DeployAttempts:      2,
 		DeployRetryDelay:    300,
+		MaxRestarts:         5,
+		RestartWindow:       600,
 	}
 }
 
@@ -60,6 +62,8 @@ func TestValidateRejectsInvalidDefaults(t *testing.T) {
 		"zero deploy attempts":         {func(d *Defaults) { d.DeployAttempts = 0 }, errInvalidDeploy},
 		"11 deploy attempts":           {func(d *Defaults) { d.DeployAttempts = 11 }, errInvalidDeploy},
 		"59 second retry delay":        {func(d *Defaults) { d.DeployRetryDelay = 59 }, errInvalidDeploy},
+		"21 restarts":                  {func(d *Defaults) { d.MaxRestarts = 21 }, errInvalidRestarts},
+		"59 second restart window":     {func(d *Defaults) { d.RestartWindow = 59 }, errInvalidRestarts},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -96,6 +100,7 @@ func applicationFor(d Defaults) *locoControllerV1.ApplicationSpec {
 				PathPrefix:  d.PathPrefix,
 				IdleTimeout: d.IdleTimeout,
 			},
+			RestartPolicy: d.RestartPolicy(),
 		},
 	}
 }

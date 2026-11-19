@@ -8603,6 +8603,21 @@
           "deploymentId": {
             "type": "string",
             "title": "deployment_id"
+          },
+          "healthy": {
+            "type": "boolean",
+            "title": "healthy",
+            "description": "Available with no current replica restarted within the controller's health window."
+          },
+          "healthyAt": {
+            "title": "healthy_at",
+            "description": "When an available placement becomes healthy if no replica restarts again.",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "stopped": {
+            "title": "stopped",
+            "description": "Set when the controller stopped the observed revision after a replica used up its restart budget.",
+            "$ref": "#/components/schemas/loco.agent.v1.StoppedRevision"
           }
         },
         "title": "PlacementStatus",
@@ -8754,6 +8769,37 @@
         },
         "title": "StartBuild",
         "additionalProperties": false
+      },
+      "loco.agent.v1.StoppedRevision": {
+        "type": "object",
+        "properties": {
+          "placementRevision": {
+            "type": "string",
+            "title": "placement_revision",
+            "format": "int64"
+          },
+          "replicaName": {
+            "type": "string",
+            "title": "replica_name"
+          },
+          "restarts": {
+            "type": "integer",
+            "title": "restarts",
+            "format": "int32",
+            "description": "Restarts of the replica within the restart window."
+          },
+          "lastRestart": {
+            "title": "last_restart",
+            "$ref": "#/components/schemas/loco.deployment.v1.ReplicaRestart"
+          },
+          "at": {
+            "title": "at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "StoppedRevision",
+        "additionalProperties": false,
+        "description": "StoppedRevision is a placement revision the controller stopped."
       },
       "loco.agent.v1.SyncRequest": {
         "type": "object",
@@ -10725,6 +10771,19 @@
             "title": "last_exit",
             "description": "The most recent container exit the kubelet recorded for the Pod.",
             "$ref": "#/components/schemas/loco.deployment.v1.ReplicaExit"
+          },
+          "restartsAt": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/google.protobuf.Timestamp"
+            },
+            "title": "restarts_at",
+            "description": "The replica's restarts within its restart window, oldest first."
+          },
+          "lastRestart": {
+            "title": "last_restart",
+            "description": "The exit the replica most recently restarted after.",
+            "$ref": "#/components/schemas/loco.deployment.v1.ReplicaRestart"
           }
         },
         "title": "Replica",
@@ -10751,6 +10810,28 @@
         "title": "ReplicaExit",
         "additionalProperties": false,
         "description": "ReplicaExit is how a replica's container last terminated."
+      },
+      "loco.deployment.v1.ReplicaRestart": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "title": "at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "cause": {
+            "type": "string",
+            "title": "cause",
+            "description": "exit, health_check or out_of_memory."
+          },
+          "exitCode": {
+            "type": "integer",
+            "title": "exit_code",
+            "format": "int32"
+          }
+        },
+        "title": "ReplicaRestart",
+        "additionalProperties": false,
+        "description": "ReplicaRestart is an exit the kubelet restarted a replica's container after."
       },
       "loco.deployment.v1.ResolveImageRequest": {
         "type": "object",

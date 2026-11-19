@@ -101,8 +101,8 @@ sql(
     f"""BEGIN;
 UPDATE resources SET partial='recommendation', description='Ranks products for each shopper' WHERE id='{resource}';
 INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,data)
-VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','crash_loop','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
-INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"crash_loop","detail":"The pod restarted"}}}}');
+VALUES('resource.degraded','{org}','{workspace}','{resource}','{production}','agent',jsonb_build_object('reason','restarting','message','The service exited with code 1.','region','us-east-1','placementId',(SELECT id::text FROM placements WHERE resource_id='{resource}')));
+INSERT INTO deployment_rollouts(deployment_id,revision,snapshot) VALUES('{deployment}',1,'{{"problem":{{"reason":"restarting","detail":"The pod restarted"}}}}');
 COMMIT;""",
 )
 sql(
@@ -207,7 +207,7 @@ with session(out) as browser:
     )
     page.get_by_role("button", name=re.compile(r"^Events")).click()
     runtime_events = page.get_by_role("dialog", name="Events", exact=True)
-    expect(runtime_events.get_by_text("crash loop", exact=True)).to_be_visible()
+    expect(runtime_events.get_by_text("restarting", exact=True)).to_be_visible()
     expect(
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()

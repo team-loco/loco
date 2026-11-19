@@ -96,6 +96,22 @@ type ServiceSpec struct {
 
 	// Routing exposes the service to the internet. Without it the service gets no HTTPRoute and no gateway ingress.
 	Routing *RoutingSpec `json:"routing,omitempty"`
+
+	// +required
+	RestartPolicy RestartPolicySpec `json:"restartPolicy"`
+}
+
+// RestartPolicySpec bounds how often a replica may restart: the restart past MaxRestarts within
+// WindowSeconds stops the revision.
+type RestartPolicySpec struct {
+	// +required
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=20
+	MaxRestarts int32 `json:"maxRestarts"`
+	// +required
+	// +kubebuilder:validation:Minimum=60
+	// +kubebuilder:validation:Maximum=3600
+	WindowSeconds int32 `json:"windowSeconds"`
 }
 
 // ObservabilityConfig controls automatic application SDK environment configuration.

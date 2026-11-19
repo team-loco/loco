@@ -180,7 +180,7 @@ def phase(status, problem_reason=None, *, new_ready=False, survivors=True):
         "replicas": replicas,
     }
     old_snapshot = {"placementId": snapshot["placementId"], "replicas": previous}
-    reason = problem_reason or ("crash_loop" if status == "failed" else None)
+    reason = problem_reason or ("restarting" if status == "failed" else None)
     if reason is not None:
         snapshot["problem"] = {
             "reason": reason,
@@ -327,7 +327,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(serving).to_contain_text(p["previous"][-8:], timeout=25000)
     expect(
         panel.get_by_text(
-            "The service keeps exiting soon after it starts. Check its logs for the error.",
+            "A replica keeps restarting. Check its logs.",
             exact=True,
         ).first
     ).to_be_visible()

@@ -37,7 +37,7 @@ type namespacePullWatch struct {
 	done   chan struct{}
 }
 
-func (r *ApplicationReconciler) watchWorkspacePulls(mgr ctrl.Manager, events chan<- event.GenericEvent) error {
+func (r *ApplicationReconciler) watchWorkspacePodEvents(mgr ctrl.Manager, events chan<- event.GenericEvent) error {
 	return mgr.Add(manager.RunnableFunc(func(parent context.Context) (result error) {
 		ctx, cancel := context.WithCancelCause(parent)
 		defer cancel(nil)
@@ -61,7 +61,7 @@ func (r *ApplicationReconciler) watchWorkspacePulls(mgr ctrl.Manager, events cha
 					watch.cancel()
 					<-watch.done
 					delete(watches, ns.Name)
-					r.forgetPullNamespace(ns.Name)
+					r.forgetPodEventNamespace(ns.Name)
 				}
 				return
 			}
@@ -71,7 +71,7 @@ func (r *ApplicationReconciler) watchWorkspacePulls(mgr ctrl.Manager, events cha
 			scoped, err := cache.New(mgr.GetConfig(), cache.Options{
 				Scheme: mgr.GetScheme(), Mapper: mgr.GetRESTMapper(), HTTPClient: mgr.GetHTTPClient(),
 				DefaultNamespaces:    map[string]cache.Config{ns.Name: {}},
-				DefaultFieldSelector: fields.OneTermEqualSelector("regarding.kind", "Pod"),
+				DefaultFieldSelector: fields.OneTermEqualSelector("regarding.kind", podKind),
 				DefaultTransform:     cache.TransformStripManagedFields(),
 			})
 			if err != nil {
@@ -135,7 +135,7 @@ func (r *ApplicationReconciler) watchWorkspacePulls(mgr ctrl.Manager, events cha
 			for name, watch := range watches {
 				watch.cancel()
 				<-watch.done
-				r.forgetPullNamespace(name)
+				r.forgetPodEventNamespace(name)
 			}
 		}()
 		<-ctx.Done()
@@ -146,12 +146,12 @@ func (r *ApplicationReconciler) watchWorkspacePulls(mgr ctrl.Manager, events cha
 	}))
 }
 
-func (r *ApplicationReconciler) forgetPullNamespace(namespace string) {
-	r.pullMu.Lock()
-	defer r.pullMu.Unlock()
-	for uid, e := range r.pullEvents {
+func (r *ApplicationReconciler) forgetPodEventNamespace(namespace string) {
+	r.podEventsMu.Lock()
+	defer r.podEventsMu.Unlock()
+	for uid, e := range r.podEvents {
 		if e.namespace == namespace {
-			delete(r.pullEvents, uid)
+			delete(r.podEvents, uid)
 		}
 	}
 }

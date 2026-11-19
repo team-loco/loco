@@ -35,7 +35,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	report := &agentv1.PlacementStatus{
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
-		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)},
+		Available:        true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
 	}
 	resource, err := f.queries.GetResourceByID(t.Context(), f.resourceID)
 	if err != nil {
@@ -97,7 +97,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 	}
 	if len(second.GetEvents()) != 1 ||
 		second.GetEvents()[0].GetData().GetFields()["reason"].GetStringValue() != string(
-			locov1alpha1.ProblemCrashLoop,
+			locov1alpha1.ProblemRestarting,
 		) ||
 		second.GetNextBeforeSeq() != 0 {
 		t.Fatalf("second = %v", second)
@@ -133,7 +133,7 @@ func TestRuntimeEventsTransitionsAndConcurrentReplay(t *testing.T) {
 		t.Fatalf("time filter = %v, %v", empty, err)
 	}
 	// A report from an older revision, or another cluster, cannot resurrect the problem.
-	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}
+	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}
 	report.ObservedRevision = 0
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	report.ObservedRevision = placement.DesiredRevision
@@ -200,7 +200,7 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	placement := f.placement(t, f.clusterID)
 	oldServer, newServer := f.agentServer(), f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
-		Available: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+		Available: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
 	// The old handler passed its preflight before the new stream connected.
 	if err := oldServer.checkSyncGeneration(t.Context(), f.clusterID, 0); err != nil {
@@ -213,7 +213,7 @@ func TestSupersededSyncCannotReopenARecoveredRuntimeCondition(t *testing.T) {
 	report.Problem = nil
 	newServer.recordStatus(t.Context(), f.clusterID, generation, report)
 	// The old handler resumes at the same placement revision after recovery.
-	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}
+	report.Problem = &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}
 	oldServer.recordStatus(t.Context(), f.clusterID, 0, report)
 	if stored := f.placement(t, f.clusterID).ProblemReason; stored != "" {
 		t.Fatalf("old stream reopened %q", stored)
@@ -244,7 +244,7 @@ func TestRuntimeEventsDuringRollout(t *testing.T) {
 			}
 			p := f.placement(t, f.clusterID)
 			report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-				Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+				Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 			f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
 			generation, err := f.queries.BeginClusterSync(t.Context(), f.clusterID)
 			if err != nil {
@@ -275,7 +275,7 @@ func TestProblemEventsAcrossPlacementRevisions(t *testing.T) {
 		PlacementId:      strings.ToUpper(p.ID.String()),
 		ObservedRevision: p.DesiredRevision,
 		Available:        true,
-		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)},
+		Problem:          &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)},
 	}
 	server := f.agentServer()
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
@@ -304,7 +304,7 @@ func TestProblemEventsWithPrunedDeploymentHistory(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server := f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	for range 3 {
 		if _, deployErr := f.deploy(t.Context(), staticSpec); deployErr != nil {
@@ -356,7 +356,7 @@ func TestProblemEventsForARecreatedPlacement(t *testing.T) {
 	p := f.placement(t, f.clusterID)
 	server := f.agentServer()
 	report := &agentv1.PlacementStatus{PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
-		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemCrashLoop)}}
+		ProgressDeadlineExceeded: true, Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemRestarting)}}
 	server.recordStatus(t.Context(), f.clusterID, 0, report)
 	removed, err := f.queries.MarkPlacementDeleted(
 		t.Context(),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	eventsv1 "k8s.io/api/events/v1"
@@ -18,33 +19,42 @@ import (
 )
 
 const (
+	podKind           = "Pod"
 	pullReasonPulling = "Pulling"
 	pullReasonPulled  = "Pulled"
 	pullReasonFailed  = "Failed"
 )
 
-type pullEvent struct {
-	application types.NamespacedName
-	namespace   string
-	reason      string
-	at          metav1.Time
+// kubeletLivenessKill is in the note of the Killing event the kubelet records before it restarts a container.
+const kubeletLivenessKill = "failed liveness probe"
+
+// podEvent holds the newest image pull and liveness kill the kubelet reported for a pod.
+type podEvent struct {
+	application  types.NamespacedName
+	namespace    string
+	pull         string
+	pulledAt     metav1.Time
+	livenessKill metav1.Time
 }
 
-func (r *ApplicationReconciler) applicationForPullEvent(ctx context.Context, obj client.Object) []reconcile.Request {
+func (r *ApplicationReconciler) applicationForPodEvent(ctx context.Context, obj client.Object) []reconcile.Request {
 	e, ok := obj.(*eventsv1.Event)
 	if !ok {
 		return nil
 	}
-	if e.Regarding.Kind != "Pod" {
+	if e.Regarding.Kind != podKind {
 		return nil
 	}
+	kill := e.Reason == reasonKilling && strings.Contains(e.Note, kubeletLivenessKill)
 	switch e.Reason {
 	case pullReasonPulling, pullReasonPulled, pullReasonFailed:
 	default:
-		return nil
+		if !kill {
+			return nil
+		}
 	}
-	r.pullMu.Lock()
-	defer r.pullMu.Unlock()
+	r.podEventsMu.Lock()
+	defer r.podEventsMu.Unlock()
 	ns := &corev1.Namespace{}
 	if err := r.Get(ctx, client.ObjectKey{Name: e.Namespace}, ns); err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -70,22 +80,25 @@ func (r *ApplicationReconciler) applicationForPullEvent(ctx context.Context, obj
 	if len(requests) == 0 {
 		return nil
 	}
-	at := pullEventTime(e)
-	if old, ok := r.pullEvents[pod.UID]; ok && !at.After(old.at.Time) {
+	at := eventTime(e)
+	recorded := r.podEvents[pod.UID]
+	switch {
+	case kill && at.After(recorded.livenessKill.Time):
+		recorded.livenessKill = at
+	case !kill && at.After(recorded.pulledAt.Time):
+		recorded.pull, recorded.pulledAt = e.Reason, at
+	default:
 		return nil
 	}
-	if r.pullEvents == nil {
-		r.pullEvents = make(map[types.UID]pullEvent)
+	if r.podEvents == nil {
+		r.podEvents = make(map[types.UID]podEvent)
 	}
-	r.pullEvents[pod.UID] = pullEvent{
-		application: requests[0].NamespacedName,
-		namespace:   e.Namespace,
-		reason:      e.Reason, at: at,
-	}
+	recorded.application, recorded.namespace = requests[0].NamespacedName, e.Namespace
+	r.podEvents[pod.UID] = recorded
 	return requests
 }
 
-func pullEventTime(e *eventsv1.Event) metav1.Time {
+func eventTime(e *eventsv1.Event) metav1.Time {
 	at := e.EventTime.Time
 	if e.Series != nil && e.Series.LastObservedTime.After(at) {
 		at = e.Series.LastObservedTime.Time
@@ -102,25 +115,25 @@ func pullEventTime(e *eventsv1.Event) metav1.Time {
 func (r *ApplicationReconciler) listRolloutPods(
 	ctx context.Context,
 	app *loco.Application,
-) ([]corev1.Pod, map[types.UID]pullEvent, error) {
+) ([]corev1.Pod, map[types.UID]podEvent, error) {
 	// Serialize the list with event updates so pruning cannot discard a newer observation.
-	r.pullMu.Lock()
-	defer r.pullMu.Unlock()
+	r.podEventsMu.Lock()
+	defer r.podEventsMu.Unlock()
 	var listed corev1.PodList
 	if err := r.List(ctx, &listed, client.InNamespace(r.environmentNamespace(app)),
 		client.MatchingLabels{labelApp: loco.WorkloadName(app.Spec.ResourceID)}); err != nil {
 		return nil, nil, fmt.Errorf("list rollout replicas: %w", err)
 	}
-	events := make(map[types.UID]pullEvent, len(listed.Items))
+	events := make(map[types.UID]podEvent, len(listed.Items))
 	for _, pod := range listed.Items {
-		if e, ok := r.pullEvents[pod.UID]; ok {
+		if e, ok := r.podEvents[pod.UID]; ok {
 			events[pod.UID] = e
 		}
 	}
-	for uid, e := range r.pullEvents {
+	for uid, e := range r.podEvents {
 		if e.application == client.ObjectKeyFromObject(app) {
 			if _, ok := events[uid]; !ok {
-				delete(r.pullEvents, uid)
+				delete(r.podEvents, uid)
 			}
 		}
 	}

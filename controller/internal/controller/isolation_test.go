@@ -40,7 +40,8 @@ func isolationTestApplication(workspaceID, resourceID string) *locov1alpha1.Appl
 					Memory:   "64Mi",
 					Replicas: locov1alpha1.ReplicasSpec{Min: 1, Max: 1},
 				},
-				Routing: testRouting(),
+				Routing:       testRouting(),
+				RestartPolicy: testRestartPolicy,
 			},
 		},
 	}

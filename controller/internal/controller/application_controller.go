@@ -68,8 +68,8 @@ var (
 
 // ApplicationReconciler reconciles an Application object
 type ApplicationReconciler struct {
-	pullMu      sync.Mutex
-	pullEvents  map[types.UID]pullEvent
+	podEventsMu sync.Mutex
+	podEvents   map[types.UID]podEvent
 	deletedMu   sync.Mutex
 	deletedPods map[types.NamespacedName]map[types.UID]deletedReplica
 	client.Client
@@ -88,6 +88,8 @@ type ApplicationReconciler struct {
 	MinReadySeconds int32
 	// DrainSeconds keeps a terminating service listening while routing withdraws its endpoint.
 	DrainSeconds int32
+	// HealthyAfter is how long every current replica must go without a restart before the rollout is healthy.
+	HealthyAfter time.Duration
 }
 
 // +kubebuilder:rbac:groups=infra.loco.io,resources=applications,verbs=get;list;watch;create;update;patch;delete
@@ -98,6 +100,7 @@ type ApplicationReconciler struct {
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;create;list;watch;patch;delete
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;create;list;watch;patch;update;delete
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;patch
 // +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=services,verbs=get;create;list;watch;patch;update;delete
@@ -213,8 +216,14 @@ func (r *ApplicationReconciler) reconcileResources(
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensure deployment: %w", err)
 	}
+	stopped := stoppedRevision(app) != nil
 	if err = r.observeReplicas(ctx, app, dep, time.Now()); err != nil {
 		return ctrl.Result{}, err
+	}
+	if !stopped && stoppedRevision(app) != nil {
+		if dep, err = r.ensureDeployment(ctx, app, envSecret); err != nil {
+			return ctrl.Result{}, fmt.Errorf("stop deployment: %w", err)
+		}
 	}
 	if err = r.ensureAutoscaler(ctx, app, dep); err != nil {
 		return ctrl.Result{}, err
@@ -241,7 +250,9 @@ func (r *ApplicationReconciler) reconcileResources(
 		return ctrl.Result{}, fmt.Errorf("ensure HTTP route: %w", err)
 	}
 
-	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil {
+	revision, _ := app.PlacementRevision()
+	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil ||
+		app.Status.Rollout.ProvenRevision != revision {
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
 	return ctrl.Result{}, nil
@@ -758,11 +769,32 @@ func (r *ApplicationReconciler) ensureDeployment(
 	namespace := r.environmentNamespace(app)
 	slog.DebugContext(ctx, "ensuring deployment", "namespace", namespace, "name", name)
 
+	var stoppedSets []appsv1.ReplicaSet
+	var previous *appsv1.ReplicaSet
+	if stopped := stoppedRevision(app); stopped != nil {
+		var err error
+		stoppedSets, previous, err = r.stoppedReplicaSets(ctx, namespace, name, stopped)
+		if err != nil {
+			return nil, err
+		}
+		dep.Spec.WithPaused(true)
+		if !stopped.Rollout || previous == nil {
+			dep.Spec.WithReplicas(0)
+			previous = nil
+		}
+	}
+
 	opts := managed.ApplyOptions()
 	if err := r.Apply(ctx, dep, opts...); err != nil {
 		return nil, fmt.Errorf("apply deployment %s/%s: %w", namespace, name, err)
 	}
-	return dep, nil
+	if previous == nil {
+		return dep, r.scale(ctx, stoppedSets, 0)
+	}
+	if err := r.scale(ctx, stoppedSets, 0); err != nil {
+		return nil, err
+	}
+	return dep, r.scale(ctx, []appsv1.ReplicaSet{*previous}, ptr.Deref(dep.Spec.Replicas, 0))
 }
 
 func deploymentReady(dep *appsv1ac.DeploymentApplyConfiguration, replicas int32) bool {
@@ -841,8 +873,8 @@ func (r *ApplicationReconciler) ensureHTTPRoute(ctx context.Context, app *locov1
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	pullEvents := make(chan event.GenericEvent)
-	if err := r.watchWorkspacePulls(mgr, pullEvents); err != nil {
+	podEvents := make(chan event.GenericEvent)
+	if err := r.watchWorkspacePodEvents(mgr, podEvents); err != nil {
 		return err
 	}
 	applicationChanged := predicate.Or[client.Object](
@@ -871,7 +903,7 @@ func (r *ApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(&appsv1.Deployment{}, applicationHandler).
 		Watches(&autoscalingv2.HorizontalPodAutoscaler{}, applicationHandler, applicationPredicates).
 		Watches(&corev1.Pod{}, r.podHandler(applicationHandler)).
-		WatchesRawSource(source.Channel(pullEvents, handler.EnqueueRequestsFromMapFunc(r.applicationForPullEvent))).
+		WatchesRawSource(source.Channel(podEvents, handler.EnqueueRequestsFromMapFunc(r.applicationForPodEvent))).
 		Watches(&corev1.Service{}, applicationHandler).
 		Watches(&v1Gateway.HTTPRoute{}, applicationHandler, routePredicates).
 		Watches(&corev1.Secret{}, envSecretHandler).
@@ -898,9 +930,9 @@ func (r *ApplicationReconciler) podHandler(base handler.EventHandler) handler.Ev
 			e event.DeleteEvent,
 			q workqueue.TypedRateLimitingInterface[reconcile.Request],
 		) {
-			r.pullMu.Lock()
-			delete(r.pullEvents, e.Object.GetUID())
-			r.pullMu.Unlock()
+			r.podEventsMu.Lock()
+			delete(r.podEvents, e.Object.GetUID())
+			r.podEventsMu.Unlock()
 			if !e.DeleteStateUnknown {
 				if pod, ok := e.Object.(*corev1.Pod); ok {
 					for _, request := range applicationForObject(ctx, pod) {

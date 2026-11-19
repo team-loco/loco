@@ -300,7 +300,7 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 		t.Fatalf("list differs: %v", list)
 	}
 	report.Problem = &agentv1.ProblemReport{
-		Reason:      string(loco.ProblemCrashLoop),
+		Reason:      string(loco.ProblemRestarting),
 		ReplicaName: testWatchReplica,
 		Detail:      testWatchDetail,
 		Since:       since,
@@ -344,7 +344,7 @@ func TestDeploymentProblemComesFromLatestSnapshot(t *testing.T) {
 		ObservedRevision: placement.DesiredRevision,
 		DesiredReplicas:  1,
 		Problem: &agentv1.ProblemReport{
-			Reason:      string(loco.ProblemCrashLoop),
+			Reason:      string(loco.ProblemRestarting),
 			Detail:      testWatchDetail,
 			ReplicaName: testWatchReplica,
 			Since:       timestamppb.Now(),

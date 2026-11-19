@@ -97,8 +97,9 @@ func TestPortlessServiceTakesNoTrafficOrHealthCheck(t *testing.T) {
 	health := &HealthCheckSpec{Path: "/healthz", Interval: 5, Timeout: 1, FailThreshold: 1}
 	worker := func() *ServiceSpec {
 		return &ServiceSpec{
-			Deployment: &ServiceDeploymentSpec{Platform: testPlatform, Image: "ghcr.io/team-loco/worker:v1"},
-			Resources:  &ResourcesSpec{CPU: "100m", Memory: "64Mi", Replicas: ReplicasSpec{Min: 1, Max: 1}},
+			Deployment:    &ServiceDeploymentSpec{Platform: testPlatform, Image: "ghcr.io/team-loco/worker:v1"},
+			Resources:     &ResourcesSpec{CPU: "100m", Memory: "64Mi", Replicas: ReplicasSpec{Min: 1, Max: 1}},
+			RestartPolicy: RestartPolicySpec{MaxRestarts: 5, WindowSeconds: 600},
 		}
 	}
 	if err := validateServiceSpec(worker()); err != nil {
@@ -113,6 +114,27 @@ func TestPortlessServiceTakesNoTrafficOrHealthCheck(t *testing.T) {
 	checked.Deployment.HealthCheck = health
 	if err := validateServiceSpec(checked); !errors.Is(err, errHealthWithoutPort) {
 		t.Errorf("health-checked portless service error = %v, want %v", err, errHealthWithoutPort)
+	}
+}
+
+func TestRestartPolicyBounds(t *testing.T) {
+	for _, policy := range []RestartPolicySpec{
+		{MaxRestarts: MinRestarts, WindowSeconds: MinRestartWindowSeconds},
+		{MaxRestarts: MaxRestarts, WindowSeconds: MaxRestartWindowSeconds},
+	} {
+		if err := policy.Validate(); err != nil {
+			t.Errorf("%+v rejected: %v", policy, err)
+		}
+	}
+	for _, policy := range []RestartPolicySpec{
+		{MaxRestarts: MinRestarts - 1, WindowSeconds: 600},
+		{MaxRestarts: MaxRestarts + 1, WindowSeconds: 600},
+		{MaxRestarts: 5, WindowSeconds: MinRestartWindowSeconds - 1},
+		{MaxRestarts: 5, WindowSeconds: MaxRestartWindowSeconds + 1},
+	} {
+		if err := policy.Validate(); err == nil {
+			t.Errorf("%+v accepted", policy)
+		}
 	}
 }
 

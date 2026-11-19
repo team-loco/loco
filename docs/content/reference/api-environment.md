@@ -187,6 +187,8 @@ The API fills these into a service that leaves the field out. See [loco.yaml](..
 | `LOCO_DEFAULT_HEALTH_STARTUP_GRACE_PERIOD` | `0` (seconds) |
 | `LOCO_DEFAULT_DEPLOY_ATTEMPTS` | `2` |
 | `LOCO_DEFAULT_DEPLOY_RETRY_DELAY` | `300` (seconds) |
+| `LOCO_DEFAULT_MAX_RESTARTS` | `5` (0 to 20) |
+| `LOCO_DEFAULT_RESTART_WINDOW` | `600` (seconds, 60 to 3600) |
 
 ## Count limits
 
