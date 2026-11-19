@@ -58,7 +58,7 @@ function DashboardLink({
 function MissingPath() {
 	const { pathname, search } = useLocation();
 	return (
-		<span className="max-w-full truncate rounded-[7px] border border-dashed border-[color-mix(in_oklch,var(--err)_55%,var(--line2))] bg-background px-2.5 py-1 font-mono text-[15px] text-foreground">
+		<span className="max-w-full truncate rounded-[7px] border border-line2 bg-panel2 px-2.5 py-1 font-mono text-[15px] text-fg2">
 			{pathname + search}
 		</span>
 	);
