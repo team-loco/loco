@@ -481,28 +481,36 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 					/>
 				</div>
 			) : (
-				<SettingsView
-					resource={resource}
-					environmentId={environmentId ?? ""}
-					regions={regions}
-					draft={draft}
-					base={base}
-					focus={view}
-					canWrite={canWrite}
-					canDelete={canDelete}
-					canReadWorkspace={canListResources}
-					onDraft={setDraft}
-					onBack={() => {
-						setView("overview");
-					}}
-					onDelete={() => {
-						setModal({ kind: "delete" });
-					}}
-					onSaved={(next) => {
-						setNotice(next);
-						void refresh();
-					}}
-				/>
+				<div className="flex flex-col gap-5">
+					<DeploymentProgress
+						regions={regions}
+						logsHref={obsLink("logs")}
+						canWrite={canWrite}
+						onRollback={openRollback}
+					/>
+					<SettingsView
+						resource={resource}
+						environmentId={environmentId ?? ""}
+						regions={regions}
+						draft={draft}
+						base={base}
+						focus={view}
+						canWrite={canWrite}
+						canDelete={canDelete}
+						canReadWorkspace={canListResources}
+						onDraft={setDraft}
+						onBack={() => {
+							setView("overview");
+						}}
+						onDelete={() => {
+							setModal({ kind: "delete" });
+						}}
+						onSaved={(next) => {
+							setNotice(next);
+							void refresh();
+						}}
+					/>
+				</div>
 			)}
 
 			<EventsDrawer
