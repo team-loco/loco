@@ -21,6 +21,7 @@ import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
+import { PlacementChips } from "@/components/design/PlacementChips";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { Tabs, TabsContent, TabsCount, TabsList, TabsTrigger } from "@/components/design/Tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
@@ -392,12 +393,8 @@ export function DeploymentsSection({
 												<DeploymentActor deployment={dep} />
 											</TableCell>
 											{multiRegion && (
-												<TableCell className="font-mono text-[12px] text-fg2">
-													{rows.map((r) => (
-														<span key={r.region.name} className="block truncate">
-															{r.region.name}
-														</span>
-													))}
+												<TableCell>
+													<PlacementChips placements={dep.placements} className="flex-col items-start" />
 												</TableCell>
 											)}
 											<TableCell className="max-w-0 truncate text-fg2" title={deploymentMessage(dep)}>

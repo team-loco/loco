@@ -1,4 +1,4 @@
-import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentStatus, type Deployment, type DeploymentPlacement } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
@@ -62,10 +62,17 @@ export function deploySteps(d: Deployment): { build: StepState; deploy: StepStat
 	return { build: built, deploy: active, current: "deploy" };
 }
 
+function readyIn(d: Deployment, p: DeploymentPlacement): number {
+	return p.replicas.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
+}
+
 function readyCount(d: Deployment): number {
-	return d.placements
-		.flatMap((p) => p.replicas)
-		.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
+	return d.placements.reduce((sum, p) => sum + readyIn(d, p), 0);
+}
+
+/** How many of a region's desired replicas of the deployment are ready, as "1/3". */
+export function placementReadyLabel(d: Deployment, p: DeploymentPlacement): string {
+	return `${readyIn(d, p).toString()}/${p.desiredReplicas.toString()}`;
 }
 
 export function clockLabel(ms: number): string {
