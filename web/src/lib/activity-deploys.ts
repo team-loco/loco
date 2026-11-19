@@ -4,6 +4,7 @@ import {
 	PlacementStatus,
 	type Deployment,
 	type DeploymentPlacement,
+	type Replica,
 } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
@@ -79,8 +80,16 @@ export function deploySteps(d: Deployment): { build: StepState; deploy: StepStat
 	return { build: built, deploy: active, current: "deploy" };
 }
 
-function readyIn(d: Deployment, p: DeploymentPlacement): number {
-	return p.replicas.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
+/** Whether a replica runs the placement's current revision of the deployment. */
+export function currentReplica(replica: Replica, revision: bigint, deploymentId: string): boolean {
+	return (
+		replica.placementRevision === revision && (replica.deploymentId === "" || replica.deploymentId === deploymentId)
+	);
+}
+
+/** The ready replicas of the placement's current revision of the deployment. */
+export function readyIn(d: Deployment, p: DeploymentPlacement): number {
+	return p.replicas.filter((r) => r.ready && currentReplica(r, p.currentRevision, d.id)).length;
 }
 
 function readyCount(d: Deployment): number {
