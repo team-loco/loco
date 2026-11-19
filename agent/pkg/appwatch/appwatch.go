@@ -155,8 +155,14 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 				Restarts:          replica.Restarts,
 				Detail:            replica.Detail,
 			}
-			if replica.ExitCode != nil {
-				report.LastExit = &deploymentv1.ReplicaExit{ExitCode: *replica.ExitCode}
+			if replica.StartedAt != nil {
+				report.StartedAt = timestamppb.New(replica.StartedAt.Time)
+			}
+			if exit := replica.LastExit; exit != nil {
+				report.LastExit = &deploymentv1.ReplicaExit{Reason: exit.Reason, ExitCode: exit.ExitCode}
+				if !exit.FinishedAt.IsZero() {
+					report.LastExit.FinishedAt = timestamppb.New(exit.FinishedAt.Time)
+				}
 			}
 			if replica.StateSince != nil {
 				report.StateSince = timestamppb.New(replica.StateSince.Time)

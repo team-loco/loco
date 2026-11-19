@@ -280,9 +280,21 @@ spec:
                         detail:
                           maxLength: 512
                           type: string
-                        exitCode:
-                          format: int32
-                          type: integer
+                        lastExit:
+                          description: LastExit is the most recent container exit
+                            the kubelet recorded.
+                          properties:
+                            exitCode:
+                              format: int32
+                              type: integer
+                            finishedAt:
+                              format: date-time
+                              type: string
+                            reason:
+                              type: string
+                          required:
+                          - exitCode
+                          type: object
                         name:
                           type: string
                         node:
@@ -295,6 +307,11 @@ spec:
                         restarts:
                           format: int32
                           type: integer
+                        startedAt:
+                          description: StartedAt is when the kubelet started the pod,
+                            or its creation time before that.
+                          format: date-time
+                          type: string
                         state:
                           enum:
                           - Scheduling
