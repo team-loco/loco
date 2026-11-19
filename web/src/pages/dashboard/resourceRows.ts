@@ -1,10 +1,10 @@
-import { ResourceStatus, ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
+import { ResourceType, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { DRAFT_RANK, draftIsPublic, draftRegions, type Draft } from "@/lib/drafts";
 import { primaryDomain, statusRank } from "@/lib/resource-status";
 import { createSerializer } from "nuqs";
 
-import { FILTER_PARSERS, FILTER_URL_KEYS, STATUS_FILTERS as RESOURCES_STATUS_FILTERS } from "@/pages/resources/table";
+import { DRAFT, FILTER_PARSERS, FILTER_URL_KEYS, NOT_DEPLOYED, STATUS_FILTERS } from "@/pages/resources/table";
 
 import type { EnvResource, RegionReplicas } from "./useDashboardData";
 
@@ -48,14 +48,6 @@ export function itemType(item: DashboardItem): ResourceType {
 
 export const ALL = "all";
 
-export const STATUS_FILTERS: { value: string; status: ResourceStatus; label: string }[] = [
-	{ value: "healthy", status: ResourceStatus.HEALTHY, label: "Healthy" },
-	{ value: "deploying", status: ResourceStatus.DEPLOYING, label: "Deploying" },
-	{ value: "degraded", status: ResourceStatus.DEGRADED, label: "Degraded" },
-	{ value: "unavailable", status: ResourceStatus.UNAVAILABLE, label: "Unavailable" },
-	{ value: "unknown", status: ResourceStatus.UNKNOWN, label: "Unknown" },
-];
-
 export const TYPE_FILTERS: { value: string; type: ResourceType; label: string }[] = [
 	{ value: "service", type: ResourceType.SERVICE, label: "Service" },
 	{ value: "database", type: ResourceType.DATABASE, label: "Database" },
@@ -64,10 +56,6 @@ export const TYPE_FILTERS: { value: string; type: ResourceType; label: string }[
 	{ value: "queue", type: ResourceType.QUEUE, label: "Queue" },
 	{ value: "blob", type: ResourceType.BLOB, label: "Blob" },
 ];
-
-export function statusOptions(counts: Map<ResourceStatus, number>, selected: string): typeof STATUS_FILTERS {
-	return STATUS_FILTERS.filter((o) => (counts.get(o.status) ?? 0) > 0 || o.value === selected);
-}
 
 export interface RowFilter {
 	status: string;
@@ -91,9 +79,14 @@ function matchesQuery(item: DashboardItem, query: string): boolean {
 	return fields.some((f) => f.toLowerCase().includes(q));
 }
 
+export function itemStatusFilter(item: DashboardItem): string {
+	if (isDraftItem(item)) return DRAFT;
+	if (item.neverDeployed) return NOT_DEPLOYED;
+	return STATUS_FILTERS.find((f) => f.status === item.status)?.value ?? ALL;
+}
+
 function matchesStatus(item: DashboardItem, status: string): boolean {
-	if (status === ALL) return true;
-	return !isDraftItem(item) && STATUS_FILTERS.some((o) => o.value === status && o.status === item.status);
+	return status === ALL || itemStatusFilter(item) === status;
 }
 
 function matchesType(item: DashboardItem, type: string): boolean {
@@ -118,10 +111,9 @@ export function filterRows<T extends DashboardItem>(items: T[], filter: RowFilte
 const serializeFilter = createSerializer(FILTER_PARSERS, { urlKeys: FILTER_URL_KEYS });
 
 export function viewAllSearch(envName: string, filter: RowFilter): string {
-	const status = RESOURCES_STATUS_FILTERS.some((f) => f.value === filter.status) ? filter.status : ALL;
 	return serializeFilter(new URLSearchParams({ env: envName }), {
 		query: filter.query.trim(),
-		status,
+		status: filter.status,
 		region: filter.region,
 	});
 }

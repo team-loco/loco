@@ -545,8 +545,15 @@ with session(out) as browser:
             '[data-slot="segmented-count"]'
         )
     ).to_have_text(str(listed))
+    all_filter.get_by_role("button", name=re.compile(r"^Draft\b")).click()
+    expect(row).to_be_visible()
     page.goto(base + "?env=production")
     dashboard_row = draft_row(page, name)
+    dashboard_filter = page.get_by_role(
+        "group", name="Filter resources by status", exact=True
+    )
+    dashboard_filter.get_by_role("button", name=re.compile(r"^Draft\b")).click()
+    expect(dashboard_row).to_be_visible()
     expect(dashboard_row.get_by_text("Not deployed yet", exact=True)).to_be_visible()
     expect(dashboard_row.get_by_text("Draft", exact=True)).to_be_visible()
     page.get_by_role("button", name="Region: All regions", exact=True).click()
