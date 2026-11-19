@@ -18,6 +18,7 @@ import { trafficValue } from "@/lib/traffic";
 import { cn } from "@/lib/utils";
 import { percentPoints } from "@/pages/resource/metric";
 import { formatDuration } from "@/pages/resource/format";
+import { POD_LABEL } from "@/pages/resource/replicas";
 import { useObs } from "../context";
 import type { TraceSummary } from "../traces";
 import { traceBounds } from "./trace-time";
@@ -49,7 +50,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 	const transport = useTransport();
 	const [minutes, setMinutes] = useState(10);
 	const [hoverTime, setHoverTime] = useState<number | null>(null);
-	const pod = selected.resourceAttributes["k8s.pod.name"] ?? "";
+	const pod = selected.resourceAttributes[POD_LABEL] ?? "";
 	const { start, end } = traceBounds(trace);
 	const from = start - minutes * 60_000;
 	const to = end + minutes * 60_000;
@@ -63,16 +64,16 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 				endMs: to,
 				metricName: metric.metric,
 				aggregation: metric.aggregation,
-				attributes: { "k8s.pod.name": pod, ...(metric.direction === "" ? {} : { direction: metric.direction }) },
+				attributes: metric.direction === "" ? {} : { direction: metric.direction },
+				byPod: true,
 				region: selected.resourceAttributes["loco.region"] ?? "",
 				enabled: pod !== "" && selected.resourceId !== "",
 			}),
 		),
 	});
-	const cpu = queries[0]?.data,
-		memory = queries[1]?.data,
-		incoming = queries[2]?.data,
-		outgoing = queries[3]?.data;
+	const [cpu, memory, incoming, outgoing] = queries.map((query) =>
+		query.data?.filter((series) => series.labels[POD_LABEL] === pod),
+	);
 	const points = useMemo<InfraPoint[][]>(
 		() => [
 			percentPoints(cpu ?? [], selected.resourceId).map(({ time, pct }) => ({ time, value: pct })),

@@ -8,9 +8,12 @@ import {
 	type RegionStatus,
 } from "@gen/loco/resource/v1/resource_pb";
 
+import { MetricSeriesSchema } from "@gen/loco/observability/v1/observability_pb";
+import { ReplicaExitSchema } from "@gen/loco/deployment/v1/deployment_pb";
+
 import { msToTimestamp } from "@/lib/time";
 
-import { replicaLine } from "./replicas";
+import { exitLabel, podUsage, replicaLine } from "./replicas";
 
 const NOW_MS = Date.UTC(2026, 9, 11, 12, 0, 0);
 const MINUTE_MS = 60_000;
@@ -85,5 +88,43 @@ describe("replicaLine", () => {
 			region("eu-west-1", ResourceStatus.UNKNOWN, 0, 1),
 		);
 		expect(replicaLine(env, NOW_MS)).toBe("2 of 3 ready · 2 regions · eu-west-1 never reported");
+	});
+});
+
+describe("podUsage", () => {
+	const series = (pod: string | undefined, points: [number, number][]) =>
+		create(MetricSeriesSchema, {
+			resourceId: "r",
+			labels: pod === undefined ? {} : { "k8s.pod.name": pod },
+			points: points.map(([agoMs, value]) => ({ timestamp: msToTimestamp(NOW_MS - agoMs), value })),
+		});
+
+	test("takes each pod's newest value within two collection intervals", () => {
+		const usage = podUsage(
+			[
+				series("web-a", [
+					[30_000, 0.4],
+					[5 * MINUTE_MS, 0.9],
+				]),
+				series("web-b", [[3 * MINUTE_MS, 0.7]]),
+				series(undefined, [[10_000, 0.5]]),
+			],
+			NOW_MS,
+		);
+		expect(usage.get("web-a")).toBe(0.4);
+		expect(usage.has("web-b")).toBe(false);
+		expect(usage.size).toBe(1);
+	});
+});
+
+describe("exitLabel", () => {
+	test("names the reason, exit code and how long ago the container exited", () => {
+		const exit = create(ReplicaExitSchema, {
+			reason: "OOMKilled",
+			exitCode: 137,
+			finishedAt: msToTimestamp(NOW_MS - 5 * MINUTE_MS),
+		});
+		expect(exitLabel(exit, NOW_MS)).toBe("OOMKilled · exit 137 · 5m ago");
+		expect(exitLabel(create(ReplicaExitSchema, { reason: "Error", exitCode: 1 }), NOW_MS)).toBe("Error · exit 1");
 	});
 });

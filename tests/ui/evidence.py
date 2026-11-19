@@ -346,10 +346,11 @@ def validate_spec(spec):
                 or not response["url"].strip()
                 or "json" not in response
                 or not isinstance(response.get("status", 200), int)
-                or set(response) - {"url", "status", "json", "headers"}
+                or not isinstance(response.get("match", {}), dict)
+                or set(response) - {"url", "status", "json", "headers", "match"}
             ):
                 raise EvidenceError(
-                    f"shot {name}: each respond entry is {{url, json, status?, headers?}}"
+                    f"shot {name}: each respond entry is {{url, json, status?, headers?, match?}}"
                 )
         for step in shot.get("steps", []):
             if len(step) != 1 or next(iter(step)) not in (
@@ -1171,11 +1172,21 @@ def capture(browser, state, shot, theme, narrow, target):
     context.add_init_script(script)
 
     def responder(response):
-        return lambda route: route.fulfill(
-            status=response.get("status", 200),
-            headers=response.get("headers"),
-            json=response["json"],
-        )
+        def respond(route):
+            body = route.request.post_data_json or {}
+            if any(
+                body.get(key) != value
+                for key, value in response.get("match", {}).items()
+            ):
+                route.fallback()
+                return
+            route.fulfill(
+                status=response.get("status", 200),
+                headers=response.get("headers"),
+                json=response["json"],
+            )
+
+        return respond
 
     for response in shot.get("respond", []):
         context.route(response["url"], responder(response))

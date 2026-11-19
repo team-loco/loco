@@ -11,8 +11,10 @@ import { CopyId } from "@/components/design/CopyId";
 import { deploymentPhaseStyle } from "@/components/design/StatusBadge";
 import { SoonTag } from "@/components/design/SoonTag";
 import { StatusGlyph, type Glyph } from "@/components/design/StatusGlyph";
+import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
+import { rolloutReadyLabel } from "@/lib/activity-deploys";
 import { deploymentActor, deploymentMethod, getServiceSpec, isInFlight, shortSha } from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
@@ -37,26 +39,30 @@ import {
 import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
 import { depImage, depTag, type RegionView } from "./model";
 
-function ProgressPanel({
-	region,
-	deployment,
-	previous,
-	activity,
-	connectionError,
-	logsHref,
-	canWrite,
-	onRollback,
-}: {
+interface RolloutMember {
 	region: RegionView;
 	deployment: Deployment;
 	previous: Deployment | undefined;
 	activity: readonly Activity[];
 	connectionError: string | undefined;
+}
+
+function ProgressPanel({
+	members,
+	logsHref,
+	canWrite,
+	onRollback,
+}: {
+	members: readonly [RolloutMember, ...RolloutMember[]];
 	logsHref: string | undefined;
 	canWrite: boolean;
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
 	const titleId = useId();
+	const [selectedRegion, setSelectedRegion] = useState(members[0].region.name);
+	const member = members.find((m) => m.region.name === selectedRegion) ?? members[0];
+	const { region, deployment, previous, activity, connectionError } = member;
+	const multiRegion = members.length > 1;
 	const phase = deployment.status;
 	const live = isInFlight(phase);
 	const nowMs = useNow(live ? 1000 : 60000).getTime();
@@ -124,6 +130,7 @@ function ProgressPanel({
 		if (step.state === "pending") return "";
 		if (step.state === "failed") return deployment.problem?.message ?? "Rollout failed";
 		if (step.state === "stopped") return "Canceled";
+		if (multiRegion) return rolloutReadyLabel(members.map((m) => m.deployment));
 		return readyLabel(replicaGroups[0]?.replicas ?? [], deployment.desiredReplicas);
 	};
 	return (
@@ -166,7 +173,12 @@ function ProgressPanel({
 							</span>
 						)}
 						<span>
-							· <span className="font-mono text-[12px]">{region.name}</span>
+							·{" "}
+							{multiRegion ? (
+								`${live ? "Rolling out to" : "Rolled out to"} ${members.length.toString()} regions`
+							) : (
+								<span className="font-mono text-[12px]">{region.name}</span>
+							)}
 						</span>
 						{!commit && image !== "" && (
 							<span className="min-w-0 break-all font-mono text-[12px] text-fg2">· {image}</span>
@@ -223,6 +235,23 @@ function ProgressPanel({
 					)}
 				</div>
 			</div>
+			{multiRegion && (
+				<ToggleGroup
+					aria-label="Rollout regions"
+					value={[region.name]}
+					onValueChange={(values: string[]) => {
+						if (values[0] !== undefined) setSelectedRegion(values[0]);
+					}}
+					className="flex-wrap"
+				>
+					{members.map((m) => (
+						<ToggleGroupItem key={m.region.name} value={m.region.name} className="font-mono">
+							<StatusGlyph glyph={deploymentPhaseStyle(m.deployment.status).glyph} />
+							{m.region.name}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
+			)}
 			{connectionError !== undefined && (
 				<p role="status" className="m-0 text-[13px] text-warn-fg">
 					Disconnected. Reconnecting… {connectionError}
@@ -341,21 +370,21 @@ export function DeploymentProgress({
 	const progress = progressDeployments(regions);
 	const watchOf = useDeploymentWatch(progress.map(({ deployment }) => deployment.id));
 	const nowMs = useNow(15_000).getTime();
-	return progress.map(({ region, deployment, previous }) => {
+	const members = progress.flatMap(({ region, deployment, previous }): RolloutMember[] => {
 		const watched = watchOf(deployment.id);
 		const current =
 			watched.deployment !== undefined && tsMs(watched.deployment.updatedAt) >= tsMs(deployment.updatedAt)
 				? watched.deployment
 				: deployment;
-		if (!showsCard(current, nowMs)) return null;
+		if (!showsCard(current, nowMs)) return [];
+		return [{ region, deployment: current, previous, activity: watched.activity, connectionError: watched.error }];
+	});
+	return [...Map.groupBy(members, (m) => m.deployment.rolloutId).values()].map(([first, ...rest]) => {
+		if (first === undefined) return null;
 		return (
 			<ProgressPanel
-				key={deployment.id}
-				region={region}
-				deployment={current}
-				previous={previous}
-				activity={watched.activity}
-				connectionError={watched.error}
+				key={first.deployment.id}
+				members={[first, ...rest]}
 				logsHref={logsHref}
 				canWrite={canWrite}
 				onRollback={onRollback}
