@@ -10,7 +10,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { joinImage, splitImage } from "@/lib/image";
-import type { SizeOptions } from "@/lib/sizing";
+import { cpuWith, memoryWith, type SizeOptions } from "@/lib/sizing";
 
 import type { RegionView } from "./model";
 import type { Baseline, DraftErrors, SettingsDraft } from "./settings-draft";
@@ -192,13 +192,15 @@ export function SizeSection({
 	onChange,
 	sizes,
 }: SectionProps & { sizes: SizeOptions }) {
+	const cpuOptions = cpuWith(sizes.cpu, draft.cpu ?? base.cpu);
+	const memoryOptions = memoryWith(sizes.memory, draft.memory ?? base.memory);
 	return (
 		<SettingsBlock id="set-size" title="Size per replica" hint="Requests for each replica, applied in every region.">
 			<div className="flex max-w-[520px] flex-col gap-3.5">
-				<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, draft.cpu ?? base.cpu)} />}>
+				<Field label="CPU" aside={<SliderValue text={stepLabel(cpuOptions, draft.cpu ?? base.cpu)} />}>
 					<StepSlider
 						label="CPU"
-						options={sizes.cpu}
+						options={cpuOptions}
 						value={draft.cpu ?? base.cpu}
 						disabled={locked}
 						describedBy={describedBy}
@@ -207,10 +209,10 @@ export function SizeSection({
 						}}
 					/>
 				</Field>
-				<Field label="Memory" aside={<SliderValue text={stepLabel(sizes.memory, draft.memory ?? base.memory)} />}>
+				<Field label="Memory" aside={<SliderValue text={stepLabel(memoryOptions, draft.memory ?? base.memory)} />}>
 					<StepSlider
 						label="Memory"
-						options={sizes.memory}
+						options={memoryOptions}
 						value={draft.memory ?? base.memory}
 						disabled={locked}
 						describedBy={describedBy}

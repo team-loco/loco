@@ -8,6 +8,7 @@ function unsavedLabel(count: number | undefined): string {
 
 function SaveBar({
 	count,
+	names,
 	saveLabel = "Save",
 	onDiscard,
 	onSave,
@@ -15,6 +16,7 @@ function SaveBar({
 	disabledReason,
 }: {
 	count?: number | undefined;
+	names?: readonly string[] | undefined;
 	saveLabel?: string | undefined;
 	onDiscard: () => void;
 	onSave: () => void;
@@ -28,7 +30,14 @@ function SaveBar({
 	);
 	return (
 		<div className="sticky bottom-4 z-20 flex animate-in items-center gap-3 savebar rounded-card bg-raise py-2.5 pr-2.5 pl-4 text-[13px] text-foreground shadow-bar duration-240 fade-in-0 slide-in-from-bottom-2 motion-reduce:animate-none">
-			<span className="flex-1">{unsavedLabel(count)}</span>
+			<span className="flex min-w-0 flex-1 flex-col">
+				<span>{unsavedLabel(count)}</span>
+				{names !== undefined && names.length > 0 && (
+					<span className="truncate text-[12px] text-fg3" title={names.join(", ")}>
+						{names.join(", ")}
+					</span>
+				)}
+			</span>
 			<Button variant="outline" size="sm" className="bg-background" disabled={saving} onClick={onDiscard}>
 				Discard
 			</Button>
