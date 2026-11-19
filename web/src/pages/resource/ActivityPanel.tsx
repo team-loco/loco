@@ -93,15 +93,14 @@ export function ActivityPanel({
 			}
 			bodyClassName="px-5 py-1.5"
 		>
-			{query.isLoading &&
+			{query.isPending &&
+				environmentId !== undefined &&
 				SKELETON_ROWS.map((i) => (
 					<div key={i} className="flex h-[42px] items-center">
 						<Skeleton className="h-3 w-full" />
 					</div>
 				))}
-			{!query.isLoading && query.error === null && events.length === 0 && (
-				<p className="m-0 py-3 text-[13px] text-fg3">No changes yet.</p>
-			)}
+			{query.isSuccess && events.length === 0 && <p className="m-0 py-3 text-[13px] text-fg3">No changes yet.</p>}
 			<ul aria-label="Resource activity" className="m-0 list-none p-0">
 				{events.map((e) => (
 					<ActivityRow key={e.id} event={e} names={names} nowMs={nowMs} />

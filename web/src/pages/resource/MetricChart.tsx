@@ -31,12 +31,22 @@ const tooltipTime = (_label: unknown, payload: readonly { payload?: { time?: num
 	return time === undefined ? "" : formatFullTime(time, false, pref);
 };
 
-function Stat({ label, value, warning }: { label: string; value: string; warning?: string | undefined }) {
+function Stat({
+	label,
+	value,
+	warning,
+	isLoading,
+}: {
+	label: string;
+	value: string;
+	warning?: string | undefined;
+	isLoading: boolean;
+}) {
 	return (
 		<div className="flex flex-col gap-0.5">
 			<span className="text-[12px] text-fg3">{label}</span>
 			<span className="flex items-center gap-1.5 text-[22px] leading-[1.1] font-light tracking-[-0.03em] tabular-nums">
-				{value}
+				{isLoading ? <Skeleton className="h-[24px] w-14" /> : value}
 				{warning !== undefined && (
 					<Tooltip>
 						<TooltipTrigger
@@ -98,8 +108,13 @@ export function MetricChart({
 		<div className="flex min-w-0 flex-col gap-3.5">
 			<span className="text-[13.5px] font-medium">{title}</span>
 			<div className="flex gap-6">
-				<Stat label="Average" value={usage.average === undefined ? "—" : show(usage.average)} />
-				<Stat label="Highest" value={usage.highest === undefined ? "—" : show(usage.highest)} warning={warning} />
+				<Stat label="Average" value={usage.average === undefined ? "—" : show(usage.average)} isLoading={isLoading} />
+				<Stat
+					label="Highest"
+					value={usage.highest === undefined ? "—" : show(usage.highest)}
+					warning={warning}
+					isLoading={isLoading}
+				/>
 			</div>
 			{isLoading ? (
 				<Skeleton className="h-40 w-full" />
