@@ -87,7 +87,11 @@ with session(out) as browser:
         runtime = evidence.sql_literal(json.dumps(body["spec"]["service"]))
         deployment = sql(
             state,
-            f"UPDATE deployments SET spec={runtime} WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;",
+            f"UPDATE deployments SET spec={runtime},status='deploying',completed_at=NULL,updated_at=NOW() WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;",
+        )
+        sql(
+            state,
+            f"UPDATE deployment_placements SET status='deploying',completed_at=NULL WHERE deployment_id='{deployment}';",
         )
         route.fulfill(json={"deploymentId": deployment})
 
@@ -112,6 +116,8 @@ with session(out) as browser:
             page.get_by_role("button", name="Save & redeploy", exact=True).click()
         assert completed.value.ok, completed.value.text()
         expect(page.get_by_role("button", name="Discard", exact=True)).to_have_count(0)
+        expect(page.get_by_role("region", name="Deploying", exact=True)).to_be_visible()
+        expect(section).to_be_visible()
         sql(
             state,
             f"UPDATE deployment_placements SET status='running' WHERE deployment_id IN "

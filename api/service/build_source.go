@@ -203,11 +203,25 @@ func pinPublicImage(
 		return nil, fieldError(connect.CodeInvalidArgument, "image", message, reason).WithCause(err)
 	}
 
-	pinned := repository.Name() + "@" + digest
+	pinned := repository.Name()
+	if tag := imageTag(image); tag != "" {
+		pinned += ":" + tag
+	}
+	pinned += "@" + digest
 	return &deploymentv1.BuildSource{
 		Type:  buildSourceTypeImage,
 		Image: pinned,
 	}, nil
+}
+
+// imageTag is the tag the reference names, if any, before an optional digest.
+func imageTag(image string) string {
+	reference, _, _ := strings.Cut(image, "@")
+	colon := strings.LastIndex(reference, ":")
+	if colon <= strings.LastIndex(reference, "/") {
+		return ""
+	}
+	return reference[colon+1:]
 }
 
 func imageResolutionFailure(image string, err error) (message, reason string) {

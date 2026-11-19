@@ -15,7 +15,7 @@ export const createWebhook = WebhookService.method.createWebhook;
 export const listWebhooks = WebhookService.method.listWebhooks;
 
 /**
- * UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
+ * UpdateWebhook replaces a webhook's name, URL and event types. Pending retries go to the new URL.
  *
  * @generated from rpc loco.webhook.v1.WebhookService.UpdateWebhook
  */

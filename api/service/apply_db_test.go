@@ -226,7 +226,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 		t.Fatalf("decode desired spec: %v", decodeErr)
 	}
 	service := payload.AppSpec.ServiceSpec
-	wantImage := "index.docker.io/library/nginx@" + testDigest
+	wantImage := "index.docker.io/library/nginx:1.27@" + testDigest
 	if service.Deployment.Image != wantImage || service.Deployment.Env["LOG_LEVEL"] != "info" {
 		t.Fatalf("deployment spec = %+v, want image %s with the file env", service.Deployment, wantImage)
 	}
