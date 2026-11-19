@@ -1,7 +1,16 @@
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
-import { addDraft, draftsKey, editDraft, parseDrafts, removeDraft, type Draft, type DraftEdits } from "@/lib/drafts";
+import {
+	addDraft,
+	draftsKey,
+	editDraft,
+	parseDrafts,
+	removeDraft,
+	setDraftImage,
+	type Draft,
+	type DraftEdits,
+} from "@/lib/drafts";
 import { useStoredJSON } from "@/lib/storage";
 
 export function useDrafts(orgId: string, workspaceId: string, environmentId: string | undefined) {
@@ -18,6 +27,7 @@ export function useDrafts(orgId: string, workspaceId: string, environmentId: str
 		drafts,
 		create: (draft: Draft) => change((all) => addDraft(all, draft)),
 		edit: (id: string, edits: DraftEdits) => change((all) => editDraft(all, id, edits)),
+		setImage: (id: string, image: string) => change((all) => setDraftImage(all, id, image)),
 		discard: (id: string) => change((all) => removeDraft(all, id)),
 	};
 }

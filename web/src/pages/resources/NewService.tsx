@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ChevronDownIcon, ChevronRightIcon, ClipboardPasteIcon, LockIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
+import { cn } from "@/lib/utils";
 import { useQueryState } from "nuqs";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
@@ -31,10 +32,12 @@ import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { CommandFields, type CommandValue } from "@/components/design/CommandFields";
+import { Spinner } from "@/components/design/Spinner";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
+import { useImageCheck } from "@/hooks/useImageCheck";
 import { useDrafts } from "@/hooks/useDrafts";
 import { useHeldWhileClosed } from "@/hooks/useHeldWhileClosed";
 import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
@@ -48,6 +51,7 @@ import {
 	firstError,
 	healthSummary,
 	imageError,
+	envRowErrors,
 	locoYaml,
 	looksSecret,
 	mergeEnv,
@@ -93,12 +97,14 @@ export function NewService({
 	orgId,
 	workspaceId,
 	env,
+	loading,
 	onClose,
 	onCreated,
 }: {
 	orgId: string;
 	workspaceId: string;
 	env: Environment | undefined;
+	loading: boolean;
 	onClose: () => void;
 	onCreated: (draftId: string) => void;
 }) {
@@ -119,6 +125,7 @@ export function NewService({
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={env}
+					loading={loading}
 					image={image}
 					name={name}
 					taken={taken}
@@ -139,6 +146,7 @@ function ImageStep({
 	orgId,
 	workspaceId,
 	env,
+	loading,
 	image,
 	name,
 	taken,
@@ -149,6 +157,7 @@ function ImageStep({
 	orgId: string;
 	workspaceId: string;
 	env: Environment | undefined;
+	loading: boolean;
 	image: string;
 	name: string;
 	taken: ReadonlyMap<string, string>;
@@ -163,15 +172,10 @@ function ImageStep({
 	const shown = tried || edited ? error : null;
 	const nameErr = nameError(name, new Set(taken.keys()));
 
-	if (scopes.isLoading) {
-		return (
-			<DialogBody>
-				<Skeleton className="h-16 w-full" />
-			</DialogBody>
-		);
-	}
-	const notice =
-		scopes.workspaceLevel(orgId, workspaceId) < scopeLevel(Scope.WRITE)
+	const waiting = scopes.isLoading || loading;
+	const notice = waiting
+		? null
+		: scopes.workspaceLevel(orgId, workspaceId) < scopeLevel(Scope.WRITE)
 			? {
 					title: "You can't create resources here",
 					body: "Creating a resource needs write access to this workspace.",
@@ -198,7 +202,7 @@ function ImageStep({
 			onSubmit={(e) => {
 				e.preventDefault();
 				setTried(true);
-				if (error === null && nameErr === null) onContinue();
+				if (!waiting && error === null && nameErr === null) onContinue();
 			}}
 		>
 			<DialogBody>
@@ -388,6 +392,10 @@ function DraftPanel({
 				}}
 				onHealthOpen={setHealthOpen}
 				onCommandOpen={setCommandOpen}
+				onImage={(image) => {
+					deployment.clearError();
+					if (!store.setImage(draft.id, image)) toast.error("Couldn't save changes to this draft");
+				}}
 				onEdit={(edits) => {
 					deployment.clearError();
 					if (!store.edit(draft.id, edits)) {
@@ -475,6 +483,7 @@ function ServiceForm({
 	onTry,
 	onHealthOpen,
 	onCommandOpen,
+	onImage,
 	onEdit,
 	onDeployed,
 	onDiscard,
@@ -495,6 +504,7 @@ function ServiceForm({
 	onTry: () => void;
 	onHealthOpen: (open: boolean) => void;
 	onCommandOpen: (open: boolean) => void;
+	onImage: (image: string) => void;
 	onEdit: (edits: DraftEdits) => void;
 	onDeployed: (resourceId: string) => void;
 	onDiscard: () => void;
@@ -525,6 +535,7 @@ function ServiceForm({
 		command: edits.command ?? "",
 		args: edits.args ?? "",
 	};
+	const imageCheck = useImageCheck(env.workspaceId, image);
 	const check = useDomainAvailability(form.isPublic ? form.subdomain : "", form.platformDomain, []);
 	const errors = validateForm(form, check.state, sizes.replicas?.max ?? Number.POSITIVE_INFINITY);
 	const shown = (e: string | null, field: keyof NewResourceForm) => (tried || field in edits ? e : null);
@@ -536,6 +547,7 @@ function ServiceForm({
 		set({ health: { ...form.health, ...patch } });
 	};
 	const blocker = firstError(errors);
+	const footerBlocker = firstError({ ...errors, image: null });
 
 	return (
 		<form
@@ -564,6 +576,24 @@ function ServiceForm({
 						</Notice>
 					</div>
 				)}
+				<div>
+					<Field
+						label="Container image"
+						error={errors.image ?? apiError("image") ?? imageCheck.error}
+						hint={imageCheck.checking ? "Checking the image…" : undefined}
+					>
+						<Input
+							value={image}
+							className="font-mono"
+							autoComplete="off"
+							spellCheck={false}
+							aria-invalid={(errors.image ?? apiError("image") ?? imageCheck.error) !== null}
+							onChange={(e) => {
+								onImage(e.target.value);
+							}}
+						/>
+					</Field>
+				</div>
 				<div>
 					<Field label="Description" hint="Optional. Shown under the name in lists.">
 						<Input
@@ -712,7 +742,6 @@ function ServiceForm({
 
 				<EnvSection
 					rows={form.vars}
-					error={shown(errors.env, "vars")}
 					onChange={(vars) => {
 						set({ vars });
 					}}
@@ -750,7 +779,7 @@ function ServiceForm({
 					<span>
 						To <span className="font-mono text-fg2">{env.name}</span>
 					</span>
-					<FooterError blocker={resourceId === undefined && tried ? blocker : null} deployError={deployError} />
+					<FooterError blocker={resourceId === undefined && tried ? footerBlocker : null} deployError={deployError} />
 				</span>
 				<Button type="button" variant="destructive-outline" disabled={isPending} onClick={onDiscard}>
 					Discard draft
@@ -760,7 +789,10 @@ function ServiceForm({
 						Open resource
 					</Button>
 				)}
-				<Button type="submit" disabled={isPending || resourceId !== undefined}>{`Deploy ${name}`}</Button>
+				<Button type="submit" disabled={isPending || resourceId !== undefined}>
+					{isPending && <Spinner aria-hidden />}
+					{`Deploy ${name}`}
+				</Button>
 			</SheetFooter>
 		</form>
 	);
@@ -768,7 +800,8 @@ function ServiceForm({
 
 function deployErrorText(error: DeployError | null): string | null {
 	if (error === null) return null;
-	return error.field === null ? error.message : `${API_FIELD_LABEL[error.field.field]}: ${error.field.message}`;
+	if (error.field === null) return error.message;
+	return error.field.field === "image" ? null : `${API_FIELD_LABEL[error.field.field]}: ${error.field.message}`;
 }
 
 function FooterError({ blocker, deployError }: { blocker: string | null; deployError: DeployError | null }) {
@@ -781,15 +814,8 @@ function FooterError({ blocker, deployError }: { blocker: string | null; deployE
 	);
 }
 
-function EnvSection({
-	rows,
-	error,
-	onChange,
-}: {
-	rows: EnvRow[];
-	error: string | null;
-	onChange: (rows: EnvRow[]) => void;
-}) {
+function EnvSection({ rows, onChange }: { rows: EnvRow[]; onChange: (rows: EnvRow[]) => void }) {
+	const rowErrors = envRowErrors(rows);
 	const [pasteOpen, setPasteOpen] = useState(false);
 	const [pasteText, setPasteText] = useState("");
 	const [focusId, setFocusId] = useState<string | null>(null);
@@ -862,10 +888,15 @@ function EnvSection({
 					<ul aria-label="Variables" className="m-0 list-none overflow-hidden rounded-[10px] border border-line p-0">
 						{rows.map((r) => {
 							const label = r.key.trim() === "" ? "variable" : r.key.trim();
+							const rowError = rowErrors.get(r.id);
 							return (
 								<li
 									key={r.id}
-									className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]"
+									data-invalid={rowError !== undefined || undefined}
+									className={cn(
+										"grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center border-b border-line last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]",
+										rowError !== undefined && "bg-bad-bg",
+									)}
 								>
 									<span className="flex min-w-0 items-center border-r border-line">
 										<Input
@@ -918,12 +949,16 @@ function EnvSection({
 									>
 										<Trash2Icon />
 									</Button>
+									{rowError !== undefined && (
+										<span className="col-span-full border-t border-line px-3 py-1.5 text-[12.5px] text-bad-fg">
+											{rowError}
+										</span>
+									)}
 								</li>
 							);
 						})}
 					</ul>
 				)}
-				{error !== null && <span className="text-[12.5px] text-bad-fg">{error}</span>}
 				<p className="m-0 text-[12.5px] text-fg3">
 					Mark each sensitive value as Secret. Secret values stay in this drawer until you deploy; re-enter them after
 					closing or reloading it.

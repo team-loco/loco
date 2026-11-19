@@ -145,9 +145,9 @@ export function Resources() {
 				}
 			/>
 			{body}
-			{params[NEW_RESOURCE_PARAM] !== null && !envsLoading && (
+			{params[NEW_RESOURCE_PARAM] !== null && (
 				<NewService
-					key={active?.id}
+					loading={envsLoading}
 					orgId={orgId}
 					workspaceId={workspaceId}
 					env={active}

@@ -11,6 +11,7 @@ import {
 	apiFieldError,
 	deploymentVariables,
 	envError,
+	envRowErrors,
 	firstError,
 	healthCheckSpec,
 	scalingSpec,
@@ -72,14 +73,28 @@ test("servedDomains keeps only domains every selected region serves", () => {
 	expect(servedDomains(domains, ["us-east-1"])).toEqual(["a.test", "b.test"]);
 });
 
-test("envError ignores blank rows and reports rows the API would reject", () => {
-	expect(envError([row("A", "1"), row("", "", "blank")])).toBeNull();
-	expect(envError([row("", "x")])).toBe("A variable has a value but no name");
-	expect(envError([row("1BAD", "x")])).toBe(
-		"1BAD isn't a valid name: use letters, digits and _, not starting with a digit",
-	);
+test("envRowErrors names every row the API would reject and allows empty values", () => {
+	const secret = (key: string, id: string): EnvRow => ({ id, key, value: "x", secret: true });
+	expect(envRowErrors([row("A", "1"), row("", "", "blank"), row("EMPTY", "")]).size).toBe(0);
 	expect(envError([row("EMPTY", "")])).toBeNull();
-	expect(envError([row("A", "1", "a"), row(" A ", "2", "b")])).toBe("A is set twice");
+	expect(
+		Object.fromEntries(
+			envRowErrors([
+				row("", "x", "unnamed"),
+				row("1BAD", "x", "bad"),
+				row("A", "1", "a"),
+				row(" A ", "2", "b"),
+				secret("low", "s"),
+			]),
+		),
+	).toEqual({
+		unnamed: "Enter a name for this value",
+		bad: "Use letters, digits and _, not starting with a digit",
+		a: "A is set more than once",
+		b: "A is set more than once",
+		s: "Secret names use uppercase letters",
+	});
+	expect(envError([row("", "x"), row("1BAD", "x")])).toBe("Fix the 2 highlighted variables");
 });
 
 test("mergeEnv replaces pasted keys in place, appends new ones and drops blank rows", () => {
@@ -260,14 +275,15 @@ test("looksSecret flags keys whose words name a credential", () => {
 
 test("imageError asks for an image reference before the drawer opens", () => {
 	expect(imageError("  ")).toBe("Enter an image");
-	expect(imageError("Not An Image")).toBe("Use registry/repository:tag");
+	expect(imageError("Not An Image")).toBe("An image reference can't contain spaces");
+	expect(imageError("UPPER/Case")).toBe("Use lowercase letters in the image reference");
+	expect(imageError("nope::bad")).toBe("Use registry/repository:tag");
 	expect(imageError(" ghcr.io/acme/web:1.4.2 ")).toBeNull();
 });
 
 test("marked values only go to the secret write and the YAML names their bindings", () => {
 	const vars = [row("LOG_LEVEL", "info"), { ...row("API_KEY", "private-test-value"), secret: true }];
 	expect(deploymentVariables(vars)).toEqual({ env: { LOG_LEVEL: "info" }, secrets: { API_KEY: "private-test-value" } });
-	expect(envError([{ ...row("api_key", "value"), secret: true }])).toBeNull();
 	const yaml = locoYaml({ schemaUrl: "", form: { ...form, vars } });
 	expect(yaml).toContain("secrets: [API_KEY]");
 	expect(yaml).toContain('LOG_LEVEL: "info"');

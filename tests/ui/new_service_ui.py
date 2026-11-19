@@ -245,18 +245,52 @@ with session(out) as browser:
     assert not errors, errors
     context.close()
 
+    context, page, errors = open_page(browser, "owner")
+    pending_scopes = []
+    context.route(
+        "**/loco.token.v1.TokenService/GetScopes",
+        lambda route: pending_scopes.append(route),
+        times=1,
+    )
+    with page.expect_request("**/loco.token.v1.TokenService/GetScopes"):
+        page.goto(base + "/resources?env=production&new=1")
+    early = page.get_by_role("dialog", name="New resource").get_by_role(
+        "textbox", name="Container image"
+    )
+    early.press_sequentially("ghcr.io/acme/early:1")
+    for route in pending_scopes:
+        route.continue_()
+    expect(
+        page.get_by_role("dialog", name="New resource").get_by_role(
+            "textbox", name="Name"
+        )
+    ).to_have_value("early")
+    expect(early).to_have_value("ghcr.io/acme/early:1")
+    assert not errors, errors
+    context.close()
+
     repository = f"shop-{suffix}"
     image = f"registry.example.com/acme/{repository}:1.4.2"
     name = repository
     context, page, errors = open_page(browser, "owner")
     deployments = []
     rejected = []
-    resolutions = []
+    reject_next = []
+    missing = "registry.example.com/acme/doesnotexist:1"
     pinned_image = f"registry.example.com/acme/{repository}@sha256:" + "a" * 64
 
     def resolve_image(route):
-        resolutions.append(route.request.post_data_json)
-        if len(resolutions) == 2:
+        if route.request.post_data_json["image"] == missing:
+            route.fulfill(
+                status=400,
+                json={
+                    "code": "invalid_argument",
+                    "message": f'Image "{missing}" was not found. Check the repository and tag or digest.',
+                },
+            )
+            return
+        if reject_next:
+            reject_next.pop()
             rejected.append(route.request.post_data_json)
             route.continue_(
                 post_data=json.dumps(
@@ -385,6 +419,10 @@ with session(out) as browser:
     page.keyboard.press("ArrowRight")
     page.keyboard.press("ArrowRight")
     expect(cpu).to_have_attribute("aria-valuetext", "0.5 vCPU")
+    # Clicking the track moves the thumb to the nearest step.
+    rail = drawer.locator(".dsl-rail").nth(1).bounding_box()
+    page.mouse.click(rail["x"] + rail["width"] - 3, rail["y"] + rail["height"] / 2)
+    expect(memory).to_have_attribute("aria-valuetext", "4 Gi")
     memory.focus()
     page.keyboard.press("Home")
     for _ in range(3):
@@ -476,14 +514,28 @@ with session(out) as browser:
     drawer.get_by_role("button", name="Add", exact=True).click()
     expect(names.nth(2)).to_be_focused()
     names.nth(2).fill("1EXTRA")
-    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
-    expect(drawer.get_by_role("alert")).to_have_text(
-        "1EXTRA isn't a valid name: use letters, digits and _, not starting with a digit"
+    drawer.get_by_role("button", name="Add", exact=True).click()
+    variables.get_by_role("textbox", name="Value of variable").fill("orphan")
+    # Every invalid row is marked at once.
+    expect(variables.get_by_role("listitem").nth(2)).to_contain_text(
+        "Use letters, digits and _, not starting with a digit"
     )
+    expect(variables.get_by_role("listitem").nth(3)).to_contain_text(
+        "Enter a name for this value"
+    )
+    expect(variables.locator("[data-invalid]")).to_have_count(2)
+    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+    expect(drawer.get_by_role("alert")).to_have_text("Fix the 2 highlighted variables")
     variables.get_by_role("button", name="Remove 1EXTRA", exact=True).click()
+    variables.get_by_role("button", name="Remove variable", exact=True).click()
     expect(variables.get_by_role("listitem")).to_have_count(2)
+    expect(variables.locator("[data-invalid]")).to_have_count(0)
+    # A variable may be empty.
+    drawer.get_by_role("button", name="Add", exact=True).click()
+    names.nth(2).fill("EMPTY_FLAG")
+    expect(variables.locator("[data-invalid]")).to_have_count(0)
     expect(
-        drawer.get_by_role("heading", name="Environment variables 2")
+        drawer.get_by_role("heading", name="Environment variables 3")
     ).to_be_visible()
 
     health = drawer.get_by_role("button", name=re.compile(r"^Health check"))
@@ -595,6 +647,7 @@ with session(out) as browser:
     interval.fill("15")
     expect(drawer.get_by_role("alert")).to_have_count(0)
     creations_before = len(creations)
+    reject_next.append(True)
     with expect_rpc(
         page, "ResolveImage", lambda body: body.get("workspaceId") == workspace
     ) as resolution:
@@ -604,8 +657,40 @@ with session(out) as browser:
         "google.rpc.BadRequest",
         "google.rpc.ErrorInfo",
     ], details
-    expect(drawer.get_by_role("alert")).to_have_text(
-        "Container image: Invalid image reference. Use a repository with a tag or digest."
+    resolve_error = drawer.get_by_text(
+        "Invalid image reference. Use a repository with a tag or digest.", exact=True
+    )
+    expect(resolve_error).to_be_visible()
+    expect(drawer.get_by_role("alert")).to_have_count(0)
+    # The image is editable in the drawer; a bad reference is named at the field.
+    image_field = drawer.get_by_role("textbox", name="Container image", exact=True)
+    image_field.fill("UPPER/Case")
+    expect(resolve_error).to_have_count(0)
+    expect(
+        drawer.get_by_text("Use lowercase letters in the image reference", exact=True)
+    ).to_have_count(1)
+    drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+    expect(drawer.get_by_role("alert")).to_have_count(0)
+    expect(
+        drawer.get_by_text("Use lowercase letters in the image reference", exact=True)
+    ).to_have_count(1)
+    # An image the registry does not have is flagged before Deploy.
+    image_field.fill(missing)
+    expect(
+        drawer.get_by_text(
+            f'Image "{missing}" was not found. Check the repository and tag or digest.',
+            exact=True,
+        )
+    ).to_have_count(1)
+    expect(drawer.get_by_role("alert")).to_have_count(0)
+    assert not order, order
+    image_field.fill(image)
+    expect(drawer.get_by_role("alert")).to_have_count(0)
+    assert (
+        json.loads(page.evaluate(f"localStorage.getItem({json.dumps(drafts_key)})"))[0][
+            "image"
+        ]
+        == image
     )
     assert len(creations) == creations_before, creations
     assert sql(state, f"SELECT count(*) FROM resources WHERE name='{name}';") == "0"
@@ -716,8 +801,20 @@ with session(out) as browser:
     expect(page).to_have_url(DRAFT_URL)
     secret_value.fill("sk_test")
     drawer.get_by_role("textbox", name="Description").fill("Takes checkout payments")
+    pending = []
+    page.route(
+        "**/loco.deployment.v1.DeploymentService/CreateDeployment",
+        lambda route: pending.append(route),
+    )
+    deploy_button = drawer.get_by_role("button", name=f"Deploy {name}", exact=True)
     with expect_rpc(page, "CreateDeployment", lambda body: "spec" in body):
-        drawer.get_by_role("button", name=f"Deploy {name}", exact=True).click()
+        deploy_button.click()
+        expect(deploy_button).to_be_disabled()
+        expect(deploy_button.locator("[data-slot=spinner]")).to_be_visible()
+        expect(page).to_have_url(DRAFT_URL)
+        while not pending:
+            page.wait_for_timeout(50)
+        pending[0].fallback()
 
     expect(page).to_have_url(re.compile(r"/resource/[0-9a-f-]+\?env=production$"))
     expect(drawer).to_have_count(0)
@@ -754,7 +851,7 @@ with session(out) as browser:
     assert sizing["minReplicas"] == 2 and sizing["maxReplicas"] == 2, spec
     assert sizing["scalers"] == {}, spec
     assert sizing["cpu"] == "500m" and sizing["memory"] == "1Gi", spec
-    assert spec["env"] == {"LOG_LEVEL": "info"}, spec
+    assert spec["env"] == {"LOG_LEVEL": "info", "EMPTY_FLAG": ""}, spec
     assert spec["args"] == ["-text=hello world", "-listen=:8080"], spec
     assert "command" not in spec, spec
     assert deployments[0]["secretBindings"] == {"names": ["STRIPE_API_KEY"]}
