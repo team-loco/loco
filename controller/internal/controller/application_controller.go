@@ -114,8 +114,9 @@ type ApplicationReconciler struct {
 func (r *ApplicationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	slog.DebugContext(ctx, "reconciling application", "namespace", req.Namespace, "name", req.Name)
 
+	// The cache can lag a stop the previous reconcile recorded, and the objects applied follow it.
 	app := &locov1alpha1.Application{}
-	if err := r.Get(ctx, req.NamespacedName, app); err != nil {
+	if err := r.APIReader.Get(ctx, req.NamespacedName, app); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
