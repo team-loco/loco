@@ -206,6 +206,17 @@ func TestListEgressUsageNeverSkipsABucketFromASlowerTransaction(t *testing.T) {
 	f := newUsageFixture(t)
 	ctx := t.Context()
 	owner := f.egressOwner()
+	bucket := func(resourceID uuid.UUID) genDb.AddEgressUsageParams {
+		return genDb.AddEgressUsageParams{
+			ClusterID:       f.clusterID,
+			HourStart:       testEgressHour,
+			OrganizationIds: []uuid.UUID{uuid.MustParse(owner.org)},
+			WorkspaceIds:    []uuid.UUID{uuid.MustParse(owner.workspace)},
+			ResourceIds:     []uuid.UUID{resourceID},
+			EnvironmentIds:  []uuid.UUID{f.envID},
+			Bytes:           []int64{1},
+		}
+	}
 	slow, err := f.pool.Begin(ctx)
 	if err != nil {
 		t.Fatalf("begin: %v", err)
@@ -216,24 +227,10 @@ func TestListEgressUsageNeverSkipsABucketFromASlowerTransaction(t *testing.T) {
 			t.Errorf("rollback: %v", rollbackErr)
 		}
 	}()
-	slowBucket := map[egressBucketKey]*egressBucket{
-		{resourceID: f.resourceID, environmentID: f.envID}: {
-			organizationID: uuid.MustParse(owner.org),
-			workspaceID:    uuid.MustParse(owner.workspace),
-			bytes:          1,
-		},
-	}
-	if addErr := addEgressUsage(ctx, genDb.New(slow), f.clusterID, testEgressHour, slowBucket); addErr != nil {
+	if addErr := genDb.New(slow).AddEgressUsage(ctx, bucket(f.resourceID)); addErr != nil {
 		t.Fatalf("add in the slow transaction: %v", addErr)
 	}
-	fastBucket := map[egressBucketKey]*egressBucket{
-		{resourceID: uuid.New(), environmentID: f.envID}: {
-			organizationID: uuid.MustParse(owner.org),
-			workspaceID:    uuid.MustParse(owner.workspace),
-			bytes:          1,
-		},
-	}
-	if addErr := addEgressUsage(ctx, f.queries, f.clusterID, testEgressHour, fastBucket); addErr != nil {
+	if addErr := f.queries.AddEgressUsage(ctx, bucket(uuid.New())); addErr != nil {
 		t.Fatalf("add in the fast transaction: %v", addErr)
 	}
 

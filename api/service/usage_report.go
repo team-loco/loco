@@ -86,17 +86,6 @@ type egressCounterKey struct {
 	route string
 }
 
-type egressBucketKey struct {
-	resourceID    uuid.UUID
-	environmentID uuid.UUID
-}
-
-type egressBucket struct {
-	organizationID uuid.UUID
-	workspaceID    uuid.UUID
-	bytes          int64
-}
-
 func recordEgress(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -126,29 +115,27 @@ func recordEgress(
 	for _, row := range stored {
 		previous[egressCounterKey{pod: row.GatewayPodUid, route: row.Route}] = row
 	}
-	added := make(map[egressBucketKey]*egressBucket)
+	added := genDb.AddEgressUsageParams{ClusterID: clusterID, HourStart: reportedAt.UTC().Truncate(time.Hour)}
 	for i, counter := range counters {
 		key := egressCounterKey{pod: upsert.GatewayPodUids[i], route: counter.GetRoute()}
 		row, seen := previous[key]
 		if !seen || !reportedAt.After(row.ObservedAt) {
 			continue
 		}
-		bucketKey := egressBucketKey{
-			resourceID:    uuid.MustParse(counter.GetResourceId()),
-			environmentID: uuid.MustParse(counter.GetEnvironmentId()),
+		increase := counterIncrease(row.Bytes, counter.GetBytes())
+		if increase == 0 {
+			continue
 		}
-		bucket, ok := added[bucketKey]
-		if !ok {
-			bucket = &egressBucket{
-				organizationID: uuid.MustParse(counter.GetOrganizationId()),
-				workspaceID:    uuid.MustParse(counter.GetWorkspaceId()),
-			}
-			added[bucketKey] = bucket
-		}
-		bucket.bytes += counterIncrease(row.Bytes, counter.GetBytes())
+		added.OrganizationIds = append(added.OrganizationIds, uuid.MustParse(counter.GetOrganizationId()))
+		added.WorkspaceIds = append(added.WorkspaceIds, uuid.MustParse(counter.GetWorkspaceId()))
+		added.ResourceIds = append(added.ResourceIds, uuid.MustParse(counter.GetResourceId()))
+		added.EnvironmentIds = append(added.EnvironmentIds, uuid.MustParse(counter.GetEnvironmentId()))
+		added.Bytes = append(added.Bytes, increase)
 	}
-	if err := addEgressUsage(ctx, qtx, clusterID, reportedAt, added); err != nil {
-		return err
+	if len(added.Bytes) > 0 {
+		if err := qtx.AddEgressUsage(ctx, added); err != nil {
+			return fmt.Errorf("add egress usage: %w", err)
+		}
 	}
 	if err := qtx.UpsertEgressCounters(ctx, upsert); err != nil {
 		return fmt.Errorf("upsert egress counters: %w", err)
@@ -161,34 +148,6 @@ func counterIncrease(previous, current int64) int64 {
 		return current
 	}
 	return current - previous
-}
-
-func addEgressUsage(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	clusterID uuid.UUID,
-	reportedAt time.Time,
-	added map[egressBucketKey]*egressBucket,
-) error {
-	hour := reportedAt.UTC().Truncate(time.Hour)
-	params := genDb.AddEgressUsageParams{ClusterID: clusterID, HourStart: hour}
-	for key, bucket := range added {
-		if bucket.bytes == 0 {
-			continue
-		}
-		params.OrganizationIds = append(params.OrganizationIds, bucket.organizationID)
-		params.WorkspaceIds = append(params.WorkspaceIds, bucket.workspaceID)
-		params.ResourceIds = append(params.ResourceIds, key.resourceID)
-		params.EnvironmentIds = append(params.EnvironmentIds, key.environmentID)
-		params.Bytes = append(params.Bytes, bucket.bytes)
-	}
-	if len(params.Bytes) == 0 {
-		return nil
-	}
-	if err := qtx.AddEgressUsage(ctx, params); err != nil {
-		return fmt.Errorf("add egress usage: %w", err)
-	}
-	return nil
 }
 
 func workloadRunParams(

@@ -94,12 +94,16 @@ DELETE FROM egress_counters
 WHERE cluster_id = sqlc.arg(cluster_id) AND observed_at < sqlc.arg(observed_at);
 
 -- name: AddEgressUsage :exec
-WITH added AS (
+WITH reported AS (
     SELECT unnest(sqlc.arg(organization_ids)::uuid[]) AS organization_id,
            unnest(sqlc.arg(workspace_ids)::uuid[]) AS workspace_id,
            unnest(sqlc.arg(resource_ids)::uuid[]) AS resource_id,
            unnest(sqlc.arg(environment_ids)::uuid[]) AS environment_id,
            unnest(sqlc.arg(bytes)::bigint[]) AS bytes
+), added AS (
+    SELECT organization_id, workspace_id, resource_id, environment_id, sum(bytes)::bigint AS bytes
+    FROM reported
+    GROUP BY organization_id, workspace_id, resource_id, environment_id
 )
 INSERT INTO egress_usage (
     cluster_id, region, organization_id, workspace_id, resource_id, environment_id, hour_start, bytes

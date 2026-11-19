@@ -13,12 +13,16 @@ import (
 )
 
 const addEgressUsage = `-- name: AddEgressUsage :exec
-WITH added AS (
+WITH reported AS (
     SELECT unnest($3::uuid[]) AS organization_id,
            unnest($4::uuid[]) AS workspace_id,
            unnest($5::uuid[]) AS resource_id,
            unnest($6::uuid[]) AS environment_id,
            unnest($7::bigint[]) AS bytes
+), added AS (
+    SELECT organization_id, workspace_id, resource_id, environment_id, sum(bytes)::bigint AS bytes
+    FROM reported
+    GROUP BY organization_id, workspace_id, resource_id, environment_id
 )
 INSERT INTO egress_usage (
     cluster_id, region, organization_id, workspace_id, resource_id, environment_id, hour_start, bytes
