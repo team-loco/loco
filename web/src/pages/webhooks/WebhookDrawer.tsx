@@ -146,7 +146,7 @@ function WebhookDetail({
 				<div className="flex min-w-0 flex-1 flex-col gap-0.5">
 					<span className="text-[12px] text-fg3">Webhook</span>
 					<SheetTitle className="truncate font-mono text-[15px] font-medium" title={webhook.url}>
-						{new URL(webhook.url).host}
+						{webhook.name === "" ? new URL(webhook.url).host : webhook.name}
 					</SheetTitle>
 				</div>
 				<WebhookActions
