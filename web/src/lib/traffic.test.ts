@@ -110,7 +110,7 @@ describe("traffic over a range", () => {
 		expect(changeLabel(undefined, 3)).toBeUndefined();
 	});
 	it("formats counts and bytes compactly", () => {
-		expect([formatCompact(1234), formatCompact(12)]).toEqual(["1.2K", "12"]);
+		expect([formatCompact(1234), formatCompact(12), formatCompact(50.2)]).toEqual(["1.2K", "12", "50"]);
 		expect([formatBytes(512), formatBytes(1_500_000), formatBytes(412_000_000_000)]).toEqual([
 			"512 B",
 			"1.5 MB",

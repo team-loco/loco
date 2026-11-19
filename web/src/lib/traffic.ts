@@ -128,8 +128,9 @@ export function changeLabel(current: number | undefined, prior: number | undefin
 const compact = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, notation: "compact" });
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 
+/** Formats a request or error count, which is whole even when it comes from integrated rates. */
 export function formatCompact(value: number): string {
-	return compact.format(value);
+	return compact.format(Math.round(value));
 }
 
 export function formatBytes(value: number): string {
