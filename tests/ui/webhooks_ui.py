@@ -161,7 +161,9 @@ next_attempt_at=NOW()+INTERVAL '1 day',attempts=1,last_error='fixture receiver u
     with page.expect_request("**/" + service + "SendTestEvent"):
         page.keyboard.press("Enter")
     expect(send_test).to_be_focused()
-    held.pop().continue_()
+    # A test event that reaches the server queues a delivery the sender fails against
+    # hooks.invalid, which changes the Failing count checked below.
+    held.pop().fulfill(json={})
     expect(page.get_by_text("Sent a test event", exact=True)).to_be_visible()
     expect(send_test).to_be_focused()
     assert any(method == "SendTestEvent" for method, _ in requests)
