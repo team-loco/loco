@@ -148,6 +148,9 @@ STAMP = NOW.isoformat()
 
 def metrics(route):
     body = route.request.post_data_json
+    if body.get("byPod"):
+        route.fulfill(json={"series": []})
+        return
     value = USAGE[body["aggregation"]] if "cpu" in body["metricName"] else 0.25
     route.fulfill(
         json={
