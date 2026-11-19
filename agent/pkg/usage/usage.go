@@ -18,6 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/team-loco/loco/agent/pkg/kube"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	locolabels "github.com/team-loco/loco/k8sapi/labels"
 )
@@ -48,6 +49,8 @@ type Meter struct {
 	mu    sync.Mutex
 	ended map[types.UID]*endedRun
 	wake  chan struct{}
+
+	watching context.Context
 }
 
 func Start(ctx context.Context, cfg *rest.Config) (*Meter, error) {
@@ -55,8 +58,10 @@ func Start(ctx context.Context, cfg *rest.Config) (*Meter, error) {
 	if err := corev1.AddToScheme(scheme); err != nil {
 		return nil, fmt.Errorf("failed to add core types to scheme: %w", err)
 	}
+	ctx, onWatchError := kube.StopOnDeadWatch(ctx)
 	c, err := cache.New(cfg, cache.Options{
-		Scheme: scheme,
+		Scheme:                   scheme,
+		DefaultWatchErrorHandler: onWatchError,
 		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Pod{}: {Label: applicationPods},
 		},
@@ -65,6 +70,7 @@ func Start(ctx context.Context, cfg *rest.Config) (*Meter, error) {
 		return nil, fmt.Errorf("failed to create pod cache: %w", err)
 	}
 	m := New(c, time.Now)
+	m.watching = ctx
 	informer, err := c.GetInformer(ctx, &corev1.Pod{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pod informer: %w", err)
@@ -93,6 +99,16 @@ func New(reader client.Reader, now func() time.Time) *Meter {
 		now:    now,
 		ended:  make(map[types.UID]*endedRun),
 		wake:   make(chan struct{}, 1),
+	}
+}
+
+// Wait blocks until ctx ends or the pod watch stops for good, and returns why.
+func (m *Meter) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-m.watching.Done():
+		return context.Cause(m.watching)
 	}
 }
 

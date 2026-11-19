@@ -36,7 +36,7 @@ import (
 
 // agentLoops is the number of goroutines Agent.Run starts. Each gets a slot in errCh so none
 // blocks on its send after Run has returned.
-const agentLoops = 4
+const agentLoops = 5
 
 func main() {
 	cfg := newAgentConfig()
@@ -248,6 +248,10 @@ func (a *Agent) Run(ctx context.Context) error {
 
 	go func() {
 		errCh <- a.builds.Wait(ctx)
+	}()
+
+	go func() {
+		errCh <- a.usage.Wait(ctx)
 	}()
 
 	select {
