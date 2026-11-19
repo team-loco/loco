@@ -353,6 +353,75 @@ def log_levels(page):
     wait_for_query(page, lambda query: query.get("q") == ["@level:error"])
 
 
+def workload_logs(page):
+    now = datetime.now(UTC)
+    entries = [
+        {
+            "timestamp": stamp(now, timedelta(seconds=5)),
+            "level": "LOG_LEVEL_INFO",
+            "body": "Checkout request served",
+            "resourceId": resource,
+            "resourceAttributes": {"k8s.pod.name": "controls-pilot-7d9f-x2k4p"},
+        },
+        {
+            "timestamp": stamp(now, timedelta(seconds=9)),
+            "level": "LOG_LEVEL_ERROR",
+            "body": "Broker connection lost",
+            "resourceAttributes": {
+                "k8s.statefulset.name": "kafka",
+                "k8s.pod.name": "kafka-0",
+            },
+        },
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "2"}),
+    )
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    lines = page.get_by_role("region", name="Log lines")
+    workload_row = lines.get_by_role(
+        "button", name=re.compile(r"Broker connection lost$")
+    )
+    expect(workload_row).to_contain_text("kafka")
+    expect(lines).not_to_contain_text("unknown")
+    expect(
+        workload_row.get_by_title("Kubernetes workload, not a Loco resource")
+    ).to_be_visible()
+    search = page.locator('input[aria-label="Search and filter"]')
+    search.fill("@resource:")
+    expect(
+        page.get_by_role("option", name=re.compile(r"^@resource:controls-pilot"))
+    ).to_be_visible()
+    expect(page.get_by_role("option", name=re.compile(r"kafka"))).to_have_count(0)
+    search.press("Escape")
+    workload_row.click()
+    detail = page.get_by_role("dialog")
+    expect(
+        detail.get_by_title("Kubernetes workload, not a Loco resource")
+    ).to_be_visible()
+    expect(detail.get_by_text("@resource", exact=True)).to_have_count(0)
+    expect(detail.get_by_text("@k8s.statefulset.name", exact=True)).to_be_visible()
+    detail.get_by_role("button", name="More for this line", exact=True).click()
+    expect(
+        page.get_by_role("menuitem", name=re.compile(r"^Logs around this line"))
+    ).to_be_visible()
+    expect(
+        page.get_by_role("menuitem", name=re.compile(r"^Metrics around"))
+    ).to_have_count(0)
+    expect(page.get_by_role("menuitem", name=re.compile(r"^View "))).to_have_count(0)
+    page.keyboard.press("Escape")
+    page.keyboard.press("Escape")
+    expect(detail).to_have_count(0)
+    lines.get_by_role("button", name=re.compile(r"Checkout request served$")).click()
+    expect(detail.get_by_text("@resource", exact=True)).to_be_visible()
+    detail.get_by_role("button", name="More for this line", exact=True).click()
+    expect(
+        page.get_by_role("menuitem", name=re.compile(r"^Metrics around"))
+    ).to_be_visible()
+    page.keyboard.press("Escape")
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
+
+
 def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
@@ -1373,6 +1442,7 @@ with session(out) as browser:
         mobile_sidebar,
         activity_deployments,
         log_levels,
+        workload_logs,
         log_paging,
         live_focus,
         time_presets,

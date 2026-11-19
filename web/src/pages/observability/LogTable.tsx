@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { columnLabel, columnValue, columnWidth, PICKABLE_COLUMNS, type ColumnKey, type ColumnWidths } from "./columns";
 import { bodyParts, fmtTs, jsonPreview, LEVEL_LABEL, levelStyle } from "./format";
 import { LIST_HEAD_CLASS, listRowClass, useResizableColumns } from "./ListGrid";
-import type { LogRow } from "./rows";
+import { WORKLOAD_TITLE, type LogRow } from "./rows";
 
 const TIME_WIDTH = 112;
 const DATED_TIME_WIDTH = 172;
@@ -161,7 +161,13 @@ function Cell({ row, column }: { row: LogRow; column: ColumnKey }) {
 		case "level":
 			return <span className={cn("text-[12.5px]", levelStyle(row.level).text)}>{LEVEL_LABEL[row.level]}</span>;
 		case "resource":
-			return <span className="block truncate text-[12.5px]">{row.resourceName}</span>;
+			return row.workload ? (
+				<span className="block truncate font-mono text-[12px] text-fg3" title={WORKLOAD_TITLE}>
+					{row.resourceName}
+				</span>
+			) : (
+				<span className="block truncate text-[12.5px]">{row.resourceName}</span>
+			);
 		default: {
 			const value = columnValue(row, column);
 			return value === "" ? (

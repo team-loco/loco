@@ -36,7 +36,7 @@ import type { ColumnKey } from "./columns";
 import { useObs } from "./context";
 import { bodyParts, LEVEL_LABEL, levelStyle } from "./format";
 import { queryKeyReason, quoteValue, withToken, type Token } from "./query";
-import type { LogRow } from "./rows";
+import { WORKLOAD_TITLE, type LogRow } from "./rows";
 import { CopyButton, PanelNav } from "./shared";
 
 const NUMERIC_RE = /^\d+(\.\d+)?$/;
@@ -54,7 +54,11 @@ function attributes(row: LogRow): Attribute[] {
 	const e = row.entry;
 	const field = (key: string, value: string) => ({ key, value: quoteValue(value) });
 	const list: Attribute[] = [
-		{ key: "resource", value: row.resourceName, filter: field("resource", row.resourceName), column: "resource" },
+		...(row.workload
+			? []
+			: [
+					{ key: "resource", value: row.resourceName, filter: field("resource", row.resourceName), column: "resource" },
+				]),
 		{ key: "replica", value: row.replica, filter: field("replica", row.pod), column: "replica" },
 		{ key: "region", value: row.region, filter: field("region", row.region), column: "region" },
 		{ key: "level", value: row.level, filter: field("level", row.level), column: "level" },
@@ -115,7 +119,7 @@ export function LogDetail({
 			timestamp: new Date(row.ts).toISOString(),
 			level: row.level,
 			message: row.json ?? e.body,
-			resource: row.resourceName,
+			[row.workload ? "workload" : "resource"]: row.resourceName,
 			replica: row.pod,
 			region: row.region,
 			trace_id: e.traceId,
@@ -133,7 +137,19 @@ export function LogDetail({
 			<div className="flex shrink-0 items-start gap-3 border-b border-line pt-[18px] pr-4 pb-4 pl-6">
 				<div className="flex min-w-0 flex-1 flex-col gap-1.5">
 					<div className="flex min-w-0 items-baseline gap-2.5">
-						<Title className="m-0 truncate text-[20px] font-normal tracking-[-0.02em]">{row.resourceName}</Title>
+						<Title
+							className={cn(
+								"m-0 truncate text-[20px] font-normal tracking-[-0.02em]",
+								row.workload && "max-w-full shrink-0",
+							)}
+						>
+							{row.resourceName}
+						</Title>
+						{row.workload && (
+							<span className="min-w-0 truncate text-[12px] text-fg3" title={WORKLOAD_TITLE}>
+								Kubernetes workload
+							</span>
+						)}
 						<span className="truncate font-mono text-[12px] text-fg3">
 							{[row.replica, row.region].filter((part) => part !== "").join(" · ")}
 						</span>
@@ -201,19 +217,21 @@ export function LogDetail({
 									<ItemText label={`Only replica ${row.replica}`} sub="Add @replica filter" />
 								</DropdownMenuItem>
 							)}
-							<DropdownMenuItem
-								className="items-start"
-								onClick={() => {
-									goTo("metrics", {
-										range: aroundWindow(row.ts, Date.now()),
-										tokens: [{ neg: false, key: "resource", value: row.resourceName }],
-										focusTs: row.ts,
-									});
-								}}
-							>
-								<ChartLineIcon />
-								<ItemText label="Metrics around this line" sub={`${row.resourceName}, ${AROUND_LABEL}`} />
-							</DropdownMenuItem>
+							{!row.workload && (
+								<DropdownMenuItem
+									className="items-start"
+									onClick={() => {
+										goTo("metrics", {
+											range: aroundWindow(row.ts, Date.now()),
+											tokens: [{ neg: false, key: "resource", value: row.resourceName }],
+											focusTs: row.ts,
+										});
+									}}
+								>
+									<ChartLineIcon />
+									<ItemText label="Metrics around this line" sub={`${row.resourceName}, ${AROUND_LABEL}`} />
+								</DropdownMenuItem>
+							)}
 							{e.traceId !== "" && (
 								<DropdownMenuItem
 									className="items-start"
