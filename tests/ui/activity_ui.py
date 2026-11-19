@@ -235,6 +235,9 @@ def check_scoped_user(browser):
                 route.continue_()
                 return
             method = url.path.rsplit("/", 1)[-1]
+            if method == "TailLogs":
+                route.continue_()
+                return
             body = route.request.post_data_json
             if method in telemetry:
                 # The proxy serves a caller without workspace read only for resources it names and reads.
