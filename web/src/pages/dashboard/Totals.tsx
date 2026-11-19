@@ -7,6 +7,7 @@ import {
 	sumTotals,
 	trafficSeries,
 	trafficTotals,
+	type TrafficWindow,
 	type TrafficField,
 	type TrafficPoint,
 } from "@/lib/traffic";
@@ -275,6 +276,7 @@ function TrafficCard({
 	current,
 	prior,
 	stepMs,
+	windows,
 	range,
 	state,
 	names,
@@ -284,14 +286,15 @@ function TrafficCard({
 	current: TrafficPoint[];
 	prior: TrafficPoint[];
 	stepMs: number;
+	windows: { current: TrafficWindow; prior: TrafficWindow };
 	range: string;
 	state: "loading" | "error" | "ready";
 	names: Map<string, string>;
 	hrefFor: (id: string) => string;
 }) {
-	const perResource = trafficTotals(current, spec.field, stepMs);
+	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
 	const total = sumTotals(perResource);
-	const change = changeLabel(total, sumTotals(trafficTotals(prior, spec.field, stepMs)));
+	const change = changeLabel(total, sumTotals(trafficTotals(prior, spec.field, stepMs, windows.prior)));
 	const shown = state === "loading" ? "…" : state === "error" || total === undefined ? "—" : spec.format(total);
 	const rows = [...perResource.entries()]
 		.filter(([, amount]) => amount > 0)
@@ -348,7 +351,12 @@ export function Totals({
 	const stepMs = stepSeconds(spanMs) * 1000;
 	const scope = { workspaceId, environmentId, resourceIds: [], spanMs };
 	const traffic = useTraffic(scope);
-	const prior = useTraffic({ ...scope, endMs: Math.floor(nowMs / stepMs) * stepMs - spanMs });
+	const priorEndMs = Math.floor(nowMs / stepMs) * stepMs - spanMs;
+	const prior = useTraffic({ ...scope, endMs: priorEndMs });
+	const windows = {
+		current: { startMs: traffic.endMs - spanMs, endMs: traffic.endMs },
+		prior: { startMs: priorEndMs - spanMs, endMs: priorEndMs },
+	};
 	const state = traffic.isLoading ? "loading" : traffic.error !== null ? "error" : "ready";
 	const names = new Map(value.resources.map((r) => [r.id, r.name]));
 	return (
@@ -381,6 +389,7 @@ export function Totals({
 						current={traffic.points}
 						prior={prior.points}
 						stepMs={stepMs}
+						windows={windows}
 						range={range}
 						state={state}
 						names={names}

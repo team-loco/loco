@@ -68,7 +68,7 @@ describe("traffic over a range", () => {
 		{ resourceId: "a", time: 60_000, requests: 4, errors: 0, bytes: 3000 },
 	];
 	it("turns per-second rates into totals per resource", () => {
-		const totals = trafficTotals(points, "requests", 60_000);
+		const totals = trafficTotals(points, "requests", 60_000, { startMs: 0, endMs: 120_000 });
 		expect(totals).toEqual(
 			new Map([
 				["a", 360],
@@ -76,8 +76,25 @@ describe("traffic over a range", () => {
 			]),
 		);
 		expect(sumTotals(totals)).toBe(420);
-		expect(sumTotals(trafficTotals(points, "bytes", 0))).toBe(0);
-		expect(sumTotals(trafficTotals([], "bytes", 60_000))).toBeUndefined();
+		expect(sumTotals(trafficTotals(points, "bytes", 0, { startMs: 0, endMs: 120_000 }))).toBe(0);
+		expect(sumTotals(trafficTotals([], "bytes", 60_000, { startMs: 0, endMs: 120_000 }))).toBeUndefined();
+	});
+	it("totals a partial last bucket over the time it covers", () => {
+		const stepMs = 1440_000;
+		const startMs = 10 * stepMs;
+		const endMs = startMs + 911_000;
+		const partial = [{ resourceId: "a", time: startMs, requests: 50 / 911 }];
+		expect(sumTotals(trafficTotals(partial, "requests", stepMs, { startMs: startMs - 5 * stepMs, endMs }))).toBeCloseTo(
+			50,
+		);
+	});
+	it("totals a first bucket that starts before the window over the time inside it", () => {
+		const stepMs = 1440_000;
+		const startMs = 10 * stepMs + 500_000;
+		const clipped = [{ resourceId: "a", time: 10 * stepMs, requests: 30 / 940 }];
+		expect(sumTotals(trafficTotals(clipped, "requests", stepMs, { startMs, endMs: startMs + 3 * stepMs }))).toBeCloseTo(
+			30,
+		);
 	});
 	it("sums buckets across resources in time order", () => {
 		expect(trafficSeries(points, "requests")).toEqual([3, 4]);
