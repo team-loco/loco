@@ -16,6 +16,7 @@ The `loco-control-plane` chart sets some of these from typed values and passes t
 | `PPROF_ADDR` | empty | Address of a Go pprof server. Empty runs none. |
 | `CORS_ALLOWED_ORIGINS` | empty | Comma-separated browser origins allowed to call the API. The `WEB_URL` origin is always allowed. |
 | `WEB_URL` | empty | Dashboard origin. Required when `AUTH_ISSUERS` configures a dashboard client; invitation links point at it. |
+| `LOCO_TRUSTED_PROXY_HOPS` | `0` | How many proxies in front of the API append the address they received a request from to `X-Forwarded-For`. The API shows the entry that many places from the right as a session's address; `0` uses the connection's address. The chart sets `1` for its gateway. |
 | `LOCO_RPC_TIMEOUT` | `30s` | Deadline of each unary RPC. Streams have none. |
 | `LOCO_SHUTDOWN_DRAIN_TIMEOUT` | `30s` | How long shutdown waits for open requests before closing their connections. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | OTLP/HTTP endpoint for the API's own traces. Tracing is off while this and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` are both empty. The OpenTelemetry SDK reads its other `OTEL_*` variables too. |

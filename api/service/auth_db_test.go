@@ -31,6 +31,7 @@ const (
 )
 
 type authFixture struct {
+	pool    *pgxpool.Pool
 	server  *AuthServer
 	client  authv1connect.AuthServiceClient
 	machine *tvm.VendingMachine
@@ -58,6 +59,7 @@ func newAuthFixture(t *testing.T) *authFixture {
 	userID := signUp(t, openResolver(t, pool), identity.Subject, identity.Email)
 
 	f := &authFixture{
+		pool:    pool,
 		machine: machine,
 		queries: queries,
 		clock:   time.Now(),
@@ -407,5 +409,34 @@ func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
 	}
 	if device.approved != 2 {
 		t.Fatalf("approval events committed when the device grant was stored = %d, want 2", device.approved)
+	}
+}
+
+func TestSessionAddressIgnoresAClientSuppliedForwardedEntry(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	f.server.web.TrustedProxyHops = 1
+	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	}); approveErr != nil {
+		t.Fatalf("approve: %v", approveErr)
+	}
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("X-Forwarded-For", "198.51.100.66, 203.0.113.9")
+	if _, pollErr := f.client.PollDeviceLogin(ctx, &authv1.PollDeviceLoginRequest{
+		DeviceCode: started.GetDeviceCode(),
+	}); pollErr != nil {
+		t.Fatalf("poll: %v", pollErr)
+	}
+	principal, _ := reqctx.PrincipalFrom(f.webCtx)
+	var address netip.Addr
+	if scanErr := f.pool.QueryRow(
+		t.Context(), "SELECT ip_address FROM session_tokens WHERE user_id = $1", principal.UserID,
+	).Scan(&address); scanErr != nil || address.String() != "203.0.113.9" {
+		t.Fatalf("session address = %v (%v), want the address the gateway appended", address, scanErr)
 	}
 }

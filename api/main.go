@@ -337,6 +337,8 @@ func newDeps(
 			Provider: provider,
 			Resolver: resolver,
 			Cookies:  auth.NewWebCookies(ac.WebURL, ac.CORSAllowedOrigins),
+
+			TrustedProxyHops: ac.TrustedProxyHops,
 		},
 	)
 	clusterSilentAfter := service.ClusterSilentAfter(ac.HeartbeatInterval)

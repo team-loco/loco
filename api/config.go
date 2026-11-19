@@ -241,6 +241,7 @@ type APIConfig struct {
 	StreamAuth            auth.StreamConfig
 	SignupPolicy          auth.SignupPolicy
 	WebURL                string
+	TrustedProxyHops      int
 	Invitations           service.InvitationConfig
 	SchemaURL             string
 	EventsRetention       time.Duration
@@ -327,6 +328,7 @@ func newAPIConfig() *APIConfig {
 		Ingest:                ingestConfig,
 		Version:               buildinfo.Version(version),
 		Env:                   envconfig.String("APP_ENV", ""),
+		TrustedProxyHops:      int(nonNegativeInt32Env("LOCO_TRUSTED_PROXY_HOPS", 0)),
 		Database:              database,
 		DatabaseListenConfig:  databaseListenConfig,
 		PlacementPollInterval: envconfig.PositiveDuration("LOCO_PLACEMENT_POLL_INTERVAL", defaultPlacementPollInterval),
