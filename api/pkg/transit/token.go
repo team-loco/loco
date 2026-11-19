@@ -120,7 +120,8 @@ func (t *Client) drainRejections() {
 
 // logIn makes the first token lookup, with token auth, or the first login, with Kubernetes
 // auth, and stores the lease. While Transit is unreachable or answers with a server error it
-// retries every renewRetry until ctx is done; any other failure is returned at once.
+// retries every renewRetry until ctx is done. With Kubernetes auth a refused login is retried
+// too, since the role may not exist yet; any other failure is returned at once.
 func (t *Client) logIn(ctx context.Context) (tokenLease, error) {
 	refresh := t.lookupToken
 	if t.kubernetes != nil {
@@ -132,7 +133,7 @@ func (t *Client) logIn(ctx context.Context) (tokenLease, error) {
 			t.setTokenLease(lease)
 			return lease, nil
 		}
-		if !isUnavailable(err) {
+		if !t.retriesLogin(err) {
 			return tokenLease{}, err
 		}
 		slog.WarnContext(ctx, "transit is unavailable; logging in again", "error", err, "in", t.renewRetry)
@@ -140,6 +141,10 @@ func (t *Client) logIn(ctx context.Context) (tokenLease, error) {
 			return tokenLease{}, fmt.Errorf("%w: %w", ErrUnavailable, err)
 		}
 	}
+}
+
+func (t *Client) retriesLogin(err error) bool {
+	return isUnavailable(err) || t.kubernetes != nil && errors.Is(err, ErrPermissionDenied)
 }
 
 func isUnavailable(err error) bool {
