@@ -9,13 +9,13 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { EmptyState } from "@/components/design/EmptyState";
 import { Section } from "@/components/design/Page";
-import { DeploymentActor, DeploymentCommit } from "@/components/design/DeploymentOrigin";
+import { DeploymentActor, DeploymentId } from "@/components/design/DeploymentOrigin";
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentRegions } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
-import { formatStarted, readyMs, shortDurationLabel } from "@/lib/time";
+import { agoLabel, formatStarted, readyMs } from "@/lib/time";
 
 import {
 	ALL_DEPLOYMENTS,
@@ -96,7 +96,7 @@ export function RecentDeployments({
 							<TableHead className="w-[120px]">Status</TableHead>
 							<TableHead className="w-[140px]">Resource</TableHead>
 							<TableHead className="w-[110px]">Region</TableHead>
-							<TableHead className="w-[110px]">Commit</TableHead>
+							<TableHead className="w-[110px]">Deployment</TableHead>
 							<TableHead className="w-[180px]">Deployed by</TableHead>
 							<TableHead>Message</TableHead>
 							<TableHead className="w-[130px] text-right">When</TableHead>
@@ -133,7 +133,7 @@ export function RecentDeployments({
 										{deploymentRegions(d).join(", ")}
 									</TableCell>
 									<TableCell>
-										<DeploymentCommit deployment={d} />
+										<DeploymentId deployment={d} />
 									</TableCell>
 									<TableCell>
 										<DeploymentActor deployment={d} />
@@ -146,7 +146,7 @@ export function RecentDeployments({
 										title={ready === undefined ? undefined : formatStarted(ready, timePref)}
 									>
 										<span className="inline-flex items-center gap-1.5">
-											{ready === undefined ? "—" : shortDurationLabel(nowMs - ready)}
+											{ready === undefined ? "—" : agoLabel(ready, nowMs)}
 											<ArrowRightIcon
 												aria-hidden
 												className="size-3.5 -translate-x-[3px] text-foreground opacity-0 transition-[opacity,translate] duration-120 group-hover/row:translate-x-0 group-hover/row:opacity-100"

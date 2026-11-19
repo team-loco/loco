@@ -1,8 +1,8 @@
 import { DeploymentActorType, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { KeyRoundIcon } from "lucide-react";
 
-import { deploymentActor, deploymentImage, deploymentMethod, shortSha } from "@/lib/deployment-utils";
-import { imageVersion } from "@/lib/image";
+import { deploymentActor, deploymentMethod, shortSha } from "@/lib/deployment-utils";
+import { formatShortId } from "@/lib/utils";
 import { MemberAvatar } from "@/pages/team/MemberAvatar";
 
 export function DeploymentActor({ deployment: d }: { deployment: Deployment }) {
@@ -35,15 +35,17 @@ export function DeploymentActor({ deployment: d }: { deployment: Deployment }) {
 	);
 }
 
-export function DeploymentCommit({ deployment: d }: { deployment: Deployment }) {
-	const image = deploymentImage(d);
-	const label = d.commit === undefined ? (image === "" ? "" : imageVersion(image)) : shortSha(d.commit.sha);
-	if (label === "") return <span className="text-fg4">—</span>;
+export function DeploymentId({ deployment: d }: { deployment: Deployment }) {
 	return (
-		<span className="flex min-w-0 items-center gap-1.5">
-			<span className="truncate font-mono text-[12.5px] text-foreground" title={d.commit?.sha ?? image}>
-				{label}
+		<span className="flex min-w-0 flex-col gap-px">
+			<span className="truncate font-mono text-[12.5px] text-foreground" title={d.id}>
+				{formatShortId(d.id)}
 			</span>
+			{d.commit !== undefined && (
+				<span className="truncate font-mono text-[11px] text-fg3" title={d.commit.sha}>
+					{shortSha(d.commit.sha)}
+				</span>
+			)}
 		</span>
 	);
 }

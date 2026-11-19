@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/design/Button";
 import { Kbd } from "@/components/design/Kbd";
 import { formatCount } from "@/lib/format";
+import { agoLabel } from "@/lib/time";
 import { useStoredJSON } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,6 @@ import { useObs } from "./context";
 import { levelStyle } from "./format";
 import {
 	addRecent,
-	agoShort,
 	COMPLETED_TOKEN_RE,
 	fieldDef,
 	hasBoolean,
@@ -252,7 +252,7 @@ export function QueryBar({ valueCounts }: { valueCounts: ValueCounts }) {
 					key: `r:${r.q}`,
 					icon: <HistoryIcon className="size-3.5" />,
 					main: r.q,
-					hint: agoShort(r.ts, now),
+					hint: agoLabel(r.ts, now),
 					apply: () => {
 						loadQuery(r.q);
 					},
