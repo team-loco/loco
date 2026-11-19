@@ -252,7 +252,7 @@ func existingGeneratedDomain(ctx context.Context, t cmdutil.Target, name, base, 
 }
 
 func domainBase(name string) string {
-	prefix := locofile.Slug(name)
+	prefix := name
 	if len(prefix) > locofile.MaxServiceNameLength-domainSuffixLength-1 {
 		prefix = strings.TrimSuffix(prefix[:locofile.MaxServiceNameLength-domainSuffixLength-1], "-")
 	}

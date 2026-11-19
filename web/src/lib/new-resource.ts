@@ -6,10 +6,14 @@ import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 import { isEnvKey } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
 import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
-import { MAX_SLUG_LENGTH, slug } from "@/lib/slug";
+import { slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
-const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+// mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
+const NAME_RE = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
+const RESERVED_NAME_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+export const NAME_RULE =
+	"Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit";
 const DIGITS_RE = /^\d+$/;
 const LOCO_YAML_VERSION = 1;
 
@@ -60,11 +64,11 @@ export interface ApiFieldError {
 	message: string;
 }
 
-export function nameFromImage(image: string, takenSlugs: ReadonlySet<string>): string {
+export function nameFromImage(image: string, taken: ReadonlySet<string>): string {
 	const base = slug(parseImage(image.trim()).repository);
 	if (base === "") return "";
 	let name = base;
-	for (let i = 2; takenSlugs.has(name); i++) name = `${base}-${i.toString()}`;
+	for (let i = 2; taken.has(name); i++) name = `${base}-${i.toString()}`;
 	return name;
 }
 
@@ -119,15 +123,12 @@ export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () =>
 	return [...kept, ...pairs.filter(([key]) => !present.has(key)).map(([key, value]) => ({ id: newId(), key, value }))];
 }
 
-export function nameError(name: string, takenSlugs: ReadonlyMap<string, string>): string | null {
-	if (name.trim() === "") return "Enter a name";
-	if (Array.from(name).length > MAX_SLUG_LENGTH) return `Use at most ${MAX_SLUG_LENGTH.toString()} characters`;
-	const s = slug(name);
-	if (s === "") return "Use at least one letter or digit";
-	if (RESERVED_SLUG_RE.test(s)) return `${s} is reserved`;
-	const holder = takenSlugs.get(s);
-	if (holder === undefined) return null;
-	return holder === name ? `${name} already exists in this workspace` : `${holder} already uses the name ${s}`;
+export function nameError(name: string, taken: ReadonlySet<string>): string | null {
+	if (name === "") return "Enter a name";
+	if (!NAME_RE.test(name)) return NAME_RULE;
+	if (RESERVED_NAME_RE.test(name)) return `${name} is reserved`;
+	if (taken.has(name)) return `${name} already exists in this workspace`;
+	return null;
 }
 
 function subdomainError(form: NewResourceForm, availability: DomainCheck["state"]): string | null {
@@ -290,7 +291,7 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	const lines = [
 		...(schemaUrl === "" ? [] : [`# yaml-language-server: $schema=${schemaUrl}`]),
 		`version: ${LOCO_YAML_VERSION.toString()}`,
-		`partial: ${scalar(slug(form.name), FLOW_PLAIN_RE)}`,
+		`partial: ${scalar(form.name, FLOW_PLAIN_RE)}`,
 		"",
 		"services:",
 		`  ${name}:`,

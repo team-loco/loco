@@ -495,9 +495,10 @@ func (*ResourceSpec_Service) isResourceSpec_Spec() {}
 
 // Resource represents a resource in a workspace.
 type Resource struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	Id                  string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	WorkspaceId         string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	WorkspaceId string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// name is the resource's slug: a DNS label, unique in its workspace, that never changes.
 	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	Type                ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
 	Domains             []*v11.ResourceDomain  `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
@@ -509,7 +510,6 @@ type Resource struct {
 	UpdatedAt           *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	Partial             *string                `protobuf:"bytes,12,opt,name=partial,proto3,oneof" json:"partial,omitempty"`
 	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,13,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
-	Slug                string                 `protobuf:"bytes,14,opt,name=slug,proto3" json:"slug,omitempty"`
 	// revision increases with every change to the resource spec or its scaling.
 	Revision int64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
 	// display_name is the label the dashboard shows. It starts as name; name never changes.
@@ -637,13 +637,6 @@ func (x *Resource) GetEnvironmentStatuses() []*EnvironmentStatus {
 		return x.EnvironmentStatuses
 	}
 	return nil
-}
-
-func (x *Resource) GetSlug() string {
-	if x != nil {
-		return x.Slug
-	}
-	return ""
 }
 
 func (x *Resource) GetRevision() int64 {
@@ -845,11 +838,12 @@ func (x *RegionStatus) GetReplicas() []*v1.Replica {
 type CreateResourceRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type        ResourceType           `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
-	Domain      *v11.DomainInput       `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
-	Spec        *ResourceSpec          `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
-	Description *string                `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// A DNS label other than localhost and resource-<UUID>.
+	Name        string           `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Type        ResourceType     `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
+	Domain      *v11.DomainInput `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
+	Spec        *ResourceSpec    `protobuf:"bytes,5,opt,name=spec,proto3" json:"spec,omitempty"`
+	Description *string          `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// The environment for domain. If omitted, the workspace's production environment is used.
 	EnvironmentId *string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2145,7 +2139,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\r_health_check\"Q\n" +
 	"\fResourceSpec\x129\n" +
 	"\aservice\x18\x01 \x01(\v2\x1d.loco.resource.v1.ServiceSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xc6\x05\n" +
+	"\x04spec\"\xb2\x05\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
@@ -2163,8 +2157,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
 	"\apartial\x18\f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
-	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x12\n" +
-	"\x04slug\x18\x0e \x01(\tR\x04slug\x12\x1a\n" +
+	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x1a\n" +
 	"\brevision\x18\x0f \x01(\x03R\brevision\x12!\n" +
 	"\fdisplay_name\x18\x10 \x01(\tR\vdisplayNameB\a\n" +
 	"\x05_specB\x0e\n" +
@@ -2189,10 +2182,10 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\breplicas\x18\t \x03(\v2\x1b.loco.deployment.v1.ReplicaR\breplicasB\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
-	"\f_reported_at\"\xea\x04\n" +
+	"\f_reported_at\"\xe1\x04\n" +
 	"\x15CreateResourceRequest\x12+\n" +
-	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
-	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18?R\x04name\x12<\n" +
+	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12<\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeB\b\xbaH\x05\x82\x01\x02\x18\x01R\x04type\x128\n" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +

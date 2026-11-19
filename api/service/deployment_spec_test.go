@@ -78,7 +78,6 @@ func testServiceResource() genDb.Resource {
 		ID:          uuid.New(),
 		WorkspaceID: uuid.New(),
 		Name:        planSvc,
-		Slug:        planSvc,
 		Type:        genDb.ResourceTypeService,
 	}
 }

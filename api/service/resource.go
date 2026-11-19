@@ -29,7 +29,6 @@ import (
 	domainv1 "github.com/team-loco/loco/gen/go/loco/domain/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/gen/go/loco/resource/v1/resourcev1connect"
-	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/rpcerr"
 	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -42,12 +41,10 @@ var (
 		connect.CodeAlreadyExists,
 		"resource name already exists in this workspace",
 	)
-	errPrivateServiceName = rpcerr.NewCoded(connect.CodeInvalidArgument,
-		"resource name needs a letter or digit, and its slug cannot be localhost or resource-<UUID>",
-	)
-	errSlugInUse = rpcerr.NewCoded(
-		connect.CodeAlreadyExists,
-		"another resource in this workspace has the same slug",
+	errInvalidResourceName = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"resource name must be 1 to 63 lowercase letters, digits and hyphens, "+
+			"starting and ending with a letter or digit, and not localhost or resource-<UUID>",
 	)
 	ErrClusterNotFound     = errors.New("cluster not found")
 	ErrInvalidResourceType = errors.New("invalid resource type")
@@ -116,9 +113,8 @@ func (s *ResourceServer) CreateResource(
 		return nil, err
 	}
 
-	slug := resourceSlug(req.GetName())
-	if slug == "" {
-		return nil, errPrivateServiceName
+	if !validResourceName(req.GetName()) {
+		return nil, errInvalidResourceName
 	}
 
 	if req.GetSpec().GetService() == nil {
@@ -138,7 +134,6 @@ func (s *ResourceServer) CreateResource(
 		WorkspaceID: workspaceID,
 		CreatedBy:   p.ActorID,
 		Name:        req.GetName(),
-		Slug:        slug,
 		Type:        genDb.ResourceTypeService,
 		Spec:        specJSON,
 		SpecVersion: specVersion,
@@ -154,16 +149,10 @@ func (s *ResourceServer) CreateResource(
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, workspaceID); lockErr != nil {
 			return lockErr
 		}
-		if slugErr := checkSlugFree(ctx, qtx, workspaceID, slug, nil); slugErr != nil {
-			return slugErr
-		}
 		var createErr error
 		resourceID, createErr = qtx.CreateResource(ctx, params)
 		if isUniqueViolation(createErr, pgResourceNameUnique) {
-			return ErrResourceNameNotUnique
-		}
-		if isUniqueViolation(createErr, pgResourceSlugUnique) {
-			return errSlugInUse
+			return ErrResourceNameNotUnique.Detail("%s", req.GetName())
 		}
 		if createErr != nil {
 			return fmt.Errorf("insert resource: %w", createErr)
@@ -1022,7 +1011,6 @@ func dbResourceToProto(
 		Id:                  res.ID.String(),
 		WorkspaceId:         res.WorkspaceID.String(),
 		Name:                res.Name,
-		Slug:                res.Slug,
 		DisplayName:         res.DisplayName,
 		Type:                resourcev1.ResourceType_RESOURCE_TYPE_SERVICE,
 		Spec:                spec,
@@ -1090,32 +1078,8 @@ func (s *ResourceServer) GetResourceEnv(
 	return &resourcev1.GetResourceEnvResponse{Env: plain, SecretNames: secretNames}, nil
 }
 
-// resourceSlug is the DNS label a resource's private Service and generated subdomain use, or ""
-// when the name has none or it is reserved.
-func resourceSlug(name string) string {
-	return locoControllerV1.PrivateServiceName(locofile.Slug(name))
-}
-
-// checkSlugFree returns errSlugInUse naming the workspace resource, other than except, that
-// already holds slug.
-func checkSlugFree(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	workspaceID uuid.UUID,
-	slug string,
-	except *uuid.UUID,
-) error {
-	params := genDb.GetResourceNameBySlugParams{WorkspaceID: workspaceID, Slug: slug, ExceptID: except}
-	other, err := qtx.GetResourceNameBySlug(ctx, params)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("look up slug %s: %w", slug, err)
-	}
-	return slugTakenError(slug, other)
-}
-
-func slugTakenError(slug, holder string) error {
-	return errSlugInUse.Detail("%s is used by %q", slug, holder)
+// validResourceName reports whether name can name a resource: a DNS label that is not reserved
+// for private service discovery.
+func validResourceName(name string) bool {
+	return locoControllerV1.PrivateServiceName(name) != ""
 }

@@ -100,7 +100,6 @@ func (a *applier) create(ctx context.Context, qtx *genDb.Queries, op configplan.
 		WorkspaceID: a.env.WorkspaceID,
 		CreatedBy:   principal.ActorID,
 		Name:        op.Service,
-		Slug:        resourceSlug(op.Service),
 		Type:        genDb.ResourceTypeService,
 		Spec:        specJSON,
 		SpecVersion: specVersion,

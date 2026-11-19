@@ -30,10 +30,12 @@ func TestSlug(t *testing.T) {
 }
 
 func TestIsServiceName(t *testing.T) {
-	for _, name := range []string{"web", "Checkout API", "Café", strings.Repeat("é", 62) + "a"} {
+	for _, name := range []string{"web", "123cart", "qa-echo", strings.Repeat("a", MaxServiceNameLength)} {
 		assert.True(t, IsServiceName(name), name)
 	}
-	for _, name := range []string{"", "!!!", "--", strings.Repeat("a", MaxServiceNameLength+1)} {
+	for _, name := range []string{
+		"", "!!!", "--", "-bad-", "Checkout API", "Café", "🚀rocket", strings.Repeat("a", MaxServiceNameLength+1),
+	} {
 		assert.False(t, IsServiceName(name), name)
 	}
 }

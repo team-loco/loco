@@ -295,7 +295,6 @@ func TestSchemaAcceptsWhatParseAndResolveAccept(t *testing.T) {
 		"null removals":        nullOverrideFile,
 		"empty services":       "version: 1\npartial: api\nservices: {}\n",
 		"overrides and toggle": tddExample,
-		"display name":         strings.Replace(minimalFile, "  api:", "  Checkout API:", 1),
 	}
 	for name, file := range files {
 		t.Run(name, func(t *testing.T) {
@@ -321,6 +320,14 @@ func TestSchemaRejectsNullOutsideOverrides(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			assert.Error(t, validateAgainstSchema(t, schema, file))
 		})
+	}
+}
+
+func TestSchemaRejectsServiceNamesThatAreNotDNSLabels(t *testing.T) {
+	schema := compileSchema(t)
+	for _, name := range []string{"QA Echo", "Cart", "-bad-"} {
+		file := strings.Replace(minimalFile, "  api:", "  \""+name+"\":", 1)
+		assert.Error(t, validateAgainstSchema(t, schema, file), name)
 	}
 }
 

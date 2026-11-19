@@ -1,13 +1,10 @@
 package locofile
 
-import (
-	"strings"
-	"unicode/utf8"
-)
+import "strings"
 
-// Slug turns a name into a DNS label: lowercase letters and digits, runs of anything else
-// collapsed to one hyphen, at most 63 characters. It returns "" when the name has no letter or
-// digit. A resource's private hostname and generated subdomain are the slug of its name.
+// Slug turns text, such as a directory name, into a DNS label: lowercase letters and digits,
+// runs of anything else collapsed to one hyphen, at most 63 characters. It returns "" when the
+// text has no letter or digit.
 func Slug(name string) string {
 	var b strings.Builder
 	for _, char := range strings.ToLower(name) {
@@ -23,8 +20,7 @@ func Slug(name string) string {
 	return strings.Trim(b.String(), "-")
 }
 
-// IsServiceName reports whether name can name a service: at most 63 characters, with a letter or
-// digit for its slug.
+// IsServiceName reports whether name can name a service: a DNS label of at most 63 characters.
 func IsServiceName(name string) bool {
-	return utf8.RuneCountInString(name) <= MaxServiceNameLength && Slug(name) != ""
+	return isDNSLabel(name)
 }

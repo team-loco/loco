@@ -1,7 +1,7 @@
 # every structural error is reported with its path, and the command exits 1.
 ! exec loco infra validate
 stderr 'Invalid loco.yaml:'
-stderr 'partial: must be a DNS label'
+stderr 'partial: must be 1 to 63 lowercase letters'
 stderr 'services.web: image cannot be combined with dockerfile or context'
 stderr 'services.web.routing: needs port; a service without port is a worker and receives no traffic'
 stderr 'services.web.regions.us-east-1.autoscaling: autoscaling needs exactly one of cpuTarget or memoryTarget'

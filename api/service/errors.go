@@ -90,7 +90,6 @@ func fieldError(code connect.Code, field, message, reason string) *connect.Error
 const (
 	pgEnvironmentNameUnique   = "environments_workspace_id_name_key"
 	pgResourceNameUnique      = "resources_workspace_id_name_key"
-	pgResourceSlugUnique      = "resources_workspace_id_slug_key"
 	pgDomainUnique            = "resource_domains_domain_key"
 	pgPlatformSubdomainUnique = "uniq_platform_subdomain"
 	pgOpenInvitationUnique    = "invitations_open_idx"

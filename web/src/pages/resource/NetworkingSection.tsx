@@ -27,7 +27,6 @@ import { Switch } from "@/components/design/Switch";
 import { useDomainAvailability } from "@/hooks/useDomainAvailability";
 import { toastConnectError } from "@/lib/error-handler";
 import { domainCoverage } from "@/lib/platform-domain";
-import { slug } from "@/lib/slug";
 import { LimitedAction, LimitUsageText } from "@/components/design/LimitedAction";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
@@ -269,7 +268,7 @@ function AddDomainForm({
 				regions={regions}
 				check={check}
 				owner={resourceName}
-				placeholder={slug(resourceName)}
+				placeholder={resourceName}
 				disabled={locked}
 				describedBy={[unserved ? unservedId : undefined, describedBy].filter(Boolean).join(" ") || undefined}
 				onSubdomainChange={setSubdomain}
@@ -356,7 +355,7 @@ export function NetworkingSection({
 					aria-label="Public"
 					aria-describedby={describedBy}
 					onCheckedChange={(checked: boolean) => {
-						onChange({ isPublic: checked, platformDomain, subdomain: draft.subdomain ?? slug(base.name) });
+						onChange({ isPublic: checked, platformDomain, subdomain: draft.subdomain ?? base.name });
 					}}
 				/>
 			</div>

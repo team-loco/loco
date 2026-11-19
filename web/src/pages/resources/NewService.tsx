@@ -59,7 +59,6 @@ import {
 	type NewResourceForm,
 } from "@/lib/new-resource";
 import { sizeOptions, type SizeOptions } from "@/lib/sizing";
-import { slug } from "@/lib/slug";
 import { useServiceDeploy, type DeployError } from "@/hooks/useServiceDeploy";
 
 const SKELETON_ROWS = 6;
@@ -82,7 +81,7 @@ const HEALTH_FIELDS: ReadonlySet<ApiField> = new Set(["path", "interval", "timeo
 
 function useTakenNames(orgId: string, workspaceId: string): Map<string, string> {
 	const resourcesQuery = useQuery(useWorkspaceResourcesOptions(orgId, workspaceId));
-	return new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.slug, r.name]));
+	return new Map((resourcesQuery.data?.resources ?? []).map((r) => [r.name, r.displayName]));
 }
 
 export function NewService({
@@ -102,7 +101,7 @@ export function NewService({
 	const [image, setImage] = useState("");
 	const [editedName, setEditedName] = useState<string | null>(null);
 	const taken = useTakenNames(orgId, workspaceId);
-	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...store.drafts.map((d) => slug(d.name))]));
+	const name = editedName ?? nameFromImage(image, new Set([...taken.keys(), ...store.drafts.map((d) => d.name)]));
 	return (
 		<Dialog
 			open
@@ -157,7 +156,7 @@ function ImageStep({
 	const [edited, setEdited] = useState(false);
 	const error = imageError(image);
 	const shown = tried || edited ? error : null;
-	const nameErr = nameError(name, taken);
+	const nameErr = nameError(name, new Set(taken.keys()));
 
 	if (scopes.isLoading) {
 		return (
@@ -376,7 +375,7 @@ function DraftPanel({
 				}
 				tried={tried}
 				healthOpen={healthOpen}
-				holder={taken.get(slug(draft.name)) ?? null}
+				holder={taken.get(draft.name) ?? null}
 				onTry={() => {
 					setTried(true);
 				}}
@@ -506,7 +505,7 @@ function ServiceForm({
 		maxReplicas: size.maxReplicas,
 		cpuTarget: size.cpuTarget,
 		isPublic: draftIsPublic(draft),
-		subdomain: edits.subdomain ?? slug(name),
+		subdomain: edits.subdomain ?? name,
 		platformDomain: served.find((d) => d === edits.platformDomain) ?? served[0] ?? "",
 		port: edits.port ?? "",
 		vars: edits.vars ?? [],
@@ -625,7 +624,7 @@ function ServiceForm({
 									options={platformDomains.filter((d) => served.includes(d.domain))}
 									regions={regions}
 									check={check}
-									placeholder={slug(name)}
+									placeholder={name}
 									onSubdomainChange={(subdomain) => {
 										set({ subdomain });
 									}}

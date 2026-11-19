@@ -19,6 +19,7 @@ import {
 	looksSecret,
 	locoYaml,
 	mergeEnv,
+	NAME_RULE,
 	nameError,
 	nameFromImage,
 	portRangeError,
@@ -99,13 +100,13 @@ test("validateForm accepts a complete form", () => {
 });
 
 test("nameError follows the API's name rules", () => {
-	const nameErr = (name: string, taken = new Map<string, string>()) => nameError(name, taken);
+	const nameErr = (name: string, taken = new Set<string>()) => nameError(name, taken);
 	expect(nameErr("")).toBe("Enter a name");
-	expect(nameErr("!!!")).toBe("Use at least one letter or digit");
-	expect(nameErr("Localhost")).toBe("localhost is reserved");
-	expect(nameErr("x".repeat(64))).toBe("Use at most 63 characters");
-	expect(nameErr("web", new Map([["web", "web"]]))).toBe("web already exists in this workspace");
-	expect(nameErr("Web", new Map([["web", "web"]]))).toBe("web already uses the name web");
+	for (const bad of ["!!!", "QA Echo", "Web", "🚀rocket", "<script>x</script>", "-bad-", " web", "x".repeat(64)])
+		expect(nameErr(bad)).toBe(NAME_RULE);
+	for (const ok of ["web", "123cart", "qa-echo", "x".repeat(63)]) expect(nameErr(ok)).toBeNull();
+	expect(nameErr("localhost")).toBe("localhost is reserved");
+	expect(nameErr("web", new Set(["web"]))).toBe("web already exists in this workspace");
 });
 
 test("portRangeError accepts 1 through 65535 and rejects the rest", () => {

@@ -37,7 +37,7 @@ func validate(file *File) error {
 	for _, name := range sortedKeys(file.Services) {
 		service := file.Services[name]
 		if !IsServiceName(name) {
-			errs = append(errs, &FieldError{Path: servicePath(name), Err: ErrInvalidServiceName})
+			errs = append(errs, &FieldError{Path: servicePath(name), Err: ErrInvalidName})
 		}
 		errs = append(errs, validateService(servicePath(name), service)...)
 		for _, env := range sortedKeys(service.Environments) {
