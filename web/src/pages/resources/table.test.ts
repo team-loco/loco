@@ -399,7 +399,6 @@ describe("URL state", () => {
 		"env-staging": true,
 		size: true,
 		replicas: false,
-		cost: true,
 		address: false,
 		image: false,
 		created: false,
@@ -423,7 +422,7 @@ describe("URL state", () => {
 			sort: { id: "created", desc: true },
 			page: 2,
 			size: 50 as const,
-			cols: { ...shown, "env-production": false, size: false, cost: false, image: true },
+			cols: { ...shown, "env-production": false, size: false, image: true },
 		};
 		const written = serialize(state);
 		expect(new URLSearchParams(written).get("cols")).toBe("env-staging,image");

@@ -18,7 +18,6 @@ import { ChevronDownIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 
-import { SoonTag } from "@/components/design/SoonTag";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { pluralize } from "@/lib/format";
@@ -29,7 +28,6 @@ import type { Allocation } from "./allocation";
 import { trafficResourceName } from "./trafficNames";
 import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
-const SPEND = "Spend";
 const TOP = 5;
 const PERCENT = 100;
 
@@ -48,19 +46,6 @@ function CardHead({ label, children }: { label: string; children?: ReactNode }) 
 			{label}
 			{children}
 		</span>
-	);
-}
-
-function SoonCard({ label }: { label: string }) {
-	return (
-		<div className={cn(CARD, "text-fg4")} aria-label={`${label}: not available yet`}>
-			<CardHead label={label}>
-				<SoonTag />
-			</CardHead>
-			<span data-slot="stat-value" className={VALUE} aria-hidden="true">
-				—
-			</span>
-		</div>
 	);
 }
 
@@ -421,7 +406,6 @@ export function Totals({
 						hrefFor={hrefFor}
 					/>
 				))}
-				<SoonCard label={SPEND} />
 				<AllocatedCard value={value} hrefFor={hrefFor} />
 			</section>
 			{traffic.error !== null && (

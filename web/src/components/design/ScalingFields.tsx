@@ -3,11 +3,8 @@ import type { ReplicaRange } from "@/lib/sizing";
 
 import { Field } from "./Field";
 import { RangeSlider } from "./RangeSlider";
-import { SoonTag } from "./SoonTag";
 import { Stepper } from "./Stepper";
 import { Switch } from "./Switch";
-
-const MEMORY_TARGET = 80;
 
 export function autoscales(value: Scaling): boolean {
 	return value.maxReplicas > value.replicas;
@@ -99,20 +96,6 @@ export function ScalingFields({
 						onChange={(cpuTarget) => {
 							onChange({ ...value, cpuTarget });
 						}}
-					/>
-					<RangeSlider
-						label={`Memory target (%)${suffix}`}
-						heading={
-							<span className="flex items-center gap-2">
-								Memory target
-								<SoonTag />
-							</span>
-						}
-						value={MEMORY_TARGET}
-						min={1}
-						max={100}
-						disabled
-						onChange={() => undefined}
 					/>
 				</div>
 			) : (

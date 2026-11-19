@@ -10,7 +10,6 @@ import { Badge, type BadgeTone } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { Dialog, DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { Input } from "@/components/design/Input";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
@@ -299,7 +298,6 @@ function SecretLine({
 				}}
 			/>
 			<div className="flex items-center justify-end">
-				{value === "" && secret !== undefined && <SoonTag />}
 				<RevealButton name={row.name} reveal={reveal} disabled={value === "" || removed} />
 				<span className="flex size-7 items-center justify-center text-fg3" title="Secret">
 					<LockIcon aria-label="Secret" className="size-3.5" />

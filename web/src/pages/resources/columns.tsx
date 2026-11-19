@@ -248,7 +248,6 @@ export function resourceColumns(environments: Environment[]): DataColumn<ListRow
 			meta: { defaultHidden: true },
 			cell: ({ row }) => <Mono text={replicasLabel(row.original)} />,
 		},
-		{ id: "cost", header: "Est. cost", size: 110, enableSorting: false, meta: { soon: true } },
 		{
 			id: "address",
 			header: "Address",
