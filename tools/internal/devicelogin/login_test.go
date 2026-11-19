@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
 	"google.golang.org/protobuf/proto"
@@ -73,7 +74,29 @@ func TestPasswordGrantAndDeviceApproval(t *testing.T) {
 	}
 }
 
+func TestApprovalRetriesWhileUnavailable(t *testing.T) {
+	approveRetry = time.Millisecond
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
+		if attempts < approveAttempts {
+			http.Error(w, "upstream connect error", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/proto")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	if err := Approve(t.Context(), server.URL, "token", "ABCD-EFGH"); err != nil {
+		t.Fatalf("approve after %d attempts: %v", attempts, err)
+	}
+	if attempts != approveAttempts {
+		t.Fatalf("%d attempts, want %d", attempts, approveAttempts)
+	}
+}
+
 func TestProviderAndApprovalErrorsKeepResponsesPrivate(t *testing.T) {
+	approveRetry = time.Millisecond
 	const canary = "credential-canary"
 	for _, body := range []string{canary, `{}`, `{"id_token":""}`} {
 		t.Run(body, func(t *testing.T) {
