@@ -69,7 +69,7 @@ func run() error {
 	if _, checkErr := os.Stat(filepath.Join(root, "mise.toml")); checkErr != nil {
 		return errSuiteDirectory
 	}
-	fixture, err := newFixture(root, *skip, os.Getenv("E2E_IMAGES"), os.Getenv("DOCKER_HUB_MIRROR"))
+	fixture, err := newFixture(ctx, root, *skip, os.Getenv("E2E_IMAGES"), os.Getenv("DOCKER_HUB_MIRROR"))
 	if err != nil {
 		return err
 	}
