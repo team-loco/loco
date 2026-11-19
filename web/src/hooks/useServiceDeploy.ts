@@ -11,6 +11,7 @@ import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb
 import { getErrorMessage } from "@/lib/error-handler";
 import {
 	apiFieldError,
+	commandEntries,
 	deploymentVariables,
 	healthCheckSpec,
 	scalingSpec,
@@ -110,6 +111,8 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 										...replicas,
 										env: envMap,
 										port,
+										command: commandEntries(form.command),
+										args: commandEntries(form.args),
 										...health,
 									},
 								},

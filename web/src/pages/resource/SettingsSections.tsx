@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { RegionInfo } from "@gen/loco/resource/v1/resource_pb";
 
 import { RegionCard, RegionCards } from "@/components/design/RegionCards";
+import { CommandFields } from "@/components/design/CommandFields";
 import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { SliderValue, StepSlider, stepLabel } from "@/components/design/StepSlider";
@@ -102,6 +103,23 @@ export function ImageSection({ draft, base, errors, locked, describedBy, onChang
 					/>
 				</Field>
 			</div>
+		</SettingsBlock>
+	);
+}
+
+export function CommandSection({ draft, base, locked, describedBy, onChange }: SectionProps) {
+	return (
+		<SettingsBlock
+			id="set-command"
+			title="Start command"
+			hint="How the container starts. Loco passes each line to the program as one entry, without a shell."
+		>
+			<CommandFields
+				value={{ command: draft.command ?? base.command, args: draft.args ?? base.args }}
+				disabled={locked}
+				describedBy={describedBy}
+				onChange={onChange}
+			/>
 		</SettingsBlock>
 	);
 }

@@ -13,7 +13,15 @@ import {
 import { RegionTargetSchema, type RegionTarget } from "@gen/loco/resource/v1/resource_pb";
 
 import { getServiceSpec } from "@/lib/deployment-utils";
-import { IMAGE_RE, portRangeError, scalingError, scalingSpec, type Scaling } from "@/lib/new-resource";
+import {
+	IMAGE_RE,
+	commandEntries,
+	commandText,
+	portRangeError,
+	scalingError,
+	scalingSpec,
+	type Scaling,
+} from "@/lib/new-resource";
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
 
 import { isDeployed, type RegionView } from "./model";
@@ -52,6 +60,8 @@ export interface SettingsDraft {
 	healthInterval?: string;
 	healthTimeout?: string;
 	healthFailures?: string;
+	command?: string;
+	args?: string;
 	regions?: Record<string, boolean>;
 	secrets?: Record<string, string>;
 	removedSecrets?: string[];
@@ -78,6 +88,8 @@ export interface Baseline {
 	healthInterval: string;
 	healthTimeout: string;
 	healthFailures: string;
+	command: string;
+	args: string;
 	scaling: Record<string, Scaling>;
 	regions: Record<string, boolean>;
 	isPublic: boolean;
@@ -119,6 +131,8 @@ export function baseline(
 		healthInterval: health === undefined ? "" : health.intervalSeconds.toString(),
 		healthTimeout: health === undefined ? "" : health.timeoutSeconds.toString(),
 		healthFailures: health === undefined ? "" : health.failureThreshold.toString(),
+		command: commandText(svc?.command ?? []),
+		args: commandText(svc?.args ?? []),
 		scaling: Object.fromEntries(
 			deployed.map((r) => {
 				const spec = r.current === undefined ? undefined : getServiceSpec(r.current);
@@ -154,6 +168,8 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		healthInterval: draft.healthInterval ?? base.healthInterval,
 		healthTimeout: draft.healthTimeout ?? base.healthTimeout,
 		healthFailures: draft.healthFailures ?? base.healthFailures,
+		command: draft.command ?? base.command,
+		args: draft.args ?? base.args,
 		scaling: { ...base.scaling, ...draft.scaling },
 		regions: { ...base.regions, ...draft.regions },
 		isPublic: draft.isPublic ?? base.isPublic,
@@ -173,6 +189,14 @@ const SCALAR_KEYS = [
 	"healthFailures",
 ] as const;
 
+const COMMAND_KEYS = ["command", "args"] as const;
+
+function sameEntries(a: string, b: string): boolean {
+	const left = commandEntries(a);
+	const right = commandEntries(b);
+	return left.length === right.length && left.every((entry, i) => entry === right[i]);
+}
+
 function differs(a: string, b: string): boolean {
 	return a.trim() !== b.trim();
 }
@@ -186,6 +210,7 @@ export function changeCount(draft: SettingsDraft, base: Baseline): number {
 	count += (draft.removedSecrets ?? []).length;
 	count += Object.keys(draft.env ?? {}).length;
 	count += Object.keys(draft.bindings ?? {}).filter((name) => draft.secrets?.[name] === undefined).length;
+	count += COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).length;
 	if (next.isPublic !== base.isPublic) count++;
 	if (next.rollbackOnFailure !== base.rollbackOnFailure) count++;
 	if (next.observability.injectOtel !== base.observability.injectOtel) count++;
@@ -280,6 +305,8 @@ function applyDraft(spec: DeploymentSpec, draft: SettingsDraft, base: Baseline):
 	if (draft.port !== undefined) svc.port = Number(want.port.trim());
 	if (draft.observability !== undefined) svc.observability = create(ObservabilityConfigSchema, want.observability);
 	if (healthEdited(draft)) svc.healthCheck = healthFrom(want, svc.healthCheck);
+	if (draft.command !== undefined) svc.command = commandEntries(want.command);
+	if (draft.args !== undefined) svc.args = commandEntries(want.args);
 	return next;
 }
 

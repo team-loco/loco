@@ -47,6 +47,8 @@ export interface NewResourceForm {
 	port: string;
 	vars: EnvRow[];
 	health: HealthForm;
+	command: string;
+	args: string;
 }
 
 export interface FormErrors {
@@ -57,11 +59,24 @@ export interface FormErrors {
 	scaling: string | null;
 }
 
-export type ApiField = "image" | "port" | "path" | "interval" | "timeout" | "failAfter" | "cpu" | "memory" | "replicas";
+export type ApiField =
+	"image" | "port" | "path" | "interval" | "timeout" | "failAfter" | "cpu" | "memory" | "replicas" | "command" | "args";
 
 export interface ApiFieldError {
 	field: ApiField;
 	message: string;
+}
+
+const LINE_BREAK_RE = /\r?\n/;
+
+/** The entries of a command or args field: one per line, blank lines left out, each kept as typed. */
+export function commandEntries(text: string): string[] {
+	return text.split(LINE_BREAK_RE).filter((line) => line.trim() !== "");
+}
+
+/** The text a command or args field shows for a list: one entry per line. */
+export function commandText(entries: readonly string[]): string {
+	return entries.join("\n");
 }
 
 export function nameFromImage(image: string, taken: ReadonlySet<string>): string {
@@ -202,6 +217,12 @@ export function firstError(errors: FormErrors): string | null {
 	return ordered.find((e) => e !== null) ?? null;
 }
 
+/** The start command as one line, or "Image default" when neither field is set. */
+export function commandSummary(value: Pick<NewResourceForm, "command" | "args">): string {
+	const words = [...commandEntries(value.command), ...commandEntries(value.args)];
+	return words.length === 0 ? "Image default" : words.join(" ");
+}
+
 export function healthSummary(health: HealthForm): string {
 	return health.path === "" ? "None" : `${health.path} · every ${health.interval}s`;
 }
@@ -228,6 +249,8 @@ const VIOLATION_FIELDS: Partial<Record<string, ApiField>> = {
 	memory: "memory",
 	min_replicas: "replicas",
 	max_replicas: "replicas",
+	command: "command",
+	args: "args",
 };
 
 export function apiFieldError(err: unknown): ApiFieldError | null {
@@ -296,6 +319,13 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 		`  ${name}:`,
 		`    image: ${scalar(form.image.trim(), BLOCK_PLAIN_RE)}`,
 	];
+	for (const [key, text] of [
+		["command", form.command],
+		["args", form.args],
+	] as const) {
+		const entries = commandEntries(text);
+		if (entries.length > 0) lines.push(`    ${key}: [${entries.map(flow).join(", ")}]`);
+	}
 	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
 	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
 	if (form.isPublic) lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
