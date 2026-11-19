@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 type BaseVariant = "default" | "outline" | "ghost" | "destructive" | "link";
 type BaseSize = "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg";
 
-const solid = "border-0 font-medium hover:opacity-86 dark:hover:opacity-100 dark:hover:brightness-108";
+const solid =
+	"border-0 font-medium enabled:hover:opacity-86 dark:enabled:hover:opacity-100 dark:enabled:hover:brightness-108";
 
 const buttonVariants = cva(
 	"gap-1.5 rounded-control active:not-aria-[haspopup]:translate-y-0 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-45 [&_svg:not([class*='size-'])]:size-3.5",
