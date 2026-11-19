@@ -1463,14 +1463,17 @@ def metrics(page):
     )
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
+    cpu_card = page.get_by_role("region", name="CPU", exact=True)
+    expect(cpu_card.get_by_text("% of limit, peak per bucket")).to_be_visible()
+    expect(cpu_card.get_by_text(re.compile(r"^latest \d")).first).to_be_visible()
     expect(chart.get_by_text("controls-pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
     expect(memory.locator(".recharts-tooltip-cursor")).to_have_count(1)
     by_region = page.get_by_role("region", name="By resource and region")
-    expect(by_region.get_by_role("columnheader", name="CPU ↓")).to_have_attribute(
-        "aria-sort", "descending"
-    )
+    expect(
+        by_region.get_by_role("columnheader", name="CPU (latest) ↓")
+    ).to_have_attribute("aria-sort", "descending")
     by_region.get_by_role("button", name="Resource", exact=True).click()
     expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute(
         "aria-sort", "ascending"
