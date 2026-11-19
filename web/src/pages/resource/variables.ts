@@ -2,10 +2,13 @@ import { createConnectQueryKey } from "@connectrpc/connect-query";
 import type { QueryClient } from "@tanstack/react-query";
 import { getResourceEnv } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import type { Secret, SecretUsage } from "@gen/loco/secret/v1/secret_pb";
 
+import { getServiceSpec } from "@/lib/deployment-utils";
 import { isEnvKey } from "@/lib/dotenv";
 
+import { isDeployed, type RegionView } from "./model";
 import { SECRET_NAME } from "./settings-draft";
 
 const USER_ENTITY = "user";
@@ -87,6 +90,19 @@ export function unusedNames(saved: string[], usedBy: Pick<SecretUsage, "names">[
 export function yamlBindingHint(service: string, names: string[]): string {
 	const keys = names.length === 1 ? "this key" : "these keys";
 	return `Saved. To use ${keys}, add ${names.join(", ")} to services.${service}.secrets and redeploy.`;
+}
+
+function variablesKey(deployment: Deployment): string {
+	const env = Object.entries(getServiceSpec(deployment)?.env ?? {}).toSorted(([a], [b]) => a.localeCompare(b));
+	return JSON.stringify([env, deployment.secretNames.toSorted()]);
+}
+
+/** The deployed regions when their deployments run different variables, else none. */
+export function regionsWithDifferentVariables(regions: RegionView[]): string[] {
+	const deployed = regions
+		.filter(isDeployed)
+		.flatMap((r) => (r.current === undefined ? [] : [{ name: r.name, key: variablesKey(r.current) }]));
+	return new Set(deployed.map((r) => r.key)).size > 1 ? deployed.map((r) => r.name).toSorted() : [];
 }
 
 /** Refetches the variables list of one resource in one environment. */

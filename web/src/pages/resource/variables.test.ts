@@ -5,9 +5,11 @@ import { createQueryOptions } from "@connectrpc/connect-query";
 import { QueryClient } from "@tanstack/react-query";
 import { listSecrets } from "@gen/loco/secret/v1/secret-SecretService_connectquery";
 import { SecretSchema } from "@gen/loco/secret/v1/secret_pb";
+import { DeploymentPlacementSchema, DeploymentSchema, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import {
 	refreshSecrets,
+	regionsWithDifferentVariables,
 	secretRows,
 	secretUsageMessage,
 	unusedNames,
@@ -30,6 +32,36 @@ describe("secretRows", () => {
 	test("leaves the status unknown until the declared names load", () => {
 		const rows = secretRows([create(SecretSchema, { name: "API_KEY" })], undefined, []);
 		expect(rows.map((r) => r.status)).toEqual([undefined]);
+	});
+});
+
+function running(region: string, env: Record<string, string>, secretNames: string[]) {
+	const current: Deployment = create(DeploymentSchema, {
+		id: region,
+		secretNames,
+		spec: { spec: { case: "service", value: { env } } },
+		placements: [create(DeploymentPlacementSchema, { region, live: true })],
+	});
+	return { name: region, status: undefined, history: [current], current };
+}
+
+describe("regionsWithDifferentVariables", () => {
+	test("names every deployed region when one runs other plain variables", () => {
+		const regions = [running("us-east-1", { MODE: "a" }, ["KEY"]), running("eu-west-1", { MODE: "b" }, ["KEY"])];
+		expect(regionsWithDifferentVariables(regions)).toEqual(["eu-west-1", "us-east-1"]);
+	});
+
+	test("names every deployed region when one reads other secrets", () => {
+		const regions = [running("us-east-1", { MODE: "a" }, ["KEY"]), running("eu-west-1", { MODE: "a" }, [])];
+		expect(regionsWithDifferentVariables(regions)).toEqual(["eu-west-1", "us-east-1"]);
+	});
+
+	test("names none when every region runs the same variables", () => {
+		const regions = [
+			running("us-east-1", { A: "1", B: "2" }, ["X", "Y"]),
+			running("eu-west-1", { B: "2", A: "1" }, ["Y", "X"]),
+		];
+		expect(regionsWithDifferentVariables(regions)).toEqual([]);
 	});
 });
 

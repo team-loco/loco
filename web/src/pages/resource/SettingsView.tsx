@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 import { MANAGED_NOTICE_ID, ManagedNotice } from "./ManagedNotice";
 import { isDeployed, type Notice as NoticeState, type RegionView } from "./model";
+import { regionsWithDifferentVariables } from "./variables";
 import { NetworkingSection } from "./NetworkingSection";
 import {
 	changeNames,
@@ -251,6 +252,7 @@ export function SettingsView({
 						resourceName={resource.name}
 						managed={managed}
 						deployed={regions.some(isDeployed)}
+						differingRegions={regionsWithDifferentVariables(regions)}
 						workspaceId={resource.workspaceId}
 						environmentId={environmentId}
 						draft={draft}

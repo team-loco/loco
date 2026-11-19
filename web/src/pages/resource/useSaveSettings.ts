@@ -23,6 +23,7 @@ import {
 	boundNames,
 	domainsChange,
 	mergedSpec,
+	plainEnv,
 	planSave,
 	regionChanges,
 	regionTargets,
@@ -43,7 +44,7 @@ const SPEC_KEYS = [
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
 
-const VARIABLE_KEYS = ["bindings", "env"] as const;
+const VARIABLE_KEYS = ["bindings", "env", "removedEnv"] as const;
 
 function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): SettingsDraft {
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));
@@ -113,7 +114,7 @@ export function useSaveSettings({
 			}
 		}
 		const bindings = current === undefined ? undefined : boundNames(current.secretNames, draft);
-		const env = current === undefined ? undefined : { ...current.env, ...draft.env };
+		const env = current === undefined ? undefined : plainEnv(current.env, draft);
 		const secrets = draft.secrets ?? {};
 		if (Object.keys(secrets).length > 0) {
 			await attempt("Secrets", ["secrets"], async () => {
@@ -132,17 +133,6 @@ export function useSaveSettings({
 					.filter(Boolean)
 					.join(" ");
 			});
-		}
-		const removed = draft.removedSecrets ?? [];
-		if (removed.length > 0) {
-			await attempt(
-				"Removing secrets",
-				["removedSecrets"],
-				async () => await removeSecrets.mutateAsync({ resourceId, environmentId, names: removed }),
-			);
-		}
-		if (Object.keys(secrets).length > 0 || removed.length > 0) {
-			await refreshSecrets(queryClient, resourceId, environmentId);
 		}
 		const displayName = draft.displayName?.trim();
 		const renamed = displayName !== undefined && displayName !== resource.displayName;
@@ -238,6 +228,17 @@ export function useSaveSettings({
 			if (ok) savedRegions.push(...planned);
 		}
 		if (savedRegions.length === deploys.length) next = omit(next, [...SPEC_KEYS, ...VARIABLE_KEYS]);
+		const removed = draft.removedSecrets ?? [];
+		if (removed.length > 0) {
+			await attempt(
+				"Removing secrets",
+				["removedSecrets"],
+				async () => await removeSecrets.mutateAsync({ resourceId, environmentId, names: removed }),
+			);
+		}
+		if (Object.keys(secrets).length > 0 || removed.length > 0) {
+			await refreshSecrets(queryClient, resourceId, environmentId);
+		}
 		if (current !== undefined) await refreshVariables(queryClient, resourceId, environmentId);
 
 		setSaving(false);
