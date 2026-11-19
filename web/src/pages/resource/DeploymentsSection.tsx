@@ -329,13 +329,13 @@ export function DeploymentsSection({
 				</div>
 				<TabsContent value="deploys" className="pt-1.5">
 					<div aria-busy={isLoadingMore}>
-						<Table inset className="min-w-[1000px] table-fixed [--row-h:58px]">
+						<Table inset className="min-w-[900px] table-fixed [--row-h:58px]">
 							<TableHeader>
 								<TableRow>
 									<TableHead className="w-7" />
 									<TableHead className="w-[130px]">Status</TableHead>
-									<TableHead className="w-[180px]">Version</TableHead>
-									<TableHead className="w-[200px]">Deployed by</TableHead>
+									<TableHead className="w-[150px]">Version</TableHead>
+									<TableHead className="w-[170px]">Deployed by</TableHead>
 									{multiRegion && <TableHead className="w-[110px]">Region</TableHead>}
 									<TableHead>Message</TableHead>
 									<TableHead className="w-[72px] text-right">Took</TableHead>
