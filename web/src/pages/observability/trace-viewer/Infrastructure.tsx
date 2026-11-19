@@ -32,7 +32,7 @@ const WINDOWS = [
 ];
 const METRICS = [
 	{ metric: "k8s.pod.cpu_limit_utilization", aggregation: "avg", direction: "" },
-	{ metric: "k8s.pod.memory_limit_utilization", aggregation: "avg", direction: "" },
+	{ metric: "k8s.pod.memory.working_set_limit_utilization", aggregation: "avg", direction: "" },
 	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "receive" },
 	{ metric: "k8s.pod.network.io", aggregation: "rate", direction: "transmit" },
 ];
