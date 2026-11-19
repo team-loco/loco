@@ -8,15 +8,20 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/team-loco/loco/builder/internal/extract"
+	"github.com/team-loco/loco/builder/internal/isolation"
 	"github.com/team-loco/loco/builder/internal/ocilayout"
 	"github.com/team-loco/loco/builder/internal/registry"
 	"github.com/team-loco/loco/internal/buildinfo"
 	"github.com/team-loco/loco/internal/workloadplatform"
 )
 
-const terminationLogPerm = 0o600
+const (
+	terminationLogPerm = 0o600
+	isolationTimeout   = 30 * time.Second
+)
 
 // result is the termination message the controller parses; keep it in sync with
 // buildResult in controller/internal/builds/reconciler.go.
@@ -56,6 +61,10 @@ func run(ctx context.Context, cfg config) error {
 }
 
 func fetch(ctx context.Context, cfg fetchConfig) error {
+	if err := isolation.Wait(ctx, cfg.ForbiddenAddress, isolationTimeout); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "network policy in effect", "forbidden", cfg.ForbiddenAddress)
 	if err := extract.Fetch(ctx, cfg.Source, cfg.Workspace, cfg.Limits); err != nil {
 		return fmt.Errorf("fetch source: %w", err)
 	}

@@ -54,6 +54,7 @@ const (
 
 	builderEnvSourceURL       = "SOURCE_URL"
 	builderEnvDownloadTimeout = "DOWNLOAD_TIMEOUT"
+	builderEnvNodeIP          = "NODE_IP"
 )
 
 func buildLabels(build *locov1alpha1.Build) map[string]string {
@@ -163,6 +164,10 @@ func (r *Reconciler) fetchContainer(build *locov1alpha1.Build) corev1.Container 
 	env := []corev1.EnvVar{
 		{Name: builderEnvSourceURL, Value: build.Spec.SourceURL},
 		{Name: builderEnvDownloadTimeout, Value: cfg.DownloadTimeout.Duration.String()},
+		{
+			Name:      builderEnvNodeIP,
+			ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.hostIP"}},
+		},
 	}
 	if build.Spec.CacheRef != "" {
 		args = append(args,

@@ -125,6 +125,10 @@ func TestBuilds(t *testing.T) {
 		t.Logf("cached build took %s (first build: %s)", buildDuration(second), buildDuration(first))
 	})
 
+	t.Run("the build step starts with its network policy in effect", func(t *testing.T) {
+		testBuildStepIsolation(t, first.Name)
+	})
+
 	t.Run("an untrusted build finds no credentials", func(t *testing.T) {
 		probeSource := t.TempDir()
 		p.CopyFixture(t, "build-probe", probeSource)
@@ -142,6 +146,9 @@ func TestBuilds(t *testing.T) {
 		output := buildOutput(t, "e2e-probe")
 		if !strings.Contains(output, "PROBE-DONE") {
 			t.Errorf("the probe did not run to completion inside the build:\n%s", output)
+		}
+		if strings.Contains(output, "PROBE-ERROR") {
+			t.Errorf("a probe check could not run:\n%s", output)
 		}
 		if strings.Contains(output, "PROBE-LEAK") {
 			t.Errorf("the probe found credentials, tokens or Kubernetes API access:\n%s", output)
@@ -267,6 +274,61 @@ func testBuildkitStartup(t *testing.T, jobName string) {
 	state := observed.Status.ContainerStatuses[0].State.Terminated
 	if state == nil || state.ExitCode != 1 || !strings.Contains(state.Message, "simulated buildkitd startup failure") {
 		t.Errorf("launcher did not preserve the daemon failure in the termination message: %v\n%s", state, logs)
+	}
+}
+
+// isolationProbe calls the Kubernetes API, which the build namespace's policy forbids, as the build step starts.
+const isolationProbe = `api="http://$KUBERNETES_SERVICE_HOST:$KUBERNETES_SERVICE_PORT/"
+out=$(wget -q -T 3 -O /dev/null "$api" 2>&1)
+case "$out" in
+    *"timed out"*) ;;
+    *) echo "probe: $out"; exit 1 ;;
+esac
+`
+
+// testBuildStepIsolation starts copies of a build pod whose build step is the isolation probe.
+func testBuildStepIsolation(t *testing.T, jobName string) {
+	t.Helper()
+	const copies = 4
+	var job batchv1.Job
+	p.MustGet(t, &job, "-n", p.BuildNamespace, "job", jobName)
+	spec := job.Spec.Template.Spec
+	probe := spec.InitContainers[1]
+	probe.Command = []string{"sh", "-c", isolationProbe}
+	probe.Args = nil
+	probe.VolumeMounts = nil
+	spec.InitContainers = spec.InitContainers[:1]
+	spec.Containers = []corev1.Container{probe}
+	names := make([]string, 0, copies)
+	for i := range copies {
+		pod := corev1.Pod{Spec: spec}
+		pod.APIVersion, pod.Kind = "v1", "Pod"
+		pod.Name, pod.Namespace = "build-isolation-probe-"+strconv.Itoa(i), p.BuildNamespace
+		manifest, err := json.Marshal(&pod)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.MustApply(t, string(manifest))
+		p.DeleteOnCleanup(t, "-n", pod.Namespace, "pod", pod.Name)
+		names = append(names, pod.Name)
+	}
+	for _, name := range names {
+		var observed corev1.Pod
+		platform.Eventually(t, 3*time.Minute, name+" to terminate", func(ctx context.Context) error {
+			if err := p.Get(ctx, &observed, "-n", p.BuildNamespace, "pod", name); err != nil {
+				return err
+			}
+			if observed.Status.Phase != corev1.PodFailed && observed.Status.Phase != corev1.PodSucceeded {
+				return fmt.Errorf("pod phase %s", observed.Status.Phase)
+			}
+			return nil
+		})
+		if observed.Status.Phase != corev1.PodSucceeded {
+			namespace := "-n " + p.BuildNamespace + " "
+			p.LogKubectl(t, namespace+"describe pod "+name, namespace+"logs "+name+" -c fetch",
+				namespace+"logs "+name+" -c "+probe.Name)
+			t.Errorf("%s phase %s, want the build step's probe filtered", name, observed.Status.Phase)
+		}
 	}
 }
 
