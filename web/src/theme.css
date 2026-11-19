@@ -56,7 +56,7 @@
 	--color-destructive: var(--err);
 	--color-border: var(--line);
 	--color-input: var(--line);
-	--color-ring: var(--fg4);
+	--color-ring: var(--fg3);
 
 	--color-sidebar: var(--shell);
 	--color-sidebar-foreground: var(--fg);
@@ -65,7 +65,7 @@
 	--color-sidebar-accent: var(--shell-hover);
 	--color-sidebar-accent-foreground: var(--fg);
 	--color-sidebar-border: var(--line);
-	--color-sidebar-ring: var(--fg4);
+	--color-sidebar-ring: var(--fg3);
 
 	--color-panel: var(--panel);
 	--color-panel2: var(--panel2);
@@ -88,13 +88,13 @@
 	--color-lv-warn: var(--lv-warn);
 
 	--color-ok-bg: color-mix(in oklch, var(--ok) 12%, transparent);
-	--color-ok-fg: color-mix(in oklch, var(--ok) 70%, var(--fg));
+	--color-ok-fg: color-mix(in oklab, var(--ok) 70%, var(--fg));
 	--color-info-bg: color-mix(in oklch, var(--info) 12%, transparent);
-	--color-info-fg: color-mix(in oklch, var(--info) 70%, var(--fg));
+	--color-info-fg: color-mix(in oklab, var(--info) 70%, var(--fg));
 	--color-warn-bg: color-mix(in oklch, var(--warn) 12%, transparent);
-	--color-warn-fg: color-mix(in oklch, var(--warn) 70%, var(--fg));
+	--color-warn-fg: color-mix(in oklab, var(--warn) 70%, var(--fg));
 	--color-bad-bg: color-mix(in oklch, var(--err) 12%, transparent);
-	--color-bad-fg: color-mix(in oklch, var(--err) 70%, var(--fg));
+	--color-bad-fg: color-mix(in oklab, var(--err) 70%, var(--fg));
 	--color-neutral-bg: var(--panel2);
 	--color-neutral-fg: var(--fg2);
 
@@ -189,7 +189,7 @@
 		--destructive: var(--err);
 		--border: var(--line);
 		--input: var(--line);
-		--ring: var(--fg4);
+		--ring: var(--fg3);
 		--sidebar: var(--shell);
 		--sidebar-foreground: var(--fg);
 		--sidebar-primary: var(--fg);
@@ -197,7 +197,7 @@
 		--sidebar-accent: var(--shell-hover);
 		--sidebar-accent-foreground: var(--fg);
 		--sidebar-border: var(--line);
-		--sidebar-ring: var(--fg4);
+		--sidebar-ring: var(--fg3);
 	}
 
 	.dark {
