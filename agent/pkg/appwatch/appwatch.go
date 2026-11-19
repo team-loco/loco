@@ -144,7 +144,7 @@ func (w *Watcher) observe(app *locoControllerV1.Application) {
 		status.Available = rollout.Available
 		status.ProgressDeadlineExceeded = rollout.ProgressDeadlineExceeded
 		for _, replica := range rollout.Replicas {
-			report := &agentv1.ReplicaReport{
+			report := &deploymentv1.Replica{
 				Uid:               replica.UID,
 				Name:              replica.Name,
 				Node:              replica.Node,

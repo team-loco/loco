@@ -24,7 +24,7 @@ import (
 func (f *resourceStatusFixture) reportReplicas(
 	t *testing.T,
 	resourceID, environmentID, clusterID uuid.UUID,
-	replicas ...*agentv1.ReplicaReport,
+	replicas ...*deploymentv1.Replica,
 ) []*deploymentv1.Replica {
 	t.Helper()
 	p, err := f.queries.GetResourceEnvironmentPlacement(
@@ -44,13 +44,7 @@ func (f *resourceStatusFixture) reportReplicas(
 		if replica.GetReady() {
 			ready++
 		}
-		want = append(want, &deploymentv1.Replica{
-			Uid: replica.GetUid(), Name: replica.GetName(), Node: replica.GetNode(),
-			PlacementRevision: replica.GetPlacementRevision(), DeploymentId: replica.GetDeploymentId(),
-			Ready: replica.GetReady(), State: replica.GetState(), StateSince: replica.GetStateSince(),
-			Restarts: replica.GetRestarts(), Detail: replica.GetDetail(),
-			StartedAt: replica.GetStartedAt(), LastExit: replica.GetLastExit(),
-		})
+		want = append(want, proto.CloneOf(replica))
 	}
 	f.agentServer().recordStatus(context.Background(), clusterID, 0, &agentv1.PlacementStatus{
 		PlacementId: p.ID.String(), ObservedRevision: p.DesiredRevision,
@@ -59,16 +53,16 @@ func (f *resourceStatusFixture) reportReplicas(
 	return want
 }
 
-func servingReplica(name, node string, started time.Time) *agentv1.ReplicaReport {
-	return &agentv1.ReplicaReport{
+func servingReplica(name, node string, started time.Time) *deploymentv1.Replica {
+	return &deploymentv1.Replica{
 		Uid: "uid-" + name, Name: name, Node: node, Ready: true,
 		State: string(loco.ReplicaServing), StateSince: timestamppb.New(started),
 		StartedAt: timestamppb.New(started),
 	}
 }
 
-func crashedReplica(name, node string, started, exited time.Time) *agentv1.ReplicaReport {
-	return &agentv1.ReplicaReport{
+func crashedReplica(name, node string, started, exited time.Time) *deploymentv1.Replica {
+	return &deploymentv1.Replica{
 		Uid: "uid-" + name, Name: name, Node: node, Restarts: 3,
 		State: string(loco.ReplicaFailing), StateSince: timestamppb.New(exited),
 		StartedAt: timestamppb.New(started), Detail: "restarting · 3 restarts",
@@ -206,7 +200,7 @@ func TestRedeployedRegionShowsNoReplicasUntilReported(t *testing.T) {
 	t.Parallel()
 	f := newResourceStatusFixture(t)
 	f.deployProduction(t, 1)
-	f.reportReplicas(t, f.resourceID, f.envID, f.clusterID, &agentv1.ReplicaReport{
+	f.reportReplicas(t, f.resourceID, f.envID, f.clusterID, &deploymentv1.Replica{
 		Uid: "uid-svc-a", Name: "svc-a", State: string(loco.ReplicaStarting),
 	})
 

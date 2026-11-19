@@ -332,7 +332,7 @@ func TestRolloutForwarding(t *testing.T) {
 		DesiredReplicas:          2,
 		Available:                true,
 		ProgressDeadlineExceeded: true,
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{
 				Uid:               "current",
 				Name:              currentReplicaName,

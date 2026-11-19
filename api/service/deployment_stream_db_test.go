@@ -239,7 +239,7 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 		PlacementId:      placement.ID.String(),
 		ObservedRevision: placement.DesiredRevision,
 		DesiredReplicas:  1,
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{
 				Uid:               "new-uid",
 				Name:              testWatchReplica,

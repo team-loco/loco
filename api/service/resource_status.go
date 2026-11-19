@@ -103,11 +103,9 @@ func regionStatus(
 	if row.StatusUpdatedAt != nil {
 		region.ReportedAt = timestamppb.New(*row.StatusUpdatedAt)
 	}
-	var replicas []*agentv1.ReplicaReport
-	if decodeErr := json.Unmarshal(row.Replicas, &replicas); decodeErr != nil {
+	if decodeErr := json.Unmarshal(row.Replicas, &region.Replicas); decodeErr != nil {
 		return nil, fmt.Errorf("decode observed replicas: %w", decodeErr)
 	}
-	region.Replicas = replicasToProto(replicas)
 
 	if silence := clusterSilence(row, now, staleAfter); silence != "" {
 		region.Status = resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN

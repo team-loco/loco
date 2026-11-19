@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
 
@@ -26,10 +27,10 @@ func TestDiffRollout(t *testing.T) {
 			previous := rolloutSnapshot{}
 			report := &agentv1.PlacementStatus{}
 			if tt.before != "" {
-				previous.Replicas = []*agentv1.ReplicaReport{{Uid: activityReplicaUID, State: string(tt.before)}}
+				previous.Replicas = []*deploymentv1.Replica{{Uid: activityReplicaUID, State: string(tt.before)}}
 			}
 			if tt.after != "" {
-				report.Replicas = []*agentv1.ReplicaReport{{Uid: activityReplicaUID, State: string(tt.after)}}
+				report.Replicas = []*deploymentv1.Replica{{Uid: activityReplicaUID, State: string(tt.after)}}
 			}
 			assertActivityMessages(t, diffRollout(previous, report), tt.messages)
 		})
@@ -75,11 +76,11 @@ func TestDiffRolloutProblemAndScale(t *testing.T) {
 
 func TestDiffRolloutPreviousGone(t *testing.T) {
 	previous := rolloutSnapshot{
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{Uid: activityReplicaUID, State: string(loco.ReplicaStopping), PlacementRevision: 1},
 		},
 	}
-	for _, replicas := range [][]*agentv1.ReplicaReport{
+	for _, replicas := range [][]*deploymentv1.Replica{
 		nil,
 		{{Uid: activityReplicaUID, State: string(loco.ReplicaStopped), PlacementRevision: 1}},
 	} {
@@ -99,7 +100,7 @@ func TestDiffRolloutCrashLoop(t *testing.T) {
 			state = loco.ReplicaStarting
 		}
 		report := &agentv1.PlacementStatus{
-			Replicas: []*agentv1.ReplicaReport{{Uid: activityReplicaUID, State: string(state), Restarts: int32(i + 1)}},
+			Replicas: []*deploymentv1.Replica{{Uid: activityReplicaUID, State: string(state), Restarts: int32(i + 1)}},
 		}
 		entries := diffRollout(previous, report)
 		if i < rolloutActivityLimit {
@@ -139,7 +140,7 @@ func TestReplicaActivityMessages(t *testing.T) {
 		{loco.ReplicaUnknown, "Replica state unknown", activityWarn},
 	} {
 		t.Run(string(tt.state), func(t *testing.T) {
-			message, severity := replicaActivityMessage(&agentv1.ReplicaReport{State: string(tt.state)})
+			message, severity := replicaActivityMessage(&deploymentv1.Replica{State: string(tt.state)})
 			if message != tt.message || severity != tt.severity {
 				t.Fatalf("message=%q severity=%q", message, severity)
 			}

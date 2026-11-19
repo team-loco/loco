@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -28,7 +29,7 @@ func TestRolloutActivityReports(t *testing.T) {
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
 		DesiredReplicas:  1,
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{
 				Uid:               activityReplicaUID,
 				Name:              "pod-a",
@@ -90,7 +91,7 @@ func TestRolloutActivityReports(t *testing.T) {
 		if index >= len(states) {
 			t.Fatal("extra replica activity")
 		}
-		want, _ := replicaActivityMessage(&agentv1.ReplicaReport{State: string(states[index])})
+		want, _ := replicaActivityMessage(&deploymentv1.Replica{State: string(states[index])})
 		if message != want || !timestamp.Equal(at) {
 			t.Fatalf("transition %d = %q at %v", index, message, timestamp)
 		}
@@ -163,7 +164,7 @@ func TestRolloutConcurrentSequences(t *testing.T) {
 				report := &agentv1.PlacementStatus{
 					ObservedRevision: revision,
 					DesiredReplicas:  1,
-					Replicas:         []*agentv1.ReplicaReport{{Uid: uuid.NewString(), State: "Serving", PlacementRevision: revision}},
+					Replicas:         []*deploymentv1.Replica{{Uid: uuid.NewString(), State: "Serving", PlacementRevision: revision}},
 				}
 				return ingestRollout(t.Context(), qtx, id, revision, report)
 			})
@@ -218,7 +219,7 @@ func TestRolloutActivityLimit(t *testing.T) {
 	report := &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{Uid: "previous-replica", Name: "previous-pod", State: string(loco.ReplicaStopping)},
 		},
 	}
@@ -261,7 +262,7 @@ func TestRolloutSnapshotNotifications(t *testing.T) {
 	report := &agentv1.PlacementStatus{
 		PlacementId:      p.ID.String(),
 		ObservedRevision: p.DesiredRevision,
-		Replicas: []*agentv1.ReplicaReport{
+		Replicas: []*deploymentv1.Replica{
 			{Uid: activityReplicaUID, State: string(loco.ReplicaServing), PlacementRevision: p.DesiredRevision},
 		},
 	}
