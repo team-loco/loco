@@ -22,6 +22,7 @@ import {
 	nameOrder,
 	PAGE_SIZES,
 	regionCounts,
+	regionTotal,
 	STATUS_FILTERS,
 	statusCounts,
 	tableParsers,
@@ -89,7 +90,7 @@ export function ResourceTable({
 
 	const counts = statusCounts(rows, filter);
 	const regionOptions = [
-		{ value: ALL, label: "All regions", count: filterRows(rows, { ...filter, status: ALL, region: ALL }).length },
+		{ value: ALL, label: "All regions", count: regionTotal(rows, filter) },
 		...regionCounts(rows, filter).map((r) => ({ value: r.region, label: r.region, count: r.count })),
 	];
 	const selectedRows = table
