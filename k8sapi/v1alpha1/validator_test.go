@@ -268,3 +268,27 @@ func TestValidateEnvAcceptsEmptyValue(t *testing.T) {
 		t.Fatal("invalid name accepted")
 	}
 }
+
+func TestHealthCheckTimeoutStaysBelowTheInterval(t *testing.T) {
+	cases := map[string]struct {
+		interval, timeout int32
+		wantErr           bool
+	}{
+		"timeout below interval":  {interval: 10, timeout: 9},
+		"timeout equals interval": {interval: 10, timeout: 10, wantErr: true},
+		"timeout above interval":  {interval: 10, timeout: 30, wantErr: true},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			health := &HealthCheckSpec{Path: "/ready", Interval: c.interval, Timeout: c.timeout, FailThreshold: 3}
+			err := health.Validate()
+			if (err != nil) != c.wantErr {
+				t.Fatalf("Validate() = %v, want error %t", err, c.wantErr)
+			}
+			want := "healthCheck.timeout must be less than healthCheck.interval"
+			if err != nil && !strings.Contains(err.Error(), want) {
+				t.Errorf("error %q does not name the timeout and the interval", err)
+			}
+		})
+	}
+}

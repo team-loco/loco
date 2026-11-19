@@ -12,6 +12,7 @@ export function Field({
 	aside,
 	hint,
 	error,
+	reserve = false,
 	className,
 	children,
 }: {
@@ -19,6 +20,8 @@ export function Field({
 	aside?: ReactNode;
 	hint?: ReactNode;
 	error?: ReactNode;
+	/** Keeps the line below the control so an error appearing does not move what follows. */
+	reserve?: boolean;
 	className?: string;
 	children: ReactNode;
 }) {
@@ -45,15 +48,19 @@ export function Field({
 				{children}
 			</FieldControlContext>
 			{failed ? (
-				<FieldError id={messageId} role={undefined} className="text-[12.5px] text-bad-fg">
+				<FieldError
+					id={messageId}
+					role={undefined}
+					className={cn("text-[12.5px] text-bad-fg", reserve && "min-h-[19px]")}
+				>
 					{error}
 				</FieldError>
+			) : hint != null ? (
+				<FieldDescription id={messageId} className="m-0 text-[12.5px] text-fg3">
+					{hint}
+				</FieldDescription>
 			) : (
-				hint != null && (
-					<FieldDescription id={messageId} className="m-0 text-[12.5px] text-fg3">
-						{hint}
-					</FieldDescription>
-				)
+				reserve && <span aria-hidden className="block min-h-[19px]" />
 			)}
 		</FieldBase>
 	);

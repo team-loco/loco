@@ -21,11 +21,13 @@ import { isDeployed, type Notice as NoticeState, type RegionView } from "./model
 import { NetworkingSection } from "./NetworkingSection";
 import {
 	changeCount,
+	LIVE_ERROR_KEYS,
 	planSave,
 	regionMapChanged,
 	resolved,
 	validateDraft,
 	type Baseline,
+	type DraftErrors,
 	type SettingsDraft,
 } from "./settings-draft";
 import {
@@ -135,7 +137,9 @@ export function SettingsView({
 	const change = (patch: Partial<SettingsDraft>) => {
 		onDraft({ ...draft, ...patch });
 	};
-	const shownErrors = tried ? errors : {};
+	const shownErrors: DraftErrors = tried
+		? errors
+		: Object.fromEntries(LIVE_ERROR_KEYS.map((key) => [key, errors[key]]));
 	const props = { draft, base, errors: shownErrors, locked, describedBy, onChange: change };
 
 	return (
