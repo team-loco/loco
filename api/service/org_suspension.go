@@ -45,6 +45,9 @@ func (s *OrgServer) SuspendOrg(
 			org = current
 			return nil
 		}
+		if lockErr = lockOrgResources(ctx, qtx, orgID); lockErr != nil {
+			return lockErr
+		}
 		suspended, suspendErr := qtx.SuspendOrg(ctx, genDb.SuspendOrgParams{ID: orgID, Reason: new(req.GetReason())})
 		if suspendErr != nil {
 			return fmt.Errorf("suspend organization: %w", suspendErr)
@@ -116,6 +119,9 @@ func (s *OrgServer) ResumeOrg(
 			org = current
 			return nil
 		}
+		if lockErr = lockOrgResources(ctx, qtx, orgID); lockErr != nil {
+			return lockErr
+		}
 		resumed, resumeErr := qtx.ResumeOrg(ctx, orgID)
 		if resumeErr != nil {
 			return fmt.Errorf("resume organization: %w", resumeErr)
@@ -173,11 +179,21 @@ func notifyClusters(ctx context.Context, qtx *genDb.Queries, clusters []uuid.UUI
 
 func ensureOrganizationActive(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
 	reason, err := qtx.LockResourceOrganization(ctx, resourceID)
+	return organizationActive(reason, err)
+}
+
+// checkOrganizationActive is ensureOrganizationActive for a resource the caller holds, which SuspendOrg waits on.
+func checkOrganizationActive(ctx context.Context, qtx *genDb.Queries, resourceID uuid.UUID) error {
+	reason, err := qtx.GetResourceOrganizationSuspension(ctx, resourceID)
+	return organizationActive(reason, err)
+}
+
+func organizationActive(reason *string, err error) error {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrResourceNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("lock organization: %w", err)
+		return fmt.Errorf("read organization: %w", err)
 	}
 	if reason != nil {
 		return ErrOrgSuspended.Detail("%s", *reason)

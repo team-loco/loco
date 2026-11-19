@@ -66,6 +66,21 @@ func (q *Queries) GetOrgByID(ctx context.Context, id uuid.UUID) (Organization, e
 	return i, err
 }
 
+const getResourceOrganizationSuspension = `-- name: GetResourceOrganizationSuspension :one
+SELECT o.suspension_reason
+FROM organizations o
+JOIN workspaces w ON w.org_id = o.id
+JOIN resources r ON r.workspace_id = w.id
+WHERE r.id = $1
+`
+
+func (q *Queries) GetResourceOrganizationSuspension(ctx context.Context, id uuid.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, getResourceOrganizationSuspension, id)
+	var suspension_reason *string
+	err := row.Scan(&suspension_reason)
+	return suspension_reason, err
+}
+
 const isOrgMember = `-- name: IsOrgMember :one
 SELECT EXISTS (
   SELECT 1 FROM user_scopes us
@@ -288,6 +303,19 @@ func (q *Queries) LockOrgForSuspension(ctx context.Context, id uuid.UUID) (Organ
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const lockOrgResources = `-- name: LockOrgResources :exec
+SELECT r.id FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE w.org_id = $1
+ORDER BY r.id
+FOR UPDATE OF r
+`
+
+func (q *Queries) LockOrgResources(ctx context.Context, orgID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockOrgResources, orgID)
+	return err
 }
 
 const lockOrgWorkspacesForDeletion = `-- name: LockOrgWorkspacesForDeletion :exec

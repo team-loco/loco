@@ -108,6 +108,13 @@ WHERE us.user_id = sqlc.arg('user_id')
 -- name: LockOrgForSuspension :one
 SELECT * FROM organizations WHERE id = $1 FOR UPDATE;
 
+-- name: LockOrgResources :exec
+SELECT r.id FROM resources r
+JOIN workspaces w ON w.id = r.workspace_id
+WHERE w.org_id = $1
+ORDER BY r.id
+FOR UPDATE OF r;
+
 -- name: SuspendOrg :one
 UPDATE organizations
 SET suspended_at = NOW(), suspension_reason = sqlc.arg(reason), updated_at = NOW()
@@ -134,6 +141,13 @@ JOIN workspaces w ON w.org_id = o.id
 JOIN resources r ON r.workspace_id = w.id
 WHERE r.id = $1
 FOR SHARE OF o;
+
+-- name: GetResourceOrganizationSuspension :one
+SELECT o.suspension_reason
+FROM organizations o
+JOIN workspaces w ON w.org_id = o.id
+JOIN resources r ON r.workspace_id = w.id
+WHERE r.id = $1;
 
 -- name: LockOrgForMembership :one
 SELECT id FROM organizations WHERE id = $1 FOR UPDATE;

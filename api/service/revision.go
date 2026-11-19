@@ -10,20 +10,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 )
 
-// Every transaction that changes a service's desired state or bumps an environment revision
-// takes its row locks through the helpers in this file, coarse to fine, in one order:
-//
-//  0. the organization, FOR SHARE in a transaction that may start workloads (lockOrganization)
-//     and FOR UPDATE in SuspendOrg and ResumeOrg
-//  1. the environments of the workspace, in ascending id (lockWorkspaceEnvironments or
-//     lockResourceEnvironments)
-//  2. the environment_keys row of an environment whose secrets it reads or writes
-//     (SecretServer.lockEnvironmentKey)
-//  3. the resources it writes, in ascending id (lockResources or lockResource)
-//  4. the deployment, placement and domain rows of those resources
-//
-// A writer may skip a level it does not touch, never take one out of order, so two writers
-// wait on each other in a line and never in a cycle.
+// Lock order: organization, environments, environment key, resources by id; their builds, deployments, placements last.
 
 // lockWorkspaceEnvironments locks every environment of the workspace in ascending id order and
 // returns their revisions by id.
@@ -58,6 +45,14 @@ func lockResources(ctx context.Context, qtx *genDb.Queries, ids []uuid.UUID) ([]
 		return nil, fmt.Errorf("lock resources: %w", err)
 	}
 	return locked, nil
+}
+
+// lockOrgResources locks every resource of the organization in ascending id order.
+func lockOrgResources(ctx context.Context, qtx *genDb.Queries, orgID uuid.UUID) error {
+	if err := qtx.LockOrgResources(ctx, orgID); err != nil {
+		return fmt.Errorf("lock resources: %w", err)
+	}
+	return nil
 }
 
 // lockResource locks one resource and returns ErrResourceNotFound when it does not exist.
@@ -101,6 +96,7 @@ func notifyCluster(ctx context.Context, qtx *genDb.Queries, clusterID uuid.UUID)
 	return nil
 }
 
+// lockOrganization takes the organization FOR SHARE; SuspendOrg and ResumeOrg take it FOR UPDATE.
 func lockOrganization(ctx context.Context, qtx *genDb.Queries, workspaceID uuid.UUID) error {
 	if err := qtx.LockWorkspaceOrganization(ctx, workspaceID); err != nil {
 		return fmt.Errorf("lock organization: %w", err)
