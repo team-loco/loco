@@ -54,6 +54,7 @@ export function CliDevice() {
 								className="h-[34px] font-mono tracking-widest uppercase"
 								onChange={(event) => {
 									setUserCode(event.target.value);
+									if (approve.isError) approve.reset();
 								}}
 							/>
 						</Field>
