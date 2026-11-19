@@ -298,6 +298,7 @@ func TestMeteredThroughIsTheEarliestReportOfEveryActiveCluster(t *testing.T) {
 
 	third := second.Add(time.Minute)
 	f.report(t, f.clusterID, usageReport(third))
+	waitForEarlierTransactions(t, f.pool)
 	f.report(t, f.clusterID, usageReport(first))
 	if through := f.list(t, "").GetMeteredThrough(); !through.AsTime().Equal(third) {
 		t.Fatalf("metered through %v, want the latest report %s after an older one arrives", through, third)
