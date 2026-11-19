@@ -29,6 +29,7 @@ export function queryLevel(value: string): Level {
 		s.startsWith("fatal") ||
 		s.startsWith("crit") ||
 		s.startsWith("emerg") ||
+		s.startsWith("panic") ||
 		s.startsWith("alert")
 	) {
 		return "error";

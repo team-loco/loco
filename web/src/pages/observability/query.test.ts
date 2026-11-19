@@ -13,6 +13,7 @@ import {
 	pinnedKey,
 	queryError,
 	queryKeyReason,
+	queryLevel,
 	withToken,
 	queryStr,
 	searchWords,
@@ -46,6 +47,14 @@ describe("regional telemetry filters", () => {
 		expect(rows.map((row) => row.region)).toEqual(["us-east-1", "eu-west-1", ""]);
 		expect(rows.map((row) => row.resourceName)).toEqual(["removed-", "removed-", "removed-"]);
 		expect(new Set(rows.map((row) => row.key)).size).toBe(3);
+	});
+});
+
+describe("@level chips", () => {
+	test("colour every error spelling the API accepts as error", () => {
+		for (const value of ["error", "err", "fatal", "critical", "panic", "emergency", "alert"]) {
+			expect(queryLevel(value)).toBe("error");
+		}
 	});
 });
 
