@@ -495,10 +495,14 @@ with session(out) as browser:
     page.get_by_role("link", name="Audit log", exact=True).click()
     rows = page.get_by_role("list", name="Audit events").get_by_role("button")
     expect(rows.first).to_be_visible()
-    workspace_filter = page.get_by_role(
+    workspace_buttons = page.get_by_role(
         "button", name=re.compile(r"^(shared|sibling)$")
     )
-    expect(workspace_filter).to_have_count(1)
+    workspace_filter = workspace_buttons.last
+    expect(
+        page.locator('[data-slot="top-bar"]').get_by_role("button", name="shared")
+    ).to_have_count(1)
+    expect(workspace_buttons).to_have_count(2)
     expect(
         page.get_by_role("button", name="Clear workspace filter", exact=True)
     ).to_have_count(0)
@@ -540,7 +544,7 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name=re.compile(r"^Past 90 days"))
     ).to_be_visible()
-    expect(page.get_by_role("button", name="sibling", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="sibling", exact=True).last).to_be_visible()
     with expect_rpc(
         page,
         "ListEvents",

@@ -1,6 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
 import {
+	ActivitySchema,
 	DeploymentPlacementSchema,
 	DeploymentSchema,
 	DeploymentStatus,
@@ -18,6 +19,7 @@ import {
 	progressDeployments,
 	readyLabel,
 	replicaState,
+	rolloutActivity,
 	rolloutSteps,
 	showsCard,
 	stoppingCountdown,
@@ -65,6 +67,21 @@ test("progress does not use a sibling region's deployments", () => {
 			(p) => p.deployment.id,
 		),
 	).toEqual(["pending", "other"]);
+});
+
+test("previous version holds only the newest earlier revision", () => {
+	const older = create(ReplicaSchema, {
+		name: "older",
+		placementRevision: 1n,
+		deploymentId: "first",
+		state: "Stopped",
+	});
+	const old = create(ReplicaSchema, { name: "old", placementRevision: 2n, deploymentId: "next", ready: true });
+	const next = create(ReplicaSchema, { name: "next", placementRevision: 3n, deploymentId: "next" });
+	expect(groupReplicas([older, old, next], 3n, "next")).toEqual([
+		{ label: "New version", replicas: [next] },
+		{ label: "Previous version", replicas: [old] },
+	]);
 });
 
 test("replicas group by placement revision, retaining stopped replicas", () => {
@@ -123,11 +140,32 @@ test("stopping countdown uses the reported interval and clamps clock skew and ex
 	expect(stoppingCountdown({ ...replica, state: "Stopped" }, 25000)).toBeUndefined();
 });
 
-test("activity time counts minutes and seconds from deployment start", () => {
-	expect(activityTime(timestampFromMs(43000), timestampFromMs(1000))).toBe("+0:42");
-	expect(activityTime(timestampFromMs(3662000), timestampFromMs(1000))).toBe("+61:01");
-	expect(activityTime(undefined, timestampFromMs(1000))).toBe("—");
+test("activity time reads as a duration since the rollout started", () => {
+	expect(activityTime(timestampFromMs(43000), 1000)).toBe("+42s");
+	expect(activityTime(timestampFromMs(66000), 1000)).toBe("+1m 05s");
+	expect(activityTime(timestampFromMs(3662000), 1000)).toBe("+1h 01m");
+	expect(activityTime(undefined, 1000)).toBe("—");
 	expect(activityTime(timestampFromMs(1000), undefined)).toBe("—");
+});
+
+test("a restart's feed shows only its own revision in the region", () => {
+	const entry = (seq: number, name: string, revision: number, atMs: number) =>
+		create(ActivitySchema, { seq: BigInt(seq), region: name, revision: BigInt(revision), at: timestampFromMs(atMs) });
+	const build = entry(1, "", 0, 1000);
+	const first = entry(2, "east", 2, 2000);
+	const west = entry(3, "west", 2, 2500);
+	const restarted = entry(4, "east", 3, 9000);
+	const done = entry(5, "east", 3, 12000);
+	expect(rolloutActivity([build, first, west], "east", 2n)).toEqual({ entries: [build, first], restart: undefined });
+	expect(rolloutActivity([build, first, west, restarted, done], "east", 3n)).toEqual({
+		entries: [restarted, done],
+		restart: { startMs: 9000, endMs: 12000 },
+	});
+	expect(rolloutActivity([build, first, restarted], "east", 2n).entries).toEqual([restarted]);
+	expect(rolloutActivity([build, west], "west", 3n)).toEqual({
+		entries: [],
+		restart: { startMs: undefined, endMs: undefined },
+	});
 });
 
 test("problem log links preserve scope and target replica or failed build", () => {
@@ -159,6 +197,10 @@ test("elapsed rollout time includes the build and stops when ready or finished",
 	).toBe(15000);
 	expect(deploymentElapsedMs({ ...pending, createdAt: undefined }, 20000)).toBeUndefined();
 	expect(deploymentElapsedMs(pending, 0)).toBe(0);
+	expect(deploymentElapsedMs(ready, 20000, { startMs: 15000, endMs: 18000 })).toBe(3000);
+	expect(
+		deploymentElapsedMs({ ...ready, status: DeploymentStatus.DEPLOYING }, 20000, { startMs: 15000, endMs: 18000 }),
+	).toBe(5000);
 });
 
 test("serving deployments use reported readiness and Pod identity across mixed revisions", () => {
@@ -204,7 +246,15 @@ test("rollout steps follow the deployment phase", () => {
 	).toEqual(["deploy"]);
 });
 
-test("the ready line counts ready replicas against the desired count", () => {
-	const r = (ready: boolean) => create(ReplicaSchema, { ready });
-	expect(readyLabel([r(true), r(false)], 2)).toBe("1 of 2 ready");
+test("the ready line counts the current revision's ready replicas against the desired count", () => {
+	const r = (ready: boolean, placementRevision: bigint, deploymentId = "next") =>
+		create(ReplicaSchema, { ready, placementRevision, deploymentId });
+	const deployment = create(DeploymentSchema, { id: "next" });
+	const placement = create(DeploymentPlacementSchema, {
+		desiredReplicas: 2,
+		currentRevision: 3n,
+		replicas: [r(true, 3n), r(false, 3n), r(true, 2n), r(true, 3n, "old")],
+	});
+	expect(readyLabel(deployment, placement)).toBe("1 of 2 ready");
+	expect(readyLabel(deployment, undefined)).toBe("0 of 0 ready");
 });
