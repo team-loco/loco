@@ -383,7 +383,7 @@ export function MetricsView() {
 						>
 							<div className="flex items-baseline gap-2">
 								<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{def.title}</h3>
-								<span className="font-mono text-[12px] text-fg3">%</span>
+								<span className="font-mono text-[12px] text-fg3">% of limit, peak per bucket</span>
 							</div>
 							{result.isLoading || environmentLoading ? (
 								<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
@@ -416,7 +416,9 @@ export function MetricsView() {
 											style={{ borderColor: s.color }}
 										/>
 										{s.name}
-										<span className="font-mono text-[11.5px] text-fg3">{formatPercent(s.points.at(-1)?.v ?? 0)}</span>
+										<span className="font-mono text-[11.5px] text-fg3">
+											latest {formatPercent(s.points.at(-1)?.v ?? 0)}
+										</span>
 									</span>
 								))}
 							</div>
@@ -433,8 +435,8 @@ export function MetricsView() {
 								{header("resource", "Resource")}
 								{header("region", "Region")}
 								{header("replicas", "Replicas")}
-								{header("cpu", "CPU", "w-[170px]")}
-								{header("mem", "Memory", "w-[170px]")}
+								{header("cpu", "CPU (latest)", "w-[170px]")}
+								{header("mem", "Memory (latest)", "w-[170px]")}
 							</tr>
 						</thead>
 						<tbody>

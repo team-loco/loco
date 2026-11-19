@@ -67,13 +67,19 @@ func TestPinPublicImage(t *testing.T) {
 			name:      "tagged docker hub image",
 			src:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage},
 			resolver:  &fakeResolver{digest: testDigest},
-			wantImage: "index.docker.io/library/nginx@" + testDigest,
+			wantImage: "index.docker.io/library/nginx:1.27@" + testDigest,
+		},
+		{
+			name:      "untagged image",
+			src:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: "localhost:5000/app"},
+			resolver:  &fakeResolver{digest: testDigest},
+			wantImage: "localhost:5000/app@" + testDigest,
 		},
 		{
 			name:      "ghcr image",
 			src:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: "ghcr.io/acme/app:v1"},
 			resolver:  &fakeResolver{digest: testDigest},
-			wantImage: "ghcr.io/acme/app@" + testDigest,
+			wantImage: "ghcr.io/acme/app:v1@" + testDigest,
 		},
 		{
 			name: "tag and digest",
@@ -82,7 +88,7 @@ func TestPinPublicImage(t *testing.T) {
 				Image: "nginxinc/nginx-unprivileged:1.31.6-alpine@" + testDigest,
 			},
 			resolver:  &fakeResolver{digest: testDigest},
-			wantImage: "index.docker.io/nginxinc/nginx-unprivileged@" + testDigest,
+			wantImage: "index.docker.io/nginxinc/nginx-unprivileged:1.31.6-alpine@" + testDigest,
 			wantCalls: []string{"index.docker.io/nginxinc/nginx-unprivileged@" + testDigest},
 		},
 		{
@@ -346,7 +352,7 @@ func TestResolveImage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "index.docker.io/library/nginx@" + testDigest; result.GetImage() != want {
+	if want := "index.docker.io/library/nginx:1.27@" + testDigest; result.GetImage() != want {
 		t.Fatalf("image = %q, want %q", result.GetImage(), want)
 	}
 }

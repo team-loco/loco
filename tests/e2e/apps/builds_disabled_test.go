@@ -68,12 +68,11 @@ func TestBuildsDisabled(t *testing.T) {
 		}
 		var deployment appsv1.Deployment
 		p.MustGet(t, &deployment, "-n", w.Namespace, "deployment", "resource-"+w.ResourceID(t, imageApp))
-		repository := p.PublicImage[:strings.LastIndex(p.PublicImage, ":")]
 		if image := deployment.Spec.Template.Spec.Containers[0].Image; !strings.HasPrefix(
 			image,
-			repository+"@sha256:",
+			p.PublicImage+"@sha256:",
 		) {
-			t.Errorf("the app runs %s, want the public image pinned by digest", image)
+			t.Errorf("the app runs %s, want the public image's tag pinned by digest", image)
 		}
 	})
 

@@ -113,7 +113,7 @@ var (
 type WebhookServiceClient interface {
 	CreateWebhook(context.Context, *v1.CreateWebhookRequest) (*v1.CreateWebhookResponse, error)
 	ListWebhooks(context.Context, *v1.ListWebhooksRequest) (*v1.ListWebhooksResponse, error)
-	// UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
+	// UpdateWebhook replaces a webhook's name, URL and event types. Pending retries go to the new URL.
 	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
 	// RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For
@@ -139,7 +139,7 @@ func NewWebhookServiceClient(client *connect.Client) WebhookServiceClient {
 type WebhookServiceHandler interface {
 	CreateWebhook(context.Context, *v1.CreateWebhookRequest) (*v1.CreateWebhookResponse, error)
 	ListWebhooks(context.Context, *v1.ListWebhooksRequest) (*v1.ListWebhooksResponse, error)
-	// UpdateWebhook replaces a webhook's URL and event types. Pending retries go to the new URL.
+	// UpdateWebhook replaces a webhook's name, URL and event types. Pending retries go to the new URL.
 	UpdateWebhook(context.Context, *v1.UpdateWebhookRequest) (*v1.UpdateWebhookResponse, error)
 	DeleteWebhook(context.Context, *v1.DeleteWebhookRequest) (*v1.DeleteWebhookResponse, error)
 	// RotateWebhookSecret replaces a webhook's signing secret and returns the new one. For

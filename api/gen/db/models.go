@@ -1036,6 +1036,7 @@ type Webhook struct {
 	ID                      uuid.UUID   `json:"id"`
 	Kind                    WebhookKind `json:"kind"`
 	WorkspaceID             *uuid.UUID  `json:"workspaceId"`
+	Name                    string      `json:"name"`
 	Url                     string      `json:"url"`
 	Provider                string      `json:"provider"`
 	KekID                   string      `json:"kekId"`
