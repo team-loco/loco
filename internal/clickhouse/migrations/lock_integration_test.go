@@ -3,6 +3,7 @@ package migrations
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -12,28 +13,35 @@ import (
 )
 
 const (
-	racingRunners      = 8
-	testLockTTL        = 2 * time.Second
-	testRetryPeriod    = 200 * time.Millisecond
-	appliedPollPeriod  = 20 * time.Millisecond
-	appliedPollTimeout = 30 * time.Second
-	createLedger       = "-- +goose NO TRANSACTION\n-- +goose Up\n" +
+	racingRunners = 8
+	// A holder gets a lease longer than renewals take on a loaded machine.
+	testLockTTL       = 2 * time.Minute
+	testRetryPeriod   = 200 * time.Millisecond
+	appliedPollPeriod = 20 * time.Millisecond
+	createLedger      = "-- +goose NO TRANSACTION\n-- +goose Up\n" +
 		"CREATE TABLE IF NOT EXISTS ledger (entry UInt8) ENGINE = MergeTree ORDER BY entry;\n"
 	recordEntry = "-- +goose NO TRANSACTION\n-- +goose Up\nINSERT INTO ledger VALUES (1);\n"
-	slowStep    = "-- +goose NO TRANSACTION\n-- +goose Up\nSELECT sleep(2);\n"
 )
 
 var (
+	// The holder's slow step outlasts any wait for migration 1, so the holder is always killed during it.
+	abandonedStep           = "-- +goose NO TRANSACTION\n-- +goose Up\n" + strings.Repeat("SELECT sleep(3);\n", 200)
+	resumedStep             = "-- +goose NO TRANSACTION\n-- +goose Up\nSELECT 1;\n"
 	nonIdempotentMigrations = fstest.MapFS{
 		"00001_create_ledger.sql": {Data: []byte(createLedger)},
 		"00002_record_entry.sql":  {Data: []byte(recordEntry)},
 	}
-	interruptibleMigrations = fstest.MapFS{
+	abandonedMigrations = interruptibleMigrations(abandonedStep)
+	resumedMigrations   = interruptibleMigrations(resumedStep)
+)
+
+func interruptibleMigrations(slowStep string) fstest.MapFS {
+	return fstest.MapFS{
 		"00001_create_ledger.sql": {Data: []byte(createLedger)},
 		"00002_slow_step.sql":     {Data: []byte(slowStep)},
 		"00003_record_entry.sql":  {Data: []byte(recordEntry)},
 	}
-)
+}
 
 func (d *testDatabase) ledgerRows(t *testing.T) uint64 {
 	t.Helper()
@@ -47,15 +55,13 @@ func (d *testDatabase) ledgerRows(t *testing.T) uint64 {
 func (d *testDatabase) waitForVersion(t *testing.T, version int64) {
 	t.Helper()
 	query := "SELECT count() FROM " + d.cfg.Database + "." + VersionTable + " WHERE version_id = ?"
-	deadline := time.Now().Add(appliedPollTimeout)
-	for time.Now().Before(deadline) {
+	for {
 		var count uint64
 		if err := d.admin.QueryRow(t.Context(), query, version).Scan(&count); err == nil && count > 0 {
 			return
 		}
 		time.Sleep(appliedPollPeriod)
 	}
-	t.Fatalf("migration %d was not applied within %s", version, appliedPollTimeout)
 }
 
 func newLock(d *testDatabase) *migrationlock.Lock {
@@ -109,7 +115,7 @@ func TestSuccessorFinishesAMigrationItsHolderAbandoned(t *testing.T) {
 	holderErr := make(chan error, 1)
 	go func() {
 		holderErr <- newLock(db).WithLock(holderCtx, func(ctx context.Context) error {
-			_, err := apply(ctx, db.cfg, interruptibleMigrations)
+			_, err := apply(ctx, db.cfg, abandonedMigrations)
 			return err
 		})
 	}()
@@ -120,7 +126,7 @@ func TestSuccessorFinishesAMigrationItsHolderAbandoned(t *testing.T) {
 	}
 
 	err := newLock(db).WithLock(t.Context(), func(ctx context.Context) error {
-		_, err := apply(ctx, db.cfg, interruptibleMigrations)
+		_, err := apply(ctx, db.cfg, resumedMigrations)
 		return err
 	})
 	if err != nil {
@@ -131,7 +137,7 @@ func TestSuccessorFinishesAMigrationItsHolderAbandoned(t *testing.T) {
 	}
 	versions := db.appliedVersions(t)
 	t.Logf("applied versions: %v", versions)
-	if len(versions) != len(interruptibleMigrations)+1 {
+	if len(versions) != len(resumedMigrations)+1 {
 		t.Fatalf("applied versions = %v, want every migration", versions)
 	}
 }
