@@ -1,4 +1,5 @@
 import { RegionAvailability, type RegionInfo } from "@gen/loco/resource/v1/resource_pb";
+import { CheckIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ export function RegionCard({
 			{...props}
 			disabled={disabled === true || (!configured && unavailable !== undefined)}
 		>
+			<CheckIcon aria-hidden className="reg-check" />
 			<span className="flex w-full flex-wrap items-center gap-2">
 				<span className="font-mono text-[12.5px]">{name}</span>
 				{unavailable === undefined && <RegionHealth region={health} />}

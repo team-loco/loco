@@ -71,6 +71,12 @@ describe("draft placement", () => {
 		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, regions)).toEqual([]);
 	});
 
+	test("a lone region is selected even when it is not marked default", () => {
+		const lone = [create(RegionInfoSchema, { region: "us-east-1", isDefault: false })];
+		expect(draftRegions(draft("a"), lone)).toEqual(["us-east-1"]);
+		expect(draftRegions({ ...draft("a"), edits: { regions: [] } }, lone)).toEqual([]);
+	});
+
 	test("sizing comes from the draft's edits, then the service defaults", () => {
 		const defaults = { cpu: "500m", memory: "1Gi", minReplicas: 1, cpuTarget: 65 };
 		expect(draftSizing(draft("a"), defaults)).toEqual({

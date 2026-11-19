@@ -60,7 +60,9 @@ export function removeDraft(drafts: readonly Draft[], id: string): Draft[] {
 }
 
 export function draftRegions(draft: Draft, regions: readonly RegionInfo[]): string[] {
-	return draft.edits.regions ?? regions.filter((r) => r.isDefault).map((r) => r.region);
+	if (draft.edits.regions !== undefined) return draft.edits.regions;
+	const defaults = regions.filter((r) => r.isDefault);
+	return (defaults.length === 0 && regions.length === 1 ? regions : defaults).map((r) => r.region);
 }
 
 export function draftIsPublic(draft: Draft): boolean {
