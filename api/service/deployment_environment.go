@@ -13,14 +13,19 @@ import (
 )
 
 // deploymentSecretNames returns the secret names a deployment to regions binds: what the
-// request sets, else what the deployment live in the first of those regions binds.
+// request sets, else what the copied deployment binds, else what the deployment live in the
+// first of those regions binds.
 func (s *DeploymentServer) deploymentSecretNames(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	resourceID, environmentID uuid.UUID,
 	regions []string,
+	source *genDb.Deployment,
 	bindings *deploymentv1.DeploymentSecretBindings,
 ) ([]string, error) {
+	if bindings == nil && source != nil {
+		bindings = &deploymentv1.DeploymentSecretBindings{Names: source.SecretNames}
+	}
 	if bindings != nil {
 		secretNames := append([]string{}, bindings.GetNames()...)
 		if err := s.validateSecretBindings(ctx, qtx, resourceID, environmentID, secretNames); err != nil {

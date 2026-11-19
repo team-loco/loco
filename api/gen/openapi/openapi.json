@@ -10507,7 +10507,7 @@
           },
           "secretBindings": {
             "title": "secret_bindings",
-            "description": "Omit to keep the secret bindings of the deployment live in the target regions.",
+            "description": "Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,\n or else of the deployment live in the target regions.",
             "$ref": "#/components/schemas/loco.deployment.v1.DeploymentSecretBindings"
           },
           "commit": {

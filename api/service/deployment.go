@@ -353,7 +353,7 @@ func (s *DeploymentServer) CreateDeployment(
 		}
 
 		secretNames, bindingsErr := s.deploymentSecretNames(
-			ctx, qtx, resourceID, environmentID, regions, req.GetSecretBindings(),
+			ctx, qtx, resourceID, environmentID, regions, source, req.GetSecretBindings(),
 		)
 		if bindingsErr != nil {
 			return bindingsErr
@@ -371,7 +371,7 @@ func (s *DeploymentServer) CreateDeployment(
 				CommitSha:          sourceCommitSHA(req.GetCommit()),
 				CommitDirty:        req.GetCommit().GetDirty(),
 				Trigger:            trigger,
-				SourceDeploymentID: source,
+				SourceDeploymentID: sourceID(source),
 			},
 			service: mergedServiceSpec,
 			targets: targets,
@@ -423,7 +423,7 @@ func (s *DeploymentServer) sourceDeployment(
 	req *deploymentv1.CreateDeploymentRequest,
 	resourceID, environmentID uuid.UUID,
 	trigger genDb.DeploymentTrigger,
-) (*uuid.UUID, error) {
+) (*genDb.Deployment, error) {
 	if trigger == genDb.DeploymentTriggerDeploy {
 		if req.GetSourceDeploymentId() != "" {
 			return nil, errSourceDeployment
@@ -441,7 +441,14 @@ func (s *DeploymentServer) sourceDeployment(
 	if err != nil {
 		return nil, fmt.Errorf("get source deployment: %w", err)
 	}
-	return &source.ID, nil
+	return &source, nil
+}
+
+func sourceID(source *genDb.Deployment) *uuid.UUID {
+	if source == nil {
+		return nil
+	}
+	return &source.ID
 }
 
 // GetDeployment retrieves a deployment by ID

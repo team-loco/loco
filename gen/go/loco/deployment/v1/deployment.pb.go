@@ -1273,7 +1273,8 @@ type CreateDeploymentRequest struct {
 	Regions       []string        `protobuf:"bytes,8,rep,name=regions,proto3" json:"regions,omitempty"`
 	Spec          *DeploymentSpec `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
 	EnvironmentId string          `protobuf:"bytes,5,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	// Omit to keep the secret bindings of the deployment live in the target regions.
+	// Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,
+	// or else of the deployment live in the target regions.
 	SecretBindings *DeploymentSecretBindings `protobuf:"bytes,6,opt,name=secret_bindings,json=secretBindings,proto3" json:"secret_bindings,omitempty"`
 	Commit         *SourceCommit             `protobuf:"bytes,7,opt,name=commit,proto3" json:"commit,omitempty"`
 	// Unspecified records a deploy; redeploy and rollback name the deployment they copy.

@@ -265,7 +265,8 @@ message CreateDeploymentRequest {
   }];
   DeploymentSpec spec = 4 [(buf.validate.field).required = true];
   string environment_id = 5 [(buf.validate.field).string.uuid = true];
-  // Omit to keep the secret bindings of the deployment live in the target regions.
+  // Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,
+  // or else of the deployment live in the target regions.
   DeploymentSecretBindings secret_bindings = 6;
   SourceCommit commit = 7;
   // Unspecified records a deploy; redeploy and rollback name the deployment they copy.
