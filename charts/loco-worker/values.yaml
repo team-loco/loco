@@ -502,12 +502,10 @@ otel-col-daemon:
           - id: multiline
             type: recombine
             combine_field: body
-            combine_with: "\n"
-            source_identifier: attributes["log.file.path"]
             is_first_entry: >-
               not (body matches "^\\s" or body startsWith "Caused by: " or body matches "^goroutine [0-9]+ .*\\[.+\\]:$"
               or body startsWith "[signal " or body startsWith "created by "
-              or body matches "^(panic|[^\\s(]*[./][^\\s(]*)\\(.*\\)$")
+              or body matches "^(panic|[^\\s(]*[./](\\(\\*?[^\\s()]+\\)\\.)?[^\\s(]*)\\([0-9a-fx{}?,. ]*\\)$")
             max_log_size: '{{ .Values.presets.logsCollection.maxRecombineLogSize }}'
             force_flush_period: 500ms
       kubeletstats:

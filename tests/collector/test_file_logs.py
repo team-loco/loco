@@ -120,6 +120,7 @@ def test_multiline_entries_arrive_as_one_record(worker_relays, tmp_path):
         "GET /health 200",
         "  ",
         "GET /health 200",
+        "user.login(alice)",
     ]
     write_pod_log(tmp_path, "loco-ws-a", lines)
     expected = [
@@ -136,6 +137,7 @@ def test_multiline_entries_arrive_as_one_record(worker_relays, tmp_path):
         ),
         ("GET /health 200", ""),
         ("GET /health 200", ""),
+        ("user.login(alice)", ""),
     ]
     with run_collector(
         tmp_path, file_log_pipeline(worker_relays), "otel-col-daemon"
