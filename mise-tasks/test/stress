@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run Go test packages repeatedly with the race detector under CPU load: one test process and two CPU burners per CPU, each process running every test --count times on one CPU, two at a time; prints the output of each failing process and how often each test failed. Without packages, it stresses those whose Go files differ from --base. ClickHouse starts as in test:api; the database tests need LOCO_TEST_DATABASE_URL"
+#MISE description="Run Go test packages repeatedly with the race detector under CPU load: one test process and two CPU burners per CPU, each process running every test --count times on one CPU, two at a time; prints the output of each failing process and how often each test failed. Without packages, it stresses those whose Go files differ from --base. ClickHouse-backed packages and tests are not stress-tested; the database tests need LOCO_TEST_DATABASE_URL"
 #USAGE flag "--base <ref>" default="origin/main" help="ref whose merge base selects the changed packages"
 #USAGE flag "--count <n>" default="5" help="runs of each test per process"
 #USAGE arg "[package]..." var=#true help="repo-relative directories, dir/... for every package below one"
@@ -19,7 +19,7 @@ for pattern in ${patterns[@]+"${patterns[@]}"}; do
 	dir=${pattern%/...}
 	[[ $dir == "$pattern" ]] && target=. || target=./...
 	while IFS= read -r package; do
-		[[ -n $package ]] && packages+=("$package")
+		[[ -n $package && $package != "$root/internal/clickhouse"* ]] && packages+=("$package")
 	done < <(go -C "$root/$dir" list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.Dir}}{{end}}' "$target")
 done
 if [[ ${#packages[@]} -eq 0 ]]; then
@@ -27,7 +27,7 @@ if [[ ${#packages[@]} -eq 0 ]]; then
 	exit 0
 fi
 
-source "$root/mise-tasks/test/lib/clickhouse.sh"
+unset LOCO_TEST_CLICKHOUSE_URL
 if [[ -z ${KUBEBUILDER_ASSETS:-} ]] && printf '%s\n' "${packages[@]}" | grep -q "^$root/controller/"; then
 	KUBEBUILDER_ASSETS=$(make -s -C "$root/controller" envtest-assets)
 	export KUBEBUILDER_ASSETS
@@ -39,7 +39,6 @@ burners=()
 cleanup() {
 	[[ ${#burners[@]} -eq 0 ]] || kill "${burners[@]}" 2>/dev/null || true
 	rm -rf "$work"
-	if declare -F clickhouse_cleanup >/dev/null; then clickhouse_cleanup; fi
 }
 trap cleanup EXIT
 
