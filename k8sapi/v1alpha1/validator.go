@@ -49,7 +49,7 @@ const (
 )
 
 const (
-	minServicePort         = 1024
+	minServicePort         = 1
 	maxServicePort         = 65535
 	maxEnvVars             = 100
 	maxStartupGracePeriod  = 180

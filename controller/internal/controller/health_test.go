@@ -127,3 +127,20 @@ func TestDesiredDeploymentDoesNotDelayPortlessWorkerShutdown(t *testing.T) {
 			pod.Containers[0].Lifecycle, pod.TerminationGracePeriodSeconds)
 	}
 }
+
+func TestDesiredDeploymentLetsNonRootPodsBindLowPorts(t *testing.T) {
+	app := testApplication()
+	deployment := desiredDeployment(
+		app,
+		testEnvironmentNamespace(app),
+		envSecretMount{},
+		testTelemetry(),
+		testMinReadySeconds,
+		testDrainSeconds,
+	)
+	security := deployment.Spec.Template.Spec.SecurityContext
+	if len(security.Sysctls) != 1 || *security.Sysctls[0].Name != "net.ipv4.ip_unprivileged_port_start" ||
+		*security.Sysctls[0].Value != "0" {
+		t.Errorf("sysctls = %+v, want net.ipv4.ip_unprivileged_port_start=0", security.Sysctls)
+	}
+}

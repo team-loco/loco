@@ -196,3 +196,12 @@ func TestApplicationAcceptsOnlyTheServiceType(t *testing.T) {
 		}
 	}
 }
+
+func TestValidatePortRange(t *testing.T) {
+	cases := map[int32]bool{0: false, 1: true, 80: true, 1023: true, 8080: true, 65535: true, 65536: false}
+	for port, valid := range cases {
+		if err := ValidatePort(port); (err == nil) != valid {
+			t.Errorf("ValidatePort(%d) = %v, want valid %v", port, err, valid)
+		}
+	}
+}

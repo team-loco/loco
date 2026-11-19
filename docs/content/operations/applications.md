@@ -48,7 +48,7 @@ loco env list --service web --env production
 
 ## Container requirements
 
-Applications run under Kubernetes' `restricted` Pod Security profile. Use an image with a numeric non-root `USER`, or set `runAsUser` in `loco.yaml` to a positive numeric UID compatible with the image. Set `runAsGroup` when it also needs an explicit primary GID; see [Runtime user](../deployment/loco-yaml.md#runtime-user). Use an unprivileged application port and configure the routing port to match it.
+Applications run under Kubernetes' `restricted` Pod Security profile. Use an image with a numeric non-root `USER`, or set `runAsUser` in `loco.yaml` to a positive numeric UID compatible with the image. Set `runAsGroup` when it also needs an explicit primary GID; see [Runtime user](../deployment/loco-yaml.md#runtime-user). The pod sets the `net.ipv4.ip_unprivileged_port_start=0` sysctl, so the process can listen on any port from 1 to 65535 without root or extra capabilities.
 
 ## Runtime environment
 

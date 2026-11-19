@@ -59,11 +59,16 @@ func workspaceObjectLabels(app *locov1alpha1.Application) map[string]string {
 	}
 }
 
+// unprivilegedPortStartSysctl is a namespaced safe sysctl. Setting it to 0 lets a non-root
+// process with every capability dropped bind any port.
+const unprivilegedPortStartSysctl = "net.ipv4.ip_unprivileged_port_start"
+
 func podSecurityContext() *corev1ac.PodSecurityContextApplyConfiguration {
 	seccomp := corev1ac.SeccompProfile().WithType(corev1.SeccompProfileTypeRuntimeDefault)
 	return corev1ac.PodSecurityContext().
 		WithRunAsNonRoot(true).
-		WithSeccompProfile(seccomp)
+		WithSeccompProfile(seccomp).
+		WithSysctls(corev1ac.Sysctl().WithName(unprivilegedPortStartSysctl).WithValue("0"))
 }
 
 func containerSecurityContext() *corev1ac.SecurityContextApplyConfiguration {
