@@ -458,6 +458,10 @@ spec:
                           within the window.
                         format: int32
                         type: integer
+                      rollout:
+                        description: Rollout is set when a previous version took the
+                          stopped revision's place.
+                        type: boolean
                     required:
                     - at
                     - lastRestart
