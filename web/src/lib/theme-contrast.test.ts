@@ -160,10 +160,7 @@ describe("colour theme contrast", () => {
 				const failing = pairs
 					.map(([text, surface]) => {
 						const ratio = contrast(resolve(text, values), resolve(surface, values));
-						return {
-							pair: `${text} on ${surface}`,
-							ratio: Math.round(ratio * 100) / 100,
-						};
+						return { pair: `${text} on ${surface}`, ratio: Math.round(ratio * 100) / 100 };
 					})
 					.filter(({ ratio }) => ratio < minimumContrast);
 				expect(failing).toEqual([]);
