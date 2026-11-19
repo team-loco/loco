@@ -67,7 +67,7 @@ export function ResourcesMap({
 				{selected !== undefined && (
 					<SheetContent>
 						<SheetHeader>
-							<SheetTitle className="truncate font-mono">{selected.resource.displayName}</SheetTitle>
+							<SheetTitle className="truncate">{selected.resource.displayName}</SheetTitle>
 							<ResourceStatusBadge status={selected.status} />
 						</SheetHeader>
 						<SheetBody>

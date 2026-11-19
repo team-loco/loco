@@ -36,6 +36,8 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 	return { injectOtel: config.injectOtel };
 }
 
+const MAX_DISPLAY_NAME_LENGTH = 63;
+
 export interface SettingsDraft {
 	displayName?: string;
 	description?: string;
@@ -215,7 +217,12 @@ export function validateDraft(
 		const error = scalingError(scaling, replicaLimit);
 		if (error !== null) errors[`scaling.${region}`] = error;
 	}
-	if (draft.displayName !== undefined && next.displayName.trim() === "") errors.displayName = "Enter a display name";
+	if (draft.displayName !== undefined) {
+		const displayName = next.displayName.trim();
+		if (displayName === "") errors.displayName = "Enter a display name";
+		else if (Array.from(displayName).length > MAX_DISPLAY_NAME_LENGTH)
+			errors.displayName = `Use at most ${MAX_DISPLAY_NAME_LENGTH.toString()} characters`;
+	}
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";
 	if (draft.port !== undefined) {
 		const portInvalid = next.port.trim() === "" ? "Enter a port number" : portRangeError(next.port);

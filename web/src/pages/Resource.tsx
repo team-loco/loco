@@ -531,10 +531,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 			</Dialog>
 			<ConfirmDialog
 				open={modal?.kind === "restart"}
-				title={`Restart ${resource.name}?`}
+				title={`Restart ${resource.displayName}?`}
 				description={
 					<>
-						Restarts every replica of <span className="font-mono text-foreground">{resource.name}</span> in the{" "}
+						Restarts every replica of <span className="text-foreground">{resource.displayName}</span> in the{" "}
 						<span className="font-mono text-foreground">{environment?.environmentName ?? ""}</span> environment.
 					</>
 				}

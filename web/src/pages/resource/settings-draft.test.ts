@@ -272,6 +272,13 @@ describe("changeCount", () => {
 });
 
 describe("validateDraft", () => {
+	test("limits the display name to 63 characters, counting an emoji as one", () => {
+		expect(validateDraft({ displayName: "  " }, base, regions, SERVED, 10).displayName).toBe("Enter a display name");
+		expect(validateDraft({ displayName: "🚀".repeat(63) }, base, regions, SERVED, 10).displayName).toBeUndefined();
+		expect(validateDraft({ displayName: "a".repeat(64) }, base, regions, SERVED, 10).displayName).toBe(
+			"Use at most 63 characters",
+		);
+	});
 	test("reports only the fields the draft touched", () => {
 		expect(validateDraft({}, base, regions, SERVED, 10)).toEqual({});
 		expect(validateDraft({ port: "http", healthPath: "ready" }, base, regions, SERVED, 10)).toEqual({

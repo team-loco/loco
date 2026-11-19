@@ -105,7 +105,7 @@ export function useSaveSettings({
 				setSaving(false);
 				onDone(draft, {
 					tone: "bad",
-					title: `Couldn't save ${resource.name}`,
+					title: `Couldn't save ${resource.displayName}`,
 					message: getErrorMessage(err, "Failed to load its variables"),
 				});
 				return;
