@@ -664,6 +664,68 @@
         }
       }
     },
+    "/loco.auth.v1.AuthService/GetDeviceLogin": {
+      "post": {
+        "tags": [
+          "loco.auth.v1.AuthService"
+        ],
+        "summary": "GetDeviceLogin",
+        "description": "GetDeviceLogin describes the device that started a login, for the person approving its code.",
+        "operationId": "loco.auth.v1.AuthService.GetDeviceLogin",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/loco.auth.v1.GetDeviceLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/loco.auth.v1.GetDeviceLoginResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/loco.auth.v1.AuthService/PollDeviceLogin": {
       "post": {
         "tags": [
@@ -9197,6 +9259,44 @@
         "title": "ExchangeCLICodeResponse",
         "additionalProperties": false
       },
+      "loco.auth.v1.GetDeviceLoginRequest": {
+        "type": "object",
+        "properties": {
+          "userCode": {
+            "type": "string",
+            "title": "user_code",
+            "maxLength": 32,
+            "minLength": 1
+          }
+        },
+        "title": "GetDeviceLoginRequest",
+        "additionalProperties": false
+      },
+      "loco.auth.v1.GetDeviceLoginResponse": {
+        "type": "object",
+        "properties": {
+          "userAgent": {
+            "type": "string",
+            "title": "user_agent",
+            "description": "The User-Agent the device sent when it started the login."
+          },
+          "ipAddress": {
+            "type": "string",
+            "title": "ip_address",
+            "description": "The address the login started from; empty when unknown."
+          },
+          "requestedAt": {
+            "title": "requested_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "expiresAt": {
+            "title": "expires_at",
+            "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          }
+        },
+        "title": "GetDeviceLoginResponse",
+        "additionalProperties": false
+      },
       "loco.auth.v1.PollDeviceLoginRequest": {
         "type": "object",
         "properties": {
@@ -15853,6 +15953,11 @@
           "current": {
             "type": "boolean",
             "title": "current"
+          },
+          "ipAddress": {
+            "type": "string",
+            "title": "ip_address",
+            "description": "The address that signed in; empty when unknown."
           }
         },
         "title": "Session",

@@ -187,7 +187,7 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 			if got := codeOf(err); (tc.want == 0 && err != nil) || (tc.want != 0 && got != tc.want) {
 				t.Fatalf("approve loopback = %v, want %v", err, tc.want)
 			}
-			device, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+			device, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -208,7 +208,7 @@ func TestCLIApprovalNeedsWebSession(t *testing.T) {
 func TestCLIDeviceLogin(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -272,10 +272,46 @@ func (c *racingCache) Get(ctx context.Context, key string) ([]byte, error) {
 	return value, err
 }
 
+func TestDeviceLoginDescribesTheRequestingDevice(t *testing.T) {
+	t.Parallel()
+	f := newAuthFixture(t)
+	const agent = "loco/v1.2.3 (darwin arm64; build-box)"
+	ctx, info := connect.NewClientContext(t.Context())
+	info.RequestHeader().Set("User-Agent", agent)
+	info.RequestHeader().Set("X-Forwarded-For", "203.0.113.9")
+	started, err := f.client.StartDeviceLogin(ctx, &authv1.StartDeviceLoginRequest{})
+	if err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if _, getErr := f.server.GetDeviceLogin(t.Context(), &authv1.GetDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	}); getErr == nil {
+		t.Fatal("device login described to a caller without a web session")
+	}
+	got, err := f.server.GetDeviceLogin(f.webCtx, &authv1.GetDeviceLoginRequest{UserCode: started.GetUserCode()})
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.GetUserAgent() != agent || got.GetIpAddress() != "203.0.113.9" ||
+		got.GetRequestedAt() == nil || !got.GetExpiresAt().AsTime().After(got.GetRequestedAt().AsTime()) {
+		t.Fatalf("device login = %+v", got)
+	}
+	if _, getErr := f.server.GetDeviceLogin(f.webCtx, &authv1.GetDeviceLoginRequest{
+		UserCode: "ZZZZ-ZZZZ",
+	}); codeOf(getErr) != connect.CodeNotFound {
+		t.Fatalf("unknown code: %v", getErr)
+	}
+	if _, approveErr := f.server.ApproveDeviceLogin(f.webCtx, &authv1.ApproveDeviceLoginRequest{
+		UserCode: started.GetUserCode(),
+	}); approveErr != nil {
+		t.Fatalf("approve after describing: %v", approveErr)
+	}
+}
+
 func TestCLIDevicePollCannotOverwriteApproval(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -349,7 +385,7 @@ func TestCLIDeviceApprovalRetriesAfterUnavailable(t *testing.T) {
 func TestCLIDeviceApprovalKeepsExpiry(t *testing.T) {
 	t.Parallel()
 	f := newAuthFixture(t)
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}
@@ -438,7 +474,7 @@ func TestCLILoginStoresCodeAfterApprovalCommits(t *testing.T) {
 		t.Fatalf("approval events committed when the loopback code was stored = %d, want 1", loopback.approved)
 	}
 
-	started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+	started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 	if err != nil {
 		t.Fatalf("start: %v", err)
 	}

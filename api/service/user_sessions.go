@@ -39,6 +39,9 @@ func (s *UserServer) ListSessions(
 		if row.UserAgent != nil {
 			session.UserAgent = *row.UserAgent
 		}
+		if row.IpAddress != nil {
+			session.IpAddress = row.IpAddress.String()
+		}
 		sessions = append(sessions, session)
 	}
 	return &userv1.ListSessionsResponse{Sessions: sessions}, nil

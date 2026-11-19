@@ -3,6 +3,7 @@ syntax = "proto3";
 package loco.auth.v1;
 
 import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
 import "loco/user/v1/user.proto";
 
 option go_package = "github.com/team-loco/loco/gen/go/loco/auth/v1;authv1";
@@ -11,6 +12,8 @@ service AuthService {
   rpc ApproveCLILogin(ApproveCLILoginRequest) returns (ApproveCLILoginResponse);
   rpc ExchangeCLICode(ExchangeCLICodeRequest) returns (ExchangeCLICodeResponse);
   rpc StartDeviceLogin(StartDeviceLoginRequest) returns (StartDeviceLoginResponse);
+  // GetDeviceLogin describes the device that started a login, for the person approving its code.
+  rpc GetDeviceLogin(GetDeviceLoginRequest) returns (GetDeviceLoginResponse);
   rpc ApproveDeviceLogin(ApproveDeviceLoginRequest) returns (ApproveDeviceLoginResponse);
   rpc PollDeviceLogin(PollDeviceLoginRequest) returns (PollDeviceLoginResponse);
   rpc RefreshCLIToken(RefreshCLITokenRequest) returns (RefreshCLITokenResponse);
@@ -65,6 +68,22 @@ message StartDeviceLoginResponse {
   string verification_uri_complete = 4;
   int64 expires_in = 5;
   int64 interval = 6;
+}
+
+message GetDeviceLoginRequest {
+  string user_code = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_len: 32
+  }];
+}
+
+message GetDeviceLoginResponse {
+  // The User-Agent the device sent when it started the login.
+  string user_agent = 1;
+  // The address the login started from; empty when unknown.
+  string ip_address = 2;
+  google.protobuf.Timestamp requested_at = 3;
+  google.protobuf.Timestamp expires_at = 4;
 }
 
 message ApproveDeviceLoginRequest {

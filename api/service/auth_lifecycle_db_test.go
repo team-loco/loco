@@ -43,7 +43,7 @@ func TestApprovedCLILoginCannotOutliveAccount(t *testing.T) {
 						return err
 					}
 				} else {
-					started, err := f.server.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
+					started, err := f.client.StartDeviceLogin(t.Context(), &authv1.StartDeviceLoginRequest{})
 					if err != nil {
 						t.Fatal(err)
 					}

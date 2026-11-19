@@ -33,6 +33,8 @@ const (
 	// AuthServiceStartDeviceLoginProcedure is the procedure name of the AuthService's StartDeviceLogin
 	// RPC.
 	AuthServiceStartDeviceLoginProcedure = "/loco.auth.v1.AuthService/StartDeviceLogin"
+	// AuthServiceGetDeviceLoginProcedure is the procedure name of the AuthService's GetDeviceLogin RPC.
+	AuthServiceGetDeviceLoginProcedure = "/loco.auth.v1.AuthService/GetDeviceLogin"
 	// AuthServiceApproveDeviceLoginProcedure is the procedure name of the AuthService's
 	// ApproveDeviceLogin RPC.
 	AuthServiceApproveDeviceLoginProcedure = "/loco.auth.v1.AuthService/ApproveDeviceLogin"
@@ -74,6 +76,13 @@ var (
 			StreamType: connect.StreamTypeUnary,
 			Schema:     v1.File_loco_auth_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("StartDeviceLogin"),
 			Procedure:  AuthServiceStartDeviceLoginProcedure,
+		}
+	})
+	authServiceGetDeviceLoginSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_auth_v1_auth_proto.Services().ByName("AuthService").Methods().ByName("GetDeviceLogin"),
+			Procedure:  AuthServiceGetDeviceLoginProcedure,
 		}
 	})
 	authServiceApproveDeviceLoginSpec = sync.OnceValue(func() connect.Spec {
@@ -132,6 +141,8 @@ type AuthServiceClient interface {
 	ApproveCLILogin(context.Context, *v1.ApproveCLILoginRequest) (*v1.ApproveCLILoginResponse, error)
 	ExchangeCLICode(context.Context, *v1.ExchangeCLICodeRequest) (*v1.ExchangeCLICodeResponse, error)
 	StartDeviceLogin(context.Context, *v1.StartDeviceLoginRequest) (*v1.StartDeviceLoginResponse, error)
+	// GetDeviceLogin describes the device that started a login, for the person approving its code.
+	GetDeviceLogin(context.Context, *v1.GetDeviceLoginRequest) (*v1.GetDeviceLoginResponse, error)
 	ApproveDeviceLogin(context.Context, *v1.ApproveDeviceLoginRequest) (*v1.ApproveDeviceLoginResponse, error)
 	PollDeviceLogin(context.Context, *v1.PollDeviceLoginRequest) (*v1.PollDeviceLoginResponse, error)
 	RefreshCLIToken(context.Context, *v1.RefreshCLITokenRequest) (*v1.RefreshCLITokenResponse, error)
@@ -152,6 +163,8 @@ type AuthServiceHandler interface {
 	ApproveCLILogin(context.Context, *v1.ApproveCLILoginRequest) (*v1.ApproveCLILoginResponse, error)
 	ExchangeCLICode(context.Context, *v1.ExchangeCLICodeRequest) (*v1.ExchangeCLICodeResponse, error)
 	StartDeviceLogin(context.Context, *v1.StartDeviceLoginRequest) (*v1.StartDeviceLoginResponse, error)
+	// GetDeviceLogin describes the device that started a login, for the person approving its code.
+	GetDeviceLogin(context.Context, *v1.GetDeviceLoginRequest) (*v1.GetDeviceLoginResponse, error)
 	ApproveDeviceLogin(context.Context, *v1.ApproveDeviceLoginRequest) (*v1.ApproveDeviceLoginResponse, error)
 	PollDeviceLogin(context.Context, *v1.PollDeviceLoginRequest) (*v1.PollDeviceLoginResponse, error)
 	RefreshCLIToken(context.Context, *v1.RefreshCLITokenRequest) (*v1.RefreshCLITokenResponse, error)
@@ -169,6 +182,7 @@ func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) 
 		connect.Method{Spec: authServiceApproveCLILoginSpec(), Handler: adapter.approveCLILogin},
 		connect.Method{Spec: authServiceExchangeCLICodeSpec(), Handler: adapter.exchangeCLICode},
 		connect.Method{Spec: authServiceStartDeviceLoginSpec(), Handler: adapter.startDeviceLogin},
+		connect.Method{Spec: authServiceGetDeviceLoginSpec(), Handler: adapter.getDeviceLogin},
 		connect.Method{Spec: authServiceApproveDeviceLoginSpec(), Handler: adapter.approveDeviceLogin},
 		connect.Method{Spec: authServicePollDeviceLoginSpec(), Handler: adapter.pollDeviceLogin},
 		connect.Method{Spec: authServiceRefreshCLITokenSpec(), Handler: adapter.refreshCLIToken},
@@ -192,6 +206,10 @@ func (UnimplementedAuthServiceHandler) ExchangeCLICode(context.Context, *v1.Exch
 
 func (UnimplementedAuthServiceHandler) StartDeviceLogin(context.Context, *v1.StartDeviceLoginRequest) (*v1.StartDeviceLoginResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.StartDeviceLogin is not implemented")
+}
+
+func (UnimplementedAuthServiceHandler) GetDeviceLogin(context.Context, *v1.GetDeviceLoginRequest) (*v1.GetDeviceLoginResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.auth.v1.AuthService.GetDeviceLogin is not implemented")
 }
 
 func (UnimplementedAuthServiceHandler) ApproveDeviceLogin(context.Context, *v1.ApproveDeviceLoginRequest) (*v1.ApproveDeviceLoginResponse, error) {
@@ -245,6 +263,14 @@ func (c *authServiceClient) ExchangeCLICode(ctx context.Context, req *v1.Exchang
 func (c *authServiceClient) StartDeviceLogin(ctx context.Context, req *v1.StartDeviceLoginRequest) (*v1.StartDeviceLoginResponse, error) {
 	var res v1.StartDeviceLoginResponse
 	if err := c.client.CallUnary(ctx, authServiceStartDeviceLoginSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) GetDeviceLogin(ctx context.Context, req *v1.GetDeviceLoginRequest) (*v1.GetDeviceLoginResponse, error) {
+	var res v1.GetDeviceLoginResponse
+	if err := c.client.CallUnary(ctx, authServiceGetDeviceLoginSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -338,6 +364,18 @@ func (h authServiceHandler) startDeviceLogin(ctx context.Context, _ connect.Spec
 		return err
 	}
 	res, err := h.svc.StartDeviceLogin(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) getDeviceLogin(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.GetDeviceLoginRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetDeviceLogin(ctx, &req)
 	if err != nil {
 		return err
 	}

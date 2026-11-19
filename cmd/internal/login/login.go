@@ -8,10 +8,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"runtime"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/spf13/cobra"
 
 	"github.com/team-loco/loco/cmd/internal/auth"
@@ -20,6 +25,7 @@ import (
 	"github.com/team-loco/loco/cmd/internal/session"
 	"github.com/team-loco/loco/cmd/internal/ui"
 	authv1 "github.com/team-loco/loco/gen/go/loco/auth/v1"
+	"github.com/team-loco/loco/gen/go/loco/auth/v1/authv1connect"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	orgv1 "github.com/team-loco/loco/gen/go/loco/org/v1"
 	userv1 "github.com/team-loco/loco/gen/go/loco/user/v1"
@@ -33,6 +39,8 @@ const spinnerFrameDelay = 100 * time.Millisecond
 type Options struct {
 	// Command is the command line users rerun, such as "loco login", named in errors.
 	Command string
+	// Version is the CLI version the API shows beside the session.
+	Version string
 	APIHost string
 	// WebHost serves the page that approves a browser sign-in.
 	WebHost string
@@ -81,6 +89,18 @@ func Run(ctx context.Context, opts Options) error {
 	return nil
 }
 
+// userAgent names the CLI, its version, the system and the host, as `loco/v1.2.3 (darwin arm64; build-box)`:
+// the dashboard shows it beside the session and the sign-in approval.
+func userAgent(opts Options) string {
+	product, _, _ := strings.Cut(opts.Command, " ")
+	host, err := os.Hostname()
+	if err != nil {
+		host = "unknown host"
+	}
+	clean := strings.NewReplacer("(", "", ")", "", ";", "")
+	return fmt.Sprintf("%s/%s (%s %s; %s)", product, opts.Version, runtime.GOOS, runtime.GOARCH, clean.Replace(host))
+}
+
 func providerLogin(ctx context.Context, httpClient *http.Client, opts Options) error {
 	interactive := ui.IsInteractive()
 	if !opts.Device && !interactive {
@@ -88,7 +108,10 @@ func providerLogin(ctx context.Context, httpClient *http.Client, opts Options) e
 			"%w; run %s --device and approve the code on another device", errBrowserLoginNeedsTerminal, opts.Command,
 		)
 	}
-	authClient := rpc.NewHTTPClients(httpClient, opts.APIHost, "").Auth
+	transport := connecthttp.NewTransport(httpClient, opts.APIHost)
+	authClient := authv1connect.NewAuthServiceClient(
+		connect.NewClient(transport, rpc.RequestIDInterceptor, rpc.UserAgentInterceptor(userAgent(opts))),
+	)
 	var tokens *authv1.CLITokens
 	var err error
 	if opts.Device {

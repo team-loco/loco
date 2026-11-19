@@ -140,7 +140,7 @@ DELETE FROM used_session_refresh_tokens WHERE expires_at <= NOW();
 DELETE FROM session_tokens WHERE refresh_expires_at < NOW();
 
 -- name: ListSessionsForUser :many
-SELECT id, kind, last_used_at, user_agent, created_at
+SELECT id, kind, last_used_at, user_agent, ip_address, created_at
 FROM session_tokens
 WHERE user_id = $1 AND refresh_expires_at > NOW()
 ORDER BY last_used_at DESC, id DESC;

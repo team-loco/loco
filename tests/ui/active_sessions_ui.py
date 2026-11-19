@@ -20,11 +20,12 @@ def seed_sessions(state):
             WHERE access_token_hash = {psql(evidence.token_hash(owner["token"]))};
         INSERT INTO session_tokens (
             access_token_hash, refresh_token_hash, user_id,
-            access_expires_at, refresh_expires_at, kind, created_at, last_used_at
+            access_expires_at, refresh_expires_at, kind, created_at, last_used_at, user_agent, ip_address
         ) VALUES (
             {psql(evidence.token_hash(cli))}, {psql(evidence.token_hash("refresh-" + cli))},
             {psql(owner["id"])}, NOW() + INTERVAL '1 hour', NOW() + INTERVAL '1 day',
-            'cli', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 hour'
+            'cli', NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 hour',
+            'loco/v1.2.3 (darwin arm64; build-box)', '203.0.113.9'
         );""",
     )
     return cli
@@ -60,17 +61,22 @@ def verify(state):
         current = sessions.get_by_role("listitem").first
         expect(current.get_by_text("Chrome on macOS", exact=True)).to_be_visible()
         expect(current.get_by_text("This browser", exact=True)).to_be_visible()
-        expect(current.get_by_role("button", name="Sign out")).to_have_count(0)
-        expect(sessions.get_by_text("Loco CLI", exact=True)).to_be_visible()
+        cli_row = sessions.get_by_role("listitem").filter(
+            has_text="Loco CLI on build-box"
+        )
+        expect(cli_row).to_contain_text("macOS arm64 · v1.2.3 · 203.0.113.9")
         assert not page.evaluate(
             """id => JSON.stringify(Object.values(localStorage)).includes(id)""", cli_id
         )
 
-        sign_out = sessions.get_by_role("button", name="Sign out Loco CLI session")
+        sign_out = sessions.get_by_role(
+            "button", name="Sign out Loco CLI on build-box session"
+        )
         sign_out.click()
         confirmation = page.get_by_role(
             "alertdialog", name="Sign out this session?", exact=True
         )
+        expect(confirmation).to_contain_text("Loco CLI on build-box (203.0.113.9)")
         confirmation.get_by_role("button", name="Cancel", exact=True).click()
         expect(sign_out).to_be_visible()
         assert (
@@ -94,8 +100,17 @@ def verify(state):
         context.unroute(REVOKE_SESSION)
         confirm.click()
         expect(confirmation).to_be_hidden()
-        expect(sessions.get_by_text("Loco CLI", exact=True)).to_have_count(0)
+        expect(cli_row).to_have_count(0)
         expect(current.get_by_text("This browser", exact=True)).to_be_visible()
+        sign_out_here = current.get_by_role("button", name="Sign out this browser")
+        sign_out_here.click()
+        logout = page.get_by_role("alertdialog", name="Log out?", exact=True)
+        logout.get_by_role("button", name="Cancel", exact=True).click()
+        expect(logout).to_be_hidden()
+        page.get_by_role("button", name="Log out", exact=True).click()
+        expect(logout).to_be_visible()
+        logout.get_by_role("button", name="Log out", exact=True).click()
+        expect(page.get_by_role("button", name="Log out", exact=True)).to_have_count(0)
         try:
             evidence.rpc(state["api_url"], cli, USER_SERVICE + "WhoAmI", {})
         except evidence.RPCError as error:

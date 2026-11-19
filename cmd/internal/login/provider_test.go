@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -173,5 +174,13 @@ func (c expiringContext) Err() error {
 		return context.DeadlineExceeded
 	default:
 		return nil
+	}
+}
+
+func TestUserAgentNamesTheCLIVersionSystemAndHost(t *testing.T) {
+	t.Parallel()
+	got := userAgent(Options{Command: "loco login", Version: "v1.2.3"})
+	if !regexp.MustCompile(`^loco/v1\.2\.3 \([a-z0-9]+ [a-z0-9]+; [^();]+\)$`).MatchString(got) {
+		t.Fatalf("user agent = %q", got)
 	}
 }

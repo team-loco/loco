@@ -4,10 +4,10 @@ import { updateUser } from "@gen/loco/user/v1/user-UserService_connectquery";
 import type { User } from "@gen/loco/user/v1/user_pb";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon, KeyRoundIcon, LogOutIcon } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 
-import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Field } from "@/components/design/Field";
@@ -21,6 +21,7 @@ import { DeleteAccount } from "./DeleteAccount";
 import { DateTimeSection } from "./DateTimeSection";
 import { AppearanceSection } from "./AppearanceSection";
 import { ActiveSessions } from "./ActiveSessions";
+import { LogoutConfirm } from "./LogoutConfirm";
 import { formatDay, KeyValues, SettingsCard, SettingsSection } from "./parts";
 
 const TOKENS_PATH = "/tokens?owner=personal";
@@ -35,7 +36,7 @@ export function PersonalTab({
 	onDraft: (name: string | null) => void;
 }) {
 	const timePref = useTimePreferences();
-	const { logout } = useAuth();
+	const [loggingOut, setLoggingOut] = useState(false);
 	const queryClient = useQueryClient();
 	const update = useMutation(updateUser);
 
@@ -132,7 +133,7 @@ export function PersonalTab({
 							variant="outline"
 							size="sm"
 							onClick={() => {
-								void logout();
+								setLoggingOut(true);
 							}}
 						>
 							Log out
@@ -140,6 +141,12 @@ export function PersonalTab({
 					</div>
 				</SettingsCard>
 				<ActiveSessions />
+				<LogoutConfirm
+					open={loggingOut}
+					onClose={() => {
+						setLoggingOut(false);
+					}}
+				/>
 			</SettingsSection>
 
 			<SettingsSection title="Danger zone">

@@ -575,7 +575,7 @@ func (q *Queries) ListAPITokensForEntity(ctx context.Context, arg ListAPITokensF
 }
 
 const listSessionsForUser = `-- name: ListSessionsForUser :many
-SELECT id, kind, last_used_at, user_agent, created_at
+SELECT id, kind, last_used_at, user_agent, ip_address, created_at
 FROM session_tokens
 WHERE user_id = $1 AND refresh_expires_at > NOW()
 ORDER BY last_used_at DESC, id DESC
@@ -586,6 +586,7 @@ type ListSessionsForUserRow struct {
 	Kind       SessionKind `json:"kind"`
 	LastUsedAt time.Time   `json:"lastUsedAt"`
 	UserAgent  *string     `json:"userAgent"`
+	IpAddress  *netip.Addr `json:"ipAddress"`
 	CreatedAt  time.Time   `json:"createdAt"`
 }
 
@@ -603,6 +604,7 @@ func (q *Queries) ListSessionsForUser(ctx context.Context, userID uuid.UUID) ([]
 			&i.Kind,
 			&i.LastUsedAt,
 			&i.UserAgent,
+			&i.IpAddress,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
