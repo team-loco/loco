@@ -111,7 +111,11 @@ func (w *Workspace) delete(tb testing.TB) {
 		context.WithoutCancel(tb.Context()),
 		&workspacev1.DeleteWorkspaceRequest{WorkspaceId: w.ID, ConfirmDeleteApps: true},
 	)
-	if err != nil && !IsNotFound(err) {
+	switch {
+	case err == nil, IsNotFound(err):
+	case connect.CodeOf(err) == connect.CodePermissionDenied:
+		tb.Logf("keep workspace %s, which the application user can no longer delete: %v", w.Name, err)
+	default:
 		tb.Errorf("delete workspace %s: %v", w.Name, err)
 	}
 }
