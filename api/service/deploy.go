@@ -48,10 +48,10 @@ func createDeployment(
 	d newDeployment,
 ) (uuid.UUID, error) {
 	params := d.params
-	if err := ensureOrganizationActive(ctx, qtx, params.ResourceID); err != nil {
+	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
-	if err := lockResource(ctx, qtx, params.ResourceID); err != nil {
+	if err := checkOrganizationActive(ctx, qtx, params.ResourceID); err != nil {
 		return uuid.UUID{}, err
 	}
 	for _, target := range d.targets {
