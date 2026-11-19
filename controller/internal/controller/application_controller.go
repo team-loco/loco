@@ -253,9 +253,6 @@ func (r *ApplicationReconciler) reconcileResources(
 	if !app.Status.Rollout.Available || app.Status.Rollout.Problem != nil {
 		return ctrl.Result{RequeueAfter: deployingRequeue}, nil
 	}
-	if healthyAt := app.Status.Rollout.HealthyAt; healthyAt != nil {
-		return ctrl.Result{RequeueAfter: max(time.Until(healthyAt.Time), time.Second)}, nil
-	}
 	return ctrl.Result{}, nil
 }
 

@@ -33,7 +33,7 @@ func exhaustedRevision(
 ) *loco.StoppedRevision {
 	for _, replica := range current {
 		status := replica.status
-		if replica.pod.DeletionTimestamp != nil || !restartsExhausted(status, policy) {
+		if !restartsExhausted(status, policy) {
 			continue
 		}
 		last := loco.ReplicaRestart{At: status.RestartsAt[len(status.RestartsAt)-1], Cause: loco.RestartExit}

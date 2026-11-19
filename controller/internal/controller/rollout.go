@@ -75,9 +75,6 @@ func replicaProblem(
 ) *locov1alpha1.Problem {
 	var best *locov1alpha1.Problem
 	for _, replica := range replicas {
-		if replica.pod.DeletionTimestamp != nil {
-			continue
-		}
 		reason := replicaProblemReason(replica.pod, replica.status, healthyAfter, now)
 		if reason == "" {
 			continue
@@ -139,7 +136,7 @@ func (r *ApplicationReconciler) observeReplicas(
 		if err != nil {
 			return err
 		}
-		if placed && replica.PlacementRevision == revision {
+		if placed && replica.PlacementRevision == revision && pod.DeletionTimestamp == nil {
 			current = append(current, observedReplica{pod: pod, status: replica})
 		}
 		rollout.Replicas = append(rollout.Replicas, replica)
