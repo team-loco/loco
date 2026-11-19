@@ -445,6 +445,8 @@ func deploymentSpecFor(
 		RunAsUser:     state.RunAsUser,
 		RunAsGroup:    state.RunAsGroup,
 		Build:         build,
+		Command:       state.Command,
+		Args:          state.Args,
 		HealthCheck:   healthCheckFor(state.Health),
 		Cpu:           &target.CPU,
 		Memory:        &target.Memory,

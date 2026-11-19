@@ -94,6 +94,29 @@
           ],
           "description": "Public image reference."
         },
+        "command": {
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": [
+            "array",
+            "null"
+          ],
+          "maxItems": 100,
+          "description": "Replaces the service's command."
+        },
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ],
+          "maxItems": 100,
+          "description": "Replaces the service's args."
+        },
         "port": {
           "type": [
             "integer",
@@ -445,6 +468,23 @@
         "image": {
           "type": "string",
           "description": "Public image reference. A tag is resolved to a digest at plan time. Not with dockerfile or context."
+        },
+        "command": {
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": "array",
+          "maxItems": 100,
+          "description": "Replaces the image ENTRYPOINT, one list entry per word. Omitted runs the image's ENTRYPOINT."
+        },
+        "args": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "maxItems": 100,
+          "description": "Replaces the image CMD, one list entry per argument. Omitted passes the image's CMD."
         },
         "port": {
           "type": "integer",

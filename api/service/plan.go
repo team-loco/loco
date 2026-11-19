@@ -446,6 +446,8 @@ func liveState(
 		state.Observability = observabilityconfig.Resolve(spec.GetObservability(), service.GetObservability())
 		state.RunAsUser = service.RunAsUser
 		state.RunAsGroup = service.RunAsGroup
+		state.Command = service.GetCommand()
+		state.Args = service.GetArgs()
 		state.Port = service.Port
 		if service.GetRouting() != nil {
 			state.Routing = liveRouting(service.GetRouting())

@@ -83,6 +83,29 @@ These fields override the image's UID and primary GID independently. Omitted fie
 
 Choose IDs that can read the application and write its working directories. The override does not create users, change file ownership or make an application that requires root compatible. Changes roll out new pods without rebuilding the image.
 
+## Command and arguments
+
+`command` and `args` change how the container starts. `command` replaces the image's `ENTRYPOINT` and `args` replaces its `CMD`, as in a [Kubernetes container](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/). This service runs the image's entrypoint, `/http-echo`, with two flags:
+
+```yaml
+services:
+  echo:
+    image: hashicorp/http-echo:1.0
+    port: 8080
+    args: ["-listen=:8080", "-text=hello world"]
+```
+
+Each field is a list of strings, one entry per word. Loco runs the program directly, without a shell, so quotes and spaces inside an entry reach it unchanged: `-text=hello world` above is one argument. To use a shell, make it the command: `command: [/bin/sh, -c]` and `args: ["exec myapp --port $PORT"]`.
+
+| Set | The container runs |
+| --- | --- |
+| Neither | The image's `ENTRYPOINT` with its `CMD` |
+| `args` | The image's `ENTRYPOINT` with `args` |
+| `command` | `command` alone; the image's `CMD` is dropped |
+| Both | `command` with `args` |
+
+Kubernetes replaces `$(NAME)` in either field with the value of the container's environment variable `NAME`, and `$$(NAME)` becomes the literal text `$(NAME)`. Each field takes at most 100 entries, and a `command` entry cannot be empty. An environment override replaces a whole list, and `null` removes it. A change rolls out a new deployment without rebuilding the image, and `loco infra plan` shows each list with its entries quoted.
+
 ## Health checks
 
 Omit `health` for a TCP readiness check: a replica is ready once it accepts connections on `port`, Loco creates no liveness probe, and Kubernetes restarts exited containers. This suits gRPC and other TCP services without an HTTP health endpoint; use protocol-specific E2E checks to verify that it can serve requests. A service that never listens, such as a queue worker, leaves out `port`: it gets no probe, and a replica is ready once it has started.

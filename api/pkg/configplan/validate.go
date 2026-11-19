@@ -22,6 +22,8 @@ func validateDesired(name string, desired State) []Error {
 
 	add("runAsUser", locoControllerV1.ValidateRuntimeID(desired.RunAsUser))
 	add("runAsGroup", locoControllerV1.ValidateRuntimeID(desired.RunAsGroup))
+	add(pathCommand, locoControllerV1.ValidateCommand(desired.Command))
+	add(pathArgs, locoControllerV1.ValidateArgs(desired.Args))
 	if desired.Port != nil {
 		add(pathPort, locoControllerV1.ValidatePort(*desired.Port))
 	}
