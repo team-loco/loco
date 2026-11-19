@@ -1,25 +1,33 @@
 # Changed paths that run each workflow .github/workflows/ci.yml calls, keyed by
 # the workflow's file name. tools/ci-changes evaluates them with the semantics of
 # a workflow's `paths` filter: `*` stays within a directory, `**` crosses
-# directories, `?` makes the preceding character optional, `{a,b}` matches
-# either word, and a later `!pattern` excludes what earlier patterns matched. A
-# workflow without a list for an event never runs on that event. A workflow's
-# `for` list names the workflows that use its output; it runs whenever one of
-# them runs.
+# directories, `?` makes the preceding character optional, and `{a,b}` matches
+# either word. A workflow without a list for an event never runs on that event.
+# A workflow's `for` list names the workflows that use its output; it runs
+# whenever one of them runs.
+#
+# Go code is not listed by path. `go.build` names the Go packages a workflow
+# builds and runs, and `go.test` the packages whose tests it runs; a pattern
+# ending in /... names every package of its module under that directory. On
+# each event it has a list for, a workflow also runs for a change to what those
+# packages import, transitively and across the repository's modules: the
+# imported packages' Go files and embedded files, the tested packages'
+# directories, and the go.mod and go.sum files that build reads.
+# go-lint-and-test runs for a change to any Go module's lint and tests, and
+# lints and tests only the affected modules.
 #
 # A pass of a workflow on the same inputs stands in for running it: the tree
-# entries of the files its pull_request paths match, its workflow file, ci.yml
-# and mise.lock. `reuse: false` marks a
+# entries of the files its pull_request paths or Go packages cover, its
+# workflow file, ci.yml and mise.lock. `reuse: false` marks a
 # workflow whose result depends on more than those files, such as the pull
 # request it comments on, what it publishes or an advisory database; a
 # workflow with a `for` list never reuses a pass.
 
 auth-conformance:
+  go:
+    build: [tools/authkeys]
+    test: [api/auth]
   pull_request: &auth-conformance
-    - "api/auth/**"
-    - "api/service/**"
-    - "api/migrations/**"
-    - "api/queries/**"
     - "tests/conformance/auth/**"
     - "mise-tasks/test/auth-conformance"
     - "mise-tasks/test/auth-invitations"
@@ -49,6 +57,10 @@ buf:
   push: *buf
 
 charts:
+  go:
+    # The controlplane shard runs these images.
+    build: [api, observability-proxy, tests/e2e/fixtures/api-failover]
+    test: [tests/e2e/controlplane]
   pull_request: &charts
     - "charts/**"
     - ".ct.yaml"
@@ -57,14 +69,10 @@ charts:
     - "tests/pyproject.toml"
     - "tests/uv.lock"
     - "tests/collector/**"
-    - "tests/e2e/controlplane/**"
-    - "tests/e2e/platform/**"
-    - "tests/e2e/go.mod"
-    - "tests/e2e/go.sum"
     - "tests/e2e/kind-e2e.yml"
     - "tests/e2e/control-plane-values.yaml"
     - "tests/e2e/worker-values.yaml"
-    - "tests/e2e/fixtures/api-failover/**"
+    - "{api,observability-proxy,tests/e2e/fixtures/api-failover}/Dockerfile"
     - "tests/e2e/fixtures/control-plane/**"
     - "api/seed/e2e.sql"
     - "agent/pkg/cluster/kubernetes.json"
@@ -83,12 +91,13 @@ charts:
   push: *charts
 
 controller-helm-chart:
+  go:
+    # controller-gen reads every Kubernetes API package.
+    build: [controller/cmd, k8sapi/...]
   pull_request: &controller-helm-chart
-    - "controller/**"
-    - "k8sapi/**"
+    - "controller/{Makefile,PROJECT,Dockerfile*}"
+    - "controller/config/**"
     - "charts/**"
-    - "go.mod"
-    - "go.sum"
     - "mise-tasks/chart/**"
     - "mise-tasks/crds/**"
     - "mise.toml"
@@ -98,6 +107,9 @@ controller-helm-chart:
   push: *controller-helm-chart
 
 docker:
+  go:
+    build: [api, agent, builder, controller/cmd, observability-proxy, tools/platform-images]
+    test: [tools/platform-images]
   pull_request: &docker
     - "**/Dockerfile"
     - "**/*.dockerignore"
@@ -110,24 +122,13 @@ docker:
     - "mise-tasks/lint/versions"
     - "mise-tasks/test/platform-binaries"
     - "mise-tasks/images/**"
-    - "tools/platform-images/**"
     - "mise.toml"
     - "mise.lock"
     - "bunfig.toml"
     - "renovate.json5"
     - ".github/actions/setup-tools/**"
-    - "api/**"
-    - "agent/**"
-    - "builder/**"
-    - "controller/**"
-    - "observability-proxy/**"
-    - "k8sapi/**"
-    - "internal/**"
-    - "gen/go/**"
     - "gen/ts/**"
     - "web/**"
-    - "go.mod"
-    - "go.sum"
     - "package.json"
     - "bun.lock"
     - "docs/package.json"
@@ -182,19 +183,11 @@ docs:
   push: *docs
 
 e2e:
+  go:
+    build: [api, agent, builder, cmd/loco, cmd/locoadm, controller/cmd, observability-proxy, tools/pullimage]
+    test: [tests/e2e/apps, tests/e2e/builds, tests/e2e/telemetry]
   pull_request:
-    - "agent/**"
-    - "api/**"
-    - "builder/**"
-    - "cmd/**"
-    - "controller/**"
-    - "gen/go/**"
-    - "internal/**"
-    - "k8sapi/**"
-    - "observability-proxy/**"
-    - "proto/**"
-    # The suites build the binaries. The Tests workflow runs their Go tests.
-    - "!**/*_test.go"
+    - "{builder,controller,observability-proxy}/Dockerfile*"
     - "charts/loco-control-plane/**"
     - "charts/loco-worker/**"
     - "manifests/namespaces/**"
@@ -206,11 +199,9 @@ e2e:
     - "mise-tasks/crds/**"
     - "mise-tasks/e2e/**"
     - "mise-tasks/helm/**"
-    - "tests/e2e/**"
-    - "tools/pullimage/**"
+    - "tests/e2e/fixtures/**"
+    - "tests/e2e/*.{yaml,yml}"
     - "tests/conformance/transit/compose.yaml"
-    - "go.mod"
-    - "go.sum"
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
@@ -219,19 +210,20 @@ e2e:
     - "docker-bake.hcl"
 
 e2e-installation:
+  go:
+    # The runner publishes the platform with release:local.
+    build:
+      - api
+      - agent
+      - builder
+      - cmd/loco
+      - cmd/locoadm
+      - controller/cmd
+      - observability-proxy
+      - tools/installation-e2e
+      - tools/platform-release
   pull_request:
-    - "agent/**"
-    - "api/**"
-    - "builder/**"
-    - "cmd/**"
-    - "controller/**"
-    - "gen/go/**"
-    - "internal/**"
-    - "k8sapi/**"
-    - "observability-proxy/**"
-    - "proto/**"
-    # The suites build the binaries. The Tests workflow runs their Go tests.
-    - "!**/*_test.go"
+    - "{api,agent,builder,controller,observability-proxy}/Dockerfile*"
     - "charts/loco-control-plane/**"
     - "charts/loco-worker/**"
     - "manifests/namespaces/**"
@@ -247,11 +239,7 @@ e2e-installation:
     - "tests/e2e/fixtures/installation/**"
     - "tests/e2e/fixtures/build-app/**"
     - "tests/e2e/fixtures/public-image/**"
-    - "tools/installation-e2e/**"
-    - "tools/internal/devicelogin/**"
-    # The runner publishes the platform with release:local.
-    - "tools/platform-release/**"
-    - "!tools/{installation-e2e,internal/devicelogin,platform-release}/**/*_test.go"
+    - "tools/platform-release/crds.yaml"
     - "charts/cert-manager.yaml"
     - "dev/compose.cloud-provider-kind.yaml"
     - "dev/dex.yaml"
@@ -260,8 +248,6 @@ e2e-installation:
     - "web/Dockerfile"
     - "web/sws.toml"
     - "tests/conformance/transit/compose.yaml"
-    - "go.mod"
-    - "go.sum"
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
@@ -271,29 +257,12 @@ e2e-installation:
 
 go-lint-and-test:
   pull_request: &go-lint-and-test
-    - "api/**"
-    - "cmd/**"
-    - "internal/**"
-    - "schemas/**"
-    - "tools/**"
-    - "controller/**"
-    - "agent/**"
-    - "builder/**"
-    - "observability-proxy/**"
-    - "k8sapi/**"
-    - "tests/e2e/**/*.go"
-    - "tests/e2e/go.mod"
-    - "tests/e2e/go.sum"
-    - "controller/Makefile"
     - "mise-tasks/test/counter-metrics"
     - "mise-tasks/test/lib/ports.sh"
     - "mise-tasks/test/api"
     - "mise-tasks/test/lib/clickhouse.sh"
     - "charts/loco-control-plane/values.yaml"
     - "charts/loco-worker/values.yaml"
-    - "go.mod"
-    - "go.sum"
-    - "gen/go/**"
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/setup-tools/**"
@@ -325,24 +294,18 @@ images:
     - "**"
 
 obs-chart:
+  go:
+    build: [observability-proxy, tools/ingesttoken, tools/pullimage]
   pull_request: &obs-chart
     - "charts/loco-worker/**"
     - "charts/loco-control-plane/**"
     - "mise-tasks/test/obs-retention"
     - "mise-tasks/test/obs-tenancy"
     - "mise-tasks/test/lib/**"
-    - "tools/pullimage/**"
-    - "observability-proxy/**"
-    - "gen/go/**"
-    - "internal/buildinfo/**"
-    - "internal/clickhouse/**"
-    - "go.mod"
-    - "go.sum"
     - "mise.toml"
     - "mise.lock"
     - ".github/workflows/obs-chart.yml"
     - ".github/actions/setup-tools/**"
-    - "!**/*_test.go"
   push: *obs-chart
 
 osv:
@@ -363,11 +326,12 @@ osv:
 
 platform-release:
   reuse: false
+  go:
+    build: [tools/gitops-check]
+    test: [tools/platform-release]
   pull_request:
     - "tests/pyproject.toml"
     - "tests/uv.lock"
-    - "tools/platform-release/**"
-    - "tools/gitops-check/**"
     - "examples/gitops/**"
     - "charts/**"
     - "controller/config/crd/bases/**"
@@ -375,8 +339,6 @@ platform-release:
     - "mise.toml"
     - "mise.lock"
   push:
-    - "tools/platform-release/**"
-    - "tools/gitops-check/**"
     - "examples/gitops/**"
     - "charts/**"
     - "controller/config/crd/bases/**"
@@ -393,8 +355,9 @@ python:
   push: *python
 
 transit-conformance:
+  go:
+    test: [api/pkg/transit]
   pull_request: &transit-conformance
-    - "api/pkg/transit/**"
     - "tests/conformance/transit/**"
     - "charts/loco-control-plane/values.yaml"
     - "mise-tasks/test/transit-conformance"
@@ -405,6 +368,9 @@ transit-conformance:
   push: *transit-conformance
 
 web:
+  go:
+    # The browser suites start the API and an OIDC issuer.
+    build: [api, api/auth/testdata/oidc, tools/pullimage]
   pull_request: &web
     - "tests/hosting/**"
     - "docs/app/**"
@@ -416,26 +382,6 @@ web:
     - "tests/install/**"
     - "tests/pyproject.toml"
     - "tests/uv.lock"
-    - "api/events/**"
-    - "api/authz/**"
-    - "api/service/event*"
-    - "api/queries/events.sql"
-    - "api/migrations/00004_events.sql"
-    - "proto/loco/event/**"
-    - "api/service/webhook*.go"
-    - "api/webhooks/**"
-    - "api/pkg/webhooksig/**"
-    - "api/queries/webhook.sql"
-    - "api/gen/db/webhook*.go"
-    - "gen/go/loco/webhook/**"
-    - "api/service/{deployment,resource,resource_status,environment,workspace,org,user}*.go"
-    - "api/{auth,authz,interceptor,migrations,db}/**"
-    - "api/queries/{deployment,resource,environment,workspace,org,user}*.sql"
-    - "api/gen/db/{deployment,resource,environment,workspace,org,user}*.go"
-    - "api/{main,config,env}*.go"
-    - "api/go.{mod,sum}"
-    - "gen/go/loco/{deployment,resource,environment,workspace,org,user}/**"
-    - "go.{mod,sum}"
     - "dev/compose.yaml"
     - "gen/ts/**"
     - "package.json"
@@ -448,6 +394,8 @@ web:
   push: *web
 
 workflows:
+  go:
+    test: [tools/ci-changes]
   pull_request: &workflows
     - "tests/pyproject.toml"
     - "tests/uv.lock"
@@ -457,5 +405,6 @@ workflows:
     - "mise.toml"
     - "mise.lock"
     - ".github/actions/**"
-    - "tools/ci-changes/**"
+    # A test runs this file.
+    - "tools/platform-images/main.go"
   push: *workflows

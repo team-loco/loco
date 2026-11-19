@@ -61,11 +61,11 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 	if err != nil {
 		return err
 	}
-	own := selectOwn(filters, event, files)
-	modules, err := loadModules(ctx, ".")
+	modules, err := resolveGo(ctx, ".", filters)
 	if err != nil {
 		return err
 	}
+	own := selectOwn(filters, event, files)
 	keys, err := markerKeys(ctx, ".", filters, own)
 	if err != nil {
 		return err
@@ -87,18 +87,12 @@ func run(ctx context.Context, configPath, event, base, head, outputPath string, 
 		withUsers(filters, own),
 		keys,
 		modules.affected(files),
-		affectedShards(filters["e2e"].events[event], files),
+		affectedShards(filters["e2e"].matcher(event), files),
 	)
 }
 
-// filter is one event's ordered pattern list; a later pattern overrides an
-// earlier one for the paths both match.
-type filter []pattern
-
-type pattern struct {
-	negated bool
-	re      *regexp.Regexp
-}
+// filter is one event's pattern list; a path matches when any pattern does.
+type filter []*regexp.Regexp
 
 // filters maps each workflow to its paths.
 type filters map[string]workflowFilter
@@ -111,6 +105,18 @@ type workflowFilter struct {
 	usedBy []string
 	// reuse reports whether a pass for the same inputs stands in for a run.
 	reuse bool
+	// builds and tests name the Go packages the workflow builds and tests.
+	builds, tests []string
+	// goInputs reports whether a file is an input of those packages.
+	goInputs func(file string) bool
+}
+
+// matcher reports whether a change to a file runs the workflow on the event.
+func (w workflowFilter) matcher(event string) func(file string) bool {
+	f, ok := w.events[event]
+	return func(file string) bool {
+		return ok && (f.matches(file) || w.goInputs != nil && w.goInputs(file))
+	}
 }
 
 const usedByKey = "for"
@@ -120,6 +126,10 @@ type rawWorkflow struct {
 	Push        []string `yaml:"push"`
 	For         []string `yaml:"for"`
 	Reuse       *bool    `yaml:"reuse"`
+	Go          struct {
+		Build []string `yaml:"build"`
+		Test  []string `yaml:"test"`
+	} `yaml:"go"`
 }
 
 func loadFilters(path string) (filters, error) {
@@ -135,7 +145,10 @@ func loadFilters(path string) (filters, error) {
 	}
 	result := filters{}
 	for workflow, entry := range raw {
-		w := workflowFilter{events: map[string]filter{}, usedBy: entry.For, reuse: len(entry.For) == 0}
+		w := workflowFilter{
+			events: map[string]filter{}, usedBy: entry.For, reuse: len(entry.For) == 0,
+			builds: entry.Go.Build, tests: entry.Go.Test,
+		}
 		if entry.Reuse != nil {
 			w.reuse = *entry.Reuse && w.reuse
 		}
@@ -160,6 +173,32 @@ func loadFilters(path string) (filters, error) {
 		}
 	}
 	return result, nil
+}
+
+// resolveGo sets each workflow's Go inputs from the import graph of the
+// repository in dir, and returns the inputs of each module's lint and tests,
+// which are the Go inputs of moduleWorkflow.
+func resolveGo(ctx context.Context, dir string, all filters) (moduleInputs, error) {
+	var roots []string
+	for _, w := range all {
+		roots = append(roots, w.builds...)
+		roots = append(roots, w.tests...)
+	}
+	repo, err := loadGoRepo(ctx, dir, roots)
+	if err != nil {
+		return nil, err
+	}
+	modules := moduleInputsOf(repo)
+	for workflow, w := range all {
+		switch {
+		case workflow == moduleWorkflow:
+			w.goInputs = modules.matches
+		case w.builds != nil || w.tests != nil:
+			w.goInputs = repo.inputs(w.builds, w.tests).matches
+		}
+		all[workflow] = w
+	}
+	return modules, nil
 }
 
 // changedFiles lists the paths a pull request or push changes. A nil result
@@ -208,8 +247,8 @@ func git(ctx context.Context, dir string, args ...string) ([]byte, error) {
 func selectOwn(all filters, event string, files []string) map[string]bool {
 	selected := map[string]bool{}
 	for workflow, w := range all {
-		f, ok := w.events[event]
-		selected[workflow] = ok && (files == nil || slices.ContainsFunc(files, f.matches))
+		_, ok := w.events[event]
+		selected[workflow] = ok && (files == nil || slices.ContainsFunc(files, w.matcher(event)))
 	}
 	return selected
 }
@@ -227,14 +266,14 @@ func withUsers(all filters, own map[string]bool) map[string]bool {
 
 // A test in a shard package is compiled only into that package's test binary.
 // All other E2E inputs, including shared code and fixtures, exercise every shard.
-func affectedShards(inputs filter, files []string) []string {
+func affectedShards(inputs func(file string) bool, files []string) []string {
 	all := []string{"apps", "builds", "telemetry"}
 	if files == nil {
 		return all
 	}
 	var selected []string
 	for _, file := range files {
-		if !inputs.matches(file) {
+		if !inputs(file) {
 			continue
 		}
 		dir, name, ok := strings.Cut(strings.TrimPrefix(file, "tests/e2e/"), "/")
@@ -273,13 +312,7 @@ func writeSelection(
 }
 
 func (f filter) matches(path string) bool {
-	included := false
-	for _, p := range f {
-		if p.re.MatchString(path) {
-			included = !p.negated
-		}
-	}
-	return included
+	return slices.ContainsFunc(f, func(re *regexp.Regexp) bool { return re.MatchString(path) })
 }
 
 func compileFilter(patterns []string) (filter, error) {
@@ -288,8 +321,7 @@ func compileFilter(patterns []string) (filter, error) {
 	}
 	f := make(filter, 0, len(patterns))
 	for _, raw := range patterns {
-		body, negated := strings.CutPrefix(raw, "!")
-		expr, err := translate(body)
+		expr, err := translate(raw)
 		if err != nil {
 			return nil, fmt.Errorf("pattern %q: %w", raw, err)
 		}
@@ -297,13 +329,13 @@ func compileFilter(patterns []string) (filter, error) {
 		if err != nil {
 			return nil, fmt.Errorf("pattern %q: %w", raw, err)
 		}
-		f = append(f, pattern{negated: negated, re: re})
+		f = append(f, re)
 	}
 	return f, nil
 }
 
 // translate turns a workflow paths pattern into a regular expression. The
-// characters GitHub documents but no filter here uses ([], +) are rejected
+// characters GitHub documents but no filter here uses ([], +, !) are rejected
 // rather than guessed at.
 func translate(glob string) (string, error) {
 	var b strings.Builder
@@ -344,7 +376,7 @@ func translate(glob string) (string, error) {
 			b.WriteString("(?:" + strings.Join(alternatives, "|") + ")")
 			i += end
 			literal = false
-		case strings.ContainsRune("[]+}", rune(rest[0])):
+		case strings.ContainsRune("[]+}!", rune(rest[0])):
 			return "", fmt.Errorf("unsupported character %q", rest[0])
 		default:
 			b.WriteString(regexp.QuoteMeta(rest[:1]))
