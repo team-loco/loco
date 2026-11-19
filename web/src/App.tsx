@@ -17,16 +17,7 @@ import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppLoaderProvider, AppLoading } from "@/context/AppLoader";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v8";
-import {
-	createBrowserRouter,
-	Navigate,
-	Outlet,
-	Route,
-	RouterProvider,
-	Routes,
-	useLocation,
-	useParams,
-} from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from "react-router";
 import { useOrgWorkspace } from "@/context/ContextProvider";
 import { useEnvironmentInUrl } from "@/hooks/useEnvironment";
 import { notFound } from "@/lib/not-found";
@@ -268,30 +259,25 @@ function AppRoutes() {
 	);
 }
 
-function AppProviders() {
-	return (
-		<NuqsAdapter defaultOptions={NUQS_DEFAULTS}>
-			<TransportProvider transport={transport}>
-				<PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
-					<AppLoaderProvider>
-						<AuthProvider>
-							<ThemeProvider>
-								<Toaster />
-								<ErrorBoundary>
-									<AppRoutes />
-								</ErrorBoundary>
-							</ThemeProvider>
-						</AuthProvider>
-					</AppLoaderProvider>
-				</PersistQueryClientProvider>
-			</TransportProvider>
-		</NuqsAdapter>
-	);
-}
-
-// A data router lets a page block navigation; the routes themselves stay in AppRoutes.
-const router = createBrowserRouter([{ path: "*", Component: AppProviders }]);
-
 export default function App() {
-	return <RouterProvider router={router} />;
+	return (
+		<BrowserRouter>
+			<NuqsAdapter defaultOptions={NUQS_DEFAULTS}>
+				<TransportProvider transport={transport}>
+					<PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+						<AppLoaderProvider>
+							<AuthProvider>
+								<ThemeProvider>
+									<Toaster />
+									<ErrorBoundary>
+										<AppRoutes />
+									</ErrorBoundary>
+								</ThemeProvider>
+							</AuthProvider>
+						</AppLoaderProvider>
+					</PersistQueryClientProvider>
+				</TransportProvider>
+			</NuqsAdapter>
+		</BrowserRouter>
+	);
 }

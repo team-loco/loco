@@ -105,7 +105,10 @@ export function SettingsView({
 	onDelete: () => void;
 	onSaved: (notice: NoticeState) => void;
 }) {
-	const [current, setCurrent] = useState(focus === "scaling" ? "set-scaling" : "set-image");
+	const [current, setCurrent] = useState(() => {
+		const linked = NAV.find((n) => `#${n.id}` === window.location.hash);
+		return focus === "scaling" ? "set-scaling" : (linked?.id ?? "set-image");
+	});
 	const [tried, setTried] = useState(false);
 	const regionsQuery = useQuery(listRegions, { environmentId }, { enabled: canReadWorkspace && environmentId !== "" });
 	const domainsQuery = useQuery(

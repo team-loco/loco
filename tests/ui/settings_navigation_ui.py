@@ -26,6 +26,11 @@ with session(out) as browser:
     page.wait_for_function(
         "() => { const top = document.querySelector('#set-health').getBoundingClientRect().top; return top >= 0 && top < 120; }"
     )
+    expect(
+        page.get_by_role("navigation", name="Settings sections").get_by_role(
+            "link", name="Health check", exact=True
+        )
+    ).to_have_attribute("aria-current", "true")
 
     page.goto(base + "?env=production")
     overview = page.get_by_role("button", name="Overview", exact=True)
