@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -47,6 +48,10 @@ func TestReapDropsOnlyTheDatabasesOfDeadRuns(t *testing.T) {
 			adminExec(t, baseURL, "DROP DATABASE IF EXISTS "+pgx.Identifier{name(owner.run)}.Sanitize()+" WITH (FORCE)")
 		})
 	}
+	// The server frees a closed session's locks after the client returns, so release it first.
+	if _, err := dead.Exec(t.Context(), "SELECT pg_advisory_unlock($1)", int64(deadRun)); err != nil {
+		t.Fatal(err)
+	}
 	if err := dead.Close(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -54,15 +59,24 @@ func TestReapDropsOnlyTheDatabasesOfDeadRuns(t *testing.T) {
 	if err := reapDeadRuns(t.Context(), connect()); err != nil {
 		t.Fatal(err)
 	}
-	for run, want := range map[int64]bool{liveRun: true, deadRun: false} {
-		var exists bool
+	exists := func(run int64) bool {
+		var found bool
 		if err := live.QueryRow(t.Context(), "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)",
-			name(run)).Scan(&exists); err != nil {
+			name(run)).Scan(&found); err != nil {
 			t.Fatal(err)
 		}
-		if exists != want {
-			t.Errorf("database of run %d exists = %v, want %v", run, exists, want)
-		}
+		return found
+	}
+	// Another package's reaper may hold the dead run's lock while it drops the same database.
+	deadline := time.Now().Add(5 * time.Second)
+	for exists(deadRun) && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	if exists(deadRun) {
+		t.Errorf("database of run %d still exists", deadRun)
+	}
+	if !exists(liveRun) {
+		t.Errorf("database of run %d was dropped", liveRun)
 	}
 }
 
