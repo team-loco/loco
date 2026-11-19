@@ -72,6 +72,53 @@ func TestCreateDeploymentBindsSelectedSecrets(t *testing.T) {
 	}
 }
 
+func TestRollbackBindsTheTargetDeploymentsSecrets(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	seedDeployment(t, f, sameRegionSpec)
+	provider := newTestKeyProvider(t, "k1")
+	f.storeSecret(t, provider, databaseURLName, stripeValue)
+	f.storeSecret(t, provider, sessionKeyName, sessionKeyValue)
+
+	deploy := func(names []string, trigger deploymentv1.DeploymentTrigger, source string) uuid.UUID {
+		t.Helper()
+		f.finishRollouts(t)
+		req := &deploymentv1.CreateDeploymentRequest{
+			ResourceId:    f.resourceID.String(),
+			EnvironmentId: f.envID.String(),
+			Regions:       []string{testRegion},
+			Spec: &deploymentv1.DeploymentSpec{
+				Spec: &deploymentv1.DeploymentSpec_Service{Service: imageService()},
+			},
+			Trigger:            trigger,
+			SourceDeploymentId: source,
+		}
+		if names != nil {
+			req.SecretBindings = &deploymentv1.DeploymentSecretBindings{Names: names}
+		}
+		resp, err := deployRequest(t, f, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return uuid.MustParse(resp.GetDeploymentId())
+	}
+	target := deploy([]string{databaseURLName}, deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY, "")
+	deploy([]string{sessionKeyName}, deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_DEPLOY, "")
+	rollback := deploy(nil, deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK, target.String())
+
+	deployment, err := f.queries.GetDeploymentByID(t.Context(), rollback)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{databaseURLName}
+	if !slices.Equal(deployment.SecretNames, want) {
+		t.Fatalf("rollback secret names = %v, want %v", deployment.SecretNames, want)
+	}
+	if got := f.placement(t, f.clusterID).SecretNames; !slices.Equal(got, want) {
+		t.Fatalf("placement secret names = %v, want %v", got, want)
+	}
+}
+
 func TestCreateDeploymentRejectsUnavailableOrOversizedSecrets(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)

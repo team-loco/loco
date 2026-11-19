@@ -1046,7 +1046,8 @@ export type CreateDeploymentRequest = Message<"loco.deployment.v1.CreateDeployme
   environmentId: string;
 
   /**
-   * Omit to keep the secret bindings of the deployment live in the target regions.
+   * Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,
+   * or else of the deployment live in the target regions.
    *
    * @generated from field: loco.deployment.v1.DeploymentSecretBindings secret_bindings = 6;
    */
@@ -1099,7 +1100,8 @@ export type CreateDeploymentRequestJson = {
   environmentId?: string;
 
   /**
-   * Omit to keep the secret bindings of the deployment live in the target regions.
+   * Omit to keep the secret bindings of the source deployment a redeploy or rollback copies,
+   * or else of the deployment live in the target regions.
    *
    * @generated from field: loco.deployment.v1.DeploymentSecretBindings secret_bindings = 6;
    */
