@@ -548,6 +548,9 @@ func cancelBuild(
 ) error {
 	var source buildSource
 	err := withTx(ctx, pool, func(qtx *genDb.Queries) error {
+		if lockErr := lockResource(ctx, qtx, resourceID); lockErr != nil {
+			return lockErr
+		}
 		canceled, cancelErr := cancelBuildTx(ctx, qtx, buildID, resourceID)
 		if errors.Is(cancelErr, pgx.ErrNoRows) {
 			return errBuildNotCancelable

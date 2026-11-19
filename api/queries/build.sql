@@ -140,13 +140,26 @@ WHERE id = sqlc.arg(id)
 RETURNING id, source_key, resource_id;
 
 -- name: FailClusterBuilds :many
+-- Locks each build's resource before the build, in resource id order.
+WITH locked AS MATERIALIZED (
+  SELECT r.id FROM resources r
+  WHERE r.id IN (
+    SELECT b.resource_id FROM builds b
+    WHERE b.cluster_id = sqlc.arg(cluster_id)
+      AND b.status = sqlc.arg(previous_status)
+      AND NOT (b.id = ANY(sqlc.arg(held)::uuid[]))
+  )
+  ORDER BY r.id
+  FOR UPDATE
+)
 UPDATE builds
 SET status = 'failed',
     message = sqlc.arg(message),
     finished_at = NOW()
-WHERE cluster_id = sqlc.arg(cluster_id)
-  AND status = sqlc.arg(previous_status)
-  AND NOT (id = ANY(sqlc.arg(held)::uuid[]))
+WHERE builds.cluster_id = sqlc.arg(cluster_id)
+  AND builds.status = sqlc.arg(previous_status)
+  AND NOT (builds.id = ANY(sqlc.arg(held)::uuid[]))
+  AND builds.resource_id IN (SELECT id FROM locked)
 RETURNING id, source_key, resource_id;
 
 -- name: TryAdvisoryLock :one
@@ -156,17 +169,25 @@ SELECT pg_try_advisory_lock(sqlc.arg(lock_key)::bigint);
 SELECT pg_advisory_unlock(sqlc.arg(lock_key)::bigint);
 
 -- name: ExpireAwaitingUploadBuilds :many
-UPDATE builds
-SET status = 'failed',
-    message = sqlc.arg(message),
-    finished_at = NOW()
-WHERE id IN (
-  SELECT e.id FROM builds e
+-- Locks each build's resource before the build, in resource id order.
+WITH expired AS MATERIALIZED (
+  SELECT e.id, e.resource_id FROM builds e
   WHERE e.status = 'awaiting_upload'
     AND e.created_at < sqlc.arg(created_before)
   ORDER BY e.created_at, e.id
   LIMIT sqlc.arg(max_builds)
+), locked AS MATERIALIZED (
+  SELECT r.id FROM resources r
+  WHERE r.id IN (SELECT resource_id FROM expired)
+  ORDER BY r.id
+  FOR UPDATE
 )
+UPDATE builds
+SET status = 'failed',
+    message = sqlc.arg(message),
+    finished_at = NOW()
+WHERE id IN (SELECT id FROM expired)
+  AND resource_id IN (SELECT id FROM locked)
   AND status = 'awaiting_upload'
 RETURNING id, resource_id;
 
