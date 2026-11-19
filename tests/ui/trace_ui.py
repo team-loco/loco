@@ -826,6 +826,12 @@ with session(out) as browser:
     expect(
         gone.get_by_role("heading", name="This trace is no longer available")
     ).to_be_visible()
+    page.goto(state["ui_url"] + base + "&trace=4bf92f35")
+    malformed = page.get_by_role("dialog")
+    expect(malformed.get_by_role("heading", name="Trace not found")).to_be_visible()
+    expect(malformed).to_contain_text("The trace ID looks invalid")
+    expect(malformed).not_to_contain_text("no longer available")
+    page.goto(state["ui_url"] + base + "&trace=" + trace)
     call(
         state,
         "loco.workspace.v1.WorkspaceService/UpdateWorkspace",
