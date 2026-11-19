@@ -58,6 +58,18 @@ export function secretUsageMessage(service: string, usedBy: Pick<SecretUsage, "r
 	return `${service} uses ${names.join(", ")} in ${regions}. The new value applies on the next deploy or restart.`;
 }
 
+/** Names among saved that no deployment in usedBy reads. */
+export function unusedNames(saved: string[], usedBy: Pick<SecretUsage, "names">[]): string[] {
+	const used = new Set(usedBy.flatMap((usage) => usage.names));
+	return saved.filter((name) => !used.has(name)).toSorted();
+}
+
+/** How to deliver saved secrets that a loco.yaml service does not declare. */
+export function yamlBindingHint(service: string, names: string[]): string {
+	const keys = names.length === 1 ? "this key" : "these keys";
+	return `Saved. To use ${keys}, add ${names.join(", ")} to services.${service}.secrets and redeploy.`;
+}
+
 /** Refetches the variables list of one resource in one environment. */
 export async function refreshSecrets(client: QueryClient, resourceId: string, environmentId: string): Promise<void> {
 	await client.invalidateQueries({

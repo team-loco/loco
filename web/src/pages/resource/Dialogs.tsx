@@ -54,8 +54,8 @@ export function RedeployDialogContent({
 				<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>
 				<span>
 					Starts fresh replicas from the same image in{" "}
-					<span className="font-mono text-foreground">{running.map((d) => d.region).join(", ")}</span>. Useful after
-					changing a secret or when a replica is stuck.
+					<span className="font-mono text-foreground">{running.map((d) => d.region).join(", ")}</span>, with the current
+					values of the secrets it uses. Useful when a replica is stuck or after changing one of those values.
 				</span>
 			</DialogBody>
 			<DialogFooter>
