@@ -49,20 +49,23 @@ resource = evidence.seed_resources(
             "deployments": [
                 {
                     "environment": "production",
-                    "region": "us-east-1",
                     "status": "running",
-                    "ready_replicas": 1,
+                    "placements": {"us-east-1": {"ready_replicas": 1}},
                     "spec": {
                         "observability": {"injectOtel": True},
                         "build": {
                             "type": "image",
                             "image": "registry.example.com/app:1",
                         },
-                        "cpu": "100m",
-                        "memory": "128Mi",
-                        "minReplicas": 1,
-                        "maxReplicas": 1,
                         "port": 8080,
+                        "regions": {
+                            "us-east-1": {
+                                "cpu": "100m",
+                                "memory": "128Mi",
+                                "minReplicas": 1,
+                                "maxReplicas": 1,
+                            }
+                        },
                     },
                 }
             ],
@@ -88,7 +91,7 @@ def deliver(env, secret_names):
         state,
         f"""BEGIN;
 UPDATE placements SET desired_spec={evidence.sql_literal(desired)} WHERE resource_id='{resource}';
-UPDATE deployments SET secret_names='{names}' WHERE resource_id='{resource}' AND is_active RETURNING id;
+UPDATE deployments SET secret_names='{names}' WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;
 COMMIT;""",
     )
 

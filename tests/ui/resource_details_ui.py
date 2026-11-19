@@ -210,7 +210,7 @@ with session(out) as browser:
     )
     page.get_by_role("button", name=re.compile(r"^Events")).click()
     runtime_events = page.get_by_role("dialog", name="Events", exact=True)
-    expect(runtime_events.get_by_text("crash loop", exact=True)).to_be_visible()
+    expect(runtime_events.get_by_text("restarting", exact=True)).to_be_visible()
     expect(
         runtime_events.get_by_text("The service exited with code 1.", exact=True)
     ).to_be_visible()
