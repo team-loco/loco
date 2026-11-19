@@ -264,7 +264,7 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     expect(activity.get_by_role("listitem")).to_have_count(9)
     expect(activity.get_by_role("listitem").last).to_contain_text("Deployment building")
     expect(activity.get_by_role("listitem").first).to_contain_text(
-        re.compile(r"\+\d+:\d{2}")
+        re.compile(r"^\+\d+s after the rollout started")
     )
     panel.get_by_role("button", name="Copy deployment ID", exact=True).click()
     assert page.evaluate("navigator.clipboard.readText()") == p["current"]
@@ -299,6 +299,14 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     phase("deploying", new_ready=True)
     expect(serving).to_contain_text(p["current"][-8:], timeout=25000)
     expect(serving).to_contain_text(p["previous"][-8:])
+    page.reload()
+    panel = page.get_by_role("region", name="Deploying", exact=True)
+    expect(panel.get_by_role("list", name="Rollout steps", exact=True)).to_contain_text(
+        "1 of 2 ready"
+    )
+    replicas = page.get_by_role("region", name="Replicas", exact=True)
+    expect(replicas).to_contain_text("1 of 2 ready ·")
+    expect(replicas).to_contain_text("1/2 ready · 1 previous")
     phase("running")
     # The open watch updates both the replicas and feed without reloading.
     panel = page.get_by_role("region", name="Running", exact=True)
@@ -467,7 +475,79 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     assert cancels == [{"deploymentId": p["current"]}], cancels
     assert not errors, errors
     context.close()
+
+    phase("running")
+    placement = sql(
+        state, f"SELECT id FROM placements WHERE resource_id='{p['resource']}';"
+    )
+
+    def pod(name, revision, state_name, ready=False, deployment=p["current"]):
+        return {
+            "uid": name,
+            "name": name,
+            "node": "worker-east-5",
+            "placement_revision": revision,
+            "deployment_id": deployment,
+            "ready": ready,
+            "state": state_name,
+        }
+
+    restart = {
+        "placementId": placement,
+        "replicas": [
+            pod("progress-restart-1", 3, "Starting"),
+            pod("progress-new-1", 2, "Serving", True),
+            pod("progress-new-2", 2, "Serving", True),
+            pod("progress-old-1", 1, "Stopped", deployment=p["previous"]),
+        ],
+    }
+    last_seq = int(
+        sql(
+            state,
+            f"SELECT COALESCE(MAX(seq),0) FROM deployment_activity WHERE deployment_id='{p['current']}';",
+        )
+    )
+    sql(
+        state,
+        f"""BEGIN;
+    UPDATE placements SET desired_revision=3,observed_revision=3,status_updated_at=NOW() WHERE id='{placement}';
+    UPDATE deployment_placements SET status='deploying',completed_at=NULL,updated_at=NOW() WHERE deployment_id='{p["current"]}';
+    UPDATE deployments SET status='deploying',completed_at=NULL,updated_at=NOW() WHERE id='{p["current"]}';
+    INSERT INTO deployment_rollouts(deployment_id,cluster_id,revision,snapshot)
+    VALUES('{p["current"]}','{p["cluster"]}',3,{evidence.sql_literal(json.dumps(restart))});
+    INSERT INTO deployment_activity(deployment_id,seq,revision,at,severity,replica_name,message,cluster_id,region) VALUES
+    ('{p["current"]}',{last_seq + 1},3,NOW()-INTERVAL '3 seconds','info','progress-restart-1','Starting','{p["cluster"]}','us-east-1'),
+    ('{p["current"]}',{last_seq + 2},3,NOW()-INTERVAL '1 second','info','progress-new-1','Stopping','{p["cluster"]}','us-east-1');
+    COMMIT;""",
+    )
+    context, page, errors = open_page(browser, state=state)
+    page.goto(state["ui_url"] + path)
+    panel = page.get_by_role("region", name="Deploying", exact=True)
+    new_version = panel.get_by_role("region", name="New version", exact=True)
+    expect(new_version.get_by_role("listitem")).to_have_count(1)
+    expect(new_version).to_contain_text("progress-restart-1")
+    previous_version = panel.get_by_role("region", name="Previous version", exact=True)
+    expect(previous_version.get_by_role("listitem")).to_have_count(2)
+    expect(previous_version).not_to_contain_text("progress-old-1")
+    activity = panel.get_by_role("region", name="Activity feed", exact=True)
+    expect(activity.get_by_role("listitem")).to_have_count(2)
+    expect(activity.get_by_role("listitem").first).to_contain_text(
+        "+0s after the rollout started"
+    )
+    expect(activity.get_by_role("listitem").last).to_contain_text(
+        "+2s after the rollout started"
+    )
+    expect(activity).not_to_contain_text("Deployment requested")
+    expect(panel.get_by_title("Time since the restart started")).to_be_visible()
+    expect(panel.get_by_role("list", name="Rollout steps", exact=True)).to_contain_text(
+        "0 of 2 ready"
+    )
+    replicas = page.get_by_role("region", name="Replicas", exact=True)
+    expect(replicas).to_contain_text("0 of 2 ready ·")
+    expect(replicas).to_contain_text("0/2 ready · 2 previous")
+    assert not errors, errors
+    context.close()
     browser.close()
 print(
-    "Deployment progress phases, replica watches, logs, rollback and reduced motion passed"
+    "Deployment progress phases, replica watches, logs, rollback, reduced motion and restarts passed"
 )

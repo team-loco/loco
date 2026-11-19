@@ -138,8 +138,8 @@ with session(out) as browser:
         expect(results.get_by_role("group", name=group)).to_be_visible()
     expect(results.get_by_role("group", name="Workspaces")).to_have_count(0)
     for option in (
-        "Show architecture map",
-        "Show resource table",
+        "Show Map",
+        "Show Table",
         "New resource",
         "New token",
         "New webhook",

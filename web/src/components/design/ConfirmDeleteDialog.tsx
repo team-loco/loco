@@ -19,6 +19,7 @@ export function ConfirmDeleteDialog({
 	target,
 	confirmLabel,
 	pending,
+	blocked = false,
 	onConfirm,
 	children,
 }: {
@@ -29,6 +30,7 @@ export function ConfirmDeleteDialog({
 	target: string;
 	confirmLabel: string;
 	pending: boolean;
+	blocked?: boolean;
 	onConfirm: () => void;
 	children?: ReactNode;
 }) {
@@ -49,6 +51,7 @@ export function ConfirmDeleteDialog({
 						target={target}
 						confirmLabel={confirmLabel}
 						pending={pending}
+						blocked={blocked}
 						onConfirm={onConfirm}
 					>
 						{children}
@@ -66,6 +69,7 @@ function ConfirmBody({
 	target,
 	confirmLabel,
 	pending,
+	blocked,
 	onConfirm,
 	children,
 }: {
@@ -75,11 +79,12 @@ function ConfirmBody({
 	target: string;
 	confirmLabel: string;
 	pending: boolean;
+	blocked: boolean;
 	onConfirm: () => void;
 	children: ReactNode;
 }) {
 	const [typed, setTyped] = useState("");
-	const typedOk = typed.trim() === target;
+	const typedOk = typed.trim() === target && !blocked;
 
 	return (
 		<form

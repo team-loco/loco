@@ -5,7 +5,7 @@ import {
 	formatBytes,
 	formatCompact,
 	sumTotals,
-	trafficSeries,
+	windowSeries,
 	trafficTotals,
 	type TrafficWindow,
 	type TrafficField,
@@ -18,6 +18,7 @@ import { ChevronDownIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 
+import { Skeleton } from "@/components/design/Skeleton";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { pluralize } from "@/lib/format";
@@ -295,7 +296,7 @@ function TrafficCard({
 	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
 	const total = sumTotals(perResource);
 	const change = changeLabel(total, sumTotals(trafficTotals(prior, spec.field, stepMs, windows.prior)));
-	const shown = state === "loading" ? "…" : state === "error" || total === undefined ? "—" : spec.format(total);
+	const shown = state === "error" || total === undefined ? "—" : spec.format(total);
 	const rows = [...perResource.entries()]
 		.filter(([, amount]) => amount > 0)
 		.map(([id, amount]) => {
@@ -303,33 +304,43 @@ function TrafficCard({
 			return { id, name, amount, label: spec.format(amount), href: live ? hrefFor(id) : undefined };
 		})
 		.toSorted((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
-	const comparison = `${change ?? "—"} vs prior ${range}`;
+	const comparison = change === undefined ? `No prior ${range} data to compare` : `${change} vs prior ${range}`;
+	const warn = spec.warnOnRise && total !== undefined && total > 0;
 	return (
 		<StatCard
 			label={spec.label}
-			ariaLabel={`${spec.label}: ${shown}, ${comparison}`}
+			ariaLabel={state === "loading" ? `${spec.label}: loading` : `${spec.label}: ${shown}, ${comparison}`}
 			breakdown={
 				state === "ready" && rows.length > 0 && total !== undefined ? (
 					<Breakdown rows={rows} total={total} format={spec.format} />
 				) : null
 			}
 		>
-			<span data-slot="stat-value" className={VALUE}>
-				{shown}
-			</span>
-			<span
-				className={cn(
-					"truncate font-mono text-[11.5px]",
-					spec.warnOnRise && change?.startsWith("↑") === true ? "text-warn" : "text-fg3",
-				)}
-				title={comparison}
-			>
-				{state === "ready" ? comparison : " "}
-			</span>
+			{state === "loading" ? (
+				<>
+					<Skeleton className="my-1 h-[30px] w-24" />
+					<Skeleton className="h-[14px] w-40" />
+				</>
+			) : (
+				<>
+					<span data-slot="stat-value" className={VALUE}>
+						{shown}
+					</span>
+					<span
+						className={cn(
+							"truncate font-mono text-[11.5px]",
+							spec.warnOnRise && change?.startsWith("↑") === true ? "text-warn" : "text-fg3",
+						)}
+						title={comparison}
+					>
+						{state === "ready" ? comparison : " "}
+					</span>
+				</>
+			)}
 			<Sparkline
-				values={state === "ready" ? trafficSeries(current, spec.field) : []}
-				fill={spec.warnOnRise ? 0.12 : 0.08}
-				className={cn("mt-2 h-[38px]", spec.warnOnRise ? "text-warn" : "text-foreground")}
+				values={state === "ready" ? windowSeries(current, spec.field, stepMs, windows.current) : []}
+				fill={warn ? 0.12 : 0.08}
+				className={cn("mt-2 h-[38px]", warn ? "text-warn" : "text-foreground")}
 			/>
 		</StatCard>
 	);

@@ -42,6 +42,7 @@ import {
 	formatClock,
 	formatFullTime,
 	formatIsoDate,
+	formatIsoTimestamp,
 	formatMonthYear,
 	parseClockInput,
 	timeAxis,
@@ -146,4 +147,10 @@ test("narrow axes space ticks by the allowed number of steps", () => {
 	expect(narrow.length).toBeGreaterThanOrEqual(2);
 	for (let i = 1; i < narrow.length; i++)
 		expect((narrow[i] ?? 0) - (narrow[i - 1] ?? 0)).toBeGreaterThanOrEqual((to - from) / 3);
+});
+
+test("formatIsoTimestamp writes the instant in either zone", () => {
+	const ms = Date.UTC(2026, 10, 12, 8, 30, 15, 42);
+	expect(formatIsoTimestamp(ms, { zone: "utc", clock: "24" })).toBe("2026-11-12T08:30:15.042Z");
+	expect(new Date(formatIsoTimestamp(ms, { zone: "local", clock: "24" })).getTime()).toBe(ms);
 });

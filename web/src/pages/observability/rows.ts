@@ -1,6 +1,6 @@
 import type { LogEntry } from "@gen/loco/observability/v1/observability_pb";
 
-import { tsMs } from "@/lib/time";
+import { formatIsoTimestamp, tsMs, type TimePreferences } from "@/lib/time";
 
 import type { ObsResource } from "./context";
 import { parseJsonMsg, type JsonObject } from "./format";
@@ -96,4 +96,29 @@ export function visibleLogRows(batch: LogRow[], tail: LogRow[], paused: LogRow[]
 	if (paused !== null) return paused;
 	const batchKeys = new Set(batch.map((row) => row.key));
 	return [...tail.filter((row) => !batchKeys.has(row.key)), ...batch].toSorted((a, b) => b.ts - a.ts);
+}
+
+/** The row as the JSON the copy actions write; ids the line does not carry are left out. */
+export function logJson(row: LogRow, pref: TimePreferences): string {
+	const e = row.entry;
+	return JSON.stringify(
+		{
+			timestamp: formatIsoTimestamp(row.ts, pref),
+			level: row.level,
+			message: row.json ?? row.message,
+			[row.workload ? "workload" : "resource"]: row.resourceName,
+			replica: row.pod,
+			region: row.region,
+			...(e.traceId === "" ? {} : { trace_id: e.traceId }),
+			...(e.spanId === "" ? {} : { span_id: e.spanId }),
+			resource_attributes: e.resourceAttributes,
+			log_attributes: e.logAttributes,
+		},
+		null,
+		2,
+	);
+}
+
+export function logMessageText(row: LogRow): string {
+	return row.json === null ? row.message : JSON.stringify(row.json, null, 2);
 }

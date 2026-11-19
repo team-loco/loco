@@ -42,16 +42,14 @@ export function DeleteAccount({ user }: { user: User }) {
 		? "Checking account deletion"
 		: impact.isError
 			? "Retry the account check before deleting"
-			: blockers.length > 0
-				? "Assign another active administrator to each organization below"
-				: null;
+			: null;
 
 	const refresh = () => {
 		setPages([""]);
 		void queryClient.invalidateQueries();
 	};
 	const confirmDelete = () => {
-		if (remove.isPending || blockedReason !== null) return;
+		if (remove.isPending || blockedReason !== null || blockers.length > 0) return;
 		setError(null);
 		remove.mutate(
 			{ userId: user.id },
@@ -108,29 +106,6 @@ export function DeleteAccount({ user }: { user: User }) {
 					</div>
 				) : (
 					<>
-						{blockers.length > 0 && (
-							<div className="flex flex-col gap-2">
-								<p className="text-sm font-medium">These organizations need another active administrator</p>
-								<p className="text-sm text-fg3">
-									Assign another active member as an administrator on the Team page, then check again.
-								</p>
-								<ul className="list-none divide-y divide-line">
-									{blockers.map((org) => (
-										<li key={org.orgId} className="py-2">
-											<Link className="text-sm underline" to={`/org/${org.orgId}/team`}>
-												{org.orgName}
-											</Link>
-										</li>
-									))}
-								</ul>
-								{impact.data.hasMoreBlockingOrganizations && (
-									<p className="text-sm text-warn-fg">
-										More organizations need another active administrator. Resolve these, then check again to review the
-										rest.
-									</p>
-								)}
-							</div>
-						)}
 						<p className="text-sm font-medium">Automation tokens</p>
 						<p className="text-sm text-fg3">{SURVIVING_TOKENS}</p>
 						{impact.data.hasInaccessibleOwnedTokens && (
@@ -213,8 +188,32 @@ export function DeleteAccount({ user }: { user: User }) {
 				confirmLabel="Delete account"
 				text="This permanently deletes your profile, sessions and personal tokens, removes your memberships and signs you out. Organizations, workspaces and their history stay."
 				pending={remove.isPending}
+				blocked={blockers.length > 0}
 				onConfirm={confirmDelete}
 			>
+				{blockers.length > 0 && (
+					<div className="flex flex-col gap-2">
+						<p className="text-sm font-medium">These organizations need another active administrator</p>
+						<p className="text-sm text-fg3">
+							Assign another active member as an administrator on the Team page, then check again.
+						</p>
+						<ul aria-label="Organizations needing an administrator" className="list-none divide-y divide-line">
+							{blockers.map((org) => (
+								<li key={org.orgId} className="py-2">
+									<Link className="text-sm underline" to={`/org/${org.orgId}/team`}>
+										{org.orgName}
+									</Link>
+								</li>
+							))}
+						</ul>
+						{impact.data?.hasMoreBlockingOrganizations === true && (
+							<p className="text-sm text-warn-fg">
+								More organizations need another active administrator. Resolve these, then check again to review the
+								rest.
+							</p>
+						)}
+					</div>
+				)}
 				<p className="text-sm text-warn-fg">{SURVIVING_TOKENS}</p>
 			</ConfirmDeleteDialog>
 			<RevokeDialog

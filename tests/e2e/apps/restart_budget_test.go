@@ -322,7 +322,11 @@ func TestRestartBudgetStopsAProvenService(t *testing.T) {
 		if len(pods) != 1 {
 			t.Fatalf("%d pods, want 1", len(pods))
 		}
-		p.MustKubectl(t, "-n", w.Namespace, "exec", pods[0].Name, "--", "nginx", "-s", "stop")
+		// The exec ends with the container it stops, killed with it.
+		_, err := p.Kubectl(t.Context(), "-n", w.Namespace, "exec", pods[0].Name, "--", "nginx", "-s", "stop")
+		if err != nil && !strings.Contains(err.Error(), "exit status 137") {
+			t.Fatal(err)
+		}
 	}
 	stop()
 	platform.Eventually(t, 2*time.Minute, "the replica to run again after a restart", func(context.Context) error {
