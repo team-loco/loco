@@ -1,7 +1,14 @@
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { DeploymentStatus, type Deployment, type Replica } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentStatus,
+	type Activity,
+	type Deployment,
+	type DeploymentPlacement,
+	type Replica,
+} from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { BadgeTone } from "@/components/design/Badge";
+import { currentReplica, readyIn } from "@/lib/activity-deploys";
 import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
@@ -20,21 +27,26 @@ export function progressDeployments(regions: readonly RegionView[]) {
 	});
 }
 
-export function deploymentElapsedMs(deployment: Deployment, nowMs: number): number | undefined {
-	const created = maybeTsMs(deployment.createdAt);
-	if (created === undefined) return undefined;
-	const end = isInFlight(deployment.status)
-		? nowMs
-		: (maybeTsMs(deployment.completedAt) ?? maybeTsMs(deployment.startedAt) ?? nowMs);
-	return Math.max(0, end - created);
+export function deploymentElapsedMs(
+	deployment: Deployment,
+	nowMs: number,
+	restart?: { startMs: number | undefined; endMs: number | undefined },
+): number | undefined {
+	const start = restart === undefined ? maybeTsMs(deployment.createdAt) : restart.startMs;
+	if (start === undefined) return undefined;
+	const finished =
+		restart === undefined ? (maybeTsMs(deployment.completedAt) ?? maybeTsMs(deployment.startedAt)) : restart.endMs;
+	const end = isInFlight(deployment.status) ? nowMs : (finished ?? nowMs);
+	return Math.max(0, end - start);
 }
 
+/** The current revision's replicas, and those of the newest revision before it. */
 export function groupReplicas(replicas: readonly Replica[], revision: bigint, deploymentId: string) {
-	const current = (replica: Replica) =>
-		replica.placementRevision === revision && (replica.deploymentId === "" || replica.deploymentId === deploymentId);
+	const others = replicas.filter((replica) => !currentReplica(replica, revision, deploymentId));
+	const previous = others.reduce((newest, r) => (r.placementRevision > newest ? r.placementRevision : newest), -1n);
 	return [
-		{ label: "New version", replicas: replicas.filter(current) },
-		{ label: "Previous version", replicas: replicas.filter((replica) => !current(replica)) },
+		{ label: "New version", replicas: replicas.filter((replica) => currentReplica(replica, revision, deploymentId)) },
+		{ label: "Previous version", replicas: others.filter((replica) => replica.placementRevision === previous) },
 	];
 }
 
@@ -81,12 +93,31 @@ export function stoppingCountdown(replica: Replica, nowMs: number) {
 	};
 }
 
-export function activityTime(at: Timestamp | undefined, startedAt: Timestamp | undefined): string {
+/** How long after the rollout started an activity entry happened, as "+42s", "+1m 05s" or "+1h 02m". */
+export function activityTime(at: Timestamp | undefined, startMs: number | undefined): string {
 	const atMs = maybeTsMs(at);
-	const startedMs = maybeTsMs(startedAt);
-	if (atMs === undefined || startedMs === undefined) return "—";
-	const seconds = Math.max(0, Math.floor((atMs - startedMs) / 1000));
-	return `+${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+	if (atMs === undefined || startMs === undefined) return "—";
+	const total = Math.max(0, Math.floor((atMs - startMs) / 1000));
+	const h = Math.floor(total / 3600);
+	const m = Math.floor((total % 3600) / 60);
+	const s = total % 60;
+	if (h > 0) return `+${h.toString()}h ${m.toString().padStart(2, "0")}m`;
+	if (m > 0) return `+${m.toString()}m ${s.toString().padStart(2, "0")}s`;
+	return `+${s.toString()}s`;
+}
+
+/** A region's activity for its newest revision; a restart's feed leaves out earlier revisions and the build. */
+export function rolloutActivity(activity: readonly Activity[], region: string, revision: bigint) {
+	const regional = activity.filter((entry) => entry.region === region);
+	const current = regional.reduce((newest, e) => (e.revision > newest ? e.revision : newest), revision);
+	const restart = regional.some((entry) => entry.revision < current);
+	const entries = activity.filter((entry) =>
+		entry.region === "" ? !restart : entry.region === region && entry.revision === current,
+	);
+	return {
+		entries,
+		restart: restart ? { startMs: maybeTsMs(entries[0]?.at), endMs: maybeTsMs(entries.at(-1)?.at) } : undefined,
+	};
 }
 
 export function problemLogsHref(logsHref: string | undefined, deployment: Deployment): string | undefined {
@@ -159,7 +190,7 @@ export function rolloutSteps(deployment: Deployment, built: boolean): RolloutSte
 	];
 }
 
-export function readyLabel(replicas: readonly Replica[], desired: number): string {
-	const ready = replicas.filter((r) => r.ready).length;
-	return `${ready.toString()} of ${desired.toString()} ready`;
+export function readyLabel(deployment: Deployment, placement: DeploymentPlacement | undefined): string {
+	const ready = placement === undefined ? 0 : readyIn(deployment, placement);
+	return `${ready.toString()} of ${(placement?.desiredReplicas ?? 0).toString()} ready`;
 }

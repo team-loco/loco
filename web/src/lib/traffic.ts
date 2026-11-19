@@ -169,6 +169,24 @@ export function trafficSeries(points: TrafficPoint[], field: TrafficField, resou
 	return [...buckets.entries()].toSorted((a, b) => a[0] - b[0]).map(([, value]) => value);
 }
 
+/** One value per `stepMs` bucket across the whole window, summed across resources, with zero for buckets without data. */
+export function windowSeries(
+	points: TrafficPoint[],
+	field: TrafficField,
+	stepMs: number,
+	window: TrafficWindow,
+): number[] {
+	const buckets = new Map<number, number>();
+	for (const point of points) {
+		const rate = point[field];
+		if (rate !== undefined) buckets.set(point.time, (buckets.get(point.time) ?? 0) + rate);
+	}
+	const values: number[] = [];
+	for (let t = Math.floor(window.startMs / stepMs) * stepMs; t < window.endMs; t += stepMs)
+		values.push(buckets.get(t) ?? 0);
+	return values;
+}
+
 /** The change from `prior` to `current` as "↑ 6.2%", "0%" when it rounds to zero, or undefined when there is nothing to compare. */
 export function changeLabel(current: number | undefined, prior: number | undefined): string | undefined {
 	if (current === undefined || prior === undefined || prior === 0) return undefined;

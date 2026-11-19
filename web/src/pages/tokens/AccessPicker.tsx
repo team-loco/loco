@@ -165,14 +165,11 @@ export function AccessPicker({
 		if (n === undefined) return null;
 		const lvl = heldLevel(held, tree, n.key);
 		return (
-			<div
-				key={it.key}
-				className="grid grid-cols-[22px_minmax(0,1fr)_auto_22px] items-center gap-2.5 border-b border-line py-2 pr-2.5 pl-3"
-			>
-				<span className="flex text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
-				<span className="flex min-w-0 flex-col gap-px">
+			<div key={it.key} className="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b border-line py-2 pr-2.5 pl-3">
+				<span className="flex shrink-0 text-fg3 [&_svg]:size-3.5">{kindIcon(n.kind)}</span>
+				<span className="flex min-w-[9rem] flex-1 flex-col gap-px">
 					<span className="truncate font-mono text-[12.5px]">{n.label}</span>
-					<span className="truncate text-[11.5px] text-fg3">{itemKind(n)}</span>
+					<span className="text-[11.5px] text-fg3">{itemKind(n)}</span>
 				</span>
 				<ToggleGroup
 					variant="segmented"
@@ -201,6 +198,7 @@ export function AccessPicker({
 					variant="ghost"
 					size="icon-xs"
 					aria-label={`Remove ${n.label}`}
+					className="ml-auto"
 					onClick={() => {
 						onChange(items.filter((_, j) => j !== i));
 					}}

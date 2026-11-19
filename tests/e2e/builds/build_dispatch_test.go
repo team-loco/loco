@@ -2,6 +2,7 @@ package builds
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -191,16 +192,17 @@ func TestBuildDispatch(t *testing.T) {
 		platform.Eventually(
 			t,
 			retentionTimeout,
-			"image retention to delete the replaced image",
-			func(ctx context.Context) error {
-				return manifestGone(ctx, path, firstBuild.GetImageDigest())
+			"image retention to record the replaced image's deletion",
+			func(context.Context) error {
+				if getBuild(t, first.ID).GetImageDeletedAt() == nil {
+					return errors.New("GetBuild does not report the replaced build's image as deleted")
+				}
+				return nil
 			},
 		)
+		requireManifest(t, path, firstBuild.GetImageDigest(), 404, "the replaced build's image")
 		requireManifest(t, path, cacheDigest(t, first.ID), 404, "the replaced build's cache")
 		requireManifest(t, path, secondBuild.GetImageDigest(), 200, "the deployed build's image")
-		if getBuild(t, first.ID).GetImageDeletedAt() == nil {
-			t.Error("GetBuild does not report when the replaced build's image was deleted")
-		}
 		_, err := createDeployment(t, w, resourceID, first.ID, "")
 		if code := connect.CodeOf(err); code != connect.CodeFailedPrecondition {
 			t.Errorf("deploying the replaced build: code %v (%v), want failed_precondition", code, err)

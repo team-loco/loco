@@ -213,7 +213,13 @@ with session(out) as browser:
         value = variables.get_by_label("New value for SESSION_KEY", exact=True)
         value.fill("typed")
         expect(reveal).to_be_enabled()
-        reveal_box, value_box = reveal.bounding_box(), value.bounding_box()
+        reveal_box, value_box = value.evaluate(
+            """(input, button) => [button, input].map(el => {
+                const { x, y, width, height } = el.getBoundingClientRect();
+                return { x, y, width, height };
+            })""",
+            reveal.element_handle(),
+        )
         assert reveal_box["y"] < value_box["y"] + value_box["height"], (
             reveal_box,
             value_box,
