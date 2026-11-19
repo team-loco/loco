@@ -8,7 +8,6 @@ import { Banner } from "@/components/design/Banner";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Progress } from "@/components/design/Progress";
-import { SoonTag } from "@/components/design/SoonTag";
 import { useNow } from "@/hooks/useNow";
 import { cn, formatShortId } from "@/lib/utils";
 
@@ -123,10 +122,6 @@ export function ActivityFeed({ deployment, activity }: { deployment: Deployment;
 		<section aria-label="Deployment activity" className="min-w-0">
 			<div className="mb-2 flex items-center justify-between gap-2">
 				<h3 className="m-0 text-[12px] font-medium text-fg3">Activity</h3>
-				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
-					Replica logs
-					<SoonTag />
-				</span>
 			</div>
 			<div
 				ref={followActivity}

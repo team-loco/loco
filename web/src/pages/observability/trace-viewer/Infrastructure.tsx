@@ -5,8 +5,6 @@ import { useTransport } from "@connectrpc/connect-query";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip } from "@/components/design/Chart";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { Button } from "@/components/design/Button";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Spinner } from "@/components/design/Spinner";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
@@ -117,7 +115,7 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 			{pod === "" ? (
 				<p className="m-0 text-[12px] text-fg3">No replica identity was recorded for this span.</p>
 			) : (
-				<div className="grid min-w-0 gap-5 min-[1180px]:grid-cols-[minmax(0,1fr)_200px]">
+				<div className="grid min-w-0 gap-5">
 					<div className="grid min-w-0 gap-4 sm:grid-cols-3">
 						{panels.map((panel, index) => {
 							const data = points[index] ?? [];
@@ -256,15 +254,6 @@ export function Infrastructure({ trace, selected }: { trace: TraceSummary; selec
 							);
 						})}
 					</div>
-					<section
-						aria-label={`Events on ${pod}`}
-						className="min-w-0 border-line min-[1180px]:border-l min-[1180px]:pl-5"
-					>
-						<h4 className="m-0 mb-2 break-all text-[12px] font-medium text-fg2">Events on {pod}</h4>
-						<Button variant="ghost" size="sm" disabled>
-							Replica events <SoonTag />
-						</Button>
-					</section>
 				</div>
 			)}
 		</section>

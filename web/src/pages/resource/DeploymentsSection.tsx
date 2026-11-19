@@ -17,7 +17,6 @@ import { CopyId } from "@/components/design/CopyId";
 import { Section } from "@/components/design/Page";
 import { Dialog, DialogBody, DialogContent } from "@/components/design/Dialog";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
-import { SoonTag } from "@/components/design/SoonTag";
 import { Spinner } from "@/components/design/Spinner";
 import { Pager } from "@/components/design/Pager";
 import { DeploymentActor } from "@/components/design/DeploymentOrigin";
@@ -110,10 +109,7 @@ function Detail({
 	return (
 		<div className="grid grid-cols-1 gap-6 pt-1.5 pb-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] md:pl-9">
 			<div className="flex min-w-0 flex-col gap-1.5">
-				<span className="flex items-center gap-2 text-[12px] text-fg3">
-					Rollout
-					<SoonTag />
-				</span>
+				<span className="text-[12px] text-fg3">Rollout</span>
 				<dl className="m-0 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-[12.5px]">
 					<dt className="text-fg3">Image</dt>
 					<dd className="m-0 break-all font-mono">{deploymentImage(dep)}</dd>

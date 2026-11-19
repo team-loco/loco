@@ -335,7 +335,6 @@ with session(out) as browser:
     expect(
         page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)
     ).to_be_disabled()
-    expect(variables.get_by_text("soon", exact=True)).to_be_visible()
     replacement.fill("replacement-token")
     expect(replacement).to_have_attribute("type", "password")
     page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True).click()

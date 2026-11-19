@@ -29,7 +29,6 @@ import { Notice } from "@/components/design/Notice";
 import { Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/design/Sheet";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { Skeleton } from "@/components/design/Skeleton";
-import { SoonTag } from "@/components/design/SoonTag";
 import { AutoscalingSwitch, ScalingFields } from "@/components/design/ScalingFields";
 import { Switch } from "@/components/design/Switch";
 import { Textarea } from "@/components/design/Textarea";
@@ -668,16 +667,7 @@ function ServiceForm({
 					/>
 				</DrawerSection>
 
-				<DrawerSection
-					title="Size per replica"
-					actions={
-						<span className="flex items-center gap-4 text-[12.5px] text-fg3">
-							<span className="flex items-center gap-1.5">
-								Cost <SoonTag />
-							</span>
-						</span>
-					}
-				>
+				<DrawerSection title="Size per replica">
 					<div className="flex flex-col gap-3">
 						<Field label="CPU" aside={<SliderValue text={stepLabel(sizes.cpu, form.cpu)} />} error={apiError("cpu")}>
 							<StepSlider
