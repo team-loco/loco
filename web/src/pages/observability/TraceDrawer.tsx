@@ -23,7 +23,7 @@ import { useObs } from "./context";
 import { useTraceZoom } from "./trace-viewer/useTraceZoom";
 
 import { traceServiceLabel } from "./trace-service";
-import { type TraceSummary } from "./traces";
+import { TRACE_ID_PATTERN, type TraceSummary } from "./traces";
 
 export function TraceDrawer({
 	onKeyDown,
@@ -52,6 +52,7 @@ export function TraceDrawer({
 	const [pinned, setPinned] = useState<string | null>(null);
 	const [hovered, setHovered] = useState<string | null>(null);
 	const highlight = hovered ?? pinned;
+	const validId = TRACE_ID_PATTERN.test(traceId);
 	const [spanId, setSpanId] = useQueryState("span", { history: "replace" });
 	const linked = trace?.spans.find((s) => s.spanId === spanId);
 	const selected = linked ?? trace?.root;
@@ -105,8 +106,12 @@ export function TraceDrawer({
 							<div className="px-6 py-5">
 								<EmptyHero
 									art={<ScrollTextIcon className="size-8 text-fg3" />}
-									title="This trace is no longer available"
-									subtitle={`${traceDays === undefined ? "" : `Traces are kept for ${String(traceDays)} days. `}It may also have been dropped before it was stored.`}
+									title={validId ? "This trace is no longer available" : "Trace not found"}
+									subtitle={
+										validId
+											? `${traceDays === undefined ? "" : `Traces are kept for ${String(traceDays)} days. `}It may also have been dropped before it was stored.`
+											: "The trace ID looks invalid. A trace ID is 32 lowercase hexadecimal characters."
+									}
 								>
 									<Button variant="outline" onClick={onClose}>
 										Back to traces
