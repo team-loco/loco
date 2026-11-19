@@ -48,7 +48,7 @@ func TestDeleteEnvironmentRefusesADeploymentThatCommitsWhileItWaits(t *testing.T
 		deleted <- deleteErr
 	}()
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
-	if _, err = qtx.CreateDeployment(ctx, f.paramsFor(f.clusterID)); err != nil {
+	if _, err = qtx.CreateDeployment(ctx, f.paramsFor(f.clusterID).CreateDeploymentParams); err != nil {
 		t.Fatal(err)
 	}
 	if err = tx.Commit(ctx); err != nil {

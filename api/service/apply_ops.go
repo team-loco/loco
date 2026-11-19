@@ -310,7 +310,7 @@ func (a *applier) deploy(
 		},
 		service: service,
 		targets: targets,
-		render:  render,
+		render:  render.payload,
 	})
 	if err != nil {
 		return err

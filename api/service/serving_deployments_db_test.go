@@ -156,7 +156,7 @@ func assertServingDeployments(t *testing.T, f *deployFixture, desired uuid.UUID,
 		t.Fatal(err)
 	}
 	var got []uuid.UUID
-	for _, replica := range deployment.GetReplicas() {
+	for _, replica := range deployment.GetPlacements()[0].GetReplicas() {
 		if replica.GetReady() && replica.GetDeploymentId() != "" {
 			got = append(got, uuid.MustParse(replica.GetDeploymentId()))
 		}
@@ -381,7 +381,7 @@ func TestServingObservationSpansBuildAndRetiringCluster(t *testing.T) {
 	}
 	params := f.paramsFor(f.otherCluster)
 	params.Status = genDb.DeploymentStatusBuilding
-	building, err := f.queries.CreateDeployment(ctx, params)
+	building, err := f.queries.CreateDeployment(ctx, params.CreateDeploymentParams)
 	if err != nil {
 		t.Fatal(err)
 	}

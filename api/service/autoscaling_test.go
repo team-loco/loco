@@ -35,12 +35,7 @@ func TestProtocolAutoscalingReplicaBounds(t *testing.T) {
 	t.Parallel()
 	for name, bounds := range map[string][2]int32{"valid": {1, 3}, "zero min": {0, 3}, "max below min": {3, 2}} {
 		t.Run(name, func(t *testing.T) {
-			service := &deploymentv1.ServiceDeploymentSpec{
-				Build: &deploymentv1.BuildSource{
-					Type:  buildSourceTypeImage,
-					Image: testPublicImage,
-				},
-				Port:        new(int32(8080)),
+			service := &deploymentv1.RegionDeploymentTarget{
 				MinReplicas: &bounds[0],
 				MaxReplicas: &bounds[1],
 				Scalers:     &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))},

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -101,15 +102,15 @@ func (f *deployFixture) workerPayloadIn(
 	return payload
 }
 
-func (f *deployFixture) workerDeployments(t *testing.T) []genDb.Deployment {
+func (f *deployFixture) workerDeployments(t *testing.T) []liveDeployment {
 	t.Helper()
 	res, found := f.resourceByName(t, applyWorker)
 	if !found {
 		t.Fatalf("%s does not exist", applyWorker)
 	}
-	deployments, err := f.queries.ListActiveDeploymentsForResource(context.Background(), res.ID)
+	deployments, err := listLiveDeploymentsForResource(context.Background(), f.queries, res.ID)
 	if err != nil {
-		t.Fatalf("list active deployments: %v", err)
+		t.Fatal(err)
 	}
 	return deployments
 }
@@ -218,7 +219,7 @@ VALUES (ARRAY['linux/amd64'], 'c3', $1, 'kind', true, false, 'healthy', NOW()) R
 	f.finishRollouts(t)
 	resp := applyOK(t, f, planFileHeader+applyFileTwoRegions, applyOptions{})
 	started := resp.GetDeployments()
-	if len(started) != 1 || started[0].GetRegion() != testRegion {
+	if len(started) != 1 || !slices.Equal(started[0].GetRegions(), []string{testRegion}) {
 		t.Fatalf("deployments = %v, want one for the added region only", started)
 	}
 	if active := f.workerDeployments(t); len(active) != 2 {

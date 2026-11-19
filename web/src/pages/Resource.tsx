@@ -8,7 +8,7 @@ import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
 import { createDeployment } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import {
 	deleteResource,
 	getResource,
@@ -27,6 +27,7 @@ import { scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { useNow } from "@/hooks/useNow";
 import { runtimeEventsOptions } from "@/hooks/runtimeEvents";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
+import { deploymentRegions, specForRegions } from "@/lib/deployment-utils";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { notFound, resourceMissing } from "@/lib/not-found";
 import { configuredRegions, isWorker } from "@/lib/resource-regions";
@@ -168,7 +169,12 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 	const environment = environmentStatus(resource, environmentId);
 	const regions = buildRegions(resource, deployments, environment, currentDeployments);
 	const deployed = regions.filter(isDeployed);
-	const currents = deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [r.current]));
+	const currents = [
+		...new Map(
+			deployed.flatMap((r) => (r.current?.spec === undefined ? [] : [[r.current.id, r.current] as const])),
+		).values(),
+	];
+	const currentRegions = (d: Deployment) => deployed.filter((r) => r.current?.id === d.id).map((r) => r.name);
 	const events = newestFirst((eventsQuery.data?.events ?? []).map(runtimeEvent));
 	const base = baseline(
 		resource.name,
@@ -218,20 +224,22 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		).values(),
 	];
 
-	const redeployFrom = async (deps: Deployment[]) => {
+	const redeployFrom = async (sources: { deployment: Deployment; regions: string[] }[], trigger: DeploymentTrigger) => {
 		const failures: string[] = [];
-		for (const d of deps) {
+		for (const { deployment: d, regions: targets } of sources) {
 			if (d.spec === undefined) continue;
 			try {
 				await deploy.mutateAsync({
 					resourceId,
-					region: d.region,
-					spec: d.spec,
+					regions: targets,
+					spec: specForRegions(d.spec, targets),
 					environmentId: d.environmentId,
 					commit: d.commit,
+					trigger,
+					sourceDeploymentId: d.id,
 				});
 			} catch (err) {
-				failures.push(`${d.region}: ${getErrorMessage(err, "Failed to create deployment")}`);
+				failures.push(`${targets.join(", ")}: ${getErrorMessage(err, "Failed to create deployment")}`);
 			}
 		}
 		void refresh();
@@ -254,7 +262,10 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 
 	const handleRedeploy = async () => {
 		setRedeploying(true);
-		const failures = await redeployFrom(currents);
+		const failures = await redeployFrom(
+			currents.map((d) => ({ deployment: d, regions: currentRegions(d) })),
+			DeploymentTrigger.REDEPLOY,
+		);
 		setRedeploying(false);
 		setModal(null);
 		if (failures.length > 0) {
@@ -269,12 +280,15 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		setNotice({
 			tone: "info",
 			title: `Redeploying ${resource.displayName}`,
-			message: `New deployment from ${tags} in ${currents.map((d) => d.region).join(", ")}.`,
+			message: `New deployment from ${tags} in ${currents.flatMap(currentRegions).join(", ")}.`,
 		});
 	};
 
 	const handleRollback = async (target: Deployment) => {
-		const failures = await redeployFrom([target]);
+		const failures = await redeployFrom(
+			[{ deployment: target, regions: deploymentRegions(target) }],
+			DeploymentTrigger.ROLLBACK,
+		);
 		setModal(null);
 		if (failures.length > 0) {
 			setNotice({
@@ -286,7 +300,7 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		}
 		setNotice({
 			tone: "info",
-			title: `Rolling back ${resource.displayName} in ${target.region}`,
+			title: `Rolling back ${resource.displayName} in ${deploymentRegions(target).join(", ")}`,
 			message: `New deployment created from ${formatShortId(target.id)} (${depTag(target)}). Replicas are being replaced.`,
 		});
 	};

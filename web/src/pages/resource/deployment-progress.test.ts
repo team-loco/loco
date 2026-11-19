@@ -1,6 +1,11 @@
 import { create } from "@bufbuild/protobuf";
 import { timestampFromMs } from "@bufbuild/protobuf/wkt";
-import { DeploymentSchema, DeploymentStatus, ReplicaSchema } from "@gen/loco/deployment/v1/deployment_pb";
+import {
+	DeploymentPlacementSchema,
+	DeploymentSchema,
+	DeploymentStatus,
+	ReplicaSchema,
+} from "@gen/loco/deployment/v1/deployment_pb";
 import { expect, test } from "bun:test";
 
 import {
@@ -22,15 +27,14 @@ import type { RegionView } from "./model";
 
 const previous = create(DeploymentSchema, {
 	id: "previous",
-	region: "east",
+	placements: [{ region: "east", live: true }],
 	status: DeploymentStatus.RUNNING,
-	isActive: true,
 	createdAt: timestampFromMs(1000),
 	spec: { spec: { case: "service", value: { build: { type: "image", image: "example.test/app:v1" } } } },
 });
 const pending = create(DeploymentSchema, {
 	id: "pending",
-	region: "east",
+	placements: [{ region: "east" }],
 	status: DeploymentStatus.BUILDING,
 	createdAt: timestampFromMs(3000),
 });
@@ -53,7 +57,7 @@ test("progress does not use a sibling region's deployments", () => {
 	const other = create(DeploymentSchema, {
 		...previous,
 		id: "other",
-		region: "west",
+		placements: [create(DeploymentPlacementSchema, { region: "west", live: true })],
 		createdAt: timestampFromMs(4000),
 	});
 	expect(
@@ -127,17 +131,17 @@ test("activity time counts minutes and seconds from deployment start", () => {
 });
 
 test("problem log links preserve scope and target replica or failed build", () => {
-	const deployment = create(DeploymentSchema, { problem: { replicaName: "web-1" } });
+	const deployment = create(DeploymentSchema, { placements: [{ problem: { replicaName: "web-1" } }] });
 	expect(problemLogsHref("/logs?env=prod&r=web", deployment)).toBe("/logs?env=prod&r=web&q=%40replica%3Aweb-1");
 	const build = create(DeploymentSchema, {
-		problem: { reason: "build_failed" },
+		placements: [{ problem: { reason: "build_failed" } }],
 		spec: { spec: { case: "service", value: { build: { buildId: "build-1" } } } },
 	});
 	expect(problemLogsHref("/logs?env=prod", build)).toBe("/logs?env=prod&q=%40build%3Abuild-1");
 	expect(problemLogsHref(undefined, deployment)).toBeUndefined();
 	expect(problemLogsHref("/logs", pending)).toBeUndefined();
 	expect(
-		problemLogsHref("/logs", create(DeploymentSchema, { problem: { message: "No target replica" } })),
+		problemLogsHref("/logs", create(DeploymentSchema, { placements: [{ problem: { message: "No target replica" } }] })),
 	).toBeUndefined();
 });
 
@@ -186,9 +190,10 @@ test("elapsed time reads like a clock", () => {
 
 test("rollout steps follow the deployment phase", () => {
 	const at = (status: DeploymentStatus, reason = "") =>
-		rolloutSteps(create(DeploymentSchema, { status, ...(reason === "" ? {} : { problem: { reason } }) }), true).map(
-			(s) => s.state,
-		);
+		rolloutSteps(
+			create(DeploymentSchema, { status, ...(reason === "" ? {} : { placements: [{ problem: { reason } }] }) }),
+			true,
+		).map((s) => s.state);
 	expect(at(DeploymentStatus.BUILDING)).toEqual(["active", "pending"]);
 	expect(at(DeploymentStatus.DEPLOYING)).toEqual(["done", "active"]);
 	expect(at(DeploymentStatus.RUNNING)).toEqual(["done", "done"]);

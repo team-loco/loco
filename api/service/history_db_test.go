@@ -74,7 +74,7 @@ func TestDeployWithoutLoadedLimitsDeletesNoHistory(t *testing.T) {
 	finished := f.seedDeployment(t, f.clusterID, testRegion, "superseded", false, "5 days")
 
 	err := withTx(t.Context(), f.pool, func(qtx *genDb.Queries) error {
-		_, err := createDeploymentWithCleanup(
+		_, err := recordTestDeployment(
 			t.Context(),
 			qtx,
 			limits.Effective{},

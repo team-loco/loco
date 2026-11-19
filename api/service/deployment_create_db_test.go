@@ -28,7 +28,7 @@ const (
 		`"memory":"64Mi","minReplicas":1,"maxReplicas":1}}}`
 )
 
-func createDeployment(
+func createTestDeployment(
 	t *testing.T,
 	f *deployFixture,
 	resourceSpec string,
@@ -77,7 +77,7 @@ func deployServiceIn(
 	t.Helper()
 	return deployRequest(t, f, &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    f.resourceID.String(),
-		Region:        testRegion,
+		Regions:       []string{testRegion},
 		EnvironmentId: environmentID.String(),
 		Spec:          &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: service}},
 	})
@@ -134,7 +134,7 @@ func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
 	f := newDeployFixture(t)
 	f.addDomain(t, "alt.example.com", false)
 	f.addDomain(t, testPrimaryDomain, true)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 
@@ -153,12 +153,12 @@ func TestCreateDeploymentRoutesThePrimaryDomain(t *testing.T) {
 func TestCreateDeploymentWithoutADomainHasNoRoute(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 
-	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1 AND is_active`); n != 1 {
-		t.Fatalf("%d active deployments, want 1", n)
+	if n := f.count(t, `SELECT count(*) FROM live_deployment_placements WHERE resource_id = $1`); n != 1 {
+		t.Fatalf("%d live deployments, want 1", n)
 	}
 	service := desiredPayload(t, f).AppSpec.ServiceSpec
 	if service.Routing != nil {
@@ -172,7 +172,7 @@ func TestCreateDeploymentWithoutADomainHasNoRoute(t *testing.T) {
 func TestCreateDeploymentRejectsARegionTheResourceDoesNotRunIn(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	_, err := createDeployment(t, f, otherRegionSpec)
+	_, err := createTestDeployment(t, f, otherRegionSpec)
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
 		t.Fatalf("%d deployments after a rejected deploy, want 0", n)
@@ -201,7 +201,7 @@ func TestCreateDeploymentRefusesAClusterThatStoppedHeartbeating(t *testing.T) {
 func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
@@ -214,6 +214,17 @@ func TestCreateDeploymentReturnsThePinnedImage(t *testing.T) {
 
 const unboundedRegionSpec = `{"routing":{"port":8080},` +
 	`"regions":{"us-east-1":{"enabled":true,"cpu":"100m","memory":"64Mi"}}}`
+
+// testTarget is the request's sizing of testRegion, added when missing.
+func testTarget(service *deploymentv1.ServiceDeploymentSpec) *deploymentv1.RegionDeploymentTarget {
+	if service.Regions == nil {
+		service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{}
+	}
+	if service.Regions[testRegion] == nil {
+		service.Regions[testRegion] = &deploymentv1.RegionDeploymentTarget{}
+	}
+	return service.Regions[testRegion]
+}
 
 func imageService() *deploymentv1.ServiceDeploymentSpec {
 	build := &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: testPublicImage}
@@ -243,7 +254,7 @@ func (f *deployFixture) organizationID(t *testing.T) string {
 func TestCreateDeploymentCarriesTheWorkspaceOrganization(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 
@@ -258,7 +269,7 @@ func TestCreateDeploymentRaisesAnUnsetMaximumToTheMinimum(t *testing.T) {
 	f := newDeployFixture(t)
 	service := imageService()
 	minReplicas := int32(5)
-	service.MinReplicas = &minReplicas
+	testTarget(service).MinReplicas = &minReplicas
 	if _, err := createDeploymentWith(t, f, unboundedRegionSpec, service); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
@@ -274,8 +285,8 @@ func TestCreateDeploymentRejectsSpecsTheControllerRejects(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	service := imageService()
-	service.MinReplicas = new(int32(3))
-	service.MaxReplicas = new(int32(2))
+	testTarget(service).MinReplicas = new(int32(3))
+	testTarget(service).MaxReplicas = new(int32(2))
 	_, err := createDeploymentWith(t, f, unboundedRegionSpec, service)
 	wantCode(t, err, connect.CodeInvalidArgument)
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != 0 {
@@ -310,15 +321,15 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	minReplicas := int32(1)
 	maxReplicas := int32(2)
 	cpuTarget := int32(70)
-	service.MinReplicas = &minReplicas
-	service.MaxReplicas = &maxReplicas
+	testTarget(service).MinReplicas = &minReplicas
+	testTarget(service).MaxReplicas = &maxReplicas
 	service.HealthCheck = &deploymentv1.HealthCheckConfig{
 		Path:             "/healthz",
 		IntervalSeconds:  10,
 		TimeoutSeconds:   2,
 		FailureThreshold: 3,
 	}
-	service.Scalers = &deploymentv1.Scalers{CpuTarget: &cpuTarget}
+	testTarget(service).Scalers = &deploymentv1.Scalers{CpuTarget: &cpuTarget}
 	service.Env = map[string]string{"SECRET": "plaintext"}
 	if _, err := createDeploymentWith(t, f, unboundedRegionSpec, service); err != nil {
 		t.Fatalf("create deployment: %v", err)
@@ -334,10 +345,17 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	if err := json.Unmarshal(stored, &keys); err != nil {
 		t.Fatalf("decode stored spec: %v", err)
 	}
-	for _, key := range []string{"healthCheck", "minReplicas", "maxReplicas"} {
-		if _, ok := keys[key]; !ok {
-			t.Errorf("stored spec has no %q key, want the proto JSON name\n%s", key, stored)
+	var regions map[string]map[string]json.RawMessage
+	if err := json.Unmarshal(keys["regions"], &regions); err != nil {
+		t.Fatalf("decode stored regions: %v", err)
+	}
+	for _, key := range []string{"minReplicas", "maxReplicas"} {
+		if _, ok := regions[testRegion][key]; !ok {
+			t.Errorf("stored region has no %q key, want the proto JSON name\n%s", key, stored)
 		}
+	}
+	if _, ok := keys["healthCheck"]; !ok {
+		t.Errorf("stored spec has no healthCheck key, want the proto JSON name\n%s", stored)
 	}
 	if _, ok := keys["env"]; ok {
 		t.Errorf("stored spec carries env\n%s", stored)
@@ -350,11 +368,12 @@ func TestCreateDeploymentStoresTheSpecAsProtoJSON(t *testing.T) {
 	if !proto.Equal(got.GetHealthCheck(), service.GetHealthCheck()) {
 		t.Errorf("health check = %v, want %v", got.GetHealthCheck(), service.GetHealthCheck())
 	}
-	if !proto.Equal(got.GetScalers(), service.GetScalers()) {
-		t.Errorf("scalers = %v, want %v", got.GetScalers(), service.GetScalers())
+	region := got.GetRegions()[testRegion]
+	if !proto.Equal(region.GetScalers(), testTarget(service).GetScalers()) {
+		t.Errorf("scalers = %v, want %v", region.GetScalers(), testTarget(service).GetScalers())
 	}
-	if got.GetMinReplicas() != minReplicas || got.GetMaxReplicas() != maxReplicas {
-		t.Errorf("replicas = %d-%d, want %d-%d", got.GetMinReplicas(), got.GetMaxReplicas(), minReplicas, maxReplicas)
+	if region.GetMinReplicas() != minReplicas || region.GetMaxReplicas() != maxReplicas {
+		t.Errorf("replicas = %d-%d, want %d-%d", region.GetMinReplicas(), region.GetMaxReplicas(), minReplicas, maxReplicas)
 	}
 	if len(got.GetEnv()) != 0 {
 		t.Errorf("env = %v, want none stored", got.GetEnv())
@@ -365,9 +384,9 @@ func TestCreateDeploymentAcceptsEnabledAutoscaling(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	service := imageService()
-	service.MinReplicas = new(int32(1))
-	service.MaxReplicas = new(int32(3))
-	service.Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
+	testTarget(service).MinReplicas = new(int32(1))
+	testTarget(service).MaxReplicas = new(int32(3))
+	testTarget(service).Scalers = &deploymentv1.Scalers{Enabled: true, CpuTarget: new(int32(70))}
 	_, err := createDeploymentWith(t, f, sameRegionSpec, service)
 	if err != nil {
 		t.Fatal(err)

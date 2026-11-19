@@ -15,8 +15,9 @@ import (
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
-// rollbackDeploymentIfEnabled creates a deployment that restores, in every region of the failed
-// deployment, the newest earlier deployment that ran, when the service asks for rollbacks.
+// rollbackDeploymentIfEnabled creates a deployment that restores, in every region the failed
+// deployment replaced, the newest earlier deployment that ran, when the service asks for
+// rollbacks. A failed rollback does not roll back again.
 func rollbackDeploymentIfEnabled(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -26,6 +27,9 @@ func rollbackDeploymentIfEnabled(
 	failed, err := qtx.GetDeploymentByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("read failed deployment: %w", err)
+	}
+	if failed.Trigger == genDb.DeploymentTriggerAutoRollback {
+		return nil
 	}
 	resource, err := qtx.GetResourceByID(ctx, failed.ResourceID)
 	if err != nil {
@@ -57,7 +61,7 @@ func rollbackDeploymentIfEnabled(
 		return err
 	}
 	service := previousSpec.GetService()
-	targets, err := rollbackTargets(ctx, qtx, failed.ID, service)
+	targets, err := rollbackTargets(ctx, qtx, failed, service)
 	if err != nil || len(targets) == 0 {
 		return err
 	}
@@ -107,7 +111,7 @@ func rollbackDeploymentIfEnabled(
 		},
 		service: service,
 		targets: targets,
-		render:  render,
+		render:  render.payload,
 	})
 	if err != nil {
 		return err
@@ -125,24 +129,33 @@ func rollbackDeploymentIfEnabled(
 	})
 }
 
-// rollbackTargets are the regions of the failed deployment the previous spec sizes, on the
-// clusters the failed deployment used.
+// rollbackTargets are the regions whose live placement runs the failed deployment and that the
+// previous spec sizes.
 func rollbackTargets(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	failedID uuid.UUID,
+	failed genDb.Deployment,
 	previous *deploymentv1.ServiceDeploymentSpec,
 ) ([]placementTarget, error) {
-	placements, err := qtx.ListDeploymentPlacements(ctx, failedID)
+	placements, err := qtx.ListDeploymentPlacements(ctx, failed.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list failed placements: %w", err)
 	}
 	var targets []placementTarget
 	for _, placement := range placements {
-		if placement.Status == genDb.PlacementStatusCanceled {
+		if _, sized := previous.GetRegions()[placement.Region]; !sized {
 			continue
 		}
-		if _, sized := previous.GetRegions()[placement.Region]; sized {
+		live, err := qtx.GetResourceEnvironmentPlacement(ctx, genDb.GetResourceEnvironmentPlacementParams{
+			ResourceID: failed.ResourceID, EnvironmentID: failed.EnvironmentID, ClusterID: placement.ClusterID,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read failed placement: %w", err)
+		}
+		if !live.DesiredDeleted && live.DeploymentID != nil && *live.DeploymentID == failed.ID {
 			targets = append(targets, placementTarget{region: placement.Region, clusterID: placement.ClusterID})
 		}
 	}

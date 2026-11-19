@@ -9,6 +9,7 @@ import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { Progress } from "@/components/design/Progress";
 import { useNow } from "@/hooks/useNow";
+import { deploymentProblem, placementIn } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { activityTime, groupReplicas, problemLogsHref, replicaState, stoppingCountdown } from "./deployment-progress";
@@ -36,13 +37,15 @@ function followActivity(node: HTMLDivElement) {
 }
 
 export function ProblemBanner({ deployment, logsHref }: { deployment: Deployment; logsHref: string | undefined }) {
-	const problem = deployment.problem;
+	const problem = deploymentProblem(deployment);
 	if (problem === undefined) return null;
 	const problemHref = problemLogsHref(logsHref, deployment);
 	return (
 		<Banner
 			title={problem.message}
-			tone={deployment.status === DeploymentStatus.FAILED ? "bad" : "warn"}
+			tone={
+				deployment.status === DeploymentStatus.FAILED || deployment.status === DeploymentStatus.CRASHED ? "bad" : "warn"
+			}
 			className="mx-0 mt-0"
 		>
 			{problem.detail !== "" && <p className="my-1 whitespace-pre-wrap [overflow-wrap:anywhere]">{problem.detail}</p>}
@@ -57,11 +60,13 @@ export function ProblemBanner({ deployment, logsHref }: { deployment: Deployment
 	);
 }
 
-export function ReplicaGroups({ deployment }: { deployment: Deployment }) {
-	const now = useNow(deployment.replicas.some((r) => r.state === "Stopping") ? 1000 : undefined).getTime();
+export function ReplicaGroups({ deployment, region }: { deployment: Deployment; region: string }) {
+	const placement = placementIn(deployment, region);
+	const replicas = placement?.replicas ?? [];
+	const now = useNow(replicas.some((r) => r.state === "Stopping") ? 1000 : undefined).getTime();
 	return (
 		<div className="grid min-w-0 gap-3">
-			{groupReplicas(deployment.replicas, deployment.currentRevision, deployment.id)
+			{groupReplicas(replicas, placement?.currentRevision ?? 0n, deployment.id)
 				.filter((group, i) => i === 0 || group.replicas.length > 0)
 				.map((group) => (
 					<section key={group.label} aria-label={group.label}>

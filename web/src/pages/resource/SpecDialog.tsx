@@ -16,6 +16,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { useCopy } from "@/hooks/useCopy";
+import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { depTag, startedMs } from "./model";
@@ -25,7 +26,12 @@ const COPIED_MS = 1500;
 const YAML_TYPE = "application/yaml";
 
 function optionLabel(dep: Deployment, pref: TimePreferences): string {
-	return [formatShortId(dep.id), dep.region, depTag(dep), formatStarted(startedMs(dep), pref)].join(" · ");
+	return [
+		formatShortId(dep.id),
+		deploymentRegions(dep).join(", "),
+		depTag(dep),
+		formatStarted(startedMs(dep), pref),
+	].join(" · ");
 }
 
 function Picker({
@@ -60,7 +66,9 @@ function Picker({
 					{deployments.map((d) => (
 						<DropdownMenuRadioItem key={d.id} value={d.id} className="font-mono text-[12px]">
 							<span className="flex-1">{optionLabel(d, timePref)}</span>
-							{d.status === DeploymentStatus.RUNNING && <Badge tone="pill">running</Badge>}
+							{(d.status === DeploymentStatus.RUNNING || d.status === DeploymentStatus.DEGRADED) && (
+								<Badge tone="pill">running</Badge>
+							)}
 						</DropdownMenuRadioItem>
 					))}
 				</DropdownMenuRadioGroup>

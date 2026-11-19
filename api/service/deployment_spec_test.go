@@ -90,7 +90,7 @@ func mergedTestSpec(
 	requestSpec *deploymentv1.DeploymentSpec,
 ) *deploymentv1.DeploymentSpec {
 	t.Helper()
-	merged, err := converter.MergeDeploymentSpec(resourceSpec, requestSpec, testRegion, testServiceDefaults())
+	merged, err := converter.MergeDeploymentSpec(resourceSpec, requestSpec, []string{testRegion}, testServiceDefaults())
 	if err != nil {
 		t.Fatalf("MergeDeploymentSpec: %v", err)
 	}
@@ -114,17 +114,26 @@ func testDesiredSpecAt(
 ) desiredSpecFunc {
 	t.Helper()
 	merged := mergedTestSpec(t, resourceSpec, requestSpec)
-	return desiredApplicationSpec(
-		testServiceResource(),
-		uuid.New(),
-		resourceSpec,
-		hostname,
-		merged,
-		testRegion,
-		uuid.New(),
-		"prod",
-		testServiceDefaults(),
-	)
+	return testRenderer(resourceSpec, hostname).specFor(merged, testRegion)
+}
+
+// desiredSpecFunc renders one region's placement payload for a deployment ID.
+type desiredSpecFunc func(deploymentID uuid.UUID) ([]byte, error)
+
+func testRenderer(resourceSpec *resourcev1.ResourceSpec, hostname string) placementRenderer {
+	return placementRenderer{
+		resource:        testServiceResource(),
+		organizationID:  uuid.New(),
+		resourceSpec:    resourceSpec,
+		hostname:        hostname,
+		environmentID:   uuid.New(),
+		environmentName: "prod",
+		defaults:        testServiceDefaults(),
+	}
+}
+
+func (r placementRenderer) specFor(spec *deploymentv1.DeploymentSpec, region string) desiredSpecFunc {
+	return func(deploymentID uuid.UUID) ([]byte, error) { return r.payload(spec, deploymentID, region) }
 }
 
 func testDesiredSpec(t *testing.T, port int32) desiredSpecFunc {
@@ -170,17 +179,7 @@ func TestDesiredSpecRejectsUnknownRegionAsInvalidArgument(t *testing.T) {
 	t.Parallel()
 	resourceSpec := testResourceSpec()
 	deploymentSpec := mergedTestSpec(t, resourceSpec, testDeploymentSpec(8080))
-	buildSpec := desiredApplicationSpec(
-		testServiceResource(),
-		uuid.New(),
-		resourceSpec,
-		testHostname,
-		deploymentSpec,
-		"eu-west-1",
-		uuid.New(),
-		"prod",
-		testServiceDefaults(),
-	)
+	buildSpec := testRenderer(resourceSpec, testHostname).specFor(deploymentSpec, "eu-west-1")
 	_, specErr := buildSpec(uuid.New())
 	joined := errors.Join(errDesiredSpec, specErr)
 	wantCode(t, joined, connect.CodeInvalidArgument)
@@ -238,8 +237,9 @@ func TestDesiredSpecPrefersExplicitValues(t *testing.T) {
 	request := requestSpec.GetService()
 	cpu := "250m"
 	maxReplicas := int32(2)
-	request.Cpu = &cpu
-	request.MaxReplicas = &maxReplicas
+	request.Regions = map[string]*deploymentv1.RegionDeploymentTarget{
+		testRegion: {Cpu: &cpu, MaxReplicas: &maxReplicas},
+	}
 
 	payload := applicationPayload(t, testDesiredSpecFrom(t, resourceSpec, requestSpec))
 	service := payload.AppSpec.ServiceSpec
@@ -290,14 +290,14 @@ func TestValidateQuantitiesRejectsInvalidValues(t *testing.T) {
 
 	badCPU := "lots"
 	invalidCPU := mergedTestSpec(t, testResourceSpec(), testDeploymentSpec(8080)).GetService()
-	invalidCPU.Cpu = &badCPU
+	invalidCPU.GetRegions()[testRegion].Cpu = &badCPU
 	if err := validateQuantities(invalidCPU); !errors.Is(err, servicedefaults.ErrInvalidCPU) {
 		t.Errorf("cpu %q = %v, want ErrInvalidCPU", badCPU, err)
 	}
 
 	badMemory := "a lot"
 	invalidMemory := mergedTestSpec(t, testResourceSpec(), testDeploymentSpec(8080)).GetService()
-	invalidMemory.Memory = &badMemory
+	invalidMemory.GetRegions()[testRegion].Memory = &badMemory
 	if err := validateQuantities(invalidMemory); !errors.Is(err, servicedefaults.ErrInvalidMemory) {
 		t.Errorf("memory %q = %v, want ErrInvalidMemory", badMemory, err)
 	}

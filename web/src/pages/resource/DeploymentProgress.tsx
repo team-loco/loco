@@ -16,7 +16,17 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useDeploymentWatch } from "@/hooks/useDeploymentWatch";
 import { useNow } from "@/hooks/useNow";
 import { rolloutReadyLabel } from "@/lib/activity-deploys";
-import { deploymentActor, deploymentMethod, getServiceSpec, isInFlight, shortSha } from "@/lib/deployment-utils";
+import {
+	deploymentActor,
+	deploymentMethod,
+	deploymentProblem,
+	getServiceSpec,
+	isInFlight,
+	placementIn,
+	placementPhase,
+	regionTarget,
+	shortSha,
+} from "@/lib/deployment-utils";
 import { getErrorMessage } from "@/lib/error-handler";
 import { parseImage } from "@/lib/image";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
@@ -39,6 +49,11 @@ import {
 } from "./deployment-progress";
 import { ActivityFeed, ProblemBanner, ReplicaGroups } from "./DeploymentRollout";
 import { depImage, depTag, type RegionView } from "./model";
+
+function regionPhase(m: RolloutMember): DeploymentStatus {
+	const placement = placementIn(m.deployment, m.region.name);
+	return placement === undefined ? m.deployment.status : placementPhase(placement.status);
+}
 
 interface RolloutMember {
 	region: RegionView;
@@ -68,6 +83,9 @@ function ProgressPanel({
 	const live = isInFlight(phase);
 	const nowMs = useNow(live ? 1000 : 60000).getTime();
 	const spec = getServiceSpec(deployment);
+	const size = regionTarget(spec, region.name);
+	const placement = placementIn(deployment, region.name);
+	const problem = deploymentProblem(deployment);
 	const buildId = spec?.build?.buildId ?? "";
 	const buildQuery = useQuery(
 		getBuild,
@@ -81,9 +99,10 @@ function ProgressPanel({
 	const [dismissed, setDismissed] = useState(false);
 	if (dismissed) return null;
 	const build = buildQuery.data?.build;
-	const desired = deployment.isActive ? deployment : region.current;
-	const serving = servingDeployments(desired?.replicas ?? []);
-	const failed = phase === DeploymentStatus.FAILED;
+	const desired = placement?.live === true ? deployment : region.current;
+	const desiredLive = placementIn(desired, region.name)?.live === true;
+	const serving = servingDeployments(placementIn(desired, region.name)?.replicas ?? []);
+	const failed = phase === DeploymentStatus.FAILED || phase === DeploymentStatus.CRASHED;
 	const canceled = phase === DeploymentStatus.CANCELED;
 	const title = deploymentPhaseStyle(phase).label;
 	const message = build?.gitCommitMessage ?? "";
@@ -94,7 +113,7 @@ function ProgressPanel({
 			? "off"
 			: live
 				? "spin"
-				: deployment.problem !== undefined
+				: problem !== undefined || phase === DeploymentStatus.DEGRADED
 					? "warn"
 					: "ok";
 	const elapsed = deploymentElapsedMs(deployment, nowMs);
@@ -104,35 +123,35 @@ function ProgressPanel({
 	const image = depImage(deployment);
 	if (image !== "") fields.push(["Image", tag === "" ? path : `${path}:${tag}`]);
 	if (digest !== "" || build?.imageDigest) fields.push(["Digest", digest !== "" ? digest : (build?.imageDigest ?? "")]);
-	if (spec?.cpu !== undefined && spec.memory !== undefined)
-		fields.push(["Size", `${formatCpu(parseCpuMilli(spec.cpu))} · ${formatMemory(parseMemMi(spec.memory))}`]);
+	if (size?.cpu !== undefined && size.memory !== undefined)
+		fields.push(["Size", `${formatCpu(parseCpuMilli(size.cpu))} · ${formatMemory(parseMemMi(size.memory))}`]);
 	else {
-		if (spec?.cpu !== undefined) fields.push(["CPU", formatCpu(parseCpuMilli(spec.cpu))]);
-		if (spec?.memory !== undefined) fields.push(["Memory", formatMemory(parseMemMi(spec.memory))]);
+		if (size?.cpu !== undefined) fields.push(["CPU", formatCpu(parseCpuMilli(size.cpu))]);
+		if (size?.memory !== undefined) fields.push(["Memory", formatMemory(parseMemMi(size.memory))]);
 	}
-	if (spec?.minReplicas !== undefined && spec.maxReplicas !== undefined)
+	if (size?.minReplicas !== undefined && size.maxReplicas !== undefined)
 		fields.push([
 			"Replicas",
-			spec.minReplicas === spec.maxReplicas
-				? String(spec.minReplicas)
-				: `${spec.minReplicas}–${spec.maxReplicas} (autoscaling)`,
+			size.minReplicas === size.maxReplicas
+				? String(size.minReplicas)
+				: `${size.minReplicas}–${size.maxReplicas} (autoscaling)`,
 		]);
 	if (spec?.port !== undefined) fields.push(["Port", String(spec.port)]);
 	if (spec?.healthCheck !== undefined)
 		fields.push(["Health check", `${spec.healthCheck.path} every ${spec.healthCheck.intervalSeconds}s`]);
 	const steps = rolloutSteps(deployment, buildId !== "");
-	const replicaGroups = groupReplicas(deployment.replicas, deployment.currentRevision, deployment.id);
+	const replicaGroups = groupReplicas(placement?.replicas ?? [], placement?.currentRevision ?? 0n, deployment.id);
 	const stepNote = (step: RolloutStep): string => {
 		if (step.key === "build") {
 			if (step.state === "done") return build?.imageDigest ? build.imageDigest.slice(0, 15) : "Image ready";
 			if (step.state === "active") return "Building the image";
-			return step.state === "failed" ? (deployment.problem?.message ?? "Build failed") : "";
+			return step.state === "failed" ? (problem?.message ?? "Build failed") : "";
 		}
 		if (step.state === "pending") return "";
-		if (step.state === "failed") return deployment.problem?.message ?? "Rollout failed";
+		if (step.state === "failed") return problem?.message ?? "Rollout failed";
 		if (step.state === "stopped") return "Canceled";
-		if (multiRegion) return rolloutReadyLabel(members.map((m) => m.deployment));
-		return readyLabel(replicaGroups[0]?.replicas ?? [], deployment.desiredReplicas);
+		if (multiRegion) return rolloutReadyLabel(deployment);
+		return readyLabel(replicaGroups[0]?.replicas ?? [], placement?.desiredReplicas ?? 0);
 	};
 	return (
 		<section aria-labelledby={titleId} className="flex min-w-0 flex-col gap-4 rounded-card bg-panel px-5 py-[18px]">
@@ -248,7 +267,7 @@ function ProgressPanel({
 				>
 					{members.map((m) => (
 						<ToggleGroupItem key={m.region.name} value={m.region.name} className="font-mono">
-							<StatusGlyph glyph={deploymentPhaseStyle(m.deployment.status).glyph} />
+							<StatusGlyph glyph={deploymentPhaseStyle(regionPhase(m)).glyph} />
 							{m.region.name}
 						</ToggleGroupItem>
 					))}
@@ -263,11 +282,14 @@ function ProgressPanel({
 			<div className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
 				<div className="flex min-w-0 flex-col gap-4">
 					<StepRail steps={steps} note={stepNote} />
-					<ReplicaGroups deployment={deployment} />
+					<ReplicaGroups deployment={deployment} region={region.name} />
 				</div>
-				<ActivityFeed deployment={deployment} activity={activity} />
+				<ActivityFeed
+					deployment={deployment}
+					activity={activity.filter((entry) => entry.region === "" || entry.region === region.name)}
+				/>
 			</div>
-			{desired?.isActive && (
+			{desired !== undefined && desiredLive && (
 				<dl aria-label="Deployment versions" className="m-0 flex flex-wrap gap-x-6 gap-y-2 text-[12px]">
 					<div className="flex flex-wrap items-center gap-x-2">
 						<dt className="text-fg3">Desired deployment</dt>
@@ -370,7 +392,7 @@ export function DeploymentProgress({
 	onRollback: (target: Deployment, current: Deployment | undefined) => void;
 }) {
 	const progress = progressDeployments(regions);
-	const watchOf = useDeploymentWatch(progress.map(({ deployment }) => deployment.id));
+	const watchOf = useDeploymentWatch([...new Set(progress.map(({ deployment }) => deployment.id))]);
 	const nowMs = useNow(15_000).getTime();
 	const members = progress.flatMap(({ region, deployment, previous }): RolloutMember[] => {
 		const watched = watchOf(deployment.id);
@@ -381,7 +403,7 @@ export function DeploymentProgress({
 		if (!showsCard(current, nowMs)) return [];
 		return [{ region, deployment: current, previous, activity: watched.activity, connectionError: watched.error }];
 	});
-	return [...Map.groupBy(members, (m) => m.deployment.rolloutId).values()].map(([first, ...rest]) => {
+	return [...Map.groupBy(members, (m) => m.deployment.id).values()].map(([first, ...rest]) => {
 		if (first === undefined) return null;
 		return (
 			<ProgressPanel

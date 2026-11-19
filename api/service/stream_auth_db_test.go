@@ -428,7 +428,7 @@ func streamHTTPClients(t *testing.T, server *connect.Server, token string) *rpc.
 func TestIdleDeploymentWatchClosesAfterRevocation(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}

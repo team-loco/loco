@@ -1,7 +1,7 @@
 import { createConnectQueryKey, useMutation, useTransport } from "@connectrpc/connect-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { createDeployment, listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
-import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
+import { DeploymentTrigger, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 import { restartResource } from "@gen/loco/resource/v1/resource-ResourceService_connectquery";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 import { ActivityIcon, ChevronsUpDownIcon, RotateCwIcon, ScrollTextIcon, Undo2Icon, VariableIcon } from "lucide-react";
@@ -14,6 +14,7 @@ import { Dialog } from "@/components/design/Dialog";
 import { DropdownMenuItem } from "@/components/design/DropdownMenu";
 import { NEEDS_WRITE, scopeLevel, useMyScopes } from "@/hooks/useMyScopes";
 import { workspaceResourcesKey } from "@/hooks/workspaceResources";
+import { deploymentRegions } from "@/lib/deployment-utils";
 import { toastConnectError } from "@/lib/error-handler";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { RollbackDialogContent } from "@/pages/resource/Dialogs";
@@ -58,10 +59,12 @@ export function DashboardRowMenu({
 		try {
 			await deploy.mutateAsync({
 				resourceId: resource.id,
-				region: to.region,
+				regions: deploymentRegions(to),
 				spec: to.spec,
 				environmentId: to.environmentId,
 				commit: to.commit,
+				trigger: DeploymentTrigger.ROLLBACK,
+				sourceDeploymentId: to.id,
 			});
 			setRollingBack(false);
 			toast.success(`Rolling back ${resource.displayName} to ${depTag(to)}`);

@@ -4,7 +4,7 @@ import { useQueries } from "@tanstack/react-query";
 
 import { Badge } from "@/components/design/Badge";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { agoLabel, maybeTsMs, shortDurationLabel } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -52,7 +52,7 @@ export function ReplicaList({
 	});
 	const cpuUsage = podUsage(cpu?.data ?? [], nowMs);
 	const memoryUsage = podUsage(memory?.data ?? [], nowMs);
-	const spec = region.current === undefined ? undefined : getServiceSpec(region.current);
+	const spec = regionTarget(region.current === undefined ? undefined : getServiceSpec(region.current), region.name);
 	const cpuMilli = parseCpuMilli(spec?.cpu ?? "");
 	const memoryMi = parseMemMi(spec?.memory ?? "");
 	const cpuLimit = cpuMilli > 0 ? formatCpu(cpuMilli) : "";

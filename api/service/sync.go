@@ -766,7 +766,7 @@ func recordDeploymentStatus(
 	message string,
 	defaults servicedefaults.Defaults,
 ) error {
-	status, err := qtx.RecomputeDeploymentStatus(ctx, id)
+	status, err := recomputeDeploymentStatus(ctx, qtx, id)
 	if err != nil {
 		return fmt.Errorf("recompute deployment status: %w", err)
 	}

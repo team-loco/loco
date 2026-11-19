@@ -185,7 +185,7 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 		t.Fatalf("operations = %v, want one create that does not need a deploy", ops)
 	}
 	if started := resp.GetDeployments(); len(started) != 1 || started[0].GetService() != applyWorker ||
-		started[0].GetRegion() != testRegion {
+		!slices.Equal(started[0].GetRegions(), []string{testRegion}) {
 		t.Fatalf("deployments = %v, want one for worker in %s", started, testRegion)
 	}
 	if resp.GetRevision() == 0 || resp.GetRevision() != f.revision(t, f.envID) {
@@ -211,8 +211,11 @@ func TestApplyCreatesAnImageServiceAndDeploysIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get deployment: %v", err)
 	}
-	if !deployment.IsActive || deployment.Replicas != 1 || deployment.EnvironmentID != f.envID {
-		t.Fatalf("deployment = %+v, want an active one in the environment with one replica", deployment)
+	live, err := f.queries.GetLiveDeploymentForRegion(context.Background(), genDb.GetLiveDeploymentForRegionParams{
+		ResourceID: res.ID, EnvironmentID: f.envID, Region: testRegion,
+	})
+	if err != nil || live.Deployment.ID != deployment.ID || live.Replicas != 1 || deployment.EnvironmentID != f.envID {
+		t.Fatalf("live deployment = %+v (%v), want %s live in the environment with one replica", live, err, deploymentID)
 	}
 	placementKey := genDb.GetResourceEnvironmentPlacementParams{
 		EnvironmentID: f.envID,

@@ -5,6 +5,7 @@ import type { Resource } from "@gen/loco/resource/v1/resource_pb";
 import { Button } from "@/components/design/Button";
 import { DialogBody, DialogClose, DialogContent, DialogFooter } from "@/components/design/Dialog";
 import { ConfirmDeleteDialog } from "@/components/design/ConfirmDeleteDialog";
+import { deploymentRegions } from "@/lib/deployment-utils";
 import { cn, formatShortId } from "@/lib/utils";
 
 import { depTag } from "./model";
@@ -54,8 +55,11 @@ export function RedeployDialogContent({
 				<span className="text-[12.5px] text-fg3">Same spec as the running deployment</span>
 				<span>
 					Starts fresh replicas from the same image in{" "}
-					<span className="font-mono text-foreground">{running.map((d) => d.region).join(", ")}</span>, with the current
-					values of the secrets it uses. Useful when a replica is stuck or after changing one of those values.
+					<span className="font-mono text-foreground">
+						{running.flatMap((d) => d.placements.filter((p) => p.live).map((p) => p.region)).join(", ")}
+					</span>
+					, with the current values of the secrets it uses. Useful when a replica is stuck or after changing one of
+					those values.
 				</span>
 			</DialogBody>
 			<DialogFooter>
@@ -83,7 +87,11 @@ export function RollbackDialogContent({
 }) {
 	const changes = current === undefined ? [] : specChanges(current, target);
 	return (
-		<DialogContent size="wide" title={`Roll back ${resourceName} in ${target.region}`} showCloseButton={false}>
+		<DialogContent
+			size="wide"
+			title={`Roll back ${resourceName} in ${deploymentRegions(target).join(", ")}`}
+			showCloseButton={false}
+		>
 			<DialogBody className="gap-3.5 leading-normal text-fg2">
 				{changes.length === 0 && (
 					<RunningSwap
@@ -135,8 +143,9 @@ export function RollbackDialogContent({
 					</div>
 				)}
 				<span>
-					Creates a new deployment in <span className="font-mono text-foreground">{target.region}</span> from the spec
-					of <span className="font-mono text-foreground">{formatShortId(target.id)}</span>.
+					Creates a new deployment in{" "}
+					<span className="font-mono text-foreground">{deploymentRegions(target).join(", ")}</span> from the spec of{" "}
+					<span className="font-mono text-foreground">{formatShortId(target.id)}</span>.
 					{current !== undefined && " The running deployment is superseded once the new replicas are ready."}
 				</span>
 			</DialogBody>

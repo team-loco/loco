@@ -1,4 +1,4 @@
-import { DeploymentStatus } from "@gen/loco/deployment/v1/deployment_pb";
+import { PlacementStatus } from "@gen/loco/deployment/v1/deployment_pb";
 import { ResourceStatus, type RegionStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
 import { environmentStatus } from "@/lib/resource-status";
@@ -33,7 +33,11 @@ function unhealthy(status: ResourceStatus): boolean {
 }
 
 export function needsAttention(region: RegionStatus): boolean {
-	return unhealthy(region.status) || region.deploymentStatus === DeploymentStatus.FAILED;
+	return (
+		unhealthy(region.status) ||
+		region.placementStatus === PlacementStatus.FAILED ||
+		region.placementStatus === PlacementStatus.CRASHED
+	);
 }
 
 export function buildAlerts(resources: Resource[], environmentId: string): Alert[] {

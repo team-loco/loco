@@ -3,7 +3,7 @@ import { ResourceStatus } from "@gen/loco/resource/v1/resource_pb";
 
 import type { Glyph } from "@/components/design/StatusGlyph";
 import type { Alert } from "@/lib/alerts";
-import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentProblem, desiredReplicas, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, readyMs } from "@/lib/time";
 
 export const RECENT_MS = 30 * 60_000;
@@ -15,7 +15,9 @@ const ORDER: Record<DeploymentStatus, number> = {
 	[DeploymentStatus.BUILDING]: 0,
 	[DeploymentStatus.DEPLOYING]: 0,
 	[DeploymentStatus.FAILED]: 1,
+	[DeploymentStatus.CRASHED]: 1,
 	[DeploymentStatus.RUNNING]: 2,
+	[DeploymentStatus.DEGRADED]: 2,
 	[DeploymentStatus.SUPERSEDED]: 2,
 	[DeploymentStatus.UNSPECIFIED]: 2,
 	[DeploymentStatus.CANCELED]: 3,
@@ -31,7 +33,7 @@ export function activityDeployments(deployments: readonly Deployment[], nowMs: n
 }
 
 export function deployPhase(d: Deployment): { label: string; glyph: Glyph } {
-	const problem = d.problem !== undefined;
+	const problem = deploymentProblem(d) !== undefined;
 	switch (d.status) {
 		case DeploymentStatus.BUILDING:
 			return problem ? { label: "Failing, retrying", glyph: "warn" } : { label: "Building", glyph: "spin" };
@@ -40,7 +42,10 @@ export function deployPhase(d: Deployment): { label: string; glyph: Glyph } {
 		case DeploymentStatus.RUNNING:
 		case DeploymentStatus.SUPERSEDED:
 			return problem ? { label: "Running", glyph: "warn" } : { label: "Deployed", glyph: "ok" };
+		case DeploymentStatus.DEGRADED:
+			return { label: "Running", glyph: "warn" };
 		case DeploymentStatus.FAILED:
+		case DeploymentStatus.CRASHED:
 			return { label: "Failed", glyph: "err" };
 		case DeploymentStatus.CANCELED:
 			return { label: "Canceled", glyph: "off" };
@@ -51,14 +56,16 @@ export function deployPhase(d: Deployment): { label: string; glyph: Glyph } {
 
 /** The build and deploy steps of a deployment in flight, and which one it is on. */
 export function deploySteps(d: Deployment): { build: StepState; deploy: StepState; current: "build" | "deploy" } {
-	const active: StepState = d.problem === undefined ? "active" : "retry";
+	const active: StepState = deploymentProblem(d) === undefined ? "active" : "retry";
 	if (d.status === DeploymentStatus.BUILDING) return { build: active, deploy: "pending", current: "build" };
 	const built = getServiceSpec(d)?.build?.buildId ? "done" : "skipped";
 	return { build: built, deploy: active, current: "deploy" };
 }
 
 function readyCount(d: Deployment): number {
-	return d.replicas.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
+	return d.placements
+		.flatMap((p) => p.replicas)
+		.filter((r) => r.ready && (r.deploymentId === "" || r.deploymentId === d.id)).length;
 }
 
 export function clockLabel(ms: number): string {
@@ -86,28 +93,21 @@ export function finishedLabel(d: Deployment, nowMs: number): string {
 
 /** Drops a rollout alert when a deploy card already shows that rollout. */
 export function withoutRunningDeploys(alerts: readonly Alert[], deployments: readonly Deployment[]): Alert[] {
-	const running = new Set(deployments.filter((d) => isInFlight(d.status)).map((d) => `${d.resourceId}/${d.region}`));
+	const running = new Set(
+		deployments
+			.filter((d) => isInFlight(d.status))
+			.flatMap((d) => d.placements.map((p) => `${d.resourceId}/${p.region}`)),
+	);
 	return alerts.filter((a) => a.status !== ResourceStatus.DEPLOYING || !running.has(a.key));
 }
 
-/** Deployments grouped by the rollout that created them, in order of each rollout's first deployment. */
-export function rolloutGroups(deployments: readonly Deployment[]): Deployment[][] {
-	return [...Map.groupBy(deployments, (d) => d.rolloutId).values()];
+export function rolloutReadyLabel(d: Deployment, count = readyCount(d)): string {
+	const label = `${count.toString()} of ${desiredReplicas(d).toString()} ready`;
+	return d.placements.length <= 1 ? label : `${label} in ${d.placements.length.toString()} regions`;
 }
 
-export function rolloutReadyLabel(deployments: readonly Deployment[], ready = readyCount): string {
-	const count = deployments.reduce((sum, d) => sum + ready(d), 0);
-	const desired = deployments.reduce((sum, d) => sum + d.desiredReplicas, 0);
-	const label = `${count.toString()} of ${desired.toString()} ready`;
-	return deployments.length === 1 ? label : `${label} in ${deployments.length.toString()} regions`;
-}
-
-/** The ready count the cluster reports for each region's active deployment; nothing for deployments it does not report on. */
-export function reportedReadyLabel(
-	deployments: readonly Deployment[],
-	ready: ReadonlyMap<string, number>,
-): string | undefined {
-	const reporting = deployments.filter((d) => ready.has(d.id));
-	if (reporting.length === 0) return undefined;
-	return rolloutReadyLabel(reporting, (d) => ready.get(d.id) ?? 0);
+/** The ready count the clusters report for a deployment's live regions; nothing when none reports on it. */
+export function reportedReadyLabel(d: Deployment, ready: ReadonlyMap<string, number>): string | undefined {
+	const count = ready.get(d.id);
+	return count === undefined ? undefined : rolloutReadyLabel(d, count);
 }

@@ -236,3 +236,6 @@ ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1;
 
 -- name: GetDeploymentPlacement :one
 SELECT * FROM deployment_placements WHERE deployment_id = $1 AND cluster_id = $2;
+
+-- name: LockDeployment :exec
+SELECT id FROM deployments WHERE id = $1 FOR UPDATE;

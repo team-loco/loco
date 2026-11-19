@@ -88,7 +88,7 @@ func (f *deployFixture) deployAs(
 			`{"platform":"linux/amd64","build":{"type":"dockerfile","image":"registry.test/svc@sha256:0","buildId":"` +
 				failedDeployBuild + `"}}`,
 		)
-		id, err = createDeploymentWithCleanup(t.Context(), qtx, counts, params, staticSpec)
+		id, err = recordTestDeployment(t.Context(), qtx, counts, params, staticSpec)
 		return err
 	})
 	if err != nil {

@@ -18,6 +18,10 @@ export function deploymentState(d: Deployment): DeploymentState {
 	switch (d.status) {
 		case DeploymentStatus.RUNNING:
 			return "running";
+		case DeploymentStatus.DEGRADED:
+			return "running";
+		case DeploymentStatus.CRASHED:
+			return "failed";
 		case DeploymentStatus.SUPERSEDED:
 			return "superseded";
 		case DeploymentStatus.BUILDING:

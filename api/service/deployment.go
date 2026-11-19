@@ -389,7 +389,7 @@ func (s *DeploymentServer) CreateDeployment(
 			},
 			service: mergedServiceSpec,
 			targets: targets,
-			render:  render,
+			render:  render.payload,
 		})
 		if txErr != nil {
 			return txErr

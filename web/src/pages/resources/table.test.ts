@@ -174,7 +174,12 @@ describe("buildRows", () => {
 		const scaled = create(DeploymentSchema, {
 			id: "d1",
 			environmentId: "e-prod",
-			spec: { spec: { case: "service", value: { memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
+			spec: {
+				spec: {
+					case: "service",
+					value: { regions: { "us-east-1": { memory: "512Mi", minReplicas: 2, maxReplicas: 2 } } },
+				},
+			},
 		});
 		const [inProd] = buildRows([api], [[scaled]], envs, "e-prod");
 		expect(inProd?.cpuMilli).toBe(500);

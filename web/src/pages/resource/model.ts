@@ -13,7 +13,7 @@ import {
 
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { needsAttention } from "@/lib/alerts";
-import { getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { getServiceSpec, isInFlight, placementIn } from "@/lib/deployment-utils";
 import { imageVersion } from "@/lib/image";
 import { environmentStatus } from "@/lib/resource-status";
 import { maybeTsMs, tsMs } from "@/lib/time";
@@ -76,15 +76,17 @@ export function buildRegions(
 	for (const r of configuredRegions(resource)) names.add(r);
 	for (const r of environment?.regions ?? []) names.add(r.region);
 	for (const d of deployments) {
-		if (d.region !== "") names.add(d.region);
+		for (const p of d.placements) {
+			if (p.region !== "") names.add(p.region);
+		}
 	}
 	return [...names].map((name) => {
 		const status = environment?.regions.find((r) => r.region === name);
-		const history = deployments.filter((d) => d.region === name).toSorted(byNewest);
+		const history = deployments.filter((d) => placementIn(d, name) !== undefined).toSorted(byNewest);
 		const currentId = status?.deploymentId;
 		const current = currentId
 			? (currentDeployments.find((d) => d.id === currentId) ?? history.find((d) => d.id === currentId))
-			: history.find((d) => d.isActive);
+			: history.find((d) => placementIn(d, name)?.live);
 		return { name, status, history, current };
 	});
 }
@@ -121,11 +123,16 @@ export function regionProblem(region: RegionView): RegionProblem | undefined {
 }
 
 export function isDeployed(region: RegionView): boolean {
-	return region.current?.isActive === true;
+	return placementIn(region.current, region.name)?.live === true;
 }
 
 export function canRollBackTo(dep: Deployment, region: RegionView): boolean {
-	return dep.id !== region.current?.id && dep.status !== DeploymentStatus.FAILED && dep.spec !== undefined;
+	return (
+		dep.id !== region.current?.id &&
+		dep.status !== DeploymentStatus.FAILED &&
+		dep.status !== DeploymentStatus.CRASHED &&
+		dep.spec !== undefined
+	);
 }
 
 export function lastGoodDeployment(region: RegionView): Deployment | undefined {

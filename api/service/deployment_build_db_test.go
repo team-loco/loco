@@ -99,7 +99,7 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			wantEnv := map[string]string{"BUILD_MODE": "release", "BUILD_LABEL": "queued-build"}
 			bindings := &deploymentv1.DeploymentSecretBindings{Names: testSecretNames}
 			request := &deploymentv1.CreateDeploymentRequest{
-				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Region: testRegion,
+				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Regions: []string{testRegion},
 				SecretBindings: bindings,
 			}
 			if inherit {
@@ -207,7 +207,7 @@ func TestDeploymentBuildOutcomes(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if problem := deployment.GetProblem(); problem.GetReason() != "build_failed" ||
+				if problem := deployment.GetPlacements()[0].GetProblem(); problem.GetReason() != "build_failed" ||
 					problem.GetDetail() != status.GetMessage() {
 					t.Fatalf("problem=%v", problem)
 				}
@@ -411,7 +411,7 @@ func TestBuildFailureProblemSurvivesBuildHistoryPruning(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if problem := deployment.GetProblem(); problem.GetReason() != "build_failed" ||
+	if problem := deployment.GetPlacements()[0].GetProblem(); problem.GetReason() != "build_failed" ||
 		problem.GetDetail() != status.GetMessage() ||
 		problem.GetSince() == nil {
 		t.Fatalf("problem=%v", problem)

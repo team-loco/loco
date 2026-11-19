@@ -759,6 +759,15 @@ func (q *Queries) ListResourcesRunningOutsideEnvironment(ctx context.Context, ar
 	return items, nil
 }
 
+const lockDeployment = `-- name: LockDeployment :exec
+SELECT id FROM deployments WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) LockDeployment(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, lockDeployment, id)
+	return err
+}
+
 const lockPlacementResource = `-- name: LockPlacementResource :one
 SELECT r.id FROM resources r JOIN placements p ON p.resource_id = r.id
 WHERE p.id = $1 AND p.cluster_id = $2 FOR UPDATE OF r

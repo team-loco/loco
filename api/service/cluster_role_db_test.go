@@ -66,7 +66,7 @@ func TestClusterRolesSeparateBuildsAndApplications(t *testing.T) {
 	}
 
 	f.setRole(t, f.otherCluster, genDb.ClusterRoleBuilds)
-	_, err = createDeployment(t, f.deployFixture, sameRegionSpec)
+	_, err = createTestDeployment(t, f.deployFixture, sameRegionSpec)
 	requireCode(t, err, connect.CodeFailedPrecondition, "no apps cluster in the region")
 	if !strings.Contains(err.Error(), "accepting applications") {
 		t.Fatal(err)

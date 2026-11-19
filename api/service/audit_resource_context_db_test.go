@@ -61,7 +61,7 @@ func TestImperativeChildAuditEventsRetainResource(t *testing.T) {
 	if err := client.removeByID(client.domainID(t, testPrimaryDomain)); err != nil {
 		t.Fatal(err)
 	}
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}

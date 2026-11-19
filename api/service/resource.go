@@ -848,7 +848,7 @@ func (s *ResourceServer) redeployRegions(
 			},
 			service: plan.service,
 			targets: targets,
-			render:  render,
+			render:  render.payload,
 		}); deployErr != nil {
 			return deployErr
 		}

@@ -11,11 +11,16 @@ import { diffLines, sideBySide, specChanges, toYaml } from "./spec";
 
 function deployment(image: string, replicas: number, env: Record<string, string>): Deployment {
 	return create(DeploymentSchema, {
-		desiredReplicas: replicas,
+		placements: [{ region: "us-east-1", desiredReplicas: replicas }],
 		spec: create(DeploymentSpecSchema, {
 			spec: {
 				case: "service",
-				value: create(ServiceDeploymentSpecSchema, { build: { type: "image", image }, cpu: "250m", port: 8080, env }),
+				value: create(ServiceDeploymentSpecSchema, {
+					build: { type: "image", image },
+					regions: { "us-east-1": { cpu: "250m" } },
+					port: 8080,
+					env,
+				}),
 			},
 		}),
 	});

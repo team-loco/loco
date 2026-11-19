@@ -37,9 +37,7 @@ const OBSERVABILITY = { injectOtel: true };
 function deployment(id: string, regionName: string, replicas = 2): Deployment {
 	return create(DeploymentSchema, {
 		id,
-		region: regionName,
-		desiredReplicas: replicas,
-		isActive: true,
+		placements: [{ region: regionName, desiredReplicas: replicas, live: true }],
 		commit: { sha: "a".repeat(40), dirty: true },
 		status: DeploymentStatus.RUNNING,
 		spec: create(DeploymentSpecSchema, {
@@ -48,10 +46,7 @@ function deployment(id: string, regionName: string, replicas = 2): Deployment {
 				value: create(ServiceDeploymentSpecSchema, {
 					observability: OBSERVABILITY,
 					build: { type: "image", image: IMAGE },
-					cpu: "250m",
-					memory: "512Mi",
-					minReplicas: replicas,
-					maxReplicas: replicas,
+					regions: { [regionName]: { cpu: "250m", memory: "512Mi", minReplicas: replicas, maxReplicas: replicas } },
 					port: 8080,
 					env: { LOG_LEVEL: "info" },
 					healthCheck: create(HealthCheckConfigSchema, {
@@ -188,7 +183,7 @@ describe("planSave", () => {
 		const svc = getServiceSpec(create(DeploymentSchema, { spec: result[0]?.spec }));
 		expect(svc?.build?.image).toBe("ghcr.io/acme/shop:1.5.0");
 		expect(svc?.port).toBe(9090);
-		expect(svc?.cpu).toBe("250m");
+		expect(svc?.regions[EAST]?.cpu).toBe("250m");
 		expect(svc?.env).toEqual({ LOG_LEVEL: "info" });
 		expect(svc?.healthCheck?.path).toBe("/ready");
 		expect(svc?.healthCheck?.intervalSeconds).toBe(10);
@@ -388,9 +383,11 @@ test("settings baseline follows configured bounds while the HPA changes the live
 	const current = deployment("scaled", EAST, 4);
 	const svc = getServiceSpec(current);
 	if (svc === undefined) throw new Error("missing service");
-	svc.minReplicas = 1;
-	svc.maxReplicas = 5;
-	svc.scalers = create(ScalersSchema, { enabled: true, cpuTarget: 80 });
+	const size = svc.regions[EAST];
+	if (size === undefined) throw new Error("missing region");
+	size.minReplicas = 1;
+	size.maxReplicas = 5;
+	size.scalers = create(ScalersSchema, { enabled: true, cpuTarget: 80 });
 	const initial = baseline("shop", "shop", "", [region(EAST, current)], [EAST], true, defaults);
 	expect(initial.scaling[EAST]).toEqual(scaling(1, 5, 80));
 	expect(changeCount({}, initial)).toBe(0);

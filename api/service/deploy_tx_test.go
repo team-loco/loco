@@ -15,8 +15,10 @@ import (
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
+	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/clusterassertion"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type deployFixture struct {
@@ -109,22 +111,60 @@ SELECT c.id, c2.id FROM c, c2`)
 	return f
 }
 
-func (f *deployFixture) paramsFor(clusterID uuid.UUID) genDb.CreateDeploymentParams {
-	return genDb.CreateDeploymentParams{
-		RolloutID:     uuid.New(),
-		ActorType:     genDb.DeploymentActorTypeUser,
-		Method:        genDb.DeploymentMethodCli,
-		ResourceID:    f.resourceID,
-		ClusterID:     clusterID,
-		Region:        "us-east-1",
-		Replicas:      1,
-		Status:        genDb.DeploymentStatusDeploying,
-		IsActive:      true,
-		Spec:          []byte(`{"platform":"linux/amd64"}`),
-		SpecVersion:   1,
-		EnvironmentID: f.envID,
-		SecretNames:   []string{},
+// testDeploymentParams is a deployment the tests record directly in one region.
+type testDeploymentParams struct {
+	genDb.CreateDeploymentParams
+	ClusterID uuid.UUID
+	Region    string
+	Replicas  int32
+}
+
+func (f *deployFixture) paramsFor(clusterID uuid.UUID) testDeploymentParams {
+	return testDeploymentParams{
+		CreateDeploymentParams: genDb.CreateDeploymentParams{
+			ActorType:     genDb.DeploymentActorTypeUser,
+			Method:        genDb.DeploymentMethodCli,
+			ResourceID:    f.resourceID,
+			Spec:          []byte(`{"platform":"linux/amd64"}`),
+			EnvironmentID: f.envID,
+			SecretNames:   []string{},
+			Trigger:       genDb.DeploymentTriggerDeploy,
+			Status:        genDb.DeploymentStatusDeploying,
+		},
+		ClusterID: clusterID,
+		Region:    "us-east-1",
+		Replicas:  1,
 	}
+}
+
+// recordTestDeployment records a deployment of params.Spec in params.Region with the payload
+// buildSpec renders.
+func recordTestDeployment(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	counts limits.Effective,
+	params testDeploymentParams,
+	buildSpec desiredSpecFunc,
+) (uuid.UUID, error) {
+	var service deploymentv1.ServiceDeploymentSpec
+	if err := protojson.Unmarshal(params.Spec, &service); err != nil {
+		return uuid.Nil, err
+	}
+	if service.Regions == nil {
+		service.Regions = map[string]*deploymentv1.RegionDeploymentTarget{}
+	}
+	if service.Regions[params.Region] == nil {
+		service.Regions[params.Region] = &deploymentv1.RegionDeploymentTarget{}
+	}
+	service.Regions[params.Region].MinReplicas = &params.Replicas
+	return createDeployment(ctx, qtx, &counts, newDeployment{
+		params:  params.CreateDeploymentParams,
+		service: &service,
+		targets: []placementTarget{{region: params.Region, clusterID: params.ClusterID}},
+		render: func(_ *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, _ string) ([]byte, error) {
+			return buildSpec(deploymentID)
+		},
+	})
 }
 
 func staticSpec(_ uuid.UUID) ([]byte, error) {
@@ -146,7 +186,7 @@ func (f *deployFixture) deployTo(
 		if err != nil {
 			return err
 		}
-		id, err = createDeploymentWithCleanup(ctx, qtx, counts, f.paramsFor(clusterID), buildSpec)
+		id, err = recordTestDeployment(ctx, qtx, counts, f.paramsFor(clusterID), buildSpec)
 		return err
 	})
 	return id, err
@@ -220,8 +260,8 @@ func TestConcurrentDeploysLeaveOneActiveDeploymentAndPlacement(t *testing.T) {
 		t.Errorf("deploy: %v", err)
 	}
 
-	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1 AND is_active`); n != 1 {
-		t.Fatalf("%d active deployments, want 1", n)
+	if n := f.count(t, `SELECT count(*) FROM live_deployment_placements WHERE resource_id = $1`); n != 1 {
+		t.Fatalf("%d live deployment placements, want 1", n)
 	}
 	if n := f.count(t, `SELECT count(*) FROM deployments WHERE resource_id = $1`); n != deploys {
 		t.Fatalf("%d deployments, want %d", n, deploys)
@@ -234,8 +274,8 @@ func TestConcurrentDeploysLeaveOneActiveDeploymentAndPlacement(t *testing.T) {
 		t.Fatalf("desired revision = %d, want %d", p.DesiredRevision, deploys)
 	}
 	var active uuid.UUID
-	err := f.pool.QueryRow(ctx, `SELECT id FROM deployments WHERE resource_id = $1 AND is_active`, f.resourceID).
-		Scan(&active)
+	err := f.pool.QueryRow(ctx, `SELECT deployment_id FROM live_deployment_placements WHERE resource_id = $1`,
+		f.resourceID).Scan(&active)
 	if err != nil {
 		t.Fatalf("active deployment: %v", err)
 	}

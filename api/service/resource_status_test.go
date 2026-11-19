@@ -23,25 +23,25 @@ const (
 
 var testStatusNow = time.Date(2026, time.October, 11, 12, 0, 0, 0, time.UTC)
 
-func regionRow(status genDb.DeploymentStatus, ready int32) genDb.ListRegionStatusesForResourcesRow {
+func regionRow(status genDb.PlacementStatus, ready int32) genDb.ListRegionStatusesForResourcesRow {
 	heartbeat := testStatusNow.Add(-testFreshHeartbeat)
 	reported := testStatusNow.Add(-testFreshHeartbeat)
 	health := clusterHealthHealthy
 	return genDb.ListRegionStatusesForResourcesRow{
-		ResourceID:       uuid.New(),
-		EnvironmentID:    uuid.New(),
-		EnvironmentName:  "production",
-		Region:           testRegion,
-		DeploymentID:     uuid.New(),
-		DeploymentStatus: status,
-		DesiredReplicas:  testDesiredReplicas,
-		Placed:           true,
-		ReadyReplicas:    ready,
-		Problem:          []byte(`{"reason":"restarting"}`),
-		StatusUpdatedAt:  &reported,
-		Replicas:         []byte(`[]`),
-		LastHeartbeat:    &heartbeat,
-		HealthStatus:     &health,
+		ResourceID:      uuid.New(),
+		EnvironmentID:   uuid.New(),
+		EnvironmentName: "production",
+		Region:          testRegion,
+		DeploymentID:    uuid.New(),
+		PlacementStatus: status,
+		DesiredReplicas: testDesiredReplicas,
+		Placed:          true,
+		ReadyReplicas:   ready,
+		Problem:         []byte(`{"reason":"restarting"}`),
+		StatusUpdatedAt: &reported,
+		Replicas:        []byte(`[]`),
+		LastHeartbeat:   &heartbeat,
+		HealthStatus:    &health,
 	}
 }
 
@@ -61,7 +61,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "source build before placement",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusBuilding, 0)
+				row := regionRow(genDb.PlacementStatusPending, 0)
 				row.Placed = false
 				row.StatusUpdatedAt = nil
 				row.Problem = []byte(`null`)
@@ -71,30 +71,30 @@ func TestRegionStatus(t *testing.T) {
 		},
 		{
 			name: "every desired replica ready",
-			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.DeploymentStatusRunning, 2) },
+			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusRunning, 2) },
 			want: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		},
 		{
 			name: "surge replicas during a rollout",
-			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.DeploymentStatusDeploying, 3) },
+			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusDeploying, 3) },
 			want: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		},
 		{
 			name:    "running deployment whose pods all crashed",
-			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.DeploymentStatusRunning, 0) },
+			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusRunning, 0) },
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
 			message: testStatusMessage,
 		},
 		{
 			name:    "running deployment that lost a replica",
-			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.DeploymentStatusRunning, 1) },
+			row:     func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusRunning, 1) },
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 			message: testStatusMessage,
 		},
 		{
 			name: "first rollout before any replica is ready",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				return regionRow(genDb.DeploymentStatusDeploying, 0)
+				return regionRow(genDb.PlacementStatusDeploying, 0)
 			},
 			want:    resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
 			message: testStatusMessage,
@@ -102,7 +102,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "pending deployment the agent has not reported on",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusDeploying, 0)
+				row := regionRow(genDb.PlacementStatusDeploying, 0)
 				row.StatusUpdatedAt = nil
 				row.Problem = []byte(`null`)
 				return row
@@ -111,13 +111,13 @@ func TestRegionStatus(t *testing.T) {
 		},
 		{
 			name: "redeploy while the previous replicas still serve",
-			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.DeploymentStatusDeploying, 2) },
+			row:  func() genDb.ListRegionStatusesForResourcesRow { return regionRow(genDb.PlacementStatusDeploying, 2) },
 			want: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
 		},
 		{
 			name: "failed redeploy while the previous replicas still serve",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusFailed, 2)
+				row := regionRow(genDb.PlacementStatusFailed, 2)
 				row.Problem = []byte(
 					`{"reason":"rollout_timeout","detail":"` + testFailureMessage + `"}`,
 				)
@@ -129,7 +129,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "failed deployment with nothing serving",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusFailed, 0)
+				row := regionRow(genDb.PlacementStatusFailed, 0)
 				row.Problem = []byte(
 					`{"reason":"rollout_timeout","detail":"` + testFailureMessage + `"}`,
 				)
@@ -141,7 +141,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "healthy report from a cluster that stopped heartbeating",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 2)
+				row := regionRow(genDb.PlacementStatusRunning, 2)
 				row.LastHeartbeat = &staleHeartbeat
 				return row
 			},
@@ -151,7 +151,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "heartbeat exactly at the threshold",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 2)
+				row := regionRow(genDb.PlacementStatusRunning, 2)
 				row.LastHeartbeat = &edgeHeartbeat
 				return row
 			},
@@ -160,7 +160,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "cluster that never heartbeated",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 2)
+				row := regionRow(genDb.PlacementStatusRunning, 2)
 				row.LastHeartbeat = nil
 				return row
 			},
@@ -170,7 +170,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "cluster whose controller is down",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 2)
+				row := regionRow(genDb.PlacementStatusRunning, 2)
 				row.HealthStatus = &degradedCluster
 				return row
 			},
@@ -180,7 +180,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "unhealthy cluster",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 0)
+				row := regionRow(genDb.PlacementStatusRunning, 0)
 				row.HealthStatus = &unhealthy
 				return row
 			},
@@ -190,7 +190,7 @@ func TestRegionStatus(t *testing.T) {
 		{
 			name: "cluster without a health status",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 2)
+				row := regionRow(genDb.PlacementStatusRunning, 2)
 				row.HealthStatus = nil
 				return row
 			},
@@ -231,23 +231,23 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 	}{
 		{
 			name: "succeeded deployment still active",
-			row:  regionRow(genDb.DeploymentStatusSuperseded, 2),
+			row:  regionRow(genDb.PlacementStatusSuperseded, 2),
 			want: errFinishedDeploymentActive,
 		},
 		{
 			name: "canceled deployment still active",
-			row:  regionRow(genDb.DeploymentStatusCanceled, 0),
+			row:  regionRow(genDb.PlacementStatusCanceled, 0),
 			want: errFinishedDeploymentActive,
 		},
 		{
 			name: "unknown deployment status",
-			row:  regionRow(genDb.DeploymentStatus("exploded"), 0),
+			row:  regionRow(genDb.PlacementStatus("exploded"), 0),
 			want: errUnknownDeploymentStatus,
 		},
 		{
 			name: "deployment with no desired replicas",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 0)
+				row := regionRow(genDb.PlacementStatusRunning, 0)
 				row.DesiredReplicas = 0
 				return row
 			}(),
@@ -256,7 +256,7 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 		{
 			name: "active deployment without a placement",
 			row: func() genDb.ListRegionStatusesForResourcesRow {
-				row := regionRow(genDb.DeploymentStatusRunning, 0)
+				row := regionRow(genDb.PlacementStatusRunning, 0)
 				row.Placed = false
 				return row
 			}(),
@@ -275,11 +275,11 @@ func TestRegionStatusRejectsBrokenInvariants(t *testing.T) {
 
 func TestRegionStatusNeverOverstatesHealth(t *testing.T) {
 	t.Parallel()
-	deploymentStatuses := []genDb.DeploymentStatus{
-		genDb.DeploymentStatusBuilding,
-		genDb.DeploymentStatusDeploying,
-		genDb.DeploymentStatusRunning,
-		genDb.DeploymentStatusFailed,
+	deploymentStatuses := []genDb.PlacementStatus{
+		genDb.PlacementStatusPending,
+		genDb.PlacementStatusDeploying,
+		genDb.PlacementStatusRunning,
+		genDb.PlacementStatusFailed,
 	}
 	heartbeats := []*time.Time{
 		nil,
@@ -316,8 +316,8 @@ func assertStatusMatchesInputs(
 	fresh := row.LastHeartbeat != nil &&
 		testStatusNow.Sub(*row.LastHeartbeat) <= testClusterSilentAfter &&
 		row.HealthStatus != nil && *row.HealthStatus == clusterHealthHealthy
-	inFlight := row.DeploymentStatus == genDb.DeploymentStatusBuilding ||
-		row.DeploymentStatus == genDb.DeploymentStatusDeploying
+	inFlight := row.PlacementStatus == genDb.PlacementStatusPending ||
+		row.PlacementStatus == genDb.PlacementStatusDeploying
 	var want resourcev1.ResourceStatus
 	switch {
 	case !fresh:
@@ -333,7 +333,7 @@ func assertStatusMatchesInputs(
 	}
 	if status != want {
 		t.Errorf("deployment %s, heartbeat %v, health %v, ready %d/%d: status %s, want %s",
-			row.DeploymentStatus, row.LastHeartbeat, row.HealthStatus,
+			row.PlacementStatus, row.LastHeartbeat, row.HealthStatus,
 			row.ReadyReplicas, row.DesiredReplicas, status, want)
 	}
 }

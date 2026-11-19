@@ -29,9 +29,9 @@ func (f *deployFixture) addStagingEnvironment(t *testing.T) uuid.UUID {
 	return f.addEnvironment(t, stagingName)
 }
 
-func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID) []genDb.Deployment {
+func (f *deployFixture) activeDeployments(t *testing.T, environmentID uuid.UUID) []liveDeployment {
 	t.Helper()
-	deployments, err := f.queries.ListActiveDeploymentsForEnvironment(context.Background(), environmentID)
+	deployments, err := listLiveDeploymentsForEnvironment(context.Background(), f.queries, f.resourceID, environmentID)
 	if err != nil {
 		t.Fatalf("list deployments: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestDeploymentsOfTwoEnvironmentsInOneRegionStayActive(t *testing.T) {
 	staging := f.paramsFor(f.otherCluster)
 	staging.EnvironmentID = stagingID
 	err := withTx(ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(ctx, qtx, limits.Install(limits.Defaults()), staging, staticSpec)
+		_, deployErr := recordTestDeployment(ctx, qtx, limits.Install(limits.Defaults()), staging, staticSpec)
 		return deployErr
 	})
 	if err != nil {

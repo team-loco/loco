@@ -166,7 +166,8 @@ func TestRolloutConcurrentSequences(t *testing.T) {
 					DesiredReplicas:  1,
 					Replicas:         []*deploymentv1.Replica{{Uid: uuid.NewString(), State: "Serving", PlacementRevision: revision}},
 				}
-				return ingestRollout(t.Context(), qtx, id, revision, report)
+				scope := activityScope{clusterID: &f.clusterID, region: testRegion, revision: revision}
+				return ingestRollout(t.Context(), qtx, id, scope, report)
 			})
 		})
 	}

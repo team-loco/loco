@@ -85,7 +85,7 @@ func (f *resourceStatusFixture) deployTo(
 	params.Region = region
 	params.Replicas = replicas
 	err := withTx(f.ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(f.ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
+		_, deployErr := recordTestDeployment(f.ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
 		return deployErr
 	})
 	if err != nil {
@@ -210,7 +210,7 @@ type wantRegion struct {
 	status     resourcev1.ResourceStatus
 	ready      int32
 	desired    int32
-	deployment deploymentv1.DeploymentStatus
+	deployment deploymentv1.PlacementStatus
 	message    string
 }
 
@@ -250,9 +250,9 @@ func (f *resourceStatusFixture) assertEnvironment(
 			t.Errorf("region %s replicas = %d/%d, want %d/%d", wantRegion.region,
 				region.GetReadyReplicas(), region.GetDesiredReplicas(), wantRegion.ready, wantRegion.desired)
 		}
-		if region.GetDeploymentStatus() != wantRegion.deployment {
+		if region.GetPlacementStatus() != wantRegion.deployment {
 			t.Errorf("region %s deployment = %s, want %s",
-				wantRegion.region, region.GetDeploymentStatus(), wantRegion.deployment)
+				wantRegion.region, region.GetPlacementStatus(), wantRegion.deployment)
 		}
 		if region.GetMessage() != wantRegion.message {
 			t.Errorf("region %s message = %q, want %q", wantRegion.region, region.GetMessage(), wantRegion.message)
@@ -274,19 +274,19 @@ func TestResourceStatusFollowsTheReplicasTheAgentReports(t *testing.T) {
 	f.deployProduction(t, statusTwoReplicas)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
-		ready: 0, desired: 2, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING,
+		ready: 0, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
 	})
 
 	f.ready(t, f.clusterID, statusTwoReplicas)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 2, desired: 2, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 2, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 	})
 
 	f.notReady(t, f.clusterID, 0)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-		ready: 0, desired: 2, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 0, desired: 2, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		message: "",
 	})
 }
@@ -298,21 +298,21 @@ func TestResourceStatusIsUnknownWhileTheClusterIsSilent(t *testing.T) {
 	f.ready(t, f.clusterID, 1)
 	healthy := wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 	}
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, healthy)
 
 	f.heartbeat(t, f.clusterID, time.Now().Add(-statusClusterSilent), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		message: regionMessageClusterSilent,
 	})
 
 	f.heartbeat(t, f.clusterID, time.Now(), clusterHealthDegraded)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		message: regionMessageClusterUnhealthy,
 	})
 
@@ -338,11 +338,11 @@ func TestResourceStatusIsPerEnvironment(t *testing.T) {
 	}
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 	})
 	f.assertEnvironment(t, f.stagingID, resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-		ready: 0, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+		ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 		message: statusCrashMsg,
 	})
 }
@@ -356,11 +356,11 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
 		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_DEPLOYING,
-			ready: 0, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING,
+			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
 		},
 		wantRegion{
 			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		},
 	)
 
@@ -368,12 +368,12 @@ func TestResourceStatusSummarizesItsRegions(t *testing.T) {
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-			ready: 0, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 			message: statusCrashMsg,
 		},
 		wantRegion{
 			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		},
 	)
 }
@@ -387,13 +387,13 @@ func TestFailedRedeployLeavesServingReplicasHealthy(t *testing.T) {
 	f.deployProduction(t, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_DEPLOYING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_DEPLOYING,
 	})
 
 	f.failed(t, f.envID, f.clusterID, 1)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 		message: statusCrashMsg,
 	})
 }
@@ -408,17 +408,17 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_DEGRADED,
 		wantRegion{
 			region: statusSecondRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNAVAILABLE,
-			ready: 0, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED,
+			ready: 0, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_FAILED,
 			message: statusCrashMsg,
 		},
 		wantRegion{
 			region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-			ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+			ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		},
 	)
 
-	deployment, err := f.queries.GetActiveDeploymentForResourceAndRegion(f.ctx,
-		genDb.GetActiveDeploymentForResourceAndRegionParams{
+	deployment, err := f.queries.GetLiveDeploymentForRegion(f.ctx,
+		genDb.GetLiveDeploymentForRegionParams{
 			ResourceID:    f.resourceID,
 			EnvironmentID: f.envID,
 			Region:        statusSecondRegion,
@@ -442,14 +442,14 @@ func TestRemovedRegionDropsOutOfTheStatus(t *testing.T) {
 		nil,
 	)
 	_, err = deployments.DeleteDeployment(deleteCtx, &deploymentv1.DeleteDeploymentRequest{
-		DeploymentId: deployment.ID.String(),
+		DeploymentId: deployment.Deployment.ID.String(),
 	})
 	if err != nil {
 		t.Fatalf("delete deployment: %v", err)
 	}
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_HEALTHY,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 	})
 }
 
@@ -488,7 +488,7 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	f.heartbeat(t, f.clusterID, time.Now().Add(-statusClusterSilent), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		message: regionMessageClusterSilent,
 	})
 
@@ -532,7 +532,7 @@ func TestResourceStatusIsUnknownOnceTheSyncStreamDrops(t *testing.T) {
 	f.heartbeat(t, f.clusterID, time.Now().Add(-statusClusterSilent), clusterHealthHealthy)
 	f.assertProduction(t, resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN, wantRegion{
 		region: testRegion, status: resourcev1.ResourceStatus_RESOURCE_STATUS_UNKNOWN,
-		ready: 1, desired: 1, deployment: deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_RUNNING,
+		ready: 1, desired: 1, deployment: deploymentv1.PlacementStatus_PLACEMENT_STATUS_RUNNING,
 		message: regionMessageClusterSilent,
 	})
 }

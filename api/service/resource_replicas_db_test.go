@@ -107,7 +107,7 @@ func (f *resourceStatusFixture) otherWorkspaceResource(t *testing.T) (uuid.UUID,
 	params := f.paramsFor(f.clusterID)
 	params.ResourceID, params.EnvironmentID, params.Region = resourceID, environmentID, testRegion
 	err := withTx(f.ctx, f.pool, func(qtx *genDb.Queries) error {
-		_, deployErr := createDeploymentWithCleanup(f.ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
+		_, deployErr := recordTestDeployment(f.ctx, qtx, limits.Install(limits.Defaults()), params, staticSpec)
 		return deployErr
 	})
 	if err != nil {

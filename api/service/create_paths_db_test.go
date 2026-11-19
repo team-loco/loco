@@ -71,12 +71,11 @@ func TestDashboardAndLocoYAMLCreateTheSameService(t *testing.T) {
 	}
 	f.resourceID = uuid.MustParse(created.GetResourceId())
 	if _, err = deployService(t, f, &deploymentv1.ServiceDeploymentSpec{
-		Build:       &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: resolved.GetImage()},
-		Cpu:         &cpu,
-		Memory:      &memory,
-		MinReplicas: &replicas,
-		MaxReplicas: &replicas,
-		Port:        &port,
+		Build: &deploymentv1.BuildSource{Type: buildSourceTypeImage, Image: resolved.GetImage()},
+		Regions: map[string]*deploymentv1.RegionDeploymentTarget{testRegion: {
+			Cpu: &cpu, Memory: &memory, MinReplicas: &replicas, MaxReplicas: &replicas,
+		}},
+		Port: &port,
 	}); err != nil {
 		t.Fatal(err)
 	}

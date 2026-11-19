@@ -4,7 +4,7 @@ import type { Deployment, ServiceDeploymentSpec } from "@gen/loco/deployment/v1/
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
 import { ResourceStatus, type Resource } from "@gen/loco/resource/v1/resource_pb";
 
-import { deploymentImage, getServiceSpec } from "@/lib/deployment-utils";
+import { deploymentImage, getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { DRAFT_RANK, draftSizing, type Draft, type ServiceSizing } from "@/lib/drafts";
 import { imageName, imageVersion } from "@/lib/image";
 import { parseCpuMilli, parseMemMi } from "@/lib/quantity";
@@ -110,7 +110,8 @@ export function buildRows(
 		const spec = resource.spec?.spec;
 		const region = configuredRegions(resource)[0];
 		const target = spec?.case === "service" && region !== undefined ? spec.value.regions[region] : undefined;
-		const running = activeEnvironmentId === undefined ? undefined : cells.get(activeEnvironmentId)?.spec;
+		const runningSpec = activeEnvironmentId === undefined ? undefined : cells.get(activeEnvironmentId)?.spec;
+		const running = (region === undefined ? undefined : runningSpec?.regions[region]) ?? regionTarget(runningSpec);
 		const minReplicas = running?.minReplicas ?? target?.minReplicas;
 		const maxReplicas = running?.maxReplicas ?? target?.maxReplicas;
 		const latest = mine[0];

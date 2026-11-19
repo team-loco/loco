@@ -23,7 +23,7 @@ import (
 
 func TestWatchDeploymentStreamCap(t *testing.T) {
 	f := newDeployFixture(t)
-	created, err := createDeployment(t, f, sameRegionSpec)
+	created, err := createTestDeployment(t, f, sameRegionSpec)
 	if err != nil {
 		t.Fatal(err)
 	}

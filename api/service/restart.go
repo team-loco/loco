@@ -78,7 +78,7 @@ func (s *ResourceServer) RestartResource(
 			if restarted.DeploymentID == nil {
 				continue
 			}
-			if _, recomputeErr := qtx.RecomputeDeploymentStatus(ctx, *restarted.DeploymentID); recomputeErr != nil {
+			if _, recomputeErr := recomputeDeploymentStatus(ctx, qtx, *restarted.DeploymentID); recomputeErr != nil {
 				return fmt.Errorf("recompute restarted deployment: %w", recomputeErr)
 			}
 		}

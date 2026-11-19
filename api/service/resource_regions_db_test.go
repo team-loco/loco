@@ -64,7 +64,7 @@ func updateResourceRegions(
 func prepareRegionUpdate(t *testing.T) *deployFixture {
 	t.Helper()
 	f := newDeployFixture(t)
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatal(err)
 	}
 	f.finishRollouts(t)
@@ -131,8 +131,8 @@ func TestUpdateResourceRegionsAppliesAddChangeDisableAndRemove(t *testing.T) {
 						if err != nil {
 							t.Fatal(err)
 						}
-						if spec.GetService().GetCpu() != biggerCPU {
-							t.Fatalf("CPU = %s", spec.GetService().GetCpu())
+						if cpu := spec.GetService().GetRegions()[otherRegion].GetCpu(); cpu != biggerCPU {
+							t.Fatalf("CPU = %s", cpu)
 						}
 					}
 				}
@@ -324,7 +324,7 @@ func TestUpdateResourceRegionsDeploysAutoscaling(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		service := spec.GetService()
+		service := spec.GetService().GetRegions()[otherRegion]
 		if service.GetMaxReplicas() != 3 || service.GetScalers().GetCpuTarget() != 70 {
 			t.Fatalf("autoscaled deployment = %v", service)
 		}
@@ -371,7 +371,7 @@ func TestRegionUpdatesRetainDeploymentPlatformAfterTargetChanges(t *testing.T) {
 				t.Fatalf("added deployments = %v", active)
 			}
 			for _, deployment := range active {
-				spec, err := currentServiceSpec(deployment, genDb.ResourceTypeService)
+				spec, err := currentServiceSpec(deployment.Deployment, genDb.ResourceTypeService)
 				if err != nil {
 					t.Fatal(err)
 				}

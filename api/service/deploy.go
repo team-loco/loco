@@ -35,7 +35,7 @@ type newDeployment struct {
 	params  genDb.CreateDeploymentParams
 	service *deploymentv1.ServiceDeploymentSpec
 	targets []placementTarget
-	render  placementRenderer
+	render  func(spec *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, region string) ([]byte, error)
 }
 
 // createDeployment records one deployment with a placement per target region, places each
@@ -107,7 +107,7 @@ func createDeployment(
 		if placementStatus == genDb.PlacementStatusPending {
 			continue
 		}
-		payload, renderErr := d.render.payload(spec, deploymentID, target.region)
+		payload, renderErr := d.render(spec, deploymentID, target.region)
 		if renderErr != nil {
 			return uuid.UUID{}, fmt.Errorf("%w: %w", errDesiredSpec, renderErr)
 		}
@@ -182,7 +182,7 @@ func supersedePlacements(
 		return fmt.Errorf("supersede placements: %w", err)
 	}
 	for _, id := range retired {
-		if _, recomputeErr := qtx.RecomputeDeploymentStatus(ctx, id); recomputeErr != nil {
+		if _, recomputeErr := recomputeDeploymentStatus(ctx, qtx, id); recomputeErr != nil {
 			return fmt.Errorf("recompute superseded deployment %s: %w", id, recomputeErr)
 		}
 	}
@@ -227,7 +227,7 @@ func retireDeployment(ctx context.Context, qtx *genDb.Queries, res genDb.Resourc
 	}); err != nil {
 		return fmt.Errorf("cancel placement of deployment %s: %w", live.ID, err)
 	}
-	status, err := qtx.RecomputeDeploymentStatus(ctx, live.ID)
+	status, err := recomputeDeploymentStatus(ctx, qtx, live.ID)
 	if err != nil {
 		return fmt.Errorf("recompute retired deployment %s: %w", live.ID, err)
 	}

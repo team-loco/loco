@@ -23,9 +23,8 @@ func TestRollbackToPausedClusterKeepsTheFailure(t *testing.T) {
 		t.Fatal(updateErr)
 	}
 	reportRollback(t, f, false, true)
-	row, err := f.queries.GetDeploymentByID(t.Context(), failed)
-	if err != nil || row.Status != genDb.DeploymentStatusFailed || !row.IsActive {
-		t.Fatalf("failed deployment=%+v %v", row, err)
+	if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed || f.liveDeployment(t) != failed {
+		t.Fatalf("failed deployment=%s, want failed and live", got)
 	}
 	if current := f.placement(
 		t,
@@ -42,9 +41,8 @@ func TestRollbackToPausedClusterKeepsTheFailure(t *testing.T) {
 		t.Fatal(updateErr)
 	}
 	reportRollback(t, f, false, true)
-	row, err = f.queries.GetDeploymentByID(t.Context(), failed)
-	if err != nil || row.Status != genDb.DeploymentStatusFailed || !row.IsActive {
-		t.Fatalf("replayed failure=%+v %v", row, err)
+	if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed || f.liveDeployment(t) != failed {
+		t.Fatalf("replayed failure=%s, want failed and live", got)
 	}
 	var count int
 	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
@@ -85,9 +83,8 @@ func TestRollbackWithUnavailableBuildImageKeepsTheFailure(t *testing.T) {
 				}
 			}
 			reportRollback(t, f.deployFixture, false, true)
-			row, err := f.queries.GetDeploymentByID(f.ctx, failed)
-			if err != nil || row.Status != genDb.DeploymentStatusFailed || !row.IsActive {
-				t.Fatalf("failed deployment=%+v %v", row, err)
+			if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed {
+				t.Fatalf("failed deployment=%s", got)
 			}
 			if current := f.placement(t, f.clusterID); current.DeploymentID == nil || *current.DeploymentID != failed {
 				t.Fatalf("placement=%+v", current)

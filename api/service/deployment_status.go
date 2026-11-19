@@ -23,7 +23,7 @@ func nextPlacementStatus(previous genDb.PlacementStatus, report *agentv1.Placeme
 	if report.GetAvailable() {
 		return genDb.PlacementStatusRunning
 	}
-	if report.GetProgressDeadlineExceeded() && previous == genDb.PlacementStatusDeploying {
+	if report.GetProgressDeadlineExceeded() {
 		return genDb.PlacementStatusFailed
 	}
 	return previous
@@ -35,6 +35,23 @@ func placementStatusNames(statuses ...genDb.PlacementStatus) []string {
 		names = append(names, string(status))
 	}
 	return names
+}
+
+// recomputeDeploymentStatus locks a deployment, then stores the aggregate of its placements as
+// committed when the lock is granted.
+func recomputeDeploymentStatus(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	id uuid.UUID,
+) (genDb.RecomputeDeploymentStatusRow, error) {
+	if err := qtx.LockDeployment(ctx, id); err != nil {
+		return genDb.RecomputeDeploymentStatusRow{}, fmt.Errorf("lock deployment %s: %w", id, err)
+	}
+	status, err := qtx.RecomputeDeploymentStatus(ctx, id)
+	if err != nil {
+		return genDb.RecomputeDeploymentStatusRow{}, fmt.Errorf("recompute deployment %s: %w", id, err)
+	}
+	return status, nil
 }
 
 // liveDeployment is the deployment one region of a resource's environment runs or is about to

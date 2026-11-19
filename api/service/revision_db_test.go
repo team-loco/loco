@@ -42,7 +42,7 @@ func TestEnvironmentRevisionFollowsWrites(t *testing.T) {
 	f := newDeployFixture(t)
 	start := getEnvironment(t, f).GetRevision()
 
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 	if rev := getEnvironment(t, f).GetRevision(); rev != start+1 {
@@ -74,7 +74,7 @@ func TestRejectedScaleLeavesTheRevisionAlone(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	start := getEnvironment(t, f).GetRevision()
-	if _, err := createDeployment(t, f, sameRegionSpec); err != nil {
+	if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
 		t.Fatalf("create deployment: %v", err)
 	}
 

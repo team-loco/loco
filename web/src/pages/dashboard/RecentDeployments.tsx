@@ -13,6 +13,7 @@ import { DeploymentActor, DeploymentCommit } from "@/components/design/Deploymen
 import { DeploymentStatusBadge } from "@/components/design/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/design/Table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { deploymentRegions } from "@/lib/deployment-utils";
 import { observabilityPath, resourcePath } from "@/lib/routes";
 import { formatStarted, readyMs, shortDurationLabel } from "@/lib/time";
 
@@ -128,7 +129,9 @@ export function RecentDeployments({
 											{resource.displayName}
 										</Link>
 									</TableCell>
-									<TableCell className="truncate font-mono text-[12px] text-fg2">{d.region}</TableCell>
+									<TableCell className="truncate font-mono text-[12px] text-fg2">
+										{deploymentRegions(d).join(", ")}
+									</TableCell>
 									<TableCell>
 										<DeploymentCommit deployment={d} />
 									</TableCell>

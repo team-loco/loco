@@ -30,6 +30,16 @@ func rollbackDeployment(t *testing.T, f *deployFixture, enabled bool, override *
 	return uuid.MustParse(response.GetDeploymentId())
 }
 
+// liveDeployment is the deployment the fixture cluster's placement runs.
+func (f *deployFixture) liveDeployment(t *testing.T) uuid.UUID {
+	t.Helper()
+	p := f.placement(t, f.clusterID)
+	if p.DeploymentID == nil {
+		t.Fatalf("placement %s runs no deployment", p.ID)
+	}
+	return *p.DeploymentID
+}
+
 func reportRollback(t *testing.T, f *deployFixture, available, failed bool) {
 	t.Helper()
 	p := f.placement(t, f.clusterID)
@@ -67,25 +77,22 @@ func TestAutomaticRollback(t *testing.T) {
 			} else {
 				reportRollback(t, f, false, true)
 			}
-			restored := f.placement(t, f.clusterID)
-			if restored.DeploymentID == nil || *restored.DeploymentID != previous ||
-				restored.DesiredRevision <= placement.DesiredRevision {
-				t.Fatalf("placement=%+v", restored)
+			placed := f.placement(t, f.clusterID)
+			rollback := f.liveDeployment(t)
+			if rollback == previous || rollback == failed || placed.DesiredRevision <= placement.DesiredRevision {
+				t.Fatalf("placement=%+v, want a new rollback deployment", placed)
 			}
-			for _, expected := range []struct {
-				id     uuid.UUID
-				status genDb.DeploymentStatus
-				active bool
-			}{
-				{failed, genDb.DeploymentStatusFailed, false}, {previous, genDb.DeploymentStatusDeploying, true},
-			} {
-				row, err := f.queries.GetDeploymentByID(t.Context(), expected.id)
-				if err != nil || row.Status != expected.status || row.IsActive != expected.active {
-					t.Fatalf("deployment=%+v %v", row, err)
-				}
+			restored, err := f.queries.GetDeploymentByID(t.Context(), rollback)
+			if err != nil || restored.Trigger != genDb.DeploymentTriggerAutoRollback ||
+				restored.SourceDeploymentID == nil || *restored.SourceDeploymentID != previous ||
+				restored.Status != genDb.DeploymentStatusDeploying {
+				t.Fatalf("rollback=%+v %v, want a deploying automatic rollback copying %s", restored, err, previous)
+			}
+			if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed {
+				t.Fatalf("failed=%s", got)
 			}
 			var messages []string
-			for _, id := range []uuid.UUID{failed, previous} {
+			for _, id := range []uuid.UUID{failed, rollback} {
 				rows, err := f.queries.ListDeploymentActivity(
 					t.Context(),
 					genDb.ListDeploymentActivityParams{DeploymentID: id, PageSize: 200},
@@ -128,16 +135,19 @@ func TestAutomaticRollback(t *testing.T) {
 				t.Fatal(err)
 			}
 			reportRollback(t, f, true, false)
-			if got := f.deploymentStatus(t, previous); got != genDb.DeploymentStatusRunning {
-				t.Fatalf("restored=%s", got)
-			}
-			if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed {
-				t.Fatalf("failed=%s", got)
+			for id, want := range map[uuid.UUID]genDb.DeploymentStatus{
+				rollback: genDb.DeploymentStatusRunning,
+				previous: genDb.DeploymentStatusSuperseded,
+				failed:   genDb.DeploymentStatusFailed,
+			} {
+				if got := f.deploymentStatus(t, id); got != want {
+					t.Fatalf("%s=%s, want %s", id, got, want)
+				}
 			}
 			reportRollback(t, f, true, false)
 			if readyErr := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
- WHERE type='deployment.ready' AND subject_id=$1`, previous).Scan(&ready); readyErr != nil || ready != 2 {
-				t.Fatalf("restored ready events=%d %v", ready, readyErr)
+ WHERE type='deployment.ready' AND subject_id=$1`, rollback).Scan(&ready); readyErr != nil || ready != 1 {
+				t.Fatalf("rollback ready events=%d %v", ready, readyErr)
 			}
 
 			if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM events
@@ -171,9 +181,8 @@ func TestRollbackSettingResolutionAndNoPrevious(t *testing.T) {
 			}
 			id := rollbackDeployment(t, f, tt.service, tt.override)
 			reportRollback(t, f, false, true)
-			row, err := f.queries.GetDeploymentByID(t.Context(), id)
-			if err != nil || row.IsActive == tt.rollback {
-				t.Fatalf("failed=%+v %v", row, err)
+			if rolledBack := f.liveDeployment(t) != id; rolledBack != tt.rollback {
+				t.Fatalf("rolled back=%v, want %v", rolledBack, tt.rollback)
 			}
 			if !tt.rollback {
 				reportRollback(t, f, true, false)
@@ -194,20 +203,25 @@ func TestRestoredDeploymentCannotRollBackAgain(t *testing.T) {
 	reportRollback(t, f, true, false)
 	failed := rollbackDeployment(t, f, true, nil)
 	reportRollback(t, f, false, true)
+	rollback := f.liveDeployment(t)
 	revision := f.placement(t, f.clusterID).DesiredRevision
 	reportRollback(t, f, false, true)
 	reportRollback(t, f, false, true)
 	current := f.placement(t, f.clusterID)
-	if current.DeploymentID == nil || *current.DeploymentID != previous || current.DesiredRevision != revision {
+	if rollback == failed || *current.DeploymentID != rollback || current.DesiredRevision != revision {
 		t.Fatalf("recursive rollback=%+v", current)
 	}
-	if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed {
-		t.Fatalf("original failure=%s", got)
+	for id, want := range map[uuid.UUID]genDb.DeploymentStatus{
+		failed: genDb.DeploymentStatusFailed, rollback: genDb.DeploymentStatusFailed,
+	} {
+		if got := f.deploymentStatus(t, id); got != want {
+			t.Fatalf("%s=%s, want %s", id, got, want)
+		}
 	}
 	rollbackDeployment(t, f, false, nil)
 	reportRollback(t, f, true, false)
 	if got := f.deploymentStatus(t, previous); got != genDb.DeploymentStatusSuperseded {
-		t.Fatalf("restored failure after a new deployment=%s", got)
+		t.Fatalf("previous after a new deployment=%s", got)
 	}
 	if got := f.deploymentStatus(t, failed); got != genDb.DeploymentStatusFailed {
 		t.Fatalf("final failed attempt=%s", got)
@@ -232,12 +246,11 @@ func TestBuildFailureDoesNotRollBack(t *testing.T) {
 	if err := f.agentServer().recordBuildStatus(f.ctx, f.clusterID, uuid.MustParse(buildID), status); err != nil {
 		t.Fatal(err)
 	}
-	row, err := f.queries.GetDeploymentByID(f.ctx, id)
-	if err != nil || row.Status != genDb.DeploymentStatusFailed || !row.IsActive {
-		t.Fatalf("build failure=%+v %v", row, err)
+	if got := f.deploymentStatus(t, id); got != genDb.DeploymentStatusFailed {
+		t.Fatalf("build failure=%s", got)
 	}
-	if p := f.placement(t, f.clusterID); p.DeploymentID == nil || *p.DeploymentID != previous {
-		t.Fatalf("placement=%+v", p)
+	if live := f.liveDeployment(t); live != previous {
+		t.Fatalf("placement runs %s, want the previous %s", live, previous)
 	}
 }
 
@@ -248,9 +261,8 @@ func TestRollbackSkipsHistoryThatNeverRan(t *testing.T) {
 	reportRollback(t, f, false, true)
 	current := rollbackDeployment(t, f, true, nil)
 	reportRollback(t, f, false, true)
-	row, err := f.queries.GetDeploymentByID(t.Context(), current)
-	if err != nil || !row.IsActive || row.Status != genDb.DeploymentStatusFailed {
-		t.Fatalf("failed=%+v %v", row, err)
+	if live := f.liveDeployment(t); live != current || f.deploymentStatus(t, current) != genDb.DeploymentStatusFailed {
+		t.Fatalf("live=%s, want the failed %s", live, current)
 	}
 }
 
@@ -264,11 +276,13 @@ func TestRestoredRunningSupersedesOnlyOlderDeployments(t *testing.T) {
 	failed := rollbackDeployment(t, f, true, nil)
 	reportRollback(t, f, true, false)
 	reportRollback(t, f, false, true)
+	rollback := f.liveDeployment(t)
 	reportRollback(t, f, true, false)
 	for id, expected := range map[uuid.UUID]genDb.DeploymentStatus{
 		older:    genDb.DeploymentStatusSuperseded,
-		previous: genDb.DeploymentStatusRunning,
+		previous: genDb.DeploymentStatusSuperseded,
 		failed:   genDb.DeploymentStatusFailed,
+		rollback: genDb.DeploymentStatusRunning,
 	} {
 		if got := f.deploymentStatus(t, id); got != expected {
 			t.Fatalf("%s=%s, want %s", id, got, expected)
@@ -304,7 +318,7 @@ func TestInactiveFailedDeploymentWatchEnds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if final.GetDeployment().GetIsActive() ||
+	if final.GetDeployment().GetPlacements()[0].GetLive() ||
 		final.GetDeployment().GetStatus() != deploymentv1.DeploymentStatus_DEPLOYMENT_STATUS_FAILED {
 		t.Fatalf("final deployment=%v", final.GetDeployment())
 	}

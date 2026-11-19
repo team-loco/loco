@@ -7,7 +7,7 @@ import { Section } from "@/components/design/Page";
 import { resourceStatusStyle } from "@/components/design/StatusBadge";
 import { StatusGlyph } from "@/components/design/StatusGlyph";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
-import { getServiceSpec } from "@/lib/deployment-utils";
+import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ const MEMORY_METRIC = "k8s.pod.memory.working_set_limit_utilization";
 
 function scaleText(regions: RegionView[]): string {
 	const pairs = regions.flatMap((r) => {
-		const svc = r.current === undefined ? undefined : getServiceSpec(r.current);
+		const svc = regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name);
 		return svc === undefined
 			? []
 			: [{ min: svc.minReplicas ?? 0, max: svc.maxReplicas ?? 0, cpu: svc.scalers?.cpuTarget }];
@@ -104,7 +104,9 @@ export function ReplicasPanel({
 	const target = { workspaceId, environmentId, resourceId, region, range };
 	const cpu = useMetricBand({ ...target, metricName: CPU_METRIC });
 	const charted = deployed.filter((r) => selected === null || r.name === selected);
-	const specs = charted.map((r) => (r.current === undefined ? undefined : getServiceSpec(r.current)));
+	const specs = charted.map((r) =>
+		regionTarget(r.current === undefined ? undefined : getServiceSpec(r.current), r.name),
+	);
 	const cpuLimit = sharedLimit(specs.map((spec) => parseCpuMilli(spec?.cpu ?? "")));
 	const memoryLimit = sharedLimit(specs.map((spec) => parseMemMi(spec?.memory ?? "")));
 	const memory = useMetricBand({ ...target, metricName: MEMORY_METRIC });
