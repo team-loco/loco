@@ -99,6 +99,19 @@ def seed():
             for i in range(3)
         ),
     )
+    long_id = ids[f"acme/shared/{LONG_NAME}"]
+    sql(
+        state,
+        "INSERT INTO events(type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type,"
+        " request_id, data, created_at) VALUES"
+        + ",".join(
+            f"('resource.degraded', '{org}', '{workspace}', '{long_id}', '{production}', 'user', '{owner}', 'resource',"
+            f" 'req-tables-{i}', jsonb_build_object('region', 'us-east-1', 'environmentId', '{production}',"
+            f" 'reason', 'restarting', 'message', 'Back-off restarting app ' || repeat('layer-', 30)),"
+            f" NOW() - INTERVAL '{i + 1} minutes')"
+            for i in range(3)
+        ),
+    )
     call(
         state,
         "loco.token.v1.TokenService/CreateToken",
@@ -609,6 +622,72 @@ def traces(page):
     expect(page).to_have_url(re.compile(f"trace={1 + 1:032x}"))
 
 
+def events_table(page):
+    table = page.get_by_role("table", name="Events")
+    expect(table.get_by_role("row", name="Degraded in us-east-1")).to_have_count(3)
+    return table
+
+
+def events(page):
+    page.goto(base + "/observability?env=production&view=events&live=0")
+    table = events_table(page)
+    check_layout(table)
+    fits_at_16px(page, table)
+    row = table.get_by_role("row", name="Degraded in us-east-1").first
+    expect_pointer(page, row.get_by_role("cell").nth(2))
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    table = check_resize(page, table, "Time", "Resource", events_table, "ArrowRight")
+    table.get_by_role("row", name="Degraded in us-east-1").first.get_by_role(
+        "cell"
+    ).nth(2).click()
+    expect(
+        page.get_by_role("dialog", name="Degraded in us-east-1", exact=True)
+    ).to_be_visible()
+    page.keyboard.press("Escape")
+
+
+def mock_metrics(page):
+    def metrics(route):
+        body = route.request.post_data_json
+        route.fulfill(
+            json={
+                "series": [
+                    {
+                        "resourceId": rid,
+                        "points": [
+                            {"timestamp": stamp(timedelta(minutes=m)), "value": 0.4}
+                            for m in (30, 10)
+                        ],
+                    }
+                    for rid in body.get("resourceIds") or []
+                ]
+            }
+        )
+
+    page.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
+
+
+def metrics_table(page):
+    table = page.get_by_role("table", name="By resource and region")
+    expect(table.get_by_role("row").filter(has_text=LONG_NAME)).to_have_count(2)
+    return table
+
+
+def metrics(page):
+    mock_metrics(page)
+    page.goto(base + "/observability?env=production&view=metrics&range=1h")
+    table = metrics_table(page)
+    check_layout(table)
+    row = table.get_by_role("row").filter(has_text="api").first
+    expect_pointer(page, row.get_by_role("cell").nth(1))
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    table = check_resize(page, table, "Region", "Replicas", metrics_table)
+    table.get_by_role("row").filter(has_text="api").first.get_by_role("cell").nth(
+        1
+    ).click()
+    expect(page).to_have_url(re.compile(r"resource(:|%3A)api"))
+
+
 def named_table(name, ready):
     """Opens the table called `name` once a row containing `ready` shows."""
 
@@ -796,6 +875,8 @@ with session(
             history,
             logs,
             traces,
+            events,
+            metrics,
             audit,
             organizations,
             settings,
@@ -828,6 +909,15 @@ with session(
         ("/observability?env=production&view=traces", traces_table),
     ):
         mock_telemetry(page)
+        page.goto(base + path)
+        table = reopen(page)
+        check_layout(table)
+        check_fade(scroller_of(page, table))
+    mock_metrics(page)
+    for path, reopen in (
+        ("/observability?env=production&view=events&live=0", events_table),
+        ("/observability?env=production&view=metrics&range=1h", metrics_table),
+    ):
         page.goto(base + path)
         table = reopen(page)
         check_layout(table)
