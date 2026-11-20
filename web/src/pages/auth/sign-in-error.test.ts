@@ -16,6 +16,7 @@ describe("signInFailureMessage", () => {
 		expect(signInFailureMessage(failure("SIGN_IN_CANCELED"), "Sign-in failed")).toBe("Sign-in was canceled.");
 		expect(signInFailureMessage(failure("SIGNUP_CLOSED"), "Sign-in failed")).toContain("invite-only");
 		expect(signInFailureMessage(failure("SIGN_IN_EXPIRED"), "Sign-in failed")).toContain("expired");
+		expect(signInFailureMessage(failure("SIGN_IN_INVALID"), "Sign-in failed")).toContain("could not be verified");
 	});
 
 	test("falls back to the error's message for an unknown reason or another domain", () => {

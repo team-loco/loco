@@ -308,6 +308,13 @@ func TestWebSignInFailuresCarryTheirReason(t *testing.T) {
 	if got := signInReason(t, err); got != "" {
 		t.Fatalf("nonce mismatch reason = %q, want none", got)
 	}
+
+	callback, _ = f.start(t, "good-code")
+	ctx, _ = webCall(t)
+	_, err = f.client.CompleteWebLogin(ctx, callback)
+	if got := signInReason(t, err); got != reasonSignInInvalid {
+		t.Fatalf("callback without binding reason = %q, want %q", got, reasonSignInInvalid)
+	}
 }
 
 func TestClosedSignupReportsItsReason(t *testing.T) {

@@ -10,6 +10,7 @@ const REASON_MESSAGES: Record<string, string> = {
 	SIGN_IN_CANCELED: "Sign-in was canceled.",
 	SIGNUP_CLOSED: "Loco is invite-only right now. Ask for an invitation, then sign in again.",
 	SIGN_IN_EXPIRED: "This sign-in link expired. Start again.",
+	SIGN_IN_INVALID: "This sign-in could not be verified. Start again.",
 };
 
 /** The message for a failed sign-in: the text for the API's reason when it has one, else the error's own. */
