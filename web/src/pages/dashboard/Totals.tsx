@@ -265,9 +265,9 @@ interface TrafficCardSpec {
 }
 
 const TRAFFIC_CARDS: TrafficCardSpec[] = [
-	{ label: "Public requests", field: "requests", format: formatCompact, warnOnRise: false },
-	{ label: "Public errors", field: "errors", format: formatCompact, warnOnRise: true },
-	{ label: "Public bandwidth out", field: "bytes", format: formatBytes, warnOnRise: false },
+	{ label: "Requests", field: "requests", format: formatCompact, warnOnRise: false },
+	{ label: "Errors", field: "errors", format: formatCompact, warnOnRise: true },
+	{ label: "Bandwidth out", field: "bytes", format: formatBytes, warnOnRise: false },
 ];
 
 function TrafficCard({
@@ -381,7 +381,11 @@ export function Totals({
 	const deleted = useDeletedResourceNames(orgId, workspaceId, gone);
 	return (
 		<div className="flex flex-col gap-3">
-			<div className="flex items-center justify-end gap-2">
+			<div className="flex items-center justify-between gap-2">
+				<p className="m-0 flex items-baseline gap-2 text-[12.5px]">
+					<span className="font-medium text-foreground">Public traffic</span>
+					<span className="text-fg3">Requests from the internet</span>
+				</p>
 				<ToggleGroup
 					variant="segmented"
 					aria-label="Time range"

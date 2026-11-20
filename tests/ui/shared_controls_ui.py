@@ -1318,13 +1318,13 @@ def traffic(page):
         page.goto(state["ui_url"] + base + "?env=production&range=1h")
         # 3 resources × 3 points × 10/s × 60 s buckets (1h range) = 5400 requests, 540 5xx.
         requests, errors = ("—", "—") if empty else ("5.4K", "540")
-        for label, value in (("Public requests", requests), ("Public errors", errors)):
+        for label, value in (("Requests", requests), ("Errors", errors)):
             card = totals.get_by_role("group", name=f"{label}: {value},")
             # The prior hour's stub equals this hour's.
             comparison = "No prior 1h data to compare" if empty else "0% vs prior 1h"
             expect(card.get_by_text(comparison, exact=True)).to_be_visible()
         if not empty:
-            card = totals.get_by_role("group", name="Public requests: 5.4K,")
+            card = totals.get_by_role("group", name="Requests: 5.4K,")
             card.hover()
             expect(
                 card.get_by_role("link", name=re.compile("^controls-pilot"))
