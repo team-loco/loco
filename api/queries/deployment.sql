@@ -29,7 +29,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
-LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE d.resource_id = sqlc.arg('resource_id')
   AND (sqlc.narg('environment_id')::uuid IS NULL OR d.environment_id = sqlc.narg('environment_id'))
   AND (sqlc.arg('system_read')::bool
@@ -60,7 +60,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
-LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE r.workspace_id = sqlc.arg('workspace_id')
   AND d.environment_id = sqlc.arg('environment_id')
   AND (sqlc.arg('system_read')::bool
@@ -90,7 +90,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
-LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE d.id = $1;
 
 -- name: GetDeploymentResourceID :one

@@ -231,7 +231,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
-LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE d.id = $1
 `
 
@@ -434,7 +434,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
-LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE r.workspace_id = $1
   AND d.environment_id = $2
   AND ($3::bool
@@ -674,7 +674,7 @@ LEFT JOIN users u ON d.actor_type = 'user' AND u.id = d.actor_id
 LEFT JOIN api_tokens t ON d.actor_type = 'api_token' AND t.id = d.actor_id
 LEFT JOIN users cu ON d.canceled_by_type = 'user' AND cu.id = d.canceled_by_id
 LEFT JOIN api_tokens ct ON d.canceled_by_type = 'api_token' AND ct.id = d.canceled_by_id
-LEFT JOIN builds b ON b.id::text = d.spec->'build'->>'buildId'
+LEFT JOIN builds b ON b.id = (d.spec->'build'->>'buildId')::uuid
 WHERE d.resource_id = $1
   AND ($2::uuid IS NULL OR d.environment_id = $2)
   AND ($3::bool
