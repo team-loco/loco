@@ -9,7 +9,7 @@ import {
 
 import type { BadgeTone } from "@/components/design/Badge";
 import { currentReplica, readyIn } from "@/lib/activity-deploys";
-import { deploymentProblem, getServiceSpec, isInFlight } from "@/lib/deployment-utils";
+import { deploymentProblem, isInFlight } from "@/lib/deployment-utils";
 import { maybeTsMs, tsMs } from "@/lib/time";
 
 import { lastGoodDeployment, type RegionView } from "./model";
@@ -121,16 +121,8 @@ export function rolloutActivity(activity: readonly Activity[], region: string, r
 }
 
 export function problemLogsHref(logsHref: string | undefined, deployment: Deployment): string | undefined {
-	const problem = deploymentProblem(deployment);
-	if (logsHref === undefined || problem === undefined) return undefined;
-	const buildId = getServiceSpec(deployment)?.build?.buildId;
-	const query =
-		problem.reason === "build_failed" && buildId
-			? `@build:${buildId}`
-			: problem.replicaName !== ""
-				? `@replica:${problem.replicaName}`
-				: undefined;
-	if (query === undefined) return undefined;
+	const query = deploymentProblem(deployment)?.logsQuery;
+	if (logsHref === undefined || query === undefined || query === "") return undefined;
 	const [path, search] = logsHref.split("?");
 	const params = new URLSearchParams(search);
 	params.set("q", query);

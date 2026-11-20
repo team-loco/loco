@@ -209,7 +209,7 @@ func TestDeploymentBuildOutcomes(t *testing.T) {
 					t.Fatal(err)
 				}
 				if problem := deployment.GetPlacements()[0].GetProblem(); problem.GetReason() != "build_failed" ||
-					problem.GetDetail() != status.GetMessage() {
+					problem.GetDetail() != status.GetMessage() || problem.GetLogsQuery() != "@build:"+buildID {
 					t.Fatalf("problem=%v", problem)
 				}
 			}

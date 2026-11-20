@@ -15,6 +15,7 @@ import (
 	"github.com/team-loco/loco/api/auth"
 	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	"github.com/team-loco/loco/gen/go/loco/deployment/v1/deploymentv1connect"
 	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
@@ -189,7 +190,11 @@ func isTerminalDeploymentStatus(status deploymentv1.DeploymentStatus) bool {
 
 // setPlacementRollout fills a placement's problem from its latest rollout and its replicas: the
 // cluster's latest report while the placement is live, the last snapshot otherwise.
-func setPlacementRollout(placement *deploymentv1.DeploymentPlacement, data, observed []byte) error {
+func setPlacementRollout(
+	placement *deploymentv1.DeploymentPlacement,
+	buildID string,
+	data, observed []byte,
+) error {
 	var snapshot rolloutSnapshot
 	if err := json.Unmarshal(data, &snapshot); err != nil {
 		return fmt.Errorf("decode rollout: %w", err)
@@ -205,6 +210,7 @@ func setPlacementRollout(placement *deploymentv1.DeploymentPlacement, data, obse
 			Detail:      report.GetDetail(),
 			ReplicaName: report.GetReplicaName(),
 			Since:       report.GetSince(),
+			LogsQuery:   problemLogsQuery(report, buildID),
 		}
 	}
 	if placement.GetLive() {
@@ -215,4 +221,16 @@ func setPlacementRollout(placement *deploymentv1.DeploymentPlacement, data, obse
 	}
 	placement.Replicas = snapshot.Replicas
 	return nil
+}
+
+// problemLogsQuery selects the log lines that explain a problem.
+func problemLogsQuery(report *agentv1.ProblemReport, buildID string) string {
+	switch {
+	case report.GetReason() == string(loco.ProblemBuildFailed) && buildID != "":
+		return "@build:" + buildID
+	case report.GetReplicaName() != "":
+		return "@replica:" + report.GetReplicaName()
+	default:
+		return ""
+	}
 }

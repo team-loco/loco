@@ -315,7 +315,8 @@ func TestDeploymentStreamSnapshotAndActivityWake(t *testing.T) {
 	}
 	if event.GetDeployment().GetPlacements()[0].GetProblem().GetMessage() == "" ||
 		event.GetDeployment().GetPlacements()[0].GetProblem().GetDetail() != testWatchDetail ||
-		!proto.Equal(event.GetDeployment().GetPlacements()[0].GetProblem().GetSince(), since) {
+		!proto.Equal(event.GetDeployment().GetPlacements()[0].GetProblem().GetSince(), since) ||
+		event.GetDeployment().GetPlacements()[0].GetProblem().GetLogsQuery() != "@replica:"+testWatchReplica {
 		t.Fatalf("problem=%v", event.GetDeployment().GetPlacements()[0].GetProblem())
 	}
 }
