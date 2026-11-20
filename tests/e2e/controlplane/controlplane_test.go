@@ -190,7 +190,11 @@ func install(t *testing.T) *controlPlane {
 			"snapshotSecret":             snapshots.S3.ExistingSecret.Name,
 			"snapshotAccessKeyIdKey":     snapshots.S3.ExistingSecret.AccessKeyIDKey,
 			"snapshotSecretAccessKeyKey": snapshots.S3.ExistingSecret.SecretAccessKeyKey,
-		}), "--wait", "--timeout", installTimeout.String())
+		}))
+	// Each fixture is ready once its rollout status returns.
+	for _, fixture := range []string{"deployment/postgres", "deployment/s3"} {
+		c.MustKubectl(t, "-n", cp.namespace, "rollout", "status", fixture, "--timeout", installTimeout.String())
+	}
 
 	seal := cp.values.OpenBao.Seal.Static.ExistingSecret
 	applySecret(t, cp.namespace, seal.Name, map[string]string{
