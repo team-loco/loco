@@ -538,10 +538,10 @@ def psql(container, sql):
         DB_NAME,
         "-tA",
     ]
-    log(f"$ {' '.join(cmd)} <<SQL")
     result = subprocess.run(cmd, input=sql, text=True, capture_output=True)
     if result.returncode != 0:
         raise EvidenceError(
+            f"$ {' '.join(cmd)} <<SQL\n"
             f"psql exited {result.returncode}: {result.stderr.strip()} {result.stdout.strip()}"
         )
     return result.stdout.strip()

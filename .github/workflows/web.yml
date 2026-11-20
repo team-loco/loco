@@ -38,8 +38,7 @@ jobs:
       - name: Test install script
         run: mise run test:install
 
-  # Each shard builds the API and UI once and runs its suites one after another;
-  # suites running side by side on one runner miss their timing bounds.
+  # Each shard builds the API and UI once and runs its suites side by side, one per CPU.
   browser:
     name: Web Browser ${{ matrix.shard }}
     runs-on: ubuntu-latest
@@ -62,7 +61,10 @@ jobs:
         timeout-minutes: 30
         env:
           SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
-        run: mise run test:ui --shard "$SHARD"
+        run: |
+          nproc; free -m
+          vmstat -n 15 &
+          mise run test:ui --shard "$SHARD"
 
       - name: Upload dashboard suite evidence
         if: always()
