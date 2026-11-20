@@ -555,6 +555,79 @@ def template_logs(page):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
 
 
+def log_drawer(page):
+    entries = [
+        {
+            "timestamp": stamp(datetime.now(UTC), timedelta(seconds=5)),
+            "level": "LOG_LEVEL_INFO",
+            "body": "Drawer line",
+            "resourceId": resource,
+            "resourceAttributes": {
+                "container.image.name": "registry.example/app",
+                "k8s.cluster.name": "staging",
+            },
+        }
+    ]
+    page.route(
+        "**/loco.observability.v1.ObservabilityService/QueryLogs",
+        lambda route: route.fulfill(json={"entries": entries, "totalMatched": "1"}),
+    )
+    page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
+    row = page.get_by_role("region", name="Log lines").get_by_role(
+        "button", name=re.compile(r"Drawer line$")
+    )
+    row.click()
+    detail = page.get_by_role("dialog")
+    expect(detail).to_be_visible()
+    page.wait_for_timeout(500)
+    for key in ("@container.image.name", "@k8s.cluster.name"):
+        label = detail.get_by_text(key, exact=True)
+        expect(label).to_be_visible()
+        fits = label.evaluate("el => el.scrollWidth <= el.clientWidth")
+        assert fits, f"{key} is truncated"
+        assert label.bounding_box()["width"] > 96
+    actions = detail.get_by_role("button", name=re.compile(r"^(Only|Hide|Add) "))
+    assert actions.count() >= 3
+    for i in range(actions.count()):
+        box = actions.nth(i).bounding_box()
+        assert box["width"] <= 24 and box["height"] <= 24, box
+    before = detail.bounding_box()["width"]
+    handle = detail.get_by_role("separator", name="Resize drawer")
+    box = handle.bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x - 120, y, steps=5)
+    page.mouse.up()
+    wide = detail.bounding_box()["width"]
+    assert wide > before + 100, (before, wide)
+    view = detail.get_by_role("group", name="Detail view")
+    expect(view.get_by_role("button", name="Attributes")).to_have_attribute(
+        "aria-pressed", "true"
+    )
+    view.get_by_role("button", name="JSON").click()
+    expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
+    expect(detail.get_by_role("textbox", name="Filter attributes")).to_have_count(0)
+    expect(detail.get_by_text("registry.example/app").first).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(detail).to_have_count(0)
+    row.click()
+    expect(detail).to_be_visible()
+    page.wait_for_timeout(500)
+    assert abs(detail.bounding_box()["width"] - wide) <= 1
+    expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
+    view.get_by_role("button", name="Attributes").click()
+    expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_be_visible()
+    handle.focus()
+    page.keyboard.press("ArrowRight")
+    assert detail.bounding_box()["width"] < wide
+    handle.dblclick()
+    page.wait_for_timeout(100)
+    assert abs(detail.bounding_box()["width"] - before) <= 1
+    page.keyboard.press("Escape")
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryLogs")
+
+
 def live_focus(page):
     page.goto(state["ui_url"] + base + "/observability?env=production&view=logs")
     expect(page.get_by_text("Request completed (1)", exact=True)).to_be_visible()
@@ -1689,6 +1762,7 @@ with session(out) as browser:
         log_columns,
         workload_logs,
         template_logs,
+        log_drawer,
         log_paging,
         log_cap,
         live_focus,
