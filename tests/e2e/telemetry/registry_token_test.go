@@ -383,16 +383,25 @@ func (r *registryRun) noSharedSecrets(t *testing.T) {
 		}
 	}
 	for _, w := range []*platform.Workspace{a, b} {
-		copied, err := p.RegistrySecret(t.Context(), w.Namespace, "loco-registry-pull")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if copied.Username != pullUser {
-			t.Errorf("workspace %s's copy is a %q credential, want %s", w.ID, copied.Username, pullUser)
-		}
-		if copied.Password != pullPassword(t, w) {
-			t.Errorf("workspace %s's copy does not hold the agent's credential", w.ID)
-		}
+		// The agent renews the credential every half lifetime, and the controller copies each renewal.
+		platform.Eventually(
+			t,
+			secretTimeout,
+			"workspace "+w.ID+"'s copy to hold the agent's credential",
+			func(ctx context.Context) error {
+				copied, err := p.RegistrySecret(ctx, w.Namespace, "loco-registry-pull")
+				if err != nil {
+					return err
+				}
+				if copied.Username != pullUser {
+					return fmt.Errorf("the copy is a %q credential, want %s", copied.Username, pullUser)
+				}
+				if copied.Password != pullPassword(t, w) {
+					return errors.New("the copy does not hold the agent's credential")
+				}
+				return nil
+			},
+		)
 	}
 }
 
