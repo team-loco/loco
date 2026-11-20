@@ -17,6 +17,7 @@ import {
 	IMAGE_RE,
 	commandEntries,
 	commandText,
+	healthTimeoutError,
 	portRangeError,
 	scalingError,
 	scalingSpec,
@@ -303,13 +304,14 @@ export function validateDraft(
 		!(positive(next.healthTimeout) && Number(next.healthTimeout) <= MAX_HEALTH_TIMEOUT)
 	)
 		errors.healthTimeout = `Whole seconds, 1 to ${MAX_HEALTH_TIMEOUT.toString()}`;
+	const timeoutOrder = healthTimeoutError(next.healthInterval, next.healthTimeout);
 	if (
 		errors.healthInterval === undefined &&
 		errors.healthTimeout === undefined &&
 		(draft.healthInterval !== undefined || draft.healthTimeout !== undefined) &&
-		Number(next.healthTimeout.trim()) >= Number(next.healthInterval.trim())
+		timeoutOrder !== null
 	)
-		errors.healthTimeout = "Must be below the interval";
+		errors.healthTimeout = timeoutOrder;
 	if (draft.healthFailures !== undefined && !positive(next.healthFailures))
 		errors.healthFailures = "A whole number, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";

@@ -396,6 +396,33 @@ with session(out) as browser:
         check_time_preferences(page)
         context.close()
 with session(out) as browser:
+    context, page, errors = open_page(browser, "member", state=state)
+
+    def without_org_scopes(route):
+        body = route.fetch().json()
+        body["scopes"] = [
+            item
+            for item in body.get("scopes", [])
+            if item.get("entityType") != "ENTITY_TYPE_ORGANIZATION"
+        ]
+        route.fulfill(json=body)
+
+    context.route("**/loco.token.v1.TokenService/GetScopes", without_org_scopes)
+    page.goto(state["ui_url"] + base + "?scope=org")
+    expect(
+        page.get_by_text("Organization settings need admin access", exact=True)
+    ).to_be_visible()
+    page.wait_for_url(
+        lambda url: parse_qs(urlparse(url).query).get("scope") == ["workspace"]
+    )
+    expect(
+        page.get_by_role("group", name="Settings for").get_by_role(
+            "button", name="Organization", exact=True
+        )
+    ).to_have_count(0)
+    assert not errors, errors
+    context.close()
+with session(out) as browser:
     context, page, errors = open_page(browser, "nameless", state=state)
     page.goto(state["ui_url"] + "/profile")
     name = page.get_by_role("textbox", name="Name", exact=True)

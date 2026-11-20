@@ -4,6 +4,7 @@ import { getWorkspace } from "@gen/loco/workspace/v1/workspace-WorkspaceService_
 import type { Workspace } from "@gen/loco/workspace/v1/workspace_pb";
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { Building2Icon, LayersIcon, UserIcon } from "lucide-react";
+import { toast } from "sonner";
 import { startTransition, useEffect, useState, type MouseEvent } from "react";
 import { useQueryStates } from "nuqs";
 import { useNavigate, useParams, useSearchParams } from "react-router";
@@ -82,8 +83,11 @@ export function Settings() {
 	const [search] = useSearchParams();
 	const scopeShown = search.get("scope") === scope;
 	useEffect(() => {
-		if (!scopeShown && !scopes.isLoading) void setParams({ scope }, { history: "replace", clearOnDefault: false });
-	}, [scopeShown, scopes.isLoading, scope, setParams]);
+		if (scopeShown || scopes.isLoading) return;
+		if (requested !== scope)
+			toast.info("Organization settings need admin access", { description: "Showing workspace settings." });
+		void setParams({ scope }, { history: "replace", clearOnDefault: false });
+	}, [scopeShown, scopes.isLoading, requested, scope, setParams]);
 
 	const wsDraft = drafts.workspace?.id === workspaceId ? drafts.workspace : null;
 	const orgDraft = drafts.org?.id === orgId ? drafts.org : null;

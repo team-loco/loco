@@ -547,7 +547,16 @@ with session(out) as browser:
     assert health_path.startswith("/"), health_path
     interval.fill("1x5")
     expect(interval).to_have_value("15")
-    drawer.get_by_role("textbox", name="Timeout, sec").fill("4")
+    timeout = drawer.get_by_role("textbox", name="Timeout, sec")
+    timeout.fill("15")
+    expect(
+        drawer.get_by_text("Must be below the interval", exact=True).first
+    ).to_be_visible()
+    expect(timeout).to_have_attribute("aria-invalid", "true")
+    timeout.fill("4")
+    expect(drawer.get_by_text("Must be below the interval", exact=True)).to_have_count(
+        0
+    )
     drawer.get_by_role("textbox", name="Fail after, checks").fill("6")
     expect(health).to_contain_text(f"{health_path} · every 15s")
     start_command = drawer.get_by_role("button", name=re.compile(r"^Start command"))

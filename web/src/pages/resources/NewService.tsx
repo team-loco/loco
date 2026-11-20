@@ -759,6 +759,7 @@ function ServiceForm({
 					health={form.health}
 					open={healthOpen}
 					apiError={apiError}
+					timeoutError={errors.healthTimeout}
 					onOpenChange={onHealthOpen}
 					onChange={setHealth}
 				/>
@@ -1006,28 +1007,33 @@ function HealthSection({
 	health,
 	open,
 	apiError,
+	timeoutError,
 	onOpenChange,
 	onChange,
 }: {
 	health: HealthForm;
 	open: boolean;
 	apiError: (field: ApiField) => string | null;
+	timeoutError: string | null;
 	onOpenChange: (open: boolean) => void;
 	onChange: (patch: Partial<HealthForm>) => void;
 }) {
-	const numeric = (label: string, field: "interval" | "timeout" | "failAfter") => (
-		<Field label={label} error={apiError(field)}>
-			<Input
-				value={health[field]}
-				inputMode="numeric"
-				className="font-mono"
-				aria-invalid={apiError(field) !== null}
-				onChange={(e) => {
-					onChange({ [field]: e.target.value.replace(NON_DIGITS_RE, "") });
-				}}
-			/>
-		</Field>
-	);
+	const numeric = (label: string, field: "interval" | "timeout" | "failAfter") => {
+		const error = (field === "timeout" ? timeoutError : null) ?? apiError(field);
+		return (
+			<Field label={label} error={error}>
+				<Input
+					value={health[field]}
+					inputMode="numeric"
+					className="font-mono"
+					aria-invalid={error !== null}
+					onChange={(e) => {
+						onChange({ [field]: e.target.value.replace(NON_DIGITS_RE, "") });
+					}}
+				/>
+			</Field>
+		);
+	};
 	return (
 		<Collapsible open={open} onOpenChange={onOpenChange} className="flex flex-col gap-3">
 			<CollapsibleTrigger className="flex w-full items-center gap-2.5 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-fg3 focus-visible:outline-none">

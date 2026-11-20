@@ -146,6 +146,18 @@ test("validateForm leaves health check numbers to the API", () => {
 	expect(firstError(validateForm(loose, "available", 10))).toBeNull();
 });
 
+test("validateForm rejects a health check timeout that is not below the interval", () => {
+	const health = (interval: string, timeout: string) => ({
+		...form,
+		health: { path: "/healthz", interval, timeout, failAfter: "3" },
+	});
+	expect(validateForm(health("10", "10"), "available", 10).healthTimeout).toBe("Must be below the interval");
+	expect(validateForm(health("5", "9"), "available", 10).healthTimeout).toBe("Must be below the interval");
+	expect(firstError(validateForm(health("5", "9"), "available", 10))).toBe("Must be below the interval");
+	expect(validateForm(health("10", "9"), "available", 10).healthTimeout).toBeNull();
+	expect(validateForm(health("0", "4"), "available", 10).healthTimeout).toBeNull();
+});
+
 test("validateForm accepts an empty port only for a private service without a health check", () => {
 	const noHealth = { path: "", interval: "", timeout: "", failAfter: "" };
 	const worker = { ...form, port: "", isPublic: false, health: noHealth };

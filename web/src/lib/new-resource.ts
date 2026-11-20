@@ -58,6 +58,7 @@ export interface FormErrors {
 	subdomain: string | null;
 	env: string | null;
 	scaling: string | null;
+	healthTimeout: string | null;
 }
 
 export type ApiField =
@@ -192,7 +193,15 @@ export function validateForm(
 		subdomain: subdomainError(form, availability),
 		env: envError(form.vars),
 		scaling: scalingError(form, replicaLimit),
+		healthTimeout: form.health.path === "" ? null : healthTimeoutError(form.health.interval, form.health.timeout),
 	};
+}
+
+/** The error for a health check timeout that is not shorter than a positive interval; other values are left to their own checks. */
+export function healthTimeoutError(interval: string, timeout: string): string | null {
+	const every = Number(interval.trim());
+	if (interval.trim() === "" || timeout.trim() === "" || !(every > 0)) return null;
+	return Number(timeout.trim()) >= every ? "Must be below the interval" : null;
 }
 
 /** The error for a port outside the deployment spec's range, 1 through 65535. */
@@ -241,6 +250,7 @@ export function firstError(errors: FormErrors): string | null {
 		errors.subdomain,
 		errors.env,
 		errors.scaling,
+		errors.healthTimeout,
 	];
 	return ordered.find((e) => e !== null) ?? null;
 }
