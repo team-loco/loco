@@ -53,7 +53,7 @@ var (
 	errInvalidResourceSlug = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"resource slug must be 1 to 63 lowercase letters, digits and hyphens, "+
-			"starting and ending with a letter or digit, and not localhost or resource-<UUID>",
+			"starting with a letter and ending with a letter or digit, and not localhost or resource-<UUID>",
 	)
 	errManagedResourceSlug = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
