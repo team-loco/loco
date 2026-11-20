@@ -31,7 +31,11 @@ org_id = state["orgs"]["acme"]["id"]
 workspace_id = state["workspaces"]["acme/shared"]
 base = f"/org/{org_id}/wks/{workspace_id}/observability?view=traces"
 trace = "4bf92f3577b34da6a3ce929d0e0e4736"
-now = int(time.time())
+# Yesterday's local noon: the browser clock and every seeded trace share one local day.
+today = time.localtime()
+now = int(
+    time.mktime((today.tm_year, today.tm_mon, today.tm_mday - 1, 12, 0, 0, 0, 0, -1))
+)
 start = now - 600
 rows = [
     ("0001", "", "frontend-proxy", "POST /api/checkout", 0, 427.6),
