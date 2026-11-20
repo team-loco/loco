@@ -5,6 +5,7 @@ import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentSe
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
 import { useQueryState } from "nuqs";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
@@ -14,7 +15,7 @@ import { Skeleton } from "@/components/design/Skeleton";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
-import { formatPercent, limitAxis } from "@/lib/compute-chart";
+import { formatPercent, percentAxis } from "@/lib/compute-chart";
 import { getServiceSpec, regionTarget } from "@/lib/deployment-utils";
 import { formatCpu, formatMemory, parseCpuMilli, parseMemMi } from "@/lib/quantity";
 import { isUnimplemented } from "@/lib/error-handler";
@@ -35,7 +36,6 @@ interface MetricDef {
 	key: "cpu" | "mem";
 	metric: string;
 	title: string;
-	unit: string;
 	format: (value: number) => string;
 	limit: (sizing: { cpu: string; memory: string }) => number;
 }
@@ -44,7 +44,6 @@ const CPU: MetricDef = {
 	key: "cpu",
 	metric: "k8s.pod.cpu_limit_utilization",
 	title: "CPU",
-	unit: "vCPU",
 	format: formatCpu,
 	limit: (sizing) => parseCpuMilli(sizing.cpu),
 };
@@ -52,7 +51,6 @@ const MEMORY: MetricDef = {
 	key: "mem",
 	metric: "k8s.pod.memory.working_set_limit_utilization",
 	title: "Memory",
-	unit: "Mi or Gi",
 	format: formatMemory,
 	limit: (sizing) => parseMemMi(sizing.memory),
 };
@@ -67,7 +65,10 @@ const DEPLOY_PICK_SHARE = 0.02;
 
 const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem"] as const;
 type SortKey = (typeof SORT_KEYS)[number];
-const metricSortParser = sortParser(SORT_KEYS, { id: "cpu", desc: true }).withOptions({ history: "replace" });
+const metricSortParser = sortParser(SORT_KEYS, {
+	id: "cpu",
+	desc: true,
+}).withOptions({ history: "replace" });
 
 interface DeployMarker extends ChartMarker {
 	tag: string;
@@ -153,17 +154,17 @@ function useComputeSeries(
 			const sizing = row === undefined ? undefined : limits.get(row.key);
 			const limit = sizing === undefined ? 0 : def.limit(sizing);
 			if (row === undefined || limit <= 0) continue;
-			const points = [...pts].map(([t, v]) => ({ t, v: (v / PERCENT) * limit })).toSorted((a, b) => a.t - b.t);
+			const points = [...pts].map(([t, v]) => ({ t, v, abs: (v / PERCENT) * limit })).toSorted((a, b) => a.t - b.t);
 			series.push({
-				key: `s${String(series.length)}`,
+				key: row.key,
 				name: multi.has(id) ? `${row.resource.raw.displayName} ${region}` : row.resource.raw.displayName,
+				resourceId: id,
 				color: row.resource.color,
 				dashed: row.dashed,
-				limit,
 				points,
 			});
 			const last = points.at(-1);
-			if (last !== undefined) latest.set(row.key, { v: last.v, limit });
+			if (last !== undefined) latest.set(row.key, { v: last.abs, limit });
 		}
 	});
 	return {
@@ -183,6 +184,7 @@ function usePlacementSizing(rows: Placement[], visible: ObsResource[], environme
 		),
 	});
 	const sizing = new Map<string, { cpu: string; memory: string }>();
+	const isLoading = queries.some((q) => q.isLoading);
 	visible.forEach((r, i) => {
 		const deployments = queries[i]?.data?.deployments ?? [];
 		for (const p of rows.filter((row) => row.resource.id === r.id)) {
@@ -192,10 +194,14 @@ function usePlacementSizing(rows: Placement[], visible: ObsResource[], environme
 			const deployed = deployment === undefined ? undefined : regionTarget(getServiceSpec(deployment), p.region);
 			const intent = r.raw.spec?.spec.case === "service" ? r.raw.spec.spec.value.regions[p.region] : undefined;
 			const target = deployed ?? intent;
-			if (target !== undefined) sizing.set(p.key, { cpu: target.cpu ?? "", memory: target.memory ?? "" });
+			if (target !== undefined)
+				sizing.set(p.key, {
+					cpu: target.cpu ?? "",
+					memory: target.memory ?? "",
+				});
 		}
 	});
-	return sizing;
+	return { sizing, isLoading };
 }
 
 function useDeployMarkers(visible: ObsResource[], environmentId: string, from: number, to: number): DeployMarker[] {
@@ -240,7 +246,7 @@ function Meter({ value, format }: { value: { v: number; limit: number } | undefi
 					style={{ width: `${String(Math.min(PERCENT, percent))}%` }}
 				/>
 			</span>
-			<span className="text-right font-mono text-[12px] text-fg2">
+			<span className="text-right font-mono text-[12px] whitespace-nowrap text-fg2">
 				{format(value.v)} <span className="text-fg3">{formatPercent(percent)}</span>
 			</span>
 		</span>
@@ -259,10 +265,11 @@ export function MetricsView() {
 	const endMs = range.kind === "absolute" ? range.to : undefined;
 	const visible = filteredResources("metrics", resources, tokens);
 	const rows = placements(visible, environment?.id ?? "", liveTokens("metrics", tokens, "region"));
-	const sizing = usePlacementSizing(rows, visible, environment?.id ?? "");
+	const { sizing, isLoading: sizingLoading } = usePlacementSizing(rows, visible, environment?.id ?? "");
 	const cpu = useComputeSeries(CPU, rows, sizing, spanMs, endMs);
 	const mem = useComputeSeries(MEMORY, rows, sizing, spanMs, endMs);
 	const deployMarkers = useDeployMarkers(visible, environment?.id ?? "", from, to);
+	const [hoverId, setHoverId] = useState<string | null>(null);
 	const [focusTs] = useQueryState("at", msParser);
 	const markers: ChartMarker[] = [
 		...deployMarkers,
@@ -320,7 +327,7 @@ export function MetricsView() {
 		];
 	};
 	const error = cpu.error ?? mem.error;
-	const loading = cpu.isLoading || mem.isLoading || environmentLoading || resourcesLoading;
+	const loading = cpu.isLoading || mem.isLoading || sizingLoading || environmentLoading || resourcesLoading;
 
 	if (!loading && error !== null && isUnimplemented(error)) {
 		return (
@@ -391,7 +398,7 @@ export function MetricsView() {
 		const x = sortValue(a);
 		const y = sortValue(b);
 		const order = typeof x === "string" && typeof y === "string" ? x.localeCompare(y) : Number(x) - Number(y);
-		return sort.desc ? -order : order;
+		return (sort.desc ? -order : order) || a.key.localeCompare(b.key);
 	});
 	const header = (key: SortKey, label: string, className?: string) => (
 		<th
@@ -401,7 +408,10 @@ export function MetricsView() {
 			<button
 				type="button"
 				onClick={() => {
-					void setSort({ id: key, desc: sort.id === key ? !sort.desc : key !== "resource" && key !== "region" });
+					void setSort({
+						id: key,
+						desc: sort.id === key ? !sort.desc : key !== "resource" && key !== "region",
+					});
 				}}
 				className="rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 			>
@@ -440,7 +450,7 @@ export function MetricsView() {
 						>
 							<div className="flex items-baseline gap-2">
 								<h3 className="m-0 text-[15px] font-medium tracking-[-0.01em]">{def.title}</h3>
-								<span className="font-mono text-[12px] text-fg3">{def.unit}, peak per bucket</span>
+								<span className="font-mono text-[12px] text-fg3">% of limit, peak per bucket</span>
 							</div>
 							{result.isLoading || environmentLoading ? (
 								<Skeleton className="w-full" style={{ height: CHART_HEIGHT }} />
@@ -457,32 +467,14 @@ export function MetricsView() {
 									series={result.series}
 									from={from}
 									to={to}
-									axis={limitAxis(
-										Math.max(...result.series.map((s) => s.limit)),
-										Math.max(0, ...result.series.flatMap((s) => s.points.map((p) => p.v))),
-									)}
+									axis={percentAxis(Math.max(0, ...result.series.flatMap((s) => s.points.map((p) => p.v))))}
 									fmt={def.format}
-									limits={[...new Set(result.series.map((s) => s.limit))]}
+									highlightId={hoverId}
 									markers={markers}
 									height={CHART_HEIGHT}
 									actions={actions}
 								/>
 							)}
-							<div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[12px] text-fg2">
-								{result.series.map((s) => (
-									<span key={s.key} className="flex items-center gap-1.5">
-										<span
-											className={cn("inline-block h-0 w-3 border-t-2", s.dashed && "border-dashed")}
-											style={{ borderColor: s.color }}
-										/>
-										{s.name}
-										<span className="font-mono text-[11.5px] text-fg3">
-											latest {def.format(s.points.at(-1)?.v ?? 0)} ·{" "}
-											{formatPercent(((s.points.at(-1)?.v ?? 0) / s.limit) * PERCENT)} of limit
-										</span>
-									</span>
-								))}
-							</div>
 						</section>
 					))}
 				</div>
@@ -516,7 +508,13 @@ export function MetricsView() {
 										onClick={() => {
 											focusRow(p);
 										}}
-										className="h-[38px] border-b border-line last:border-b-0 hover:bg-panel2"
+										onMouseEnter={() => {
+											setHoverId(p.resource.id);
+										}}
+										onMouseLeave={() => {
+											setHoverId(null);
+										}}
+										className="h-[38px] cursor-pointer border-b border-line last:border-b-0 hover:bg-panel2"
 									>
 										<td className="px-3">
 											<button

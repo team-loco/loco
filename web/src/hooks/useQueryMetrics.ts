@@ -1,4 +1,5 @@
 import { createClient, type Transport } from "@connectrpc/connect";
+import { keepPreviousData } from "@tanstack/react-query";
 import { createConnectQueryKey } from "@connectrpc/connect-query";
 import { ObservabilityService } from "@gen/loco/observability/v1/observability_pb";
 import { stepSeconds } from "@/lib/obs-time";
@@ -60,13 +61,18 @@ export function metricsQueryOptions(
 		queryFn: async ({ signal }: { signal: AbortSignal }) => {
 			const end = endMs ?? Date.now();
 			const response = await createClient(ObservabilityService, transport).queryMetrics(
-				{ ...input, startTime: msToTimestamp(end - spanMs), endTime: msToTimestamp(end) },
+				{
+					...input,
+					startTime: msToTimestamp(end - spanMs),
+					endTime: msToTimestamp(end),
+				},
 				{ signal },
 			);
 			return response.series;
 		},
 		enabled: enabled && workspaceId !== "" && environmentId !== "",
 		staleTime: REFRESH_MS,
+		placeholderData: keepPreviousData,
 		refetchInterval: endMs === undefined ? REFRESH_MS : (false as const),
 	};
 }
