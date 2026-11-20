@@ -8,9 +8,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
+	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
+	loco "github.com/team-loco/loco/k8sapi/v1alpha1"
+	"google.golang.org/protobuf/proto"
 )
 
 const rolloutDeleteOperation = "delete"
@@ -270,5 +274,77 @@ func TestApplyDuringARolloutSupersedesIt(t *testing.T) {
 	}
 	if live := f.activeDeployment(t, f.envID); live.ID == inFlight.ID {
 		t.Fatal("apply left the in-flight deployment live")
+	}
+}
+
+func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
+	t.Parallel()
+	stoppedRollout := stoppedReport()
+	stoppedRollout.Stopped.Rollout = true
+	failures := map[string]*agentv1.PlacementStatus{
+		"progress deadline": {
+			Problem:                  &agentv1.ProblemReport{Reason: string(loco.ProblemRolloutTimeout)},
+			ProgressDeadlineExceeded: true,
+		},
+		"restart budget": stoppedRollout,
+	}
+	changes := map[string]func(t *testing.T, f *deployFixture) error{
+		"deploy": func(t *testing.T, f *deployFixture) error {
+			t.Helper()
+			_, err := deployService(t, f, imageService())
+			return err
+		},
+		"scale": func(t *testing.T, f *deployFixture) error {
+			t.Helper()
+			return scaleResource(t, f, 2)
+		},
+		"settings": func(t *testing.T, f *deployFixture) error {
+			t.Helper()
+			server := NewResourceServer(
+				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
+			)
+			_, err := server.UpdateResource(f.rolloutContext(t), &resourcev1.UpdateResourceRequest{
+				ResourceId: f.resourceID.String(), DisplayName: new("Renamed"), RollbackOnFailure: new(true),
+			})
+			return err
+		},
+	}
+	for failure, report := range failures {
+		for change, apply := range changes {
+			t.Run(failure+" then "+change, func(t *testing.T) {
+				t.Parallel()
+				f := newDeployFixture(t)
+				if _, err := createTestDeployment(t, f, sameRegionSpec); err != nil {
+					t.Fatal(err)
+				}
+				f.finishRollouts(t)
+				failing, err := deployService(t, f, imageService())
+				if err != nil {
+					t.Fatal(err)
+				}
+				f.reportStatus(t, proto.CloneOf(report))
+				id := uuid.MustParse(failing.GetDeploymentId())
+				if status := f.deploymentStatus(t, id); status != genDb.DeploymentStatusFailed {
+					t.Fatalf("rollout status = %s, want failed", status)
+				}
+				before := f.placement(t, f.clusterID).DesiredRevision
+				if err := apply(t, f); err != nil {
+					t.Fatalf("%s after a failed rollout: %v", change, err)
+				}
+				if change == "settings" {
+					if res, getErr := f.queries.GetResourceByID(t.Context(), f.resourceID); getErr != nil ||
+						res.DisplayName != "Renamed" {
+						t.Fatalf("resource = %+v (%v), want the new display name", res, getErr)
+					}
+					return
+				}
+				if after := f.placement(t, f.clusterID).DesiredRevision; after <= before {
+					t.Fatalf("placement revision = %d, want above %d", after, before)
+				}
+				if live := f.activeDeployment(t, f.envID); live.ID == id {
+					t.Fatalf("live deployment = %s, want one newer than the failed rollout", live.ID)
+				}
+			})
+		}
 	}
 }

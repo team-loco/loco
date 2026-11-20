@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -391,5 +392,58 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestASecretRemovedFromTheFileLeavesTheNextDeploymentButStaysStored(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	f.prepareApply(t)
+	provider := newTestKeyProvider(t, "k1")
+	const stripeName = "STRIPE_API_KEY"
+	declared := planFileHeader + strings.Replace(applyFileDeclared, "DATABASE_URL", stripeName, 1)
+	removed := planFileHeader + strings.Replace(applyFileDeclared, ", DATABASE_URL", "", 1)
+	worker := f.provisionWorker(t, declared)
+	f.setWorkerSecrets(t, provider, worker, map[string]string{
+		sessionKeyName: sessionKeyValue, stripeName: stripeValue,
+	})
+	first := applyOptions{revision: f.revision(t, f.envID)}
+	if _, err := applyFile(t, f, declared, first, f.applyScopes(t)); err != nil {
+		t.Fatalf("Apply with %s: %v", stripeName, err)
+	}
+	f.finishRollouts(t)
+
+	resp, err := applyFile(t, f, removed, applyOptions{revision: f.revision(t, f.envID)}, f.applyScopes(t))
+	if err != nil {
+		t.Fatalf("Apply without %s: %v", stripeName, err)
+	}
+	if len(resp.GetDeployments()) != 1 {
+		t.Fatalf("deployments = %v, want one new deployment", resp.GetDeployments())
+	}
+	next, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(resp.GetDeployments()[0].GetDeploymentId()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{sessionKeyName}
+	if !slices.Equal(next.SecretNames, want) {
+		t.Fatalf("next deployment secret names = %v, want %v", next.SecretNames, want)
+	}
+	rows, err := f.queries.ListSecrets(context.Background(), genDb.ListSecretsParams{
+		ResourceID: worker, EnvironmentID: f.envID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(rows, func(row genDb.ListSecretsRow) bool { return row.Name == stripeName }) {
+		t.Fatalf("stored secrets = %v, want %s kept", rows, stripeName)
+	}
+	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, testAgentConfig())
+	sent := f.sendPending(t, server)
+	if len(sent) != 1 {
+		t.Fatalf("sent %d messages, want 1", len(sent))
+	}
+	data := sent[0].GetApply().GetEnvSecret().GetData()
+	if _, found := data[stripeName]; found || string(data[sessionKeyName]) != sessionKeyValue {
+		t.Fatalf("delivered secret names = %v, want only %s", slices.Collect(maps.Keys(data)), sessionKeyName)
 	}
 }
