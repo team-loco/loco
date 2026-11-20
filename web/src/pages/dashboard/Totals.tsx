@@ -384,7 +384,7 @@ export function Totals({
 			<div className="flex items-center justify-between gap-2">
 				<p className="m-0 flex items-baseline gap-2 text-[12.5px]">
 					<span className="font-medium text-foreground">Public traffic</span>
-					<span className="text-fg3">requests from the internet</span>
+					<span className="text-fg3">Requests from the internet</span>
 				</p>
 				<ToggleGroup
 					variant="segmented"
