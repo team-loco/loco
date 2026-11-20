@@ -28,7 +28,7 @@
 	visibility: visible;
 }
 [data-theme="neobrutal"] :is(.loco-tip, [data-slot="tooltip-content"]) {
-	background: var(--raise, var(--bg));
+	background: var(--raise);
 	border: 2px solid var(--ink);
 	border-radius: 5px;
 	box-shadow: 3px 3px 0 var(--ink);

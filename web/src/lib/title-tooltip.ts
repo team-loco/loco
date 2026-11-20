@@ -48,7 +48,7 @@ export function showTitlesAsTooltips() {
 		return null;
 	}
 
-	// the anchor's title stays blank while it is pointed at or focused, which keeps the browser's tooltip away
+	// the anchor's title stays blank while it is pointed at or focused
 	function claim(target: Target) {
 		release();
 		anchor = target;
@@ -98,6 +98,7 @@ export function showTitlesAsTooltips() {
 		const visible = element instanceof HTMLElement ? element.innerText.trim() : "";
 		if (visible === text.trim() && element.scrollWidth <= element.clientWidth + 1) return;
 		tip.textContent = text;
+		tip.style.left = "0px";
 		const box = element.getBoundingClientRect();
 		const top = box.top - tip.offsetHeight - GAP;
 		const left = box.left + box.width / 2 - tip.offsetWidth / 2;
