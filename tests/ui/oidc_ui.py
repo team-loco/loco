@@ -136,6 +136,21 @@ def check_browser(browser, state, issuer_url):
     context.close()
 
 
+def check_canceled_sign_in(browser, state, issuer_url):
+    context, page, errors = open_page(browser, user=None, state=state)
+
+    def deny(route):
+        authorize = parse_qs(urlparse(route.request.url).query)
+        callback = f"{state['ui_url']}/auth/callback?error=access_denied&state={authorize['state'][0]}"
+        route.fulfill(status=302, headers={"Location": callback})
+
+    page.route(issuer_url + "/authorize*", deny)
+    page.goto(state["ui_url"] + "/login")
+    expect(page.get_by_role("alert")).to_have_text("Sign-in was canceled.")
+    expect(page.get_by_role("button", name="Continue", exact=True)).to_be_visible()
+    context.close()
+
+
 with tempfile.TemporaryDirectory(prefix="loco-oidc-issuer-") as directory:
     binary = Path(directory) / "issuer"
     evidence.run(
@@ -171,6 +186,7 @@ with tempfile.TemporaryDirectory(prefix="loco-oidc-issuer-") as directory:
         )
         with session(repo / "tests/ui/out/oidc") as browser:
             check_browser(browser, state, issuer_url)
+            check_canceled_sign_in(browser, state, issuer_url)
     finally:
         issuer.terminate()
         issuer.wait(timeout=10)
