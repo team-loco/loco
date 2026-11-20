@@ -1284,7 +1284,13 @@ def dashboard(page):
         first.click()
         expect(page).to_have_url(re.compile(r"/resource/[^/?]+\?env=production$"))
         expect(page.get_by_role("heading", name=name, exact=True)).to_be_visible()
-        page.go_back()
+        # Going back refetches the dashboard, and the page scrolls as the responses render.
+        with (
+            expect_rpc(page, "ListWorkspaceResources", lambda body: True),
+            expect_rpc(page, "ListDeployments", lambda body: True),
+            expect_rpc(page, "ListRegions", lambda body: True),
+        ):
+            page.go_back()
         expect(allocated).to_be_visible()
         assert allocated.evaluate("node => getComputedStyle(node).cursor") != "pointer"
         page.get_by_role("button").filter(has_text="Olivia Owner").click()
