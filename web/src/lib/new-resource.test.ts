@@ -32,7 +32,7 @@ import {
 	type EnvRow,
 	type NewResourceForm,
 } from "./new-resource";
-import { SLUG_RULE } from "./slug";
+import { SLUG_DIGIT_LEAD, SLUG_RULE } from "./slug";
 
 const form: NewResourceForm = {
 	image: "ghcr.io/acme/web:1.4.2",
@@ -134,7 +134,8 @@ test("slugError follows the API's slug rules", () => {
 	expect(slugErr("")).toBe("Enter a slug");
 	for (const bad of ["!!!", "QA Echo", "Web", "🚀rocket", "<script>x</script>", "-bad-", " web", "x".repeat(64)])
 		expect(slugErr(bad)).toBe(SLUG_RULE);
-	for (const ok of ["web", "123cart", "qa-echo", "x".repeat(63)]) expect(slugErr(ok)).toBeNull();
+	for (const digitLed of ["123cart", "7", "1-web"]) expect(slugErr(digitLed)).toBe(SLUG_DIGIT_LEAD);
+	for (const ok of ["web", "qa-echo", "x".repeat(63)]) expect(slugErr(ok)).toBeNull();
 	expect(slugErr("localhost")).toBe("localhost is reserved");
 	expect(slugErr("web", new Set(["web"]))).toBe("web already exists in this workspace");
 });

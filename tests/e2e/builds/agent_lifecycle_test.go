@@ -63,8 +63,7 @@ func TestAgentLifecycle(t *testing.T) {
 	})
 
 	w := p.NewTenant(t)
-	// A name starting with a digit, which Kubernetes names allow only as DNS-1123 labels.
-	const app = "1e2e-agent-app"
+	const app = "e2e-agent-app"
 	dir := t.TempDir()
 	platform.WriteLocoFile(
 		t,

@@ -11,7 +11,7 @@ var internalServiceNamePattern = regexp.MustCompile(
 )
 
 func PrivateServiceName(name string) string {
-	if len(validation.IsDNS1123Label(name)) != 0 || name == "localhost" ||
+	if len(validation.IsDNS1035Label(name)) != 0 || name == "localhost" ||
 		internalServiceNamePattern.MatchString(name) {
 		return ""
 	}

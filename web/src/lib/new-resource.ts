@@ -6,7 +6,7 @@ import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 import { isEnvKey } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
 import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
-import { DNS_LABEL_RE, SLUG_RULE, slug } from "@/lib/slug";
+import { slug, slugRuleError } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
 // mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
@@ -165,7 +165,8 @@ export function nameError(name: string, taken: ReadonlySet<string>): string | nu
 
 export function slugError(value: string, taken: ReadonlySet<string>): string | null {
 	if (value === "") return "Enter a slug";
-	if (!DNS_LABEL_RE.test(value)) return SLUG_RULE;
+	const ruleError = slugRuleError(value);
+	if (ruleError !== null) return ruleError;
 	if (RESERVED_SLUG_RE.test(value)) return `${value} is reserved`;
 	if (taken.has(value)) return `${value} already exists in this workspace`;
 	return null;

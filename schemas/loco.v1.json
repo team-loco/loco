@@ -605,7 +605,7 @@
       "type": "string",
       "maxLength": 63,
       "minLength": 1,
-      "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+      "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$",
       "description": "Name of the slice of the workspace this file owns. A DNS label."
     },
     "services": {
@@ -614,7 +614,7 @@
       },
       "propertyNames": {
         "maxLength": 63,
-        "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+        "pattern": "^[a-z]([-a-z0-9]*[a-z0-9])?$"
       },
       "type": "object",
       "description": "Services keyed by name, a DNS label that is also the private hostname. The name is the identity: renaming is a delete and a create."

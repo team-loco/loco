@@ -6,7 +6,7 @@ import (
 )
 
 func TestPrivateServiceName(t *testing.T) {
-	valid := []string{"cart", "payment", "product-catalog", "123cart", strings.Repeat("1", 63)}
+	valid := []string{"cart", "payment", "product-catalog", strings.Repeat("a", 63)}
 	for _, name := range valid {
 		if got := PrivateServiceName(name); got != name {
 			t.Errorf("PrivateServiceName(%q) = %q", name, got)
@@ -14,6 +14,7 @@ func TestPrivateServiceName(t *testing.T) {
 	}
 	invalid := []string{
 		"",
+		"123cart",
 		"My_Service",
 		"localhost",
 		"resource-01234567-89ab-cdef-0123-456789abcdef",

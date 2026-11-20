@@ -33,7 +33,7 @@ var (
 	errInvalidEnvironmentSlug = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"environment slug must be 1 to 63 lowercase letters, digits and hyphens, "+
-			"starting and ending with a letter or digit, and not localhost or resource-<UUID>",
+			"starting with a letter and ending with a letter or digit, and not localhost or resource-<UUID>",
 	)
 	ErrEnvironmentNameNotUnique = rpcerr.NewCoded(
 		connect.CodeAlreadyExists,

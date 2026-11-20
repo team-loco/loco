@@ -13,7 +13,7 @@ var (
 	ErrPartialRequired    = errors.New("partial is required")
 	ErrNoServices         = errors.New("services is required; services: {} removes every service of the partial")
 	ErrInvalidName        = errors.New(
-		"must be 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit",
+		"must be 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit",
 	)
 	ErrImageWithBuild         = errors.New("image cannot be combined with dockerfile or context")
 	ErrPortRequired           = errors.New("needs port; a service without port is a worker and receives no traffic")

@@ -17,7 +17,7 @@ const (
 	MaxRestartWindow = 3600
 )
 
-var dnsLabelPattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
+var dnsLabelPattern = regexp.MustCompile(`^[a-z]([-a-z0-9]*[a-z0-9])?$`)
 
 // validate checks the file's structure: required keys, name shapes and the merged service for
 // every environment the file names. Limits on resources belong to the API.
@@ -125,7 +125,7 @@ func validateAutoscaling(path string, autoscaling *Autoscaling) []error {
 	return nil
 }
 
-// IsDNSLabel reports whether name can name a partial or a service.
+// IsDNSLabel reports whether name can name a partial or a service: a DNS label that starts with a letter.
 func IsDNSLabel(name string) bool {
 	return len(name) <= MaxServiceNameLength && dnsLabelPattern.MatchString(name)
 }

@@ -2337,11 +2337,11 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x04_cpuB\t\n" +
 	"\a_memoryB\t\n" +
 	"\a_region\"\x17\n" +
-	"\x15ScaleResourceResponse\"\x89\x01\n" +
+	"\x15ScaleResourceResponse\"\x86\x01\n" +
 	"\x16TransferPartialRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12D\n" +
-	"\apartial\x18\x02 \x01(\tB*\xbaH'r%\x10\x01\x18?2\x1f^[a-z0-9]([-a-z0-9]*[a-z0-9])?$R\apartial\"\x19\n" +
+	"resourceId\x12A\n" +
+	"\apartial\x18\x02 \x01(\tB'\xbaH$r\"\x10\x01\x18?2\x1c^[a-z]([-a-z0-9]*[a-z0-9])?$R\apartial\"\x19\n" +
 	"\x17TransferPartialResponse\"\xa5\x01\n" +
 	"\x16RestartResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +

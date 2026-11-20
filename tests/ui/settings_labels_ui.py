@@ -203,7 +203,7 @@ def check_environments(page):
     slug.fill("QA")
     expect(
         dialog.get_by_text(
-            "Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit",
+            "Use 1 to 63 lowercase letters, digits and hyphens, starting with a letter and ending with a letter or digit",
             exact=True,
         )
     ).to_be_visible()

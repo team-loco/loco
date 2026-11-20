@@ -39,8 +39,7 @@ func (i *Inspector) CheckKubernetesVersion() error {
 	minimum := version.MustParseSemantic(fmt.Sprintf("%d.%d.0", oldest.Major(), oldest.Minor()))
 	if actual.LessThan(minimum) {
 		return fmt.Errorf(
-			"kubernetes %s is unsupported: upgrade the API server to %s or newer "+
-				"with RelaxedServiceNameValidation enabled; see "+
+			"kubernetes %s is unsupported: upgrade the API server to %s or newer; see "+
 				"https://docs.loco.build/operations/self-hosting/#supported-kubernetes-versions",
 			server.GitVersion,
 			minimum,
