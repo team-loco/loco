@@ -33,6 +33,9 @@ message Event {
   string environment_id = 16;
   // The entity type that owns the API token that acted: user, organization, workspace or resource.
   string actor_token_type = 17;
+  // The deployment the event concerns: the one a deployment event is about, or the one running
+  // when resource.degraded or resource.recovered fired. Empty for other events.
+  string deployment_id = 18;
 }
 
 message ListEventsRequest {

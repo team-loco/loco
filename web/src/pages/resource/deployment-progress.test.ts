@@ -168,18 +168,19 @@ test("a restart's feed shows only its own revision in the region", () => {
 	});
 });
 
-test("problem log links preserve scope and target replica or failed build", () => {
-	const deployment = create(DeploymentSchema, { placements: [{ problem: { replicaName: "web-1" } }] });
-	expect(problemLogsHref("/logs?env=prod&r=web", deployment)).toBe("/logs?env=prod&r=web&q=%40replica%3Aweb-1");
+test("problem log links carry the API's logs query and keep the page's scope", () => {
+	const replica = create(DeploymentSchema, {
+		placements: [{ problem: { replicaName: "web-1", logsQuery: "@replica:web-1" } }],
+	});
+	expect(problemLogsHref("/logs?env=prod&r=web", replica)).toBe("/logs?env=prod&r=web&q=%40replica%3Aweb-1");
 	const build = create(DeploymentSchema, {
-		placements: [{ problem: { reason: "build_failed" } }],
-		spec: { spec: { case: "service", value: { build: { buildId: "build-1" } } } },
+		placements: [{ problem: { reason: "build_failed", logsQuery: "@build:build-1" } }],
 	});
 	expect(problemLogsHref("/logs?env=prod", build)).toBe("/logs?env=prod&q=%40build%3Abuild-1");
-	expect(problemLogsHref(undefined, deployment)).toBeUndefined();
+	expect(problemLogsHref(undefined, replica)).toBeUndefined();
 	expect(problemLogsHref("/logs", pending)).toBeUndefined();
 	expect(
-		problemLogsHref("/logs", create(DeploymentSchema, { placements: [{ problem: { message: "No target replica" } }] })),
+		problemLogsHref("/logs", create(DeploymentSchema, { placements: [{ problem: { message: "No logs query" } }] })),
 	).toBeUndefined();
 });
 

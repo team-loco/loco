@@ -11048,6 +11048,11 @@
           "since": {
             "title": "since",
             "$ref": "#/components/schemas/google.protobuf.Timestamp"
+          },
+          "logsQuery": {
+            "type": "string",
+            "title": "logs_query",
+            "description": "A log query selecting the lines that explain the problem: the build's logs for a failed build,\n the replica's logs when the problem names one. Empty when no narrower selection exists, and\n the resource's logs are the place to look."
           }
         },
         "title": "Problem",
@@ -12058,6 +12063,11 @@
             "type": "string",
             "title": "actor_token_type",
             "description": "The entity type that owns the API token that acted: user, organization, workspace or resource."
+          },
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id",
+            "description": "The deployment the event concerns: the one a deployment event is about, or the one running\n when resource.degraded or resource.recovered fired. Empty for other events."
           }
         },
         "title": "Event",

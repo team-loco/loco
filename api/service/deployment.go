@@ -132,7 +132,12 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		if view.SupersededBy != nil {
 			placement.SupersededBy = view.SupersededBy.String()
 		}
-		if err := setPlacementRollout(placement, view.Rollout, view.Observed); err != nil {
+		if err := setPlacementRollout(
+			placement,
+			spec.GetService().GetBuild().GetBuildId(),
+			view.Rollout,
+			view.Observed,
+		); err != nil {
 			return nil, err
 		}
 		placements = append(placements, placement)

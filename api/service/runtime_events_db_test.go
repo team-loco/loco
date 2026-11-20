@@ -396,3 +396,48 @@ func TestProblemEventsForARecreatedPlacement(t *testing.T) {
 		t.Fatalf("degraded events=%d", count)
 	}
 }
+
+func TestRuntimeEventsCarryTheirDeploymentID(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	id, err := f.deploy(t.Context(), staticSpec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	placement := f.placement(t, f.clusterID)
+	report := &agentv1.PlacementStatus{
+		PlacementId: placement.ID.String(), ObservedRevision: placement.DesiredRevision,
+		Available: true, Healthy: true,
+		Problem: &agentv1.ProblemReport{Reason: string(locov1alpha1.ProblemOutOfMemory)},
+	}
+	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
+	report.Problem = nil
+	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
+
+	parents, err := f.queries.GetWorkspaceOrganizationIDByResourceID(t.Context(), f.resourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := auditScope(t, genDb.EntityTypeSystem, uuid.Nil, genDb.ScopeAdmin)
+	listed, err := NewEventServer(f.pool, f.queries).ListEvents(ctx, &eventv1.ListEventsRequest{
+		OrgId: parents.OrgID.String(), ResourceId: f.resourceID.String(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]bool{}
+	for _, event := range listed.GetEvents() {
+		switch event.GetType() {
+		case events.ResourceDegraded, events.ResourceRecovered, events.DeploymentReady:
+			seen[event.GetType()] = true
+			if event.GetDeploymentId() != id.String() {
+				t.Errorf("%s deployment_id = %q, want %s", event.GetType(), event.GetDeploymentId(), id)
+			}
+		}
+	}
+	for _, kind := range []string{events.ResourceDegraded, events.ResourceRecovered, events.DeploymentReady} {
+		if !seen[kind] {
+			t.Errorf("no %s event listed", kind)
+		}
+	}
+}

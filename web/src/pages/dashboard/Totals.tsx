@@ -20,17 +20,22 @@ import { Link } from "react-router";
 
 import { NavArrow } from "@/components/design/NavArrow";
 import { Skeleton } from "@/components/design/Skeleton";
+import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { deployMarkers } from "@/lib/deployMarkers";
 import { pluralize } from "@/lib/format";
 import { formatCpu, formatMemory } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
+
+import type { Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
 import type { Allocation } from "./allocation";
 import { trafficResourceName } from "./trafficNames";
 import { useDeletedResourceNames } from "./useDeletedResourceNames";
 
 const TOP = 5;
+const CARD_BUCKETS = 12;
 const PERCENT = 100;
 
 const CARD = "flex min-h-full min-w-0 flex-col gap-1 rounded-card bg-panel px-5 pt-[18px] pb-4";
@@ -285,6 +290,8 @@ function TrafficCard({
 	names,
 	deleted,
 	hrefFor,
+	deploys,
+	nowMs,
 }: {
 	spec: TrafficCardSpec;
 	current: TrafficPoint[];
@@ -296,6 +303,8 @@ function TrafficCard({
 	names: ReadonlyMap<string, string>;
 	deleted: ReadonlyMap<string, string>;
 	hrefFor: (id: string) => string;
+	deploys: { deployment: Deployment; resource: string }[];
+	nowMs: number;
 }) {
 	const perResource = trafficTotals(current, spec.field, stepMs, windows.current);
 	const total = sumTotals(perResource);
@@ -341,11 +350,18 @@ function TrafficCard({
 					</span>
 				</>
 			)}
-			<Sparkline
-				values={state === "ready" ? windowSeries(current, spec.field, stepMs, windows.current) : []}
-				fill={warn ? 0.12 : 0.08}
-				className={cn("mt-2 h-[38px]", warn ? "text-warn" : "text-foreground")}
-			/>
+			<div className="relative mt-2">
+				<Sparkline
+					values={state === "ready" ? windowSeries(current, spec.field, stepMs, windows.current) : []}
+					fill={warn ? 0.12 : 0.08}
+					className={cn("h-[38px]", warn ? "text-warn" : "text-foreground")}
+				/>
+				{state === "ready" && (
+					<DeployMarkers
+						markers={deployMarkers(deploys, windows.current.startMs, windows.current.endMs, CARD_BUCKETS, nowMs)}
+					/>
+				)}
+			</div>
 		</StatCard>
 	);
 }
@@ -358,6 +374,7 @@ export function Totals({
 	orgId,
 	workspaceId,
 	environmentId,
+	deployments,
 	nowMs,
 }: {
 	value: Allocation;
@@ -367,6 +384,7 @@ export function Totals({
 	orgId: string;
 	workspaceId: string;
 	environmentId: string;
+	deployments: { deployment: Deployment; resource: { name: string } }[];
 	nowMs: number;
 }) {
 	const [range, setRange] = useQueryState("range", rangeParser);
@@ -383,6 +401,7 @@ export function Totals({
 	const state = traffic.isLoading ? "loading" : traffic.error !== null ? "error" : "ready";
 	const gone = [...traffic.points, ...prior.points].some((p) => !names.has(p.resourceId));
 	const deleted = useDeletedResourceNames(orgId, workspaceId, gone);
+	const deploys = deployments.map(({ deployment, resource }) => ({ deployment, resource: resource.name }));
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="flex items-center justify-between gap-2">
@@ -423,6 +442,8 @@ export function Totals({
 						names={names}
 						deleted={deleted}
 						hrefFor={hrefFor}
+						deploys={deploys}
+						nowMs={nowMs}
 					/>
 				))}
 				<AllocatedCard value={value} hrefFor={hrefFor} />

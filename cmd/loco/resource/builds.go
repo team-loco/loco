@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	defaultBuildListSize = 20
-	finishedLogMargin    = time.Minute
-	imageDeletedSuffix   = " (deleted)"
-	shortCommitLength    = 7
+	defaultBuildListLimit = 20
+	finishedLogMargin     = time.Minute
+	imageDeletedSuffix    = " (deleted)"
+	shortCommitLength     = 7
 )
 
 func BuildBuildsCmd() *cobra.Command {
@@ -100,7 +100,7 @@ Examples:
 	}
 	cmd.Flags().String("org", "", "Organization name")
 	cmd.Flags().String("workspace", "", "Workspace name")
-	cmd.Flags().Int32("limit", defaultBuildListSize, "Number of builds to show (up to 200)")
+	cmd.Flags().Int("limit", defaultBuildListLimit, "Number of builds to show")
 	cmd.Flags().StringP("output", "o", outputText, "Output format (text, json)")
 	return cmd
 }
@@ -110,12 +110,12 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 	if err != nil {
 		return err
 	}
-	limit, err := cmd.Flags().GetInt32("limit")
+	limit, err := cmd.Flags().GetInt("limit")
 	if err != nil {
 		return fmt.Errorf("error reading limit flag: %w", err)
 	}
-	if limit < 1 || limit > 200 {
-		return errors.New("--limit must be between 1 and 200")
+	if limit < 1 {
+		return errors.New("--limit must be at least 1")
 	}
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 	defer stop()
@@ -128,17 +128,25 @@ func runBuildsList(cmd *cobra.Command, name string) error {
 		return err
 	}
 
-	resourceID := resource.GetId()
-	req := &buildv1.ListBuildsRequest{ResourceId: resourceID, PageSize: limit}
-
-	resp, err := t.Clients.Build.ListBuilds(ctx, req)
-	if err != nil {
-		return fmt.Errorf("list builds: %w", err)
+	var builds []*buildv1.Build
+	pageToken := ""
+	for len(builds) < limit {
+		resp, listErr := t.Clients.Build.ListBuilds(ctx, &buildv1.ListBuildsRequest{
+			ResourceId: resource.GetId(), PageToken: pageToken,
+		})
+		if listErr != nil {
+			return fmt.Errorf("list builds: %w", listErr)
+		}
+		builds = append(builds, resp.GetBuilds()...)
+		pageToken = resp.GetNextPageToken()
+		if pageToken == "" {
+			break
+		}
 	}
-	builds := resp.GetBuilds()
+	builds = builds[:min(len(builds), limit)]
 
 	if output == outputJSON {
-		return writeJSON(cmd.OutOrStdout(), resp)
+		return writeJSON(cmd.OutOrStdout(), &buildv1.ListBuildsResponse{Builds: builds})
 	}
 	if len(builds) == 0 {
 		_, err = fmt.Fprintf(cmd.OutOrStdout(), "%s has no builds.\n", name)
