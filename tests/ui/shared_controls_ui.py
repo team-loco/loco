@@ -557,6 +557,7 @@ def template_logs(page):
 
 
 def log_drawer(page):
+    image_digest = "registry.example/app@sha256:" + "a" * 64
     entries = [
         {
             "timestamp": stamp(datetime.now(UTC), timedelta(seconds=5)),
@@ -564,7 +565,7 @@ def log_drawer(page):
             "body": "Drawer line",
             "resourceId": resource,
             "resourceAttributes": {
-                "container.image.name": "registry.example/app",
+                "container.image.name": image_digest,
                 "k8s.cluster.name": "staging",
             },
         }
@@ -617,7 +618,24 @@ def log_drawer(page):
     view.get_by_role("button", name="JSON").click()
     expect(detail.get_by_text("@k8s.cluster.name", exact=True)).to_have_count(0)
     expect(detail.get_by_role("textbox", name="Filter attributes")).to_have_count(0)
-    expect(detail.get_by_text("registry.example/app").first).to_be_visible()
+    json_view = detail.locator("[data-slot=code-block] pre")
+    expect(json_view.get_by_text(f'"{image_digest}"', exact=True)).to_be_visible()
+    wrap = detail.get_by_role("button", name="Wrap lines", exact=True)
+    expect(wrap).to_have_attribute("aria-pressed", "false")
+    assert json_view.evaluate("el => el.scrollWidth > el.clientWidth")
+    wrap.focus()
+    wrap.press("Space")
+    expect(wrap).to_be_focused()
+    expect(wrap).to_have_attribute("aria-pressed", "true")
+    assert json_view.evaluate("el => el.scrollWidth == el.clientWidth")
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    detail.get_by_role("button", name="Copy JSON", exact=True).press("Enter")
+    expect(detail.get_by_role("button", name="Copied", exact=True)).to_be_visible()
+    copied = json.loads(page.evaluate("navigator.clipboard.readText()"))
+    assert copied["resource_attributes"]["container.image.name"] == image_digest
+    wrap.click()
+    expect(wrap).to_have_attribute("aria-pressed", "false")
+    assert json_view.evaluate("el => el.scrollWidth > el.clientWidth")
     page.keyboard.press("Escape")
     expect(detail).to_have_count(0)
     row.click()
