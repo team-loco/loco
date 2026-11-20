@@ -75,18 +75,10 @@ func cmdFakePlatform(ts *testscript.TestScript, api *fakeAPI, neg bool, args []s
 		api.mu.Lock()
 		api.platform.addEnvironment(args[1])
 		api.mu.Unlock()
-	case "deployment":
-		setDeploymentOutcome(ts, api, neg, args)
-	case "finished":
-		setFinishedRegions(ts, api, neg, args)
-	case "restarted", "scaled", "canceled":
-		checkRecorded(ts, api, neg, args)
-	case "built":
-		checkBuilt(ts, api, neg, args)
-	case "uploaded":
-		checkUploaded(ts, api, neg, args)
-	case "upload-header":
-		checkUploadHeader(ts, api, neg, args)
+	case "deployment", "finished", "restarted", "scaled", "canceled":
+		cmdFakeDeployments(ts, api, neg, args)
+	case "built", "uploaded", "upload-header":
+		cmdFakeSources(ts, api, neg, args)
 	case "secret", "secret-usage":
 		cmdFakeSecrets(ts, api, neg, args)
 	case "wait":
@@ -173,15 +165,32 @@ func setDeploymentOutcome(ts *testscript.TestScript, api *fakeAPI, neg bool, arg
 	api.platform.deploymentCanceledBy[args[1]] = canceledBy
 }
 
-// checkRecorded checks that the fake recorded the restart, scale or cancel the arguments name.
-func checkRecorded(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+// cmdFakeDeployments sets deployment outcomes and finished regions, or checks the restart,
+// scale or cancel the fake recorded.
+func cmdFakeDeployments(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
 	switch args[0] {
+	case "deployment":
+		setDeploymentOutcome(ts, api, neg, args)
+	case "finished":
+		setFinishedRegions(ts, api, neg, args)
 	case "restarted":
 		checkRestarted(ts, api, neg, args)
 	case "scaled":
 		checkScaled(ts, api, neg, args)
 	default:
 		checkCanceled(ts, api, neg, args)
+	}
+}
+
+// cmdFakeSources checks the builds and source uploads the fake recorded.
+func cmdFakeSources(ts *testscript.TestScript, api *fakeAPI, neg bool, args []string) {
+	switch args[0] {
+	case "built":
+		checkBuilt(ts, api, neg, args)
+	case "uploaded":
+		checkUploaded(ts, api, neg, args)
+	default:
+		checkUploadHeader(ts, api, neg, args)
 	}
 }
 
