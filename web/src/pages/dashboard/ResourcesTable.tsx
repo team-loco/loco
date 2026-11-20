@@ -609,6 +609,7 @@ export function ResourcesTable({
 							inset
 							label="Resources"
 							onRowClick={(row) => void navigate(itemHref(row.original))}
+							rowAction="navigate"
 							className="[--row-h:66px]"
 							empty={empty}
 						/>

@@ -527,36 +527,34 @@ export function LogsView() {
 								{held} {held === 1 ? "new line" : "new lines"}
 							</button>
 						)}
-						<div data-slot="log-scroll" className="overflow-x-auto px-5 pt-1 pb-3 [scrollbar-width:thin]">
-							<LogTable
-								rows={pageRows}
-								columns={columns}
-								dated={spanMs > DAY_MS}
-								selectedKey={selRow?.key ?? null}
-								words={freeWords}
-								highlightAfter={tail ? nowMs - FRESH_MS : null}
-								onSelect={(key) => {
-									select(key === selRow?.key ? null : key);
-								}}
-								onColumns={setColumns}
-								widths={widths}
-								onWidths={(next) => {
-									void setParams({ widths: next });
-								}}
-							/>
-							{isLoading && <LoadingRows />}
-							{!isLoading && error !== null && (
-								<div role="alert" className="px-3 py-6 break-words text-bad-fg">
-									{getErrorMessage(error, "Failed to load logs")}
-								</div>
-							)}
-							{!isLoading && error === null && rows.length === 0 && tail && (
-								<div className="px-3 py-6 text-fg3">Waiting for new logs…</div>
-							)}
-							{!isLoading && error === null && rows.length === 0 && !tail && query !== "" && (
-								<NoMatches title="No lines match these filters" />
-							)}
-						</div>
+						<LogTable
+							rows={pageRows}
+							columns={columns}
+							dated={spanMs > DAY_MS}
+							selectedKey={selRow?.key ?? null}
+							words={freeWords}
+							highlightAfter={tail ? nowMs - FRESH_MS : null}
+							loading={isLoading}
+							empty={
+								error !== null ? (
+									<div role="alert" className="px-3 py-6 break-words text-bad-fg">
+										{getErrorMessage(error, "Failed to load logs")}
+									</div>
+								) : tail ? (
+									<div className="px-3 py-6 text-fg3">Waiting for new logs…</div>
+								) : query !== "" ? (
+									<NoMatches title="No lines match these filters" />
+								) : null
+							}
+							onSelect={(key) => {
+								select(key === selRow?.key ? null : key);
+							}}
+							onColumns={setColumns}
+							widths={widths}
+							onWidths={(next) => {
+								void setParams({ widths: next });
+							}}
+						/>
 						<Pager
 							label={
 								rows.length > 0 ? (
@@ -670,20 +668,5 @@ export function LogsView() {
 				</>
 			)}
 		</>
-	);
-}
-
-function LoadingRows() {
-	return (
-		<div className="flex flex-col gap-0.5 pt-1">
-			{Array.from({ length: 10 }, (_, i) => (
-				<div key={String(i)} className="flex h-[34px] items-center gap-3 px-3">
-					<Skeleton className="h-3 w-[120px]" />
-					<Skeleton className="h-3 w-12" />
-					<Skeleton className="h-3 w-[100px]" />
-					<Skeleton className={cn("h-3", i % 2 === 0 ? "w-1/2" : "w-1/3")} />
-				</div>
-			))}
-		</div>
 	);
 }

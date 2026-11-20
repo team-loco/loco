@@ -6,17 +6,29 @@ export function ColumnResizeHandle({
 	min,
 	max,
 	onWidth,
+	onDrag,
 }: {
 	label: string;
 	width: number;
 	min: number;
 	max: number;
+	/** Commits a width: on each arrow key and once when a drag ends. */
 	onWidth: (value: number) => void;
+	/** Previews the width while dragging; null ends the preview. Without it, every drag step commits. */
+	onDrag?: (value: number | null) => void;
 }) {
-	const dragRef = useRef<{ x: number; width: number } | null>(null);
+	const dragRef = useRef<{ x: number; width: number; value: number } | null>(null);
 	const measured = (handle: Element) => handle.parentElement?.getBoundingClientRect().width ?? width;
+	const clamp = (value: number) => Math.min(max, Math.max(min, Math.round(value)));
 	const resize = (value: number) => {
-		onWidth(Math.min(max, Math.max(min, Math.round(value))));
+		onWidth(clamp(value));
+	};
+	const end = (commit: boolean) => {
+		const drag = dragRef.current;
+		dragRef.current = null;
+		if (drag === null || onDrag === undefined) return;
+		onDrag(null);
+		if (commit) onWidth(drag.value);
 	};
 	return (
 		<div
@@ -33,26 +45,31 @@ export function ColumnResizeHandle({
 					resize(measured(event.currentTarget) + (event.key === "ArrowLeft" ? -16 : 16));
 				}
 				if (event.key === "Escape" && dragRef.current !== null) {
-					resize(dragRef.current.width);
-					dragRef.current = null;
+					if (onDrag === undefined) resize(dragRef.current.width);
+					end(false);
 				}
 			}}
 			onPointerDown={(event) => {
 				event.currentTarget.setPointerCapture(event.pointerId);
-				dragRef.current = { x: event.clientX, width: measured(event.currentTarget) };
+				const start = measured(event.currentTarget);
+				dragRef.current = { x: event.clientX, width: start, value: clamp(start) };
 			}}
 			onPointerMove={(event) => {
-				if (dragRef.current !== null) resize(dragRef.current.width + event.clientX - dragRef.current.x);
+				const drag = dragRef.current;
+				if (drag === null) return;
+				drag.value = clamp(drag.width + event.clientX - drag.x);
+				if (onDrag === undefined) onWidth(drag.value);
+				else onDrag(drag.value);
 			}}
 			onPointerUp={() => {
-				dragRef.current = null;
+				end(true);
 			}}
 			onPointerCancel={() => {
-				if (dragRef.current !== null) resize(dragRef.current.width);
-				dragRef.current = null;
+				if (onDrag === undefined && dragRef.current !== null) resize(dragRef.current.width);
+				end(false);
 			}}
 			onLostPointerCapture={() => {
-				dragRef.current = null;
+				end(true);
 			}}
 			className="absolute top-2 right-0 bottom-2 w-2 cursor-col-resize touch-none rounded-sm outline-none after:absolute after:inset-y-0 after:right-[3px] after:w-px after:bg-line2 after:opacity-0 after:transition-opacity after:duration-120 in-[[data-slot=table-header]:hover]:after:opacity-100 hover:after:bg-fg3 hover:after:opacity-100 focus-visible:after:bg-foreground focus-visible:after:opacity-100"
 		/>
