@@ -48,6 +48,7 @@ import {
 	timeAxis,
 } from "./time";
 
+const utcPref24 = { zone: "utc", clock: "24" } as const;
 const utc12 = { zone: "utc", clock: "12" } as const;
 const midnight = Date.UTC(2026, 10, 12);
 
@@ -110,11 +111,38 @@ test("spreads ticks across the requested range, independent of sparse samples", 
 	expect(ticks).toEqual([from, ...Array.from({ length: 6 }, (_, i) => from + ((i + 1) * hour) / 6)]);
 });
 
-test("labels a day-long window with clock times", () => {
-	const from = new Date(2026, 9, 19, 12).getTime();
-	const pref = { zone: "local", clock: "24" } as const;
-	expect(formatAxisTime(from, from, from + DAY_MS, pref)).toBe("12:00");
-	expect(formatAxisTime(from + DAY_MS / 24, from, from + DAY_MS, pref)).toBe("13:00");
+test("labels a window that crosses midnight with dates on every label", () => {
+	const from = Date.UTC(2026, 9, 19, 15, 7);
+	const to = from + DAY_MS;
+	const labels = timeAxis(from, to, utcPref24).map((t) => formatAxisTime(t, from, to, utcPref24));
+	expect(labels[0]).toBe("Oct 19 15:07");
+	expect(labels.at(-1)).toBe("Oct 20 15:07");
+	expect(labels.every((label) => /^Oct \d+ \d\d:\d\d$/.test(label))).toBe(true);
+});
+
+test("labels a window within one day with clock times", () => {
+	const from = Date.UTC(2026, 9, 19, 15, 7);
+	const to = from + 3_600_000;
+	const labels = timeAxis(from, to, utcPref24).map((t) => formatAxisTime(t, from, to, utcPref24));
+	expect(labels.every((label) => /^\d\d:\d\d$/.test(label))).toBe(true);
+});
+
+test("labels a 12-hour clock window that crosses midnight", () => {
+	const from = Date.UTC(2026, 9, 19, 21, 0);
+	expect(formatAxisTime(from + 6 * 3_600_000, from, from + 12 * 3_600_000, utc12)).toBe("Oct 20 3:00 AM");
+});
+
+test("labels windows longer than four days with dates", () => {
+	const from = Date.UTC(2026, 9, 19, 15, 7);
+	expect(formatAxisTime(from + DAY_MS, from, from + 7 * DAY_MS, utcPref24)).toBe("Oct 20");
+});
+
+test("a day-long window spaces its inner ticks by one step", () => {
+	const from = new Date(2026, 9, 19, 15, 7).getTime();
+	const to = from + DAY_MS;
+	const ticks = timeAxis(from, to, { zone: "local", clock: "24" }).slice(1, -1);
+	const gaps = ticks.slice(1).map((t, i) => t - (ticks[i] ?? 0));
+	expect(new Set(gaps).size).toBe(1);
 });
 
 test("formats start labels with explicit clock and zone preferences", () => {
