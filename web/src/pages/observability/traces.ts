@@ -43,6 +43,10 @@ export function spanError(span: TraceSpan): boolean {
 	return span.statusCode === "Error" || span.statusCode === "STATUS_CODE_ERROR" || span.statusCode === "2";
 }
 
+export function spanErrorText(span: TraceSpan): string {
+	return span.statusMessage === "" ? "Error" : `Error: ${span.statusMessage}`;
+}
+
 export function uniqueSpans(spans: TraceSpan[]): TraceSpan[] {
 	return [...new Map(spans.map((span) => [`${span.traceId}:${span.spanId}`, span])).values()];
 }

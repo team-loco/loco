@@ -42,7 +42,11 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 				return (
 					<SpanTipTrigger
 						key={row.key}
-						lines={rows.map((r) => `${formatClock(r.ts, true, timePref)} · ${r.message}`)}
+						entries={rows.map((r) => ({
+							title: r.message,
+							color: r.color,
+							meta: `${r.resourceName} · ${formatClock(r.ts, true, timePref)}`,
+						}))}
 						render={
 							<button
 								type="button"
@@ -69,7 +73,10 @@ export function LogMarkers({ trace, zoom, logs, highlighted, onHover, onOpen }: 
 									dimOthers && "opacity-35",
 									rows.some((r) => highlighted.has(r.key)) && "top-0 h-[12px] opacity-100",
 								)}
-								style={{ left: `${String(left * 100)}%`, background: row.color }}
+								style={{
+									left: `${String(left * 100)}%`,
+									background: row.color,
+								}}
 							/>
 						}
 					/>

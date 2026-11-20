@@ -1799,7 +1799,20 @@ with session(out) as browser:
         bar.hover()
         tooltip = page.get_by_role("tooltip")
         expect(tooltip).to_contain_text(spans[5]["name"])
-        expect(tooltip).to_contain_text("Double-click to zoom")
+        title = tooltip.locator("span").first
+        meta = tooltip.locator("span").nth(1)
+        expect(meta).to_contain_text("self ")
+        expect(tooltip.locator('[data-slot="span-tip-dot"]')).to_have_count(1)
+        weights = [
+            e.evaluate(
+                "e => [getComputedStyle(e).fontWeight, getComputedStyle(e).fontSize]"
+            )
+            for e in (title, meta)
+        ]
+        assert weights[0] != weights[1], weights
+        assert int(weights[0][0]) > int(weights[1][0]), weights
+        assert float(weights[0][1][:-2]) > float(weights[1][1][:-2]), weights
+        expect(tooltip).not_to_contain_text("Double-click")
         box = bar.bounding_box()
         assert page.evaluate(
             "([x, y]) => document.elementsFromPoint(x, y).every(e => !e.hasAttribute('title'))",
