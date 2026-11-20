@@ -51,7 +51,7 @@ const TOOLTIP_ROWS = 8;
 const FADED = 0.3;
 const DIMMED = 0.12;
 const X_AXIS_HEIGHT = 20;
-const TOP_MARGIN = 6;
+const TOP_MARGIN = 14;
 const MARGIN = 24;
 const WIDE_MARGIN = 44;
 // Labels of deploys past this share of the range sit left of their line.
