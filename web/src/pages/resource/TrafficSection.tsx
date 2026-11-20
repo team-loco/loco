@@ -7,7 +7,7 @@ import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
 import { useTraffic } from "@/hooks/useTraffic";
 import { getErrorMessage } from "@/lib/error-handler";
-import { formatFullTime, timeAxis } from "@/lib/time";
+import { formatAxisTime, formatFullTime, timeAxis } from "@/lib/time";
 import { errorShare, latestTraffic, trafficAxis, trafficValue } from "@/lib/traffic";
 import { RANGE_MS, type MetricRange } from "./metric";
 
@@ -109,6 +109,7 @@ function PublicTraffic({
 												domain={[from, to]}
 												ticks={timeAxis(from, to, timePref)}
 												interval="preserveStartEnd"
+												tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 												tick={axisTimeTick(from, to, timePref)}
 												tickLine={false}
 												axisLine={false}

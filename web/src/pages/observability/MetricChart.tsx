@@ -16,7 +16,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { formatPercent } from "@/lib/compute-chart";
 import { cn } from "@/lib/utils";
-import { DAY_MS, timeAxis } from "@/lib/time";
+import { formatAxisTime, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
 import { markerGroups } from "./metric-markers";
@@ -53,8 +53,7 @@ const FADED = 0.3;
 const DIMMED = 0.12;
 const X_AXIS_HEIGHT = 20;
 const TOP_MARGIN = 14;
-const MARGIN = 24;
-const WIDE_MARGIN = 44;
+const MARGIN = 4;
 // Labels of deploys past this share of the range sit left of their line.
 const FLIP_SHARE = 0.8;
 const LABEL_CHAR_PX = 6;
@@ -281,7 +280,7 @@ export function MetricChart({
 							data={data}
 							margin={{
 								top: TOP_MARGIN,
-								right: to - from >= DAY_MS ? WIDE_MARGIN : MARGIN,
+								right: MARGIN,
 								bottom: 0,
 								left: 0,
 							}}
@@ -319,6 +318,7 @@ export function MetricChart({
 								tickLine={false}
 								height={X_AXIS_HEIGHT}
 								axisLine={{ stroke: "var(--line)" }}
+								tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 								tick={axisTimeTick(from, to, timePref, 10.5)}
 							/>
 							<YAxis

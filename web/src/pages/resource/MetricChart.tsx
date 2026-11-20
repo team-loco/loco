@@ -7,7 +7,7 @@ import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis }
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { DAY_MS, timeAxis } from "@/lib/time";
+import { formatAxisTime, timeAxis } from "@/lib/time";
 import { formatPercent, limitAxis, percentAxis } from "@/lib/compute-chart";
 
 import { formatFullTime } from "./format";
@@ -15,8 +15,7 @@ import { scaleBand, usageSummary, type BandPoint } from "./metric";
 
 const WARN_SHARE = 0.85;
 const AXIS_FONT = 11;
-const DAY_MARGIN = 40;
-const MARGIN = 12;
+const MARGIN = 4;
 const BAND_OPACITY = 0.14;
 const FULL_REQUEST = 100;
 const LINE_WIDTH = 1.75;
@@ -127,10 +126,7 @@ export function MetricChart({
 					className="aspect-auto h-40 w-full"
 					aria-label={`${title}: lowest, median and highest across replicas${absolute ? "" : " as a percentage of the request"}`}
 				>
-					<ComposedChart
-						data={data}
-						margin={{ top: 8, right: to - from >= DAY_MS ? DAY_MARGIN : MARGIN, bottom: 0, left: 0 }}
-					>
+					<ComposedChart data={data} margin={{ top: 8, right: MARGIN, bottom: 0, left: 0 }}>
 						<CartesianGrid vertical={false} stroke="var(--line)" />
 						<XAxis
 							dataKey="time"
@@ -142,6 +138,7 @@ export function MetricChart({
 							tickLine={false}
 							axisLine={false}
 							minTickGap={24}
+							tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 							tick={axisTimeTick(from, to, timePref, AXIS_FONT)}
 						/>
 						<YAxis

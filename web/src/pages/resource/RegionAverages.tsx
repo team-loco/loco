@@ -7,7 +7,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Skeleton } from "@/components/design/Skeleton";
 import { metricsQueryOptions } from "@/hooks/useQueryMetrics";
 import { formatPercent } from "@/lib/compute-chart";
-import { timeAxis } from "@/lib/time";
+import { formatAxisTime, timeAxis } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 
 import { formatFullTime } from "./format";
@@ -103,6 +103,7 @@ export function RegionAverages({
 							domain={[from, to]}
 							ticks={timeAxis(from, to, timePref)}
 							interval="preserveStartEnd"
+							tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 							tick={axisTimeTick(from, to, timePref)}
 							tickLine={false}
 							axisLine={false}
