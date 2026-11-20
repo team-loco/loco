@@ -60,7 +60,7 @@ function CardHead({ label, children }: { label: string; children?: ReactNode }) 
 
 function SoonCard({ label }: { label: string }) {
 	return (
-		<div className={cn(CARD, "text-fg4")} aria-label={`${label}: not available yet`}>
+		<div role="group" className={cn(CARD, "text-fg4")} aria-label={`${label}: not available yet`}>
 			<CardHead label={label}>
 				<SoonTag />
 			</CardHead>

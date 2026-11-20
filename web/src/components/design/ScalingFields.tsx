@@ -65,7 +65,7 @@ export function ScalingFields({
 	return (
 		<>
 			{autoscaling ? (
-				<div className="grid grid-cols-2 gap-x-4 gap-y-3">
+				<div className="grid max-w-[520px] grid-cols-2 gap-x-4 gap-y-3">
 					<Field label="Min replicas per region">
 						<Stepper
 							label={`Minimum replicas${suffix}`}
