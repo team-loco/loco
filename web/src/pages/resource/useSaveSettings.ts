@@ -42,7 +42,7 @@ const SPEC_KEYS = [
 
 const DOMAIN_KEYS = ["isPublic", "subdomain", "platformDomain"] as const;
 
-const VARIABLE_KEYS = ["env", "removedEnv"] as const;
+const VARIABLE_KEYS = ["added", "env", "removedEnv"] as const;
 
 function omit(draft: SettingsDraft, keys: readonly (keyof SettingsDraft)[]): SettingsDraft {
 	return Object.fromEntries(Object.entries(draft).filter(([k]) => !keys.some((key) => key === k)));

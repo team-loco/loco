@@ -36,6 +36,10 @@ export function auditPath(orgId: string): string {
 	return `/org/${orgId}/audit`;
 }
 
+export function secretsPath(orgId: string, workspaceId: string): string {
+	return workspacePath(orgId, workspaceId, "secrets");
+}
+
 export function webhooksPath(orgId: string, workspaceId: string, types?: string): string {
 	const path = workspacePath(orgId, workspaceId, "webhooks");
 	return types === undefined ? path : `${path}?${new URLSearchParams({ new: "1", types })}`;

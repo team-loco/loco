@@ -4,6 +4,7 @@ export const pageImporters = {
 	Resource: async () => await import("@/pages/Resource"),
 	Observability: async () => await import("@/pages/Observability"),
 	Webhooks: async () => await import("@/pages/Webhooks"),
+	Secrets: async () => await import("@/pages/Secrets"),
 	Settings: async () => await import("@/pages/Settings"),
 	Team: async () => await import("@/pages/Team"),
 	Audit: async () => await import("@/pages/Audit"),

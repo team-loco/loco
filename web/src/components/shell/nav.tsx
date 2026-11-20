@@ -6,6 +6,7 @@ import {
 	HistoryIcon,
 	KeyRoundIcon,
 	LayoutGridIcon,
+	LockKeyholeIcon,
 	ScrollTextIcon,
 	Settings2Icon,
 	UsersIcon,
@@ -22,6 +23,7 @@ import { useAuditAccess } from "@/hooks/useAuditAccess";
 import { pageImporters } from "@/lib/lazy-pages";
 import {
 	auditPath,
+	secretsPath,
 	webhooksPath,
 	inResourcesSection,
 	observabilityPath,
@@ -102,6 +104,18 @@ export function useNavSections(): NavSection[] {
 		{
 			label: "Manage",
 			pages: [
+				...(hasWs && scopes.holds(activeOrgId, activeWorkspaceId, Scope.READ)
+					? [
+							{
+								name: "Secrets",
+								icon: <LockKeyholeIcon />,
+								keywords: "environment credentials keys",
+								to: withEnv(secretsPath(activeOrgId, activeWorkspaceId), env),
+								active: pathname.endsWith("/secrets"),
+								preload: pageImporters.Secrets,
+							},
+						]
+					: []),
 				{
 					name: "Tokens",
 					icon: <KeyRoundIcon />,

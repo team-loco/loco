@@ -17,7 +17,7 @@ from harness import (
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
-    description="Add, edit and remove the variables of a dashboard service"
+    description="Add, reference, edit and remove the variables of a dashboard service"
 )
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
@@ -86,6 +86,11 @@ COMMIT;""",
 
 
 deployment = deliver({"LOG_LEVEL": "info", "SESSION_KEY": "${{ secrets.SESSION_KEY }}"})
+call(
+    state,
+    "loco.secret.v1.SecretService/SetSecrets",
+    {"environmentId": production, "values": {"SESSION_KEY": "fixture-session"}},
+)
 
 
 def regional(region, mode):
@@ -126,7 +131,9 @@ split = evidence.seed_resources(
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}/resource/{resource}"
 
 with session(out) as browser:
-    context, page, errors = open_page(browser, state=state)
+    context, page, errors = open_page(
+        browser, state=state, permissions=["clipboard-read", "clipboard-write"]
+    )
     deployments = []
 
     def create_deployment(route):
@@ -150,22 +157,71 @@ with session(out) as browser:
     expect(variables.get_by_label("Value of SESSION_KEY", exact=True)).to_have_value(
         "${{ secrets.SESSION_KEY }}"
     )
+    expect(
+        variables.get_by_text("secret in production, value hidden", exact=True)
+    ).to_be_visible()
+    expect(
+        variables.get_by_text(
+            "Plain values, visible to anyone who can read this resource. "
+            "For anything sensitive, refer to a secret with ${{ secrets.NAME }}.",
+            exact=True,
+        )
+    ).to_be_visible()
     save = page.get_by_role("button", name="Save & redeploy", exact=True)
 
+    expect(
+        variables.get_by_text(
+            f"Other resources in this environment can use these to reach {name}.",
+            exact=True,
+        )
+    ).to_be_visible()
+    copy_url = variables.get_by_role(
+        "button", name=f"Copy ${{{{ {name}.PRIVATE_URL }}}}", exact=True
+    )
+    expect(copy_url).to_be_visible()
+    copy_url.click()
+    assert (
+        page.evaluate("navigator.clipboard.readText()")
+        == f"${{{{ {name}.PRIVATE_URL }}}}"
+    )
+
     variables.get_by_role("button", name="Add", exact=True).click()
-    new_name = variables.get_by_label("New variable name", exact=True)
-    new_value = variables.get_by_label("New variable value", exact=True)
+    new_name = variables.get_by_label("Name of new variable", exact=True)
     new_name.fill("LOG_LEVEL")
     expect(
         variables.get_by_text("LOG_LEVEL is already a variable.", exact=True)
     ).to_be_visible()
-    new_name.fill("FEATURE_FLAGS")
-    new_value.fill("beta")
-    variables.get_by_role("button", name="Add variable", exact=True).click()
-    expect(variables.get_by_label("Value of FEATURE_FLAGS", exact=True)).to_have_value(
-        "beta"
+    new_name = variables.get_by_label("Name of LOG_LEVEL", exact=True).last
+    new_name.fill("feature_flags")
+    new_name = variables.get_by_label("Name of FEATURE_FLAGS", exact=True)
+    expect(new_name).to_have_value("FEATURE_FLAGS")
+    variables.get_by_label("Value of FEATURE_FLAGS", exact=True).fill(
+        "${{ secrets.NOPE }}"
     )
-    expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+    expect(
+        variables.get_by_text("No secret named NOPE in production", exact=True)
+    ).to_be_visible()
+    variables.get_by_label("Value of FEATURE_FLAGS", exact=True).fill("beta")
+    expect(variables.get_by_text("new", exact=True)).to_have_count(1)
+
+    variables.get_by_role("button", name="Add reference", exact=True).click()
+    picker = page.get_by_role("dialog", name="Add a reference")
+    expect(picker.get_by_text("Secrets in production", exact=True)).to_be_visible()
+    picker.get_by_placeholder("Search secrets and resources").fill(
+        f"{split_name}.private_url"
+    )
+    picker.get_by_role(
+        "option", name=re.compile(rf"^{split_name}\.PRIVATE_URL")
+    ).click()
+    expect(picker).to_have_count(0)
+    split_key = split_name.upper().replace("-", "_") + "_URL"
+    expect(variables.get_by_label(f"Value of {split_key}", exact=True)).to_have_value(
+        f"${{{{ {split_name}.PRIVATE_URL }}}}"
+    )
+    expect(
+        variables.get_by_text(f"→ http://{split_name}:8080", exact=True)
+    ).to_be_visible()
+    expect(page.get_by_text("2 unsaved changes", exact=True)).to_be_visible()
 
     with expect_rpc(
         page, "CreateDeployment", lambda body: body.get("resourceId") == resource
@@ -178,6 +234,7 @@ with session(out) as browser:
         "LOG_LEVEL": "info",
         "SESSION_KEY": "${{ secrets.SESSION_KEY }}",
         "FEATURE_FLAGS": "beta",
+        split_key: f"${{{{ {split_name}.PRIVATE_URL }}}}",
     }, sent
     expect(variables.get_by_text("new", exact=True)).to_have_count(0)
 
@@ -197,13 +254,17 @@ with session(out) as browser:
         "LOG_LEVEL": "info",
         "SESSION_KEY": "${{ secrets.SESSION_KEY }}",
         "FEATURE_FLAGS": "beta",
+        split_key: f"${{{{ {split_name}.PRIVATE_URL }}}}",
     }, sent
 
     log_level.fill("debug")
     variables.get_by_role("button", name="Remove FEATURE_FLAGS", exact=True).click()
-    expect(variables.get_by_text("Removed when you save", exact=True)).to_be_visible()
+    expect(
+        variables.get_by_role("button", name="Keep FEATURE_FLAGS", exact=True)
+    ).to_be_visible()
     variables.get_by_role("button", name="Remove SESSION_KEY", exact=True).click()
-    expect(page.get_by_text("3 unsaved changes", exact=True)).to_be_visible()
+    variables.get_by_role("button", name=f"Remove {split_key}", exact=True).click()
+    expect(page.get_by_text("4 unsaved changes", exact=True)).to_be_visible()
     with expect_rpc(
         page, "CreateDeployment", lambda body: body.get("resourceId") == resource
     ):

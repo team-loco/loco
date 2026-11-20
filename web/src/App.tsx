@@ -43,6 +43,7 @@ const Resources = lazy(async () => ({ default: (await pageImporters.Resources())
 const Resource = lazy(async () => ({ default: (await pageImporters.Resource()).Resource }));
 const Observability = lazy(async () => ({ default: (await pageImporters.Observability()).Observability }));
 const Webhooks = lazy(async () => ({ default: (await pageImporters.Webhooks()).Webhooks }));
+const Secrets = lazy(async () => ({ default: (await pageImporters.Secrets()).Secrets }));
 const Settings = lazy(async () => ({ default: (await pageImporters.Settings()).Settings }));
 const Team = lazy(async () => ({ default: (await pageImporters.Team()).Team }));
 const Audit = lazy(async () => ({ default: (await pageImporters.Audit()).Audit }));
@@ -248,6 +249,15 @@ function AppRoutes() {
 								<>
 									<ResourceTitle />
 									<Resource />
+								</>
+							}
+						/>
+						<Route
+							path="secrets"
+							element={
+								<>
+									<PageTitle title="Secrets" />
+									<Secrets />
 								</>
 							}
 						/>
