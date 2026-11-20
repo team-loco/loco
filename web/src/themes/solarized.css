@@ -64,10 +64,12 @@
 	--radius-overlay: 3px;
 
 	& :is([data-slot="table-header"], .list-head) {
-		border-bottom: 3px double var(--line2);
 		font-family: var(--font-mono);
 		font-size: 11.5px;
 		color: var(--fg3);
+	}
+	& .list-head {
+		border-bottom: 3px double var(--line2);
 	}
 	& .rounded-card {
 		box-shadow: inset 0 0 0 1px var(--line2);

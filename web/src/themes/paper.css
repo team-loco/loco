@@ -108,6 +108,7 @@
 		padding-inline: 12px;
 	}
 	& .rounded-card {
+		--card-bg: var(--bg);
 		border: 1px solid var(--line2);
 		border-radius: 6px;
 		background: var(--bg);

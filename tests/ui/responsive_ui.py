@@ -85,6 +85,30 @@ TABLES_JS = """() => [...document.querySelectorAll('[data-slot=table-container]'
     return reachable;
   })(),
 }))"""
+FIRST_CELL_JS = """() => {
+  const c = [...document.querySelectorAll('[data-slot=table-container]')].find(x => x.querySelector('tbody tr'));
+  const row = c.querySelector('tbody tr');
+  const cell = row.querySelector('td');
+  const content = cell.firstElementChild || cell;
+  const left = (el) => el.getBoundingClientRect().left;
+  let card = c.parentElement;
+  while (card && getComputedStyle(card).backgroundColor === 'rgba(0, 0, 0, 0)') card = card.parentElement;
+  return {
+    rowOffset: left(content) - left(row),
+    cellOffset: left(content) - left(cell),
+    pinned: getComputedStyle(cell).position === 'sticky',
+    cellBg: getComputedStyle(cell).backgroundColor,
+    cardBg: card ? getComputedStyle(card).backgroundColor : null,
+  };
+}"""
+HEADER_BORDERS_JS = """() => {
+  const header = document.querySelector('[data-slot=table-header]');
+  const chain = [header, ...header.querySelectorAll('tr, th')];
+  return chain.map(el => {
+    const s = getComputedStyle(el);
+    return { style: s.borderBottomStyle, width: parseFloat(s.borderBottomWidth) };
+  });
+}"""
 PAGES = {
     "dashboard": base + "?env=production",
     "resources": base + "/resources?env=production",
@@ -193,6 +217,45 @@ with session(out) as browser:
             path=out / f"{color or mode}-{mode}-390-row-hover.png"
         )
         context.close()
+
+    for color in ("loco", "catppuccin", "rose-pine", "solarized", "neobrutal", "paper"):
+        for mode in MODES:
+            for label, (width, height) in (
+                ("390", VIEWPORTS["390"]),
+                ("1280", (1280, 800)),
+            ):
+                for name in ("dashboard", "resources"):
+                    context, page, errors = open_at(browser, width, height, mode)
+                    context.add_init_script(
+                        f"localStorage.setItem('loco:color:v1', '{color}')"
+                    )
+                    page.goto(PAGES[name])
+                    page.locator(
+                        "[data-slot=table-container] tbody tr"
+                    ).first.wait_for()
+                    where = (color, mode, label, name)
+                    cell = page.evaluate(FIRST_CELL_JS)
+                    assert cell["rowOffset"] >= 10, (where, cell)
+                    if cell["pinned"]:
+                        assert cell["cellBg"] == cell["cardBg"], (where, cell)
+                    context.close()
+
+    for mode in MODES:
+        for name in ("dashboard", "resources", "audit"):
+            context, page, errors = open_at(browser, 1280, 800, mode)
+            context.add_init_script(
+                "localStorage.setItem('loco:color:v1', 'solarized')"
+            )
+            page.goto(PAGES[name])
+            page.locator("[data-slot=table-header]").first.wait_for()
+            borders = page.evaluate(HEADER_BORDERS_JS)
+            drawn = [b for b in borders if b["style"] != "none" and b["width"] > 0]
+            assert len(drawn) == 1 and drawn[0]["style"] == "solid", (
+                mode,
+                name,
+                borders,
+            )
+            context.close()
 
     context, page, errors = open_at(browser, 390, 844)
     page.goto(PAGES["resources"])

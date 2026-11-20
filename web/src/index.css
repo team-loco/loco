@@ -146,7 +146,7 @@
 	position: sticky;
 	left: 0;
 	z-index: 1;
-	background: var(--panel);
+	background: var(--card-bg, var(--panel));
 }
 
 [data-slot="table-container"]:is([data-scroll="middle"], [data-scroll="end"]) :is(td, th):first-child {
