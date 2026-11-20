@@ -14714,7 +14714,7 @@
               }
             ],
             "title": "status_since",
-            "description": "When the region entered its current status. Unset until the first replica report."
+            "description": "When the region entered its current status. When Loco did not see the change, the time of the\n last report. Unset until the first replica report."
           },
           "replicas": {
             "type": "array",

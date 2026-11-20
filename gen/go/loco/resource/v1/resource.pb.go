@@ -735,7 +735,8 @@ type RegionStatus struct {
 	PlacementStatus v1.PlacementStatus     `protobuf:"varint,10,opt,name=placement_status,json=placementStatus,proto3,enum=loco.deployment.v1.PlacementStatus" json:"placement_status,omitempty"`
 	Message         *string                `protobuf:"bytes,7,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	ReportedAt      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=reported_at,json=reportedAt,proto3,oneof" json:"reported_at,omitempty"`
-	// When the region entered its current status. Unset until the first replica report.
+	// When the region entered its current status. When Loco did not see the change, the time of the
+	// last report. Unset until the first replica report.
 	StatusSince *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=status_since,json=statusSince,proto3,oneof" json:"status_since,omitempty"`
 	// The replicas the cluster last reported for this region's placement. GetResource fills them;
 	// list responses leave them empty.

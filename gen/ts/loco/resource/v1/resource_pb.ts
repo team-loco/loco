@@ -597,7 +597,8 @@ export type RegionStatus = Message<"loco.resource.v1.RegionStatus"> & {
   reportedAt?: Timestamp | undefined;
 
   /**
-   * When the region entered its current status. Unset until the first replica report.
+   * When the region entered its current status. When Loco did not see the change, the time of the
+   * last report. Unset until the first replica report.
    *
    * @generated from field: optional google.protobuf.Timestamp status_since = 12;
    */
@@ -669,7 +670,8 @@ export type RegionStatusJson = {
   reportedAt?: TimestampJson;
 
   /**
-   * When the region entered its current status. Unset until the first replica report.
+   * When the region entered its current status. When Loco did not see the change, the time of the
+   * last report. Unset until the first replica report.
    *
    * @generated from field: optional google.protobuf.Timestamp status_since = 12;
    */
