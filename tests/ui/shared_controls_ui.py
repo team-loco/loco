@@ -3,6 +3,7 @@ import itertools
 import json
 import math
 import re
+import time
 import urllib.parse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -1283,6 +1284,113 @@ def traffic_small_values(page):
     page.unroute("**/loco.observability.v1.ObservabilityService/QueryMetrics", metrics)
 
 
+def metrics_many(page):
+    names = [f"controls-svc-{i:02d}" for i in range(13)]
+    seeded = state.get("controls_many")
+    if seeded is None:
+        seeded = list(
+            evidence.seed_resources(
+                state,
+                [
+                    {"workspace": "acme/shared", "name": name, "service": service()}
+                    for name in names
+                ],
+            ).values()
+        )
+        state["controls_many"] = seeded
+        evidence.write_json(Path(args.state), state)
+    requests = []
+
+    def many(route):
+        body = route.request.post_data_json
+        if body["metricName"] not in (
+            "k8s.pod.cpu_limit_utilization",
+            "k8s.pod.memory.working_set_limit_utilization",
+        ):
+            route.fallback()
+            return
+        requests.append(body["metricName"])
+        now = datetime.now(UTC)
+        ids = body.get("resourceIds") or []
+        series = [
+            {
+                "resourceId": rid,
+                "points": [
+                    {
+                        "timestamp": stamp(now, timedelta(minutes=minute)),
+                        "value": 0.0004 if i == 0 else (i + 1) / 20 * scale,
+                    }
+                    for minute, scale in ((50, 0.6), (30, 1.0), (10, 0.8))
+                ],
+            }
+            for i, rid in enumerate(ids)
+        ]
+        route.fulfill(json={"series": series})
+
+    page.route("**/loco.observability.v1.ObservabilityService/QueryMetrics", many)
+    page.clock.install()
+    page.goto(
+        state["ui_url"] + base + "/observability?env=production&view=metrics&range=1h"
+    )
+    cpu_card = page.get_by_role("region", name="CPU", exact=True)
+    chart = page.locator('[aria-label="CPU over time"]')
+    expect(chart.locator(".recharts-line")).not_to_have_count(0)
+    page.wait_for_timeout(500)
+    count = chart.locator(".recharts-line").count()
+    assert count >= 16, count
+    expect(cpu_card.get_by_text("latest")).to_have_count(0)
+    horizontal = chart.locator(".recharts-reference-line-line").evaluate_all(
+        "els => els.filter(e => e.getAttribute('y1') === e.getAttribute('y2')).length"
+    )
+    assert horizontal == 1, horizontal
+    box = chart.bounding_box()
+    chart.hover(position={"x": box["width"] * 0.5, "y": 60})
+    rows = page.locator("[data-tooltip-row]")
+    expect(rows).to_have_count(8)
+    expect(page.get_by_text(f"+{count - 8} more", exact=True)).to_be_visible()
+    heights = rows.evaluate_all("els => els.map(e => e.getBoundingClientRect().height)")
+    assert len(set(heights)) == 1 and heights[0] <= 24, heights
+    assert rows.evaluate_all("els => els.every(e => e.scrollWidth <= e.clientWidth)")
+    assert "0 vCPU" not in " ".join(rows.all_text_contents()).replace("<0.001 vCPU", "")
+    by_region = page.get_by_role("region", name="By resource and region")
+    table_rows = by_region.locator("tbody tr")
+    expect(table_rows).to_have_count(count)
+    assert table_rows.first.evaluate("e => getComputedStyle(e).cursor") == "pointer"
+    assert (
+        chart.locator(".recharts-surface").evaluate("e => getComputedStyle(e).cursor")
+        == "pointer"
+    )
+    page.mouse.move(0, 0)
+    table_rows.first.hover()
+    lines = chart.locator(".recharts-line-curve")
+    opacities = lines.evaluate_all(
+        "els => els.map(e => e.getAttribute('stroke-opacity'))"
+    )
+    assert opacities.count("1") == 1, opacities
+    # A refetch keeps every row and chart element in place and never shows a skeleton.
+    page.mouse.move(0, 0)
+    table_rows.evaluate_all("els => els.forEach(e => { e.dataset.kept = '1'; })")
+    page.evaluate(
+        """() => {
+            window.flashes = 0;
+            new MutationObserver(() => {
+                if (document.querySelector('[data-slot=skeleton]')) window.flashes++;
+            }).observe(document.body, { childList: true, subtree: true });
+        }"""
+    )
+    before = len(requests)
+    page.clock.fast_forward(61_000)
+    deadline = time.time() + 10
+    while len(requests) == before and time.time() < deadline:
+        page.wait_for_timeout(100)
+    assert len(requests) > before
+    page.wait_for_timeout(500)
+    assert table_rows.evaluate_all("els => els.every(e => e.dataset.kept === '1')")
+    expect(table_rows).to_have_count(count)
+    assert page.evaluate("window.flashes") == 0
+    page.unroute("**/loco.observability.v1.ObservabilityService/QueryMetrics", many)
+
+
 def token_empty(page):
     page.goto(state["ui_url"] + "/tokens?owner=personal")
     expect(
@@ -1526,11 +1634,9 @@ def metrics(page):
     chart = page.locator('[aria-label="CPU over time"]')
     expect(chart.locator(".recharts-line")).to_be_visible()
     cpu_card = page.get_by_role("region", name="CPU", exact=True)
-    expect(cpu_card.get_by_text("vCPU, peak per bucket")).to_be_visible()
-    expect(cpu_card.get_by_text("latest 0.175 vCPU · 35% of limit")).to_be_visible()
-    expect(chart.get_by_text("limit 0.5 vCPU")).to_be_visible()
-    memory_card = page.get_by_role("region", name="Memory", exact=True)
-    expect(memory_card.get_by_text("latest 179 Mi · 35% of limit")).to_be_visible()
+    expect(cpu_card.get_by_text("% of limit, peak per bucket")).to_be_visible()
+    expect(cpu_card.get_by_text("latest")).to_have_count(0)
+    expect(chart.get_by_text("limit", exact=True)).to_have_count(1)
     expect(chart.get_by_text("Controls Pilot 000de900").first).to_be_visible()
     memory = page.locator('[aria-label="Memory over time"]')
     chart.hover(position={"x": chart.bounding_box()["width"] * 0.8, "y": 60})
@@ -1692,6 +1798,7 @@ with session(out) as browser:
         dashboard_counts,
         traffic,
         traffic_small_values,
+        metrics_many,
     ):
         check(page)
     assert not errors, errors

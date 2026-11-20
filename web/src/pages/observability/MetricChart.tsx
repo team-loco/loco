@@ -14,6 +14,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/design/DropdownMenu";
 import { formatPercent } from "@/lib/compute-chart";
+import { cn } from "@/lib/utils";
 import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
@@ -22,10 +23,10 @@ import { markerGroups } from "./metric-markers";
 export interface ChartSeries {
 	key: string;
 	name: string;
+	resourceId: string;
 	color: string;
 	dashed: boolean;
-	limit: number;
-	points: { t: number; v: number }[];
+	points: { t: number; v: number; abs: number }[];
 }
 
 export interface ChartMarker {
@@ -45,6 +46,12 @@ export interface PinAction {
 
 const PERCENT = 100;
 const DASH = "4 3";
+const TOP_SERIES = 5;
+const TOOLTIP_ROWS = 8;
+const FADED = 0.3;
+const DIMMED = 0.12;
+const X_AXIS_HEIGHT = 20;
+const TOP_MARGIN = 6;
 const MARGIN = 24;
 const WIDE_MARGIN = 44;
 // Labels of deploys past this share of the range sit left of their line.
@@ -54,6 +61,10 @@ const LABEL_PAD_PX = 4;
 const LABEL_HEIGHT_PX = 14;
 
 type Datum = { t: number; [series: string]: number };
+
+function absOf(s: ChartSeries, t: number): number {
+	return s.points.find((p) => p.t === t)?.abs ?? 0;
+}
 
 function MarkerLabel({ viewBox, value, flip }: { viewBox?: { x?: number; y?: number }; value: string; flip: boolean }) {
 	const x0 = viewBox?.x ?? 0;
@@ -125,12 +136,14 @@ function MetricTooltip({
 	byT,
 	series,
 	fmt,
+	highlight,
 }: {
 	active?: boolean;
 	label?: string | number;
 	byT: Map<number, Datum>;
 	series: ChartSeries[];
 	fmt: (v: number) => string;
+	highlight: string | null;
 }) {
 	const timePref = useTimePreferences();
 	const t = Number(label);
@@ -140,19 +153,27 @@ function MetricTooltip({
 		.map((s) => ({ s, v: row[s.key] }))
 		.filter((x): x is { s: ChartSeries; v: number } => x.v !== undefined)
 		.toSorted((a, b) => b.v - a.v);
+	const shown = items.slice(0, TOOLTIP_ROWS);
+	const more = items.length - shown.length;
 	return (
-		<div className="min-w-[160px] rounded-lg border border-line bg-background px-2.5 py-2 text-[12px] shadow-popover">
-			<div className="mb-1.5 font-mono text-[11px] text-fg3">{fmtTs(t, false, timePref)}</div>
-			{items.map(({ s, v }) => (
-				<div key={s.key} className="flex h-5 items-center gap-2">
-					<span className="size-2 rounded-[2px]" style={{ background: s.color }} />
-					<span className="flex-1 text-fg2">{s.name}</span>
-					<span className="font-mono tabular-nums">{fmt(v)}</span>
-					<span className="w-[72px] text-right font-mono text-fg3 tabular-nums">
-						{formatPercent((v / s.limit) * PERCENT)} of limit
-					</span>
+		<div className="min-w-[200px] rounded-lg border border-line bg-background px-2.5 py-2 text-[12px] shadow-popover">
+			<div className="mb-1.5 flex items-center justify-between gap-3 font-mono text-[11px] whitespace-nowrap text-fg3">
+				<span>{fmtTs(t, false, timePref)}</span>
+				<span>% of limit</span>
+			</div>
+			{shown.map(({ s, v }) => (
+				<div
+					key={s.key}
+					data-tooltip-row
+					className={cn("flex h-5 items-center gap-2 whitespace-nowrap", highlight === s.key && "font-medium")}
+				>
+					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: s.color }} />
+					<span className="max-w-[160px] flex-1 truncate text-fg2">{s.name}</span>
+					<span className="shrink-0 font-mono tabular-nums">{fmt(absOf(s, t))}</span>
+					<span className="w-12 shrink-0 text-right font-mono text-fg3 tabular-nums">{formatPercent(v)}</span>
 				</div>
 			))}
+			{more > 0 && <div className="h-5 text-fg3">+{more} more</div>}
 			<div className="mt-1.5 border-t border-line pt-1.5 text-[11px] text-fg3">Click for logs, traces and events</div>
 		</div>
 	);
@@ -198,7 +219,7 @@ export function MetricChart({
 	to,
 	axis,
 	fmt,
-	limits,
+	highlightId,
 	markers,
 	height,
 	actions,
@@ -209,13 +230,22 @@ export function MetricChart({
 	to: number;
 	axis: { maximum: number; ticks: number[] };
 	fmt: (v: number) => string;
-	limits: number[];
+	highlightId: string | null;
 	markers: ChartMarker[];
 	height: number;
 	actions: (t: number) => PinAction[];
 }) {
 	const timePref = useTimePreferences();
 	const [pin, setPin] = useState<{ t: number; x: number } | null>(null);
+	const [nearest, setNearest] = useState<string | null>(null);
+	const top = new Set(
+		series
+			.map((s) => ({ key: s.key, peak: Math.max(...s.points.map((p) => p.v)) }))
+			.toSorted((a, b) => b.peak - a.peak)
+			.slice(0, TOP_SERIES)
+			.map((x) => x.key),
+	);
+	const highlightKey = series.find((s) => s.resourceId === highlightId)?.key ?? nearest;
 	const byT = new Map<number, Datum>();
 	for (const s of series) {
 		for (const p of s.points) {
@@ -240,12 +270,38 @@ export function MetricChart({
 				}}
 			>
 				<DropdownMenuTrigger nativeButton={false} render={<div />} aria-label={`${title} over time`}>
-					<ChartContainer config={config} className="aspect-auto w-full cursor-pointer" style={{ height }}>
+					<ChartContainer
+						config={config}
+						className="aspect-auto w-full cursor-pointer [&_.recharts-wrapper]:cursor-pointer!"
+						style={{ height }}
+					>
 						<LineChart
 							syncId="metrics"
 							syncMethod="value"
 							data={data}
-							margin={{ top: 6, right: to - from >= DAY_MS ? WIDE_MARGIN : MARGIN, bottom: 0, left: 0 }}
+							margin={{
+								top: TOP_MARGIN,
+								right: to - from >= DAY_MS ? WIDE_MARGIN : MARGIN,
+								bottom: 0,
+								left: 0,
+							}}
+							onMouseLeave={() => {
+								setNearest(null);
+							}}
+							onMouseMove={(state) => {
+								const y = state.activeCoordinate?.y;
+								const row = data[Number(state.activeTooltipIndex)];
+								if (y === undefined || row === undefined) return;
+								const level = (1 - (y - TOP_MARGIN) / (height - TOP_MARGIN - X_AXIS_HEIGHT)) * axis.maximum;
+								let best: { key: string; gap: number } | null = null;
+								for (const s of series) {
+									const v = row[s.key];
+									if (v !== undefined && (best === null || Math.abs(v - level) < best.gap)) {
+										best = { key: s.key, gap: Math.abs(v - level) };
+									}
+								}
+								setNearest(best?.key ?? null);
+							}}
 							onClick={(state) => {
 								const t = data[Number(state.activeTooltipIndex)]?.t ?? Number(state.activeLabel);
 								if (!Number.isFinite(t)) return;
@@ -262,39 +318,45 @@ export function MetricChart({
 								tickFormatter={tickLabel}
 								interval="preserveStartEnd"
 								tickLine={false}
-								height={20}
+								height={X_AXIS_HEIGHT}
 								axisLine={{ stroke: "var(--line)" }}
-								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)" }}
+								tick={{
+									fontSize: 10.5,
+									fill: "var(--fg3)",
+									fontFamily: "var(--font-mono)",
+								}}
 							/>
 							<YAxis
 								domain={[0, axis.maximum]}
 								ticks={axis.ticks}
-								tickFormatter={fmt}
+								tickFormatter={(v: number) => `${String(v)}%`}
 								tickLine={false}
 								axisLine={false}
 								mirror
-								tick={{ fontSize: 10.5, fill: "var(--fg3)", fontFamily: "var(--font-mono)", dy: -6 }}
+								tick={{
+									fontSize: 10.5,
+									fill: "var(--fg3)",
+									fontFamily: "var(--font-mono)",
+									dy: -6,
+								}}
 							/>
 							{pin === null && (
 								<ChartTooltip
 									cursor={{ stroke: "var(--fg4)", strokeWidth: 1 }}
-									content={<MetricTooltip byT={byT} series={series} fmt={fmt} />}
+									content={<MetricTooltip byT={byT} series={series} fmt={fmt} highlight={highlightKey} />}
 								/>
 							)}
-							{limits.map((v) => (
-								<ReferenceLine
-									key={v}
-									y={v}
-									stroke="color-mix(in oklab, var(--err) 55%, transparent)"
-									strokeDasharray="5 4"
-									label={{
-										value: `limit ${fmt(v)}`,
-										position: "insideTopLeft",
-										fill: "var(--color-bad-fg)",
-										fontSize: 10,
-									}}
-								/>
-							))}
+							<ReferenceLine
+								y={PERCENT}
+								stroke="color-mix(in oklab, var(--err) 55%, transparent)"
+								strokeDasharray="5 4"
+								label={{
+									value: "limit",
+									position: "insideTopLeft",
+									fill: "var(--color-bad-fg)",
+									fontSize: 10,
+								}}
+							/>
 							{groups.map((g) => (
 								<ReferenceLine
 									key={g.t}
@@ -312,7 +374,10 @@ export function MetricChart({
 									name={s.name}
 									type="monotone"
 									stroke={s.color}
-									strokeWidth={1.6}
+									strokeWidth={highlightKey === s.key ? 2.4 : 1.6}
+									strokeOpacity={
+										highlightKey !== null ? (highlightKey === s.key ? 1 : DIMMED) : top.has(s.key) ? 1 : FADED
+									}
 									{...(s.dashed ? { strokeDasharray: DASH } : {})}
 									dot={false}
 									activeDot={{ r: 3.5, stroke: "var(--panel)", strokeWidth: 2 }}

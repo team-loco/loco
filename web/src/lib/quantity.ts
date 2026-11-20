@@ -29,10 +29,12 @@ function trimDecimals(n: number, digits: number): string {
 }
 
 export function formatCpu(milli: number): string {
+	if (milli > 0 && milli < MILLI_PER_CORE / 10 ** CPU_DECIMALS / 2) return "<0.001 vCPU";
 	return `${trimDecimals(milli / MILLI_PER_CORE, CPU_DECIMALS)} vCPU`;
 }
 
 export function formatMemory(mi: number): string {
 	if (mi >= MI_PER_GI) return `${trimDecimals(mi / MI_PER_GI, GI_DECIMALS)} Gi`;
+	if (mi > 0 && mi < 0.5) return "<1 Mi";
 	return `${Math.round(mi).toString()} Mi`;
 }
