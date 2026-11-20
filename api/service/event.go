@@ -74,19 +74,20 @@ func uuidString(id *uuid.UUID) string {
 
 func eventToProto(e genDb.Event) *eventv1.Event {
 	out := &eventv1.Event{
-		Seq:           e.Seq,
-		Id:            e.ID.String(),
-		Type:          e.Type,
-		OrgId:         uuidString(e.OrgID),
-		WorkspaceId:   uuidString(e.WorkspaceID),
-		ResourceId:    uuidString(e.ResourceID),
-		EnvironmentId: uuidString(e.EnvironmentID),
-		ActorType:     e.ActorType,
-		ActorId:       uuidString(e.ActorID),
-		SubjectType:   derefString(e.SubjectType),
-		SubjectId:     uuidString(e.SubjectID),
-		RequestId:     derefString(e.RequestID),
-		CreatedAt:     timestamppb.New(e.CreatedAt),
+		Seq:            e.Seq,
+		Id:             e.ID.String(),
+		Type:           e.Type,
+		OrgId:          uuidString(e.OrgID),
+		WorkspaceId:    uuidString(e.WorkspaceID),
+		ResourceId:     uuidString(e.ResourceID),
+		EnvironmentId:  uuidString(e.EnvironmentID),
+		ActorType:      e.ActorType,
+		ActorId:        uuidString(e.ActorID),
+		ActorTokenType: derefString(e.ActorTokenType),
+		SubjectType:    derefString(e.SubjectType),
+		SubjectId:      uuidString(e.SubjectID),
+		RequestId:      derefString(e.RequestID),
+		CreatedAt:      timestamppb.New(e.CreatedAt),
 	}
 	var data map[string]any
 	if err := json.Unmarshal(e.Data, &data); err == nil {

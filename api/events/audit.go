@@ -25,7 +25,8 @@ type AuditQuery struct {
 	Limit         int32
 }
 
-// AuditEvent is an event with the email and name of the user who acted, when one did.
+// AuditEvent is an event with the email and name of the user who acted, when one did. The name of
+// an API token that acted is ActorName and the entity type that owns it is ActorTokenType.
 type AuditEvent struct {
 	genDb.Event
 	ActorEmail *string
@@ -35,7 +36,7 @@ type AuditEvent struct {
 const auditSelect = `SELECT e.seq, e.stream_position, e.id, e.type, e.org_id, e.workspace_id, e.resource_id,
 	e.environment_id, e.actor_type, e.actor_id, e.subject_type, e.subject_id, e.request_id,
 	e.traceparent, e.data, e.created_at,
-	u.email, u.name
+	u.email, COALESCE(u.name, e.actor_token_name), e.actor_token_type
 FROM events e
 LEFT JOIN users u ON e.actor_type = 'user' AND u.id = e.actor_id
 LEFT JOIN users s ON e.subject_type = 'user' AND s.id = e.subject_id
@@ -72,6 +73,7 @@ func ListAudit(ctx context.Context, db genDb.DBTX, q AuditQuery) ([]AuditEvent, 
 			&event.CreatedAt,
 			&event.ActorEmail,
 			&event.ActorName,
+			&event.ActorTokenType,
 		)
 		return event, err
 	})

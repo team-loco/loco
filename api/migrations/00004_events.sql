@@ -10,6 +10,8 @@ CREATE TABLE events (
     environment_id UUID,
     actor_type TEXT NOT NULL,
     actor_id UUID,
+    actor_token_name TEXT,
+    actor_token_type TEXT,
     subject_type TEXT,
     subject_id UUID,
     request_id TEXT,

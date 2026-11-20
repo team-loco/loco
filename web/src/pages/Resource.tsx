@@ -117,7 +117,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 		refresh,
 	} = useResourceData(resourceId);
 	const { resourceLevel, workspaceLevel } = useMyScopes();
-	const { environments } = useEnvironments();
 	const nowMs = useNow(CLOCK_TICK_MS).getTime();
 	const configQuery = useQuery(getConfig, {});
 	const eventsQuery = useTanstackQuery({
@@ -498,7 +497,6 @@ function ResourcePage({ resourceId }: { resourceId: string }) {
 						workspaceId={resource.workspaceId}
 						resourceId={resource.id}
 						environmentId={environmentId}
-						names={new Map(environments.map((e) => [e.id, e.name]))}
 						nowMs={nowMs}
 					/>
 				</div>

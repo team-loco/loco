@@ -43,15 +43,17 @@ test("rows name where an event happened from the IDs the caller can read", () =>
 		workspaceId: "w1",
 		resourceId: "r1",
 		environmentId: "e1",
-		actorType: "workspace",
-		actorId: "w1",
+		actorType: "api_token",
+		actorId: "t1",
+		actorName: "ci",
+		actorTokenType: "workspace",
 	});
 	expect(auditRow(deploy, new Map(), names)).toMatchObject({
 		where: "storefront / web",
 		resource: "web",
 		environment: "production",
 		actorKind: "Workspace token",
-		actor: { name: "Workspace token", detail: "storefront" },
+		actor: { name: "ci", detail: "Workspace token" },
 	});
 	const gone = create(EventSchema, { type: "resource.deleted", workspaceId: "w1", resourceId: "0199aaaa-bbbb" });
 	expect(auditRow(gone, new Map(), names).where).toBe("storefront / 0199aaaa");

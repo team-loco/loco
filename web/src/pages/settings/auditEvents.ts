@@ -168,6 +168,7 @@ interface ActorFields {
 	actorId: string;
 	actorName: string;
 	actorEmail: string;
+	actorTokenType: string;
 }
 
 interface DetailFields {
@@ -176,25 +177,26 @@ interface DetailFields {
 	data?: JsonObject | undefined;
 }
 
-function tokenActor(label: string, actorId: string, names: ReadonlyMap<string, string>): AuditActor {
-	return { name: label, detail: names.get(actorId) ?? actorId };
+const TOKEN_KINDS: Record<string, string> = {
+	user: "Personal token",
+	organization: "Organization token",
+	workspace: "Workspace token",
+	resource: "Resource token",
+};
+
+export function tokenKind(event: { actorTokenType: string }): string {
+	return TOKEN_KINDS[event.actorTokenType] ?? "API token";
 }
 
-export function auditActor(event: ActorFields, names: ReadonlyMap<string, string>): AuditActor {
+export function auditActor(event: ActorFields): AuditActor {
 	switch (event.actorType) {
 		case "user": {
 			if (event.actorName !== "") return { name: event.actorName, detail: event.actorEmail };
 			if (event.actorEmail !== "") return { name: event.actorEmail, detail: "" };
 			return { name: "Deleted user", detail: "" };
 		}
-		case "organization": {
-			return tokenActor("Organization token", event.actorId, names);
-		}
-		case "workspace": {
-			return tokenActor("Workspace token", event.actorId, names);
-		}
-		case "resource": {
-			return tokenActor("Resource token", event.actorId, names);
+		case "api_token": {
+			return { name: event.actorName === "" ? "Deleted token" : event.actorName, detail: tokenKind(event) };
 		}
 		case "system": {
 			return { name: "Loco", detail: "" };

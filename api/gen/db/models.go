@@ -801,6 +801,8 @@ type Event struct {
 	EnvironmentID  *uuid.UUID `json:"environmentId"`
 	ActorType      string     `json:"actorType"`
 	ActorID        *uuid.UUID `json:"actorId"`
+	ActorTokenName *string    `json:"actorTokenName"`
+	ActorTokenType *string    `json:"actorTokenType"`
 	SubjectType    *string    `json:"subjectType"`
 	SubjectID      *uuid.UUID `json:"subjectId"`
 	RequestID      *string    `json:"requestId"`

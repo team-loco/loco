@@ -11,6 +11,7 @@ from harness import (
     open_page as new_page,
     repo,
     session,
+    sql,
 )
 from playwright.sync_api import expect
 
@@ -66,6 +67,11 @@ if "audit" not in state:
         state,
         "loco.org.v1.OrgService/InviteOrgMember",
         {"orgId": org, "email": "newhire@acme.test"},
+    )
+    sql(
+        state,
+        f"""INSERT INTO events(type,org_id,workspace_id,actor_type,actor_id,actor_token_name,actor_token_type)
+VALUES('webhook.created','{org}','{shared}','api_token',gen_random_uuid(),'deploy-bot','workspace');""",
     )
     state["audit"] = {"checkout": checkout, "inventory": inventory}
     evidence.write_json(Path(args.state), state)
@@ -266,6 +272,19 @@ with session(out) as browser:
     ):
         search.fill("INVENTORY")
     expect(page.get_by_role("table", name="Audit events")).to_contain_text("inventory")
+    # A token that acted is named, with its owner kind beneath, and the search matches its name.
+    with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "deploy-bot"):
+        search.fill("deploy-bot")
+    token_row = (
+        page.get_by_role("table", name="Audit events")
+        .locator("tbody tr[data-interactive]")
+        .filter(has_text="Added a webhook")
+    )
+    expect(token_row).to_contain_text("deploy-bot")
+    expect(token_row).to_contain_text("Workspace token")
+    token_row.click()
+    expect(page.get_by_role("dialog").get_by_text("Workspace token")).to_be_visible()
+    page.keyboard.press("Escape")
     # The search reads the Where column: the sibling workspace names events on its resources.
     with expect_rpc(page, "ListEvents", lambda body: body.get("query") == "sibling"):
         search.fill("sibling")
