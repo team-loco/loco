@@ -35,7 +35,7 @@ function CodeBlock({
 	className,
 	copyLabel = "Copy code",
 	lineNumbers = true,
-	wrap = false,
+	wrap = language === "json",
 }: CodeBlockProps) {
 	const [copiedKey, copy] = useCopy(COPIED_RESET_MS);
 	const copied = copiedKey !== null;
@@ -61,13 +61,11 @@ function CodeBlock({
 				<Code
 					code={children}
 					language={language}
-					className={
-						lineNumbers
-							? "code-lines"
-							: wrap
-								? "code-plain code-wrap block px-4 whitespace-normal"
-								: "code-plain block w-max min-w-full px-4 whitespace-normal"
-					}
+					className={cn(
+						lineNumbers ? "code-lines" : "code-plain block px-4 whitespace-normal",
+						wrap && "code-wrap",
+						!lineNumbers && !wrap && "w-max min-w-full",
+					)}
 				/>
 			</pre>
 			<Button

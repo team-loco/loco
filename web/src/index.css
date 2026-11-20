@@ -19,11 +19,6 @@
 	white-space: pre;
 }
 
-.code-plain.code-wrap .sh__line {
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-}
-
 .code-lines .sh__line {
 	display: block;
 	padding-right: 1rem;
@@ -44,6 +39,25 @@
 	content: counter(code-line);
 	counter-increment: code-line;
 	user-select: none;
+}
+
+.code-wrap .sh__line {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.code-lines.code-wrap {
+	width: auto;
+}
+
+.code-lines.code-wrap .sh__line {
+	position: relative;
+	padding-left: calc(var(--code-digits) * 1ch + 2rem);
+}
+
+.code-lines.code-wrap .sh__line::before {
+	position: absolute;
+	top: 0;
 }
 
 [data-slot="dialog-overlay"],
