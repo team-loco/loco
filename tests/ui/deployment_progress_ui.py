@@ -639,8 +639,9 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
     )
     for root_font in ("16px", "20px"):
         page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
-        assert label.evaluate("cell => cell.scrollWidth <= cell.clientWidth"), (
-            f"the rollback label is cut off at a {root_font} root font"
+        widths = label.evaluate("cell => [cell.scrollWidth, cell.clientWidth]")
+        assert widths[0] <= widths[1], (
+            f"the rollback label is cut off at a {root_font} root font: {widths}"
         )
     assert not errors, errors
     context.close()
