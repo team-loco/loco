@@ -836,7 +836,7 @@ def history(page):
         if r["name"] == "api"
     )
     page.goto(base + f"/resource/{resource}?env=production")
-    reopen = named_table("Deployments", "current")
+    reopen = named_table("Deployments", "Running")
     table = check_table(page, reopen, "Deployed by", "Version")
     width = scroller_of(page, table).evaluate("node => node.scrollWidth")
     table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(4).click()
