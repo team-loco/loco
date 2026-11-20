@@ -34,6 +34,7 @@ const (
 	reasonSignInCanceled = "SIGN_IN_CANCELED"
 	reasonSignInExpired  = "SIGN_IN_EXPIRED"
 	reasonSignInInvalid  = "SIGN_IN_INVALID"
+	reasonSignupClosed   = "SIGNUP_CLOSED"
 	callbackAccessDenied = "access_denied"
 )
 
@@ -273,10 +274,9 @@ func webSignInError(err error) error {
 }
 
 func webSignInReason(err error) string {
-	if rejected, ok := errors.AsType[*auth.SignupRejectedError](err); ok {
-		return rejected.Reason
-	}
 	switch {
+	case errors.Is(err, auth.ErrSignupClosed):
+		return reasonSignupClosed
 	case errors.Is(err, errWebLoginCanceled):
 		return reasonSignInCanceled
 	case errors.Is(err, errWebLoginExpired):

@@ -51,7 +51,7 @@ func (q *Queries) CountOrgMembers(ctx context.Context, entityID uuid.UUID) (int6
 }
 
 const countOrgWorkspaces = `-- name: CountOrgWorkspaces :one
-SELECT COUNT(*) FROM workspaces x WHERE x.org_id = $1
+SELECT COUNT(*) FROM workspaces WHERE org_id = $1
 `
 
 func (q *Queries) CountOrgWorkspaces(ctx context.Context, orgID uuid.UUID) (int64, error) {
