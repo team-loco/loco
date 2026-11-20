@@ -68,14 +68,15 @@ const COLUMNS: DataColumn<Row>[] = [
 		header: "Limit",
 		size: 200,
 		minSize: 100,
-		meta: { grow: true },
+		meta: { fit: true },
 		cell: ({ row: { original: row } }) => <CellText text={row.label} />,
 	},
 	{
 		id: "per",
 		header: "Counted per",
-		size: 260,
+		size: 200,
 		minSize: 100,
+		meta: { grow: true },
 		cell: ({ row: { original: row } }) => <CellText text={row.per} className="text-fg2" />,
 	},
 	{
@@ -83,6 +84,7 @@ const COLUMNS: DataColumn<Row>[] = [
 		header: "In use",
 		size: 110,
 		minSize: 72,
+		meta: { fit: true },
 		cell: ({ row: { original: row } }) => <span className={cn("font-mono", row.usedClass)}>{row.used}</span>,
 	},
 	{
@@ -90,7 +92,7 @@ const COLUMNS: DataColumn<Row>[] = [
 		header: "Limit",
 		size: 160,
 		minSize: 100,
-		meta: { align: "end" },
+		meta: { align: "end", fit: true },
 		cell: ({ row: { original: row } }) => (
 			<span className="inline-flex items-center justify-end gap-2 font-mono whitespace-nowrap">
 				{row.raised && (

@@ -14,6 +14,7 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Skeleton } from "@/components/design/Skeleton";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
@@ -41,13 +42,20 @@ function days(value: number | undefined): string {
 
 function retentionColumns(workspace: Workspace, limits: CountLimits | undefined): DataColumn<Signal>[] {
 	return [
-		{ id: "signal", header: "Signal", size: 160, minSize: 90, cell: ({ row }) => row.original.label },
+		{
+			id: "signal",
+			header: "Signal",
+			size: 120,
+			minSize: 80,
+			meta: { fit: true },
+			cell: ({ row }) => row.original.label,
+		},
 		{
 			id: "workspace",
 			header: "Workspace",
-			size: 160,
-			minSize: 90,
-			meta: { cellClassName: MONO },
+			size: 140,
+			minSize: 80,
+			meta: { fit: true, cellClassName: MONO },
 			cell: ({ row: { original: signal } }) => {
 				const value = workspace.retention?.[signal.key];
 				return value === undefined ? <span className="text-fg3">Not set</span> : days(value);
@@ -56,17 +64,17 @@ function retentionColumns(workspace: Workspace, limits: CountLimits | undefined)
 		{
 			id: "limit",
 			header: "Organization limit",
-			size: 180,
-			minSize: 90,
-			meta: { cellClassName: cn(MONO, "text-fg2") },
+			size: 160,
+			minSize: 80,
+			meta: { fit: true, cellClassName: cn(MONO, "text-fg2") },
 			cell: ({ row: { original: signal } }) =>
 				limits === undefined ? <Skeleton className="h-4 w-16" /> : days(limits[signal.field]),
 		},
 		{
 			id: "kept",
 			header: "Kept for",
-			size: 160,
-			minSize: 90,
+			size: 100,
+			minSize: 80,
 			meta: { cellClassName: MONO },
 			cell: ({ row: { original: signal } }) => days(workspace.effectiveRetention?.[signal.key]),
 		},
@@ -77,9 +85,11 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 	const limits = useOrgLimits(workspace.orgId);
 	const [editing, setEditing] = useState(false);
 	const editBlocked = !canWrite ? `Requires Write on ${workspace.name}` : limits === undefined ? "Loading" : null;
+	const mobile = useIsMobile();
 	const table = useDataTable("retention", {
 		data: SIGNALS,
 		getRowId: (signal) => signal.key,
+		state: { columnVisibility: { limit: !mobile } },
 		enableSorting: false,
 		manualPagination: true,
 		columns: retentionColumns(workspace, limits),

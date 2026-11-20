@@ -188,7 +188,9 @@ with session(out) as browser:
                     table = page.locator("[data-slot=data-table]").first
                     table.scroll_into_view_if_needed()
                     table.screenshot(path=out / f"{mode}-{label}-{name}-start.png")
-                    table.evaluate("el => el.scrollTo(el.scrollWidth / 2, 0)")
+                    table.evaluate(
+                        "el => el.scrollTo((el.scrollWidth - el.clientWidth) / 2, 0)"
+                    )
                     expect(table).to_have_attribute("data-scroll", "middle")
                     table.screenshot(path=out / f"{mode}-{label}-{name}-middle.png")
                     table.evaluate("el => el.scrollTo(el.scrollWidth, 0)")

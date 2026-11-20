@@ -243,8 +243,9 @@ function webhookColumns({
 		{
 			id: "endpoint",
 			header: "Endpoint",
-			size: 180,
+			size: 160,
 			minSize: 140,
+			meta: { grow: true },
 			cell: ({ row: { original: webhook } }) => {
 				const url = new URL(webhook.url);
 				return (
@@ -273,15 +274,14 @@ function webhookColumns({
 			header: "Events",
 			size: 130,
 			minSize: 90,
-			meta: { cellClassName: "text-[12.5px] whitespace-nowrap text-fg2" },
+			meta: { fit: true, cellClassName: "text-[12.5px] whitespace-nowrap text-fg2" },
 			cell: ({ row: { original: webhook } }) => <CellText text={eventsSummary(webhook.eventTypes)} />,
 		},
 		{
 			id: "deliveries",
 			header: `Last ${DELIVERY_TICKS.toString()} deliveries`,
-			size: 120,
-			minSize: 100,
-			meta: { grow: true },
+			size: 140,
+			minSize: 120,
 			cell: ({ row: { original: webhook } }) => <DeliveryTicks workspaceId={workspaceId} webhookId={webhook.id} />,
 		},
 		{
@@ -289,7 +289,7 @@ function webhookColumns({
 			header: "Created",
 			size: 130,
 			minSize: 90,
-			meta: { cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
+			meta: { fit: true, cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
 			cell: ({ row: { original: webhook } }) => <Created webhook={webhook} />,
 		},
 		{

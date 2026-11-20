@@ -224,8 +224,9 @@ function rolloutColumns(
 		{
 			id: "status",
 			header: "Status",
-			size: 120,
+			size: 110,
 			minSize: 90,
+			meta: { fit: true, fitMax: 140 },
 			cell: ({ row: { original: rollout } }) => {
 				const { dep } = leadRow(rollout.rows);
 				return <DeploymentStatusBadge phase={dep.status} superseded={deploymentState(dep) === "superseded"} />;
@@ -236,6 +237,7 @@ function rolloutColumns(
 			header: "Version",
 			size: 130,
 			minSize: 90,
+			meta: { fit: true, fitMax: 160 },
 			cell: ({ row: { original: rollout } }) => (
 				<span className="flex min-w-0 items-center gap-1.5">
 					<CellText text={depTag(leadRow(rollout.rows).dep)} className="font-mono text-[12.5px] text-foreground" />
@@ -246,7 +248,7 @@ function rolloutColumns(
 		{
 			id: "actor",
 			header: "Deployed by",
-			size: 150,
+			size: 120,
 			minSize: 90,
 			cell: ({ row: { original: rollout } }) => <DeploymentActor deployment={leadRow(rollout.rows).dep} />,
 		},
@@ -254,7 +256,8 @@ function rolloutColumns(
 			id: "region",
 			header: "Region",
 			size: 120,
-			minSize: 120,
+			minSize: 100,
+			meta: { fit: true, fitMax: 160 },
 			cell: ({ row: { original: rollout } }) => (
 				<PlacementChips placements={leadRow(rollout.rows).dep.placements} className="flex-col items-start" />
 			),
@@ -283,7 +286,7 @@ function rolloutColumns(
 		{
 			id: "started",
 			header: "Started",
-			size: 100,
+			size: 84,
 			minSize: 72,
 			meta: { align: "end", cellClassName: TIME_CELL },
 			cell: ({ row: { original: rollout } }) => <TimeAgo ms={maybeTsMs(rollout.rows[0].dep.createdAt)} nowMs={nowMs} />,
@@ -291,7 +294,7 @@ function rolloutColumns(
 		{
 			id: "deployed",
 			header: "Deployed",
-			size: 100,
+			size: 84,
 			minSize: 72,
 			meta: { align: "end", cellClassName: TIME_CELL },
 			cell: ({ row: { original: rollout } }) => <TimeAgo ms={readyMs(rollout.rows[0].dep)} nowMs={nowMs} />,

@@ -18,7 +18,7 @@ import type { AccessChip, Creator, EntityTree } from "./model";
 
 function AccessCell({ chips }: { chips: AccessChip[] }) {
 	return (
-		<div className="flex min-w-0 flex-wrap gap-1">
+		<div className="flex min-w-0 flex-wrap gap-1 *:shrink-0">
 			{accessByLevel(chips).map((g) => {
 				const names = g.nodes.map((n) => (n.kind === "ws" ? `${n.label} workspace` : n.label)).join(", ");
 				return <LevelChip key={g.level} level={g.level} name={names} title={`${LEVEL_LABEL[g.level]} ${names}`} />;
@@ -92,6 +92,7 @@ function tokenColumns({
 			header: "Token",
 			size: 220,
 			minSize: 120,
+			meta: { fit: true, fitMax: 220 },
 			cell: ({ row: { original: t } }) => (
 				<span className="flex min-w-0 flex-col gap-px font-mono text-[13px]">
 					<CellText text={t.name} />
@@ -103,8 +104,8 @@ function tokenColumns({
 			id: "access",
 			header: "Access",
 			size: 200,
-			minSize: 120,
-			meta: { grow: true },
+			minSize: 100,
+			meta: { fit: true, fitMax: 320 },
 			cell: ({ row: { original: t } }) => <AccessCell chips={accessChips(tree, t)} />,
 		},
 		{
@@ -112,6 +113,7 @@ function tokenColumns({
 			header: "Created by",
 			size: 190,
 			minSize: 100,
+			meta: { grow: true },
 			cell: ({ row: { original: t } }) => <CreatorCell token={t} creator={creators.get(t.createdBy)} now={now} />,
 		},
 		{

@@ -210,7 +210,7 @@
 }
 
 [data-slot="data-table"]:is([data-scroll="start"], [data-scroll="middle"]) [data-pin="end"] {
-	box-shadow: -1px 0 0 var(--line);
+	box-shadow: inset 1px 0 0 var(--line);
 }
 
 [data-slot="data-table"] tr[data-interactive]:hover > [data-pin] {
