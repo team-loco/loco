@@ -65,7 +65,6 @@ call(
     state,
     "loco.secret.v1.SecretService/SetSecrets",
     {
-        "resourceId": resource,
         "environmentId": production,
         "values": {"SESSION_KEY": "fixture-session"},
     },
@@ -266,27 +265,16 @@ with session(out) as browser:
         context, page, errors = open_at(browser, 390, 844, mode)
         page.goto(base + f"/resource/{resource}?env=production&tab=settings")
         variables = page.locator("#set-env")
-        reveal = variables.get_by_role("button", name="Show SESSION_KEY for 30 seconds")
-        value = variables.get_by_label("New value for SESSION_KEY", exact=True)
-        value.fill("typed")
-        expect(reveal).to_be_enabled()
-        reveal_box, value_box = value.evaluate(
-            """(input, button) => [button, input].map(el => {
-                const { x, y, width, height } = el.getBoundingClientRect();
-                return { x, y, width, height };
-            })""",
-            reveal.element_handle(),
+        variables.get_by_role("button", name="Add", exact=True).click()
+        fits = variables.evaluate(
+            """section => [section, ...section.querySelectorAll("input")].every(el => {
+                const box = el.getBoundingClientRect();
+                return box.left >= 0 && box.right <= innerWidth && el.scrollWidth <= el.clientWidth + 1;
+            })"""
         )
-        assert reveal_box["y"] < value_box["y"] + value_box["height"], (
-            reveal_box,
-            value_box,
-        )
-        assert reveal_box["x"] > value_box["x"] + value_box["width"], (
-            reveal_box,
-            value_box,
-        )
+        assert fits, mode
         page.add_style_tag(content=".savebar { visibility: hidden }")
-        value.locator("..").screenshot(path=out / f"{mode}-390-variables.png")
+        variables.screenshot(path=out / f"{mode}-390-variables.png")
         context.close()
 
     for mode in MODES:

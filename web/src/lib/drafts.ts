@@ -47,14 +47,7 @@ export function addDraft(drafts: readonly Draft[], draft: Draft): Draft[] {
 }
 
 export function editDraft(drafts: readonly Draft[], id: string, edits: DraftEdits): Draft[] {
-	const stored =
-		edits.vars === undefined
-			? edits
-			: {
-					...edits,
-					vars: edits.vars.map((row) => (row.secret ? { ...row, value: "" } : row)),
-				};
-	return drafts.map((d) => (d.id === id ? { ...d, edits: { ...d.edits, ...stored } } : d));
+	return drafts.map((d) => (d.id === id ? { ...d, edits: { ...d.edits, ...edits } } : d));
 }
 
 export function setDraftImage(drafts: readonly Draft[], id: string, image: string): Draft[] {

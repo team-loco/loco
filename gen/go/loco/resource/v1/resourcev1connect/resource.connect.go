@@ -45,6 +45,9 @@ const (
 	// ResourceServiceGetResourceEnvProcedure is the procedure name of the ResourceService's
 	// GetResourceEnv RPC.
 	ResourceServiceGetResourceEnvProcedure = "/loco.resource.v1.ResourceService/GetResourceEnv"
+	// ResourceServiceListResourceOutputsProcedure is the procedure name of the ResourceService's
+	// ListResourceOutputs RPC.
+	ResourceServiceListResourceOutputsProcedure = "/loco.resource.v1.ResourceService/ListResourceOutputs"
 	// ResourceServiceScaleResourceProcedure is the procedure name of the ResourceService's
 	// ScaleResource RPC.
 	ResourceServiceScaleResourceProcedure = "/loco.resource.v1.ResourceService/ScaleResource"
@@ -106,6 +109,13 @@ var (
 			Procedure:  ResourceServiceGetResourceEnvProcedure,
 		}
 	})
+	resourceServiceListResourceOutputsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     v1.File_loco_resource_v1_resource_proto.Services().ByName("ResourceService").Methods().ByName("ListResourceOutputs"),
+			Procedure:  ResourceServiceListResourceOutputsProcedure,
+		}
+	})
 	resourceServiceScaleResourceSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -143,9 +153,12 @@ type ResourceServiceClient interface {
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
 	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
-	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
-	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
+	// GetResourceEnv returns the variables a service runs with in an environment as written, the
+	// env map of loco.yaml, with references unresolved. Secret values are never included.
 	GetResourceEnv(context.Context, *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error)
+	// ListResourceOutputs lists what each resource of the workspace provides to references in an
+	// environment: its built-in outputs and its variables.
+	ListResourceOutputs(context.Context, *v1.ListResourceOutputsRequest) (*v1.ListResourceOutputsResponse, error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
@@ -175,9 +188,12 @@ type ResourceServiceHandler interface {
 	ListWorkspaceResources(context.Context, *v1.ListWorkspaceResourcesRequest) (*v1.ListWorkspaceResourcesResponse, error)
 	// ListRegions lists the regions an environment deploys to.
 	ListRegions(context.Context, *v1.ListRegionsRequest) (*v1.ListRegionsResponse, error)
-	// GetResourceEnv returns the plain env variables a service runs with in an environment, the
-	// env map of loco.yaml, and the secret names it declares. Secret values are never included.
+	// GetResourceEnv returns the variables a service runs with in an environment as written, the
+	// env map of loco.yaml, with references unresolved. Secret values are never included.
 	GetResourceEnv(context.Context, *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error)
+	// ListResourceOutputs lists what each resource of the workspace provides to references in an
+	// environment: its built-in outputs and its variables.
+	ListResourceOutputs(context.Context, *v1.ListResourceOutputsRequest) (*v1.ListResourceOutputsResponse, error)
 	// Resource Operations
 	// ScaleResource adjusts resource replicas and resource allocation.
 	ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error)
@@ -199,6 +215,7 @@ func RegisterResourceServiceHandler(server *connect.Server, svc ResourceServiceH
 		connect.Method{Spec: resourceServiceListWorkspaceResourcesSpec(), Handler: adapter.listWorkspaceResources},
 		connect.Method{Spec: resourceServiceListRegionsSpec(), Handler: adapter.listRegions},
 		connect.Method{Spec: resourceServiceGetResourceEnvSpec(), Handler: adapter.getResourceEnv},
+		connect.Method{Spec: resourceServiceListResourceOutputsSpec(), Handler: adapter.listResourceOutputs},
 		connect.Method{Spec: resourceServiceScaleResourceSpec(), Handler: adapter.scaleResource},
 		connect.Method{Spec: resourceServiceRestartResourceSpec(), Handler: adapter.restartResource},
 		connect.Method{Spec: resourceServiceTransferPartialSpec(), Handler: adapter.transferPartial},
@@ -234,6 +251,10 @@ func (UnimplementedResourceServiceHandler) ListRegions(context.Context, *v1.List
 
 func (UnimplementedResourceServiceHandler) GetResourceEnv(context.Context, *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.GetResourceEnv is not implemented")
+}
+
+func (UnimplementedResourceServiceHandler) ListResourceOutputs(context.Context, *v1.ListResourceOutputsRequest) (*v1.ListResourceOutputsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "loco.resource.v1.ResourceService.ListResourceOutputs is not implemented")
 }
 
 func (UnimplementedResourceServiceHandler) ScaleResource(context.Context, *v1.ScaleResourceRequest) (*v1.ScaleResourceResponse, error) {
@@ -303,6 +324,14 @@ func (c *resourceServiceClient) ListRegions(ctx context.Context, req *v1.ListReg
 func (c *resourceServiceClient) GetResourceEnv(ctx context.Context, req *v1.GetResourceEnvRequest) (*v1.GetResourceEnvResponse, error) {
 	var res v1.GetResourceEnvResponse
 	if err := c.client.CallUnary(ctx, resourceServiceGetResourceEnvSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *resourceServiceClient) ListResourceOutputs(ctx context.Context, req *v1.ListResourceOutputsRequest) (*v1.ListResourceOutputsResponse, error) {
+	var res v1.ListResourceOutputsResponse
+	if err := c.client.CallUnary(ctx, resourceServiceListResourceOutputsSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -412,6 +441,18 @@ func (h resourceServiceHandler) getResourceEnv(ctx context.Context, _ connect.Sp
 		return err
 	}
 	res, err := h.svc.GetResourceEnv(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h resourceServiceHandler) listResourceOutputs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req v1.ListResourceOutputsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListResourceOutputs(ctx, &req)
 	if err != nil {
 		return err
 	}

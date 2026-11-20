@@ -240,7 +240,7 @@ func TestDeletionWaitsForAnotherEnvironmentsPlacement(t *testing.T) {
 			}
 			if err = placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
 				ResourceID: f.resourceID, EnvironmentID: staging, ClusterID: f.clusterID,
-				Region: testRegion, DesiredSpec: []byte(`{"app_spec":{}}`), SecretNames: []string{},
+				Region: testRegion, DesiredSpec: []byte(`{"app_spec":{}}`), SecretEnv: map[string]string{},
 			}); err != nil {
 				t.Fatal(err)
 			}

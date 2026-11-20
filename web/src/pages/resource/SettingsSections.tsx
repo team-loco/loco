@@ -447,9 +447,6 @@ export function RegionsSection({
 									<>
 										{note}
 										{configured && on && info?.isDefault === true && " · default"}
-										{on && !configured && (
-											<span className="block text-warn-fg">Starts without this resource's secrets</span>
-										)}
 									</>
 								)
 							}

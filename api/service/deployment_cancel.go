@@ -312,7 +312,6 @@ func rollbackRegions(
 		params: genDb.CreateDeploymentParams{
 			ResourceID:             canceled.ResourceID,
 			EnvironmentID:          canceled.EnvironmentID,
-			SecretNames:            previous.SecretNames,
 			ActorType:              principal.ActorType,
 			ActorID:                principal.ActorID,
 			Method:                 principal.Method,
@@ -322,9 +321,10 @@ func rollbackRegions(
 			SourceDeploymentID:     &previous.ID,
 			RollbackOfDeploymentID: &canceled.ID,
 		},
-		service: service,
-		targets: targets,
-		render:  render.payload,
+		service:  service,
+		resolved: storedResolution(previous),
+		targets:  targets,
+		render:   render.payload,
 	})
 	if err != nil {
 		return uuid.Nil, err

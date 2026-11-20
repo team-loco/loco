@@ -57,10 +57,8 @@ message ApplyRequest {
   }];
   // provision names services the plan creates. When it is set, the apply creates only those
   // services' resources, without deployments, and performs no other operation of the plan, so
-  // a source service can be built, and a service that declares secrets can have them set,
-  // before the file is applied. The secrets the provisioned services declare need not be set
-  // yet; every other plan error still refuses the apply. A request sets provision or builds,
-  // not both.
+  // a source service can be built before the file is applied. Every plan error still refuses
+  // the apply. A request sets provision or builds, not both.
   repeated string provision = 8 [(buf.validate.field).repeated = {
     max_items: 100
     unique: true
@@ -85,7 +83,6 @@ message ApplyResponse {
 
 // StartedDeployment is a deployment an apply created for a runtime change.
 message StartedDeployment {
-  reserved 2;
   string service = 1;
   string deployment_id = 3;
   repeated string regions = 4;
@@ -123,18 +120,6 @@ message PlanResponse {
   // images maps every image reference of the file that resolved to the digest-pinned reference
   // the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
   map<string, string> images = 4;
-  // saved_secrets are the secrets the file's services hold in the environment, in service and
-  // name order.
-  repeated SavedSecret saved_secrets = 5;
-}
-
-// SavedSecret is a secret a service holds in the environment. Its deployments receive it only
-// when the file declares it.
-message SavedSecret {
-  string service = 1;
-  string name = 2;
-  // declared is true when the file lists the name in the service's secrets.
-  bool declared = 3;
 }
 
 enum PlanOperationKind {

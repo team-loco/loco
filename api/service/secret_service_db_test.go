@@ -92,7 +92,7 @@ func (p *testKeyProvider) Unwrap(_ context.Context, wrapped secretkeys.WrappedKe
 
 func testSecretCounts() *configv1.CountLimits {
 	counts := limits.Defaults()
-	limits.SecretsPerResource.Set(counts, testMaxSecrets)
+	limits.SecretsPerEnvironment.Set(counts, testMaxSecrets)
 	return counts
 }
 
@@ -112,7 +112,7 @@ func (f *secretFixture) server(t *testing.T, provider secretkeys.Provider) *Secr
 func (f *secretFixture) set(t *testing.T, server *SecretServer, values map[string]string) *secretv1.SetSecretsResponse {
 	t.Helper()
 	res, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Values: values,
+		EnvironmentId: f.environmentID.String(), Values: values,
 	})
 	if err != nil {
 		t.Fatalf("set secrets: %v", err)
@@ -151,7 +151,7 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 	}
 
 	rows, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey},
 	})
 	if err != nil {
 		t.Fatalf("ciphertexts: %v", err)
@@ -168,7 +168,7 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unwrap: %v", err)
 	}
-	aad := secretkeys.SecretAAD(f.workspaceID.String(), f.environmentID.String(), f.resourceID.String(), stripeKey, 2)
+	aad := secretkeys.SecretAAD(f.workspaceID.String(), f.environmentID.String(), stripeKey, 2)
 	plaintext, err := secretkeys.Open(dek, rows[0].Nonce, rows[0].Ciphertext, aad)
 	if err != nil {
 		t.Fatalf("open: %v", err)
@@ -178,7 +178,7 @@ func TestSetSecretsStoresCiphertextAndBumpsVersions(t *testing.T) {
 	}
 
 	listed, err := server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
+		EnvironmentId: f.environmentID.String(),
 	})
 	if err != nil {
 		t.Fatalf("list: %v", err)
@@ -201,16 +201,16 @@ func TestSetSecretsEnforcesLimits(t *testing.T) {
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-		Values: map[string]string{"BIG": strings.Repeat("x", testMaxValue+1)},
+		EnvironmentId: f.environmentID.String(),
+		Values:        map[string]string{"BIG": strings.Repeat("x", testMaxValue+1)},
 	})
 	if code := wireCode(err); code != connect.CodeInvalidArgument {
 		t.Fatalf("oversized value: code = %v, want InvalidArgument", code)
 	}
 	f.set(t, server, map[string]string{"A": "1", "B": "2"})
 	_, err = server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-		Values: map[string]string{"B": "2", "C": "3", "D": "4"},
+		EnvironmentId: f.environmentID.String(),
+		Values:        map[string]string{"B": "2", "C": "3", "D": "4"},
 	})
 	if code := wireCode(err); code != connect.CodeResourceExhausted {
 		t.Fatalf("fourth name: code = %v, want ResourceExhausted", code)
@@ -223,7 +223,7 @@ func TestSetSecretsEnforcesLimits(t *testing.T) {
 func (f *secretFixture) raiseSecretLimit(t *testing.T, value int32) {
 	t.Helper()
 	counts := &configv1.CountLimits{}
-	limits.SecretsPerResource.Set(counts, value)
+	limits.SecretsPerEnvironment.Set(counts, value)
 	admin := reqctx.WithPrincipal(t.Context(), reqctx.Principal{
 		Entity: genDb.Entity{Type: genDb.EntityTypeUser, ID: f.ownerID},
 		Scopes: []genDb.EntityScope{{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin}},
@@ -233,7 +233,7 @@ func (f *secretFixture) raiseSecretLimit(t *testing.T, value int32) {
 		&orgv1.SetOrgLimitsRequest{
 			OrgId:      f.orgID.String(),
 			Limits:     counts,
-			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{string(limits.SecretsPerResource.Field)}},
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{string(limits.SecretsPerEnvironment.Field)}},
 			Reason:     "test",
 		},
 	)
@@ -252,10 +252,10 @@ func TestSecretRequestsOverTheLimitChangeNothing(t *testing.T) {
 		values[name] = "1"
 	}
 	_, setErr := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Values: values,
+		EnvironmentId: f.environmentID.String(), Values: values,
 	})
 	_, deleteErr := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: over,
+		EnvironmentId: f.environmentID.String(), Names: over,
 	})
 	for _, err := range []error{setErr, deleteErr} {
 		if code := wireCode(err); code != connect.CodeResourceExhausted {
@@ -281,7 +281,7 @@ func TestRaisedOrgLimitAllowsLargerSecretRequests(t *testing.T) {
 	}
 	f.set(t, server, values)
 	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: names,
+		EnvironmentId: f.environmentID.String(), Names: names,
 	})
 	if err != nil {
 		t.Fatalf("delete %d names under the raised limit: %v", len(names), err)
@@ -298,7 +298,7 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	set := f.set(t, server, map[string]string{"A": "1", "B": "2"})
 
 	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{"A", missingName},
+		EnvironmentId: f.environmentID.String(), Names: []string{"A", missingName},
 	})
 	if code := wireCode(err); code != connect.CodeNotFound {
 		t.Fatalf("delete with a missing name: code = %v, want NotFound", code)
@@ -308,7 +308,7 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	}
 
 	res, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{"A"},
+		EnvironmentId: f.environmentID.String(), Names: []string{"A"},
 	})
 	if err != nil {
 		t.Fatalf("delete: %v", err)
@@ -329,8 +329,8 @@ func TestDeleteSecretsRemovesNamesAndBumpsRevision(t *testing.T) {
 	if err := f.pool.QueryRow(t.Context(), latest, "secret.deleted").Scan(&subjectType, &subjectID); err != nil {
 		t.Fatalf("secret.deleted subject: %v", err)
 	}
-	if subjectType != "resource" || subjectID != f.resourceID {
-		t.Fatalf("secret.deleted subject = %s %s, want the resource", subjectType, subjectID)
+	if subjectType != "environment" || subjectID != f.environmentID {
+		t.Fatalf("secret.deleted subject = %s %s, want the environment", subjectType, subjectID)
 	}
 }
 
@@ -392,7 +392,6 @@ func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId:    f.resourceID.String(),
 		EnvironmentId: "0199c3f0-0000-7000-8000-000000000000",
 		Values:        map[string]string{"A": "1"},
 	})
@@ -401,63 +400,11 @@ func TestSetSecretsOnUnknownEnvironment(t *testing.T) {
 	}
 }
 
-func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	server := f.server(t, newTestKeyProvider(t, "k1"))
-	other := f.environment(t, f.workspace(t, "warehouse"), "prod")
-	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Values: map[string]string{"A": "1"},
-	})
-	if code := wireCode(err); code != connect.CodeNotFound {
-		t.Fatalf("set: code = %v, want NotFound", code)
-	}
-	_, err = server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: other.String(),
-	})
-	if code := wireCode(err); code != connect.CodeNotFound {
-		t.Fatalf("list: code = %v, want NotFound", code)
-	}
-	_, err = server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: other.String(), Names: []string{"A"},
-	})
-	if code := wireCode(err); code != connect.CodeNotFound {
-		t.Fatalf("delete: code = %v, want NotFound", code)
-	}
-}
-
-func TestTwoServicesHoldTheSameNameApart(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	provider := newTestKeyProvider(t, "k1")
-	server := f.server(t, provider)
-	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
-	f.set(t, server, map[string]string{stripeKey: stripeValue})
-	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
-		Values: map[string]string{stripeKey: "worker-value", databaseURL: "postgres://w"},
-	})
-	if err != nil {
-		t.Fatalf("set worker: %v", err)
-	}
-	if got, version := f.plaintext(t, provider, stripeKey); got != stripeValue || version != 1 {
-		t.Fatalf("web STRIPE_KEY = %q at version %d, want its own value at version 1", got, version)
-	}
-	listed, err := server.ListSecrets(f.owner, &secretv1.ListSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-	})
-	if err != nil {
-		t.Fatalf("list web: %v", err)
-	}
-	if secrets := listed.GetSecrets(); len(secrets) != 1 || secrets[0].GetName() != stripeKey {
-		t.Fatalf("web secrets = %+v, want only its STRIPE_KEY", secrets)
-	}
-}
-
 const (
 	alphaKey       = "ALPHA"
 	betaKey        = "BETA"
 	unusedKey      = "OTHER"
+	unusedValue    = "unread"
 	concurrentSets = 6
 )
 
@@ -479,7 +426,7 @@ RETURNING id`, "c-"+resourceID.String(), testRegion).Scan(&clusterID)
 	}
 	_, err = f.queries.UpsertPlacement(ctx, genDb.UpsertPlacementParams{
 		ResourceID: resourceID, ClusterID: clusterID, Region: testRegion, DesiredSpec: []byte("{}"),
-		EnvironmentID: f.environmentID, SecretNames: names,
+		EnvironmentID: f.environmentID, SecretEnv: secretEnvOf(names),
 	})
 	if err != nil {
 		t.Fatalf("placement: %v", err)
@@ -488,9 +435,7 @@ RETURNING id`, "c-"+resourceID.String(), testRegion).Scan(&clusterID)
 
 func (f *secretFixture) names(t *testing.T) []string {
 	t.Helper()
-	rows, err := f.queries.ListSecrets(t.Context(), genDb.ListSecretsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID,
-	})
+	rows, err := f.queries.ListSecrets(t.Context(), f.environmentID)
 	if err != nil {
 		t.Fatalf("names: %v", err)
 	}
@@ -504,7 +449,7 @@ func (f *secretFixture) names(t *testing.T) []string {
 func (f *secretFixture) plaintext(t *testing.T, provider secretkeys.Provider, name string) (string, int32) {
 	t.Helper()
 	rows, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{name},
+		EnvironmentID: f.environmentID, Names: []string{name},
 	})
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("ciphertext of %s: rows=%d err=%v", name, len(rows), err)
@@ -521,7 +466,6 @@ func (f *secretFixture) plaintext(t *testing.T, provider secretkeys.Provider, na
 	aad := secretkeys.SecretAAD(
 		f.workspaceID.String(),
 		f.environmentID.String(),
-		f.resourceID.String(),
 		name,
 		rows[0].Version,
 	)
@@ -555,7 +499,6 @@ func TestConcurrentSetsOfOneNameGetConsecutiveVersionsAndStayDecryptable(t *test
 		values[i] = fmt.Sprintf("value-%d", i)
 		group.Go(func() {
 			res, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.environmentID.String(),
 				Values:        map[string]string{stripeKey: values[i]},
 			})
@@ -596,7 +539,7 @@ func TestSetSecretsOfAnUnchangedValueChangesNothing(t *testing.T) {
 	server := f.server(t, provider)
 	first := f.set(t, server, map[string]string{stripeKey: stripeValue})
 	before, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey},
 	})
 	if err != nil {
 		t.Fatalf("ciphertexts: %v", err)
@@ -607,7 +550,7 @@ func TestSetSecretsOfAnUnchangedValueChangesNothing(t *testing.T) {
 		t.Fatalf("identical set = %+v, want revision %d and version 1", again, first.GetRevision())
 	}
 	after, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey},
 	})
 	if err != nil {
 		t.Fatalf("ciphertexts: %v", err)
@@ -644,7 +587,6 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 	f.set(t, server, map[string]string{alphaKey: strings.Repeat("a", 10), betaKey: strings.Repeat("b", 10)})
 
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: strings.Repeat("a", 30)},
 	})
@@ -657,50 +599,7 @@ func TestSetSecretsRefusesAServiceOverItsAggregateLimit(t *testing.T) {
 	}
 }
 
-func TestDeleteSecretsRefusesANameTheServiceDeclares(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	server := f.server(t, newTestKeyProvider(t, "k1"))
-	f.declare(t, f.resourceID, alphaKey)
-	f.set(t, server, map[string]string{alphaKey: "1", unusedKey: "2"})
-
-	_, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId:    f.resourceID.String(),
-		EnvironmentId: f.environmentID.String(),
-		Names:         []string{alphaKey, unusedKey},
-	})
-	if code := wireCode(err); code != connect.CodeFailedPrecondition || !strings.Contains(err.Error(), alphaKey) {
-		t.Fatalf("delete of a declared name: err = %v, want FailedPrecondition naming %s", err, alphaKey)
-	}
-	if names := f.names(t); len(names) != 2 {
-		t.Fatalf("names after the refused delete = %v, want both", names)
-	}
-	if _, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{unusedKey},
-	}); err != nil {
-		t.Fatalf("delete of an undeclared name: %v", err)
-	}
-}
-
-func TestDeleteSecretsIgnoresANameAnotherServiceDeclares(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	server := f.server(t, newTestKeyProvider(t, "k1"))
-	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
-	f.declare(t, worker, alphaKey)
-	f.set(t, server, map[string]string{alphaKey: "1"})
-
-	if _, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{alphaKey},
-	}); err != nil {
-		t.Fatalf("delete of a name only worker declares: %v", err)
-	}
-	if names := f.names(t); len(names) != 0 {
-		t.Fatalf("names after the delete = %v, want none", names)
-	}
-}
-
-func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing.T) {
+func TestSetSecretsOnAnEnvironmentDeletedWhileWaitingForItsLockIsNotFound(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
@@ -719,20 +618,20 @@ func TestSetSecretsOnAResourceDeletedWhileWaitingForItsLockIsNotFound(t *testing
 	result := make(chan error, 1)
 	go func() {
 		_, setErr := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-			ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-			Values: map[string]string{alphaKey: "2"},
+			EnvironmentId: f.environmentID.String(),
+			Values:        map[string]string{alphaKey: "2"},
 		})
 		result <- setErr
 	}()
 	dbtest.WaitForLockWaiters(t, f.pool, 1)
-	if deleteErr := held.DeleteResource(t.Context(), f.resourceID); deleteErr != nil {
-		t.Fatalf("delete resource: %v", deleteErr)
+	if deleteErr := held.DeleteEnvironment(t.Context(), f.environmentID); deleteErr != nil {
+		t.Fatalf("delete environment: %v", deleteErr)
 	}
 	if commitErr := holder.Commit(t.Context()); commitErr != nil {
 		t.Fatalf("commit: %v", commitErr)
 	}
 	if code := wireCode(<-result); code != connect.CodeNotFound {
-		t.Fatalf("set on a deleted resource: code = %v, want NotFound", code)
+		t.Fatalf("set on a deleted environment: code = %v, want NotFound", code)
 	}
 }
 
@@ -746,40 +645,22 @@ func (f *secretFixture) resourceTokenContext(t *testing.T) context.Context {
 	return f.tokenContext(t, resource, scopes)
 }
 
-func TestResourceTokenManagesOnlyItsOwnServicesSecrets(t *testing.T) {
+func TestResourceTokenCannotManageEnvironmentSecrets(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	server := f.server(t, newTestKeyProvider(t, "k1"))
-	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
 	ctx := f.resourceTokenContext(t)
 
-	if _, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-		Values: map[string]string{stripeKey: stripeValue},
-	}); err != nil {
-		t.Fatalf("set on its own service: %v", err)
-	}
-	listed, err := server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
+	_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
+		EnvironmentId: f.environmentID.String(),
+		Values:        map[string]string{stripeKey: stripeValue},
 	})
-	if err != nil {
-		t.Fatalf("list its own service: %v", err)
+	if code := wireCode(err); code != connect.CodeNotFound {
+		t.Fatalf("set: code = %v, want NotFound", code)
 	}
-	if len(listed.GetSecrets()) != 1 {
-		t.Fatalf("listed = %+v, want STRIPE_KEY", listed.GetSecrets())
-	}
-	_, err = server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
-		Values: map[string]string{stripeKey: stripeValue},
-	})
-	if code := wireCode(err); code != connect.CodePermissionDenied {
-		t.Fatalf("set on another service: code = %v, want PermissionDenied", code)
-	}
-	_, err = server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
-		ResourceId: worker.String(), EnvironmentId: f.environmentID.String(),
-	})
-	if code := wireCode(err); code != connect.CodePermissionDenied {
-		t.Fatalf("list another service: code = %v, want PermissionDenied", code)
+	_, err = server.ListSecrets(ctx, &secretv1.ListSecretsRequest{EnvironmentId: f.environmentID.String()})
+	if code := wireCode(err); code != connect.CodeNotFound {
+		t.Fatalf("list: code = %v, want NotFound", code)
 	}
 }
 
@@ -822,7 +703,6 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 			}
 
 			_, err = server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-				ResourceId:    f.resourceID.String(),
 				EnvironmentId: f.environmentID.String(),
 				Values:        map[string]string{alphaKey: "2"},
 			})
@@ -830,7 +710,7 @@ func TestSecretOperationsAbortWhenALockTimesOut(t *testing.T) {
 				t.Fatalf("set under a held lock: code = %v, want Aborted", code)
 			}
 			_, err = server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-				ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(), Names: []string{alphaKey},
+				EnvironmentId: f.environmentID.String(), Names: []string{alphaKey},
 			})
 			if code := wireCode(err); code != connect.CodeAborted {
 				t.Fatalf("delete under a held lock: code = %v, want Aborted", code)
@@ -857,8 +737,8 @@ func TestSecretWritesWaitOutLocksOutsideTheSecretLocks(t *testing.T) {
 	set := make(chan error, 1)
 	go func() {
 		_, setErr := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-			ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-			Values: map[string]string{alphaKey: "1"},
+			EnvironmentId: f.environmentID.String(),
+			Values:        map[string]string{alphaKey: "1"},
 		})
 		set <- setErr
 	}()
@@ -882,7 +762,6 @@ func TestSetSecretsFailsClosedOnAnUnknownFormatVersion(t *testing.T) {
 		t.Fatalf("bump format version: %v", err)
 	}
 	_, err := server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: "1"},
 	})
@@ -894,7 +773,6 @@ UPDATE environment_keys SET format_version = 2`); execErr != nil {
 		t.Fatalf("bump key format version: %v", execErr)
 	}
 	_, err = server.SetSecrets(f.owner, &secretv1.SetSecretsRequest{
-		ResourceId:    f.resourceID.String(),
 		EnvironmentId: f.environmentID.String(),
 		Values:        map[string]string{alphaKey: "2"},
 	})
@@ -932,16 +810,15 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 	server := f.server(t, newTestKeyProvider(t, "k1"))
 	ctx := f.workspaceTokenContext(t)
 	environmentID := f.environmentID.String()
-	resourceID := f.resourceID.String()
 
 	_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-		ResourceId: resourceID, EnvironmentId: environmentID, Values: map[string]string{stripeKey: stripeValue},
+		EnvironmentId: environmentID, Values: map[string]string{stripeKey: stripeValue},
 	})
 	if err != nil {
 		t.Fatalf("set with a workspace token: %v", err)
 	}
 	listed, err := server.ListSecrets(ctx, &secretv1.ListSecretsRequest{
-		ResourceId: resourceID, EnvironmentId: environmentID,
+		EnvironmentId: environmentID,
 	})
 	if err != nil {
 		t.Fatalf("list with a workspace token: %v", err)
@@ -970,8 +847,8 @@ func TestWorkspaceTokenSetsListsAndDeletesSecrets(t *testing.T) {
 	var creatorType, updaterType string
 	var creatorID, updaterID uuid.UUID
 	const attribution = `SELECT created_by_type, created_by_id, updated_by_type, updated_by_id
-FROM secrets WHERE resource_id = $1 AND environment_id = $2 AND name = $3`
-	if scanErr := f.pool.QueryRow(t.Context(), attribution, f.resourceID, f.environmentID, stripeKey).
+FROM secrets WHERE environment_id = $1 AND name = $2`
+	if scanErr := f.pool.QueryRow(t.Context(), attribution, f.environmentID, stripeKey).
 		Scan(&creatorType, &creatorID, &updaterType, &updaterID); scanErr != nil {
 		t.Fatalf("secret attribution: %v", scanErr)
 	}
@@ -983,7 +860,7 @@ FROM secrets WHERE resource_id = $1 AND environment_id = $2 AND name = $3`
 	}
 
 	_, err = server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
-		ResourceId: resourceID, EnvironmentId: environmentID, Names: []string{stripeKey},
+		EnvironmentId: environmentID, Names: []string{stripeKey},
 	})
 	if err != nil {
 		t.Fatalf("delete with a workspace token: %v", err)
@@ -997,14 +874,14 @@ func TestSecretEventsStayInTheirEnvironment(t *testing.T) {
 	stagingID := f.environment(t, f.workspaceID, stagingName)
 	for _, environmentID := range []uuid.UUID{f.environmentID, stagingID} {
 		request := &secretv1.SetSecretsRequest{
-			ResourceId: f.resourceID.String(), EnvironmentId: environmentID.String(),
-			Values: map[string]string{stripeKey: "value"},
+			EnvironmentId: environmentID.String(),
+			Values:        map[string]string{stripeKey: "value"},
 		}
 		if _, err := server.SetSecrets(f.owner, request); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := server.DeleteSecrets(f.owner, &secretv1.DeleteSecretsRequest{
-			ResourceId: f.resourceID.String(), EnvironmentId: environmentID.String(), Names: []string{stripeKey},
+			EnvironmentId: environmentID.String(), Names: []string{stripeKey},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -1012,7 +889,7 @@ func TestSecretEventsStayInTheirEnvironment(t *testing.T) {
 	eventServer := NewEventServer(f.pool, f.queries)
 	for _, environmentID := range []uuid.UUID{f.environmentID, stagingID} {
 		response, err := eventServer.ListEvents(f.owner, &eventv1.ListEventsRequest{
-			OrgId: f.orgID.String(), ResourceId: f.resourceID.String(), EnvironmentId: environmentID.String(),
+			OrgId: f.orgID.String(), EnvironmentId: environmentID.String(),
 			Query: "@type:secret.*",
 		})
 		if err != nil {
@@ -1046,7 +923,7 @@ func TestSetSecretsStoresAnEmptyValue(t *testing.T) {
 	}
 
 	rows, err := f.queries.ListSecretCiphertexts(t.Context(), genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey},
 	})
 	if err != nil || len(rows) != 1 {
 		t.Fatalf("ciphertexts = %v, %v, want the stored name", rows, err)
@@ -1055,12 +932,36 @@ func TestSetSecretsStoresAnEmptyValue(t *testing.T) {
 	if err != nil {
 		t.Fatalf("environment dek: %v", err)
 	}
-	target := secretTarget{
-		env:        genDb.Environment{ID: f.environmentID, WorkspaceID: f.workspaceID},
-		resourceID: f.resourceID,
-	}
+	target := secretTarget{env: genDb.Environment{ID: f.environmentID, WorkspaceID: f.workspaceID}}
 	plaintext, err := openSecret(dek, target, rows[0])
 	if err != nil || len(plaintext) != 0 {
 		t.Fatalf("stored value = %q, %v, want empty", plaintext, err)
+	}
+}
+
+func TestSecretsOfAnEnvironmentInAnotherWorkspaceAreNotFound(t *testing.T) {
+	t.Parallel()
+	f := newSecretFixture(t)
+	server := f.server(t, newTestKeyProvider(t, "k1"))
+	other := f.environment(t, f.workspace(t, "warehouse"), "prod").String()
+	ctx := f.workspaceTokenContext(t)
+	_, err := server.SetSecrets(ctx, &secretv1.SetSecretsRequest{
+		EnvironmentId: other, Values: map[string]string{"A": "1"},
+	})
+	if code := wireCode(err); code != connect.CodeNotFound {
+		t.Fatalf("set: code = %v, want NotFound", code)
+	}
+	_, err = server.ListSecrets(ctx, &secretv1.ListSecretsRequest{EnvironmentId: other})
+	if code := wireCode(err); code != connect.CodeNotFound {
+		t.Fatalf("list: code = %v, want NotFound", code)
+	}
+	_, err = server.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{EnvironmentId: other, Names: []string{"A"}})
+	if code := wireCode(err); code != connect.CodeNotFound {
+		t.Fatalf("delete: code = %v, want NotFound", code)
+	}
+	resources := NewResourceServer(f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults())
+	_, err = resources.ListResourceOutputs(ctx, &resourcev1.ListResourceOutputsRequest{EnvironmentId: other})
+	if code := wireCode(err); code != connect.CodeNotFound {
+		t.Fatalf("list resource outputs: code = %v, want NotFound", code)
 	}
 }

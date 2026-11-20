@@ -18,8 +18,6 @@ const (
 	stripeKey            = "STRIPE_KEY"
 	databaseURL          = "DATABASE_URL"
 	missingName          = "MISSING"
-	firstKey             = "A_KEY"
-	secondKey            = "B_KEY"
 	wrappedDEK           = "wrapped"
 	deployFixtureService = "svc"
 	webService           = "web"
@@ -55,11 +53,6 @@ func newSecretFixture(t *testing.T) *secretFixture {
 
 func (f *secretFixture) upsert(t *testing.T, names []string, versions []int32) {
 	t.Helper()
-	f.upsertFor(t, f.resourceID, names, versions)
-}
-
-func (f *secretFixture) upsertFor(t *testing.T, resourceID uuid.UUID, names []string, versions []int32) {
-	t.Helper()
 	nonces := make([][]byte, len(names))
 	ciphertexts := make([][]byte, len(names))
 	formatVersions := make([]int16, len(names))
@@ -69,7 +62,6 @@ func (f *secretFixture) upsertFor(t *testing.T, resourceID uuid.UUID, names []st
 		formatVersions[i] = secretFormatVersion
 	}
 	err := f.queries.UpsertSecrets(t.Context(), genDb.UpsertSecretsParams{
-		ResourceID:     resourceID,
 		EnvironmentID:  f.environmentID,
 		Names:          names,
 		Versions:       versions,
@@ -90,17 +82,17 @@ func TestSecretQueriesListCiphertextMetadata(t *testing.T) {
 	ctx := t.Context()
 
 	f.upsert(t, []string{stripeKey, databaseURL}, []int32{1, 1})
-	names, err := f.queries.ListResourceSecretNames(ctx, f.environmentID)
+	names, err := f.queries.ListSecretSizes(ctx, f.environmentID)
 	if err != nil {
 		t.Fatalf("list names: %v", err)
 	}
 	if len(names) != 2 || names[0].Name != databaseURL || names[1].Name != stripeKey ||
-		names[0].ResourceSlug != webService || names[1].CiphertextBytes != int64(len("cipher-"+stripeKey)) {
-		t.Fatalf("names = %+v, want web's DATABASE_URL and STRIPE_KEY with their ciphertext sizes", names)
+		names[1].CiphertextBytes != int64(len("cipher-"+stripeKey)) {
+		t.Fatalf("names = %+v, want DATABASE_URL and STRIPE_KEY with their ciphertext sizes", names)
 	}
 	f.upsert(t, []string{stripeKey}, []int32{2})
 	ciphertexts, err := f.queries.ListSecretCiphertexts(ctx, genDb.ListSecretCiphertextsParams{
-		ResourceID: f.resourceID, EnvironmentID: f.environmentID, Names: []string{stripeKey, missingName},
+		EnvironmentID: f.environmentID, Names: []string{stripeKey, missingName},
 	})
 	if err != nil {
 		t.Fatalf("ciphertexts: %v", err)
@@ -115,7 +107,6 @@ func TestSecretQueriesRejectNamesThatAreNotEnvVarIdentifiers(t *testing.T) {
 	t.Parallel()
 	f := newSecretFixture(t)
 	err := f.queries.UpsertSecrets(t.Context(), genDb.UpsertSecretsParams{
-		ResourceID:     f.resourceID,
 		EnvironmentID:  f.environmentID,
 		Names:          []string{"stripe-key"},
 		Versions:       []int32{1},
@@ -203,7 +194,7 @@ func TestDeletingAnEnvironmentDropsItsKeyAndSecrets(t *testing.T) {
 	if _, err := f.queries.GetEnvironmentKey(ctx, f.environmentID); !errors.Is(err, pgx.ErrNoRows) {
 		t.Fatalf("key after delete: err = %v, want ErrNoRows", err)
 	}
-	names, err := f.queries.ListResourceSecretNames(ctx, f.environmentID)
+	names, err := f.queries.ListSecrets(ctx, f.environmentID)
 	if err != nil {
 		t.Fatalf("list names: %v", err)
 	}
@@ -212,162 +203,10 @@ func TestDeletingAnEnvironmentDropsItsKeyAndSecrets(t *testing.T) {
 	}
 }
 
-func TestDeletingAResourceDropsOnlyItsSecrets(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	ctx := t.Context()
-	prod := f.environmentID
-	worker := f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
-	staging := f.environment(t, f.workspaceID, "staging")
-	f.upsert(t, []string{stripeKey}, []int32{1})
-	f.upsertFor(t, worker, []string{stripeKey}, []int32{1})
-	f.environmentID = staging
-	f.upsert(t, []string{databaseURL}, []int32{1})
-
-	if err := f.queries.DeleteResource(ctx, f.resourceID); err != nil {
-		t.Fatalf("delete resource: %v", err)
-	}
-	for _, env := range []uuid.UUID{prod, staging} {
-		left, err := f.queries.CountSecrets(ctx, genDb.CountSecretsParams{ResourceID: f.resourceID, EnvironmentID: env})
-		if err != nil {
-			t.Fatalf("count: %v", err)
-		}
-		if left != 0 {
-			t.Fatalf("deleted resource still holds %d secrets in %s", left, env)
-		}
-	}
-	kept, err := f.queries.CountSecrets(ctx, genDb.CountSecretsParams{ResourceID: worker, EnvironmentID: prod})
-	if err != nil {
-		t.Fatalf("count worker: %v", err)
-	}
-	if kept != 1 {
-		t.Fatalf("worker holds %d secrets after web was deleted, want 1", kept)
-	}
-}
-
-func (d *deployFixture) upsertSecrets(t *testing.T, resourceID uuid.UUID, names []string, sizes []int) {
-	t.Helper()
-	var userID uuid.UUID
-	if err := d.pool.QueryRow(t.Context(), `SELECT id FROM users LIMIT 1`).Scan(&userID); err != nil {
-		t.Fatalf("user: %v", err)
-	}
-	versions := make([]int32, len(names))
-	nonces := make([][]byte, len(names))
-	ciphertexts := make([][]byte, len(names))
-	formatVersions := make([]int16, len(names))
-	for i := range names {
-		versions[i] = 1
-		nonces[i] = []byte("n")
-		ciphertexts[i] = make([]byte, sizes[i])
-		formatVersions[i] = secretFormatVersion
-	}
-	err := d.queries.UpsertSecrets(t.Context(), genDb.UpsertSecretsParams{
-		ResourceID:     resourceID,
-		EnvironmentID:  d.envID,
-		Names:          names,
-		Versions:       versions,
-		Nonces:         nonces,
-		Ciphertexts:    ciphertexts,
-		FormatVersions: formatVersions,
-		UpdatedByType:  string(genDb.EntityTypeUser),
-		UpdatedByID:    userID,
-	})
-	if err != nil {
-		t.Fatalf("upsert: %v", err)
-	}
-}
-
 // otherResource creates another service in the fixture's workspace.
 func (d *deployFixture) otherResource(t *testing.T, name string) uuid.UUID {
 	t.Helper()
 	return d.tenant.resource(t, d.workspaceID(t), name, &resourcev1.ServiceSpec{})
-}
-
-func (d *deployFixture) placeWithSecrets(t *testing.T, resourceID, clusterID uuid.UUID, names []string) {
-	t.Helper()
-	_, err := d.queries.UpsertPlacement(t.Context(), genDb.UpsertPlacementParams{
-		ResourceID:    resourceID,
-		ClusterID:     clusterID,
-		Region:        testRegion,
-		DesiredSpec:   []byte("{}"),
-		EnvironmentID: d.envID,
-		SecretNames:   names,
-	})
-	if err != nil {
-		t.Fatalf("placement on %s: %v", clusterID, err)
-	}
-}
-
-func TestListPlacementSecretSizesCountsTheNamesAPlacementDeclares(t *testing.T) {
-	t.Parallel()
-	d := newDeployFixture(t)
-	ctx := t.Context()
-	d.upsertSecrets(t, d.resourceID, []string{firstKey, secondKey, "UNUSED"}, []int{20, 30, 40})
-	d.placeWithSecrets(t, d.resourceID, d.clusterID, []string{firstKey, secondKey})
-
-	sizes, err := d.queries.ListPlacementSecretSizes(ctx, genDb.ListPlacementSecretSizesParams{
-		ResourceID: d.resourceID, EnvironmentID: d.envID, Names: []string{secondKey},
-	})
-	if err != nil {
-		t.Fatalf("sizes: %v", err)
-	}
-	if len(sizes) != 1 || sizes[0].NameBytes != 10 || sizes[0].CiphertextBytes != 50 || sizes[0].SecretCount != 2 {
-		t.Fatalf("sizes = %+v, want the 2 declared names, 10 name bytes and 50 ciphertext bytes", sizes)
-	}
-
-	none, err := d.queries.ListPlacementSecretSizes(ctx, genDb.ListPlacementSecretSizesParams{
-		ResourceID: d.resourceID, EnvironmentID: d.envID, Names: []string{"UNUSED"},
-	})
-	if err != nil {
-		t.Fatalf("sizes for an undeclared name: %v", err)
-	}
-	if len(none) != 0 {
-		t.Fatalf("sizes for an undeclared name = %+v, want none", none)
-	}
-}
-
-func TestListPlacementSecretSizesReportsEachPlacementOnItsOwn(t *testing.T) {
-	t.Parallel()
-	d := newDeployFixture(t)
-	d.upsertSecrets(t, d.resourceID, []string{firstKey}, []int{20})
-	for _, clusterID := range []uuid.UUID{d.clusterID, d.otherCluster} {
-		d.placeWithSecrets(t, d.resourceID, clusterID, []string{firstKey})
-	}
-
-	sizes, err := d.queries.ListPlacementSecretSizes(t.Context(), genDb.ListPlacementSecretSizesParams{
-		ResourceID: d.resourceID, EnvironmentID: d.envID, Names: []string{firstKey},
-	})
-	if err != nil {
-		t.Fatalf("sizes: %v", err)
-	}
-	if len(sizes) != 2 {
-		t.Fatalf("sizes = %+v, want one row per placement", sizes)
-	}
-	for _, size := range sizes {
-		if size.NameBytes != 5 || size.CiphertextBytes != 20 || size.SecretCount != 1 {
-			t.Fatalf("size = %+v, want one name of 5 bytes and 20 ciphertext bytes", size)
-		}
-	}
-}
-
-func TestListPlacementSecretSizesCountsOnlyThePlacementsOwnResource(t *testing.T) {
-	t.Parallel()
-	d := newDeployFixture(t)
-	worker := d.otherResource(t, workerService)
-	d.upsertSecrets(t, d.resourceID, []string{firstKey}, []int{20})
-	d.upsertSecrets(t, worker, []string{firstKey}, []int{500})
-	d.placeWithSecrets(t, d.resourceID, d.clusterID, []string{firstKey})
-	d.placeWithSecrets(t, worker, d.clusterID, []string{firstKey})
-
-	sizes, err := d.queries.ListPlacementSecretSizes(t.Context(), genDb.ListPlacementSecretSizesParams{
-		ResourceID: d.resourceID, EnvironmentID: d.envID, Names: []string{firstKey},
-	})
-	if err != nil {
-		t.Fatalf("sizes: %v", err)
-	}
-	if len(sizes) != 1 || sizes[0].CiphertextBytes != 20 || sizes[0].SecretCount != 1 {
-		t.Fatalf("sizes = %+v, want svc's one placement with only svc's 20 ciphertext bytes", sizes)
-	}
 }
 
 func rollbackOnCleanup(t *testing.T, tx pgx.Tx) {

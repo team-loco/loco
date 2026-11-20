@@ -17,6 +17,7 @@ import (
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -29,13 +30,14 @@ type placementTarget struct {
 	clusterID uuid.UUID
 }
 
-// newDeployment is one deployment to record: its row, its merged service spec with the plain
-// env, and the regions it targets.
+// newDeployment is one deployment to record: its row, its merged service spec with the
+// variables as written, those variables resolved, and the regions it targets.
 type newDeployment struct {
-	params  genDb.CreateDeploymentParams
-	service *deploymentv1.ServiceDeploymentSpec
-	targets []placementTarget
-	render  func(spec *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, region string) ([]byte, error)
+	params   genDb.CreateDeploymentParams
+	service  *deploymentv1.ServiceDeploymentSpec
+	resolved varref.Resolved
+	targets  []placementTarget
+	render   func(spec *deploymentv1.DeploymentSpec, deploymentID uuid.UUID, region string) ([]byte, error)
 }
 
 // createDeployment records one deployment with a placement per target region, places each
@@ -80,12 +82,17 @@ func createDeployment(
 	}
 	params.Spec = specJSON
 	params.SpecVersion = specVersion
+	params.PlainEnv = d.resolved.Plain
+	params.SecretEnv = d.resolved.Secret
 	deploymentID, err := qtx.CreateDeployment(ctx, params)
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("failed to create deployment: %w", err)
 	}
 
-	spec := &deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: d.service}}
+	spec := withPlainEnv(
+		&deploymentv1.DeploymentSpec{Spec: &deploymentv1.DeploymentSpec_Service{Service: d.service}},
+		d.resolved.Plain,
+	)
 	image := ""
 	if placementStatus == genDb.PlacementStatusDeploying {
 		image = d.service.GetBuild().GetImage()
@@ -113,7 +120,7 @@ func createDeployment(
 				DeploymentID:  &deploymentID,
 				DesiredSpec:   payload,
 				EnvironmentID: params.EnvironmentID,
-				SecretNames:   params.SecretNames,
+				SecretEnv:     d.resolved.Secret,
 			}); placeErr != nil {
 				return uuid.UUID{}, placeErr
 			}
@@ -450,7 +457,7 @@ func (e *invalidSpecError) Unwrap() []error {
 }
 
 // placeDeployment points the region's placement at an existing deployment, with the given
-// spec, which carries the plain env.
+// spec and the variables the deployment resolved.
 func placeDeployment(
 	ctx context.Context,
 	qtx *genDb.Queries,
@@ -459,13 +466,18 @@ func placeDeployment(
 	target placementTarget,
 	spec *deploymentv1.DeploymentSpec,
 ) error {
-	payload, err := render.payload(spec, deployment.ID, target.region)
+	payload, err := render.payload(withPlainEnv(spec, deployment.PlainEnv), deployment.ID, target.region)
 	if err != nil {
 		return err
 	}
 	return placeApplication(ctx, qtx, genDb.UpsertPlacementParams{
 		ResourceID: deployment.ResourceID, EnvironmentID: deployment.EnvironmentID, Region: target.region,
-		ClusterID: target.clusterID, DeploymentID: &deployment.ID, SecretNames: deployment.SecretNames,
+		ClusterID: target.clusterID, DeploymentID: &deployment.ID, SecretEnv: deployment.SecretEnv,
 		DesiredSpec: payload,
 	})
+}
+
+// storedResolution is the variables a recorded deployment resolved.
+func storedResolution(deployment genDb.Deployment) varref.Resolved {
+	return varref.Resolved{Plain: deployment.PlainEnv, Secret: deployment.SecretEnv}
 }

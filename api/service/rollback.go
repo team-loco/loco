@@ -97,7 +97,6 @@ func rollbackDeploymentIfEnabled(
 		params: genDb.CreateDeploymentParams{
 			ResourceID:         failed.ResourceID,
 			EnvironmentID:      failed.EnvironmentID,
-			SecretNames:        previous.SecretNames,
 			ActorType:          failed.ActorType,
 			ActorID:            failed.ActorID,
 			Method:             failed.Method,
@@ -106,9 +105,10 @@ func rollbackDeploymentIfEnabled(
 			Trigger:            genDb.DeploymentTriggerAutoRollback,
 			SourceDeploymentID: &previous.ID,
 		},
-		service: service,
-		targets: targets,
-		render:  render.payload,
+		service:  service,
+		resolved: storedResolution(previous),
+		targets:  targets,
+		render:   render.payload,
 	})
 	if err != nil {
 		return err

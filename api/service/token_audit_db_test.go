@@ -51,8 +51,8 @@ func TestPersonalTokenActionsAreAuditedInTheOrganization(t *testing.T) {
 		{EntityType: genDb.EntityTypeOrganization, EntityID: f.orgID, Scope: genDb.ScopeRead},
 	})
 	if _, err := secrets.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-		ResourceId: f.resourceID.String(), EnvironmentId: f.environmentID.String(),
-		Values: map[string]string{stripeKey: stripeValue},
+		EnvironmentId: f.environmentID.String(),
+		Values:        map[string]string{stripeKey: stripeValue},
 	}); err != nil {
 		t.Fatalf("set secret with a personal token: %v", err)
 	}

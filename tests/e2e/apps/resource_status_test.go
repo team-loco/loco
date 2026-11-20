@@ -718,7 +718,7 @@ func (s *status) rolloutAcceptsMutations(t *testing.T) {
 	before := deploymentCount(t, id)
 	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "125m")
 	w.MustLoco(t, dir, "resource", "scale", app, "--cpu", "150m")
-	w.MustLoco(t, dir, "env", "set", "--service", app, "--env", platform.Production, "ROLLOUT_TEST=changed")
+	w.MustLoco(t, dir, "secret", "set", "--env", platform.Production, "ROLLOUT_TEST=changed")
 	replacement, err := p.User.Deployment.CreateDeployment(t.Context(), &deploymentv1.CreateDeploymentRequest{
 		ResourceId:    id,
 		EnvironmentId: w.EnvironmentID,

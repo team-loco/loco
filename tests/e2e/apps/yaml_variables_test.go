@@ -19,9 +19,10 @@ var (
 	errNoPods               = errors.New("the workload has no pods")
 )
 
-// TestASecretRemovedFromLocoYamlStopsReachingTheWorkload checks a deploy without a secret the
-// file declared before leaves it out of the workload and keeps its stored value.
-func TestASecretRemovedFromLocoYamlStopsReachingTheWorkload(t *testing.T) {
+// TestALocoYamlVariableReadsASecretOfTheEnvironment checks a variable that refers to a secret
+// reaches the workload with the secret's value, whole and inside a longer value, and that a deploy
+// without the reference leaves the value out while the secret stays stored.
+func TestALocoYamlVariableReadsASecretOfTheEnvironment(t *testing.T) {
 	t.Parallel()
 	w := p.NewTenant(t)
 	const (
@@ -31,37 +32,39 @@ func TestASecretRemovedFromLocoYamlStopsReachingTheWorkload(t *testing.T) {
 	)
 	dir := t.TempDir()
 	service := platform.ImageService(p.PublicImage)
-	service.Secrets = []string{name}
+	service.Env = map[string]string{
+		name:        "${{ secrets." + name + " }}",
+		"KEY_URL":   "stripe://${{ secrets." + name + " }}@api",
+		"SELF_HOST": "${{ " + app + ".PRIVATE_HOST }}",
+	}
 	file := locofile.File{Partial: app, Services: map[string]locofile.Service{app: service}}
 	platform.WriteLocoFile(t, dir, file)
 
 	if result := w.Loco(t.Context(), dir, nil, "deploy", "--env", platform.Production, "--yes"); result.Err == nil {
 		t.Fatalf("the first deploy did not stop for the missing secret:\n%s", result.Output())
 	}
-	w.MustLoco(t, dir, "env", "set", "--service", app, "--env", platform.Production, name+"="+value)
+	w.MustLoco(t, dir, "secret", "set", "--env", platform.Production, name+"="+value)
 	w.MustLoco(t, dir, "deploy", "--env", platform.Production, "--yes", "--wait")
 	waitWorkloadEnv(t, w, app, func(env string) error {
-		if !strings.Contains(env, name+"="+value+"\n") {
-			return fmt.Errorf("the workload environment lacks %s:\n%s", name, env)
+		for _, want := range []string{name + "=" + value, "KEY_URL=stripe://" + value + "@api", "SELF_HOST=" + app} {
+			if !strings.Contains(env, want+"\n") {
+				return fmt.Errorf("the workload environment lacks %s:\n%s", want, env)
+			}
 		}
 		return nil
 	})
 
-	service.Secrets = nil
+	service.Env = nil
 	file.Services[app] = service
 	platform.WriteLocoFile(t, dir, file)
-	out := w.MustLoco(t, dir, "deploy", "--env", platform.Production, "--yes", "--wait").Stdout
-	hint := "  " + name + ": Saved. To use this key, add " + name + " to services." + app + ".secrets and redeploy.\n"
-	if !strings.Contains(out, hint) {
-		t.Errorf("the deploy does not say how to use the saved %s:\n%s", name, out)
-	}
+	w.MustLoco(t, dir, "deploy", "--env", platform.Production, "--yes", "--wait")
 	waitWorkloadEnv(t, w, app, func(env string) error {
-		if strings.Contains(env, name+"=") {
+		if strings.Contains(env, value) {
 			return errSecretStillDelivered
 		}
 		return nil
 	})
-	listed := w.MustLoco(t, dir, "env", "list", "--service", app, "--env", platform.Production).Stdout
+	listed := w.MustLoco(t, dir, "secret", "list", "--env", platform.Production).Stdout
 	if !strings.Contains(listed, name) {
 		t.Fatalf("%s is no longer stored:\n%s", name, listed)
 	}

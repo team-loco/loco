@@ -71,9 +71,11 @@ var (
 type SecretServiceClient interface {
 	// SetSecrets encrypts and stores values, creating or replacing each name.
 	SetSecrets(context.Context, *v1.SetSecretsRequest) (*v1.SetSecretsResponse, error)
-	// DeleteSecrets removes names from a service in an environment.
+	// DeleteSecrets removes names from an environment. It fails with FAILED_PRECONDITION, naming
+	// the resources, while the latest deployment of a resource reads one of the names.
 	DeleteSecrets(context.Context, *v1.DeleteSecretsRequest) (*v1.DeleteSecretsResponse, error)
-	// ListSecrets lists the names a service holds in an environment with their version and who set them.
+	// ListSecrets lists an environment's secrets with their version, who set them and the
+	// resources that use them.
 	ListSecrets(context.Context, *v1.ListSecretsRequest) (*v1.ListSecretsResponse, error)
 	// RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
 	// new_dek replaces one environment's data key and re-encrypts its values.
@@ -90,9 +92,11 @@ func NewSecretServiceClient(client *connect.Client) SecretServiceClient {
 type SecretServiceHandler interface {
 	// SetSecrets encrypts and stores values, creating or replacing each name.
 	SetSecrets(context.Context, *v1.SetSecretsRequest) (*v1.SetSecretsResponse, error)
-	// DeleteSecrets removes names from a service in an environment.
+	// DeleteSecrets removes names from an environment. It fails with FAILED_PRECONDITION, naming
+	// the resources, while the latest deployment of a resource reads one of the names.
 	DeleteSecrets(context.Context, *v1.DeleteSecretsRequest) (*v1.DeleteSecretsResponse, error)
-	// ListSecrets lists the names a service holds in an environment with their version and who set them.
+	// ListSecrets lists an environment's secrets with their version, who set them and the
+	// resources that use them.
 	ListSecrets(context.Context, *v1.ListSecretsRequest) (*v1.ListSecretsResponse, error)
 	// RewrapEnvironmentKeys rewraps environment data keys under the provider's current key, and with
 	// new_dek replaces one environment's data key and re-encrypts its values.

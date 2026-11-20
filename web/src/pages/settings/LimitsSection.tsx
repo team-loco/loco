@@ -152,7 +152,7 @@ export function LimitsSection({
 		{ key: "webhooksPerWorkspace", label: "Webhooks", per: "Workspace" },
 		{ key: "tokensPerEntity", label: "API tokens", per: "User, organization, workspace or resource" },
 		{ key: "domainsPerResource", label: "Custom domains", per: "Resource" },
-		{ key: "secretsPerResource", label: "Secrets", per: "Resource" },
+		{ key: "secretsPerEnvironment", label: "Secrets", per: "Environment" },
 	];
 	const historyRows: LimitRow[] = [
 		{ key: "deploymentHistory", label: "Deployments", per: "Resource, per environment" },

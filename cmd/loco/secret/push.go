@@ -1,4 +1,4 @@
-package env
+package secret
 
 import (
 	"errors"
@@ -15,14 +15,15 @@ var errEmptyEnvFile = errors.New("the .env input has no KEY=VALUE lines")
 func newPushCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push [file]",
-		Short: "Set every secret in a .env file on a service",
-		Long: `Read KEY=VALUE lines from a .env file, or from stdin without a file, and set them in one call.
+		Short: "Set every secret in a .env file",
+		Long: `Read KEY=VALUE lines from a .env file, or from stdin without a file, and set them on the
+environment in one call.
 
 Nothing is expanded: $NAME stays literal.
 
 Examples:
-  loco env push --service web --env production .env
-  cat .env | loco env push --service web --env production`,
+  loco secret push --env production .env
+  cat .env | loco secret push --env production`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			values, err := readEnvInput(cmd.InOrStdin(), args)

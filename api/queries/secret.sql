@@ -28,40 +28,31 @@ WHERE environment_id = sqlc.arg(environment_id)
 -- name: ListEnvironmentKeys :many
 SELECT * FROM environment_keys ORDER BY environment_id;
 
--- name: ListResourceSecretNames :many
-SELECT r.slug AS resource_slug,
-       s.name,
-       octet_length(s.ciphertext)::bigint AS ciphertext_bytes
-FROM secrets s
-JOIN resources r ON r.id = s.resource_id
-WHERE s.environment_id = $1
-ORDER BY r.slug, s.name;
-
 -- name: ListSecretSizes :many
 SELECT name, octet_length(ciphertext)::bigint AS ciphertext_bytes
 FROM secrets
-WHERE resource_id = $1 AND environment_id = $2 AND name = ANY(sqlc.arg(names)::text[]);
+WHERE environment_id = $1
+ORDER BY name;
 
 -- name: ListSecrets :many
 SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets
-WHERE resource_id = $1 AND environment_id = $2
+WHERE environment_id = $1
 ORDER BY name;
 
 -- name: CountSecrets :one
-SELECT COUNT(*) FROM secrets WHERE resource_id = $1 AND environment_id = $2;
+SELECT COUNT(*) FROM secrets WHERE environment_id = $1;
 
 -- name: ListSecretCiphertexts :many
 SELECT name, version, nonce, ciphertext, format_version
 FROM secrets
-WHERE resource_id = $1 AND environment_id = $2 AND name = ANY(sqlc.arg(names)::text[])
+WHERE environment_id = $1 AND name = ANY(sqlc.arg(names)::text[])
 ORDER BY name;
 
 -- name: UpsertSecrets :exec
-INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version,
+INSERT INTO secrets (environment_id, name, version, nonce, ciphertext, format_version,
                      updated_by_type, updated_by_id, created_by_type, created_by_id)
-SELECT sqlc.arg(resource_id),
-       sqlc.arg(environment_id),
+SELECT sqlc.arg(environment_id),
        unnest(sqlc.arg(names)::text[]),
        unnest(sqlc.arg(versions)::int[]),
        unnest(sqlc.arg(nonces)::bytea[]),
@@ -71,7 +62,7 @@ SELECT sqlc.arg(resource_id),
        sqlc.arg(updated_by_id),
        sqlc.arg(updated_by_type),
        sqlc.arg(updated_by_id)
-ON CONFLICT (resource_id, environment_id, name) DO UPDATE
+ON CONFLICT (environment_id, name) DO UPDATE
 SET version = EXCLUDED.version,
     nonce = EXCLUDED.nonce,
     ciphertext = EXCLUDED.ciphertext,
@@ -82,63 +73,48 @@ SET version = EXCLUDED.version,
 
 -- name: DeleteSecrets :many
 DELETE FROM secrets
-WHERE resource_id = $1 AND environment_id = $2 AND name = ANY(sqlc.arg(names)::text[])
+WHERE environment_id = $1 AND name = ANY(sqlc.arg(names)::text[])
 RETURNING name;
 
--- name: ListPlacementSecretSizes :many
-SELECT p.id AS placement_id,
-       SUM(octet_length(s.name))::bigint AS name_bytes,
-       SUM(octet_length(s.ciphertext))::bigint AS ciphertext_bytes,
-       COUNT(*)::bigint AS secret_count
-FROM placements p
-JOIN secrets s ON s.resource_id = p.resource_id
-             AND s.environment_id = p.environment_id
-             AND s.name = ANY(p.secret_names)
-WHERE p.resource_id = sqlc.arg(resource_id)
-  AND p.environment_id = sqlc.arg(environment_id)
-  AND NOT p.desired_deleted
-  AND p.secret_names && sqlc.arg(names)::text[]
-GROUP BY p.id
-ORDER BY p.id;
-
--- name: ListDeclaredSecretNames :many
-SELECT DISTINCT declared.name::text AS name
-FROM placements p, unnest(p.secret_names) AS declared(name)
-WHERE p.resource_id = sqlc.arg(resource_id)
-  AND p.environment_id = sqlc.arg(environment_id)
-  AND NOT p.desired_deleted
-  AND declared.name = ANY(sqlc.arg(names)::text[])
-ORDER BY 1;
+-- name: ListPlacementSecretEnvs :many
+SELECT id, secret_env
+FROM placements
+WHERE environment_id = $1 AND NOT desired_deleted AND secret_env <> '{}'::jsonb
+ORDER BY id;
 
 -- name: ListEnvironmentSecretCiphertexts :many
-SELECT resource_id, name, version, nonce, ciphertext, format_version
+SELECT name, version, nonce, ciphertext, format_version
 FROM secrets
 WHERE environment_id = $1
-ORDER BY resource_id, name;
+ORDER BY name;
 
 -- name: ReencryptSecrets :execrows
 UPDATE secrets s
 SET nonce = v.nonce,
     ciphertext = v.ciphertext
 FROM (
-    SELECT unnest(sqlc.arg(resource_ids)::uuid[]) AS resource_id,
-           unnest(sqlc.arg(names)::text[]) AS name,
+    SELECT unnest(sqlc.arg(names)::text[]) AS name,
            unnest(sqlc.arg(nonces)::bytea[]) AS nonce,
            unnest(sqlc.arg(ciphertexts)::bytea[]) AS ciphertext
 ) AS v
 WHERE s.environment_id = sqlc.arg(environment_id)
-  AND s.resource_id = v.resource_id
   AND s.name = v.name;
 
--- name: ListSecretUsage :many
-SELECT l.region, ARRAY(
-    SELECT name FROM unnest(d.secret_names) AS name
-    WHERE name = ANY(sqlc.arg(names)::text[])
-    ORDER BY name
-)::text[] AS names
-FROM live_deployment_placements l
-JOIN deployments d ON d.id = l.deployment_id
-WHERE l.resource_id = sqlc.arg(resource_id)
-  AND l.environment_id = sqlc.arg(environment_id)
-  AND d.secret_names && sqlc.arg(names)::text[]
-ORDER BY l.region;
+-- name: ListEnvironmentTargets :many
+-- Every resource of the workspace with what references to it read in the environment: its latest
+-- deployment there that was not canceled, and its primary domain there.
+SELECT r.id, r.slug,
+       d.spec AS deployment_spec,
+       d.secret_env AS secret_env,
+       dom.domain AS primary_domain
+FROM resources r
+LEFT JOIN LATERAL (
+    SELECT dd.spec, dd.secret_env FROM deployments dd
+    WHERE dd.resource_id = r.id AND dd.environment_id = sqlc.arg(environment_id) AND dd.status <> 'canceled'
+    ORDER BY dd.created_at DESC, dd.id DESC
+    LIMIT 1
+) d ON true
+LEFT JOIN resource_domains dom
+    ON dom.resource_id = r.id AND dom.environment_id = sqlc.arg(environment_id) AND dom.is_primary
+WHERE r.workspace_id = sqlc.arg(workspace_id)
+ORDER BY r.slug;

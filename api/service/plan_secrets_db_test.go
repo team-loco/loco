@@ -2,20 +2,20 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"maps"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 
-	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
 	"github.com/team-loco/loco/api/db/dbtest"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/varref"
 	"github.com/team-loco/loco/api/reqctx"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
@@ -26,103 +26,67 @@ const (
 	sessionKeyName         = "SESSION_KEY"
 	databaseURLValue       = "postgres://db.internal/app"
 	rotatedSessionKeyValue = "session-key-value-rotated-41d7"
-	applyFileDeclared      = `  worker:
+	applyFileReferences    = `  worker:
     image: nginx:1.27
     port: 8080
-    secrets: [SESSION_KEY, DATABASE_URL]
+    env:
+      LOG_LEVEL: info
+      SESSION_KEY: "${{ secrets.SESSION_KEY }}"
+      DATABASE_URL: "${{ secrets.DATABASE_URL }}"
     regions:
       us-east-1: { cpu: 100m, memory: 64Mi, replicas: { min: 1, max: 1 } }
 `
 )
 
-func missingSecretErrors(resp *planv1.PlanResponse) []string {
-	var names []string
+// unknownSecretPaths lists the variables a plan reports as referring to a secret the environment lacks.
+func unknownSecretPaths(resp *planv1.PlanResponse) []string {
+	var paths []string
 	for _, planErr := range resp.GetErrors() {
-		if planErr.GetPath() == "secrets" {
-			names = append(names, planErr.GetService()+": "+planErr.GetMessage())
+		if strings.Contains(planErr.GetMessage(), varref.ErrUnknownSecret.Error()) {
+			paths = append(paths, planErr.GetService()+" "+planErr.GetPath())
 		}
 	}
-	return names
+	return paths
 }
 
-func missingSecretMessage(name string) string {
-	return applyWorker + ": " + configplan.ErrMissingSecret.Error() + ": " + name
-}
-
-func (f *deployFixture) provisionWorker(t *testing.T, file string) uuid.UUID {
-	t.Helper()
-	resp, err := applyProvision(t, f, file, []string{applyWorker}, nil)
-	if err != nil {
-		t.Fatalf("provision %s: %v", applyWorker, err)
-	}
-	if len(resp.GetDeployments()) != 0 {
-		t.Fatalf("provisioning started deployments %v, want none", resp.GetDeployments())
-	}
-	res, found := f.resourceByName(t, applyWorker)
-	if !found {
-		t.Fatalf("provisioning did not create %s", applyWorker)
-	}
-	return res.ID
-}
-
-func (f *deployFixture) setWorkerSecrets(
-	t *testing.T,
-	provider secretkeys.Provider,
-	worker uuid.UUID,
-	values map[string]string,
-) {
+func (f *deployFixture) setSecrets(t *testing.T, provider secretkeys.Provider, values map[string]string) {
 	t.Helper()
 	_, err := f.secretServer(provider).
 		SetSecrets(f.secretWriterContext(t), &secretv1.SetSecretsRequest{
-			ResourceId: worker.String(), EnvironmentId: f.envID.String(), Values: values,
+			EnvironmentId: f.envID.String(), Values: values,
 		})
 	if err != nil {
-		t.Fatalf("set %s secrets: %v", applyWorker, err)
+		t.Fatalf("set secrets: %v", err)
 	}
 }
 
-func TestPlanChecksEachServiceAgainstItsOwnSecrets(t *testing.T) {
+func TestPlanReportsEachVariableThatRefersToAMissingSecret(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
-	file := planFileHeader + applyFileDeclared
+	file := planFileHeader + applyFileReferences
 
 	unset, err := plan(t, f, file, f.workspaceReadScopes(t))
 	if err != nil {
 		t.Fatalf("Plan without a secret: %v", err)
 	}
-	want := []string{missingSecretMessage(databaseURLName), missingSecretMessage(sessionKeyName)}
-	if got := missingSecretErrors(unset); !slices.Equal(got, want) {
+	want := []string{applyWorker + " env." + databaseURLName, applyWorker + " env." + sessionKeyName}
+	if got := unknownSecretPaths(unset); !slices.Equal(got, want) {
 		t.Fatalf("errors without a secret = %v, want %v", got, want)
 	}
 
-	worker := f.provisionWorker(t, file)
-	if deployments := f.workerDeployments(t); len(deployments) != 0 {
-		t.Fatalf("deployments after provisioning = %v, want none", deployments)
-	}
-
-	f.storeSecret(t, provider, sessionKeyName, sessionKeyValue)
-	f.storeSecret(t, provider, databaseURLName, databaseURLValue)
-	otherService, err := plan(t, f, file, f.workspaceReadScopes(t))
-	if err != nil {
-		t.Fatalf("Plan with the names set on another service: %v", err)
-	}
-	if got := missingSecretErrors(otherService); !slices.Equal(got, want) {
-		t.Fatalf("errors with the names set on %s = %v, want %v", deployFixtureService, got, want)
-	}
-
-	f.setWorkerSecrets(t, provider, worker, map[string]string{sessionKeyName: sessionKeyValue})
+	f.setSecrets(t, provider, map[string]string{sessionKeyName: sessionKeyValue})
 	partial, err := plan(t, f, file, f.workspaceReadScopes(t))
 	if err != nil {
 		t.Fatalf("Plan with one secret: %v", err)
 	}
-	want = []string{missingSecretMessage(databaseURLName)}
-	if got := missingSecretErrors(partial); !slices.Equal(got, want) {
+	want = []string{applyWorker + " env." + databaseURLName}
+	if got := unknownSecretPaths(partial); !slices.Equal(got, want) {
 		t.Fatalf("errors with one secret = %v, want %v", got, want)
 	}
 
-	f.setWorkerSecrets(t, provider, worker, map[string]string{databaseURLName: databaseURLValue})
+	f.setSecrets(t, provider, map[string]string{databaseURLName: databaseURLValue})
 	clean, err := plan(t, f, file, f.workspaceReadScopes(t))
 	if err != nil {
 		t.Fatalf("Plan with both secrets: %v", err)
@@ -134,22 +98,9 @@ func TestPlanChecksEachServiceAgainstItsOwnSecrets(t *testing.T) {
 		t.Fatalf("Apply: %v", err)
 	}
 	deployments := f.workerDeployments(t)
-	if len(deployments) != 1 || !slices.Equal(deployments[0].SecretNames, []string{databaseURLName, sessionKeyName}) {
-		t.Fatalf("deployments after apply = %+v, want one with both secret names", deployments)
-	}
-}
-
-func TestProvisionStillRefusesAnExistingServicesMissingSecrets(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	f.prepareApply(t)
-	file := planFileHeader + applyFileDeclared
-	f.provisionWorker(t, file)
-
-	_, err := applyProvision(t, f, file, []string{applyWorker}, nil)
-	refused := wantRefusal(t, err).GetErrors()
-	if len(refused) != 2 || refused[0].GetPath() != "secrets" {
-		t.Fatalf("errors = %v, want the two missing secrets of the existing %s", refused, applyWorker)
+	wantSecretEnv := secretEnvOf([]string{databaseURLName, sessionKeyName})
+	if len(deployments) != 1 || !maps.Equal(deployments[0].SecretEnv, wantSecretEnv) {
+		t.Fatalf("deployments after apply = %+v, want one reading both secrets", deployments)
 	}
 }
 
@@ -158,9 +109,8 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
-	file := planFileHeader + applyFileDeclared
-	worker := f.provisionWorker(t, file)
-	f.setWorkerSecrets(t, provider, worker, map[string]string{
+	file := planFileHeader + applyFileReferences
+	f.setSecrets(t, provider, map[string]string{
 		sessionKeyName:  strings.Repeat("s", testMaxValue),
 		databaseURLName: databaseURLValue,
 	})
@@ -177,61 +127,36 @@ func TestPlanRefusesSecretsOverThePlacementLimit(t *testing.T) {
 		t.Fatalf("Plan: %v", err)
 	}
 	errs := resp.GetErrors()
-	if len(errs) != 1 || errs[0].GetService() != applyWorker ||
+	if len(errs) != 1 || errs[0].GetService() != applyWorker || errs[0].GetPath() != "env" ||
 		!strings.Contains(errs[0].GetMessage(), configplan.ErrSecretsTooLarge.Error()) {
-		t.Fatalf("errors = %v, want %s over the placement limit", errs, applyWorker)
+		t.Fatalf("errors = %v, want %s's env over the placement limit", errs, applyWorker)
 	}
 }
 
-func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
+func TestDeletingASecretAnAppliedServiceReadsFailsItsNextPlan(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
-	file := planFileHeader + applyFileDeclared
-	worker := f.provisionWorker(t, file)
-	f.setWorkerSecrets(t, provider, worker, map[string]string{
-		sessionKeyName: sessionKeyValue, databaseURLName: databaseURLValue,
-	})
+	file := planFileHeader + applyFileReferences
+	f.setSecrets(t, provider, map[string]string{sessionKeyName: sessionKeyValue, databaseURLName: databaseURLValue})
 
 	resp, err := applyFile(t, f, file, applyOptions{revision: f.revision(t, f.envID)}, f.applyScopes(t))
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
-	want := []string{databaseURLName, sessionKeyName}
-	deployments := f.workerDeployments(t)
-	if len(deployments) != 1 || !slices.Equal(deployments[0].SecretNames, want) {
-		t.Fatalf("deployments = %+v, want one with secret names %v", deployments, want)
-	}
-	placementKey := genDb.GetResourceEnvironmentPlacementParams{
-		EnvironmentID: f.envID,
-		ResourceID:    worker,
-		ClusterID:     f.clusterID,
-	}
-	placement, err := f.queries.GetResourceEnvironmentPlacement(context.Background(), placementKey)
+	worker, _ := f.resourceByName(t, applyWorker)
+	placement, err := f.queries.GetResourceEnvironmentPlacement(
+		t.Context(),
+		genDb.GetResourceEnvironmentPlacementParams{
+			EnvironmentID: f.envID, ResourceID: worker.ID, ClusterID: f.clusterID,
+		},
+	)
 	if err != nil {
 		t.Fatalf("get placement: %v", err)
 	}
-	if !slices.Equal(placement.SecretNames, want) {
-		t.Fatalf("placement secret names = %v, want %v", placement.SecretNames, want)
-	}
-
-	f.finishRollouts(t)
-	_, err = f.secretServer(provider).
-		DeleteSecrets(f.secretWriterContext(t), &secretv1.DeleteSecretsRequest{
-			ResourceId:    worker.String(),
-			EnvironmentId: f.envID.String(),
-			Names:         []string{sessionKeyName},
-		})
-	wantCode(t, err, connect.CodeFailedPrecondition)
-	if !strings.Contains(err.Error(), sessionKeyName) {
-		t.Fatalf("delete of a declared secret: %v, want it to name %s", err, sessionKeyName)
-	}
-	rows, err := f.queries.ListSecrets(context.Background(), genDb.ListSecretsParams{
-		ResourceID: worker, EnvironmentID: f.envID,
-	})
-	if err != nil || len(rows) != len(want) {
-		t.Fatalf("secrets after the refused delete = %v (%v), want %v", rows, err, want)
+	if want := secretEnvOf([]string{databaseURLName, sessionKeyName}); !maps.Equal(placement.SecretEnv, want) {
+		t.Fatalf("placement secret env = %v, want %v", placement.SecretEnv, want)
 	}
 	again, err := plan(t, f, file, f.workspaceReadScopes(t))
 	if err != nil {
@@ -240,12 +165,38 @@ func TestApplyWritesDeclaredSecretsAndDeleteSecretsKeepsThem(t *testing.T) {
 	if len(again.GetErrors()) != 0 || len(again.GetOperations()) != 0 || resp.GetRevision() != again.GetRevision() {
 		t.Fatalf("plan after apply = %v, want no errors, no operations and revision %d", again, resp.GetRevision())
 	}
+
+	f.finishRollouts(t)
+	_, err = f.secretServer(provider).DeleteSecrets(f.secretWriterContext(t), &secretv1.DeleteSecretsRequest{
+		EnvironmentId: f.envID.String(),
+		Names:         []string{sessionKeyName},
+	})
+	if !errors.Is(err, ErrSecretInUse) || !strings.Contains(err.Error(), applyWorker) {
+		t.Fatalf("delete a secret %s reads: %v, want %v naming it", applyWorker, err, ErrSecretInUse)
+	}
+	if _, err = f.pool.Exec(t.Context(), `DELETE FROM secrets WHERE environment_id = $1 AND name = $2`,
+		f.envID, sessionKeyName); err != nil {
+		t.Fatal(err)
+	}
+	after, err := plan(t, f, file, f.workspaceReadScopes(t))
+	if err != nil {
+		t.Fatalf("Plan after the delete: %v", err)
+	}
+	if got, want := unknownSecretPaths(
+		after,
+	), []string{
+		applyWorker + " env." + sessionKeyName,
+	}; !slices.Equal(
+		got,
+		want,
+	) {
+		t.Fatalf("errors after the delete = %v, want %v", got, want)
+	}
 }
 
 type racingSecretWrite struct {
-	name       string
-	write      func(ctx context.Context, f *deployFixture, secrets *SecretServer, worker uuid.UUID) error
-	afterApply func(t *testing.T, err error)
+	name  string
+	write func(ctx context.Context, f *deployFixture, secrets *SecretServer) error
 }
 
 func (f *deployFixture) secretWriterContext(t *testing.T) context.Context {
@@ -271,38 +222,27 @@ func racingSecretWrites() []racingSecretWrite {
 	return []racingSecretWrite{
 		{
 			name: "SetSecrets",
-			write: func(ctx context.Context, f *deployFixture, secrets *SecretServer, worker uuid.UUID) error {
+			write: func(ctx context.Context, f *deployFixture, secrets *SecretServer) error {
 				_, err := secrets.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-					ResourceId:    worker.String(),
 					EnvironmentId: f.envID.String(),
 					Values:        map[string]string{sessionKeyName: rotatedSessionKeyValue},
 				})
 				return err
 			},
-			afterApply: func(t *testing.T, err error) {
-				t.Helper()
-				if err != nil {
-					t.Fatal(err)
-				}
-			},
 		},
 		{
 			name: "DeleteSecrets",
-			write: func(ctx context.Context, f *deployFixture, secrets *SecretServer, worker uuid.UUID) error {
+			write: func(ctx context.Context, f *deployFixture, secrets *SecretServer) error {
 				_, err := secrets.DeleteSecrets(ctx, &secretv1.DeleteSecretsRequest{
-					ResourceId:    worker.String(),
 					EnvironmentId: f.envID.String(),
-					Names:         []string{sessionKeyName},
+					Names:         []string{unusedKey},
 				})
 				return err
-			},
-			afterApply: func(t *testing.T, err error) {
-				t.Helper()
-				wantCode(t, err, connect.CodeFailedPrecondition)
 			},
 		},
 	}
 }
+
 func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 	for _, writer := range racingSecretWrites() {
 		for _, writerFirst := range []bool{true, false} {
@@ -314,10 +254,9 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 				f := newDeployFixture(t)
 				f.prepareApply(t)
 				provider := newTestKeyProvider(t, "k1")
-				file := planFileHeader + applyFileDeclared
-				worker := f.provisionWorker(t, file)
-				f.setWorkerSecrets(t, provider, worker, map[string]string{
-					sessionKeyName: sessionKeyValue, databaseURLName: databaseURLValue,
+				file := planFileHeader + applyFileReferences
+				f.setSecrets(t, provider, map[string]string{
+					sessionKeyName: sessionKeyValue, databaseURLName: databaseURLValue, unusedKey: unusedValue,
 				})
 				f.useLockTimeout(t)
 				secretConfig := testSecretConfig()
@@ -346,7 +285,7 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 				var wg sync.WaitGroup
 				runWriter := func() {
 					wg.Go(func() {
-						writeErr = writer.write(writerCtx, f, secrets, worker)
+						writeErr = writer.write(writerCtx, f, secrets)
 					})
 				}
 				runApply := func() {
@@ -367,20 +306,19 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 				}
 				wg.Wait()
 
+				if writeErr != nil {
+					t.Fatalf("%s %s: %v", writer.name, order, writeErr)
+				}
 				if !writerFirst {
 					if applyErr != nil {
 						t.Fatalf("Apply before the secret write: %v", applyErr)
 					}
-					writer.afterApply(t, writeErr)
 					deployments := f.workerDeployments(t)
-					want := []string{databaseURLName, sessionKeyName}
-					if len(deployments) != 1 || !slices.Equal(deployments[0].SecretNames, want) {
-						t.Fatalf("deployments = %+v, want one with secret names %v", deployments, want)
+					want := secretEnvOf([]string{databaseURLName, sessionKeyName})
+					if len(deployments) != 1 || !maps.Equal(deployments[0].SecretEnv, want) {
+						t.Fatalf("deployments = %+v, want one reading %v", deployments, want)
 					}
 					return
-				}
-				if writeErr != nil {
-					t.Fatalf("%s before the apply: %v", writer.name, writeErr)
 				}
 				refusal := wantRefusal(t, applyErr)
 				current := f.revision(t, f.envID)
@@ -388,44 +326,33 @@ func TestASecretWriteRacingApplySerializesOrMovesTheRevision(t *testing.T) {
 					t.Fatalf("refusal revision = %d, want the moved revision %d (planned %d)",
 						refusal.GetRevision(), current, planned.GetRevision())
 				}
-				if deployments := f.workerDeployments(t); len(deployments) != 0 {
-					t.Fatal("the apply deployed the service after a secret write moved the revision")
+				if f.hasResource(t, applyWorker) {
+					t.Fatal("the apply created the service after a secret write moved the revision")
 				}
 			})
 		}
 	}
 }
 
-func TestASecretRemovedFromTheFileLeavesTheNextDeploymentButStaysStored(t *testing.T) {
+func TestAVariableRemovedFromTheFileLeavesTheNextDeploymentButItsSecretStaysStored(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	f.prepareApply(t)
 	provider := newTestKeyProvider(t, "k1")
 	const stripeName = "STRIPE_API_KEY"
-	declared := planFileHeader + strings.Replace(applyFileDeclared, "DATABASE_URL", stripeName, 1)
-	removed := planFileHeader + strings.Replace(applyFileDeclared, ", DATABASE_URL", "", 1)
-	worker := f.provisionWorker(t, declared)
-	f.setWorkerSecrets(t, provider, worker, map[string]string{
-		sessionKeyName: sessionKeyValue, stripeName: stripeValue,
-	})
+	declared := planFileHeader + strings.ReplaceAll(applyFileReferences, databaseURLName, stripeName)
+	removed := planFileHeader + strings.Replace(
+		applyFileReferences,
+		`      DATABASE_URL: "${{ secrets.DATABASE_URL }}"`+"\n",
+		"",
+		1,
+	)
+	f.setSecrets(t, provider, map[string]string{sessionKeyName: sessionKeyValue, stripeName: stripeValue})
 	first := applyOptions{revision: f.revision(t, f.envID)}
 	if _, err := applyFile(t, f, declared, first, f.applyScopes(t)); err != nil {
 		t.Fatalf("Apply with %s: %v", stripeName, err)
 	}
 	f.finishRollouts(t)
-
-	planned, err := plan(t, f, removed, f.workspaceReadScopes(t))
-	if err != nil {
-		t.Fatalf("Plan without %s: %v", stripeName, err)
-	}
-	saved := make([]string, 0, len(planned.GetSavedSecrets()))
-	for _, secret := range planned.GetSavedSecrets() {
-		saved = append(saved, fmt.Sprintf("%s %s %t", secret.GetService(), secret.GetName(), secret.GetDeclared()))
-	}
-	wantSaved := []string{applyWorker + " " + sessionKeyName + " true", applyWorker + " " + stripeName + " false"}
-	if !slices.Equal(saved, wantSaved) {
-		t.Fatalf("saved secrets = %v, want %v", saved, wantSaved)
-	}
 
 	resp, err := applyFile(t, f, removed, applyOptions{revision: f.revision(t, f.envID)}, f.applyScopes(t))
 	if err != nil {
@@ -438,13 +365,10 @@ func TestASecretRemovedFromTheFileLeavesTheNextDeploymentButStaysStored(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{sessionKeyName}
-	if !slices.Equal(next.SecretNames, want) {
-		t.Fatalf("next deployment secret names = %v, want %v", next.SecretNames, want)
+	if want := secretEnvOf([]string{sessionKeyName}); !maps.Equal(next.SecretEnv, want) {
+		t.Fatalf("next deployment secret env = %v, want %v", next.SecretEnv, want)
 	}
-	rows, err := f.queries.ListSecrets(context.Background(), genDb.ListSecretsParams{
-		ResourceID: worker, EnvironmentID: f.envID,
-	})
+	rows, err := f.queries.ListSecrets(t.Context(), f.envID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -458,6 +382,6 @@ func TestASecretRemovedFromTheFileLeavesTheNextDeploymentButStaysStored(t *testi
 	}
 	data := sent[0].GetApply().GetEnvSecret().GetData()
 	if _, found := data[stripeName]; found || string(data[sessionKeyName]) != sessionKeyValue {
-		t.Fatalf("delivered secret names = %v, want only %s", slices.Collect(maps.Keys(data)), sessionKeyName)
+		t.Fatalf("delivered variables = %v, want only %s", slices.Collect(maps.Keys(data)), sessionKeyName)
 	}
 }

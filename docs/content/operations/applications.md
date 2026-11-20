@@ -11,7 +11,7 @@ loco resource logs --help
 loco resource events --help
 ```
 
-`loco resource` also includes `scale`, `restart`, `cancel`, and `destroy`; `loco env` manages secrets. Inspect an operation's help before changing resources or removing an application.
+`loco resource` also includes `scale`, `restart`, `cancel`, and `destroy`; `loco secret` manages an environment's secrets. Inspect an operation's help before changing resources or removing an application.
 
 `loco resource logs --query` prints only the lines that match a [log query](../reference/log-queries.md), such as `loco resource logs api --query '@level:error -@path:/healthz'`.
 
@@ -62,13 +62,13 @@ The dashboard's **Restart all replicas** action restarts the environment selecte
 
 ## Secrets
 
-`loco env` manages the secrets of one service in one environment. `--service` names the service and is required; `--env` or `LOCO_ENV` selects the environment. Secrets belong to that service only, so two services that need the same value each get it set. `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions and who set them. No command prints a value, and `$NAME` in a `.env` file stays literal. Saving secrets leaves running replicas unchanged, and new values apply on the next deploy or restart. When an active deployment uses a name whose value changed, the CLI and the dashboard name the secrets and regions, and the CLI prints the `loco resource restart` command. `unset` refuses a name bound by an active deployment. Remove the binding from the deployment first.
+`loco secret` manages the secrets of one environment; `--env` or `LOCO_ENV` selects it. Any service in the environment reads a secret through a variable that refers to it as `${{ secrets.NAME }}`; see [Variables and secrets](../deployment/loco-yaml.md#variables-and-secrets). `push` sends every `KEY=VALUE` line of a `.env` file (or stdin) in one call, `set` takes assignments on the command line, `unset` removes names and `list` shows names, versions, the services that read each one and who set it. No command prints a value, and `$NAME` in a `.env` file stays literal. Saving secrets leaves running replicas unchanged, and new values apply on the next deploy or restart. `set` and `push` name the services whose latest deployment reads a changed value and print the `loco resource restart` command for each. `unset` refuses a name that the latest deployment of a service reads, and names those services; remove the reference and deploy them first. Setting, pushing and removing secrets needs write access to the workspace, and deploying a service whose variables read a secret needs read access to the workspace.
 
 ```sh
-loco env push --service web --env production .env
-loco env set --service web --env production API_KEY=abc123
-loco env unset --service web --env production API_KEY
-loco env list --service web --env production
+loco secret push --env production .env
+loco secret set --env production API_KEY=abc123
+loco secret unset --env production API_KEY
+loco secret list --env production
 ```
 
 ## Container requirements
@@ -95,17 +95,17 @@ When automatic environment configuration is enabled, Loco supplies these variabl
 | `OTEL_SERVICE_NAME` | the resource's slug, such as `checkout`; changing the slug restarts every replica |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
-A plain environment variable or declared secret with the same name replaces that one default; Loco still injects the other three. Other OpenTelemetry variables, such as signal-specific exporter settings like `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, leave all four defaults in place. Plain values take precedence when the same name also appears in `secrets`.
+A variable with the same name replaces that one default; Loco still injects the other three. Other OpenTelemetry variables, such as signal-specific exporter settings like `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, leave all four defaults in place.
 
-Setting `injectOtel` to `false` removes the injected set on rollout and preserves user-supplied variables and secrets. It does not disable an SDK configured by the application or its image, or stop Loco from collecting telemetry sent to it. Loco does not inspect configuration inside the application or its image.
+Setting `injectOtel` to `false` removes the injected set on rollout and preserves user-supplied variables. It does not disable an SDK configured by the application or its image, or stop Loco from collecting telemetry sent to it. Loco does not inspect configuration inside the application or its image.
 
 For data sent to Loco, the collector attaches workspace, environment and resource IDs from pod labels and drops application-supplied values for those IDs.
 
 The collector preserves application-provided service identity. It does not infer `service.name`, `service.namespace`, `service.version` or `service.instance.id` from Kubernetes labels, workload names, namespaces or container images. Kubernetes identity remains available under the `k8s.*` attributes.
 
-Each deployment records the plain environment variables it runs with. A redeploy or rollback runs the variables and binds the secret names of the deployment it copies, and a canceled deployment's regions go back to the variables of the deployment that served them before. In `CreateDeployment`, the spec's environment map is the full set of plain variables; an empty map runs none. Omit `secret_bindings` to keep the secret names of the copied deployment, or for a deploy the current ones. Supply `secret_bindings.names` to select secrets already stored for the service in the target environment, including on the first deployment or in a new region. An empty list clears the bindings.
+Each deployment records the variables it runs with, with their references to secrets unresolved. A redeploy or rollback runs the variables of the deployment it copies, and a canceled deployment's regions go back to the variables of the deployment that served them before. In `CreateDeployment`, the spec's environment map is the full set of variables; an empty map runs none.
 
-The **Variables** section of a resource's settings shows which stored secrets the active deployment reads. For a service deployed from the dashboard, a switch on each secret selects whether deployments read it, and a secret added there is selected by default. The same section adds, edits and removes plain variables. Saving a change to either redeploys every region of the environment with the new `secret_bindings` and environment map. Removing a stored secret that deployments read redeploys without it, then deletes it, in one save. When regions of the environment run different variables, the section says so, and saving applies the list it shows to every region. For a service deployed from `loco.yaml`, the file's `secrets` list selects the names, and each stored secret it does not list shows the `services.<name>.secrets` entry to add.
+The **Variables** section of a resource's settings lists the variables the active deployment runs with, as written. For a service deployed from the dashboard, it adds, edits and removes them, and saving redeploys every region of the environment with the new environment map. A variable reads a secret of the environment through `${{ secrets.NAME }}`. When regions of the environment run different variables, the section says so, and saving applies the list it shows to every region. For a service deployed from `loco.yaml`, the variables come from the file's `env` map and are read-only.
 
 ### Trace sampling
 

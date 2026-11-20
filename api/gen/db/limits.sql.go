@@ -95,7 +95,7 @@ func (q *Queries) CountWorkspaceResources(ctx context.Context, workspaceID uuid.
 }
 
 const getOrgLimitOverrides = `-- name: GetOrgLimitOverrides :one
-SELECT org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_resource, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, reason, updated_by, updated_at FROM org_limit_overrides WHERE org_id = $1
+SELECT org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_environment, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, reason, updated_by, updated_at FROM org_limit_overrides WHERE org_id = $1
 `
 
 func (q *Queries) GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (OrgLimitOverride, error) {
@@ -111,7 +111,7 @@ func (q *Queries) GetOrgLimitOverrides(ctx context.Context, orgID uuid.UUID) (Or
 		&i.WebhooksPerWorkspace,
 		&i.TokensPerEntity,
 		&i.DomainsPerResource,
-		&i.SecretsPerResource,
+		&i.SecretsPerEnvironment,
 		&i.DeploymentHistory,
 		&i.BuildHistory,
 		&i.LogRetentionDays,
@@ -185,7 +185,7 @@ INSERT INTO org_limit_overrides (
     webhooks_per_workspace,
     tokens_per_entity,
     domains_per_resource,
-    secrets_per_resource,
+    secrets_per_environment,
     deployment_history,
     build_history,
     log_retention_days,
@@ -222,7 +222,7 @@ ON CONFLICT (org_id) DO UPDATE SET
     webhooks_per_workspace = EXCLUDED.webhooks_per_workspace,
     tokens_per_entity = EXCLUDED.tokens_per_entity,
     domains_per_resource = EXCLUDED.domains_per_resource,
-    secrets_per_resource = EXCLUDED.secrets_per_resource,
+    secrets_per_environment = EXCLUDED.secrets_per_environment,
     deployment_history = EXCLUDED.deployment_history,
     build_history = EXCLUDED.build_history,
     log_retention_days = EXCLUDED.log_retention_days,
@@ -231,7 +231,7 @@ ON CONFLICT (org_id) DO UPDATE SET
     reason = EXCLUDED.reason,
     updated_by = EXCLUDED.updated_by,
     updated_at = NOW()
-RETURNING org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_resource, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, reason, updated_by, updated_at
+RETURNING org_id, workspaces_per_org, members_per_org, invitations_per_org, environments_per_workspace, resources_per_workspace, webhooks_per_workspace, tokens_per_entity, domains_per_resource, secrets_per_environment, deployment_history, build_history, log_retention_days, trace_retention_days, metric_retention_days, reason, updated_by, updated_at
 `
 
 type UpsertOrgLimitOverridesParams struct {
@@ -244,7 +244,7 @@ type UpsertOrgLimitOverridesParams struct {
 	WebhooksPerWorkspace     *int32     `json:"webhooksPerWorkspace"`
 	TokensPerEntity          *int32     `json:"tokensPerEntity"`
 	DomainsPerResource       *int32     `json:"domainsPerResource"`
-	SecretsPerResource       *int32     `json:"secretsPerResource"`
+	SecretsPerEnvironment    *int32     `json:"secretsPerEnvironment"`
 	DeploymentHistory        *int32     `json:"deploymentHistory"`
 	BuildHistory             *int32     `json:"buildHistory"`
 	LogRetentionDays         *int32     `json:"logRetentionDays"`
@@ -265,7 +265,7 @@ func (q *Queries) UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimi
 		arg.WebhooksPerWorkspace,
 		arg.TokensPerEntity,
 		arg.DomainsPerResource,
-		arg.SecretsPerResource,
+		arg.SecretsPerEnvironment,
 		arg.DeploymentHistory,
 		arg.BuildHistory,
 		arg.LogRetentionDays,
@@ -285,7 +285,7 @@ func (q *Queries) UpsertOrgLimitOverrides(ctx context.Context, arg UpsertOrgLimi
 		&i.WebhooksPerWorkspace,
 		&i.TokensPerEntity,
 		&i.DomainsPerResource,
-		&i.SecretsPerResource,
+		&i.SecretsPerEnvironment,
 		&i.DeploymentHistory,
 		&i.BuildHistory,
 		&i.LogRetentionDays,

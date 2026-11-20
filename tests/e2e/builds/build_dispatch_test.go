@@ -100,7 +100,7 @@ func TestBuildDispatch(t *testing.T) {
 	t.Run("the built image deploys with a selected secret", func(t *testing.T) {
 		const secret, value = "FIRST_DEPLOYMENT_SECRET", "e2e-first-deployment"
 		if _, err := p.User.Secret.SetSecrets(t.Context(), &secretv1.SetSecretsRequest{
-			ResourceId: resourceID, EnvironmentId: w.EnvironmentID, Values: map[string]string{secret: value},
+			EnvironmentId: w.EnvironmentID, Values: map[string]string{secret: value},
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -304,7 +304,7 @@ func createDeployment(
 		},
 	}
 	if secret != "" {
-		request.SecretBindings = &deploymentv1.DeploymentSecretBindings{Names: []string{secret}}
+		request.GetSpec().GetService().Env = map[string]string{secret: "${{ secrets." + secret + " }}"}
 	}
 	return p.User.Deployment.CreateDeployment(t.Context(), request)
 }

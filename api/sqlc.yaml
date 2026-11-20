@@ -52,3 +52,15 @@ sql:
           - column: "member_scopes.scopes"
             go_type:
               type: "[]string"
+
+          - column: "deployments.plain_env"
+            go_type:
+              type: "map[string]string"
+
+          - column: "deployments.secret_env"
+            go_type:
+              type: "map[string]string"
+
+          - column: "placements.secret_env"
+            go_type:
+              type: "map[string]string"

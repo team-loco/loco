@@ -32,7 +32,6 @@ type Service struct {
 	Routing           *Routing            `json:"routing,omitempty"`
 	Domains           []string            `json:"domains,omitempty"`
 	Env               map[string]string   `json:"env,omitempty"`
-	Secrets           []string            `json:"secrets,omitempty"`
 	Regions           map[string]Region   `json:"regions,omitempty"`
 	Deploy            *Deploy             `json:"deploy,omitempty"`
 	Environments      map[string]Override `json:"environments,omitempty"`
@@ -55,7 +54,6 @@ type Override struct {
 	Routing           *Routing          `json:"routing,omitempty"`
 	Domains           []string          `json:"domains,omitempty"`
 	Env               map[string]string `json:"env,omitempty"`
-	Secrets           []string          `json:"secrets,omitempty"`
 	Regions           map[string]Region `json:"regions,omitempty"`
 }
 

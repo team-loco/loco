@@ -19,7 +19,6 @@ import (
 	"github.com/team-loco/loco/api/pkg/configplan"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
-	"github.com/team-loco/loco/api/pkg/secretkeys"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -76,7 +75,6 @@ type plannedFile struct {
 	live            liveEnvironment
 	platformDomains []string
 	images          map[string]string
-	savedSecrets    []*planv1.SavedSecret
 	plan            configplan.Plan
 }
 
@@ -97,16 +95,15 @@ func (s *PlanServer) Plan(
 	ctx context.Context,
 	req *planv1.PlanRequest,
 ) (*planv1.PlanResponse, error) {
-	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Plan, nil)
+	planned, err := s.loadPlan(ctx, req.GetFile(), req.GetEnvironmentId(), actions.Plan)
 	if err != nil {
 		return nil, err
 	}
 	return &planv1.PlanResponse{
-		Revision:     planned.env.Revision,
-		Operations:   planOperationsToProto(planned.plan.Operations),
-		Errors:       planErrorsToProto(planned.plan.Errors),
-		Images:       planned.images,
-		SavedSecrets: planned.savedSecrets,
+		Revision:   planned.env.Revision,
+		Operations: planOperationsToProto(planned.plan.Operations),
+		Errors:     planErrorsToProto(planned.plan.Errors),
+		Images:     planned.images,
 	}, nil
 }
 
@@ -115,7 +112,6 @@ func (s *PlanServer) loadPlan(
 	rawFile []byte,
 	rawEnvironmentID string,
 	action actions.Action,
-	provision []string,
 ) (*plannedFile, error) {
 	file, err := locofile.Parse(rawFile)
 	if err != nil {
@@ -145,9 +141,9 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		return nil, fmt.Errorf("load the environment's services: %w", err)
 	}
-	secrets, err := s.serviceSecrets(ctx, env.ID)
+	references, err := loadVariableReferences(ctx, s.queries, env.WorkspaceID, env.ID)
 	if err != nil {
-		return nil, fmt.Errorf("list secret names: %w", err)
+		return nil, err
 	}
 
 	environmentNames := make([]string, 0, len(environments))
@@ -164,9 +160,9 @@ func (s *PlanServer) loadPlan(
 		FileEnvironments: fileEnvironments(file),
 		Environments:     environmentNames,
 		Clusters:         targets,
-		Secrets:          secrets,
+		References:       references.environment,
+		SecretSizes:      references.sizes,
 		MaxSecretBytes:   int64(s.secrets.MaxPlacementBytes),
-		Provision:        provision,
 		Live:             live.services,
 		Defaults:         s.defaults,
 		Images:           images,
@@ -185,24 +181,8 @@ func (s *PlanServer) loadPlan(
 		live:            live,
 		platformDomains: platformdomain.Served(targets),
 		images:          pinnedImages(images),
-		savedSecrets:    savedSecrets(services, secrets),
 		plan:            plan,
 	}, nil
-}
-
-// savedSecrets lists the secrets each service of the file holds, marking those the file declares.
-func savedSecrets(services map[string]locofile.Service, secrets map[string]map[string]int64) []*planv1.SavedSecret {
-	var saved []*planv1.SavedSecret
-	for _, service := range slices.Sorted(maps.Keys(services)) {
-		for _, name := range slices.Sorted(maps.Keys(secrets[service])) {
-			saved = append(saved, &planv1.SavedSecret{
-				Service:  service,
-				Name:     name,
-				Declared: slices.Contains(services[service].Secrets, name),
-			})
-		}
-	}
-	return saved
 }
 
 // nameErrors reports each service the plan creates whose key is not a valid slug, or whose key,
@@ -218,7 +198,7 @@ func nameErrors(operations []configplan.Operation, resources map[string]genDb.Re
 			continue
 		}
 		switch {
-		case !validSlug(op.Service):
+		case !validResourceSlug(op.Service):
 			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errInvalidResourceSlug})
 		case names[strings.ToLower(op.Service)]:
 			errs = append(errs, configplan.Error{
@@ -357,27 +337,6 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 	return live, nil
 }
 
-// serviceSecrets returns the value size of every secret each service holds in the environment,
-// by service name and secret name. The size is the ciphertext length less the GCM tag, so
-// nothing is decrypted.
-func (s *PlanServer) serviceSecrets(
-	ctx context.Context,
-	environmentID uuid.UUID,
-) (map[string]map[string]int64, error) {
-	rows, err := s.queries.ListResourceSecretNames(ctx, environmentID)
-	if err != nil {
-		return nil, fmt.Errorf("list secret names: %w", err)
-	}
-	secrets := make(map[string]map[string]int64)
-	for _, row := range rows {
-		if secrets[row.ResourceSlug] == nil {
-			secrets[row.ResourceSlug] = make(map[string]int64)
-		}
-		secrets[row.ResourceSlug][row.Name] = row.CiphertextBytes - secretkeys.Overhead
-	}
-	return secrets, nil
-}
-
 func deploymentRegions(deployments []liveDeployment) []string {
 	regions := make([]string, 0, len(deployments))
 	for _, deployment := range deployments {
@@ -487,7 +446,6 @@ func liveState(
 			state.Context = deployed.Context
 		}
 		state.Env = service.GetEnv()
-		state.Secrets = deployment.SecretNames
 	}
 	if len(deployments) > 0 {
 		maps.DeleteFunc(state.Regions, func(region string, _ configplan.Region) bool {

@@ -58,9 +58,6 @@ service builds with its own dockerfile and context. The archive honors the .dock
 that directory, keeps every Dockerfile it builds, and never contains .git, .env or .env.*
 files. A new source service is created first so it can be built; every other change of the
 plan is applied with the builds. With --wait, Ctrl-C detaches without canceling builds or deployments.
-A new service whose only plan errors are the secrets it declares is created without being
-built or deployed; the command prints the loco env set command for its secrets and exits
-with an error, and the next deploy builds and deploys it.
 Image services are applied without a build. Without service names, every source service the
 file runs in the environment is built.
 
@@ -148,8 +145,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		return err
 	}
 
-	resolved := func() (map[string]locofile.Service, error) { return services, nil }
-	plan, err := reviewPlan(ctx, cmd, t, filePath, data, resolved, confirm)
+	plan, err := reviewPlan(ctx, t, filePath, data, confirm)
 	if err != nil {
 		return err
 	}
@@ -213,15 +209,18 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 	if writeErr := writeApplied(os.Stdout, applied); writeErr != nil {
 		return writeErr
 	}
-	if !quickDeploy {
-		if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil {
-			return writeErr
-		}
-	}
 	if reachErr := writeReachability(os.Stdout, services); reachErr != nil || !wait {
 		return reachErr
 	}
 	return waitRunning(ctx, t, os.Stdout, applied.GetDeployments())
+}
+
+func resolveServices(file *locofile.File, filePath, environment string) (map[string]locofile.Service, error) {
+	services, err := locofile.Resolve(file, environment)
+	if err != nil {
+		return nil, fmt.Errorf("%s does not resolve for environment %s: %w", filePath, environment, err)
+	}
+	return services, nil
 }
 
 func deployTargets(

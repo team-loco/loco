@@ -4,7 +4,7 @@ VALUES (:'resource', '00000000-0000-7000-8000-000000000003', 'e2e-secrets', 'e2e
 ON CONFLICT DO NOTHING;
 
 INSERT INTO user_scopes (user_id, scope, entity_type, entity_id)
-VALUES ('00000000-0000-7000-8000-000000000001', 'write', 'resource', :'resource')
+VALUES ('00000000-0000-7000-8000-000000000001', 'write', 'workspace', '00000000-0000-7000-8000-000000000003')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO session_tokens (access_token_hash, refresh_token_hash, user_id, access_expires_at, refresh_expires_at)

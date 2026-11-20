@@ -10,6 +10,7 @@ import (
 
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/varref"
 	"github.com/team-loco/loco/internal/locofile"
 )
 
@@ -53,10 +54,9 @@ type ImageResult struct {
 // environment, Disabled the file's services the environment turns off, FileEnvironments the
 // environment names the file mentions, Environments the
 // names that exist in the workspace, Clusters the cluster a deployment to each region lands on,
-// Secrets the value size in bytes of every secret name each service holds in the environment,
-// keyed by service name, MaxSecretBytes the largest total of name and value bytes one placement
-// of a service may carry, Provision the services an apply creates without deploying, whose
-// missing secrets are not errors when the plan creates them, and Images a resolution for every
+// References the environment's secrets and the workspace's resources the variables refer to,
+// SecretSizes the value size in bytes of each secret, MaxSecretBytes the largest total of name
+// and value bytes the secrets of one placement may carry, and Images a resolution for every
 // image reference the services use.
 type Input struct {
 	Partial          string
@@ -65,9 +65,9 @@ type Input struct {
 	FileEnvironments []string
 	Environments     []string
 	Clusters         []platformdomain.Cluster
-	Secrets          map[string]map[string]int64
+	References       varref.Environment
+	SecretSizes      map[string]int64
 	MaxSecretBytes   int64
-	Provision        []string
 	Live             []Service
 	Defaults         servicedefaults.Defaults
 	Images           map[string]ImageResult
@@ -100,11 +100,13 @@ type Error struct {
 
 // Plan is the operations in service name order, or the errors that stop an apply. A plan with
 // errors has no operations. Desired is every service of the file as the apply writes it, with
-// the API defaults filled in, including the services the operations leave unchanged.
+// the API defaults filled in, including the services the operations leave unchanged, and
+// Resolved its variables with their references resolved.
 type Plan struct {
 	Operations []Operation
 	Errors     []Error
 	Desired    map[string]State
+	Resolved   map[string]varref.Resolved
 }
 
 // Compute builds the plan. It returns an error only when the input violates its contract.
@@ -119,12 +121,7 @@ func Compute(in Input) (Plan, error) {
 
 	for _, name := range slices.Sorted(maps.Keys(in.Services)) {
 		service := in.Services[name]
-		_, exists := live[name]
-		provisioned := !exists && slices.Contains(in.Provision, name)
 		plan.Errors = append(plan.Errors, checkService(name, service, in)...)
-		if !provisioned {
-			plan.Errors = append(plan.Errors, checkSecrets(name, service, in)...)
-		}
 
 		pinned, err := pinnedImage(service, in.Images)
 		if err != nil {
@@ -205,12 +202,57 @@ func Compute(in Input) (Plan, error) {
 	slices.SortFunc(plan.Operations, func(a, b Operation) int {
 		return strings.Compare(a.Service, b.Service)
 	})
+	plan.Errors = append(plan.Errors, resolveReferences(in, &plan)...)
 
 	if len(plan.Errors) > 0 {
 		plan.Operations = nil
 		plan.Desired = nil
+		plan.Resolved = nil
 	}
 	return plan, nil
+}
+
+// resolveReferences resolves the variables of every desired service against the environment,
+// with the file's services in place of what the environment runs.
+func resolveReferences(in Input, plan *Plan) []Error {
+	env := varref.Environment{Secrets: in.References.Secrets, Resources: maps.Clone(in.References.Resources)}
+	if env.Resources == nil {
+		env.Resources = make(map[string]varref.Target, len(plan.Desired))
+	}
+	for name, desired := range plan.Desired {
+		env.Resources[name] = referenceTarget(desired)
+	}
+	plan.Resolved = make(map[string]varref.Resolved, len(plan.Desired))
+	var errs []Error
+	for _, name := range slices.Sorted(maps.Keys(plan.Desired)) {
+		desired := plan.Desired[name]
+		resolved, err := env.Resolve(name, referenceTarget(desired), desired.Env)
+		if err != nil {
+			for _, variable := range varref.VariableErrors(err) {
+				errs = append(errs, Error{Service: name, Path: pathEnv + "." + variable.Name, Err: variable})
+			}
+			continue
+		}
+		if total := varref.SecretBytes(resolved.Secret, in.SecretSizes); total > in.MaxSecretBytes {
+			tooLarge := ErrSecretsTooLarge.Detail("%d bytes over a limit of %d", total, in.MaxSecretBytes)
+			errs = append(errs, Error{Service: name, Path: pathEnv, Err: tooLarge})
+			continue
+		}
+		plan.Resolved[name] = resolved
+	}
+	return errs
+}
+
+func referenceTarget(state State) varref.Target {
+	target := varref.Target{Env: state.Env}
+	if state.Port != nil {
+		target.Port = *state.Port
+	}
+	// An apply makes the first domain the primary one.
+	if len(state.Domains) > 0 {
+		target.PublicHost = state.Domains[0]
+	}
+	return target
 }
 
 func unknownEnvironments(in Input) []Error {
@@ -232,33 +274,6 @@ func checkService(name string, service locofile.Service, in Input) []Error {
 			unresolved := fmt.Errorf("%w: %s: %w", ErrImageUnresolved, service.Image, result.Err)
 			errs = append(errs, Error{Service: name, Path: pathImage, Err: unresolved})
 		}
-	}
-	return errs
-}
-
-func checkSecrets(name string, service locofile.Service, in Input) []Error {
-	bindingErrors := CheckSecretBindings(service.Secrets, in.Secrets[name], in.MaxSecretBytes)
-	errs := make([]Error, 0, len(bindingErrors))
-	for _, err := range bindingErrors {
-		errs = append(errs, Error{Service: name, Path: pathSecrets, Err: err})
-	}
-	return errs
-}
-
-// CheckSecretBindings validates selected names against stored plaintext lengths and the placement limit.
-func CheckSecretBindings(names []string, held map[string]int64, maxBytes int64) []error {
-	var errs []error
-	var total int64
-	for _, name := range slices.Sorted(slices.Values(names)) {
-		valueBytes, found := held[name]
-		if !found {
-			errs = append(errs, ErrMissingSecret.Detail("%s", name))
-			continue
-		}
-		total += int64(len(name)) + valueBytes
-	}
-	if total > maxBytes {
-		errs = append(errs, ErrSecretsTooLarge.Detail("%d bytes over a limit of %d", total, maxBytes))
 	}
 	return errs
 }

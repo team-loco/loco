@@ -19,7 +19,6 @@ export interface EnvRow {
 	id: string;
 	key: string;
 	value: string;
-	secret?: boolean;
 }
 
 export interface HealthForm {
@@ -88,14 +87,6 @@ export function nameFromImage(image: string, taken: ReadonlySet<string>): string
 	return name;
 }
 
-const SECRET_WORDS = new Set(["SECRET", "TOKEN", "PASSWORD", "PASSWD", "KEY", "CREDENTIALS", "DSN", "PRIVATE"]);
-const SECRET_NAMES = new Set(["DATABASE_URL"]);
-
-export function looksSecret(key: string): boolean {
-	const upper = key.toUpperCase();
-	return SECRET_NAMES.has(upper) || upper.split("_").some((word) => SECRET_WORDS.has(word));
-}
-
 export function servedDomains(domains: PlatformDomain[], regions: string[]): string[] {
 	return domains.filter((d) => regions.every((r) => d.regions.includes(r))).map((d) => d.domain);
 }
@@ -108,14 +99,6 @@ export function envVars(rows: EnvRow[]): [string, string][] {
 	return rows.filter((r) => !isBlank(r)).map((r) => [r.key.trim(), r.value]);
 }
 
-export function deploymentVariables(rows: EnvRow[]) {
-	return {
-		env: Object.fromEntries(envVars(rows.filter((row) => !row.secret))),
-		secrets: Object.fromEntries(envVars(rows.filter((row) => row.secret))),
-	};
-}
-
-const SECRET_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
 const KEY_RULE = "Use letters, digits and _, not starting with a digit";
 
 /** The problem with each variable row, by row id; rows without a problem are absent. */
@@ -130,7 +113,6 @@ export function envRowErrors(rows: EnvRow[]): Map<string, string> {
 		const key = row.key.trim();
 		if (key === "") errors.set(row.id, "Enter a name for this value");
 		else if (!isEnvKey(key)) errors.set(row.id, KEY_RULE);
-		else if (row.secret === true && !SECRET_KEY_RE.test(key)) errors.set(row.id, "Secret names use uppercase letters");
 		else if ((counts.get(key) ?? 0) > 1) errors.set(row.id, `${key} is set more than once`);
 	}
 	return errors;
@@ -376,9 +358,7 @@ export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
 	if (form.port.trim() !== "") lines.push(`    port: ${yamlInt(form.port)}`);
 	if (form.health.path !== "") lines.push(healthYaml(form.health, flow));
 	if (form.isPublic) lines.push(`    domains: [${flow(`${form.subdomain}.${form.platformDomain}`)}]`);
-	const vars = envVars(form.vars.filter((row) => !row.secret));
-	const secrets = form.vars.filter((row) => row.secret && row.key.trim() !== "").map((row) => row.key.trim());
-	if (secrets.length > 0) lines.push(`    secrets: [${secrets.map(flow).join(", ")}]`);
+	const vars = envVars(form.vars);
 	if (vars.length > 0) {
 		lines.push("    env:");
 		for (const [key, value] of vars) lines.push(`      ${scalar(key, FLOW_PLAIN_RE)}: ${JSON.stringify(value)}`);

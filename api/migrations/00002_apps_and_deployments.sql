@@ -157,11 +157,10 @@ CREATE UNIQUE INDEX uniq_resources_workspace_lower_name ON resources (workspace_
 
 CREATE INDEX IF NOT EXISTS idx_resources_workspace_created_id_desc ON resources (workspace_id, created_at DESC, id DESC);
 
--- Secret values of one service in one environment, AES-256-GCM ciphertext under the environment's data-encryption key
+-- Secret values of one environment, AES-256-GCM ciphertext under the environment's data-encryption key
 CREATE TABLE
     secrets (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
-        resource_id UUID NOT NULL REFERENCES resources (id) ON DELETE CASCADE,
         environment_id UUID NOT NULL REFERENCES environments (id) ON DELETE CASCADE,
         name TEXT NOT NULL CHECK (name ~ '^[A-Z_][A-Z0-9_]*$'),
         version INT NOT NULL DEFAULT 1 CHECK (version > 0),
@@ -174,10 +173,8 @@ CREATE TABLE
         created_by_id UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (resource_id, environment_id, name)
+        UNIQUE (environment_id, name)
     );
-
-CREATE INDEX idx_secrets_environment_id ON secrets (environment_id);
 
 CREATE TABLE
     resource_domains (
@@ -242,7 +239,10 @@ CREATE TABLE
         canceled_by_id UUID,
         commit_sha TEXT,
         commit_dirty BOOLEAN NOT NULL DEFAULT false,
-        secret_names TEXT[] NOT NULL DEFAULT '{}',
+        -- the variables with references to other resources resolved, as plain values and as
+        -- templates that still reference secrets
+        plain_env JSONB NOT NULL DEFAULT '{}',
+        secret_env JSONB NOT NULL DEFAULT '{}',
         activity_seq BIGINT NOT NULL DEFAULT 0,
         -- insert time, which orders the deployments of a resource
         created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp (),
@@ -341,7 +341,8 @@ CREATE TABLE
         region TEXT NOT NULL,
         deployment_id UUID REFERENCES deployments (id) ON DELETE SET NULL,
         environment_id UUID NOT NULL,
-        secret_names TEXT[] NOT NULL DEFAULT '{}',
+        -- variables whose templates reference secrets, rendered when the placement is sent
+        secret_env JSONB NOT NULL DEFAULT '{}',
         desired_revision BIGINT NOT NULL DEFAULT 1 CHECK (desired_revision > 0),
         desired_spec JSONB,
         desired_deleted BOOLEAN NOT NULL DEFAULT false,

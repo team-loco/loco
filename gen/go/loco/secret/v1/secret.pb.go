@@ -23,10 +23,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SetSecretsRequest sets values by name for one service in one environment.
+// SetSecretsRequest sets values by name in one environment.
 type SetSecretsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	EnvironmentId string                 `protobuf:"bytes,2,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	Values        map[string]string      `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
@@ -61,13 +60,6 @@ func (x *SetSecretsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SetSecretsRequest.ProtoReflect.Descriptor instead.
 func (*SetSecretsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *SetSecretsRequest) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
 }
 
 func (x *SetSecretsRequest) GetEnvironmentId() string {
@@ -142,8 +134,9 @@ type SetSecretsResponse struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Revision int64                  `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
 	Versions []*SecretVersion       `protobuf:"bytes,2,rep,name=versions,proto3" json:"versions,omitempty"`
-	// Active deployments that bind names whose values changed, grouped by region.
-	UsedBy        []*SecretUsage `protobuf:"bytes,3,rep,name=used_by,json=usedBy,proto3" json:"used_by,omitempty"`
+	// The resources whose latest deployment reads a name whose value changed, by slug. They get
+	// the new value on their next deploy or restart.
+	UsedBy        []*SecretUser `protobuf:"bytes,3,rep,name=used_by,json=usedBy,proto3" json:"used_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -192,36 +185,37 @@ func (x *SetSecretsResponse) GetVersions() []*SecretVersion {
 	return nil
 }
 
-func (x *SetSecretsResponse) GetUsedBy() []*SecretUsage {
+func (x *SetSecretsResponse) GetUsedBy() []*SecretUser {
 	if x != nil {
 		return x.UsedBy
 	}
 	return nil
 }
 
-// SecretUsage identifies the changed names a region's active deployment binds.
-type SecretUsage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Region        string                 `protobuf:"bytes,1,opt,name=region,proto3" json:"region,omitempty"`
-	Names         []string               `protobuf:"bytes,2,rep,name=names,proto3" json:"names,omitempty"`
+// SecretUser is a resource whose latest deployment in the environment reads a secret.
+type SecretUser struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// resource_slug is the slug references and the CLI name the resource by.
+	ResourceSlug  string `protobuf:"bytes,2,opt,name=resource_slug,json=resourceSlug,proto3" json:"resource_slug,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SecretUsage) Reset() {
-	*x = SecretUsage{}
+func (x *SecretUser) Reset() {
+	*x = SecretUser{}
 	mi := &file_loco_secret_v1_secret_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SecretUsage) String() string {
+func (x *SecretUser) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SecretUsage) ProtoMessage() {}
+func (*SecretUser) ProtoMessage() {}
 
-func (x *SecretUsage) ProtoReflect() protoreflect.Message {
+func (x *SecretUser) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_secret_v1_secret_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -233,29 +227,28 @@ func (x *SecretUsage) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SecretUsage.ProtoReflect.Descriptor instead.
-func (*SecretUsage) Descriptor() ([]byte, []int) {
+// Deprecated: Use SecretUser.ProtoReflect.Descriptor instead.
+func (*SecretUser) Descriptor() ([]byte, []int) {
 	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *SecretUsage) GetRegion() string {
+func (x *SecretUser) GetResourceId() string {
 	if x != nil {
-		return x.Region
+		return x.ResourceId
 	}
 	return ""
 }
 
-func (x *SecretUsage) GetNames() []string {
+func (x *SecretUser) GetResourceSlug() string {
 	if x != nil {
-		return x.Names
+		return x.ResourceSlug
 	}
-	return nil
+	return ""
 }
 
-// DeleteSecretsRequest removes names from one service in one environment.
+// DeleteSecretsRequest removes names from one environment.
 type DeleteSecretsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	EnvironmentId string                 `protobuf:"bytes,2,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	Names         []string               `protobuf:"bytes,3,rep,name=names,proto3" json:"names,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -290,13 +283,6 @@ func (x *DeleteSecretsRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteSecretsRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSecretsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *DeleteSecretsRequest) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
 }
 
 func (x *DeleteSecretsRequest) GetEnvironmentId() string {
@@ -358,10 +344,9 @@ func (x *DeleteSecretsResponse) GetRevision() int64 {
 	return 0
 }
 
-// ListSecretsRequest lists the secrets of one service in one environment.
+// ListSecretsRequest lists the secrets of one environment.
 type ListSecretsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId    string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
 	EnvironmentId string                 `protobuf:"bytes,2,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -397,13 +382,6 @@ func (*ListSecretsRequest) Descriptor() ([]byte, []int) {
 	return file_loco_secret_v1_secret_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ListSecretsRequest) GetResourceId() string {
-	if x != nil {
-		return x.ResourceId
-	}
-	return ""
-}
-
 func (x *ListSecretsRequest) GetEnvironmentId() string {
 	if x != nil {
 		return x.EnvironmentId
@@ -420,6 +398,8 @@ type Secret struct {
 	UpdatedById   string                 `protobuf:"bytes,4,opt,name=updated_by_id,json=updatedById,proto3" json:"updated_by_id,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// The resources whose latest deployment in the environment reads the secret, by slug.
+	UsedBy        []*SecretUser `protobuf:"bytes,7,rep,name=used_by,json=usedBy,proto3" json:"used_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -496,7 +476,14 @@ func (x *Secret) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// ListSecretsResponse lists the names a service holds in an environment.
+func (x *Secret) GetUsedBy() []*SecretUser {
+	if x != nil {
+		return x.UsedBy
+	}
+	return nil
+}
+
+// ListSecretsResponse lists the secrets of an environment by name.
 type ListSecretsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Secrets       []*Secret              `protobuf:"bytes,1,rep,name=secrets,proto3" json:"secrets,omitempty"`
@@ -661,10 +648,8 @@ var File_loco_secret_v1_secret_proto protoreflect.FileDescriptor
 
 const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\n" +
-	"\x1bloco/secret/v1/secret.proto\x12\x0eloco.secret.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x93\x02\n" +
-	"\x11SetSecretsRequest\x12)\n" +
-	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12/\n" +
+	"\x1bloco/secret/v1/secret.proto\x12\x0eloco.secret.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x01\n" +
+	"\x11SetSecretsRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x12g\n" +
 	"\x06values\x18\x03 \x03(\v2-.loco.secret.v1.SetSecretsRequest.ValuesEntryB \xbaH\x1d\x9a\x01\x1a\b\x01\"\x16r\x142\x12^[A-Z_][A-Z0-9_]*$R\x06values\x1a9\n" +
 	"\vValuesEntry\x12\x10\n" +
@@ -672,25 +657,23 @@ const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
 	"\rSecretVersion\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x05R\aversion\"\xa1\x01\n" +
+	"\aversion\x18\x02 \x01(\x05R\aversion\"\xa0\x01\n" +
 	"\x12SetSecretsResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x129\n" +
-	"\bversions\x18\x02 \x03(\v2\x1d.loco.secret.v1.SecretVersionR\bversions\x124\n" +
-	"\aused_by\x18\x03 \x03(\v2\x1b.loco.secret.v1.SecretUsageR\x06usedBy\";\n" +
-	"\vSecretUsage\x12\x16\n" +
-	"\x06region\x18\x01 \x01(\tR\x06region\x12\x14\n" +
-	"\x05names\x18\x02 \x03(\tR\x05names\"\xaa\x01\n" +
-	"\x14DeleteSecretsRequest\x12)\n" +
-	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12/\n" +
+	"\bversions\x18\x02 \x03(\v2\x1d.loco.secret.v1.SecretVersionR\bversions\x123\n" +
+	"\aused_by\x18\x03 \x03(\v2\x1a.loco.secret.v1.SecretUserR\x06usedBy\"R\n" +
+	"\n" +
+	"SecretUser\x12\x1f\n" +
+	"\vresource_id\x18\x01 \x01(\tR\n" +
+	"resourceId\x12#\n" +
+	"\rresource_slug\x18\x02 \x01(\tR\fresourceSlug\"\x7f\n" +
+	"\x14DeleteSecretsRequest\x12/\n" +
 	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\x126\n" +
 	"\x05names\x18\x03 \x03(\tB \xbaH\x1d\x92\x01\x1a\b\x01\"\x16r\x142\x12^[A-Z_][A-Z0-9_]*$R\x05names\"3\n" +
 	"\x15DeleteSecretsResponse\x12\x1a\n" +
-	"\brevision\x18\x01 \x01(\x03R\brevision\"p\n" +
-	"\x12ListSecretsRequest\x12)\n" +
-	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12/\n" +
-	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\xf8\x01\n" +
+	"\brevision\x18\x01 \x01(\x03R\brevision\"E\n" +
+	"\x12ListSecretsRequest\x12/\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\xad\x02\n" +
 	"\x06Secret\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x05R\aversion\x12&\n" +
@@ -699,7 +682,8 @@ const file_loco_secret_v1_secret_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"G\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x123\n" +
+	"\aused_by\x18\a \x03(\v2\x1a.loco.secret.v1.SecretUserR\x06usedBy\"G\n" +
 	"\x13ListSecretsResponse\x120\n" +
 	"\asecrets\x18\x01 \x03(\v2\x16.loco.secret.v1.SecretR\asecrets\"k\n" +
 	"\x1cRewrapEnvironmentKeysRequest\x122\n" +
@@ -733,7 +717,7 @@ var file_loco_secret_v1_secret_proto_goTypes = []any{
 	(*SetSecretsRequest)(nil),             // 0: loco.secret.v1.SetSecretsRequest
 	(*SecretVersion)(nil),                 // 1: loco.secret.v1.SecretVersion
 	(*SetSecretsResponse)(nil),            // 2: loco.secret.v1.SetSecretsResponse
-	(*SecretUsage)(nil),                   // 3: loco.secret.v1.SecretUsage
+	(*SecretUser)(nil),                    // 3: loco.secret.v1.SecretUser
 	(*DeleteSecretsRequest)(nil),          // 4: loco.secret.v1.DeleteSecretsRequest
 	(*DeleteSecretsResponse)(nil),         // 5: loco.secret.v1.DeleteSecretsResponse
 	(*ListSecretsRequest)(nil),            // 6: loco.secret.v1.ListSecretsRequest
@@ -747,23 +731,24 @@ var file_loco_secret_v1_secret_proto_goTypes = []any{
 var file_loco_secret_v1_secret_proto_depIdxs = []int32{
 	11, // 0: loco.secret.v1.SetSecretsRequest.values:type_name -> loco.secret.v1.SetSecretsRequest.ValuesEntry
 	1,  // 1: loco.secret.v1.SetSecretsResponse.versions:type_name -> loco.secret.v1.SecretVersion
-	3,  // 2: loco.secret.v1.SetSecretsResponse.used_by:type_name -> loco.secret.v1.SecretUsage
+	3,  // 2: loco.secret.v1.SetSecretsResponse.used_by:type_name -> loco.secret.v1.SecretUser
 	12, // 3: loco.secret.v1.Secret.created_at:type_name -> google.protobuf.Timestamp
 	12, // 4: loco.secret.v1.Secret.updated_at:type_name -> google.protobuf.Timestamp
-	7,  // 5: loco.secret.v1.ListSecretsResponse.secrets:type_name -> loco.secret.v1.Secret
-	0,  // 6: loco.secret.v1.SecretService.SetSecrets:input_type -> loco.secret.v1.SetSecretsRequest
-	4,  // 7: loco.secret.v1.SecretService.DeleteSecrets:input_type -> loco.secret.v1.DeleteSecretsRequest
-	6,  // 8: loco.secret.v1.SecretService.ListSecrets:input_type -> loco.secret.v1.ListSecretsRequest
-	9,  // 9: loco.secret.v1.SecretService.RewrapEnvironmentKeys:input_type -> loco.secret.v1.RewrapEnvironmentKeysRequest
-	2,  // 10: loco.secret.v1.SecretService.SetSecrets:output_type -> loco.secret.v1.SetSecretsResponse
-	5,  // 11: loco.secret.v1.SecretService.DeleteSecrets:output_type -> loco.secret.v1.DeleteSecretsResponse
-	8,  // 12: loco.secret.v1.SecretService.ListSecrets:output_type -> loco.secret.v1.ListSecretsResponse
-	10, // 13: loco.secret.v1.SecretService.RewrapEnvironmentKeys:output_type -> loco.secret.v1.RewrapEnvironmentKeysResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	3,  // 5: loco.secret.v1.Secret.used_by:type_name -> loco.secret.v1.SecretUser
+	7,  // 6: loco.secret.v1.ListSecretsResponse.secrets:type_name -> loco.secret.v1.Secret
+	0,  // 7: loco.secret.v1.SecretService.SetSecrets:input_type -> loco.secret.v1.SetSecretsRequest
+	4,  // 8: loco.secret.v1.SecretService.DeleteSecrets:input_type -> loco.secret.v1.DeleteSecretsRequest
+	6,  // 9: loco.secret.v1.SecretService.ListSecrets:input_type -> loco.secret.v1.ListSecretsRequest
+	9,  // 10: loco.secret.v1.SecretService.RewrapEnvironmentKeys:input_type -> loco.secret.v1.RewrapEnvironmentKeysRequest
+	2,  // 11: loco.secret.v1.SecretService.SetSecrets:output_type -> loco.secret.v1.SetSecretsResponse
+	5,  // 12: loco.secret.v1.SecretService.DeleteSecrets:output_type -> loco.secret.v1.DeleteSecretsResponse
+	8,  // 13: loco.secret.v1.SecretService.ListSecrets:output_type -> loco.secret.v1.ListSecretsResponse
+	10, // 14: loco.secret.v1.SecretService.RewrapEnvironmentKeys:output_type -> loco.secret.v1.RewrapEnvironmentKeysResponse
+	11, // [11:15] is the sub-list for method output_type
+	7,  // [7:11] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_loco_secret_v1_secret_proto_init() }

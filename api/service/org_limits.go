@@ -155,7 +155,7 @@ func (s *OrgServer) SetOrgLimits(
 			WebhooksPerWorkspace:     row.WebhooksPerWorkspace,
 			TokensPerEntity:          row.TokensPerEntity,
 			DomainsPerResource:       row.DomainsPerResource,
-			SecretsPerResource:       row.SecretsPerResource,
+			SecretsPerEnvironment:    row.SecretsPerEnvironment,
 			DeploymentHistory:        row.DeploymentHistory,
 			BuildHistory:             row.BuildHistory,
 			LogRetentionDays:         row.LogRetentionDays,
@@ -261,6 +261,26 @@ func checkResourceLimit(
 		return fmt.Errorf("get resource organization: %w", err)
 	}
 	return checkOrgLimit(ctx, qtx, defaults, limit, owner.OrgID, existing, adding)
+}
+
+// checkWorkspaceOrgLimit refuses adding more of what limit caps past the limit of the
+// workspace's organization.
+func checkWorkspaceOrgLimit(
+	ctx context.Context,
+	qtx genDb.Querier,
+	defaults *configv1.CountLimits,
+	limit limits.Limit,
+	workspaceID uuid.UUID,
+	existing, adding int64,
+) error {
+	workspace, err := qtx.GetWorkspaceByIDQuery(ctx, workspaceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrWorkspaceNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("get workspace: %w", err)
+	}
+	return checkOrgLimit(ctx, qtx, defaults, limit, workspace.OrgID, existing, adding)
 }
 
 // checkWorkspaceLimit locks the workspace against concurrent creates, counts what the limit

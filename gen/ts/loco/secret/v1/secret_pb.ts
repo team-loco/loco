@@ -13,19 +13,14 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/secret/v1/secret.proto.
  */
 export const file_loco_secret_v1_secret: GenFile = /*@__PURE__*/
-  fileDesc("Chtsb2NvL3NlY3JldC92MS9zZWNyZXQucHJvdG8SDmxvY28uc2VjcmV0LnYxIuQBChFTZXRTZWNyZXRzUmVxdWVzdBIdCgtyZXNvdXJjZV9pZBgBIAEoCUIIukgFcgOwAQESIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEl8KBnZhbHVlcxgDIAMoCzItLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0LlZhbHVlc0VudHJ5QiC6SB2aARoIASIWchQyEl5bQS1aX11bQS1aMC05X10qJBotCgtWYWx1ZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIi4KDVNlY3JldFZlcnNpb24SDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgFIoUBChJTZXRTZWNyZXRzUmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoIdmVyc2lvbnMYAiADKAsyHS5sb2NvLnNlY3JldC52MS5TZWNyZXRWZXJzaW9uEiwKB3VzZWRfYnkYAyADKAsyGy5sb2NvLnNlY3JldC52MS5TZWNyZXRVc2FnZSIsCgtTZWNyZXRVc2FnZRIOCgZyZWdpb24YASABKAkSDQoFbmFtZXMYAiADKAkiiAEKFERlbGV0ZVNlY3JldHNSZXF1ZXN0Eh0KC3Jlc291cmNlX2lkGAEgASgJQgi6SAVyA7ABARIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESLwoFbmFtZXMYAyADKAlCILpIHZIBGggBIhZyFDISXltBLVpfXVtBLVowLTlfXSokIikKFURlbGV0ZVNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAyJVChJMaXN0U2VjcmV0c1JlcXVlc3QSHQoLcmVzb3VyY2VfaWQYASABKAlCCLpIBXIDsAEBEiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABASK3AQoGU2VjcmV0EgwKBG5hbWUYASABKAkSDwoHdmVyc2lvbhgCIAEoBRIXCg91cGRhdGVkX2J5X3R5cGUYAyABKAkSFQoNdXBkYXRlZF9ieV9pZBgEIAEoCRIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI+ChNMaXN0U2VjcmV0c1Jlc3BvbnNlEicKB3NlY3JldHMYASADKAsyFi5sb2NvLnNlY3JldC52MS5TZWNyZXQiVAocUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVxdWVzdBIjCg5lbnZpcm9ubWVudF9pZBgBIAEoCUILukgI2AEBcgOwAQESDwoHbmV3X2RlaxgCIAEoCCJkCh1SZXdyYXBFbnZpcm9ubWVudEtleXNSZXNwb25zZRIRCglyZXdyYXBwZWQYASABKAUSDwoHc2tpcHBlZBgCIAEoBRIfChdza2lwcGVkX2Vudmlyb25tZW50X2lkcxgDIAMoCTKQAwoNU2VjcmV0U2VydmljZRJTCgpTZXRTZWNyZXRzEiEubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1JlcXVlc3QaIi5sb2NvLnNlY3JldC52MS5TZXRTZWNyZXRzUmVzcG9uc2USXAoNRGVsZXRlU2VjcmV0cxIkLmxvY28uc2VjcmV0LnYxLkRlbGV0ZVNlY3JldHNSZXF1ZXN0GiUubG9jby5zZWNyZXQudjEuRGVsZXRlU2VjcmV0c1Jlc3BvbnNlElYKC0xpc3RTZWNyZXRzEiIubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXF1ZXN0GiMubG9jby5zZWNyZXQudjEuTGlzdFNlY3JldHNSZXNwb25zZRJ0ChVSZXdyYXBFbnZpcm9ubWVudEtleXMSLC5sb2NvLnNlY3JldC52MS5SZXdyYXBFbnZpcm9ubWVudEtleXNSZXF1ZXN0Gi0ubG9jby5zZWNyZXQudjEuUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVzcG9uc2VCOlo4Z2l0aHViLmNvbS90ZWFtLWxvY28vbG9jby9nZW4vZ28vbG9jby9zZWNyZXQvdjE7c2VjcmV0djFiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp]);
+  fileDesc("Chtsb2NvL3NlY3JldC92MS9zZWNyZXQucHJvdG8SDmxvY28uc2VjcmV0LnYxIsUBChFTZXRTZWNyZXRzUmVxdWVzdBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQESXwoGdmFsdWVzGAMgAygLMi0ubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1JlcXVlc3QuVmFsdWVzRW50cnlCILpIHZoBGggBIhZyFDISXltBLVpfXVtBLVowLTlfXSokGi0KC1ZhbHVlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiLgoNU2VjcmV0VmVyc2lvbhIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAUihAEKElNldFNlY3JldHNSZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgh2ZXJzaW9ucxgCIAMoCzIdLmxvY28uc2VjcmV0LnYxLlNlY3JldFZlcnNpb24SKwoHdXNlZF9ieRgDIAMoCzIaLmxvY28uc2VjcmV0LnYxLlNlY3JldFVzZXIiOAoKU2VjcmV0VXNlchITCgtyZXNvdXJjZV9pZBgBIAEoCRIVCg1yZXNvdXJjZV9zbHVnGAIgASgJImkKFERlbGV0ZVNlY3JldHNSZXF1ZXN0EiAKDmVudmlyb25tZW50X2lkGAIgASgJQgi6SAVyA7ABARIvCgVuYW1lcxgDIAMoCUIgukgdkgEaCAEiFnIUMhJeW0EtWl9dW0EtWjAtOV9dKiQiKQoVRGVsZXRlU2VjcmV0c1Jlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgDIjYKEkxpc3RTZWNyZXRzUmVxdWVzdBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEi5AEKBlNlY3JldBIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAUSFwoPdXBkYXRlZF9ieV90eXBlGAMgASgJEhUKDXVwZGF0ZWRfYnlfaWQYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASKwoHdXNlZF9ieRgHIAMoCzIaLmxvY28uc2VjcmV0LnYxLlNlY3JldFVzZXIiPgoTTGlzdFNlY3JldHNSZXNwb25zZRInCgdzZWNyZXRzGAEgAygLMhYubG9jby5zZWNyZXQudjEuU2VjcmV0IlQKHFJld3JhcEVudmlyb25tZW50S2V5c1JlcXVlc3QSIwoOZW52aXJvbm1lbnRfaWQYASABKAlCC7pICNgBAXIDsAEBEg8KB25ld19kZWsYAiABKAgiZAodUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVzcG9uc2USEQoJcmV3cmFwcGVkGAEgASgFEg8KB3NraXBwZWQYAiABKAUSHwoXc2tpcHBlZF9lbnZpcm9ubWVudF9pZHMYAyADKAkykAMKDVNlY3JldFNlcnZpY2USUwoKU2V0U2VjcmV0cxIhLmxvY28uc2VjcmV0LnYxLlNldFNlY3JldHNSZXF1ZXN0GiIubG9jby5zZWNyZXQudjEuU2V0U2VjcmV0c1Jlc3BvbnNlElwKDURlbGV0ZVNlY3JldHMSJC5sb2NvLnNlY3JldC52MS5EZWxldGVTZWNyZXRzUmVxdWVzdBolLmxvY28uc2VjcmV0LnYxLkRlbGV0ZVNlY3JldHNSZXNwb25zZRJWCgtMaXN0U2VjcmV0cxIiLmxvY28uc2VjcmV0LnYxLkxpc3RTZWNyZXRzUmVxdWVzdBojLmxvY28uc2VjcmV0LnYxLkxpc3RTZWNyZXRzUmVzcG9uc2USdAoVUmV3cmFwRW52aXJvbm1lbnRLZXlzEiwubG9jby5zZWNyZXQudjEuUmV3cmFwRW52aXJvbm1lbnRLZXlzUmVxdWVzdBotLmxvY28uc2VjcmV0LnYxLlJld3JhcEVudmlyb25tZW50S2V5c1Jlc3BvbnNlQjpaOGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vc2VjcmV0L3YxO3NlY3JldHYxYgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp]);
 
 /**
- * SetSecretsRequest sets values by name for one service in one environment.
+ * SetSecretsRequest sets values by name in one environment.
  *
  * @generated from message loco.secret.v1.SetSecretsRequest
  */
 export type SetSecretsRequest = Message<"loco.secret.v1.SetSecretsRequest"> & {
-  /**
-   * @generated from field: string resource_id = 1;
-   */
-  resourceId: string;
-
   /**
    * @generated from field: string environment_id = 2;
    */
@@ -38,16 +33,11 @@ export type SetSecretsRequest = Message<"loco.secret.v1.SetSecretsRequest"> & {
 };
 
 /**
- * SetSecretsRequest sets values by name for one service in one environment.
+ * SetSecretsRequest sets values by name in one environment.
  *
  * @generated from message loco.secret.v1.SetSecretsRequest
  */
 export type SetSecretsRequestJson = {
-  /**
-   * @generated from field: string resource_id = 1;
-   */
-  resourceId?: string;
-
   /**
    * @generated from field: string environment_id = 2;
    */
@@ -124,11 +114,12 @@ export type SetSecretsResponse = Message<"loco.secret.v1.SetSecretsResponse"> & 
   versions: SecretVersion[];
 
   /**
-   * Active deployments that bind names whose values changed, grouped by region.
+   * The resources whose latest deployment reads a name whose value changed, by slug. They get
+   * the new value on their next deploy or restart.
    *
-   * @generated from field: repeated loco.secret.v1.SecretUsage used_by = 3;
+   * @generated from field: repeated loco.secret.v1.SecretUser used_by = 3;
    */
-  usedBy: SecretUsage[];
+  usedBy: SecretUser[];
 };
 
 /**
@@ -148,11 +139,12 @@ export type SetSecretsResponseJson = {
   versions?: SecretVersionJson[];
 
   /**
-   * Active deployments that bind names whose values changed, grouped by region.
+   * The resources whose latest deployment reads a name whose value changed, by slug. They get
+   * the new value on their next deploy or restart.
    *
-   * @generated from field: repeated loco.secret.v1.SecretUsage used_by = 3;
+   * @generated from field: repeated loco.secret.v1.SecretUser used_by = 3;
    */
-  usedBy?: SecretUsageJson[];
+  usedBy?: SecretUserJson[];
 };
 
 /**
@@ -163,57 +155,56 @@ export const SetSecretsResponseSchema: GenMessage<SetSecretsResponse, {jsonType:
   messageDesc(file_loco_secret_v1_secret, 2);
 
 /**
- * SecretUsage identifies the changed names a region's active deployment binds.
+ * SecretUser is a resource whose latest deployment in the environment reads a secret.
  *
- * @generated from message loco.secret.v1.SecretUsage
+ * @generated from message loco.secret.v1.SecretUser
  */
-export type SecretUsage = Message<"loco.secret.v1.SecretUsage"> & {
-  /**
-   * @generated from field: string region = 1;
-   */
-  region: string;
-
-  /**
-   * @generated from field: repeated string names = 2;
-   */
-  names: string[];
-};
-
-/**
- * SecretUsage identifies the changed names a region's active deployment binds.
- *
- * @generated from message loco.secret.v1.SecretUsage
- */
-export type SecretUsageJson = {
-  /**
-   * @generated from field: string region = 1;
-   */
-  region?: string;
-
-  /**
-   * @generated from field: repeated string names = 2;
-   */
-  names?: string[];
-};
-
-/**
- * Describes the message loco.secret.v1.SecretUsage.
- * Use `create(SecretUsageSchema)` to create a new message.
- */
-export const SecretUsageSchema: GenMessage<SecretUsage, {jsonType: SecretUsageJson}> = /*@__PURE__*/
-  messageDesc(file_loco_secret_v1_secret, 3);
-
-/**
- * DeleteSecretsRequest removes names from one service in one environment.
- *
- * @generated from message loco.secret.v1.DeleteSecretsRequest
- */
-export type DeleteSecretsRequest = Message<"loco.secret.v1.DeleteSecretsRequest"> & {
+export type SecretUser = Message<"loco.secret.v1.SecretUser"> & {
   /**
    * @generated from field: string resource_id = 1;
    */
   resourceId: string;
 
+  /**
+   * resource_slug is the slug references and the CLI name the resource by.
+   *
+   * @generated from field: string resource_slug = 2;
+   */
+  resourceSlug: string;
+};
+
+/**
+ * SecretUser is a resource whose latest deployment in the environment reads a secret.
+ *
+ * @generated from message loco.secret.v1.SecretUser
+ */
+export type SecretUserJson = {
+  /**
+   * @generated from field: string resource_id = 1;
+   */
+  resourceId?: string;
+
+  /**
+   * resource_slug is the slug references and the CLI name the resource by.
+   *
+   * @generated from field: string resource_slug = 2;
+   */
+  resourceSlug?: string;
+};
+
+/**
+ * Describes the message loco.secret.v1.SecretUser.
+ * Use `create(SecretUserSchema)` to create a new message.
+ */
+export const SecretUserSchema: GenMessage<SecretUser, {jsonType: SecretUserJson}> = /*@__PURE__*/
+  messageDesc(file_loco_secret_v1_secret, 3);
+
+/**
+ * DeleteSecretsRequest removes names from one environment.
+ *
+ * @generated from message loco.secret.v1.DeleteSecretsRequest
+ */
+export type DeleteSecretsRequest = Message<"loco.secret.v1.DeleteSecretsRequest"> & {
   /**
    * @generated from field: string environment_id = 2;
    */
@@ -226,16 +217,11 @@ export type DeleteSecretsRequest = Message<"loco.secret.v1.DeleteSecretsRequest"
 };
 
 /**
- * DeleteSecretsRequest removes names from one service in one environment.
+ * DeleteSecretsRequest removes names from one environment.
  *
  * @generated from message loco.secret.v1.DeleteSecretsRequest
  */
 export type DeleteSecretsRequestJson = {
-  /**
-   * @generated from field: string resource_id = 1;
-   */
-  resourceId?: string;
-
   /**
    * @generated from field: string environment_id = 2;
    */
@@ -286,16 +272,11 @@ export const DeleteSecretsResponseSchema: GenMessage<DeleteSecretsResponse, {jso
   messageDesc(file_loco_secret_v1_secret, 5);
 
 /**
- * ListSecretsRequest lists the secrets of one service in one environment.
+ * ListSecretsRequest lists the secrets of one environment.
  *
  * @generated from message loco.secret.v1.ListSecretsRequest
  */
 export type ListSecretsRequest = Message<"loco.secret.v1.ListSecretsRequest"> & {
-  /**
-   * @generated from field: string resource_id = 1;
-   */
-  resourceId: string;
-
   /**
    * @generated from field: string environment_id = 2;
    */
@@ -303,16 +284,11 @@ export type ListSecretsRequest = Message<"loco.secret.v1.ListSecretsRequest"> & 
 };
 
 /**
- * ListSecretsRequest lists the secrets of one service in one environment.
+ * ListSecretsRequest lists the secrets of one environment.
  *
  * @generated from message loco.secret.v1.ListSecretsRequest
  */
 export type ListSecretsRequestJson = {
-  /**
-   * @generated from field: string resource_id = 1;
-   */
-  resourceId?: string;
-
   /**
    * @generated from field: string environment_id = 2;
    */
@@ -361,6 +337,13 @@ export type Secret = Message<"loco.secret.v1.Secret"> & {
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: Timestamp | undefined;
+
+  /**
+   * The resources whose latest deployment in the environment reads the secret, by slug.
+   *
+   * @generated from field: repeated loco.secret.v1.SecretUser used_by = 7;
+   */
+  usedBy: SecretUser[];
 };
 
 /**
@@ -398,6 +381,13 @@ export type SecretJson = {
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: TimestampJson;
+
+  /**
+   * The resources whose latest deployment in the environment reads the secret, by slug.
+   *
+   * @generated from field: repeated loco.secret.v1.SecretUser used_by = 7;
+   */
+  usedBy?: SecretUserJson[];
 };
 
 /**
@@ -408,7 +398,7 @@ export const SecretSchema: GenMessage<Secret, {jsonType: SecretJson}> = /*@__PUR
   messageDesc(file_loco_secret_v1_secret, 7);
 
 /**
- * ListSecretsResponse lists the names a service holds in an environment.
+ * ListSecretsResponse lists the secrets of an environment by name.
  *
  * @generated from message loco.secret.v1.ListSecretsResponse
  */
@@ -420,7 +410,7 @@ export type ListSecretsResponse = Message<"loco.secret.v1.ListSecretsResponse"> 
 };
 
 /**
- * ListSecretsResponse lists the names a service holds in an environment.
+ * ListSecretsResponse lists the secrets of an environment by name.
  *
  * @generated from message loco.secret.v1.ListSecretsResponse
  */
@@ -535,7 +525,8 @@ export const RewrapEnvironmentKeysResponseSchema: GenMessage<RewrapEnvironmentKe
   messageDesc(file_loco_secret_v1_secret, 10);
 
 /**
- * SecretService stores named values of one service in one environment. Values are write-only: no RPC
+ * SecretService stores the named secret values of one environment. Any resource in the environment
+ * reads one by referring to it from a variable as ${{ secrets.NAME }}. Values are write-only: no RPC
  * returns one.
  *
  * @generated from service loco.secret.v1.SecretService
@@ -552,7 +543,8 @@ export const SecretService: GenService<{
     output: typeof SetSecretsResponseSchema;
   },
   /**
-   * DeleteSecrets removes names from a service in an environment.
+   * DeleteSecrets removes names from an environment. It fails with FAILED_PRECONDITION, naming
+   * the resources, while the latest deployment of a resource reads one of the names.
    *
    * @generated from rpc loco.secret.v1.SecretService.DeleteSecrets
    */
@@ -562,7 +554,8 @@ export const SecretService: GenService<{
     output: typeof DeleteSecretsResponseSchema;
   },
   /**
-   * ListSecrets lists the names a service holds in an environment with their version and who set them.
+   * ListSecrets lists an environment's secrets with their version, who set them and the
+   * resources that use them.
    *
    * @generated from rpc loco.secret.v1.SecretService.ListSecrets
    */

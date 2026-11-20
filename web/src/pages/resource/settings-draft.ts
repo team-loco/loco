@@ -76,13 +76,9 @@ export interface SettingsDraft {
 	command?: string;
 	args?: string;
 	regions?: Record<string, boolean>;
-	secrets?: Record<string, string>;
-	removedSecrets?: string[];
-	/** Stored or staged secrets whose deployment binding changes, by whether deployments read them. */
-	bindings?: Record<string, boolean>;
-	/** Plain variables to add or change in every deployment, by name. */
+	/** Variables to add or change in every deployment, by name. */
 	env?: Record<string, string>;
-	/** Plain variables to remove from every deployment. */
+	/** Variables to remove from every deployment. */
 	removedEnv?: string[];
 	isPublic?: boolean;
 	subdomain?: string;
@@ -244,13 +240,8 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 		...Object.keys(next.regions)
 			.filter((r) => next.regions[r] !== base.regions[r])
 			.map((r) => (next.regions[r] === true ? `Add region ${r}` : `Remove region ${r}`)),
-		...Object.keys(draft.secrets ?? {}).map((n) => `Variable ${n}`),
-		...(draft.removedSecrets ?? []).map((n) => `Remove variable ${n}`),
 		...Object.keys(draft.env ?? {}).map((n) => `Variable ${n}`),
 		...(draft.removedEnv ?? []).map((n) => `Remove variable ${n}`),
-		...Object.keys(draft.bindings ?? {})
-			.filter((n) => draft.secrets?.[n] === undefined && draft.removedSecrets?.includes(n) !== true)
-			.map((n) => `Variable ${n}`),
 		...COMMAND_KEYS.filter((k) => !sameEntries(next[k], base[k])).map((k) =>
 			k === "command" ? "Start command" : "Arguments",
 		),
@@ -337,9 +328,6 @@ export function validateDraft(
 			errors.platformDomain = "No platform domain is served in every region";
 		if (!SUBDOMAIN_RE.test(draft.subdomain ?? "")) errors.subdomain = "Use lowercase letters, digits and hyphens";
 	}
-	for (const name of Object.keys(draft.secrets ?? {})) {
-		if (!SECRET_NAME.test(name)) errors.secrets = `${name}: use capital letters, digits and underscores`;
-	}
 	return errors;
 }
 
@@ -385,27 +373,13 @@ interface RegionDeploy {
 }
 
 export function variablesChanged(draft: SettingsDraft): boolean {
-	return (
-		Object.keys(draft.bindings ?? {}).length > 0 ||
-		Object.keys(draft.env ?? {}).length > 0 ||
-		(draft.removedEnv ?? []).length > 0
-	);
+	return Object.keys(draft.env ?? {}).length > 0 || (draft.removedEnv ?? []).length > 0;
 }
 
-/** The plain variables deployments run with after the draft's changes. */
+/** The variables deployments run with after the draft's changes. */
 export function plainEnv(current: Record<string, string>, draft: SettingsDraft): Record<string, string> {
 	const removed = new Set(draft.removedEnv ?? []);
 	return Object.fromEntries(Object.entries({ ...current, ...draft.env }).filter(([name]) => !removed.has(name)));
-}
-
-/** The secret names deployments read after the draft's binding changes. */
-export function boundNames(current: string[], draft: SettingsDraft): string[] {
-	const names = new Set(current);
-	for (const [name, bound] of Object.entries(draft.bindings ?? {})) {
-		if (bound) names.add(name);
-		else names.delete(name);
-	}
-	return [...names].toSorted();
 }
 
 export function planSave(regions: RegionView[], draft: SettingsDraft, base: Baseline): RegionDeploy[] {

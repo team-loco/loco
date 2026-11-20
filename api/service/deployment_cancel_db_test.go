@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"maps"
 	"testing"
 
 	"connectrpc.com/connect/v2"
@@ -338,9 +339,23 @@ func TestCancelWithRollbackRestoresTheFinishedRegion(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	first, second, worker, other := twoRegionRollout(t, f)
+	plain := map[string]string{"ROLLBACK_MARKER": "previous-env"}
+	secret := map[string]string{"DATABASE_URL": "${{ secrets.DATABASE_URL }}"}
+	if _, err := f.pool.Exec(t.Context(), `UPDATE deployments SET plain_env = $2, secret_env = $3 WHERE id = $1`,
+		first, plain, secret); err != nil {
+		t.Fatal(err)
+	}
 	rollbacks := f.cancelWithRollback(t, second)
 	if len(rollbacks) != 1 {
 		t.Fatalf("rollbacks = %v, want one", rollbacks)
+	}
+	stored, err := f.queries.GetDeploymentByID(t.Context(), uuid.MustParse(rollbacks[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !maps.Equal(stored.PlainEnv, plain) || !maps.Equal(stored.SecretEnv, secret) {
+		t.Fatalf("rollback env = %v and %v, want the previous deployment's %v and %v",
+			stored.PlainEnv, stored.SecretEnv, plain, secret)
 	}
 	rollback := f.getDeployment(t, rollbacks[0])
 	if rollback.GetTrigger() != deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK ||

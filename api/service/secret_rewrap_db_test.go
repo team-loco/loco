@@ -11,7 +11,6 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
 	eventv1 "github.com/team-loco/loco/gen/go/loco/event/v1"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 )
 
@@ -191,29 +190,5 @@ func TestSetSecretsRetriesWhenADEKRotationReplacesTheKey(t *testing.T) {
 	}
 	if got, version := f.plaintext(t, provider, alphaKey); got != "2" || version != 2 {
 		t.Fatalf("ALPHA = %q at version %d, want 2 at version 2", got, version)
-	}
-}
-
-func TestRewrapWithANewDEKKeepsTheValuesOfTwoServicesThatShareAName(t *testing.T) {
-	t.Parallel()
-	f := newSecretFixture(t)
-	provider := newTestKeyProvider(t, "k1")
-	server := f.server(t, provider)
-	worker := *f
-	worker.resourceID = f.resource(t, f.workspaceID, workerService, &resourcev1.ServiceSpec{})
-	f.set(t, server, map[string]string{alphaKey: "web-alpha"})
-	worker.set(t, server, map[string]string{alphaKey: "worker-alpha"})
-
-	res := rewrapKeys(t, server, &secretv1.RewrapEnvironmentKeysRequest{
-		EnvironmentId: f.environmentID.String(), NewDek: true,
-	})
-	if res.GetRewrapped() != 1 {
-		t.Fatalf("rewrap = %+v, want one rewrapped", res)
-	}
-	if got, _ := f.plaintext(t, provider, alphaKey); got != "web-alpha" {
-		t.Fatalf("web ALPHA = %q, want web-alpha", got)
-	}
-	if got, _ := worker.plaintext(t, provider, alphaKey); got != "worker-alpha" {
-		t.Fatalf("worker ALPHA = %q, want worker-alpha", got)
 	}
 }

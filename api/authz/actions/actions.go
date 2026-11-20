@@ -333,19 +333,19 @@ var (
 
 	// secrets
 
-	// SetSecrets requires resource:write on the service that holds the secrets.
+	// SetSecrets requires workspace:write on the environment's workspace.
 	SetSecrets = Action{
-		entityType: db.EntityTypeResource,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeWrite,
 	}
-	// DeleteSecrets requires resource:write.
+	// DeleteSecrets requires workspace:write.
 	DeleteSecrets = Action{
-		entityType: db.EntityTypeResource,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeWrite,
 	}
-	// ListSecrets requires resource:read.
+	// ListSecrets requires workspace:read.
 	ListSecrets = Action{
-		entityType: db.EntityTypeResource,
+		entityType: db.EntityTypeWorkspace,
 		scope:      db.ScopeRead,
 	}
 	// RewrapEnvironmentKeys requires system:admin.

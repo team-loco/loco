@@ -25,6 +25,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/varref"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -36,16 +37,16 @@ var (
 	ErrKeyProvider         = errors.New("secrets key provider unavailable")
 	ErrSecretLockTimeout   = rpcerr.NewCoded(
 		connect.CodeAborted,
-		"secrets of the service are locked by another operation",
+		"secrets of the environment are locked by another operation",
 	)
-	ErrSecretKeyChanging     = errors.New("environment key changed during the write, retry")
+	ErrSecretKeyChanging = errors.New("environment key changed during the write, retry")
+	ErrSecretInUse       = rpcerr.NewCoded(
+		connect.CodeFailedPrecondition,
+		"secret is read by the latest deployment of a resource; remove the reference and deploy first",
+	)
 	ErrPlacementSecretsLarge = rpcerr.NewCoded(
 		connect.CodeFailedPrecondition,
-		"secrets of a placement of the service exceed the size limit",
-	)
-	ErrSecretInUse = rpcerr.NewCoded(
-		connect.CodeFailedPrecondition,
-		"secret is declared by the service's active deployment",
+		"the secret values a placement reads exceed the size limit",
 	)
 	ErrUnknownSecretFormat = errors.New("secret has a format version this binary does not know")
 
@@ -103,35 +104,19 @@ func NewSecretServer(
 	}
 }
 
-// secretTarget is the service and environment a secret operation addresses.
+// secretTarget is the environment a secret operation addresses.
 type secretTarget struct {
-	env        genDb.Environment
-	resourceID uuid.UUID
+	env genDb.Environment
 }
 
 func (s *SecretServer) authorizeTarget(
 	ctx context.Context,
-	resourceID string,
 	environmentID string,
 	action actions.Action,
 ) (secretTarget, error) {
-	parsedResourceID, err := parseID("resource_id", resourceID)
-	if err != nil {
-		return secretTarget{}, err
-	}
 	parsedEnvironmentID, err := parseID("environment_id", environmentID)
 	if err != nil {
 		return secretTarget{}, err
-	}
-	if err = authorize(ctx, s.authz, action, parsedResourceID); err != nil {
-		return secretTarget{}, err
-	}
-	resource, err := s.queries.GetResourceByID(ctx, parsedResourceID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return secretTarget{}, ErrResourceNotFound
-	}
-	if err != nil {
-		return secretTarget{}, fmt.Errorf("get resource: %w", err)
 	}
 	env, err := s.queries.GetEnvironmentByID(ctx, parsedEnvironmentID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -140,14 +125,16 @@ func (s *SecretServer) authorizeTarget(
 	if err != nil {
 		return secretTarget{}, fmt.Errorf("get environment: %w", err)
 	}
-	if env.WorkspaceID != resource.WorkspaceID {
-		return secretTarget{}, ErrEnvironmentNotFound
+	if err = authorizeVisible(
+		ctx, s.authz, actions.New(action, env.WorkspaceID), ErrEnvironmentNotFound,
+	); err != nil {
+		return secretTarget{}, err
 	}
-	return secretTarget{env: env, resourceID: resource.ID}, nil
+	return secretTarget{env: env}, nil
 }
 
 func (t secretTarget) aad(name string, version int32) []byte {
-	return secretkeys.SecretAAD(t.env.WorkspaceID.String(), t.env.ID.String(), t.resourceID.String(), name, version)
+	return secretkeys.SecretAAD(t.env.WorkspaceID.String(), t.env.ID.String(), name, version)
 }
 
 // SetSecrets encrypts each value under the environment's data key and stores it. A value equal
@@ -156,7 +143,7 @@ func (s *SecretServer) SetSecrets(
 	ctx context.Context,
 	req *secretv1.SetSecretsRequest,
 ) (*secretv1.SetSecretsResponse, error) {
-	target, err := s.authorizeTarget(ctx, req.GetResourceId(), req.GetEnvironmentId(), actions.SetSecrets)
+	target, err := s.authorizeTarget(ctx, req.GetEnvironmentId(), actions.SetSecrets)
 	if err != nil {
 		return nil, err
 	}
@@ -189,10 +176,18 @@ func (s *SecretServer) SetSecrets(
 	return nil, rpcerr.New(connect.CodeAborted, ErrSecretKeyChanging)
 }
 
-// checkRequestSize refuses a request naming more secrets than a service can hold, so an
+// checkRequestSize refuses a request naming more secrets than an environment can hold, so an
 // oversized batch fails before any database work on its names.
 func (s *SecretServer) checkRequestSize(ctx context.Context, target secretTarget, entries int) error {
-	return checkResourceLimit(ctx, s.queries, s.counts, limits.SecretsPerResource, target.resourceID, 0, int64(entries))
+	return checkWorkspaceOrgLimit(
+		ctx,
+		s.queries,
+		s.counts,
+		limits.SecretsPerEnvironment,
+		target.env.WorkspaceID,
+		0,
+		int64(entries),
+	)
 }
 
 func (s *SecretServer) setSecretsOnce(
@@ -218,7 +213,7 @@ func (s *SecretServer) setSecretsOnce(
 			return errKeyChanged
 		}
 		existing, listErr := qtx.ListSecretCiphertexts(ctx, genDb.ListSecretCiphertextsParams{
-			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
+			EnvironmentID: target.env.ID, Names: names,
 		})
 		if listErr != nil {
 			return fmt.Errorf("list secret ciphertexts: %w", listErr)
@@ -229,7 +224,6 @@ func (s *SecretServer) setSecretsOnce(
 		}
 
 		params := genDb.UpsertSecretsParams{
-			ResourceID:    target.resourceID,
 			EnvironmentID: target.env.ID,
 			UpdatedByType: string(updatedBy.Type),
 			UpdatedByID:   updatedBy.ID,
@@ -270,15 +264,11 @@ func (s *SecretServer) setSecretsOnce(
 			response.Revision = revision
 			return nil
 		}
-		usage, usageErr := qtx.ListSecretUsage(ctx, genDb.ListSecretUsageParams{
-			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: params.Names,
-		})
-		if usageErr != nil {
-			return fmt.Errorf("list secret usage: %w", usageErr)
+		users, usersErr := secretUsers(ctx, qtx, target.env)
+		if usersErr != nil {
+			return usersErr
 		}
-		for _, region := range usage {
-			response.UsedBy = append(response.UsedBy, &secretv1.SecretUsage{Region: region.Region, Names: region.Names})
-		}
+		response.UsedBy = usersOf(users, params.Names)
 		return s.writeSecrets(ctx, qtx, target, revision, params, added, response)
 	})
 	if err != nil {
@@ -296,18 +286,16 @@ func (s *SecretServer) writeSecrets(
 	added int64,
 	response *secretv1.SetSecretsResponse,
 ) error {
-	count, countErr := qtx.CountSecrets(ctx, genDb.CountSecretsParams{
-		ResourceID: target.resourceID, EnvironmentID: target.env.ID,
-	})
+	count, countErr := qtx.CountSecrets(ctx, target.env.ID)
 	if countErr != nil {
 		return fmt.Errorf("count secrets: %w", countErr)
 	}
-	if limitErr := checkResourceLimit(
+	if limitErr := checkWorkspaceOrgLimit(
 		ctx,
 		qtx,
 		s.counts,
-		limits.SecretsPerResource,
-		target.resourceID,
+		limits.SecretsPerEnvironment,
+		target.env.WorkspaceID,
 		count,
 		added,
 	); limitErr != nil {
@@ -316,17 +304,8 @@ func (s *SecretServer) writeSecrets(
 	if upsertErr := qtx.UpsertSecrets(ctx, params); upsertErr != nil {
 		return fmt.Errorf("upsert secrets: %w", upsertErr)
 	}
-	sizes, sizesErr := qtx.ListPlacementSecretSizes(ctx, genDb.ListPlacementSecretSizesParams{
-		ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: params.Names,
-	})
-	if sizesErr != nil {
-		return fmt.Errorf("list placement secret sizes: %w", sizesErr)
-	}
-	for _, size := range sizes {
-		total := size.NameBytes + size.CiphertextBytes - size.SecretCount*secretkeys.Overhead
-		if total > int64(s.config.MaxPlacementBytes) {
-			return ErrPlacementSecretsLarge.Detail("placement %s holds %d bytes", size.PlacementID, total)
-		}
+	if sizeErr := s.checkPlacementSizes(ctx, qtx, target.env.ID, params.Names); sizeErr != nil {
+		return sizeErr
 	}
 	if bumpErr := bumpEnvironmentRevision(ctx, qtx, target.env.ID); bumpErr != nil {
 		return bumpErr
@@ -336,19 +315,78 @@ func (s *SecretServer) writeSecrets(
 	return events.Record(ctx, qtx, target.event(events.SecretSet, params.Names, revision))
 }
 
+// checkPlacementSizes refuses values that make the secrets a placement reads too large.
+func (s *SecretServer) checkPlacementSizes(
+	ctx context.Context,
+	qtx *genDb.Queries,
+	environmentID uuid.UUID,
+	changed []string,
+) error {
+	placements, err := qtx.ListPlacementSecretEnvs(ctx, environmentID)
+	if err != nil {
+		return fmt.Errorf("list placement secret envs: %w", err)
+	}
+	sizes, err := listSecretSizes(ctx, qtx, environmentID)
+	if err != nil {
+		return err
+	}
+	for _, placement := range placements {
+		read := varref.SecretNames(placement.SecretEnv)
+		if !slices.ContainsFunc(changed, func(name string) bool { return slices.Contains(read, name) }) {
+			continue
+		}
+		if total := varref.SecretBytes(placement.SecretEnv, sizes); total > int64(s.config.MaxPlacementBytes) {
+			return ErrPlacementSecretsLarge.Detail("placement %s holds %d bytes", placement.ID, total)
+		}
+	}
+	return nil
+}
+
 func (t secretTarget) event(eventType string, names []string, revision int64) events.Event {
 	return events.Event{
 		Type:          eventType,
 		EnvironmentID: new(t.env.ID),
 		WorkspaceID:   new(t.env.WorkspaceID),
-		SubjectType:   events.SubjectResource,
-		SubjectID:     new(t.resourceID),
+		SubjectType:   events.SubjectEnvironment,
+		SubjectID:     new(t.env.ID),
 		Data: map[string]any{
 			events.FieldNames:         names,
 			events.FieldEnvironmentID: t.env.ID,
 			events.FieldRevision:      revision,
 		},
 	}
+}
+
+// secretUser is a resource with the secrets its latest deployment in an environment reads.
+type secretUser struct {
+	id      uuid.UUID
+	slug    string
+	secrets []string
+}
+
+func secretUsers(ctx context.Context, q genDb.Querier, env genDb.Environment) ([]secretUser, error) {
+	targets, err := listEnvironmentTargets(ctx, q, env.WorkspaceID, env.ID)
+	if err != nil {
+		return nil, err
+	}
+	users := make([]secretUser, 0, len(targets))
+	for _, target := range targets {
+		if names := varref.SecretNames(target.secretEnv); len(names) > 0 {
+			users = append(users, secretUser{id: target.id, slug: target.slug, secrets: names})
+		}
+	}
+	return users, nil
+}
+
+// usersOf lists the users that read any of names.
+func usersOf(users []secretUser, names []string) []*secretv1.SecretUser {
+	out := []*secretv1.SecretUser{}
+	for _, user := range users {
+		if slices.ContainsFunc(names, func(name string) bool { return slices.Contains(user.secrets, name) }) {
+			out = append(out, &secretv1.SecretUser{ResourceId: user.id.String(), ResourceSlug: user.slug})
+		}
+	}
+	return out
 }
 
 func storedValueEquals(
@@ -416,25 +454,19 @@ func (s *SecretServer) lockTarget(
 	if err != nil {
 		return genDb.EnvironmentKey{}, 0, err
 	}
-	err = lockResource(ctx, qtx, target.resourceID)
-	if isPgLockNotAvailable(err) {
-		return genDb.EnvironmentKey{}, 0, ErrSecretLockTimeout
-	}
-	if err != nil {
-		return genDb.EnvironmentKey{}, 0, err
-	}
 	if err = qtx.ResetLockTimeout(ctx); err != nil {
 		return genDb.EnvironmentKey{}, 0, fmt.Errorf("reset lock timeout: %w", err)
 	}
 	return key, revision, nil
 }
 
-// DeleteSecrets removes names from a service in an environment.
+// DeleteSecrets removes names from an environment, refusing names a resource's latest deployment
+// reads.
 func (s *SecretServer) DeleteSecrets(
 	ctx context.Context,
 	req *secretv1.DeleteSecretsRequest,
 ) (*secretv1.DeleteSecretsResponse, error) {
-	target, err := s.authorizeTarget(ctx, req.GetResourceId(), req.GetEnvironmentId(), actions.DeleteSecrets)
+	target, err := s.authorizeTarget(ctx, req.GetEnvironmentId(), actions.DeleteSecrets)
 	if err != nil {
 		return nil, err
 	}
@@ -451,17 +483,19 @@ func (s *SecretServer) DeleteSecrets(
 			}
 			return lockErr
 		}
-		declared, declaredErr := qtx.ListDeclaredSecretNames(ctx, genDb.ListDeclaredSecretNamesParams{
-			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
-		})
-		if declaredErr != nil {
-			return fmt.Errorf("list declared secret names: %w", declaredErr)
+		users, usersErr := secretUsers(ctx, qtx, target.env)
+		if usersErr != nil {
+			return usersErr
 		}
-		if len(declared) > 0 {
-			return ErrSecretInUse.Detail("%s", strings.Join(declared, ", "))
+		if blocking := usersOf(users, names); len(blocking) > 0 {
+			slugs := make([]string, 0, len(blocking))
+			for _, user := range blocking {
+				slugs = append(slugs, user.GetResourceSlug())
+			}
+			return ErrSecretInUse.Detail("%s", strings.Join(slugs, ", "))
 		}
 		deleted, deleteErr := qtx.DeleteSecrets(ctx, genDb.DeleteSecretsParams{
-			ResourceID: target.resourceID, EnvironmentID: target.env.ID, Names: names,
+			EnvironmentID: target.env.ID, Names: names,
 		})
 		if deleteErr != nil {
 			return fmt.Errorf("delete secrets: %w", deleteErr)
@@ -486,20 +520,23 @@ func (s *SecretServer) DeleteSecrets(
 	return &secretv1.DeleteSecretsResponse{Revision: revision}, nil
 }
 
-// ListSecrets lists the names a service holds in an environment; it never returns a value.
+// ListSecrets lists the secrets of an environment with the resources that read each; it never
+// returns a value.
 func (s *SecretServer) ListSecrets(
 	ctx context.Context,
 	req *secretv1.ListSecretsRequest,
 ) (*secretv1.ListSecretsResponse, error) {
-	target, err := s.authorizeTarget(ctx, req.GetResourceId(), req.GetEnvironmentId(), actions.ListSecrets)
+	target, err := s.authorizeTarget(ctx, req.GetEnvironmentId(), actions.ListSecrets)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := s.queries.ListSecrets(ctx, genDb.ListSecretsParams{
-		ResourceID: target.resourceID, EnvironmentID: target.env.ID,
-	})
+	rows, err := s.queries.ListSecrets(ctx, target.env.ID)
 	if err != nil {
 		return nil, fmt.Errorf("list secrets: %w", err)
+	}
+	users, err := secretUsers(ctx, s.queries, target.env)
+	if err != nil {
+		return nil, err
 	}
 	secrets := make([]*secretv1.Secret, 0, len(rows))
 	for _, row := range rows {
@@ -510,6 +547,7 @@ func (s *SecretServer) ListSecrets(
 			UpdatedById:   row.UpdatedByID.String(),
 			CreatedAt:     timestamppb.New(row.CreatedAt),
 			UpdatedAt:     timestamppb.New(row.UpdatedAt),
+			UsedBy:        usersOf(users, []string{row.Name}),
 		})
 	}
 	return &secretv1.ListSecretsResponse{Secrets: secrets}, nil
@@ -698,16 +736,9 @@ func reencryptSecrets(
 		return fmt.Errorf("list environment secret ciphertexts: %w", err)
 	}
 	params := genDb.ReencryptSecretsParams{EnvironmentID: env.ID}
+	target := secretTarget{env: env}
 	for _, row := range rows {
-		target := secretTarget{env: env, resourceID: row.ResourceID}
-		stored := genDb.ListSecretCiphertextsRow{
-			Name:          row.Name,
-			Version:       row.Version,
-			Nonce:         row.Nonce,
-			Ciphertext:    row.Ciphertext,
-			FormatVersion: row.FormatVersion,
-		}
-		plaintext, openErr := openSecret(oldDEK, target, stored)
+		plaintext, openErr := openSecret(oldDEK, target, genDb.ListSecretCiphertextsRow(row))
 		if openErr != nil {
 			return openErr
 		}
@@ -716,7 +747,6 @@ func reencryptSecrets(
 		if sealErr != nil {
 			return fmt.Errorf("seal %s: %w", row.Name, sealErr)
 		}
-		params.ResourceIds = append(params.ResourceIds, row.ResourceID)
 		params.Names = append(params.Names, row.Name)
 		params.Nonces = append(params.Nonces, nonce)
 		params.Ciphertexts = append(params.Ciphertexts, ciphertext)

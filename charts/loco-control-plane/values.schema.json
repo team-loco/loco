@@ -258,7 +258,7 @@
               "maximum": 2147483647,
               "minimum": 1
             },
-            "secretsPerResource": {
+            "secretsPerEnvironment": {
               "type": [
                 "integer",
                 "null"

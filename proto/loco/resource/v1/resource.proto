@@ -48,9 +48,12 @@ service ResourceService {
   rpc ListWorkspaceResources(ListWorkspaceResourcesRequest) returns (ListWorkspaceResourcesResponse);
   // ListRegions lists the regions an environment deploys to.
   rpc ListRegions(ListRegionsRequest) returns (ListRegionsResponse);
-  // GetResourceEnv returns the plain env variables a service runs with in an environment, the
-  // env map of loco.yaml, and the secret names it declares. Secret values are never included.
+  // GetResourceEnv returns the variables a service runs with in an environment as written, the
+  // env map of loco.yaml, with references unresolved. Secret values are never included.
   rpc GetResourceEnv(GetResourceEnvRequest) returns (GetResourceEnvResponse);
+  // ListResourceOutputs lists what each resource of the workspace provides to references in an
+  // environment: its built-in outputs and its variables.
+  rpc ListResourceOutputs(ListResourceOutputsRequest) returns (ListResourceOutputsResponse);
 
   // Resource Operations
   // ScaleResource adjusts resource replicas and resource allocation.
@@ -152,7 +155,6 @@ message RegionStatus {
   int32 ready_replicas = 3;
   int32 desired_replicas = 4;
   string deployment_id = 5;
-  reserved 6;
   // The status of the live deployment's placement in this region.
   deployment.v1.PlacementStatus placement_status = 10;
   optional string message = 7;
@@ -293,17 +295,48 @@ message ListRegionsResponse {
   repeated RegionInfo regions = 1;
 }
 
-// GetResourceEnvRequest names the service and the environment whose plain env variables to read.
+// GetResourceEnvRequest names the service and the environment whose variables to read.
 message GetResourceEnvRequest {
   string resource_id = 1 [(buf.validate.field).string.uuid = true];
   string environment_id = 2 [(buf.validate.field).string.uuid = true];
 }
 
-// GetResourceEnvResponse holds the plain env variables and the declared secret names of the
-// service's active deployment in the environment, both empty when it has none.
+// GetResourceEnvResponse holds the variables of the service's active deployment in the
+// environment, empty when it has none.
 message GetResourceEnvResponse {
   map<string, string> env = 1;
-  repeated string secret_names = 2;
+}
+
+// ListResourceOutputsRequest names the environment whose resource outputs to list.
+message ListResourceOutputsRequest {
+  string environment_id = 1 [(buf.validate.field).string.uuid = true];
+}
+
+// ResourceOutput is one value another resource can refer to as ${{ resource.KEY }}.
+message ResourceOutput {
+  string key = 1;
+  // value is the output with its references to other resources resolved; references to
+  // secrets stay as ${{ secrets.NAME }}.
+  string value = 2;
+  // built_in is true for the outputs Loco provides: PRIVATE_HOST, PORT, PRIVATE_URL and
+  // PUBLIC_URL. The others are the resource's variables.
+  bool built_in = 3;
+}
+
+// ResourceOutputs is what one resource provides in the environment, read from its latest
+// deployment there and its primary domain.
+message ResourceOutputs {
+  string resource_id = 1;
+  // resource_slug is the name references use: ${{ <slug>.KEY }}.
+  string resource_slug = 2;
+  repeated ResourceOutput outputs = 3;
+  // used_by holds the slugs of the resources whose latest deployment refers to this resource.
+  repeated string used_by = 4;
+}
+
+// ListResourceOutputsResponse lists every resource of the workspace by slug.
+message ListResourceOutputsResponse {
+  repeated ResourceOutputs resources = 1;
 }
 
 // --- Resource Operations ---

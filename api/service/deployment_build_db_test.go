@@ -99,11 +99,12 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			provider := newTestKeyProvider(t, "k1")
 			f.storeSecret(t, provider, databaseURLName, stripeValue)
 			f.storeSecret(t, provider, sessionKeyName, sessionKeyValue)
-			wantEnv := map[string]string{"BUILD_MODE": "release", "BUILD_LABEL": "queued-build"}
-			bindings := &deploymentv1.DeploymentSecretBindings{Names: testSecretNames}
+			wantEnv := map[string]string{"BUILD_MODE": releaseMode, "BUILD_LABEL": "queued-build"}
+			wantSecretEnv := secretEnvOf([]string{databaseURLName, sessionKeyName})
+			variables := maps.Clone(wantEnv)
+			maps.Copy(variables, wantSecretEnv)
 			request := &deploymentv1.CreateDeploymentRequest{
 				ResourceId: f.resourceID.String(), EnvironmentId: f.envID.String(), Regions: []string{testRegion},
-				SecretBindings: bindings,
 			}
 			if inherit {
 				previous := imageService()
@@ -115,17 +116,16 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 					t.Fatal(err)
 				}
 				f.finishRollouts(t)
-				request.SecretBindings = nil
 			}
 			buildID := f.queued(t)
 			service := &deploymentv1.ServiceDeploymentSpec{
 				Build: &deploymentv1.BuildSource{Type: buildSourceTypeDockerfile, BuildId: &buildID},
-				Env:   wantEnv,
+				Env:   variables,
 			}
 			request.Spec = &deploymentv1.DeploymentSpec{
 				Spec: &deploymentv1.DeploymentSpec_Service{Service: service},
 			}
-			response, err := deployRequest(t, f.deployFixture, request)
+			response, err := deployRequest(t, f.deployFixture, request, f.workspaceReadScopes(t)...)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -141,8 +141,8 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := deployment.GetSpec().GetService().GetEnv(); !maps.Equal(got, wantEnv) {
-				t.Errorf("deployment spec env=%v, want %v", got, wantEnv)
+			if got := deployment.GetSpec().GetService().GetEnv(); !maps.Equal(got, variables) {
+				t.Errorf("deployment spec env=%v, want %v", got, variables)
 			}
 			status := buildStatus(buildID, agentv1.BuildPhase_BUILD_PHASE_SUCCEEDED)
 			status.ImageDigest = testImageDigest
@@ -153,8 +153,8 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 			if got := desiredPayload(t, f.deployFixture).AppSpec.ServiceSpec.Deployment.Env; !maps.Equal(got, wantEnv) {
 				t.Errorf("env=%v, want %v", got, wantEnv)
 			}
-			if got := f.placement(t, f.clusterID).SecretNames; !slices.Equal(got, testSecretNames) {
-				t.Errorf("secret names=%v, want %v", got, testSecretNames)
+			if got := f.placement(t, f.clusterID).SecretEnv; !maps.Equal(got, wantSecretEnv) {
+				t.Errorf("secret env=%v, want %v", got, wantSecretEnv)
 			}
 			stored, err := f.queries.GetDeploymentByID(f.ctx, id)
 			if err != nil {
@@ -171,7 +171,14 @@ func TestDeploymentBuildPreservesEnvironment(t *testing.T) {
 				t.Fatal(err)
 			}
 			f.finishRollouts(t)
-			if _, err := deployService(t, f.deployFixture, rollback.GetService()); err != nil {
+			if _, err := deployRequest(t, f.deployFixture, &deploymentv1.CreateDeploymentRequest{
+				ResourceId:    f.resourceID.String(),
+				Regions:       []string{testRegion},
+				EnvironmentId: f.envID.String(),
+				Spec: &deploymentv1.DeploymentSpec{
+					Spec: &deploymentv1.DeploymentSpec_Service{Service: rollback.GetService()},
+				},
+			}, f.workspaceReadScopes(t)...); err != nil {
 				t.Fatal(err)
 			}
 			got := desiredPayload(t, f.deployFixture).AppSpec.ServiceSpec.Deployment.Env

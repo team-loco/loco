@@ -151,10 +151,10 @@ func (cp *controlPlane) psql(t *testing.T, sql string, args ...string) string {
 
 func (cp *controlPlane) checkSecretNames(t *testing.T, want string) {
 	t.Helper()
-	names := cp.psql(t, "SELECT string_agg(name, ' ' ORDER BY name) FROM secrets WHERE resource_id = '"+
-		secretResource+"'")
+	names := cp.psql(t, "SELECT string_agg(name, ' ' ORDER BY name) FROM secrets WHERE environment_id = '"+
+		cp.secrets.environment+"'")
 	if names != want {
-		t.Fatalf("the resource has the secrets %q, want %q", names, want)
+		t.Fatalf("the environment has the secrets %q, want %q", names, want)
 	}
 }
 
@@ -252,7 +252,6 @@ func (s secretWriter) setOnceTheAPILogsIn(t *testing.T, name string) {
 func (s secretWriter) trySet(t *testing.T, name string) error {
 	t.Helper()
 	body, err := json.Marshal(map[string]any{
-		"resourceId":    secretResource,
 		"environmentId": s.environment,
 		"values":        map[string]string{name: "value-of-" + name},
 	})

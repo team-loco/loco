@@ -16,7 +16,6 @@ import (
 	buildv1 "github.com/team-loco/loco/gen/go/loco/build/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	"github.com/team-loco/loco/gen/go/loco/plan/v1/planv1connect"
-	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
 	"github.com/team-loco/loco/internal/rpcerr"
 )
 
@@ -107,8 +106,8 @@ func (s *fakePlanService) Apply(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	plan := f.platform.currentPlan()
-	if remaining := f.platform.unwaivedErrors(plan, req.GetProvision()); len(remaining) > 0 {
-		return nil, fakeApplyRefused(&planv1.ApplyRefusal{Errors: remaining})
+	if len(plan.GetErrors()) > 0 {
+		return nil, fakeApplyRefused(&planv1.ApplyRefusal{Errors: plan.GetErrors()})
 	}
 	revision := plan.GetRevision() + int64(len(f.platform.applies))
 	if f.platform.revisionMoves {
@@ -184,22 +183,6 @@ func (p *fakePlatform) currentImages(plan *planv1.PlanResponse) map[string]strin
 	return images
 }
 
-func (p *fakePlatform) hasResource(name string) bool {
-	return slices.ContainsFunc(p.resources, func(res *resourcev1.Resource) bool { return res.GetSlug() == name })
-}
-
-func (p *fakePlatform) unwaivedErrors(plan *planv1.PlanResponse, provision []string) []*planv1.PlanError {
-	var remaining []*planv1.PlanError
-	for _, planErr := range plan.GetErrors() {
-		service := planErr.GetService()
-		waived := planErr.GetPath() == "secrets" && slices.Contains(provision, service) && !p.hasResource(service)
-		if !waived {
-			remaining = append(remaining, planErr)
-		}
-	}
-	return remaining
-}
-
 func (f *fakeAPI) provision(
 	req *planv1.ApplyRequest,
 	plan *planv1.PlanResponse,
@@ -213,21 +196,11 @@ func (f *fakeAPI) provision(
 		index := slices.IndexFunc(plan.GetOperations(), func(op *planv1.PlanOperation) bool {
 			return op.GetService() == service && op.GetKind() == planv1.PlanOperationKind_PLAN_OPERATION_KIND_CREATE
 		})
-		missingSecrets := slices.ContainsFunc(plan.GetErrors(), func(planErr *planv1.PlanError) bool {
-			return planErr.GetService() == service
-		})
-		switch {
-		case index >= 0:
-			operations = append(operations, plan.GetOperations()[index])
-		case missingSecrets && !f.platform.hasResource(service):
-			operations = append(operations, &planv1.PlanOperation{
-				Kind:    planv1.PlanOperationKind_PLAN_OPERATION_KIND_CREATE,
-				Service: service,
-			})
-		default:
+		if index < 0 {
 			refused := &planv1.PlanError{Service: service, Message: errFakeNotProvisionable.Error()}
 			return nil, fakeApplyRefused(&planv1.ApplyRefusal{Errors: []*planv1.PlanError{refused}})
 		}
+		operations = append(operations, plan.GetOperations()[index])
 		f.platform.addResource(service)
 	}
 	f.platform.applies = append(f.platform.applies, req)

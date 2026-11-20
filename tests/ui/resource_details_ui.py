@@ -113,15 +113,6 @@ sql(
     state,
     f"UPDATE deployments SET created_at = NOW() - INTERVAL '30 minutes 30 seconds', started_at = NOW() - INTERVAL '10 minutes 30 seconds' WHERE id='{deployment}';",
 )
-call(
-    state,
-    "loco.secret.v1.SecretService/SetSecrets",
-    {
-        "resourceId": resource,
-        "environmentId": production,
-        "values": {"API_TOKEN": "fixture-token"},
-    },
-)
 assert (
     call(
         state,
@@ -388,55 +379,15 @@ with session(out) as browser:
     variables = page.locator("#set-env")
     expect(
         variables.get_by_text(
-            "Secret values stay hidden. Revealing a value you type shows it for 30 seconds.",
-            exact=True,
+            "Refer to a secret of the environment with ${{ secrets.NAME }}.", exact=True
         )
     ).to_be_visible()
     mode = page.get_by_label("Value of MODE", exact=True)
     api_base = page.get_by_label("Value of API_BASE_URL", exact=True)
     for plain, value in ((mode, "production"), (api_base, "https://api.example.test")):
-        expect(plain).not_to_have_attribute("type", "password")
         expect(plain).to_have_value(value)
-    expect(page.get_by_role("button", name="Show MODE for 30 seconds")).to_have_count(0)
-    replacement = page.get_by_label("New value for API_TOKEN", exact=True)
-    expect(replacement).to_have_value("")
-    expect(replacement).to_have_attribute("placeholder", "•••••••• · type to replace")
-    expect(
-        variables.get_by_text(
-            f"Saved. To use this key, add API_TOKEN to services.{name}.secrets and redeploy.",
-            exact=True,
-        )
-    ).to_be_visible()
-    expect(
-        page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True)
-    ).to_be_disabled()
-    replacement.fill("replacement-token")
-    expect(replacement).to_have_attribute("type", "password")
-    page.get_by_role("button", name="Show API_TOKEN for 30 seconds", exact=True).click()
-    expect(replacement).to_have_attribute("type", "text")
-    page.clock.fast_forward(30_000)
-    expect(replacement).to_have_attribute("type", "password")
-    page.clock.resume()
-    replacement.fill("")
-    variables.get_by_role("button", name="Add", exact=True).click()
-    page.get_by_label("New variable name", exact=True).fill("STRIPE_API_KEY")
-    page.get_by_label("New variable value", exact=True).fill("sk_test")
-    expect(variables.get_by_role("switch", name="Store as secret")).to_have_count(0)
-    page.get_by_role("button", name="Add secret", exact=True).click()
-    with expect_rpc(
-        page, "SetSecrets", lambda body: body.get("resourceId") == resource
-    ) as saved:
-        page.get_by_role("button", name="Save", exact=True).click()
-    assert saved.value.ok, saved.value.text()
-    hint = f"Saved. To use this key, add STRIPE_API_KEY to services.{name}.secrets and redeploy."
-    expect(page.get_by_text(hint, exact=True)).to_have_count(2)
-    variables.get_by_role("button", name="Add", exact=True).click()
-    page.get_by_label("New variable name", exact=True).fill("EMPTY_FLAG")
-    add_secret = page.get_by_role("button", name="Add secret", exact=True)
-    expect(add_secret).to_be_enabled()
-    add_secret.click()
-    expect(page.get_by_label("New value for EMPTY_FLAG", exact=True)).to_have_value("")
-    expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
+        expect(plain).not_to_be_editable()
+    expect(variables.get_by_role("button", name="Add", exact=True)).to_have_count(0)
     count = page.locator("#set-env-title > span")
     expect(count).to_have_text(re.compile(r"^\d+$"))
     general = page.locator("#set-general")

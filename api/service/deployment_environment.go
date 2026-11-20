@@ -2,69 +2,43 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"slices"
 
 	"github.com/google/uuid"
+
+	"github.com/team-loco/loco/api/authz/actions"
 	genDb "github.com/team-loco/loco/api/gen/db"
-	"github.com/team-loco/loco/api/pkg/configplan"
-	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 )
 
-// deploymentSecretNames returns the secret names a deployment to regions binds: what the
-// request sets, else what the copied deployment binds, else what the deployment live in the
-// first of those regions binds.
-func (s *DeploymentServer) deploymentSecretNames(
+// resolveVariables resolves the variables of a deployment of resource to the environment. The
+// caller must be able to read every other resource the variables refer to directly, and to list
+// the environment's secrets when the variables read one.
+func (s *DeploymentServer) resolveVariables(
 	ctx context.Context,
 	qtx *genDb.Queries,
-	resourceID, environmentID uuid.UUID,
-	regions []string,
-	source *genDb.Deployment,
-	bindings *deploymentv1.DeploymentSecretBindings,
-) ([]string, error) {
-	if bindings == nil && source != nil {
-		bindings = &deploymentv1.DeploymentSecretBindings{Names: source.SecretNames}
+	resource genDb.Resource,
+	environmentID uuid.UUID,
+	hostname string,
+	service *deploymentv1.ServiceDeploymentSpec,
+) (varref.Resolved, error) {
+	references, err := loadVariableReferences(ctx, qtx, resource.WorkspaceID, environmentID)
+	if err != nil {
+		return varref.Resolved{}, err
 	}
-	if bindings != nil {
-		secretNames := append([]string{}, bindings.GetNames()...)
-		if err := s.validateSecretBindings(ctx, qtx, resourceID, environmentID, secretNames); err != nil {
-			return nil, err
+	resolved, err := references.resolve(resource.Slug, hostname, service, s.maxSecretBytes)
+	if err != nil {
+		return varref.Resolved{}, err
+	}
+	if len(resolved.SecretNames()) > 0 {
+		if authErr := authorize(ctx, s.authz, actions.ListSecrets, resource.WorkspaceID); authErr != nil {
+			return varref.Resolved{}, authErr
 		}
-		return secretNames, nil
 	}
-	live, err := listLiveDeploymentsForEnvironment(ctx, qtx, resourceID, environmentID)
-	if err != nil {
-		return nil, err
+	for _, name := range resolved.Resources {
+		if authErr := authorize(ctx, s.authz, actions.GetResource, references.ids[name]); authErr != nil {
+			return varref.Resolved{}, authErr
+		}
 	}
-	index := slices.IndexFunc(live, func(d liveDeployment) bool { return slices.Contains(regions, d.Region) })
-	if index < 0 {
-		return []string{}, nil
-	}
-	return live[index].SecretNames, nil
-}
-
-func (s *DeploymentServer) validateSecretBindings(
-	ctx context.Context,
-	qtx *genDb.Queries,
-	resourceID, environmentID uuid.UUID,
-	names []string,
-) error {
-	if len(names) == 0 {
-		return nil
-	}
-	sizes, err := qtx.ListSecretSizes(ctx, genDb.ListSecretSizesParams{
-		ResourceID: resourceID, EnvironmentID: environmentID, Names: names,
-	})
-	if err != nil {
-		return fmt.Errorf("list deployment secret sizes: %w", err)
-	}
-	held := make(map[string]int64, len(sizes))
-	for _, size := range sizes {
-		held[size.Name] = size.CiphertextBytes - secretkeys.Overhead
-	}
-	if errs := configplan.CheckSecretBindings(names, held, int64(s.maxSecretBytes)); len(errs) > 0 {
-		return errs[0]
-	}
-	return nil
+	return resolved, nil
 }

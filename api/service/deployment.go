@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -170,7 +169,6 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		Trigger:                deploymentTriggers[d.Trigger],
 		SourceDeploymentId:     source,
 		CanceledByName:         row.CanceledByName,
-		SecretNames:            slices.Sorted(slices.Values(d.SecretNames)),
 		RollbackOfDeploymentId: rollbackOf,
 	}, nil
 }
@@ -361,11 +359,16 @@ func (s *DeploymentServer) CreateDeployment(
 			return mergeErr
 		}
 
-		secretNames, bindingsErr := s.deploymentSecretNames(
-			ctx, qtx, resourceID, environmentID, regions, source, req.GetSecretBindings(),
+		resolved, resolveErr := s.resolveVariables(
+			ctx,
+			qtx,
+			resource,
+			environmentID,
+			render.hostname,
+			mergedServiceSpec,
 		)
-		if bindingsErr != nil {
-			return bindingsErr
+		if resolveErr != nil {
+			return resolveErr
 		}
 
 		var txErr error
@@ -373,7 +376,6 @@ func (s *DeploymentServer) CreateDeployment(
 			params: genDb.CreateDeploymentParams{
 				ResourceID:         resourceID,
 				EnvironmentID:      environmentID,
-				SecretNames:        secretNames,
 				ActorType:          principal.ActorType,
 				ActorID:            principal.ActorID,
 				Method:             principal.Method,
@@ -382,9 +384,10 @@ func (s *DeploymentServer) CreateDeployment(
 				Trigger:            trigger,
 				SourceDeploymentID: sourceID(source),
 			},
-			service: mergedServiceSpec,
-			targets: targets,
-			render:  render.payload,
+			service:  mergedServiceSpec,
+			resolved: resolved,
+			targets:  targets,
+			render:   render.payload,
 		})
 		if txErr != nil {
 			return txErr

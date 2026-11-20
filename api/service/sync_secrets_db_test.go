@@ -9,6 +9,7 @@ import (
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/secretkeys"
+	"github.com/team-loco/loco/api/pkg/varref"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	secretv1 "github.com/team-loco/loco/gen/go/loco/secret/v1"
 	"google.golang.org/protobuf/proto"
@@ -22,16 +23,6 @@ func (f *deployFixture) secretServer(provider secretkeys.Provider) *SecretServer
 
 func (f *deployFixture) storeSecret(t *testing.T, provider secretkeys.Provider, name, value string) {
 	t.Helper()
-	f.storeSecretFor(t, provider, f.resourceID, name, value)
-}
-
-func (f *deployFixture) storeSecretFor(
-	t *testing.T,
-	provider secretkeys.Provider,
-	resourceID uuid.UUID,
-	name, value string,
-) {
-	t.Helper()
 	ctx := context.Background()
 	const version = int32(1)
 	secrets := f.secretServer(provider)
@@ -44,7 +35,7 @@ func (f *deployFixture) storeSecretFor(
 	if err != nil {
 		t.Fatalf("environment: %v", err)
 	}
-	aad := secretkeys.SecretAAD(env.WorkspaceID.String(), env.ID.String(), resourceID.String(), name, version)
+	aad := secretkeys.SecretAAD(env.WorkspaceID.String(), env.ID.String(), name, version)
 	nonce, ciphertext, err := secretkeys.Seal(dek, []byte(value), aad)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
@@ -54,7 +45,6 @@ func (f *deployFixture) storeSecretFor(
 		t.Fatalf("user: %v", scanErr)
 	}
 	err = f.queries.UpsertSecrets(ctx, genDb.UpsertSecretsParams{
-		ResourceID:     resourceID,
 		EnvironmentID:  f.envID,
 		Names:          []string{name},
 		Versions:       []int32{version},
@@ -69,10 +59,16 @@ func (f *deployFixture) storeSecretFor(
 	}
 }
 
+// deployWithSecrets records a deployment with one variable per name that reads the secret of that name.
 func (f *deployFixture) deployWithSecrets(t *testing.T, names []string) {
 	t.Helper()
+	f.deployWithSecretEnv(t, secretEnvOf(names))
+}
+
+func (f *deployFixture) deployWithSecretEnv(t *testing.T, secretEnv map[string]string) {
+	t.Helper()
 	params := f.paramsFor(f.clusterID)
-	params.SecretNames = names
+	params.Resolved = varref.Resolved{Plain: map[string]string{}, Secret: secretEnv}
 	err := withTx(context.Background(), f.pool, func(qtx *genDb.Queries) error {
 		_, deployErr := recordTestDeployment(
 			context.Background(),
@@ -86,6 +82,14 @@ func (f *deployFixture) deployWithSecrets(t *testing.T, names []string) {
 	if err != nil {
 		t.Fatalf("deploy with secrets: %v", err)
 	}
+}
+
+func secretEnvOf(names []string) map[string]string {
+	env := make(map[string]string, len(names))
+	for _, name := range names {
+		env[name] = varref.Ref{Source: varref.Secrets, Key: name}.String()
+	}
+	return env
 }
 
 func (f *deployFixture) sendPending(t *testing.T, server *AgentServer) []*agentv1.SyncResponse {
@@ -177,6 +181,27 @@ func TestSyncReportsAMissingSecretAndSendsItAfterRestart(t *testing.T) {
 	}
 }
 
+func TestSyncRecordsAnApplyErrorForASecretRemovedOutOfBand(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	provider := newTestKeyProvider(t, "k1")
+	serverConfig := testAgentConfig()
+	serverConfig.ApplyAttempts = 1
+	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
+	f.storeSecret(t, provider, databaseURL, stripeValue)
+	f.deployWithSecrets(t, []string{databaseURL})
+	if _, err := f.pool.Exec(t.Context(), `DELETE FROM secrets WHERE environment_id = $1`, f.envID); err != nil {
+		t.Fatal(err)
+	}
+	if sent := f.sendPending(t, server); len(sent) != 0 {
+		t.Fatalf("sent %v although %s was removed", sent, databaseURL)
+	}
+	placement := f.placement(t, f.clusterID)
+	if placement.AppliedError == nil || *placement.AppliedError != "secret missing: "+databaseURL {
+		t.Fatalf("applied error = %v, want the removed name", placement.AppliedError)
+	}
+}
+
 func TestSyncKeepsAPlacementPendingWhileTheKeyProviderCannotUnwrap(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
@@ -194,7 +219,7 @@ func TestSyncKeepsAPlacementPendingWhileTheKeyProviderCannotUnwrap(t *testing.T)
 	}
 }
 
-func (f *deployFixture) secondPlacement(t *testing.T, names []string) uuid.UUID {
+func (f *deployFixture) secondPlacement(t *testing.T, names []string) {
 	t.Helper()
 	ctx := context.Background()
 	resourceID := f.otherResource(t, "worker")
@@ -204,12 +229,11 @@ func (f *deployFixture) secondPlacement(t *testing.T, names []string) uuid.UUID 
 		Region:        testRegion,
 		DesiredSpec:   []byte("{}"),
 		EnvironmentID: f.envID,
-		SecretNames:   names,
+		SecretEnv:     secretEnvOf(names),
 	})
 	if err != nil {
 		t.Fatalf("placement: %v", err)
 	}
-	return resourceID
 }
 
 func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
@@ -218,8 +242,7 @@ func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
 	provider := newTestKeyProvider(t, "k1")
 	f.storeSecret(t, provider, databaseURL, stripeValue)
 	f.deployWithSecrets(t, []string{databaseURL})
-	worker := f.secondPlacement(t, []string{databaseURL})
-	f.storeSecretFor(t, provider, worker, databaseURL, stripeValue)
+	f.secondPlacement(t, []string{databaseURL})
 
 	rotator := f.secretServer(newTestKeyProvider(t, "k1"))
 	admin := secretAuthzContext(t, genDb.EntityScope{EntityType: genDb.EntityTypeSystem, Scope: genDb.ScopeAdmin})
@@ -248,51 +271,22 @@ func TestSyncDecryptsFromOneSnapshotWhileTheDEKRotates(t *testing.T) {
 	}
 }
 
-func TestSyncSendsEachPlacementOnlyItsOwnServicesValue(t *testing.T) {
+func TestSyncRendersEachSecretTemplateUnderItsVariableName(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
 	provider := newTestKeyProvider(t, "k1")
-	serverConfig := testAgentConfig()
-	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
-	f.storeSecret(t, provider, databaseURL, stripeValue)
-	f.deployWithSecrets(t, []string{databaseURL})
-	worker := f.secondPlacement(t, []string{databaseURL})
-	f.storeSecretFor(t, provider, worker, databaseURL, sessionKeyValue)
+	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, testAgentConfig())
+	f.storeSecret(t, provider, "PW", sessionKeyValue)
+	f.storeSecret(t, provider, "UNREAD", stripeValue)
+	f.deployWithSecretEnv(t, map[string]string{databaseURL: "postgres://u:${{ secrets.PW }}@host"})
 
 	sent := f.sendPending(t, server)
-	if len(sent) != 2 {
-		t.Fatalf("sent %d messages, want both placements", len(sent))
+	if len(sent) != 1 {
+		t.Fatalf("sent %d messages, want one Apply", len(sent))
 	}
-	for _, msg := range sent {
-		apply := msg.GetApply()
-		want := stripeValue
-		if apply.GetResourceId() == worker.String() {
-			want = sessionKeyValue
-		}
-		if got := string(apply.GetEnvSecret().GetData()[databaseURL]); got != want {
-			t.Fatalf("placement of %s got %q, want its own service's value %q", apply.GetResourceId(), got, want)
-		}
-	}
-}
-
-func TestSyncReportsANameOnlyAnotherServiceHoldsAsMissing(t *testing.T) {
-	t.Parallel()
-	f := newDeployFixture(t)
-	provider := newTestKeyProvider(t, "k1")
-	serverConfig := testAgentConfig()
-	server := NewAgentServer(f.pool, f.queries, nil, nil, provider, testHeartbeatInterval, serverConfig)
-	worker := f.secondPlacement(t, []string{})
-	f.storeSecretFor(t, provider, worker, databaseURL, stripeValue)
-	f.deployWithSecrets(t, []string{databaseURL})
-
-	for _, msg := range f.sendPending(t, server) {
-		if msg.GetApply().GetResourceId() == f.resourceID.String() {
-			t.Fatalf("sent %v although svc holds no %s", msg, databaseURL)
-		}
-	}
-	placement := f.placement(t, f.clusterID)
-	if placement.AppliedError == nil || *placement.AppliedError != "secret missing: "+databaseURL {
-		t.Fatalf("applied error = %v, want %s missing", placement.AppliedError, databaseURL)
+	data := sent[0].GetApply().GetEnvSecret().GetData()
+	if len(data) != 1 || string(data[databaseURL]) != "postgres://u:"+sessionKeyValue+"@host" {
+		t.Fatalf("env secret data = %v, want only %s rendered with the value", data, databaseURL)
 	}
 }
 

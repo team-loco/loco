@@ -6,14 +6,13 @@ import type { DefaultServiceConfig } from "@gen/loco/config/v1/config_pb";
 import { DeploymentService } from "@gen/loco/deployment/v1/deployment_pb";
 import { DomainType } from "@gen/loco/domain/v1/domain_pb";
 import type { Environment } from "@gen/loco/environment/v1/environment_pb";
-import { SecretService } from "@gen/loco/secret/v1/secret_pb";
 import { ResourceService, ResourceType } from "@gen/loco/resource/v1/resource_pb";
 import { IMAGE_CHECK_KEY } from "@/hooks/useImageCheck";
 import { getErrorMessage } from "@/lib/error-handler";
 import {
 	apiFieldError,
 	commandEntries,
-	deploymentVariables,
+	envVars,
 	healthCheckSpec,
 	scalingSpec,
 	type ApiFieldError,
@@ -79,31 +78,13 @@ export function useServiceDeploy(workspaceId: string, env: Environment) {
 					},
 				},
 			});
-			const { env: envMap, secrets } = deploymentVariables(form.vars);
-			const secretNames = Object.keys(secrets);
-			let secretsError: unknown = undefined;
-			if (secretNames.length > 0) {
-				try {
-					await createClient(SecretService, transport).setSecrets({
-						resourceId,
-						environmentId: env.id,
-						values: secrets,
-					});
-				} catch (error) {
-					secretsError = error;
-				}
-			}
+			const envMap = Object.fromEntries(envVars(form.vars));
 			const result = await (async (): Promise<{ error: string | null; cause: unknown }> => {
-				if (secretsError !== undefined) {
-					const error = getErrorMessage(secretsError, "Couldn't store the secrets");
-					return { error, cause: secretsError };
-				}
 				try {
 					await deployments.createDeployment({
 						resourceId,
 						regions: form.regions,
 						environmentId: env.id,
-						secretBindings: { names: secretNames },
 						spec: {
 							spec: {
 								case: "service",

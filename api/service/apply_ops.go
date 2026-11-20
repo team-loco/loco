@@ -16,6 +16,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/varref"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
 	planv1 "github.com/team-loco/loco/gen/go/loco/plan/v1"
 	resourcev1 "github.com/team-loco/loco/gen/go/loco/resource/v1"
@@ -39,6 +40,7 @@ type applier struct {
 	partial         string
 	live            liveEnvironment
 	desired         map[string]configplan.State
+	resolved        map[string]varref.Resolved
 	builds          map[string]*deploymentv1.BuildSource
 	deployed        map[string]bool
 	platformDomains []string
@@ -301,7 +303,6 @@ func (a *applier) deploy(
 		params: genDb.CreateDeploymentParams{
 			ResourceID:    res.ID,
 			EnvironmentID: a.env.ID,
-			SecretNames:   append([]string{}, state.Secrets...),
 			ActorType:     principal.ActorType,
 			ActorID:       principal.ActorID,
 			Method:        principal.Method,
@@ -309,9 +310,10 @@ func (a *applier) deploy(
 			CommitDirty:   a.commit.GetDirty(),
 			Trigger:       a.trigger(),
 		},
-		service: service,
-		targets: targets,
-		render:  render.payload,
+		service:  service,
+		resolved: a.resolved[res.Slug],
+		targets:  targets,
+		render:   render.payload,
 	})
 	if err != nil {
 		return err

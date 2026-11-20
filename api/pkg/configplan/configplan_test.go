@@ -9,6 +9,7 @@ import (
 
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/varref"
 	"github.com/team-loco/loco/internal/locofile"
 	"github.com/team-loco/loco/internal/observabilityconfig"
 )
@@ -188,7 +189,6 @@ func TestNewServiceIsACreateListingEveryField(t *testing.T) {
 func TestChangedFieldsMakeAnUpdate(t *testing.T) {
 	service := fileService()
 	service.Env["LOG_LEVEL"] = "debug"
-	service.Secrets = []string{sessionSecret}
 	live := Service{
 		Name:           webService,
 		Partial:        testPartial,
@@ -197,7 +197,6 @@ func TestChangedFieldsMakeAnUpdate(t *testing.T) {
 		State:          liveState(),
 	}
 	in := input(map[string]locofile.Service{webService: service}, live)
-	in.Secrets = map[string]map[string]int64{webService: {sessionSecret: 1}}
 
 	op := onlyOperation(t, compute(t, in))
 	if op.Kind != KindUpdate || op.NeedsDeploy || op.Destructive {
@@ -205,7 +204,6 @@ func TestChangedFieldsMakeAnUpdate(t *testing.T) {
 	}
 	want := []Change{
 		{Path: logLevelPath, Before: logLevelInfo, After: "debug"},
-		{Path: "secrets", After: "[SESSION_KEY]"},
 	}
 	if !reflect.DeepEqual(want, op.Changes) {
 		t.Fatalf("changes = %v, want %v", op.Changes, want)
@@ -532,60 +530,57 @@ func TestUnknownEnvironmentIsAnError(t *testing.T) {
 	}
 }
 
-func TestMissingSecretIsAnError(t *testing.T) {
+func TestUnknownSecretReferenceIsAnErrorAtTheVariable(t *testing.T) {
 	service := fileService()
-	service.Secrets = []string{sessionSecret, apiKeySecret}
+	service.Env[sessionSecret] = secretRef(sessionSecret)
 	in := input(map[string]locofile.Service{webService: service})
-	in.Secrets = map[string]map[string]int64{webService: {apiKeySecret: 1}}
-	planErr := onlyError(t, compute(t, in), ErrMissingSecret)
-	if planErr.Path != pathSecrets ||
-		planErr.Err.Error() != "secret is not set for the service in the environment: SESSION_KEY" {
-		t.Fatalf("error = %+v, want the missing name", planErr)
+	in.References.Secrets = map[string]bool{apiKeySecret: true}
+	planErr := onlyError(t, compute(t, in), varref.ErrUnknownSecret)
+	if planErr.Service != webService || planErr.Path != pathEnv+"."+sessionSecret {
+		t.Fatalf("error = %+v, want web's env.%s", planErr, sessionSecret)
 	}
 }
 
-func TestASecretAnotherServiceHoldsIsMissing(t *testing.T) {
-	service := fileService()
-	service.Secrets = []string{sessionSecret}
-	in := input(map[string]locofile.Service{webService: service})
-	in.Secrets = map[string]map[string]int64{workerService: {sessionSecret: 1}}
-	planErr := onlyError(t, compute(t, in), ErrMissingSecret)
-	if planErr.Service != webService {
-		t.Fatalf("error = %+v, want web's SESSION_KEY missing although worker holds one", planErr)
+func TestReferenceToAnotherFileServiceResolves(t *testing.T) {
+	web := fileService()
+	web.Env["API_URL"] = "${{ " + apiService + "." + varref.PrivateURL + " }}"
+	web.Env["DATABASE_URL"] = "postgres://u:" + secretRef(sessionSecret) + "@db"
+	in := input(map[string]locofile.Service{webService: web, apiService: fileService()})
+	in.References.Secrets = map[string]bool{sessionSecret: true}
+	plan := compute(t, in)
+	if len(plan.Errors) != 0 {
+		t.Fatalf("errors = %v, want none", plan.Errors)
+	}
+	resolved := plan.Resolved[webService]
+	if got := resolved.Plain["API_URL"]; got != "http://api:3000" {
+		t.Fatalf("API_URL = %q, want api's private url", got)
+	}
+	if got := resolved.Secret["DATABASE_URL"]; got != web.Env["DATABASE_URL"] {
+		t.Fatalf("DATABASE_URL = %q, want the secret template", got)
 	}
 }
 
 func TestSecretsOverThePlacementLimitAreAnError(t *testing.T) {
 	service := fileService()
-	service.Secrets = []string{sessionSecret, apiKeySecret}
+	service.Env[sessionSecret] = secretRef(sessionSecret)
+	service.Env[apiKeySecret] = secretRef(apiKeySecret)
 	in := input(map[string]locofile.Service{webService: service})
+	in.References.Secrets = map[string]bool{sessionSecret: true, apiKeySecret: true}
 	half := in.MaxSecretBytes / 2
-	in.Secrets = map[string]map[string]int64{webService: {sessionSecret: half, apiKeySecret: half}}
+	in.SecretSizes = map[string]int64{sessionSecret: half, apiKeySecret: half}
 	planErr := onlyError(t, compute(t, in), ErrSecretsTooLarge)
-	if planErr.Service != webService || planErr.Path != pathSecrets {
-		t.Fatalf("error = %+v, want web's secrets over the limit", planErr)
+	if planErr.Service != webService || planErr.Path != pathEnv {
+		t.Fatalf("error = %+v, want web's env over the limit", planErr)
 	}
 
-	in.Secrets[webService][apiKeySecret] = half - int64(len(sessionSecret)+len(apiKeySecret))
+	in.SecretSizes[apiKeySecret] = half - int64(len(sessionSecret)+len(apiKeySecret))
 	if plan := compute(t, in); len(plan.Errors) != 0 {
 		t.Fatalf("errors at the limit = %v, want none", plan.Errors)
 	}
 }
 
-func TestProvisionWaivesMissingSecretsOfAServiceThePlanCreates(t *testing.T) {
-	service := fileService()
-	service.Secrets = []string{sessionSecret}
-	in := input(map[string]locofile.Service{webService: service})
-	in.Provision = []string{webService}
-	op := onlyOperation(t, compute(t, in))
-	if op.Kind != KindCreate || op.Service != webService {
-		t.Fatalf("operation = %+v, want web created", op)
-	}
-
-	live := Service{Name: webService, Partial: testPartial, State: liveState()}
-	in = input(map[string]locofile.Service{webService: service}, live)
-	in.Provision = []string{webService}
-	onlyError(t, compute(t, in), ErrMissingSecret)
+func secretRef(name string) string {
+	return "${{ secrets." + name + " }}"
 }
 
 func TestDisabledRunningServiceIsADestructiveStop(t *testing.T) {

@@ -13,16 +13,11 @@ import (
 )
 
 const countSecrets = `-- name: CountSecrets :one
-SELECT COUNT(*) FROM secrets WHERE resource_id = $1 AND environment_id = $2
+SELECT COUNT(*) FROM secrets WHERE environment_id = $1
 `
 
-type CountSecretsParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-}
-
-func (q *Queries) CountSecrets(ctx context.Context, arg CountSecretsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSecrets, arg.ResourceID, arg.EnvironmentID)
+func (q *Queries) CountSecrets(ctx context.Context, environmentID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countSecrets, environmentID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -30,18 +25,17 @@ func (q *Queries) CountSecrets(ctx context.Context, arg CountSecretsParams) (int
 
 const deleteSecrets = `-- name: DeleteSecrets :many
 DELETE FROM secrets
-WHERE resource_id = $1 AND environment_id = $2 AND name = ANY($3::text[])
+WHERE environment_id = $1 AND name = ANY($2::text[])
 RETURNING name
 `
 
 type DeleteSecretsParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
 	EnvironmentID uuid.UUID `json:"environmentId"`
 	Names         []string  `json:"names"`
 }
 
 func (q *Queries) DeleteSecrets(ctx context.Context, arg DeleteSecretsParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, deleteSecrets, arg.ResourceID, arg.EnvironmentID, arg.Names)
+	rows, err := q.db.Query(ctx, deleteSecrets, arg.EnvironmentID, arg.Names)
 	if err != nil {
 		return nil, err
 	}
@@ -115,42 +109,6 @@ func (q *Queries) InsertEnvironmentKey(ctx context.Context, arg InsertEnvironmen
 	return i, err
 }
 
-const listDeclaredSecretNames = `-- name: ListDeclaredSecretNames :many
-SELECT DISTINCT declared.name::text AS name
-FROM placements p, unnest(p.secret_names) AS declared(name)
-WHERE p.resource_id = $1
-  AND p.environment_id = $2
-  AND NOT p.desired_deleted
-  AND declared.name = ANY($3::text[])
-ORDER BY 1
-`
-
-type ListDeclaredSecretNamesParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-	Names         []string  `json:"names"`
-}
-
-func (q *Queries) ListDeclaredSecretNames(ctx context.Context, arg ListDeclaredSecretNamesParams) ([]string, error) {
-	rows, err := q.db.Query(ctx, listDeclaredSecretNames, arg.ResourceID, arg.EnvironmentID, arg.Names)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, err
-		}
-		items = append(items, name)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listEnvironmentKeys = `-- name: ListEnvironmentKeys :many
 SELECT environment_id, provider, kek_id, wrapped_dek, format_version, created_at, rewrapped_at FROM environment_keys ORDER BY environment_id
 `
@@ -184,19 +142,18 @@ func (q *Queries) ListEnvironmentKeys(ctx context.Context) ([]EnvironmentKey, er
 }
 
 const listEnvironmentSecretCiphertexts = `-- name: ListEnvironmentSecretCiphertexts :many
-SELECT resource_id, name, version, nonce, ciphertext, format_version
+SELECT name, version, nonce, ciphertext, format_version
 FROM secrets
 WHERE environment_id = $1
-ORDER BY resource_id, name
+ORDER BY name
 `
 
 type ListEnvironmentSecretCiphertextsRow struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	Name          string    `json:"name"`
-	Version       int32     `json:"version"`
-	Nonce         []byte    `json:"nonce"`
-	Ciphertext    []byte    `json:"ciphertext"`
-	FormatVersion int16     `json:"formatVersion"`
+	Name          string `json:"name"`
+	Version       int32  `json:"version"`
+	Nonce         []byte `json:"nonce"`
+	Ciphertext    []byte `json:"ciphertext"`
+	FormatVersion int16  `json:"formatVersion"`
 }
 
 func (q *Queries) ListEnvironmentSecretCiphertexts(ctx context.Context, environmentID uuid.UUID) ([]ListEnvironmentSecretCiphertextsRow, error) {
@@ -209,7 +166,6 @@ func (q *Queries) ListEnvironmentSecretCiphertexts(ctx context.Context, environm
 	for rows.Next() {
 		var i ListEnvironmentSecretCiphertextsRow
 		if err := rows.Scan(
-			&i.ResourceID,
 			&i.Name,
 			&i.Version,
 			&i.Nonce,
@@ -226,50 +182,54 @@ func (q *Queries) ListEnvironmentSecretCiphertexts(ctx context.Context, environm
 	return items, nil
 }
 
-const listPlacementSecretSizes = `-- name: ListPlacementSecretSizes :many
-SELECT p.id AS placement_id,
-       SUM(octet_length(s.name))::bigint AS name_bytes,
-       SUM(octet_length(s.ciphertext))::bigint AS ciphertext_bytes,
-       COUNT(*)::bigint AS secret_count
-FROM placements p
-JOIN secrets s ON s.resource_id = p.resource_id
-             AND s.environment_id = p.environment_id
-             AND s.name = ANY(p.secret_names)
-WHERE p.resource_id = $1
-  AND p.environment_id = $2
-  AND NOT p.desired_deleted
-  AND p.secret_names && $3::text[]
-GROUP BY p.id
-ORDER BY p.id
+const listEnvironmentTargets = `-- name: ListEnvironmentTargets :many
+SELECT r.id, r.slug,
+       d.spec AS deployment_spec,
+       d.secret_env AS secret_env,
+       dom.domain AS primary_domain
+FROM resources r
+LEFT JOIN LATERAL (
+    SELECT dd.spec, dd.secret_env FROM deployments dd
+    WHERE dd.resource_id = r.id AND dd.environment_id = $1 AND dd.status <> 'canceled'
+    ORDER BY dd.created_at DESC, dd.id DESC
+    LIMIT 1
+) d ON true
+LEFT JOIN resource_domains dom
+    ON dom.resource_id = r.id AND dom.environment_id = $1 AND dom.is_primary
+WHERE r.workspace_id = $2
+ORDER BY r.slug
 `
 
-type ListPlacementSecretSizesParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
+type ListEnvironmentTargetsParams struct {
 	EnvironmentID uuid.UUID `json:"environmentId"`
-	Names         []string  `json:"names"`
+	WorkspaceID   uuid.UUID `json:"workspaceId"`
 }
 
-type ListPlacementSecretSizesRow struct {
-	PlacementID     uuid.UUID `json:"placementId"`
-	NameBytes       int64     `json:"nameBytes"`
-	CiphertextBytes int64     `json:"ciphertextBytes"`
-	SecretCount     int64     `json:"secretCount"`
+type ListEnvironmentTargetsRow struct {
+	ID             uuid.UUID         `json:"id"`
+	Slug           string            `json:"slug"`
+	DeploymentSpec []byte            `json:"deploymentSpec"`
+	SecretEnv      map[string]string `json:"secretEnv"`
+	PrimaryDomain  *string           `json:"primaryDomain"`
 }
 
-func (q *Queries) ListPlacementSecretSizes(ctx context.Context, arg ListPlacementSecretSizesParams) ([]ListPlacementSecretSizesRow, error) {
-	rows, err := q.db.Query(ctx, listPlacementSecretSizes, arg.ResourceID, arg.EnvironmentID, arg.Names)
+// Every resource of the workspace with what references to it read in the environment: its latest
+// deployment there that was not canceled, and its primary domain there.
+func (q *Queries) ListEnvironmentTargets(ctx context.Context, arg ListEnvironmentTargetsParams) ([]ListEnvironmentTargetsRow, error) {
+	rows, err := q.db.Query(ctx, listEnvironmentTargets, arg.EnvironmentID, arg.WorkspaceID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListPlacementSecretSizesRow
+	var items []ListEnvironmentTargetsRow
 	for rows.Next() {
-		var i ListPlacementSecretSizesRow
+		var i ListEnvironmentTargetsRow
 		if err := rows.Scan(
-			&i.PlacementID,
-			&i.NameBytes,
-			&i.CiphertextBytes,
-			&i.SecretCount,
+			&i.ID,
+			&i.Slug,
+			&i.DeploymentSpec,
+			&i.SecretEnv,
+			&i.PrimaryDomain,
 		); err != nil {
 			return nil, err
 		}
@@ -281,32 +241,28 @@ func (q *Queries) ListPlacementSecretSizes(ctx context.Context, arg ListPlacemen
 	return items, nil
 }
 
-const listResourceSecretNames = `-- name: ListResourceSecretNames :many
-SELECT r.slug AS resource_slug,
-       s.name,
-       octet_length(s.ciphertext)::bigint AS ciphertext_bytes
-FROM secrets s
-JOIN resources r ON r.id = s.resource_id
-WHERE s.environment_id = $1
-ORDER BY r.slug, s.name
+const listPlacementSecretEnvs = `-- name: ListPlacementSecretEnvs :many
+SELECT id, secret_env
+FROM placements
+WHERE environment_id = $1 AND NOT desired_deleted AND secret_env <> '{}'::jsonb
+ORDER BY id
 `
 
-type ListResourceSecretNamesRow struct {
-	ResourceSlug    string `json:"resourceSlug"`
-	Name            string `json:"name"`
-	CiphertextBytes int64  `json:"ciphertextBytes"`
+type ListPlacementSecretEnvsRow struct {
+	ID        uuid.UUID         `json:"id"`
+	SecretEnv map[string]string `json:"secretEnv"`
 }
 
-func (q *Queries) ListResourceSecretNames(ctx context.Context, environmentID uuid.UUID) ([]ListResourceSecretNamesRow, error) {
-	rows, err := q.db.Query(ctx, listResourceSecretNames, environmentID)
+func (q *Queries) ListPlacementSecretEnvs(ctx context.Context, environmentID uuid.UUID) ([]ListPlacementSecretEnvsRow, error) {
+	rows, err := q.db.Query(ctx, listPlacementSecretEnvs, environmentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListResourceSecretNamesRow
+	var items []ListPlacementSecretEnvsRow
 	for rows.Next() {
-		var i ListResourceSecretNamesRow
-		if err := rows.Scan(&i.ResourceSlug, &i.Name, &i.CiphertextBytes); err != nil {
+		var i ListPlacementSecretEnvsRow
+		if err := rows.Scan(&i.ID, &i.SecretEnv); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -320,12 +276,11 @@ func (q *Queries) ListResourceSecretNames(ctx context.Context, environmentID uui
 const listSecretCiphertexts = `-- name: ListSecretCiphertexts :many
 SELECT name, version, nonce, ciphertext, format_version
 FROM secrets
-WHERE resource_id = $1 AND environment_id = $2 AND name = ANY($3::text[])
+WHERE environment_id = $1 AND name = ANY($2::text[])
 ORDER BY name
 `
 
 type ListSecretCiphertextsParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
 	EnvironmentID uuid.UUID `json:"environmentId"`
 	Names         []string  `json:"names"`
 }
@@ -339,7 +294,7 @@ type ListSecretCiphertextsRow struct {
 }
 
 func (q *Queries) ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphertextsParams) ([]ListSecretCiphertextsRow, error) {
-	rows, err := q.db.Query(ctx, listSecretCiphertexts, arg.ResourceID, arg.EnvironmentID, arg.Names)
+	rows, err := q.db.Query(ctx, listSecretCiphertexts, arg.EnvironmentID, arg.Names)
 	if err != nil {
 		return nil, err
 	}
@@ -367,22 +322,17 @@ func (q *Queries) ListSecretCiphertexts(ctx context.Context, arg ListSecretCiphe
 const listSecretSizes = `-- name: ListSecretSizes :many
 SELECT name, octet_length(ciphertext)::bigint AS ciphertext_bytes
 FROM secrets
-WHERE resource_id = $1 AND environment_id = $2 AND name = ANY($3::text[])
+WHERE environment_id = $1
+ORDER BY name
 `
-
-type ListSecretSizesParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-	Names         []string  `json:"names"`
-}
 
 type ListSecretSizesRow struct {
 	Name            string `json:"name"`
 	CiphertextBytes int64  `json:"ciphertextBytes"`
 }
 
-func (q *Queries) ListSecretSizes(ctx context.Context, arg ListSecretSizesParams) ([]ListSecretSizesRow, error) {
-	rows, err := q.db.Query(ctx, listSecretSizes, arg.ResourceID, arg.EnvironmentID, arg.Names)
+func (q *Queries) ListSecretSizes(ctx context.Context, environmentID uuid.UUID) ([]ListSecretSizesRow, error) {
+	rows, err := q.db.Query(ctx, listSecretSizes, environmentID)
 	if err != nil {
 		return nil, err
 	}
@@ -401,62 +351,12 @@ func (q *Queries) ListSecretSizes(ctx context.Context, arg ListSecretSizesParams
 	return items, nil
 }
 
-const listSecretUsage = `-- name: ListSecretUsage :many
-SELECT l.region, ARRAY(
-    SELECT name FROM unnest(d.secret_names) AS name
-    WHERE name = ANY($1::text[])
-    ORDER BY name
-)::text[] AS names
-FROM live_deployment_placements l
-JOIN deployments d ON d.id = l.deployment_id
-WHERE l.resource_id = $2
-  AND l.environment_id = $3
-  AND d.secret_names && $1::text[]
-ORDER BY l.region
-`
-
-type ListSecretUsageParams struct {
-	Names         []string  `json:"names"`
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-}
-
-type ListSecretUsageRow struct {
-	Region string   `json:"region"`
-	Names  []string `json:"names"`
-}
-
-func (q *Queries) ListSecretUsage(ctx context.Context, arg ListSecretUsageParams) ([]ListSecretUsageRow, error) {
-	rows, err := q.db.Query(ctx, listSecretUsage, arg.Names, arg.ResourceID, arg.EnvironmentID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListSecretUsageRow
-	for rows.Next() {
-		var i ListSecretUsageRow
-		if err := rows.Scan(&i.Region, &i.Names); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listSecrets = `-- name: ListSecrets :many
 SELECT name, version, updated_by_type, updated_by_id, created_at, updated_at
 FROM secrets
-WHERE resource_id = $1 AND environment_id = $2
+WHERE environment_id = $1
 ORDER BY name
 `
-
-type ListSecretsParams struct {
-	ResourceID    uuid.UUID `json:"resourceId"`
-	EnvironmentID uuid.UUID `json:"environmentId"`
-}
 
 type ListSecretsRow struct {
 	Name          string    `json:"name"`
@@ -467,8 +367,8 @@ type ListSecretsRow struct {
 	UpdatedAt     time.Time `json:"updatedAt"`
 }
 
-func (q *Queries) ListSecrets(ctx context.Context, arg ListSecretsParams) ([]ListSecretsRow, error) {
-	rows, err := q.db.Query(ctx, listSecrets, arg.ResourceID, arg.EnvironmentID)
+func (q *Queries) ListSecrets(ctx context.Context, environmentID uuid.UUID) ([]ListSecretsRow, error) {
+	rows, err := q.db.Query(ctx, listSecrets, environmentID)
 	if err != nil {
 		return nil, err
 	}
@@ -518,28 +418,24 @@ UPDATE secrets s
 SET nonce = v.nonce,
     ciphertext = v.ciphertext
 FROM (
-    SELECT unnest($2::uuid[]) AS resource_id,
-           unnest($3::text[]) AS name,
-           unnest($4::bytea[]) AS nonce,
-           unnest($5::bytea[]) AS ciphertext
+    SELECT unnest($2::text[]) AS name,
+           unnest($3::bytea[]) AS nonce,
+           unnest($4::bytea[]) AS ciphertext
 ) AS v
 WHERE s.environment_id = $1
-  AND s.resource_id = v.resource_id
   AND s.name = v.name
 `
 
 type ReencryptSecretsParams struct {
-	EnvironmentID uuid.UUID   `json:"environmentId"`
-	ResourceIds   []uuid.UUID `json:"resourceIds"`
-	Names         []string    `json:"names"`
-	Nonces        [][]byte    `json:"nonces"`
-	Ciphertexts   [][]byte    `json:"ciphertexts"`
+	EnvironmentID uuid.UUID `json:"environmentId"`
+	Names         []string  `json:"names"`
+	Nonces        [][]byte  `json:"nonces"`
+	Ciphertexts   [][]byte  `json:"ciphertexts"`
 }
 
 func (q *Queries) ReencryptSecrets(ctx context.Context, arg ReencryptSecretsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, reencryptSecrets,
 		arg.EnvironmentID,
-		arg.ResourceIds,
 		arg.Names,
 		arg.Nonces,
 		arg.Ciphertexts,
@@ -601,20 +497,19 @@ func (q *Queries) SetLockTimeout(ctx context.Context, timeout string) error {
 }
 
 const upsertSecrets = `-- name: UpsertSecrets :exec
-INSERT INTO secrets (resource_id, environment_id, name, version, nonce, ciphertext, format_version,
+INSERT INTO secrets (environment_id, name, version, nonce, ciphertext, format_version,
                      updated_by_type, updated_by_id, created_by_type, created_by_id)
 SELECT $1,
-       $2,
-       unnest($3::text[]),
-       unnest($4::int[]),
+       unnest($2::text[]),
+       unnest($3::int[]),
+       unnest($4::bytea[]),
        unnest($5::bytea[]),
-       unnest($6::bytea[]),
-       unnest($7::smallint[]),
+       unnest($6::smallint[]),
+       $7,
        $8,
-       $9,
-       $8,
-       $9
-ON CONFLICT (resource_id, environment_id, name) DO UPDATE
+       $7,
+       $8
+ON CONFLICT (environment_id, name) DO UPDATE
 SET version = EXCLUDED.version,
     nonce = EXCLUDED.nonce,
     ciphertext = EXCLUDED.ciphertext,
@@ -625,7 +520,6 @@ SET version = EXCLUDED.version,
 `
 
 type UpsertSecretsParams struct {
-	ResourceID     uuid.UUID `json:"resourceId"`
 	EnvironmentID  uuid.UUID `json:"environmentId"`
 	Names          []string  `json:"names"`
 	Versions       []int32   `json:"versions"`
@@ -638,7 +532,6 @@ type UpsertSecretsParams struct {
 
 func (q *Queries) UpsertSecrets(ctx context.Context, arg UpsertSecretsParams) error {
 	_, err := q.db.Exec(ctx, upsertSecrets,
-		arg.ResourceID,
 		arg.EnvironmentID,
 		arg.Names,
 		arg.Versions,

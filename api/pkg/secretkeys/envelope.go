@@ -28,9 +28,9 @@ func NewDEK() ([]byte, error) {
 }
 
 // SecretAAD binds a value's ciphertext to the row that holds it.
-func SecretAAD(workspaceID, environmentID, resourceID, name string, version int32) []byte {
-	aad := fmt.Sprintf("%s|workspace=%s|environment=%s|resource=%s|name=%s|version=%d",
-		secretAADPrefix, workspaceID, environmentID, resourceID, name, version)
+func SecretAAD(workspaceID, environmentID, name string, version int32) []byte {
+	aad := fmt.Sprintf("%s|workspace=%s|environment=%s|name=%s|version=%d",
+		secretAADPrefix, workspaceID, environmentID, name, version)
 	return []byte(aad)
 }
 

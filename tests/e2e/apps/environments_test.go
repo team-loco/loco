@@ -43,9 +43,9 @@ func TestEnvironmentsShareAClusterWithIndependentWorkloads(t *testing.T) {
 	platform.WriteLocoFile(t, dir, file)
 	w.MustLoco(t, dir, "deploy", "--env", platform.Production, "--yes", "--wait")
 	for environment, value := range map[string]string{platform.Production: productionSecret, preview: previewSecret} {
-		w.MustLoco(t, dir, "env", "set", "--service", app, "--env", environment, secretKey+"="+value)
+		w.MustLoco(t, dir, "secret", "set", "--env", environment, secretKey+"="+value)
 	}
-	service.Secrets = []string{secretKey}
+	service.Env[secretKey] = "${{ secrets." + secretKey + " }}"
 	file.Services[app] = service
 	platform.WriteLocoFile(t, dir, file)
 	for _, environment := range []string{platform.Production, preview} {

@@ -142,7 +142,7 @@ func (q *Queries) GetClusterSyncGeneration(ctx context.Context, id uuid.UUID) (i
 }
 
 const getResourceEnvironmentPlacement = `-- name: GetResourceEnvironmentPlacement :one
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND cluster_id = $3
 `
 
@@ -162,7 +162,7 @@ func (q *Queries) GetResourceEnvironmentPlacement(ctx context.Context, arg GetRe
 		&i.Region,
 		&i.DeploymentID,
 		&i.EnvironmentID,
-		&i.SecretNames,
+		&i.SecretEnv,
 		&i.DesiredRevision,
 		&i.DesiredSpec,
 		&i.DesiredDeleted,
@@ -319,7 +319,7 @@ func (q *Queries) ListPendingPlacements(ctx context.Context, clusterID uuid.UUID
 }
 
 const listPlacementsByIDs = `-- name: ListPlacementsByIDs :many
-SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_names, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.region_status, placements.region_status_since, placements.created_at, placements.updated_at,
+SELECT placements.id, placements.resource_id, placements.cluster_id, placements.region, placements.deployment_id, placements.environment_id, placements.secret_env, placements.desired_revision, placements.desired_spec, placements.desired_deleted, placements.applied_revision, placements.applied_error, placements.retry_after, placements.apply_attempts, placements.apply_failed, placements.observed_revision, placements.ready_replicas, placements.problem_reason, placements.status_updated_at, placements.region_status, placements.region_status_since, placements.created_at, placements.updated_at,
        resource_suspended(placements.resource_id)::boolean AS suspended
 FROM placements
 WHERE cluster_id = $1 AND id = ANY($2::uuid[])
@@ -353,7 +353,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 			&i.Placement.Region,
 			&i.Placement.DeploymentID,
 			&i.Placement.EnvironmentID,
-			&i.Placement.SecretNames,
+			&i.Placement.SecretEnv,
 			&i.Placement.DesiredRevision,
 			&i.Placement.DesiredSpec,
 			&i.Placement.DesiredDeleted,
@@ -383,7 +383,7 @@ func (q *Queries) ListPlacementsByIDs(ctx context.Context, arg ListPlacementsByI
 }
 
 const listResourceEnvironmentPlacements = `-- name: ListResourceEnvironmentPlacements :many
-SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_names, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
+SELECT id, resource_id, cluster_id, region, deployment_id, environment_id, secret_env, desired_revision, desired_spec, desired_deleted, applied_revision, applied_error, retry_after, apply_attempts, apply_failed, observed_revision, ready_replicas, problem_reason, status_updated_at, region_status, region_status_since, created_at, updated_at FROM placements
 WHERE resource_id = $1 AND environment_id = $2 AND NOT desired_deleted
 ORDER BY id
 FOR UPDATE
@@ -410,7 +410,7 @@ func (q *Queries) ListResourceEnvironmentPlacements(ctx context.Context, arg Lis
 			&i.Region,
 			&i.DeploymentID,
 			&i.EnvironmentID,
-			&i.SecretNames,
+			&i.SecretEnv,
 			&i.DesiredRevision,
 			&i.DesiredSpec,
 			&i.DesiredDeleted,
@@ -895,13 +895,13 @@ func (q *Queries) UpdatePlacementStatus(ctx context.Context, arg UpdatePlacement
 }
 
 const upsertPlacement = `-- name: UpsertPlacement :one
-INSERT INTO placements (resource_id, cluster_id, region, deployment_id, desired_spec, environment_id, secret_names)
+INSERT INTO placements (resource_id, cluster_id, region, deployment_id, desired_spec, environment_id, secret_env)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (resource_id, environment_id, cluster_id) DO UPDATE
 SET region = EXCLUDED.region,
     deployment_id = EXCLUDED.deployment_id,
     desired_spec = EXCLUDED.desired_spec,
-    secret_names = EXCLUDED.secret_names,
+    secret_env = EXCLUDED.secret_env,
     desired_deleted = false,
     desired_revision = placements.desired_revision + 1,
     applied_error = NULL,
@@ -913,13 +913,13 @@ RETURNING id, desired_revision
 `
 
 type UpsertPlacementParams struct {
-	ResourceID    uuid.UUID  `json:"resourceId"`
-	ClusterID     uuid.UUID  `json:"clusterId"`
-	Region        string     `json:"region"`
-	DeploymentID  *uuid.UUID `json:"deploymentId"`
-	DesiredSpec   []byte     `json:"desiredSpec"`
-	EnvironmentID uuid.UUID  `json:"environmentId"`
-	SecretNames   []string   `json:"secretNames"`
+	ResourceID    uuid.UUID         `json:"resourceId"`
+	ClusterID     uuid.UUID         `json:"clusterId"`
+	Region        string            `json:"region"`
+	DeploymentID  *uuid.UUID        `json:"deploymentId"`
+	DesiredSpec   []byte            `json:"desiredSpec"`
+	EnvironmentID uuid.UUID         `json:"environmentId"`
+	SecretEnv     map[string]string `json:"secretEnv"`
 }
 
 type UpsertPlacementRow struct {
@@ -935,7 +935,7 @@ func (q *Queries) UpsertPlacement(ctx context.Context, arg UpsertPlacementParams
 		arg.DeploymentID,
 		arg.DesiredSpec,
 		arg.EnvironmentID,
-		arg.SecretNames,
+		arg.SecretEnv,
 	)
 	var i UpsertPlacementRow
 	err := row.Scan(&i.ID, &i.DesiredRevision)

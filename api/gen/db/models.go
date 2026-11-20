@@ -729,7 +729,8 @@ type Deployment struct {
 	CanceledByID           *uuid.UUID           `json:"canceledById"`
 	CommitSha              *string              `json:"commitSha"`
 	CommitDirty            bool                 `json:"commitDirty"`
-	SecretNames            []string             `json:"secretNames"`
+	PlainEnv               map[string]string    `json:"plainEnv"`
+	SecretEnv              map[string]string    `json:"secretEnv"`
 	ActivitySeq            int64                `json:"activitySeq"`
 	CreatedAt              time.Time            `json:"createdAt"`
 	StartedAt              *time.Time           `json:"startedAt"`
@@ -874,7 +875,7 @@ type OrgLimitOverride struct {
 	WebhooksPerWorkspace     *int32     `json:"webhooksPerWorkspace"`
 	TokensPerEntity          *int32     `json:"tokensPerEntity"`
 	DomainsPerResource       *int32     `json:"domainsPerResource"`
-	SecretsPerResource       *int32     `json:"secretsPerResource"`
+	SecretsPerEnvironment    *int32     `json:"secretsPerEnvironment"`
 	DeploymentHistory        *int32     `json:"deploymentHistory"`
 	BuildHistory             *int32     `json:"buildHistory"`
 	LogRetentionDays         *int32     `json:"logRetentionDays"`
@@ -896,29 +897,29 @@ type Organization struct {
 }
 
 type Placement struct {
-	ID                uuid.UUID  `json:"id"`
-	ResourceID        uuid.UUID  `json:"resourceId"`
-	ClusterID         uuid.UUID  `json:"clusterId"`
-	Region            string     `json:"region"`
-	DeploymentID      *uuid.UUID `json:"deploymentId"`
-	EnvironmentID     uuid.UUID  `json:"environmentId"`
-	SecretNames       []string   `json:"secretNames"`
-	DesiredRevision   int64      `json:"desiredRevision"`
-	DesiredSpec       []byte     `json:"desiredSpec"`
-	DesiredDeleted    bool       `json:"desiredDeleted"`
-	AppliedRevision   int64      `json:"appliedRevision"`
-	AppliedError      *string    `json:"appliedError"`
-	RetryAfter        *time.Time `json:"retryAfter"`
-	ApplyAttempts     int32      `json:"applyAttempts"`
-	ApplyFailed       bool       `json:"applyFailed"`
-	ObservedRevision  int64      `json:"observedRevision"`
-	ReadyReplicas     int32      `json:"readyReplicas"`
-	ProblemReason     string     `json:"problemReason"`
-	StatusUpdatedAt   *time.Time `json:"statusUpdatedAt"`
-	RegionStatus      string     `json:"regionStatus"`
-	RegionStatusSince *time.Time `json:"regionStatusSince"`
-	CreatedAt         time.Time  `json:"createdAt"`
-	UpdatedAt         time.Time  `json:"updatedAt"`
+	ID                uuid.UUID         `json:"id"`
+	ResourceID        uuid.UUID         `json:"resourceId"`
+	ClusterID         uuid.UUID         `json:"clusterId"`
+	Region            string            `json:"region"`
+	DeploymentID      *uuid.UUID        `json:"deploymentId"`
+	EnvironmentID     uuid.UUID         `json:"environmentId"`
+	SecretEnv         map[string]string `json:"secretEnv"`
+	DesiredRevision   int64             `json:"desiredRevision"`
+	DesiredSpec       []byte            `json:"desiredSpec"`
+	DesiredDeleted    bool              `json:"desiredDeleted"`
+	AppliedRevision   int64             `json:"appliedRevision"`
+	AppliedError      *string           `json:"appliedError"`
+	RetryAfter        *time.Time        `json:"retryAfter"`
+	ApplyAttempts     int32             `json:"applyAttempts"`
+	ApplyFailed       bool              `json:"applyFailed"`
+	ObservedRevision  int64             `json:"observedRevision"`
+	ReadyReplicas     int32             `json:"readyReplicas"`
+	ProblemReason     string            `json:"problemReason"`
+	StatusUpdatedAt   *time.Time        `json:"statusUpdatedAt"`
+	RegionStatus      string            `json:"regionStatus"`
+	RegionStatusSince *time.Time        `json:"regionStatusSince"`
+	CreatedAt         time.Time         `json:"createdAt"`
+	UpdatedAt         time.Time         `json:"updatedAt"`
 }
 
 type PlacementWindow struct {
@@ -974,7 +975,6 @@ type ResourceDomain struct {
 
 type Secret struct {
 	ID            uuid.UUID `json:"id"`
-	ResourceID    uuid.UUID `json:"resourceId"`
 	EnvironmentID uuid.UUID `json:"environmentId"`
 	Name          string    `json:"name"`
 	Version       int32     `json:"version"`

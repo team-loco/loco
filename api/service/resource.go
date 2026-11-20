@@ -23,6 +23,7 @@ import (
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/pkg/platformdomain"
 	"github.com/team-loco/loco/api/pkg/servicedefaults"
+	"github.com/team-loco/loco/api/pkg/varref"
 	"github.com/team-loco/loco/api/reqctx"
 	configv1 "github.com/team-loco/loco/gen/go/loco/config/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -447,7 +448,7 @@ func (s *ResourceServer) UpdateResource(
 		}
 		updateParams.Name = &name
 	}
-	if req.Slug != nil && !validSlug(req.GetSlug()) {
+	if req.Slug != nil && !validResourceSlug(req.GetSlug()) {
 		return nil, errInvalidResourceSlug
 	}
 
@@ -868,7 +869,6 @@ func (s *ResourceServer) redeployRegions(
 			params: genDb.CreateDeploymentParams{
 				ResourceID:         res.ID,
 				EnvironmentID:      environmentID,
-				SecretNames:        source.SecretNames,
 				ActorType:          principal.ActorType,
 				ActorID:            principal.ActorID,
 				Method:             principal.Method,
@@ -877,9 +877,10 @@ func (s *ResourceServer) redeployRegions(
 				Trigger:            genDb.DeploymentTriggerScale,
 				SourceDeploymentID: &source.ID,
 			},
-			service: plan.service,
-			targets: targets,
-			render:  render.payload,
+			service:  plan.service,
+			resolved: storedResolution(source.Deployment),
+			targets:  targets,
+			render:   render.payload,
 		}); deployErr != nil {
 			return deployErr
 		}
@@ -996,8 +997,8 @@ func dbResourceToProto(
 	}, nil
 }
 
-// GetResourceEnv returns the plain env variables and the secret names of the service's live
-// deployment in the environment. Secret values never appear there.
+// GetResourceEnv returns the variables of the service's live deployment in the environment as
+// written. Secret values never appear there.
 func (s *ResourceServer) GetResourceEnv(
 	ctx context.Context,
 	req *resourcev1.GetResourceEnvRequest,
@@ -1030,25 +1031,122 @@ func (s *ResourceServer) GetResourceEnv(
 	if err != nil {
 		return nil, err
 	}
-	plain := map[string]string{}
-	var secretNames []string
+	variables := map[string]string{}
 	if len(deployments) > 0 {
 		deployment := deployments[0]
 		spec, specErr := converter.DeserializeDeploymentSpec(deployment.Spec, res.Type)
 		if specErr != nil {
 			return nil, fmt.Errorf("decode spec of deployment %s: %w", deployment.ID, specErr)
 		}
-		maps.Copy(plain, spec.GetService().GetEnv())
-		secretNames = slices.Clone(deployment.SecretNames)
-		slices.Sort(secretNames)
+		maps.Copy(variables, spec.GetService().GetEnv())
 	}
-	return &resourcev1.GetResourceEnvResponse{Env: plain, SecretNames: secretNames}, nil
+	return &resourcev1.GetResourceEnvResponse{Env: variables}, nil
+}
+
+// ListResourceOutputs lists what each resource of the workspace provides to references in the
+// environment. Variables that do not resolve are left out.
+func (s *ResourceServer) ListResourceOutputs(
+	ctx context.Context,
+	req *resourcev1.ListResourceOutputsRequest,
+) (*resourcev1.ListResourceOutputsResponse, error) {
+	environmentID := uuid.MustParse(req.GetEnvironmentId())
+	env, err := s.queries.GetEnvironmentByID(ctx, environmentID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrEnvironmentNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get environment: %w", err)
+	}
+	if err = authorizeVisible(
+		ctx, s.authz, actions.New(actions.ListResources, env.WorkspaceID), ErrEnvironmentNotFound,
+	); err != nil {
+		return nil, err
+	}
+	targets, err := listEnvironmentTargets(ctx, s.queries, env.WorkspaceID, env.ID)
+	if err != nil {
+		return nil, err
+	}
+	references, err := loadVariableReferences(ctx, s.queries, env.WorkspaceID, env.ID)
+	if err != nil {
+		return nil, err
+	}
+	usedBy := map[string][]string{}
+	for _, target := range targets {
+		for _, used := range referencedResources(target.target.Env) {
+			if used != target.slug {
+				usedBy[used] = append(usedBy[used], target.slug)
+			}
+		}
+	}
+	resources := make([]*resourcev1.ResourceOutputs, 0, len(targets))
+	for _, target := range targets {
+		outputs := []*resourcev1.ResourceOutput{}
+		for _, output := range varref.Outputs(target.slug, target.target) {
+			outputs = append(outputs, &resourcev1.ResourceOutput{Key: output.Key, Value: output.Value, BuiltIn: true})
+		}
+		resolved := resolvableVariables(references.environment, target.slug, target.target)
+		for _, key := range slices.Sorted(maps.Keys(resolved)) {
+			outputs = append(outputs, &resourcev1.ResourceOutput{Key: key, Value: resolved[key]})
+		}
+		resources = append(resources, &resourcev1.ResourceOutputs{
+			ResourceId:   target.id.String(),
+			ResourceSlug: target.slug,
+			Outputs:      outputs,
+			UsedBy:       slices.Sorted(slices.Values(usedBy[target.slug])),
+		})
+	}
+	return &resourcev1.ListResourceOutputsResponse{Resources: resources}, nil
+}
+
+// resolvableVariables resolves the variables of the resource named name, leaving out those that
+// do not resolve.
+func resolvableVariables(env varref.Environment, name string, target varref.Target) map[string]string {
+	variables := maps.Clone(target.Env)
+	for len(variables) > 0 {
+		resolved, err := env.Resolve(name, target, variables)
+		if err == nil {
+			values := maps.Clone(resolved.Plain)
+			maps.Copy(values, resolved.Secret)
+			return values
+		}
+		failed := varref.VariableErrors(err)
+		if len(failed) == 0 {
+			break
+		}
+		for _, variable := range failed {
+			delete(variables, variable.Name)
+		}
+	}
+	return map[string]string{}
+}
+
+// referencedResources lists the resources a set of variables refers to, sorted.
+func referencedResources(env map[string]string) []string {
+	seen := map[string]bool{}
+	for _, value := range env {
+		refs, err := varref.Parse(value)
+		if err != nil {
+			continue
+		}
+		for _, ref := range refs {
+			if !ref.IsSecret() {
+				seen[ref.Source] = true
+			}
+		}
+	}
+	return slices.Sorted(maps.Keys(seen))
 }
 
 // validSlug reports whether slug can key a resource or an environment: a DNS label that is not
 // reserved for private service discovery.
 func validSlug(slug string) bool {
 	return locoControllerV1.PrivateServiceName(slug) != ""
+}
+
+// validResourceSlug reports whether slug can key a resource: a valid slug that references to
+// secrets do not reserve.
+func validResourceSlug(slug string) bool {
+	return validSlug(slug) && slug != varref.Secrets
 }
 
 // resourceName trims name and reports whether it can name a resource.
@@ -1071,7 +1169,7 @@ func newResourceKeys(req *resourcev1.CreateResourceRequest) (string, string, err
 	if req.Slug == nil {
 		slug = locofile.Slug(name)
 	}
-	if !validSlug(slug) {
+	if !validResourceSlug(slug) {
 		return "", "", errInvalidResourceSlug
 	}
 	return name, slug, nil

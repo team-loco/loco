@@ -21,8 +21,7 @@ services:
     health: { path: /healthz, interval: 30, timeout: 5, failThreshold: 3, startupGracePeriod: 15 }
     routing: { pathPrefix: /, idleTimeout: 60 }
     domains: [app.example.com]
-    env: { LOG_LEVEL: info }
-    secrets: [SESSION_KEY]
+    env: { LOG_LEVEL: info, SESSION_KEY: "${{ secrets.SESSION_KEY }}" }
     regions:
       us-east-1: { cpu: 250m, memory: 512Mi, replicas: { min: 1, max: 3 } }
     environments:

@@ -17,7 +17,7 @@ from harness import (
 from playwright.sync_api import expect
 
 parser = argparse.ArgumentParser(
-    description="Choose the secrets and edit the plain variables of a dashboard service"
+    description="Add, edit and remove the variables of a dashboard service"
 )
 parser.add_argument("--state")
 parser.add_argument("--keep", action="store_true")
@@ -72,31 +72,20 @@ resource = evidence.seed_resources(
         }
     ],
 )[f"acme/shared/{name}"]
-call(
-    state,
-    "loco.secret.v1.SecretService/SetSecrets",
-    {
-        "resourceId": resource,
-        "environmentId": production,
-        "values": {"SESSION_KEY": "fixture-session", "STRIPE_API_KEY": "sk_test"},
-    },
-)
 
 
-def deliver(env, secret_names):
+def deliver(env):
     """Stores what the active deployment runs with, as an agent-free CreateDeployment would."""
-    names = "{" + ",".join(secret_names) + "}"
     return sql(
         state,
         f"""BEGIN;
-UPDATE placements SET secret_names='{names}' WHERE resource_id='{resource}';
-UPDATE deployments SET secret_names='{names}', spec=jsonb_set(spec, '{{env}}', {evidence.sql_literal(json.dumps(env))}::jsonb)
+UPDATE deployments SET spec=jsonb_set(spec, '{{env}}', {evidence.sql_literal(json.dumps(env))}::jsonb)
 WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}') RETURNING id;
 COMMIT;""",
     )
 
 
-deployment = deliver({"LOG_LEVEL": "info"}, ["SESSION_KEY"])
+deployment = deliver({"LOG_LEVEL": "info", "SESSION_KEY": "${{ secrets.SESSION_KEY }}"})
 
 
 def regional(region, mode):
@@ -149,9 +138,6 @@ with session(out) as browser:
             f"UPDATE deployments SET spec={evidence.sql_literal(json.dumps(service))} "
             f"WHERE id IN (SELECT deployment_id FROM live_deployment_placements WHERE resource_id='{resource}');",
         )
-        bound = body.get("secretBindings", {}).get("names")
-        if bound is not None:
-            deliver(service.get("env", {}), bound)
         route.fulfill(json={"deploymentId": deployment})
 
     context.route(
@@ -159,85 +145,40 @@ with session(out) as browser:
     )
     page.goto(base + "?env=production&tab=settings")
     variables = page.locator("#set-env")
-    session_key = variables.get_by_role(
-        "switch", name="Use SESSION_KEY in deployments", exact=True
-    )
-    stripe = variables.get_by_role(
-        "switch", name="Use STRIPE_API_KEY in deployments", exact=True
-    )
-    expect(session_key).to_be_checked()
-    expect(stripe).not_to_be_checked()
-    expect(
-        variables.get_by_text("Deployments don't read it", exact=True)
-    ).to_be_visible()
     log_level = variables.get_by_label("Value of LOG_LEVEL", exact=True)
     expect(log_level).to_have_value("info")
-    expect(log_level).not_to_have_attribute("type", "password")
-    expect(variables.get_by_text("Plain", exact=True)).to_be_visible()
-
-    stripe.click()
-    expect(stripe).to_be_checked()
+    expect(variables.get_by_label("Value of SESSION_KEY", exact=True)).to_have_value(
+        "${{ secrets.SESSION_KEY }}"
+    )
     save = page.get_by_role("button", name="Save & redeploy", exact=True)
-    expect(save).to_be_visible()
-    stripe.click()
-    expect(save).to_have_count(0)
-    stripe.click()
 
     variables.get_by_role("button", name="Add", exact=True).click()
-    as_secret = variables.get_by_role("switch", name="Store as secret", exact=True)
-    expect(as_secret).to_be_checked()
     new_name = variables.get_by_label("New variable name", exact=True)
     new_value = variables.get_by_label("New variable value", exact=True)
     new_name.fill("LOG_LEVEL")
-    expect(
-        variables.get_by_text("LOG_LEVEL is already a plain variable.", exact=True)
-    ).to_be_visible()
-    as_secret.click()
     expect(
         variables.get_by_text("LOG_LEVEL is already a variable.", exact=True)
     ).to_be_visible()
     new_name.fill("FEATURE_FLAGS")
     new_value.fill("beta")
-    expect(new_value).to_have_attribute("type", "text")
     variables.get_by_role("button", name="Add variable", exact=True).click()
     expect(variables.get_by_label("Value of FEATURE_FLAGS", exact=True)).to_have_value(
         "beta"
     )
-    as_secret.click()
-    new_name.fill("NEW_TOKEN")
-    new_value.fill("token-value")
-    expect(new_value).to_have_attribute("type", "password")
-    variables.get_by_role("button", name="Add secret", exact=True).click()
-    expect(
-        variables.get_by_role("switch", name="Use NEW_TOKEN in deployments", exact=True)
-    ).to_be_checked()
-    expect(page.get_by_text("3 unsaved changes", exact=True)).to_be_visible()
+    expect(page.get_by_text("1 unsaved change", exact=True)).to_be_visible()
 
     with expect_rpc(
-        page, "SetSecrets", lambda body: body.get("resourceId") == resource
-    ) as stored:
+        page, "CreateDeployment", lambda body: body.get("resourceId") == resource
+    ):
         save.click()
-    assert stored.value.ok, stored.value.text()
     expect(page.get_by_text(re.compile(r"Rolling out in us-east-1\."))).to_be_visible()
-    expect(page.get_by_text("No deployment of", exact=False)).to_have_count(0)
     assert len(deployments) == 1, deployments
     sent = deployments[0]
-    assert sent["secretBindings"]["names"] == [
-        "NEW_TOKEN",
-        "SESSION_KEY",
-        "STRIPE_API_KEY",
-    ], sent
     assert sent["spec"]["service"]["env"] == {
         "LOG_LEVEL": "info",
+        "SESSION_KEY": "${{ secrets.SESSION_KEY }}",
         "FEATURE_FLAGS": "beta",
     }, sent
-    expect(stripe).to_be_checked()
-    expect(
-        variables.get_by_role("switch", name="Use NEW_TOKEN in deployments", exact=True)
-    ).to_be_checked()
-    expect(variables.get_by_label("Value of FEATURE_FLAGS", exact=True)).to_have_value(
-        "beta"
-    )
     expect(variables.get_by_text("new", exact=True)).to_have_count(0)
 
     page.reload()
@@ -254,38 +195,26 @@ with session(out) as browser:
     assert sent["spec"]["service"]["command"] == ["/serve"], sent
     assert sent["spec"]["service"]["env"] == {
         "LOG_LEVEL": "info",
+        "SESSION_KEY": "${{ secrets.SESSION_KEY }}",
         "FEATURE_FLAGS": "beta",
     }, sent
-    assert "secretBindings" not in sent, sent
 
     log_level.fill("debug")
     variables.get_by_role("button", name="Remove FEATURE_FLAGS", exact=True).click()
     expect(variables.get_by_text("Removed when you save", exact=True)).to_be_visible()
-    variables.get_by_role("button", name="Remove STRIPE_API_KEY", exact=True).click()
-    expect(
-        variables.get_by_text(
-            "Saving redeploys without it, then removes it", exact=True
-        )
-    ).to_be_visible()
+    variables.get_by_role("button", name="Remove SESSION_KEY", exact=True).click()
     expect(page.get_by_text("3 unsaved changes", exact=True)).to_be_visible()
     with expect_rpc(
-        page, "DeleteSecrets", lambda body: body.get("names") == ["STRIPE_API_KEY"]
-    ) as deleted:
+        page, "CreateDeployment", lambda body: body.get("resourceId") == resource
+    ):
         save.click()
-    assert deleted.value.ok, deleted.value.text()
+    expect(log_level).to_have_value("debug")
     assert len(deployments) == 3, deployments
     sent = deployments[2]
-    assert sent["secretBindings"]["names"] == ["NEW_TOKEN", "SESSION_KEY"], sent
     assert sent["spec"]["service"]["env"] == {"LOG_LEVEL": "debug"}, sent
-    expect(log_level).to_have_value("debug")
     expect(variables.get_by_label("Value of FEATURE_FLAGS", exact=True)).to_have_count(
         0
     )
-    expect(
-        variables.get_by_role(
-            "switch", name="Use STRIPE_API_KEY in deployments", exact=True
-        )
-    ).to_have_count(0)
 
     variables.get_by_role("button", name="Remove LOG_LEVEL", exact=True).click()
     save.click()
@@ -303,7 +232,6 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_role("status")).to_have_count(0)
     assert len(deployments) == 5, deployments
-    assert "secretBindings" not in deployments[4], deployments[4]
 
     page.goto(
         state["ui_url"]

@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file loco/plan/v1/plan.proto.
  */
 export const file_loco_plan_v1_plan: GenFile = /*@__PURE__*/
-  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxItwDCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgSQAoGaW1hZ2VzGAYgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5JbWFnZXNFbnRyeUIIukgFmgECEGQSTwoGYnVpbGRzGAcgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5CdWlsZHNFbnRyeUIXukgUmgEREGQiBnIEEAEYPyoFcgOwAQESJQoJcHJvdmlzaW9uGAggAygJQhK6SA+SAQwQZBgBIgZyBBABGD8SMAoGY29tbWl0GAkgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBotCgtJbWFnZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGi0KC0J1aWxkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiAEKDUFwcGx5UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEjQKC2RlcGxveW1lbnRzGAMgAygLMh8ubG9jby5wbGFuLnYxLlN0YXJ0ZWREZXBsb3ltZW50IlIKEVN0YXJ0ZWREZXBsb3ltZW50Eg8KB3NlcnZpY2UYASABKAkSFQoNZGVwbG95bWVudF9pZBgDIAEoCRIPCgdyZWdpb25zGAQgAygJSgQIAhADIuIBCgxBcHBseVJlZnVzYWwSJwoGZXJyb3JzGAEgAygLMhcubG9jby5wbGFuLnYxLlBsYW5FcnJvchIwCgt1bmNvbmZpcm1lZBgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEhAKCHJldmlzaW9uGAMgASgDEjYKBmltYWdlcxgEIAMoCzImLmxvY28ucGxhbi52MS5BcHBseVJlZnVzYWwuSW1hZ2VzRW50cnkaLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJKCgtQbGFuUmVxdWVzdBIZCgRmaWxlGAEgASgMQgu6SAh6BhABGICAQBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEikwIKDFBsYW5SZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgpvcGVyYXRpb25zGAIgAygLMhsubG9jby5wbGFuLnYxLlBsYW5PcGVyYXRpb24SJwoGZXJyb3JzGAMgAygLMhcubG9jby5wbGFuLnYxLlBsYW5FcnJvchI2CgZpbWFnZXMYBCADKAsyJi5sb2NvLnBsYW4udjEuUGxhblJlc3BvbnNlLkltYWdlc0VudHJ5EjAKDXNhdmVkX3NlY3JldHMYBSADKAsyGS5sb2NvLnBsYW4udjEuU2F2ZWRTZWNyZXQaLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASI+CgtTYXZlZFNlY3JldBIPCgdzZXJ2aWNlGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIZGVjbGFyZWQYAyABKAgipgEKDVBsYW5PcGVyYXRpb24SLQoEa2luZBgBIAEoDjIfLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uS2luZBIPCgdzZXJ2aWNlGAIgASgJEioKB2NoYW5nZXMYAyADKAsyGS5sb2NvLnBsYW4udjEuRmllbGRDaGFuZ2USEwoLZGVzdHJ1Y3RpdmUYBCABKAgSFAoMbmVlZHNfZGVwbG95GAUgASgIIjoKC0ZpZWxkQ2hhbmdlEgwKBHBhdGgYASABKAkSDgoGYmVmb3JlGAIgASgJEg0KBWFmdGVyGAMgASgJIjsKCVBsYW5FcnJvchIPCgdzZXJ2aWNlGAEgASgJEgwKBHBhdGgYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSq4AQoRUGxhbk9wZXJhdGlvbktpbmQSIwofUExBTl9PUEVSQVRJT05fS0lORF9VTlNQRUNJRklFRBAAEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfQ1JFQVRFEAESHgoaUExBTl9PUEVSQVRJT05fS0lORF9VUERBVEUQAhIeChpQTEFOX09QRVJBVElPTl9LSU5EX0RFTEVURRADEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfSU1QT1JUEAQyjgEKC1BsYW5TZXJ2aWNlEj0KBFBsYW4SGS5sb2NvLnBsYW4udjEuUGxhblJlcXVlc3QaGi5sb2NvLnBsYW4udjEuUGxhblJlc3BvbnNlEkAKBUFwcGx5EhoubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdBobLmxvY28ucGxhbi52MS5BcHBseVJlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vcGxhbi92MTtwbGFudjFiBnByb3RvMw", [file_buf_validate_validate, file_loco_deployment_v1_deployment]);
+  fileDesc("Chdsb2NvL3BsYW4vdjEvcGxhbi5wcm90bxIMbG9jby5wbGFuLnYxItwDCgxBcHBseVJlcXVlc3QSGQoEZmlsZRgBIAEoDEILukgIegYQARiAgEASIAoOZW52aXJvbm1lbnRfaWQYAiABKAlCCLpIBXIDsAEBEhAKCHJldmlzaW9uGAMgASgDEhsKE2NvbmZpcm1fZGVzdHJ1Y3RpdmUYBCABKAgSFgoOY29uZmlybV9pbXBvcnQYBSABKAgSQAoGaW1hZ2VzGAYgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5JbWFnZXNFbnRyeUIIukgFmgECEGQSTwoGYnVpbGRzGAcgAygLMiYubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdC5CdWlsZHNFbnRyeUIXukgUmgEREGQiBnIEEAEYPyoFcgOwAQESJQoJcHJvdmlzaW9uGAggAygJQhK6SA+SAQwQZBgBIgZyBBABGD8SMAoGY29tbWl0GAkgASgLMiAubG9jby5kZXBsb3ltZW50LnYxLlNvdXJjZUNvbW1pdBotCgtJbWFnZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGi0KC0J1aWxkc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiiAEKDUFwcGx5UmVzcG9uc2USEAoIcmV2aXNpb24YASABKAMSLwoKb3BlcmF0aW9ucxgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEjQKC2RlcGxveW1lbnRzGAMgAygLMh8ubG9jby5wbGFuLnYxLlN0YXJ0ZWREZXBsb3ltZW50IkwKEVN0YXJ0ZWREZXBsb3ltZW50Eg8KB3NlcnZpY2UYASABKAkSFQoNZGVwbG95bWVudF9pZBgDIAEoCRIPCgdyZWdpb25zGAQgAygJIuIBCgxBcHBseVJlZnVzYWwSJwoGZXJyb3JzGAEgAygLMhcubG9jby5wbGFuLnYxLlBsYW5FcnJvchIwCgt1bmNvbmZpcm1lZBgCIAMoCzIbLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uEhAKCHJldmlzaW9uGAMgASgDEjYKBmltYWdlcxgEIAMoCzImLmxvY28ucGxhbi52MS5BcHBseVJlZnVzYWwuSW1hZ2VzRW50cnkaLQoLSW1hZ2VzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASJKCgtQbGFuUmVxdWVzdBIZCgRmaWxlGAEgASgMQgu6SAh6BhABGICAQBIgCg5lbnZpcm9ubWVudF9pZBgCIAEoCUIIukgFcgOwAQEi4QEKDFBsYW5SZXNwb25zZRIQCghyZXZpc2lvbhgBIAEoAxIvCgpvcGVyYXRpb25zGAIgAygLMhsubG9jby5wbGFuLnYxLlBsYW5PcGVyYXRpb24SJwoGZXJyb3JzGAMgAygLMhcubG9jby5wbGFuLnYxLlBsYW5FcnJvchI2CgZpbWFnZXMYBCADKAsyJi5sb2NvLnBsYW4udjEuUGxhblJlc3BvbnNlLkltYWdlc0VudHJ5Gi0KC0ltYWdlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEipgEKDVBsYW5PcGVyYXRpb24SLQoEa2luZBgBIAEoDjIfLmxvY28ucGxhbi52MS5QbGFuT3BlcmF0aW9uS2luZBIPCgdzZXJ2aWNlGAIgASgJEioKB2NoYW5nZXMYAyADKAsyGS5sb2NvLnBsYW4udjEuRmllbGRDaGFuZ2USEwoLZGVzdHJ1Y3RpdmUYBCABKAgSFAoMbmVlZHNfZGVwbG95GAUgASgIIjoKC0ZpZWxkQ2hhbmdlEgwKBHBhdGgYASABKAkSDgoGYmVmb3JlGAIgASgJEg0KBWFmdGVyGAMgASgJIjsKCVBsYW5FcnJvchIPCgdzZXJ2aWNlGAEgASgJEgwKBHBhdGgYAiABKAkSDwoHbWVzc2FnZRgDIAEoCSq4AQoRUGxhbk9wZXJhdGlvbktpbmQSIwofUExBTl9PUEVSQVRJT05fS0lORF9VTlNQRUNJRklFRBAAEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfQ1JFQVRFEAESHgoaUExBTl9PUEVSQVRJT05fS0lORF9VUERBVEUQAhIeChpQTEFOX09QRVJBVElPTl9LSU5EX0RFTEVURRADEh4KGlBMQU5fT1BFUkFUSU9OX0tJTkRfSU1QT1JUEAQyjgEKC1BsYW5TZXJ2aWNlEj0KBFBsYW4SGS5sb2NvLnBsYW4udjEuUGxhblJlcXVlc3QaGi5sb2NvLnBsYW4udjEuUGxhblJlc3BvbnNlEkAKBUFwcGx5EhoubG9jby5wbGFuLnYxLkFwcGx5UmVxdWVzdBobLmxvY28ucGxhbi52MS5BcHBseVJlc3BvbnNlQjZaNGdpdGh1Yi5jb20vdGVhbS1sb2NvL2xvY28vZ2VuL2dvL2xvY28vcGxhbi92MTtwbGFudjFiBnByb3RvMw", [file_buf_validate_validate, file_loco_deployment_v1_deployment]);
 
 /**
  * @generated from message loco.plan.v1.ApplyRequest
@@ -76,10 +76,8 @@ export type ApplyRequest = Message<"loco.plan.v1.ApplyRequest"> & {
   /**
    * provision names services the plan creates. When it is set, the apply creates only those
    * services' resources, without deployments, and performs no other operation of the plan, so
-   * a source service can be built, and a service that declares secrets can have them set,
-   * before the file is applied. The secrets the provisioned services declare need not be set
-   * yet; every other plan error still refuses the apply. A request sets provision or builds,
-   * not both.
+   * a source service can be built before the file is applied. Every plan error still refuses
+   * the apply. A request sets provision or builds, not both.
    *
    * @generated from field: repeated string provision = 8;
    */
@@ -152,10 +150,8 @@ export type ApplyRequestJson = {
   /**
    * provision names services the plan creates. When it is set, the apply creates only those
    * services' resources, without deployments, and performs no other operation of the plan, so
-   * a source service can be built, and a service that declares secrets can have them set,
-   * before the file is applied. The secrets the provisioned services declare need not be set
-   * yet; every other plan error still refuses the apply. A request sets provision or builds,
-   * not both.
+   * a source service can be built before the file is applied. Every plan error still refuses
+   * the apply. A request sets provision or builds, not both.
    *
    * @generated from field: repeated string provision = 8;
    */
@@ -435,14 +431,6 @@ export type PlanResponse = Message<"loco.plan.v1.PlanResponse"> & {
    * @generated from field: map<string, string> images = 4;
    */
   images: { [key: string]: string };
-
-  /**
-   * saved_secrets are the secrets the file's services hold in the environment, in service and
-   * name order.
-   *
-   * @generated from field: repeated loco.plan.v1.SavedSecret saved_secrets = 5;
-   */
-  savedSecrets: SavedSecret[];
 };
 
 /**
@@ -478,14 +466,6 @@ export type PlanResponseJson = {
    * @generated from field: map<string, string> images = 4;
    */
   images?: { [key: string]: string };
-
-  /**
-   * saved_secrets are the secrets the file's services hold in the environment, in service and
-   * name order.
-   *
-   * @generated from field: repeated loco.plan.v1.SavedSecret saved_secrets = 5;
-   */
-  savedSecrets?: SavedSecretJson[];
 };
 
 /**
@@ -494,63 +474,6 @@ export type PlanResponseJson = {
  */
 export const PlanResponseSchema: GenMessage<PlanResponse, {jsonType: PlanResponseJson}> = /*@__PURE__*/
   messageDesc(file_loco_plan_v1_plan, 5);
-
-/**
- * SavedSecret is a secret a service holds in the environment. Its deployments receive it only
- * when the file declares it.
- *
- * @generated from message loco.plan.v1.SavedSecret
- */
-export type SavedSecret = Message<"loco.plan.v1.SavedSecret"> & {
-  /**
-   * @generated from field: string service = 1;
-   */
-  service: string;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
-
-  /**
-   * declared is true when the file lists the name in the service's secrets.
-   *
-   * @generated from field: bool declared = 3;
-   */
-  declared: boolean;
-};
-
-/**
- * SavedSecret is a secret a service holds in the environment. Its deployments receive it only
- * when the file declares it.
- *
- * @generated from message loco.plan.v1.SavedSecret
- */
-export type SavedSecretJson = {
-  /**
-   * @generated from field: string service = 1;
-   */
-  service?: string;
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name?: string;
-
-  /**
-   * declared is true when the file lists the name in the service's secrets.
-   *
-   * @generated from field: bool declared = 3;
-   */
-  declared?: boolean;
-};
-
-/**
- * Describes the message loco.plan.v1.SavedSecret.
- * Use `create(SavedSecretSchema)` to create a new message.
- */
-export const SavedSecretSchema: GenMessage<SavedSecret, {jsonType: SavedSecretJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 6);
 
 /**
  * @generated from message loco.plan.v1.PlanOperation
@@ -625,7 +548,7 @@ export type PlanOperationJson = {
  * Use `create(PlanOperationSchema)` to create a new message.
  */
 export const PlanOperationSchema: GenMessage<PlanOperation, {jsonType: PlanOperationJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 7);
+  messageDesc(file_loco_plan_v1_plan, 6);
 
 /**
  * FieldChange is one field the apply would change. Secret values never appear here.
@@ -680,7 +603,7 @@ export type FieldChangeJson = {
  * Use `create(FieldChangeSchema)` to create a new message.
  */
 export const FieldChangeSchema: GenMessage<FieldChange, {jsonType: FieldChangeJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 8);
+  messageDesc(file_loco_plan_v1_plan, 7);
 
 /**
  * @generated from message loco.plan.v1.PlanError
@@ -735,7 +658,7 @@ export type PlanErrorJson = {
  * Use `create(PlanErrorSchema)` to create a new message.
  */
 export const PlanErrorSchema: GenMessage<PlanError, {jsonType: PlanErrorJson}> = /*@__PURE__*/
-  messageDesc(file_loco_plan_v1_plan, 9);
+  messageDesc(file_loco_plan_v1_plan, 8);
 
 /**
  * @generated from enum loco.plan.v1.PlanOperationKind

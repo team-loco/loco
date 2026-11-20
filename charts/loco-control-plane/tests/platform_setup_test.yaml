@@ -21,7 +21,7 @@ tests:
     template: templates/api-deployment.yaml
     set:
       api.limits.orgsPerUser: 4
-      api.limits.secretsPerResource: 24
+      api.limits.secretsPerEnvironment: 24
       api.defaults.minReplicas: 2
       api.defaults.maxRestarts: 0
       api.retention.events: 720h
@@ -31,7 +31,7 @@ tests:
           content: {name: LOCO_LIMIT_ORGS_PER_USER, value: '4'}
       - contains:
           path: spec.template.spec.containers[0].env
-          content: {name: LOCO_SECRETS_MAX_PER_SERVICE, value: '24'}
+          content: {name: LOCO_LIMIT_SECRETS_PER_ENVIRONMENT, value: '24'}
       - contains:
           path: spec.template.spec.containers[0].env
           content: {name: LOCO_DEFAULT_MIN_REPLICAS, value: '2'}

@@ -44,7 +44,8 @@ const (
 	verificationCleanup             = time.Minute
 	verificationResponseLimit       = 4096
 	verificationLogSeconds          = 1
-	verificationSecretName          = "LOCO_VERIFY_SECRET" //nolint:gosec // Application environment key, not a credential.
+	verificationVariable            = "LOCO_VERIFY_SECRET"
+	verificationSecretPrefix        = "LOCO_VERIFY_"
 )
 
 var (
@@ -88,6 +89,7 @@ func verifyApplication(
 	name := "verify-" + uuid.NewString()
 	marker := "loco-" + uuid.NewString()
 	secret := rand.Text()
+	secretName := verificationSecretPrefix + strings.ToUpper(strings.ReplaceAll(uuid.NewString(), "-", ""))
 	secretDigest := sha256.Sum256([]byte(secret))
 	secretProof := hex.EncodeToString(secretDigest[:])
 	domain := name + "." + cluster.GetDomains()[0]
@@ -100,7 +102,7 @@ func verifyApplication(
 		Dockerfile: locofile.DefaultDockerfile,
 		Port:       new(verificationPort),
 		Domains:    []string{domain},
-		Secrets:    []string{verificationSecretName},
+		Env:        map[string]string{verificationVariable: "${{ secrets." + secretName + " }}"},
 		Health: &locofile.Health{
 			Path: "/",
 		},
@@ -116,6 +118,22 @@ func verifyApplication(
 	if marshalErr != nil {
 		return errVerification
 	}
+	if _, setErr := clients.Secret.SetSecrets(ctx, &secretv1.SetSecretsRequest{
+		EnvironmentId: environment.GetId(),
+		Values:        map[string]string{secretName: secret},
+	}); setErr != nil {
+		return errVerificationSecretStorage
+	}
+	defer func() {
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), verificationCleanup)
+		defer cancel()
+		if _, deleteErr := clients.Secret.DeleteSecrets(cleanup, &secretv1.DeleteSecretsRequest{
+			EnvironmentId: environment.GetId(),
+			Names:         []string{secretName},
+		}); deleteErr != nil {
+			err = errors.Join(err, errVerificationCleanup)
+		}
+	}()
 	plan, planErr := clients.Plan.Plan(ctx, &planv1.PlanRequest{File: data, EnvironmentId: environment.GetId()})
 	if planErr != nil {
 		return errVerification
@@ -162,13 +180,6 @@ func verifyApplication(
 		return errVerification
 	}
 	resourceID = resource.GetResource().GetId()
-	if _, setErr := clients.Secret.SetSecrets(ctx, &secretv1.SetSecretsRequest{
-		ResourceId:    resourceID,
-		EnvironmentId: environment.GetId(),
-		Values:        map[string]string{verificationSecretName: secret},
-	}); setErr != nil {
-		return errVerificationSecretStorage
-	}
 	archive, archiveErr := verificationArchive(marker)
 	if archiveErr != nil {
 		return archiveErr
@@ -237,7 +248,7 @@ func verificationArchive(marker string) ([]byte, error) {
 		),
 		"index.html": marker,
 		"proof": "#!/bin/sh\nprintf 'Content-Type: text/plain\\r\\n\\r\\n'\n" +
-			"printf %s \"$" + verificationSecretName + "\" | sha256sum | cut -d' ' -f1 | tr -d '\\n'\n",
+			"printf %s \"$" + verificationVariable + "\" | sha256sum | cut -d' ' -f1 | tr -d '\\n'\n",
 	}
 	var archive bytes.Buffer
 	compressed := gzip.NewWriter(&archive)
