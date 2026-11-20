@@ -362,15 +362,22 @@ with session(out) as browser:
     expect(drawer.get_by_text(image, exact=True)).to_be_visible()
     expect(drawer.get_by_text("Draft", exact=True)).to_be_visible()
     assert stored_drafts(page) == [name], stored_drafts(page)
-    expect(
-        drawer.get_by_role("button", name="us-east-1", exact=True)
-    ).to_have_attribute("aria-pressed", "true")
+    last_region = drawer.get_by_role("button", name="us-east-1", exact=True)
+    expect(last_region).to_have_attribute("aria-pressed", "true")
+    card = last_region.bounding_box()
+    center = card["y"] + card["height"] / 2
+    for content in (
+        last_region.get_by_text("us-east-1", exact=True),
+        last_region.locator("svg"),
+    ):
+        box = content.bounding_box()
+        offset = box["y"] + box["height"] / 2 - center
+        assert abs(offset) <= 1, f"{content} is {offset}px from the card center"
     offline = drawer.get_by_role("button", name="eu-north-1 Offline", exact=True)
     expect(offline).to_be_disabled()
     expect(
         drawer.get_by_role("button", name="eu-west-1 degraded", exact=True)
     ).to_be_enabled()
-    last_region = drawer.get_by_role("button", name="us-east-1", exact=True)
     expect(last_region).to_have_attribute("aria-disabled", "true")
     expect(last_region).to_have_attribute(
         "title", "A resource needs at least one region"
