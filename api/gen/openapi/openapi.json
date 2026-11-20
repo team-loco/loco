@@ -10830,11 +10830,6 @@
             "type": "string",
             "title": "canceled_by_name",
             "description": "Who canceled the deployment; empty unless a user or token canceled it."
-          },
-          "rollbackOfDeploymentId": {
-            "type": "string",
-            "title": "rollback_of_deployment_id",
-            "description": "The canceled deployment whose finished regions this rollback restores, if any."
           }
         },
         "title": "Deployment",

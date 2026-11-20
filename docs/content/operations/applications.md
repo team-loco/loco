@@ -31,11 +31,10 @@ loco resource scale web --env production --region eu-west-1 --replicas 4
 
 A new deployment of the service replaces one in flight without a cancel: the older deployment ends `canceled`, and its card names the deployment that replaced it. `--wait` exits with an error naming who canceled a deployment, and succeeds with a note when a newer deployment replaced it.
 
-When the deployment already runs in some regions, the cancel dialog and `loco resource cancel` list those regions with the version each ran before and when it was deployed, and offer to roll them back. A region that never ran an earlier version keeps the canceled one. `--rollback` rolls them back without asking; in a terminal the command asks, and without one it rolls nothing back. A rollback is never automatic. Rolling back queues one deployment per earlier version to just those regions (`CancelDeploymentRequest.rollback_finished_regions`). Each is an ordinary rollback in the deployment history, marked as a rollback of the canceled deployment, and can itself be canceled. `DeploymentService.GetDeploymentCancelImpact` returns the regions and versions the dialog shows. `--json` prints the canceled deployment ID and the queued rollback IDs.
+When the deployment already runs in some regions, the dashboard's cancel dialog lists those regions with the version each ran before and when it was deployed, and offers an unchecked option to roll them back. A region that never ran an earlier version keeps the canceled one. A rollback is never automatic, and `loco resource cancel` never rolls back. Rolling back queues one deployment per earlier version to just those regions (`CancelDeploymentRequest.rollback_finished_regions`). Each is an ordinary rollback in the deployment history and can itself be canceled. `DeploymentService.GetDeploymentCancelImpact` returns the regions and versions the dialog shows.
 
 ```sh
 loco resource cancel web --env production
-loco resource cancel web --env production --rollback --json
 ```
 
 ## Deployments and regions

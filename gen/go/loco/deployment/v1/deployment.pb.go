@@ -946,10 +946,8 @@ type Deployment struct {
 	SourceDeploymentId string `protobuf:"bytes,28,opt,name=source_deployment_id,json=sourceDeploymentId,proto3" json:"source_deployment_id,omitempty"`
 	// Who canceled the deployment; empty unless a user or token canceled it.
 	CanceledByName string `protobuf:"bytes,29,opt,name=canceled_by_name,json=canceledByName,proto3" json:"canceled_by_name,omitempty"`
-	// The canceled deployment whose finished regions this rollback restores, if any.
-	RollbackOfDeploymentId string `protobuf:"bytes,31,opt,name=rollback_of_deployment_id,json=rollbackOfDeploymentId,proto3" json:"rollback_of_deployment_id,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Deployment) Reset() {
@@ -1118,13 +1116,6 @@ func (x *Deployment) GetSourceDeploymentId() string {
 func (x *Deployment) GetCanceledByName() string {
 	if x != nil {
 		return x.CanceledByName
-	}
-	return ""
-}
-
-func (x *Deployment) GetRollbackOfDeploymentId() string {
-	if x != nil {
-		return x.RollbackOfDeploymentId
 	}
 	return ""
 }
@@ -2790,7 +2781,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"\fidle_timeout\x18\x02 \x01(\x05R\vidleTimeout\"_\n" +
 	"\x0eDeploymentSpec\x12E\n" +
 	"\aservice\x18\x01 \x01(\v2).loco.deployment.v1.ServiceDeploymentSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xdc\b\n" +
+	"\x04spec\"\xa1\b\n" +
 	"\n" +
 	"Deployment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
@@ -2821,8 +2812,7 @@ const file_loco_deployment_v1_deployment_proto_rawDesc = "" +
 	"placements\x12?\n" +
 	"\atrigger\x18\x1b \x01(\x0e2%.loco.deployment.v1.DeploymentTriggerR\atrigger\x120\n" +
 	"\x14source_deployment_id\x18\x1c \x01(\tR\x12sourceDeploymentId\x12(\n" +
-	"\x10canceled_by_name\x18\x1d \x01(\tR\x0ecanceledByName\x129\n" +
-	"\x19rollback_of_deployment_id\x18\x1f \x01(\tR\x16rollbackOfDeploymentIdB\r\n" +
+	"\x10canceled_by_name\x18\x1d \x01(\tR\x0ecanceledByNameB\r\n" +
 	"\v_started_atB\x0f\n" +
 	"\r_completed_at\"\xc2\x04\n" +
 	"\x13DeploymentPlacement\x12\x1d\n" +

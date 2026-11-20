@@ -141,35 +141,31 @@ func deploymentToProto(row genDb.GetDeploymentViewRow) (*deploymentv1.Deployment
 		}
 		placements = append(placements, placement)
 	}
-	source, rollbackOf := "", ""
+	source := ""
 	if d.SourceDeploymentID != nil {
 		source = d.SourceDeploymentID.String()
 	}
-	if d.RollbackOfDeploymentID != nil {
-		rollbackOf = d.RollbackOfDeploymentID.String()
-	}
 	return &deploymentv1.Deployment{
-		Id:                     d.ID.String(),
-		ResourceId:             d.ResourceID.String(),
-		EnvironmentId:          d.EnvironmentID.String(),
-		Status:                 parseDeploymentStatus(d.Status),
-		CreatedAt:              timestamppb.New(d.CreatedAt),
-		UpdatedAt:              timestamppb.New(d.UpdatedAt),
-		StartedAt:              optionalTimestamp(d.StartedAt),
-		CompletedAt:            optionalTimestamp(d.CompletedAt),
-		SpecVersion:            d.SpecVersion,
-		Spec:                   spec,
-		ActorType:              parseDeploymentActorType(d.ActorType),
-		ActorId:                d.ActorID.String(),
-		ActorName:              row.ActorName,
-		ActorAvatarUrl:         row.ActorAvatarUrl,
-		Method:                 parseDeploymentMethod(d.Method),
-		Commit:                 commit,
-		Placements:             placements,
-		Trigger:                deploymentTriggers[d.Trigger],
-		SourceDeploymentId:     source,
-		CanceledByName:         row.CanceledByName,
-		RollbackOfDeploymentId: rollbackOf,
+		Id:                 d.ID.String(),
+		ResourceId:         d.ResourceID.String(),
+		EnvironmentId:      d.EnvironmentID.String(),
+		Status:             parseDeploymentStatus(d.Status),
+		CreatedAt:          timestamppb.New(d.CreatedAt),
+		UpdatedAt:          timestamppb.New(d.UpdatedAt),
+		StartedAt:          optionalTimestamp(d.StartedAt),
+		CompletedAt:        optionalTimestamp(d.CompletedAt),
+		SpecVersion:        d.SpecVersion,
+		Spec:               spec,
+		ActorType:          parseDeploymentActorType(d.ActorType),
+		ActorId:            d.ActorID.String(),
+		ActorName:          row.ActorName,
+		ActorAvatarUrl:     row.ActorAvatarUrl,
+		Method:             parseDeploymentMethod(d.Method),
+		Commit:             commit,
+		Placements:         placements,
+		Trigger:            deploymentTriggers[d.Trigger],
+		SourceDeploymentId: source,
+		CanceledByName:     row.CanceledByName,
 	}, nil
 }
 
