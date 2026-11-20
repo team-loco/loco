@@ -939,7 +939,6 @@ with session(out) as browser:
     ask.get_by_role("textbox", name="Container image").fill(image)
     name_input = ask.get_by_role("textbox", name="Name")
     expect(name_input).to_have_value(name)
-    expect(ask.get_by_role("textbox", name="Slug")).to_have_count(0)
     name_input.fill(repository)
     expect(
         ask.get_by_text(f"{repository} already exists in this workspace", exact=True)

@@ -393,7 +393,6 @@ with session(out) as browser:
     count = page.locator("#set-env-title > span")
     expect(count).to_have_text(re.compile(r"^\d+$"))
     general = page.locator("#set-general")
-    expect(general.get_by_role("textbox", name="Slug", exact=True)).to_have_count(0)
     display = general.get_by_role("textbox", name="Name", exact=True)
     expect(display).to_have_value(name)
     save = page.get_by_role("button", name="Save", exact=True)

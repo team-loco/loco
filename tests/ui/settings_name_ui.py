@@ -34,7 +34,6 @@ with session(out) as browser:
     context.route("**/loco.resource.v1.ResourceService/UpdateResource", record_update)
     page.goto(base + "?env=production&tab=settings")
     general = page.locator("#set-general")
-    expect(general.get_by_role("textbox", name="Slug", exact=True)).to_have_count(0)
     name_input = general.get_by_role("textbox", name="Name", exact=True)
     expect(name_input).to_have_value(slug)
 

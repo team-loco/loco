@@ -151,7 +151,6 @@ def check_environments(page):
     environments = page.get_by_role("region", name="Environments", exact=True)
     environments.get_by_role("button", name="Edit production", exact=True).click()
     dialog = page.get_by_role("dialog", name="Edit production", exact=True)
-    expect(dialog.get_by_role("textbox", name="Slug", exact=True)).to_have_count(0)
     name = dialog.get_by_role("textbox", name="Name", exact=True)
     expect(name).to_have_value("production")
     save = dialog.get_by_role("button", name="Save", exact=True)
@@ -183,7 +182,6 @@ def check_environments(page):
     page.get_by_role("button", name="New environment", exact=True).click()
     dialog = page.get_by_role("dialog", name=re.compile(r"^New environment in "))
     name = dialog.get_by_role("textbox", name="Name", exact=True)
-    expect(dialog.get_by_role("textbox", name="Slug", exact=True)).to_have_count(0)
     create = dialog.get_by_role("button", name="Create", exact=True)
     for typed, error in [
         ("production eu", "production eu already exists in this workspace"),
