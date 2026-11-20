@@ -319,7 +319,6 @@ func rollbackRegions(
 			CommitDirty:            previous.CommitDirty,
 			Trigger:                genDb.DeploymentTriggerRollback,
 			SourceDeploymentID:     &previous.ID,
-			RollbackOfDeploymentID: &canceled.ID,
 		},
 		service:  service,
 		resolved: storedResolution(previous),

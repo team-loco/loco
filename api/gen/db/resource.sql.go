@@ -285,7 +285,7 @@ func (q *Queries) ListEligibleClusters(ctx context.Context, arg ListEligibleClus
 }
 
 const listLatestResourceDeployments = `-- name: ListLatestResourceDeployments :many
-SELECT DISTINCT ON (environment_id) id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, rollback_of_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT DISTINCT ON (environment_id) id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, plain_env, secret_env, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE resource_id = $1
 ORDER BY environment_id, created_at DESC, id DESC
 `
@@ -308,7 +308,6 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 			&i.SpecVersion,
 			&i.Trigger,
 			&i.SourceDeploymentID,
-			&i.RollbackOfDeploymentID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.Method,

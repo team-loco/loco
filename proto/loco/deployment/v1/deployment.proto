@@ -232,8 +232,6 @@ message Deployment {
   string source_deployment_id = 28;
   // Who canceled the deployment; empty unless a user or token canceled it.
   string canceled_by_name = 29;
-  // The canceled deployment whose finished regions this rollback restores, if any.
-  string rollback_of_deployment_id = 31;
 }
 
 // DeploymentPlacement is one region of a deployment.

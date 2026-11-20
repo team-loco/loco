@@ -120,10 +120,9 @@ function ProgressPanel({
 	);
 	if (dismissed) return null;
 	const finished = impactQuery.data?.finishedRegions ?? [];
-	const restorable = finished.filter((r) => r.previous !== undefined);
 	const confirmCancel = () => {
 		cancel.mutate(
-			{ deploymentId: deployment.id, rollbackFinishedRegions: rollbackFinished && restorable.length > 0 },
+			{ deploymentId: deployment.id, rollbackFinishedRegions: rollbackFinished },
 			{
 				onSuccess: (res) => {
 					toast.success(
@@ -424,12 +423,7 @@ function ProgressPanel({
 				}}
 			>
 				{finished.length > 0 && (
-					<FinishedRegions
-						finished={finished}
-						restorable={restorable}
-						rollback={rollbackFinished}
-						onRollback={setRollbackFinished}
-					/>
+					<FinishedRegions finished={finished} rollback={rollbackFinished} onRollback={setRollbackFinished} />
 				)}
 			</ConfirmDialog>
 		</section>
@@ -438,50 +432,39 @@ function ProgressPanel({
 
 function FinishedRegions({
 	finished,
-	restorable,
 	rollback,
 	onRollback,
 }: {
 	finished: readonly FinishedRegion[];
-	restorable: readonly FinishedRegion[];
 	rollback: boolean;
 	onRollback: (next: boolean) => void;
 }) {
 	const timePref = useTimePreferences();
 	const checkboxId = useId();
+	const restorable = finished.filter((r) => r.previous !== undefined);
 	const targets = new Set(restorable.map((r) => r.previous?.id));
 	const target = targets.size === 1 ? depTag(restorable[0]?.previous) : "their previous versions";
 	return (
 		<div className="flex flex-col gap-2.5 text-left text-[12.5px]">
 			<ul aria-label="Regions that already run it" className="m-0 flex list-none flex-col gap-1 p-0">
-				{finished.map(({ region, previous }) => {
-					const deployedMs =
-						previous === undefined ? undefined : (maybeTsMs(previous.startedAt) ?? tsMs(previous.createdAt));
-					return (
-						<li key={region} className="flex min-w-0 flex-wrap gap-x-2">
-							<span className="font-mono text-foreground">{region}</span>
-							{previous === undefined || deployedMs === undefined ? (
-								<span className="text-fg3">First deployment here, nothing to roll back to</span>
-							) : (
-								<span className="text-fg2">
-									previous {depTag(previous)}
-									{previous.commit !== undefined && ` · ${shortSha(previous.commit.sha)}`}
-									{` · deployed ${formatFullTime(deployedMs, false, timePref)}`}
-								</span>
-							)}
-						</li>
-					);
-				})}
+				{finished.map(({ region, previous }) => (
+					<li key={region} className="flex min-w-0 flex-wrap gap-x-2">
+						<span className="font-mono text-foreground">{region}</span>
+						{previous === undefined ? (
+							<span className="text-fg3">First deployment here, nothing to roll back to</span>
+						) : (
+							<span className="text-fg2">
+								previous {depTag(previous)}
+								{previous.commit !== undefined && ` · ${shortSha(previous.commit.sha)}`}
+								{` · deployed ${formatFullTime(maybeTsMs(previous.startedAt) ?? tsMs(previous.createdAt), false, timePref)}`}
+							</span>
+						)}
+					</li>
+				))}
 			</ul>
 			{restorable.length > 0 && (
 				<label htmlFor={checkboxId} className="flex items-center gap-2 text-foreground">
-					<Checkbox
-						id={checkboxId}
-						checked={rollback}
-						onCheckedChange={(next) => {
-							onRollback(next);
-						}}
-					/>
+					<Checkbox id={checkboxId} checked={rollback} onCheckedChange={onRollback} />
 					Also roll back {restorable.map((r) => r.region).join(", ")} to {target}
 				</label>
 			)}

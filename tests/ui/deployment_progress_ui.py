@@ -626,21 +626,12 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         "loco.deployment.v1.DeploymentService/ListDeployments",
         {"resourceId": cancel_resource, "environmentId": p["environment"]},
     )["deployments"]
-    rollbacks = [d for d in queued if d.get("rollbackOfDeploymentId") == rollout]
+    rollbacks = [d for d in queued if d.get("trigger") == "DEPLOYMENT_TRIGGER_ROLLBACK"]
     assert len(rollbacks) == 1, queued
     assert rollbacks[0]["sourceDeploymentId"] == before, rollbacks
     assert [pl["region"] for pl in rollbacks[0]["placements"]] == ["us-east-1"], (
         rollbacks
     )
-    page.reload()
-    label = page.get_by_title(f"Rollback of canceled deployment {rollout}", exact=True)
-    expect(label).to_have_text(f"Rollback of {rollout[-8:]}")
-    for root_font in ("16px", "20px"):
-        page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
-        widths = label.evaluate("text => [text.scrollWidth, text.clientWidth]")
-        assert widths[0] <= widths[1], (
-            f"the rollback label is cut off at a {root_font} root font: {widths}"
-        )
     assert not errors, errors
     context.close()
     browser.close()

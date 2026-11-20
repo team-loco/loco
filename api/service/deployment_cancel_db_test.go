@@ -359,15 +359,9 @@ func TestCancelWithRollbackRestoresTheFinishedRegion(t *testing.T) {
 	}
 	rollback := f.getDeployment(t, rollbacks[0])
 	if rollback.GetTrigger() != deploymentv1.DeploymentTrigger_DEPLOYMENT_TRIGGER_ROLLBACK ||
-		rollback.GetSourceDeploymentId() != first || rollback.GetRollbackOfDeploymentId() != second {
-		t.Fatalf(
-			"rollback trigger=%v source=%s of=%s, want rollback of %s to %s",
-			rollback.GetTrigger(),
-			rollback.GetSourceDeploymentId(),
-			rollback.GetRollbackOfDeploymentId(),
-			second,
-			first,
-		)
+		rollback.GetSourceDeploymentId() != first {
+		t.Fatalf("rollback trigger=%v source=%s, want a rollback to %s",
+			rollback.GetTrigger(), rollback.GetSourceDeploymentId(), first)
 	}
 	if regions := placementRegions(rollback); len(regions) != 1 || regions[testRegion] == 0 {
 		t.Fatalf("rollback regions = %v, want only %s", regions, testRegion)

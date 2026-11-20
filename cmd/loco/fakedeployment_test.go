@@ -184,37 +184,5 @@ func (s *fakeDeploymentService) CancelDeployment(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.platform.canceledDeployments = append(f.platform.canceledDeployments, req.GetDeploymentId())
-	f.platform.canceledRollbacks[req.GetDeploymentId()] = req.GetRollbackFinishedRegions()
-	response := &deploymentv1.CancelDeploymentResponse{}
-	if !req.GetRollbackFinishedRegions() {
-		return response, nil
-	}
-	for _, region := range f.platform.finishedRegions[req.GetDeploymentId()] {
-		if region.GetPrevious() == nil {
-			continue
-		}
-		if id := "rollback-" + region.GetPrevious().GetId(); !slices.Contains(response.GetRollbackDeploymentIds(), id) {
-			response.RollbackDeploymentIds = append(response.RollbackDeploymentIds, id)
-		}
-	}
-	return response, nil
-}
-
-func (s *fakeDeploymentService) GetDeploymentCancelImpact(
-	ctx context.Context,
-	req *deploymentv1.GetDeploymentCancelImpactRequest,
-) (*deploymentv1.GetDeploymentCancelImpactResponse, error) {
-	info, _ := connect.CallInfoForServerContext(ctx)
-	f := s.api
-	if _, _, err := f.authenticate(
-		connect.Spec{Procedure: deploymentv1connect.DeploymentServiceGetDeploymentCancelImpactProcedure},
-		info.RequestHeader(),
-	); err != nil {
-		return nil, err
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return &deploymentv1.GetDeploymentCancelImpactResponse{
-		FinishedRegions: f.platform.finishedRegions[req.GetDeploymentId()],
-	}, nil
+	return &deploymentv1.CancelDeploymentResponse{}, nil
 }

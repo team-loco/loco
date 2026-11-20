@@ -74,20 +74,7 @@ function timeFact(ms: number | undefined, pref: TimePreferences): string {
 }
 
 function historyMessage(dep: Deployment): string {
-	const rollbackOf = dep.rollbackOfDeploymentId;
-	return (
-		deploymentMessage(dep) ||
-		(rollbackOf === "" ? "" : `Rollback of ${formatShortId(rollbackOf)}`) ||
-		(dep.commit?.message ?? "")
-	);
-}
-
-// A rollback label names the canceled deployment in full on hover.
-function historyTitle(dep: Deployment): string | undefined {
-	const rollbackOf = dep.rollbackOfDeploymentId;
-	return rollbackOf === "" || deploymentMessage(dep) !== ""
-		? undefined
-		: `Rollback of canceled deployment ${rollbackOf}`;
+	return deploymentMessage(dep) || (dep.commit?.message ?? "");
 }
 
 function HistoryKept({ count, tip }: { count: number; tip: string }) {
@@ -281,10 +268,9 @@ function rolloutColumns(
 			size: 80,
 			minSize: 72,
 			meta: { grow: true },
-			cell: ({ row: { original: rollout } }) => {
-				const { dep } = leadRow(rollout.rows);
-				return <CellText text={historyMessage(dep)} render={<span title={historyTitle(dep)} />} className="text-fg2" />;
-			},
+			cell: ({ row: { original: rollout } }) => (
+				<CellText text={historyMessage(leadRow(rollout.rows).dep)} className="text-fg2" />
+			),
 		},
 		{
 			id: "took",
