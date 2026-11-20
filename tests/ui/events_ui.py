@@ -41,17 +41,17 @@ with session(out) as browser:
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     events = page.get_by_role("region", name="Events", exact=True)
     expect(
-        events.get_by_role("button", name="Degraded in us-east-1", exact=True)
+        events.get_by_role("row", name="Degraded in us-east-1", exact=True)
     ).to_have_count(2)
     expect(events.get_by_role("columnheader", name="Time", exact=True)).to_be_visible()
     expect(events.get_by_role("columnheader", name="Count", exact=True)).to_have_count(
         0
     )
     expect(
-        events.get_by_role("button", name="Deploy ready in us-east-1", exact=True)
+        events.get_by_role("row", name="Deploy ready in us-east-1", exact=True)
     ).to_be_visible()
     expect(
-        events.get_by_role("button", name="Deploy failed in us-east-1", exact=True)
+        events.get_by_role("row", name="Deploy failed in us-east-1", exact=True)
     ).to_be_visible()
     expect(
         events.get_by_text(
@@ -60,7 +60,7 @@ with session(out) as browser:
         )
     ).to_be_visible()
     expect(events.get_by_text("deployment 8d7c6b5a", exact=True)).to_have_count(2)
-    events.get_by_role("button", name="Deploy ready in us-east-1", exact=True).click()
+    events.get_by_role("row", name="Deploy ready in us-east-1", exact=True).click()
     ready = page.get_by_role("dialog", name="Deploy ready in us-east-1", exact=True)
     link = ready.get_by_role("region", name="Attributes").get_by_role(
         "link", name="7c41e90a-31d2-4c8e-b5f6-0a9e8d7c6b5a", exact=True
@@ -73,12 +73,12 @@ with session(out) as browser:
     events.get_by_role("button", name=re.compile(r"^Warnings")).click()
     wait_for_query(page, lambda query: query.get("q") == ["@severity:warning"])
     expect(
-        events.get_by_role("button", name="Degraded in us-east-1", exact=True)
+        events.get_by_role("row", name="Degraded in us-east-1", exact=True)
     ).to_have_count(2)
     expect(
-        events.get_by_role("button", name="Deploy failed in us-east-1", exact=True)
+        events.get_by_role("row", name="Deploy failed in us-east-1", exact=True)
     ).to_have_count(0)
-    events.get_by_role("button", name="Degraded in us-east-1", exact=True).first.click()
+    events.get_by_role("row", name="Degraded in us-east-1", exact=True).first.click()
     drawer = page.get_by_role("dialog", name="Degraded in us-east-1", exact=True)
     expect(drawer.get_by_role("region", name="Attributes")).to_contain_text(
         "Olivia Owner"
@@ -171,7 +171,7 @@ with session(out) as browser:
     expect(drawer).to_be_visible()
     page.keyboard.press("Escape")
     expect(drawer).not_to_be_visible()
-    events.get_by_role("button", name="Degraded in us-east-1", exact=True).first.click()
+    events.get_by_role("row", name="Degraded in us-east-1", exact=True).first.click()
     expect(drawer).to_be_visible()
     drawer.get_by_role(
         "button", name="Only events with region us-east-1", exact=True
@@ -183,7 +183,7 @@ with session(out) as browser:
     context, page, errors = open_page(browser, user="reader", state=state)
     page.goto(state["ui_url"] + base + "/observability?view=events&live=0")
     page.get_by_role("region", name="Events", exact=True).get_by_role(
-        "button", name="Degraded in us-east-1", exact=True
+        "row", name="Degraded in us-east-1", exact=True
     ).first.click()
     drawer = page.get_by_role("dialog", name="Degraded in us-east-1", exact=True)
     expect(drawer).to_be_visible()

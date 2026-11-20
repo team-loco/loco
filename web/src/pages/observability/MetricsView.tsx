@@ -1,6 +1,7 @@
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { createQueryOptions, useTransport } from "@connectrpc/connect-query";
 import { useQueries } from "@tanstack/react-query";
+import { functionalUpdate } from "@tanstack/react-table";
 import { listDeployments } from "@gen/loco/deployment/v1/deployment-DeploymentService_connectquery";
 import { queryMetrics } from "@gen/loco/observability/v1/observability-ObservabilityService_connectquery";
 import { BellIcon, PlusIcon, RocketIcon, ScrollTextIcon, WaypointsIcon } from "lucide-react";
@@ -9,6 +10,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/design/Button";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { ErrorState } from "@/components/design/ErrorState";
 import { Section } from "@/components/design/Page";
 import { Skeleton } from "@/components/design/Skeleton";
@@ -57,6 +59,7 @@ const MEMORY: MetricDef = {
 };
 
 const TRAFFIC = ["Requests", "5xx responses", "Latency, p95"];
+const SOON_COLUMNS = ["Requests", "5xx", "p95"];
 const PERCENT = 100;
 const NOW_TICK_MS = 60_000;
 const CHART_HEIGHT = 190;
@@ -66,7 +69,6 @@ const WARN_PERCENT = 85;
 const DEPLOY_PICK_SHARE = 0.02;
 
 const SORT_KEYS = ["resource", "region", "replicas", "cpu", "mem"] as const;
-type SortKey = (typeof SORT_KEYS)[number];
 const metricSortParser = sortParser(SORT_KEYS, {
 	id: "cpu",
 	desc: true,
@@ -241,7 +243,7 @@ function Meter({ value, format }: { value: { v: number; limit: number } | undefi
 	if (value === undefined) return <span className="text-fg4">—</span>;
 	const percent = (value.v / value.limit) * PERCENT;
 	return (
-		<span className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+		<span className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
 			<span className="h-1 overflow-hidden rounded-[2px] bg-line2">
 				<span
 					className={cn("block h-full rounded-[2px]", percent >= WARN_PERCENT ? "bg-warn" : "bg-fg2")}
@@ -330,6 +332,18 @@ export function MetricsView() {
 	};
 	const error = cpu.error ?? mem.error;
 	const loading = cpu.isLoading || mem.isLoading || sizingLoading || environmentLoading || resourcesLoading;
+	const sorting = [sort];
+	const table = useDataTable("metrics-placements", {
+		columns: placementColumns(cpu.latest, mem.latest),
+		data: rows.toSorted((a, b) => a.key.localeCompare(b.key)),
+		getRowId: (p) => p.key,
+		state: { sorting },
+		onSortingChange: (updater) => {
+			const next = functionalUpdate(updater, sorting)[0];
+			const id = SORT_KEYS.find((key) => key === next?.id);
+			if (next !== undefined && id !== undefined) void setSort({ id, desc: next.desc });
+		},
+	});
 
 	if (!loading && error !== null && isUnimplemented(error)) {
 		return (
@@ -382,46 +396,6 @@ export function MetricsView() {
 		);
 	}
 
-	const sortValue = (p: Placement): string | number => {
-		switch (sort.id) {
-			case "resource":
-				return p.resource.slug;
-			case "region":
-				return p.region;
-			case "replicas":
-				return p.ready ?? -1;
-			case "cpu":
-				return cpu.latest.get(p.key)?.v ?? -1;
-			case "mem":
-				return mem.latest.get(p.key)?.v ?? -1;
-		}
-	};
-	const sortedRows = rows.toSorted((a, b) => {
-		const x = sortValue(a);
-		const y = sortValue(b);
-		const order = typeof x === "string" && typeof y === "string" ? x.localeCompare(y) : Number(x) - Number(y);
-		return (sort.desc ? -order : order) || a.key.localeCompare(b.key);
-	});
-	const header = (key: SortKey, label: string, className?: string) => (
-		<th
-			className={cn("px-3 font-normal", className)}
-			aria-sort={sort.id !== key ? "none" : sort.desc ? "descending" : "ascending"}
-		>
-			<button
-				type="button"
-				onClick={() => {
-					void setSort({
-						id: key,
-						desc: sort.id === key ? !sort.desc : key !== "resource" && key !== "region",
-					});
-				}}
-				className="rounded-sm hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-			>
-				{label}
-				{sort.id === key && (sort.desc ? " ↓" : " ↑")}
-			</button>
-		</th>
-	);
 	const focusRow = (p: Placement) => {
 		setQuery(
 			[
@@ -496,87 +470,19 @@ export function MetricsView() {
 			</Section>
 
 			<Section title="By resource and region" card={false}>
-				<div className="overflow-x-auto rounded-card bg-panel px-5 pt-1 pb-3">
-					<table className="w-full min-w-[760px] border-collapse text-[12.5px]">
-						<thead>
-							<tr className="h-[38px] border-b border-line2 text-left text-[12px] text-fg3">
-								{header("resource", "Resource")}
-								{header("region", "Region")}
-								{header("replicas", "Replicas")}
-								{header("cpu", "CPU (latest)", "w-[240px]")}
-								{header("mem", "Memory (latest)", "w-[240px]")}
-								<th className="w-[88px] px-3 font-normal whitespace-nowrap">
-									<span className="flex items-center gap-1.5">
-										Requests <SoonTag />
-									</span>
-								</th>
-								<th className="w-[88px] px-3 font-normal whitespace-nowrap">
-									<span className="flex items-center gap-1.5">
-										5xx <SoonTag />
-									</span>
-								</th>
-								<th className="w-[88px] px-3 font-normal whitespace-nowrap">
-									<span className="flex items-center gap-1.5">
-										p95 <SoonTag />
-									</span>
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{rows.length === 0 && (
-								<tr>
-									<td colSpan={8} className="px-3 py-6 text-center text-fg3">
-										Nothing matches these filters.
-									</td>
-								</tr>
-							)}
-							{sortedRows.map((p) => {
-								const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
-								return (
-									<tr
-										key={p.key}
-										onClick={() => {
-											focusRow(p);
-										}}
-										onMouseEnter={() => {
-											setHoverKey(p.key);
-										}}
-										onMouseLeave={() => {
-											setHoverKey(null);
-										}}
-										className="h-[38px] cursor-pointer border-b border-line last:border-b-0 hover:bg-panel2"
-									>
-										<td className="px-3">
-											<button
-												type="button"
-												onClick={(event) => {
-													event.stopPropagation();
-													focusRow(p);
-												}}
-												className="flex items-center gap-1.5 rounded-sm text-left hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-											>
-												<span className="size-2 rounded-[2px]" style={{ background: p.resource.color }} />
-												{p.resource.raw.name}
-											</button>
-										</td>
-										<td className="px-3 font-mono whitespace-nowrap text-fg2">{p.region}</td>
-										<td className={cn("px-3 font-mono", short ? "text-warn-fg" : "text-fg2")}>
-											{p.ready !== null && p.desired !== null ? `${String(p.ready)} of ${String(p.desired)}` : "—"}
-										</td>
-										<td className="px-3">
-											<Meter value={cpu.latest.get(p.key)} format={CPU.format} />
-										</td>
-										<td className="px-3">
-											<Meter value={mem.latest.get(p.key)} format={MEMORY.format} />
-										</td>
-										<td className="px-3 text-fg4">—</td>
-										<td className="px-3 text-fg4">—</td>
-										<td className="px-3 text-fg4">—</td>
-									</tr>
-								);
-							})}
-						</tbody>
-					</table>
+				<div className="min-w-0 rounded-card bg-panel">
+					<DataTable
+						table={table}
+						label="By resource and region"
+						className="text-[12.5px] [--row-h:38px] [&_td]:py-1"
+						empty={<p className="px-3 py-6 text-center text-fg3">Nothing matches these filters.</p>}
+						onRowClick={(row) => {
+							focusRow(row.original);
+						}}
+						onRowHover={(row) => {
+							setHoverKey(row?.original.key ?? null);
+						}}
+					/>
 				</div>
 				<span className="flex items-center gap-1.5 text-[12px] text-fg3">
 					Ready replicas over time
@@ -585,6 +491,77 @@ export function MetricsView() {
 			</Section>
 		</>
 	);
+}
+
+type Latest = Map<string, { v: number; limit: number }>;
+
+function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
+	return [
+		{
+			id: "resource",
+			accessorFn: (p) => p.resource.raw.name,
+			sortFn: (a, b) => a.original.resource.raw.name.localeCompare(b.original.resource.raw.name),
+			header: "Resource",
+			size: 220,
+			meta: { grow: true },
+			cell: ({ row: { original: p } }) => (
+				<span className="flex min-w-0 items-center gap-1.5">
+					<span className="size-2 shrink-0 rounded-[2px]" style={{ background: p.resource.color }} />
+					<CellText text={p.resource.raw.name} />
+				</span>
+			),
+		},
+		{
+			id: "region",
+			accessorFn: (p) => p.region,
+			sortFn: (a, b) => a.original.region.localeCompare(b.original.region),
+			header: "Region",
+			size: 140,
+			cell: ({ row }) => <CellText text={row.original.region} className="font-mono text-fg2" />,
+		},
+		{
+			id: "replicas",
+			accessorFn: (p) => p.ready ?? -1,
+			header: "Replicas",
+			size: 100,
+			sortDescFirst: true,
+			cell: ({ row: { original: p } }) => {
+				const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
+				return (
+					<span className={cn("truncate font-mono", short ? "text-warn-fg" : "text-fg2")}>
+						{p.ready !== null && p.desired !== null ? `${String(p.ready)} of ${String(p.desired)}` : "—"}
+					</span>
+				);
+			},
+		},
+		{
+			id: "cpu",
+			accessorFn: (p) => cpu.get(p.key)?.v ?? -1,
+			header: "CPU (latest)",
+			size: 240,
+			sortDescFirst: true,
+			cell: ({ row }) => <Meter value={cpu.get(row.original.key)} format={CPU.format} />,
+		},
+		{
+			id: "mem",
+			accessorFn: (p) => mem.get(p.key)?.v ?? -1,
+			header: "Memory (latest)",
+			size: 240,
+			sortDescFirst: true,
+			cell: ({ row }) => <Meter value={mem.get(row.original.key)} format={MEMORY.format} />,
+		},
+		...SOON_COLUMNS.map((label): DataColumn<Placement> => ({
+			id: label,
+			header: () => (
+				<span className="flex items-center gap-1.5 whitespace-nowrap">
+					{label} <SoonTag />
+				</span>
+			),
+			size: 88,
+			meta: { label },
+			cell: () => <span className="text-fg4">—</span>,
+		})),
+	];
 }
 
 function valueCounts(key: string, resources: ObsResource[]): [string, number][] {

@@ -7,8 +7,8 @@ import { PlusIcon } from "lucide-react";
 
 import { Button } from "@/components/design/Button";
 import { ErrorState } from "@/components/design/ErrorState";
+import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { Pager } from "@/components/design/Pager";
-import { Skeleton } from "@/components/design/Skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { useEnvironments } from "@/hooks/useEnvironment";
 import { useNow } from "@/hooks/useNow";
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 import { filteredResources, useObs } from "./context";
 import { EventDetail, EventIcon } from "./EventDetail";
-import { eventValue, eventItem, eventWindow, type Severity } from "./events";
+import { eventValue, eventItem, eventWindow, type EventItem, type Severity } from "./events";
 import { NoMatches, ObsHero, WidenRangeButton } from "./ObsEmpty";
 import { liveTokens, passes, queryStr, type FieldKey, type Token } from "./query";
 import { QueryBar } from "./QueryBar";
@@ -109,6 +109,11 @@ export function EventsView() {
 		selItem?.id ?? null,
 		select,
 	);
+	const table = useDataTable("events", {
+		columns: eventColumns(nowMs),
+		data: paged.rows,
+		getRowId: (e) => e.id,
+	});
 
 	const header = (
 		<ViewHeader
@@ -188,77 +193,18 @@ export function EventsView() {
 							</ToggleGroupItem>
 						</ToggleGroup>
 					</div>
-					<div className="overflow-x-auto [scrollbar-width:thin]">
-						<table className="w-full min-w-[640px] border-collapse text-[13px]">
-							<thead>
-								<tr className="h-10 border-b border-line2 text-left text-[12.5px] text-fg3">
-									<th className="w-[38px] pl-5 font-normal">
-										<span className="sr-only">Severity</span>
-									</th>
-									<th className="px-3 font-normal">Event</th>
-									<th className="w-[160px] px-3 font-normal">Resource</th>
-									<th className="w-[110px] pr-5 pl-3 text-right font-normal">Time</th>
-								</tr>
-							</thead>
-							<tbody>
-								{loading &&
-									Array.from({ length: 8 }, (_, i) => (
-										<tr key={String(i)} className="h-[52px] border-b border-line2">
-											<td colSpan={4} className="px-5">
-												<Skeleton className="h-3 w-full" />
-											</td>
-										</tr>
-									))}
-								{!loading &&
-									paged.rows.map((e) => {
-										const on = e.id === selItem?.id;
-										return (
-											<tr
-												key={e.id}
-												role="button"
-												tabIndex={0}
-												aria-label={e.title}
-												aria-pressed={on}
-												onClick={() => {
-													select(e.id);
-												}}
-												onKeyDown={(ev) => {
-													if (ev.key === "Enter" || ev.key === " ") {
-														ev.preventDefault();
-														select(e.id);
-													}
-												}}
-												className={cn(
-													"h-[52px] border-b border-line2 last:border-b-0 hover:bg-panel2",
-													on && "bg-background",
-													e.ts > openedAt && "animate-row-flash motion-reduce:animate-none",
-												)}
-											>
-												<td className="pl-5">
-													<EventIcon item={e} />
-													<span className="sr-only">{e.severity}</span>
-												</td>
-												<td className="max-w-0 px-3">
-													<div className="flex min-w-0 flex-col gap-0.5 py-2">
-														<span className={cn("text-[13.5px]", e.severity === "error" && "text-bad-fg")}>
-															{e.title}
-														</span>
-														<span className="w-full truncate font-mono text-[11.5px] text-fg3" title={e.detail}>
-															{e.detail}
-														</span>
-													</div>
-												</td>
-												<td className="px-3 text-fg2">{e.resourceName}</td>
-												<td className="pr-5 pl-3 text-right font-mono text-[12px] whitespace-nowrap text-fg3">
-													{agoLabel(e.ts, nowMs)}
-												</td>
-											</tr>
-										);
-									})}
-							</tbody>
-						</table>
-						{!loading && items.length === 0 && <NoMatches title="No events match these filters" />}
-					</div>
+					<DataTable
+						table={table}
+						label="Events"
+						loading={loading}
+						empty={<NoMatches title="No events match these filters" />}
+						activeRowId={selItem?.id ?? null}
+						onRowClick={(row) => {
+							select(row.id);
+						}}
+						rowLabel={(row) => row.original.title}
+						rowClassName={(row) => row.original.ts > openedAt && "animate-row-flash motion-reduce:animate-none"}
+					/>
 					<Pager {...paged.pager} {...paged.ends} />
 				</section>
 				<EventDetail
@@ -285,4 +231,52 @@ export function EventsView() {
 			</div>
 		</>
 	);
+}
+
+function eventColumns(nowMs: number): DataColumn<EventItem>[] {
+	return [
+		{
+			id: "severity",
+			size: 40,
+			minSize: 40,
+			enableResizing: false,
+			meta: { label: "Severity", fit: true },
+			cell: ({ row: { original: e } }) => (
+				<>
+					<EventIcon item={e} />
+					<span className="sr-only">{e.severity}</span>
+				</>
+			),
+		},
+		{
+			id: "event",
+			header: "Event",
+			size: 320,
+			meta: { grow: true, primary: true },
+			cell: ({ row: { original: e } }) => (
+				<span className="flex min-w-0 flex-col gap-0.5">
+					<CellText text={e.title} className={cn("text-[13.5px]", e.severity === "error" && "text-bad-fg")} />
+					<CellText text={e.detail} className="font-mono text-[11.5px] text-fg3" />
+				</span>
+			),
+		},
+		{
+			id: "resource",
+			header: "Resource",
+			size: 160,
+			meta: { fit: true, fitMax: 280 },
+			cell: ({ row }) => <CellText text={row.original.resourceName} className="text-fg2" />,
+		},
+		{
+			id: "time",
+			header: "Time",
+			size: 110,
+			meta: { align: "end" },
+			cell: ({ row }) => (
+				<span className="truncate font-mono text-[12px] whitespace-nowrap text-fg3">
+					{agoLabel(row.original.ts, nowMs)}
+				</span>
+			),
+		},
+	];
 }

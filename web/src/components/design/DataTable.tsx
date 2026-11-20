@@ -369,6 +369,7 @@ export function DataTable<T extends RowData>({
 	loading = false,
 	activeRowId,
 	onRowClick,
+	onRowHover,
 	rowAction = "open",
 	rowLabel,
 	rowClassName,
@@ -385,6 +386,8 @@ export function DataTable<T extends RowData>({
 	/** The row whose details are open; it shows as selected. */
 	activeRowId?: string | null;
 	onRowClick?: (row: Row<Features, T>) => void;
+	/** Called with the row the pointer enters, and with null when it leaves. */
+	onRowHover?: (row: Row<Features, T> | null) => void;
 	/** What a row click does: "navigate" to another page shows an arrow on the row, "open" a drawer here does not. */
 	rowAction?: "navigate" | "open";
 	/** Names a clickable row for assistive technology. */
@@ -488,6 +491,20 @@ export function DataTable<T extends RowData>({
 												? undefined
 												: (event) => {
 														if (!fromControl(event)) onRowClick(row);
+													}
+										}
+										onMouseEnter={
+											onRowHover === undefined
+												? undefined
+												: () => {
+														onRowHover(row);
+													}
+										}
+										onMouseLeave={
+											onRowHover === undefined
+												? undefined
+												: () => {
+														onRowHover(null);
 													}
 										}
 										onKeyDown={

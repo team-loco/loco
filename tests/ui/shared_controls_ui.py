@@ -1865,12 +1865,12 @@ def metrics(page):
     assert text_lines == 1, text_lines
     page.set_viewport_size(viewport)
     expect(
-        by_region.get_by_role("columnheader", name="CPU (latest) ↓")
+        by_region.get_by_role("columnheader", name="CPU (latest)", exact=True)
     ).to_have_attribute("aria-sort", "descending")
     by_region.get_by_role("button", name="Resource", exact=True).click()
-    expect(by_region.get_by_role("columnheader", name="Resource ↑")).to_have_attribute(
-        "aria-sort", "ascending"
-    )
+    expect(
+        by_region.get_by_role("columnheader", name="Resource", exact=True)
+    ).to_have_attribute("aria-sort", "ascending")
     by_region.get_by_role("row").filter(has_text="Controls Alpha").get_by_role(
         "cell"
     ).nth(1).click()
