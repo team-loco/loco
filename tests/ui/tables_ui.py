@@ -770,10 +770,11 @@ def metrics(page):
     page.goto(base + "/observability?env=production&view=metrics&range=1h")
     table = metrics_table(page)
     check_layout(table)
+    fits_at_16px(page, table)
     row = table.get_by_role("row").filter(has_text="api").first
     expect_pointer(page, row.get_by_role("cell").nth(1))
     expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
-    table = check_resize(page, table, "Region", "Replicas", metrics_table)
+    table = check_resize(page, table, "CPU (latest)", "Region", metrics_table)
     table.get_by_role("row").filter(has_text="api").first.get_by_role("cell").nth(
         1
     ).click()
