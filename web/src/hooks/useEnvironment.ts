@@ -4,6 +4,7 @@ import { listEnvironments } from "@gen/loco/environment/v1/environment-Environme
 import { useQuery as useTanstackQuery } from "@tanstack/react-query";
 import { useQueryState } from "nuqs";
 import { useEffect } from "react";
+import { useLocation } from "react-router";
 import { Scope } from "@gen/loco/token/v1/token_pb";
 
 import { useOrgWorkspace } from "@/context/ContextProvider";
@@ -62,7 +63,10 @@ export function useEnvironmentInUrl() {
 	const { active, isLoading } = useEnvironments();
 	const [env, setEnv] = useQueryState("env");
 	const name = active?.name;
+	const { pathname } = useLocation();
 	useEffect(() => {
+		// The browser is already on another path whose page is still loading; that page writes its own env.
+		if (pathname !== window.location.pathname) return;
 		if (!isLoading && name !== undefined && env !== name) void setEnv(name, { history: "replace" });
-	}, [isLoading, name, env, setEnv]);
+	}, [isLoading, name, env, setEnv, pathname]);
 }

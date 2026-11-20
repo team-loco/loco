@@ -86,7 +86,19 @@ with session(out) as browser:
     page.on("request", record)
     for method in HELD:
         context.route(f"**/loco.{method}", lambda route: held.append(route))
+    # Environments load after the page has started loading the resource.
+    environments = []
+    context.route(
+        "**/loco.environment.v1.EnvironmentService/ListEnvironments",
+        lambda route: environments.append(route),
+        times=1,
+    )
     page.goto(url)
+    expect(
+        page.get_by_role("status").filter(has_text="Loading resource")
+    ).to_be_attached()
+    assert environments, "the workspace's environments loaded before the page did"
+    environments[0].continue_()
     replicas = page.get_by_role("region", name="Replicas", exact=True)
     expect(replicas).to_be_visible()
     expect(replicas.locator("[data-slot=skeleton]").first).to_be_visible()

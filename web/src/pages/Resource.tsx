@@ -84,7 +84,15 @@ const RESOURCE_PARAMS = {
 export function Resource() {
 	const { resourceId = "" } = useParams<{ resourceId: string }>();
 	const { active } = useEnvironments();
-	return <ResourcePage key={`${resourceId}:${active?.id ?? ""}`} resourceId={resourceId} />;
+	// The page starts over when the user switches environment, not when the first one loads.
+	const [shown, setShown] = useState({ environmentId: active?.id, switches: 0 });
+	if (active !== undefined && active.id !== shown.environmentId) {
+		setShown({
+			environmentId: active.id,
+			switches: shown.environmentId === undefined ? shown.switches : shown.switches + 1,
+		});
+	}
+	return <ResourcePage key={`${resourceId}:${shown.switches}`} resourceId={resourceId} />;
 }
 
 function ResourcePage({ resourceId }: { resourceId: string }) {

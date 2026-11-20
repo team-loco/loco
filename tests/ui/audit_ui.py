@@ -74,7 +74,7 @@ out = Path(args.out)
 out.mkdir(parents=True, exist_ok=True)
 
 
-def open_page(browser, user, path):
+def open_page(browser, user, path=None):
     context, page, errors = new_page(browser, user, state=state)
     calls = []
 
@@ -89,7 +89,8 @@ def open_page(browser, user, path):
             )
 
     page.on("response", record)
-    page.goto(state["ui_url"] + path)
+    if path is not None:
+        page.goto(state["ui_url"] + path)
     return context, page, calls, errors
 
 
@@ -99,11 +100,17 @@ def list_events(calls):
 
 with session(out) as browser:
     # Organization admins read the whole organization from the sidebar entry.
-    context, page, calls, errors = open_page(
-        browser, "owner", f"/org/{org}/wks/{shared}"
+    context, page, calls, errors = open_page(browser, "owner")
+    environments = []
+    context.route(
+        "**/loco.environment.v1.EnvironmentService/ListEnvironments",
+        lambda route: environments.append(route),
+        times=1,
     )
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{shared}")
 
-    # Reproduce a lazy import that exceeds Playwright's default assertion timeout.
+    # Reproduce a lazy import that exceeds Playwright's default assertion timeout,
+    # with the workspace's environments arriving while it loads.
     def delayed_audit(route):
         response = route.fetch()
         page.wait_for_timeout(6000)
@@ -113,6 +120,8 @@ with session(out) as browser:
     page.route(audit_module, delayed_audit, times=1)
     with page.expect_request(audit_module):
         page.get_by_role("link", name="Audit log", exact=True).click()
+    assert environments, "the workspace's environments loaded before the click"
+    environments[0].continue_()
     page.wait_for_url("**" + audit_path)
     expect(page.get_by_role("list", name="Audit events")).to_be_visible(
         timeout=evidence.STEP_TIMEOUT_MS

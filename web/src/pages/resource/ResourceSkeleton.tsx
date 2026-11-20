@@ -4,6 +4,9 @@ import { Skeleton } from "@/components/design/Skeleton";
 export function ResourceSkeleton() {
 	return (
 		<Page className="gap-5">
+			<span role="status" className="sr-only">
+				Loading resource
+			</span>
 			<div className="flex flex-wrap items-end justify-between gap-4">
 				<div className="flex flex-col gap-2">
 					<div className="flex items-center gap-3">
