@@ -80,14 +80,18 @@ export function Settings() {
 	);
 	const { counts, isLoading: countsLoading } = useResourceCounts(workspaceIds);
 	const scope = requested === "org" && !canReadOrg ? "workspace" : requested;
+	// Rewrites a missing, unknown or unreadable scope in the URL, which leads `requested` while a switch renders.
 	const [search] = useSearchParams();
-	const scopeShown = search.get("scope") === scope;
+	const inUrl = search.get("scope");
 	useEffect(() => {
-		if (scopeShown || scopes.isLoading) return;
-		if (requested !== scope)
+		if (scopes.isLoading) return;
+		const asked = SETTINGS_SCOPES.find((s) => s === inUrl) ?? "workspace";
+		const allowed = asked === "org" && !canReadOrg ? "workspace" : asked;
+		if (inUrl === allowed) return;
+		if (asked !== allowed)
 			toast.info("Organization settings need admin access", { description: "Showing workspace settings." });
-		void setParams({ scope }, { history: "replace", clearOnDefault: false });
-	}, [scopeShown, scopes.isLoading, requested, scope, setParams]);
+		void setParams({ scope: allowed }, { history: "replace", clearOnDefault: false });
+	}, [inUrl, scopes.isLoading, canReadOrg, setParams]);
 
 	const wsDraft = drafts.workspace?.id === workspaceId ? drafts.workspace : null;
 	const orgDraft = drafts.org?.id === orgId ? drafts.org : null;
