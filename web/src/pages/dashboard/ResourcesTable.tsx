@@ -32,8 +32,7 @@ import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
 import { Sparkline } from "@/components/design/Sparkline";
-import { ResourceStatusBadge } from "@/components/design/StatusBadge";
-import { StatusGlyph } from "@/components/design/StatusGlyph";
+import { ResourceStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
 import { deploymentImage } from "@/lib/deployment-utils";
@@ -146,12 +145,7 @@ function useCells(): DashboardCellValues {
 
 function StatusCell({ item }: { item: DashboardItem }) {
 	if (isDraftItem(item)) {
-		return (
-			<span className="inline-flex items-center gap-2 text-[13.5px] whitespace-nowrap text-foreground">
-				<StatusGlyph glyph="draft" />
-				Draft
-			</span>
-		);
+		return <StatusBadge glyph="draft" label="Draft" />;
 	}
 	const note = statusNote(item);
 	return (
