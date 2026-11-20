@@ -283,6 +283,16 @@ func TestGitOpsChangesRunDeliveryValidation(t *testing.T) {
 	}
 }
 
+func TestUIImageChangesRunTheControlPlaneE2E(t *testing.T) {
+	t.Parallel()
+	workflows, _ := repository(t)
+	for _, event := range []string{"pull_request", "push"} {
+		for _, path := range []string{"web/Dockerfile", "web/Dockerfile.dockerignore", "web/sws.toml", "docs/build.ts"} {
+			assert.True(t, selectOwn(workflows, event, []string{path})["charts"], "%s %s", event, path)
+		}
+	}
+}
+
 func TestDuplicatePRRun(t *testing.T) {
 	const (
 		created     = "2026-11-17T19:02:01Z"
