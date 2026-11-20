@@ -31,10 +31,12 @@ import { EmptyState } from "@/components/design/EmptyState";
 import { FilterMenu } from "@/components/design/FilterMenu";
 import { Section } from "@/components/design/Page";
 import { SearchInput } from "@/components/design/SearchInput";
+import { DeployMarkers } from "@/components/design/DeployMarkers";
 import { Sparkline } from "@/components/design/Sparkline";
 import { ResourceStatusBadge, StatusBadge } from "@/components/design/StatusBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
 import { ToggleGroup, ToggleGroupItem } from "@/components/design/ToggleGroup";
+import { deployMarkers } from "@/lib/deployMarkers";
 import { deploymentImage } from "@/lib/deployment-utils";
 import { DRAFT_NOTE } from "@/lib/drafts";
 import { imageVersion } from "@/lib/image";
@@ -65,6 +67,7 @@ import type { EnvResource } from "./useDashboardData";
 
 const PAGE_SIZE = 25;
 const MAX_PIPS = 12;
+const ROW_BUCKETS = 6;
 
 function replicaTotal(item: DashboardItem): number {
 	return isDraftItem(item) ? 0 : item.totalReplicas;
@@ -250,8 +253,15 @@ function MenuCell({ item }: { item: DashboardItem }) {
 }
 
 function TrafficCell({ item }: { item: DashboardItem }) {
-	const { traffic, trafficLoading, trafficError } = useCells();
+	const { traffic, trafficLoading, trafficError, nowMs } = useCells();
 	if (isDraftItem(item)) return <span className="text-fg3">—</span>;
+	const markers = deployMarkers(
+		item.envDeployments.map((deployment) => ({ deployment, resource: item.resource.name })),
+		nowMs - HOUR_MS,
+		nowMs,
+		ROW_BUCKETS,
+		nowMs,
+	);
 	const rate = trafficLoading
 		? "…"
 		: trafficError
@@ -262,10 +272,13 @@ function TrafficCell({ item }: { item: DashboardItem }) {
 			className="flex items-center gap-2.5"
 			title={trafficError ? "Failed to load traffic" : "Requests per second over the last hour"}
 		>
-			<Sparkline
-				values={trafficLoading || trafficError ? [] : trafficSeries(traffic, "requests", item.resource.id)}
-				className="h-6 min-w-0 flex-1 text-fg2"
-			/>
+			<span className="relative min-w-0 flex-1">
+				<Sparkline
+					values={trafficLoading || trafficError ? [] : trafficSeries(traffic, "requests", item.resource.id)}
+					className="h-6 text-fg2"
+				/>
+				{!trafficLoading && !trafficError && <DeployMarkers markers={markers} />}
+			</span>
 			<span className="min-w-[62px] shrink-0 text-right font-mono text-[12px] whitespace-nowrap">{rate}</span>
 		</span>
 	);
