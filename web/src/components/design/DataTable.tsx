@@ -61,6 +61,8 @@ export interface DataColumnMeta {
 	fit?: boolean;
 	/** Gives the column the width left over once every column has its size; without one, the last column takes it. */
 	grow?: boolean;
+	/** Holds the row's name; a clickable row shows its arrow after this column's content, the first column by default. */
+	primary?: boolean;
 	/** Keeps the column at the right edge while the table scrolls sideways, as wide as its content; the first column always stays at the left. */
 	pinEnd?: boolean;
 	headClassName?: string;
@@ -346,6 +348,10 @@ export function DataTable<T extends RowData>({
 	const sizing = table.state.columnSizing;
 	const rows = table.getRowModel().rows;
 	const growIndex = growIndexOf(columns);
+	const primaryIndex = Math.max(
+		0,
+		columns.findIndex((c) => c.columnDef.meta?.primary === true),
+	);
 	const scroller = (
 		<div ref={trackScroll} data-slot="data-table" className="@container relative w-full overflow-x-auto [--row-h:52px]">
 			<table
@@ -443,6 +449,15 @@ export function DataTable<T extends RowData>({
 												)}
 											>
 												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												{onRowClick !== undefined && index === primaryIndex && (
+													<span
+														aria-hidden="true"
+														data-slot="row-arrow"
+														className="ml-1.5 shrink-0 -translate-x-1 text-fg3 opacity-0 transition-[opacity,translate] duration-150 group-hover/row:translate-x-0 group-hover/row:opacity-100 group-focus-visible/row:translate-x-0 group-focus-visible/row:opacity-100"
+													>
+														→
+													</span>
+												)}
 											</TableCell>
 										);
 									})}
