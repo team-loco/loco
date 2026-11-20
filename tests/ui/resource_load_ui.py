@@ -132,6 +132,18 @@ with session(out) as browser:
         assert any(c[0] == method for c in calls), (method, calls)
     assert not errors, errors
     context.close()
+
+    # The workspace URL names its environment while the resource list still loads.
+    context, page, _ = open_page(browser, state=state)
+    listing = []
+    context.route(
+        "**/loco.resource.v1.ResourceService/ListWorkspaceResources",
+        lambda route: listing.append(route),
+    )
+    page.goto(state["ui_url"] + f"/org/{org}/wks/{workspace}")
+    expect(page).to_have_url(re.compile(r"[?&]env=production(&|$)"))
+    assert listing, "the resource list loaded before the check"
+    context.close()
     shots = Path(os.environ.get("LOAD_SHOTS", out))
     shots.mkdir(parents=True, exist_ok=True)
     for mode in ("light", "dark"):

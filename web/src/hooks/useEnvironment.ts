@@ -24,9 +24,10 @@ export function useEnvironments() {
 			: undefined;
 	// GetScopes does not say which workspace a granted resource is in; only a grant in this
 	// workspace lets the user list its environments.
+	const listGranted = typeof grants === "object" && grants.length > 0;
 	const granted = useTanstackQuery({
 		...useWorkspaceResourcesOptions(activeOrgId ?? "", activeWorkspaceId ?? ""),
-		enabled: typeof grants === "object" && grants.length > 0,
+		enabled: listGranted,
 	});
 	const { data, isLoading: environmentsLoading } = useQuery(
 		listEnvironments,
@@ -54,7 +55,8 @@ export function useEnvironments() {
 		active,
 		requested,
 		setActive,
-		isLoading: scopes.isLoading || granted.isLoading || environmentsLoading,
+		// A disabled query reports loading while another view fetches the same list.
+		isLoading: scopes.isLoading || (listGranted && granted.isLoading) || environmentsLoading,
 	};
 }
 
