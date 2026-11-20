@@ -834,7 +834,7 @@ func TestApplyRetryAndRestartPolicyBounds(t *testing.T) {
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
 		{"LOCO_WORKSPACE_NAMESPACE_GRACE", []string{"1h", "30m"}, []string{"0", "-2h", "soon"},
 			func() { newAgentConfig(servicedefaults.Defaults{}) }},
-		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"1", "20"}, []string{"0", "21", "-1", "5m"}, func() { newServiceDefaults() }},
+		{"LOCO_DEFAULT_MAX_RESTARTS", []string{"1", "5"}, []string{"0", "6", "-1", "5m"}, func() { newServiceDefaults() }},
 		{"LOCO_DEFAULT_DEPLOY_TIMEOUT", []string{"60", "3600"}, []string{"59", "3601", "0", "10m"},
 			func() { newServiceDefaults() }},
 	} {

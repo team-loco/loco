@@ -34,7 +34,7 @@
         "maxRestarts": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 20,
+          "maximum": 5,
           "description": "Restarts a replica may have under on-failure before the next one stops the version."
         },
         "timeout": {

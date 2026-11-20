@@ -66,7 +66,7 @@ const (
 // Bounds of a RestartPolicySpec and a deploy timeout.
 const (
 	MinRestarts             = 1
-	MaxRestarts             = 20
+	MaxRestarts             = 5
 	MinDeployTimeoutSeconds = 60
 	MaxDeployTimeoutSeconds = 3600
 )

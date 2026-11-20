@@ -131,7 +131,7 @@ func TestRestartPolicyBounds(t *testing.T) {
 	}
 	for _, policy := range []RestartPolicySpec{
 		{Mode: RestartOnFailure, MaxRestarts: MinRestarts - 1},
-		{Mode: RestartOnFailure, MaxRestarts: MaxRestarts + 1},
+		{Mode: RestartOnFailure, MaxRestarts: 6},
 		{Mode: RestartAlways, MaxRestarts: 5},
 		{Mode: RestartNever, MaxRestarts: 1},
 		{MaxRestarts: 5},

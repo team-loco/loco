@@ -63,13 +63,13 @@ with session(out) as browser:
 
     # The API owns the bounds: an out-of-range limit saves and comes back with its message.
     timeout.fill("300")
-    limit.fill("21")
+    limit.fill("6")
     with expect_rpc(
         page, "UpdateResource", lambda body: body.get("resourceId") == resource
     ) as rejected:
         save.click()
     assert rejected.value.status == 400, rejected.value.status
-    expect(page.get_by_text("must be between 1 and 20", exact=False)).to_be_visible()
+    expect(page.get_by_text("must be between 1 and 5", exact=False)).to_be_visible()
     assert stored() == "", stored()
 
     limit.fill("3")

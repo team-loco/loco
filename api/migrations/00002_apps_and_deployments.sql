@@ -146,7 +146,7 @@ CREATE TABLE
         revision BIGINT NOT NULL DEFAULT 1,
         partial TEXT CHECK (partial ~ '^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$'),
         restart_policy TEXT CHECK (restart_policy IN ('on-failure', 'always', 'never')),
-        max_restarts INT CHECK (max_restarts BETWEEN 1 AND 20),
+        max_restarts INT CHECK (max_restarts BETWEEN 1 AND 5),
         deploy_timeout_seconds INT CHECK (deploy_timeout_seconds BETWEEN 60 AND 3600),
         created_by UUID NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),

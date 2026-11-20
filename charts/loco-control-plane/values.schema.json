@@ -106,7 +106,7 @@
                 "integer",
                 "null"
               ],
-              "maximum": 20,
+              "maximum": 5,
               "minimum": 1
             },
             "memory": {
