@@ -589,8 +589,10 @@ with session(out) as browser:
     context.close()
 
     # A workspace admin reads the organization's limits that apply to their workspace.
+    wren = users["workspace_admin"]["id"]
     sql(
         state,
+        f"DELETE FROM user_scopes WHERE user_id='{wren}' AND entity_type='organization';"
         f"INSERT INTO org_limit_overrides(org_id, resources_per_workspace, reason) VALUES('{org}', 1, 'fixture');",
     )
     context, page, calls, errors = open_page(
@@ -598,7 +600,11 @@ with session(out) as browser:
     )
     expect(page.get_by_text("Workspace limit reached", exact=True)).to_be_visible()
     context.close()
-    sql(state, f"DELETE FROM org_limit_overrides WHERE org_id='{org}';")
+    sql(
+        state,
+        f"DELETE FROM org_limit_overrides WHERE org_id='{org}';"
+        f"INSERT INTO user_scopes(user_id, scope, entity_type, entity_id) VALUES('{wren}', 'member', 'organization', '{org}');",
+    )
 
     # Members see no entry, and the page itself says only admins can read it.
     context, page, calls, errors = open_page(
