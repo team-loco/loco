@@ -28,7 +28,7 @@ FROM environments WHERE workspace_id='{workspace}' AND name='production';""",
 )
 
 display_name = "Public Shop"
-sql(state, f"UPDATE resources SET display_name='{display_name}' WHERE id='{resource}';")
+sql(state, f"UPDATE resources SET name='{display_name}' WHERE id='{resource}';")
 
 with session(out) as browser:
     context, page, errors = open_page(browser, state=state)

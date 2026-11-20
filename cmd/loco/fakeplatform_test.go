@@ -157,12 +157,12 @@ func (f *fakeAPI) registerPlatform(mux *http.ServeMux) {
 
 func (p *fakePlatform) addResource(name string) {
 	for _, res := range p.resources {
-		if res.GetName() == name {
+		if res.GetSlug() == name {
 			return
 		}
 	}
 	id := fmt.Sprintf("00000000-0000-7000-8000-%012d", len(p.resources)+1)
-	res := &resourcev1.Resource{Id: id, WorkspaceId: fakeWorkspaceID, Name: name}
+	res := &resourcev1.Resource{Id: id, WorkspaceId: fakeWorkspaceID, Slug: name, Name: name}
 	p.resources = append(p.resources, res)
 }
 
@@ -183,7 +183,7 @@ func (p *fakePlatform) environmentID(name string) (string, bool) {
 
 func (p *fakePlatform) resourceID(name string) (string, bool) {
 	for _, res := range p.resources {
-		if res.GetName() == name {
+		if res.GetSlug() == name {
 			return res.GetId(), true
 		}
 	}
@@ -302,7 +302,7 @@ func (s *fakeResourceService) GetResource(
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, res := range f.platform.resources {
-		byName := req.GetNameKey().GetName() != "" && res.GetName() == req.GetNameKey().GetName()
+		byName := req.GetSlugKey().GetSlug() != "" && res.GetSlug() == req.GetSlugKey().GetSlug()
 		byID := req.GetResourceId() != "" && res.GetId() == req.GetResourceId()
 		if byName || byID {
 			return &resourcev1.GetResourceResponse{Resource: res}, nil

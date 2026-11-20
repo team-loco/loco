@@ -117,9 +117,9 @@ func (f *deployFixture) adminScopes(t *testing.T) []genDb.EntityScope {
 
 func (f *deployFixture) resourceByName(t *testing.T, name string) (genDb.Resource, bool) {
 	t.Helper()
-	res, err := f.queries.GetResourceByNameAndWorkspace(context.Background(), genDb.GetResourceByNameAndWorkspaceParams{
+	res, err := f.queries.GetResourceBySlugAndWorkspace(context.Background(), genDb.GetResourceBySlugAndWorkspaceParams{
 		WorkspaceID: f.workspaceID(t),
-		Name:        name,
+		Slug:        name,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return genDb.Resource{}, false

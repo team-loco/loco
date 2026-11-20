@@ -167,6 +167,10 @@ func newBuildFixture(t *testing.T) *buildFixture {
 	); err != nil {
 		t.Fatalf("make the primary cluster the oldest: %v", err)
 	}
+	const rename = `UPDATE resources SET name = 'Build Service' WHERE id = $1`
+	if _, err := f.pool.Exec(ctx, rename, f.resourceID); err != nil {
+		t.Fatalf("name the resource apart from its slug: %v", err)
+	}
 
 	bucket := newFakeBucket()
 	server := NewBuildServer(f.pool, f.queries, bucket, BuildConfig{TargetPlatform: testPlatform,

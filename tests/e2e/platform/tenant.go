@@ -216,8 +216,8 @@ func (w *Workspace) MustLoco(tb testing.TB, dir string, args ...string) CLIResul
 // Resource looks a resource of the workspace up by name.
 func (w *Workspace) Resource(ctx context.Context, name string) (*resourcev1.Resource, error) {
 	response, err := w.p.User.Resource.GetResource(ctx, &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{
-			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: w.ID, Name: name},
+		Key: &resourcev1.GetResourceRequest_SlugKey{
+			SlugKey: &resourcev1.GetResourceSlugKey{WorkspaceId: w.ID, Slug: name},
 		},
 	})
 	if err != nil {

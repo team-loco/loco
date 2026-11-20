@@ -440,23 +440,30 @@ with session(out) as browser:
     count = page.locator("#set-env-title > span")
     expect(count).to_have_text(re.compile(r"^\d+$"))
     general = page.locator("#set-general")
-    expect(general.get_by_role("textbox", name="Name", exact=True)).to_have_value(name)
-    expect(general.get_by_role("textbox", name="Name", exact=True)).not_to_be_editable()
-    display = general.get_by_role("textbox", name="Display name", exact=True)
+    slug_input = general.get_by_role("textbox", name="Slug", exact=True)
+    expect(slug_input).to_have_value(name)
+    expect(slug_input).to_be_disabled()
+    expect(
+        general.get_by_text(
+            "loco.yaml names this resource by its slug, so it can't change here",
+            exact=True,
+        )
+    ).to_be_visible()
+    display = general.get_by_role("textbox", name="Name", exact=True)
     expect(display).to_have_value(name)
     save = page.get_by_role("button", name="Save", exact=True)
     display.fill("   ")
     save.click()
-    page.get_by_text("Enter a display name", exact=True).wait_for()
+    page.get_by_text("Enter a name", exact=True).wait_for()
     display_name = "QA Echo 🚀"
     display.fill(display_name)
     save.click()
     expect(page.get_by_text(f"Saved {display_name}", exact=True)).to_be_visible()
     expect(page.get_by_role("heading", level=1)).to_have_text(display_name)
-    expect(page.get_by_label(f"Name {name}", exact=True)).to_have_text(name)
+    expect(page.get_by_label(f"Slug {name}", exact=True)).to_have_text(name)
     stored = sql(
         state,
-        f"SELECT name || '|' || display_name FROM resources WHERE id='{resource}';",
+        f"SELECT slug || '|' || name FROM resources WHERE id='{resource}';",
     )
     assert stored == f"{name}|{display_name}", stored
     delete = page.get_by_role("button", name="Delete resource", exact=True)

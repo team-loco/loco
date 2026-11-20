@@ -228,7 +228,7 @@ func TestUpdateResourceMetadataDoesNotNeedSpecRevision(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	if err := setDisplayName(t, f, testDisplayName); err != nil {
+	if err := updateKeys(t, f, &resourcev1.UpdateResourceRequest{Name: new("Shopping Cart")}); err != nil {
 		t.Fatal(err)
 	}
 }

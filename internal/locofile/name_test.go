@@ -17,6 +17,9 @@ func TestSlug(t *testing.T) {
 		{name: "__API v2!!", want: "api-v2"},
 		{name: "123", want: "123"},
 		{name: "!!!", want: ""},
+		{name: "Café Orders", want: "cafe-orders"},
+		{name: "Zürich", want: "zurich"},
+		{name: "Crème Brûlée ☕", want: "creme-brulee"},
 		{name: strings.Repeat("A", 70), want: strings.Repeat("a", MaxServiceNameLength)},
 		{name: strings.Repeat("a", 62) + " b", want: strings.Repeat("a", 62)},
 	}

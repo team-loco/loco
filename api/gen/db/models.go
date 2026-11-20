@@ -937,8 +937,8 @@ type RegistryCredential struct {
 type Resource struct {
 	ID                   uuid.UUID    `json:"id"`
 	WorkspaceID          uuid.UUID    `json:"workspaceId"`
+	Slug                 string       `json:"slug"`
 	Name                 string       `json:"name"`
-	DisplayName          string       `json:"displayName"`
 	Type                 ResourceType `json:"type"`
 	Description          string       `json:"description"`
 	Spec                 []byte       `json:"spec"`

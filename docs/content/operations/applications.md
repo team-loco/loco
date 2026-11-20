@@ -89,7 +89,7 @@ When automatic environment configuration is enabled, Loco supplies these variabl
 | Variable | Value |
 |---|---|
 | `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL` | the region's OpenTelemetry collector over OTLP/HTTP (`http/protobuf`) |
-| `OTEL_SERVICE_NAME` | the resource's name, such as `checkout` |
+| `OTEL_SERVICE_NAME` | the resource's slug, such as `checkout`; changing the slug restarts every replica |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name` and `loco.deployment.id` |
 
 A plain environment variable or declared secret with the same name replaces that one default; Loco still injects the other three. Other OpenTelemetry variables, such as signal-specific exporter settings like `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`, `OTEL_LOG_LEVEL` and `OTEL_TRACES_SAMPLER`, leave all four defaults in place. Plain values take precedence when the same name also appears in `secrets`.

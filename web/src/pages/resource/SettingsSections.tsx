@@ -470,28 +470,43 @@ export function GeneralSection({
 	describedBy,
 	onChange,
 	canWrite,
+	managed,
 	readOnlyId,
-}: SectionProps & { canWrite: boolean; readOnlyId: string }) {
+}: SectionProps & { canWrite: boolean; managed: boolean; readOnlyId: string }) {
 	return (
 		<SettingsBlock id="set-general" title="General">
 			<div className={grid2}>
-				<Field
-					label="Display name"
-					error={errors.displayName}
-					hint="Shown in the dashboard. loco.yaml does not set it."
-				>
+				<Field label="Name" error={errors.name} hint="Shown in the dashboard. loco.yaml does not set it.">
 					<Input
-						value={draft.displayName ?? base.displayName}
+						value={draft.name ?? base.name}
 						disabled={!canWrite}
 						aria-describedby={canWrite ? undefined : readOnlyId}
-						aria-invalid={errors.displayName !== undefined}
+						aria-invalid={errors.name !== undefined}
 						onChange={(e) => {
-							onChange({ displayName: e.target.value });
+							onChange({ name: e.target.value });
 						}}
 					/>
 				</Field>
-				<Field label="Name" hint="Its private hostname, used by loco.yaml, the CLI and filters. It can't be changed.">
-					<Input value={base.name} readOnly className="font-mono" />
+				<Field
+					label="Slug"
+					error={errors.slug}
+					hint={
+						managed
+							? "loco.yaml names this resource by its slug, so it can't change here"
+							: "Its private hostname, and its key in loco.yaml, the CLI and log filters"
+					}
+				>
+					<Input
+						value={draft.slug ?? base.slug}
+						className="font-mono"
+						spellCheck={false}
+						disabled={locked}
+						aria-describedby={describedBy}
+						aria-invalid={errors.slug !== undefined}
+						onChange={(e) => {
+							onChange({ slug: e.target.value });
+						}}
+					/>
 				</Field>
 				<Field label="Description" hint="Shown under the name in lists and the resource switcher">
 					<Input

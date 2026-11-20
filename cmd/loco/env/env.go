@@ -95,10 +95,10 @@ func setSecrets(ctx context.Context, cmd *cobra.Command, values map[string]strin
 		fmt.Fprintf(
 			cmd.OutOrStdout(),
 			"%s uses %s in %s. The new value applies on the next deploy or restart: loco resource restart %s --env %s\n",
-			service.GetName(),
+			service.GetSlug(),
 			strings.Join(slices.Compact(names), ", "),
 			strings.Join(regions, ", "),
-			service.GetName(),
+			service.GetSlug(),
 			t.Environment.GetName(),
 		)
 	}

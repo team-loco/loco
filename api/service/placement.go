@@ -111,6 +111,36 @@ func notifyRemovedPlacements(
 	return nil
 }
 
+// renamePlacements writes the resource's slug into each of its live placements, so its clusters
+// rename its private Service without a new deployment.
+func renamePlacements(ctx context.Context, qtx *genDb.Queries, resource genDb.Resource) error {
+	environments, err := qtx.ListWorkspaceEnvironments(ctx, resource.WorkspaceID)
+	if err != nil {
+		return fmt.Errorf("list rename environments: %w", err)
+	}
+	for _, environment := range environments {
+		key := genDb.ListResourceEnvironmentPlacementsParams{ResourceID: resource.ID, EnvironmentID: environment.ID}
+		placements, err := qtx.ListResourceEnvironmentPlacements(ctx, key)
+		if err != nil {
+			return fmt.Errorf("list rename placements: %w", err)
+		}
+		for _, placement := range placements {
+			payload, err := decodePlacement(placement)
+			if err != nil {
+				return err
+			}
+			if payload.AppSpec.Slug == resource.Slug {
+				continue
+			}
+			payload.AppSpec.Slug = resource.Slug
+			if err := rewritePlacement(ctx, qtx, placement, payload); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func decodePlacement(placement genDb.Placement) (locoControllerV1.PlacementPayload, error) {
 	var payload locoControllerV1.PlacementPayload
 	if err := json.Unmarshal(placement.DesiredSpec, &payload); err != nil {

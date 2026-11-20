@@ -12,7 +12,7 @@ import { ResourceService } from "./resource_pb";
 export const createResource = ResourceService.method.createResource;
 
 /**
- * GetResource retrieves a resource by ID or name.
+ * GetResource retrieves a resource by ID or slug.
  *
  * @generated from rpc loco.resource.v1.ResourceService.GetResource
  */

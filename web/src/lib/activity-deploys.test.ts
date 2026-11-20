@@ -160,6 +160,7 @@ test("withoutRunningDeploys drops rollout alerts a deploy card covers", () => {
 		key: `${resourceId}/us-east-1`,
 		resourceId,
 		name: resourceId,
+		slug: resourceId,
 		description: "",
 		region: "us-east-1",
 		status,

@@ -69,9 +69,9 @@ func (t Target) WithEnvironment(ctx context.Context, cmd *cobra.Command, interac
 
 // Service returns the workspace's service called name.
 func (t Target) Service(ctx context.Context, name string) (*resourcev1.Resource, error) {
-	nameKey := &resourcev1.GetResourceNameKey{WorkspaceId: t.WorkspaceID, Name: name}
+	nameKey := &resourcev1.GetResourceSlugKey{WorkspaceId: t.WorkspaceID, Slug: name}
 	req := &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{NameKey: nameKey},
+		Key: &resourcev1.GetResourceRequest_SlugKey{SlugKey: nameKey},
 	}
 	resp, err := t.Clients.Resource.GetResource(ctx, req)
 	if err != nil {

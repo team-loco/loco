@@ -8,6 +8,7 @@ export interface Alert {
 	key: string;
 	resourceId: string;
 	name: string;
+	slug: string;
 	description: string;
 	region: string;
 	status: ResourceStatus;
@@ -47,7 +48,8 @@ export function buildAlerts(resources: Resource[], environmentId: string): Alert
 			.map((r) => ({
 				key: `${resource.id}/${r.region}`,
 				resourceId: resource.id,
-				name: resource.displayName,
+				name: resource.name,
+				slug: resource.slug,
 				description: resource.description ?? "",
 				region: r.region,
 				status: r.status,

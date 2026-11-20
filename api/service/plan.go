@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect/v2"
@@ -173,7 +174,7 @@ func (s *PlanServer) loadPlan(
 	if err != nil {
 		return nil, fmt.Errorf("compute plan: %w", err)
 	}
-	plan.Errors = append(plan.Errors, nameErrors(plan.Operations)...)
+	plan.Errors = append(plan.Errors, nameErrors(plan.Operations, live.resources)...)
 	if len(plan.Errors) > 0 {
 		plan.Operations = nil
 		plan.Desired = nil
@@ -204,12 +205,25 @@ func savedSecrets(services map[string]locofile.Service, secrets map[string]map[s
 	return saved
 }
 
-// nameErrors reports each service the plan creates whose name is reserved.
-func nameErrors(operations []configplan.Operation) []configplan.Error {
+// nameErrors reports each service the plan creates whose key is not a valid slug, or whose key,
+// which also becomes its name, matches another resource's name in the workspace, ignoring case.
+func nameErrors(operations []configplan.Operation, resources map[string]genDb.Resource) []configplan.Error {
+	names := make(map[string]bool, len(resources))
+	for _, res := range resources {
+		names[strings.ToLower(res.Name)] = true
+	}
 	var errs []configplan.Error
 	for _, op := range operations {
-		if op.Kind == configplan.KindCreate && !validResourceName(op.Service) {
-			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errInvalidResourceName})
+		if op.Kind != configplan.KindCreate {
+			continue
+		}
+		switch {
+		case !validResourceSlug(op.Service):
+			errs = append(errs, configplan.Error{Service: op.Service, Path: "name", Err: errInvalidResourceSlug})
+		case names[strings.ToLower(op.Service)]:
+			errs = append(errs, configplan.Error{
+				Service: op.Service, Path: "name", Err: ErrResourceNameNotUnique.Detail("%s", op.Service),
+			})
 		}
 	}
 	return errs
@@ -324,15 +338,15 @@ func (s *PlanServer) liveEnvironment(ctx context.Context, env genDb.Environment)
 		latest, built := live.builds[res.ID]
 		state, stateErr := liveState(ctx, s.queries, s.defaults, res, live.domains[res.ID], live.deployments[res.ID])
 		if stateErr != nil {
-			return liveEnvironment{}, fmt.Errorf("resource %s: %w", res.Name, stateErr)
+			return liveEnvironment{}, fmt.Errorf("resource %s: %w", res.Slug, stateErr)
 		}
 		if built && state.Image == "" && state.Dockerfile == "" {
 			state.Dockerfile = latest.DockerfilePath
 			state.Context = latest.Context
 		}
-		live.resources[res.Name] = res
+		live.resources[res.Slug] = res
 		live.services = append(live.services, configplan.Service{
-			Name:           res.Name,
+			Name:           res.Slug,
 			Partial:        derefString(res.Partial),
 			Built:          built,
 			RunningRegions: deploymentRegions(live.deployments[res.ID]),
@@ -356,10 +370,10 @@ func (s *PlanServer) serviceSecrets(
 	}
 	secrets := make(map[string]map[string]int64)
 	for _, row := range rows {
-		if secrets[row.ResourceName] == nil {
-			secrets[row.ResourceName] = make(map[string]int64)
+		if secrets[row.ResourceSlug] == nil {
+			secrets[row.ResourceSlug] = make(map[string]int64)
 		}
-		secrets[row.ResourceName][row.Name] = row.CiphertextBytes - secretkeys.Overhead
+		secrets[row.ResourceSlug][row.Name] = row.CiphertextBytes - secretkeys.Overhead
 	}
 	return secrets, nil
 }

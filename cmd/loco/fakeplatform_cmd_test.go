@@ -201,6 +201,7 @@ func seedBuild(api *fakeAPI, name string) {
 	api.platform.resources = append(api.platform.resources, &resourcev1.Resource{
 		Id:          resourceID,
 		WorkspaceId: fakeWorkspaceID,
+		Slug:        name,
 		Name:        name,
 	})
 	cluster := fakeClusterID
@@ -389,7 +390,7 @@ func checkPartial(ts *testscript.TestScript, api *fakeAPI, neg bool, args []stri
 	api.mu.Lock()
 	defer api.mu.Unlock()
 	for _, res := range api.platform.resources {
-		if res.GetName() != args[1] {
+		if res.GetSlug() != args[1] {
 			continue
 		}
 		if res.GetPartial() != args[2] {
@@ -527,7 +528,7 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 		region.Message = new("the cluster running this region has stopped reporting")
 	}
 	for _, res := range platform.resources {
-		if res.GetName() == service {
+		if res.GetSlug() == service {
 			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
 				{
 					EnvironmentName: fakeEnvironmentName,

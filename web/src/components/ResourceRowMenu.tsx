@@ -38,7 +38,7 @@ export function ResourceRowMenu({
 		try {
 			await deleteMutation.mutateAsync({ resourceId: resource.id });
 			await queryClient.invalidateQueries({ queryKey: workspaceResourcesKey(transport, workspaceId) });
-			toast.success(`${resource.displayName} deleted`);
+			toast.success(`${resource.name} deleted`);
 			setConfirmOpen(false);
 		} catch (err) {
 			toastConnectError(err, "Failed to delete resource");
@@ -47,7 +47,7 @@ export function ResourceRowMenu({
 
 	return (
 		<>
-			<RowMenu label={`Actions for ${resource.displayName}`} title={title}>
+			<RowMenu label={`Actions for ${resource.name}`} title={title}>
 				{children}
 				<DropdownMenuSeparator />
 				<DropdownMenuItem
@@ -65,9 +65,9 @@ export function ResourceRowMenu({
 			<ConfirmDeleteDialog
 				open={confirmOpen}
 				onOpenChange={setConfirmOpen}
-				title={`Delete ${resource.displayName}?`}
+				title={`Delete ${resource.name}?`}
 				text="Deployments, domains and variables are removed in every environment. This can't be undone."
-				target={resource.name}
+				target={resource.slug}
 				confirmLabel="Delete"
 				pending={deleteMutation.isPending}
 				onConfirm={() => {

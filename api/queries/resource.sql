@@ -1,22 +1,22 @@
 -- Resource queries
 
 -- name: CreateResource :one
-INSERT INTO resources (workspace_id, name, display_name, type, description, spec, spec_version, created_by)
-VALUES ($1, $2, $2, $3, $4, $5, $6, $7)
+INSERT INTO resources (workspace_id, slug, name, type, description, spec, spec_version, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id;
 
 -- name: GetResourceByID :one
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.id = $1;
 
--- name: GetResourceByNameAndWorkspace :one
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+-- name: GetResourceBySlugAndWorkspace :one
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
-WHERE r.workspace_id = $1 AND r.name = $2;
+WHERE r.workspace_id = $1 AND r.slug = $2;
 
 -- name: ListResourcesForWorkspace :many
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1
    AND (sqlc.narg('page_token')::text IS NULL
@@ -29,7 +29,8 @@ LIMIT $2;
 
 -- name: UpdateResource :one
 UPDATE resources
-SET display_name = COALESCE(sqlc.narg('display_name'), display_name),
+SET name = COALESCE(sqlc.narg('name'), name),
+    slug = COALESCE(sqlc.narg('slug'), slug),
     description = COALESCE(sqlc.narg('description'), description),
     updated_at = NOW()
 WHERE id = $1
@@ -133,10 +134,10 @@ ORDER BY l.resource_id, e.name, l.region;
 SELECT r.workspace_id, w.org_id FROM resources r JOIN workspaces w ON r.workspace_id = w.id WHERE r.id = $1;
 
 -- name: ListWorkspaceServiceResources :many
-SELECT r.id, r.workspace_id, r.name, r.display_name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
+SELECT r.id, r.workspace_id, r.slug, r.name, r.type, r.description, r.spec, r.spec_version, r.revision, r.partial, r.max_restarts, r.restart_window_seconds, r.created_by, r.created_at, r.updated_at
 FROM resources r
 WHERE r.workspace_id = $1 AND r.type = 'service'
-ORDER BY r.name ASC;
+ORDER BY r.slug ASC;
 
 -- name: WorkspaceHoldsAnyResource :one
 SELECT EXISTS (
@@ -152,7 +153,7 @@ SELECT DISTINCT ON (environment_id) * FROM deployments
 WHERE resource_id = $1
 ORDER BY environment_id, created_at DESC, id DESC;
 
--- name: ListWorkspaceResourceNames :many
-SELECT r.id, r.name
+-- name: ListWorkspaceResourceSlugs :many
+SELECT r.id, r.slug
 FROM resources r
 WHERE r.workspace_id = $1;

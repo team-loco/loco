@@ -221,8 +221,8 @@ func verifyApplication(
 
 func verificationResourceKey(workspace, name string) *resourcev1.GetResourceRequest {
 	return &resourcev1.GetResourceRequest{
-		Key: &resourcev1.GetResourceRequest_NameKey{
-			NameKey: &resourcev1.GetResourceNameKey{WorkspaceId: workspace, Name: name},
+		Key: &resourcev1.GetResourceRequest_SlugKey{
+			SlugKey: &resourcev1.GetResourceSlugKey{WorkspaceId: workspace, Slug: name},
 		},
 	}
 }

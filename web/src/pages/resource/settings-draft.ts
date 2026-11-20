@@ -18,12 +18,22 @@ import {
 	commandEntries,
 	commandText,
 	healthTimeoutError,
+	nameError,
 	portRangeError,
 	scalingError,
 	scalingSpec,
+	slugError,
 	type Scaling,
 } from "@/lib/new-resource";
 import { SUBDOMAIN_RE } from "@/lib/platform-domain";
+
+/** The names and slugs other resources and drafts in the workspace hold. */
+export interface TakenSets {
+	names: ReadonlySet<string>;
+	slugs: ReadonlySet<string>;
+}
+
+const NONE: TakenSets = { names: new Set(), slugs: new Set() };
 
 import { isDeployed, type RegionView } from "./model";
 
@@ -48,10 +58,9 @@ function observabilitySettings(config: ObservabilityConfig | undefined): Observa
 	return { injectOtel: config.injectOtel };
 }
 
-const MAX_DISPLAY_NAME_LENGTH = 63;
-
 export interface SettingsDraft {
-	displayName?: string;
+	name?: string;
+	slug?: string;
 	description?: string;
 	image?: string;
 	rollbackOnFailure?: boolean;
@@ -81,8 +90,8 @@ export interface SettingsDraft {
 }
 
 export interface Baseline {
+	slug: string;
 	name: string;
-	displayName: string;
 	description: string;
 	image: string;
 	rollbackOnFailure: boolean;
@@ -110,8 +119,8 @@ function templateRegion(regions: RegionView[]): RegionView | undefined {
 }
 
 export function baseline(
+	slug: string,
 	name: string,
-	displayName: string,
 	description: string,
 	regions: RegionView[],
 	configured: string[],
@@ -126,8 +135,8 @@ export function baseline(
 	const health = svc?.healthCheck ?? defaults.healthCheck;
 	const deployed = deployedRegions(regions);
 	return {
+		slug,
 		name,
-		displayName,
 		description,
 		image: svc?.build?.image ?? "",
 		rollbackOnFailure: rollbackOnFailure ?? defaults.rollbackOnFailure,
@@ -163,8 +172,8 @@ export function baseline(
 
 export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 	return {
-		name: base.name,
-		displayName: draft.displayName ?? base.displayName,
+		slug: draft.slug ?? base.slug,
+		name: draft.name ?? base.name,
 		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
 		rollbackOnFailure: draft.rollbackOnFailure ?? base.rollbackOnFailure,
@@ -185,7 +194,8 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 }
 
 const SCALAR_KEYS = [
-	"displayName",
+	"name",
+	"slug",
 	"description",
 	"image",
 	"cpu",
@@ -210,7 +220,8 @@ function differs(a: string, b: string): boolean {
 }
 
 const SCALAR_LABELS: Record<(typeof SCALAR_KEYS)[number], string> = {
-	displayName: "Name",
+	name: "Name",
+	slug: "Slug",
 	description: "Description",
 	image: "Image",
 	cpu: "CPU",
@@ -275,6 +286,7 @@ export function validateDraft(
 	regions: RegionView[],
 	served: string[],
 	replicaLimit: number,
+	taken: TakenSets = NONE,
 ): DraftErrors {
 	const next = resolved(draft, base);
 	const errors: DraftErrors = {};
@@ -282,11 +294,13 @@ export function validateDraft(
 		const error = scalingError(scaling, replicaLimit);
 		if (error !== null) errors[`scaling.${region}`] = error;
 	}
-	if (draft.displayName !== undefined) {
-		const displayName = next.displayName.trim();
-		if (displayName === "") errors.displayName = "Enter a display name";
-		else if (Array.from(displayName).length > MAX_DISPLAY_NAME_LENGTH)
-			errors.displayName = `Use at most ${MAX_DISPLAY_NAME_LENGTH.toString()} characters`;
+	if (draft.name !== undefined) {
+		const error = nameError(next.name, taken.names);
+		if (error !== null) errors.name = error;
+	}
+	if (draft.slug !== undefined) {
+		const error = slugError(next.slug, taken.slugs);
+		if (error !== null) errors.slug = error;
 	}
 	if (draft.image !== undefined && !IMAGE_RE.test(next.image.trim())) errors.image = "Use registry/repository:tag";
 	if (draft.port !== undefined) {

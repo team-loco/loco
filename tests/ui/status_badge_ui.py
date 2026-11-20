@@ -90,6 +90,7 @@ evidence.seed_resources(
 draft = {
     "id": str(uuid.uuid4()),
     "name": "badge-draft",
+    "slug": "badge-draft",
     "image": "registry.example.com/acme/draft:1",
     "createdMs": 0,
     "edits": {},

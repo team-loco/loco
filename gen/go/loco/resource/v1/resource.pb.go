@@ -498,8 +498,8 @@ type Resource struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	WorkspaceId string                 `protobuf:"bytes,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	// name is the resource's slug: a DNS label, unique in its workspace, that never changes.
-	Name                string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// slug is the resource's key: a DNS label, unique in its workspace.
+	Slug                string                 `protobuf:"bytes,3,opt,name=slug,proto3" json:"slug,omitempty"`
 	Type                ResourceType           `protobuf:"varint,4,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
 	Domains             []*v11.ResourceDomain  `protobuf:"bytes,5,rep,name=domains,proto3" json:"domains,omitempty"`
 	Spec                *ResourceSpec          `protobuf:"bytes,6,opt,name=spec,proto3,oneof" json:"spec,omitempty"`
@@ -512,8 +512,8 @@ type Resource struct {
 	EnvironmentStatuses []*EnvironmentStatus   `protobuf:"bytes,13,rep,name=environment_statuses,json=environmentStatuses,proto3" json:"environment_statuses,omitempty"`
 	// revision increases with every change to the resource spec or its scaling.
 	Revision int64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
-	// display_name is the label the dashboard shows. It starts as name; name never changes.
-	DisplayName   string `protobuf:"bytes,16,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	// name is the label the dashboard shows.
+	Name          string `protobuf:"bytes,16,opt,name=name,proto3" json:"name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -562,9 +562,9 @@ func (x *Resource) GetWorkspaceId() string {
 	return ""
 }
 
-func (x *Resource) GetName() string {
+func (x *Resource) GetSlug() string {
 	if x != nil {
-		return x.Name
+		return x.Slug
 	}
 	return ""
 }
@@ -646,9 +646,9 @@ func (x *Resource) GetRevision() int64 {
 	return 0
 }
 
-func (x *Resource) GetDisplayName() string {
+func (x *Resource) GetName() string {
 	if x != nil {
-		return x.DisplayName
+		return x.Name
 	}
 	return ""
 }
@@ -848,7 +848,7 @@ func (x *RegionStatus) GetMaxRestarts() int32 {
 type CreateResourceRequest struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	// A DNS label other than localhost and resource-<UUID>.
+	// The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace.
 	Name        string           `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Type        ResourceType     `protobuf:"varint,3,opt,name=type,proto3,enum=loco.resource.v1.ResourceType" json:"type,omitempty"`
 	Domain      *v11.DomainInput `protobuf:"bytes,4,opt,name=domain,proto3,oneof" json:"domain,omitempty"`
@@ -856,6 +856,9 @@ type CreateResourceRequest struct {
 	Description *string          `protobuf:"bytes,6,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// The environment for domain. If omitted, the workspace's production environment is used.
 	EnvironmentId *string `protobuf:"bytes,7,opt,name=environment_id,json=environmentId,proto3,oneof" json:"environment_id,omitempty"`
+	// A DNS label other than localhost and resource-<UUID>, unique in the workspace. If omitted,
+	// it is derived from name.
+	Slug          *string `protobuf:"bytes,8,opt,name=slug,proto3,oneof" json:"slug,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -939,6 +942,13 @@ func (x *CreateResourceRequest) GetEnvironmentId() string {
 	return ""
 }
 
+func (x *CreateResourceRequest) GetSlug() string {
+	if x != nil && x.Slug != nil {
+		return *x.Slug
+	}
+	return ""
+}
+
 // CreateResourceResponse is the response containing the created resource ID.
 type CreateResourceResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -984,29 +994,29 @@ func (x *CreateResourceResponse) GetResourceId() string {
 	return ""
 }
 
-// GetResourceNameKey is used to lookup a resource by name within a workspace.
-type GetResourceNameKey struct {
+// GetResourceSlugKey looks up a resource by slug within a workspace.
+type GetResourceSlugKey struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceId   string                 `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetResourceNameKey) Reset() {
-	*x = GetResourceNameKey{}
+func (x *GetResourceSlugKey) Reset() {
+	*x = GetResourceSlugKey{}
 	mi := &file_loco_resource_v1_resource_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetResourceNameKey) String() string {
+func (x *GetResourceSlugKey) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetResourceNameKey) ProtoMessage() {}
+func (*GetResourceSlugKey) ProtoMessage() {}
 
-func (x *GetResourceNameKey) ProtoReflect() protoreflect.Message {
+func (x *GetResourceSlugKey) ProtoReflect() protoreflect.Message {
 	mi := &file_loco_resource_v1_resource_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1018,21 +1028,21 @@ func (x *GetResourceNameKey) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetResourceNameKey.ProtoReflect.Descriptor instead.
-func (*GetResourceNameKey) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetResourceSlugKey.ProtoReflect.Descriptor instead.
+func (*GetResourceSlugKey) Descriptor() ([]byte, []int) {
 	return file_loco_resource_v1_resource_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *GetResourceNameKey) GetWorkspaceId() string {
+func (x *GetResourceSlugKey) GetWorkspaceId() string {
 	if x != nil {
 		return x.WorkspaceId
 	}
 	return ""
 }
 
-func (x *GetResourceNameKey) GetName() string {
+func (x *GetResourceSlugKey) GetSlug() string {
 	if x != nil {
-		return x.Name
+		return x.Slug
 	}
 	return ""
 }
@@ -1043,7 +1053,7 @@ type GetResourceRequest struct {
 	// Types that are valid to be assigned to Key:
 	//
 	//	*GetResourceRequest_ResourceId
-	//	*GetResourceRequest_NameKey
+	//	*GetResourceRequest_SlugKey
 	Key           isGetResourceRequest_Key `protobuf_oneof:"key"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1095,10 +1105,10 @@ func (x *GetResourceRequest) GetResourceId() string {
 	return ""
 }
 
-func (x *GetResourceRequest) GetNameKey() *GetResourceNameKey {
+func (x *GetResourceRequest) GetSlugKey() *GetResourceSlugKey {
 	if x != nil {
-		if x, ok := x.Key.(*GetResourceRequest_NameKey); ok {
-			return x.NameKey
+		if x, ok := x.Key.(*GetResourceRequest_SlugKey); ok {
+			return x.SlugKey
 		}
 	}
 	return nil
@@ -1112,13 +1122,13 @@ type GetResourceRequest_ResourceId struct {
 	ResourceId string `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3,oneof"`
 }
 
-type GetResourceRequest_NameKey struct {
-	NameKey *GetResourceNameKey `protobuf:"bytes,2,opt,name=name_key,json=nameKey,proto3,oneof"`
+type GetResourceRequest_SlugKey struct {
+	SlugKey *GetResourceSlugKey `protobuf:"bytes,2,opt,name=slug_key,json=slugKey,proto3,oneof"`
 }
 
 func (*GetResourceRequest_ResourceId) isGetResourceRequest_Key() {}
 
-func (*GetResourceRequest_NameKey) isGetResourceRequest_Key() {}
+func (*GetResourceRequest_SlugKey) isGetResourceRequest_Key() {}
 
 // GetResourceResponse is the response containing the resource.
 type GetResourceResponse struct {
@@ -1281,18 +1291,22 @@ func (x *ListWorkspaceResourcesResponse) GetNextPageToken() string {
 
 // UpdateResourceRequest is the request to update a resource.
 type UpdateResourceRequest struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	ResourceId  string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
-	DisplayName *string                `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
-	Description *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	ResourceId string                 `protobuf:"bytes,1,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	// The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace.
+	Name        *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	// regions replaces the resource's whole region map when set; omitted regions are torn down.
 	Regions *RegionTargets `protobuf:"bytes,4,opt,name=regions,proto3,oneof" json:"regions,omitempty"`
 	// revision is the Resource.revision the caller loaded; a regions update fails when it moved.
 	Revision int64 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
 	// Restores the previous deployment on failure; off by default.
 	RollbackOnFailure *bool `protobuf:"varint,6,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3,oneof" json:"rollback_on_failure,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// A new slug: a DNS label other than localhost and resource-<UUID>, unique in the workspace.
+	// Resources that loco.yaml manages keep the slug the file names them by.
+	Slug          *string `protobuf:"bytes,7,opt,name=slug,proto3,oneof" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateResourceRequest) Reset() {
@@ -1332,9 +1346,9 @@ func (x *UpdateResourceRequest) GetResourceId() string {
 	return ""
 }
 
-func (x *UpdateResourceRequest) GetDisplayName() string {
-	if x != nil && x.DisplayName != nil {
-		return *x.DisplayName
+func (x *UpdateResourceRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
@@ -1365,6 +1379,13 @@ func (x *UpdateResourceRequest) GetRollbackOnFailure() bool {
 		return *x.RollbackOnFailure
 	}
 	return false
+}
+
+func (x *UpdateResourceRequest) GetSlug() string {
+	if x != nil && x.Slug != nil {
+		return *x.Slug
+	}
+	return ""
 }
 
 // RegionTargets is a resource's desired region map, keyed by region name.
@@ -2149,11 +2170,11 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\r_health_check\"Q\n" +
 	"\fResourceSpec\x129\n" +
 	"\aservice\x18\x01 \x01(\v2\x1d.loco.resource.v1.ServiceSpecH\x00R\aserviceB\x06\n" +
-	"\x04spec\"\xb2\x05\n" +
+	"\x04spec\"\xa3\x05\n" +
 	"\bResource\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fworkspace_id\x18\x02 \x01(\tR\vworkspaceId\x12\x12\n" +
-	"\x04name\x18\x03 \x01(\tR\x04name\x122\n" +
+	"\x04slug\x18\x03 \x01(\tR\x04slug\x122\n" +
 	"\x04type\x18\x04 \x01(\x0e2\x1e.loco.resource.v1.ResourceTypeR\x04type\x128\n" +
 	"\adomains\x18\x05 \x03(\v2\x1e.loco.domain.v1.ResourceDomainR\adomains\x127\n" +
 	"\x04spec\x18\x06 \x01(\v2\x1e.loco.resource.v1.ResourceSpecH\x00R\x04spec\x88\x01\x01\x12!\n" +
@@ -2168,8 +2189,8 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"updated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1d\n" +
 	"\apartial\x18\f \x01(\tH\x02R\apartial\x88\x01\x01\x12V\n" +
 	"\x14environment_statuses\x18\r \x03(\v2#.loco.resource.v1.EnvironmentStatusR\x13environmentStatuses\x12\x1a\n" +
-	"\brevision\x18\x0f \x01(\x03R\brevision\x12!\n" +
-	"\fdisplay_name\x18\x10 \x01(\tR\vdisplayNameB\a\n" +
+	"\brevision\x18\x0f \x01(\x03R\brevision\x12\x12\n" +
+	"\x04name\x18\x10 \x01(\tR\x04nameB\a\n" +
 	"\x05_specB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
@@ -2194,7 +2215,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\fmax_restarts\x18\v \x01(\x05R\vmaxRestartsB\n" +
 	"\n" +
 	"\b_messageB\x0e\n" +
-	"\f_reported_atJ\x04\b\x06\x10\a\"\xe1\x04\n" +
+	"\f_reported_atJ\x04\b\x06\x10\a\"\x83\x05\n" +
 	"\x15CreateResourceRequest\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12<\n" +
@@ -2202,21 +2223,23 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\x06domain\x18\x04 \x01(\v2\x1b.loco.domain.v1.DomainInputH\x00R\x06domain\x88\x01\x01\x12:\n" +
 	"\x04spec\x18\x05 \x01(\v2\x1e.loco.resource.v1.ResourceSpecB\x06\xbaH\x03\xc8\x01\x01R\x04spec\x12/\n" +
 	"\vdescription\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x124\n" +
-	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\renvironmentId\x88\x01\x01:\xbd\x01\xbaH\xb9\x01\x1a\xb6\x01\n" +
+	"\x0eenvironment_id\x18\a \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x02R\renvironmentId\x88\x01\x01\x12\x17\n" +
+	"\x04slug\x18\b \x01(\tH\x03R\x04slug\x88\x01\x01:\xbd\x01\xbaH\xb9\x01\x1a\xb6\x01\n" +
 	"$create_resource.domain_requires_port\x12Tdomain needs spec.service.routing.port: a service without a port receives no traffic\x1a8!has(this.domain) || has(this.spec.service.routing.port)B\t\n" +
 	"\a_domainB\x0e\n" +
 	"\f_descriptionB\x11\n" +
-	"\x0f_environment_id\"9\n" +
+	"\x0f_environment_idB\a\n" +
+	"\x05_slug\"9\n" +
 	"\x16CreateResourceResponse\x12\x1f\n" +
 	"\vresource_id\x18\x01 \x01(\tR\n" +
 	"resourceId\"^\n" +
-	"\x12GetResourceNameKey\x12+\n" +
+	"\x12GetResourceSlugKey\x12+\n" +
 	"\fworkspace_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\vworkspaceId\x12\x1b\n" +
-	"\x04name\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\x81\x01\n" +
+	"\x04slug\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04slug\"\x81\x01\n" +
 	"\x12GetResourceRequest\x12!\n" +
 	"\vresource_id\x18\x01 \x01(\tH\x00R\n" +
 	"resourceId\x12A\n" +
-	"\bname_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceNameKeyH\x00R\anameKeyB\x05\n" +
+	"\bslug_key\x18\x02 \x01(\v2$.loco.resource.v1.GetResourceSlugKeyH\x00R\aslugKeyB\x05\n" +
 	"\x03key\"M\n" +
 	"\x13GetResourceResponse\x126\n" +
 	"\bresource\x18\x01 \x01(\v2\x1a.loco.resource.v1.ResourceR\bresource\"\x94\x01\n" +
@@ -2228,21 +2251,22 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"\x82\x01\n" +
 	"\x1eListWorkspaceResourcesResponse\x128\n" +
 	"\tresources\x18\x01 \x03(\v2\x1a.loco.resource.v1.ResourceR\tresources\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xde\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xfc\x02\n" +
 	"\x15UpdateResourceRequest\x12)\n" +
 	"\vresource_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\n" +
-	"resourceId\x12\x92\x01\n" +
-	"\fdisplay_name\x18\x02 \x01(\tBj\xbaHg\xba\x01`\n" +
-	"\x15resource.display_name\x122display name needs a character that is not a space\x1a\x13this.matches('\\\\S')r\x02\x18?H\x00R\vdisplayName\x88\x01\x01\x12/\n" +
+	"resourceId\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12/\n" +
 	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02H\x01R\vdescription\x88\x01\x01\x12>\n" +
 	"\aregions\x18\x04 \x01(\v2\x1f.loco.resource.v1.RegionTargetsH\x02R\aregions\x88\x01\x01\x12\x1a\n" +
 	"\brevision\x18\x05 \x01(\x03R\brevision\x123\n" +
-	"\x13rollback_on_failure\x18\x06 \x01(\bH\x03R\x11rollbackOnFailure\x88\x01\x01B\x0f\n" +
-	"\r_display_nameB\x0e\n" +
+	"\x13rollback_on_failure\x18\x06 \x01(\bH\x03R\x11rollbackOnFailure\x88\x01\x01\x12\x17\n" +
+	"\x04slug\x18\a \x01(\tH\x04R\x04slug\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
 	"\f_descriptionB\n" +
 	"\n" +
 	"\b_regionsB\x16\n" +
-	"\x14_rollback_on_failure\"\xb3\x01\n" +
+	"\x14_rollback_on_failureB\a\n" +
+	"\x05_slug\"\xb3\x01\n" +
 	"\rRegionTargets\x12F\n" +
 	"\atargets\x18\x01 \x03(\v2,.loco.resource.v1.RegionTargets.TargetsEntryR\atargets\x1aZ\n" +
 	"\fTargetsEntry\x12\x10\n" +
@@ -2359,7 +2383,7 @@ var file_loco_resource_v1_resource_proto_goTypes = []any{
 	(*RegionStatus)(nil),                   // 9: loco.resource.v1.RegionStatus
 	(*CreateResourceRequest)(nil),          // 10: loco.resource.v1.CreateResourceRequest
 	(*CreateResourceResponse)(nil),         // 11: loco.resource.v1.CreateResourceResponse
-	(*GetResourceNameKey)(nil),             // 12: loco.resource.v1.GetResourceNameKey
+	(*GetResourceSlugKey)(nil),             // 12: loco.resource.v1.GetResourceSlugKey
 	(*GetResourceRequest)(nil),             // 13: loco.resource.v1.GetResourceRequest
 	(*GetResourceResponse)(nil),            // 14: loco.resource.v1.GetResourceResponse
 	(*ListWorkspaceResourcesRequest)(nil),  // 15: loco.resource.v1.ListWorkspaceResourcesRequest
@@ -2414,7 +2438,7 @@ var file_loco_resource_v1_resource_proto_depIdxs = []int32{
 	0,  // 18: loco.resource.v1.CreateResourceRequest.type:type_name -> loco.resource.v1.ResourceType
 	43, // 19: loco.resource.v1.CreateResourceRequest.domain:type_name -> loco.domain.v1.DomainInput
 	6,  // 20: loco.resource.v1.CreateResourceRequest.spec:type_name -> loco.resource.v1.ResourceSpec
-	12, // 21: loco.resource.v1.GetResourceRequest.name_key:type_name -> loco.resource.v1.GetResourceNameKey
+	12, // 21: loco.resource.v1.GetResourceRequest.slug_key:type_name -> loco.resource.v1.GetResourceSlugKey
 	7,  // 22: loco.resource.v1.GetResourceResponse.resource:type_name -> loco.resource.v1.Resource
 	7,  // 23: loco.resource.v1.ListWorkspaceResourcesResponse.resources:type_name -> loco.resource.v1.Resource
 	18, // 24: loco.resource.v1.UpdateResourceRequest.regions:type_name -> loco.resource.v1.RegionTargets
@@ -2467,7 +2491,7 @@ func file_loco_resource_v1_resource_proto_init() {
 	file_loco_resource_v1_resource_proto_msgTypes[7].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[10].OneofWrappers = []any{
 		(*GetResourceRequest_ResourceId)(nil),
-		(*GetResourceRequest_NameKey)(nil),
+		(*GetResourceRequest_SlugKey)(nil),
 	}
 	file_loco_resource_v1_resource_proto_msgTypes[14].OneofWrappers = []any{}
 	file_loco_resource_v1_resource_proto_msgTypes[24].OneofWrappers = []any{}

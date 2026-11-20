@@ -95,7 +95,7 @@ func (p *fakePlatform) checkSecretTarget(resourceID, environmentID string) error
 
 func (p *fakePlatform) secretKey(ts *testscript.TestScript, service, name string) fakeSecretKey {
 	for _, res := range p.resources {
-		if res.GetName() == service {
+		if res.GetSlug() == service {
 			return fakeSecretKey{resourceID: res.GetId(), environmentID: fakeEnvironmentID, name: name}
 		}
 	}

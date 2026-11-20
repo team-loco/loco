@@ -90,7 +90,7 @@ function TraceView({
 	const linked = trace?.spans.find((s) => s.spanId === spanId);
 	const selected = linked ?? trace?.root;
 	const missing = spanId !== null && trace !== undefined && linked === undefined;
-	const label = (span: TraceSpan) => traceServiceLabel(span, resourceById.get(span.resourceId)?.name);
+	const label = (span: TraceSpan) => traceServiceLabel(span, resourceById.get(span.resourceId)?.slug);
 	const select = (span: TraceSpan) => {
 		void setSpanId(span.spanId);
 	};

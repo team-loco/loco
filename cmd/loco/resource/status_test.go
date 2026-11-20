@@ -15,7 +15,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 	crash := "A replica keeps restarting. Check its logs."
 	pull := `Back-off pulling image "registry.test/web:v2": ImagePullBackOff`
 	resource := &resourcev1.Resource{
-		Name: "web",
+		Slug: "web",
 		EnvironmentStatuses: []*resourcev1.EnvironmentStatus{
 			{
 				EnvironmentName: "production",
@@ -75,7 +75,7 @@ func TestStatusViewShowsEachEnvironmentAndRegion(t *testing.T) {
 }
 
 func TestStatusViewSaysWhenNothingIsDeployed(t *testing.T) {
-	resource := &resourcev1.Resource{Name: "web"}
+	resource := &resourcev1.Resource{Slug: "web"}
 	var out bytes.Buffer
 	if err := renderStatusView(&out, "web", resource); err != nil {
 		t.Fatalf("renderStatusView: %v", err)

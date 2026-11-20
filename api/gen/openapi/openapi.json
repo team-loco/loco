@@ -5363,7 +5363,7 @@
           "loco.resource.v1.ResourceService"
         ],
         "summary": "GetResource",
-        "description": "GetResource retrieves a resource by ID or name.",
+        "description": "GetResource retrieves a resource by ID or slug.",
         "operationId": "loco.resource.v1.ResourceService.GetResource",
         "parameters": [
           {
@@ -14319,7 +14319,7 @@
           "name": {
             "type": "string",
             "title": "name",
-            "description": "A DNS label other than localhost and resource-\u003cUUID\u003e."
+            "description": "The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace."
           },
           "type": {
             "title": "type",
@@ -14359,6 +14359,14 @@
             "title": "environment_id",
             "format": "uuid",
             "description": "The environment for domain. If omitted, the workspace's production environment is used."
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "slug",
+            "description": "A DNS label other than localhost and resource-\u003cUUID\u003e, unique in the workspace. If omitted,\n it is derived from name."
           }
         },
         "title": "CreateResourceRequest",
@@ -14467,30 +14475,12 @@
         "additionalProperties": false,
         "description": "GetResourceEnvResponse holds the plain env variables and the declared secret names of the\n service's active deployment in the environment, both empty when it has none."
       },
-      "loco.resource.v1.GetResourceNameKey": {
-        "type": "object",
-        "properties": {
-          "workspaceId": {
-            "type": "string",
-            "title": "workspace_id",
-            "format": "uuid"
-          },
-          "name": {
-            "type": "string",
-            "title": "name",
-            "minLength": 1
-          }
-        },
-        "title": "GetResourceNameKey",
-        "additionalProperties": false,
-        "description": "GetResourceNameKey is used to lookup a resource by name within a workspace."
-      },
       "loco.resource.v1.GetResourceRequest": {
         "type": "object",
         "not": {
           "required": [
             "resourceId",
-            "nameKey"
+            "slugKey"
           ]
         },
         "properties": {
@@ -14498,14 +14488,14 @@
             "type": "string",
             "title": "resource_id"
           },
-          "nameKey": {
-            "title": "name_key",
-            "$ref": "#/components/schemas/loco.resource.v1.GetResourceNameKey"
+          "slugKey": {
+            "title": "slug_key",
+            "$ref": "#/components/schemas/loco.resource.v1.GetResourceSlugKey"
           }
         },
         "title": "GetResourceRequest",
         "additionalProperties": false,
-        "description": "GetResourceRequest is the request to retrieve a resource.\n\nAt most one of `resourceId`, `nameKey` may be set."
+        "description": "GetResourceRequest is the request to retrieve a resource.\n\nAt most one of `resourceId`, `slugKey` may be set."
       },
       "loco.resource.v1.GetResourceResponse": {
         "type": "object",
@@ -14518,6 +14508,24 @@
         "title": "GetResourceResponse",
         "additionalProperties": false,
         "description": "GetResourceResponse is the response containing the resource."
+      },
+      "loco.resource.v1.GetResourceSlugKey": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "title": "workspace_id",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string",
+            "title": "slug",
+            "minLength": 1
+          }
+        },
+        "title": "GetResourceSlugKey",
+        "additionalProperties": false,
+        "description": "GetResourceSlugKey looks up a resource by slug within a workspace."
       },
       "loco.resource.v1.ListRegionsRequest": {
         "type": "object",
@@ -14765,10 +14773,10 @@
             "type": "string",
             "title": "workspace_id"
           },
-          "name": {
+          "slug": {
             "type": "string",
-            "title": "name",
-            "description": "name is the resource's slug: a DNS label, unique in its workspace, that never changes."
+            "title": "slug",
+            "description": "slug is the resource's key: a DNS label, unique in its workspace."
           },
           "type": {
             "title": "type",
@@ -14836,10 +14844,10 @@
             "format": "int64",
             "description": "revision increases with every change to the resource spec or its scaling."
           },
-          "displayName": {
+          "name": {
             "type": "string",
-            "title": "display_name",
-            "description": "display_name is the label the dashboard shows. It starts as name; name never changes."
+            "title": "name",
+            "description": "name is the label the dashboard shows."
           }
         },
         "title": "Resource",
@@ -15080,14 +15088,13 @@
             "title": "resource_id",
             "format": "uuid"
           },
-          "displayName": {
+          "name": {
             "type": [
               "string",
               "null"
             ],
-            "title": "display_name",
-            "maxLength": 63,
-            "description": "resource.display_name // display name needs a character that is not a space\n"
+            "title": "name",
+            "description": "The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace."
           },
           "description": {
             "type": [
@@ -15122,6 +15129,14 @@
             ],
             "title": "rollback_on_failure",
             "description": "Restores the previous deployment on failure; off by default."
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "slug",
+            "description": "A new slug: a DNS label other than localhost and resource-\u003cUUID\u003e, unique in the workspace.\n Resources that loco.yaml manages keep the slug the file names them by."
           }
         },
         "title": "UpdateResourceRequest",

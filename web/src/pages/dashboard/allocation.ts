@@ -27,7 +27,7 @@ function resourceAllocation(
 		cpuMilli += parseCpuMilli(spec?.cpu ?? "") * region.desiredReplicas;
 		memMi += parseMemMi(spec?.memory ?? "") * region.desiredReplicas;
 	}
-	return { id: item.resource.id, name: item.resource.displayName, cpuMilli, memMi };
+	return { id: item.resource.id, name: item.resource.name, cpuMilli, memMi };
 }
 
 export function allocation(items: Pick<EnvResource, "resource" | "environment" | "envDeployments">[]): Allocation {

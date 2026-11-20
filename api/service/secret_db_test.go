@@ -95,7 +95,7 @@ func TestSecretQueriesListCiphertextMetadata(t *testing.T) {
 		t.Fatalf("list names: %v", err)
 	}
 	if len(names) != 2 || names[0].Name != databaseURL || names[1].Name != stripeKey ||
-		names[0].ResourceName != webService || names[1].CiphertextBytes != int64(len("cipher-"+stripeKey)) {
+		names[0].ResourceSlug != webService || names[1].CiphertextBytes != int64(len("cipher-"+stripeKey)) {
 		t.Fatalf("names = %+v, want web's DATABASE_URL and STRIPE_KEY with their ciphertext sizes", names)
 	}
 	f.upsert(t, []string{stripeKey}, []int32{2})

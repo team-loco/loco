@@ -37,7 +37,7 @@ export function seriesColor(index: number): string {
 
 export interface ObsResource {
 	id: string;
-	name: string;
+	slug: string;
 	color: string;
 	regions: string[];
 	raw: Resource;
@@ -97,15 +97,15 @@ export function ObsProvider({
 	const range = toWindow(params, maxMs);
 	const { tokens, text } = toQuery(params);
 
-	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.name.localeCompare(b.name));
+	const sorted = (resourcesData?.resources ?? []).toSorted((a, b) => a.slug.localeCompare(b.slug));
 	const resources: ObsResource[] = sorted.map((r, i) => ({
 		id: r.id,
-		name: r.name,
+		slug: r.slug,
 		color: seriesColor(i),
 		regions: configuredRegions(r),
 		raw: r,
 	}));
-	const resourceByName = new Map(resources.map((r) => [r.name, r]));
+	const resourceByName = new Map(resources.map((r) => [r.slug, r]));
 	const resourceById = new Map(resources.map((r) => [r.id, r]));
 	const scopedResourceIds = grants === "workspace" ? null : resources.map((r) => r.id);
 
@@ -158,10 +158,10 @@ export function useObs(): ObsContextValue {
 
 export function filteredResources(view: ObservabilityView, all: ObsResource[], tokens: Token[]): ObsResource[] {
 	const names = narrow(
-		all.map((r) => r.name),
+		all.map((r) => r.slug),
 		liveTokens(view, tokens, "resource"),
 	);
 	if (names === null) return all;
 	const set = new Set(names);
-	return all.filter((r) => set.has(r.name));
+	return all.filter((r) => set.has(r.slug));
 }

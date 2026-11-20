@@ -17,7 +17,7 @@ import {
 import { statusRank } from "./resource-status";
 
 function draft(id: string, name = id): Draft {
-	return { id, name, image: `ghcr.io/acme/${name}:1`, createdMs: 1, edits: {} };
+	return { id, name, slug: name, image: `ghcr.io/acme/${name}:1`, createdMs: 1, edits: {} };
 }
 
 describe("draftsKey", () => {

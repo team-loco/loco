@@ -44,7 +44,7 @@ export function DashboardRowMenu({
 	const focus = focusRegion(buildRegions(resource, item.envDeployments, item.environment));
 	const target = focus === undefined ? undefined : lastGoodDeployment(focus);
 	const obs = (view: "logs" | "events") =>
-		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.name] });
+		observabilityPath(orgId, workspaceId, view, { env: envName, r: [resource.slug] });
 
 	const refresh = async () => {
 		await Promise.all([
@@ -67,17 +67,17 @@ export function DashboardRowMenu({
 				sourceDeploymentId: to.id,
 			});
 			setRollingBack(false);
-			toast.success(`Rolling back ${resource.displayName} to ${depTag(to)}`);
+			toast.success(`Rolling back ${resource.name} to ${depTag(to)}`);
 			await refresh();
 		} catch (err) {
-			toastConnectError(err, `Failed to roll back ${resource.displayName}`);
+			toastConnectError(err, `Failed to roll back ${resource.name}`);
 		}
 	};
 
 	const doRestart = async (environmentId: string) => {
 		try {
 			await restart.mutateAsync({ resourceId: resource.id, environmentId });
-			toast.success(`Restarting ${resource.displayName}`);
+			toast.success(`Restarting ${resource.name}`);
 			await refresh();
 		} catch (err) {
 			toastConnectError(err, "Failed to restart replicas");
@@ -141,7 +141,7 @@ export function DashboardRowMenu({
 			>
 				{rollingBack && target !== undefined && (
 					<RollbackDialogContent
-						resourceName={resource.displayName}
+						resourceName={resource.name}
 						target={target}
 						current={focus?.current}
 						pending={deploy.isPending}

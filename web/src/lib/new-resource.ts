@@ -10,10 +10,11 @@ import { slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
 // mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
-const NAME_RE = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
-const RESERVED_NAME_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
-export const NAME_RULE =
+const SLUG_RE = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
+const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+export const SLUG_RULE =
 	"Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit";
+export const MAX_NAME_LENGTH = 63;
 const DIGITS_RE = /^\d+$/;
 const LOCO_YAML_VERSION = 1;
 
@@ -34,6 +35,7 @@ export interface HealthForm {
 export interface NewResourceForm {
 	image: string;
 	name: string;
+	slug: string;
 	description: string;
 	regions: string[];
 	cpu: string;
@@ -156,10 +158,19 @@ export function mergeEnv(rows: EnvRow[], pairs: [string, string][], newId: () =>
 }
 
 export function nameError(name: string, taken: ReadonlySet<string>): string | null {
-	if (name === "") return "Enter a name";
-	if (!NAME_RE.test(name)) return NAME_RULE;
-	if (RESERVED_NAME_RE.test(name)) return `${name} is reserved`;
-	if (taken.has(name)) return `${name} already exists in this workspace`;
+	const trimmed = name.trim();
+	if (trimmed === "") return "Enter a name";
+	if (Array.from(trimmed).length > MAX_NAME_LENGTH) return `Use at most ${MAX_NAME_LENGTH.toString()} characters`;
+	const lower = trimmed.toLowerCase();
+	if ([...taken].some((t) => t.toLowerCase() === lower)) return `${trimmed} already exists in this workspace`;
+	return null;
+}
+
+export function slugError(value: string, taken: ReadonlySet<string>): string | null {
+	if (value === "") return "Enter a slug";
+	if (!SLUG_RE.test(value)) return SLUG_RULE;
+	if (RESERVED_SLUG_RE.test(value)) return `${value} is reserved`;
+	if (taken.has(value)) return `${value} already exists in this workspace`;
 	return null;
 }
 
@@ -345,13 +356,13 @@ export interface LocoYamlInput {
 }
 
 export function locoYaml({ schemaUrl, form }: LocoYamlInput): string {
-	const name = scalar(form.name, BLOCK_PLAIN_RE);
+	const name = scalar(form.slug, BLOCK_PLAIN_RE);
 	const flow = (v: string) => scalar(v, FLOW_PLAIN_RE);
 	const replicas = form.replicas.toString();
 	const lines = [
 		...(schemaUrl === "" ? [] : [`# yaml-language-server: $schema=${schemaUrl}`]),
 		`version: ${LOCO_YAML_VERSION.toString()}`,
-		`partial: ${scalar(form.name, FLOW_PLAIN_RE)}`,
+		`partial: ${scalar(form.slug, FLOW_PLAIN_RE)}`,
 		"",
 		"services:",
 		`  ${name}:`,

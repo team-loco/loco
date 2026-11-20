@@ -3,12 +3,13 @@ import { RegionAvailability, ResourceStatus, type RegionInfo } from "@gen/loco/r
 import type { NewResourceForm } from "@/lib/new-resource";
 import { statusRank } from "@/lib/resource-status";
 
-export type DraftEdits = Partial<Omit<NewResourceForm, "image" | "name">>;
+export type DraftEdits = Partial<Omit<NewResourceForm, "image" | "name" | "slug">>;
 
 export interface Draft {
 	id: string;
 	image: string;
 	name: string;
+	slug: string;
 	createdMs: number;
 	edits: DraftEdits;
 }
@@ -30,6 +31,7 @@ function isDraft(value: unknown): value is Draft {
 		typeof d["id"] === "string" &&
 		typeof d["image"] === "string" &&
 		typeof d["name"] === "string" &&
+		typeof d["slug"] === "string" &&
 		typeof d["createdMs"] === "number" &&
 		typeof d["edits"] === "object" &&
 		d["edits"] !== null

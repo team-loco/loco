@@ -304,7 +304,7 @@ func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
 				f.pool, f.queries, testServiceDefaults(), testClusterSilentAfter, limits.Defaults(),
 			)
 			_, err := server.UpdateResource(f.rolloutContext(t), &resourcev1.UpdateResourceRequest{
-				ResourceId: f.resourceID.String(), DisplayName: new("Renamed"), RollbackOnFailure: new(true),
+				ResourceId: f.resourceID.String(), Name: new("Renamed"), RollbackOnFailure: new(true),
 			})
 			return err
 		},
@@ -333,7 +333,7 @@ func TestAFailedRolloutLeavesTheServiceOpenToChanges(t *testing.T) {
 				}
 				if change == "settings" {
 					if res, getErr := f.queries.GetResourceByID(t.Context(), f.resourceID); getErr != nil ||
-						res.DisplayName != "Renamed" {
+						res.Name != "Renamed" {
 						t.Fatalf("resource = %+v (%v), want the new display name", res, getErr)
 					}
 					return

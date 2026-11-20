@@ -1,16 +1,24 @@
 package locofile
 
-import "strings"
+import (
+	"strings"
+	"unicode"
 
-// Slug turns text, such as a directory name, into a DNS label: lowercase letters and digits,
-// runs of anything else collapsed to one hyphen, at most 63 characters. It returns "" when the
-// text has no letter or digit.
+	"golang.org/x/text/unicode/norm"
+)
+
+// Slug turns text, such as a name or a directory name, into a DNS label: accents dropped,
+// lowercase letters and digits kept, runs of anything else collapsed to one hyphen, at most 63
+// characters. It returns "" when the text has no letter or digit.
 func Slug(name string) string {
 	var b strings.Builder
-	for _, char := range strings.ToLower(name) {
-		if char >= 'a' && char <= 'z' || char >= '0' && char <= '9' {
+	for _, char := range norm.NFD.String(strings.ToLower(name)) {
+		switch {
+		case unicode.Is(unicode.Mn, char):
+			continue
+		case char >= 'a' && char <= 'z' || char >= '0' && char <= '9':
 			b.WriteRune(char)
-		} else if b.Len() > 0 && !strings.HasSuffix(b.String(), "-") {
+		case b.Len() > 0 && !strings.HasSuffix(b.String(), "-"):
 			b.WriteByte('-')
 		}
 		if b.Len() >= MaxServiceNameLength {

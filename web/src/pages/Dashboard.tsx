@@ -114,7 +114,7 @@ export function Dashboard() {
 						workspaceId={workspaceId}
 						environmentId={active.id}
 						value={allocation(data.envResources)}
-						names={new Map(data.resources.map((r) => [r.id, r.displayName]))}
+						names={new Map(data.resources.map((r) => [r.id, r.name]))}
 						hrefFor={hrefFor}
 						nowMs={nowMs}
 					/>
