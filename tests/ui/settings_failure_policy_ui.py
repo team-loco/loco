@@ -50,7 +50,7 @@ with session(out) as browser:
     expect(
         policy.get_by_role("button", name="On failure", exact=True)
     ).to_have_attribute("aria-pressed", "true")
-    expect(limit).to_have_value("10")
+    expect(limit).to_have_value("2")
     expect(timeout).to_have_value("600")
     expect(section.get_by_role("switch")).to_have_count(0)
 

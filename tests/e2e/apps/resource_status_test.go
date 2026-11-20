@@ -860,6 +860,7 @@ func (s *status) restartingEvent(t *testing.T) {
 		Timeout:       new(int32(1)),
 		FailThreshold: new(int32(1)),
 	}
+	service.Deploy = &locofile.Deploy{Restart: locofile.RestartAlways}
 	platform.WriteLocoFile(
 		t,
 		crashDir,

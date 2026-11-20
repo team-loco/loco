@@ -411,6 +411,13 @@ func TestTokenModeImageRegistryNeedsNoCredentials(t *testing.T) {
 	}
 }
 
+func TestServiceDefaultsAllowTwoRestarts(t *testing.T) {
+	clearAPIConfigEnv(t)
+	if got := newServiceDefaults().MaxRestarts; got != 2 {
+		t.Fatalf("default max restarts = %d, want 2", got)
+	}
+}
+
 func TestNewAPIConfigReadsServiceDefaults(t *testing.T) {
 	clearAPIConfigEnv(t)
 	t.Setenv("LOCO_DEFAULT_CPU_TARGET", "65")
