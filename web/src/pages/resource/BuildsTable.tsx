@@ -2,7 +2,7 @@ import { useEnvironments } from "@/hooks/useEnvironment";
 import { useObservabilityMaxRange } from "@/hooks/useObservabilityMaxRange";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useMutation } from "@connectrpc/connect-query";
-import { ChevronRightIcon, RocketIcon, ScrollTextIcon, XIcon } from "lucide-react";
+import { RocketIcon, ScrollTextIcon, XIcon } from "lucide-react";
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { BuildStatus, type Build } from "@gen/loco/build/v1/build_pb";
 import { Button } from "@/components/design/Button";
 import { ConfirmDialog } from "@/components/design/ConfirmDialog";
 import { CopyButton } from "@/components/design/CopyButton";
-import { CellText, DataTable, useDataTable, type DataColumn } from "@/components/design/DataTable";
+import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
 import { StatusBadge } from "@/components/design/StatusBadge";
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { agoLabel, maybeTsMs } from "@/lib/time";
@@ -249,29 +249,7 @@ function buildColumns(
 	onOpen: (id: string | null) => void,
 ): DataColumn<Build>[] {
 	return [
-		{
-			id: "toggle",
-			size: 40,
-			minSize: 40,
-			enableResizing: false,
-			meta: { label: "Details", fit: true },
-			cell: ({ row: { original: build } }) => {
-				const expanded = openId === build.id;
-				return (
-					<Button
-						variant="ghost"
-						size="icon-xs"
-						aria-expanded={expanded}
-						aria-label={`${expanded ? "Hide" : "Show"} build ${formatShortId(build.id)}`}
-						onClick={() => {
-							onOpen(expanded ? null : build.id);
-						}}
-					>
-						<ChevronRightIcon className={cn("transition-transform", expanded && "rotate-90")} />
-					</Button>
-				);
-			},
-		},
+		expandColumn(openId, onOpen, (build) => `build ${formatShortId(build.id)}`),
 		{
 			id: "status",
 			header: "Status",
@@ -371,8 +349,6 @@ export function BuildsTable({
 		columns: buildColumns(actors, nowMs, openId, onOpen),
 		data: builds,
 		getRowId: (build) => build.id,
-		enableSorting: false,
-		manualPagination: true,
 	});
 	return (
 		<DataTable

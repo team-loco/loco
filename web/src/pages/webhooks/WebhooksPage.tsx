@@ -23,7 +23,6 @@ import { CellText, DataTable, useDataTable, type DataColumn } from "@/components
 import { getErrorMessage, toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
 import { LimitedAction } from "@/components/design/LimitedAction";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { limitReason, limitUsage } from "@/lib/limits";
 
@@ -64,7 +63,6 @@ export function WebhooksPage({
 	};
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState<Webhook | null>(null);
-	const mobile = useIsMobile();
 
 	const webhooks = query.data?.webhooks ?? [];
 	const filtered = webhooks.filter((w) =>
@@ -104,9 +102,6 @@ export function WebhooksPage({
 		}),
 		data: filtered,
 		getRowId: (w) => w.id,
-		state: { columnVisibility: { events: !mobile, created: !mobile } },
-		enableSorting: false,
-		manualPagination: true,
 	});
 
 	const usage =
@@ -169,7 +164,6 @@ export function WebhooksPage({
 						onRowClick={(row) => {
 							setOpenId(row.id);
 						}}
-						empty={null}
 					/>
 				)}
 			</Section>
@@ -274,7 +268,7 @@ function webhookColumns({
 			header: "Events",
 			size: 130,
 			minSize: 90,
-			meta: { fit: true, cellClassName: "text-[12.5px] whitespace-nowrap text-fg2" },
+			meta: { hideOnMobile: true, fit: true, cellClassName: "text-[12.5px] whitespace-nowrap text-fg2" },
 			cell: ({ row: { original: webhook } }) => <CellText text={eventsSummary(webhook.eventTypes)} />,
 		},
 		{
@@ -289,13 +283,12 @@ function webhookColumns({
 			header: "Created",
 			size: 130,
 			minSize: 90,
-			meta: { fit: true, cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
+			meta: { hideOnMobile: true, fit: true, cellClassName: "font-mono text-[12px] whitespace-nowrap text-fg3" },
 			cell: ({ row: { original: webhook } }) => <Created webhook={webhook} />,
 		},
 		{
 			id: "menu",
-			enableResizing: false,
-			meta: { align: "end", pinEnd: true, label: "Actions" },
+			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: webhook } }) => (
 				<WebhookActions
 					menuOnly

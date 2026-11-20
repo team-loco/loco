@@ -331,7 +331,6 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 	{
 		id: "traffic",
 		header: "Traffic, last hour",
-		enableSorting: false,
 		size: 116,
 		minSize: 110,
 		cell: ({ row }) => <TrafficCell item={row.original} />,
@@ -339,7 +338,6 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 	{
 		id: "last",
 		header: "Last deploy",
-		enableSorting: false,
 		size: 140,
 		minSize: 100,
 		maxSize: 200,
@@ -364,9 +362,7 @@ export const COLUMNS: DataColumn<DashboardItem>[] = [
 	},
 	{
 		id: "menu",
-		enableSorting: false,
-		enableResizing: false,
-		meta: { align: "end", pinEnd: true },
+		meta: { pinEnd: true },
 		cell: ({ row }) => <MenuCell item={row.original} />,
 	},
 ];
@@ -440,6 +436,7 @@ export function ResourcesTable({
 		onPaginationChange: (updater) => {
 			void setState({ page: functionalUpdate(updater, pagination).pageIndex });
 		},
+		manualPagination: false,
 		autoResetPageIndex: false,
 	});
 	const visible = table.getPrePaginatedRowModel().rows.map((row) => row.original);

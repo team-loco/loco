@@ -14,7 +14,6 @@ import { LimitCount, LimitedAction } from "@/components/design/LimitedAction";
 import { Page, PageHeader, Section } from "@/components/design/Page";
 import { Pager } from "@/components/design/Pager";
 import { DataTable, useDataTable } from "@/components/design/DataTable";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useMyScopes } from "@/hooks/useMyScopes";
 import { userOrgsOptions } from "@/hooks/userOrgs";
 import { usePagedRows } from "@/lib/paging";
@@ -60,7 +59,6 @@ export function Organizations() {
 			? null
 			: limitUsage(created, config.data?.countLimits?.orgsPerUser, "organizations you created", "account");
 	const blocked = limitReason(usage);
-	const mobile = useIsMobile();
 	const table = useDataTable("organizations", {
 		columns: orgColumns({
 			activeOrgId,
@@ -69,9 +67,6 @@ export function Organizations() {
 		}),
 		data: paged.rows,
 		getRowId: (org) => org.id,
-		state: { columnVisibility: mobile ? { workspaces: false, members: false, created: false } : {} },
-		enableSorting: false,
-		manualPagination: true,
 	});
 
 	const openCreate = () => {
@@ -115,7 +110,6 @@ export function Organizations() {
 					}}
 					rowAction="navigate"
 					rowLabel={(row) => `Open ${row.original.name}`}
-					empty={null}
 				/>
 				<Pager {...paged.pager} {...paged.ends} />
 			</>

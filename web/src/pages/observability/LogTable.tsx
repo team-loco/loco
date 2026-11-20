@@ -106,7 +106,7 @@ function logColumns({
 						onClick={() => {
 							onColumns(columns.filter((x) => x !== c));
 						}}
-						className="absolute top-1/2 right-3 flex size-[18px] -translate-y-1/2 items-center justify-center rounded-sm bg-panel text-fg3 opacity-0 group-hover/col:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+						className="absolute top-1/2 right-3 flex size-[18px] -translate-y-1/2 items-center justify-center rounded-sm bg-panel text-fg3 opacity-0 group-hover/head:opacity-100 hover:bg-panel2 hover:text-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 					>
 						<XIcon className="size-3" />
 					</button>
@@ -115,7 +115,7 @@ function logColumns({
 			size: columnWidth(c),
 			minSize: MIN_COLUMN_WIDTH,
 			maxSize: MAX_COLUMN_WIDTH,
-			meta: { label: columnLabel(c), headClassName: "group/col", fit: true, fitMax: columnWidth(c) },
+			meta: { label: columnLabel(c), fit: true, fitMax: columnWidth(c) },
 			cell: ({ row }) => <Cell row={row.original} column={c} />,
 		})),
 		{
@@ -129,8 +129,7 @@ function logColumns({
 		{
 			id: "actions",
 			header: () => <ColumnPicker columns={columns} onColumns={onColumns} />,
-			enableResizing: false,
-			meta: { label: "Actions", align: "end", pinEnd: true },
+			meta: { label: "Actions", pinEnd: true },
 			cell: ({ row }) => <LogRowMenu row={row.original} />,
 		},
 	];
@@ -168,8 +167,6 @@ export function LogTable({
 		columns: logColumns({ columns, dated, words, onColumns }),
 		data: rows,
 		getRowId: (row) => row.key,
-		enableSorting: false,
-		manualPagination: true,
 		state: { columnSizing: widths },
 		onColumnSizingChange: (updater) => {
 			onWidths(functionalUpdate(updater, widths));

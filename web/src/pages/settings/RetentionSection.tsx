@@ -14,7 +14,6 @@ import { Field } from "@/components/design/Field";
 import { Input } from "@/components/design/Input";
 import { LimitedAction } from "@/components/design/LimitedAction";
 import { Skeleton } from "@/components/design/Skeleton";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useOrgLimits } from "@/hooks/useOrgLimits";
 import { toastConnectError } from "@/lib/error-handler";
 import { cn } from "@/lib/utils";
@@ -66,7 +65,7 @@ function retentionColumns(workspace: Workspace, limits: CountLimits | undefined)
 			header: "Organization limit",
 			size: 160,
 			minSize: 80,
-			meta: { fit: true, cellClassName: cn(MONO, "text-fg2") },
+			meta: { hideOnMobile: true, fit: true, cellClassName: cn(MONO, "text-fg2") },
 			cell: ({ row: { original: signal } }) =>
 				limits === undefined ? <Skeleton className="h-4 w-16" /> : days(limits[signal.field]),
 		},
@@ -85,13 +84,9 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 	const limits = useOrgLimits(workspace.orgId);
 	const [editing, setEditing] = useState(false);
 	const editBlocked = !canWrite ? `Requires Write on ${workspace.name}` : limits === undefined ? "Loading" : null;
-	const mobile = useIsMobile();
 	const table = useDataTable("retention", {
 		data: SIGNALS,
 		getRowId: (signal) => signal.key,
-		state: { columnVisibility: { limit: !mobile } },
-		enableSorting: false,
-		manualPagination: true,
 		columns: retentionColumns(workspace, limits),
 	});
 
@@ -115,7 +110,7 @@ export function RetentionSection({ workspace, canWrite }: { workspace: Workspace
 			}
 		>
 			<SettingsCard className="pt-1">
-				<DataTable table={table} label="Retention" empty={null} />
+				<DataTable table={table} label="Retention" />
 				<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">
 					A change applies to telemetry ingested after it; stored telemetry keeps the retention it was written with.
 				</p>

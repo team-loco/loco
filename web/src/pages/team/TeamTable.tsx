@@ -384,8 +384,7 @@ function teamColumns(now: number, accessLoading: boolean, actions: RowActions): 
 		},
 		{
 			id: "menu",
-			enableResizing: false,
-			meta: { align: "end", pinEnd: true, label: "Actions" },
+			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: row } }) =>
 				row.kind === "invitation" ? (
 					<InvitationMenu invitation={row.invitation} now={now} actions={actions} />
@@ -416,8 +415,6 @@ export function TeamTable({
 		data: rows,
 		getRowId: (row) =>
 			row.kind === "invitation" ? `invitation:${row.invitation.id}` : `member:${row.member.member.user?.id ?? ""}`,
-		enableSorting: false,
-		manualPagination: true,
 	});
 	return <DataTable table={table} label="People" loading={isLoading} empty={empty} />;
 }

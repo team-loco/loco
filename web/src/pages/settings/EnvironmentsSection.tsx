@@ -21,7 +21,6 @@ import { Input } from "@/components/design/Input";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Textarea } from "@/components/design/Textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { workspaceResourcesOptions } from "@/hooks/workspaceResources";
 import { toastConnectError } from "@/lib/error-handler";
 import { pluralize } from "@/lib/format";
@@ -71,6 +70,7 @@ function environmentColumns({
 			header: "Description",
 			size: 300,
 			minSize: 100,
+			meta: { hideOnMobile: true },
 			cell: ({ row: { original: env } }) =>
 				(env.description ?? "") === "" ? (
 					<span className="text-fg4">—</span>
@@ -88,8 +88,7 @@ function environmentColumns({
 		},
 		{
 			id: "actions",
-			enableResizing: false,
-			meta: { align: "end", pinEnd: true, label: "Actions" },
+			meta: { pinEnd: true, label: "Actions" },
 			cell: ({ row: { original: env } }) => {
 				const blocked = deleteBlocked(env);
 				const button = (
@@ -154,7 +153,6 @@ export function EnvironmentsSection({
 	const remove = useMutation(deleteEnvironment);
 	const [editing, setEditing] = useState<Environment | "new" | null>(null);
 	const [deleting, setDeleting] = useState<Environment | null>(null);
-	const mobile = useIsMobile();
 
 	const environments = envsQuery.data?.environments ?? [];
 	const limits = useOrgLimits(orgId);
@@ -181,9 +179,6 @@ export function EnvironmentsSection({
 	const table = useDataTable("environments", {
 		data: environments,
 		getRowId: (env) => env.id,
-		state: { columnVisibility: { description: !mobile } },
-		enableSorting: false,
-		manualPagination: true,
 		columns: environmentColumns({
 			canWrite,
 			workspaceName,
@@ -240,7 +235,7 @@ export function EnvironmentsSection({
 				) : environments.length === 0 ? (
 					<div className="px-5 py-7 text-fg3">No environments yet.</div>
 				) : (
-					<DataTable table={table} label="Environments" empty={null} />
+					<DataTable table={table} label="Environments" />
 				)}
 				{permissionNote !== null && (
 					<p className="m-0 border-t border-line2 px-5 py-3 text-[12.5px] text-fg3">{permissionNote}</p>

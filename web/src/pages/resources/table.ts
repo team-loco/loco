@@ -256,6 +256,7 @@ export function linkEnvironment(row: ResourceRow, environments: Environment[], a
 
 export interface TableColumn {
 	id: string;
+	accessorFn?: unknown;
 	enableSorting?: boolean;
 	enableHiding?: boolean;
 	meta?: { defaultHidden?: boolean };
@@ -294,7 +295,7 @@ function defaultVisibility(columns: readonly TableColumn[]): ColumnVisibilitySta
 }
 
 export function sortableIds(columns: readonly TableColumn[]): string[] {
-	return columns.filter((c) => c.enableSorting !== false).map((c) => c.id);
+	return columns.filter((c) => c.accessorFn !== undefined && c.enableSorting !== false).map((c) => c.id);
 }
 
 export function tableParsers(columns: readonly TableColumn[]) {
