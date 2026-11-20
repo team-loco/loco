@@ -28,6 +28,7 @@ import {
 import { NavArrow } from "@/components/design/NavArrow";
 import { ArrowDownIcon, ArrowUpIcon, Columns3Icon } from "lucide-react";
 import {
+	Fragment,
 	useRef,
 	useState,
 	type CSSProperties,
@@ -353,6 +354,7 @@ export function DataTable<T extends RowData>({
 	rowAction = "open",
 	rowLabel,
 	rowClassName,
+	groupBy,
 	className,
 	label,
 	inset = false,
@@ -368,6 +370,8 @@ export function DataTable<T extends RowData>({
 	/** Names a clickable row for assistive technology. */
 	rowLabel?: (row: Row<Features, T>) => string;
 	rowClassName?: (row: Row<Features, T>) => string | false | undefined;
+	/** Starts a labelled group, such as a day, wherever this value changes from the row before. */
+	groupBy?: (row: T) => string;
 	className?: string;
 	label?: string;
 	/** Keeps row content 10px inside the card edge instead of 20px; row tints and dividers reach 10px past it. */
@@ -434,62 +438,76 @@ export function DataTable<T extends RowData>({
 						</TableRow>
 					)}
 					{!loading &&
-						rows.map((row) => {
+						rows.map((row, i) => {
 							const selected = row.id === activeRowId;
+							const group = groupBy?.(row.original);
+							const previous = rows[i - 1];
+							const opensGroup =
+								group !== undefined && (previous === undefined || groupBy?.(previous.original) !== group);
 							return (
-								<TableRow
-									role="row"
-									key={row.id}
-									data-state={selected ? "selected" : undefined}
-									data-interactive={onRowClick === undefined ? undefined : ""}
-									aria-selected={activeRowId === undefined ? undefined : row.id === activeRowId}
-									aria-label={rowLabel?.(row)}
-									tabIndex={onRowClick === undefined ? undefined : 0}
-									onClick={
-										onRowClick === undefined
-											? undefined
-											: (event) => {
-													if (!fromControl(event)) onRowClick(row);
-												}
-									}
-									onKeyDown={
-										onRowClick === undefined
-											? undefined
-											: (event) => {
-													if (event.key !== "Enter" || fromControl(event)) return;
-													event.preventDefault();
-													onRowClick(row);
-												}
-									}
-									className={cn(
-										ROW,
-										"group/row group/nav hover:bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
-										onRowClick !== undefined && "hover:bg-(--row-hover)",
-										rowClassName?.(row),
-									)}
-								>
-									{row.getVisibleCells().map((cell, index) => {
-										const meta = cell.column.columnDef.meta;
-										const pin = pinOf(cell.column, index);
-										return (
-											<TableCell
-												role="cell"
-												key={cell.id}
-												data-pin={pin}
-												style={fitBounds(cell.column, sizing, index)}
-												className={cn(
-													"flex min-h-(--row-h) min-w-0 items-center overflow-hidden py-2.5",
-													meta?.align === "end" && "justify-end",
-													pin !== undefined && PINNED,
-													meta?.cellClassName,
-												)}
-											>
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												{onRowClick !== undefined && rowAction === "navigate" && index === primaryIndex && <NavArrow />}
+								<Fragment key={row.id}>
+									{opensGroup && (
+										<TableRow role="row" data-group="" className={cn(ROW, "border-b-0 hover:bg-transparent")}>
+											<TableCell role="cell" className="col-span-full pt-4 pb-1.5 text-[12px] text-fg3">
+												<span className="sticky left-5">{group}</span>
 											</TableCell>
-										);
-									})}
-								</TableRow>
+										</TableRow>
+									)}
+									<TableRow
+										role="row"
+										data-state={selected ? "selected" : undefined}
+										data-interactive={onRowClick === undefined ? undefined : ""}
+										aria-selected={activeRowId === undefined ? undefined : row.id === activeRowId}
+										aria-label={rowLabel?.(row)}
+										tabIndex={onRowClick === undefined ? undefined : 0}
+										onClick={
+											onRowClick === undefined
+												? undefined
+												: (event) => {
+														if (!fromControl(event)) onRowClick(row);
+													}
+										}
+										onKeyDown={
+											onRowClick === undefined
+												? undefined
+												: (event) => {
+														if (event.key !== "Enter" || fromControl(event)) return;
+														event.preventDefault();
+														onRowClick(row);
+													}
+										}
+										className={cn(
+											ROW,
+											"group/row group/nav hover:bg-transparent has-[+[data-group]]:border-b-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-panel2",
+											onRowClick !== undefined && "hover:bg-(--row-hover)",
+											rowClassName?.(row),
+										)}
+									>
+										{row.getVisibleCells().map((cell, index) => {
+											const meta = cell.column.columnDef.meta;
+											const pin = pinOf(cell.column, index);
+											return (
+												<TableCell
+													role="cell"
+													key={cell.id}
+													data-pin={pin}
+													style={fitBounds(cell.column, sizing, index)}
+													className={cn(
+														"flex min-h-(--row-h) min-w-0 items-center overflow-hidden py-2.5",
+														meta?.align === "end" && "justify-end",
+														pin !== undefined && PINNED,
+														meta?.cellClassName,
+													)}
+												>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+													{onRowClick !== undefined && rowAction === "navigate" && index === primaryIndex && (
+														<NavArrow />
+													)}
+												</TableCell>
+											);
+										})}
+									</TableRow>
+								</Fragment>
 							);
 						})}
 				</TableBody>

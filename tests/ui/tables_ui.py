@@ -394,6 +394,26 @@ def dashboard(page):
     expect(page).to_have_url(re.compile(r"/resource/"))
 
 
+def audit_table(page):
+    table = page.get_by_role("table", name="Audit events")
+    expect(table.locator("tbody tr[data-interactive]").first).to_be_visible()
+    return table
+
+
+def audit(page):
+    page.goto(state["ui_url"] + f"/org/{org}/audit")
+    table = audit_table(page)
+    expect(table.locator("tbody tr[data-group]").first).to_have_text("Today")
+    check_layout(table)
+    fits_at_16px(page, table)
+    row = table.locator("tbody tr[data-interactive]").first
+    expect_pointer(page, row.get_by_role("cell").nth(2))
+    expect(table.locator('[data-slot="nav-arrow"]')).to_have_count(0)
+    table = check_resize(page, table, "Time", "Where", audit_table, "ArrowRight")
+    table.locator("tbody tr[data-interactive]").first.get_by_role("cell").nth(1).click()
+    expect(page.get_by_role("dialog")).to_be_visible()
+
+
 # Playwright hides scrollbars by default; these checks need the table's own.
 def stamp(delta):
     return (datetime.now(UTC) - delta).isoformat().replace("+00:00", "Z")
@@ -549,7 +569,7 @@ with session(
         context.add_init_script(
             f"document.addEventListener('DOMContentLoaded', () => {{ document.documentElement.style.fontSize = '{root}'; }})"
         )
-        for check in (resources, dashboard, logs, traces):
+        for check in (resources, dashboard, logs, traces, audit):
             check(page)
         assert not errors, errors
         context.close()
@@ -579,6 +599,10 @@ with session(
         table = reopen(page)
         check_layout(table)
         check_fade(scroller_of(page, table))
+    page.goto(state["ui_url"] + f"/org/{org}/audit")
+    table = audit_table(page)
+    check_layout(table)
+    check_fade(scroller_of(page, table))
     assert not errors, errors
     context.close()
 print(
