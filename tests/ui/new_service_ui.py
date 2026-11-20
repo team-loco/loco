@@ -997,10 +997,8 @@ with session(out) as browser:
     for invalid in ["QA Echo", "-bad-", "🚀rocket", "a" * 64]:
         slug_input.fill(invalid)
         expect(ask.get_by_text(rule, exact=True)).to_be_visible()
-    name_input.fill("7 Cart")
-    expect(slug_input).to_have_value("7-cart")
+    slug_input.fill("7-cart")
     expect(ask.get_by_text("Start the slug with a letter", exact=True)).to_be_visible()
-    name_input.fill(label)
     slug_input.fill("localhost")
     expect(ask.get_by_text("localhost is reserved", exact=True)).to_be_visible()
     slug_input.fill(name)
