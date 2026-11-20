@@ -377,8 +377,7 @@ def activity_deployments(page):
         cards.nth(0).get_by_role("link", name="Open controls-pilot", exact=True)
     ).to_be_visible()
     page.keyboard.press("Escape")
-    page.unroute("**/loco.deployment.v1.DeploymentService/ListDeployments")
-    page.unroute("**/loco.resource.v1.ResourceService/ListWorkspaceResources")
+    page.unroute_all(behavior="wait")
 
 
 def log_levels(page):
@@ -1636,7 +1635,7 @@ def limit_display(page):
             else:
                 expect(create).to_be_enabled()
     finally:
-        page.unroute(config_url, config)
+        page.unroute_all(behavior="wait")
         sql(
             state,
             f"DELETE FROM api_tokens WHERE entity_id='{user_id}' AND name LIKE 'limit-display-%';",
