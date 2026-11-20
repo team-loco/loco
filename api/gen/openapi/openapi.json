@@ -12043,6 +12043,11 @@
             "type": "string",
             "title": "actor_token_type",
             "description": "The entity type that owns the API token that acted: user, organization, workspace or resource."
+          },
+          "deploymentId": {
+            "type": "string",
+            "title": "deployment_id",
+            "description": "The deployment the event concerns: the one a deployment event is about, or the one running\n when resource.degraded or resource.recovered fired. Empty for other events."
           }
         },
         "title": "Event",

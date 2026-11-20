@@ -799,6 +799,7 @@ type Event struct {
 	WorkspaceID    *uuid.UUID `json:"workspaceId"`
 	ResourceID     *uuid.UUID `json:"resourceId"`
 	EnvironmentID  *uuid.UUID `json:"environmentId"`
+	DeploymentID   *uuid.UUID `json:"deploymentId"`
 	ActorType      string     `json:"actorType"`
 	ActorID        *uuid.UUID `json:"actorId"`
 	ActorTokenName *string    `json:"actorTokenName"`

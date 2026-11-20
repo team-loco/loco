@@ -1,7 +1,7 @@
 -- name: InsertEvent :one
-INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
+INSERT INTO events (type, org_id, workspace_id, resource_id, environment_id, deployment_id, actor_type, actor_id, subject_type, subject_id, request_id, traceparent, data,
                     actor_token_name, actor_token_type)
-SELECT $1, $2, $3, $4, $12, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text
+SELECT $1, $2, $3, $4, $12, $13, $5, $6, $7, $8, $9, $10, $11, t.name, t.entity_type::text
 FROM (SELECT 1) one
 LEFT JOIN api_tokens t ON $5 = 'api_token' AND t.id = $6
 RETURNING seq;

@@ -81,6 +81,7 @@ func eventToProto(e genDb.Event) *eventv1.Event {
 		WorkspaceId:    uuidString(e.WorkspaceID),
 		ResourceId:     uuidString(e.ResourceID),
 		EnvironmentId:  uuidString(e.EnvironmentID),
+		DeploymentId:   uuidString(e.DeploymentID),
 		ActorType:      e.ActorType,
 		ActorId:        uuidString(e.ActorID),
 		ActorTokenType: derefString(e.ActorTokenType),
