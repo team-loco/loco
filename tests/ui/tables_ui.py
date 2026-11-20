@@ -205,9 +205,9 @@ def check_scroll_end(table):
 
 def check_arrow(page, table, row, menu):
     """Every clickable row has one arrow, hidden until the row is hovered, then uncovered and clear of the row menu."""
-    arrows = table.locator('[data-slot="row-arrow"]')
+    arrows = table.locator('[data-slot="nav-arrow"]')
     expect(arrows).to_have_count(table.locator("tbody tr[data-interactive]").count())
-    arrow = row.locator('[data-slot="row-arrow"]')
+    arrow = row.locator('[data-slot="nav-arrow"]')
     page.mouse.move(0, 0)
     expect(arrow).to_have_css("opacity", "0")
     row.get_by_role("cell").last.hover()
