@@ -1,3 +1,4 @@
+import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { useState, type ReactNode } from "react";
 import { ListIcon } from "lucide-react";
@@ -15,7 +16,7 @@ import {
 } from "@/components/design/DropdownMenu";
 import { formatPercent } from "@/lib/compute-chart";
 import { cn } from "@/lib/utils";
-import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
+import { DAY_MS, timeAxis } from "@/lib/time";
 
 import { fmtTs } from "./format";
 import { markerGroups } from "./metric-markers";
@@ -257,7 +258,6 @@ export function MetricChart({
 	const data = [...byT.values()].toSorted((a, b) => a.t - b.t);
 	const config: ChartConfig = Object.fromEntries(series.map((s) => [s.key, { label: s.name, color: s.color }]));
 	const ticks = timeAxis(from, to, timePref);
-	const tickLabel = (value: number) => formatAxisTime(value, from, to, timePref);
 	const groups = markerGroups(markers, from, to);
 
 	return (
@@ -315,16 +315,11 @@ export function MetricChart({
 								scale="time"
 								domain={[from, to]}
 								ticks={ticks}
-								tickFormatter={tickLabel}
 								interval="preserveStartEnd"
 								tickLine={false}
 								height={X_AXIS_HEIGHT}
 								axisLine={{ stroke: "var(--line)" }}
-								tick={{
-									fontSize: 10.5,
-									fill: "var(--fg3)",
-									fontFamily: "var(--font-mono)",
-								}}
+								tick={axisTimeTick(from, to, timePref, 10.5)}
 							/>
 							<YAxis
 								domain={[0, axis.maximum]}

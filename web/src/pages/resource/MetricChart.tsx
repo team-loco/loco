@@ -1,3 +1,4 @@
+import { axisTimeTick } from "@/components/design/AxisTimeTick";
 import type { TimePreferences } from "@/lib/time";
 import { useTimePreferences } from "@/lib/use-time-preferences";
 import { TriangleAlertIcon } from "lucide-react";
@@ -6,7 +7,7 @@ import { Area, ComposedChart, CartesianGrid, Line, ReferenceLine, XAxis, YAxis }
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/design/Chart";
 import { Skeleton } from "@/components/design/Skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/design/Tooltip";
-import { DAY_MS, formatAxisTime, timeAxis } from "@/lib/time";
+import { DAY_MS, timeAxis } from "@/lib/time";
 import { formatPercent, limitAxis, percentAxis } from "@/lib/compute-chart";
 
 import { formatFullTime } from "./format";
@@ -137,12 +138,11 @@ export function MetricChart({
 							scale="time"
 							domain={[from, to]}
 							ticks={timeAxis(from, to, timePref)}
-							tickFormatter={(time: number) => formatAxisTime(time, from, to, timePref)}
 							interval="preserveStartEnd"
 							tickLine={false}
 							axisLine={false}
 							minTickGap={24}
-							tick={{ fontSize: AXIS_FONT, fill: "var(--fg3)" }}
+							tick={axisTimeTick(from, to, timePref, AXIS_FONT)}
 						/>
 						<YAxis
 							domain={[0, axis.maximum]}

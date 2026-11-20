@@ -170,6 +170,14 @@ with session(out) as browser:
     ).to_be_visible()
     expect(page.get_by_text("limit 0.5 vCPU", exact=True)).to_be_visible()
     expect(page.get_by_text("0.45 vCPU", exact=True)).to_be_visible()
+    chart = page.get_by_role("img", name=re.compile(r"^CPU: lowest, median")).first
+    ticks = chart.locator(".recharts-xAxis .recharts-cartesian-axis-tick text")
+    expect(ticks.nth(2)).to_be_visible()
+    box = chart.bounding_box()
+    first, last = ticks.first.bounding_box(), ticks.last.bounding_box()
+    assert first["x"] >= box["x"], (first, box)
+    assert last["x"] + last["width"] <= box["x"] + box["width"], (last, box)
+    assert first["x"] + first["width"] < last["x"], (first, last)
     warning = page.get_by_label(
         "Peaked within 15% of the CPU limit (0.5 vCPU)", exact=True
     )
