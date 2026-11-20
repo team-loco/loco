@@ -177,10 +177,11 @@ func deploymentVersion(deployment *deploymentv1.Deployment) string {
 		version = digest[:min(len(digest), len("sha256:")+12)]
 	}
 	if sha := deployment.GetCommit().GetSha(); sha != "" {
+		sha = sha[:min(len(sha), 7)]
 		if version == "" {
-			return "commit " + sha[:7]
+			return "commit " + sha
 		}
-		return version + " (commit " + sha[:7] + ")"
+		return version + " (commit " + sha + ")"
 	}
 	if version == "" {
 		return deployment.GetId()

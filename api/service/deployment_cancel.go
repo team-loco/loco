@@ -14,6 +14,7 @@ import (
 	"github.com/team-loco/loco/api/authz/actions"
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/pkg/converter"
 	"github.com/team-loco/loco/api/reqctx"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -51,10 +52,16 @@ func (s *DeploymentServer) CancelDeployment(
 		if getErr != nil {
 			return fmt.Errorf("get resource: %w", getErr)
 		}
+		var rollback *limits.Effective
 		if req.GetRollbackFinishedRegions() {
 			if lockErr := lockOrganization(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 				return lockErr
 			}
+			_, counts, limitsErr := workspaceLimits(ctx, qtx, s.counts, resource.WorkspaceID)
+			if limitsErr != nil {
+				return limitsErr
+			}
+			rollback = &counts
 		}
 		if _, lockErr := lockWorkspaceEnvironments(ctx, qtx, resource.WorkspaceID); lockErr != nil {
 			return lockErr
@@ -64,7 +71,7 @@ func (s *DeploymentServer) CancelDeployment(
 		}
 		var cancelErr error
 		rollbacks, cancelErr = s.cancelDeployment(
-			ctx, qtx, resource, deploymentID, principal, req.GetRollbackFinishedRegions(),
+			ctx, qtx, resource, deploymentID, principal, rollback,
 		)
 		return cancelErr
 	})
@@ -146,7 +153,7 @@ func (s *DeploymentServer) cancelDeployment(
 	resource genDb.Resource,
 	deploymentID uuid.UUID,
 	principal reqctx.Principal,
-	rollback bool,
+	rollback *limits.Effective,
 ) ([]uuid.UUID, error) {
 	deployment, err := qtx.GetDeploymentByID(ctx, deploymentID)
 	if err != nil {
@@ -205,8 +212,9 @@ func (s *DeploymentServer) cancelDeployment(
 		return nil, fmt.Errorf("recompute canceled deployment: %w", recomputeErr)
 	}
 	rollbacks := []uuid.UUID{}
-	if rollback {
-		if rollbacks, err = rollbackFinishedRegions(ctx, qtx, render, deployment, finished, principal); err != nil {
+	if rollback != nil {
+		rollbacks, err = rollbackFinishedRegions(ctx, qtx, render, rollback, deployment, finished, principal)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -238,6 +246,7 @@ func rollbackFinishedRegions(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	render placementRenderer,
+	counts *limits.Effective,
 	canceled genDb.Deployment,
 	finished []genDb.DeploymentPlacement,
 	principal reqctx.Principal,
@@ -266,7 +275,7 @@ func rollbackFinishedRegions(
 	}
 	rollbacks := []uuid.UUID{}
 	for _, id := range previousIDs {
-		restored, err := rollbackRegions(ctx, qtx, render, canceled, previous[id], targets[id], principal)
+		restored, err := rollbackRegions(ctx, qtx, render, counts, canceled, previous[id], targets[id], principal)
 		if err != nil {
 			return nil, err
 		}
@@ -281,6 +290,7 @@ func rollbackRegions(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	render placementRenderer,
+	counts *limits.Effective,
 	canceled, previous genDb.Deployment,
 	targets []placementTarget,
 	principal reqctx.Principal,
@@ -298,7 +308,7 @@ func rollbackRegions(
 		regions[target.region] = service.GetRegions()[target.region]
 	}
 	service.Regions = regions
-	restored, err := createDeployment(ctx, qtx, nil, newDeployment{
+	restored, err := createDeployment(ctx, qtx, counts, newDeployment{
 		params: genDb.CreateDeploymentParams{
 			ResourceID:             canceled.ResourceID,
 			EnvironmentID:          canceled.EnvironmentID,

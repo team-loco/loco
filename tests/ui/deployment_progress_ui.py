@@ -633,11 +633,15 @@ with session(repo / "tests/ui/out/deployment-progress") as browser:
         rollbacks
     )
     page.reload()
-    expect(
-        page.get_by_role(
-            "cell", name=f"Rollback of canceled {rollout[-8:]}", exact=True
+    label = page.get_by_role("cell", name=f"Rollback of {rollout[-8:]}", exact=True)
+    expect(label).to_have_attribute(
+        "title", f"Rollback of canceled deployment {rollout}"
+    )
+    for root_font in ("16px", "20px"):
+        page.evaluate(f"document.documentElement.style.fontSize = '{root_font}'")
+        assert label.evaluate("cell => cell.scrollWidth <= cell.clientWidth"), (
+            f"the rollback label is cut off at a {root_font} root font"
         )
-    ).to_be_visible()
     assert not errors, errors
     context.close()
     browser.close()

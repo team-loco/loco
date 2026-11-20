@@ -276,7 +276,8 @@ ORDER BY previous.created_at DESC, previous.id DESC
 LIMIT 1;
 
 -- name: PreviousLiveDeploymentForCluster :one
--- The newest deployment older than the given one whose placement on the cluster ran.
+-- The newest deployment older than the given one whose placement on the cluster served and did
+-- not fail.
 SELECT previous.* FROM deployment_placements dp
 JOIN deployments previous ON previous.id = dp.deployment_id
 JOIN deployments current ON current.id = sqlc.arg(deployment_id)
@@ -285,6 +286,7 @@ WHERE dp.cluster_id = sqlc.arg(cluster_id)
   AND previous.environment_id = current.environment_id
   AND (previous.created_at, previous.id) < (current.created_at, current.id)
   AND dp.started_at IS NOT NULL
+  AND dp.status IN ('running', 'degraded', 'crashed', 'superseded')
 ORDER BY previous.created_at DESC, previous.id DESC
 LIMIT 1;
 

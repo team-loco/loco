@@ -9,6 +9,7 @@ import (
 
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
+	"github.com/team-loco/loco/api/limits"
 	"github.com/team-loco/loco/api/reqctx"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	deploymentv1 "github.com/team-loco/loco/gen/go/loco/deployment/v1"
@@ -396,5 +397,53 @@ func TestCancelWithRollbackSkipsARegionWithoutAnEarlierDeployment(t *testing.T) 
 	}
 	if p := f.placementOf(t, worker.ID, f.clusterID); p.DeploymentID.String() != first {
 		t.Fatalf("finished region deployment = %s, want %s", p.DeploymentID, first)
+	}
+}
+
+func TestCancelImpactSkipsAnEarlierDeploymentThatFailed(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first, second, _, _ := twoRegionRollout(t, f)
+	failed := uuid.New()
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO deployments (id, resource_id, status, environment_id, spec, spec_version, trigger, actor_type, actor_id,
+  method, created_at)
+SELECT $1, resource_id, 'failed', environment_id, spec, spec_version, trigger, actor_type, actor_id, method,
+  created_at + INTERVAL '1 microsecond'
+FROM deployments WHERE id = $2`, failed, uuid.MustParse(first)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO deployment_placements (deployment_id, cluster_id, region, replicas, status, image, started_at)
+SELECT $1, cluster_id, region, replicas, 'failed', image, NOW()
+FROM deployment_placements WHERE deployment_id = $2 AND cluster_id = $3`,
+		failed, uuid.MustParse(first), f.clusterID); err != nil {
+		t.Fatal(err)
+	}
+	finished := f.cancelImpact(t, second)
+	if len(finished) != 1 || finished[0].GetPrevious().GetId() != first {
+		t.Fatalf("finished regions = %v, want %s back to %s, not the failed %s", finished, testRegion, first, failed)
+	}
+}
+
+func TestCancelWithRollbackPrunesHistory(t *testing.T) {
+	t.Parallel()
+	f := newDeployFixture(t)
+	first, second, _, _ := twoRegionRollout(t, f)
+	f.setLimit(t, limits.DeploymentHistory, 2)
+	old := uuid.New()
+	if _, err := f.pool.Exec(t.Context(), `
+INSERT INTO deployments (id, resource_id, status, environment_id, spec, spec_version, trigger, actor_type, actor_id,
+  method, created_at)
+SELECT $1, resource_id, 'superseded', environment_id, spec, spec_version, trigger, actor_type, actor_id, method,
+  created_at - INTERVAL '5 days'
+FROM deployments WHERE id = $2`, old, uuid.MustParse(first)); err != nil {
+		t.Fatal(err)
+	}
+	if rollbacks := f.cancelWithRollback(t, second); len(rollbacks) != 1 {
+		t.Fatalf("rollbacks = %v, want one", rollbacks)
+	}
+	if f.deploymentExists(t, old) {
+		t.Fatal("the rollback left a finished deployment past the history limit")
 	}
 }

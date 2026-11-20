@@ -899,6 +899,7 @@ WHERE dp.cluster_id = $2
   AND previous.environment_id = current.environment_id
   AND (previous.created_at, previous.id) < (current.created_at, current.id)
   AND dp.started_at IS NOT NULL
+  AND dp.status IN ('running', 'degraded', 'crashed', 'superseded')
 ORDER BY previous.created_at DESC, previous.id DESC
 LIMIT 1
 `
@@ -908,7 +909,8 @@ type PreviousLiveDeploymentForClusterParams struct {
 	ClusterID    uuid.UUID `json:"clusterId"`
 }
 
-// The newest deployment older than the given one whose placement on the cluster ran.
+// The newest deployment older than the given one whose placement on the cluster served and did
+// not fail.
 func (q *Queries) PreviousLiveDeploymentForCluster(ctx context.Context, arg PreviousLiveDeploymentForClusterParams) (Deployment, error) {
 	row := q.db.QueryRow(ctx, previousLiveDeploymentForCluster, arg.DeploymentID, arg.ClusterID)
 	var i Deployment
