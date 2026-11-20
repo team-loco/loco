@@ -843,53 +843,6 @@ func (q *Queries) LockPlacementResource(ctx context.Context, arg LockPlacementRe
 	return id, err
 }
 
-const previousDeploymentForRollback = `-- name: PreviousDeploymentForRollback :one
-SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.plain_env, previous.secret_env, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployments previous JOIN deployments failed ON failed.id = $1
-WHERE previous.resource_id = failed.resource_id
- AND previous.environment_id = failed.environment_id
- AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
- AND previous.started_at IS NOT NULL
- AND NOT EXISTS (
- SELECT 1 FROM deployments newer
- WHERE newer.resource_id = failed.resource_id
- AND newer.environment_id = failed.environment_id
- AND (newer.created_at, newer.id) > (failed.created_at, failed.id)
- )
-ORDER BY previous.created_at DESC, previous.id DESC LIMIT 1
-`
-
-// The newest deployment older than the failed one that ran, while nothing newer than the
-// failed one exists.
-func (q *Queries) PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error) {
-	row := q.db.QueryRow(ctx, previousDeploymentForRollback, id)
-	var i Deployment
-	err := row.Scan(
-		&i.ID,
-		&i.ResourceID,
-		&i.Status,
-		&i.EnvironmentID,
-		&i.Spec,
-		&i.SpecVersion,
-		&i.Trigger,
-		&i.SourceDeploymentID,
-		&i.ActorType,
-		&i.ActorID,
-		&i.Method,
-		&i.CanceledByType,
-		&i.CanceledByID,
-		&i.CommitSha,
-		&i.CommitDirty,
-		&i.PlainEnv,
-		&i.SecretEnv,
-		&i.ActivitySeq,
-		&i.CreatedAt,
-		&i.StartedAt,
-		&i.CompletedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const previousLiveDeploymentForCluster = `-- name: PreviousLiveDeploymentForCluster :one
 SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.plain_env, previous.secret_env, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
 JOIN deployments previous ON previous.id = dp.deployment_id

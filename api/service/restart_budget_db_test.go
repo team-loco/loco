@@ -56,6 +56,26 @@ func (f *deployFixture) reportStatus(t *testing.T, report *agentv1.PlacementStat
 	f.agentServer().recordStatus(t.Context(), f.clusterID, 0, report)
 }
 
+// imageDeployment deploys the image service to the fixture's region.
+func imageDeployment(t *testing.T, f *deployFixture) uuid.UUID {
+	t.Helper()
+	response, err := createDeploymentWith(t, f, sameRegionSpec, imageService())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return uuid.MustParse(response.GetDeploymentId())
+}
+
+// liveDeployment is the deployment the fixture cluster's placement runs.
+func (f *deployFixture) liveDeployment(t *testing.T) uuid.UUID {
+	t.Helper()
+	p := f.placement(t, f.clusterID)
+	if p.DeploymentID == nil {
+		t.Fatalf("placement %s runs no deployment", p.ID)
+	}
+	return *p.DeploymentID
+}
+
 func stoppedReport() *agentv1.PlacementStatus {
 	return &agentv1.PlacementStatus{
 		Stopped: &agentv1.StoppedRevision{

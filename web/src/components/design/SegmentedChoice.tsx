@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+
 import { ToggleGroup, ToggleGroupItem } from "./ToggleGroup";
 
 export function SegmentedChoice({
@@ -8,6 +10,7 @@ export function SegmentedChoice({
 	disabled = false,
 	clearable = false,
 	describedBy,
+	className,
 }: {
 	label: string;
 	options: readonly { value: string; label: string }[];
@@ -16,6 +19,7 @@ export function SegmentedChoice({
 	disabled?: boolean;
 	clearable?: boolean;
 	describedBy?: string | undefined;
+	className?: string;
 }) {
 	return (
 		// Narrow screens cannot fit a row of sizes, so the options wrap into an even grid there.
@@ -23,7 +27,7 @@ export function SegmentedChoice({
 			variant="segmented"
 			aria-label={label}
 			aria-describedby={describedBy}
-			className="grid w-full grid-cols-4 sm:flex"
+			className={cn("grid w-full grid-cols-4 sm:flex", className)}
 			value={value === "" ? [] : [value]}
 			disabled={disabled}
 			onValueChange={(next: string[]) => {

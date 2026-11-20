@@ -5,7 +5,9 @@ import {
 	DeploymentStatus,
 	DeploymentSchema,
 	DeploymentSpecSchema,
+	FailurePolicySchema,
 	HealthCheckConfigSchema,
+	RestartPolicy,
 	ObservabilityConfigSchema,
 	ServiceDeploymentSpecSchema,
 	ScalersSchema,
@@ -21,10 +23,12 @@ import {
 	addedProblems,
 	baseline,
 	changeCount,
+	failurePolicyFrom,
 	plainEnv,
 	planSave,
 	regionChanges,
 	regionTargets,
+	resolved,
 	validateDraft,
 	type SettingsDraft,
 } from "./settings-draft";
@@ -66,11 +70,17 @@ function region(name: string, current: Deployment | undefined): RegionView {
 	return { name, status: undefined, history: current === undefined ? [] : [current], current };
 }
 
+const POLICY = create(FailurePolicySchema, {
+	restartPolicy: RestartPolicy.ON_FAILURE,
+	maxRestarts: 10,
+	deployTimeoutSeconds: 600,
+});
 const defaults = create(DefaultServiceConfigSchema, {
 	cpuTarget: 65,
 	minReplicas: 1,
 	maxReplicas: 1,
 	observability: OBSERVABILITY,
+	failurePolicy: POLICY,
 });
 const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.cpuTarget) => ({
 	replicas,
@@ -79,7 +89,7 @@ const scaling = (replicas: number, maxReplicas = replicas, cpuTarget = defaults.
 });
 
 const regions = [region(EAST, deployment("east", EAST)), region(WEST, deployment("west", WEST, 3))];
-const base = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults);
+const base = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, POLICY);
 const SPARE = "ap-south-1";
 
 function target(cpu: string, replicas: number, enabled = true): RegionTarget {
@@ -104,25 +114,58 @@ function plan(draft: SettingsDraft) {
 }
 
 describe("planSave", () => {
-	test("rollback changes update the service without planning deployments", () => {
-		expect(base.rollbackOnFailure).toBe(false);
-		expect(changeCount({ rollbackOnFailure: true }, base)).toBe(1);
-		expect(plan({ rollbackOnFailure: true })).toEqual([]);
-		const enabledBase = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, true);
-		expect(enabledBase.rollbackOnFailure).toBe(true);
-		expect(planSave(regions, { rollbackOnFailure: false }, enabledBase)).toEqual([]);
-		expect(baseline("shop", "shop", "", [], [EAST], true, defaults).rollbackOnFailure).toBe(false);
+	test("failure policy changes update the service without planning deployments", () => {
+		expect([base.restartPolicy, base.maxRestarts, base.deployTimeout]).toEqual(["on-failure", "10", "600"]);
+		expect(changeCount({ restartPolicy: "never" }, base)).toBe(1);
+		expect(changeCount({ restartPolicy: "never", maxRestarts: "3" }, base)).toBe(1);
+		expect(changeCount({ maxRestarts: "3", deployTimeout: "300" }, base)).toBe(2);
+		expect(plan({ restartPolicy: "never", deployTimeout: "300" })).toEqual([]);
+		expect(
+			failurePolicyFrom(resolved({ restartPolicy: "never", maxRestarts: "3", deployTimeout: "300" }, base)),
+		).toEqual(create(FailurePolicySchema, { restartPolicy: RestartPolicy.NEVER, deployTimeoutSeconds: 300 }));
+		expect(failurePolicyFrom(resolved({ maxRestarts: "3" }, base))).toEqual(
+			create(FailurePolicySchema, {
+				restartPolicy: RestartPolicy.ON_FAILURE,
+				maxRestarts: 3,
+				deployTimeoutSeconds: 600,
+			}),
+		);
 	});
 
-	test("the switch reads the service setting while preserving deployment overrides", () => {
-		const current = deployment("overridden", EAST);
-		getServiceSpec(current)!.rollbackOnFailure = true;
-		const running = [region(EAST, current)];
-		const serviceBase = baseline("shop", "shop", "", running, [EAST], true, defaults, false);
-		expect(serviceBase.rollbackOnFailure).toBe(false);
-		expect(planSave(running, { rollbackOnFailure: true }, serviceBase)).toEqual([]);
-		const changed = planSave(running, { port: "9090" }, serviceBase);
-		expect(getServiceSpec(create(DeploymentSchema, { spec: changed[0]!.spec }))?.rollbackOnFailure).toBe(true);
+	test("a policy without a budget offers the default restart limit", () => {
+		const always = create(FailurePolicySchema, { restartPolicy: RestartPolicy.ALWAYS, deployTimeoutSeconds: 120 });
+		const alwaysBase = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, always);
+		expect([alwaysBase.restartPolicy, alwaysBase.maxRestarts, alwaysBase.deployTimeout]).toEqual([
+			"always",
+			"10",
+			"120",
+		]);
+		expect(changeCount({ restartPolicy: "on-failure" }, alwaysBase)).toBe(1);
+	});
+
+	test("a timeout in seconds that is not whole minutes stays editable", () => {
+		const odd = create(FailurePolicySchema, { restartPolicy: RestartPolicy.ALWAYS, deployTimeoutSeconds: 90 });
+		const oddBase = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, odd);
+		expect(oddBase.deployTimeout).toBe("90");
+		expect(validateDraft({ restartPolicy: "never" }, oddBase, regions, SERVED, 10).deployTimeout).toBeUndefined();
+		expect(failurePolicyFrom(resolved({ restartPolicy: "never" }, oddBase)).deployTimeoutSeconds).toBe(90);
+	});
+
+	test("a missing failure policy marks the section instead of throwing", () => {
+		const missing = baseline("shop", "shop", "", regions, [EAST, WEST], true, defaults, undefined);
+		expect(missing.failurePolicyMissing).toBe(true);
+		expect(base.failurePolicyMissing).toBe(false);
+		expect(changeCount({}, missing)).toBe(0);
+	});
+
+	test("failure policy fields reject values that are not whole numbers", () => {
+		const errors = (draft: SettingsDraft) => validateDraft(draft, base, regions, SERVED, 10);
+		expect(errors({ maxRestarts: "0" }).maxRestarts).toBe("A whole number, at least 1");
+		expect(errors({ maxRestarts: "21" }).maxRestarts).toBeUndefined();
+		expect(errors({ restartPolicy: "never", maxRestarts: "x" }).maxRestarts).toBeUndefined();
+		expect(errors({ deployTimeout: "0" }).deployTimeout).toBe("Whole seconds, at least 1");
+		expect(errors({ deployTimeout: "1.5" }).deployTimeout).toBe("Whole seconds, at least 1");
+		expect(errors({ deployTimeout: "90" }).deployTimeout).toBeUndefined();
 	});
 
 	test("SDK environment configuration redeploys every running region and preserves application variables", () => {
@@ -144,7 +187,7 @@ describe("planSave", () => {
 			...defaults,
 			observability: create(ObservabilityConfigSchema, { injectOtel: false }),
 		});
-		expect(baseline("shop", "shop", "", [], [EAST], true, configured).observability.injectOtel).toBe(false);
+		expect(baseline("shop", "shop", "", [], [EAST], true, configured, POLICY).observability.injectOtel).toBe(false);
 	});
 
 	test("changing one region's image clears its own source commit", () => {
@@ -152,7 +195,7 @@ describe("planSave", () => {
 		const second = deployment("two", WEST);
 		getServiceSpec(second)!.build!.image = "example.test/other:release";
 		const mixed = [region(EAST, first), region(WEST, second)];
-		const result = planSave(mixed, { image: IMAGE }, baseline("shop", "shop", "", mixed, [], true, defaults));
+		const result = planSave(mixed, { image: IMAGE }, baseline("shop", "shop", "", mixed, [], true, defaults, POLICY));
 		expect(result.map((d) => [d.region, d.commit])).toEqual([[WEST, undefined]]);
 	});
 
@@ -201,7 +244,7 @@ describe("planSave", () => {
 			if (svc !== undefined) svc.args = ["-text=hello"];
 			return region(r.name, current);
 		});
-		const argsBase = baseline("shop", "shop", "", withArgs, [EAST, WEST], true, defaults);
+		const argsBase = baseline("shop", "shop", "", withArgs, [EAST, WEST], true, defaults, POLICY);
 		expect(argsBase.args).toBe("-text=hello");
 		const cleared = planSave(withArgs, { args: "" }, argsBase);
 		expect(cleared.map((d) => getServiceSpec(create(DeploymentSchema, { spec: d.spec }))?.args)).toEqual([[], []]);
@@ -251,7 +294,7 @@ describe("regionTargets", () => {
 	});
 
 	test("needs a running region to size the map from", () => {
-		const idle = baseline("shop", "shop", "", [region(EAST, undefined)], [EAST], true, defaults);
+		const idle = baseline("shop", "shop", "", [region(EAST, undefined)], [EAST], true, defaults, POLICY);
 		expect(regionTargets(stored, { regions: { [WEST]: true } }, idle)).toBeUndefined();
 	});
 });
@@ -267,11 +310,11 @@ test("regionChanges names the regions a region map save rolls out and stops", ()
 
 test("the baseline shows a configured region that does not run here as on", () => {
 	const views = [region(EAST, deployment("east", EAST)), region(WEST, undefined)];
-	expect(baseline("shop", "shop", "", views, [EAST, WEST], true, defaults).regions).toEqual({
+	expect(baseline("shop", "shop", "", views, [EAST, WEST], true, defaults, POLICY).regions).toEqual({
 		[EAST]: true,
 		[WEST]: true,
 	});
-	expect(baseline("shop", "shop", "", views, [EAST], true, defaults).regions).toEqual({
+	expect(baseline("shop", "shop", "", views, [EAST], true, defaults, POLICY).regions).toEqual({
 		[EAST]: true,
 		[WEST]: false,
 	});
@@ -375,7 +418,7 @@ describe("validateDraft", () => {
 	});
 
 	test("needs a served platform domain and a valid subdomain to go public", () => {
-		const privateBase = baseline("shop", "shop", "", regions, [], false, defaults);
+		const privateBase = baseline("shop", "shop", "", regions, [], false, defaults, POLICY);
 		expect(
 			validateDraft(
 				{ isPublic: true, subdomain: "Shop!", platformDomain: "other.dev" },
@@ -412,7 +455,7 @@ test("settings baseline follows configured bounds while the HPA changes the live
 	size.minReplicas = 1;
 	size.maxReplicas = 5;
 	size.scalers = create(ScalersSchema, { enabled: true, cpuTarget: 80 });
-	const initial = baseline("shop", "shop", "", [region(EAST, current)], [EAST], true, defaults);
+	const initial = baseline("shop", "shop", "", [region(EAST, current)], [EAST], true, defaults, POLICY);
 	expect(initial.scaling[EAST]).toEqual(scaling(1, 5, 80));
 	expect(changeCount({}, initial)).toBe(0);
 });

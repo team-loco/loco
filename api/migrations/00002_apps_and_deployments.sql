@@ -23,7 +23,7 @@ CREATE TYPE placement_status AS ENUM (
     'superseded'
 );
 
-CREATE TYPE deployment_trigger AS ENUM ('deploy', 'redeploy', 'rollback', 'scale', 'auto_rollback');
+CREATE TYPE deployment_trigger AS ENUM ('deploy', 'redeploy', 'rollback', 'scale');
 
 -- Resource type enum
 CREATE TYPE resource_type AS ENUM (

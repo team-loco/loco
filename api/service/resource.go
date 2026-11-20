@@ -68,6 +68,10 @@ var (
 		connect.CodeInvalidArgument,
 		"only service resources are currently supported",
 	)
+	errRestartPolicyUnset = rpcerr.NewCoded(
+		connect.CodeInvalidArgument,
+		"failure_policy.restart_policy must be on-failure, always or never",
+	)
 	errScaleNothingRequested = rpcerr.NewCoded(
 		connect.CodeInvalidArgument,
 		"at least one of replicas, cpu, or memory must be provided",
@@ -314,7 +318,7 @@ func (s *ResourceServer) GetResource(
 		return nil, fmt.Errorf("derive resource status: %w", err)
 	}
 
-	resource, err := dbResourceToProto(res, statuses[res.ID], resourceDomains)
+	resource, err := s.dbResourceToProto(res, statuses[res.ID], resourceDomains)
 	if err != nil {
 		return nil, err
 	}
@@ -408,7 +412,7 @@ func (s *ResourceServer) ListWorkspaceResources(
 	for _, dbResource := range dbResources {
 		resourceDomains := domainsByResource[dbResource.ID]
 		resourceStatuses := statuses[dbResource.ID]
-		resource, err := dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
+		resource, err := s.dbResourceToProto(dbResource, resourceStatuses, resourceDomains)
 		if err != nil {
 			return nil, err
 		}
@@ -473,31 +477,16 @@ func (s *ResourceServer) UpdateResource(
 				return updateErr
 			}
 		}
-		if req.RollbackOnFailure != nil {
+		if policy := req.GetFailurePolicy(); policy != nil {
 			if resource.Type != genDb.ResourceTypeService {
 				return errOnlyServiceResources
 			}
-			if req.GetRegions() != nil {
-				resource, getErr = qtx.GetResourceByID(ctx, resourceID)
-				if getErr != nil {
-					return fmt.Errorf("get updated resource: %w", getErr)
-				}
+			params, policyErr := failurePolicyParams(resourceID, policy)
+			if policyErr != nil {
+				return policyErr
 			}
-			spec, specErr := converter.DeserializeResourceSpec(resource.Spec, resource.Type)
-			if specErr != nil {
-				return specErr
-			}
-			service := spec.GetService()
-			service.RollbackOnFailure = req.GetRollbackOnFailure()
-			encoded, marshalErr := protojson.Marshal(service)
-			if marshalErr != nil {
-				return fmt.Errorf("marshal service setting: %w", marshalErr)
-			}
-			if updateErr := qtx.UpdateResourceSpec(
-				ctx,
-				genDb.UpdateResourceSpecParams{ID: resourceID, Spec: encoded},
-			); updateErr != nil {
-				return fmt.Errorf("update service setting: %w", updateErr)
+			if updateErr := qtx.SetResourceDeployPolicy(ctx, params); updateErr != nil {
+				return fmt.Errorf("set resource failure policy: %w", updateErr)
 			}
 		}
 		reslug := req.Slug != nil && req.GetSlug() != resource.Slug
@@ -535,6 +524,33 @@ func (s *ResourceServer) UpdateResource(
 	}
 
 	return &resourcev1.UpdateResourceResponse{ResourceId: req.GetResourceId()}, nil
+}
+
+// failurePolicyParams stores a failure policy a request sets in full, once the controller would accept it.
+func failurePolicyParams(
+	resourceID uuid.UUID,
+	policy *deploymentv1.FailurePolicy,
+) (genDb.SetResourceDeployPolicyParams, error) {
+	mode, ok := servicedefaults.RestartMode(policy.GetRestartPolicy())
+	if !ok {
+		return genDb.SetResourceDeployPolicyParams{}, errRestartPolicyUnset
+	}
+	filled := servicedefaults.FailurePolicy{
+		Restart:              locoControllerV1.RestartPolicySpec{Mode: mode, MaxRestarts: policy.GetMaxRestarts()},
+		DeployTimeoutSeconds: policy.GetDeployTimeoutSeconds(),
+	}
+	if err := filled.Validate(); err != nil {
+		return genDb.SetResourceDeployPolicyParams{}, rpcerr.New(connect.CodeInvalidArgument, err)
+	}
+	params := genDb.SetResourceDeployPolicyParams{
+		ID:                   resourceID,
+		RestartPolicy:        new(string(mode)),
+		DeployTimeoutSeconds: new(filled.DeployTimeoutSeconds),
+	}
+	if mode == locoControllerV1.RestartOnFailure {
+		params.MaxRestarts = new(filled.Restart.MaxRestarts)
+	}
+	return params, nil
 }
 
 // DeleteResource deletes a resource
@@ -969,7 +985,7 @@ func resourceDomainToListProto(domains []genDb.ResourceDomain) []*domainv1.Resou
 
 // dbResourceToProto converts a database Resource to the proto Resource
 // to be returned to client. Note: caller is responsible for fetching domains separately.
-func dbResourceToProto(
+func (s *ResourceServer) dbResourceToProto(
 	res genDb.Resource,
 	statuses []*resourcev1.EnvironmentStatus,
 	domains []genDb.ResourceDomain,
@@ -994,6 +1010,8 @@ func dbResourceToProto(
 		Partial:             res.Partial,
 		Revision:            res.Revision,
 		EnvironmentStatuses: statuses,
+		FailurePolicy: s.defaults.FailurePolicy(res.RestartPolicy, res.MaxRestarts, res.DeployTimeoutSeconds).
+			Proto(),
 	}, nil
 }
 

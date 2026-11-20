@@ -238,11 +238,10 @@ func (ns NullDeploymentStatus) Value() (driver.Value, error) {
 type DeploymentTrigger string
 
 const (
-	DeploymentTriggerDeploy       DeploymentTrigger = "deploy"
-	DeploymentTriggerRedeploy     DeploymentTrigger = "redeploy"
-	DeploymentTriggerRollback     DeploymentTrigger = "rollback"
-	DeploymentTriggerScale        DeploymentTrigger = "scale"
-	DeploymentTriggerAutoRollback DeploymentTrigger = "auto_rollback"
+	DeploymentTriggerDeploy   DeploymentTrigger = "deploy"
+	DeploymentTriggerRedeploy DeploymentTrigger = "redeploy"
+	DeploymentTriggerRollback DeploymentTrigger = "rollback"
+	DeploymentTriggerScale    DeploymentTrigger = "scale"
 )
 
 func (e *DeploymentTrigger) Scan(src interface{}) error {

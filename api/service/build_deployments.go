@@ -114,7 +114,7 @@ func updateBuildingDeployments(
 			}
 		}
 		cause := transitionCause{message: build.Message}
-		if err := recordDeploymentStatus(ctx, qtx, deployment.ID, cause, defaults); err != nil {
+		if err := recordDeploymentStatus(ctx, qtx, deployment.ID, cause); err != nil {
 			return err
 		}
 	}

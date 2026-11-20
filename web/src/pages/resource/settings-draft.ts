@@ -3,7 +3,10 @@ import { clone, create, equals } from "@bufbuild/protobuf";
 import {
 	BuildSourceSchema,
 	DeploymentSpecSchema,
+	FailurePolicySchema,
 	HealthCheckConfigSchema,
+	RestartPolicy,
+	type FailurePolicy,
 	ObservabilityConfigSchema,
 	type ObservabilityConfig,
 	type DeploymentSpec,
@@ -39,6 +42,42 @@ const WHOLE = /^\d+$/;
 const MIN_HEALTH_INTERVAL = 5;
 const MAX_HEALTH_TIMEOUT = 60;
 
+export const RESTART_CHOICES = [
+	{ value: "on-failure", label: "On failure", policy: RestartPolicy.ON_FAILURE },
+	{ value: "always", label: "Always", policy: RestartPolicy.ALWAYS },
+	{ value: "never", label: "Never", policy: RestartPolicy.NEVER },
+] as const;
+
+export type RestartChoice = (typeof RESTART_CHOICES)[number]["value"];
+
+export const FAILURE_POLICY_KEYS = ["restartPolicy", "maxRestarts", "deployTimeout"] as const;
+
+interface FailurePolicySettings {
+	restartPolicy: RestartChoice;
+	maxRestarts: string;
+	/** Seconds. */
+	deployTimeout: string;
+	/** The API returned no usable failure policy, so the section cannot show or edit it. */
+	failurePolicyMissing: boolean;
+}
+
+function failurePolicySettings(
+	policy: FailurePolicy | undefined,
+	defaults: DefaultServiceConfig,
+): FailurePolicySettings {
+	const choice = RESTART_CHOICES.find((c) => c.policy === policy?.restartPolicy);
+	if (policy === undefined || choice === undefined) {
+		return { restartPolicy: "on-failure", maxRestarts: "", deployTimeout: "", failurePolicyMissing: true };
+	}
+	const restarts = policy.maxRestarts > 0 ? policy.maxRestarts : (defaults.failurePolicy?.maxRestarts ?? 0);
+	return {
+		restartPolicy: choice.value,
+		maxRestarts: restarts.toString(),
+		deployTimeout: policy.deployTimeoutSeconds.toString(),
+		failurePolicyMissing: false,
+	};
+}
+
 export type ObservabilitySettings = Required<Pick<ObservabilityConfig, "injectOtel">>;
 
 function observabilitySettings(config: ObservabilityConfig | undefined): ObservabilitySettings {
@@ -52,7 +91,10 @@ export interface SettingsDraft {
 	name?: string;
 	description?: string;
 	image?: string;
-	rollbackOnFailure?: boolean;
+	restartPolicy?: RestartChoice;
+	maxRestarts?: string;
+	/** Seconds. */
+	deployTimeout?: string;
 	observability?: ObservabilitySettings;
 	scaling?: Record<string, Scaling>;
 	cpu?: string;
@@ -81,7 +123,10 @@ export interface Baseline {
 	name: string;
 	description: string;
 	image: string;
-	rollbackOnFailure: boolean;
+	restartPolicy: RestartChoice;
+	maxRestarts: string;
+	deployTimeout: string;
+	failurePolicyMissing: boolean;
 	observability: ObservabilitySettings;
 	cpu: string;
 	memory: string;
@@ -122,7 +167,7 @@ export function baseline(
 	configured: string[],
 	isPublic: boolean,
 	defaults: DefaultServiceConfig,
-	rollbackOnFailure?: boolean,
+	failurePolicy: FailurePolicy | undefined,
 ): Baseline {
 	const templateView = templateRegion(regions);
 	const template = templateView?.current;
@@ -135,7 +180,7 @@ export function baseline(
 		name,
 		description,
 		image: svc?.build?.image ?? "",
-		rollbackOnFailure: rollbackOnFailure ?? defaults.rollbackOnFailure,
+		...failurePolicySettings(failurePolicy, defaults),
 		observability: observabilitySettings(svc === undefined ? defaults.observability : svc.observability),
 		cpu: size?.cpu ?? "",
 		memory: size?.memory ?? "",
@@ -173,7 +218,10 @@ export function resolved(draft: SettingsDraft, base: Baseline): Baseline {
 		name: draft.name ?? base.name,
 		description: draft.description ?? base.description,
 		image: draft.image ?? base.image,
-		rollbackOnFailure: draft.rollbackOnFailure ?? base.rollbackOnFailure,
+		restartPolicy: draft.restartPolicy ?? base.restartPolicy,
+		maxRestarts: draft.maxRestarts ?? base.maxRestarts,
+		deployTimeout: draft.deployTimeout ?? base.deployTimeout,
+		failurePolicyMissing: base.failurePolicyMissing,
 		observability: draft.observability ?? base.observability,
 		cpu: draft.cpu ?? base.cpu,
 		memory: draft.memory ?? base.memory,
@@ -248,7 +296,7 @@ export function changeNames(draft: SettingsDraft, base: Baseline): string[] {
 		),
 	);
 	if (next.isPublic !== base.isPublic) names.push(next.isPublic ? "Public access" : "Internal only");
-	if (next.rollbackOnFailure !== base.rollbackOnFailure) names.push("Rollback on failure");
+	names.push(...failurePolicyChanges(next, base));
 	if (next.observability.injectOtel !== base.observability.injectOtel) names.push("Configure SDK environment");
 	return names;
 }
@@ -266,7 +314,14 @@ export function domainsChange(draft: SettingsDraft, base: Baseline): "add" | "re
 export type DraftErrors = Partial<Record<keyof SettingsDraft | `scaling.${string}`, string>>;
 
 /** Fields whose errors show while the user types, before the first save attempt. */
-export const LIVE_ERROR_KEYS = ["healthPath", "healthInterval", "healthTimeout", "healthFailures"] as const;
+export const LIVE_ERROR_KEYS = [
+	"healthPath",
+	"healthInterval",
+	"healthTimeout",
+	"healthFailures",
+	"maxRestarts",
+	"deployTimeout",
+] as const;
 
 function positive(value: string): boolean {
 	return WHOLE.test(value.trim()) && Number(value.trim()) > 0;
@@ -318,6 +373,11 @@ export function validateDraft(
 		errors.healthFailures = "A whole number, at least 1";
 	const [variableProblem] = addedProblems(draft, base.env).values();
 	if (variableProblem !== undefined) errors.added = variableProblem;
+	// The API enforces the bounds and its message names them.
+	if (draft.maxRestarts !== undefined && next.restartPolicy === "on-failure" && !positive(next.maxRestarts))
+		errors.maxRestarts = "A whole number, at least 1";
+	if (draft.deployTimeout !== undefined && !positive(next.deployTimeout))
+		errors.deployTimeout = "Whole seconds, at least 1";
 	if (!Object.values(next.regions).some(Boolean)) errors.regions = "Keep at least one region";
 	else if (regionMapChanged(draft, base) && planSave(regions, draft, base).length > 0)
 		errors.regions =
@@ -328,6 +388,28 @@ export function validateDraft(
 		if (!SUBDOMAIN_RE.test(draft.subdomain ?? "")) errors.subdomain = "Use lowercase letters, digits and hyphens";
 	}
 	return errors;
+}
+
+function failurePolicyChanges(next: Baseline, base: Baseline): string[] {
+	const names: string[] = [];
+	if (next.restartPolicy !== base.restartPolicy) names.push("Restart policy");
+	if (next.restartPolicy === "on-failure" && differs(next.maxRestarts, base.maxRestarts)) names.push("Restart limit");
+	if (differs(next.deployTimeout, base.deployTimeout)) names.push("Deploy timeout");
+	return names;
+}
+
+export function failurePolicyChanged(draft: SettingsDraft, base: Baseline): boolean {
+	return failurePolicyChanges(resolved(draft, base), base).length > 0;
+}
+
+/** The failure policy to store, from the resolved settings. */
+export function failurePolicyFrom(next: Baseline): FailurePolicy {
+	const choice = RESTART_CHOICES.find((c) => c.value === next.restartPolicy);
+	return create(FailurePolicySchema, {
+		restartPolicy: choice?.policy ?? RestartPolicy.UNSPECIFIED,
+		maxRestarts: next.restartPolicy === "on-failure" ? Number(next.maxRestarts.trim()) : 0,
+		deployTimeoutSeconds: Number(next.deployTimeout.trim()),
+	});
 }
 
 function healthFrom(next: Baseline, current: HealthCheckConfig | undefined): HealthCheckConfig {

@@ -285,9 +285,6 @@ type Querier interface {
 	OrgAdminHasNoActiveSuccessor(ctx context.Context, arg OrgAdminHasNoActiveSuccessorParams) (bool, error)
 	OrgHasWorkspacesWithResources(ctx context.Context, orgID uuid.UUID) (bool, error)
 	PostponeWebhookDelivery(ctx context.Context, arg PostponeWebhookDeliveryParams) (int64, error)
-	// The newest deployment older than the failed one that ran, while nothing newer than the
-	// failed one exists.
-	PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error)
 	// The newest deployment older than the given one whose placement on the cluster served and did
 	// not fail.
 	PreviousLiveDeploymentForCluster(ctx context.Context, arg PreviousLiveDeploymentForClusterParams) (Deployment, error)

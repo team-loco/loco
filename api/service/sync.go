@@ -15,7 +15,6 @@ import (
 	"github.com/team-loco/loco/api/events"
 	genDb "github.com/team-loco/loco/api/gen/db"
 	"github.com/team-loco/loco/api/pkg/converter"
-	"github.com/team-loco/loco/api/pkg/servicedefaults"
 	agentv1 "github.com/team-loco/loco/gen/go/loco/agent/v1"
 	"github.com/team-loco/loco/gen/go/loco/agent/v1/agentv1connect"
 	"github.com/team-loco/loco/internal/rpcerr"
@@ -605,7 +604,7 @@ func (s *AgentServer) recordApplyError(
 		live := placementStatusNames(placementLiveStatuses...)
 		cause := transitionCause{message: errMessage}
 		return advancePlacementStatus(ctx, qtx, *row.DeploymentID, clusterID, genDb.PlacementStatusFailed,
-			live, cause, s.config.ServiceDefaults)
+			live, cause)
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to record apply error", "placement_id", placementID, "error", err)
@@ -681,7 +680,7 @@ func (s *AgentServer) recordStatus(
 
 // applyPlacementReport records the rollout a placement's report describes and advances the
 // placement's deployment.
-func (s *AgentServer) applyPlacementReport(
+func (*AgentServer) applyPlacementReport(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	clusterID, placementID uuid.UUID,
@@ -745,7 +744,7 @@ func (s *AgentServer) applyPlacementReport(
 	if next != placement.Status {
 		if transitionErr := advancePlacementStatus(
 			ctx, qtx, deployment.ID, clusterID, next, placementStatusNames(placement.Status),
-			reportCause(status), s.config.ServiceDefaults,
+			reportCause(status),
 		); transitionErr != nil {
 			return transitionErr
 		}
@@ -779,7 +778,6 @@ func advancePlacementStatus(
 	status genDb.PlacementStatus,
 	from []string,
 	cause transitionCause,
-	defaults servicedefaults.Defaults,
 ) error {
 	changed, err := qtx.SetDeploymentPlacementStatus(ctx, genDb.SetDeploymentPlacementStatusParams{
 		Status: status, DeploymentID: deploymentID, ClusterID: clusterID, FromStatuses: from,
@@ -790,7 +788,7 @@ func advancePlacementStatus(
 	if changed == 0 {
 		return nil
 	}
-	return recordDeploymentStatus(ctx, qtx, deploymentID, cause, defaults)
+	return recordDeploymentStatus(ctx, qtx, deploymentID, cause)
 }
 
 // deploymentStatusEvent is the event a deployment's aggregate transition records, if any. A
@@ -814,14 +812,12 @@ func deploymentStatusEvent(previous, status genDb.DeploymentStatus) (string, boo
 }
 
 // recordDeploymentStatus recomputes a deployment's aggregate status from its placements and
-// records deployment.ready, deployment.failed or deployment.crashed on that transition; a failed
-// deployment rolls back when its service asks for it.
+// records deployment.ready, deployment.failed or deployment.crashed on that transition.
 func recordDeploymentStatus(
 	ctx context.Context,
 	qtx *genDb.Queries,
 	id uuid.UUID,
 	cause transitionCause,
-	defaults servicedefaults.Defaults,
 ) error {
 	status, err := recomputeDeploymentStatus(ctx, qtx, id)
 	if err != nil {
@@ -880,9 +876,6 @@ func recordDeploymentStatus(
 		Data:          data,
 	}); err != nil {
 		return err
-	}
-	if failed {
-		return rollbackDeploymentIfEnabled(ctx, qtx, id, defaults)
 	}
 	return nil
 }

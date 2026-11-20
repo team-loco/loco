@@ -226,13 +226,6 @@
             }
           ],
           "description": "Automatic OpenTelemetry SDK environment configuration, enabled by default."
-        },
-        "rollbackOnFailure": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "Restore the previous deployment on failure. Off by default."
         }
       },
       "additionalProperties": false,
@@ -547,10 +540,6 @@
         "observability": {
           "$ref": "#/$defs/Observability",
           "description": "Automatic OpenTelemetry SDK environment configuration, enabled by default."
-        },
-        "rollbackOnFailure": {
-          "type": "boolean",
-          "description": "Restore the previous deployment on failure. Off by default."
         }
       },
       "dependentRequired": {

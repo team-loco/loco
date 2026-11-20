@@ -142,6 +142,18 @@ func (p FailurePolicy) Proto() *deploymentv1.FailurePolicy {
 	}
 }
 
+// RestartMode maps a proto restart policy to its mode; it is false for an unset one.
+func RestartMode(policy deploymentv1.RestartPolicy) (locoControllerV1.RestartMode, bool) {
+	for _, mode := range []locoControllerV1.RestartMode{
+		locoControllerV1.RestartOnFailure, locoControllerV1.RestartAlways, locoControllerV1.RestartNever,
+	} {
+		if RestartPolicyProto(mode) == policy {
+			return mode, true
+		}
+	}
+	return "", false
+}
+
 // RestartPolicyProto maps a restart mode to its proto value; agent/pkg/appwatch keeps the same
 // mapping, update both together.
 func RestartPolicyProto(mode locoControllerV1.RestartMode) deploymentv1.RestartPolicy {
@@ -216,12 +228,4 @@ func FirstSet[T comparable](values ...T) T {
 		}
 	}
 	return zero
-}
-
-// RollbackOnFailure returns the deployment's own setting when it has one, else the service's.
-func RollbackOnFailure(service bool, deployment *bool) bool {
-	if deployment != nil {
-		return *deployment
-	}
-	return service
 }

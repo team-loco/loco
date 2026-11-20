@@ -559,8 +559,6 @@ type DefaultServiceConfig struct {
 	MaxReplicas   int32                   `protobuf:"varint,5,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
 	CpuTarget     int32                   `protobuf:"varint,8,opt,name=cpu_target,json=cpuTarget,proto3" json:"cpu_target,omitempty"`
 	Observability *v1.ObservabilityConfig `protobuf:"bytes,9,opt,name=observability,proto3" json:"observability,omitempty"`
-	// Restores the previous deployment on failure; off by default.
-	RollbackOnFailure bool `protobuf:"varint,10,opt,name=rollback_on_failure,json=rollbackOnFailure,proto3" json:"rollback_on_failure,omitempty"`
 	// The failure policy a service runs under when it sets none.
 	FailurePolicy *v1.FailurePolicy `protobuf:"bytes,11,opt,name=failure_policy,json=failurePolicy,proto3" json:"failure_policy,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -646,13 +644,6 @@ func (x *DefaultServiceConfig) GetObservability() *v1.ObservabilityConfig {
 	return nil
 }
 
-func (x *DefaultServiceConfig) GetRollbackOnFailure() bool {
-	if x != nil {
-		return x.RollbackOnFailure
-	}
-	return false
-}
-
 func (x *DefaultServiceConfig) GetFailurePolicy() *v1.FailurePolicy {
 	if x != nil {
 		return x.FailurePolicy
@@ -712,7 +703,7 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x06 \x01(\x05R\vmaxReplicas\"1\n" +
 	"\aOrgLink\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url\"\xc4\x03\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\x9a\x03\n" +
 	"\x14DefaultServiceConfig\x12H\n" +
 	"\fhealth_check\x18\x01 \x01(\v2%.loco.deployment.v1.HealthCheckConfigR\vhealthCheck\x12\x10\n" +
 	"\x03cpu\x18\x02 \x01(\tR\x03cpu\x12\x16\n" +
@@ -721,10 +712,9 @@ const file_loco_config_v1_config_proto_rawDesc = "" +
 	"\fmax_replicas\x18\x05 \x01(\x05R\vmaxReplicas\x12\x1d\n" +
 	"\n" +
 	"cpu_target\x18\b \x01(\x05R\tcpuTarget\x12M\n" +
-	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12.\n" +
-	"\x13rollback_on_failure\x18\n" +
-	" \x01(\bR\x11rollbackOnFailure\x12H\n" +
-	"\x0efailure_policy\x18\v \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\x06\x10\aJ\x04\b\a\x10\b2a\n" +
+	"\robservability\x18\t \x01(\v2'.loco.deployment.v1.ObservabilityConfigR\robservability\x12H\n" +
+	"\x0efailure_policy\x18\v \x01(\v2!.loco.deployment.v1.FailurePolicyR\rfailurePolicyJ\x04\b\x06\x10\aJ\x04\b\a\x10\bJ\x04\b\n" +
+	"\x10\v2a\n" +
 	"\rConfigService\x12P\n" +
 	"\tGetConfig\x12 .loco.config.v1.GetConfigRequest\x1a!.loco.config.v1.GetConfigResponseB:Z8github.com/team-loco/loco/gen/go/loco/config/v1;configv1b\x06proto3"
 
