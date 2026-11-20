@@ -1,10 +1,7 @@
 import { useQuery } from "@connectrpc/connect-query";
 import { getConfig } from "@gen/loco/config/v1/config-ConfigService_connectquery";
-import { useTimePreferences } from "@/lib/use-time-preferences";
 import type { CountLimits } from "@gen/loco/config/v1/config_pb";
-import type { Organization, OrgLimits, User } from "@gen/loco/org/v1/org_pb";
-import { CircleArrowUpIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { Organization, OrgLimits } from "@gen/loco/org/v1/org_pb";
 
 import { Badge } from "@/components/design/Badge";
 import { LIMIT_TONE_TEXT } from "@/components/design/LimitedAction";
@@ -13,10 +10,9 @@ import { useNow } from "@/hooks/useNow";
 import { useOpenInvitations } from "@/hooks/useOpenInvitations";
 import { formatCount } from "@/lib/format";
 import { limitTone, limitUsage } from "@/lib/limits";
-import { userLabel } from "@/lib/user";
 import { cn } from "@/lib/utils";
 
-import { formatDay, SettingsCard, SettingsSection } from "./parts";
+import { SettingsCard, SettingsSection } from "./parts";
 
 type LimitKey = { [K in keyof CountLimits]-?: CountLimits[K] extends number ? K : never }[keyof CountLimits];
 
@@ -106,33 +102,14 @@ const COLUMNS: DataColumn<Row>[] = [
 	},
 ];
 
-function RaisedBanner({ org, limits, users }: { org: Organization; limits: OrgLimits; users: User[] }): ReactNode {
-	const timePref = useTimePreferences();
-	const by = users.find((u) => u.id === limits.updatedBy);
-	return (
-		<div className="flex items-start gap-2.5 border-b border-line2 bg-background px-5 py-3 text-[13px]">
-			<CircleArrowUpIcon className="mt-0.5 size-[15px] shrink-0 text-info-fg" />
-			<div className="min-w-0">
-				<div>
-					Raised for {org.name} by {by === undefined ? "a Loco administrator" : userLabel(by)} on{" "}
-					{formatDay(limits.updatedAt, timePref)}
-				</div>
-				{limits.reason !== "" && <div className="mt-0.5 text-[12.5px] text-fg2">{limits.reason}</div>}
-			</div>
-		</div>
-	);
-}
-
 export function LimitsSection({
 	org,
 	limits,
-	users,
 	workspaceCount,
 	memberCount,
 }: {
 	org: Organization;
 	limits: OrgLimits | undefined;
-	users: User[];
 	workspaceCount: number | undefined;
 	memberCount: number | undefined;
 }) {
@@ -189,9 +166,6 @@ export function LimitsSection({
 	return (
 		<SettingsSection id="s-lim" title="Limits">
 			<SettingsCard>
-				{limits !== undefined && limits.overridden.length > 0 && (
-					<RaisedBanner org={org} limits={limits} users={users} />
-				)}
 				<DataTable table={table} label="Limits" className="[&_tr[data-group]]:border-t" groupBy={(row) => row.group} />
 			</SettingsCard>
 		</SettingsSection>

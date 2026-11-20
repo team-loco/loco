@@ -228,7 +228,7 @@ with session(out) as browser:
     ).to_be_visible()
     # Every "deployed N ago" counts from when the deployment became ready.
     expect(page.get_by_text("deployed 10m ago by Olivia Owner")).to_be_visible()
-    deployment_row = page.get_by_role("row").filter(has_text="current")
+    deployment_row = page.get_by_role("row").filter(has_text=deployment[:8])
     expect(deployment_row.get_by_role("cell").nth(-1)).to_have_text("10m ago")
     expect(deployment_row.get_by_role("cell").nth(-2)).to_have_text("30m ago")
     switcher = page.get_by_role("button", name="Switch resource", exact=True)
@@ -380,10 +380,17 @@ with session(out) as browser:
     expect(
         variables.get_by_text(
             "Plain values, visible to anyone who can read this resource. "
-            "For anything sensitive, refer to a secret with ${{ secrets.NAME }}.",
+            "For anything sensitive, refer to a secret with ${{ secrets.NAME }}. "
+            "Manage secrets in production",
             exact=True,
         )
     ).to_be_visible()
+    manage = variables.get_by_role(
+        "link", name="Manage secrets in production", exact=True
+    )
+    manage.click()
+    page.wait_for_url(re.compile(r"/secrets\?env=production$"))
+    page.go_back()
     mode = page.get_by_label("Value of MODE", exact=True)
     api_base = page.get_by_label("Value of API_BASE_URL", exact=True)
     for plain, value in ((mode, "production"), (api_base, "https://api.example.test")):

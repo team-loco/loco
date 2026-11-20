@@ -163,7 +163,8 @@ with session(out) as browser:
     expect(
         variables.get_by_text(
             "Plain values, visible to anyone who can read this resource. "
-            "For anything sensitive, refer to a secret with ${{ secrets.NAME }}.",
+            "For anything sensitive, refer to a secret with ${{ secrets.NAME }}. "
+            "Manage secrets in production",
             exact=True,
         )
     ).to_be_visible()

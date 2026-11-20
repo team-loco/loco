@@ -168,9 +168,14 @@ def check_environments(page):
     expect(dialog).to_be_hidden()
     expect(environments.get_by_text("Customer traffic", exact=True)).to_be_visible()
     expect(environments.get_by_text("Production EU", exact=True)).to_be_visible()
-    expect(environments.get_by_text("0 resources", exact=True).first).to_be_visible()
+    row = environments.get_by_role("row").filter(has_text="Production EU")
     settings_url = page.url
-    page.goto(settings_url.split("/settings")[0] + "/resources?env=production")
+    workspace_url = settings_url.split("/settings")[0]
+    row.get_by_role("link", name="Manage secrets", exact=True).click()
+    page.wait_for_url(workspace_url + "/secrets?env=production")
+    page.go_back()
+    row.get_by_role("link", name="Manage resources", exact=True).click()
+    page.wait_for_url(workspace_url + "/resources?env=production")
     switcher = page.get_by_title("Switch environment", exact=True)
     expect(switcher).to_have_text("Production EU")
     page.wait_for_url(

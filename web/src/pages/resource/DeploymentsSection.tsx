@@ -10,7 +10,6 @@ import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { Link } from "react-router";
 import { DeploymentStatus, type Deployment } from "@gen/loco/deployment/v1/deployment_pb";
 
-import { Badge } from "@/components/design/Badge";
 import { Button } from "@/components/design/Button";
 import { CopyId } from "@/components/design/CopyId";
 import { CellText, DataTable, expandColumn, useDataTable, type DataColumn } from "@/components/design/DataTable";
@@ -52,7 +51,6 @@ interface Row {
 	dep: Deployment;
 	region: RegionView;
 	prev: Deployment | undefined;
-	isCurrent: boolean;
 }
 
 /** The regions of one deployment, one row per region. */
@@ -221,10 +219,7 @@ function rolloutColumns(
 			minSize: 90,
 			meta: { fit: true, fitMax: 160 },
 			cell: ({ row: { original: rollout } }) => (
-				<span className="flex min-w-0 items-center gap-1.5">
-					<CellText text={depTag(leadRow(rollout.rows).dep)} className="font-mono text-[12.5px] text-foreground" />
-					{rollout.rows.some((r) => r.isCurrent) && <Badge tone="pill">current</Badge>}
-				</span>
+				<CellText text={depTag(leadRow(rollout.rows).dep)} className="font-mono text-[12.5px] text-foreground" />
 			),
 		},
 		{
@@ -340,7 +335,6 @@ export function DeploymentsSection({
 				dep,
 				region,
 				prev: previousDeployment(region, dep),
-				isCurrent: region.current?.id === dep.id,
 			})),
 		)
 		.toSorted((a, b) => tsMs(b.dep.createdAt) - tsMs(a.dep.createdAt));

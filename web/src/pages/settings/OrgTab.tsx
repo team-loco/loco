@@ -334,7 +334,6 @@ export function OrgTab({
 			<LimitsSection
 				org={org}
 				limits={limitDetails}
-				users={users}
 				workspaceCount={workspacesLoading ? undefined : workspaces.length}
 				memberCount={memberCount}
 			/>
