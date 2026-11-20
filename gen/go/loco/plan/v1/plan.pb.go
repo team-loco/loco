@@ -471,7 +471,10 @@ type PlanResponse struct {
 	Errors []*PlanError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
 	// images maps every image reference of the file that resolved to the digest-pinned reference
 	// the plan uses. An ApplyRequest carries it back so the apply deploys the digests reviewed.
-	Images        map[string]string `protobuf:"bytes,4,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Images map[string]string `protobuf:"bytes,4,rep,name=images,proto3" json:"images,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// saved_secrets are the secrets the file's services hold in the environment, in service and
+	// name order.
+	SavedSecrets  []*SavedSecret `protobuf:"bytes,5,rep,name=saved_secrets,json=savedSecrets,proto3" json:"saved_secrets,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -534,6 +537,76 @@ func (x *PlanResponse) GetImages() map[string]string {
 	return nil
 }
 
+func (x *PlanResponse) GetSavedSecrets() []*SavedSecret {
+	if x != nil {
+		return x.SavedSecrets
+	}
+	return nil
+}
+
+// SavedSecret is a secret a service holds in the environment. Its deployments receive it only
+// when the file declares it.
+type SavedSecret struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Service string                 `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	Name    string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// declared is true when the file lists the name in the service's secrets.
+	Declared      bool `protobuf:"varint,3,opt,name=declared,proto3" json:"declared,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SavedSecret) Reset() {
+	*x = SavedSecret{}
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SavedSecret) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SavedSecret) ProtoMessage() {}
+
+func (x *SavedSecret) ProtoReflect() protoreflect.Message {
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SavedSecret.ProtoReflect.Descriptor instead.
+func (*SavedSecret) Descriptor() ([]byte, []int) {
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SavedSecret) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *SavedSecret) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SavedSecret) GetDeclared() bool {
+	if x != nil {
+		return x.Declared
+	}
+	return false
+}
+
 type PlanOperation struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Kind    PlanOperationKind      `protobuf:"varint,1,opt,name=kind,proto3,enum=loco.plan.v1.PlanOperationKind" json:"kind,omitempty"`
@@ -549,7 +622,7 @@ type PlanOperation struct {
 
 func (x *PlanOperation) Reset() {
 	*x = PlanOperation{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[6]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -561,7 +634,7 @@ func (x *PlanOperation) String() string {
 func (*PlanOperation) ProtoMessage() {}
 
 func (x *PlanOperation) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[6]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -574,7 +647,7 @@ func (x *PlanOperation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanOperation.ProtoReflect.Descriptor instead.
 func (*PlanOperation) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{6}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PlanOperation) GetKind() PlanOperationKind {
@@ -625,7 +698,7 @@ type FieldChange struct {
 
 func (x *FieldChange) Reset() {
 	*x = FieldChange{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[7]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -637,7 +710,7 @@ func (x *FieldChange) String() string {
 func (*FieldChange) ProtoMessage() {}
 
 func (x *FieldChange) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[7]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -650,7 +723,7 @@ func (x *FieldChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FieldChange.ProtoReflect.Descriptor instead.
 func (*FieldChange) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{7}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *FieldChange) GetPath() string {
@@ -687,7 +760,7 @@ type PlanError struct {
 
 func (x *PlanError) Reset() {
 	*x = PlanError{}
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[8]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -699,7 +772,7 @@ func (x *PlanError) String() string {
 func (*PlanError) ProtoMessage() {}
 
 func (x *PlanError) ProtoReflect() protoreflect.Message {
-	mi := &file_loco_plan_v1_plan_proto_msgTypes[8]
+	mi := &file_loco_plan_v1_plan_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -712,7 +785,7 @@ func (x *PlanError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlanError.ProtoReflect.Descriptor instead.
 func (*PlanError) Descriptor() ([]byte, []int) {
-	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{8}
+	return file_loco_plan_v1_plan_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PlanError) GetService() string {
@@ -777,17 +850,22 @@ const file_loco_plan_v1_plan_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"_\n" +
 	"\vPlanRequest\x12\x1f\n" +
 	"\x04file\x18\x01 \x01(\fB\v\xbaH\bz\x06\x10\x01\x18\x80\x80@R\x04file\x12/\n" +
-	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\x93\x02\n" +
+	"\x0eenvironment_id\x18\x02 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\renvironmentId\"\xd3\x02\n" +
 	"\fPlanResponse\x12\x1a\n" +
 	"\brevision\x18\x01 \x01(\x03R\brevision\x12;\n" +
 	"\n" +
 	"operations\x18\x02 \x03(\v2\x1b.loco.plan.v1.PlanOperationR\n" +
 	"operations\x12/\n" +
 	"\x06errors\x18\x03 \x03(\v2\x17.loco.plan.v1.PlanErrorR\x06errors\x12>\n" +
-	"\x06images\x18\x04 \x03(\v2&.loco.plan.v1.PlanResponse.ImagesEntryR\x06images\x1a9\n" +
+	"\x06images\x18\x04 \x03(\v2&.loco.plan.v1.PlanResponse.ImagesEntryR\x06images\x12>\n" +
+	"\rsaved_secrets\x18\x05 \x03(\v2\x19.loco.plan.v1.SavedSecretR\fsavedSecrets\x1a9\n" +
 	"\vImagesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd8\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"W\n" +
+	"\vSavedSecret\x12\x18\n" +
+	"\aservice\x18\x01 \x01(\tR\aservice\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\bdeclared\x18\x03 \x01(\bR\bdeclared\"\xd8\x01\n" +
 	"\rPlanOperation\x123\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1f.loco.plan.v1.PlanOperationKindR\x04kind\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x123\n" +
@@ -825,7 +903,7 @@ func file_loco_plan_v1_plan_proto_rawDescGZIP() []byte {
 }
 
 var file_loco_plan_v1_plan_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_loco_plan_v1_plan_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_loco_plan_v1_plan_proto_goTypes = []any{
 	(PlanOperationKind)(0),    // 0: loco.plan.v1.PlanOperationKind
 	(*ApplyRequest)(nil),      // 1: loco.plan.v1.ApplyRequest
@@ -834,38 +912,40 @@ var file_loco_plan_v1_plan_proto_goTypes = []any{
 	(*ApplyRefusal)(nil),      // 4: loco.plan.v1.ApplyRefusal
 	(*PlanRequest)(nil),       // 5: loco.plan.v1.PlanRequest
 	(*PlanResponse)(nil),      // 6: loco.plan.v1.PlanResponse
-	(*PlanOperation)(nil),     // 7: loco.plan.v1.PlanOperation
-	(*FieldChange)(nil),       // 8: loco.plan.v1.FieldChange
-	(*PlanError)(nil),         // 9: loco.plan.v1.PlanError
-	nil,                       // 10: loco.plan.v1.ApplyRequest.ImagesEntry
-	nil,                       // 11: loco.plan.v1.ApplyRequest.BuildsEntry
-	nil,                       // 12: loco.plan.v1.ApplyRefusal.ImagesEntry
-	nil,                       // 13: loco.plan.v1.PlanResponse.ImagesEntry
-	(*v1.SourceCommit)(nil),   // 14: loco.deployment.v1.SourceCommit
+	(*SavedSecret)(nil),       // 7: loco.plan.v1.SavedSecret
+	(*PlanOperation)(nil),     // 8: loco.plan.v1.PlanOperation
+	(*FieldChange)(nil),       // 9: loco.plan.v1.FieldChange
+	(*PlanError)(nil),         // 10: loco.plan.v1.PlanError
+	nil,                       // 11: loco.plan.v1.ApplyRequest.ImagesEntry
+	nil,                       // 12: loco.plan.v1.ApplyRequest.BuildsEntry
+	nil,                       // 13: loco.plan.v1.ApplyRefusal.ImagesEntry
+	nil,                       // 14: loco.plan.v1.PlanResponse.ImagesEntry
+	(*v1.SourceCommit)(nil),   // 15: loco.deployment.v1.SourceCommit
 }
 var file_loco_plan_v1_plan_proto_depIdxs = []int32{
-	10, // 0: loco.plan.v1.ApplyRequest.images:type_name -> loco.plan.v1.ApplyRequest.ImagesEntry
-	11, // 1: loco.plan.v1.ApplyRequest.builds:type_name -> loco.plan.v1.ApplyRequest.BuildsEntry
-	14, // 2: loco.plan.v1.ApplyRequest.commit:type_name -> loco.deployment.v1.SourceCommit
-	7,  // 3: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	11, // 0: loco.plan.v1.ApplyRequest.images:type_name -> loco.plan.v1.ApplyRequest.ImagesEntry
+	12, // 1: loco.plan.v1.ApplyRequest.builds:type_name -> loco.plan.v1.ApplyRequest.BuildsEntry
+	15, // 2: loco.plan.v1.ApplyRequest.commit:type_name -> loco.deployment.v1.SourceCommit
+	8,  // 3: loco.plan.v1.ApplyResponse.operations:type_name -> loco.plan.v1.PlanOperation
 	3,  // 4: loco.plan.v1.ApplyResponse.deployments:type_name -> loco.plan.v1.StartedDeployment
-	9,  // 5: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
-	7,  // 6: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
-	12, // 7: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
-	7,  // 8: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
-	9,  // 9: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
-	13, // 10: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
-	0,  // 11: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
-	8,  // 12: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
-	5,  // 13: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
-	1,  // 14: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
-	6,  // 15: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
-	2,  // 16: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
-	15, // [15:17] is the sub-list for method output_type
-	13, // [13:15] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	10, // 5: loco.plan.v1.ApplyRefusal.errors:type_name -> loco.plan.v1.PlanError
+	8,  // 6: loco.plan.v1.ApplyRefusal.unconfirmed:type_name -> loco.plan.v1.PlanOperation
+	13, // 7: loco.plan.v1.ApplyRefusal.images:type_name -> loco.plan.v1.ApplyRefusal.ImagesEntry
+	8,  // 8: loco.plan.v1.PlanResponse.operations:type_name -> loco.plan.v1.PlanOperation
+	10, // 9: loco.plan.v1.PlanResponse.errors:type_name -> loco.plan.v1.PlanError
+	14, // 10: loco.plan.v1.PlanResponse.images:type_name -> loco.plan.v1.PlanResponse.ImagesEntry
+	7,  // 11: loco.plan.v1.PlanResponse.saved_secrets:type_name -> loco.plan.v1.SavedSecret
+	0,  // 12: loco.plan.v1.PlanOperation.kind:type_name -> loco.plan.v1.PlanOperationKind
+	9,  // 13: loco.plan.v1.PlanOperation.changes:type_name -> loco.plan.v1.FieldChange
+	5,  // 14: loco.plan.v1.PlanService.Plan:input_type -> loco.plan.v1.PlanRequest
+	1,  // 15: loco.plan.v1.PlanService.Apply:input_type -> loco.plan.v1.ApplyRequest
+	6,  // 16: loco.plan.v1.PlanService.Plan:output_type -> loco.plan.v1.PlanResponse
+	2,  // 17: loco.plan.v1.PlanService.Apply:output_type -> loco.plan.v1.ApplyResponse
+	16, // [16:18] is the sub-list for method output_type
+	14, // [14:16] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_loco_plan_v1_plan_proto_init() }
@@ -879,7 +959,7 @@ func file_loco_plan_v1_plan_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_loco_plan_v1_plan_proto_rawDesc), len(file_loco_plan_v1_plan_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

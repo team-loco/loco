@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 
@@ -82,4 +83,24 @@ func servicesMissingOnlySecrets(planErrors []*planv1.PlanError, services map[str
 	}
 	slices.Sort(names)
 	return names, len(names) > 0
+}
+
+// writeSavedSecrets prints each saved secret of the file's services with whether its deployments receive it.
+func writeSavedSecrets(w io.Writer, saved []*planv1.SavedSecret) error {
+	var b strings.Builder
+	service := ""
+	for _, secret := range saved {
+		if secret.GetService() != service {
+			service = secret.GetService()
+			fmt.Fprintf(&b, "\nSecrets of %s:\n", service)
+		}
+		status := "in use"
+		if !secret.GetDeclared() {
+			status = fmt.Sprintf("Saved. To use this key, add %s to services.%s.secrets and redeploy.",
+				secret.GetName(), service)
+		}
+		fmt.Fprintf(&b, "  %s: %s\n", secret.GetName(), status)
+	}
+	_, err := fmt.Fprint(w, b.String())
+	return err
 }

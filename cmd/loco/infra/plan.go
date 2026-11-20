@@ -92,6 +92,9 @@ func runPlan(cmd *cobra.Command, path string) error {
 		if writeErr := writePlan(os.Stdout, path, plan); writeErr != nil {
 			return writeErr
 		}
+		if writeErr := writeSavedSecrets(os.Stdout, plan.GetSavedSecrets()); writeErr != nil {
+			return writeErr
+		}
 	}
 
 	if detailedExitCode && len(plan.GetOperations()) > 0 {
