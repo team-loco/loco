@@ -60,7 +60,17 @@ def test_capture_renews_the_shared_openbao_it_uses(leases, monkeypatch, capsys):
     assert leases[-1] == ("renew", "/capture", openbao)
 
 
-def test_postgres_pulled_and_recorded_before_start(tmp_path, monkeypatch, leases):
+@pytest.mark.parametrize(
+    "platform, serves",
+    [
+        ("darwin", ("-p", f"{evidence.HOST}:20000:5432")),
+        ("linux", ("--network", "host", "-e", "PGPORT=20000")),
+    ],
+)
+def test_postgres_pulled_and_recorded_before_start(
+    tmp_path, monkeypatch, leases, platform, serves
+):
+    monkeypatch.setattr(evidence.sys, "platform", platform)
     repo = Path(__file__).resolve().parents[2]
     monkeypatch.setenv(evidence.OPENBAO_ENV, "http://openbao")
     monkeypatch.setattr(evidence, "repo_root", lambda: repo)
@@ -86,9 +96,10 @@ def test_postgres_pulled_and_recorded_before_start(tmp_path, monkeypatch, leases
     recorded = next(call for call in leases if call[0] == "add" and call[3] == name)
     assert leases.index(pull) < leases.index(start)
     assert leases.index(recorded) < leases.index(start)
-    assert pull[-1] == start[-1]
+    assert pull[-1] in start
     assert start[start.index("--pull") + 1] == "never"
-    assert f"{evidence.HOST}:20000:5432" in start
+    at = start.index(serves[0])
+    assert start[at : at + len(serves)] == serves
 
 
 def test_capture_scrolls_drag_target_into_view(tmp_path):

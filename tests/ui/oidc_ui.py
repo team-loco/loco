@@ -31,7 +31,10 @@ def check_browser(browser, state, issuer_url):
     )
     page.goto(state["ui_url"] + "/login")
     expect(page).to_have_url(
-        re.compile(re.escape(state["ui_url"]) + r"/org/[a-f0-9-]+/wks/[a-f0-9-]+$"),
+        re.compile(
+            re.escape(state["ui_url"])
+            + r"/org/[a-f0-9-]+/wks/[a-f0-9-]+\?env=production$"
+        ),
         timeout=20000,
     )
     dashboard = page.url

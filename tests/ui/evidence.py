@@ -522,6 +522,22 @@ def wait_postgres(container):
         time.sleep(0.5)
 
 
+def postgres_network(port, image):
+    """The `docker run` arguments, from the image on, that serve Postgres on HOST:port."""
+    if sys.platform != "linux":
+        return ["-p", f"{HOST}:{port}:5432", image]
+    # A bridged container adds a host interface, and Chromium aborts every open request when one appears.
+    return [
+        "--network",
+        "host",
+        "-e",
+        f"PGPORT={port}",
+        image,
+        "-c",
+        f"listen_addresses={HOST}",
+    ]
+
+
 def psql(container, sql):
     cmd = [
         "docker",
@@ -538,10 +554,10 @@ def psql(container, sql):
         DB_NAME,
         "-tA",
     ]
-    log(f"$ {' '.join(cmd)} <<SQL")
     result = subprocess.run(cmd, input=sql, text=True, capture_output=True)
     if result.returncode != 0:
         raise EvidenceError(
+            f"$ {' '.join(cmd)} <<SQL\n"
             f"psql exited {result.returncode}: {result.stderr.strip()} {result.stdout.strip()}"
         )
     return result.stdout.strip()
@@ -949,9 +965,7 @@ def start_state(*, ref, name, scenario, issuer=None):
                 f"POSTGRES_PASSWORD={DB_PASSWORD}",
                 "-e",
                 f"POSTGRES_DB={DB_NAME}",
-                "-p",
-                f"{HOST}:{db_port}:5432",
-                image,
+                *postgres_network(db_port, image),
             ],
             capture=True,
         )
