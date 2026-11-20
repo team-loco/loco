@@ -181,3 +181,25 @@ def test_multiline_entries_join_only_lines_of_their_stream(worker_relays, tmp_pa
         ("stdout", "GET /health 200", ""),
         ("stdout", "GET /ready 200", ""),
     ]
+
+
+HTTP_ECHO_LINES = [
+    ("stderr", "2026/10/19 12:00:00 [INFO] server is listening on :5678"),
+    '2026/10/19 12:00:01 web.loco.test 10.244.0.7:51234 "GET / HTTP/1.1" 200 6 "curl/8.5.0" 41.25µs',
+    "",
+    '2026/10/19 12:00:02 web.loco.test 10.244.0.7:51240 "GET /health HTTP/1.1" 200 6 "kube-probe/1.33" 12.5µs',
+    "",
+    "",
+    '2026/10/19 12:00:03 web.loco.test 10.244.0.7:51252 "GET /ready HTTP/1.1" 200 6 "kube-probe/1.33" 9.75µs',
+]
+
+
+def test_http_echo_access_lines_leave_no_empty_records(worker_relays, tmp_path):
+    write_pod_log(tmp_path, "loco-ws-a", HTTP_ECHO_LINES)
+    texts = (line[1] if isinstance(line, tuple) else line for line in HTTP_ECHO_LINES)
+    expected = sorted(text for text in texts if text)
+    with run_collector(
+        tmp_path, file_log_pipeline(worker_relays), "otel-col-daemon"
+    ) as collector:
+        records = collected_records(collector, len(expected))
+    assert sorted(map(body, records)) == expected
