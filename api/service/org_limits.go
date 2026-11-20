@@ -47,19 +47,20 @@ func (s *OrgServer) GetOrgLimits(
 		}
 		detailed = false
 	}
+	result := &orgv1.OrgLimits{Limits: s.counts}
 	row, err := s.queries.GetOrgLimitOverrides(ctx, orgID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
 		if _, orgErr := s.queries.GetOrgByID(ctx, orgID); errors.Is(orgErr, pgx.ErrNoRows) {
 			return nil, ErrOrgNotFound
 		} else if orgErr != nil {
 			return nil, fmt.Errorf("get organization: %w", orgErr)
 		}
-		return &orgv1.GetOrgLimitsResponse{Limits: &orgv1.OrgLimits{Limits: s.counts}}, nil
-	}
-	if err != nil {
+	case err != nil:
 		return nil, fmt.Errorf("get organization limits: %w", err)
+	default:
+		result = s.orgLimitsToProto(row)
 	}
-	result := s.orgLimitsToProto(row)
 	if !detailed {
 		counts := proto.CloneOf(result.GetLimits())
 		counts.OrgsPerUser, counts.WorkspacesPerOrg, counts.MembersPerOrg, counts.InvitationsPerOrg = 0, 0, 0, 0

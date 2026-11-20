@@ -215,12 +215,20 @@ func TestGetOrgLimitsReportsOverridesToMembers(t *testing.T) {
 func TestGetOrgLimitsForScopesBelowTheOrganization(t *testing.T) {
 	t.Parallel()
 	f := newDeployFixture(t)
-	f.setLimit(t, limits.ResourcesPerWorkspace, 300)
 	server := NewOrgServer(f.pool, f.queries, InvitationConfig{}, limits.Defaults())
 	req := &orgv1.GetOrgLimitsRequest{OrgId: f.organizationID(t)}
 	workspace := genDb.EntityScope{
 		EntityType: genDb.EntityTypeWorkspace, EntityID: f.workspaceID(t), Scope: genDb.ScopeMember,
 	}
+	defaults, err := server.GetOrgLimits(f.asCreator(t, workspace), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unset := defaults.GetLimits().GetLimits()
+	if unset.GetWorkspacesPerOrg() != 0 || unset.GetResourcesPerWorkspace() == 0 {
+		t.Fatalf("workspace scope reads %v without overrides, want only workspace-level limits", unset)
+	}
+	f.setLimit(t, limits.ResourcesPerWorkspace, 300)
 	resource, err := f.queries.CreateResource(t.Context(), genDb.CreateResourceParams{
 		CreatedBy: f.creatorID(t), WorkspaceID: f.workspaceID(t), Name: "limits-reader", Slug: "limits-reader",
 		Type: genDb.ResourceTypeService, Spec: []byte("{}"), SpecVersion: 1,
