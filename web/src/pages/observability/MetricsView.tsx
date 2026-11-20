@@ -337,7 +337,6 @@ export function MetricsView() {
 		columns: placementColumns(cpu.latest, mem.latest),
 		data: rows.toSorted((a, b) => a.key.localeCompare(b.key)),
 		getRowId: (p) => p.key,
-		manualPagination: true,
 		state: { sorting },
 		onSortingChange: (updater) => {
 			const next = functionalUpdate(updater, sorting)[0];

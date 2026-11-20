@@ -113,7 +113,6 @@ export function EventsView() {
 		columns: eventColumns(nowMs),
 		data: paged.rows,
 		getRowId: (e) => e.id,
-		manualPagination: true,
 	});
 
 	const header = (
