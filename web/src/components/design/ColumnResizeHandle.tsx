@@ -14,8 +14,8 @@ export function ColumnResizeHandle({
 	max: number;
 	/** Commits a width: on each arrow key and once when a drag ends. */
 	onWidth: (value: number) => void;
-	/** Previews the width while dragging; null ends the preview. Without it, every drag step commits. */
-	onDrag?: (value: number | null) => void;
+	/** Previews the width while dragging; null ends the preview. */
+	onDrag: (value: number | null) => void;
 }) {
 	const dragRef = useRef<{ x: number; width: number; value: number } | null>(null);
 	const measured = (handle: Element) => handle.parentElement?.getBoundingClientRect().width ?? width;
@@ -26,7 +26,7 @@ export function ColumnResizeHandle({
 	const end = (commit: boolean) => {
 		const drag = dragRef.current;
 		dragRef.current = null;
-		if (drag === null || onDrag === undefined) return;
+		if (drag === null) return;
 		onDrag(null);
 		if (commit) onWidth(drag.value);
 	};
@@ -45,7 +45,6 @@ export function ColumnResizeHandle({
 					resize(measured(event.currentTarget) + (event.key === "ArrowLeft" ? -16 : 16));
 				}
 				if (event.key === "Escape" && dragRef.current !== null) {
-					if (onDrag === undefined) resize(dragRef.current.width);
 					end(false);
 				}
 			}}
@@ -58,14 +57,12 @@ export function ColumnResizeHandle({
 				const drag = dragRef.current;
 				if (drag === null) return;
 				drag.value = clamp(drag.width + event.clientX - drag.x);
-				if (onDrag === undefined) onWidth(drag.value);
-				else onDrag(drag.value);
+				onDrag(drag.value);
 			}}
 			onPointerUp={() => {
 				end(true);
 			}}
 			onPointerCancel={() => {
-				if (onDrag === undefined && dragRef.current !== null) resize(dragRef.current.width);
 				end(false);
 			}}
 			onLostPointerCapture={() => {
