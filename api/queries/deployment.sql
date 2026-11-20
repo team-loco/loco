@@ -1,8 +1,8 @@
 -- Deployment queries
 
 -- name: CreateDeployment :one
-INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id, rollback_of_deployment_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING id;
 
 -- name: CreateDeploymentPlacement :exec
@@ -272,6 +272,19 @@ WHERE dp.cluster_id = sqlc.arg(cluster_id)
   AND (previous.created_at, previous.id) < (current.created_at, current.id)
   AND dp.started_at IS NOT NULL
   AND dp.status IN ('deploying', 'running', 'degraded', 'crashed')
+ORDER BY previous.created_at DESC, previous.id DESC
+LIMIT 1;
+
+-- name: PreviousLiveDeploymentForCluster :one
+-- The newest deployment older than the given one whose placement on the cluster ran.
+SELECT previous.* FROM deployment_placements dp
+JOIN deployments previous ON previous.id = dp.deployment_id
+JOIN deployments current ON current.id = sqlc.arg(deployment_id)
+WHERE dp.cluster_id = sqlc.arg(cluster_id)
+  AND previous.resource_id = current.resource_id
+  AND previous.environment_id = current.environment_id
+  AND (previous.created_at, previous.id) < (current.created_at, current.id)
+  AND dp.started_at IS NOT NULL
 ORDER BY previous.created_at DESC, previous.id DESC
 LIMIT 1;
 

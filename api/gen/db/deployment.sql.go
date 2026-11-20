@@ -35,25 +35,26 @@ func (q *Queries) BuildUsedByOtherDeployments(ctx context.Context, arg BuildUsed
 
 const createDeployment = `-- name: CreateDeployment :one
 
-INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+INSERT INTO deployments (resource_id, status, spec, spec_version, environment_id, secret_names, actor_type, actor_id, method, commit_sha, commit_dirty, trigger, source_deployment_id, rollback_of_deployment_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 RETURNING id
 `
 
 type CreateDeploymentParams struct {
-	ResourceID         uuid.UUID           `json:"resourceId"`
-	Status             DeploymentStatus    `json:"status"`
-	Spec               []byte              `json:"spec"`
-	SpecVersion        int32               `json:"specVersion"`
-	EnvironmentID      uuid.UUID           `json:"environmentId"`
-	SecretNames        []string            `json:"secretNames"`
-	ActorType          DeploymentActorType `json:"actorType"`
-	ActorID            uuid.UUID           `json:"actorId"`
-	Method             DeploymentMethod    `json:"method"`
-	CommitSha          *string             `json:"commitSha"`
-	CommitDirty        bool                `json:"commitDirty"`
-	Trigger            DeploymentTrigger   `json:"trigger"`
-	SourceDeploymentID *uuid.UUID          `json:"sourceDeploymentId"`
+	ResourceID             uuid.UUID           `json:"resourceId"`
+	Status                 DeploymentStatus    `json:"status"`
+	Spec                   []byte              `json:"spec"`
+	SpecVersion            int32               `json:"specVersion"`
+	EnvironmentID          uuid.UUID           `json:"environmentId"`
+	SecretNames            []string            `json:"secretNames"`
+	ActorType              DeploymentActorType `json:"actorType"`
+	ActorID                uuid.UUID           `json:"actorId"`
+	Method                 DeploymentMethod    `json:"method"`
+	CommitSha              *string             `json:"commitSha"`
+	CommitDirty            bool                `json:"commitDirty"`
+	Trigger                DeploymentTrigger   `json:"trigger"`
+	SourceDeploymentID     *uuid.UUID          `json:"sourceDeploymentId"`
+	RollbackOfDeploymentID *uuid.UUID          `json:"rollbackOfDeploymentId"`
 }
 
 // Deployment queries
@@ -72,6 +73,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.CommitDirty,
 		arg.Trigger,
 		arg.SourceDeploymentID,
+		arg.RollbackOfDeploymentID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -105,7 +107,7 @@ func (q *Queries) CreateDeploymentPlacement(ctx context.Context, arg CreateDeplo
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
+SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, rollback_of_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments WHERE id = $1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
@@ -120,6 +122,7 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployme
 		&i.SpecVersion,
 		&i.Trigger,
 		&i.SourceDeploymentID,
+		&i.RollbackOfDeploymentID,
 		&i.ActorType,
 		&i.ActorID,
 		&i.Method,
@@ -219,7 +222,7 @@ func (q *Queries) GetDeploymentResourceID(ctx context.Context, id uuid.UUID) (uu
 }
 
 const getDeploymentView = `-- name: GetDeploymentView :one
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.rollback_of_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -257,6 +260,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 		&i.Deployment.SpecVersion,
 		&i.Deployment.Trigger,
 		&i.Deployment.SourceDeploymentID,
+		&i.Deployment.RollbackOfDeploymentID,
 		&i.Deployment.ActorType,
 		&i.Deployment.ActorID,
 		&i.Deployment.Method,
@@ -281,7 +285,7 @@ func (q *Queries) GetDeploymentView(ctx context.Context, id uuid.UUID) (GetDeplo
 }
 
 const getLiveDeploymentForRegion = `-- name: GetLiveDeploymentForRegion :one
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.rollback_of_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.resource_id = $1 AND l.environment_id = $2 AND l.region = $3
@@ -315,6 +319,7 @@ func (q *Queries) GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDep
 		&i.Deployment.SpecVersion,
 		&i.Deployment.Trigger,
 		&i.Deployment.SourceDeploymentID,
+		&i.Deployment.RollbackOfDeploymentID,
 		&i.Deployment.ActorType,
 		&i.Deployment.ActorID,
 		&i.Deployment.Method,
@@ -337,7 +342,7 @@ func (q *Queries) GetLiveDeploymentForRegion(ctx context.Context, arg GetLiveDep
 }
 
 const listBuildingDeployments = `-- name: ListBuildingDeployments :many
-SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
+SELECT id, resource_id, status, environment_id, spec, spec_version, trigger, source_deployment_id, rollback_of_deployment_id, actor_type, actor_id, method, canceled_by_type, canceled_by_id, commit_sha, commit_dirty, secret_names, activity_seq, created_at, started_at, completed_at, updated_at FROM deployments
 WHERE spec->'build'->>'buildId' = $1::text
  AND status = 'building'
 ORDER BY id FOR UPDATE
@@ -361,6 +366,7 @@ func (q *Queries) ListBuildingDeployments(ctx context.Context, buildID string) (
 			&i.SpecVersion,
 			&i.Trigger,
 			&i.SourceDeploymentID,
+			&i.RollbackOfDeploymentID,
 			&i.ActorType,
 			&i.ActorID,
 			&i.Method,
@@ -421,7 +427,7 @@ func (q *Queries) ListDeploymentPlacements(ctx context.Context, deploymentID uui
 }
 
 const listEnvironmentDeployments = `-- name: ListEnvironmentDeployments :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.rollback_of_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -506,6 +512,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 			&i.Deployment.SpecVersion,
 			&i.Deployment.Trigger,
 			&i.Deployment.SourceDeploymentID,
+			&i.Deployment.RollbackOfDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
 			&i.Deployment.Method,
@@ -537,7 +544,7 @@ func (q *Queries) ListEnvironmentDeployments(ctx context.Context, arg ListEnviro
 }
 
 const listLiveDeploymentsForEnvironment = `-- name: ListLiveDeploymentsForEnvironment :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.rollback_of_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.environment_id = $1
@@ -570,6 +577,7 @@ func (q *Queries) ListLiveDeploymentsForEnvironment(ctx context.Context, environ
 			&i.Deployment.SpecVersion,
 			&i.Deployment.Trigger,
 			&i.Deployment.SourceDeploymentID,
+			&i.Deployment.RollbackOfDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
 			&i.Deployment.Method,
@@ -599,7 +607,7 @@ func (q *Queries) ListLiveDeploymentsForEnvironment(ctx context.Context, environ
 }
 
 const listLiveDeploymentsForResource = `-- name: ListLiveDeploymentsForResource :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.rollback_of_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, l.cluster_id, l.region, l.replicas, l.status AS placement_status
 FROM live_deployment_placements l
 JOIN deployments d ON d.id = l.deployment_id
 WHERE l.resource_id = $1
@@ -632,6 +640,7 @@ func (q *Queries) ListLiveDeploymentsForResource(ctx context.Context, resourceID
 			&i.Deployment.SpecVersion,
 			&i.Deployment.Trigger,
 			&i.Deployment.SourceDeploymentID,
+			&i.Deployment.RollbackOfDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
 			&i.Deployment.Method,
@@ -661,7 +670,7 @@ func (q *Queries) ListLiveDeploymentsForResource(ctx context.Context, resourceID
 }
 
 const listResourceDeployments = `-- name: ListResourceDeployments :many
-SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
+SELECT d.id, d.resource_id, d.status, d.environment_id, d.spec, d.spec_version, d.trigger, d.source_deployment_id, d.rollback_of_deployment_id, d.actor_type, d.actor_id, d.method, d.canceled_by_type, d.canceled_by_id, d.commit_sha, d.commit_dirty, d.secret_names, d.activity_seq, d.created_at, d.started_at, d.completed_at, d.updated_at, r.type AS resource_type,
        deployment_placements_json(d.id)::jsonb AS placements,
        COALESCE(u.name, t.name, '')::text AS actor_name,
        COALESCE(u.avatar_url, '')::text AS actor_avatar_url,
@@ -746,6 +755,7 @@ func (q *Queries) ListResourceDeployments(ctx context.Context, arg ListResourceD
 			&i.Deployment.SpecVersion,
 			&i.Deployment.Trigger,
 			&i.Deployment.SourceDeploymentID,
+			&i.Deployment.RollbackOfDeploymentID,
 			&i.Deployment.ActorType,
 			&i.Deployment.ActorID,
 			&i.Deployment.Method,
@@ -834,7 +844,7 @@ func (q *Queries) LockPlacementResource(ctx context.Context, arg LockPlacementRe
 }
 
 const previousDeploymentForRollback = `-- name: PreviousDeploymentForRollback :one
-SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployments previous JOIN deployments failed ON failed.id = $1
+SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.rollback_of_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployments previous JOIN deployments failed ON failed.id = $1
 WHERE previous.resource_id = failed.resource_id
  AND previous.environment_id = failed.environment_id
  AND (previous.created_at, previous.id) < (failed.created_at, failed.id)
@@ -862,6 +872,56 @@ func (q *Queries) PreviousDeploymentForRollback(ctx context.Context, id uuid.UUI
 		&i.SpecVersion,
 		&i.Trigger,
 		&i.SourceDeploymentID,
+		&i.RollbackOfDeploymentID,
+		&i.ActorType,
+		&i.ActorID,
+		&i.Method,
+		&i.CanceledByType,
+		&i.CanceledByID,
+		&i.CommitSha,
+		&i.CommitDirty,
+		&i.SecretNames,
+		&i.ActivitySeq,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const previousLiveDeploymentForCluster = `-- name: PreviousLiveDeploymentForCluster :one
+SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.rollback_of_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
+JOIN deployments previous ON previous.id = dp.deployment_id
+JOIN deployments current ON current.id = $1
+WHERE dp.cluster_id = $2
+  AND previous.resource_id = current.resource_id
+  AND previous.environment_id = current.environment_id
+  AND (previous.created_at, previous.id) < (current.created_at, current.id)
+  AND dp.started_at IS NOT NULL
+ORDER BY previous.created_at DESC, previous.id DESC
+LIMIT 1
+`
+
+type PreviousLiveDeploymentForClusterParams struct {
+	DeploymentID uuid.UUID `json:"deploymentId"`
+	ClusterID    uuid.UUID `json:"clusterId"`
+}
+
+// The newest deployment older than the given one whose placement on the cluster ran.
+func (q *Queries) PreviousLiveDeploymentForCluster(ctx context.Context, arg PreviousLiveDeploymentForClusterParams) (Deployment, error) {
+	row := q.db.QueryRow(ctx, previousLiveDeploymentForCluster, arg.DeploymentID, arg.ClusterID)
+	var i Deployment
+	err := row.Scan(
+		&i.ID,
+		&i.ResourceID,
+		&i.Status,
+		&i.EnvironmentID,
+		&i.Spec,
+		&i.SpecVersion,
+		&i.Trigger,
+		&i.SourceDeploymentID,
+		&i.RollbackOfDeploymentID,
 		&i.ActorType,
 		&i.ActorID,
 		&i.Method,
@@ -880,7 +940,7 @@ func (q *Queries) PreviousDeploymentForRollback(ctx context.Context, id uuid.UUI
 }
 
 const previousRunningDeploymentForCluster = `-- name: PreviousRunningDeploymentForCluster :one
-SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
+SELECT previous.id, previous.resource_id, previous.status, previous.environment_id, previous.spec, previous.spec_version, previous.trigger, previous.source_deployment_id, previous.rollback_of_deployment_id, previous.actor_type, previous.actor_id, previous.method, previous.canceled_by_type, previous.canceled_by_id, previous.commit_sha, previous.commit_dirty, previous.secret_names, previous.activity_seq, previous.created_at, previous.started_at, previous.completed_at, previous.updated_at FROM deployment_placements dp
 JOIN deployments previous ON previous.id = dp.deployment_id
 JOIN deployments current ON current.id = $1
 WHERE dp.cluster_id = $2
@@ -912,6 +972,7 @@ func (q *Queries) PreviousRunningDeploymentForCluster(ctx context.Context, arg P
 		&i.SpecVersion,
 		&i.Trigger,
 		&i.SourceDeploymentID,
+		&i.RollbackOfDeploymentID,
 		&i.ActorType,
 		&i.ActorID,
 		&i.Method,

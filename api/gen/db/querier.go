@@ -288,6 +288,8 @@ type Querier interface {
 	// The newest deployment older than the failed one that ran, while nothing newer than the
 	// failed one exists.
 	PreviousDeploymentForRollback(ctx context.Context, id uuid.UUID) (Deployment, error)
+	// The newest deployment older than the given one whose placement on the cluster ran.
+	PreviousLiveDeploymentForCluster(ctx context.Context, arg PreviousLiveDeploymentForClusterParams) (Deployment, error)
 	// The newest deployment older than the given one whose placement on the cluster ran and still
 	// serves, including one a restart rolls again.
 	PreviousRunningDeploymentForCluster(ctx context.Context, arg PreviousRunningDeploymentForClusterParams) (Deployment, error)

@@ -27,12 +27,15 @@ loco resource scale web --env production --region eu-west-1 --replicas 4
 
 ## Cancel
 
-`loco resource cancel` stops the newest deployment of a service that is still building or rolling out in one environment; the **Cancel** button on a deployment card in the dashboard does the same for that deployment, and both call `DeploymentService.CancelDeployment`. Canceling stops the build unless another deployment in flight uses it. Each region the deployment does not run yet goes back to the deployment that served it before, or loses its Application when none did. Each region where the deployment already runs keeps it. The deployment ends `canceled` and records who canceled it. A deployment that already runs everywhere, failed or was replaced cannot be canceled; roll back or redeploy it instead.
+`loco resource cancel` stops the newest deployment of a service that is still building or rolling out in one environment; the **Cancel** button on a deployment card in the dashboard does the same for that deployment, and both call `DeploymentService.CancelDeployment`. Canceling stops the build unless another deployment in flight uses it. Each region the deployment does not run yet goes back to the deployment that served it before, or loses its Application when none did. Each region where the deployment already runs keeps it, unless you also roll those regions back. The deployment ends `canceled` and records who canceled it. A deployment that already runs everywhere, failed or was replaced cannot be canceled; roll back or redeploy it instead.
 
 A new deployment of the service replaces one in flight without a cancel: the older deployment ends `canceled`, and its card names the deployment that replaced it. `--wait` exits with an error naming who canceled a deployment, and succeeds with a note when a newer deployment replaced it.
 
+When the deployment already runs in some regions, the cancel dialog and `loco resource cancel` list those regions with the version each ran before and when it was deployed, and offer to roll them back. A region that never ran an earlier version keeps the canceled one. `--rollback` rolls them back without asking; in a terminal the command asks, and without one it rolls nothing back. A rollback is never automatic. Rolling back queues one deployment per earlier version to just those regions (`CancelDeploymentRequest.rollback_finished_regions`). Each is an ordinary rollback in the deployment history, marked as a rollback of the canceled deployment, and can itself be canceled. `DeploymentService.GetDeploymentCancelImpact` returns the regions and versions the dialog shows. `--json` prints the canceled deployment ID and the queued rollback IDs.
+
 ```sh
 loco resource cancel web --env production
+loco resource cancel web --env production --rollback --json
 ```
 
 ## Deployments and regions
