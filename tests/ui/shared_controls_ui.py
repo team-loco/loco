@@ -1355,6 +1355,15 @@ def traffic(page):
             expect(
                 card.get_by_role("link", name=re.compile("^controls-pilot"))
             ).to_be_visible()
+            markers = card.locator('[data-slot="deploy-marker"]')
+            expect(markers.first).to_have_attribute(
+                "aria-label", re.compile(r"deployed|deploys")
+            )
+            expect(
+                card.locator('[data-slot="deploy-marker"][data-failed]')
+            ).to_have_count(0)
+            markers.first.hover()
+            expect(page.get_by_text(re.compile(r"\d+ deploys"))).to_be_visible()
             for name in ("controls-retired (deleted)", "Deleted resource"):
                 expect(card.get_by_text(name, exact=True)).to_be_visible()
                 expect(
@@ -1373,6 +1382,15 @@ def traffic(page):
             expect(section).to_contain_text("10/s")
             expect(section).to_contain_text("190 ms")
     traffic_empty = False
+    sql(
+        state,
+        f"UPDATE deployments SET status='failed' WHERE resource_id IN (SELECT id FROM resources WHERE workspace_id='{workspace}');",
+    )
+    page.goto(state["ui_url"] + base + "?env=production&range=1h")
+    failed = totals.get_by_role("group", name="Requests: 5.4K,").locator(
+        '[data-slot="deploy-marker"][data-failed]'
+    )
+    expect(failed.first).to_have_attribute("aria-label", re.compile(r"failed"))
 
 
 def traffic_small_values(page):
