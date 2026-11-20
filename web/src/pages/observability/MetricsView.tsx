@@ -502,7 +502,7 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 			accessorFn: (p) => p.resource.raw.name,
 			sortFn: (a, b) => a.original.resource.raw.name.localeCompare(b.original.resource.raw.name),
 			header: "Resource",
-			size: 220,
+			size: 140,
 			meta: { grow: true },
 			cell: ({ row: { original: p } }) => (
 				<span className="flex min-w-0 items-center gap-1.5">
@@ -516,14 +516,14 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 			accessorFn: (p) => p.region,
 			sortFn: (a, b) => a.original.region.localeCompare(b.original.region),
 			header: "Region",
-			size: 140,
+			meta: { fit: true },
 			cell: ({ row }) => <CellText text={row.original.region} className="font-mono text-fg2" />,
 		},
 		{
 			id: "replicas",
 			accessorFn: (p) => p.ready ?? -1,
 			header: "Replicas",
-			size: 100,
+			meta: { fit: true },
 			sortDescFirst: true,
 			cell: ({ row: { original: p } }) => {
 				const short = p.ready !== null && p.desired !== null && p.ready < p.desired;
@@ -538,7 +538,7 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 			id: "cpu",
 			accessorFn: (p) => cpu.get(p.key)?.v ?? -1,
 			header: "CPU (latest)",
-			size: 240,
+			size: 180,
 			sortDescFirst: true,
 			cell: ({ row }) => <Meter value={cpu.get(row.original.key)} format={CPU.format} />,
 		},
@@ -546,7 +546,7 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 			id: "mem",
 			accessorFn: (p) => mem.get(p.key)?.v ?? -1,
 			header: "Memory (latest)",
-			size: 240,
+			size: 180,
 			sortDescFirst: true,
 			cell: ({ row }) => <Meter value={mem.get(row.original.key)} format={MEMORY.format} />,
 		},
@@ -557,8 +557,7 @@ function placementColumns(cpu: Latest, mem: Latest): DataColumn<Placement>[] {
 					{label} <SoonTag />
 				</span>
 			),
-			size: 88,
-			meta: { label },
+			meta: { label, fit: true },
 			cell: () => <span className="text-fg4">—</span>,
 		})),
 	];
