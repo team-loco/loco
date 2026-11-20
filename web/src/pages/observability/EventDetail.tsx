@@ -81,8 +81,8 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 	const now = useNow();
 	const [, copy] = useCopy();
 	const raw = eventJson(item);
-	const environment = environments.find((e) => e.id === item.environmentId)?.name ?? item.environmentId;
-	const envName = environments.find((e) => e.id === item.environmentId)?.name ?? null;
+	const environment = environments.find((e) => e.id === item.environmentId)?.slug ?? item.environmentId;
+	const envSlug = environments.find((e) => e.id === item.environmentId)?.slug ?? null;
 	const fields: { key: string; value: string; filter: boolean; href?: string }[] = [
 		{ key: "type", value: item.type, filter: true },
 		{ key: "resource", value: item.resourceName, filter: true },
@@ -93,7 +93,7 @@ function EventBody({ item, onPrev, onNext }: Omit<Props, "onClose" | "item" | "o
 			key: "deployment",
 			value: item.event.deploymentId,
 			filter: false,
-			href: resourcePath(orgId, workspaceId, item.resourceId, { env: envName }),
+			href: resourcePath(orgId, workspaceId, item.resourceId, { env: envSlug }),
 		},
 		{ key: "actor", value: eventValue(item, "actor"), filter: true },
 		{ key: "email", value: item.event.actorEmail, filter: false },

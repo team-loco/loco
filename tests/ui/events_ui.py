@@ -20,7 +20,7 @@ owner = state["users"]["owner"]["id"]
 org = state["orgs"]["acme"]["id"]
 environment = sql(
     state,
-    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production'",
+    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production'",
 )
 base = f"/org/{org}/wks/{workspace}"
 sql(

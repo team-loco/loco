@@ -6,14 +6,11 @@ import type { PlatformDomain } from "@gen/loco/domain/v1/domain_pb";
 import { isEnvKey } from "@/lib/dotenv";
 import { parseImage } from "@/lib/image";
 import { SUBDOMAIN_RE, type DomainCheck } from "@/lib/platform-domain";
-import { slug } from "@/lib/slug";
+import { DNS_LABEL_RE, SLUG_RULE, slug } from "@/lib/slug";
 
 export const IMAGE_RE = /^([a-z0-9\-._]+(:[0-9]+)?(\/[a-z0-9\-._]+)*)(:[a-z0-9\-._]+)?(@sha256:[a-f0-9]{64})?$/;
 // mirrors PrivateServiceName in k8sapi/v1alpha1/discovery.go; update both together.
-const SLUG_RE = /^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$/;
 const RESERVED_SLUG_RE = /^(localhost|resource-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
-export const SLUG_RULE =
-	"Use 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit";
 export const MAX_NAME_LENGTH = 63;
 const DIGITS_RE = /^\d+$/;
 const LOCO_YAML_VERSION = 1;
@@ -168,7 +165,7 @@ export function nameError(name: string, taken: ReadonlySet<string>): string | nu
 
 export function slugError(value: string, taken: ReadonlySet<string>): string | null {
 	if (value === "") return "Enter a slug";
-	if (!SLUG_RE.test(value)) return SLUG_RULE;
+	if (!DNS_LABEL_RE.test(value)) return SLUG_RULE;
 	if (RESERVED_SLUG_RE.test(value)) return `${value} is reserved`;
 	if (taken.has(value)) return `${value} already exists in this workspace`;
 	return null;

@@ -27,12 +27,12 @@ import {
 	nameFromImage,
 	portRangeError,
 	servedDomains,
-	SLUG_RULE,
 	slugError,
 	validateForm,
 	type EnvRow,
 	type NewResourceForm,
 } from "./new-resource";
+import { SLUG_RULE } from "./slug";
 
 const form: NewResourceForm = {
 	image: "ghcr.io/acme/web:1.4.2",

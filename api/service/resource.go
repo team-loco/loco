@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 	"time"
-	"unicode/utf8"
 
 	"connectrpc.com/connect/v2"
 	"github.com/google/uuid"
@@ -36,8 +34,6 @@ import (
 	"github.com/team-loco/loco/internal/workloadplatform"
 	locoControllerV1 "github.com/team-loco/loco/k8sapi/v1alpha1"
 )
-
-const maxResourceNameLength = 63
 
 var (
 	ErrResourceNotFound      = rpcerr.NewCoded(connect.CodeNotFound, "resource not found")
@@ -130,7 +126,7 @@ func (s *ResourceServer) CreateResource(
 		return nil, err
 	}
 
-	name, slug, err := newResourceKeys(req.GetName(), req.Slug)
+	name, slug, err := newResourceKeys(req)
 	if err != nil {
 		return nil, err
 	}
@@ -451,7 +447,7 @@ func (s *ResourceServer) UpdateResource(
 		}
 		updateParams.Name = &name
 	}
-	if req.Slug != nil && !validResourceSlug(req.GetSlug()) {
+	if req.Slug != nil && !validSlug(req.GetSlug()) {
 		return nil, errInvalidResourceSlug
 	}
 
@@ -1049,16 +1045,16 @@ func (s *ResourceServer) GetResourceEnv(
 	return &resourcev1.GetResourceEnvResponse{Env: plain, SecretNames: secretNames}, nil
 }
 
-// validResourceSlug reports whether slug can key a resource: a DNS label that is not reserved
-// for private service discovery.
-func validResourceSlug(slug string) bool {
+// validSlug reports whether slug can key a resource or an environment: a DNS label that is not
+// reserved for private service discovery.
+func validSlug(slug string) bool {
 	return locoControllerV1.PrivateServiceName(slug) != ""
 }
 
 // resourceName trims name and reports whether it can name a resource.
 func resourceName(name string) (string, error) {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" || utf8.RuneCountInString(trimmed) > maxResourceNameLength {
+	trimmed, ok := label(name)
+	if !ok {
 		return "", errInvalidResourceName
 	}
 	return trimmed, nil
@@ -1066,16 +1062,16 @@ func resourceName(name string) (string, error) {
 
 // newResourceKeys checks a new resource's name and slug, deriving the slug from the name when
 // the request leaves it out.
-func newResourceKeys(rawName string, rawSlug *string) (string, string, error) {
-	name, err := resourceName(rawName)
+func newResourceKeys(req *resourcev1.CreateResourceRequest) (string, string, error) {
+	name, err := resourceName(req.GetName())
 	if err != nil {
 		return "", "", err
 	}
-	slug := locofile.Slug(name)
-	if rawSlug != nil {
-		slug = *rawSlug
+	slug := req.GetSlug()
+	if req.Slug == nil {
+		slug = locofile.Slug(name)
 	}
-	if !validResourceSlug(slug) {
+	if !validSlug(slug) {
 		return "", "", errInvalidResourceSlug
 	}
 	return name, slug, nil

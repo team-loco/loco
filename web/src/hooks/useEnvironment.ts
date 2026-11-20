@@ -43,11 +43,11 @@ export function useEnvironments() {
 
 	const requested = envParam ?? (activeWorkspaceId !== null ? readStorage(storageKey(activeWorkspaceId)) : null);
 	const active: Environment | undefined =
-		environments.find((e) => e.name === requested || e.id === requested) ?? environments[0];
+		environments.find((e) => e.slug === requested || e.id === requested) ?? environments[0];
 
 	const setActive = (env: Environment) => {
-		if (activeWorkspaceId !== null) writeStorage(storageKey(activeWorkspaceId), env.name);
-		void setEnvParam(env.name);
+		if (activeWorkspaceId !== null) writeStorage(storageKey(activeWorkspaceId), env.slug);
+		void setEnvParam(env.slug);
 	};
 
 	return {
@@ -64,7 +64,7 @@ export function useEnvironments() {
 export function useEnvironmentInUrl() {
 	const { active, isLoading } = useEnvironments();
 	const [env, setEnv] = useQueryState("env");
-	const name = active?.name;
+	const name = active?.slug;
 	const { pathname } = useLocation();
 	useEffect(() => {
 		// The browser is already on another path whose page is still loading; that page writes its own env.

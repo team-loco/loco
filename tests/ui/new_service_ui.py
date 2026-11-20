@@ -57,7 +57,7 @@ sql(
 base = state["ui_url"] + f"/org/{org}/wks/{workspace}"
 production = sql(
     state,
-    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND name='production';",
+    f"SELECT id FROM environments WHERE workspace_id='{workspace}' AND slug='production';",
 )
 replica_limit = call(state, "loco.config.v1.ConfigService/GetConfig", {})["sizeLimits"][
     "maxReplicas"

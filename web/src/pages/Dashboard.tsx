@@ -45,7 +45,7 @@ export function Dashboard() {
 	const workspaceId = activeWorkspaceId ?? "";
 	const { drafts } = useDrafts(orgId, workspaceId, active?.id);
 	const [draftId] = useQueryState(DRAFT_PARAM);
-	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.name ?? null });
+	const hrefFor = (id: string) => resourcePath(orgId, workspaceId, id, { env: active?.slug ?? null });
 	const otherEnv = environments.find((e) => e.id !== active?.id);
 	const loading = envsLoading || data.isLoading;
 	const heading = <h1 className="sr-only">Dashboard</h1>;
@@ -100,9 +100,9 @@ export function Dashboard() {
 				<DashboardSkeleton />
 			) : data.envResources.length === 0 && drafts.length === 0 ? (
 				<EmptyWorkspace
-					envName={active.name}
-					newHref={newResourcePath(orgId, workspaceId, { env: active.name })}
-					otherEnvName={otherEnv?.name ?? null}
+					envName={active.slug}
+					newHref={newResourcePath(orgId, workspaceId, { env: active.slug })}
+					otherEnvName={otherEnv?.slug ?? null}
 					onSwitchEnv={() => {
 						if (otherEnv !== undefined) setActive(otherEnv);
 					}}
@@ -126,7 +126,7 @@ export function Dashboard() {
 						orgId={orgId}
 						workspaceId={workspaceId}
 						environmentId={active.id}
-						envName={active.name}
+						envName={active.slug}
 						nowMs={nowMs}
 						hrefFor={hrefFor}
 					/>
@@ -134,7 +134,7 @@ export function Dashboard() {
 						deployments={data.envDeployments}
 						orgId={orgId}
 						workspaceId={workspaceId}
-						envName={active.name}
+						envName={active.slug}
 						nowMs={nowMs}
 					/>
 				</>

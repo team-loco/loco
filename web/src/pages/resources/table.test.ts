@@ -57,8 +57,8 @@ function sortRows(rows: ListRow[], sorting: ColumnSort): ListRow[] {
 	return withTable(rows, sorting, (table) => table.getRowModel().rows.map((row) => row.original));
 }
 
-const prod = create(EnvironmentSchema, { id: "e-prod", name: "production" });
-const staging = create(EnvironmentSchema, { id: "e-stg", name: "staging" });
+const prod = create(EnvironmentSchema, { id: "e-prod", slug: "production" });
+const staging = create(EnvironmentSchema, { id: "e-stg", slug: "staging" });
 const envs = [prod, staging];
 const columns = resourceColumns(envs);
 
@@ -404,8 +404,8 @@ describe("linkEnvironment", () => {
 
 	test("prefers the active environment and falls back to one the resource runs in", () => {
 		if (row === undefined) throw new Error("no row");
-		expect(linkEnvironment(row, envs, prod)?.name).toBe("staging");
-		expect(linkEnvironment(row, envs, staging)?.name).toBe("staging");
+		expect(linkEnvironment(row, envs, prod)?.slug).toBe("staging");
+		expect(linkEnvironment(row, envs, staging)?.slug).toBe("staging");
 	});
 });
 

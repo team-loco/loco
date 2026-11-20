@@ -144,7 +144,7 @@ export function BuildDetail({
 
 	const { environments } = useEnvironments();
 	const origin =
-		environments.find((environment) => environment.id === build.originEnvironmentId)?.name ??
+		environments.find((environment) => environment.id === build.originEnvironmentId)?.slug ??
 		build.originEnvironmentId ??
 		"Not recorded";
 	const message = buildMessage(build);

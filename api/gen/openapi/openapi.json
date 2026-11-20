@@ -3050,7 +3050,7 @@
           "loco.environment.v1.EnvironmentService"
         ],
         "summary": "ListEnvironments",
-        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n name and display_name.",
+        "description": "ListEnvironments lists all environments in a workspace. A caller who cannot read the workspace\n but has a grant on one of its resources gets each environment with only id, workspace_id,\n slug and name.",
         "operationId": "loco.environment.v1.EnvironmentService.ListEnvironments",
         "parameters": [
           {
@@ -11924,8 +11924,7 @@
           "name": {
             "type": "string",
             "title": "name",
-            "maxLength": 63,
-            "description": "A DNS label: 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit."
+            "description": "The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace."
           },
           "description": {
             "type": [
@@ -11934,6 +11933,14 @@
             ],
             "title": "description",
             "maxLength": 256
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "title": "slug",
+            "description": "A DNS label, unique in the workspace, that never changes. If omitted, it is derived from name."
           }
         },
         "title": "CreateEnvironmentRequest",
@@ -11982,10 +11989,10 @@
             "type": "string",
             "title": "workspace_id"
           },
-          "name": {
+          "slug": {
             "type": "string",
-            "title": "name",
-            "description": "name is the environment's slug: a DNS label, unique in its workspace, that never changes."
+            "title": "slug",
+            "description": "slug is the environment's key: a DNS label, unique in its workspace, that never changes."
           },
           "description": {
             "type": [
@@ -12011,10 +12018,10 @@
             "title": "revision",
             "format": "int64"
           },
-          "displayName": {
+          "name": {
             "type": "string",
-            "title": "display_name",
-            "description": "display_name is the label the dashboard shows. It starts as name; name never changes."
+            "title": "name",
+            "description": "name is the label the dashboard shows."
           }
         },
         "title": "Environment",
@@ -12082,14 +12089,13 @@
             "title": "environment_id",
             "format": "uuid"
           },
-          "displayName": {
+          "name": {
             "type": [
               "string",
               "null"
             ],
-            "title": "display_name",
-            "maxLength": 63,
-            "description": "environment.display_name // display name needs a character that is not a space\n"
+            "title": "name",
+            "description": "The label the dashboard shows: 1 to 63 characters after trimming, unique in the workspace."
           },
           "description": {
             "type": [
@@ -14576,9 +14582,9 @@
             "type": "string",
             "title": "environment_id"
           },
-          "environmentName": {
+          "environmentSlug": {
             "type": "string",
-            "title": "environment_name"
+            "title": "environment_slug"
           },
           "status": {
             "title": "status",

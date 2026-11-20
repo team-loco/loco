@@ -23,7 +23,7 @@ export function useWorkspaceDetails(workspaceIds: readonly string[]) {
 	);
 	const names = new Map<string, string>([
 		...[...resourcesOf.values()].flat().map((r): [string, string] => [r.id, r.name]),
-		...[...environmentsOf.values()].flat().map((e): [string, string] => [e.id, e.name]),
+		...[...environmentsOf.values()].flat().map((e): [string, string] => [e.id, e.slug]),
 	]);
 	const resourcesReady = new Set(workspaceIds.filter((_, i) => resources[i]?.data !== undefined));
 	const environmentsReady = new Set(workspaceIds.filter((_, i) => environments[i]?.data !== undefined));

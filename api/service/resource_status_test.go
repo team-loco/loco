@@ -33,7 +33,7 @@ func regionRow(status genDb.PlacementStatus, ready int32) genDb.ListRegionStatus
 	return genDb.ListRegionStatusesForResourcesRow{
 		ResourceID:      uuid.New(),
 		EnvironmentID:   uuid.New(),
-		EnvironmentName: "production",
+		EnvironmentSlug: "production",
 		Region:          testRegion,
 		DeploymentID:    uuid.New(),
 		PlacementStatus: status,

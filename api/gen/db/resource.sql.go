@@ -336,7 +336,7 @@ func (q *Queries) ListLatestResourceDeployments(ctx context.Context, resourceID 
 const listRegionStatusesForResources = `-- name: ListRegionStatusesForResources :many
 SELECT l.resource_id,
        l.environment_id,
-       e.name AS environment_name,
+       e.slug AS environment_slug,
        l.region,
        l.cluster_id,
        l.deployment_id,
@@ -370,7 +370,7 @@ JOIN clusters c ON c.id = l.cluster_id
 LEFT JOIN placements p ON p.resource_id = l.resource_id AND p.environment_id = l.environment_id
     AND p.cluster_id = l.cluster_id AND NOT p.desired_deleted
 WHERE l.resource_id = ANY($2::uuid[])
-ORDER BY l.resource_id, e.name, l.region
+ORDER BY l.resource_id, e.slug, l.region
 `
 
 type ListRegionStatusesForResourcesParams struct {
@@ -381,7 +381,7 @@ type ListRegionStatusesForResourcesParams struct {
 type ListRegionStatusesForResourcesRow struct {
 	ResourceID        uuid.UUID       `json:"resourceId"`
 	EnvironmentID     uuid.UUID       `json:"environmentId"`
-	EnvironmentName   string          `json:"environmentName"`
+	EnvironmentSlug   string          `json:"environmentSlug"`
 	Region            string          `json:"region"`
 	ClusterID         uuid.UUID       `json:"clusterId"`
 	DeploymentID      uuid.UUID       `json:"deploymentId"`
@@ -412,7 +412,7 @@ func (q *Queries) ListRegionStatusesForResources(ctx context.Context, arg ListRe
 		if err := rows.Scan(
 			&i.ResourceID,
 			&i.EnvironmentID,
-			&i.EnvironmentName,
+			&i.EnvironmentSlug,
 			&i.Region,
 			&i.ClusterID,
 			&i.DeploymentID,

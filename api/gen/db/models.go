@@ -773,8 +773,8 @@ type DeploymentRollout struct {
 type Environment struct {
 	ID          uuid.UUID `json:"id"`
 	WorkspaceID uuid.UUID `json:"workspaceId"`
+	Slug        string    `json:"slug"`
 	Name        string    `json:"name"`
-	DisplayName string    `json:"displayName"`
 	Description *string   `json:"description"`
 	CreatedBy   uuid.UUID `json:"createdBy"`
 	Revision    int64     `json:"revision"`

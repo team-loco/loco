@@ -49,7 +49,7 @@ func (cp *controlPlane) checkUpgrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	cp.psql(t, string(writer), "-v", "resource="+secretResource, "-v", "token="+token)
-	environment := cp.psql(t, "SELECT id FROM environments WHERE name = 'production' AND workspace_id = "+
+	environment := cp.psql(t, "SELECT id FROM environments WHERE slug = 'production' AND workspace_id = "+
 		"(SELECT workspace_id FROM resources WHERE id = '"+secretResource+"')")
 	cp.secrets = secretWriter{cp: cp, token: token, environment: environment}
 

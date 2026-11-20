@@ -141,13 +141,13 @@ export function EventsView() {
 				<QueryBar valueCounts={valueCounts} />
 				<ObsHero
 					view="events"
-					title={environment === undefined ? "No events yet" : `No events yet in ${environment.displayName}`}
+					title={environment === undefined ? "No events yet" : `No events yet in ${environment.name}`}
 					body="Deploys, restarts, failed health checks and scaling show up here as they happen."
 					action={
 						<>
 							<Button
 								nativeButton={false}
-								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.name } : {})} />}
+								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.slug } : {})} />}
 							>
 								<PlusIcon />
 								New resource

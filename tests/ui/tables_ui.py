@@ -45,17 +45,12 @@ def seed():
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]
-    if any(env["name"] == "staging" for env in environments):
+    if any(env["slug"] == "staging" for env in environments):
         return
-    staging = call(
-        state,
-        "loco.environment.v1.EnvironmentService/CreateEnvironment",
-        {"workspaceId": workspace, "name": "staging"},
-    )["environmentId"]
     call(
         state,
-        "loco.environment.v1.EnvironmentService/UpdateEnvironment",
-        {"environmentId": staging, "displayName": "Staging EU West"},
+        "loco.environment.v1.EnvironmentService/CreateEnvironment",
+        {"workspaceId": workspace, "name": "Staging EU West", "slug": "staging"},
     )
     service = {
         "routing": {"port": 8080},
@@ -89,7 +84,7 @@ def seed():
             for name in (LONG_NAME, "api", "web")
         ],
     )
-    production = next(e["id"] for e in environments if e["name"] == "production")
+    production = next(e["id"] for e in environments if e["slug"] == "production")
     owner = state["users"]["owner"]["id"]
     sql(
         state,

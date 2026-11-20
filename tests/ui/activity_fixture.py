@@ -77,8 +77,8 @@ def prepare_activity(state):
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]
-    production = next(e["id"] for e in environments if e["name"] == "production")
-    staging = next(e["id"] for e in environments if e["name"] == "staging")
+    production = next(e["id"] for e in environments if e["slug"] == "production")
+    staging = next(e["id"] for e in environments if e["slug"] == "staging")
     sql(
         state,
         f"""INSERT INTO events(type,org_id,workspace_id,resource_id,environment_id,actor_type,actor_id)

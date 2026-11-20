@@ -186,5 +186,5 @@ func servedDomain(ctx context.Context, t cmdutil.Target, region string) (string,
 			return domain.GetDomain(), nil
 		}
 	}
-	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.Environment.GetName())
+	return "", fmt.Errorf("%w: %s in %s", errNoPlatformDomain, region, t.Environment.GetSlug())
 }

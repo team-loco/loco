@@ -127,7 +127,7 @@ func newFakePlatform() *fakePlatform {
 		environments: []*environmentv1.Environment{{
 			Id:          fakeEnvironmentID,
 			WorkspaceId: fakeWorkspaceID,
-			Name:        fakeEnvironmentName,
+			Slug:        fakeEnvironmentName,
 		}},
 		polls:                map[string]int{},
 		outcome:              outcomeSucceeded,
@@ -176,13 +176,13 @@ func (p *fakePlatform) addResource(name string) {
 
 func (p *fakePlatform) addEnvironment(name string) {
 	id := fmt.Sprintf("00000000-0000-7000-8000-0000000e%04d", len(p.environments)+1)
-	env := &environmentv1.Environment{Id: id, WorkspaceId: fakeWorkspaceID, Name: name}
+	env := &environmentv1.Environment{Id: id, WorkspaceId: fakeWorkspaceID, Slug: name}
 	p.environments = append(p.environments, env)
 }
 
 func (p *fakePlatform) environmentID(name string) (string, bool) {
 	for _, env := range p.environments {
-		if env.GetName() == name {
+		if env.GetSlug() == name {
 			return env.GetId(), true
 		}
 	}

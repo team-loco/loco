@@ -46,7 +46,7 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("restart service %q: %w", args[0], err)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Restarting service %s in %s\n", args[0], target.Environment.GetName())
+			fmt.Fprintf(cmd.OutOrStdout(), "Restarting service %s in %s\n", args[0], target.Environment.GetSlug())
 			return nil
 		},
 	}

@@ -2,7 +2,7 @@
 title: "Environments"
 ---
 
-An environment separates an application's configuration, secrets and deployment history within a workspace. Each new workspace starts with an environment named `production`. Add environments with names such as `staging` or `preview` in workspace settings; names do not select a cluster tier. An environment name is 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit. The name is fixed once the environment exists, since `loco.yaml`, `--env` and dashboard links refer to it. The dashboard shows a display name, which starts as the name and can be changed in workspace settings. Select the API instance first, then the workspace and environment within that instance.
+An environment separates an application's configuration, secrets and deployment history within a workspace. Each new workspace starts with an environment named `production`. Add environments in workspace settings; their names do not select a cluster tier. An environment has a name and a slug. The name is free text of 1 to 63 characters, such as `Staging EU`, which the dashboard shows and workspace settings can change. The slug is 1 to 63 lowercase letters, digits and hyphens, starting and ending with a letter or digit, such as `staging-eu`; `localhost` and `resource-<UUID>` are reserved. The dashboard derives it from the name, dropping accents, and shows it before the environment is created. `loco.yaml` `environments` keys, `--env`, `LOCO_ENV` and dashboard links use the slug, and it is fixed once the environment exists. Names are unique within a workspace regardless of case, and so are slugs. Select the API instance first, then the workspace and environment within that instance.
 
 ## Loco's hosted endpoints
 

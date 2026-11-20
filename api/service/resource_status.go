@@ -62,7 +62,7 @@ func (s *ResourceServer) environmentStatuses(
 		if current == nil || currentResource != row.ResourceID || current.GetEnvironmentId() != environmentID {
 			current = &resourcev1.EnvironmentStatus{
 				EnvironmentId:   environmentID,
-				EnvironmentName: row.EnvironmentName,
+				EnvironmentSlug: row.EnvironmentSlug,
 			}
 			currentResource = row.ResourceID
 			statuses[row.ResourceID] = append(statuses[row.ResourceID], current)

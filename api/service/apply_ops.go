@@ -280,7 +280,7 @@ func (a *applier) deploy(
 		resourceSpec:    &resourcev1.ResourceSpec{Spec: &resourcev1.ResourceSpec_Service{Service: spec}},
 		hostname:        hostname,
 		environmentID:   a.env.ID,
-		environmentName: a.env.Name,
+		environmentName: a.env.Slug,
 		defaults:        a.defaults,
 	}
 

@@ -73,7 +73,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetName())
+			slog.Debug("scaling service", "resource_id", resource.GetId(), "name", name, "environment", env.GetSlug())
 
 			var replicasPtr *int32
 			if replicas != -1 {
@@ -91,7 +91,7 @@ Examples:
 			}
 
 			var regionPtr *string
-			where := env.GetName()
+			where := env.GetSlug()
 			if region != "" {
 				regionPtr = &region
 				where += " (" + region + ")"

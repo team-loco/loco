@@ -367,7 +367,7 @@ export function MetricsView() {
 						<>
 							<Button
 								nativeButton={false}
-								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.name } : {})} />}
+								render={<Link to={newResourcePath(orgId, workspaceId, environment ? { env: environment.slug } : {})} />}
 							>
 								<PlusIcon />
 								New resource

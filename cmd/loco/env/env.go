@@ -99,7 +99,7 @@ func setSecrets(ctx context.Context, cmd *cobra.Command, values map[string]strin
 			strings.Join(slices.Compact(names), ", "),
 			strings.Join(regions, ", "),
 			service.GetSlug(),
-			t.Environment.GetName(),
+			t.Environment.GetSlug(),
 		)
 	}
 	return nil

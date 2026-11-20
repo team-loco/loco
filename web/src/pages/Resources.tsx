@@ -79,7 +79,7 @@ export function Resources() {
 	const setView = (next: ResourceView) => {
 		void setParams({ view: next }, { history: "replace" });
 	};
-	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.name });
+	const serviceHref = newResourcePath(orgId, workspaceId, active === undefined ? {} : { env: active.slug });
 
 	const body = (() => {
 		if (data.error !== null) {

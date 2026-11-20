@@ -48,7 +48,7 @@ func ResolveEnvironment(
 	names := make([]string, 0, len(environments))
 	var byID *environmentv1.Environment
 	for _, env := range environments {
-		envName := env.GetName()
+		envName := env.GetSlug()
 		if name != "" && envName == name {
 			return env, nil
 		}
@@ -77,7 +77,7 @@ func ResolveEnvironment(
 
 	options := make([]ui.SelectOption, len(environments))
 	for i, env := range environments {
-		label := env.GetName()
+		label := env.GetSlug()
 		id := env.GetId()
 		options[i] = ui.SelectOption{Label: label, Description: env.GetDescription(), Value: id}
 	}

@@ -86,7 +86,7 @@ func (p *Platform) newWorkspace(t *testing.T, orgID, orgName, name string) *Work
 	w := &Workspace{p: p, OrgID: orgID, OrgName: orgName, ID: created.GetWorkspaceId(), Name: name,
 		Home: t.TempDir()}
 	for _, environment := range environments.GetEnvironments() {
-		if environment.GetName() == Production {
+		if environment.GetSlug() == Production {
 			w.EnvironmentID = environment.GetId()
 		}
 	}

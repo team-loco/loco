@@ -404,7 +404,7 @@ function DraftPanel({
 				resourceHref={
 					deployment.resourceId === undefined
 						? undefined
-						: resourcePath(orgId, workspaceId, deployment.resourceId, { env: env.name })
+						: resourcePath(orgId, workspaceId, deployment.resourceId, { env: env.slug })
 				}
 				tried={tried}
 				healthOpen={healthOpen}
@@ -434,7 +434,7 @@ function DraftPanel({
 				onDeployed={(resourceId) => {
 					setSecretValues(new Map());
 					store.discard(draft.id);
-					void navigate(resourcePath(orgId, workspaceId, resourceId, { env: env.name }));
+					void navigate(resourcePath(orgId, workspaceId, resourceId, { env: env.slug }));
 				}}
 				onDiscard={() => {
 					setDiscarding(true);
@@ -631,7 +631,7 @@ function ServiceForm({
 				</div>
 				<DrawerSection title="Regions">
 					{regionNames.length === 0 ? (
-						<span className="text-[13px] text-fg3">No cluster serves {env.displayName} yet.</span>
+						<span className="text-[13px] text-fg3">No cluster serves {env.name} yet.</span>
 					) : (
 						<RegionCards
 							aria-label="Regions"
@@ -681,7 +681,7 @@ function ServiceForm({
 					<span className="-mt-1 text-[12.5px] text-fg3">
 						{form.isPublic
 							? "Gets an HTTPS address on a platform domain."
-							: `Reachable only by other resources in ${env.displayName}.`}
+							: `Reachable only by other resources in ${env.name}.`}
 					</span>
 					<div className="grid grid-cols-1 items-start gap-x-4 gap-y-3 sm:grid-cols-[minmax(0,1fr)_110px]">
 						{form.isPublic && (
@@ -794,7 +794,7 @@ function ServiceForm({
 						<p className="m-0 text-[12.5px] text-fg3">
 							The same service as a <code className="font-mono">loco.yaml</code>. Save it next to your code and run:
 						</p>
-						<CodeBlock>{`loco deploy --env ${env.name}`}</CodeBlock>
+						<CodeBlock>{`loco deploy --env ${env.slug}`}</CodeBlock>
 						<CodeBlock>{locoYaml({ schemaUrl, form })}</CodeBlock>
 					</div>
 				</details>
@@ -802,7 +802,7 @@ function ServiceForm({
 			<SheetFooter className="flex-wrap items-center">
 				<span className="flex min-w-0 flex-1 flex-col gap-0.5 text-[12.5px] text-fg3 max-sm:basis-full">
 					<span>
-						To <span className="font-mono text-fg2">{env.name}</span>
+						To <span className="font-mono text-fg2">{env.slug}</span>
 					</span>
 					<FooterError blocker={resourceId === undefined && tried ? footerBlocker : null} deployError={deployError} />
 				</span>

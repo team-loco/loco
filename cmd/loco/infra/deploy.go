@@ -138,7 +138,7 @@ func runDeploy(cmd *cobra.Command, names []string) error {
 		filePath = "current directory"
 		names = nil
 	}
-	environment := t.Environment.GetName()
+	environment := t.Environment.GetSlug()
 	services, err := resolveServices(file, filePath, environment)
 	if err != nil {
 		return err

@@ -581,7 +581,7 @@ func setFakeReplicas(platform *fakePlatform, service string, silent bool) {
 		if res.GetSlug() == service {
 			res.EnvironmentStatuses = []*resourcev1.EnvironmentStatus{
 				{
-					EnvironmentName: fakeEnvironmentName,
+					EnvironmentSlug: fakeEnvironmentName,
 					Status:          region.GetStatus(),
 					StatusSince:     timestamppb.New(now.Add(-2 * time.Hour)),
 					Regions:         []*resourcev1.RegionStatus{region},

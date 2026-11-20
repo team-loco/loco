@@ -26,7 +26,7 @@ production = next(
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace},
     )["environments"]
-    if env["name"] == "production"
+    if env["slug"] == "production"
 )
 NAME = "responsive-resource-with-a-deliberately-long-name"
 resource = evidence.seed_resources(

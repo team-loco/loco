@@ -54,15 +54,17 @@ CREATE TABLE
     environments (
         id UUID PRIMARY KEY DEFAULT uuidv7 (),
         workspace_id UUID NOT NULL REFERENCES workspaces (id) ON DELETE CASCADE,
-        name TEXT NOT NULL CHECK (name ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
-        display_name TEXT NOT NULL CHECK (char_length(display_name) <= 63 AND display_name ~ '\S'),
+        slug TEXT NOT NULL CHECK (slug ~ '^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$'),
+        name TEXT NOT NULL CHECK (char_length(name) <= 63 AND name ~ '\S'),
         description TEXT,
         created_by UUID NOT NULL,
         revision BIGINT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),
-        UNIQUE (workspace_id, name)
+        UNIQUE (workspace_id, slug)
     );
+
+CREATE UNIQUE INDEX uniq_environments_workspace_lower_name ON environments (workspace_id, lower(name));
 
 CREATE INDEX IF NOT EXISTS idx_environments_workspace_id_created_at ON environments (workspace_id, created_at);
 

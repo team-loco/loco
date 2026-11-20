@@ -43,7 +43,7 @@ def fixture():
         "loco.environment.v1.EnvironmentService/ListEnvironments",
         {"workspaceId": workspace_id},
     )["environments"]
-    production = next(env["id"] for env in environments if env["name"] == "production")
+    production = next(env["id"] for env in environments if env["slug"] == "production")
     staging = call(
         state,
         "loco.environment.v1.EnvironmentService/CreateEnvironment",

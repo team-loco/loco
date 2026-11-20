@@ -29,7 +29,7 @@ const PRODUCTION_ID = "0199d1c2-0000-7000-8000-000000000002";
 
 function environmentStatus(name: string, ...regions: string[]): EnvironmentStatus {
 	return create(EnvironmentStatusSchema, {
-		environmentName: name,
+		environmentSlug: name,
 		regions: regions.map((region) => create(RegionStatusSchema, { region })),
 	});
 }
@@ -198,8 +198,8 @@ describe("tookMs", () => {
 describe("statusEnvironmentId", () => {
 	const resource = create(ResourceSchema, {
 		environmentStatuses: [
-			{ environmentId: "e-prod", environmentName: "production" },
-			{ environmentId: "e-stg", environmentName: "staging" },
+			{ environmentId: "e-prod", environmentSlug: "production" },
+			{ environmentId: "e-stg", environmentSlug: "staging" },
 		],
 	});
 

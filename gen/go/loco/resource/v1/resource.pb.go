@@ -657,7 +657,7 @@ func (x *Resource) GetName() string {
 type EnvironmentStatus struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	EnvironmentId   string                 `protobuf:"bytes,1,opt,name=environment_id,json=environmentId,proto3" json:"environment_id,omitempty"`
-	EnvironmentName string                 `protobuf:"bytes,2,opt,name=environment_name,json=environmentName,proto3" json:"environment_name,omitempty"`
+	EnvironmentSlug string                 `protobuf:"bytes,2,opt,name=environment_slug,json=environmentSlug,proto3" json:"environment_slug,omitempty"`
 	Status          ResourceStatus         `protobuf:"varint,3,opt,name=status,proto3,enum=loco.resource.v1.ResourceStatus" json:"status,omitempty"`
 	Regions         []*RegionStatus        `protobuf:"bytes,4,rep,name=regions,proto3" json:"regions,omitempty"`
 	// When the environment entered its current status: the earliest time a region entered a failing
@@ -705,9 +705,9 @@ func (x *EnvironmentStatus) GetEnvironmentId() string {
 	return ""
 }
 
-func (x *EnvironmentStatus) GetEnvironmentName() string {
+func (x *EnvironmentStatus) GetEnvironmentSlug() string {
 	if x != nil {
-		return x.EnvironmentName
+		return x.EnvironmentSlug
 	}
 	return ""
 }
@@ -2218,7 +2218,7 @@ const file_loco_resource_v1_resource_proto_rawDesc = "" +
 	"\b_partial\"\xae\x02\n" +
 	"\x11EnvironmentStatus\x12%\n" +
 	"\x0eenvironment_id\x18\x01 \x01(\tR\renvironmentId\x12)\n" +
-	"\x10environment_name\x18\x02 \x01(\tR\x0fenvironmentName\x128\n" +
+	"\x10environment_slug\x18\x02 \x01(\tR\x0fenvironmentSlug\x128\n" +
 	"\x06status\x18\x03 \x01(\x0e2 .loco.resource.v1.ResourceStatusR\x06status\x128\n" +
 	"\aregions\x18\x04 \x03(\v2\x1e.loco.resource.v1.RegionStatusR\aregions\x12B\n" +
 	"\fstatus_since\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\vstatusSince\x88\x01\x01B\x0f\n" +
