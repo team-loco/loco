@@ -191,7 +191,7 @@ func install(t *testing.T) *controlPlane {
 			"snapshotAccessKeyIdKey":     snapshots.S3.ExistingSecret.AccessKeyIDKey,
 			"snapshotSecretAccessKeyKey": snapshots.S3.ExistingSecret.SecretAccessKeyKey,
 		}))
-	// helm's status watcher can stop before a fixture is ready, so rollout status waits for each one.
+	// Each fixture is ready once its rollout status returns.
 	for _, fixture := range []string{"deployment/postgres", "deployment/s3"} {
 		c.MustKubectl(t, "-n", cp.namespace, "rollout", "status", fixture, "--timeout", installTimeout.String())
 	}
