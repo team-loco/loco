@@ -176,7 +176,7 @@ func (p *Platform) installWorker(ctx context.Context, images *images, collectors
 			"agent.registryCredentialCheckInterval="+registryCredentialCheckInterval,
 		)
 	}
-	args = append(args, "--wait", "--timeout", rolloutTimeout.String())
+	args = append(args, "--wait=legacy", "--timeout", rolloutTimeout.String())
 	if _, err := p.Command(ctx, "helm", args...); err != nil {
 		return err
 	}

@@ -157,7 +157,7 @@ func install(t *testing.T) *controlPlane {
 		c.Path("charts", "loco-worker", "charts", "gateway-helm-"+worker.Dependencies[gateway].Version+".tgz"),
 		"--namespace", cp.namespace, "--create-namespace",
 		"--values", writeJSON(t, "gateway-helm-values.json", workerValues["gateway-helm"]),
-		"--wait", "--timeout", installTimeout.String())
+		"--wait=legacy", "--timeout", installTimeout.String())
 
 	cp.password = persisted(t, "password", func() string { return platform.RandomHex(24) })
 	applySecret(t, cp.namespace, "fixture-password", map[string]string{passwordKey: cp.password})
@@ -190,11 +190,7 @@ func install(t *testing.T) *controlPlane {
 			"snapshotSecret":             snapshots.S3.ExistingSecret.Name,
 			"snapshotAccessKeyIdKey":     snapshots.S3.ExistingSecret.AccessKeyIDKey,
 			"snapshotSecretAccessKeyKey": snapshots.S3.ExistingSecret.SecretAccessKeyKey,
-		}))
-	// Each fixture is ready once its rollout status returns.
-	for _, fixture := range []string{"deployment/postgres", "deployment/s3"} {
-		c.MustKubectl(t, "-n", cp.namespace, "rollout", "status", fixture, "--timeout", installTimeout.String())
-	}
+		}), "--wait=legacy", "--timeout", installTimeout.String())
 
 	seal := cp.values.OpenBao.Seal.Static.ExistingSecret
 	applySecret(t, cp.namespace, seal.Name, map[string]string{
@@ -252,7 +248,7 @@ func loadImages(t *testing.T) {
 func (cp *controlPlane) upgrade(t *testing.T) {
 	t.Helper()
 	helm(t, "upgrade", "--install", release, c.Path("charts", "loco-control-plane"), "--namespace", cp.namespace,
-		"-f", c.Path("tests", "e2e", "control-plane-values.yaml"), "--wait", "--wait-for-jobs",
+		"-f", c.Path("tests", "e2e", "control-plane-values.yaml"), "--wait=legacy", "--wait-for-jobs",
 		"--timeout", upgradeTimeout.String())
 }
 
